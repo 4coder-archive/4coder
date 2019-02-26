@@ -78,9 +78,9 @@ int_color_from(Application_Links *app, Fancy_Color source){
     return(result);
 }
 
-static bool32
+static b32
 is_valid(Fancy_Color source){
-    bool32 result = !((source.code == 0) && (source.rgba == 0));
+    b32 result = !((source.code == 0) && (source.rgba == 0));
     return(result);
 }
 

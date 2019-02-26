@@ -16,7 +16,7 @@ write_unit(Bind_Helper *helper, Binding_Unit unit){
 }
 
 static Bind_Helper
-begin_bind_helper(void *data, int32_t size){
+begin_bind_helper(void *data, i32 size){
     Bind_Helper result = {};
     result.cursor = (Binding_Unit*)data;
     result.start = result.cursor;
@@ -30,7 +30,7 @@ begin_bind_helper(void *data, int32_t size){
 }
 
 static void
-begin_map(Bind_Helper *helper, int32_t mapid, bool32 replace){
+begin_map(Bind_Helper *helper, i32 mapid, b32 replace){
     if (helper->group != 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_END;
     }
@@ -47,12 +47,12 @@ begin_map(Bind_Helper *helper, int32_t mapid, bool32 replace){
 }
 
 static void
-begin_map(Bind_Helper *helper, int32_t mapid){
+begin_map(Bind_Helper *helper, i32 mapid){
     begin_map(helper, mapid, false);
 }
 
 static void
-restart_map(Bind_Helper *helper, int32_t mapid){
+restart_map(Bind_Helper *helper, i32 mapid){
     begin_map(helper, mapid, true);
 }
 
@@ -98,7 +98,7 @@ bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, Custom_Command_F
 }
 
 static void
-inherit_map(Bind_Helper *helper, int32_t mapid){
+inherit_map(Bind_Helper *helper, i32 mapid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
     Binding_Unit unit = {};
@@ -108,7 +108,7 @@ inherit_map(Bind_Helper *helper, int32_t mapid){
 }
 
 static void
-set_hook(Bind_Helper *helper, int32_t hook_id, Hook_Function *func){
+set_hook(Bind_Helper *helper, i32 hook_id, Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = hook_id;
@@ -224,19 +224,19 @@ set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
     write_unit(helper, unit);
 }
 
-static int32_t
+static i32
 end_bind_helper(Bind_Helper *helper){
     if (helper->header){
-        helper->header->header.total_size = (int32_t)(helper->cursor - helper->start);
+        helper->header->header.total_size = (i32)(helper->cursor - helper->start);
         helper->header->header.error = helper->error;
     }
-    int32_t result = helper->write_total;
+    i32 result = helper->write_total;
     return(result);
 }
 
 static Bind_Buffer
 end_bind_helper_get_buffer(Bind_Helper *helper){
-    int32_t size = end_bind_helper(helper);
+    i32 size = end_bind_helper(helper);
     Bind_Buffer result = {};
     result.data = helper->start;
     result.size = size;
@@ -252,18 +252,18 @@ get_key_code(char *buffer){
 
 ////////////////////////////////
 
-static int32_t
-round_down(int32_t x, int32_t b){
-    int32_t r = 0;
+static i32
+round_down(i32 x, i32 b){
+    i32 r = 0;
     if (x >= 0){
         r = x - (x % b);
     }
     return(r);
 }
 
-static int32_t
-round_up(int32_t x, int32_t b){
-    int32_t r = 0;
+static i32
+round_up(i32 x, i32 b){
+    i32 r = 0;
     if (x >= 0){
         r = x + b - (x % b);
     }
@@ -280,37 +280,37 @@ exec_command(Application_Links *app, Generic_Command cmd){
     exec_command(app, cmd.command);
 }
 
-static int32_t
+static i32
 key_is_unmodified(Key_Event_Data *key){
     int8_t *mods = key->modifiers;
-    int32_t unmodified = (!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
+    i32 unmodified = (!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
     return(unmodified);
 }
 
-static uint32_t
+static u32
 to_writable_character(User_Input in, uint8_t *character){
-    uint32_t result = 0;
+    u32 result = 0;
     if (in.key.character != 0){
         u32_to_utf8_unchecked(in.key.character, character, &result);
     }
     return(result);
 }
 
-static uint32_t
+static u32
 to_writable_character(Key_Event_Data key, uint8_t *character){
-    uint32_t result = 0;
+    u32 result = 0;
     if (key.character != 0){
         u32_to_utf8_unchecked(key.character, character, &result);
     }
     return(result);
 }
 
-static bool32
+static b32
 backspace_utf8(String *str){
-    bool32 result = false;
+    b32 result = false;
     uint8_t *s = (uint8_t*)str->str;
     if (str->size > 0){
-        uint32_t i = str->size-1;
+        u32 i = str->size-1;
         for (; i > 0; --i){
             if (s[i] <= 0x7F || s[i] >= 0xC0){
                 break;
@@ -322,8 +322,8 @@ backspace_utf8(String *str){
     return(result);
 }
 
-static bool32
-query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
+static b32
+query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
     // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
     // start a query bar, but it will be unusual behavior from the point of view of the
     // user, if this command starts intercepting input even though no prompt is shown.
@@ -333,7 +333,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
         return(false);
     }
     
-    bool32 success = true;
+    b32 success = true;
     
     for (;;){
         // NOTE(allen|a3.4.4): This call will block until the user does one of the input
@@ -350,8 +350,8 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
         }
         
         uint8_t character[4];
-        uint32_t length = 0;
-        bool32 good_character = false;
+        u32 length = 0;
+        b32 good_character = false;
         if (key_is_unmodified(&in.key)){
             if (force_number){
                 if (in.key.character >= '0' && in.key.character <= '9'){
@@ -386,18 +386,18 @@ query_user_general(Application_Links *app, Query_Bar *bar, bool32 force_number){
     return(success);
 }
 
-static bool32
+static b32
 query_user_string(Application_Links *app, Query_Bar *bar){
     return(query_user_general(app, bar, false));
 }
 
-static bool32
+static b32
 query_user_number(Application_Links *app, Query_Bar *bar){
     return(query_user_general(app, bar, true));
 }
 
 static char
-buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+buffer_get_char(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char result = ' ';
     *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
     if (pos < buffer->size){
@@ -407,7 +407,7 @@ buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
 }
 
 static Buffer_Identifier
-buffer_identifier(char *str, int32_t len){
+buffer_identifier(char *str, i32 len){
     Buffer_Identifier identifier;
     identifier.name = str;
     identifier.name_len = len;
@@ -425,7 +425,7 @@ buffer_identifier(Buffer_ID id){
 }
 
 static Range
-make_range(int32_t p1, int32_t p2){
+make_range(i32 p1, i32 p2){
     Range range;
     if (p1 < p2){
         range.min = p1;
@@ -439,7 +439,7 @@ make_range(int32_t p1, int32_t p2){
 }
 
 static void
-adjust_all_buffer_wrap_widths(Application_Links *app, int32_t wrap_width, int32_t min_base_width){
+adjust_all_buffer_wrap_widths(Application_Links *app, i32 wrap_width, i32 min_base_width){
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
@@ -459,10 +459,10 @@ get_rect(View_Summary *view){
     rect.line1 = view->cursor.line;
     
     if (rect.line0 > rect.line1){
-        Swap(int32_t, rect.line0, rect.line1);
+        Swap(i32, rect.line0, rect.line1);
     }
     if (rect.char0 > rect.char1){
-        Swap(int32_t, rect.char0, rect.char1);
+        Swap(i32, rect.char0, rect.char1);
     }
     
     return(rect);
@@ -473,33 +473,33 @@ get_line_x_rect(View_Summary *view){
     i32_Rect rect = {};
     
     if (view->unwrapped_lines){
-        rect.x0 = (int32_t)view->mark.unwrapped_x;
-        rect.x1 = (int32_t)view->cursor.unwrapped_x;
+        rect.x0 = (i32)view->mark.unwrapped_x;
+        rect.x1 = (i32)view->cursor.unwrapped_x;
     }
     else{
-        rect.x0 = (int32_t)view->mark.wrapped_x;
-        rect.x1 = (int32_t)view->cursor.wrapped_x;
+        rect.x0 = (i32)view->mark.wrapped_x;
+        rect.x1 = (i32)view->cursor.wrapped_x;
     }
     rect.y0 = view->mark.line;
     rect.y1 = view->cursor.line;
     
     if (rect.y0 > rect.y1){
-        Swap(int32_t, rect.y0, rect.y1);
+        Swap(i32, rect.y0, rect.y1);
     }
     if (rect.x0 > rect.x1){
-        Swap(int32_t, rect.x0, rect.x1);
+        Swap(i32, rect.x0, rect.x1);
     }
     
     return(rect);
 }
 
 static View_Summary
-get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
+get_first_view_with_buffer(Application_Links *app, i32 buffer_id){
     View_Summary result = {};
     View_Summary test = {};
     
     if (buffer_id != 0){
-        uint32_t access = AccessAll;
+        u32 access = AccessAll;
         for(test = get_view_first(app, access);
             test.exists;
             get_view_next(app, &test, access)){
@@ -516,10 +516,10 @@ get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
     return(result);
 }
 
-static bool32
+static b32
 open_file(Application_Links *app, Buffer_Summary *buffer_out,
-          char *filename, int32_t filename_len, bool32 background, bool32 never_new){
-    bool32 result = false;
+          char *filename, i32 filename_len, b32 background, b32 never_new){
+    b32 result = false;
     Buffer_Summary buffer = get_buffer_by_name(app, filename, filename_len, AccessProtected|AccessHidden);
     
     if (buffer.exists){
@@ -580,10 +580,10 @@ buffer_identifier_to_buffer_summary(Application_Links *app, Buffer_Identifier id
     return(buffer);
 }
 
-static bool32
+static b32
 view_open_file(Application_Links *app, View_Summary *view,
-               char *filename, int32_t filename_len, bool32 never_new){
-    bool32 result = false;
+               char *filename, i32 filename_len, b32 never_new){
+    b32 result = false;
     
     if (view != 0){
         Buffer_Summary buffer = {};
@@ -597,7 +597,7 @@ view_open_file(Application_Links *app, View_Summary *view,
 }
 
 static void
-get_view_prev(Application_Links *app, View_Summary *view, uint32_t access){
+get_view_prev(Application_Links *app, View_Summary *view, u32 access){
     if (view->exists){
         View_ID original_id = view->view_id;
         View_ID check_id = original_id;
@@ -635,7 +635,7 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
 }
 
 static View_Summary
-get_view_last(Application_Links *app, uint32_t access){
+get_view_last(Application_Links *app, u32 access){
     View_Summary view = {};
     view.exists = true;
     get_view_prev(app, &view, access);
@@ -646,7 +646,7 @@ get_view_last(Application_Links *app, uint32_t access){
 }
 
 static void
-get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, uint32_t access){
+get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, u32 access){
     get_view_next(app, view, access);
     if (!view->exists){
         *view = get_view_first(app, access);
@@ -654,7 +654,7 @@ get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, uint
 }
 
 static void
-get_prev_view_looped_all_panels(Application_Links *app, View_Summary *view, uint32_t access){
+get_prev_view_looped_all_panels(Application_Links *app, View_Summary *view, u32 access){
     get_view_prev(app, view, access);
     if (!view->exists){
         *view = get_view_last(app, access);
@@ -672,9 +672,9 @@ refresh_view(Application_Links *app, View_Summary *view){
 }
 
 // TODO(allen): Setup buffer seeking to do character_pos and get View_Summary out of this parameter list.
-static int32_t
-character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t character_pos){
-    int32_t result = 0;
+static i32
+character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 character_pos){
+    i32 result = 0;
     Full_Cursor cursor = {};
     if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
         result = cursor.pos;
@@ -705,19 +705,19 @@ get_view_range(View_Summary *view){
     return(make_range(view->cursor.pos, view->mark.pos));
 }
 
-static bool32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str,
+static b32
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, String *str,
           Partial_Cursor *start_out, Partial_Cursor *one_past_last_out){
     Partial_Cursor begin = {};
     Partial_Cursor end = {};
     
-    bool32 success = false;
+    b32 success = false;
     if (buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &begin)){
         if (buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end)){
             if (begin.line == line){
                 if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
-                    int32_t size = (end.pos - begin.pos);
-                    int32_t alloc_size = size + 1;
+                    i32 size = (end.pos - begin.pos);
+                    i32 alloc_size = size + 1;
                     char *memory = push_array(part, char, alloc_size);
                     if (memory != 0){
                         *str = make_string(memory, 0, alloc_size);
@@ -737,17 +737,17 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32
     return(success);
 }
 
-static bool32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, String *str){
+static b32
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, String *str){
     Partial_Cursor ignore = {};
     return(read_line(app, part, buffer, line, str, &ignore, &ignore));
 }
 
 static String
-scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, int32_t start, int32_t end){
+scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, i32 start, i32 end){
     String result = {};
     if (start <= end){
-        int32_t len = end - start;
+        i32 len = end - start;
         result = string_push(scratch, len);
         if (buffer_read_range(app, buffer, start, end, result.str)){
             result.size = len;
@@ -762,9 +762,9 @@ scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, Cpp_T
     return(result);
 }
 
-static int32_t
-buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t line){
-    int32_t result = buffer->size;
+static i32
+buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, i32 line){
+    i32 result = buffer->size;
     if (line <= buffer->line_count){
         Partial_Cursor partial_cursor = {};
         buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &partial_cursor);
@@ -773,9 +773,9 @@ buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t li
     return(result);
 }
 
-static int32_t
-buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line){
-    int32_t result = buffer->size;
+static i32
+buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, i32 line){
+    i32 result = buffer->size;
     if (line <= buffer->line_count){
         Partial_Cursor partial_cursor = {};
         buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &partial_cursor);
@@ -784,16 +784,16 @@ buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t line
     return(result);
 }
 
-static int32_t
-buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     Partial_Cursor partial_cursor = {};
     buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
     return(partial_cursor.line);
 }
 
 static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line, int32_t *line_start_out = 0){
-    int32_t line_start = buffer_get_line_start(app, buffer, line);
+get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, i32 line, i32 *line_start_out = 0){
+    i32 line_start = buffer_get_line_start(app, buffer, line);
     Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
     
     if (get_token.in_whitespace_after_token){
@@ -814,10 +814,10 @@ get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Toke
 
 ////////////////////////////////
 
-static bool32
+static b32
 init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *buffer,
-                  int32_t pos, char *data, uint32_t size){
-    bool32 result = false;
+                  i32 pos, char *data, u32 size){
+    b32 result = false;
     
     refresh_buffer(app, buffer);
     if (0 <= pos && pos < buffer->size && size > 0){
@@ -849,11 +849,11 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *b
     return(result);
 }
 
-static bool32
+static b32
 forward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
     Buffer_Summary *buffer = chunk->buffer;
-    bool32 result = 0;
+    b32 result = 0;
     
     refresh_buffer(app, buffer);
     if (chunk->end < buffer->size){
@@ -885,11 +885,11 @@ forward_stream_chunk(Stream_Chunk *chunk){
     return(result);
 }
 
-static bool32
+static b32
 backward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
     Buffer_Summary *buffer = chunk->buffer;
-    bool32 result = 0;
+    b32 result = 0;
     
     refresh_buffer(app, buffer);
     if (chunk->start > 0){
@@ -923,14 +923,14 @@ backward_stream_chunk(Stream_Chunk *chunk){
 
 ////////////////////////////////
 
-static bool32
+static b32
 init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_Summary *buffer,
-                   int32_t pos, Cpp_Token *data, int32_t count){
-    bool32 result = false;
+                   i32 pos, Cpp_Token *data, i32 count){
+    b32 result = false;
     
     refresh_buffer(app, buffer);
     
-    int32_t token_count = buffer_token_count(app, buffer);
+    i32 token_count = buffer_token_count(app, buffer);
     if (buffer->tokens_are_ready && pos >= 0 && pos < token_count && count > 0){
         stream->app = app;
         stream->buffer = buffer;
@@ -971,11 +971,11 @@ end_temp_stream_token(Stream_Tokens_DEP *stream, Stream_Tokens_DEP temp){
     }
 }
 
-static bool32
+static b32
 forward_stream_tokens(Stream_Tokens_DEP *stream){
     Application_Links *app = stream->app;
     Buffer_Summary *buffer = stream->buffer;
-    bool32 result = false;
+    b32 result = false;
     
     refresh_buffer(app, buffer);
     if (stream->end < stream->token_count){
@@ -996,11 +996,11 @@ forward_stream_tokens(Stream_Tokens_DEP *stream){
     return(result);
 }
 
-static bool32
+static b32
 backward_stream_tokens(Stream_Tokens_DEP *stream){
     Application_Links *app = stream->app;
     Buffer_Summary *buffer = stream->buffer;
-    bool32 result = false;
+    b32 result = false;
     
     refresh_buffer(app, buffer);
     if (stream->start > 0){
@@ -1048,7 +1048,7 @@ make_token_iterator(Token_Range range, Cpp_Token *token){
 }
 
 static Token_Iterator
-make_token_iterator(Token_Range range, int32_t index){
+make_token_iterator(Token_Range range, i32 index){
     return(make_token_iterator(range, range.first + index));
 }
 
@@ -1070,12 +1070,12 @@ token_iterator_current(Token_Iterator *iterator){
     return(token_range_check(iterator->range, iterator->token));
 }
 
-static int32_t
+static i32
 token_iterator_current_index(Token_Iterator *iterator){
-    int32_t index = -1;
+    i32 index = -1;
     Cpp_Token *token = token_iterator_current(iterator);
     if (token != 0 && iterator->range.first <= token && token <= iterator->range.one_past_last){
-        index = (int32_t)(token - iterator->range.first);
+        index = (i32)(token - iterator->range.first);
     }
     return(index);
 }
@@ -1123,10 +1123,10 @@ token_iterator_goto_prev_raw(Token_Iterator *iterator){
 }
 
 static String
-token_get_lexeme(Application_Links *app, Buffer_Summary *buffer, Cpp_Token *token, char *out_buffer, int32_t out_buffer_size){
+token_get_lexeme(Application_Links *app, Buffer_Summary *buffer, Cpp_Token *token, char *out_buffer, i32 out_buffer_size){
     String result = {};
     if (out_buffer_size > 1){
-        int32_t read_size = token->size;
+        i32 read_size = token->size;
         if (read_size >= out_buffer_size){
             read_size = out_buffer_size - 1;
         }
@@ -1155,7 +1155,7 @@ token_get_lexeme(Application_Links *app, Partition *part, Buffer_Summary *buffer
 ////////////////////////////////
 
 static String
-get_query_string(Application_Links *app, char *query_str, char *string_space, int32_t space_size){
+get_query_string(Application_Links *app, char *query_str, char *string_space, i32 space_size){
     Query_Bar bar;
     bar.prompt = make_string_slowly(query_str);
     bar.string = make_string_cap(string_space, 0, space_size);
@@ -1171,7 +1171,7 @@ get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary 
     Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessProtected);
     if (!buffer.exists) return(str);
     Range range = get_view_range(view);
-    int32_t query_length = range.max - range.min;
+    i32 query_length = range.max - range.min;
     if (query_length != 0){
         char *query_space = push_array(arena, char, query_length);
         if (buffer_read_range(app, &buffer, range.min, range.max, query_space)){
@@ -1182,12 +1182,12 @@ get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary 
 }
 
 static String
-get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char *space, int32_t capacity){
+get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, char *space, i32 capacity){
     String result = {};
     Cpp_Get_Token_Result get_result = {};
-    bool32 success = buffer_get_token_index(app, buffer, pos, &get_result);
+    b32 success = buffer_get_token_index(app, buffer, pos, &get_result);
     if (success && !get_result.in_whitespace_after_token){
-        int32_t size = get_result.token_one_past_last - get_result.token_start;
+        i32 size = get_result.token_one_past_last - get_result.token_start;
         if (size > 0 && size <= capacity){
             success = buffer_read_range(app, buffer, get_result.token_start, get_result.token_one_past_last, space);
             if (success){
@@ -1333,9 +1333,9 @@ append_int_to_str_left_pad(String *str, i32 x, i32 minimum_width, char pad_char)
     append_int_to_str(str, x);
 }
 
-static bool32
+static b32
 lexer_keywords_default_init(Partition *arena, Cpp_Keyword_Table *kw_out, Cpp_Keyword_Table *pp_out){
-    bool32 success = false;
+    b32 success = false;
     umem_4tech kw_size = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
     umem_4tech pp_size = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
     void *kw_mem = push_array(arena, char, (i32_4tech)kw_size);
@@ -1353,7 +1353,7 @@ lexer_keywords_default_init(Partition *arena, Cpp_Keyword_Table *kw_out, Cpp_Key
 static String
 get_hot_directory(Application_Links *app, Partition *part){
     Temp_Memory temp = begin_temp_memory(part);
-    int32_t space_cap = part_remaining(part);
+    i32 space_cap = part_remaining(part);
     char *space = push_array(part, char, space_cap);
     String hot_dir = make_string_cap(space, 0, space_cap);
     hot_dir.size = directory_get_hot(app, hot_dir.str, hot_dir.memory_size);
@@ -1365,7 +1365,7 @@ get_hot_directory(Application_Links *app, Partition *part){
 
 static String
 get_hot_directory(Application_Links *app, Arena *arena){
-    int32_t space_required = directory_get_hot(app, 0, 0);
+    i32 space_required = directory_get_hot(app, 0, 0);
     char *space = push_array(arena, char, space_required);
     String hot_dir = make_string_cap(space, 0, space_required);
     hot_dir.size = directory_get_hot(app, hot_dir.str, hot_dir.memory_size);
@@ -1379,7 +1379,7 @@ dump_file_handle(Partition *arena, FILE *file){
     String str = {};
     if (file != 0){
         fseek(file, 0, SEEK_END);
-        int32_t size = ftell(file);
+        i32 size = ftell(file);
         char *mem = push_array(arena, char, size + 1);
         push_align(arena, 8);
         if (mem != 0){
@@ -1396,7 +1396,7 @@ static File_Handle_Path
 open_file_search_up_path(Partition *arena, String path, String file_name){
     File_Handle_Path result = {};
     
-    int32_t cap = path.size + file_name.size + 2;
+    i32 cap = path.size + file_name.size + 2;
     char *space = push_array(arena, char, cap);
     push_align(arena, 8);
     String name_str = make_string_cap(space, 0, cap);
@@ -1406,7 +1406,7 @@ open_file_search_up_path(Partition *arena, String path, String file_name){
     }
     
     for (;;){
-        int32_t base_size = name_str.size;
+        i32 base_size = name_str.size;
         append(&name_str, file_name);
         terminate_with_null(&name_str);
         result.file = fopen(name_str.str, "rb");
@@ -1430,7 +1430,7 @@ open_file_try_current_path_then_binary_path(Application_Links *app, char *file_n
     FILE *file = fopen(file_name, "rb");
     if (file == 0){
         char space[256];
-        int32_t size = get_4ed_path(app, space, sizeof(space));
+        i32 size = get_4ed_path(app, space, sizeof(space));
         String str = make_string_cap(space, size, sizeof(space));
         append(&str, "/");
         append(&str, file_name);
@@ -1496,14 +1496,14 @@ dump_file_search_up_path(Partition *arena, String path, String file_name){
 }
 
 static void
-sort_pairs_by_key__quick(Sort_Pair_i32 *pairs, int32_t first, int32_t one_past_last){
-    int32_t dif = one_past_last - first;
+sort_pairs_by_key__quick(Sort_Pair_i32 *pairs, i32 first, i32 one_past_last){
+    i32 dif = one_past_last - first;
     if (dif >= 2){
-        int32_t pivot = one_past_last - 1;
+        i32 pivot = one_past_last - 1;
         Sort_Pair_i32 pivot_pair = pairs[pivot];
-        int32_t j = first;
-        bool32 interleave = false;
-        for (int32_t i = first; i < pivot; i += 1){
+        i32 j = first;
+        b32 interleave = false;
+        for (i32 i = first; i < pivot; i += 1){
             Sort_Pair_i32 pair = pairs[i];
             if (pair.key < pivot_pair.key){
                 pairs[i] = pairs[j];
@@ -1527,22 +1527,22 @@ sort_pairs_by_key__quick(Sort_Pair_i32 *pairs, int32_t first, int32_t one_past_l
 }
 
 static void
-sort_pairs_by_key(Sort_Pair_i32 *pairs, int32_t count){
+sort_pairs_by_key(Sort_Pair_i32 *pairs, i32 count){
     sort_pairs_by_key__quick(pairs, 0, count);
 }
 
 static Range_Array
-get_ranges_of_duplicate_keys(Partition *arena, int32_t *keys, int32_t stride, int32_t count){
+get_ranges_of_duplicate_keys(Partition *arena, i32 *keys, i32 stride, i32 count){
     Range_Array result = {};
     result.ranges = push_array(arena, Range, 0);
     uint8_t *ptr = (uint8_t*)keys;
-    int32_t start_i = 0;
-    for (int32_t i = 1; i <= count; i += 1){
-        bool32 is_end = false;
+    i32 start_i = 0;
+    for (i32 i = 1; i <= count; i += 1){
+        b32 is_end = false;
         if (i == count){
             is_end = true;
         }
-        else if (*(int32_t*)(ptr + i*stride) != *(int32_t*)(ptr + start_i*stride)){
+        else if (*(i32*)(ptr + i*stride) != *(i32*)(ptr + start_i*stride)){
             is_end = true;
         }
         if (is_end){
@@ -1552,7 +1552,7 @@ get_ranges_of_duplicate_keys(Partition *arena, int32_t *keys, int32_t stride, in
             start_i = i;
         }
     }
-    result.count = (int32_t)(push_array(arena, Range, 0) - result.ranges);
+    result.count = (i32)(push_array(arena, Range, 0) - result.ranges);
     return(result);
 }
 
@@ -1575,7 +1575,7 @@ no_mark_snap_to_cursor_if_shift(Application_Links *app, View_ID view_id){
     }
 }
 
-static bool32
+static b32
 view_has_highlighted_range(Application_Links *app, View_ID view_id){
     if (fcoder_mode == FCoderMode_NotepadLike){
         View_Summary view = get_view(app, view_id, AccessAll);
@@ -1584,7 +1584,7 @@ view_has_highlighted_range(Application_Links *app, View_ID view_id){
     return(false);
 }
 
-static bool32
+static b32
 if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_id){
     if (view_has_highlighted_range(app, view_id)){
         View_Summary view = get_view(app, view_id, AccessAll);
@@ -1608,13 +1608,13 @@ begin_notepad_mode(Application_Links *app){
 
 ////////////////////////////////
 
-static bool32
+static b32
 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){
     return(view_set_split(app, view, ViewSplitKind_Ratio, t));
 }
 
-static bool32
-view_set_split_pixel_size(Application_Links *app, View_Summary *view, int32_t t){
+static b32
+view_set_split_pixel_size(Application_Links *app, View_Summary *view, i32 t){
     return(view_set_split(app, view, ViewSplitKind_FixedPixels, (float)t));
 }
 
@@ -1633,7 +1633,7 @@ get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_In
 ////////////////////////////////
 
 static void
-view_buffer_set(Application_Links *app, Buffer_ID *buffers, int32_t count){
+view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 count){
     // TODO(allen): do(implement view_buffer_set)
 }
 

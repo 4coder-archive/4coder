@@ -11,14 +11,14 @@
 //
 //  There is no requirement that a custom build system in 4coder actually use the
 // directory given by this function.
-static int32_t
+static i32
 get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
-    int32_t result = BuildDir_None;
+    i32 result = BuildDir_None;
     
     if (buffer != 0 && buffer->file_name != 0){
         if (!match_cc(buffer->file_name, buffer->buffer_name)){
             char *file_name = buffer->file_name;
-            int32_t file_name_len = buffer->file_name_len;
+            i32 file_name_len = buffer->file_name_len;
             String dir = make_string_cap(file_name, file_name_len, file_name_len+1);
             remove_last_folder(&dir);
             append_ss(dir_out, dir);
@@ -27,8 +27,8 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     }
     
     if (!result){
-        int32_t len = directory_get_hot(app, dir_out->str,
-                                        dir_out->memory_size - dir_out->size);
+        i32 len = directory_get_hot(app, dir_out->str,
+                                    dir_out->memory_size - dir_out->size);
         if (dir_out->size + len < dir_out->memory_size){
             dir_out->size += len;
             result = BuildDir_AtHot;
@@ -39,13 +39,13 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
 }
 
 // TODO(allen): Better names for the "standard build search" family.
-static int32_t
+static i32
 standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer,
-                      String *dir, String *command, bool32 perform_backup, bool32 use_path_in_command, String filename, String command_name){
-    int32_t result = false;
+                      String *dir, String *command, b32 perform_backup, b32 use_path_in_command, String filename, String command_name){
+    i32 result = false;
     
     for(;;){
-        int32_t old_size = dir->size;
+        i32 old_size = dir->size;
         append_ss(dir, filename);
         
         if (file_exists(app, dir->str, dir->size)){
@@ -97,24 +97,24 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
 #if defined(IS_WINDOWS)
 
 // NOTE(allen): Build search rule for windows.
-static int32_t
+static i32
 execute_standard_build_search(Application_Links *app, View_Summary *view,
                               Buffer_Summary *active_buffer,
-                              String *dir, String *command, int32_t perform_backup){
-    int32_t result = standard_build_search(app, view, active_buffer, dir, command, perform_backup, true, make_lit_string("build.bat"), make_lit_string("build"));
+                              String *dir, String *command, i32 perform_backup){
+    i32 result = standard_build_search(app, view, active_buffer, dir, command, perform_backup, true, make_lit_string("build.bat"), make_lit_string("build"));
     return(result);
 }
 
 #elif defined(IS_LINUX) || defined(IS_MAC)
 
 // NOTE(allen): Build search rule for linux and mac.
-static int32_t
-execute_standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer, String *dir, String *command, bool32 perform_backup){
+static i32
+execute_standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer, String *dir, String *command, b32 perform_backup){
     char dir_space[512];
     String dir_copy = make_fixed_width_string(dir_space);
     copy(&dir_copy, *dir);
     
-    int32_t result = standard_build_search(app, view, active_buffer, dir, command, 0, 1, make_lit_string("build.sh"), make_lit_string("build.sh"));
+    i32 result = standard_build_search(app, view, active_buffer, dir, command, 0, 1, make_lit_string("build.sh"), make_lit_string("build.sh"));
     
     if (!result){
         result = standard_build_search(app, view, active_buffer, &dir_copy, command, perform_backup, 0, make_lit_string("Makefile"), make_lit_string("make"));
@@ -137,7 +137,7 @@ execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summar
     char command_str_space[512];
     String command = make_fixed_width_string(command_str_space);
     
-    int32_t build_dir_type = get_build_directory(app, active_buffer, &dir);
+    i32 build_dir_type = get_build_directory(app, active_buffer, &dir);
     
     if (build_dir_type == BuildDir_AtFile){
         if (!execute_standard_build_search(app, view, active_buffer, &dir, &command, false)){
@@ -155,7 +155,7 @@ execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summar
 CUSTOM_COMMAND_SIG(build_search)
 CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.")
 {
-    uint32_t access = AccessAll;
+    u32 access = AccessAll;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     execute_standard_build(app, &view, &buffer);
@@ -187,7 +187,7 @@ set_fancy_compilation_buffer_font(Application_Links *app){
 CUSTOM_COMMAND_SIG(build_in_build_panel)
 CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.")
 {
-    uint32_t access = AccessAll;
+    u32 access = AccessAll;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     

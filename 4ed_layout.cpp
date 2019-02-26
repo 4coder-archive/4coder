@@ -138,7 +138,7 @@ layout_get_active_panel(Layout *layout){
     return(layout->active_panel);
 }
 
-internal bool32
+internal b32
 layout_split_panel(Layout *layout, Panel *panel, b32 vertical_split, Panel **new_panel_out){
     b32 result = false;
     if (layout->open_panel_count < layout->open_panel_max_count){

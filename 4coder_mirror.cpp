@@ -8,7 +8,7 @@ compiler errors, sticking markers on jump locations, and jumping to them.
 static Managed_Variable_ID mirror_root_loc = 0;
 #define DefaultMirrorRootName "DEFAULT.mirror_root"
 
-static bool32
+static b32
 mirror_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String text);
 
 ////////////////////////////////
@@ -38,9 +38,9 @@ mirror__check_scope_for_mirror(Application_Links *app, Managed_Scope scope){
     return(result);
 }
 
-static bool32
+static b32
 mirror_init__inner(Application_Links *app, Buffer_ID buffer, Mirror_Flags flags, Managed_Object *mirror_object_out){
-    bool32 result = false;
+    b32 result = false;
     Managed_Scope scope = 0;
     if (buffer_get_managed_scope(app, buffer, &scope)){
         Managed_Object mirror = mirror__check_scope_for_mirror(app, scope);
@@ -62,9 +62,9 @@ mirror_init__inner(Application_Links *app, Buffer_ID buffer, Mirror_Flags flags,
     return(result);
 }
 
-static bool32
+static b32
 mirror_end__inner(Application_Links *app, Managed_Object mirror){
-    bool32 result = false;
+    b32 result = false;
     Managed_Scope scope = managed_object_get_containing_scope(app, mirror);
     Managed_Object mirror_check = mirror__check_scope_for_mirror(app, scope);
     if (mirror_check == mirror){
@@ -81,7 +81,7 @@ mirror_end__inner(Application_Links *app, Managed_Object mirror){
 }
 
 struct Mirror__Binary_Search_Result{
-    bool32 abutting;
+    b32 abutting;
     int32_t index;
 };
 
@@ -166,9 +166,9 @@ mirror__hot_from_data(Application_Links *app, Arena *arena, Mirror mirror_data){
     return(result);
 }
 
-static bool32
+static b32
 mirror__min_max_point_indices_not_intersecting(int32_t above_point, int32_t below_point, int32_t *range_index_out){
-    bool32 result = false;
+    b32 result = false;
     if (below_point < above_point && (above_point%2) == 0 && ((below_point + 2)%2) == 1){
         *range_index_out = above_point/2;
         result = true;
@@ -176,9 +176,9 @@ mirror__min_max_point_indices_not_intersecting(int32_t above_point, int32_t belo
     return(result);
 }
 
-static bool32
+static b32
 mirror__min_max_point_indices_contained(int32_t above_point, int32_t below_point, int32_t *range_index_out){
-    bool32 result = false;
+    b32 result = false;
     if (below_point < above_point && (above_point%2) == 1 && ((below_point + 2)%2) == 0){
         *range_index_out = above_point/2;
         result = true;
@@ -187,14 +187,14 @@ mirror__min_max_point_indices_contained(int32_t above_point, int32_t below_point
 }
 
 struct Mirror__Check_Range_Result{
-    bool32 passed_checks;
+    b32 passed_checks;
     int32_t insert_index;
 };
 
 static Mirror__Check_Range_Result
 mirror__check_range_to_add(Application_Links *app, Arena *scratch, int32_t mirror_first, int32_t source_first, int32_t length,
                            Buffer_Summary *source_buffer, Buffer_Summary *mirror_buffer, Mirror_Hot *mirror_hot,
-                           int32_t collidable_indices_first, bool32 auto_trust_text){
+                           int32_t collidable_indices_first, b32 auto_trust_text){
     // check the new range for the following rules and determine the insert index
     Mirror__Check_Range_Result result = {};
     result.insert_index = -1;
@@ -207,7 +207,7 @@ mirror__check_range_to_add(Application_Links *app, Arena *scratch, int32_t mirro
         0 <= mirror_first && mirror_one_past_last <= mirror_buffer->size){
         
         // 2. the mirror range must not overlap or abut any existing mirror ranges
-        bool32 independent_range = false;
+        b32 independent_range = false;
         if (mirror_hot->count == 0){
             independent_range = true;
             result.insert_index = 0;
@@ -252,11 +252,11 @@ mirror__check_range_to_add(Application_Links *app, Arena *scratch, int32_t mirro
     return(result);
 }
 
-static bool32
+static b32
 mirror_add_range__inner_check_optimization(Application_Links *app, Managed_Object mirror, Buffer_ID source,
                                            int32_t mirror_first, int32_t source_first, int32_t length,
-                                           int32_t collidable_indices_first, bool32 auto_trust_text, int32_t *insert_index_out){
-    bool32 result = false;
+                                           int32_t collidable_indices_first, b32 auto_trust_text, int32_t *insert_index_out){
+    b32 result = false;
     if (length > 0){
         Buffer_Summary source_buffer = {};
         if (get_buffer_summary(app, source, AccessAll, &source_buffer)){
@@ -277,7 +277,7 @@ mirror_add_range__inner_check_optimization(Application_Links *app, Managed_Objec
                         mirror_hot.mirror_ranges = push_array(&arena, Marker, (mirror_hot.count)*2);
                         mirror_hot.source_ranges = push_array(&arena, Managed_Object, mirror_hot.count);
                         
-                        bool32 load_success = false;
+                        b32 load_success = false;
                         if (mirror_hot.count == 0){
                             load_success = true;
                         }
@@ -294,7 +294,7 @@ mirror_add_range__inner_check_optimization(Application_Links *app, Managed_Objec
                             
                             if (check.passed_checks){
                                 // insert the new range at the insert index
-                                bool32 r = true;
+                                b32 r = true;
                                 int32_t insert_index = check.insert_index;
                                 *insert_index_out = insert_index;
                                 
@@ -379,16 +379,16 @@ mirror_add_range__inner_check_optimization(Application_Links *app, Managed_Objec
     return(result);
 }
 
-static bool32
+static b32
 mirror_add_range__inner(Application_Links *app, Managed_Object mirror, Buffer_ID source,
                         int32_t mirror_first, int32_t source_first, int32_t length){
     int32_t ignore = 0;
     return(mirror_add_range__inner_check_optimization(app, mirror, source, mirror_first, source_first, length, 0, false, &ignore));
 }
 
-static bool32
+static b32
 mirror_set_mode__inner(Application_Links *app, Managed_Object mirror, Mirror_Mode mode){
-    bool32 result = false;
+    b32 result = false;
     Managed_Scope scope = managed_object_get_containing_scope(app, mirror);
     Managed_Object mirror_check = mirror__check_scope_for_mirror(app, scope);
     if (mirror_check == mirror){
@@ -403,9 +403,9 @@ mirror_set_mode__inner(Application_Links *app, Managed_Object mirror, Mirror_Mod
     return(result);
 }
 
-static bool32
+static b32
 mirror_get_mode__inner(Application_Links *app, Managed_Object mirror, Mirror_Mode *mode_out){
-    bool32 result = false;
+    b32 result = false;
     Managed_Scope scope = managed_object_get_containing_scope(app, mirror);
     Managed_Object mirror_check = mirror__check_scope_for_mirror(app, scope);
     if (mirror_check == mirror){
@@ -418,9 +418,9 @@ mirror_get_mode__inner(Application_Links *app, Managed_Object mirror, Mirror_Mod
     return(result);
 }
 
-static bool32
+static b32
 mirror_set_flags__inner(Application_Links *app, Managed_Object mirror, Mirror_Flags flags){
-    bool32 result = false;
+    b32 result = false;
     Managed_Scope scope = managed_object_get_containing_scope(app, mirror);
     Managed_Object mirror_check = mirror__check_scope_for_mirror(app, scope);
     if (mirror_check == mirror){
@@ -435,9 +435,9 @@ mirror_set_flags__inner(Application_Links *app, Managed_Object mirror, Mirror_Fl
     return(result);
 }
 
-static bool32
+static b32
 mirror_get_flags__inner(Application_Links *app, Managed_Object mirror, Mirror_Flags *flags_out){
-    bool32 result = false;
+    b32 result = false;
     Managed_Scope scope = managed_object_get_containing_scope(app, mirror);
     Managed_Object mirror_check = mirror__check_scope_for_mirror(app, scope);
     if (mirror_check == mirror){
@@ -452,44 +452,44 @@ mirror_get_flags__inner(Application_Links *app, Managed_Object mirror, Mirror_Fl
 
 ////////////////////////////////
 
-static bool32
+static b32
 mirror_init(Application_Links *app, Buffer_ID buffer, Mirror_Flags flags, Managed_Object *mirror_object_out){
     mirror__global_init(app);
     return(mirror_init__inner(app, buffer, flags, mirror_object_out));
 }
 
-static bool32
+static b32
 mirror_end(Application_Links *app, Managed_Object mirror){
     mirror__global_init(app);
     return(mirror_end__inner(app, mirror));
 }
 
-static bool32
+static b32
 mirror_add_range(Application_Links *app, Managed_Object mirror, Buffer_ID source,
                  int32_t mirror_first, int32_t source_first, int32_t length){
     mirror__global_init(app);
     return(mirror_add_range__inner(app, mirror, source, mirror_first, source_first, length));
 }
 
-static bool32
+static b32
 mirror_set_mode(Application_Links *app, Managed_Object mirror, Mirror_Mode mode){
     mirror__global_init(app);
     return(mirror_set_mode__inner(app, mirror, mode));
 }
 
-static bool32
+static b32
 mirror_get_mode(Application_Links *app, Managed_Object mirror, Mirror_Mode *mode_out){
     mirror__global_init(app);
     return(mirror_get_mode__inner(app, mirror, mode_out));
 }
 
-static bool32
+static b32
 mirror_set_flags(Application_Links *app, Managed_Object mirror, Mirror_Flags flags){
     mirror__global_init(app);
     return(mirror_set_flags__inner(app, mirror, flags));
 }
 
-static bool32
+static b32
 mirror_get_flags(Application_Links *app, Managed_Object mirror, Mirror_Flags *flags_out){
     mirror__global_init(app);
     return(mirror_get_flags__inner(app, mirror, flags_out));
@@ -497,10 +497,10 @@ mirror_get_flags(Application_Links *app, Managed_Object mirror, Mirror_Flags *fl
 
 ////////////////////////////////
 
-static bool32
+static b32
 mirror_buffer_create(Application_Links *app, String buffer_name, Mirror_Flags flags, Buffer_ID *mirror_buffer_id_out){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Buffer_ID new_buffer = 0;
     if (!get_buffer_by_name(app, buffer_name, AccessAll, &new_buffer)){
         if (new_buffer == 0){
@@ -526,10 +526,10 @@ mirror__buffer_to_object(Application_Links *app, Buffer_ID buffer){
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_end(Application_Links *app, Buffer_ID mirror){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         result = mirror_end__inner(app, mirror_object);
@@ -537,11 +537,11 @@ mirror_buffer_end(Application_Links *app, Buffer_ID mirror){
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_add_range_exact(Application_Links *app, Buffer_ID mirror, Buffer_ID source,
                               int32_t mirror_first, int32_t source_first, int32_t length){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         result = mirror_add_range__inner(app, mirror_object, source, mirror_first, source_first, length);
@@ -570,11 +570,11 @@ mirror__range_loose_get_length(Application_Links *app, Buffer_ID mirror, Buffer_
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_add_range_loose(Application_Links *app, Buffer_ID mirror, Buffer_ID source,
                               int32_t mirror_first, int32_t source_first, int32_t max_length){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     int32_t length = mirror__range_loose_get_length(app, mirror, source, mirror_first, source_first, max_length);
     if (length > 0){
         Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
@@ -585,17 +585,17 @@ mirror_buffer_add_range_loose(Application_Links *app, Buffer_ID mirror, Buffer_I
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_insert_range(Application_Links *app, Buffer_ID mirror, Buffer_ID source,
                            int32_t mirror_insert_pos, int32_t source_first, int32_t length){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         Mirror_Mode mode = 0;
         if (mirror_get_mode__inner(app, mirror_object, &mode)){
             if (mode == MirrorMode_Constructing){
-                bool32 did_insert = false;
+                b32 did_insert = false;
                 {
                     Arena arena = make_arena(app, (8 << 10));
                     char *buffer = push_array(&arena, char, length);
@@ -616,10 +616,10 @@ mirror_buffer_insert_range(Application_Links *app, Buffer_ID mirror, Buffer_ID s
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_set_mode(Application_Links *app, Buffer_ID mirror, Mirror_Mode mode){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         result = mirror_set_mode__inner(app, mirror_object, mode);
@@ -627,10 +627,10 @@ mirror_buffer_set_mode(Application_Links *app, Buffer_ID mirror, Mirror_Mode mod
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_get_mode(Application_Links *app, Buffer_ID mirror, Mirror_Mode *mode_out){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         result = mirror_get_mode__inner(app, mirror_object, mode_out);
@@ -638,10 +638,10 @@ mirror_buffer_get_mode(Application_Links *app, Buffer_ID mirror, Mirror_Mode *mo
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_set_flags(Application_Links *app, Buffer_ID mirror, Mirror_Flags flags){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         result = mirror_set_flags__inner(app, mirror_object, flags);
@@ -649,10 +649,10 @@ mirror_buffer_set_flags(Application_Links *app, Buffer_ID mirror, Mirror_Flags f
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_get_flags(Application_Links *app, Buffer_ID mirror, Mirror_Flags *flags_out){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         result = mirror_get_flags__inner(app, mirror_object, flags_out);
@@ -660,10 +660,10 @@ mirror_buffer_get_flags(Application_Links *app, Buffer_ID mirror, Mirror_Flags *
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_refresh(Application_Links *app, Buffer_ID mirror){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         // TODO(allen):
@@ -699,9 +699,9 @@ mirror_quick_sort_mirror_ranges(Mirror_Range *ranges, int32_t first, int32_t one
     }
 }
 
-static bool32
+static b32
 mirror__check_range_array_sorting(Mirror_Range *ranges, int32_t count){
-    bool32 result = true;
+    b32 result = true;
     int32_t prev_pos = -1;
     for (int32_t i = 0; i < count; i += 1){
         int32_t first = ranges[i].mirror_first;
@@ -717,14 +717,14 @@ mirror__check_range_array_sorting(Mirror_Range *ranges, int32_t count){
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_add_range_exact_array(Application_Links *app, Buffer_ID mirror, Mirror_Range *ranges, int32_t count){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         if (mirror__check_range_array_sorting(ranges, count)){
-            bool32 r = true;
+            b32 r = true;
             Mirror_Range *range = ranges;
             int32_t safe_to_ignore_index = 0;
             for (int32_t i = 0; i < count; i += 1, range += 1){
@@ -746,10 +746,10 @@ mirror_buffer_add_range_exact_array(Application_Links *app, Buffer_ID mirror, Mi
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_add_range_loose_array(Application_Links *app, Buffer_ID mirror, Mirror_Range *ranges, int32_t count){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         {
@@ -759,7 +759,7 @@ mirror_buffer_add_range_loose_array(Application_Links *app, Buffer_ID mirror, Mi
             }
         }
         if (mirror__check_range_array_sorting(ranges, count)){
-            bool32 r = true;
+            b32 r = true;
             Mirror_Range *range = ranges;
             int32_t safe_to_ignore_index = 0;
             for (int32_t i = 0; i < count; i += 1, range += 1){
@@ -781,24 +781,24 @@ mirror_buffer_add_range_loose_array(Application_Links *app, Buffer_ID mirror, Mi
     return(result);
 }
 
-static bool32
+static b32
 mirror_buffer_insert_range_array(Application_Links *app, Buffer_ID mirror, Mirror_Range *ranges, int32_t count){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Managed_Object mirror_object = mirror__buffer_to_object(app, mirror);
     if (mirror_object != 0){
         Mirror_Mode mode = 0;
         if (mirror_get_mode__inner(app, mirror_object, &mode)){
             if (mode == MirrorMode_Constructing){
                 if (mirror__check_range_array_sorting(ranges, count)){
-                    bool32 r = true;
+                    b32 r = true;
                     Mirror_Range *range = ranges;
                     int32_t safe_to_ignore_index = 0;
                     int32_t total_shift = 0;
                     Arena arena = make_arena(app, (8 << 10));
                     for (int32_t i = 0; i < count; i += 1, range += 1){
                         int32_t mirror_first = range->mirror_first + total_shift;
-                        bool32 did_insert = false;
+                        b32 did_insert = false;
                         {
                             Temp_Memory_Arena temp = begin_temp_memory(&arena);
                             char *buffer = push_array(&arena, char, range->length);
@@ -834,10 +834,10 @@ mirror_buffer_insert_range_array(Application_Links *app, Buffer_ID mirror, Mirro
 
 ////////////////////////////////
 
-static bool32
+static b32
 mirror_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t first, int32_t one_past_last, String text){
     mirror__global_init(app);
-    bool32 result = false;
+    b32 result = false;
     Buffer_Summary mirror_buffer = {};
     if (get_buffer_summary(app, buffer_id, AccessAll, &mirror_buffer)){
         Managed_Object mirror = mirror__buffer_to_object(app, buffer_id);
@@ -852,7 +852,7 @@ mirror_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t first, 
                     switch (mode){
                         case MirrorMode_Constructing:
                         {
-                            bool32 unreflected_range = false;
+                            b32 unreflected_range = false;
                             if (mirror_hot.count == 0){
                                 unreflected_range = true;
                             }
@@ -877,9 +877,9 @@ mirror_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t first, 
                         
                         case MirrorMode_Reflecting:
                         {
-                            bool32 newlines_are_jumps = ((mirror_data.flags & MirrorFlag_NewlinesAreJumps) != 0);
+                            b32 newlines_are_jumps = ((mirror_data.flags & MirrorFlag_NewlinesAreJumps) != 0);
                             
-                            bool32 blocked = false;
+                            b32 blocked = false;
                             if (newlines_are_jumps){
                                 if (has_substr(text, make_lit_string("\n"))){
                                     blocked = true;
@@ -897,7 +897,7 @@ mirror_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t first, 
                             }
                             
                             if (!blocked){
-                                bool32 reflected_range = false;
+                                b32 reflected_range = false;
                                 int32_t range_index = 0;
                                 if (mirror_hot.count > 0){
                                     int32_t fake_index = mirror_hot.count*2;

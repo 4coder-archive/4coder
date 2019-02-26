@@ -25,7 +25,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         // NOTE(allen): consecutive inserts merge logic
         History_Record_Index first_index = 0;
         buffer_history_get_current_state_index(app, buffer.buffer_id, &first_index);
-        bool32 do_merge = false;
+        b32 do_merge = false;
         if (character[0] != '\n'){
             Record_Info record = get_single_record(app, buffer.buffer_id, first_index);
             if (record.error == RecordError_NoError && record.kind == RecordKind_Single){
@@ -46,7 +46,7 @@ write_character_parameter(Application_Links *app, uint8_t *character, uint32_t l
         }
         
         // NOTE(allen): perform the edit
-        bool32 edit_success = buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
+        b32 edit_success = buffer_replace_range(app, &buffer, pos, pos, (char*)character, length);
         
         // NOTE(allen): finish merging records if necessary
         if (do_merge){
@@ -179,9 +179,9 @@ CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
     view_set_scroll(app, &view, scroll);
 }
 
-static bool32
+static b32
 view_space_from_screen_space_checked(Vec2_i32 p, Rect_i32 file_region, Vec2 scroll_p, Vec2 *p_out){
-    bool32 result = false;
+    b32 result = false;
     if (hit_check(file_region, p)){
         *p_out = view_space_from_screen_space(V2(p), V2(file_region.p0), scroll_p);
         result = true;
@@ -541,7 +541,7 @@ CUSTOM_COMMAND_SIG(toggle_filebar)
 CUSTOM_DOC("Toggles the visibility status of the current view's filebar.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    bool32 value;
+    b32 value;
     view_get_setting(app, &view, ViewSetting_ShowFileBar, &value);
     view_set_setting(app, &view, ViewSetting_ShowFileBar, !value);
 }
@@ -551,7 +551,7 @@ CUSTOM_DOC("Toggles the current buffer's line wrapping status.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    bool32 unwrapped = view.unwrapped_lines;
+    b32 unwrapped = view.unwrapped_lines;
     buffer_set_setting(app, &buffer, BufferSetting_WrapLine, unwrapped);
 }
 
@@ -699,7 +699,7 @@ isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Ob
 }
 
 static void
-isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32 on_the_query_init_string){
+isearch(Application_Links *app, b32 start_reversed, String query_init, b32 on_the_query_init_string){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     if (!buffer.exists){
@@ -711,7 +711,7 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
         return;
     }
     
-    bool32 reverse = start_reversed;
+    b32 reverse = start_reversed;
     int32_t first_pos = view.cursor.pos;
     
     int32_t pos = first_pos;
@@ -729,7 +729,7 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
     String isearch_str = make_lit_string("I-Search: ");
     String rsearch_str = make_lit_string("Reverse-I-Search: ");
     
-    bool32 first_step = true;
+    b32 first_step = true;
     
     Managed_Scope view_scope = view_get_managed_scope(app, view.view_id);
     Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &view_scope);
@@ -753,10 +753,10 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
             bar.prompt = isearch_str;
         }
         
-        bool32 step_forward = false;
-        bool32 step_backward = false;
-        bool32 backspace = false;
-        bool32 suppress_highligh_update = false;
+        b32 step_forward = false;
+        b32 step_backward = false;
+        b32 backspace = false;
+        b32 suppress_highligh_update = false;
         
         if (!first_step){
             in = get_user_input(app, EventOnAnyKey, EventOnEsc);
@@ -765,7 +765,7 @@ isearch(Application_Links *app, bool32 start_reversed, String query_init, bool32
             uint8_t character[4];
             uint32_t length = to_writable_character(in, character);
             
-            bool32 made_change = false;
+            b32 made_change = false;
             if (in.key.keycode == '\n' || in.key.keycode == '\t'){
                 if (in.key.modifiers[MDFR_CONTROL_INDEX]){
                     copy(&bar.string, previous_isearch_query);
@@ -1009,7 +1009,7 @@ query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *b
 }
 
 static void
-query_replace_parameter(Application_Links *app, String replace_str, int32_t start_pos, bool32 add_replace_query_bar){
+query_replace_parameter(Application_Links *app, String replace_str, int32_t start_pos, b32 add_replace_query_bar){
     Query_Bar replace;
     replace.prompt = make_lit_string("Replace: ");
     replace.string = replace_str;
@@ -1339,7 +1339,7 @@ CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves th
         int32_t first_len = next_line_pos - this_line_pos;
         
         if (buffer_read_range(app, &buffer, this_line_pos, next_line_pos, swap)){
-            bool32 second_line_didnt_have_newline = true;
+            b32 second_line_didnt_have_newline = true;
             for (int32_t i = first_len - 1; i >= 0; --i){
                 if (swap[i] == '\n'){
                     second_line_didnt_have_newline = false;
@@ -1438,9 +1438,9 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
 
 ////////////////////////////////
 
-static bool32
+static b32
 get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summary *buffer_out){
-    bool32 result = false;
+    b32 result = false;
     
     if (buffer.file_name != 0){
         char space[512];
@@ -1669,7 +1669,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
         for (Buffer_Summary buffer = get_buffer(app, first_buffer_match, AccessAll);
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
-            bool32 did_match = false;
+            b32 did_match = false;
             for (;;){
                 History_Record_Index index = 0;
                 buffer_history_get_current_state_index(app, buffer.buffer_id, &index);
@@ -1743,7 +1743,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
         for (Buffer_Summary buffer = get_buffer(app, first_buffer_match, AccessAll);
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
-            bool32 did_match = false;
+            b32 did_match = false;
             History_Record_Index max_index = 0;
             buffer_history_get_max_record_index(app, buffer.buffer_id, &max_index);
             for (;;){

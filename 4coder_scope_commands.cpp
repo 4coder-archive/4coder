@@ -4,13 +4,13 @@
 
 // TOP
 
-static bool32 parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out);
-static float scope_center_threshold = 0.75f;
+static b32 parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out);
+static f32 scope_center_threshold = 0.75f;
 
 ////////////////////////////////
 
 static Find_Scope_Token_Type
-find_scope_get_token_type(uint32_t flags, Cpp_Token_Type token_type){
+find_scope_get_token_type(u32 flags, Cpp_Token_Type token_type){
     Find_Scope_Token_Type type = FindScopeTokenType_None;
     if (flags & FindScope_Brace){
         switch (token_type){
@@ -39,15 +39,15 @@ find_scope_get_token_type(uint32_t flags, Cpp_Token_Type token_type){
     return(type);
 }
 
-static bool32
-find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+static b32
+find_scope_top(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
     Cpp_Get_Token_Result get_result = {};
     
-    bool32 success = false;
-    int32_t position = 0;
+    b32 success = false;
+    i32 position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index;
+        i32 token_index = get_result.token_index;
         if (flags & FindScope_Parent){
             --token_index;
             if (get_result.in_whitespace_after_token){
@@ -61,7 +61,7 @@ find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos
             if (token_range.first != 0){
                 Token_Iterator token_it = make_token_iterator(token_range, token_index);
                 
-                int32_t nest_level = 0;
+                i32 nest_level = 0;
                 for (Cpp_Token *token = token_iterator_current(&token_it);
                      token != 0;
                      token = token_iterator_goto_prev(&token_it)){
@@ -96,15 +96,15 @@ find_scope_top(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos
     return(success);
 }
 
-static bool32
-find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+static b32
+find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
     Cpp_Get_Token_Result get_result = {};
     
-    bool32 success = false;
-    int32_t position = 0;
+    b32 success = false;
+    i32 position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index + 1;
+        i32 token_index = get_result.token_index + 1;
         if (flags & FindScope_Parent){
             --token_index;
             if (get_result.in_whitespace_after_token){
@@ -118,7 +118,7 @@ find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_
             if (token_range.first != 0){
                 Token_Iterator token_it = make_token_iterator(token_range, token_index);
                 
-                int32_t nest_level = 0;
+                i32 nest_level = 0;
                 for (Cpp_Token *token = token_iterator_current(&token_it);
                      token != 0;
                      token = token_iterator_goto_next(&token_it)){
@@ -153,15 +153,15 @@ find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, int32_t start_
     return(success);
 }
 
-static bool32
-find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+static b32
+find_next_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
     Cpp_Get_Token_Result get_result = {};
     
-    bool32 success = 0;
-    int32_t position = 0;
+    b32 success = 0;
+    i32 position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index+1;
+        i32 token_index = get_result.token_index+1;
         
         if (token_index >= 0){
             Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
@@ -170,7 +170,7 @@ find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
                 Token_Iterator token_it = make_token_iterator(token_range, token_index);
                 
                 if ((flags & FindScope_NextSibling) != 0){
-                    int32_t nest_level = 1;
+                    i32 nest_level = 1;
                     for (Cpp_Token *token = token_iterator_current(&token_it);
                          token != 0;
                          token = token_iterator_goto_next(&token_it)){
@@ -227,15 +227,15 @@ find_next_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
     return(success);
 }
 
-static bool32
-find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, uint32_t flags, int32_t *end_pos_out){
+static b32
+find_prev_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
     Cpp_Get_Token_Result get_result = {};
     
-    bool32 success = false;
-    int32_t position = 0;
+    b32 success = false;
+    i32 position = 0;
     
     if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        int32_t token_index = get_result.token_index-1;
+        i32 token_index = get_result.token_index-1;
         
         if (token_index >= 0){
             Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
@@ -244,7 +244,7 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
                 Token_Iterator token_it = make_token_iterator(token_range, token_index);
                 
                 if (flags & FindScope_NextSibling){
-                    int32_t nest_level = -1;
+                    i32 nest_level = -1;
                     for (Cpp_Token *token = token_iterator_current(&token_it);
                          token != 0;
                          token = token_iterator_goto_prev(&token_it)){
@@ -301,9 +301,9 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, int32_t start_po
     return(success);
 }
 
-static bool32
-find_scope_range(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, Range *range_out,
-                 uint32_t flags){
+static b32
+find_scope_range(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, Range *range_out,
+                 u32 flags){
     Range range = {};
     if (find_scope_top(app, buffer, start_pos,
                        FindScope_Parent|flags,
@@ -319,9 +319,9 @@ find_scope_range(Application_Links *app, Buffer_Summary *buffer, int32_t start_p
 }
 
 static void
-view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos, int32_t minor_pos, float normalized_threshold){
+view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i32 minor_pos, f32 normalized_threshold){
     Range range = make_range(major_pos, minor_pos);
-    bool32 bottom_major = false;
+    b32 bottom_major = false;
     if (major_pos == range.max){
         bottom_major = true;
     }
@@ -330,20 +330,20 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
     Full_Cursor bottom = {};
     if (view_compute_cursor(app, view, seek_pos(range.min), &top)){
         if (view_compute_cursor(app, view, seek_pos(range.max), &bottom)){
-            float top_y = top.wrapped_y;
-            float bottom_y = bottom.wrapped_y;
+            f32 top_y = top.wrapped_y;
+            f32 bottom_y = bottom.wrapped_y;
             if (view->unwrapped_lines){
                 top_y = top.unwrapped_y;
                 bottom_y = bottom.unwrapped_y;
             }
             
             GUI_Scroll_Vars scroll = view->scroll_vars;
-            float half_view_height = .5f*(float)(view->file_region.y1 - view->file_region.y0);
-            float threshold = normalized_threshold * half_view_height;
-            float current_center_y = ((float)scroll.target_y) + half_view_height;
+            f32 half_view_height = .5f*(f32)(view->file_region.y1 - view->file_region.y0);
+            f32 threshold = normalized_threshold * half_view_height;
+            f32 current_center_y = ((f32)scroll.target_y) + half_view_height;
             
             if (top_y < current_center_y - threshold || bottom_y > current_center_y + threshold){
-                float center_target_y = .5f*(top_y + bottom_y);
+                f32 center_target_y = .5f*(top_y + bottom_y);
                 
                 if (bottom_major){
                     if (center_target_y < bottom_y - half_view_height * .9f){
@@ -356,12 +356,12 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
                     }
                 }
                 
-                float target_y = center_target_y - half_view_height;
+                f32 target_y = center_target_y - half_view_height;
                 if (target_y < 0){
                     target_y = 0;
                 }
                 
-                scroll.target_y = (int32_t)(target_y);
+                scroll.target_y = (i32)(target_y);
                 view_set_scroll(app, view, scroll);
             }
         }
@@ -371,7 +371,7 @@ view_set_to_region(Application_Links *app, View_Summary *view, int32_t major_pos
 CUSTOM_COMMAND_SIG(select_surrounding_scope)
 CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
@@ -387,13 +387,13 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
 CUSTOM_COMMAND_SIG(select_next_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0;
-    int32_t bottom = 0;
+    i32 start_pos = view.cursor.pos;
+    i32 top = 0;
+    i32 bottom = 0;
     if (find_next_scope(app, &buffer, start_pos, FindScope_Brace, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);
@@ -407,12 +407,12 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
 CUSTOM_COMMAND_SIG(select_prev_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    uint32_t access = AccessProtected;
+    u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    int32_t top = 0, bottom = 0;
+    i32 start_pos = view.cursor.pos;
+    i32 top = 0, bottom = 0;
     if (find_prev_scope(app, &buffer, start_pos, FindScope_Brace, &top)){
         if (find_scope_bottom(app, &buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
             view_set_cursor(app, &view, seek_pos(top), true);
@@ -435,13 +435,13 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
     range.min = buffer_get_line_start(app, &buffer, lines.min);
     range.max = buffer_get_line_end(app, &buffer, lines.max);
     
-    bool32 do_full = (lines.min < lines.max) || (!buffer_line_is_blank(app, &buffer, lines.min));
+    b32 do_full = (lines.min < lines.max) || (!buffer_line_is_blank(app, &buffer, lines.min));
     
     Temp_Memory temp = begin_temp_memory(scratch);
-    int32_t begin_len = str_size(begin);
-    int32_t end_len = str_size(end);
+    i32 begin_len = str_size(begin);
+    i32 end_len = str_size(end);
     
-    int32_t str_size = begin_len + end_len + 2;
+    i32 str_size = begin_len + end_len + 2;
     char *str = push_array(scratch, char, str_size);
     String builder = make_string_cap(str, 0, str_size);
     append(&builder, begin);
@@ -452,8 +452,8 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
     if (do_full){
         Buffer_Edit edits[2];
         
-        int32_t min_adjustment = 0;
-        int32_t max_adjustment = 4;
+        i32 min_adjustment = 0;
+        i32 max_adjustment = 4;
         
         if (buffer_line_is_blank(app, &buffer, lines.min)){
             memmove(str + 1, str, begin_len);
@@ -467,11 +467,11 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
             --max_adjustment;
         }
         
-        int32_t min_pos = range.min + min_adjustment;
-        int32_t max_pos = range.max + max_adjustment;
+        i32 min_pos = range.min + min_adjustment;
+        i32 max_pos = range.max + max_adjustment;
         
-        int32_t cursor_pos = min_pos;
-        int32_t mark_pos = max_pos;
+        i32 cursor_pos = min_pos;
+        i32 mark_pos = max_pos;
         
         if (view.cursor.pos > view.mark.pos){
             cursor_pos = max_pos;
@@ -495,7 +495,7 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
     }
     else{
         buffer_replace_range(app, &buffer, range.min, range.max, str, str_size);
-        int32_t center_pos = range.min + begin_len + 1;
+        i32 center_pos = range.min + begin_len + 1;
         view_set_cursor(app, &view, seek_pos(center_pos), true);
         view_set_mark(app, &view, seek_pos(center_pos));
     }
@@ -512,22 +512,22 @@ CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a
 CUSTOM_COMMAND_SIG(delete_current_scope)
 CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves the contents within the scope.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t top = view.cursor.pos;
-    int32_t bottom = view.mark.pos;
+    i32 top = view.cursor.pos;
+    i32 bottom = view.mark.pos;
     
     if (top > bottom){
-        int32_t x = top;
+        i32 x = top;
         top = bottom;
         bottom = x;
     }
     
     if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
-        int32_t top_len = 1;
-        int32_t bottom_len = 1;
+        i32 top_len = 1;
+        i32 bottom_len = 1;
         if (buffer_get_char(app, &buffer, top-1) == '\n'){
             top_len = 2;
         }
@@ -555,12 +555,12 @@ parser_next_token(Statement_Parser *parser){
     return(token_iterator_goto_next(&parser->token_iterator));
 }
 
-static bool32
+static b32
 parse_for_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
-    bool32 success = false;
+    b32 success = false;
     Cpp_Token *token = parser_next_token(parser);
     
-    int32_t paren_level = 0;
+    i32 paren_level = 0;
     while (token != 0){
         if (!(token->flags & CPP_TFLAG_PP_BODY)){
             switch (token->type){
@@ -591,9 +591,9 @@ parse_for_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *toke
     return(success);
 }
 
-static bool32
+static b32
 parse_if_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
-    bool32 success = false;
+    b32 success = false;
     Cpp_Token *token = parser_next_token(parser);
     
     if (token != 0){
@@ -613,12 +613,12 @@ parse_if_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token
     return(success);
 }
 
-static bool32
+static b32
 parse_block_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
-    bool32 success = false;
+    b32 success = false;
     Cpp_Token *token = parser_next_token(parser);
     
-    int32_t nest_level = 0;
+    i32 nest_level = 0;
     while (token != 0){
         switch (token->type){
             case CPP_TOKEN_BRACE_OPEN:
@@ -643,13 +643,13 @@ parse_block_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *to
     return(success);
 }
 
-static bool32
+static b32
 parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
-    bool32 success = false;
+    b32 success = false;
     Cpp_Token *token = parser_next_token(parser);
     
     if (token != 0){
-        bool32 not_getting_block = false;
+        b32 not_getting_block = false;
         
         do{
             switch (token->type){
@@ -706,7 +706,7 @@ parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token
 }
 
 static Statement_Parser
-make_statement_parser(Application_Links *app, Buffer_Summary *buffer, int32_t token_index){
+make_statement_parser(Application_Links *app, Buffer_Summary *buffer, i32 token_index){
     Statement_Parser parser = {};
     Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
     if (token_range.first != 0){
@@ -716,11 +716,11 @@ make_statement_parser(Application_Links *app, Buffer_Summary *buffer, int32_t to
     return(parser);
 }
 
-static bool32
-find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t *start_out, int32_t *end_out){
-    bool32 result = false;
-    int32_t start = pos;
-    int32_t end = start;
+static b32
+find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 *start_out, i32 *end_out){
+    b32 result = false;
+    i32 start = pos;
+    i32 end = start;
     
     Cpp_Get_Token_Result get_result = {};
     
@@ -747,15 +747,15 @@ find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, int32_
 CUSTOM_COMMAND_SIG(scope_absorb_down)
 CUSTOM_DOC("If a scope is currently selected, and a statement or block statement is present below the current scope, the statement is moved into the scope.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t top = view.cursor.pos;
-    int32_t bottom = view.mark.pos;
+    i32 top = view.cursor.pos;
+    i32 bottom = view.mark.pos;
     
     if (top > bottom){
-        int32_t x = top;
+        i32 x = top;
         top = bottom;
         bottom = x;
     }
@@ -772,19 +772,19 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
             String string = make_string(string_space, range.end - range.start);
             string = skip_chop_whitespace(string);
             
-            int32_t newline_count = 0;
+            i32 newline_count = 0;
             for (char *ptr = string_space; ptr < string.str; ++ptr){
                 if (*ptr == '\n'){
                     ++newline_count;
                 }
             }
             
-            bool32 extra_newline = false;
+            b32 extra_newline = false;
             if (newline_count >= 2){
                 extra_newline = true;
             }
             
-            int32_t edit_len = string.size + 1;
+            i32 edit_len = string.size + 1;
             if (extra_newline){
                 edit_len += 1;
             }

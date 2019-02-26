@@ -1438,11 +1438,21 @@ App_Step_Sig(app_step){
             animation_dt = literal_dt;
         }
         
-        Color_Table color_table = models->fallback_color_table;
-        if (models->modify_color_table != 0){
-            color_table = models->modify_color_table(&models->app_links, models->frame_counter, literal_dt, animation_dt);
+        {
+            Color_Table color_table = models->fallback_color_table;
+            if (models->modify_color_table != 0){
+                Frame_Info frame = {};
+                frame.index = models->frame_counter;
+                frame.literal_dt = literal_dt;
+                frame.animation_dt = animation_dt;
+                color_table = models->modify_color_table(&models->app_links, frame);
+                if (color_table.count < models->fallback_color_table.count){
+                    block_copy(models->fallback_color_table.vals, color_table.vals, color_table.count*sizeof(*color_table.vals));
+                    color_table = models->fallback_color_table;
+                }
+            }
+            models->color_table = color_table;
         }
-        models->color_table = color_table;
         
         begin_render_section(target, system, models->frame_counter, literal_dt, animation_dt);
         

@@ -13,7 +13,7 @@
 #include <string.h>
 
 static float
-get_line_y(Application_Links *app, View_Summary *view, int32_t line){
+get_line_y(Application_Links *app, View_Summary *view, i32 line){
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_line_char(line, 1), &cursor);
     float y = cursor.wrapped_y;
@@ -31,13 +31,13 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
     
     i32_Rect rect = get_line_x_rect(&view);
     
-    bool32 unwrapped = view.unwrapped_lines;
+    b32 unwrapped = view.unwrapped_lines;
     
-    for (int32_t line = rect.y1; line >= rect.y0; --line){
-        int32_t start = 0;
-        int32_t end = 0;
+    for (i32 line = rect.y1; line >= rect.y0; --line){
+        i32 start = 0;
+        i32 end = 0;
         
-        bool32 success = 1;
+        b32 success = 1;
         Full_Cursor cursor = {};
         
         float y = get_line_y(app, &view, line);
@@ -59,7 +59,7 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
 }
 
 static void
-pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t line, char padchar, int32_t target){
+pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, char padchar, i32 target){
     Partial_Cursor start = {};
     Partial_Cursor end = {};
     
@@ -68,7 +68,7 @@ pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer,
             if (start.line == line){
                 if (end.character-1 < target){
                     Temp_Memory temp = begin_temp_memory(part);
-                    int32_t size = target - (end.character-1);
+                    i32 size = target - (end.character-1);
                     char *str = push_array(part, char, size);
                     memset(str, ' ', size);
                     buffer_replace_range(app, buffer, end.pos, end.pos, str, size);
@@ -124,14 +124,14 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     
     Buffer_Rect rect = get_rect(&view);
     
-    int32_t start_line = view.cursor.line;
-    int32_t pos = view.cursor.character-1;
+    i32 start_line = view.cursor.line;
+    i32 pos = view.cursor.character-1;
     
-    for (int32_t i = rect.line0; i <= rect.line1; ++i){
+    for (i32 i = rect.line0; i <= rect.line1; ++i){
         pad_buffer_line(app, &global_part, &buffer, i, ' ', pos);
     }
     
-    int32_t line_count = rect.line1 - rect.line0 + 1;
+    i32 line_count = rect.line1 - rect.line0 + 1;
     
     for (;;){
         User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc|EventOnMouseLeftButton|EventOnMouseRightButton);
@@ -144,7 +144,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             Buffer_Edit *edit = push_array(part, Buffer_Edit, line_count);
             Buffer_Edit *edits = edit;
             
-            for (int32_t i = rect.line0; i <= rect.line1; ++i){
+            for (i32 i = rect.line0; i <= rect.line1; ++i){
                 Partial_Cursor cursor = {};
                 
                 if (buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
@@ -156,7 +156,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 }
             }
             
-            int32_t edit_count = (int)(edit - edits);
+            i32 edit_count = (int)(edit - edits);
             buffer_batch_edit(app, &buffer, &str, 1, edits, edit_count, BatchEdit_Normal);
             
             end_temp_memory(temp);
@@ -172,7 +172,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 Buffer_Edit *edit = push_array(part, Buffer_Edit, line_count);
                 Buffer_Edit *edits = edit;
                 
-                for (int32_t i = rect.line0; i <= rect.line1; ++i){
+                for (i32 i = rect.line0; i <= rect.line1; ++i){
                     Partial_Cursor cursor = {};
                     
                     if (buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
@@ -184,7 +184,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                     }
                 }
                 
-                int32_t edit_count = (int)(edit - edits);
+                i32 edit_count = (int)(edit - edits);
                 buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_Normal);
                 
                 end_temp_memory(temp);
@@ -201,8 +201,8 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
 // NOTE(allen): An experimental mutli-pasting thing
 
 CUSTOM_COMMAND_SIG(multi_paste){
-    uint32_t access = AccessOpen;
-    int32_t count = clipboard_count(app, 0);
+    u32 access = AccessOpen;
+    i32 count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
@@ -213,10 +213,10 @@ CUSTOM_COMMAND_SIG(multi_paste){
             managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
             uint64_t prev_paste_index = 0;
             managed_variable_get(app, scope, view_paste_index_loc, &prev_paste_index);
-            int32_t paste_index = (int32_t)prev_paste_index + 1;
+            i32 paste_index = (i32)prev_paste_index + 1;
             managed_variable_set(app, scope, view_paste_index_loc, paste_index);
             
-            int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
+            i32 len = clipboard_index(app, 0, paste_index, 0, 0);
             
             if (len + 1 <= app->memory_size){
                 char *str = (char*)app->memory;
@@ -243,24 +243,24 @@ CUSTOM_COMMAND_SIG(multi_paste){
 }
 
 static Range
-multi_paste_range(Application_Links *app, View_Summary *view, Range range, int32_t paste_count, bool32 old_to_new){
+multi_paste_range(Application_Links *app, View_Summary *view, Range range, i32 paste_count, b32 old_to_new){
     Range finish_range = range;
     if (paste_count >= 1){
         Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessOpen);
         if (buffer.exists){
-            int32_t total_size = 0;
-            for (int32_t paste_index = 0; paste_index < paste_count; ++paste_index){
+            i32 total_size = 0;
+            for (i32 paste_index = 0; paste_index < paste_count; ++paste_index){
                 total_size += 1 + clipboard_index(app, 0, paste_index, 0, 0);
             }
             total_size -= 1;
             
             if (total_size <= app->memory_size){
                 char *str = (char*)app->memory;
-                int32_t position = 0;
+                i32 position = 0;
                 
-                int32_t first = paste_count - 1;
-                int32_t one_past_last = -1;
-                int32_t step = -1;
+                i32 first = paste_count - 1;
+                i32 one_past_last = -1;
+                i32 step = -1;
                 
                 if (!old_to_new){
                     first = 0;
@@ -268,17 +268,17 @@ multi_paste_range(Application_Links *app, View_Summary *view, Range range, int32
                     step = 1;
                 }
                 
-                for (int32_t paste_index = first; paste_index != one_past_last; paste_index += step){
+                for (i32 paste_index = first; paste_index != one_past_last; paste_index += step){
                     if (paste_index != first){
                         str[position] = '\n';
                         ++position;
                     }
                     
-                    int32_t len = clipboard_index(app, 0, paste_index, str + position, total_size - position);
+                    i32 len = clipboard_index(app, 0, paste_index, str + position, total_size - position);
                     position += len;
                 }
                 
-                int32_t pos = range.min;
+                i32 pos = range.min;
                 buffer_replace_range(app, &buffer, range.min, range.max, str, total_size);
                 finish_range.min = pos;
                 finish_range.max = pos + total_size;
@@ -297,13 +297,13 @@ multi_paste_range(Application_Links *app, View_Summary *view, Range range, int32
 }
 
 static void
-multi_paste_interactive_up_down(Application_Links *app, int32_t paste_count, int32_t clip_count){
+multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 clip_count){
     View_Summary view = get_active_view(app, AccessOpen);
     
     Range range = {};
     range.min = range.max = view.cursor.pos;
     
-    bool32 old_to_new = true;
+    b32 old_to_new = true;
     
     range = multi_paste_range(app, &view, range, paste_count, old_to_new);
     
@@ -316,7 +316,7 @@ multi_paste_interactive_up_down(Application_Links *app, int32_t paste_count, int
         in = get_user_input(app, EventOnAnyKey, EventOnEsc);
         if (in.abort) break;
         
-        bool32 did_modify = false;
+        b32 did_modify = false;
         if (in.key.keycode == key_up){
             if (paste_count > 1){
                 --paste_count;
@@ -349,14 +349,14 @@ multi_paste_interactive_up_down(Application_Links *app, int32_t paste_count, int
 }
 
 CUSTOM_COMMAND_SIG(multi_paste_interactive){
-    int32_t clip_count = clipboard_count(app, 0);
+    i32 clip_count = clipboard_count(app, 0);
     if (clip_count > 0){
         multi_paste_interactive_up_down(app, 1, clip_count);
     }
 }
 
 CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
-    int32_t clip_count = clipboard_count(app, 0);
+    i32 clip_count = clipboard_count(app, 0);
     if (clip_count > 0){
         char string_space[256];
         Query_Bar bar = {};
@@ -364,7 +364,7 @@ CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
         bar.string = make_fixed_width_string(string_space);
         query_user_number(app, &bar);
         
-        int32_t initial_paste_count = str_to_int_s(bar.string);
+        i32 initial_paste_count = str_to_int_s(bar.string);
         if (initial_paste_count > clip_count){
             initial_paste_count = clip_count;
         }
@@ -383,7 +383,7 @@ CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
 CUSTOM_COMMAND_SIG(rename_parameter)
 CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in the signature of a function definition, all occurences within the scope of the function will be replaced with a new provided string.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
@@ -394,12 +394,12 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
     Cpp_Get_Token_Result result;
     if (buffer_get_token_index(app, &buffer, view.cursor.pos, &result)){
         if (!result.in_whitespace_after_token){
-            static const int32_t stream_space_size = 512;
+            static const i32 stream_space_size = 512;
             Cpp_Token stream_space[stream_space_size];
             Stream_Tokens_DEP stream = {};
             
             if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, stream_space_size)){
-                int32_t token_index = result.token_index;
+                i32 token_index = result.token_index;
                 Cpp_Token token = stream.tokens[token_index];
                 
                 if (token.type == CPP_TOKEN_IDENTIFIER){
@@ -412,8 +412,8 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                         old_lexeme.size = token.size;
                         buffer_read_range(app, &buffer, token.start, token.start+token.size, old_lexeme.str);
                         
-                        int32_t proc_body_found = 0;
-                        bool32 still_looping = 0;
+                        i32 proc_body_found = 0;
+                        b32 still_looping = 0;
                         
                         ++token_index;
                         do{
@@ -448,8 +448,8 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                             String replace_string = with.string;
                             
                             Buffer_Edit *edits = push_array(part, Buffer_Edit, 0);
-                            int32_t edit_max = (part_remaining(part))/sizeof(Buffer_Edit);
-                            int32_t edit_count = 0;
+                            i32 edit_max = (part_remaining(part))/sizeof(Buffer_Edit);
+                            i32 edit_count = 0;
                             
                             if (edit_max >= 1){
                                 Buffer_Edit edit;
@@ -462,8 +462,8 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                                 ++edit_count;
                             }
                             
-                            int32_t nesting_level = 0;
-                            int32_t closed_correctly = 0;
+                            i32 nesting_level = 0;
+                            i32 closed_correctly = 0;
                             ++token_index;
                             still_looping = 0;
                             do{
@@ -533,7 +533,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
     end_temp_memory(temp);
 }
 
-typedef uint32_t Write_Explicit_Enum_Values_Mode;
+typedef u32 Write_Explicit_Enum_Values_Mode;
 enum{
     WriteExplicitEnumValues_Integers,
     WriteExplicitEnumValues_Flags,
@@ -541,7 +541,7 @@ enum{
 
 static void
 write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enum_Values_Mode mode){
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
@@ -556,18 +556,18 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
             Stream_Tokens_DEP stream = {};
             
             if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, 32)){
-                int32_t token_index = result.token_index;
+                i32 token_index = result.token_index;
                 Cpp_Token token = stream.tokens[token_index];
                 
                 if (token.type == CPP_TOKEN_BRACE_OPEN){
                     
                     ++token_index;
                     
-                    int32_t seeker_index = token_index;
+                    i32 seeker_index = token_index;
                     Stream_Tokens_DEP seek_stream = begin_temp_stream_token(&stream);
                     
-                    bool32 closed_correctly = false;
-                    bool32 still_looping = false;
+                    b32 closed_correctly = false;
+                    b32 still_looping = false;
                     do{
                         for (; seeker_index < stream.end; ++seeker_index){
                             Cpp_Token *token_seeker = stream.tokens + seeker_index;
@@ -586,9 +586,9 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                     end_temp_stream_token(&stream, seek_stream);
                     
                     if (closed_correctly){
-                        int32_t count_estimate = 1 + (seeker_index - token_index)/2;
+                        i32 count_estimate = 1 + (seeker_index - token_index)/2;
                         
-                        int32_t edit_count = 0;
+                        i32 edit_count = 0;
                         Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
                         
                         char *string_base = push_array(part, char, 0);
@@ -596,7 +596,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         
                         closed_correctly = false;
                         still_looping = false;
-                        uint32_t value = 0;
+                        u32 value = 0;
                         if (mode == WriteExplicitEnumValues_Flags){
                             value = 1;
                         }
@@ -607,10 +607,10 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                                 switch (token_ptr->type){
                                     case CPP_TOKEN_IDENTIFIER:
                                     {
-                                        int32_t edit_start = token_ptr->start + token_ptr->size;
-                                        int32_t edit_stop = edit_start;
+                                        i32 edit_start = token_ptr->start + token_ptr->size;
+                                        i32 edit_stop = edit_start;
                                         
-                                        int32_t edit_is_good = 0;
+                                        i32 edit_is_good = 0;
                                         ++token_index;
                                         do{
                                             for (; token_index < stream.end; ++token_index){
@@ -637,7 +637,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                                         
                                         good_edit:;
                                         if (edit_is_good){
-                                            int32_t str_pos = string.size;
+                                            i32 str_pos = string.size;
                                             
                                             append(&string, " = ");
                                             append_int_to_str(&string, value);
@@ -654,7 +654,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                                                 }
                                             }
                                             
-                                            int32_t str_size = string.size - str_pos;
+                                            i32 str_size = string.size - str_pos;
                                             
                                             Buffer_Edit edit;
                                             edit.str_start = str_pos;
@@ -714,7 +714,7 @@ CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the v
 
 struct Replace_Target{
     Buffer_ID buffer_id;
-    int32_t start_pos;
+    i32 start_pos;
 };
 
 static void
@@ -722,7 +722,7 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
     if (target_string.size <= 0) return;
     
     global_history_edit_group_begin(app);
-    for (bool32 got_all_occurrences = false;
+    for (b32 got_all_occurrences = false;
          !got_all_occurrences;){
         // Initialize a generic search all buffers
         Search_Set set = {};
@@ -732,7 +732,7 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
         // Visit all locations and create replacement list
         Temp_Memory temp = begin_temp_memory(part);
         Replace_Target *targets = push_array(part, Replace_Target, 0);
-        int32_t target_count = 0;
+        i32 target_count = 0;
         
         got_all_occurrences = true;
         for (Search_Match match = search_next_match(app, &set, &iter);
@@ -757,17 +757,17 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
         }
         
         // Use replacement list to do replacements
-        int32_t shift_per_replacement = new_string.size - target_string.size;
-        int32_t current_offset = 0;
-        int32_t current_buffer_id = 0;
+        i32 shift_per_replacement = new_string.size - target_string.size;
+        i32 current_offset = 0;
+        i32 current_buffer_id = 0;
         Replace_Target *target = targets;
-        for (int32_t i = 0; i < target_count; ++i, ++target){
+        for (i32 i = 0; i < target_count; ++i, ++target){
             if (target->buffer_id != current_buffer_id){
                 current_buffer_id = target->buffer_id;
                 current_offset = 0;
             }
             Buffer_Summary buffer = get_buffer(app, target->buffer_id, AccessOpen);
-            int32_t pos = target->start_pos + current_offset;
+            i32 pos = target->start_pos + current_offset;
             buffer_replace_range(app, &buffer, pos, pos + target_string.size, new_string.str, new_string.size);
             current_offset += shift_per_replacement;
         }
@@ -801,8 +801,8 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurrences of th
     replace_all_occurrences_parameters(app, &global_heap, &global_part, r, w);
 }
 
-extern "C" int32_t
-get_bindings(void *data, int32_t size){
+extern "C" i32
+get_bindings(void *data, i32 size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
@@ -849,8 +849,7 @@ get_bindings(void *data, int32_t size){
     bind(context, 'p', MDFR_ALT, rename_parameter);
     end_map(context);
     
-    int32_t result = end_bind_helper(context);
-    return(result);
+    return(end_bind_helper(context));
 }
 
 // BOTTOM

@@ -113,7 +113,7 @@ ui_data_compute_bounding_boxes(UI_Data *ui_data){
     neg_inf_rect.y0 = INT32_MAX;
     neg_inf_rect.x1 = INT32_MIN;
     neg_inf_rect.y1 = INT32_MIN;
-    for (uint32_t i = 0; i < UICoordinates_COUNT; ++i){
+    for (u32 i = 0; i < UICoordinates_COUNT; ++i){
         ui_data->bounding_box[i] = neg_inf_rect;
     }
     for (UI_Item *item = ui_data->list.first;
@@ -128,12 +128,12 @@ ui_data_compute_bounding_boxes(UI_Data *ui_data){
 }
 
 static void
-ui_control_set_top(UI_Data *data, int32_t top_y){
+ui_control_set_top(UI_Data *data, i32 top_y){
     data->bounding_box[UICoordinates_ViewSpace].y0 = top_y;
 }
 
 static void
-ui_control_set_bottom(UI_Data *data, int32_t bottom_y){
+ui_control_set_bottom(UI_Data *data, i32 bottom_y){
     data->bounding_box[UICoordinates_ViewSpace].y1 = bottom_y;
 }
 
@@ -163,7 +163,7 @@ ui_control_get_mouse_hit(UI_Data *data, Vec2_i32 view_p, Vec2_i32 panel_p){
 }
 
 static UI_Item*
-ui_control_get_mouse_hit(UI_Data *data, int32_t mx_scrolled, int32_t my_scrolled, int32_t mx_unscrolled, int32_t my_unscrolled){
+ui_control_get_mouse_hit(UI_Data *data, i32 mx_scrolled, i32 my_scrolled, i32 mx_unscrolled, i32 my_unscrolled){
     return(ui_control_get_mouse_hit(data, V2i32(mx_scrolled, my_scrolled), V2i32(mx_unscrolled, my_unscrolled)));
 }
 
@@ -177,22 +177,22 @@ view_zero_scroll(Application_Links *app, View_Summary *view){
 
 static void
 view_set_vertical_focus(Application_Links *app, View_Summary *view,
-                        int32_t y_top, int32_t y_bot){
+                        i32 y_top, i32 y_bot){
     GUI_Scroll_Vars scroll = view->scroll_vars;
-    int32_t view_y_top = scroll.target_y;
-    int32_t view_y_dim = view->file_region.y1 - view->file_region.y0;
-    int32_t view_y_bot = view_y_top + view_y_dim;
-    int32_t line_dim = (int32_t)view->line_height;
-    int32_t hot_y_top = view_y_top + line_dim*3;
-    int32_t hot_y_bot = view_y_bot - line_dim*3;
+    i32 view_y_top = scroll.target_y;
+    i32 view_y_dim = view->file_region.y1 - view->file_region.y0;
+    i32 view_y_bot = view_y_top + view_y_dim;
+    i32 line_dim = (i32)view->line_height;
+    i32 hot_y_top = view_y_top + line_dim*3;
+    i32 hot_y_bot = view_y_bot - line_dim*3;
     if (hot_y_bot - hot_y_top < line_dim*6){
-        int32_t quarter_view_y_dim = view_y_dim/4;
+        i32 quarter_view_y_dim = view_y_dim/4;
         hot_y_top = view_y_top + quarter_view_y_dim;
         hot_y_bot = view_y_bot - quarter_view_y_dim;
     }
-    int32_t hot_y_dim = hot_y_bot - hot_y_top;
-    int32_t skirt_dim = hot_y_top - view_y_top;
-    int32_t y_dim = y_bot - y_top;
+    i32 hot_y_dim = hot_y_bot - hot_y_top;
+    i32 skirt_dim = hot_y_top - view_y_top;
+    i32 y_dim = y_bot - y_top;
     if (y_dim > hot_y_dim){
         scroll.target_y = y_top - skirt_dim;
         view_set_scroll(app, view, scroll);
@@ -259,8 +259,8 @@ view_get_lister_state(View_Summary *view){
     return(&global_lister_state[view->view_id]);
 }
 
-static int32_t
-lister_standard_arena_size_round_up(int32_t arena_size){
+static i32
+lister_standard_arena_size_round_up(i32 arena_size){
     if (arena_size < (64 << 10)){
         arena_size = (64 << 10);
     }
@@ -310,19 +310,19 @@ lister_get_clicked_item(Application_Links *app, View_ID view_id, Partition *scra
     return(result);
 }
 
-static int32_t
+static i32
 lister_get_line_height(View_Summary *view){
-    return((int32_t)view->line_height);
+    return((i32)view->line_height);
 }
 
-static int32_t
+static i32
 lister_get_text_field_height(View_Summary *view){
-    return((int32_t)view->line_height);
+    return((i32)view->line_height);
 }
 
-static int32_t
-lister_get_block_height(int32_t line_height, bool32 is_theme_list){
-    int32_t block_height = 0;
+static i32
+lister_get_block_height(i32 line_height, b32 is_theme_list){
+    i32 block_height = 0;
     if (is_theme_list){
         block_height = line_height*3 + 6;
     }
@@ -334,13 +334,13 @@ lister_get_block_height(int32_t line_height, bool32 is_theme_list){
 
 static void
 lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view, Lister_State *state){
-    bool32 is_theme_list = state->lister.data.theme_list;
+    b32 is_theme_list = state->lister.data.theme_list;
     
-    int32_t x0 = 0;
-    int32_t x1 = view->view_region.x1 - view->view_region.x0;
-    int32_t line_height = lister_get_line_height(view);
-    int32_t block_height = lister_get_block_height(line_height, is_theme_list);
-    int32_t text_field_height = lister_get_text_field_height(view);
+    i32 x0 = 0;
+    i32 x1 = view->view_region.x1 - view->view_region.x0;
+    i32 line_height = lister_get_line_height(view);
+    i32 block_height = lister_get_block_height(line_height, is_theme_list);
+    i32 text_field_height = lister_get_text_field_height(view);
     
     Temp_Memory full_temp = begin_temp_memory(scratch);
     
@@ -348,11 +348,11 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     Vec2_i32 view_m = get_mouse_position_in_view_space(app, view->file_region.p0,
                                                        V2i32(view->scroll_vars.scroll_p));
     
-    int32_t y_pos = text_field_height;
+    i32 y_pos = text_field_height;
     
     state->raw_item_index = -1;
     
-    int32_t node_count = state->lister.data.options.count;
+    i32 node_count = state->lister.data.options.count;
     Lister_Node_Ptr_Array exact_matches = {};
     exact_matches.node_ptrs = push_array(scratch, Lister_Node*, 1);
     Lister_Node_Ptr_Array before_extension_matches = {};
@@ -363,7 +363,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     String key = state->lister.data.key_string;
     Absolutes absolutes = {};
     get_absolutes(key, &absolutes, true, true);
-    bool32 has_wildcard = (absolutes.count > 3);
+    b32 has_wildcard = (absolutes.count > 3);
     
     for (Lister_Node *node = state->lister.data.options.first;
          node != 0;
@@ -399,10 +399,10 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         UI_Item *highlighted_item = 0;
         UI_Item *hot_item = 0;
         UI_Item *hovered_item = 0;
-        int32_t item_index_counter = 0;
-        for (int32_t array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
+        i32 item_index_counter = 0;
+        for (i32 array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
             Lister_Node_Ptr_Array node_ptr_array = node_ptr_arrays[array_index];
-            for (int32_t node_index = 0; node_index < node_ptr_array.count; node_index += 1){
+            for (i32 node_index = 0; node_index < node_ptr_array.count; node_index += 1){
                 Lister_Node *node = node_ptr_array.node_ptrs[node_index];
                 
                 i32_Rect item_rect = {};
@@ -531,7 +531,7 @@ lister_prealloced(String string){
 }
 
 static void
-lister_first_init(Application_Links *app, Lister *lister, void *user_data, int32_t user_data_size){
+lister_first_init(Application_Links *app, Lister *lister, void *user_data, i32 user_data_size){
     memset(lister, 0, sizeof(*lister));
     lister->arena = make_arena(app, (16 << 10));
     lister->data.query      = make_fixed_width_string(lister->data.query_space);
@@ -546,14 +546,14 @@ lister_first_init(Application_Links *app, Lister *lister, void *user_data, int32
 }
 
 static void
-lister_begin_new_item_set(Application_Links *app, Lister *lister, int32_t list_memory_size){
+lister_begin_new_item_set(Application_Links *app, Lister *lister, i32 list_memory_size){
     arena_release_all(&lister->arena);
     memset(&lister->data.options, 0, sizeof(lister->data.options));
 }
 
 static void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status,
-                void *user_data, int32_t extra_space){
+                void *user_data, i32 extra_space){
     Lister_Node *node = push_array(&lister->arena, Lister_Node, 1);
     node->string = string.string;
     node->status = status.string;
@@ -568,20 +568,20 @@ lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloc
 
 static void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, String status,
-                void *user_data, int32_t extra_space){
+                void *user_data, i32 extra_space){
     return(lister_add_item(lister, string, lister_prealloced(string_push_copy(&lister->arena, status)),
                            user_data, extra_space));
 }
 
 static void*
 lister_add_item(Lister *lister, String string, Lister_Prealloced_String status,
-                void *user_data, int32_t extra_space){
+                void *user_data, i32 extra_space){
     return(lister_add_item(lister, lister_prealloced(string_push_copy(&lister->arena, string)), status,
                            user_data, extra_space));
 }
 
 static void*
-lister_add_item(Lister *lister, String string, String status, void *user_data, int32_t extra_space){
+lister_add_item(Lister *lister, String string, String status, void *user_data, i32 extra_space){
     return(lister_add_item(lister,
                            lister_prealloced(string_push_copy(&lister->arena, string)),
                            lister_prealloced(string_push_copy(&lister->arena, status)),
@@ -590,8 +590,8 @@ lister_add_item(Lister *lister, String string, String status, void *user_data, i
 
 static void*
 lister_add_theme_item(Lister *lister,
-                      Lister_Prealloced_String string, int32_t index,
-                      void *user_data, int32_t extra_space){
+                      Lister_Prealloced_String string, i32 index,
+                      void *user_data, i32 extra_space){
     Lister_Node *node = push_array(&lister->arena, Lister_Node, 1);
     node->string = string.string;
     node->index = index;
@@ -605,17 +605,17 @@ lister_add_theme_item(Lister *lister,
 }
 
 static void*
-lister_add_theme_item(Lister *lister, String string, int32_t index,
-                      void *user_data, int32_t extra_space){
+lister_add_theme_item(Lister *lister, String string, i32 index,
+                      void *user_data, i32 extra_space){
     return(lister_add_theme_item(lister, lister_prealloced(string_push_copy(&lister->arena, string)), index,
                                  user_data, extra_space));
 }
 
 static void*
-lister_get_user_data(Lister_Data *lister_data, int32_t index){
+lister_get_user_data(Lister_Data *lister_data, i32 index){
     void *result = 0;
     if (0 <= index && index < lister_data->options.count){
-        int32_t counter = 0;
+        i32 counter = 0;
         for (Lister_Node *node = lister_data->options.first;
              node != 0;
              node = node->next, counter += 1){
@@ -665,7 +665,7 @@ lister_default(Application_Links *app, Partition *scratch, Heap *heap,
 static void
 lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap,
                              View_Summary *view, Lister_State *state,
-                             void *user_data, bool32 activated_by_mouse){
+                             void *user_data, b32 activated_by_mouse){
     Lister_Data *lister = &state->lister.data;
     if (lister->handlers.activate != 0){
         lister->handlers.activate(app, scratch, heap, view, state,

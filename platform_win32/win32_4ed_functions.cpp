@@ -41,7 +41,7 @@ Sys_Memory_Allocate_Sig(system_memory_allocate){
 
 internal
 Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
-    bool32 result = false;
+    b32 result = false;
     DWORD old_protect = 0;
     DWORD protect = 0;
     

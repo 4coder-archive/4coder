@@ -4,9 +4,9 @@
 
 // TOP
 
-static bool32
-ms_style_verify(String line, int32_t left_paren_pos, int32_t right_paren_pos){
-    int32_t result = false;
+static b32
+ms_style_verify(String line, i32 left_paren_pos, i32 right_paren_pos){
+    i32 result = false;
     String line_part = substr_tail(line, right_paren_pos);
     if (match_part_sc(line_part, ") : ")){
         result = true;
@@ -18,7 +18,7 @@ ms_style_verify(String line, int32_t left_paren_pos, int32_t right_paren_pos){
         String number = substr(line, left_paren_pos + 1, right_paren_pos - left_paren_pos - 2);
         if (!str_is_int_s(number)){
             result = false;
-            int32_t comma_pos = find_s_char(number, 0, ',');
+            i32 comma_pos = find_s_char(number, 0, ',');
             if (comma_pos < number.size){
                 String sub_number0 = substr(number, 0, comma_pos);
                 String sub_number1 = substr(number, comma_pos + 1, number.size - comma_pos - 1);
@@ -31,24 +31,24 @@ ms_style_verify(String line, int32_t left_paren_pos, int32_t right_paren_pos){
     return(result);
 }
 
-static int32_t
+static i32
 try_skip_rust_arrow(String line){
-    int32_t pos = 0;
+    i32 pos = 0;
     if (match_part(line, "-->")){
         String sub = substr_tail(line, 3);
         sub = skip_chop_whitespace(sub);
-        pos = (int32_t)(sub.str - line.str);
+        pos = (i32)(sub.str - line.str);
     }
     return(pos);
 }
 
-static bool32
-check_is_note(String line, int32_t colon_pos){
-    bool32 is_note = false;
-    int32_t note_pos = find_substr(line, colon_pos, make_lit_string("note"));
+static b32
+check_is_note(String line, i32 colon_pos){
+    b32 is_note = false;
+    i32 note_pos = find_substr(line, colon_pos, make_lit_string("note"));
     if (note_pos < line.size){
-        bool32 is_all_whitespace = true;
-        for (int32_t i = colon_pos + 1; i < note_pos; i += 1){
+        b32 is_all_whitespace = true;
+        for (i32 i = colon_pos + 1; i < note_pos; i += 1){
             if (!char_is_whitespace(line.str[i])){
                 is_all_whitespace = false;
                 break;
@@ -61,19 +61,19 @@ check_is_note(String line, int32_t colon_pos){
     return(is_note);
 }
 
-static bool32
-parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *colon_char, bool32 *is_sub_error){
-    bool32 result = false;
+static b32
+parse_jump_location(String line, Name_Line_Column_Location *location, i32 *colon_char, b32 *is_sub_error){
+    b32 result = false;
     *is_sub_error = (line.str[0] == ' ');
     
-    int32_t whitespace_length = 0;
+    i32 whitespace_length = 0;
     line = skip_chop_whitespace(line, &whitespace_length);
     
-    int32_t colon_pos = 0;
-    bool32 is_ms_style = false;
+    i32 colon_pos = 0;
+    b32 is_ms_style = false;
     
-    int32_t left_paren_pos = find_s_char(line, 0, '(');
-    int32_t right_paren_pos = find_s_char(line, left_paren_pos, ')');
+    i32 left_paren_pos = find_s_char(line, 0, '(');
+    i32 right_paren_pos = find_s_char(line, left_paren_pos, ')');
     while (!is_ms_style && right_paren_pos < line.size){
         if (ms_style_verify(line, left_paren_pos, right_paren_pos)){
             is_ms_style = true;
@@ -87,8 +87,8 @@ parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *c
                 
                 location_str = skip_chop_whitespace(location_str);
                 
-                int32_t close_pos = right_paren_pos;
-                int32_t open_pos = left_paren_pos;
+                i32 close_pos = right_paren_pos;
+                i32 open_pos = left_paren_pos;
                 
                 if (0 < open_pos && open_pos < location_str.size){
                     String file = substr(location_str, 0, open_pos);
@@ -103,9 +103,9 @@ parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *c
                         if (line_number.size > 0){
                             location->file = file;
                             
-                            int32_t comma_pos = find_s_char(line_number, 0, ',');
+                            i32 comma_pos = find_s_char(line_number, 0, ',');
                             if (comma_pos < line_number.size){
-                                int32_t start = comma_pos+1;
+                                i32 start = comma_pos+1;
                                 String column_number = substr(line_number, start, line_number.size-start);
                                 line_number = substr(line_number, 0, comma_pos);
                                 
@@ -131,17 +131,17 @@ parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *c
     }
     
     if (!is_ms_style){
-        int32_t start = try_skip_rust_arrow(line);
+        i32 start = try_skip_rust_arrow(line);
         
-        int32_t colon_pos1 = find_s_char(line, start, ':');
+        i32 colon_pos1 = find_s_char(line, start, ':');
         if (line.size > colon_pos1 + 1){
             if (char_is_slash(line.str[colon_pos1 + 1])){
                 colon_pos1 = find_s_char(line, colon_pos1 + 1, ':');
             }
         }
         
-        int32_t colon_pos2 = find_s_char(line, colon_pos1 + 1, ':');
-        int32_t colon_pos3 = find_s_char(line, colon_pos2 + 1, ':');
+        i32 colon_pos2 = find_s_char(line, colon_pos1 + 1, ':');
+        i32 colon_pos3 = find_s_char(line, colon_pos2 + 1, ':');
         
         if (colon_pos3 < line.size){
             if (check_is_note(line, colon_pos3)){
@@ -191,25 +191,25 @@ parse_jump_location(String line, Name_Line_Column_Location *location, int32_t *c
     return(result);
 }
 
-static bool32
-parse_jump_location(String line, bool32 skip_sub_error, Name_Line_Column_Location *location, int32_t *colon_char){
-    bool32 is_sub_error = false;
-    bool32 result = parse_jump_location(line, location, colon_char, &is_sub_error);
+static b32
+parse_jump_location(String line, b32 skip_sub_error, Name_Line_Column_Location *location, i32 *colon_char){
+    b32 is_sub_error = false;
+    b32 result = parse_jump_location(line, location, colon_char, &is_sub_error);
     if (is_sub_error && skip_sub_error){
         result = false;
     }
     return(result);
 }
 
-static int32_t
+static i32
 parse_jump_from_buffer_line(Application_Links *app, Partition *arena,
-                            int32_t buffer_id, int32_t line,
-                            bool32 skip_sub_errors, Name_Line_Column_Location *location){
-    int32_t result = false;
+                            i32 buffer_id, i32 line,
+                            b32 skip_sub_errors, Name_Line_Column_Location *location){
+    i32 result = false;
     String line_str = {};
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     if (read_line(app, arena, &buffer, line, &line_str)){
-        int32_t colon_char = 0;
+        i32 colon_char = 0;
         if (parse_jump_location(line_str, skip_sub_errors, location, &colon_char)){
             result = true;
         }
@@ -219,18 +219,18 @@ parse_jump_from_buffer_line(Application_Links *app, Partition *arena,
 
 ////////////////////////////////
 
-static bool32
+static b32
 get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, Name_Line_Column_Location *location){
     return(open_file(app, buffer, location->file.str, location->file.size, false, true));
 }
 
-static bool32
+static b32
 get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location, Access_Flag access){
     *buffer = get_buffer(app, location->buffer_id, access);
-    return((bool32)buffer->exists);
+    return((b32)buffer->exists);
 }
 
-static bool32
+static b32
 get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location){
     return(get_jump_buffer(app, buffer, location, AccessAll));
 }
@@ -273,16 +273,16 @@ jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buf
 
 ////////////////////////////////
 
-static bool32
+static b32
 seek_next_jump_in_buffer(Application_Links *app, Partition *part,
-                         int32_t buffer_id, int32_t first_line, bool32 skip_sub_errors,
-                         int32_t direction,
-                         int32_t *line_out, int32_t *colon_index_out, Name_Line_Column_Location *location_out){
+                         i32 buffer_id, i32 first_line, b32 skip_sub_errors,
+                         i32 direction,
+                         i32 *line_out, i32 *colon_index_out, Name_Line_Column_Location *location_out){
     
     Assert(direction == 1 || direction == -1);
     
-    bool32 result = false;
-    int32_t line = first_line;
+    b32 result = false;
+    i32 line = first_line;
     String line_str = {};
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     for (;;){
@@ -321,13 +321,13 @@ convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location
     return(result);
 }
 
-static int32_t
-seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_sub_errors, int32_t direction, int32_t *line_out, int32_t *colon_index_out, Name_Line_Column_Location *location_out){
-    int32_t result = false;
+static i32
+seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_sub_errors, i32 direction, i32 *line_out, i32 *colon_index_out, Name_Line_Column_Location *location_out){
+    i32 result = false;
     
     Name_Line_Column_Location location = {};
-    int32_t line = view->cursor.line;
-    int32_t colon_index = 0;
+    i32 line = view->cursor.line;
+    i32 colon_index = 0;
     if (seek_next_jump_in_buffer(app, part, view->buffer_id, line+direction, skip_sub_errors, direction, &line, &colon_index, &location)){
         result = true;
         *line_out = line;
@@ -338,23 +338,23 @@ seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *vi
     return(result);
 }
 
-static bool32
+static b32
 skip_this_jump(ID_Line_Column_Jump_Location prev, ID_Line_Column_Jump_Location jump){
-    bool32 result = false;
+    b32 result = false;
     if (prev.buffer_id != 0 && prev.buffer_id == jump.buffer_id && prev.line == jump.line && prev.column <= jump.column){
         result = true;
     }
     return(result);
 }
 
-static bool32
-advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, int32_t skip_repeats, int32_t skip_sub_error, int32_t direction, Name_Line_Column_Location *location_out){
-    bool32 result = true;
+static b32
+advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
+    b32 result = true;
     
     Name_Line_Column_Location location = {};
     ID_Line_Column_Jump_Location jump = {};
-    int32_t line = 0;
-    int32_t colon_index = 0;
+    i32 line = 0;
+    i32 colon_index = 0;
     
     do{
         Temp_Memory temp = begin_temp_memory(part);
@@ -380,9 +380,9 @@ advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summar
     return(result);
 }
 
-static bool32
-seek_jump(Application_Links *app, Partition *part, bool32 skip_repeats, bool32 skip_sub_errors, int32_t direction){
-    bool32 result = false;
+static b32
+seek_jump(Application_Links *app, Partition *part, b32 skip_repeats, b32 skip_sub_errors, i32 direction){
+    b32 result = false;
     
     View_Summary view = get_view_for_locked_jump_buffer(app);
     if (view.exists){

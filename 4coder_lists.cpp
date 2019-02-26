@@ -131,7 +131,7 @@ CUSTOM_DOC("A lister mode command that inserts a new character to the text field
     if (state->initialized){
         User_Input in = get_command_input(app);
         uint8_t character[4];
-        uint32_t length = to_writable_character(in, character);
+        u32 length = to_writable_character(in, character);
         if (length > 0){
             append(&state->lister.data.text_field, make_string(character, length));
             append(&state->lister.data.key_string, make_string(character, length));
@@ -198,7 +198,7 @@ CUSTOM_DOC("A lister mode command that inserts a character into the text field o
     if (state->initialized){
         User_Input in = get_command_input(app);
         uint8_t character[4];
-        uint32_t length = to_writable_character(in, character);
+        u32 length = to_writable_character(in, character);
         if (length > 0){
             append(&state->lister.data.text_field, make_string(character, length));
             copy(&state->lister.data.key_string, front_of_directory(state->lister.data.text_field));
@@ -226,7 +226,7 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
             backspace_utf8(&state->lister.data.text_field);
             if (last_char == '/' || last_char == '\\'){
                 User_Input input = get_command_input(app);
-                bool32 is_modified =
+                b32 is_modified =
                     input.key.modifiers[MDFR_SHIFT_INDEX] ||
                     input.key.modifiers[MDFR_CONTROL_INDEX] ||
                     input.key.modifiers[MDFR_ALT_INDEX] ||
@@ -259,10 +259,10 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
     if (state->initialized){
         User_Input in = get_command_input(app);
         uint8_t character[4];
-        uint32_t length = to_writable_character(in, character);
+        u32 length = to_writable_character(in, character);
         if (length > 0){
             void *user_data = 0;
-            bool32 did_shortcut_key = false;
+            b32 did_shortcut_key = false;
             for (Lister_Node *node = state->lister.data.options.first;
                  node != 0;
                  node = node->next){
@@ -307,7 +307,7 @@ lister_get_fixed_list_handlers(void){
 static void
 begin_integrated_lister__with_refresh_handler(Application_Links *app, char *query_string, 
                                               Lister_Handlers handlers,
-                                              void *user_data, int32_t user_data_size,
+                                              void *user_data, i32 user_data_size,
                                               View_Summary *view){
     if (handlers.refresh != 0){
         Partition *scratch = &global_part;
@@ -332,21 +332,21 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
     }
 }
 
-static const int32_t default_string_size_estimation = 0;
+static const i32 default_string_size_estimation = 0;
 
-static int32_t
-lister__get_arena_size_(int32_t option_count, int32_t user_data_size,
-                        int32_t estimated_string_space_size){
-    int32_t arena_size = (user_data_size + 7 + option_count*sizeof(Lister_Node) + estimated_string_space_size);
+static i32
+lister__get_arena_size_(i32 option_count, i32 user_data_size,
+                        i32 estimated_string_space_size){
+    i32 arena_size = (user_data_size + 7 + option_count*sizeof(Lister_Node) + estimated_string_space_size);
     return(arena_size);
 }
 
 static void
 begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
                                     Lister_Activation_Function_Type *activate,
-                                    void *user_data, int32_t user_data_size,
-                                    Lister_Option *options, int32_t option_count,
-                                    int32_t estimated_string_space_size,
+                                    void *user_data, i32 user_data_size,
+                                    Lister_Option *options, i32 option_count,
+                                    i32 estimated_string_space_size,
                                     View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
@@ -355,7 +355,7 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
-    for (int32_t i = 0; i < option_count; i += 1){
+    for (i32 i = 0; i < option_count; i += 1){
         lister_add_item(&state->lister, options[i].string, options[i].status, options[i].user_data, 0);
     }
     lister_set_query_string(&state->lister.data, query_string);
@@ -367,9 +367,9 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
 static void
 begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_string,
                                             Lister_Handlers handlers,
-                                            void *user_data, int32_t user_data_size,
-                                            Lister_Fixed_Option *options, int32_t option_count,
-                                            int32_t estimated_string_space_size,
+                                            void *user_data, i32 user_data_size,
+                                            Lister_Fixed_Option *options, i32 option_count,
+                                            i32 estimated_string_space_size,
                                             View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
@@ -378,9 +378,9 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
-    for (int32_t i = 0; i < option_count; i += 1){
+    for (i32 i = 0; i < option_count; i += 1){
         char *shortcut_chars = options[i].shortcut_chars;
-        int32_t shortcut_chars_length = str_size(shortcut_chars);
+        i32 shortcut_chars_length = str_size(shortcut_chars);
         void *extra = lister_add_item(&state->lister,
                                       make_string_slowly(options[i].string),
                                       make_string_slowly(options[i].status),
@@ -397,9 +397,9 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
 static void
 begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_string,
                                             Lister_Activation_Function_Type *activate,
-                                            void *user_data, int32_t user_data_size,
-                                            Lister_Fixed_Option *options, int32_t option_count,
-                                            int32_t estimated_string_space_size,
+                                            void *user_data, i32 user_data_size,
+                                            Lister_Fixed_Option *options, i32 option_count,
+                                            i32 estimated_string_space_size,
                                             View_Summary *view){
     Lister_Handlers handlers = lister_get_fixed_list_handlers();
     handlers.activate = activate;
@@ -413,9 +413,9 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
 static void
 begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
                                     Lister_Handlers handlers,
-                                    void *user_data, int32_t user_data_size,
-                                    Lister_UI_Option *options, int32_t option_count,
-                                    int32_t estimated_string_space_size,
+                                    void *user_data, i32 user_data_size,
+                                    Lister_UI_Option *options, i32 option_count,
+                                    i32 estimated_string_space_size,
                                     View_Summary *view){
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
@@ -425,7 +425,7 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
     state->lister.data.theme_list = true;
-    for (int32_t i = 0; i < option_count; i += 1){
+    for (i32 i = 0; i < option_count; i += 1){
         lister_add_theme_item(&state->lister,
                               make_string_slowly(options[i].string),
                               options[i].index,
@@ -440,9 +440,9 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
 static void
 begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
                                     Lister_Activation_Function_Type *activate,
-                                    void *user_data, int32_t user_data_size,
-                                    Lister_UI_Option *options, int32_t option_count,
-                                    int32_t estimated_string_space_size,
+                                    void *user_data, i32 user_data_size,
+                                    Lister_UI_Option *options, i32 option_count,
+                                    i32 estimated_string_space_size,
                                     View_Summary *view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate;
@@ -469,8 +469,8 @@ generate_all_buffers_list__output_buffer(Lister *lister, Buffer_Summary buffer){
 
 static void
 generate_all_buffers_list(Application_Links *app, Lister *lister){
-    int32_t buffer_count = get_buffer_count(app);
-    int32_t memory_size = 0;
+    i32 buffer_count = get_buffer_count(app);
+    i32 memory_size = 0;
     memory_size += buffer_count*(sizeof(Lister_Node) + 3);
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
@@ -481,14 +481,14 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     lister_begin_new_item_set(app, lister, memory_size);
     
     Buffer_ID buffers_currently_being_viewed[16];
-    int32_t currently_viewed_buffer_count = 0;
+    i32 currently_viewed_buffer_count = 0;
     
     // List currently viewed buffers
     for (View_Summary view = get_view_first(app, AccessAll);
          view.exists;
          get_view_next(app, &view, AccessAll)){
         Buffer_ID new_buffer_id = view.buffer_id;
-        for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+        for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
             if (new_buffer_id == buffers_currently_being_viewed[i]){
                 goto skip0;
             }
@@ -501,7 +501,7 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
-        for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+        for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
             if (buffer.buffer_id == buffers_currently_being_viewed[i]){
                 goto skip1;
             }
@@ -515,7 +515,7 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
-        for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+        for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
             if (buffer.buffer_id == buffers_currently_being_viewed[i]){
                 goto skip2;
             }
@@ -526,7 +526,7 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
         skip2:;
     }
     // Buffers That Are Open in Views
-    for (int32_t i = 0; i < currently_viewed_buffer_count; i += 1){
+    for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
         Buffer_Summary buffer = get_buffer(app, buffers_currently_being_viewed[i], AccessAll);
         generate_all_buffers_list__output_buffer(lister, buffer);
     }
@@ -550,7 +550,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     
     File_Info *one_past_last = file_list.infos + file_list.count;
     
-    int32_t memory_requirement = 0;
+    i32 memory_requirement = 0;
     memory_requirement += lister->data.user_data_size;
     memory_requirement += file_list.count*(sizeof(Lister_Node) + 10);
     memory_requirement += hot.size + 2;
@@ -611,7 +611,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                     case DirtyState_UnsavedChangesAndUnloadedChanges: status_flag = " *!"; break;
                 }
             }
-            int32_t more_than_enough_memory = 32;
+            i32 more_than_enough_memory = 32;
             String status = build_string(arena_use_as_part(&lister->arena, more_than_enough_memory), is_loaded, status_flag, "");
             lister_add_item(lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
         }
@@ -622,7 +622,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
 
 static void
 begin_integrated_lister__buffer_list(Application_Links *app, char *query_string, Lister_Activation_Function_Type *activate_procedure,
-                                     void *user_data, int32_t user_data_size, View_Summary *target_view){
+                                     void *user_data, i32 user_data_size, View_Summary *target_view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate_procedure;
     handlers.refresh = generate_all_buffers_list;
@@ -631,7 +631,7 @@ begin_integrated_lister__buffer_list(Application_Links *app, char *query_string,
 
 static void
 begin_integrated_lister__file_system_list(Application_Links *app, char *query_string, Lister_Activation_Function_Type *activate_procedure,
-                                          void *user_data, int32_t user_data_size, View_Summary *target_view){
+                                          void *user_data, i32 user_data_size, View_Summary *target_view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate_procedure;
     handlers.refresh = generate_hot_directory_file_list;
@@ -651,8 +651,8 @@ enum{
 
 static void
 activate_confirm_kill(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *view, Lister_State *state,
-                      String text_field, void *user_data, bool32 clicked){
-    int32_t behavior = (int32_t)PtrAsInt(user_data);
+                      String text_field, void *user_data, b32 clicked){
+    i32 behavior = (i32)PtrAsInt(user_data);
     Buffer_ID buffer_id = *(Buffer_ID*)(state->lister.data.user_data);
     switch (behavior){
         case SureToKill_No:
@@ -689,7 +689,7 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary
         {"(Y)es"          , "", "Yy", IntAsPtr(SureToKill_Yes) },
         {"(S)ave and Kill", "", "Ss", IntAsPtr(SureToKill_Save)},
     };
-    int32_t option_count = sizeof(options)/sizeof(options[0]);
+    i32 option_count = sizeof(options)/sizeof(options[0]);
     begin_integrated_lister__with_fixed_options(app, "There are unsaved changes, close anyway?",
                                                 activate_confirm_kill,
                                                 &buffer->buffer_id, sizeof(buffer->buffer_id),
@@ -700,8 +700,8 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary
 static void
 activate_confirm_close_4coder(Application_Links *app, Partition *scratch, Heap *heap,
                               View_Summary *view, Lister_State *state,
-                              String text_field, void *user_data, bool32 clicked){
-    int32_t behavior = (int32_t)PtrAsInt(user_data);
+                              String text_field, void *user_data, b32 clicked){
+    i32 behavior = (i32)PtrAsInt(user_data);
     switch (behavior){
         case SureToKill_No:
         {}break;
@@ -729,7 +729,7 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_Summary *view){
         {"(Y)es"               , "", "Yy", (void*)SureToKill_Yes },
         {"(S)ave All and Close", "", "Ss", (void*)SureToKill_Save},
     };
-    int32_t option_count = sizeof(options)/sizeof(options[0]);
+    i32 option_count = sizeof(options)/sizeof(options[0]);
     begin_integrated_lister__with_fixed_options(app,
                                                 "There are one or more buffers with unsave changes, close anyway?",
                                                 activate_confirm_close_4coder,
@@ -744,7 +744,7 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_Summary *view){
 static void
 activate_switch_buffer(Application_Links *app, Partition *scratch, Heap *heap,
                        View_Summary *view, Lister_State *state,
-                       String text_field, void *user_data, bool32 activated_by_mouse){
+                       String text_field, void *user_data, b32 activated_by_mouse){
     if (user_data != 0){
         Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
         view_set_buffer(app, view, buffer_id, SetBuffer_KeepOriginalGUI);
@@ -763,7 +763,7 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
 static void
 activate_kill_buffer(Application_Links *app, Partition *scratch, Heap *heap,
                      View_Summary *view, struct Lister_State *state,
-                     String text_field, void *user_data, bool32 activated_by_mouse){
+                     String text_field, void *user_data, b32 activated_by_mouse){
     lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
     if (user_data != 0){
         Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
@@ -781,7 +781,7 @@ CUSTOM_DOC("Interactively kill an open buffer.")
 
 static Lister_Activation_Code
 activate_open_or_new__generic(Application_Links *app, Partition *scratch, View_Summary *view,
-                              String path, String file_name, bool32 is_folder,
+                              String path, String file_name, b32 is_folder,
                               Buffer_Create_Flag flags){
     Lister_Activation_Code result = 0;
     
@@ -819,7 +819,7 @@ activate_open_or_new__generic(Application_Links *app, Partition *scratch, View_S
 static void
 activate_open_or_new(Application_Links *app, Partition *scratch, Heap *heap,
                      View_Summary *view, struct Lister_State *state,
-                     String text_field, void *user_data, bool32 clicked){
+                     String text_field, void *user_data, b32 clicked){
     Lister_Activation_Code result = 0;
     String file_name = {};
     if (user_data == 0){
@@ -836,7 +836,7 @@ activate_open_or_new(Application_Links *app, Partition *scratch, Heap *heap,
         if (path.size > 0 && !char_is_slash(path.str[path.size - 1])){
             path = path_of_directory(path);
         }
-        bool32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
+        b32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
         Buffer_Create_Flag flags = 0;
         result = activate_open_or_new__generic(app, scratch, view, path, file_name, is_folder, flags);
     }
@@ -854,7 +854,7 @@ CUSTOM_DOC("Interactively open a file out of the file system.")
 static void
 activate_new(Application_Links *app, Partition *scratch, Heap *heap,
              View_Summary *view, struct Lister_State *state,
-             String text_field, void *user_data, bool32 clicked){
+             String text_field, void *user_data, b32 clicked){
     Lister_Activation_Code result = 0;
     String file_name = front_of_directory(text_field);
     if (user_data != 0){
@@ -874,7 +874,7 @@ activate_new(Application_Links *app, Partition *scratch, Heap *heap,
         if (path.size > 0 && !char_is_slash(path.str[path.size - 1])){
             path = path_of_directory(path);
         }
-        bool32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
+        b32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
         Buffer_Create_Flag flags = BufferCreate_AlwaysNew;
         result = activate_open_or_new__generic(app, scratch, view, path, file_name, is_folder, flags);
     }
@@ -892,7 +892,7 @@ CUSTOM_DOC("Interactively creates a new file.")
 static void
 activate_open(Application_Links *app, Partition *scratch, Heap *heap,
               View_Summary *view, struct Lister_State *state,
-              String text_field, void *user_data, bool32 clicked){
+              String text_field, void *user_data, b32 clicked){
     Lister_Activation_Code result = 0;
     String file_name = {};
     if (user_data != 0){
@@ -906,7 +906,7 @@ activate_open(Application_Links *app, Partition *scratch, Heap *heap,
         if (path.size > 0 && !char_is_slash(path.str[path.size - 1])){
             path = path_of_directory(path);
         }
-        bool32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
+        b32 is_folder = (file_name.str[file_name.size - 1] == '/' && user_data != 0);
         Buffer_Create_Flag flags = BufferCreate_NeverNew;
         result = activate_open_or_new__generic(app, scratch, view, path, file_name, is_folder, flags);
     }
@@ -925,8 +925,8 @@ CUSTOM_DOC("Interactively opens a file.")
 static void
 activate_select_theme(Application_Links *app, Partition *scratch, Heap *heap,
                       View_Summary *view, struct Lister_State *state,
-                      String text_field, void *user_data, bool32 clicked){
-    change_theme_by_index(app, (int32_t)PtrAsInt(user_data));
+                      String text_field, void *user_data, b32 clicked){
+    change_theme_by_index(app, (i32)PtrAsInt(user_data));
     lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
 
@@ -938,9 +938,9 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
     
     View_Summary view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, &view);
-    int32_t theme_count = get_theme_count(app);
+    i32 theme_count = get_theme_count(app);
     Lister_UI_Option *options = push_array(scratch, Lister_UI_Option, theme_count);
-    for (int32_t i = 0; i < theme_count; i += 1){
+    for (i32 i = 0; i < theme_count; i += 1){
         String name = get_theme_name(app, scratch, i);
         options[i].string = name.str;
         options[i].index = i;
@@ -962,7 +962,7 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
 static void
 activate_command(Application_Links *app, Partition *scratch, Heap *heap,
                  View_Summary *view, Lister_State *state,
-                 String text_field, void *user_data, bool32 activated_by_mouse){
+                 String text_field, void *user_data, b32 activated_by_mouse){
     lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
     if (user_data != 0){
         Custom_Command_Function *command = (Custom_Command_Function*)user_data;
@@ -978,17 +978,14 @@ CUSTOM_DOC("Opens an interactive list of all registered commands.")
     View_Summary view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, &view);
     Temp_Memory temp = begin_temp_memory(arena);
-    int32_t option_count = command_one_past_last_id;
+    i32 option_count = command_one_past_last_id;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
-    for (int32_t i = 0; i < command_one_past_last_id; i += 1){
+    for (i32 i = 0; i < command_one_past_last_id; i += 1){
         options[i].string = make_string_slowly(fcoder_metacmd_table[i].name);
         options[i].status = make_string_slowly(fcoder_metacmd_table[i].description);
         options[i].user_data = (void*)fcoder_metacmd_table[i].proc;
     }
-    begin_integrated_lister__basic_list(app, "Command:", activate_command, 0, 0,
-                                        options, option_count,
-                                        0,
-                                        &view);
+    begin_integrated_lister__basic_list(app, "Command:", activate_command, 0, 0, options, option_count, 0, &view);
     end_temp_memory(temp);
 }
 

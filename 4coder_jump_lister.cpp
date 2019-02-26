@@ -7,7 +7,7 @@
 static void
 activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
               View_Summary *view, struct Lister_State *state,
-              String text_field, void *user_data, bool32 activated_by_mouse){
+              String text_field, void *user_data, b32 activated_by_mouse){
     Lister_Activation_Code result_code = ListerActivation_Finished;
     int32_t list_index = (int32_t)PtrAsInt(user_data);
     Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.data.user_data;

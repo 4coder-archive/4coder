@@ -8,15 +8,15 @@
 #define FCODER_FUNCTION_LIST_H
 
 struct Function_Positions{
-    int32_t sig_start_index;
-    int32_t sig_end_index;
-    int32_t open_paren_pos;
+    i32 sig_start_index;
+    i32 sig_end_index;
+    i32 open_paren_pos;
 };
 
 struct Get_Positions_Results{
-    int32_t positions_count;
-    int32_t next_token_index;
-    bool32 still_looping;
+    i32 positions_count;
+    i32 next_token_index;
+    b32 still_looping;
 };
 
 struct Buffered_Write_Stream{

@@ -48,36 +48,36 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 CUSTOM_COMMAND_SIG(goto_next_jump_direct)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, skipping sub jump locations.")
 {
-    bool32 skip_repeats = true;
-    bool32 skip_sub_errors = true;
-    int32_t dir = 1;
+    b32 skip_repeats = true;
+    b32 skip_sub_errors = true;
+    i32 dir = 1;
     seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
 CUSTOM_COMMAND_SIG(goto_prev_jump_direct)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, skipping sub jump locations.")
 {
-    bool32 skip_repeats = true;
-    bool32 skip_sub_errors = true;
-    int32_t dir = -1;
+    b32 skip_repeats = true;
+    b32 skip_sub_errors = true;
+    i32 dir = -1;
     seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
 CUSTOM_COMMAND_SIG(goto_next_jump_no_skips_direct)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.")
 {
-    bool32 skip_repeats = false;
-    bool32 skip_sub_errors = true;
-    int32_t dir = 1;
+    b32 skip_repeats = false;
+    b32 skip_sub_errors = true;
+    i32 dir = 1;
     seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
 CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips_direct)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, and does not skip sub jump locations.")
 {
-    bool32 skip_repeats = false;
-    bool32 skip_sub_errors = true;
-    int32_t dir = -1;
+    b32 skip_repeats = false;
+    b32 skip_sub_errors = true;
+    i32 dir = -1;
     seek_jump(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 

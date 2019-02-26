@@ -12,8 +12,8 @@
 #include <stdio.h>
 
 struct Error_Location{
-    int32_t line_number;
-    int32_t column_number;
+    i32 line_number;
+    i32 column_number;
 };
 
 struct Config_Error{
@@ -27,7 +27,7 @@ struct Config_Error{
 struct Config_Error_List{
     Config_Error *first;
     Config_Error *last;
-    int32_t count;
+    i32 count;
 };
 
 struct Config_Parser{
@@ -45,10 +45,10 @@ struct Config_Parser{
 
 struct Config_LValue{
     String identifier;
-    int32_t index;
+    i32 index;
 };
 
-typedef int32_t Config_RValue_Type;
+typedef i32 Config_RValue_Type;
 enum{
     ConfigRValueType_LValue = 0,
     ConfigRValueType_Boolean = 1,
@@ -66,16 +66,16 @@ enum{
 struct Config_Compound{
     struct Config_Compound_Element *first;
     struct Config_Compound_Element *last;
-    int32_t count;
+    i32 count;
 };
 
 struct Config_RValue{
     Config_RValue_Type type;
     union{
         Config_LValue *lvalue;
-        bool32 boolean;
-        int32_t integer;
-        uint32_t uinteger;
+        b32 boolean;
+        i32 integer;
+        u32 uinteger;
         String string;
         char character;
         Config_Compound *compound;
@@ -83,14 +83,14 @@ struct Config_RValue{
 };
 
 struct Config_Integer{
-    bool32 is_signed;
+    b32 is_signed;
     union{
-        int32_t integer;
-        uint32_t uinteger;
+        i32 integer;
+        u32 uinteger;
     };
 };
 
-typedef int32_t Config_Layout_Type;
+typedef i32 Config_Layout_Type;
 enum{
     ConfigLayoutType_Unset = 0,
     ConfigLayoutType_Identifier = 1,
@@ -102,7 +102,7 @@ struct Config_Layout{
     char *pos;
     union{
         String identifier;
-        int32_t integer;
+        i32 integer;
     };
 };
 
@@ -122,14 +122,14 @@ struct Config_Assignment{
     Config_LValue *l;
     Config_RValue *r;
     
-    bool32 visited;
+    b32 visited;
 };
 
 struct Config{
-    int32_t *version;
+    i32 *version;
     Config_Assignment *first;
     Config_Assignment *last;
-    int32_t count;
+    i32 count;
     
     Config_Error_List errors;
     
@@ -139,7 +139,7 @@ struct Config{
 
 ////////////////////////////////
 
-typedef int32_t Iteration_Step_Result;
+typedef i32 Iteration_Step_Result;
 enum{
     Iteration_Good = 0,
     Iteration_Skip = 1,
@@ -147,13 +147,13 @@ enum{
 };
 
 struct Config_Get_Result{
-    bool32 success;
+    b32 success;
     Config_RValue_Type type;
     char *pos;
     union{
-        bool32 boolean;
-        int32_t integer;
-        uint32_t uinteger;
+        b32 boolean;
+        i32 integer;
+        u32 uinteger;
         String string;
         char character;
         Config_Compound *compound;
@@ -174,7 +174,7 @@ struct Config_Get_Result_Node{
 struct Config_Get_Result_List{
     Config_Get_Result_Node *first;
     Config_Get_Result_Node *last;
-    int32_t count;
+    i32 count;
 };
 
 ////////////////////////////////
@@ -182,12 +182,12 @@ struct Config_Get_Result_List{
 struct Extension_List{
     char space[256];
     char *exts[94];
-    int32_t count;
+    i32 count;
 };
 
 struct CString_Array{
     char **strings;
-    int32_t count;
+    i32 count;
 };
 
 struct Config_Data{
@@ -202,35 +202,35 @@ struct Config_Data{
     char mode_space[64];
     String mode;
     
-    bool32 use_scroll_bars;
-    bool32 use_file_bars;
-    bool32 use_line_highlight;
-    bool32 use_scope_highlight;
-    bool32 use_paren_helper;
-    bool32 use_comment_keyword;
+    b32 use_scroll_bars;
+    b32 use_file_bars;
+    b32 use_line_highlight;
+    b32 use_scope_highlight;
+    b32 use_paren_helper;
+    b32 use_comment_keyword;
     
-    bool32 enable_virtual_whitespace;
-    bool32 enable_code_wrapping;
-    bool32 automatically_indent_text_on_save;
-    bool32 automatically_save_changes_on_build;
-    bool32 automatically_adjust_wrapping;
-    bool32 automatically_load_project;
+    b32 enable_virtual_whitespace;
+    b32 enable_code_wrapping;
+    b32 automatically_indent_text_on_save;
+    b32 automatically_save_changes_on_build;
+    b32 automatically_adjust_wrapping;
+    b32 automatically_load_project;
     
-    bool32 indent_with_tabs;
-    int32_t indent_width;
+    b32 indent_with_tabs;
+    i32 indent_width;
     
-    int32_t default_wrap_width;
-    int32_t default_min_base_width;
+    i32 default_wrap_width;
+    i32 default_min_base_width;
     
     char default_theme_name_space[256];
     String default_theme_name;
     
-    bool32 highlight_line_at_cursor;
+    b32 highlight_line_at_cursor;
     
     char default_font_name_space[256];
     String default_font_name;
-    int32_t default_font_size;
-    bool32 default_font_hinting;
+    i32 default_font_size;
+    b32 default_font_hinting;
     
     char default_compiler_bat_space[256];
     String default_compiler_bat;
@@ -244,7 +244,7 @@ struct Config_Data{
     char default_flags_sh_space[1024];
     String default_flags_sh;
     
-    bool32 lalt_lctrl_is_altgr;
+    b32 lalt_lctrl_is_altgr;
 };
 
 #if 0

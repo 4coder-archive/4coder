@@ -120,9 +120,9 @@ get_start_of_line_at_cursor(Application_Links *app, View_Summary *view, Buffer_S
     return(hard_start.char_pos);
 }
 
-static bool32
-c_line_comment_starts_at_position(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    bool32 alread_has_comment = false;
+static b32
+c_line_comment_starts_at_position(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+    b32 alread_has_comment = false;
     char check_buffer[2];
     if (buffer_read_range(app, buffer, pos, pos + 2, check_buffer)){
         if (check_buffer[0] == '/' && check_buffer[1] == '/'){
@@ -137,8 +137,8 @@ CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
 {
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    int32_t pos = get_start_of_line_at_cursor(app, &view, &buffer);
-    bool32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
+    i32 pos = get_start_of_line_at_cursor(app, &view, &buffer);
+    b32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
     if (!alread_has_comment){
         buffer_replace_range(app, &buffer, pos, pos, "//", 2);
     }
@@ -149,8 +149,8 @@ CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading w
 {
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    int32_t pos = get_start_of_line_at_cursor(app, &view, &buffer);
-    bool32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
+    i32 pos = get_start_of_line_at_cursor(app, &view, &buffer);
+    b32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
     if (alread_has_comment){
         buffer_replace_range(app, &buffer, pos, pos + 2, 0, 0);
     }
@@ -161,8 +161,8 @@ CUSTOM_DOC("Turns uncommented lines into commented lines and vice versa for comm
 {
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    int32_t pos = get_start_of_line_at_cursor(app, &view, &buffer);
-    bool32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
+    i32 pos = get_start_of_line_at_cursor(app, &view, &buffer);
+    b32 alread_has_comment = c_line_comment_starts_at_position(app, &buffer, pos);
     if (alread_has_comment){
         buffer_replace_range(app, &buffer, pos, pos + 2, 0, 0);
     }
@@ -206,15 +206,15 @@ static Snippet default_snippets[] = {
 static void
 activate_snippet(Application_Links *app, Partition *scratch, Heap *heap,
                  View_Summary *view, struct Lister_State *state,
-                 String text_field, void *user_data, bool32 activated_by_mouse){
-    int32_t index = (int32_t)PtrAsInt(user_data);
+                 String text_field, void *user_data, b32 activated_by_mouse){
+    i32 index = (i32)PtrAsInt(user_data);
     Snippet_Array snippets = *(Snippet_Array*)state->lister.data.user_data;
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
         lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
         Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessOpen);
-        int32_t pos = view->cursor.pos;
-        int32_t len = str_size(snippet.text);
+        i32 pos = view->cursor.pos;
+        i32 len = str_size(snippet.text);
         buffer_replace_range(app, &buffer, pos, pos, snippet.text, len);
         view_set_cursor(app, view, seek_pos(pos + snippet.cursor_offset), true);
         view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
@@ -232,9 +232,9 @@ snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_arra
     View_Summary view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, &view);
     Temp_Memory temp = begin_temp_memory(arena);
-    int32_t option_count = snippet_array.count;
+    i32 option_count = snippet_array.count;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
-    for (int32_t i = 0; i < snippet_array.count; i += 1){
+    for (i32 i = 0; i < snippet_array.count; i += 1){
         options[i].string = make_string_slowly(snippet_array.snippets[i].name);
         options[i].status = make_string_slowly(snippet_array.snippets[i].text);
         options[i].user_data = IntAsPtr(i);

@@ -14,8 +14,8 @@
 struct Bind_Helper{
     Binding_Unit *cursor, *start, *end;
     Binding_Unit *header, *group;
-    int32_t write_total;
-    int32_t error;
+    i32 write_total;
+    i32 error;
 };
 
 #define BH_ERR_NONE 0
@@ -25,7 +25,7 @@ struct Bind_Helper{
 
 struct Bind_Buffer{
     void *data;
-    int32_t size;
+    i32 size;
 };
 
 ////////////////////////////////
@@ -50,11 +50,11 @@ struct Bind_Buffer{
 #define IntAsPtr(a) (void*)(((uint8_t*)0) + a)
 
 #if !defined(max_f32)
-static float
+static f32
 max_f32_proc(void){
     union{
-        uint32_t x;
-        float f;
+        u32 x;
+        f32 f;
     } c;
     c.x = 0x7f800000;
     return(c.f);
@@ -94,10 +94,10 @@ struct File_Name_Path_Data{
 ////////////////////////////////
 
 struct Buffer_Rect{
-    int32_t char0;
-    int32_t line0;
-    int32_t char1;
-    int32_t line1;
+    i32 char0;
+    i32 line0;
+    i32 char1;
+    i32 line1;
 };
 
 ////////////////////////////////
@@ -107,12 +107,12 @@ struct Stream_Chunk{
     Buffer_Summary *buffer;
     
     char *base_data;
-    int32_t start;
-    int32_t end;
-    int32_t min_start;
-    int32_t max_end;
-    bool32 add_null;
-    uint32_t data_size;
+    i32 start;
+    i32 end;
+    i32 min_start;
+    i32 max_end;
+    b32 add_null;
+    u32 data_size;
     
     char *data;
 };
@@ -126,10 +126,10 @@ struct Stream_Tokens_DEP{
     
     Cpp_Token *base_tokens;
     Cpp_Token *tokens;
-    int32_t start;
-    int32_t end;
-    int32_t count;
-    int32_t token_count;
+    i32 start;
+    i32 end;
+    i32 count;
+    i32 token_count;
 };
 //typedef Stream_Tokens_DEP Stream_Tokens;
 
@@ -147,8 +147,8 @@ struct Token_Iterator{
 ////////////////////////////////
 
 struct Sort_Pair_i32{
-    int32_t index;
-    int32_t key;
+    i32 index;
+    i32 key;
 };
 
 ////////////////////////////////
@@ -157,7 +157,7 @@ struct Buffer_Insertion
 {
     Application_Links *app;
     Buffer_ID buffer;
-    int32_t at;
+    i32 at;
 };
 
 #endif

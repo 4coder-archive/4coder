@@ -21,9 +21,9 @@ get_global_face_description(Application_Links *app){
     return(description);
 }
 
-static bool32
+static b32
 descriptions_match(Face_Description *a, Face_Description *b){
-    bool32 result = false;
+    b32 result = false;
     if (match(a->font.name, b->font.name) && a->font.in_local_font_folder == b->font.in_local_font_folder){
         if (memcmp((&a->pt_size), (&b->pt_size), sizeof(*a) - sizeof(a->font)) == 0){
             result = true;
@@ -95,7 +95,7 @@ get_face_id_by_description(Application_Links *app, Face_Description *description
 }
 
 static void
-set_global_face_by_name(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_buffers){
+set_global_face_by_name(Application_Links *app, char *name, int32_t len, b32 apply_to_all_buffers){
     Face_ID global_face_id = get_face_id(app, 0);
     Face_Description description = get_face_description(app, global_face_id);
     Face_ID new_id = get_face_id_by_name(app, name, len, &description);
@@ -105,7 +105,7 @@ set_global_face_by_name(Application_Links *app, char *name, int32_t len, bool32 
 }
 
 static void
-change_global_face_by_description(Application_Links *app, Face_Description description, bool32 apply_to_all_buffers){
+change_global_face_by_description(Application_Links *app, Face_Description description, b32 apply_to_all_buffers){
     Face_ID face_id = get_face_id(app, 0);
     if (!try_modify_face(app, face_id, &description)){
         description.font.in_local_font_folder = !description.font.in_local_font_folder;

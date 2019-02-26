@@ -4,13 +4,13 @@
 
 // TOP
 
-static int32_t
-seek_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+seek_line_end(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    i32 chunk_size = sizeof(chunk);
     Stream_Chunk stream = {};
     
-    int32_t still_looping;
+    i32 still_looping;
     char at_pos;
     
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
@@ -34,13 +34,13 @@ seek_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     return(pos);
 }
 
-static int32_t
-seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    i32 chunk_size = sizeof(chunk);
     Stream_Chunk stream = {};
     
-    int32_t still_looping;
+    i32 still_looping;
     char at_pos;
     
     --pos;
@@ -72,12 +72,12 @@ static void
 move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
     refresh_view(app, view);
     
-    int32_t new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
+    i32 new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
     char space[1024];
     Stream_Chunk chunk = {};
-    int32_t still_looping = false;
+    i32 still_looping = false;
     
-    int32_t i = new_pos;
+    i32 i = new_pos;
     if (init_stream_chunk(&chunk, app, buffer, i, space, sizeof(space))){
         do{
             for (; i < chunk.end; ++i){
@@ -96,10 +96,10 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
     }
 }
 
-static int32_t
-buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    i32 chunk_size = sizeof(chunk);
     Stream_Chunk stream = {};
     
     char at_pos;
@@ -108,7 +108,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
         // Step 1: Find the first non-whitespace character
         // behind the current position.
-        int32_t still_looping = 1;
+        i32 still_looping = 1;
         while (still_looping){
             for (; pos >= stream.start; --pos){
                 at_pos = stream.data[pos];
@@ -125,7 +125,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
         // no_hard to true, set it back to false if a
         // non-whitespace character is discovered before
         // the next '\n'
-        int32_t no_hard = false;
+        i32 no_hard = false;
         while (still_looping){
             for (; pos >= stream.start; --pos){
                 at_pos = stream.data[pos];
@@ -153,16 +153,16 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_
     return(pos);
 }
 
-static int32_t
-buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    i32 chunk_size = sizeof(chunk);
     Stream_Chunk stream = {};
     
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
         // step 1: find the first non-whitespace character
         // ahead of the current position.
-        bool32 still_looping = true;
+        b32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
                 char at_pos = stream.data[pos];
@@ -179,8 +179,8 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
         // the prev_endline value.  if another '\n' is found
         // with non-whitespace then the previous line was
         // all whitespace.
-        bool32 no_hard = false;
-        int32_t prev_endline = -1;
+        b32 no_hard = false;
+        i32 prev_endline = -1;
         while(still_looping){
             for (; pos < stream.end; ++pos){
                 char at_pos = stream.data[pos];
@@ -212,9 +212,9 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int3
     return(pos);
 }
 
-static int32_t
-buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    int32_t result = buffer->size + 1;
+static i32
+buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+    i32 result = buffer->size + 1;
     if (pos < 0){
         pos = 0;
     }
@@ -224,13 +224,13 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
         Stream_Chunk stream = {};
         stream.add_null = true;
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
-            bool32 still_looping = true;
-            bool32 is_whitespace_1 = true;
+            b32 still_looping = true;
+            b32 is_whitespace_1 = true;
             is_whitespace_1 = char_is_whitespace(buffer_get_char(app, buffer, pos - 1));
             do{
                 for (; pos < stream.end; ++pos){
                     char c2 = stream.data[pos];
-                    bool32 is_whitespace_2 = true;
+                    b32 is_whitespace_2 = true;
                     if (c2 != 0){
                         is_whitespace_2 = char_is_whitespace(c2);
                     }
@@ -248,9 +248,9 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int
     return(result);
 }
 
-static int32_t
-buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    int32_t result = -1;
+static i32
+buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+    i32 result = -1;
     if (pos > buffer->size){
         pos = buffer->size;
     }
@@ -259,12 +259,12 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int3
         char data_chunk[1024];
         Stream_Chunk stream = {};
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
-            bool32 still_looping = true;
-            bool32 is_whitespace_2 = char_is_whitespace(buffer_get_char(app, buffer, pos + 1));
+            b32 still_looping = true;
+            b32 is_whitespace_2 = char_is_whitespace(buffer_get_char(app, buffer, pos + 1));
             do{
                 for (; pos >= stream.start; --pos){
                     char c1 = stream.data[pos];
-                    bool32 is_whitespace_1 = char_is_whitespace(c1);
+                    b32 is_whitespace_1 = char_is_whitespace(c1);
                     if (is_whitespace_1 && !is_whitespace_2){
                         result = pos + 1;
                         goto double_break;
@@ -284,14 +284,14 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int3
     return(result);
 }
 
-static int32_t
-buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char data_chunk[1024];
     Stream_Chunk stream = {};
     
     if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
         
-        bool32 still_looping = true;
+        b32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
                 if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
@@ -317,15 +317,15 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i
     return(pos);
 }
 
-static int32_t
-buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char data_chunk[1024];
     Stream_Chunk stream = {};
     
     --pos;
     if (pos > 0){
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
-            bool32 still_looping = true;
+            b32 still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
                     if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
@@ -356,13 +356,13 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, in
     return(pos);
 }
 
-static int32_t
-buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char data_chunk[1024];
     Stream_Chunk stream = {};
     
     if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
-        bool32 still_looping = true;
+        b32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
                 if (char_is_alpha_numeric_utf8(stream.data[pos])){
@@ -388,8 +388,8 @@ buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summ
     return(pos);
 }
 
-static int32_t
-buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     char data_chunk[1024];
     Stream_Chunk stream = {};
     
@@ -397,7 +397,7 @@ buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summa
     if (pos > 0){
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            bool32 still_looping = true;
+            b32 still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
                     if (char_is_alpha_numeric_utf8(stream.data[pos])){
@@ -428,8 +428,8 @@ buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summa
     return(pos);
 }
 
-static int32_t
-buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
+static i32
+buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 an_pos){
     char data_chunk[1024];
     Stream_Chunk stream = {};
     
@@ -441,7 +441,7 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
             uint8_t c = 0, pc = stream.data[pos];
             ++pos;
             
-            bool32 still_looping = false;
+            b32 still_looping = false;
             do{
                 for (; pos < stream.end; ++pos){
                     c = stream.data[pos];
@@ -462,8 +462,8 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, in
     return(pos);
 }
 
-static int32_t
-buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
+static i32
+buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 an_pos){
     char data_chunk[1024];
     Stream_Chunk stream = {};
     
@@ -474,7 +474,7 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
             
             char c = 0, pc = stream.data[pos];
             
-            bool32 still_looping = false;
+            b32 still_looping = false;
             do{
                 for (; pos >= stream.start; --pos){
                     c = stream.data[pos];
@@ -495,24 +495,24 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int
     return(pos);
 }
 
-static int32_t
-buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    int32_t an_pos = buffer_seek_alphanumeric_right(app, buffer, pos);
-    int32_t result = buffer_seek_range_camel_right(app, buffer, pos, an_pos);
+static i32
+buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+    i32 an_pos = buffer_seek_alphanumeric_right(app, buffer, pos);
+    i32 result = buffer_seek_range_camel_right(app, buffer, pos, an_pos);
     return(result);
 }
 
-static int32_t
-buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    int32_t an_pos = buffer_seek_alphanumeric_left(app, buffer, pos);
-    int32_t result = buffer_seek_range_camel_left(app, buffer, pos, an_pos);
+static i32
+buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+    i32 an_pos = buffer_seek_alphanumeric_left(app, buffer, pos);
+    i32 result = buffer_seek_range_camel_left(app, buffer, pos, an_pos);
     return(result);
 }
 
-static int32_t
-seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
-    int32_t result = -1;
-    int32_t token_get_pos = pos - 1;
+static i32
+seek_token_left(Cpp_Token_Array *tokens, i32 pos){
+    i32 result = -1;
+    i32 token_get_pos = pos - 1;
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, token_get_pos);
     if (get.token_index >= 0){
         result = get.token_start;
@@ -520,9 +520,9 @@ seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
     return(result);
 }
 
-static int32_t
-seek_token_right(Cpp_Token_Array *tokens, int32_t pos, int32_t buffer_end){
-    int32_t result = buffer_end + 1;
+static i32
+seek_token_right(Cpp_Token_Array *tokens, i32 pos, i32 buffer_end){
+    i32 result = buffer_end + 1;
     Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.in_whitespace_after_token){
         get.token_index += 1;
@@ -551,8 +551,8 @@ buffer_get_all_tokens(Application_Links *app, Partition *part, Buffer_Summary *b
     return(array);
 }
 
-static int32_t
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Partition *part, int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags)/*
+static i32
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Partition *part, i32 start_pos, b32 seek_forward, Seek_Boundary_Flag flags)/*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer through which to seek.)
 DOC_PARAM(start_pos, The beginning position of the seek is specified by start_pos measured in absolute position.)
 DOC_PARAM(seek_forward, If this parameter is non-zero it indicates that the seek should move foward through the buffer.)
@@ -565,14 +565,14 @@ If the seek goes past the end the returned value is the size of the buffer.)
 DOC_SEE(Seek_Boundary_Flag)
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
-    int32_t result = 0;
+    i32 result = 0;
     
     // TODO(allen): reduce duplication?
     Temp_Memory temp = begin_temp_memory(part);
     if (buffer->exists){
-        int32_t pos[4];
-        int32_t size = buffer->size;
-        int32_t new_pos = 0;
+        i32 pos[4];
+        i32 size = buffer->size;
+        i32 new_pos = 0;
         
         if (start_pos < 0){
             start_pos = 0;
@@ -582,7 +582,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
         }
         
         if (seek_forward){
-            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
                 pos[i] = size + 1;
             }
             
@@ -613,14 +613,14 @@ DOC_SEE(4coder_Buffer_Positioning_System)
             }
             
             new_pos = size + 1;
-            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
                 if (new_pos > pos[i]){
                     new_pos = pos[i];
                 }
             }
         }
         else{
-            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
                 pos[i] = -1;
             }
             
@@ -651,7 +651,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
             }
             
             new_pos = -1;
-            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
                 if (new_pos < pos[i]){
                     new_pos = pos[i];
                 }
@@ -667,14 +667,14 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 ////////////////////////////////
 
 void
-buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char delim, int32_t *result){
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, char delim, i32 *result){
     if (buffer->exists){
         char chunk[1024];
-        int32_t size = sizeof(chunk);
+        i32 size = sizeof(chunk);
         Stream_Chunk stream = {};
         
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
-            int32_t still_looping = 1;
+            i32 still_looping = 1;
             do{
                 for(; pos < stream.end; ++pos){
                     char at_pos = stream.data[pos];
@@ -694,14 +694,14 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, in
 }
 
 static void
-buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char delim, int32_t *result){
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i32 pos, char delim, i32 *result){
     if (buffer->exists){
         char chunk[1024];
-        int32_t size = sizeof(chunk);
+        i32 size = sizeof(chunk);
         Stream_Chunk stream = {};
         
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
-            int32_t still_looping = 1;
+            i32 still_looping = 1;
             do{
                 for(; pos >= stream.start; --pos){
                     char at_pos = stream.data[pos];
@@ -724,7 +724,7 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
+buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     char read_buffer[512];
     
     if (buffer->size > end){
@@ -747,7 +747,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32
             stream.max_end = end;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
-                int32_t still_looping = 1;
+                i32 still_looping = 1;
                 do{
                     for(; pos < stream.end; ++pos){
                         char at_pos = stream.data[pos];
@@ -779,7 +779,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, int32
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
+buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 min, char *str, i32 size, i32 *result){
     char read_buffer[512];
     
     *result = min-1;
@@ -796,7 +796,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int3
             stream.min_start = min;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
-                int32_t still_looping = 1;
+                i32 still_looping = 1;
                 do{
                     for(; pos >= stream.start; --pos){
                         char at_pos = stream.data[pos];
@@ -821,10 +821,10 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, int3
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     char read_buffer[512];
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    i32 chunk_size = sizeof(chunk);
     Stream_Chunk stream = {};
     stream.max_end = end;
     
@@ -844,7 +844,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
             read_str.size = size;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-                int32_t still_looping = 1;
+                i32 still_looping = 1;
                 do{
                     for(; pos < stream.end; ++pos){
                         char at_pos = char_to_upper(stream.data[pos]);
@@ -869,10 +869,10 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 min, char *str, i32 size, i32 *result){
     char read_buffer[512];
     char chunk[1024];
-    int32_t chunk_size = sizeof(chunk);
+    i32 chunk_size = sizeof(chunk);
     Stream_Chunk stream = {};
     stream.min_start = min;
     
@@ -886,7 +886,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
             read_str.size = size;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-                int32_t still_looping = 1;
+                i32 still_looping = 1;
                 do{
                     for(; pos >= stream.start; --pos){
                         char at_pos = char_to_upper(stream.data[pos]);
@@ -910,7 +910,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
 ////////////////////////////////
 
 static void
-buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t end, int32_t min, char *str, int32_t size, int32_t *result, Buffer_Seek_String_Flags flags){
+buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, i32 min, char *str, i32 size, i32 *result, Buffer_Seek_String_Flags flags){
     switch (flags & 3){
         case 0:
         {
@@ -936,24 +936,24 @@ buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, int32_t pos, 
 
 ////////////////////////////////
 
-static bool32
-buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t line){
+static b32
+buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, i32 line){
     Partial_Cursor start = {};
     Partial_Cursor end = {};
-    bool32 result = false;
+    b32 result = false;
     if (line <= buffer->line_count){
         buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &start);
         buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end);
         
-        static const int32_t chunk_size = 1024;
+        static const i32 chunk_size = 1024;
         char chunk[chunk_size];
         Stream_Chunk stream = {};
-        int32_t i = start.pos;
+        i32 i = start.pos;
         stream.max_end = end.pos;
         
         result = true;
         if (init_stream_chunk(&stream, app, buffer, i, chunk, chunk_size)){
-            bool32 still_looping = false;
+            b32 still_looping = false;
             do{
                 for (;i < stream.end; ++i){
                     char c = stream.data[i];
@@ -971,11 +971,11 @@ buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, int32_t lin
 }
 
 static String
-read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, int32_t pos, char *space, int32_t max, Range *range_out){
+read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, char *space, i32 max, Range *range_out){
     String query = {};
     
-    int32_t start = buffer_seek_alphanumeric_or_underscore_left(app, buffer, pos);
-    int32_t end = buffer_seek_alphanumeric_or_underscore_right(app, buffer, start);
+    i32 start = buffer_seek_alphanumeric_or_underscore_left(app, buffer, pos);
+    i32 end = buffer_seek_alphanumeric_or_underscore_right(app, buffer, start);
     
     if (!(start <= pos && pos < end)){
         end = buffer_seek_alphanumeric_or_underscore_right(app, buffer, pos);
@@ -983,7 +983,7 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, int32_t p
     }
     
     if (start <= pos && pos < end){
-        int32_t size = end - start;
+        i32 size = end - start;
         if (size <= max){
             if (range_out != 0){
                 *range_out = make_range(start, end);
@@ -998,8 +998,8 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, int32_t p
 
 ////////////////////////////////
 
-static int32_t
-flip_dir(int32_t dir){
+static i32
+flip_dir(i32 dir){
     if (dir == DirLeft){
         dir = DirRight;
     }
@@ -1009,45 +1009,45 @@ flip_dir(int32_t dir){
     return(dir);
 }
 
-static int32_t
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t dir, Seek_Boundary_Flag flags){
-    bool32 forward = (dir != DirLeft);
+static i32
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 dir, Seek_Boundary_Flag flags){
+    b32 forward = (dir != DirLeft);
     return(buffer_boundary_seek(app, buffer, &global_part, start_pos, forward, flags));
 }
 
 static void
-view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t dir, uint32_t flags){
-    int32_t pos = buffer_boundary_seek(app, buffer, &global_part, view->cursor.pos, dir, flags);
+view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
+    i32 pos = buffer_boundary_seek(app, buffer, &global_part, view->cursor.pos, dir, flags);
     view_set_cursor(app, view, seek_pos(pos), true);
     no_mark_snap_to_cursor_if_shift(app, view->view_id);
 }
 
 static void
-view_boundary_seek_set_pos(Application_Links *app, View_Summary *view, int32_t dir, uint32_t flags){
+view_boundary_seek_set_pos(Application_Links *app, View_Summary *view, i32 dir, u32 flags){
     Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessProtected);
     view_buffer_boundary_seek_set_pos(app, view, &buffer, dir, flags);
 }
 
 static void
-current_view_boundary_seek_set_pos(Application_Links *app, int32_t dir, uint32_t flags){
+current_view_boundary_seek_set_pos(Application_Links *app, i32 dir, u32 flags){
     View_Summary view = get_active_view(app, AccessProtected);
     view_boundary_seek_set_pos(app, &view, dir, flags);
 }
 
 static Range
-view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t dir, uint32_t flags){
-    int32_t pos1 = view->cursor.pos;
-    int32_t pos2 = buffer_boundary_seek(app, buffer, pos1, dir, flags);
+view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
+    i32 pos1 = view->cursor.pos;
+    i32 pos2 = buffer_boundary_seek(app, buffer, pos1, dir, flags);
     return(make_range(pos1, pos2));
 }
 
 static Range
-view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, int32_t dir, uint32_t flags){
+view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
     Range result = {};
-    int32_t pos0 = view->cursor.pos;
-    int32_t pos1 = buffer_boundary_seek(app, buffer, pos0, dir, flags);
+    i32 pos0 = view->cursor.pos;
+    i32 pos1 = buffer_boundary_seek(app, buffer, pos0, dir, flags);
     if (0 <= pos1 && pos1 <= buffer->size){
-        int32_t pos2 = buffer_boundary_seek(app, buffer, pos1, flip_dir(dir), flags);
+        i32 pos2 = buffer_boundary_seek(app, buffer, pos1, flip_dir(dir), flags);
         if (0 <= pos2 && pos2 <= buffer->size){
             if (dir == DirLeft){
                 if (pos2 < pos0){
@@ -1066,7 +1066,7 @@ view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summa
 }
 
 static void
-current_view_boundary_delete(Application_Links *app, int32_t dir, uint32_t flags){
+current_view_boundary_delete(Application_Links *app, i32 dir, u32 flags){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     if (buffer.exists){
@@ -1076,7 +1076,7 @@ current_view_boundary_delete(Application_Links *app, int32_t dir, uint32_t flags
 }
 
 static void
-current_view_snipe_delete(Application_Links *app, int32_t dir, uint32_t flags){
+current_view_snipe_delete(Application_Links *app, i32 dir, u32 flags){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     if (buffer.exists){
@@ -1092,7 +1092,7 @@ CUSTOM_DOC("Seeks the cursor up to the next blank line.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
+    i32 new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
@@ -1102,7 +1102,7 @@ CUSTOM_DOC("Seeks the cursor down to the next blank line.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
+    i32 new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
@@ -1112,7 +1112,7 @@ CUSTOM_DOC("Seeks the cursor to the beginning of the line across all text.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    int32_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
+    i32 new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
@@ -1122,7 +1122,7 @@ CUSTOM_DOC("Seeks the cursor to the end of the line across all text.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
+    i32 new_pos = seek_line_end(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
@@ -1156,7 +1156,7 @@ CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end 
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
+    i32 new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     new_pos = seek_line_end(app, &buffer, new_pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
@@ -1167,7 +1167,7 @@ CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the en
 {
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
+    i32 new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     new_pos = seek_line_end(app, &buffer, new_pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);

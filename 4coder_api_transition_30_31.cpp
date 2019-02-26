@@ -24,10 +24,12 @@
 
 #if !defined(REMOVE_TRANSITION_HELPER)
 
-static bool32
+typedef b32 bool32;
+
+static b32
 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
                     char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = exec_system_command(app, view->view_id, buffer_id, make_string(path, path_len), make_string(command, command_len), flags);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -35,7 +37,7 @@ exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifie
     return(result);
 }
 
-static bool32
+static b32
 clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){
     return(clipboard_post(app, clipboard_id, make_string(str, len)));
 }
@@ -105,9 +107,9 @@ get_buffer_by_file_name(Application_Links *app, char *name, int32_t len, Access_
     return(buffer);
 }
 
-static bool32
+static b32
 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t one_past_last, char *out){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_read_range(app, buffer->buffer_id, start, one_past_last, out);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -115,9 +117,9 @@ buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start,
     return(result);
 }
 
-static bool32
+static b32
 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t one_past_last, char *str, int32_t len){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_replace_range(app, buffer->buffer_id, start, one_past_last, make_string(str, len));
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -125,9 +127,9 @@ buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t sta
     return(result);
 }
 
-static bool32
+static b32
 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_compute_cursor(app, buffer->buffer_id, seek, cursor_out);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -135,9 +137,9 @@ buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_See
     return(result);
 }
 
-static bool32
+static b32
 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_batch_edit(app, buffer->buffer_id, str, str_len, edits, edit_count, type);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -145,9 +147,9 @@ buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int
     return(result);
 }
 
-static bool32
+static b32
 buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t *value_out){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_get_setting(app, buffer->buffer_id, setting, value_out);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -155,9 +157,9 @@ buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Settin
     return(result);
 }
 
-static bool32
+static b32
 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_set_setting(app, buffer->buffer_id, setting, value);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -181,9 +183,9 @@ buffer_token_count(Application_Links *app, Buffer_Summary *buffer){
     return(count);
 }
 
-static bool32
+static b32
 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_read_tokens(app, buffer->buffer_id, start_token, end_token, tokens_out);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -191,9 +193,9 @@ buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start
     return(result);
 }
 
-static bool32
+static b32
 buffer_get_token_range(Application_Links *app, Buffer_Summary *buffer, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_get_token_range(app, buffer->buffer_id, first_token_out, one_past_last_token_out);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -201,9 +203,9 @@ buffer_get_token_range(Application_Links *app, Buffer_Summary *buffer, Cpp_Token
     return(result);
 }
 
-static bool32
+static b32
 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_get_token_index(app, buffer->buffer_id, pos, get_result);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -211,9 +213,9 @@ buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t p
     return(result);
 }
 
-static bool32
+static b32
 buffer_send_end_signal(Application_Links *app, Buffer_Summary *buffer){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_send_end_signal(app, buffer->buffer_id);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -231,9 +233,9 @@ create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buff
     return(buffer);
 }
 
-static bool32
+static b32
 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *file_name, int32_t file_name_len, uint32_t flags){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_save(app, buffer->buffer_id, make_string(file_name, file_name_len), flags);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -328,27 +330,27 @@ open_view(Application_Links *app, View_Summary *view_location, View_Split_Positi
     return(view);
 }
 
-static bool32
+static b32
 close_view(Application_Links *app, View_Summary *view){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_close(app, view->view_id);
     }
     return(result);
 }
 
-static bool32
+static b32
 set_active_view(Application_Links *app, View_Summary *view){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_set_active(app, view->view_id);
     }
     return(result);
 }
 
-static bool32
+static b32
 view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t *value_out){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_get_setting(app, view->view_id, setting, value_out);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -356,9 +358,9 @@ view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID set
     return(result);
 }
 
-static bool32
+static b32
 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_set_setting(app, view->view_id, setting, value);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -416,9 +418,9 @@ view_get_enclosure_rect(Application_Links *app, View_Summary *view){
     return(result);
 }
 
-static bool32
+static b32
 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_compute_cursor(app, view->view_id, seek, cursor_out);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -426,9 +428,9 @@ view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek
     return(result);
 }
 
-static bool32
-view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){
-    bool32 result = false;
+static b32
+view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, b32 set_preferred_x){
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_set_cursor(app, view->view_id, seek, set_preferred_x);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -436,9 +438,9 @@ view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bo
     return(result);
 }
 
-static bool32
+static b32
 view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_set_scroll(app, view->view_id, scroll);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -446,9 +448,9 @@ view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scro
     return(result);
 }
 
-static bool32
+static b32
 view_set_mark(Application_Links *app, View_Summary *view, Buffer_Seek seek){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_set_mark(app, view->view_id, seek);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -456,9 +458,9 @@ view_set_mark(Application_Links *app, View_Summary *view, Buffer_Seek seek){
     return(result);
 }
 
-static bool32
+static b32
 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_set_buffer(app, view->view_id, buffer_id, flags);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -466,9 +468,9 @@ view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id,
     return(result);
 }
 
-static bool32
+static b32
 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_post_fade(app, view->view_id, seconds, start, end, color);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -476,9 +478,9 @@ view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_
     return(result);
 }
 
-static bool32
+static b32
 view_begin_ui_mode(Application_Links *app, View_Summary *view){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_begin_ui_mode(app, view->view_id);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -486,9 +488,9 @@ view_begin_ui_mode(Application_Links *app, View_Summary *view){
     return(result);
 }
 
-static bool32
+static b32
 view_end_ui_mode(Application_Links *app, View_Summary *view){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         result = view_end_ui_mode(app, view->view_id);
         get_view_summary(app, view->view_id, AccessAll, view);
@@ -496,15 +498,15 @@ view_end_ui_mode(Application_Links *app, View_Summary *view){
     return(result);
 }
 
-static bool32
-view_set_highlight(Application_Links *app, View_ID view_id, int32_t start, int32_t end, bool32 turn_on){
+static b32
+view_set_highlight(Application_Links *app, View_ID view_id, int32_t start, int32_t end, b32 turn_on){
     // NOTE(allen): this feature is completely removed, transition to using highlighted markers instead
     return(false);
 }
 
-static bool32
+static b32
 buffer_set_face(Application_Links *app, Buffer_Summary *buffer, Face_ID id){
-    bool32 result = false;
+    b32 result = false;
     if (buffer != 0 && buffer->exists){
         result = buffer_set_face(app, buffer->buffer_id, id);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
@@ -549,7 +551,7 @@ directory_get_hot(Application_Links *app, char *out, int32_t capacity){
     return(required_size);
 }
 
-static bool32
+static b32
 directory_set_hot(Application_Links *app, char *str, int32_t len){
     return(set_hot_directory(app, make_string(str, len)));
 }
@@ -561,18 +563,18 @@ get_file_list(Application_Links *app, char *dir, int32_t len){
     return(list);
 }
 
-static bool32
+static b32
 file_exists(Application_Links *app, char *file_name, int32_t len){
     File_Attributes attributes = {};
     file_get_attributes(app, make_string(file_name, len), &attributes);
     return(attributes.last_write_time > 0);
 }
 
-static bool32
+static b32
 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){
     String directory = make_string_cap(dir, *len, capacity);
     String relative_path = make_string(rel_path, rel_len);
-    bool32 result = directory_cd(app, &directory, relative_path);
+    b32 result = directory_cd(app, &directory, relative_path);
     *len = directory.size;
     return(result);
 }

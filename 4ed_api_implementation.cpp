@@ -145,16 +145,16 @@ imp_get_panel(Models *models, Panel_ID panel_id){
     return(panel);
 }
 
-internal bool32
+internal b32
 panel_api_check_panel(Panel *panel){
-    bool32 result = false;
+    b32 result = false;
     if (panel != 0 && panel->kind != PanelKind_Unused){
         result = true;
     }
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Global_Set_Setting(Application_Links *app, Global_Setting_ID setting, int32_t value)
 /*
 DOC_PARAM(setting, Which setting to change.)
@@ -179,7 +179,7 @@ DOC_SEE(Global_Setting_ID)
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Global_Set_Mapping(Application_Links *app, void *data, int32_t size)
 /*
 DOC_PARAM(data, The beginning of a binding buffer.  Bind_Helper is designed to make it easy to produce such a buffer.)
@@ -188,12 +188,12 @@ DOC_RETURN(Returns non-zero if no errors occurred while interpretting the bindin
 DOC(Dumps away the previous mappings and instantiates the mappings described in the binding buffer.  If any of the open buffers were bound to a command map that used to exist, but no command map with the same id exist after the new mappings are instantiated, the buffer's command map will be set to mapid_file and a warning will be posted to *messages*.)
 */{
     Models *models = (Models*)app->cmd_context;
-    bool32 result = interpret_binding_buffer(models, data, size);
+    b32 result = interpret_binding_buffer(models, data, size);
     return(result);
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Exec_System_Command(Application_Links *app, View_ID view_id, Buffer_Identifier buffer_id, String path, String command, Command_Line_Interface_Flag flags)
 /*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)
@@ -219,7 +219,7 @@ DOC_SEE(Command_Line_Interface_Flag)
     Heap *heap = &models->mem.heap;
     Working_Set *working_set = &models->working_set;
     
-    bool32 result = true;
+    b32 result = true;
     char feedback_space[256];
     String feedback_str = make_fixed_width_string(feedback_space);
     
@@ -350,7 +350,7 @@ DOC_SEE(Command_Line_Interface_Flag)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Clipboard_Post(Application_Links *app, int32_t clipboard_id, String string)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
@@ -366,7 +366,7 @@ DOC_SEE(The_4coder_Clipboard)
     return(true);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Clipboard_Count(Application_Links *app, int32_t clipboard_id, int32_t *count_out)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
@@ -379,7 +379,7 @@ DOC_SEE(The_4coder_Clipboard)
     return(true);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Clipboard_Index(Application_Links *app, int32_t clipboard_id, int32_t item_index, String *string_out, int32_t *required_size_out)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
@@ -448,7 +448,7 @@ get_buffer_next__inner(Working_Set *working_set, Editing_File *file){
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_Buffer_First(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out)
 /*
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
@@ -477,7 +477,7 @@ DOC_SEE(get_buffer_next)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_Buffer_Next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out)
 /*
 DOC_PARAM(buffer, The Buffer_Summary pointed to by buffer is iterated to the next buffer or to a null summary if this is the last buffer.)
@@ -534,7 +534,7 @@ view_api_check_view(View *view, Access_Flag access){
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_Buffer_Summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
 /*
 DOC_PARAM(buffer_id, The parameter buffer_id specifies which buffer to try to get.)
@@ -556,7 +556,7 @@ DOC_SEE(Buffer_ID)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_Buffer_By_Name(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out)
 /*
 DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The string need not be null terminated.)
@@ -582,7 +582,7 @@ DOC_SEE(Access_Flag)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_Buffer_By_File_Name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out)
 /*
 DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The string need not be null terminated.)
@@ -613,7 +613,7 @@ DOC_SEE(Access_Flag)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Read_Range(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, char *out)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to read.)
@@ -633,7 +633,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 */{
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (buffer_api_check_file(file)){
         i32 size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= one_past_last && one_past_last <= size){
@@ -645,7 +645,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String string)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
@@ -669,7 +669,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 */{
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     int32_t size = 0;
     if (buffer_api_check_file(file)){
         size = buffer_size(&file->state.buffer);
@@ -695,11 +695,11 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Set_Edit_Handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = (buffer_api_check_file(file));
+    b32 result = (buffer_api_check_file(file));
     if (result){
         file->settings.edit_handler = handler;
     }
@@ -707,7 +707,7 @@ Buffer_Set_Edit_Handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Compute_Cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer on which to run the cursor computation.)
@@ -724,7 +724,7 @@ DOC_SEE(Partial_Cursor)
 */{
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (buffer_api_check_file(file)){
         if (file_compute_partial_cursor(file, seek, cursor_out)){
             result = true;
@@ -735,7 +735,7 @@ DOC_SEE(Partial_Cursor)
 
 // TODO(allen): work with edit handler
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Batch_Edit(Application_Links *app, Buffer_ID buffer_id, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 /*
 DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
@@ -754,7 +754,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     Partition *part = &mem->part;
     System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (buffer_api_check_file(file)){
         if (edit_count > 0){
             Temp_Memory temp = begin_temp_memory(part);
@@ -782,7 +782,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Get_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, int32_t *value_out)
 /*
 DOC_PARAM(buffer, the buffer from which to read a setting)
@@ -792,7 +792,7 @@ DOC_RETURN(returns non-zero on success)
 */{
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (buffer_api_check_file(file)){
         result = true;
         switch (setting){
@@ -866,7 +866,7 @@ DOC_RETURN(returns non-zero on success)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Set_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, int32_t value)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer on which to set a setting.)
@@ -877,7 +877,7 @@ DOC_SEE(Buffer_Setting_ID)
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
-        bool32 result = false;
+        b32 result = false;
     
     if (buffer_api_check_file(file)){
         result = true;
@@ -1074,7 +1074,7 @@ buffer_get_managed_scope__inner(Editing_File *file){
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out)
 /*
 DOC_PARAM(buffer_id, The id of the buffer from which to get a managed scope.)
@@ -1094,7 +1094,7 @@ If the buffer_id does not specify a valid buffer, the returned scope is null.)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Token_Count(Application_Links *app, Buffer_ID buffer_id, int32_t *count_out)
 /*
 DOC_PARAM(buffer, Specifies the buffer from which to read the token count.)
@@ -1112,7 +1112,7 @@ If the buffer does not exist or if it is not a lexed buffer, the return is zero.
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Read_Tokens(Application_Links *app, Buffer_ID buffer_id, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
 /*
 DOC_PARAM(buffer, Specifies the buffer from which to read tokens.)
@@ -1126,7 +1126,7 @@ The number of output tokens will be end_token - start_token.)
 */{
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (buffer_api_check_file_and_tokens(file)){
         Cpp_Token_Array token_array = file->state.token_array;
         if (0 <= start_token && start_token <= end_token && end_token <= token_array.count){
@@ -1139,7 +1139,7 @@ The number of output tokens will be end_token - start_token.)
 
 // TODO(allen): redocument
 // TODO(allen): Include warning note about pointers and editing buffers.
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Get_Token_Range(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out)
 {
     Models *models = (Models*)app->cmd_context;
@@ -1156,7 +1156,7 @@ Buffer_Get_Token_Range(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Get_Token_Index(Application_Links *app, Buffer_ID buffer_id, int32_t pos, Cpp_Get_Token_Result *get_result)
 /*
 DOC_PARAM(buffer, The buffer from which to get a token.)
@@ -1179,7 +1179,7 @@ DOC_SEE(cpp_get_token)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Send_End_Signal(Application_Links *app, Buffer_ID buffer_id)
 /*
 DOC_PARAM(buffer, The buffer to which to send the end signal.)
@@ -1197,7 +1197,7 @@ This is useful in cases such as clearing a buffer and refilling it with new cont
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Create_Buffer(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out)
 /*
 DOC_PARAM(filename, The name of the file to associate to the new buffer.)
@@ -1218,7 +1218,7 @@ DOC_SEE(Buffer_Create_Flag)
     Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
     
-    bool32 result = false;
+    b32 result = false;
         
     *new_buffer_id_out = 0;
     
@@ -1348,7 +1348,7 @@ DOC_SEE(Buffer_Create_Flag)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String file_name, uint32_t flags)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to save to a file.)
@@ -1362,7 +1362,7 @@ DOC_SEE(Buffer_Save_Flag)
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     
     if (buffer_api_check_file(file)){
         b32 skip_save = false;
@@ -1386,7 +1386,7 @@ DOC_SEE(Buffer_Save_Flag)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to try to kill.)
@@ -1457,7 +1457,7 @@ DOC_SEE(Buffer_Identifier)
     return(*result == BufferKillResult_Killed);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result)
 {
     Models *models = (Models*)app->cmd_context;
@@ -1533,7 +1533,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
     return(*result == BufferReopenResult_Reopened);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Get_File_Attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out)
 {
     Models *models = (Models*)app->cmd_context;
@@ -1566,7 +1566,7 @@ get_view_next__inner(Layout *layout, View *view){
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_View_First(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 /*
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
@@ -1595,7 +1595,7 @@ DOC_SEE(get_view_next)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_View_Next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
 /*
 DOC_PARAM(view, The View_Summary pointed to by view is iterated to the next view or to a null summary if this is the last view.)
@@ -1626,7 +1626,7 @@ DOC_SEE(get_view_first)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_View_Summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out)
 /*
 DOC_PARAM(view_id, The view_id specifies the view to try to get.)
@@ -1646,7 +1646,7 @@ DOC_SEE(Access_Flag)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_Active_View(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 /*
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
@@ -1659,7 +1659,7 @@ DOC_SEE(Access_Flag)
     Assert(panel != 0);
     View *view = panel->view;
     Assert(view != 0);
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view, access)){
         *view_id_out = view_get_id(&models->live_set, view);
         result = true;
@@ -1667,12 +1667,12 @@ DOC_SEE(Access_Flag)
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Get_Active_Panel(Application_Links *app, Panel_ID *panel_id_out){
     Models *models = (Models*)app->cmd_context;
     Panel *panel = layout_get_active_panel(&models->layout);
     Assert(panel != 0);
-    bool32 result = false;
+    b32 result = false;
     if (panel_api_check_panel(panel)){
         *panel_id_out = panel_get_id(&models->layout, panel);
         result = true;
@@ -1683,11 +1683,11 @@ Get_Active_Panel(Application_Links *app, Panel_ID *panel_id_out){
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 View_Get_Panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     View *view = imp_get_view(models, view_id);
     *panel_id_out = 0;
     if (view_api_check_view(view)){
@@ -1698,10 +1698,10 @@ View_Get_Panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Get_View(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){
     Models *models = (Models*)app->cmd_context;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     *view_id_out = 0;
     if (panel_api_check_panel(panel)){
@@ -1715,10 +1715,10 @@ Panel_Get_View(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Is_Split(Application_Links *app, Panel_ID panel_id){
     Models *models = (Models*)app->cmd_context;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (panel_api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
@@ -1728,10 +1728,10 @@ Panel_Is_Split(Application_Links *app, Panel_ID panel_id){
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Is_Leaf(Application_Links *app, Panel_ID panel_id){
     Models *models = (Models*)app->cmd_context;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (panel_api_check_panel(panel)){
         if (panel->kind == PanelKind_Final){
@@ -1741,11 +1741,11 @@ Panel_Is_Leaf(Application_Links *app, Panel_ID panel_id){
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (panel_api_check_panel(panel)){
         Panel *new_panel = 0;
@@ -1761,11 +1761,11 @@ Panel_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation o
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Set_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (panel_api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
@@ -1795,11 +1795,11 @@ Panel_Set_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Swap_Children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (panel_api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
@@ -1810,11 +1810,11 @@ Panel_Swap_Children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind 
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Get_Parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     *panel_id_out = 0;
     if (panel_api_check_panel(panel)){
@@ -1824,11 +1824,11 @@ Panel_Get_Parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_o
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Get_Child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     *panel_id_out = 0;
     if (panel_api_check_panel(panel)){
@@ -1853,11 +1853,11 @@ Panel_Get_Child(Application_Links *app, Panel_ID panel_id, Panel_Child which_chi
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Get_Max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (panel_api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
@@ -1869,11 +1869,11 @@ Panel_Get_Max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Panel_Get_Margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
-    bool32 result = false;
+    b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (panel_api_check_panel(panel)){
         if (panel->kind == PanelKind_Final){
@@ -1889,7 +1889,7 @@ Panel_Get_Margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_ou
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Close(Application_Links *app, View_ID view_id)
 /*
 DOC_PARAM(view, The view parameter specifies which view to close.)
@@ -1904,7 +1904,7 @@ in the system, the call will fail.)
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
     View *view = imp_get_view(models, view_id);
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         if (layout_close_panel(layout, view->panel)){
             live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, view);
@@ -1915,7 +1915,7 @@ in the system, the call will fail.)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Set_Active(Application_Links *app, View_ID view_id)
 /*
 DOC_PARAM(view, The view parameter specifies which view to make active.)
@@ -1927,7 +1927,7 @@ DOC_SEE(get_active_view)
 */{
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         models->layout.active_panel = view->panel;
         result = true;
@@ -1936,7 +1936,7 @@ DOC_SEE(get_active_view)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Get_Setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t *value_out)
 /*
 DOC_PARAM(view, the view from which to read a setting)
@@ -1947,7 +1947,7 @@ DOC_RETURN(returns non-zero on success)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         result = true;
         switch (setting){
@@ -1981,7 +1981,7 @@ DOC_RETURN(returns non-zero on success)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Set_Setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, int32_t value)
 /*
 DOC_PARAM(view, The view parameter specifies the view on which to set a setting.)
@@ -1993,7 +1993,7 @@ DOC_SEE(View_Setting_ID)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         result = true;
         switch (setting){
@@ -2027,7 +2027,7 @@ DOC_SEE(View_Setting_ID)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Get_Managed_Scope(Application_Links *app, View_ID view_id, Managed_Scope *scope)
 /*
 DOC_PARAM(view_id, The id of the view from which to get a managed scope.)
@@ -2048,7 +2048,7 @@ If the view_id does not specify a valid view, the returned scope is null.)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Get_Enclosure_Rect(Application_Links *app, View_ID view_id, i32_Rect *rect_out)
 /*
 DOC_PARAM(view, The view whose parent rent will be returned.)
@@ -2075,7 +2075,7 @@ DOC_RETURN(The rectangle of the panel containing this view.)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Compute_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out)
 /*
 DOC_PARAM(view, The view parameter specifies the view on which to run the cursor computation.)
@@ -2089,7 +2089,7 @@ DOC_SEE(Full_Cursor)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
 
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = view->file_data.file;
         Assert(file != 0);
@@ -2106,8 +2106,8 @@ DOC_SEE(Full_Cursor)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
-View_Set_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, bool32 set_preferred_x)
+API_EXPORT b32
+View_Set_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x)
 /*
 DOC_PARAM(view, The view parameter specifies the view in which to set the cursor.)
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
@@ -2119,7 +2119,7 @@ DOC_SEE(Buffer_Seek)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
 
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = view->file_data.file;
         Assert(file != 0);
@@ -2133,7 +2133,7 @@ DOC_SEE(Buffer_Seek)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Set_Scroll(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll)
 /*
 DOC_PARAM(view, The view on which to change the scroll state.)
@@ -2144,7 +2144,7 @@ DOC_SEE(GUI_Scroll_Vars)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
 
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = view->file_data.file;
         Assert(file != 0);
@@ -2162,7 +2162,7 @@ DOC_SEE(GUI_Scroll_Vars)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Set_Mark(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 /*
 DOC_PARAM(view, The view parameter specifies the view in which to set the mark.)
@@ -2174,7 +2174,7 @@ DOC_SEE(Buffer_Seek)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
 
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = view->file_data.file;
         Assert(file != 0);
@@ -2193,7 +2193,7 @@ DOC_SEE(Buffer_Seek)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Set_Buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags)
 /*
 DOC_PARAM(view, The view parameter specifies the view in which to display the buffer.)
@@ -2206,7 +2206,7 @@ DOC_SEE(Set_Buffer_Flag)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
 
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
         if (buffer_api_check_file(file)){
@@ -2223,7 +2223,7 @@ DOC_SEE(Set_Buffer_Flag)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Post_Fade(Application_Links *app, View_ID view_id, float seconds, int32_t start, int32_t end, int_color color)
 /*
 DOC_PARAM(view, The view parameter specifies the view onto which the fade effect shall be posted.)
@@ -2236,7 +2236,7 @@ DOC_SEE(int_color)
 */{
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         int32_t size = end - start;
         if (size > 0){
@@ -2248,7 +2248,7 @@ DOC_SEE(int_color)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Begin_UI_Mode(Application_Links *app, View_ID view_id)
 /*
 DOC_PARAM(view, A summary for the view which is to be placed into UI mode.)
@@ -2271,7 +2271,7 @@ DOC_SEE(view_set_ui)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_End_UI_Mode(Application_Links *app, View_ID view_id)
 /*
 DOC_PARAM(view, A summary for the view which is to be taken out of UI mode.)
@@ -2284,7 +2284,7 @@ DOC_SEE(view_set_ui)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view) && view->ui_mode){
         view_quit_ui(models->system, models, view);
         view->ui_mode = false;
@@ -2293,11 +2293,11 @@ DOC_SEE(view_set_ui)
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 View_Is_In_UI_Mode(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    bool32 result = false;
+    b32 result = false;
     if (view_api_check_view(view)){
         result = view->ui_mode;
     }
@@ -2305,7 +2305,7 @@ View_Is_In_UI_Mode(Application_Links *app, View_ID view_id){
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Set_Quit_UI_Handler(Application_Links *app, View_ID view_id, UI_Quit_Function_Type *quit_function)
 /*
 DOC_PARAM(view, A summary for the view which is to get the new UI widget data.)
@@ -2330,7 +2330,7 @@ DOC_SEE(UI_Quit_Function_Type)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 View_Get_Quit_UI_Handler(Application_Links *app, View_ID view_id, UI_Quit_Function_Type **quit_function_out)
 /*
 DOC_PARAM(view, A summary for the view which is to get the new UI widget data.)
@@ -2373,7 +2373,7 @@ DOC_SEE(destroy_user_managed_scope)
     return(scope);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Destroy_User_Managed_Scope(Application_Links *app, Managed_Scope scope)
 /*
 DOC_PARAM(scope, The handle for the scope which is to be destroyed)
@@ -2503,7 +2503,7 @@ https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Managed_Scope_Clear_Contents(Application_Links *app, Managed_Scope scope)
 /*
 DOC_PARAM(scope, A handle to the scope which is to be cleared.)
@@ -2520,7 +2520,7 @@ DOC(Clearing the contents of a scope resets all managed variables to have their 
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Managed_Scope_Clear_Self_All_Dependent_Scopes(Application_Links *app, Managed_Scope scope)
 /*
 DOC_PARAM(scope, A handle to the 'basic scope' which is to be cleared.)
@@ -2592,12 +2592,12 @@ DOC_SEE(managed_variable_get_id)
     return(dynamic_variables_lookup_or_create(heap, layout, name, default_value));
 }
 
-internal bool32
+internal b32
 get_dynamic_variable__internal(Models *models, Managed_Scope handle, int32_t location, uint64_t **ptr_out){
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, handle);
-    bool32 result = false;
+    b32 result = false;
     if (workspace != 0){
         if (dynamic_variables_get_ptr(heap, &workspace->mem_bank, layout, &workspace->var_block, location, ptr_out)){
             result = true;
@@ -2606,7 +2606,7 @@ get_dynamic_variable__internal(Models *models, Managed_Scope handle, int32_t loc
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value)
 /*
 DOC_PARAM(scope, A handle to the scope in which the value of the given variable will be set.)
@@ -2624,7 +2624,7 @@ DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out)
 /*
 DOC_PARAM(scope, A handle to the scope from which the value of the given variable will be queried.)
@@ -2789,7 +2789,7 @@ get_marker_visual_pointer(Models *models, Marker_Visual visual){
     return(0);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Marker_Visual_Set_Effect(Application_Links *app, Marker_Visual visual, Marker_Visual_Type type, int_color color, int_color text_color, Marker_Visual_Text_Style text_style)
 /*
 DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
@@ -2815,7 +2815,7 @@ DOC_SEE(Marker_Visuals_Symbolic_Color)
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Marker_Visual_Set_Take_Rule(Application_Links *app, Marker_Visual visual, Marker_Visual_Take_Rule take_rule)
 /*
 DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
@@ -2847,7 +2847,7 @@ DOC_SEE(Marker_Visual_Take_Rule)
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Marker_Visual_Set_Priority(Application_Links *app, Marker_Visual visual, Marker_Visual_Priority_Level priority)
 /*
 DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
@@ -2865,7 +2865,7 @@ DOC(Multiple visuals effecting the same position, whether they are on the same m
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Marker_Visual_Set_View_Key(Application_Links *app, Marker_Visual visual, View_ID key_view_id)
 /*
 DOC_PARAM(visual, A handle to the marker visual to be modified by this call.)
@@ -2883,7 +2883,7 @@ DOC(View keying allows a marker visual to declare that it only appears in one vi
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Destroy_Marker_Visual(Application_Links *app, Marker_Visual visual)
 /*
 DOC_PARAM(visual, A handle to the marker visual to be destroyed.)
@@ -3045,7 +3045,7 @@ DOC_RETURN(Returns a handle to the managed scope in which this object is allocat
     return(0);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Managed_Object_Free(Application_Links *app, Managed_Object object)
 /*
 DOC_PARAM(object, The handle to the managed object to be freed.)
@@ -3089,7 +3089,7 @@ DOC(Permanently frees the specified object.  Not only does this free up the memo
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Managed_Object_Store_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem)
 /*
 DOC_PARAM(object, The handle to the managed object in which data will be stored.)
@@ -3118,7 +3118,7 @@ DOC_SEE(managed_object_get_item_count)
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Managed_Object_Load_Data(Application_Links *app, Managed_Object object, uint32_t first_index, uint32_t count, void *mem_out)
 /*
 DOC_PARAM(object, The handle to the managed object  from which data will be loaded.)
@@ -3238,7 +3238,7 @@ max_result_count of 1 and be assured you will get the most recent bar if any exi
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Start_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)
 /*
 DOC_PARAM(bar, This parameter provides a Query_Bar that should remain in valid memory
@@ -3259,7 +3259,7 @@ only use for this call is in an interactive command that makes calls to get_user
     Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
     Query_Slot *slot = alloc_query_slot(&active_view->query_set);
-    bool32 result = (slot != 0);
+    b32 result = (slot != 0);
     if (result){
         slot->query_bar = bar;
     }
@@ -3279,7 +3279,7 @@ DOC(Stops showing the particular query bar specified by the bar parameter.)
     free_query_slot(&active_view->query_set, bar);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Print_Message(Application_Links *app, String message)
 /*
 DOC_PARAM(str, The str parameter specifies the string to post to *messages*; it need not be null terminated.)
@@ -3333,7 +3333,7 @@ DOC_RETURN(On success this call returns a string allocated on arena that is the 
 }
 
 // TODO(allen): redocument
-//API_EXPORT bool32
+//API_EXPORT b32
 Create_Theme(Application_Links *app, Theme *theme, String theme_name)
 /*
 DOC_PARAM(theme, The color data of the new theme.)
@@ -3369,7 +3369,7 @@ DOC(This call creates a new theme.  If the given name is already the name of a s
 }
 
 // TODO(allen): redocument
-//API_EXPORT bool32
+//API_EXPORT b32
 Change_Theme(Application_Links *app, String theme_name)
 /*
 DOC_PARAM(name, The name parameter specifies the name of the theme to begin using; it need not be null terminated.)
@@ -3379,7 +3379,7 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     Models *models = (Models*)app->cmd_context;
     Style_Library *styles = &models->styles;
     i32 count = styles->count;
-    bool32 result = false;
+    b32 result = false;
     Style *s = styles->styles + 1;
     for (i32 i = 1; i < count; ++i, ++s){
         if (match(s->name, theme_name)){
@@ -3392,7 +3392,7 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     return(result);
 }
 
-//API_EXPORT bool32
+//API_EXPORT b32
 Change_Theme_By_Index(Application_Links *app, int32_t index)
 /*
 DOC_PARAM(index, The index parameter specifies the index of theme to begin using.)
@@ -3422,8 +3422,8 @@ DOC_RETURN(Returns the largest face ID that could be valid.  There is no guarant
     return(result);
 }
 
-API_EXPORT bool32
-Set_Global_Face(Application_Links *app, Face_ID id, bool32 apply_to_all_buffers)
+API_EXPORT b32
+Set_Global_Face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers)
 /*
 DOC_PARAM(id, The id of the face to try to make the global face.)
 DOC_PARAM(apply_to_all_buffers, If the face is valid, apply the face to change to all open buffers as well as setting the global default.)
@@ -3434,7 +3434,7 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     
-    bool32 did_change = false;
+    b32 did_change = false;
     
     Font_Pointers font = system->font.get_pointers_by_id(id);
     if (font.valid){
@@ -3451,7 +3451,7 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     return(did_change);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_History_Get_Max_Record_Index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -3490,7 +3490,7 @@ buffer_history__fill_record_info(Record *record, Record_Info *out){
     }
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_History_Get_Record_Info(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info *record_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -3523,7 +3523,7 @@ Buffer_History_Get_Record_Info(Application_Links *app, Buffer_ID buffer_id, Hist
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, int32_t sub_index, Record_Info *record_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -3562,7 +3562,7 @@ Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id,
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -3574,11 +3574,11 @@ Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_ID buffer_
     return(false);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (buffer_api_check_file(file) && history_is_activated(&file->state.history)){
         i32 max_index = history_get_record_count(&file->state.history);
         if (0 <= index && index <= max_index){
@@ -3590,11 +3590,11 @@ Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_ID buffer_
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_ID buffer_id, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (file != 0 && history_is_activated(&file->state.history)){
         History *history = &file->state.history;
         i32 max_index = history_get_record_count(history);
@@ -3637,11 +3637,11 @@ Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_ID buffer_id, H
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_History_Clear_After_Current_State(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    bool32 result = false;
+    b32 result = false;
     if (buffer_api_check_file(file) && history_is_activated(&file->state.history)){
         history_dump_records_after_index(&file->state.history, file->state.current_record_index);
         result = true;
@@ -3719,7 +3719,7 @@ face_description_to_settings(System_Functions *system, Face_Description descript
     return(success);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Buffer_Set_Face(Application_Links *app, Buffer_ID buffer_id, Face_ID id)
 /*
 DOC_PARAM(buffer, The buffer on which to change the face.)
@@ -3731,7 +3731,7 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     
-    bool32 did_change = false;
+    b32 did_change = false;
     if (buffer_api_check_file(file)){
         System_Functions *system = models->system;
         Font_Pointers font = system->font.get_pointers_by_id(id);
@@ -3774,7 +3774,7 @@ DOC_SEE(Face_Description)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_Face_ID(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out)
 /*
 DOC_PARAM(buffer, The buffer from which to get a face id.  If NULL gets global face id.)
@@ -3783,7 +3783,7 @@ DOC_RETURN(On success a valid Face_ID, otherwise returns zero.)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    bool32 result = false;
+    b32 result = false;
     if (buffer_id != 0){
         Editing_File *file = imp_get_file(models, buffer_id);
         if (buffer_api_check_file(file)){
@@ -3825,7 +3825,7 @@ DOC_SEE(Face_Description)
     return(id);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Try_Modify_Face(Application_Links *app, Face_ID id, Face_Description *description)
 /*
 DOC_PARAM(id, The id of the face slot to try to modify.)
@@ -3841,7 +3841,7 @@ DOC_SEE(try_create_new_face)
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    bool32 success = false;
+    b32 success = false;
     Font_Settings settings;
     if (face_description_to_settings(system, *description, &settings)){
         if (alter_font_and_update_files(system, models, id, &settings)){
@@ -3851,7 +3851,7 @@ DOC_SEE(try_create_new_face)
     return(success);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Try_Release_Face(Application_Links *app, Face_ID id, Face_ID replacement_id)
 /*
 DOC_PARAM(id, The id of the face slot to release.)
@@ -3865,7 +3865,7 @@ DOC_RETURN(Returns true on success and zero on failure.)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    bool32 success = release_font_and_update_files(models->system, models, id, replacement_id);
+    b32 success = release_font_and_update_files(models->system, models, id, replacement_id);
     return(success);
 }
 
@@ -3959,7 +3959,7 @@ DOC_SEE(directory_set_hot)
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
     *required_size_out = hot->string.size;
-    bool32 result = false;
+    b32 result = false;
     if (append(out, hot->string)){
         terminate_with_null(out);
         result = true;
@@ -3968,7 +3968,7 @@ DOC_SEE(directory_set_hot)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Set_Hot_Directory(Application_Links *app, String string)
 /*
 DOC_PARAM(str, The new value of the hot directory.  This does not need to be a null terminated string.)
@@ -3988,7 +3988,7 @@ DOC_SEE(directory_get_hot)
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_File_List(Application_Links *app, String directory, File_List *list_out)
 /*
 DOC_PARAM(dir, This parameter specifies the directory whose files will be enumerated in the returned list; it need not be null terminated.)
@@ -4051,7 +4051,7 @@ DOC_SEE(memory_free)
     return(result);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
 /*
 DOC_PARAM(ptr, The base of the block on which to set memory protection flags.)
@@ -4077,7 +4077,7 @@ DOC_SEE(memory_allocate)
     models->system->memory_free(ptr, size);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 File_Get_Attributes(Application_Links *app, String file_name, File_Attributes *attributes_out)
 {
     Models *models = (Models*)app->cmd_context;
@@ -4086,7 +4086,7 @@ File_Get_Attributes(Application_Links *app, String file_name, File_Attributes *a
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Directory_CD(Application_Links *app, String *directory, String relative_path)
 /*
 DOC_PARAM(dir, This parameter provides a character buffer that stores a directory; it need not be null terminated.)
@@ -4106,7 +4106,7 @@ For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Get_4ed_Path(Application_Links *app, String *path_out, int32_t *required_size_out)
 /*
 DOC_PARAM(out, This parameter provides a character buffer that receives the path to the 4ed executable file.)
@@ -4137,34 +4137,34 @@ DOC_SEE(Mouse_Cursor_Show_Type)
     models->system->show_mouse_cursor(show);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Set_Edit_Finished_Hook_Repeat_Speed(Application_Links *app, u32 milliseconds){
     Models *models = (Models*)app->cmd_context;
     models->edit_finished_hook_repeat_speed = milliseconds;
     return(true);
 }
 
-API_EXPORT bool32
-Set_Fullscreen(Application_Links *app, bool32 full_screen)
+API_EXPORT b32
+Set_Fullscreen(Application_Links *app, b32 full_screen)
 /*
 DOC_PARAM(full_screen, The new value of the global full_screen setting.)
 DOC(This call tells 4coder to set the full_screen mode.  The change to full screen mode does not take effect until the end of the current frame.  But is_fullscreen does report the new state.)
 */{
     Models *models = (Models*)app->cmd_context;
-    bool32 success = models->system->set_fullscreen(full_screen);
+    b32 success = models->system->set_fullscreen(full_screen);
     if (!success){
         print_message(app, make_lit_string("ERROR: Failed to go fullscreen.\n"));
     }
     return(success);
 }
 
-API_EXPORT bool32
+API_EXPORT b32
 Is_Fullscreen(Application_Links *app)
 /*
 DOC(This call returns true if the 4coder is in full screen mode.  This call takes toggles that have already occured this frame into account.  So it may return true even though the frame has not ended and actually put 4coder into full screen. If it returns true though, 4coder will definitely be full screen by the beginning of the next frame if the state is not changed.)
 */{
     Models *models = (Models*)app->cmd_context;
-    bool32 result = models->system->is_fullscreen();
+    b32 result = models->system->is_fullscreen();
     return(result);
 }
 
@@ -4182,7 +4182,7 @@ To make send_exit_signal exit no matter what, setup your hook in such a way that
 }
 
 // TODO(allen): redocument
-API_EXPORT bool32
+API_EXPORT b32
 Set_Window_Title(Application_Links *app, String title)
 /*
 DOC_PARAM(title, A null terminated string indicating the new title for the 4coder window.)

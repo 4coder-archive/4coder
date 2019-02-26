@@ -4,14 +4,14 @@
 
 // TOP
 
-static bool32
-post_buffer_range_to_clipboard(Application_Links *app, Partition *scratch, int32_t clipboard_index,
-                               Buffer_Summary *buffer, int32_t first, int32_t one_past_last){
-    bool32 success = false;
+static b32
+post_buffer_range_to_clipboard(Application_Links *app, Partition *scratch, i32 clipboard_index,
+                               Buffer_Summary *buffer, i32 first, i32 one_past_last){
+    b32 success = false;
     if (buffer->exists &&
         0 <= first && first < one_past_last && one_past_last <= buffer->size){
         Temp_Memory temp = begin_temp_memory(scratch);
-        int32_t size = one_past_last - first;
+        i32 size = one_past_last - first;
         char *str = push_array(scratch, char, size);
         if (str != 0){
             buffer_read_range(app, buffer, first, one_past_last, str);
@@ -46,8 +46,8 @@ CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipb
 CUSTOM_COMMAND_SIG(paste)
 CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
 {
-    uint32_t access = AccessOpen;
-    int32_t count = clipboard_count(app, 0);
+    u32 access = AccessOpen;
+    i32 count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
         if_view_has_highlighted_range_delete_range(app, view.view_id);
@@ -55,10 +55,10 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
-        int32_t paste_index = 0;
+        i32 paste_index = 0;
         managed_variable_set(app, scope, view_paste_index_loc, paste_index);
         
-        int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
+        i32 len = clipboard_index(app, 0, paste_index, 0, 0);
         char *str = 0;
         if (len <= app->memory_size){
             str = (char*)app->memory;
@@ -68,7 +68,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             clipboard_index(app, 0, paste_index, str, len);
             
             Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-            int32_t pos = view.cursor.pos;
+            i32 pos = view.cursor.pos;
             buffer_replace_range(app, &buffer, pos, pos, str, len);
             view_set_mark(app, &view, seek_pos(pos));
             view_set_cursor(app, &view, seek_pos(pos + len), true);
@@ -85,8 +85,8 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
 CUSTOM_COMMAND_SIG(paste_next)
 CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste range with the next text down on the clipboard, otherwise operates as the paste command.")
 {
-    uint32_t access = AccessOpen;
-    int32_t count = clipboard_count(app, 0);
+    u32 access = AccessOpen;
+    i32 count = clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = get_active_view(app, access);
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
@@ -98,10 +98,10 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
             managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
             uint64_t prev_paste_index = 0;
             managed_variable_get(app, scope, view_paste_index_loc, &prev_paste_index);
-            int32_t paste_index = (int32_t)prev_paste_index + 1;
+            i32 paste_index = (i32)prev_paste_index + 1;
             managed_variable_set(app, scope, view_paste_index_loc, paste_index);
             
-            int32_t len = clipboard_index(app, 0, paste_index, 0, 0);
+            i32 len = clipboard_index(app, 0, paste_index, 0, 0);
             char *str = 0;
             
             if (len <= app->memory_size){
@@ -113,7 +113,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
                 
                 Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
                 Range range = get_view_range(&view);
-                int32_t pos = range.min;
+                i32 pos = range.min;
                 
                 buffer_replace_range(app, &buffer, range.min, range.max, str, len);
                 view_set_cursor(app, &view, seek_pos(pos + len), true);

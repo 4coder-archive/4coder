@@ -162,8 +162,8 @@ search_hit_add(Heap *heap, Table *hits, String_Space *space, char *str, int32_t 
 
 static void
 seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key, Search_Match *result, Seek_Potential_Match_Direction direction, int32_t start_pos, int32_t end_pos){
-    bool32 case_insensitive = ((range->flags & SearchFlag_CaseInsensitive) != 0);
-    bool32 forward = (direction == SeekPotentialMatch_Forward);
+    b32 case_insensitive = ((range->flags & SearchFlag_CaseInsensitive) != 0);
+    b32 forward = (direction == SeekPotentialMatch_Forward);
 #define OptFlag(b,f) ((b)?(f):(0))
     Buffer_Seek_String_Flags flags = 0
         | OptFlag(case_insensitive, BufferSeekString_CaseInsensitive)
@@ -517,7 +517,7 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
     
     int32_t j = 0;
     if (buffer.exists){
-        bool32 skip = false;
+        b32 skip = false;
         for (int32_t i = 0; i < skip_buffer_count; ++i){
             if (buffer.buffer_id == skip_buffers[i]){
                 skip = true;
@@ -542,7 +542,7 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
             continue;
         }
         
-        bool32 skip = false;
+        b32 skip = false;
         for (int32_t i = 0; i < skip_buffer_count; ++i){
             if (buffer_it.buffer_id == skip_buffers[i]){
                 skip = true;
@@ -577,7 +577,7 @@ buffered_print_flush(Application_Links *app, Partition *part, Temp_Memory temp, 
 }
 
 static char*
-buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer, int32_t length, bool32 *did_flush){
+buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer, int32_t length, b32 *did_flush){
     char *mem = push_array(part, char, length);
     *did_flush = false;
     if (mem == 0){
@@ -592,7 +592,7 @@ buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory tem
 
 static char*
 buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer, int32_t length){
-    bool32 ignore;
+    b32 ignore;
     return(buffered_memory_reserve(app, part, temp, output_buffer, length, &ignore));
 }
 
@@ -638,7 +638,7 @@ buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Mem
 #endif
 
 #if 0
-static bool32
+static b32
 search_buffer_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String text);
 #endif
 
@@ -673,7 +673,7 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
     
     Temp_Memory temp = begin_temp_memory(scratch);
     Buffer_ID prev_match_id = 0;
-    bool32 no_matches = true;
+    b32 no_matches = true;
     for (Search_Match match = search_next_match(app, &set, &iter);
          match.found_match;
          match = search_next_match(app, &set, &iter)){
@@ -710,7 +710,7 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
                     mirror_range_count = 0;
                     Assert(out_pos == search_buffer.size);
                 }
-                bool32 flushed = false;
+                b32 flushed = false;
                 int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
                 char *spare = buffered_memory_reserve(app, scratch, temp, &search_buffer, str_len, &flushed);
                 if (flushed){
@@ -778,7 +778,7 @@ list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String 
 
 static void
 list_single__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                        String str, bool32 substrings, bool32 case_insensitive,
+                        String str, b32 substrings, b32 case_insensitive,
                         View_Summary default_target_view){
     Search_Range_Flag flags = 0;
     if (substrings){
@@ -795,7 +795,7 @@ list_single__parameters(Application_Links *app, Heap *heap, Partition *scratch,
 
 static void
 list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                       bool32 substrings, bool32 case_insensitive,
+                       b32 substrings, b32 case_insensitive,
                        View_Summary default_target_view){
     char space[1024];
     String str = get_query_string(app, "List Locations For: ", space, sizeof(space));
@@ -807,7 +807,7 @@ list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch,
 
 static void
 list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                            bool32 substrings, bool32 case_insensitive,
+                            b32 substrings, b32 case_insensitive,
                             View_Summary default_target_view){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
@@ -822,7 +822,7 @@ list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scrat
 
 static void
 list_selected_range__parameters(Application_Links *app, Heap *heap, Partition *scratch,
-                                bool32 substrings, bool32 case_insensitive,
+                                b32 substrings, b32 case_insensitive,
                                 View_Summary default_target_view){
     View_Summary view = get_active_view(app, AccessProtected);
     Temp_Memory temp = begin_temp_memory(scratch);

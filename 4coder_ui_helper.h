@@ -62,7 +62,7 @@ enum{
 
 typedef void Lister_Activation_Function_Type(Application_Links *app, Partition *scratch, Heap *heap,
                                              View_Summary *view, struct Lister_State *state,
-                                             String text_field, void *user_data, bool32 activated_by_mouse);
+                                             String text_field, void *user_data, b32 activated_by_mouse);
 
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, struct Lister *lister);
 
@@ -112,7 +112,7 @@ struct Lister_Data{
     char key_string_space[256];
     String key_string;
     Lister_Option_List options;
-    bool32 theme_list;
+    b32 theme_list;
 };
 
 struct Lister{
@@ -121,11 +121,11 @@ struct Lister{
 };
 
 struct Lister_State{
-    bool32 initialized;
+    b32 initialized;
     Lister lister;
     
     // Action defered to next UI update
-    bool32 set_view_vertical_focus_to_item;
+    b32 set_view_vertical_focus_to_item;
     
     // State set directly by input handlers
     void *hot_user_data;

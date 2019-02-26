@@ -60,12 +60,12 @@ new_view_settings(Application_Links *app, View_Summary *view){
 ////////////////////////////////
 
 static void
-view_set_passive(Application_Links *app, View_Summary *view, bool32 value){
+view_set_passive(Application_Links *app, View_Summary *view, b32 value){
     Managed_Scope scope = view_get_managed_scope(app, view->view_id);
     managed_variable_set(app, scope, view_is_passive_loc, (uint64_t)value);
 }
 
-static bool32
+static b32
 view_get_is_passive(Application_Links *app, View_Summary *view){
     Managed_Scope scope = view_get_managed_scope(app, view->view_id);
     uint64_t is_passive = 0;
@@ -94,7 +94,7 @@ close_build_footer_panel(Application_Links *app){
 }
 
 static View_Summary
-open_build_footer_panel(Application_Links *app, bool32 create_if_not_exist = true){
+open_build_footer_panel(Application_Links *app, b32 create_if_not_exist = true){
     View_Summary special_view = get_view(app, build_footer_panel_view_id, AccessAll);
     if (create_if_not_exist && !special_view.exists){
         View_Summary view = get_active_view(app, AccessAll);
@@ -227,7 +227,7 @@ create_or_switch_to_buffer_by_name(Application_Links *app, char *name, int32_t n
 ////////////////////////////////
 
 static void
-set_mouse_suppression(Application_Links *app, bool32 suppress){
+set_mouse_suppression(Application_Links *app, b32 suppress){
     if (suppress){
         suppressing_mouse = true;
         show_mouse_cursor(app, MouseCursorShow_Never);

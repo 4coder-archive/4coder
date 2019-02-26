@@ -5,8 +5,8 @@
 // TOP
 
 static Hard_Start_Result
-buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t line_start, int32_t tab_width){
-    int32_t tab_additional_width = tab_width - 1;
+buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, i32 line_start, i32 tab_width){
+    i32 tab_additional_width = tab_width - 1;
     
     Hard_Start_Result result = {};
     result.all_space = true;
@@ -17,7 +17,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
     Stream_Chunk stream = {};
     stream.add_null = true;
     if (init_stream_chunk(&stream, app, buffer, line_start, data_chunk, sizeof(data_chunk))){
-        bool32 still_looping = true;
+        b32 still_looping = true;
         do{
             for (; result.char_pos < stream.end; ++result.char_pos){
                 char c = stream.data[result.char_pos];
@@ -51,23 +51,23 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, int32_t l
 
 static Buffer_Batch_Edit
 make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer,
-                             int32_t first_line, int32_t one_past_last_line, int32_t *indent_marks,
+                             i32 first_line, i32 one_past_last_line, i32 *indent_marks,
                              Indent_Options opts){
-    int32_t *shifted_indent_marks = indent_marks - first_line;
+    i32 *shifted_indent_marks = indent_marks - first_line;
     
-    int32_t edit_count = 0;
-    int32_t edit_max = one_past_last_line - first_line;
+    i32 edit_count = 0;
+    i32 edit_max = one_past_last_line - first_line;
     Buffer_Edit *edits = push_array(arena, Buffer_Edit, edit_max);
     
     char *str_base = push_array(arena, char, 0);
     
-    for (int32_t line_number = first_line;
+    for (i32 line_number = first_line;
          line_number < one_past_last_line;
          ++line_number){
-        int32_t line_start_pos = buffer_get_line_start(app, buffer, line_number);
+        i32 line_start_pos = buffer_get_line_start(app, buffer, line_number);
         Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, line_start_pos, opts.tab_width);
         
-        int32_t correct_indentation = shifted_indent_marks[line_number];
+        i32 correct_indentation = shifted_indent_marks[line_number];
         if (hard_start.all_whitespace && opts.empty_blank_lines){
             correct_indentation = 0;
         }
@@ -76,14 +76,14 @@ make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Su
         }
         
         if (correct_indentation != hard_start.indent_pos){
-            int32_t str_size = correct_indentation;
+            i32 str_size = correct_indentation;
             if (opts.use_tabs){
                 str_size = correct_indentation/opts.tab_width + correct_indentation%opts.tab_width;
             }
             char *str = push_array(arena, char, str_size);
             if (opts.use_tabs){
-                int32_t indent = 0;
-                int32_t j = 0;
+                i32 indent = 0;
+                i32 j = 0;
                 for (;indent + opts.tab_width <= correct_indentation;
                      indent += opts.tab_width){
                     str[j++] = '\t';
@@ -94,13 +94,13 @@ make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Su
                 }
             }
             else{
-                for (int32_t j = 0; j < correct_indentation;){
+                for (i32 j = 0; j < correct_indentation;){
                     str[j++] = ' ';
                 }
             }
             
             Buffer_Edit new_edit;
-            new_edit.str_start = (int32_t)(str - str_base);
+            new_edit.str_start = (i32)(str - str_base);
             new_edit.len = str_size;
             new_edit.start = line_start_pos;
             new_edit.end = hard_start.char_pos;
@@ -112,7 +112,7 @@ make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Su
     
     Buffer_Batch_Edit result = {};
     result.str = str_base;
-    result.str_len = (int32_t)(push_array(arena, char, 0) - str_base);
+    result.str_len = (i32)(push_array(arena, char, 0) - str_base);
     result.edits = edits;
     result.edit_count = edit_count;
     return(result);
@@ -120,8 +120,8 @@ make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Su
 
 static void
 set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer,
-                 int32_t first_line, int32_t one_past_last_line,
-                 int32_t *indent_marks, Indent_Options opts){
+                 i32 first_line, i32 one_past_last_line,
+                 i32 *indent_marks, Indent_Options opts){
     Buffer_Batch_Edit batch = make_batch_from_indent_marks(app, part, buffer,
                                                            first_line, one_past_last_line,
                                                            indent_marks, opts);
@@ -138,7 +138,7 @@ seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
         token = tokens.tokens;
     }
     else{
-        int32_t nesting_level = 0;
+        i32 nesting_level = 0;
         for (; token > tokens.tokens; --token){
             if (!(token->flags & CPP_TFLAG_PP_BODY)){
                 if (token->type == close_type){
@@ -160,7 +160,7 @@ seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
 
 static Indent_Anchor_Position
 find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens,
-                  int32_t line_start, int32_t tab_width){
+                  i32 line_start, i32 tab_width){
     // NOTE(allen): New implementation of find_anchor_token (4.0.26) revert if it is a problem.
     Indent_Anchor_Position anchor = {};
     
@@ -170,13 +170,13 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
             anchor.token = tokens.tokens;
         }
         else{
-            int32_t stack[256];
-            int32_t top = -1;
+            i32 stack[256];
+            i32 top = -1;
             
             Cpp_Token *token_it = tokens.tokens;
-            int32_t highest_checked_line_number = -1;
+            i32 highest_checked_line_number = -1;
             for (; token_it < first_invalid_token; ++token_it){
-                int32_t line_number = buffer_get_line_number(app, buffer, token_it->start);
+                i32 line_number = buffer_get_line_number(app, buffer, token_it->start);
                 if (highest_checked_line_number < line_number){
                     highest_checked_line_number = line_number;
                     if (top == -1){
@@ -196,7 +196,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
                     case CPP_TOKEN_PARENTHESE_CLOSE:
                     {
                         for (;top >= 0;){
-                            int32_t index = top;
+                            i32 index = top;
                             top -= 1;
                             if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN){
                                 break;
@@ -207,7 +207,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
                     case CPP_TOKEN_BRACE_CLOSE:
                     {
                         for (;top >= 0;){
-                            int32_t index = top;
+                            i32 index = top;
                             if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN){
                                 break;
                             }
@@ -221,7 +221,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
                     case CPP_TOKEN_BRACKET_CLOSE:
                     {
                         for (;top >= 0;){
-                            int32_t index = top;
+                            i32 index = top;
                             if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN ||
                                 stack[index] == CPP_TOKEN_BRACE_OPEN){
                                 break;
@@ -239,12 +239,12 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
     return(anchor);
 }
 
-static int32_t*
+static i32*
 get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer,
-                      Cpp_Token_Array tokens, int32_t first_line, int32_t one_past_last_line,
-                      bool32 exact_align, int32_t tab_width){
-    int32_t indent_mark_count = one_past_last_line - first_line;
-    int32_t *indent_marks = push_array(arena, int32_t, indent_mark_count);
+                      Cpp_Token_Array tokens, i32 first_line, i32 one_past_last_line,
+                      b32 exact_align, i32 tab_width){
+    i32 indent_mark_count = one_past_last_line - first_line;
+    i32 *indent_marks = push_array(arena, i32, indent_mark_count);
     // Shift the array so line_index works correctly.
     indent_marks -= first_line;
     
@@ -255,12 +255,12 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
     indent.current_indent = anchor.indentation;
     
     if (token_ptr == 0){
-        for (int32_t line_index = first_line; line_index < one_past_last_line; ++line_index){
+        for (i32 line_index = first_line; line_index < one_past_last_line; ++line_index){
             indent_marks[line_index] = 0;
         }
     }
     else{
-        int32_t line_number = buffer_get_line_number(app, buffer, token_ptr->start);
+        i32 line_number = buffer_get_line_number(app, buffer, token_ptr->start);
         if (line_number > first_line){
             line_number = first_line;
         }
@@ -269,7 +269,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
             indent.current_indent = 0;
         }
         
-        int32_t next_line_start_pos = buffer_get_line_start(app, buffer, line_number);
+        i32 next_line_start_pos = buffer_get_line_start(app, buffer, line_number);
         indent.previous_line_indent = indent.current_indent;
         Cpp_Token prev_token = {};
         Cpp_Token token = {};
@@ -302,13 +302,13 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
             for (;token.start >= next_line_start_pos && line_number < one_past_last_line;){
                 next_line_start_pos = buffer_get_line_start(app, buffer, line_number + 1);
                 
-                int32_t this_indent = 0;
-                int32_t previous_indent = indent.previous_line_indent;
+                i32 this_indent = 0;
+                i32 previous_indent = indent.previous_line_indent;
                 
-                int32_t this_line_start = buffer_get_line_start(app, buffer, line_number);
-                int32_t next_line_start = next_line_start_pos;
+                i32 this_line_start = buffer_get_line_start(app, buffer, line_number);
+                i32 next_line_start = next_line_start_pos;
                 
-                bool32 did_multi_line_behavior = false;
+                b32 did_multi_line_behavior = false;
                 
                 // NOTE(allen): Check for multi-line tokens
                 if (prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
@@ -323,7 +323,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                                 this_indent = previous_indent;
                             }
                             else{
-                                int32_t line_pos = hard_start.char_pos - this_line_start;
+                                i32 line_pos = hard_start.char_pos - this_line_start;
                                 this_indent = line_pos + indent.comment_shift;
                                 if (this_indent < 0){
                                     this_indent = 0;
@@ -365,7 +365,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                                 
                                 default:
                                 if (indent.current_indent > 0){
-                                    bool32 statement_complete = false;
+                                    b32 statement_complete = false;
                                     
                                     Cpp_Token *prev_usable_token_ptr = token_ptr - 1;
                                     Cpp_Token prev_usable_token = {};
@@ -374,7 +374,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                                     }
                                     
                                     // Scan backwards for the previous token that actually tells us about the statement.
-                                    bool32 has_prev_usable_token = true;
+                                    b32 has_prev_usable_token = true;
 #define NotUsable(T) \
                                     (((T).flags&CPP_TFLAG_PP_BODY) || ((T).flags&CPP_TFLAG_PP_DIRECTIVE) || ((T).type == CPP_TOKEN_COMMENT))
                                     if (NotUsable(prev_usable_token)){
@@ -421,7 +421,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                 
                 if (indent.paren_nesting > 0){
                     if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
-                        int32_t level = indent.paren_nesting - 1;
+                        i32 level = indent.paren_nesting - 1;
                         if (level >= ArrayCount(indent.paren_anchor_indent)){
                             level = ArrayCount(indent.paren_anchor_indent) - 1;
                         }
@@ -433,7 +433,7 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                 // after the open paren is on the next line.
                 if (indent.paren_nesting > 0){
                     if (prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-                        int32_t level = indent.paren_nesting - 1;
+                        i32 level = indent.paren_nesting - 1;
                         if (level >= ArrayCount(indent.paren_anchor_indent)){
                             level = ArrayCount(indent.paren_anchor_indent) - 1;
                         }
@@ -459,14 +459,14 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                 case CPP_TOKEN_COMMENT:
                 case CPP_TOKEN_STRING_CONSTANT:
                 {
-                    int32_t line = buffer_get_line_number(app, buffer, token.start);
-                    int32_t start = buffer_get_line_start(app, buffer, line);
+                    i32 line = buffer_get_line_number(app, buffer, token.start);
+                    i32 start = buffer_get_line_start(app, buffer, line);
                     Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, start, tab_width);
                     
-                    int32_t old_dist_to_token = (token.start - start);
-                    int32_t old_indent = hard_start.indent_pos;
-                    int32_t token_start_inset = old_dist_to_token - old_indent;
-                    int32_t new_dist_to_token = indent.current_indent + token_start_inset;
+                    i32 old_dist_to_token = (token.start - start);
+                    i32 old_indent = hard_start.indent_pos;
+                    i32 token_start_inset = old_dist_to_token - old_indent;
+                    i32 new_dist_to_token = indent.current_indent + token_start_inset;
                     
                     indent.comment_shift = (new_dist_to_token - old_dist_to_token);
                     indent.previous_comment_indent = old_indent;
@@ -476,13 +476,13 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
                 {
                     if (!(token.flags & CPP_TFLAG_PP_BODY)){
                         if (indent.paren_nesting < ArrayCount(indent.paren_anchor_indent)){
-                            int32_t line = buffer_get_line_number(app, buffer, token.start);
-                            int32_t start = buffer_get_line_start(app, buffer, line);
-                            int32_t char_pos = token.start - start;
+                            i32 line = buffer_get_line_number(app, buffer, token.start);
+                            i32 start = buffer_get_line_start(app, buffer, line);
+                            i32 char_pos = token.start - start;
                             
                             Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, start, tab_width);
                             
-                            int32_t line_pos = hard_start.char_pos - start;
+                            i32 line_pos = hard_start.char_pos - start;
                             
                             indent.paren_anchor_indent[indent.paren_nesting] = char_pos - line_pos + indent.previous_line_indent + 1;
                         }
@@ -508,21 +508,21 @@ get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *
 }
 
 static void
-get_indent_lines_minimum(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, int32_t end_pos, int32_t *line_start_out, int32_t *line_end_out){
-    int32_t line_start = buffer_get_line_number(app, buffer, start_pos);
-    int32_t line_end = buffer_get_line_number(app, buffer, end_pos) + 1;
+get_indent_lines_minimum(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
+    i32 line_start = buffer_get_line_number(app, buffer, start_pos);
+    i32 line_end = buffer_get_line_number(app, buffer, end_pos) + 1;
     
     *line_start_out = line_start;
     *line_end_out = line_end;
 }
 
 static void
-get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t start_pos, int32_t end_pos, int32_t *line_start_out, int32_t *line_end_out){
-    int32_t line_start = buffer_get_line_number(app, buffer, start_pos);
-    int32_t line_end = buffer_get_line_number(app, buffer, end_pos);
+get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
+    i32 line_start = buffer_get_line_number(app, buffer, start_pos);
+    i32 line_end = buffer_get_line_number(app, buffer, end_pos);
     
     for (;line_start > 1;){
-        int32_t line_start_pos = 0;
+        i32 line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start, &line_start_pos);
         if (token && token->start < line_start_pos){
             line_start = buffer_get_line_number(app, buffer, token->start);
@@ -533,7 +533,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
     }
     
     for (;line_end < buffer->line_count;){
-        int32_t next_line_start_pos = 0;
+        i32 next_line_start_pos = 0;
         Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_end+1, &next_line_start_pos);
         if (token && token->start < next_line_start_pos){
             line_end = buffer_get_line_number(app, buffer, token->start+token->size);
@@ -554,10 +554,10 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
     *line_end_out = line_end;
 }
 
-static bool32
-buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buffer, int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags){
+static b32
+buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
     
-    bool32 result = false;
+    b32 result = false;
     if (buffer->exists && buffer->tokens_are_ready){
         result = true;
         
@@ -572,7 +572,7 @@ buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buff
         
         // Stage 2: Decide where the first and last lines are.
         //  The lines in the range [line_start,line_end) will be indented.
-        int32_t line_start = 0, line_end = 0;
+        i32 line_start = 0, line_end = 0;
         if (flags & AutoIndent_FullTokens){
             get_indent_lines_whole_tokens(app, buffer, tokens, start, end, &line_start, &line_end);
         }
@@ -583,7 +583,7 @@ buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buff
         // Stage 3: Decide Indent Amounts
         //  Get an array representing how much each line in
         //   the range [line_start,line_end) should be indented.
-        int32_t *indent_marks = get_indentation_marks(app, part, buffer, tokens, line_start, line_end, (flags & AutoIndent_ExactAlignBlock), tab_width);
+        i32 *indent_marks = get_indentation_marks(app, part, buffer, tokens, line_start, line_end, (flags & AutoIndent_ExactAlignBlock), tab_width);
         
         // Stage 4: Set the Line Indents
         Indent_Options opts = {};
@@ -599,10 +599,9 @@ buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buff
     return(result);
 }
 
-static bool32
-buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags){
-    bool32 result = buffer_auto_indent(app, &global_part, buffer, start, end, tab_width, flags);
-    return(result);
+static b32
+buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
+    return(buffer_auto_indent(app, &global_part, buffer, start, end, tab_width, flags));
 }
 
 //
@@ -620,7 +619,7 @@ buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, int32_t start
 CUSTOM_COMMAND_SIG(auto_tab_whole_file)
 CUSTOM_DOC("Audo-indents the entire current buffer.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
@@ -630,7 +629,7 @@ CUSTOM_DOC("Audo-indents the entire current buffer.")
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor)
 CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
@@ -641,7 +640,7 @@ CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 CUSTOM_COMMAND_SIG(auto_tab_range)
 CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
 {
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     Range range = get_view_range(&view);
@@ -655,11 +654,11 @@ CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor si
 {
     exec_command(app, write_character);
     
-    uint32_t access = AccessOpen;
+    u32 access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    uint32_t flags = DEFAULT_INDENT_FLAGS;
+    u32 flags = DEFAULT_INDENT_FLAGS;
     User_Input in = get_command_input(app);
     if (in.key.character == '\n'){
         flags |= AutoIndent_ExactAlignBlock;

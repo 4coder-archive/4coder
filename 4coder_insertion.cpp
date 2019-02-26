@@ -54,7 +54,7 @@ insertc(Buffer_Insertion *insertion, char C){
     insertion->at += 1;
 }
 
-static bool32
+static b32
 insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_t line, int32_t truncate_at){
     Partition *part = &global_part;
     Temp_Memory temp = begin_temp_memory(part);
@@ -64,7 +64,7 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_
     
     Buffer_Summary buffer = get_buffer(insertion->app, buffer_id, AccessAll);
     
-    bool32 success = false;
+    b32 success = false;
     if (buffer_compute_cursor(insertion->app, &buffer, seek_line_char(line, 1), &begin)){
         if (buffer_compute_cursor(insertion->app, &buffer, seek_line_char(line, -1), &end)){
             if (begin.line == line){
@@ -92,7 +92,7 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_
     return(success);
 }
 
-static bool32
+static b32
 insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, int32_t line){
     return(insert_line_from_buffer(insertion, buffer_id, line, 0));
 }

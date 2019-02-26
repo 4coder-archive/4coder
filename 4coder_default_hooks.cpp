@@ -54,8 +54,8 @@ START_HOOK_SIG(default_start){
     panel_get_margin(app, header, &header_margin);
     panel_get_margin(app, header, &bottom_margin);
     
-    int32_t header_vertical_pixels = header_margin.y0 + header_margin.y1;
-    int32_t margin_vertical_pixels = header_vertical_pixels + bottom_margin.y0 + bottom_margin.y1;
+    i32 header_vertical_pixels = header_margin.y0 + header_margin.y1;
+    i32 margin_vertical_pixels = header_vertical_pixels + bottom_margin.y0 + bottom_margin.y1;
     
     View_Summary view = {};
     get_view_summary(app, left_view, AccessAll, &view);
@@ -122,12 +122,12 @@ struct Highlight_Record{
 };
 
 static void
-sort_highlight_record(Highlight_Record *records, int32_t first, int32_t one_past_last){
+sort_highlight_record(Highlight_Record *records, i32 first, i32 one_past_last){
     if (first + 1 < one_past_last){
-        int32_t pivot_index = one_past_last - 1;
+        i32 pivot_index = one_past_last - 1;
         int_color pivot_color = records[pivot_index].color;
-        int32_t j = first;
-        for (int32_t i = first; i < pivot_index; i += 1){
+        i32 j = first;
+        for (i32 i = first; i < pivot_index; i += 1){
             int_color color = records[i].color;
             if (color < pivot_color){
                 Swap(Highlight_Record, records[i], records[j]);
@@ -144,7 +144,7 @@ sort_highlight_record(Highlight_Record *records, int32_t first, int32_t one_past
 
 static Range_Array
 get_enclosure_ranges(Application_Links *app, Partition *part,
-                     Buffer_Summary *buffer, int32_t pos, uint32_t flags){
+                     Buffer_Summary *buffer, i32 pos, u32 flags){
     Range_Array array = {};
     array.ranges = push_array(part, Range, 0);
     for (;;){
@@ -158,24 +158,24 @@ get_enclosure_ranges(Application_Links *app, Partition *part,
             break;
         }
     }
-    array.count = (int32_t)(push_array(part, Range, 0) - array.ranges);
+    array.count = (i32)(push_array(part, Range, 0) - array.ranges);
     return(array);
 }
 
 static void
 mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope,
-                Buffer_Summary *buffer, int32_t pos, uint32_t flags,
+                Buffer_Summary *buffer, i32 pos, u32 flags,
                 Marker_Visual_Type type,
-                int_color *back_colors, int_color *fore_colors, int32_t color_count){
+                int_color *back_colors, int_color *fore_colors, i32 color_count){
     Temp_Memory temp = begin_temp_memory(scratch);
     Range_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
     if (ranges.count > 0){
-        int32_t marker_count = ranges.count*2;
+        i32 marker_count = ranges.count*2;
         Marker *markers = push_array(scratch, Marker, marker_count);
         Marker *marker = markers;
         Range *range = ranges.ranges;
-        for (int32_t i = 0;
+        for (i32 i = 0;
              i < ranges.count;
              i += 1, range += 1, marker += 2){
             marker[0].pos = range->first;
@@ -188,8 +188,8 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
         take_rule.take_count_per_step = 2;
         take_rule.step_stride_in_marker_count = 8;
         
-        int32_t first_color_index = (ranges.count - 1)%color_count;
-        for (int32_t i = 0, color_index = first_color_index;
+        i32 first_color_index = (ranges.count - 1)%color_count;
+        for (i32 i = 0, color_index = first_color_index;
              i < color_count;
              i += 1){
             Marker_Visual visual = create_marker_visual(app, o);
@@ -275,12 +275,11 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 }
 
 static void
-default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_screen_range, i32 frame_index, f32 literal_dt, f32 animation_dt,
-                             Render_Callback *do_core_render){
-    View_Summary view = get_view(app, view_id, AccessAll);
+default_buffer_render_caller(Application_Links *app, Render_Parameters render_params){
+    View_Summary view = get_view(app, render_params.view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     View_Summary active_view = get_active_view(app, AccessAll);
-    bool32 is_active_view = (active_view.view_id == view_id);
+    b32 is_active_view = (active_view.view_id == render_params.view_id);
     
     static Managed_Scope render_scope = 0;
     if (render_scope == 0){
@@ -292,16 +291,16 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
     // NOTE(allen): Scan for TODOs and NOTEs
     {
         Temp_Memory temp = begin_temp_memory(scratch);
-        int32_t text_size = on_screen_range.one_past_last - on_screen_range.first;
+        i32 text_size = render_params.on_screen_range.one_past_last - render_params.on_screen_range.first;
         char *text = push_array(scratch, char, text_size);
-        buffer_read_range(app, &buffer, on_screen_range.first, on_screen_range.one_past_last, text);
+        buffer_read_range(app, &buffer, render_params.on_screen_range.first, render_params.on_screen_range.one_past_last, text);
         
         Highlight_Record *records = push_array(scratch, Highlight_Record, 0);
         String tail = make_string(text, text_size);
-        for (int32_t i = 0; i < text_size; tail.str += 1, tail.size -= 1, i += 1){
+        for (i32 i = 0; i < text_size; tail.str += 1, tail.size -= 1, i += 1){
             if (match_part(tail, make_lit_string("NOTE"))){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                record->first = i + on_screen_range.first;
+                record->first = i + render_params.on_screen_range.first;
                 record->one_past_last = record->first + 4;
                 record->color = Stag_Text_Cycle_2;
                 tail.str += 3;
@@ -310,7 +309,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
             }
             else if (match_part(tail, make_lit_string("TODO"))){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                record->first = i + on_screen_range.first;
+                record->first = i + render_params.on_screen_range.first;
                 record->one_past_last = record->first + 4;
                 record->color = Stag_Text_Cycle_1;
                 tail.str += 3;
@@ -318,7 +317,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
                 i += 3;
             }
         }
-        int32_t record_count = (int32_t)(push_array(scratch, Highlight_Record, 0) - records);
+        i32 record_count = (i32)(push_array(scratch, Highlight_Record, 0) - records);
         push_array(scratch, Highlight_Record, 1);
         
         if (record_count > 0){
@@ -331,10 +330,10 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
                 marker[0].pos = records[0].first;
                 marker[1].pos = records[0].one_past_last;
             }
-            for (int32_t i = 1; i <= record_count; i += 1){
-                bool32 do_emit = i == record_count || (records[i].color != current_color);
+            for (i32 i = 1; i <= record_count; i += 1){
+                b32 do_emit = i == record_count || (records[i].color != current_color);
                 if (do_emit){
-                    int32_t marker_count = (int32_t)(push_array(scratch, Marker, 0) - markers);
+                    i32 marker_count = (i32)(push_array(scratch, Marker, 0) - markers);
                     Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, &render_scope);
                     managed_object_store_data(app, o, 0, marker_count, markers);
                     Marker_Visual v = create_marker_visual(app, o);
@@ -360,7 +359,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
     cm_markers[1].pos = view.mark.pos;
     managed_object_store_data(app, cursor_and_mark, 0, 2, cm_markers);
     
-    bool32 cursor_is_hidden_in_this_view = (cursor_is_hidden && is_active_view);
+    b32 cursor_is_hidden_in_this_view = (cursor_is_hidden && is_active_view);
     if (!cursor_is_hidden_in_this_view){
         switch (fcoder_mode){
             case FCoderMode_Original:
@@ -414,7 +413,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
     
     // NOTE(allen): Line highlight setup
     if (highlight_line_at_cursor && is_active_view){
-        uint32_t line_color = Stag_Highlight_Cursor_Line;
+        u32 line_color = Stag_Highlight_Cursor_Line;
         Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
         marker_visual_set_effect(app, visual, VisualType_LineHighlights, line_color, 0, 0);
         Marker_Visual_Take_Rule take_rule = {};
@@ -427,15 +426,15 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
     }
     
     // NOTE(allen): Token highlight setup
-    bool32 do_token_highlight = false;
+    b32 do_token_highlight = false;
     if (do_token_highlight){
         int_color token_color = 0x5000EE00;
         
-        uint32_t token_flags = BoundaryToken|BoundaryWhitespace;
-        int32_t pos0 = view.cursor.pos;
-        int32_t pos1 = buffer_boundary_seek(app, &buffer, pos0, DirLeft , token_flags);
+        u32 token_flags = BoundaryToken|BoundaryWhitespace;
+        i32 pos0 = view.cursor.pos;
+        i32 pos1 = buffer_boundary_seek(app, &buffer, pos0, DirLeft , token_flags);
         if (pos1 >= 0){
-            int32_t pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
+            i32 pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
             if (pos2 <= buffer.size){
                 Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
                 Marker range_markers[2] = {};
@@ -449,7 +448,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
     }
     
     // NOTE(allen): Matching enclosure highlight setup
-    static const int32_t color_count = 4;
+    static const i32 color_count = 4;
     if (do_matching_enclosure_highlight){
         int_color colors[color_count];
         for (u16 i = 0; i < color_count; i += 1){
@@ -458,7 +457,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
         mark_enclosures(app, scratch, render_scope, &buffer, view.cursor.pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
-        int32_t pos = view.cursor.pos;
+        i32 pos = view.cursor.pos;
         if (buffer_get_char(app, &buffer, pos) == '('){
             pos += 1;
         }
@@ -474,7 +473,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
         mark_enclosures(app, scratch, render_scope, &buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
-    do_core_render(app);
+    render_params.do_core_render(app);
     
     // NOTE(allen): FPS HUD
     if (show_fps_hud){
@@ -483,10 +482,10 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
         static f32 history_animation_dt[history_depth] = {};
         static i32 history_frame_index[history_depth] = {};
         
-        i32 wrapped_index = frame_index%history_depth;
-        history_literal_dt[wrapped_index] = literal_dt;
-        history_animation_dt[wrapped_index] = animation_dt;
-        history_frame_index[wrapped_index] = frame_index;
+        i32 wrapped_index = render_params.frame.index%history_depth;
+        history_literal_dt[wrapped_index]   = render_params.frame.literal_dt;
+        history_animation_dt[wrapped_index] = render_params.frame.animation_dt;
+        history_frame_index[wrapped_index]  = render_params.frame.index;
         
         Rect_f32 hud_rect = f32R(view.render_region);
         hud_rect.y0 = hud_rect.y1 - view.line_height*(f32)(history_depth);
@@ -569,13 +568,12 @@ get_margin_color(i32 level){
 }
 
 static void
-default_ui_render_caller(Application_Links *app, View_ID view_id, Range on_screen_range, i32 frame_index, f32 literal_dt, f32 animation_dt,
-                         Render_Callback *do_core_render){
+default_ui_render_caller(Application_Links *app, Render_Parameters render_params){
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
-    if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
+    if (view_get_ui_data(app, render_params.view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
         View_Summary view = {};
-        if (get_view_summary(app, view_id, AccessAll, &view)){
+        if (get_view_summary(app, render_params.view_id, AccessAll, &view)){
             Rect_f32 rect_f32 = f32R(view.render_region);
             GUI_Scroll_Vars ui_scroll = view.scroll_vars;
             
@@ -621,11 +619,11 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Range on_scree
 }
 
 RENDER_CALLER_SIG(default_render_caller){
-    if (view_is_in_ui_mode(app, view_id)){
-        default_ui_render_caller(app, view_id, on_screen_range, frame_index, literal_dt, animation_dt, do_core_render);
+    if (view_is_in_ui_mode(app, render_params.view_id)){
+        default_ui_render_caller(app, render_params);
     }
     else{
-        default_buffer_render_caller(app, view_id, on_screen_range, frame_index, literal_dt, animation_dt, do_core_render);
+        default_buffer_render_caller(app, render_params);
     }
 }
 
@@ -635,7 +633,7 @@ HOOK_SIG(default_exit){
         return(1);
     }
     
-    bool32 has_unsaved_changes = false;
+    b32 has_unsaved_changes = false;
     
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
@@ -662,7 +660,7 @@ HOOK_SIG(default_view_adjust){
          view.exists;
          get_view_next(app, &view, AccessAll)){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
-        int32_t view_width = view.render_region.x1 - view.render_region.x0;
+        i32 view_width = view.render_region.x1 - view.render_region.x0;
         Face_ID face_id = get_default_font_for_view(app, view.view_id);
         float em = get_string_advance(app, face_id, make_lit_string("m"));
         
@@ -673,8 +671,8 @@ HOOK_SIG(default_view_adjust){
         }
         
         float min_base_width = 20.0f*em;
-        buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, (int32_t)(wrap_width));
-        buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, (int32_t)(min_base_width));
+        buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, (i32)(wrap_width));
+        buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, (i32)(min_base_width));
     }
     return(0);
 }
@@ -685,24 +683,24 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
         Partition *part = &global_part;
         Temp_Memory temp = begin_temp_memory(part);
         
-        int32_t *unresolved = push_array(part, int32_t, conflict_count);
+        i32 *unresolved = push_array(part, i32, conflict_count);
         if (unresolved == 0) return;
         
-        int32_t unresolved_count = conflict_count;
-        for (int32_t i = 0; i < conflict_count; ++i){
+        i32 unresolved_count = conflict_count;
+        for (i32 i = 0; i < conflict_count; ++i){
             unresolved[i] = i;
         }
         
         // Resolution Loop
-        int32_t x = 0;
+        i32 x = 0;
         for (;;){
             // Resolution Pass
             ++x;
-            for (int32_t i = 0; i < unresolved_count; ++i){
-                int32_t conflict_index = unresolved[i];
+            for (i32 i = 0; i < unresolved_count; ++i){
+                i32 conflict_index = unresolved[i];
                 Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
                 
-                int32_t len = conflict->base_name_len;
+                i32 len = conflict->base_name_len;
                 if (len < 0){
                     len = 0;
                 }
@@ -721,8 +719,8 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                     if (s_file_name.size > 0){
                         s_file_name.size -= 1;
                         char *end = s_file_name.str + s_file_name.size;
-                        bool32 past_the_end = false;
-                        for (int32_t j = 0; j < x; ++j){
+                        b32 past_the_end = false;
+                        for (i32 j = 0; j < x; ++j){
                             s_file_name = path_of_directory(s_file_name);
                             if (j + 1 < x){
                                 s_file_name.size -= 1;
@@ -737,7 +735,7 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                         }
                         char *start = s_file_name.str + s_file_name.size;
                         
-                        append(&uniqueifier, make_string(start, (int32_t)(end - start)));
+                        append(&uniqueifier, make_string(start, (i32)(end - start)));
                         if (past_the_end){
                             append(&uniqueifier, "~");
                             append_int_to_str(&uniqueifier, i);
@@ -758,19 +756,19 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
             }
             
             // Conflict Check Pass
-            bool32 has_conflicts = false;
-            for (int32_t i = 0; i < unresolved_count; ++i){
-                int32_t conflict_index = unresolved[i];
+            b32 has_conflicts = false;
+            for (i32 i = 0; i < unresolved_count; ++i){
+                i32 conflict_index = unresolved[i];
                 Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
                 String conflict_name = make_string(conflict->unique_name_in_out,
                                                    conflict->unique_name_len_in_out);
                 
-                bool32 hit_conflict = false;
+                b32 hit_conflict = false;
                 if (conflict->file_name != 0){
-                    for (int32_t j = 0; j < unresolved_count; ++j){
+                    for (i32 j = 0; j < unresolved_count; ++j){
                         if (i == j) continue;
                         
-                        int32_t conflict_j_index = unresolved[j];
+                        i32 conflict_j_index = unresolved[j];
                         Buffer_Name_Conflict_Entry *conflict_j = &conflicts[conflict_j_index];
                         
                         if (match(conflict_name, make_string(conflict_j->unique_name_in_out,
@@ -818,7 +816,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     if (buffer.file_name != 0 && buffer.size < (16 << 20)){
         String name = make_string(buffer.file_name, buffer.file_name_len);
         String ext = file_extension(name);
-        for (int32_t i = 0; i < extensions.count; ++i){
+        for (i32 i = 0; i < extensions.count; ++i){
             if (match(ext, extensions.strings[i])){
                 treat_as_code = true;
                 
@@ -944,7 +942,7 @@ OPEN_FILE_HOOK_SIG(default_file_save){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     Assert(buffer.exists);
     
-    int32_t is_virtual = 0;
+    i32 is_virtual = 0;
     if (global_config.automatically_indent_text_on_save &&
         buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &is_virtual)){ 
         if (is_virtual){
@@ -957,7 +955,7 @@ OPEN_FILE_HOOK_SIG(default_file_save){
 }
 
 FILE_EDIT_FINISHED_SIG(default_file_edit){
-    for (int32_t i = 0; i < buffer_id_count; i += 1){
+    for (i32 i = 0; i < buffer_id_count; i += 1){
 #if 0
         // NOTE(allen|4.0.31): This code is example usage, it's not a particularly nice feature to actually have.
         
@@ -1045,9 +1043,9 @@ struct Scroll_Velocity{
 Scroll_Velocity scroll_velocity_[16] = {};
 Scroll_Velocity *scroll_velocity = scroll_velocity_ - 1;
 
-static int32_t
+static i32
 smooth_camera_step(float target, float *current, float *vel, float S, float T){
-    int32_t result = 0;
+    i32 result = 0;
     float curr = *current;
     float v = *vel;
     if (curr != target){
@@ -1058,7 +1056,7 @@ smooth_camera_step(float target, float *current, float *vel, float S, float T){
         else{
             float L = curr + T*(target - curr);
             
-            int32_t sign = (target > curr) - (target < curr);
+            i32 sign = (target > curr) - (target < curr);
             float V = curr + sign*v;
             
             if (sign > 0) curr = (L<V)?(L):(V);
@@ -1078,7 +1076,7 @@ smooth_camera_step(float target, float *current, float *vel, float S, float T){
 
 SCROLL_RULE_SIG(smooth_scroll_rule){
     Scroll_Velocity *velocity = scroll_velocity + view_id;
-    int32_t result = 0;
+    i32 result = 0;
     if (velocity->x == 0.f){
         velocity->x = 1.f;
         velocity->y = 1.f;

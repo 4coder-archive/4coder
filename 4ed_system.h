@@ -202,14 +202,14 @@ typedef Sys_Release_Lock_Sig(System_Release_Lock);
 #define Sys_Memory_Allocate_Sig(name) void* name(umem size)
 typedef Sys_Memory_Allocate_Sig(System_Memory_Allocate);
 
-#define Sys_Memory_Set_Protection_Sig(name) bool32 name(void *ptr, umem size, u32 flags)
+#define Sys_Memory_Set_Protection_Sig(name) b32 name(void *ptr, umem size, u32 flags)
 typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
 
 #define Sys_Memory_Free_Sig(name) void name(void *ptr, umem size)
 typedef Sys_Memory_Free_Sig(System_Memory_Free);
 
 // file system
-#define Sys_Directory_CD_Sig(name) bool32 name(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len)
+#define Sys_Directory_CD_Sig(name) b32 name(char *dir, i32 *len, i32 cap, char *rel_path, i32 rel_len)
 typedef Sys_Directory_CD_Sig(System_Directory_CD);
 
 #define Sys_Get_Current_Path_Sig(name) int32_t name(char *out, i32 capacity)
@@ -225,7 +225,7 @@ typedef Sys_Show_Mouse_Cursor_Sig(System_Show_Mouse_Cursor);
 #define Sys_Set_Fullscreen_Sig(name) b32 name(b32 full_screen)
 typedef Sys_Set_Fullscreen_Sig(System_Set_Fullscreen);
 
-#define Sys_Is_Fullscreen_Sig(name) bool32 name()
+#define Sys_Is_Fullscreen_Sig(name) b32 name()
 typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
 
 // debug

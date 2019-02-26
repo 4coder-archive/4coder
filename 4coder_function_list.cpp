@@ -22,7 +22,7 @@ make_buffered_write_stream(Buffer_ID output_buffer_id, Partition *buffering_aren
 static void
 buffered_write_stream_flush(Application_Links *app, Buffered_Write_Stream *stream){
     Buffer_Summary buffer = get_buffer(app, stream->output_buffer_id, AccessProtected);
-    int32_t buffer_size = (int32_t)(push_array(stream->buffering_arena, char, 0) - stream->buffer);
+    i32 buffer_size = (i32)(push_array(stream->buffering_arena, char, 0) - stream->buffer);
     buffer_replace_range(app, &buffer, buffer.size, buffer.size, stream->buffer, buffer_size);
     stream->buffering_arena->pos -= buffer_size;
 }
@@ -36,7 +36,7 @@ buffered_write_stream_write(Application_Links *app, Buffered_Write_Stream *strea
             text.size = 0;
         }
         else{
-            int32_t partial_size = part_remaining(stream->buffering_arena);
+            i32 partial_size = part_remaining(stream->buffering_arena);
             buffered = push_array(stream->buffering_arena, char, partial_size);
             Assert(partial_size < text.size);
             memcpy(buffered, text.str, partial_size);
@@ -48,7 +48,7 @@ buffered_write_stream_write(Application_Links *app, Buffered_Write_Stream *strea
 }
 
 static void
-buffered_write_stream_write_int(Application_Links *app, Buffered_Write_Stream *stream, int32_t x){
+buffered_write_stream_write_int(Application_Links *app, Buffered_Write_Stream *stream, i32 x){
     char space[128];
     String integer_string = make_fixed_width_string(space);
     append_int_to_str(&integer_string, x);
@@ -56,20 +56,20 @@ buffered_write_stream_write_int(Application_Links *app, Buffered_Write_Stream *s
 }
 
 static Get_Positions_Results
-get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t first_token_index, Function_Positions *positions_array, int32_t positions_max){
+get_function_positions(Application_Links *app, Buffer_Summary *buffer, i32 first_token_index, Function_Positions *positions_array, i32 positions_max){
     Get_Positions_Results result = {};
     
     Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
     if (token_range.first != 0){
         Token_Iterator token_it = make_token_iterator(token_range, first_token_index);
         
-        int32_t nest_level = 0;
-        int32_t paren_nest_level = 0;
+        i32 nest_level = 0;
+        i32 paren_nest_level = 0;
         
         Cpp_Token *first_paren = 0;
-        int32_t first_paren_index = 0;
-        int32_t first_paren_position = 0;
-        int32_t last_paren_index = 0;
+        i32 first_paren_index = 0;
+        i32 first_paren_position = 0;
+        i32 last_paren_index = 0;
         
         // Look for the next token at global scope that might need to be printed.
         mode1:
@@ -141,7 +141,7 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t f
             Cpp_Token *restore_point = token_iterator_current(&token_it);
             
             token_iterator_set(&token_it, first_paren);
-            int32_t signature_start_index = 0;
+            i32 signature_start_index = 0;
             for (Cpp_Token *token = token_iterator_current(&token_it);
                  token != 0;
                  token = token_iterator_goto_prev(&token_it)){
@@ -186,17 +186,17 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, int32_t f
 }
 
 static void
-print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, int32_t positions_count, Buffered_Write_Stream *stream){
+print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, i32 positions_count, Buffered_Write_Stream *stream){
     
     String buffer_name = make_string(buffer->buffer_name, buffer->buffer_name_len);
     
-    for (int32_t i = 0; i < positions_count; ++i){
+    for (i32 i = 0; i < positions_count; ++i){
         Function_Positions *positions = &positions_array[i];
         
-        int32_t start_index = positions->sig_start_index;
-        int32_t end_index = positions->sig_end_index;
-        int32_t open_paren_pos = positions->open_paren_pos;
-        int32_t line_number = buffer_get_line_number(app, buffer, open_paren_pos);
+        i32 start_index = positions->sig_start_index;
+        i32 end_index = positions->sig_end_index;
+        i32 open_paren_pos = positions->open_paren_pos;
+        i32 line_number = buffer_get_line_number(app, buffer, open_paren_pos);
         
         Assert(end_index > start_index);
         
@@ -214,7 +214,7 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
                  token = token_iterator_goto_next_raw(&token_it)){
                 if ((token->flags & CPP_TFLAG_PP_BODY) == 0 && token->type != CPP_TOKEN_COMMENT){
                     char space[2 << 10];
-                    int32_t token_size = token->size;
+                    i32 token_size = token->size;
                     if (token_size > sizeof(space)){
                         token_size = sizeof(space);
                     }
@@ -260,7 +260,7 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *opti
     
     Temp_Memory temp = begin_temp_memory(part);
     
-    int32_t positions_max = (4<<10)/sizeof(Function_Positions);
+    i32 positions_max = (4<<10)/sizeof(Function_Positions);
     Function_Positions *positions_array = push_array(part, Function_Positions, positions_max);
     
     Buffered_Write_Stream buffered_write_stream = make_buffered_write_stream(decls_buffer.buffer_id, part);
@@ -277,12 +277,12 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *opti
             continue;
         }
         
-        int32_t token_index = 0;
-        bool32 still_looping = false;
+        i32 token_index = 0;
+        b32 still_looping = false;
         do{
             Get_Positions_Results get_positions_results = get_function_positions(app, &buffer, token_index, positions_array, positions_max);
             
-            int32_t positions_count = get_positions_results.positions_count;
+            i32 positions_count = get_positions_results.positions_count;
             token_index = get_positions_results.next_token_index;
             still_looping = get_positions_results.still_looping;
             

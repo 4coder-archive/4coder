@@ -8,7 +8,7 @@ the default 4coder behavior.
 static Named_Mapping *named_maps = 0;
 static int32_t named_map_count = 0;
 
-static bool32 allow_immediate_close_without_checking_for_changes = false;
+static b32 allow_immediate_close_without_checking_for_changes = false;
 
 static char *default_extensions[] = {
     "cpp",
@@ -26,7 +26,7 @@ static char *default_extensions[] = {
 #if !defined(AUTO_CENTER_AFTER_JUMPS)
 #define AUTO_CENTER_AFTER_JUMPS true
 #endif
-static bool32 auto_center_after_jumps = AUTO_CENTER_AFTER_JUMPS;
+static b32 auto_center_after_jumps = AUTO_CENTER_AFTER_JUMPS;
 static char locked_buffer_space[256];
 static String locked_buffer = make_fixed_width_string(locked_buffer_space);
 

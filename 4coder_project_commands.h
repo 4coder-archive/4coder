@@ -19,36 +19,36 @@ struct Project_File_Pattern{
 
 struct Project_File_Pattern_Array{
     Project_File_Pattern *patterns;
-    int32_t count;
+    i32 count;
 };
 
 struct Project_File_Load_Path{
     String path;
-    bool32 recursive;
-    bool32 relative;
+    b32 recursive;
+    b32 relative;
 };
 
 struct Project_File_Load_Path_Array{
     Project_File_Load_Path *paths;
-    int32_t count;
+    i32 count;
 };
 
 struct Project_Command{
     String name;
     String cmd;
     String out;
-    bool32 footer_panel;
-    bool32 save_dirty_files;
-    bool32 cursor_at_end;
+    b32 footer_panel;
+    b32 save_dirty_files;
+    b32 cursor_at_end;
 };
 
 struct Project_Command_Array{
     Project_Command *commands;
-    int32_t count;
+    i32 count;
 };
 
 struct Project{
-    bool32 loaded;
+    b32 loaded;
     
     String dir;
     String name;
@@ -58,10 +58,10 @@ struct Project{
     Project_File_Load_Path_Array load_path_array;
     Project_Command_Array command_array;
     
-    int32_t fkey_commands[16];
+    i32 fkey_commands[16];
 };
 
-typedef int32_t Project_OS_Match_Level;
+typedef i32 Project_OS_Match_Level;
 enum{
     ProjectOSMatchLevel_NoMatch = 0,
     ProjectOSMatchLevel_PassiveMatch = 1,
@@ -76,14 +76,14 @@ struct Project_Parse_Result{
 ///////////////////////////////
 
 struct Project_Setup_Status{
-    bool32 bat_exists;
-    bool32 sh_exists;
-    bool32 project_exists;
-    bool32 everything_exists;
+    b32 bat_exists;
+    b32 sh_exists;
+    b32 project_exists;
+    b32 everything_exists;
 };
 
 struct Project_Key_Strings{
-    bool32 success;
+    b32 success;
     String script_file;
     String code_file;
     String output_dir;

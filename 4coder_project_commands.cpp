@@ -12,10 +12,10 @@ static Partition current_project_arena = {};
 static Project_File_Pattern_Array
 get_pattern_array_from_cstring_array(Partition *arena, CString_Array list){
     Project_File_Pattern_Array array = {};
-    int32_t count = list.count;
+    i32 count = list.count;
     array.patterns = push_array(arena, Project_File_Pattern, count);
     array.count = count;
-    for (int32_t i = 0; i < count; ++i){
+    for (i32 i = 0; i < count; ++i){
         String base_str = make_string_slowly(list.strings[i]);
         String str = string_push(arena, base_str.size + 3);
         append(&str, "*.");
@@ -41,27 +41,27 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
                                CString_Array extension_array){
     Temp_Memory temp = begin_temp_memory(scratch_part);
     
-    int32_t buffers_to_close_max = part_remaining(scratch_part)/sizeof(int32_t);
-    int32_t *buffers_to_close = push_array(scratch_part, int32_t, buffers_to_close_max);
+    i32 buffers_to_close_max = part_remaining(scratch_part)/sizeof(i32);
+    i32 *buffers_to_close = push_array(scratch_part, i32, buffers_to_close_max);
     
-    int32_t buffers_to_close_count = 0;
-    bool32 do_repeat = 0;
+    i32 buffers_to_close_count = 0;
+    b32 do_repeat = 0;
     do{
         buffers_to_close_count = 0;
         do_repeat = 0;
         
-        uint32_t access = AccessAll;
+        u32 access = AccessAll;
         Buffer_Summary buffer = {};
         for (buffer = get_buffer_first(app, access);
              buffer.exists;
              get_buffer_next(app, &buffer, access)){
             
-            bool32 is_match = 1;
+            b32 is_match = 1;
             if (extension_array.count > 0){
                 is_match = 0;
                 if (buffer.file_name != 0){
                     String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-                    for (int32_t i = 0; i < extension_array.count; ++i){
+                    for (i32 i = 0; i < extension_array.count; ++i){
                         if (match(extension, extension_array.strings[i])){
                             is_match = 1;
                             break;
@@ -79,7 +79,7 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
             }
         }
         
-        for (int32_t i = 0; i < buffers_to_close_count; ++i){
+        for (i32 i = 0; i < buffers_to_close_count; ++i){
             kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
         }
     }while(do_repeat);
@@ -87,11 +87,11 @@ close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
     end_temp_memory(temp);
 }
 
-static bool32
+static b32
 match_in_pattern_array(char *str, Project_File_Pattern_Array array){
-    bool32 found_match = false;
+    b32 found_match = false;
     Project_File_Pattern *pattern = array.patterns;
-    for (int32_t i = 0; i < array.count; ++i, ++pattern){
+    for (i32 i = 0; i < array.count; ++i, ++pattern){
         if (wildcard_match_c(&pattern->absolutes, str, true)){
             found_match = true;
             break;
@@ -104,12 +104,12 @@ static void
 open_all_files_in_directory_pattern_match__inner(Application_Links *app, String space,
                                                  Project_File_Pattern_Array whitelist,
                                                  Project_File_Pattern_Array blacklist,
-                                                 uint32_t flags){
+                                                 u32 flags){
     File_List list = get_file_list(app, space.str, space.size);
-    int32_t dir_size = space.size;
+    i32 dir_size = space.size;
     
     File_Info *info = list.infos;
-    for (uint32_t i = 0; i < list.count; ++i, ++info){
+    for (u32 i = 0; i < list.count; ++i, ++info){
         if (info->folder){
             if ((flags & OpenAllFilesFlag_Recursive) == 0){
                 continue;
@@ -156,9 +156,9 @@ open_all_files_in_directory_pattern_match(Application_Links *app, Partition *scr
                                           String dir,
                                           Project_File_Pattern_Array whitelist,
                                           Project_File_Pattern_Array blacklist,
-                                          uint32_t flags){
+                                          u32 flags){
     Temp_Memory temp = begin_temp_memory(scratch);
-    int32_t size = 32 << 10;
+    i32 size = 32 << 10;
     char *mem = push_array(scratch, char, size);
     String space = make_string_cap(mem, 0, size);
     append(&space, dir);
@@ -172,7 +172,7 @@ open_all_files_in_directory_pattern_match(Application_Links *app, Partition *scr
 static void
 open_all_files_in_directory_with_extension(Application_Links *app, Partition *scratch,
                                            String dir, CString_Array array,
-                                           uint32_t flags){
+                                           u32 flags){
     Temp_Memory temp = begin_temp_memory(scratch);
     Project_File_Pattern_Array whitelist = get_pattern_array_from_cstring_array(scratch, array);
     Project_File_Pattern_Array blacklist = get_standard_blacklist(scratch);
@@ -183,9 +183,9 @@ open_all_files_in_directory_with_extension(Application_Links *app, Partition *sc
 static void
 open_all_files_in_hot_with_extension(Application_Links *app, Partition *scratch,
                                      CString_Array array,
-                                     uint32_t flags){
+                                     u32 flags){
     Temp_Memory temp = begin_temp_memory(scratch);
-    int32_t size = 32 << 10;
+    i32 size = 32 << 10;
     char *mem = push_array(scratch, char, size);
     String space = make_string_cap(mem, 0, size);
     space.size = directory_get_hot(app, space.str, space.memory_size);
@@ -217,7 +217,7 @@ parse_project__config_data__version_0(Partition *arena, String file_dir, Config 
     
     // Set new project directory
     {
-        int32_t cap = file_dir.size + 1;
+        i32 cap = file_dir.size + 1;
         char *mem = push_array(arena, char, cap);
         project->dir = make_string(mem, 0, cap);
         copy(&project->dir, file_dir);
@@ -242,7 +242,7 @@ parse_project__config_data__version_0(Partition *arena, String file_dir, Config 
         project->blacklist_pattern_array = get_standard_blacklist(arena);
     }
     
-    bool32 open_recursively = false;
+    b32 open_recursively = false;
     if (config_bool_var(parsed, "open_recursively", 0, &open_recursively)){
         project->load_path_array.paths[0].recursive = open_recursively;
     }
@@ -253,7 +253,7 @@ parse_project__config_data__version_0(Partition *arena, String file_dir, Config 
     project->command_array.count = 16;
     
     Project_Command *command = project->command_array.commands;
-    for (int32_t j = 1; j <= 16; ++j, ++command){
+    for (i32 j = 1; j <= 16; ++j, ++command){
         project->fkey_commands[j - 1] = j - 1;
         memset(command, 0, sizeof(*command));
         
@@ -273,12 +273,12 @@ parse_project__config_data__version_0(Partition *arena, String file_dir, Config 
                 command->out = string_push_copy(arena, out);
             }
             
-            bool32 footer_panel = false;
+            b32 footer_panel = false;
             if (config_compound_bool_member(parsed, compound, "footer_panel", 2, &footer_panel)){
                 command->footer_panel = footer_panel;
             }
             
-            bool32 save_dirty_files = false;
+            b32 save_dirty_files = false;
             if (config_compound_bool_member(parsed, compound, "save_dirty_files", 3, &save_dirty_files)){
                 command->save_dirty_files = save_dirty_files;
             }
@@ -305,7 +305,7 @@ parse_project__extract_pattern_array(Partition *arena, Config *parsed,
         array_out->patterns = push_array(arena, Project_File_Pattern, list.count);
         array_out->count = list.count;
         
-        int32_t i = 0;
+        i32 i = 0;
         for (Config_Get_Result_Node *node = list.first;
              node != 0;
              node = node->next, i += 1){
@@ -336,7 +336,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
     
     // Set new project directory
     {
-        int32_t cap = root_dir.size + 1;
+        i32 cap = root_dir.size + 1;
         project->dir = string_push(arena, cap);
         copy(&project->dir, root_dir);
         terminate_with_null(&project->dir);
@@ -363,10 +363,10 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
     {
         Config_Compound *compound = 0;
         if (config_compound_var(parsed, "load_paths", 0, &compound)){
-            bool32 found_match = false;
+            b32 found_match = false;
             Config_Compound *best_paths = 0;
             
-            for (int32_t i = 0;; ++i){
+            for (i32 i = 0;; ++i){
                 Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Compound, i);
                 if (result.step == Iteration_Skip){
                     continue;
@@ -440,7 +440,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 Config_Compound *src = node->result.compound;
                 memset(dst, 0, sizeof(*dst));
                 
-                bool32 can_emit_command = true;
+                b32 can_emit_command = true;
                 
                 String name = {};
                 Config_Get_Result cmd_result = {};
@@ -448,9 +448,9 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 char *cmd_pos = 0;
                 String cmd_str = {};
                 String out = {};
-                bool32 footer_panel = false;
-                bool32 save_dirty_files = true;
-                bool32 cursor_at_end = false;
+                b32 footer_panel = false;
+                b32 save_dirty_files = true;
+                b32 cursor_at_end = false;
                 
                 if (!config_compound_string_member(parsed, src, "name", 0, &name)){
                     can_emit_command = false;
@@ -471,7 +471,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
                 }
                 
                 can_emit_command = false;
-                for (int32_t j = 0;; ++j){
+                for (i32 j = 0;; ++j){
                     Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, cmd_set, ConfigRValueType_Compound, j);
                     if (result.step == Iteration_Skip){
                         continue;
@@ -527,13 +527,13 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
     
     // fkey_command
     {
-        for (int32_t i = 1; i <= 16; ++i){
+        for (i32 i = 1; i <= 16; ++i){
             String name = {};
-            int32_t index = -1;
+            i32 index = -1;
             if (config_string_var(parsed, "fkey_command", i, &name)){
-                int32_t count = project->command_array.count;
+                i32 count = project->command_array.count;
                 Project_Command *command_ptr = project->command_array.commands;
-                for (int32_t j = 0; j < count; ++j, ++command_ptr){
+                for (i32 j = 0; j < count; ++j, ++command_ptr){
                     if (match(command_ptr->name, name)){
                         index = j;
                         break;
@@ -550,7 +550,7 @@ parse_project__config_data__version_1(Partition *arena, String root_dir, Config 
 
 static Project*
 parse_project__config_data(Partition *arena, String file_dir, Config *parsed){
-    int32_t version = 0;
+    i32 version = 0;
     if (parsed->version != 0){
         version = *parsed->version;
     }
@@ -592,7 +592,7 @@ parse_project__nearest_file(Application_Links *app, Partition *arena){
     
     Temp_Memory restore_point = begin_temp_memory(arena);
     String project_path = {};
-    int32_t size = 32 << 10;
+    i32 size = 32 << 10;
     char *space = push_array(arena, char, size);
     if (space != 0){
         project_path = make_string_cap(space, 0, size);
@@ -636,10 +636,10 @@ parse_project__nearest_file(Application_Links *app, Partition *arena){
     return(result);
 }
 
-static bool32
+static b32
 project_deep_copy__pattern_array(Partition *arena, Project_File_Pattern_Array *src_array,
                                  Project_File_Pattern_Array *dst_array){
-    int32_t pattern_count = src_array->count;
+    i32 pattern_count = src_array->count;
     dst_array->patterns = push_array(arena, Project_File_Pattern, pattern_count);
     if (dst_array->patterns == 0){
         return(false);
@@ -648,10 +648,10 @@ project_deep_copy__pattern_array(Partition *arena, Project_File_Pattern_Array *s
     
     Project_File_Pattern *dst = dst_array->patterns;
     Project_File_Pattern *src = src_array->patterns;
-    for (int32_t i = 0; i < pattern_count; ++i, ++dst, ++src){
-        int32_t abs_count = src->absolutes.count;
+    for (i32 i = 0; i < pattern_count; ++i, ++dst, ++src){
+        i32 abs_count = src->absolutes.count;
         dst->absolutes.count = abs_count;
-        for (int32_t j = 0; j < abs_count; ++j){
+        for (i32 j = 0; j < abs_count; ++j){
             dst->absolutes.a[j] = string_push_copy(arena, src->absolutes.a[j]);
             if (dst->absolutes.a[j].str == 0){
                 return(false);
@@ -684,7 +684,7 @@ project_deep_copy__inner(Partition *arena, Project *project){
     }
     
     {
-        int32_t path_count = project->load_path_array.count;
+        i32 path_count = project->load_path_array.count;
         result.load_path_array.paths = push_array(arena, Project_File_Load_Path, path_count);
         if (result.load_path_array.paths == 0){
             return(result);
@@ -693,7 +693,7 @@ project_deep_copy__inner(Partition *arena, Project *project){
         
         Project_File_Load_Path *dst = result.load_path_array.paths;
         Project_File_Load_Path *src = project->load_path_array.paths;
-        for (int32_t i = 0; i < path_count; ++i, ++dst, ++src){
+        for (i32 i = 0; i < path_count; ++i, ++dst, ++src){
             dst->path = string_push_copy(arena, src->path);
             if (dst->path.str == 0){
                 return(result);
@@ -704,7 +704,7 @@ project_deep_copy__inner(Partition *arena, Project *project){
     }
     
     {
-        int32_t command_count = project->command_array.count;
+        i32 command_count = project->command_array.count;
         result.command_array.commands = push_array(arena, Project_Command, command_count);
         if (result.command_array.commands == 0){
             return(result);
@@ -713,7 +713,7 @@ project_deep_copy__inner(Partition *arena, Project *project){
         
         Project_Command *dst = result.command_array.commands;
         Project_Command *src = project->command_array.commands;
-        for (int32_t i = 0; i < command_count; ++i, ++dst, ++src){
+        for (i32 i = 0; i < command_count; ++i, ++dst, ++src){
             memset(dst, 0, sizeof(*dst));
             if (src->name.str != 0){
                 dst->name = string_push_copy(arena, src->name);
@@ -763,10 +763,10 @@ config_feedback_file_pattern_array(String *space, char *name, Project_File_Patte
     append(space, name);
     append(space, " = {\n");
     Project_File_Pattern *pattern = array->patterns;
-    for (int32_t i = 0; i < array->count; ++i, ++pattern){
+    for (i32 i = 0; i < array->count; ++i, ++pattern){
         append(space, "\"");
         String *absolute = pattern->absolutes.a;
-        for (int32_t j = 0; j < pattern->absolutes.count; ++j, ++absolute){
+        for (i32 j = 0; j < pattern->absolutes.count; ++j, ++absolute){
             if (j != 0){
                 append(space, "*");
             }
@@ -782,7 +782,7 @@ config_feedback_file_load_path_array(String *space, char *name, Project_File_Loa
     append(space, name);
     append(space, " = {\n");
     Project_File_Load_Path *path = array->paths;
-    for (int32_t i = 0; i < array->count; ++i, ++path){
+    for (i32 i = 0; i < array->count; ++i, ++path){
         append(space, "{ ");
         append(space, ".path = \"");
         append(space, path->path);
@@ -803,7 +803,7 @@ config_feedback_command_array(String *space, char *name, Project_Command_Array *
     append(space, name);
     append(space, " = {\n");
     Project_Command *command = array->commands;
-    for (int32_t i = 0; i < array->count; ++i, ++command){
+    for (i32 i = 0; i < array->count; ++i, ++command){
         append(space, "{ ");
         append(space, ".name = \"");
         append(space, command->name);
@@ -830,11 +830,11 @@ config_feedback_command_array(String *space, char *name, Project_Command_Array *
 
 static void
 set_current_project(Application_Links *app, Partition *scratch, Project *project, Config *parsed){
-    bool32 print_feedback = false;
+    b32 print_feedback = false;
     
     if (parsed != 0 && project != 0){
         if (current_project_arena.base == 0){
-            int32_t project_mem_size = (1 << 20);
+            i32 project_mem_size = (1 << 20);
             void *project_mem = memory_allocate(app, project_mem_size);
             current_project_arena = make_part(project_mem, project_mem_size);
         }
@@ -848,9 +848,9 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
             print_feedback = true;
             
             // Open all project files
-            for (int32_t i = 0; i < current_project.load_path_array.count; ++i){
+            for (i32 i = 0; i < current_project.load_path_array.count; ++i){
                 Project_File_Load_Path *load_path = &current_project.load_path_array.paths[i];
-                uint32_t flags = 0;
+                u32 flags = 0;
                 if (load_path->recursive){
                     flags |= OpenAllFilesFlag_Recursive;
                 }
@@ -860,7 +860,7 @@ set_current_project(Application_Links *app, Partition *scratch, Project *project
                 String file_dir = path_str;
                 if (load_path->relative){
                     String project_dir = current_project.dir;
-                    int32_t cap = path_str.size + project_dir.size + 2;
+                    i32 cap = path_str.size + project_dir.size + 2;
                     char *mem = push_array(scratch, char, cap);
                     push_align(scratch, 8);
                     if (mem != 0){
@@ -963,9 +963,9 @@ set_current_project_from_nearest_project_file(Application_Links *app, Partition 
 static void
 exec_project_command(Application_Links *app, Project_Command *command){
     if (command->cmd.size > 0){
-        bool32 footer_panel = command->footer_panel;
-        bool32 save_dirty_files = command->save_dirty_files;
-        bool32 cursor_at_end = command->cursor_at_end;
+        b32 footer_panel = command->footer_panel;
+        b32 save_dirty_files = command->save_dirty_files;
+        b32 cursor_at_end = command->cursor_at_end;
         
         if (save_dirty_files){
             save_all_dirty_buffers(app);
@@ -974,12 +974,12 @@ exec_project_command(Application_Links *app, Project_Command *command){
         View_Summary view = {};
         View_Summary *view_ptr = 0;
         Buffer_Identifier buffer_id = {};
-        uint32_t flags = CLI_OverlapWithConflict;
+        u32 flags = CLI_OverlapWithConflict;
         if (cursor_at_end){
             flags |= CLI_CursorAtEnd;
         }
         
-        bool32 set_fancy_font = false;
+        b32 set_fancy_font = false;
         if (command->out.size > 0){
             buffer_id = buffer_identifier(command->out.str, command->out.size);
             
@@ -1012,7 +1012,7 @@ exec_project_command(Application_Links *app, Project_Command *command){
 }
 
 static void
-exec_project_command_by_index(Application_Links *app, int32_t command_index){
+exec_project_command_by_index(Application_Links *app, i32 command_index){
     if (!current_project.loaded){
         return;
     }
@@ -1024,11 +1024,11 @@ exec_project_command_by_index(Application_Links *app, int32_t command_index){
 }
 
 static void
-exec_project_fkey_command(Application_Links *app, int32_t fkey_index){
+exec_project_fkey_command(Application_Links *app, i32 fkey_index){
     if (!current_project.loaded){
         return;
     }
-    int32_t command_index = current_project.fkey_commands[fkey_index];
+    i32 command_index = current_project.fkey_commands[fkey_index];
     if (command_index < 0 || command_index >= current_project.command_array.count){
         return;
     }
@@ -1042,7 +1042,7 @@ exec_project_command_by_name(Application_Links *app, String name){
         return;
     }
     Project_Command *command = current_project.command_array.commands;
-    for (int32_t i = 0; i < current_project.command_array.count; ++i, ++command){
+    for (i32 i = 0; i < current_project.command_array.count; ++i, ++command){
         if (match(command->name, name)){
             exec_project_command(app, command);
             break;
@@ -1091,8 +1091,8 @@ CUSTOM_COMMAND_SIG(project_fkey_command)
 CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.")
 {
     User_Input input = get_command_input(app);
-    bool32 got_ind = false;
-    int32_t ind = 0;
+    b32 got_ind = false;
+    i32 ind = 0;
     if (input.key.keycode >= key_f1 && input.key.keycode <= key_f16){
         ind = (input.key.keycode - key_f1);
         got_ind = true;
@@ -1127,12 +1127,12 @@ project_is_setup(Application_Links *app, Partition *scratch, String script_path,
     
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    static int32_t needed_extra_space = 15;
+    static i32 needed_extra_space = 15;
     char *space = push_array(&global_part, char, script_path.size + needed_extra_space);
     String str = make_string_cap(space, 0, script_path.size + needed_extra_space);
     copy(&str, script_path);
     
-    int32_t dir_len = str.size;
+    i32 dir_len = str.size;
     append(&str, "/");
     append(&str, script_file);
     append(&str, ".bat");
@@ -1157,11 +1157,11 @@ project_is_setup(Application_Links *app, Partition *scratch, String script_path,
 
 static Project_Key_Strings
 project_key_strings_query_user(Application_Links *app,
-                               bool32 get_script_file, bool32 get_code_file,
-                               char *script_file_space, int32_t script_file_cap,
-                               char *code_file_space, int32_t code_file_cap,
-                               char *output_dir_space, int32_t output_dir_cap,
-                               char *binary_file_space, int32_t binary_file_cap){
+                               b32 get_script_file, b32 get_code_file,
+                               char *script_file_space, i32 script_file_cap,
+                               char *code_file_space, i32 code_file_cap,
+                               char *output_dir_space, i32 output_dir_cap,
+                               char *binary_file_space, i32 binary_file_cap){
     Project_Key_Strings keys = {};
     
     Query_Bar script_file_bar = {};
@@ -1210,11 +1210,11 @@ project_key_strings_query_user(Application_Links *app,
     return(keys);
 }
 
-static bool32
+static b32
 project_generate_bat_script(Partition *scratch, String opts, String compiler,
                             String script_path, String script_file,
                             String code_file, String output_dir, String binary_file){
-    bool32 success = false;
+    b32 success = false;
     
     Temp_Memory temp = begin_temp_memory(scratch);
     
@@ -1226,7 +1226,7 @@ project_generate_bat_script(Partition *scratch, String opts, String compiler,
     replace_char(&od, '/', '\\');
     replace_char(&bf, '/', '\\');
     
-    int32_t space_cap = part_remaining(scratch);
+    i32 space_cap = part_remaining(scratch);
     char *space = push_array(scratch, char, space_cap);
     String file_name = make_string_cap(space, 0, space_cap);
     append(&file_name, script_path);
@@ -1255,11 +1255,11 @@ project_generate_bat_script(Partition *scratch, String opts, String compiler,
     return(success);
 }
 
-static bool32
+static b32
 project_generate_sh_script(Partition *scratch, String opts, String compiler,
                            String script_path, String script_file,
                            String code_file, String output_dir, String binary_file){
-    bool32 success = false;
+    b32 success = false;
     
     Temp_Memory temp = begin_temp_memory(scratch);
     
@@ -1267,7 +1267,7 @@ project_generate_sh_script(Partition *scratch, String opts, String compiler,
     String od = output_dir;
     String bf = binary_file;
     
-    int32_t space_cap = part_remaining(scratch);
+    i32 space_cap = part_remaining(scratch);
     char *space = push_array(scratch, char, space_cap);
     String file_name = make_string_cap(space, 0, space_cap);
     append(&file_name, script_path);
@@ -1298,11 +1298,11 @@ project_generate_sh_script(Partition *scratch, String opts, String compiler,
     return(success);
 }
 
-static bool32
+static b32
 project_generate_project_4coder_file(Partition *scratch,
                                      String script_path, String script_file,
                                      String output_dir, String binary_file){
-    bool32 success = false;
+    b32 success = false;
     
     Temp_Memory temp = begin_temp_memory(scratch);
     
@@ -1318,7 +1318,7 @@ project_generate_project_4coder_file(Partition *scratch,
     replace_str(&od_win, "/", "\\\\");
     replace_str(&bf_win, "/", "\\\\");
     
-    int32_t space_cap = part_remaining(scratch);
+    i32 space_cap = part_remaining(scratch);
     char *space = push_array(scratch, char, space_cap);
     String file_name = make_string_cap(space, 0, space_cap);
     append(&file_name, script_path);
@@ -1385,13 +1385,13 @@ project_generate_project_4coder_file(Partition *scratch,
 
 static void
 project_setup_scripts__generic(Application_Links *app, Partition *scratch,
-                               bool32 do_project_file,
-                               bool32 do_bat_script,
-                               bool32 do_sh_script){
+                               b32 do_project_file,
+                               b32 do_bat_script,
+                               b32 do_sh_script){
     Temp_Memory temp = begin_temp_memory(scratch);
     String script_path = get_hot_directory(app, scratch);
     
-    bool32 needs_to_do_work = false;
+    b32 needs_to_do_work = false;
     Project_Setup_Status status = {};
     if (do_project_file){
         status = project_is_setup(app, scratch, script_path, make_lit_string("build"));
@@ -1411,8 +1411,8 @@ project_setup_scripts__generic(Application_Links *app, Partition *scratch,
         char output_dir_space [1024];
         char binary_file_space[1024];
         
-        bool32 get_script_file = !do_project_file;
-        bool32 get_code_file =
+        b32 get_script_file = !do_project_file;
+        b32 get_code_file =
             (do_bat_script && !status.bat_exists) ||
             (do_sh_script && !status.sh_exists);
         
@@ -1518,8 +1518,8 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
 static void
 activate_project_command(Application_Links *app, Partition *scratch, Heap *heap,
                          View_Summary *view, Lister_State *state,
-                         String text_field, void *user_data, bool32 activated_by_mouse){
-    int32_t command_index = (int32_t)PtrAsInt(user_data);
+                         String text_field, void *user_data, b32 activated_by_mouse){
+    i32 command_index = (i32)PtrAsInt(user_data);
     exec_project_command_by_index(app, command_index);
     lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
 }
@@ -1536,9 +1536,9 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     View_Summary view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, &view);
     Temp_Memory temp = begin_temp_memory(arena);
-    int32_t option_count = current_project.command_array.count;
+    i32 option_count = current_project.command_array.count;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
-    for (int32_t i = 0; i < current_project.command_array.count; i += 1){
+    for (i32 i = 0; i < current_project.command_array.count; i += 1){
         options[i].string = string_push_copy(arena, current_project.command_array.commands[i].name);
         options[i].status = string_push_copy(arena, current_project.command_array.commands[i].cmd);
         options[i].user_data = IntAsPtr(i);
