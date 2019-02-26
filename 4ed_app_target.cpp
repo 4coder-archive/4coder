@@ -41,7 +41,6 @@ struct Mem_Options{
 #define FCPP_FORBID_MALLOC
 #include "4coder_lib/4cpp_lexer.h"
 
-#include "4ed_linked_node_macros.h"
 #include "4ed_log.h"
 #include "4ed_ptr_check.h"
 #include "4ed_memory_bank.h"

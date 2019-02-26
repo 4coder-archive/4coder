@@ -52,7 +52,6 @@
 #include "4ed_render_target.h"
 #include "4ed_render_format.h"
 #include "4ed.h"
-#include "4ed_linked_node_macros.h"
 
 #include <Windows.h>
 #include "win32_gl.h"

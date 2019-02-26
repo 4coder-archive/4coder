@@ -131,6 +131,7 @@ max_f32_proc(void){
     c.x = 0x7f800000;
     return(c.f);
 }
+static const f32 max_f32 = max_f32_proc();
 
 ////////////////////////////////
 
