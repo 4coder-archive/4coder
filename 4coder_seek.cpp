@@ -438,7 +438,7 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, i3
         stream.max_end = an_pos;
         if (init_stream_chunk(&stream, app, buffer, pos, data_chunk, sizeof(data_chunk))){
             
-            uint8_t c = 0, pc = stream.data[pos];
+            u8 c = 0, pc = stream.data[pos];
             ++pos;
             
             b32 still_looping = false;

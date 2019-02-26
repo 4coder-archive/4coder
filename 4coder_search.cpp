@@ -205,7 +205,7 @@ buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, in
         int32_t still_looping = true;
         do{
             for (; pos < chunk.end; ++pos){
-                uint8_t at_pos = (uint8_t)chunk.data[pos];
+                u8 at_pos = (u8)chunk.data[pos];
                 if (!char_is_alpha_numeric_utf8(at_pos)) goto double_break;
             }
             still_looping = forward_stream_chunk(&chunk);

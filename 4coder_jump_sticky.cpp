@@ -12,7 +12,7 @@ static Marker_List_Node *marker_list_last = 0;
 
 static u32
 binary_search(u32 *array, i32 stride, i32 count, u32 x){
-    uint8_t *raw = (uint8_t*)array;
+    u8 *raw = (u8*)array;
     u32 i = 0;
     u32 first = 0;
     u32 last = count;

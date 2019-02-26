@@ -130,7 +130,7 @@ CUSTOM_DOC("A lister mode command that inserts a new character to the text field
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
         User_Input in = get_command_input(app);
-        uint8_t character[4];
+        u8 character[4];
         u32 length = to_writable_character(in, character);
         if (length > 0){
             append(&state->lister.data.text_field, make_string(character, length));
@@ -197,7 +197,7 @@ CUSTOM_DOC("A lister mode command that inserts a character into the text field o
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
         User_Input in = get_command_input(app);
-        uint8_t character[4];
+        u8 character[4];
         u32 length = to_writable_character(in, character);
         if (length > 0){
             append(&state->lister.data.text_field, make_string(character, length));
@@ -258,7 +258,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
         User_Input in = get_command_input(app);
-        uint8_t character[4];
+        u8 character[4];
         u32 length = to_writable_character(in, character);
         if (length > 0){
             void *user_data = 0;

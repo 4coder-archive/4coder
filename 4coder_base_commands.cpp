@@ -6,7 +6,7 @@ moving the cursor, which work even without the default 4coder framework.
 // TOP
 
 static void
-write_character_parameter(Application_Links *app, uint8_t *character, u32 length){
+write_character_parameter(Application_Links *app, u8 *character, u32 length){
     if (length != 0){
         View_Summary view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view.view_id);
@@ -68,7 +68,7 @@ CUSTOM_COMMAND_SIG(write_character)
 CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
 {
     User_Input in = get_command_input(app);
-    uint8_t character[4];
+    u8 character[4];
     u32 length = to_writable_character(in, character);
     write_character_parameter(app, character, length);
 }
@@ -76,7 +76,7 @@ CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
 CUSTOM_COMMAND_SIG(write_underscore)
 CUSTOM_DOC("Inserts an underscore.")
 {
-    uint8_t character = '_';
+    u8 character = '_';
     write_character_parameter(app, &character, 1);
 }
 
@@ -762,7 +762,7 @@ isearch(Application_Links *app, b32 start_reversed, String query_init, b32 on_th
             in = get_user_input(app, EventOnAnyKey, EventOnEsc);
             if (in.abort) break;
             
-            uint8_t character[4];
+            u8 character[4];
             u32 length = to_writable_character(in, character);
             
             b32 made_change = false;

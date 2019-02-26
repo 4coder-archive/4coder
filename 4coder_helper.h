@@ -30,51 +30,6 @@ struct Bind_Buffer{
 
 ////////////////////////////////
 
-#define dll_remove(n)        (n)->next->prev=(n)->prev,(n)->prev->next=(n)->next
-
-#define zdll_push_back_(f,l,n) if(f==0){n->next=n->prev=0;f=l=n;}else{n->prev=l;n->next=0;l->next=n;l=n;}
-#define zdll_push_back(f,l,n) do{ zdll_push_back_((f),(l),(n)) }while(0)
-#define zdll_remove_front_(f,l,n) if(f==l){f=l=0;}else{f=f->next;f->prev=0;}
-#define zdll_remove_back_(f,l,n) if(f==l){f=l=0;}else{l=l->prev;l->next=0;}
-#define zdll_remove_(f,l,n) if(f==n){zdll_remove_front_(f,l,n);}else if(l==n){zdll_remove_back_(f,l,n);}else{dll_remove(n);}
-#define zdll_remove(f,l,n) do{ zdll_remove_((f),(l),(n)) }while(0)
-
-#if !defined(Member)
-# define Member(S,m) (((S*)0)->m)
-#endif
-#define PtrDif(a,b) ((uint8_t*)(a) - (uint8_t*)(b))
-#define PtrAsInt(a) PtrDif(a,0)
-#define HandleAsU64(a) (uint64_t)(PtrAsInt(a))
-#define OffsetOfMember(S,m) PtrAsInt(&Member(S,m))
-#define CastFromMember(S,m,ptr) (S*)( (uint8_t*)(ptr) - OffsetOfMember(S,m) )
-#define IntAsPtr(a) (void*)(((uint8_t*)0) + a)
-
-#if !defined(max_f32)
-static f32
-max_f32_proc(void){
-    union{
-        u32 x;
-        f32 f;
-    } c;
-    c.x = 0x7f800000;
-    return(c.f);
-}
-
-#define max_f32 max_f32_proc()
-#endif
-
-#if !defined(ArrayCount)
-# define ArrayCount(a) (sizeof(a)/sizeof(a[0]))
-#endif
-
-#ifndef Swap
-# define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
-#endif
-
-#define require(c) if (!(c)){ return(0); }
-
-////////////////////////////////
-
 struct File_Handle_Path{
     FILE *file;
     String path;

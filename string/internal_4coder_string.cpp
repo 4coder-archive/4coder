@@ -2004,7 +2004,7 @@ DOC(This call tries to see if str matches any of the strings in str_set.  If the
 DOC_SEE(match) */{
     b32_4tech result = 0;
     i32_4tech i = 0;
-    uint8_t *ptr = (uint8_t*)str_set;
+    u8_4tech *ptr = (u8_4tech*)str_set;
     for (; i < count; ++i, ptr += item_size){
         if (match_ss(*(String*)ptr, str)){
             *match_index = i;

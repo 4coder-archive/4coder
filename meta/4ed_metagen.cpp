@@ -13,6 +13,7 @@
 #define REMAPPING_FILE "4coder_generated/remapping.h"
 
 #include "4ed_defines.h"
+#include "4coder_base_types.h"
 #include "4ed_meta_defines.h"
 #include "4coder_API/4coder_version.h"
 #include "4coder_API/4coder_keycodes.h"

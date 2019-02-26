@@ -12,6 +12,7 @@
 #if !defined(FRED_LINKED_NODE_MACROS_H)
 #define FRED_LINKED_NODE_MACROS_H
 
+#if 0
 #define dll_init_sentinel(s) (s)->next=(s),(s)->prev=(s)
 #define dll_insert(p,n)      (n)->next=(p)->next,(n)->prev=(p),(p)->next=(n),(n)->next->prev=(n)
 #define dll_insert_back(p,n) (n)->prev=(p)->prev,(n)->next=(p),(p)->prev=(n),(n)->prev->next=(n)
@@ -38,6 +39,7 @@ struct Node{
     Node *next;
     Node *prev;
 };
+#endif
 
 #endif
 
