@@ -64,10 +64,6 @@ live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_View
     Assert(live_set->count > 0);
     --live_set->count;
     
-    if (view->ui_control.items != 0){
-        heap_free(heap, view->ui_control.items);
-    }
-    
     view->next = live_set->free_sentinel.next;
     view->prev = &live_set->free_sentinel;
     live_set->free_sentinel.next = view;
@@ -280,7 +276,7 @@ view_set_cursor(System_Functions *system, View *view, Full_Cursor cursor, b32 se
 internal void
 view_set_scroll(System_Functions *system, View *view, GUI_Scroll_Vars scroll){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    file_edit_positions_set_scroll(&edit_pos, scroll);
+    file_edit_positions_set_scroll(&edit_pos, scroll, view_compute_max_target_y(view));
     view_set_edit_pos(view, edit_pos);
     i32 pos = edit_pos.cursor_pos;
     if (view_move_cursor_to_view(system, view, edit_pos.scroll, &pos, view->preferred_x)){
@@ -297,7 +293,7 @@ view_set_cursor_and_scroll(View *view, Full_Cursor cursor, b32 set_preferred_x, 
     if (set_preferred_x){
         view_set_preferred_x(view, cursor);
     }
-    file_edit_positions_set_scroll(&edit_pos, scroll);
+    file_edit_positions_set_scroll(&edit_pos, scroll, view_compute_max_target_y(view));
     edit_pos.last_set_type = EditPos_None;
     view_set_edit_pos(view, edit_pos);
 }
@@ -1182,6 +1178,9 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
 }
 
 internal void
+dont_do_core_render(Application_Links *app){}
+
+internal void
 do_core_render(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
     Render_Target *target = models->target;
@@ -1230,6 +1229,27 @@ view_get_render_cursor_target(System_Functions *system, View *view){
 }
 
 internal void
+view_call_render_caller(Models *models, Render_Target *target, View *view,
+                        i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range, Buffer_Render_Item *items, i32 item_count,
+                        Render_Callback *core_render){
+    if (models->render_caller != 0){
+        View_ID view_id = view_get_id(&models->live_set, view);
+        models->render_view = view;
+        models->render_rect = rect;
+        models->render_cursor = render_cursor;
+        models->render_range = on_screen_range;
+        models->render_items = items;
+        models->render_item_count = item_count;
+        
+        i32 frame_index = target->frame_index;
+        f32 literal_dt = target->literal_dt;
+        f32 animation_dt = target->animation_dt;
+        models->render_caller(&models->app_links, view_id, on_screen_range, frame_index, literal_dt, animation_dt, core_render);
+        models->render_view = 0;
+    }
+}
+
+internal void
 render_loaded_file_in_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Render_Target *target){
     Editing_File *file = view->file_data.file;
     i32 line_height = view->line_height;
@@ -1266,7 +1286,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     
     Full_Cursor render_cursor = view_get_render_cursor(system, view);
     
-#if 0    
+#if 0
     // TODO(allen): do(eliminate scroll_i nonsense)
     view->edit_pos_.scroll_i = render_cursor.pos;
 #endif
@@ -1348,20 +1368,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
     ////////////////////////////////
     
     if (models->render_caller != 0){
-        View_ID view_id = view_get_id(&models->live_set, view);
-        models->render_view = view;
-        models->render_rect = rect;
-        models->render_cursor = render_cursor;
-        models->render_range = on_screen_range;
-        models->render_items = items;
-        models->render_item_count = item_count;
-        
-        i32 frame_index = target->frame_index;
-        f32 literal_dt = target->literal_dt;
-        f32 animation_dt = target->animation_dt;
-        models->render_caller(&models->app_links, view_id, on_screen_range,
-                              frame_index, literal_dt, animation_dt, do_core_render);
-        models->render_view = 0;
+        view_call_render_caller(models, target, view, rect, render_cursor, on_screen_range, items, item_count, do_core_render);
     }
     else{
         render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);

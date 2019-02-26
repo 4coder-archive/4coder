@@ -274,7 +274,9 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
     return(color_table);
 }
 
-RENDER_CALLER_SIG(default_render_caller){
+static void
+default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_screen_range, i32 frame_index, f32 literal_dt, f32 animation_dt,
+                             Render_Callback *do_core_render){
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     View_Summary active_view = get_active_view(app, AccessAll);
@@ -514,9 +516,9 @@ RENDER_CALLER_SIG(default_render_caller){
                 char space[256];
                 String str = make_fixed_width_string(space);
                 
-                Fancy_Color white = fancy_from_rgba_color(1.f, 1.f, 1.f, 1.f);
-                Fancy_Color pink = fancy_from_rgba_color(1.f, 0.f, 1.f, 1.f);
-                Fancy_Color green = fancy_from_rgba_color(0.f, 1.f, 0.f, 1.f);
+                Fancy_Color white = fancy_rgba(1.f, 1.f, 1.f, 1.f);
+                Fancy_Color pink  = fancy_rgba(1.f, 0.f, 1.f, 1.f);
+                Fancy_Color green = fancy_rgba(0.f, 1.f, 0.f, 1.f);
                 Fancy_String_List list = {};
                 push_fancy_stringf(&arena, &list, pink , "FPS: ");
                 push_fancy_stringf(&arena, &list, green, "[");
@@ -543,6 +545,88 @@ RENDER_CALLER_SIG(default_render_caller){
     }
     
     managed_scope_clear_self_all_dependent_scopes(app, render_scope);
+}
+
+static int_color
+get_margin_color(i32 level){
+    int_color margin = 0;
+    switch (level){
+        default:
+        case UIActivation_None:
+        {
+            margin = Stag_List_Item;
+        }break;
+        case UIActivation_Hover:
+        {
+            margin = Stag_List_Item_Hover;
+        }break;
+        case UIActivation_Active:
+        {
+            margin = Stag_List_Item_Active;
+        }break;
+    }
+    return(margin);
+}
+
+static void
+default_ui_render_caller(Application_Links *app, View_ID view_id, Range on_screen_range, i32 frame_index, f32 literal_dt, f32 animation_dt,
+                         Render_Callback *do_core_render){
+    UI_Data *ui_data = 0;
+    Arena *ui_arena = 0;
+    if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
+        View_Summary view = {};
+        if (get_view_summary(app, view_id, AccessAll, &view)){
+            Rect_f32 rect_f32 = f32R(view.render_region);
+            GUI_Scroll_Vars ui_scroll = view.scroll_vars;
+            
+            for (UI_Item *item = ui_data->list.first;
+                 item != 0;
+                 item = item->next){
+                Rect_i32 item_rect_i32 = item->rect_outer;
+                Rect_f32 item_rect = f32R(item_rect_i32);
+                
+                switch (item->coordinates){
+                    case UICoordinates_ViewSpace:
+                    {
+                        item_rect.p0 -= ui_scroll.scroll_p;
+                        item_rect.p1 -= ui_scroll.scroll_p;
+                    }break;
+                    case UICoordinates_PanelSpace:
+                    {}break;
+                }
+                
+                if (rect_overlap(item_rect, rect_f32)){
+                    Rect_f32 inner_rect = get_inner_rect(item_rect, (f32)item->inner_margin);
+                    
+                    Face_ID font_id = 0;
+                    get_face_id(app, view.buffer_id, &font_id);
+                    
+                    // TODO(allen): get font_id line height
+                    f32 line_height = view.line_height;
+                    f32 info_height = (f32)item->line_count*line_height;
+                    
+                    draw_rectangle(app, inner_rect, Stag_Back);
+                    Vec2 p = V2(inner_rect.x0 + 3.f, (f32)(round32((inner_rect.y0 + inner_rect.y1 - info_height)*0.5f)));
+                    for (i32 i = 0; i < item->line_count; i += 1){
+                        draw_fancy_string(app, font_id, item->lines[i].first, p, Stag_Default, 0, 0, V2(1.f, 0));
+                        p.y += view.line_height;
+                    }
+                    if (item->inner_margin > 0){
+                        draw_margin(app, item_rect, inner_rect, get_margin_color(item->activation_level));
+                    }
+                }
+            }
+        }
+    }
+}
+
+RENDER_CALLER_SIG(default_render_caller){
+    if (view_is_in_ui_mode(app, view_id)){
+        default_ui_render_caller(app, view_id, on_screen_range, frame_index, literal_dt, animation_dt, do_core_render);
+    }
+    else{
+        default_buffer_render_caller(app, view_id, on_screen_range, frame_index, literal_dt, animation_dt, do_core_render);
+    }
 }
 
 HOOK_SIG(default_exit){
@@ -750,9 +834,9 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     Assert(buffer.exists);
     
-    bool32 treat_as_code = false;
-    bool32 treat_as_todo = false;
-    bool32 lex_without_strings = false;
+    b32 treat_as_code = false;
+    b32 treat_as_todo = false;
+    b32 lex_without_strings = false;
     
     CString_Array extensions = get_code_extensions(&global_config.code_exts);
     
@@ -819,8 +903,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         }
     }
     
-    int32_t map_id = (treat_as_code)?((int32_t)default_code_map):((int32_t)mapid_file);
-    int32_t map_id_query = 0;
+    i32 map_id = (treat_as_code)?((i32)default_code_map):((i32)mapid_file);
+    i32 map_id_query = 0;
     
     buffer_set_setting(app, &buffer, BufferSetting_MapID, default_lister_ui_map);
     buffer_get_setting(app, &buffer, BufferSetting_MapID, &map_id_query);
@@ -834,9 +918,9 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);
     
     // NOTE(allen): Decide buffer settings
-    bool32 wrap_lines = true;
-    bool32 use_virtual_whitespace = false;
-    bool32 use_lexer = false;
+    b32 wrap_lines = true;
+    b32 use_virtual_whitespace = false;
+    b32 use_lexer = false;
     if (treat_as_todo){
         lex_without_strings = true;
         wrap_lines = true;

@@ -714,7 +714,11 @@ A handle for a managed object can "go bad" when it's scope is cleared, or when i
     ManagedObjectType_Memory = 1,
     /* DOC(A marker object is used to place markers into buffers that move along with the text upon which they are placed.  A marker object has a specific buffer to which it is attached, and must be allocated in a scope dependent upon the lifetime of that buffer.  Marker objects always use the Marker type for their items, and their item size is always sizeof(Marker).  When a marker object is freed, all of the marker visuals attached to it are also freed and the specific buffer of the object no longer adjusts the marker data when edits occur.) */
     ManagedObjectType_Markers = 2,
-    ManagedObjectType_COUNT = 3,
+    /* DOC(TODO) */
+    ManagedObjectType_Arena = 3,
+    
+    
+    ManagedObjectType_COUNT = 4,
 };
 
 /* DOC(A handle to a managed scope.  A managed scope contains variables and objects all of which can be freed and reset in optimized bulk operations.  Many managed scopes are created and destroyed by the core to track the lifetime of entities like buffers and views.  Because a managed scope contains it's own copy of the managed variables, managed scopes can also be used as a keying mechanism to store and retrieve special information related to entities like buffers and views.) */
@@ -842,92 +846,6 @@ STRUCT Query_Bar{
     String prompt;
     /* DOC(This specifies the main string portion of the drop down bar.) */
     String string;
-};
-
-/* DOC(An enumeration of the types of UI widget items that can be placed in a UI.) */
-ENUM(int16_t, UI_Item_Type){
-    /* DOC(An 'option' is a rectangle with a margin that can be highlighted, and a main string in default text color, and a secondary string in pop2 color, on a single line centered vertically in the item rectangle.) */
-    UIType_Option = 0,
-    /* DOC(A 'text field' is a rectangle with a query string in pop1 color, and a main string in default text color, on a single line centered verticall in the item rectangle.) */
-    UIType_TextField = 1,
-    /* DOC(A 'color theme' is a rectangle that ignores the active color palette and previews a specified color palette, with a specified string on the first line.  This item is particularly meant for creating the color theme lister, but could be reused for anything, however there is no way to remove all the sample text in the widget added alongside the main string.) */
-    UIType_ColorTheme = 2,
-};
-
-/* DOC(An enumeration of the levels of activation that can be placed on an item in a UI, this can effect the appearance of some widgets.) */
-ENUM(int8_t, UI_Activation_Level){
-    UIActivation_None = 0,
-    UIActivation_Hover = 1,
-    UIActivation_Active = 2,
-};
-
-/* DOC(An enumeration of the coordinate systems in which an item's rectangle can be specified.  This is not always a convenience feature as it means after scrolling the widget data does not necessarily needed to be updated, thus saving extra work.  All coordiante systems are in pixels, with y increasing downward, and x increasing rightward.) */
-ENUM(int8_t, UI_Coordinate_System){
-    /* DOC(The 'view' coordiante system is effected by the scroll value of the view.  If the y scroll value is at 100 and an item is placed with a vertical range from 50 to 90, the item is not visible.  When the scroll value is at (0,0), this coordinate system aligns with the view relative coordiante system.) */
-    UICoordinates_ViewSpace = 0,
-    /* DOC(The 'panel' coordiante system is only effected by the screen coordinates of the panel.  (0,0) is always the top left corner of space inside the panel margin.) */
-    UICoordinates_PanelSpace = 1,
-    UICoordinates_COUNT = 2,
-};
-
-/* DOC(A UI_Item is essentially the data to specify a single widget.  The exact appearance and qualities of a displayed widget are determined by the item's type.)
-DOC_SEE(UI_Item_Type)
-DOC_SEE(UI_Activation_Level)
-DOC_SEE(UI_Coordinate_System)
-*/
-STRUCT UI_Item{
-    /* DOC(The type of the item.) */
-    UI_Item_Type type;
-    /* DOC(The activation level of the item.) */
-    UI_Activation_Level activation_level;
-    /* DOC(The coordinate system in which the item's rectanlge is expressed.) */
-    UI_Coordinate_System coordinates;
-    /* DOC(The rectangle of an item, combined with it's coordinate system, specify where on the screen the widget will be rendered.) */
-    i32_Rect rectangle;
-    // 32-bits of padding to fill here
-    union{
-        struct{
-            /* DOC(The main string of an 'option' widget.) */
-            String string;
-            /* DOC(The secondary string of an 'option' widget.) */
-            String status;
-        } option;
-        struct{
-            /* DOC(The query string of a 'text field' widget.) */
-            String query;
-            /* DOC(The main string of an 'text field' widget.) */
-            String string;
-        } text_field;
-        struct{
-            /* DOC(The custom first line string of the color theme preview block.) */
-            String string;
-            /* DOC(The index of the color theme to be used with the preview block.) */
-            int32_t index;
-        } color_theme;
-    };
-    /* DOC(All items can have an attached user_data pointer to associate the item back to whatever user space data or object is needed for interactign with the item.) */
-    void *user_data;
-};
-
-/* DOC(Wraps a UI_Item in a doubly linked list node.) */
-STRUCT UI_Item_Node{
-    UI_Item_Node *next;
-    UI_Item_Node *prev;
-    UI_Item fixed;
-};
-
-/* DOC(A zero-ended doubly linked list object.) */
-STRUCT UI_List{
-    UI_Item_Node *first;
-    UI_Item_Node *last;
-    int32_t count;
-};
-
-/* DOC(An array of UI_Items and a set of bounding boxes that store the union item rectangle per coordiante system, used to optimize activation and re-render operations.) */
-STRUCT UI_Control{
-    UI_Item *items;
-    int32_t count;
-    i32_Rect bounding_box[UICoordinates_COUNT];
 };
 
 TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_Summary view);

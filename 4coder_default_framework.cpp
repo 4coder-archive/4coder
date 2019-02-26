@@ -5,9 +5,6 @@
 
 // TOP
 
-static Partition global_part;
-static Heap global_heap;
-
 static void
 unlock_jump_buffer(void){
     locked_buffer.size = 0;
@@ -311,26 +308,24 @@ CUSTOM_DOC("Switch to a named key binding map.")
 ////////////////////////////////
 
 static void
-default_4coder_initialize(Application_Links *app, int32_t override_font_size, bool32 override_hinting){
-    int32_t part_size = (32 << 20);
-    int32_t heap_size = ( 4 << 20);
-    
+default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 override_hinting){
+    i32 part_size = (16 << 10);
     void *part_mem = memory_allocate(app, part_size);
     global_part = make_part(part_mem, part_size);
     
+    i32 heap_size = (4 << 20);
     void *heap_mem = memory_allocate(app, heap_size);
     heap_init(&global_heap);
     heap_extend(&global_heap, heap_mem, heap_size);
     
-    static const char message[] = ""
+    static char message[] =
         "Welcome to " VERSION "\n"
         "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
         "Direct bug reports to editor@4coder.net for maximum reply speed\n"
         "Questions or requests can go to editor@4coder.net or to 4coder.handmade.network\n"
         "The change log can be found in CHANGES.txt\n"
         "\n";
-    String msg = make_lit_string(message);
-    print_message(app, msg.str, msg.size);
+    print_message(app, message, sizeof(message) - 1);
     
 #if 0
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
@@ -342,6 +337,7 @@ default_4coder_initialize(Application_Links *app, int32_t override_font_size, bo
     view_paste_index_loc     = managed_variable_create_or_get_id(app, "DEFAULT.paste_index"   , 0);
     view_is_passive_loc      = managed_variable_create_or_get_id(app, "DEFAULT.is_passive"    , 0);
     view_snap_mark_to_cursor = managed_variable_create_or_get_id(app, "DEFAULT.mark_to_cursor", 0);
+    view_ui_data             = managed_variable_create_or_get_id(app, "DEFAULT.ui_data"       , 0);
 }
 
 static void

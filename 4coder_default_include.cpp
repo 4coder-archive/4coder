@@ -25,9 +25,9 @@
 #include "4coder_lib/4cpp_lexer.h"
 
 
-#include "4coder_ui_helper.h"
 #include "4coder_helper.h"
 #include "4coder_fancy.h"
+#include "4coder_ui_helper.h"
 #include "4coder_default_framework.h"
 #include "4coder_mirror.h"
 #include "4coder_config.h"

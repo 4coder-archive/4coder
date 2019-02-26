@@ -25,7 +25,8 @@ file_edit_positions_set_cursor(File_Edit_Positions *edit_pos, i32 pos){
 }
 
 internal void
-file_edit_positions_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
+file_edit_positions_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll, i32 max_y){
+    scroll.target_y = clamp(0, scroll.target_y, max_y);
     edit_pos->scroll = scroll;
     edit_pos->last_set_type = EditPos_ScrollSet;
 }

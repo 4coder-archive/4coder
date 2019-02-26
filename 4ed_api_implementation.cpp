@@ -2260,18 +2260,14 @@ DOC_SEE(view_set_ui)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
+    b32 result = false;
     if (view_api_check_view(view)){
-        if (view->ui_mode){
-            return(false);
-        }
-        else{
+        if (!view->ui_mode){
             view->ui_mode = true;
-            return(true);
+            result = true;
         }
     }
-    else{
-        return(false);
-    }
+    return(result);
 }
 
 // TODO(allen): redocument
@@ -2298,7 +2294,19 @@ DOC_SEE(view_set_ui)
 }
 
 API_EXPORT bool32
-View_Set_UI(Application_Links *app, View_ID view_id, UI_Control *control, UI_Quit_Function_Type *quit_function)
+View_Is_In_UI_Mode(Application_Links *app, View_ID view_id){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    bool32 result = false;
+    if (view_api_check_view(view)){
+        result = view->ui_mode;
+    }
+    return(result);
+}
+
+// TODO(allen): redocument
+API_EXPORT bool32
+View_Set_Quit_UI_Handler(Application_Links *app, View_ID view_id, UI_Quit_Function_Type *quit_function)
 /*
 DOC_PARAM(view, A summary for the view which is to get the new UI widget data.)
 DOC_PARAM(control, A pointer to the baked UI widget data.  To get data in the UI_Control format see the helper called ui_list_to_ui_control.  More information about specifying widget data can be found in a comment in '4coder_ui_helper.cpp'.  If this pointer is null the view's widget data is cleared to zero.  The core maintains it's own copy of the widget data, so after this call the memory used to specify widget data may be freed.)
@@ -2312,102 +2320,18 @@ DOC_SEE(UI_Quit_Function_Type)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    Heap *heap = &models->mem.heap;
     View *view = imp_get_view(models, view_id);
-    
+    b32 result = false;
     if (view_api_check_view(view)){
-        if (view->ui_control.items != 0){
-            heap_free(heap, view->ui_control.items);
-        }
-        memset(&view->ui_control, 0, sizeof(view->ui_control));
         view->ui_quit = quit_function;
-        if (control != 0){
-            if (control->count > 0){
-                i32 string_size = 0;
-                for (UI_Item *item = control->items, *one_past_last = control->items + control->count;
-                     item < one_past_last;
-                     item += 1){
-                    switch (item->type){
-                        case UIType_Option:
-                        {
-                            string_size += item->option.string.size;
-                            string_size += item->option.status.size;
-                        }break;
-                        
-                        case UIType_TextField:
-                        {
-                            string_size += item->text_field.query.size;
-                            string_size += item->text_field.string.size;
-                        }break;
-                        
-                        case UIType_ColorTheme:
-                        {
-                            string_size += item->color_theme.string.size;
-                        }break;
-                    }
-                }
-                
-                i32 all_items_size = sizeof(UI_Item)*control->count;
-                i32 memory_size = all_items_size + string_size;
-                UI_Item *new_items = (UI_Item*)heap_allocate(heap, memory_size);
-                if (new_items != 0){
-                    char *string_space = (char*)(new_items + control->count);
-                    Partition string_alloc = make_part(string_space, string_size);
-                    i32 count = control->count;
-                    memcpy(new_items, control->items, all_items_size);
-                    for (UI_Item *item = new_items, *one_past_last = new_items + count;
-                         item < one_past_last;
-                         item += 1){
-                        
-                        String *fixup[2];
-                        
-                        int32_t fixup_count = 0;
-                        switch (item->type){
-                            case UIType_Option:
-                            {
-                                fixup[0] = &item->option.string;
-                                fixup[1] = &item->option.status;
-                                fixup_count = 2;
-                            }break;
-                            case UIType_TextField:
-                            {
-                                fixup[0] = &item->text_field.query;
-                                fixup[1] = &item->text_field.string;
-                                fixup_count = 2;
-                            }break;
-                            case UIType_ColorTheme:
-                            {
-                                fixup[0] = &item->color_theme.string;
-                                fixup_count = 1;
-                            }break;
-                        }
-                        
-                        for (i32 i = 0; i < fixup_count; i += 1){
-                            String old = *fixup[i];
-                            char *new_str = push_array(&string_alloc, char, old.size);
-                            fixup[i]->str = new_str;
-                            fixup[i]->size = old.size;
-                            fixup[i]->memory_size = old.size;
-                            memcpy(new_str, old.str, old.size);
-                        }
-                    }
-                    view->ui_control.items = new_items;
-                    view->ui_control.count = count;
-                }
-                else{
-                    return(false);
-                }
-            }
-            memcpy(view->ui_control.bounding_box, control->bounding_box, sizeof(control->bounding_box));
-        }
-        return(true);
+        result = true;
     }
-    return(false);
+    return(result);
 }
 
 // TODO(allen): redocument
 API_EXPORT bool32
-View_Get_UI_Copy(Application_Links *app, View_ID view_id, struct Partition *part, UI_Control *ui_control_out)
+View_Get_Quit_UI_Handler(Application_Links *app, View_ID view_id, UI_Quit_Function_Type **quit_function_out)
 /*
 DOC_PARAM(view, A summary for the view which is to get the new UI widget data.)
 DOC_PARAM(part, A memory arena onto which the UI widget data will be allocated.)
@@ -2417,22 +2341,12 @@ DOC_SEE(view_set_ui)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    if (part != 0 && view_api_check_view(view)){
-        UI_Control *control = &view->ui_control;
-        ui_control_out->items = push_array(part, UI_Item, control->count);
-        if (ui_control_out->items != 0){
-            ui_control_out->count = control->count;
-            // TODO(allen): do(fixup the pointers)
-            block_copy(ui_control_out->items, control->items, sizeof(*ui_control_out->items)*ui_control_out->count);
-        }
-        else{
-            block_zero_struct(ui_control_out);
-            return(false);
-        }
-        block_copy(ui_control_out->bounding_box, control->bounding_box, sizeof(ui_control_out->bounding_box));
-        return(true);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        *quit_function_out = view->ui_quit;
+        result = true;
     }
-    return(false);
+    return(result);
 }
 
 internal Dynamic_Workspace*
@@ -2729,7 +2643,7 @@ DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer
 }
 
 API_EXPORT Managed_Object
-Alloc_Managed_Memory_In_Scope(Application_Links *app, Managed_Scope scope, int32_t item_size, int32_t count)
+Alloc_Managed_Memory_In_Scope(Application_Links *app, Managed_Scope scope, i32 item_size, i32 count)
 /*
 DOC_PARAM(scope, A handle to the scope in which the new object will be allocated.)
 DOC_PARAM(item_size, The size, in bytes, of a single 'item' in this memory object.  This effects the size of the allocation, and the indexing of the memory in the store and load calls.)
@@ -2795,6 +2709,26 @@ DOC_SEE(Marker)
         header->visual_count = 0;
         u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
         result = ((u64)markers_scope << 32) | (u64)id;
+    }
+    return(result);
+}
+
+API_EXPORT Managed_Object
+Alloc_Managed_Arena_In_Scope(Application_Links *app, Managed_Scope scope, i32 page_size){
+    Models *models = (Models*)app->cmd_context;
+    Heap *heap = &models->mem.heap;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    Managed_Object result = 0;
+    if (workspace != 0){
+        void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, sizeof(Managed_Arena_Header) + sizeof(Arena*));
+        Managed_Arena_Header *header = (Managed_Arena_Header*)ptr;
+        header->std_header.type = ManagedObjectType_Arena;
+        header->std_header.item_size = sizeof(Arena*);
+        header->std_header.count = 1;
+        zdll_push_back(workspace->arena_list.first, workspace->arena_list.last, header);
+        header->arena = make_arena(app, page_size);
+        u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
+        result = ((u64)scope << 32) | (u64)id;
     }
     return(result);
 }
@@ -3025,12 +2959,24 @@ DOC_RETURN(Pushes an array onto part containing the handle to every marker visua
 
 internal u8*
 get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
+    u8 *ptr = 0;
     if (header != 0){
-        if (0 < header->type && header->type < ManagedObjectType_COUNT){
-            return(((u8*)header) + managed_header_type_sizes[header->type]);
+        switch (header->type){
+            case ManagedObjectType_Memory:
+            case ManagedObjectType_Markers:
+            {
+                ptr = ((u8*)header) + managed_header_type_sizes[header->type];
+            }break;
+            
+            case ManagedObjectType_Arena:
+            {
+                ptr = ((u8*)header) + managed_header_type_sizes[header->type];
+                Managed_Arena_Header *arena_header = (Managed_Arena_Header*)header;
+                *(Arena**)ptr = &arena_header->arena;
+            }break;
         }
     }
-    return(0);
+    return(ptr);
 }
 
 API_EXPORT uint32_t
@@ -3110,26 +3056,37 @@ DOC(Permanently frees the specified object.  Not only does this free up the memo
     Models *models = (Models*)app->cmd_context;
     u32 hi_id = (object >> 32)&max_u32;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
+    b32 result = false;
     if (workspace != 0){
         u32 lo_id = object&max_u32;
         u8 *object_ptr = (u8*)dynamic_workspace_get_pointer(workspace, lo_id);
         if (object_ptr != 0){
             Managed_Object_Type *type = (Managed_Object_Type*)object_ptr;
-            if (*type == ManagedObjectType_Markers){
-                Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
-                workspace->total_marker_count -= header->std_header.count;
-                if (header->visual_count > 0){
-                    marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
-                }
-                zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
-                workspace->buffer_markers_list.count -= 1;
+            switch (*type){
+                case ManagedObjectType_Markers:
+                {
+                    Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
+                    workspace->total_marker_count -= header->std_header.count;
+                    if (header->visual_count > 0){
+                        marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
+                    }
+                    zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
+                    workspace->buffer_markers_list.count -= 1;
+                }break;
+                
+                case ManagedObjectType_Arena:
+                {
+                    Managed_Arena_Header *header = (Managed_Arena_Header*)object_ptr;
+                    arena_release_all(&header->arena);
+                    zdll_remove(workspace->arena_list.first, workspace->arena_list.last, header);
+                }break;
             }
             dynamic_workspace_erase_pointer(workspace, lo_id);
             memory_bank_free(&workspace->mem_bank, object_ptr);
-            return(true);
+            result = true;
         }
     }
-    return(false);
+    return(result);
 }
 
 API_EXPORT bool32
@@ -3148,16 +3105,17 @@ DOC_SEE(managed_object_get_item_count)
     Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     u8 *ptr = get_dynamic_object_memory_ptr(object_ptrs.header);
+    b32 result = false;
     if (ptr != 0){
         u32 item_count = object_ptrs.header->count;
         if (0 <= first_index && first_index + count <= item_count){
             u32 item_size = object_ptrs.header->item_size;
             memcpy(ptr + first_index*item_size, mem, count*item_size);
             heap_assert_good(&object_ptrs.workspace->mem_bank.heap);
-            return(true);
+            result = true;
         }
     }
-    return(false);
+    return(result);
 }
 
 API_EXPORT bool32
@@ -3176,16 +3134,17 @@ DOC_SEE(managed_object_get_item_count)
     Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
     u8 *ptr = get_dynamic_object_memory_ptr(object_ptrs.header);
+    b32 result = false;
     if (ptr != 0){
         u32 item_count = object_ptrs.header->count;
         if (0 <= first_index && first_index + count <= item_count){
             u32 item_size = object_ptrs.header->item_size;
             memcpy(mem_out, ptr + first_index*item_size, count*item_size);
             heap_assert_good(&object_ptrs.workspace->mem_bank.heap);
-            return(true);
+            result = true;
         }
     }
-    return(false);
+    return(result);
 }
 
 API_EXPORT User_Input

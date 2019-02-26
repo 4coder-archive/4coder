@@ -1671,5 +1671,13 @@ draw_string(Application_Links *app, Face_ID font_id, String string, Vec2 p, int_
     return(draw_string(app, font_id, string, p, color, 0, V2(1.f, 0.f)));
 }
 
+static void
+draw_margin(Application_Links *app, f32_Rect outer, f32_Rect inner, int_color color){
+    draw_rectangle(app, f32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
+    draw_rectangle(app, f32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    draw_rectangle(app, f32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
+    draw_rectangle(app, f32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+}
+
 // BOTTOM
 

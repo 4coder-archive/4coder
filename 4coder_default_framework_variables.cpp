@@ -39,21 +39,25 @@ static Managed_Variable_ID view_next_rewrite_loc = 0;
 static Managed_Variable_ID view_paste_index_loc = 0;
 static Managed_Variable_ID view_is_passive_loc = 0;
 static Managed_Variable_ID view_snap_mark_to_cursor = 0;
+static Managed_Variable_ID view_ui_data = 0;
 
 static char out_buffer_space[1024];
 static char command_space[1024];
 static char hot_directory_space[1024];
 
 
-static bool32 highlight_line_at_cursor = true;
-static bool32 do_matching_enclosure_highlight = true;
-static bool32 do_matching_paren_highlight = true;
-static bool32 do_colored_comment_keywords = true;
-static bool32 suppressing_mouse = false;
+static b32 highlight_line_at_cursor = true;
+static b32 do_matching_enclosure_highlight = true;
+static b32 do_matching_paren_highlight = true;
+static b32 do_colored_comment_keywords = true;
+static b32 suppressing_mouse = false;
 
-static bool32 cursor_is_hidden = false;
+static b32 cursor_is_hidden = false;
 
 static b32 show_fps_hud = false;
+
+static Partition global_part;
+static Heap global_heap;
 
 enum{
     FCoderMode_Original = 0,

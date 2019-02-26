@@ -63,15 +63,29 @@ struct Marker_Visual_Allocator{
     u32_Ptr_Table id_to_ptr_table;
 };
 
+struct Managed_Arena_Header{
+    Managed_Object_Standard_Header std_header;
+    Managed_Arena_Header *next;
+    Managed_Arena_Header *prev;
+    Arena arena;
+};
+
 global_const i32 managed_header_type_sizes[ManagedObjectType_COUNT] = {
     0,
     sizeof(Managed_Memory_Header),
     sizeof(Managed_Buffer_Markers_Header),
+    sizeof(Managed_Arena_Header),
 };
 
 struct Managed_Buffer_Markers_Header_List{
     Managed_Buffer_Markers_Header *first;
     Managed_Buffer_Markers_Header *last;
+    i32 count;
+};
+
+struct Managed_Arena_Header_List{
+    Managed_Arena_Header *first;
+    Managed_Arena_Header *last;
     i32 count;
 };
 
@@ -109,6 +123,7 @@ struct Dynamic_Workspace{
     i32 user_type;
     void *user_back_ptr;
     Managed_Buffer_Markers_Header_List buffer_markers_list;
+    Managed_Arena_Header_List arena_list;
     i32 total_marker_count;
 };
 

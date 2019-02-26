@@ -7,6 +7,52 @@
 #if !defined(FCODER_UI_HELPER_H)
 #define FCODER_UI_HELPER_H
 
+typedef i8 UI_Item_Type;
+enum UI_Activation_Level{
+    UIActivation_None = 0,
+    UIActivation_Hover = 1,
+    UIActivation_Active = 2,
+};
+
+typedef u8 UI_Coordinate_System;
+enum{
+    UICoordinates_ViewSpace = 0,
+    UICoordinates_PanelSpace = 1,
+    UICoordinates_COUNT = 2,
+};
+
+struct UI_Item{
+    UI_Item *next;
+    UI_Item *prev;
+    UI_Activation_Level activation_level;
+    UI_Coordinate_System coordinates;
+    Rect_i32 rect_outer;
+    i32 inner_margin;
+    Fancy_String_List lines[4];
+    i32 line_count;
+    void *user_data;
+};
+
+struct UI_List{
+    UI_Item *first;
+    UI_Item *last;
+    int32_t count;
+};
+
+struct UI_Data{
+    UI_List list;
+    Rect_i32 bounding_box[UICoordinates_COUNT];
+};
+
+struct UI_Storage{
+    UI_Data *data;
+    Arena *arena;
+    Managed_Object arena_object;
+    Temp_Memory_Arena temp;
+};
+
+////////////////////////////////
+
 typedef int32_t Lister_Activation_Code;
 enum{
     ListerActivation_Finished = 0,

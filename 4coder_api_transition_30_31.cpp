@@ -481,26 +481,6 @@ view_end_ui_mode(Application_Links *app, View_Summary *view){
 }
 
 static bool32
-view_set_ui(Application_Links *app, View_Summary *view, UI_Control *control, UI_Quit_Function_Type *quit_function){
-    bool32 result = false;
-    if (view != 0 && view->exists){
-        result = view_set_ui(app, view->view_id, control, quit_function);
-        get_view_summary(app, view->view_id, AccessAll, view);
-    }
-    return(result);
-}
-
-static UI_Control
-view_get_ui_copy(Application_Links *app, View_Summary *view, struct Partition *part){
-    UI_Control result = {};
-    if (view != 0 && view->exists){
-        view_get_ui_copy(app, view->view_id, part, &result);
-        get_view_summary(app, view->view_id, AccessAll, view);
-    }
-    return(result);
-}
-
-static bool32
 view_set_highlight(Application_Links *app, View_ID view_id, int32_t start, int32_t end, bool32 turn_on){
     // NOTE(allen): this feature is completely removed, transition to using highlighted markers instead
     return(false);

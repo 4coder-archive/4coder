@@ -46,12 +46,8 @@ global_const Style_Color_Edit colors_to_edit[] = {
     {Stag_Pop2, Stag_Pop2, Stag_Bar, lit("Bar Pop 2")},
 };
 
-internal Input_Process_Result
-do_step_file_view(System_Functions *system, Models *models, View *view, i32_Rect rect, b32 is_active, f32 dt, GUI_Scroll_Vars scroll, i32 max_y){
-    Input_Process_Result result = {};
-    scroll.target_y = clamp(0, scroll.target_y, max_y);
-    result.scroll = scroll;
-    
+internal GUI_Scroll_Vars
+do_step_file_view(System_Functions *system, Models *models, View *view, i32_Rect rect, b32 is_active, f32 dt, GUI_Scroll_Vars scroll){
     i32 line_height = view->line_height;
     
     if (!view->hide_file_bar){
@@ -75,25 +71,24 @@ do_step_file_view(System_Functions *system, Models *models, View *view, i32_Rect
     // TODO(allen): do(eliminate the built in paste_effect)
     if (!file->is_loading && file->state.paste_effect.seconds_down > 0.f){
         file->state.paste_effect.seconds_down -= dt;
-        result.is_animating = true;
+        models->animate_next_frame = true;
     }
     
     // NOTE(allen): call scroll rule hook
-    b32 is_new_target = (result.scroll.target_x != view->prev_target.x ||
-                         result.scroll.target_y != view->prev_target.y);
+    b32 is_new_target = (scroll.target_x != view->prev_target.x || scroll.target_y != view->prev_target.y);
     
-    f32 target_x = (f32)result.scroll.target_x;
-    f32 target_y = (f32)result.scroll.target_y;
+    f32 target_x = (f32)scroll.target_x;
+    f32 target_y = (f32)scroll.target_y;
     
     View_ID view_id = view_get_id(&models->live_set, view);
-    if (models->scroll_rule(target_x, target_y, &result.scroll.scroll_x, &result.scroll.scroll_y, view_id, is_new_target, dt)){
-        result.is_animating = true;
+    if (models->scroll_rule(target_x, target_y, &scroll.scroll_x, &scroll.scroll_y, view_id, is_new_target, dt)){
+        models->animate_next_frame = true;
     }
     
-    view->prev_target.x = result.scroll.target_x;
-    view->prev_target.y = result.scroll.target_y;
+    view->prev_target.x = scroll.target_x;
+    view->prev_target.y = scroll.target_y;
     
-    return(result);
+    return(scroll);
 }
 
 ////////////////////////////////
@@ -178,6 +173,7 @@ draw_file_bar(System_Functions *system, Render_Target *target, View *view, Model
     }
 }
 
+#if 0
 internal u32
 get_margin_color(Color_Table color_table, i32 level){
     u32 margin = 0;
@@ -198,10 +194,10 @@ get_margin_color(Color_Table color_table, i32 level){
     }
     return(margin);
 }
+#endif
 
 internal void
 do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Scroll_Vars *scroll, View *active, i32_Rect rect, b32 is_active, Render_Target *target){
-    
     Editing_File *file = view->file_data.file;
     Assert(file != 0);
     
@@ -244,116 +240,124 @@ do_render_file_view(System_Functions *system, View *view, Models *models, GUI_Sc
     view->widget_height = (f32)bar_count*(view->line_height + 2);
     
     draw_push_clip(target, rect);
+    
     if (!view->ui_mode){
         if (file_is_ready(file)){
             render_loaded_file_in_view(system, view, models, rect, is_active, target);
         }
     }
     else{
-        f32_Rect rect_f32 = f32R(rect);
-        
-        i32 item_count = view->ui_control.count;
-        UI_Item *item = view->ui_control.items;
-        GUI_Scroll_Vars ui_scroll = view->ui_scroll;
-        for (i32 i = 0; i < item_count; ++i, item += 1){
-            
-            f32_Rect item_rect = f32R(item->rectangle);
-            switch (item->coordinates){
-                case UICoordinates_ViewSpace:
-                {
-                    item_rect.x0 += rect_f32.x0 - ui_scroll.scroll_x;
-                    item_rect.y0 += rect_f32.y0 - ui_scroll.scroll_y;
-                    item_rect.x1 += rect_f32.x0 - ui_scroll.scroll_x;
-                    item_rect.y1 += rect_f32.y0 - ui_scroll.scroll_y;
-                }break;
-                case UICoordinates_PanelSpace:
-                {
-                    item_rect.x0 += rect_f32.x0;
-                    item_rect.y0 += rect_f32.y0;
-                    item_rect.x1 += rect_f32.x0;
-                    item_rect.y1 += rect_f32.y0;
-                }break;
-            }
-            
-            if (rect_overlap(item_rect, rect_f32)){
-                switch (item->type){
-                    case UIType_Option:
-                    {
-                        u32 back       = color_table.vals[Stag_Back];
-                        u32 text_color = color_table.vals[Stag_Default];
-                        u32 pop_color  = color_table.vals[Stag_Pop2];
-                        u32 margin_color = get_margin_color(color_table, item->activation_level);
-                        f32_Rect inner = get_inner_rect(item_rect, 3);
-                        draw_rectangle(target, inner, back);
-                        Vec2 p = V2(inner.p0) + V2(3.f, line_height*0.5f - 1.f);
-                        p.x += draw_string(system, target, font_id, item->option.string, p, text_color);
-                        p.x += font_string_width(system, target, font_id, make_lit_string(" "));
-                        draw_string(system, target, font_id, item->option.status, p, pop_color);
-                        draw_margin(target, item_rect, inner, margin_color);
-                    }break;
-                    
-                    case UIType_TextField:
-                    {
-                        u32 back  = color_table.vals[Stag_Back];
-                        u32 text1 = color_table.vals[Stag_Default];
-                        u32 text2 = color_table.vals[Stag_Pop1];
-                        draw_rectangle(target, item_rect, back);
-                        Vec2 p = V2(item_rect.p0) + V2(0.f, 2.f);
-                        p.x += draw_string(system, target, font_id, item->text_field.query, p, text2);
-                        p.x += font_string_width(system, target, font_id, make_lit_string(" "));
-                        p.x += draw_string(system, target, font_id, item->text_field.string, p, text1);
-                    }break;
-                    
-                    // TODO(allen): figure out how this should work again later
-                    case UIType_ColorTheme:
-                    {}break;
-                    
+        Full_Cursor render_cursor = {};
+        Range on_screen_range = {};
+        view_call_render_caller(models, target, view, rect, render_cursor, on_screen_range, 0, 0, dont_do_core_render);
+    }
+    
 #if 0
-                    case UIType_ColorTheme:
-                    {
-                        Style *style_preview = &models->styles.styles[item->color_theme.index];
-                        u32 margin_color = get_margin_color(style_preview, item->activation_level);
-                        u32 back               = style_preview->theme.colors[Stag_Back];
-                        u32 text_color         = style_preview->theme.colors[Stag_Default];
-                        u32 keyword_color      = style_preview->theme.colors[Stag_Keyword];
-                        u32 int_constant_color = style_preview->theme.colors[Stag_Int_Constant];
-                        u32 comment_color      = style_preview->theme.colors[Stag_Comment];
-                        
-                        f32_Rect inner = get_inner_rect(item_rect, 3);
-                        
-                        draw_margin(target, item_rect, inner, margin_color);
-                        draw_rectangle(target, inner, back);
-                        
-                        Vec2 p = V2(inner.p0);
-                        String str = item->color_theme.string;
-                        if (str.str == 0){
-                            str = style_preview->name;
-                        }
-                        p.x += draw_string(system, target, font_id, str, p, text_color);
-                        f32 font_x = inner.x1 - font_string_width(system, target, font_id, font_name);
-                        if (font_x > p.x + 10.f){
-                            draw_string(system, target, font_id, font_name, V2(font_x, p.y), text_color);
-                        }
-                        
-                        Font_Pointers font = system->font.get_pointers_by_id(font_id);
-                        i32 height = font.metrics->height;
-                        p = V2(inner.x0, p.y + (f32)height);
-                        p.x += draw_string(system, target, font_id, "if", p, keyword_color);
-                        p.x += draw_string(system, target, font_id, "(x < ", p, text_color);
-                        p.x += draw_string(system, target, font_id, "0", p, int_constant_color);
-                        p.x += draw_string(system, target, font_id, ") { x = ", p, text_color);
-                        p.x += draw_string(system, target, font_id, "0", p, int_constant_color);
-                        p.x += draw_string(system, target, font_id, "; } ", p, text_color);
-                        p.x += draw_string(system, target, font_id, "// comment", p, comment_color);
-                        
-                        p = V2(inner.x0, p.y + (f32)height);
-                        draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", p, text_color);
-                    }break;
+    f32_Rect rect_f32 = f32R(rect);
+    
+    i32 item_count = view->ui_control.count;
+    UI_Item *item = view->ui_control.items;
+    GUI_Scroll_Vars ui_scroll = view->ui_scroll;
+    for (i32 i = 0; i < item_count; ++i, item += 1){
+        
+        f32_Rect item_rect = f32R(item->rectangle);
+        switch (item->coordinates){
+            case UICoordinates_ViewSpace:
+            {
+                item_rect.x0 += rect_f32.x0 - ui_scroll.scroll_x;
+                item_rect.y0 += rect_f32.y0 - ui_scroll.scroll_y;
+                item_rect.x1 += rect_f32.x0 - ui_scroll.scroll_x;
+                item_rect.y1 += rect_f32.y0 - ui_scroll.scroll_y;
+            }break;
+            case UICoordinates_PanelSpace:
+            {
+                item_rect.x0 += rect_f32.x0;
+                item_rect.y0 += rect_f32.y0;
+                item_rect.x1 += rect_f32.x0;
+                item_rect.y1 += rect_f32.y0;
+            }break;
+        }
+        
+        if (rect_overlap(item_rect, rect_f32)){
+            switch (item->type){
+                case UIType_Option:
+                {
+                    u32 back       = color_table.vals[Stag_Back];
+                    u32 text_color = color_table.vals[Stag_Default];
+                    u32 pop_color  = color_table.vals[Stag_Pop2];
+                    u32 margin_color = get_margin_color(color_table, item->activation_level);
+                    f32_Rect inner = get_inner_rect(item_rect, 3);
+                    draw_rectangle(target, inner, back);
+                    Vec2 p = V2(inner.p0) + V2(3.f, line_height*0.5f - 1.f);
+                    p.x += draw_string(system, target, font_id, item->option.string, p, text_color);
+                    p.x += font_string_width(system, target, font_id, make_lit_string(" "));
+                    draw_string(system, target, font_id, item->option.status, p, pop_color);
+                    draw_margin(target, item_rect, inner, margin_color);
+                }break;
+                
+                case UIType_TextField:
+                {
+                    u32 back  = color_table.vals[Stag_Back];
+                    u32 text1 = color_table.vals[Stag_Default];
+                    u32 text2 = color_table.vals[Stag_Pop1];
+                    draw_rectangle(target, item_rect, back);
+                    Vec2 p = V2(item_rect.p0) + V2(0.f, 2.f);
+                    p.x += draw_string(system, target, font_id, item->text_field.query, p, text2);
+                    p.x += font_string_width(system, target, font_id, make_lit_string(" "));
+                    p.x += draw_string(system, target, font_id, item->text_field.string, p, text1);
+                }break;
+                
+                // TODO(allen): figure out how this should work again later
+                case UIType_ColorTheme:
+                {}break;
+                
+#if 0
+                case UIType_ColorTheme:
+                {
+                    Style *style_preview = &models->styles.styles[item->color_theme.index];
+                    u32 margin_color = get_margin_color(style_preview, item->activation_level);
+                    u32 back               = style_preview->theme.colors[Stag_Back];
+                    u32 text_color         = style_preview->theme.colors[Stag_Default];
+                    u32 keyword_color      = style_preview->theme.colors[Stag_Keyword];
+                    u32 int_constant_color = style_preview->theme.colors[Stag_Int_Constant];
+                    u32 comment_color      = style_preview->theme.colors[Stag_Comment];
+                    
+                    f32_Rect inner = get_inner_rect(item_rect, 3);
+                    
+                    draw_margin(target, item_rect, inner, margin_color);
+                    draw_rectangle(target, inner, back);
+                    
+                    Vec2 p = V2(inner.p0);
+                    String str = item->color_theme.string;
+                    if (str.str == 0){
+                        str = style_preview->name;
+                    }
+                    p.x += draw_string(system, target, font_id, str, p, text_color);
+                    f32 font_x = inner.x1 - font_string_width(system, target, font_id, font_name);
+                    if (font_x > p.x + 10.f){
+                        draw_string(system, target, font_id, font_name, V2(font_x, p.y), text_color);
+                    }
+                    
+                    Font_Pointers font = system->font.get_pointers_by_id(font_id);
+                    i32 height = font.metrics->height;
+                    p = V2(inner.x0, p.y + (f32)height);
+                    p.x += draw_string(system, target, font_id, "if", p, keyword_color);
+                    p.x += draw_string(system, target, font_id, "(x < ", p, text_color);
+                    p.x += draw_string(system, target, font_id, "0", p, int_constant_color);
+                    p.x += draw_string(system, target, font_id, ") { x = ", p, text_color);
+                    p.x += draw_string(system, target, font_id, "0", p, int_constant_color);
+                    p.x += draw_string(system, target, font_id, "; } ", p, text_color);
+                    p.x += draw_string(system, target, font_id, "// comment", p, comment_color);
+                    
+                    p = V2(inner.x0, p.y + (f32)height);
+                    draw_string(system, target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", p, text_color);
+                }break;
 #endif
-                }
             }
         }
     }
+    
+#endif
     draw_pop_clip(target);
 }
 

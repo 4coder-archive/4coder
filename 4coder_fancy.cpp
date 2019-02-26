@@ -5,7 +5,7 @@
 // TOP
 
 static Fancy_Color
-blend_color(id_color a, f32 t, id_color b){
+fancy_blend(id_color a, f32 t, id_color b){
     Fancy_Color result = {};
     result.index_a = (u16)a;
     result.index_b = (u16)b;
@@ -17,7 +17,7 @@ blend_color(id_color a, f32 t, id_color b){
 }
 
 static Fancy_Color
-single_color(id_color a){
+fancy_id(id_color a){
     Fancy_Color result = {};
     result.index_a = (u16)a;
     result.index_b = 0;
@@ -29,7 +29,7 @@ single_color(id_color a){
 }
 
 static Fancy_Color
-fancy_from_rgba_color(argb_color color){
+fancy_rgba(argb_color color){
     Fancy_Color result = {};
     result.rgba = color;
     result.code = 0;
@@ -37,8 +37,8 @@ fancy_from_rgba_color(argb_color color){
 }
 
 static Fancy_Color
-fancy_from_rgba_color(f32 r, f32 g, f32 b, f32 a){
-    Fancy_Color result = fancy_from_rgba_color(pack_color4(V4(r, g, b, a)));
+fancy_rgba(f32 r, f32 g, f32 b, f32 a){
+    Fancy_Color result = fancy_rgba(pack_color4(V4(r, g, b, a)));
     return(result);
 }
 
@@ -84,21 +84,30 @@ is_valid(Fancy_Color source){
     return(result);
 }
 
+static void
+fancy_string_list_push(Fancy_String_List *list, Fancy_String *string){
+    list->last = (list->last ? list->last->next : list->first) = string;
+}
+
 static Fancy_String *
 push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, String value){
     Fancy_String *result = push_array(arena, Fancy_String, 1);
+    memset(result, 0, sizeof(*result));
+    
     result->value = string_push_copy(arena, value);
     result->fore = fore;
     result->back = back;
-    result->pre_margin = 0;
-    result->post_margin = 0;
-    result->next = 0;
     
     if (list != 0){
-        list->last = (list->last ? list->last->next : list->first) = result;
+        fancy_string_list_push(list, result);
     }
     
     return(result);
+}
+
+static Fancy_String *
+push_fancy_string(Arena *arena, Fancy_Color fore, Fancy_Color back, String value){
+    return(push_fancy_string(arena, 0, fore, back, value));
 }
 
 static Fancy_String *
@@ -107,8 +116,18 @@ push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Strin
 }
 
 static Fancy_String *
+push_fancy_string(Arena *arena, Fancy_Color fore, String value){
+    return(push_fancy_string(arena, 0, fore, pass_through_fancy_color(), value));
+}
+
+static Fancy_String *
 push_fancy_string(Arena *arena, Fancy_String_List *list, String value){
     return(push_fancy_string(arena, list, pass_through_fancy_color(), pass_through_fancy_color(), value));
+}
+
+static Fancy_String *
+push_fancy_string(Arena *arena, String value){
+    return(push_fancy_string(arena, 0, pass_through_fancy_color(), pass_through_fancy_color(), value));
 }
 
 static Fancy_String*
@@ -148,6 +167,14 @@ push_fancy_stringf(Arena *arena, Fancy_String_List *list, char *format, ...){
     Fancy_String *result = push_fancy_vstringf(arena, list, pass_through_fancy_color(), pass_through_fancy_color(), format, args);
     va_end(args);
     return(result);
+}
+
+static Fancy_String_List
+fancy_string_list_single(Fancy_String *fancy_string){
+    Fancy_String_List list = {};
+    list.first = fancy_string;
+    list.last = fancy_string;
+    return(list);
 }
 
 static Vec2

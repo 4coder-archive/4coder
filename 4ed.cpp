@@ -1309,34 +1309,26 @@ App_Step_Sig(app_step){
             View *view = panel->view;
             
             GUI_Scroll_Vars *scroll_vars = 0;
-            i32 max_y = 0;
             b32 file_scroll = false;
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
             if (!view->ui_mode){
                 scroll_vars = &edit_pos.scroll;
-                max_y = view_compute_max_target_y(view);
                 file_scroll = true;
             }
             else{
                 scroll_vars = &view->ui_scroll;
-                i32 bottom = view->ui_control.bounding_box[UICoordinates_ViewSpace].y1;
-                max_y = view_compute_max_target_y_from_bottom_y(view, (f32)bottom);
                 file_scroll = false;
             }
             
             b32 active = (panel == active_panel);
-            Input_Process_Result ip_result = do_step_file_view(system, models, view, panel->rect_inner, active, dt, *scroll_vars, max_y);
+            GUI_Scroll_Vars new_scroll = do_step_file_view(system, models, view, panel->rect_inner, active, dt, *scroll_vars);
             
-            if (ip_result.is_animating){
-                app_result.animating = true;
-            }
-            
-            if (memcmp(scroll_vars, &ip_result.scroll, sizeof(*scroll_vars)) != 0){
+            if (memcmp(scroll_vars, &new_scroll, sizeof(*scroll_vars)) != 0){
                 if (file_scroll){
-                    view_set_scroll(system, view, ip_result.scroll);
+                    view_set_scroll(system, view, new_scroll);
                 }
                 else{
-                    *scroll_vars = ip_result.scroll;
+                    *scroll_vars = new_scroll;
                 }
             }
         }

@@ -90,7 +90,7 @@ CUSTOM_DOC("A lister mode command that beings a click interaction with a list it
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized){
-        UI_Item clicked = lister_get_clicked_item(app, &view, scratch);
+        UI_Item clicked = lister_get_clicked_item(app, view.view_id, scratch);
         state->hot_user_data = clicked.user_data;
     }
 }
@@ -103,10 +103,9 @@ CUSTOM_DOC("A lister mode command that ends a click interaction with a list item
     View_Summary view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(&view);
     if (state->initialized && state->hot_user_data != 0){
-        UI_Item clicked = lister_get_clicked_item(app, &view, scratch);
+        UI_Item clicked = lister_get_clicked_item(app, view.view_id, scratch);
         if (state->hot_user_data == clicked.user_data){
-            lister_call_activate_handler(app, scratch, heap, &view,
-                                         state, clicked.user_data, true);
+            lister_call_activate_handler(app, scratch, heap, &view, state, clicked.user_data, true);
         }
     }
     state->hot_user_data = 0;

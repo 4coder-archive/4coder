@@ -39,11 +39,11 @@ struct View{
     i32 temp_view_top_left_target_pos;
     
     b32 ui_mode;
-    UI_Quit_Function_Type *ui_quit;
-    UI_Control ui_control;
-    GUI_Scroll_Vars ui_scroll;
-    Vec2_i32 prev_target;
     i32 ui_map_id;
+    GUI_Scroll_Vars ui_scroll;
+    UI_Quit_Function_Type *ui_quit;
+    
+    Vec2_i32 prev_target;
     
     b32 hide_scrollbar;
     b32 hide_file_bar;
@@ -139,13 +139,6 @@ struct View_Step_Result{
     b32 animating;
     b32 consume_keys;
     b32 consume_esc;
-};
-
-struct Input_Process_Result{
-    GUI_Scroll_Vars scroll;
-    b32 is_animating;
-    b32 consumed_l;
-    b32 consumed_r;
 };
 
 enum{

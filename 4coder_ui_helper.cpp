@@ -6,13 +6,85 @@
 
 // TODO(allen): documentation comment here
 
+////////////////////////////////
+
+typedef u32 View_Get_UI_Flags;
+enum{
+    ViewGetUIFlag_KeepDataAsIs = 0,
+    ViewGetUIFlag_ClearData = 1,
+};
+
+static b32
+view_get_ui_data(Application_Links *app, View_ID view_id, View_Get_UI_Flags flags, UI_Data **ui_data_out, Arena **ui_arena_out){
+    b32 result = false;
+    Managed_Scope scope = 0;
+    if (view_get_managed_scope(app, view_id, &scope)){
+        Managed_Object ui_data_object = 0;
+        if (managed_variable_get(app, scope, view_ui_data, &ui_data_object)){
+            if (ui_data_object == 0){
+                Managed_Object new_ui_data_object = alloc_managed_memory_in_scope(app, scope, sizeof(UI_Storage), 1);
+                Managed_Object arena_object = alloc_managed_arena_in_scope(app, scope, (8 << 10));
+                Arena *arena = 0;
+                if (managed_object_load_data(app, arena_object, 0, 1, &arena)){
+                    UI_Data *ui_data = push_array(arena, UI_Data, 1);
+                    UI_Storage storage = {};
+                    storage.data = ui_data;
+                    storage.arena = arena;
+                    storage.arena_object = arena_object;
+                    storage.temp = begin_temp_memory(arena);
+                    if (managed_object_store_data(app, new_ui_data_object, 0, 1, &storage)){
+                        if (managed_variable_set(app, scope, view_ui_data, new_ui_data_object)){
+                            ui_data_object = new_ui_data_object;
+                        }
+                    }
+                }
+            }
+            if (ui_data_object != 0){
+                UI_Storage storage = {};
+                if (managed_object_load_data(app, ui_data_object, 0, 1, &storage)){
+                    *ui_data_out = storage.data;
+                    *ui_arena_out = storage.arena;
+                    if ((flags & ViewGetUIFlag_ClearData) != 0){
+                        end_temp_memory(storage.temp);
+                    }
+                    result = true;
+                }
+            }
+        }
+    }
+    return(result);
+}
+
+static b32
+view_clear_ui_data(Application_Links *app, View_ID view_id){
+    b32 result = false;
+    Managed_Scope scope = 0;
+    if (view_get_managed_scope(app, view_id, &scope)){
+        Managed_Object ui_data_object = 0;
+        if (managed_variable_get(app, scope, view_ui_data, &ui_data_object)){
+            if (ui_data_object != 0){
+                UI_Storage storage = {};
+                if (managed_object_load_data(app, ui_data_object, 0, 1, &storage)){
+                    managed_object_free(app, storage.arena_object);
+                    managed_object_free(app, ui_data_object);
+                    managed_variable_set(app, scope, view_ui_data, 0);
+                    result = true;
+                }
+            }
+        }
+    }
+    return(result);
+}
+
+////////////////////////////////
+
 static UI_Item*
-ui_list_add_item(Partition *arena, UI_List *list, UI_Item item){
-    UI_Item_Node *node = push_array(arena, UI_Item_Node, 1);
+ui_list_add_item(Arena *arena, UI_List *list, UI_Item item){
+    UI_Item *node = push_array(arena, UI_Item, 1);
+    memcpy(node, &item, sizeof(item));
     zdll_push_back(list->first, list->last, node);
     list->count += 1;
-    node->fixed = item;
-    return(&node->fixed);
+    return(node);
 }
 
 static i32_Rect
@@ -34,48 +106,44 @@ ui__rect_union(i32_Rect a, i32_Rect b){
     return(a);
 }
 
-static UI_Control
-ui_list_to_ui_control(Partition *arena, UI_List *list){
-    UI_Control control = {};
-    control.items = push_array(arena, UI_Item, list->count);
+static void
+ui_data_compute_bounding_boxes(UI_Data *ui_data){
     i32_Rect neg_inf_rect = {};
     neg_inf_rect.x0 = INT32_MAX;
     neg_inf_rect.y0 = INT32_MAX;
     neg_inf_rect.x1 = INT32_MIN;
     neg_inf_rect.y1 = INT32_MIN;
     for (uint32_t i = 0; i < UICoordinates_COUNT; ++i){
-        control.bounding_box[i] = neg_inf_rect;
+        ui_data->bounding_box[i] = neg_inf_rect;
     }
-    for (UI_Item_Node *node = list->first;
-         node != 0;
-         node = node->next){
-        UI_Item *item = &control.items[control.count++];
-        *item = node->fixed;
+    for (UI_Item *item = ui_data->list.first;
+         item != 0;
+         item = item->next){
         if (item->coordinates >= UICoordinates_COUNT){
             item->coordinates = UICoordinates_ViewSpace;
         }
-        control.bounding_box[item->coordinates] = ui__rect_union(control.bounding_box[item->coordinates], item->rectangle);
+        Rect_i32 *box = &ui_data->bounding_box[item->coordinates];
+        *box = ui__rect_union(*box, item->rect_outer);
     }
-    return(control);
 }
 
 static void
-ui_control_set_top(UI_Control *control, int32_t top_y){
-    control->bounding_box[UICoordinates_ViewSpace].y0 = top_y;
+ui_control_set_top(UI_Data *data, int32_t top_y){
+    data->bounding_box[UICoordinates_ViewSpace].y0 = top_y;
 }
 
 static void
-ui_control_set_bottom(UI_Control *control, int32_t bottom_y){
-    control->bounding_box[UICoordinates_ViewSpace].y1 = bottom_y;
+ui_control_set_bottom(UI_Data *data, int32_t bottom_y){
+    data->bounding_box[UICoordinates_ViewSpace].y1 = bottom_y;
 }
 
 static UI_Item*
-ui_control_get_mouse_hit(UI_Control *control, Vec2_i32 view_p, Vec2_i32 panel_p){
+ui_control_get_mouse_hit(UI_Data *data, Vec2_i32 view_p, Vec2_i32 panel_p){
     UI_Item *result = 0;
-    int32_t count = control->count;
-    UI_Item *item = control->items + count - 1;
-    for (int32_t i = 0; i < count && result == 0; ++i, item -= 1){
-        i32_Rect r = item->rectangle;
+    for (UI_Item *item = data->list.first;
+         item != 0 && result == 0;
+         item = item->next){
+        i32_Rect r = item->rect_outer;
         switch (item->coordinates){
             case UICoordinates_ViewSpace:
             {
@@ -95,12 +163,8 @@ ui_control_get_mouse_hit(UI_Control *control, Vec2_i32 view_p, Vec2_i32 panel_p)
 }
 
 static UI_Item*
-ui_control_get_mouse_hit(UI_Control *control,
-                         int32_t mx_scrolled, int32_t my_scrolled,
-                         int32_t mx_unscrolled, int32_t my_unscrolled){
-    return(ui_control_get_mouse_hit(control,
-                                    V2i32(mx_scrolled, my_scrolled),
-                                    V2i32(mx_unscrolled, my_unscrolled)));
+ui_control_get_mouse_hit(UI_Data *data, int32_t mx_scrolled, int32_t my_scrolled, int32_t mx_unscrolled, int32_t my_unscrolled){
+    return(ui_control_get_mouse_hit(data, V2i32(mx_scrolled, my_scrolled), V2i32(mx_unscrolled, my_unscrolled)));
 }
 
 ////////////////////////////////
@@ -221,20 +285,26 @@ init_lister_state(Application_Links *app, Lister_State *state, Heap *heap){
 UI_QUIT_FUNCTION(lister_quit_function){
     Lister_State *state = view_get_lister_state(&view);
     state->initialized = false;
+    view_clear_ui_data(app, view.view_id);
 }
 
 static UI_Item
-lister_get_clicked_item(Application_Links *app, View_Summary *view, Partition *scratch){
-    Temp_Memory temp = begin_temp_memory(scratch);
-    UI_Control control = view_get_ui_copy(app, view, scratch);
-    Mouse_State mouse = get_mouse_state(app);
-    Vec2_i32 region_p0 = view->file_region.p0;
-    Vec2_i32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, V2i32(view->scroll_vars.scroll_p));
-    Vec2_i32 m_panel_space = get_mouse_position_in_panel_space(mouse, region_p0);
-    UI_Item *clicked = ui_control_get_mouse_hit(&control, m_view_space, m_panel_space);
+lister_get_clicked_item(Application_Links *app, View_ID view_id, Partition *scratch){
     UI_Item result = {};
-    if (clicked != 0){
-        result = *clicked;
+    Temp_Memory temp = begin_temp_memory(scratch);
+    UI_Data *ui_data = 0;
+    Arena *ui_arena = 0;
+    if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
+        View_Summary view = {};
+        get_view_summary(app, view_id, AccessAll, &view);
+        Mouse_State mouse = get_mouse_state(app);
+        Vec2_i32 region_p0 = view.file_region.p0;
+        Vec2_i32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, V2i32(view.scroll_vars.scroll_p));
+        Vec2_i32 m_panel_space = get_mouse_position_in_panel_space(mouse, region_p0);
+        UI_Item *clicked = ui_control_get_mouse_hit(ui_data, m_view_space, m_panel_space);
+        if (clicked != 0){
+            result = *clicked;
+        }
     }
     end_temp_memory(temp);
     return(result);
@@ -263,8 +333,7 @@ lister_get_block_height(int32_t line_height, bool32 is_theme_list){
 }
 
 static void
-lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
-                 Lister_State *state){
+lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view, Lister_State *state){
     bool32 is_theme_list = state->lister.data.theme_list;
     
     int32_t x0 = 0;
@@ -322,98 +391,134 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         substring_matches,
     };
     
-    UI_List list = {};
-    UI_Item *highlighted_item = 0;
-    UI_Item *hot_item = 0;
-    UI_Item *hovered_item = 0;
-    int32_t item_index_counter = 0;
-    for (int32_t array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
-        Lister_Node_Ptr_Array node_ptr_array = node_ptr_arrays[array_index];
-        for (int32_t node_index = 0; node_index < node_ptr_array.count; node_index += 1){
-            Lister_Node *node = node_ptr_array.node_ptrs[node_index];
-            
+    UI_Data *ui_data = 0;
+    Arena *ui_arena = 0;
+    if (view_get_ui_data(app, view->view_id, ViewGetUIFlag_ClearData, &ui_data, &ui_arena)){
+        memset(ui_data, 0, sizeof(*ui_data));
+        
+        UI_Item *highlighted_item = 0;
+        UI_Item *hot_item = 0;
+        UI_Item *hovered_item = 0;
+        int32_t item_index_counter = 0;
+        for (int32_t array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
+            Lister_Node_Ptr_Array node_ptr_array = node_ptr_arrays[array_index];
+            for (int32_t node_index = 0; node_index < node_ptr_array.count; node_index += 1){
+                Lister_Node *node = node_ptr_array.node_ptrs[node_index];
+                
+                i32_Rect item_rect = {};
+                item_rect.x0 = x0;
+                item_rect.y0 = y_pos;
+                item_rect.x1 = x1;
+                item_rect.y1 = y_pos + block_height;
+                y_pos = item_rect.y1;
+                
+                UI_Item item = {};
+                item.activation_level = UIActivation_None;
+                item.coordinates = UICoordinates_ViewSpace;
+                item.rect_outer = item_rect;
+                item.inner_margin = 3;
+                
+                if (!is_theme_list){
+                    Fancy_String_List list = {};
+                    push_fancy_string (ui_arena, &list, fancy_id(Stag_Default), node->string);
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Default), " ");
+                    push_fancy_string (ui_arena, &list, fancy_id(Stag_Pop2   ), node->status);
+                    item.lines[0] = list;
+                    item.line_count = 1;
+                }
+                else{
+                    //i32 style_index = node->index;
+                    
+                    String name = make_lit_string("name");
+                    item.lines[0] = fancy_string_list_single(push_fancy_string(ui_arena, fancy_id(Stag_Default), name));
+                    
+                    Fancy_String_List list = {};
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Keyword     ), "if ");
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Default     ), "(x < ");
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Int_Constant), "0");
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Default     ), ") { x = ");
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Int_Constant), "0");
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Default     ), "; } ");
+                    push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Comment     ), "// comment");
+                    item.lines[1] = list;
+                    
+                    item.line_count = 2;
+                }
+                
+                item.user_data = node->user_data;
+                
+                
+                UI_Item *item_ptr = ui_list_add_item(ui_arena, &ui_data->list, item);
+                if (hit_check(item_rect, view_m)){
+                    hovered_item = item_ptr;
+                }
+                if (state->item_index == item_index_counter){
+                    highlighted_item = item_ptr;
+                    state->raw_item_index = node->raw_index;
+                }
+                item_index_counter += 1;
+                if (node->user_data == state->hot_user_data && hot_item != 0){
+                    hot_item = item_ptr;
+                }
+            }
+        }
+        state->item_count_after_filter = item_index_counter;
+        
+        if (hovered_item != 0){
+            hovered_item->activation_level = UIActivation_Hover;
+        }
+        if (hot_item != 0){
+            if (hot_item == hovered_item){
+                hot_item->activation_level = UIActivation_Active;
+            }
+            else{
+                hot_item->activation_level = UIActivation_Hover;
+            }
+        }
+        if (highlighted_item != 0){
+            highlighted_item->activation_level = UIActivation_Active;
+        }
+        
+        if (state->set_view_vertical_focus_to_item){
+            if (highlighted_item != 0){
+                view_set_vertical_focus(app, view, highlighted_item->rect_outer.y0, highlighted_item->rect_outer.y1);
+            }
+            state->set_view_vertical_focus_to_item = false;
+        }
+        
+        {
             i32_Rect item_rect = {};
             item_rect.x0 = x0;
-            item_rect.y0 = y_pos;
+            item_rect.y0 = 0;
             item_rect.x1 = x1;
-            item_rect.y1 = y_pos + block_height;
+            item_rect.y1 = item_rect.y0 + text_field_height;
             y_pos = item_rect.y1;
             
             UI_Item item = {};
-            if (!is_theme_list){
-                item.type = UIType_Option;
-                item.option.string = node->string;
-                item.option.status = node->status;
+            item.activation_level = UIActivation_Active;
+            item.coordinates = UICoordinates_PanelSpace;
+            item.rect_outer = item_rect;
+            item.inner_margin = 0;
+            {
+                Fancy_String_List list = {};
+                push_fancy_string (ui_arena, &list, fancy_id(Stag_Pop1   ), state->lister.data.query);
+                push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Pop1   ), " ");
+                push_fancy_string (ui_arena, &list, fancy_id(Stag_Default), state->lister.data.text_field);
+                item.lines[0] = list;
+                item.line_count = 1;
             }
-            else{
-                item.type = UIType_ColorTheme;
-                item.color_theme.string = node->string;
-                item.color_theme.index = node->index;
-            }
-            item.activation_level = UIActivation_None;
-            item.coordinates = UICoordinates_ViewSpace;
-            item.user_data = node->user_data;
-            item.rectangle = item_rect;
+            item.user_data = 0;
             
-            UI_Item *item_ptr = ui_list_add_item(scratch, &list, item);
-            if (hit_check(item_rect, view_m)){
-                hovered_item = item_ptr;
-            }
-            if (state->item_index == item_index_counter){
-                highlighted_item = item_ptr;
-                state->raw_item_index = node->raw_index;
-            }
-            item_index_counter += 1;
-            if (node->user_data == state->hot_user_data && hot_item != 0){
-                hot_item = item_ptr;
-            }
+            
+            ui_list_add_item(ui_arena, &ui_data->list, item);
         }
-    }
-    state->item_count_after_filter = item_index_counter;
-    
-    if (hovered_item != 0){
-        hovered_item->activation_level = UIActivation_Hover;
-    }
-    if (hot_item != 0){
-        if (hot_item == hovered_item){
-            hot_item->activation_level = UIActivation_Active;
-        }
-        else{
-            hot_item->activation_level = UIActivation_Hover;
-        }
-    }
-    if (highlighted_item != 0){
-        highlighted_item->activation_level = UIActivation_Active;
-    }
-    
-    if (state->set_view_vertical_focus_to_item){
-        if (highlighted_item != 0){
-            view_set_vertical_focus(app, view, highlighted_item->rectangle.y0, highlighted_item->rectangle.y1);
-        }
-        state->set_view_vertical_focus_to_item = false;
-    }
-    
-    {
-        i32_Rect item_rect = {};
-        item_rect.x0 = x0;
-        item_rect.y0 = 0;
-        item_rect.x1 = x1;
-        item_rect.y1 = item_rect.y0 + text_field_height;
-        y_pos = item_rect.y1;
         
-        UI_Item item = {};
-        item.type = UIType_TextField;
-        item.activation_level = UIActivation_Active;
-        item.coordinates = UICoordinates_PanelSpace;
-        item.text_field.query = state->lister.data.query;
-        item.text_field.string = state->lister.data.text_field;
-        item.user_data = 0;
-        item.rectangle = item_rect;
-        ui_list_add_item(scratch, &list, item);
+        ui_data_compute_bounding_boxes(ui_data);
+        
+        // TODO(allen): what to do with control now?
+        //UI_Control control = ui_list_to_ui_control(scratch, &list);
+        view_set_quit_ui_handler(app, view->view_id, lister_quit_function);
     }
-    
-    UI_Control control = ui_list_to_ui_control(scratch, &list);
-    view_set_ui(app, view, &control, lister_quit_function);
     
     end_temp_memory(full_temp);
 }
@@ -508,18 +613,19 @@ lister_add_theme_item(Lister *lister, String string, int32_t index,
 
 static void*
 lister_get_user_data(Lister_Data *lister_data, int32_t index){
+    void *result = 0;
     if (0 <= index && index < lister_data->options.count){
         int32_t counter = 0;
         for (Lister_Node *node = lister_data->options.first;
              node != 0;
-             node = node->next){
+             node = node->next, counter += 1){
             if (counter == index){
-                return(node->user_data);
+                result = node->user_data;
+                break;
             }
-            counter += 1;
         }
     }
-    return(0);
+    return(result);
 }
 
 static void
