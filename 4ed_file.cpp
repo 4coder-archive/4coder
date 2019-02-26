@@ -66,7 +66,7 @@ file_get_access_flags(Editing_File *file){
 internal b32
 file_needs_save(Editing_File *file){
     b32 result = false;
-    if (file->state.dirty == DirtyState_UnsavedChanges){
+    if (HasFlag(file->state.dirty, DirtyState_UnsavedChanges)){
         result = true;
     }
     return(result);

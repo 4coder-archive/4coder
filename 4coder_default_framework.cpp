@@ -77,7 +77,7 @@ static View_Summary
 open_footer_panel(Application_Links *app, View_Summary *view){
     View_Summary special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, &special_view);
-    view_set_split_pixel_size(app, &special_view, (int32_t)(special_view.line_height*30.f));
+    view_set_split_pixel_size(app, &special_view, (int32_t)(special_view.line_height*20.f));
     view_set_passive(app, &special_view, true);
     return(special_view);
 }
@@ -309,7 +309,7 @@ CUSTOM_DOC("Switch to a named key binding map.")
 
 static void
 default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 override_hinting){
-    i32 part_size = (16 << 10);
+    i32 part_size = (32 << 20);
     void *part_mem = memory_allocate(app, part_size);
     global_part = make_part(part_mem, part_size);
     

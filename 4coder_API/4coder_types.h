@@ -245,12 +245,11 @@ system file still agrees with the buffer's state.) */
 the last sync point.) */
     DirtyState_UnsavedChanges = 1,
     
-    /* DOC(DirtyState_UnsavedChanges indicates that the underlying file has been edited since
+    /* DOC(DirtyStateUnloadedChanges indicates that the underlying file has been edited since
 the last sync point .) */
     DirtyState_UnloadedChanges = 2,
     
-    /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the buffer since
-the last sync point and that the underlying file ahs been edited since the last sync point.) */
+    /* DOC(TODO) */
     DirtyState_UnsavedChangesAndUnloadedChanges = 3,
 };
 
@@ -347,13 +346,13 @@ ENUM(int32_t, Panel_Split_Kind){
 };
 
 ENUM(int32_t, Panel_Split_Orientation){
-    PanelSplit_LeftAndRight,
-    PanelSplit_TopAndBottom,
+    PanelSplit_LeftAndRight = 0,
+    PanelSplit_TopAndBottom = 1,
 };
 
 ENUM(int32_t, Panel_Child){
-    PanelChild_Min,
-    PanelChild_Max,
+    PanelChild_Min = 0,
+    PanelChild_Max = 1,
 };
 
 /* DOC(Key_Code is the alias for key codes including raw codes and codes translated to textual input that takes modifiers into account.) */

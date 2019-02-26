@@ -311,13 +311,15 @@ open_view(Application_Links *app, View_Summary *view_location, View_Split_Positi
     if (view_location != 0 && view_location->exists){
         Panel_ID panel_id = 0;
         if (view_get_panel(app, view_location->view_id, &panel_id)){
-            bool32 vertical = (position == ViewSplit_Left || position == ViewSplit_Right);
+            b32 vertical = (position == ViewSplit_Left || position == ViewSplit_Right);
             if (panel_split(app, panel_id, vertical?PanelSplit_LeftAndRight:PanelSplit_TopAndBottom)){
-                Panel_ID left_panel_id = 0;
-                if (panel_get_child(app, panel_id, PanelChild_Min, &left_panel_id)){
+                Panel_ID new_panel_id = 0;
+                Panel_Child child = (position == ViewSplit_Left || position == ViewSplit_Top)?PanelChild_Min:PanelChild_Max;
+                if (panel_get_child(app, panel_id, child, &new_panel_id)){
                     View_ID new_view_id = 0;
-                    if (panel_get_view(app, left_panel_id, &new_view_id)){
-                        get_view_summary(app, new_view_id, AccessAll, view_location);
+                    if (panel_get_view(app, new_panel_id, &new_view_id)){
+                        get_view_summary(app, new_view_id, AccessAll, &view);
+                        get_view_summary(app, view_location->view_id, AccessAll, view_location);
                     }
                 }
             }
@@ -377,14 +379,28 @@ enum{
     ViewSplitKind_FixedPixels,
 };
 
-static bool32
+static b32
 view_set_split(Application_Links *app, View_Summary *view, View_Split_Kind kind, float t){
-    bool32 result = false;
+    b32 result = false;
     if (view != 0 && view->exists){
         Panel_ID panel_id = 0;
         if (view_get_panel(app, view->view_id, &panel_id)){
-            result = panel_set_split(app, panel_id, kind, t);
-            get_view_summary(app, view->view_id, AccessAll, view);
+            Panel_ID parent_panel_id = 0;
+            if (panel_get_parent(app, panel_id, &parent_panel_id)){
+                Panel_ID min_child_id = 0;
+                if (panel_get_child(app, parent_panel_id, PanelChild_Min, &min_child_id)){
+                    b32 panel_is_min = (min_child_id == panel_id);
+                    Panel_Split_Kind panel_kind = 0;
+                    if (kind == ViewSplitKind_Ratio){
+                        panel_kind = panel_is_min?PanelSplitKind_Ratio_Min:PanelSplitKind_Ratio_Max;
+                    }
+                    else{
+                        panel_kind = panel_is_min?PanelSplitKind_FixedPixels_Min:PanelSplitKind_FixedPixels_Max;
+                    }
+                    result = panel_set_split(app, parent_panel_id, panel_kind, t);
+                    get_view_summary(app, view->view_id, AccessAll, view);
+                }
+            }
         }
     }
     return(result);

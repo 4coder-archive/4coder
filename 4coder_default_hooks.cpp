@@ -303,7 +303,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
                 record->first = i + on_screen_range.first;
                 record->one_past_last = record->first + 4;
-                record->color = Stag_COUNT + 1;
+                record->color = Stag_Text_Cycle_2;
                 tail.str += 3;
                 tail.size -= 3;
                 i += 3;
@@ -312,7 +312,7 @@ default_buffer_render_caller(Application_Links *app, View_ID view_id, Range on_s
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
                 record->first = i + on_screen_range.first;
                 record->one_past_last = record->first + 4;
-                record->color = Stag_COUNT + 10;
+                record->color = Stag_Text_Cycle_1;
                 tail.str += 3;
                 tail.size -= 3;
                 i += 3;
@@ -640,7 +640,7 @@ HOOK_SIG(default_exit){
     for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
          buffer.exists;
          get_buffer_next(app, &buffer, AccessAll)){
-        if (buffer.dirty & DirtyState_UnsavedChanges){
+        if (HasFlag(buffer.dirty, DirtyState_UnsavedChanges)){
             has_unsaved_changes = true;
             break;
         }
@@ -655,7 +655,6 @@ HOOK_SIG(default_exit){
     return(1);
 }
 
-// TODO(allen): call this hook when a view's buffer is set.
 // TODO(allen): how to deal with multiple sizes on a single view
 // TODO(allen): expected character advance.
 HOOK_SIG(default_view_adjust){
@@ -679,32 +678,6 @@ HOOK_SIG(default_view_adjust){
     }
     return(0);
 }
-
-#if 0
-{
-    int32_t count = 0;
-    int32_t new_wrap_width = 0;
-    for (View_Summary view = get_view_first(app, AccessAll);
-         view.exists;
-         get_view_next(app, &view, AccessAll)){
-        new_wrap_width += view.view_region.x1 - view.view_region.x0;
-        ++count;
-    }
-    
-    new_wrap_width /= count;
-    new_wrap_width = (int32_t)(new_wrap_width * .9f);
-    
-    int32_t new_min_base_width = (int32_t)(new_wrap_width * .77f);
-    if (global_config.automatically_adjust_wrapping){
-        adjust_all_buffer_wrap_widths(app, new_wrap_width, new_min_base_width);
-        global_config.default_wrap_width = new_wrap_width;
-        global_config.default_min_base_width = new_min_base_width;
-    }
-    
-    // no meaning for return
-    return(0);
-}
-#endif
 
 BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
     if (conflict_count > 1){
