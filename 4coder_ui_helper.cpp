@@ -176,11 +176,12 @@ view_zero_scroll(Application_Links *app, View_Summary *view){
 }
 
 static void
-view_set_vertical_focus(Application_Links *app, View_Summary *view,
-                        i32 y_top, i32 y_bot){
+view_set_vertical_focus(Application_Links *app, View_Summary *view, i32 y_top, i32 y_bot){
+    Rect_i32 buffer_region = {};
+    view_get_buffer_region(app, view->view_id, &buffer_region);
     GUI_Scroll_Vars scroll = view->scroll_vars;
     i32 view_y_top = scroll.target_y;
-    i32 view_y_dim = view->file_region.y1 - view->file_region.y0;
+    i32 view_y_dim = rect_height(buffer_region);
     i32 view_y_bot = view_y_top + view_y_dim;
     i32 line_dim = (i32)view->line_height;
     i32 hot_y_top = view_y_top + line_dim*3;
@@ -298,7 +299,9 @@ lister_get_clicked_item(Application_Links *app, View_ID view_id, Partition *scra
         View_Summary view = {};
         get_view_summary(app, view_id, AccessAll, &view);
         Mouse_State mouse = get_mouse_state(app);
-        Vec2_i32 region_p0 = view.file_region.p0;
+        Rect_i32 buffer_region = {};
+        view_get_buffer_region(app, view_id, &buffer_region);
+        Vec2_i32 region_p0 = buffer_region.p0;
         Vec2_i32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, V2i32(view.scroll_vars.scroll_p));
         Vec2_i32 m_panel_space = get_mouse_position_in_panel_space(mouse, region_p0);
         UI_Item *clicked = ui_control_get_mouse_hit(ui_data, m_view_space, m_panel_space);
@@ -337,17 +340,18 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     b32 is_theme_list = state->lister.data.theme_list;
     
     i32 x0 = 0;
-    i32 x1 = view->view_region.x1 - view->view_region.x0;
+    i32 x1 = rect_width(view->view_region);
     i32 line_height = lister_get_line_height(view);
     i32 block_height = lister_get_block_height(line_height, is_theme_list);
     i32 text_field_height = lister_get_text_field_height(view);
     
     Temp_Memory full_temp = begin_temp_memory(scratch);
     
-    refresh_view(app, view);
-    Vec2_i32 view_m = get_mouse_position_in_view_space(app, view->file_region.p0,
-                                                       V2i32(view->scroll_vars.scroll_p));
+    Rect_i32 buffer_region = {};
+    view_get_buffer_region(app, view->view_id, &buffer_region);
+    Vec2_i32 view_m = get_mouse_position_in_view_space(app, buffer_region.p0, V2i32(view->scroll_vars.scroll_p));
     
+    refresh_view(app, view);
     i32 y_pos = text_field_height;
     
     state->raw_item_index = -1;

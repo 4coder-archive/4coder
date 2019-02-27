@@ -23,8 +23,7 @@ START_HOOK_SIG(default_start){
     named_maps = named_maps_values;
     named_map_count = ArrayCount(named_maps_values);
     
-    default_4coder_initialize(app);
-    
+    default_4coder_initialize(app, files, file_count);
     default_4coder_side_by_side_panels(app, files, file_count);
     
 #if 0
@@ -91,11 +90,9 @@ COMMAND_CALLER_HOOK(default_command_caller){
         }
     }
     
-    ////
-    exec_command(app, cmd);
-    ////
+    cmd.command(app);
     
-    uint64_t next_rewrite = 0;
+    u64 next_rewrite = 0;
     managed_variable_get(app, scope, view_next_rewrite_loc, &next_rewrite);
     managed_variable_set(app, scope, view_rewrite_loc, next_rewrite);
     if (fcoder_mode == FCoderMode_NotepadLike){
@@ -103,7 +100,7 @@ COMMAND_CALLER_HOOK(default_command_caller){
              view_it.exists;
              get_view_next(app, &view_it, AccessAll)){
             Managed_Scope scope_it = view_get_managed_scope(app, view_it.view_id);
-            uint64_t val = 0;
+            u64 val = 0;
             if (managed_variable_get(app, scope_it, view_snap_mark_to_cursor, &val)){
                 if (val != 0){
                     view_set_mark(app, &view_it, seek_pos(view_it.cursor.pos));
@@ -253,7 +250,6 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
         default_colors[Stag_Highlight_White] = 0xFF003A3A;
         
         default_colors[Stag_Bar]        = 0xFF888888;
-        default_colors[Stag_Bar_Active] = 0xFF666666;
         default_colors[Stag_Base]       = 0xFF000000;
         default_colors[Stag_Pop1]       = 0xFF3C57DC;
         default_colors[Stag_Pop2]       = 0xFFFF0000;
@@ -274,6 +270,35 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
     return(color_table);
 }
 
+GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
+    View_Summary view = {};
+    get_view_summary(app, view_id, AccessAll, &view);
+    i32 line_height = ceil32(view.line_height);
+    
+    // file bar
+    {
+        b32 showing_file_bar = false;
+        if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
+            if (showing_file_bar){
+                sub_region.y0 += line_height + 2;
+            }
+        }
+    }
+    
+    // query bar
+    {
+        Query_Bar *space[32];
+        Query_Bar_Ptr_Array query_bars = {};
+        query_bars.ptrs = space;
+        if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
+            i32 widget_height = (line_height + 2)*query_bars.count;
+            sub_region.y0 += widget_height;
+        }
+    }
+    
+    return(sub_region);
+}
+
 static void
 default_buffer_render_caller(Application_Links *app, Render_Parameters render_params){
     View_Summary view = get_view(app, render_params.view_id, AccessAll);
@@ -281,12 +306,117 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
     View_Summary active_view = get_active_view(app, AccessAll);
     b32 is_active_view = (active_view.view_id == render_params.view_id);
     
+    f32 line_height = view.line_height;
+    
+    Arena arena = make_arena(app);
     static Managed_Scope render_scope = 0;
     if (render_scope == 0){
         render_scope = create_user_managed_scope(app);
     }
     
     Partition *scratch = &global_part;
+    
+    {
+        f32 y_cursor = 0;
+        f32 x_min = (f32)view.render_region.x0;
+        f32 x_max = (f32)view.render_region.x1;
+        
+        // NOTE(allen): Filebar
+        {
+            b32 showing_file_bar = false;
+            if (view_get_setting(app, render_params.view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
+                if (showing_file_bar){
+                    Rect_f32 bar = {};
+                    bar.x0 = x_min;
+                    bar.x1 = x_max;
+                    bar.y0 = y_cursor;
+                    bar.y1 = bar.y0 + line_height + 2.f;
+                    y_cursor = bar.y1;
+                    
+                    draw_rectangle(app, bar, Stag_Bar);
+                    
+                    Fancy_Color base_color = fancy_id(Stag_Base);
+                    Fancy_Color pop2_color = fancy_id(Stag_Pop2);
+                    
+                    Temp_Memory_Arena temp = begin_temp_memory(&arena);
+                    Fancy_String_List list = {};
+                    push_fancy_string (&arena, &list, base_color, make_string(buffer.buffer_name, buffer.buffer_name_len));
+                    push_fancy_stringf(&arena, &list, base_color, " - C#%d -", view.cursor.character);
+                    
+                    b32 is_dos_mode = false;
+                    if (buffer_get_setting(app, buffer.buffer_id, BufferSetting_Eol, &is_dos_mode)){
+                        if (is_dos_mode){
+                            push_fancy_string(&arena, &list, base_color, make_lit_string(" dos"));
+                        }
+                        else{
+                            push_fancy_string(&arena, &list, base_color, make_lit_string(" nix"));
+                        }
+                    }
+                    else{
+                        push_fancy_string(&arena, &list, base_color, make_lit_string(" ???"));
+                    }
+                    
+                    {
+                        Dirty_State dirty = buffer.dirty;
+                        char space[3];
+                        String str = make_fixed_width_string(space);
+                        if (dirty != 0){
+                            append(&str, " ");
+                        }
+                        if (HasFlag(dirty, DirtyState_UnsavedChanges)){
+                            append(&str, "*");
+                        }
+                        if (HasFlag(dirty, DirtyState_UnloadedChanges)){
+                            append(&str, "!");
+                        }
+                        push_fancy_string(&arena, &list, pop2_color, str);
+                    }
+                    
+                    Face_ID font_id = 0;
+                    get_face_id(app, view.buffer_id, &font_id);
+                    Vec2 p = bar.p0 + V2(0.f, 2.f);
+                    draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0);
+                    
+                    end_temp_memory(temp);
+                }
+            }
+        }
+        
+        // NOTE(allen): Query Bars
+        {
+            Query_Bar *space[32];
+            Query_Bar_Ptr_Array query_bars = {};
+            query_bars.ptrs = space;
+            if (get_active_query_bars(app, render_params.view_id, ArrayCount(space), &query_bars)){
+                for (i32 i = 0; i < query_bars.count; i += 1){
+                    Query_Bar *query_bar = query_bars.ptrs[i];
+                    
+                    Rect_f32 bar = {};
+                    bar.x0 = x_min;
+                    bar.x1 = x_max;
+                    bar.y0 = y_cursor;
+                    bar.y1 = bar.y0 + line_height + 2.f;
+                    y_cursor = bar.y1;
+                    
+                    Temp_Memory_Arena temp = begin_temp_memory(&arena);
+                    Fancy_String_List list = {};
+                    
+                    Fancy_Color default_color = fancy_id(Stag_Default);
+                    Fancy_Color pop1_color = fancy_id(Stag_Pop1);
+                    
+                    push_fancy_string(&arena, &list, pop1_color   , query_bar->prompt);
+                    push_fancy_string(&arena, &list, default_color, query_bar->string);
+                    
+                    Face_ID font_id = 0;
+                    get_face_id(app, view.buffer_id, &font_id);
+                    Vec2 p = bar.p0 + V2(0.f, 2.f);
+                    draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0);
+                    
+                    end_temp_memory(temp);
+                }
+            }
+        }
+    }
     
     // NOTE(allen): Scan for TODOs and NOTEs
     {
@@ -493,7 +623,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
         draw_rectangle_outline(app, hud_rect, 0xFFFFFFFF);
         
         Face_ID font_id = 0;
-        get_face_id(app, 0, &font_id);
+        get_face_id(app, view.buffer_id, &font_id);
         
         Vec2 p = hud_rect.p0;
         
@@ -509,8 +639,6 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                 dts[0] = history_literal_dt[j];
                 dts[1] = history_animation_dt[j];
                 i32 frame_index = history_frame_index[j];
-                
-                Arena arena = make_arena(app);
                 
                 char space[256];
                 String str = make_fixed_width_string(space);
@@ -538,11 +666,11 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                 
                 draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
                 
-                arena_release_all(&arena);
             }
         }
     }
     
+    arena_release_all(&arena);
     managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 
@@ -1109,6 +1237,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);
     set_modify_color_table_hook(context, default_modify_color_table);
+    set_get_view_buffer_region_hook(context, default_view_buffer_region);
 }
 
 // BOTTOM

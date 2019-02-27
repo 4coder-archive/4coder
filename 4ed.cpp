@@ -78,11 +78,11 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->file_data.file != file){
+        if (view->file != file){
             continue;
         }
         Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos));
-        view_set_cursor(system, view, cursor, true);
+        view_set_cursor(system, models, view, cursor, true);
         view->mark = cursor.pos;
     }
 }
@@ -397,6 +397,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                     models->modify_color_table = (Modify_Color_Table_Function*)unit->hook.func;
                                 }break;
                                 
+                                case special_hook_get_view_buffer_region:
+                                {
+                                    models->get_view_buffer_region = (Get_View_Buffer_Region_Function*)unit->hook.func;
+                                }break;
+                                
                                 case special_hook_input_filter:
                                 {
                                     models->input_filter = (Input_Filter_Function*)unit->hook.func;
@@ -502,7 +507,6 @@ fill_hardcode_default_style(Color_Table color_table){
     color_table.vals[Stag_Highlight_White] = 0xff003a3a;
     
     color_table.vals[Stag_Bar]        = 0xFF888888;
-    color_table.vals[Stag_Bar_Active] = 0xFF666666;
     color_table.vals[Stag_Base]       = 0xFF000000;
     color_table.vals[Stag_Pop1]       = 0xFF3C57DC;
     color_table.vals[Stag_Pop2]       = 0xFFFF0000;
@@ -918,9 +922,7 @@ App_Init_Sig(app_init){
     // NOTE(allen): setup first panel
     {
         Panel *panel = layout_initialize(part, &models->layout);
-        View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set);
-        panel->view = new_view;
-        new_view->panel = panel;
+        View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, panel);
         view_set_file(system, models, new_view, models->scratch_buffer);
     }
     
@@ -1136,6 +1138,17 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): First frame initialization
     if (input->first_step){
+        if (models->hook_start != 0){
+            char **files = models->settings.init_files;
+            i32 files_count = models->settings.init_files_count;
+            
+            char **flags = models->settings.custom_flags;
+            i32 flags_count = models->settings.custom_flags_count;
+            
+            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
+        }
+        
+#if 0
         // Open command line files.
         char space[512];
         String cl_file_name = make_fixed_width_string(space);
@@ -1146,8 +1159,7 @@ App_Step_Sig(app_step){
             
             String file_name = {};
             Editing_File_Name canon_name = {};
-            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]),
-                               &canon_name)){
+            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]), &canon_name)){
                 file_name = canon_name.name;
             }
             else{
@@ -1158,17 +1170,7 @@ App_Step_Sig(app_step){
             Buffer_ID id = 0;
             create_buffer(&models->app_links, file_name, 0, &id);
         }
-        
-        if (models->hook_start != 0){
-            char **files = models->settings.init_files;
-            i32 files_count = models->settings.init_files_count;
-            
-            char **flags = models->settings.custom_flags;
-            i32 flags_count = models->settings.custom_flags_count;
-            
-            
-            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
-        }
+#endif
     }
     
     // NOTE(allen): consume event stream
@@ -1325,7 +1327,7 @@ App_Step_Sig(app_step){
             
             if (memcmp(scroll_vars, &new_scroll, sizeof(*scroll_vars)) != 0){
                 if (file_scroll){
-                    view_set_scroll(system, view, new_scroll);
+                    view_set_scroll(system, models, view, new_scroll);
                 }
                 else{
                     *scroll_vars = new_scroll;

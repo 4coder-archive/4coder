@@ -207,11 +207,11 @@ CUSTOM_COMMAND_SIG(multi_paste){
         View_Summary view = get_active_view(app, access);
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         
-        uint64_t rewrite = 0;
+        u64 rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
         if (rewrite == RewritePaste){
             managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
-            uint64_t prev_paste_index = 0;
+            u64 prev_paste_index = 0;
             managed_variable_get(app, scope, view_paste_index_loc, &prev_paste_index);
             i32 paste_index = (i32)prev_paste_index + 1;
             managed_variable_set(app, scope, view_paste_index_loc, paste_index);

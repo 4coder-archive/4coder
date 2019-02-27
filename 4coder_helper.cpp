@@ -144,6 +144,15 @@ set_modify_color_table_hook(Bind_Helper *helper, Modify_Color_Table_Function *fu
 }
 
 static void
+set_get_view_buffer_region_hook(Bind_Helper *helper, Get_View_Buffer_Region_Function *func){
+    Binding_Unit unit = {};
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_get_view_buffer_region;
+    unit.hook.func = (void*)func;
+    write_unit(helper, unit);
+}
+
+static void
 set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;

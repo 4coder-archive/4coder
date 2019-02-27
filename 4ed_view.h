@@ -12,25 +12,15 @@
 #if !defined(FRED_VIEW_H)
 #define FRED_VIEW_H
 
-struct File_Viewing_Data{
-    Editing_File *file;
-    b32 show_whitespace;
-    b32 file_locked;
-};
-
 struct View{
     struct View *next;
     struct View *prev;
     struct Panel *panel;
     b32 in_use;
     
-    File_Viewing_Data file_data;
+    Editing_File *file;
     Lifetime_Object *lifetime_object;
     
-    i32_Rect file_region_prev;
-    i32_Rect file_region;
-    
-    i32_Rect scroll_region;
     File_Edit_Positions edit_pos_;
     i32 mark;
     f32 preferred_x;
@@ -47,6 +37,7 @@ struct View{
     
     b32 hide_scrollbar;
     b32 hide_file_bar;
+    b32 show_whitespace;
     
     // misc
     
@@ -55,7 +46,9 @@ struct View{
     i32 line_height;
     
     Query_Set query_set;
+#if 0
     f32 widget_height;
+#endif
 };
 
 struct Live_Views{

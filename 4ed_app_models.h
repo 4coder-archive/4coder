@@ -56,6 +56,7 @@ struct Models{
     Scroll_Rule_Function *scroll_rule;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
     Modify_Color_Table_Function *modify_color_table;
+    Get_View_Buffer_Region_Function *get_view_buffer_region;
     
     Color_Table fallback_color_table;
     Color_Table color_table;
@@ -111,7 +112,8 @@ struct Models{
     // Render Context
     Render_Target *target;
     View *render_view;
-    i32_Rect render_rect;
+    i32_Rect render_view_rect;
+    i32_Rect render_buffer_rect;
     Full_Cursor render_cursor;
     Range render_range;
     Buffer_Render_Item *render_items;

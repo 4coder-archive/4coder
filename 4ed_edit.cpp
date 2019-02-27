@@ -26,7 +26,7 @@ edit_pre_state_change(System_Functions *system, Heap *heap, Models *models, Edit
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->file_data.file == file){
+        if (view->file == file){
             Full_Cursor render_cursor = view_get_render_cursor(system, view);
             Full_Cursor target_cursor = view_get_render_cursor_target(system, view);
             view->temp_view_top_left_pos        = render_cursor.pos;
@@ -133,7 +133,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->file_data.file == file){
+        if (view->file == file){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
             write_cursor_with_index(cursors, &cursor_count, edit_pos.cursor_pos);
             write_cursor_with_index(cursors, &cursor_count, view->mark);
@@ -180,7 +180,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
              panel != 0;
              panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
-            if (view->file_data.file == file){
+            if (view->file == file){
                 i32 cursor_pos = cursors[cursor_count++].pos;
                 Full_Cursor new_cursor = file_compute_cursor(system, file, seek_pos(cursor_pos));
                 
@@ -215,7 +215,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                     scroll.target_y = edit_fix_markers__compute_scroll_y(line_height, scroll.target_y, new_y_val_aligned);
                 }
                 
-                view_set_cursor_and_scroll(view, new_cursor, true, scroll);
+                view_set_cursor_and_scroll(models, view, new_cursor, true, scroll);
             }
         }
         
@@ -461,12 +461,12 @@ edit_clear(System_Functions *system, Models *models, Editing_File *file){
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
-        if (view->file_data.file == file){
+        if (view->file == file){
             Full_Cursor cursor = {};
             cursor.line = 1;
             cursor.character = 1;
             cursor.wrap_line = 1;
-            view_set_cursor(system, view, cursor, true);
+            view_set_cursor(system, models, view, cursor, true);
             no_views_see_file = false;
         }
     }

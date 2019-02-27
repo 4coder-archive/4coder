@@ -44,12 +44,12 @@ struct Panel{
     
     union{
         struct{
-            i32_Rect rect_full;
-            i32_Rect rect_inner;
+            Rect_i32 rect_full;
+            Rect_i32 rect_inner;
         } screen_region;
         struct{
-            i32_Rect rect_full;
-            i32_Rect rect_inner;
+            Rect_i32 rect_full;
+            Rect_i32 rect_inner;
         };
     };
 };

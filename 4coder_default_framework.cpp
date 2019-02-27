@@ -62,13 +62,13 @@ new_view_settings(Application_Links *app, View_Summary *view){
 static void
 view_set_passive(Application_Links *app, View_Summary *view, b32 value){
     Managed_Scope scope = view_get_managed_scope(app, view->view_id);
-    managed_variable_set(app, scope, view_is_passive_loc, (uint64_t)value);
+    managed_variable_set(app, scope, view_is_passive_loc, (u64)value);
 }
 
 static b32
 view_get_is_passive(Application_Links *app, View_Summary *view){
     Managed_Scope scope = view_get_managed_scope(app, view->view_id);
-    uint64_t is_passive = 0;
+    u64 is_passive = 0;
     managed_variable_get(app, scope, view_is_passive_loc, &is_passive);
     return(is_passive != 0);
 }
@@ -308,7 +308,7 @@ CUSTOM_DOC("Switch to a named key binding map.")
 ////////////////////////////////
 
 static void
-default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 override_hinting){
+default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count, i32 override_font_size, b32 override_hinting){
     i32 part_size = (32 << 20);
     void *part_mem = memory_allocate(app, part_size);
     global_part = make_part(part_mem, part_size);
@@ -321,8 +321,8 @@ default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 ov
     static char message[] =
         "Welcome to " VERSION "\n"
         "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
-        "Direct bug reports to editor@4coder.net for maximum reply speed\n"
-        "Questions or requests can go to editor@4coder.net or to 4coder.handmade.network\n"
+        "Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n"
+        "Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n"
         "The change log can be found in CHANGES.txt\n"
         "\n";
     print_message(app, message, sizeof(message) - 1);
@@ -338,12 +338,42 @@ default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 ov
     view_is_passive_loc      = managed_variable_create_or_get_id(app, "DEFAULT.is_passive"    , 0);
     view_snap_mark_to_cursor = managed_variable_create_or_get_id(app, "DEFAULT.mark_to_cursor", 0);
     view_ui_data             = managed_variable_create_or_get_id(app, "DEFAULT.ui_data"       , 0);
+    
+    // open command line files
+    Temp_Memory temp = begin_temp_memory(&global_part);
+    char *space = push_array(&global_part, char, (32 << 10));
+    String file_name = make_string_cap(space, 0, (32 << 10));
+    i32 hot_directory_length = 0;
+    if (get_hot_directory(app, &file_name, &hot_directory_length)){
+        for (i32 i = 0; i < file_count; i += 1){
+            String input_name = make_string_slowly(command_line_files[i]);
+            file_name.size = hot_directory_length;
+            append(&file_name, input_name);
+            Buffer_ID ignore = 0;
+            if (!create_buffer(app, file_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile, &ignore)){
+                create_buffer(app, input_name, 0, &ignore);
+            }
+        }
+    }
+    
+    end_temp_memory(temp);
+}
+
+static void
+default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 override_hinting){
+    default_4coder_initialize(app, 0, 0, override_font_size, override_hinting);
+}
+
+static void
+default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count){
+    Face_Description command_line_description = get_face_description(app, 0);
+    default_4coder_initialize(app, command_line_files, file_count, command_line_description.pt_size, command_line_description.hinting);
 }
 
 static void
 default_4coder_initialize(Application_Links *app){
     Face_Description command_line_description = get_face_description(app, 0);
-    default_4coder_initialize(app, command_line_description.pt_size, command_line_description.hinting);
+    default_4coder_initialize(app, 0, 0, command_line_description.pt_size, command_line_description.hinting);
 }
 
 static void

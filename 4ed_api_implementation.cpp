@@ -47,32 +47,28 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 
 internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
-    File_Viewing_Data *data = &vptr->file_data;
-    
     block_zero_struct(view);
-    
     if (vptr->in_use){
+        Assert(vptr->file != 0);
+        
         view->exists = true;
         view->view_id = (i32)(vptr - live_set->views) + 1;
         view->line_height = (f32)(vptr->line_height);
-        view->unwrapped_lines = data->file->settings.unwrapped_lines;
-        view->show_whitespace = data->show_whitespace;
+        view->unwrapped_lines = vptr->file->settings.unwrapped_lines;
+        view->show_whitespace = vptr->show_whitespace;
         view->lock_flags = view_get_access_flags(vptr);
         
-        view->buffer_id = vptr->file_data.file->id.id;
+        view->buffer_id = vptr->file->id.id;
         
-        Assert(data->file != 0);
         File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
-        
-        view->mark    = file_compute_cursor(system, data->file, seek_pos(vptr->mark));
-        view->cursor  = file_compute_cursor(system, data->file, seek_pos(edit_pos.cursor_pos));
+        view->mark    = file_compute_cursor(system, vptr->file, seek_pos(vptr->mark));
+        view->cursor  = file_compute_cursor(system, vptr->file, seek_pos(edit_pos.cursor_pos));
         
         view->preferred_x = vptr->preferred_x;
         
-        view->view_region = vptr->panel->rect_inner;
-        i32_Rect file_region = vptr->file_region;
-        view->file_region = file_region;
-        view->render_region = i32R(0, 0, rect_width(file_region), rect_height(file_region));
+        Rect_i32 region = vptr->panel->rect_inner;
+        view->view_region = region;
+        view->render_region = i32R(0, 0, rect_width(region), rect_height(region));
         if (vptr->ui_mode){
             view->scroll_vars = vptr->ui_scroll;
         }
@@ -1145,14 +1141,17 @@ Buffer_Get_Token_Range(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     Cpp_Token_Array token_array = file->state.token_array;
+    b32 result = false;
     if (file != 0 && token_array.tokens != 0 && file->state.tokens_complete){
         *first_token_out = token_array.tokens;
         *one_past_last_token_out = token_array.tokens + token_array.count;
-        return(true);
+        result = true;
     }
-    *first_token_out = 0;
-    *one_past_last_token_out = 0;
-    return(false);
+    else{
+        *first_token_out = 0;
+        *one_past_last_token_out = 0;
+    }
+    return(result);
 }
 
 // TODO(allen): redocument
@@ -1170,12 +1169,15 @@ DOC_SEE(cpp_get_token)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     Cpp_Token_Array token_array = file->state.token_array;
+    b32 result = false;
     if (buffer_api_check_file_and_tokens(file)){
         *get_result = cpp_get_token(token_array, pos);
-        return(true);
+        result = true;
     }
-    block_zero_struct(get_result);
-    return(false);
+    else{
+        block_zero_struct(get_result);
+    }
+    return(result);
 }
 
 // TODO(allen): redocument
@@ -1189,11 +1191,12 @@ This is useful in cases such as clearing a buffer and refilling it with new cont
 */{
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
     if (buffer_api_check_file(file)){
         file_end_file(models, file);
-        return(true);
+        result = true;
     }
-    return(false);
+    return(result);
 }
 
 // TODO(allen): redocument
@@ -1429,9 +1432,9 @@ DOC_SEE(Buffer_Identifier)
                      panel != 0;
                      panel = layout_get_next_open_panel(layout, panel)){
                     View *view = panel->view;
-                    if (view->file_data.file == file){
+                    if (view->file == file){
                         Assert(file_node != used);
-                        view->file_data.file = 0;
+                        view->file = 0;
                         Editing_File *new_file = CastFromMember(Editing_File, main_chain_node, file_node);
                         view_set_file(system, models, view, new_file);
                         if (file_node->next != used){
@@ -1490,15 +1493,15 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                              panel != 0;
                              panel = layout_get_next_open_panel(layout, panel)){
                             View *view_it = panel->view;
-                            if (view_it->file_data.file != file){
+                            if (view_it->file != file){
                                 continue;
                             }
                             vptrs[vptr_count] = view_it;
                             File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
-                            Full_Cursor cursor = file_compute_cursor(system, view_it->file_data.file, seek_pos(edit_pos.cursor_pos));
+                            Full_Cursor cursor = file_compute_cursor(system, view_it->file, seek_pos(edit_pos.cursor_pos));
                             line_numbers[vptr_count]   = cursor.line;
                             column_numbers[vptr_count] = cursor.character;
-                            view_it->file_data.file = models->scratch_buffer;
+                            view_it->file = models->scratch_buffer;
                             ++vptr_count;
                         }
                         
@@ -1509,10 +1512,10 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         for (i32 i = 0; i < vptr_count; ++i){
                             view_set_file(system, models, vptrs[i], file);
                             
-                            vptrs[i]->file_data.file = file;
+                            vptrs[i]->file = file;
                             Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]));
                             
-                            view_set_cursor(system, vptrs[i], cursor, true);
+                            view_set_cursor(system, models, vptrs[i], cursor, true);
                         }
                         
                         *result = BufferReopenResult_Reopened;
@@ -1751,9 +1754,7 @@ Panel_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation o
         Panel *new_panel = 0;
         if (layout_split_panel(layout, panel, (orientation == PanelSplit_LeftAndRight), &new_panel)){
             Live_Views *live_set = &models->live_set;
-            View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, live_set);
-            new_panel->view = new_view;
-            new_view->panel = new_panel;
+            View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, live_set, new_panel);
             view_set_file(models->system, models, new_view, models->scratch_buffer);
             result = true;
         }
@@ -1914,6 +1915,18 @@ in the system, the call will fail.)
     return(result);
 }
 
+API_EXPORT b32
+View_Get_Buffer_Region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        *region_out = view_get_file_region(models, view);
+        result = true;
+    }
+    return(result);
+}
+
 // TODO(allen): redocument
 API_EXPORT b32
 View_Set_Active(Application_Links *app, View_ID view_id)
@@ -1953,7 +1966,7 @@ DOC_RETURN(returns non-zero on success)
         switch (setting){
             case ViewSetting_ShowWhitespace:
             {
-                *value_out = view->file_data.show_whitespace;
+                *value_out = view->show_whitespace;
             }break;
             
             case ViewSetting_ShowScrollbar:
@@ -1999,7 +2012,7 @@ DOC_SEE(View_Setting_ID)
         switch (setting){
             case ViewSetting_ShowWhitespace:
             {
-                view->file_data.show_whitespace = value;
+                view->show_whitespace = value;
             }break;
             
             case ViewSetting_ShowScrollbar:
@@ -2049,33 +2062,6 @@ If the view_id does not specify a valid view, the returned scope is null.)
 
 // TODO(allen): redocument
 API_EXPORT b32
-View_Get_Enclosure_Rect(Application_Links *app, View_ID view_id, i32_Rect *rect_out)
-/*
-DOC_PARAM(view, The view whose parent rent will be returned.)
-DOC_RETURN(The rectangle of the panel containing this view.)
-*/{
-    // TODO(allen): do(remove this from the API and put it in the custom helpers)
-    // we should just have full tree traversal API for the splits between views.
-    Models *models = (Models*)app->cmd_context;
-    View *view = imp_get_view(models, view_id);
-    if (view_api_check_view(view)){
-        Panel *panel = view->panel;
-        Assert(panel != 0);
-        Panel *parent = panel->parent;
-        if (parent != 0){
-            *rect_out = parent->rect_full;
-        }
-        else{
-            *rect_out = panel->rect_full;
-        }
-        return(true);
-    }
-    block_zero_struct(rect_out);
-    return(false);
-}
-
-// TODO(allen): redocument
-API_EXPORT b32
 View_Compute_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out)
 /*
 DOC_PARAM(view, The view parameter specifies the view on which to run the cursor computation.)
@@ -2091,7 +2077,7 @@ DOC_SEE(Full_Cursor)
 
     b32 result = false;
     if (view_api_check_view(view)){
-        Editing_File *file = view->file_data.file;
+        Editing_File *file = view->file;
         Assert(file != 0);
         if (buffer_api_check_file(file)){
             *cursor_out = file_compute_cursor(models->system, file, seek);
@@ -2118,14 +2104,13 @@ DOC_SEE(Buffer_Seek)
 */{
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-
     b32 result = false;
     if (view_api_check_view(view)){
-        Editing_File *file = view->file_data.file;
+        Editing_File *file = view->file;
         Assert(file != 0);
         if (buffer_api_check_file(file)){
             Full_Cursor cursor = file_compute_cursor(models->system, file, seek);
-            view_set_cursor(models->system, view, cursor, set_preferred_x);
+            view_set_cursor(models->system, models, view, cursor, set_preferred_x);
             result = true;
         }
     }
@@ -2143,14 +2128,13 @@ DOC_SEE(GUI_Scroll_Vars)
 */{
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-
     b32 result = false;
     if (view_api_check_view(view)){
-        Editing_File *file = view->file_data.file;
+        Editing_File *file = view->file;
         Assert(file != 0);
         if (buffer_api_check_file(file)){
             if (!view->ui_mode){
-                view_set_scroll(models->system, view, scroll);
+                view_set_scroll(models->system, models, view, scroll);
             }
             else{
                 view->ui_scroll = scroll;
@@ -2176,7 +2160,7 @@ DOC_SEE(Buffer_Seek)
 
     b32 result = false;
     if (view_api_check_view(view)){
-        Editing_File *file = view->file_data.file;
+        Editing_File *file = view->file;
         Assert(file != 0);
         if (buffer_api_check_file(file)){
             if (seek.type != buffer_seek_pos){
@@ -2210,7 +2194,7 @@ DOC_SEE(Set_Buffer_Flag)
     if (view_api_check_view(view)){
         Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
         if (buffer_api_check_file(file)){
-            if (file != view->file_data.file){
+            if (file != view->file){
                 view_set_file(models->system, models, view, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
                     view_quit_ui(models->system, models, view);
@@ -2542,7 +2526,7 @@ https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_
 }
 
 API_EXPORT Managed_Variable_ID
-Managed_Variable_Create(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+Managed_Variable_Create(Application_Links *app, char *null_terminated_name, u64 default_value)
 /*
 DOC_PARAM(null_terminated_name, The unique name for this managed variable.)
 DOC_PARAM(default_value, The default value that this variable will have in a scope that has not set this variable.)
@@ -2575,7 +2559,7 @@ DOC_SEE(managed_variable_create_or_get_id)
 }
 
 API_EXPORT Managed_Variable_ID
-Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_name, u64 default_value)
 /*
 DOC_PARAM(null_terminated_name, The unique name for this managed variable.)
 DOC_PARAM(default_value, The default value that this variable will have in a scope that has not set this variable.  This parameter is ignored if the variable already exists.)
@@ -2593,7 +2577,7 @@ DOC_SEE(managed_variable_get_id)
 }
 
 internal b32
-get_dynamic_variable__internal(Models *models, Managed_Scope handle, i32 location, uint64_t **ptr_out){
+get_dynamic_variable__internal(Models *models, Managed_Scope handle, i32 location, u64 **ptr_out){
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, handle);
@@ -2607,7 +2591,7 @@ get_dynamic_variable__internal(Models *models, Managed_Scope handle, i32 locatio
 }
 
 API_EXPORT b32
-Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value)
+Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value)
 /*
 DOC_PARAM(scope, A handle to the scope in which the value of the given variable will be set.)
 DOC_PARAM(id, The id of the variable to set.)
@@ -2625,7 +2609,7 @@ DOC_RETURN(Returns non-zero on success.  This call fails if scope does not refer
 }
 
 API_EXPORT b32
-Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out)
+Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out)
 /*
 DOC_PARAM(scope, A handle to the scope from which the value of the given variable will be queried.)
 DOC_PARAM(id, The id of the variable to get.)
@@ -3208,32 +3192,33 @@ DOC_SEE(Mouse_State)
     return(models->input->mouse);
 }
 
-API_EXPORT i32
-Get_Active_Query_Bars(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar **result_array)
+API_EXPORT b32
+Get_Active_Query_Bars(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array *array_out)
 /*
 DOC_PARAM(view_id, Specifies the view for which query bars should be retrieved.)
 DOC_PARAM(max_result_count, Specifies the number of Query_Bar pointers available in result_array.)
 DOC_PARAM(result_array, User-supplied empty array of max_result_count Query_Bar pointers.)
 DOC_RETURN(This call returns the number of Query_Bar pointers successfully placed in result_array.)
-DOC
-(
-This call allows the customization layer to inspect the set of active Query_Bar slots for a given
+DOC(This call allows the customization layer to inspect the set of active Query_Bar slots for a given
 view_id.  By convention, the most recent query will be entry 0, the next most recent 1, etc., such
 that if you only care about the most recent query bar, you can call Get_Active_Query_Bars with a
-max_result_count of 1 and be assured you will get the most recent bar if any exist.
-)
+max_result_count of 1 and be assured you will get the most recent bar if any exist.)
 */{
-    i32 result = 0;
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
+    b32 result = false;
     if (view != 0){
+        i32 count = 0;
+        Query_Bar **ptrs = array_out->ptrs;
         for (Query_Slot *slot = view->query_set.used_slot;
-             slot != 0 && (result < max_result_count);
+             slot != 0 && (count < max_result_count);
              slot = slot->next){
             if (slot->query_bar != 0){
-                result_array[result++] = slot->query_bar;
+                ptrs[count++] = slot->query_bar;
             }
         }
+        array_out->count = count;
+        result = true;
     }
     return(result);
 }
@@ -3246,14 +3231,11 @@ until end_query_bar or the end of the command.  It is commonly a good idea to ma
 this a pointer to a Query_Bar stored on the stack.)
 DOC_PARAM(flags, This parameter is not currently used and should be 0 for now.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC
-(
-This call tells the active view to begin displaying a "Query_Bar" which is a small
+DOC(This call tells the active view to begin displaying a "Query_Bar" which is a small
 GUI element that can overlap a buffer or other 4coder GUI.  The contents of the bar
 can be changed after the call to start_query_bar and the query bar shown by 4coder
 will reflect the change.  Since the bar stops showing when the command exits the
-only use for this call is in an interactive command that makes calls to get_user_input.
-)
+only use for this call is in an interactive command that makes calls to get_user_input.)
 */{
     Models *models = (Models*)app->cmd_context;
     Panel *active_panel = layout_get_active_panel(&models->layout);
@@ -4212,7 +4194,7 @@ DOC(Returns a microsecond resolution timestamp.)
 
 internal Vec2
 draw_helper__view_space_to_screen_space(Models *models, Vec2 point){
-    i32_Rect region = models->render_rect;
+    i32_Rect region = models->render_view_rect;
     point.x += (f32)region.x0;
     point.y += (f32)region.y0;
     return(point);
@@ -4220,7 +4202,7 @@ draw_helper__view_space_to_screen_space(Models *models, Vec2 point){
 
 internal f32_Rect
 draw_helper__view_space_to_screen_space(Models *models, f32_Rect rect){
-    i32_Rect region = models->render_rect;
+    i32_Rect region = models->render_view_rect;
     f32 x_corner = (f32)region.x0;
     f32 y_corner = (f32)region.y0;
     rect.x0 += x_corner;
@@ -4245,8 +4227,6 @@ Draw_String(Application_Links *app, Face_ID font_id, String str, Vec2 point, int
     }
     else{
         Color_Table color_table = models->color_table;
-        //Style *style = &models->styles.styles[0];
-        //Theme *theme_data = &style->theme;
         point = draw_helper__view_space_to_screen_space(models, point);
         u32 actual_color = finalize_color(color_table, color);
         f32 width = draw_string(models->system, models->target, font_id, str, point, actual_color, flags, delta);
@@ -4263,14 +4243,10 @@ Get_String_Advance(Application_Links *app, Face_ID font_id, String str)
 }
 
 API_EXPORT void
-Draw_Rectangle(Application_Links *app, f32_Rect rect, int_color color)
-{
+Draw_Rectangle(Application_Links *app, f32_Rect rect, int_color color){
     Models *models = (Models*)app->cmd_context;
     if (models->render_view != 0){
         Color_Table color_table = models->color_table;
-        //Style *style = &models->styles.styles[0];
-        //Theme *theme_data = &style->theme;
-        
         rect = draw_helper__view_space_to_screen_space(models, rect);
         u32 actual_color = finalize_color(color_table, color);
         draw_rectangle(models->target, rect, actual_color);
@@ -4298,7 +4274,7 @@ Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    Editing_File *file = view->file_data.file;
+    Editing_File *file = view->file;
     Assert(file != 0);
     Face_ID face_id = file->settings.font_id;
     return(face_id);

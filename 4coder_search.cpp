@@ -968,7 +968,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         
-        uint64_t rewrite = 0;
+        u64 rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
         if (rewrite != RewriteWordComplete){
             do_init = true;

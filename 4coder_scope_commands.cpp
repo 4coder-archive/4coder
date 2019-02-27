@@ -337,8 +337,11 @@ view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i3
                 bottom_y = bottom.unwrapped_y;
             }
             
+            Rect_i32 region = {};
+            view_get_buffer_region(app, view->view_id, &region);
+            
             GUI_Scroll_Vars scroll = view->scroll_vars;
-            f32 half_view_height = .5f*(f32)(view->file_region.y1 - view->file_region.y0);
+            f32 half_view_height = .5f*(f32)(rect_height(region));
             f32 threshold = normalized_threshold * half_view_height;
             f32 current_center_y = ((f32)scroll.target_y) + half_view_height;
             

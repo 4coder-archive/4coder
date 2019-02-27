@@ -454,7 +454,7 @@ STRUCT Parser_String_And_Type{
 };
 
 /* DOC(Microsecond_Time_Stamp is a typedef of an unsigned 64 bit integer used to signify that the value is an arbitrary for a moment in time.) */
-TYPEDEF uint64_t Microsecond_Time_Stamp;
+TYPEDEF u64 Microsecond_Time_Stamp;
 
 /*
 DOC(File_Info describes the name and type of a file.)
@@ -603,8 +603,8 @@ TYPEDEF_FUNC b32 Buffer_Edit_Handler(struct Application_Links *app, Buffer_ID bu
 // TODO(allen): what to do with batches???
 
 STRUCT File_Attributes{
-    uint64_t size;
-    uint64_t last_write_time;
+    u64 size;
+    u64 last_write_time;
 };
 
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
@@ -694,8 +694,6 @@ STRUCT View_Summary{
     i32_Rect view_region;
     /* DOC(TODO) */
     i32_Rect render_region;
-    /* DOC(This describes the screen position in which this view's buffer is displayed.  This is different from view_region, because it does not include any fixed height GUI at the top of the view.) */
-    i32_Rect file_region;
     /* DOC(This describes the scrolling position inside the view.) */
     GUI_Scroll_Vars scroll_vars;
 };
@@ -718,13 +716,13 @@ A handle for a managed object can "go bad" when it's scope is cleared, or when i
 };
 
 /* DOC(A handle to a managed scope.  A managed scope contains variables and objects all of which can be freed and reset in optimized bulk operations.  Many managed scopes are created and destroyed by the core to track the lifetime of entities like buffers and views.  Because a managed scope contains it's own copy of the managed variables, managed scopes can also be used as a keying mechanism to store and retrieve special information related to entities like buffers and views.) */
-TYPEDEF uint64_t Managed_Scope;
+TYPEDEF u64 Managed_Scope;
 
 /* DOC(An id refering to a managed variable.  Managed variables are created globally, but each managed scope has it's own set of values for the managed variables.  Managed variables are created via a unique string.  Attempting to create a variable with the same name as an existing variable fails.  When naming variables it is recommended that you place a 'module name' followed by a '.' and then a descriptive variable name to distinguish your variables from variables written by other 4coder users that might someday need to work together in the same configuration.  Example: "MyUniqueCustomization.variable_name").  The variable's id is used to set and get the value from managed scopes. */
 TYPEDEF i32 Managed_Variable_ID;
 
 /* DOC(A handle to a managed object.  Managed objects have various behaviors and special uses depending on their type.  All managed objects share the property of being tied to a managed scope, so that they are cleaned up and freed when that scope's contents are cleared or when the scope is destroyed, they all support store and load operations, although not all with the exact same meanings and implications, and they can all be freed individually instead of with the entire scope.) */
-TYPEDEF uint64_t Managed_Object;
+TYPEDEF u64 Managed_Object;
 
 static Managed_Scope ManagedScope_NULL = 0;
 static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
@@ -842,6 +840,11 @@ STRUCT Query_Bar{
     String prompt;
     /* DOC(This specifies the main string portion of the drop down bar.) */
     String string;
+};
+
+STRUCT Query_Bar_Ptr_Array{
+    Query_Bar **ptrs;
+    i32 count;
 };
 
 TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_Summary view);
@@ -1033,9 +1036,9 @@ DOC(Data is used for passing and returing pointer size pairs.)
 */
 STRUCT Data{
     /* DOC(A pointer to the data.) */
-    uint8_t *data;
+    u8 *data;
     /* DOC(The size of the data in bytes.) */
-    uint64_t size;
+    u64 size;
 };
 
 STRUCT Frame_Info{
@@ -1092,6 +1095,8 @@ ENUM(i32, Special_Hook_ID){
     special_hook_buffer_name_resolver,
     /* DOC(TODO) */
     special_hook_modify_color_table,
+    /* DOC(TODO) */
+    special_hook_get_view_buffer_region,
 };
 
 TYPEDEF_FUNC i32 Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
@@ -1123,6 +1128,9 @@ STRUCT Color_Table{
 
 TYPEDEF_FUNC Color_Table Modify_Color_Table_Function(struct Application_Links *app, Frame_Info frame);
 #define MODIFY_COLOR_TABLE_SIG(name) Color_Table name(struct Application_Links *app, Frame_Info frame)
+
+TYPEDEF_FUNC Rect_i32 Get_View_Buffer_Region_Function(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region);
+#define GET_VIEW_BUFFER_REGION_SIG(name) Rect_i32 name(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region)
 
 STRUCT Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;

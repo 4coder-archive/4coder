@@ -47,11 +47,11 @@ struct Application_Links;
 #define PANEL_GET_MAX_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
 #define PANEL_GET_MARGIN_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out)
 #define VIEW_CLOSE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_BUFFER_REGION_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_i32 *region_out)
 #define VIEW_SET_ACTIVE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out)
 #define VIEW_SET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value)
 #define VIEW_GET_MANAGED_SCOPE_SIG(n) b32 n(Application_Links *app, View_ID view_id, Managed_Scope *scope)
-#define VIEW_GET_ENCLOSURE_RECT_SIG(n) b32 n(Application_Links *app, View_ID view_id, i32_Rect *rect_out)
 #define VIEW_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out)
 #define VIEW_SET_CURSOR_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x)
 #define VIEW_SET_SCROLL_SIG(n) b32 n(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll)
@@ -69,11 +69,11 @@ struct Application_Links;
 #define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *scopes, i32 count)
 #define MANAGED_SCOPE_CLEAR_CONTENTS_SIG(n) b32 n(Application_Links *app, Managed_Scope scope)
 #define MANAGED_SCOPE_CLEAR_SELF_ALL_DEPENDENT_SCOPES_SIG(n) b32 n(Application_Links *app, Managed_Scope scope)
-#define MANAGED_VARIABLE_CREATE_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
+#define MANAGED_VARIABLE_CREATE_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, u64 default_value)
 #define MANAGED_VARIABLE_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name)
-#define MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, uint64_t default_value)
-#define MANAGED_VARIABLE_SET_SIG(n) b32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value)
-#define MANAGED_VARIABLE_GET_SIG(n) b32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out)
+#define MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, u64 default_value)
+#define MANAGED_VARIABLE_SET_SIG(n) b32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value)
+#define MANAGED_VARIABLE_GET_SIG(n) b32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out)
 #define ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(n) Managed_Object n(Application_Links *app, Managed_Scope scope, i32 item_size, i32 count)
 #define ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(n) Managed_Object n(Application_Links *app, Buffer_ID buffer_id, i32 count, Managed_Scope *optional_extra_scope)
 #define ALLOC_MANAGED_ARENA_IN_SCOPE_SIG(n) Managed_Object n(Application_Links *app, Managed_Scope scope, i32 page_size)
@@ -96,7 +96,7 @@ struct Application_Links;
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define SET_COMMAND_INPUT_SIG(n) void n(Application_Links *app, Key_Event_Data key_data)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
-#define GET_ACTIVE_QUERY_BARS_SIG(n) i32 n(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar **result_array)
+#define GET_ACTIVE_QUERY_BARS_SIG(n) b32 n(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array *array_out)
 #define START_QUERY_BAR_SIG(n) b32 n(Application_Links *app, Query_Bar *bar, u32 flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, u32 flags)
 #define PRINT_MESSAGE_SIG(n) b32 n(Application_Links *app, String message)
@@ -196,11 +196,11 @@ typedef PANEL_GET_CHILD_SIG(Panel_Get_Child_Function);
 typedef PANEL_GET_MAX_SIG(Panel_Get_Max_Function);
 typedef PANEL_GET_MARGIN_SIG(Panel_Get_Margin_Function);
 typedef VIEW_CLOSE_SIG(View_Close_Function);
+typedef VIEW_GET_BUFFER_REGION_SIG(View_Get_Buffer_Region_Function);
 typedef VIEW_SET_ACTIVE_SIG(View_Set_Active_Function);
 typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
 typedef VIEW_GET_MANAGED_SCOPE_SIG(View_Get_Managed_Scope_Function);
-typedef VIEW_GET_ENCLOSURE_RECT_SIG(View_Get_Enclosure_Rect_Function);
 typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
 typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
 typedef VIEW_SET_SCROLL_SIG(View_Set_Scroll_Function);
@@ -347,11 +347,11 @@ Panel_Get_Child_Function *panel_get_child;
 Panel_Get_Max_Function *panel_get_max;
 Panel_Get_Margin_Function *panel_get_margin;
 View_Close_Function *view_close;
+View_Get_Buffer_Region_Function *view_get_buffer_region;
 View_Set_Active_Function *view_set_active;
 View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
 View_Get_Managed_Scope_Function *view_get_managed_scope;
-View_Get_Enclosure_Rect_Function *view_get_enclosure_rect;
 View_Compute_Cursor_Function *view_compute_cursor;
 View_Set_Cursor_Function *view_set_cursor;
 View_Set_Scroll_Function *view_set_scroll;
@@ -497,11 +497,11 @@ Panel_Get_Child_Function *panel_get_child_;
 Panel_Get_Max_Function *panel_get_max_;
 Panel_Get_Margin_Function *panel_get_margin_;
 View_Close_Function *view_close_;
+View_Get_Buffer_Region_Function *view_get_buffer_region_;
 View_Set_Active_Function *view_set_active_;
 View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
 View_Get_Managed_Scope_Function *view_get_managed_scope_;
-View_Get_Enclosure_Rect_Function *view_get_enclosure_rect_;
 View_Compute_Cursor_Function *view_compute_cursor_;
 View_Set_Cursor_Function *view_set_cursor_;
 View_Set_Scroll_Function *view_set_scroll_;
@@ -655,11 +655,11 @@ app_links->panel_get_child_ = Panel_Get_Child;\
 app_links->panel_get_max_ = Panel_Get_Max;\
 app_links->panel_get_margin_ = Panel_Get_Margin;\
 app_links->view_close_ = View_Close;\
+app_links->view_get_buffer_region_ = View_Get_Buffer_Region;\
 app_links->view_set_active_ = View_Set_Active;\
 app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
 app_links->view_get_managed_scope_ = View_Get_Managed_Scope;\
-app_links->view_get_enclosure_rect_ = View_Get_Enclosure_Rect;\
 app_links->view_compute_cursor_ = View_Compute_Cursor;\
 app_links->view_set_cursor_ = View_Set_Cursor;\
 app_links->view_set_scroll_ = View_Set_Scroll;\
@@ -805,11 +805,11 @@ static b32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Chil
 static b32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max(app, panel_id, panel_id_out));}
 static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin(app, panel_id, margins_out));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close(app, view_id));}
+static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region(app, view_id, region_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting(app, view_id, setting, value_out));}
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting(app, view_id, setting, value));}
 static b32 view_get_managed_scope(Application_Links *app, View_ID view_id, Managed_Scope *scope){return(app->view_get_managed_scope(app, view_id, scope));}
-static b32 view_get_enclosure_rect(Application_Links *app, View_ID view_id, i32_Rect *rect_out){return(app->view_get_enclosure_rect(app, view_id, rect_out));}
 static b32 view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view_id, seek, cursor_out));}
 static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x){return(app->view_set_cursor(app, view_id, seek, set_preferred_x));}
 static b32 view_set_scroll(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll){return(app->view_set_scroll(app, view_id, scroll));}
@@ -827,11 +827,11 @@ static Managed_Scope get_global_managed_scope(Application_Links *app){return(app
 static Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *scopes, i32 count){return(app->get_managed_scope_with_multiple_dependencies(app, scopes, count));}
 static b32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents(app, scope));}
 static b32 managed_scope_clear_self_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_self_all_dependent_scopes(app, scope));}
-static Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create(app, null_terminated_name, default_value));}
+static Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create(app, null_terminated_name, default_value));}
 static Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id(app, null_terminated_name));}
-static Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id(app, null_terminated_name, default_value));}
-static b32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value){return(app->managed_variable_set(app, scope, id, value));}
-static b32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out){return(app->managed_variable_get(app, scope, id, value_out));}
+static Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create_or_get_id(app, null_terminated_name, default_value));}
+static b32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value){return(app->managed_variable_set(app, scope, id, value));}
+static b32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out){return(app->managed_variable_get(app, scope, id, value_out));}
 static Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, i32 item_size, i32 count){return(app->alloc_managed_memory_in_scope(app, scope, item_size, count));}
 static Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, i32 count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer(app, buffer_id, count, optional_extra_scope));}
 static Managed_Object alloc_managed_arena_in_scope(Application_Links *app, Managed_Scope scope, i32 page_size){return(app->alloc_managed_arena_in_scope(app, scope, page_size));}
@@ -854,7 +854,7 @@ static User_Input get_user_input(Application_Links *app, Input_Type_Flag get_typ
 static User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
 static void set_command_input(Application_Links *app, Key_Event_Data key_data){(app->set_command_input(app, key_data));}
 static Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
-static i32 get_active_query_bars(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar **result_array){return(app->get_active_query_bars(app, view_id, max_result_count, result_array));}
+static b32 get_active_query_bars(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array *array_out){return(app->get_active_query_bars(app, view_id, max_result_count, array_out));}
 static b32 start_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){return(app->start_query_bar(app, bar, flags));}
 static void end_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){(app->end_query_bar(app, bar, flags));}
 static b32 print_message(Application_Links *app, String message){return(app->print_message(app, message));}
@@ -955,11 +955,11 @@ static b32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Chil
 static b32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max_(app, panel_id, panel_id_out));}
 static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin_(app, panel_id, margins_out));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close_(app, view_id));}
+static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region_(app, view_id, region_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active_(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting_(app, view_id, setting, value_out));}
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting_(app, view_id, setting, value));}
 static b32 view_get_managed_scope(Application_Links *app, View_ID view_id, Managed_Scope *scope){return(app->view_get_managed_scope_(app, view_id, scope));}
-static b32 view_get_enclosure_rect(Application_Links *app, View_ID view_id, i32_Rect *rect_out){return(app->view_get_enclosure_rect_(app, view_id, rect_out));}
 static b32 view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view_id, seek, cursor_out));}
 static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x){return(app->view_set_cursor_(app, view_id, seek, set_preferred_x));}
 static b32 view_set_scroll(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll){return(app->view_set_scroll_(app, view_id, scroll));}
@@ -977,11 +977,11 @@ static Managed_Scope get_global_managed_scope(Application_Links *app){return(app
 static Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *scopes, i32 count){return(app->get_managed_scope_with_multiple_dependencies_(app, scopes, count));}
 static b32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents_(app, scope));}
 static b32 managed_scope_clear_self_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_self_all_dependent_scopes_(app, scope));}
-static Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_(app, null_terminated_name, default_value));}
+static Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create_(app, null_terminated_name, default_value));}
 static Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id_(app, null_terminated_name));}
-static Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, uint64_t default_value){return(app->managed_variable_create_or_get_id_(app, null_terminated_name, default_value));}
-static b32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t value){return(app->managed_variable_set_(app, scope, id, value));}
-static b32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, uint64_t *value_out){return(app->managed_variable_get_(app, scope, id, value_out));}
+static Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create_or_get_id_(app, null_terminated_name, default_value));}
+static b32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value){return(app->managed_variable_set_(app, scope, id, value));}
+static b32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out){return(app->managed_variable_get_(app, scope, id, value_out));}
 static Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, i32 item_size, i32 count){return(app->alloc_managed_memory_in_scope_(app, scope, item_size, count));}
 static Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, i32 count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer_(app, buffer_id, count, optional_extra_scope));}
 static Managed_Object alloc_managed_arena_in_scope(Application_Links *app, Managed_Scope scope, i32 page_size){return(app->alloc_managed_arena_in_scope_(app, scope, page_size));}
@@ -1004,7 +1004,7 @@ static User_Input get_user_input(Application_Links *app, Input_Type_Flag get_typ
 static User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
 static void set_command_input(Application_Links *app, Key_Event_Data key_data){(app->set_command_input_(app, key_data));}
 static Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}
-static i32 get_active_query_bars(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar **result_array){return(app->get_active_query_bars_(app, view_id, max_result_count, result_array));}
+static b32 get_active_query_bars(Application_Links *app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array *array_out){return(app->get_active_query_bars_(app, view_id, max_result_count, array_out));}
 static b32 start_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){return(app->start_query_bar_(app, bar, flags));}
 static void end_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){(app->end_query_bar_(app, bar, flags));}
 static b32 print_message(Application_Links *app, String message){return(app->print_message_(app, message));}

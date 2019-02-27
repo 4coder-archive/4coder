@@ -153,11 +153,12 @@ CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
     
-    i32_Rect region = view.file_region;
+    Rect_i32 region = {};
+    view_get_buffer_region(app, view.view_id, &region);
     GUI_Scroll_Vars scroll = view.scroll_vars;
     
-    float h = (float)(region.y1 - region.y0);
-    float y = get_view_y(&view);
+    f32 h = (f32)(rect_height(region));
+    f32 y = get_view_y(&view);
     y = y - h*.5f;
     scroll.target_y = (i32)(y + .5f);
     view_set_scroll(app, &view, scroll);
@@ -170,7 +171,7 @@ CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
     
     GUI_Scroll_Vars scroll = view.scroll_vars;
     
-    float x = get_view_x(&view) - 30.f;
+    f32 x = get_view_x(&view) - 30.f;
     if (x < 0){
         x = 0.f;
     }
@@ -198,7 +199,9 @@ CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
-    if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+    Rect_i32 region = {};
+    view_get_buffer_region(app, view.view_id, &region);
+    if (view_space_from_screen_space_checked(mouse.p, region, view.scroll_vars.scroll_p, &p)){
         view_set_cursor(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines), true);
         view_set_mark(app, &view, seek_pos(view.cursor.pos));
     }
@@ -210,7 +213,9 @@ CUSTOM_DOC("Sets the cursor position to the mouse position.")
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
-    if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+    Rect_i32 region = {};
+    view_get_buffer_region(app, view.view_id, &region);
+    if (view_space_from_screen_space_checked(mouse.p, region, view.scroll_vars.scroll_p, &p)){
         view_set_cursor(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines), true);
     }
     no_mark_snap_to_cursor(app, view.view_id);
@@ -223,7 +228,9 @@ CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.l){
         Vec2 p = {};
-        if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+        Rect_i32 region = {};
+        view_get_buffer_region(app, view.view_id, &region);
+        if (view_space_from_screen_space_checked(mouse.p, region, view.scroll_vars.scroll_p, &p)){
             view_set_cursor(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines), true);
         }
     }
@@ -236,7 +243,9 @@ CUSTOM_DOC("Sets the mark position to the mouse position.")
     View_Summary view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
-    if (view_space_from_screen_space_checked(mouse.p, view.file_region, view.scroll_vars.scroll_p, &p)){
+    Rect_i32 region = {};
+    view_get_buffer_region(app, view.view_id, &region);
+    if (view_space_from_screen_space_checked(mouse.p, region, view.scroll_vars.scroll_p, &p)){
         view_set_mark(app, &view, seek_xy(p.x, p.y, true, view.unwrapped_lines));
     }
     no_mark_snap_to_cursor(app, view.view_id);
@@ -257,19 +266,20 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
 ////////////////////////////////
 
 static void
-move_vertical(Application_Links *app, float line_multiplier){
+move_vertical(Application_Links *app, f32 line_multiplier){
     u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     
-    float delta_y = line_multiplier*view.line_height;
-    float new_y = get_view_y(&view) + delta_y;
-    float x = view.preferred_x;
+    f32 delta_y = line_multiplier*view.line_height;
+    f32 new_y = get_view_y(&view) + delta_y;
+    f32 x = view.preferred_x;
     
     view_set_cursor(app, &view, seek_xy(x, new_y, 0, view.unwrapped_lines), 0);
-    float actual_new_y = get_view_y(&view);
+    f32 actual_new_y = get_view_y(&view);
     if (actual_new_y < new_y){
-        i32_Rect file_region = view.file_region;
-        i32 height = file_region.y1 - file_region.y0;
+        Rect_i32 file_region = {};
+        view_get_buffer_region(app, view.view_id, &file_region);
+        i32 height = rect_height(file_region);
         i32 full_scroll_y = (i32)actual_new_y - height/2;
         if (view.scroll_vars.target_y < full_scroll_y){
             GUI_Scroll_Vars new_scroll_vars = view.scroll_vars;
@@ -284,15 +294,16 @@ move_vertical(Application_Links *app, float line_multiplier){
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 
-static float
-get_page_jump(View_Summary *view){
-    i32_Rect region = view->file_region;
-    float page_jump = 1.f;
+static f32
+get_page_jump(Application_Links *app, View_Summary *view){
+    Rect_i32 region = {};
+    view_get_buffer_region(app, view->view_id, &region);
+    f32 page_jump = 1.f;
     if (view->line_height > 0.f){
         i32 height = region.y1 - region.y0;
-        float line_count = (float)(height)/view->line_height;
+        f32 line_count = (f32)(height)/view->line_height;
         i32 line_count_rounded = (i32)line_count;
-        page_jump = (float)line_count_rounded - 3.f;
+        page_jump = (f32)line_count_rounded - 3.f;
         if (page_jump <= 1.f){
             page_jump = 1.f;
         }
@@ -340,7 +351,7 @@ CUSTOM_DOC("Scrolls the view up one view height and moves the cursor up one view
 {
     u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    float page_jump = get_page_jump(&view);
+    f32 page_jump = get_page_jump(app, &view);
     move_vertical(app, -page_jump);
 }
 
@@ -349,7 +360,7 @@ CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one 
 {
     u32 access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    float page_jump = get_page_jump(&view);
+    f32 page_jump = get_page_jump(app, &view);
     move_vertical(app, page_jump);
 }
 

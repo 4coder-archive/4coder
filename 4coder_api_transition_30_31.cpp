@@ -408,16 +408,6 @@ view_set_split(Application_Links *app, View_Summary *view, View_Split_Kind kind,
     return(result);
 }
 
-static i32_Rect
-view_get_enclosure_rect(Application_Links *app, View_Summary *view){
-    i32_Rect result = {};
-    if (view != 0 && view->exists){
-        view_get_enclosure_rect(app, view->view_id, &result);
-        get_view_summary(app, view->view_id, AccessAll, view);
-    }
-    return(result);
-}
-
 static b32
 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){
     b32 result = false;

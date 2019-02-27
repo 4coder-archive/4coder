@@ -1595,7 +1595,7 @@ space in dest this call returns non-zero.) */{
 }
 
 API_EXPORT FSTRING_LINK i32_4tech
-u64_to_str_size(uint64_t x)/*
+u64_to_str_size(u64_4tech x)/*
 DOC(This call returns the number of bytes required to represent x as a string.) */{
     i32_4tech size = 1;
     x /= 10;
@@ -1607,7 +1607,7 @@ DOC(This call returns the number of bytes required to represent x as a string.) 
 }
 
 API_EXPORT FSTRING_LINK b32_4tech
-u64_to_str(String *dest, uint64_t x)/*
+u64_to_str(String *dest, u64_4tech x)/*
 DOC(This call writes a string representation of x into dest. If there is enough
 space in dest this call returns non-zero.) */{
     b32_4tech result = 1;
@@ -1646,7 +1646,7 @@ space in dest this call returns non-zero.) */{
 }
 
 API_EXPORT FSTRING_LINK b32_4tech
-append_u64_to_str(String *dest, uint64_t x)/*
+append_u64_to_str(String *dest, u64_4tech x)/*
 DOC(This call appends a string representation of x onto dest. If there is enough
 space in dest this call returns non-zero.) */{
     String last_part = tailstr(*dest);
