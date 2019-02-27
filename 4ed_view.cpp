@@ -984,6 +984,8 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             
             // NOTE(allen): Line marker color
             if (is_new_line){
+                visual_line_markers_color = 0;
+                
                 // NOTE(allen): Line range marker color
                 for (;visual_line_range_markers_scan_index < line_range_markers.count &&
                      line_range_markers.markers[visual_line_range_markers_scan_index].pos <= ind;
@@ -1006,7 +1008,6 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                 
                 // NOTE(allen): Single line marker color
                 i32 visual_line_markers_best_priority = min_i32;
-                visual_line_markers_color = 0;
                 for (;visual_line_markers_scan_index < line_markers.count &&
                      line_markers.markers[visual_line_markers_scan_index].pos <= ind;
                      visual_line_markers_scan_index += 1){
