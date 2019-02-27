@@ -208,6 +208,8 @@ struct Config_Data{
     b32 use_scope_highlight;
     b32 use_paren_helper;
     b32 use_comment_keyword;
+    b32 file_lister_per_character_backspace;
+    b32 show_line_number_margins;
     
     b32 enable_virtual_whitespace;
     b32 enable_code_wrapping;

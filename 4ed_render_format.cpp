@@ -26,6 +26,11 @@ draw_change_clip(Render_Target *target, i32_Rect clip_box){
 }
 
 internal void
+begin_frame(Render_Target *target){
+    target->buffer.pos = 0;
+}
+
+internal void
 begin_render_section(Render_Target *target, System_Functions *system,
                      i32 frame_index, f32 literal_dt, f32 animation_dt){
     target->clip_top = -1;
@@ -37,7 +42,6 @@ begin_render_section(Render_Target *target, System_Functions *system,
     clip.y1 = target->height;
     draw_push_clip(target, clip);
     
-    target->buffer.pos = 0;
     target->frame_index = frame_index;
     target->literal_dt = literal_dt;
     target->animation_dt = animation_dt;

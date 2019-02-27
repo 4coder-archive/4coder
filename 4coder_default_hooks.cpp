@@ -262,6 +262,9 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
         default_colors[Stag_Text_Cycle_2] = 0xFF00A000;
         default_colors[Stag_Text_Cycle_3] = 0xFF0030B0;
         default_colors[Stag_Text_Cycle_4] = 0xFFA0A000;
+        
+        default_colors[Stag_Line_Numbers_Back] = 0xFF101010;
+        default_colors[Stag_Line_Numbers_Text] = 0xFF404040;
     }
     
     Color_Table color_table = {};
@@ -296,6 +299,19 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
         }
     }
     
+    // line number margins
+    if (global_config.show_line_number_margins){
+        Buffer_Summary buffer = {};
+        get_buffer_summary(app, view.buffer_id, AccessAll, &buffer);
+        i32 line_count_digit_count = int_to_str_size(buffer.line_count);
+        Face_ID font_id = 0;
+        get_face_id(app, view.buffer_id, &font_id);
+        // TODO(allen): I need a "digit width"
+        f32 zero = get_string_advance(app, font_id, make_lit_string("0"));
+        i32 margin_width = ceil32((f32)line_count_digit_count*zero);
+        sub_region.x0 += margin_width + 2;
+    }
+    
     return(sub_region);
 }
 
@@ -317,21 +333,16 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
     Partition *scratch = &global_part;
     
     {
-        f32 y_cursor = 0;
-        f32 x_min = (f32)view.render_region.x0;
-        f32 x_max = (f32)view.render_region.x1;
+        Rect_f32 r_cursor = f32R(view.render_region);
         
         // NOTE(allen): Filebar
         {
             b32 showing_file_bar = false;
             if (view_get_setting(app, render_params.view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
                 if (showing_file_bar){
-                    Rect_f32 bar = {};
-                    bar.x0 = x_min;
-                    bar.x1 = x_max;
-                    bar.y0 = y_cursor;
+                    Rect_f32 bar = r_cursor;
                     bar.y1 = bar.y0 + line_height + 2.f;
-                    y_cursor = bar.y1;
+                    r_cursor.y0 = bar.y1;
                     
                     draw_rectangle(app, bar, Stag_Bar);
                     
@@ -391,12 +402,9 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                 for (i32 i = 0; i < query_bars.count; i += 1){
                     Query_Bar *query_bar = query_bars.ptrs[i];
                     
-                    Rect_f32 bar = {};
-                    bar.x0 = x_min;
-                    bar.x1 = x_max;
-                    bar.y0 = y_cursor;
+                    Rect_f32 bar = r_cursor;
                     bar.y1 = bar.y0 + line_height + 2.f;
-                    y_cursor = bar.y1;
+                    r_cursor.y0 = bar.y1;
                     
                     Temp_Memory_Arena temp = begin_temp_memory(&arena);
                     Fancy_String_List list = {};
@@ -413,6 +421,43 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                     draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0);
                     
                     end_temp_memory(temp);
+                }
+            }
+        }
+        
+        // NOTE(allen): Line Numbers
+        if (global_config.show_line_number_margins){
+            i32 line_count_digit_count = int_to_str_size(buffer.line_count);
+            Face_ID font_id = 0;
+            get_face_id(app, view.buffer_id, &font_id);
+            // TODO(allen): I need a "digit width"
+            f32 zero = get_string_advance(app, font_id, make_lit_string("0"));
+            f32 margin_width = (f32)line_count_digit_count*zero;
+            
+            Rect_f32 left_margin = r_cursor;
+            left_margin.x1 = left_margin.x0 + margin_width + 2;
+            r_cursor.x0 = left_margin.x1;
+            
+            draw_rectangle(app, left_margin, Stag_Line_Numbers_Back);
+            
+            Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
+            
+            Full_Cursor cursor = {};
+            view_compute_cursor(app, render_params.view_id, seek_pos(render_params.on_screen_range.first), &cursor);
+            for (;cursor.pos <= render_params.on_screen_range.one_past_last;){
+                Vec2 p = panel_space_from_view_space(cursor.wrapped_p, view.scroll_vars.scroll_p);
+                p += V2(render_params.buffer_region.p0);
+                if (p.y >= left_margin.y0){
+                    p.x = left_margin.x0;
+                    Temp_Memory_Arena temp = begin_temp_memory(&arena);
+                    Fancy_String *line_string = push_fancy_stringf(&arena, line_color, "%*d", line_count_digit_count, cursor.line);
+                    draw_fancy_string(app, font_id, line_string, p, Stag_Margin_Active, 0);
+                    end_temp_memory(temp);
+                }
+                i32 next_line = cursor.line + 1;
+                view_compute_cursor(app, render_params.view_id, seek_line_char(next_line, 1), &cursor);
+                if (cursor.line < next_line){
+                    break;
                 }
             }
         }
@@ -790,15 +835,15 @@ HOOK_SIG(default_view_adjust){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
         i32 view_width = view.render_region.x1 - view.render_region.x0;
         Face_ID face_id = get_default_font_for_view(app, view.view_id);
-        float em = get_string_advance(app, face_id, make_lit_string("m"));
+        f32 em = get_string_advance(app, face_id, make_lit_string("m"));
         
-        float wrap_width = view_width - 2.0f*em;
-        float min_width = 40.0f*em;
+        f32 wrap_width = view_width - 2.0f*em;
+        f32 min_width = 40.0f*em;
         if (wrap_width < min_width){
             wrap_width = min_width;
         }
         
-        float min_base_width = 20.0f*em;
+        f32 min_base_width = 20.0f*em;
         buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, (i32)(wrap_width));
         buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, (i32)(min_base_width));
     }
@@ -1164,28 +1209,24 @@ INPUT_FILTER_SIG(default_suppress_mouse_filter){
 // 4coder scrolling behavior.
 //
 
-struct Scroll_Velocity{
-    float x, y;
-};
-
-Scroll_Velocity scroll_velocity_[16] = {};
-Scroll_Velocity *scroll_velocity = scroll_velocity_ - 1;
+Vec2 scroll_velocity_[16] = {};
+Vec2 *scroll_velocity = scroll_velocity_ - 1;
 
 static i32
-smooth_camera_step(float target, float *current, float *vel, float S, float T){
+smooth_camera_step(f32 target, f32 *current, f32 *vel, f32 S, f32 T){
     i32 result = 0;
-    float curr = *current;
-    float v = *vel;
+    f32 curr = *current;
+    f32 v = *vel;
     if (curr != target){
         if (curr > target - .1f && curr < target + .1f){
             curr = target;
             v = 1.f;
         }
         else{
-            float L = curr + T*(target - curr);
+            f32 L = curr + T*(target - curr);
             
             i32 sign = (target > curr) - (target < curr);
-            float V = curr + sign*v;
+            f32 V = curr + sign*v;
             
             if (sign > 0) curr = (L<V)?(L):(V);
             else curr = (L>V)?(L):(V);
@@ -1203,7 +1244,7 @@ smooth_camera_step(float target, float *current, float *vel, float S, float T){
 }
 
 SCROLL_RULE_SIG(smooth_scroll_rule){
-    Scroll_Velocity *velocity = scroll_velocity + view_id;
+    Vec2 *velocity = scroll_velocity + view_id;
     i32 result = 0;
     if (velocity->x == 0.f){
         velocity->x = 1.f;

@@ -653,6 +653,12 @@ CUSTOM_DOC("Toggles the current buffer's whitespace visibility status.")
     view_set_setting(app, &view, ViewSetting_ShowWhitespace, !view.show_whitespace);
 }
 
+CUSTOM_COMMAND_SIG(toggle_line_numbers)
+CUSTOM_DOC("Toggles the left margin line numbers.")
+{
+    global_config.show_line_number_margins = !global_config.show_line_number_margins;
+}
+
 CUSTOM_COMMAND_SIG(eol_dosify)
 CUSTOM_DOC("Puts the buffer in DOS line ending mode.")
 {

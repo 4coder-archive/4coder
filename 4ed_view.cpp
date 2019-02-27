@@ -1244,8 +1244,7 @@ view_get_render_cursor_target(System_Functions *system, View *view){
 
 internal void
 view_call_render_caller(Models *models, Render_Target *target, View *view,
-                        i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range, Buffer_Render_Item *items, i32 item_count,
-                        Render_Callback *core_render){
+                        i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range, Buffer_Render_Item *items, i32 item_count, Render_Callback *core_render){
     if (models->render_caller != 0){
         View_ID view_id = view_get_id(&models->live_set, view);
         models->render_view = view;
@@ -1257,11 +1256,12 @@ view_call_render_caller(Models *models, Render_Target *target, View *view,
         models->render_item_count = item_count;
         
         Render_Parameters params = {};
-        params.view_id= view_id;
+        params.view_id = view_id;
         params.on_screen_range = on_screen_range;
         params.frame.index = target->frame_index;
         params.frame.literal_dt = target->literal_dt;
         params.frame.animation_dt = target->animation_dt;
+        params.buffer_region = rect;
         params.do_core_render = core_render;
         models->render_caller(&models->app_links, params);
         models->render_view = 0;

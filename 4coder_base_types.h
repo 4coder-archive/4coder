@@ -224,7 +224,7 @@ static const u64 bit_63 = (((u64)1) << (31 + 32));
 #define zdll_remove(f,l,n) Stmnt( zdll_remove_((f),(l),(n)) )
 
 #define sll_clear(f,l) (f)=(l)=0
-#define sll_push(f,l,n) Stmnt( if((f)==0&&(l)==0){(f)=(l)=(n);}else{(l)->next=(n);(l)=(n);}(l)->next=0; )
+#define sll_push(f,l,n) Stmnt( if((f)==0||(l)==0){(f)=(l)=(n);}else{(l)->next=(n);(l)=(n);}(n)->next=0; )
 #define sll_pop(f,l) Stmnt( if((f)!=(l)){(f)=(f)->next;}else{(f)=(l)=0;} )
 
 #define sll_init_sentinel(s) Stmnt( (s)->next=(s); )

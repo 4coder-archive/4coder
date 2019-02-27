@@ -226,17 +226,21 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
             backspace_utf8(&state->lister.data.text_field);
             if (last_char == '/' || last_char == '\\'){
                 User_Input input = get_command_input(app);
-                b32 is_modified =
-                    input.key.modifiers[MDFR_SHIFT_INDEX] ||
-                    input.key.modifiers[MDFR_CONTROL_INDEX] ||
-                    input.key.modifiers[MDFR_ALT_INDEX] ||
-                    input.key.modifiers[MDFR_COMMAND_INDEX];
                 String new_hot = path_of_directory(state->lister.data.text_field);
-                if (!is_modified){
+                b32 is_modified = (input.key.modifiers[MDFR_SHIFT_INDEX] ||
+                                   input.key.modifiers[MDFR_CONTROL_INDEX] ||
+                                   input.key.modifiers[MDFR_ALT_INDEX] ||
+                                   input.key.modifiers[MDFR_COMMAND_INDEX]);
+                b32 whole_word_backspace = (is_modified == global_config.file_lister_per_character_backspace);
+                if (whole_word_backspace){
                     state->lister.data.text_field.size = new_hot.size;
                 }
                 directory_set_hot(app, new_hot.str, new_hot.size);
+                // TODO(allen): We have to protect against lister_call_refresh_handler changing 
+                // the text_field here. Clean this up.
+                String dingus = state->lister.data.text_field;
                 lister_call_refresh_handler(app, &state->lister);
+                state->lister.data.text_field = dingus;
             }
             else{
                 copy(&state->lister.data.key_string, front_of_directory(state->lister.data.text_field));
@@ -274,9 +278,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
                 }
             }
             if (did_shortcut_key){
-                lister_call_activate_handler(app, scratch, heap,
-                                             &view, state,
-                                             user_data, false);
+                lister_call_activate_handler(app, scratch, heap, &view, state, user_data, false);
             }
         }
     }

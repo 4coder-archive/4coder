@@ -165,6 +165,13 @@ bind(context, key_esc, MDFR_NONE, lister__quit);
 bind(context, '\n', MDFR_NONE, lister__activate);
 bind(context, '\t', MDFR_NONE, lister__activate);
 bind(context, key_back, MDFR_NONE, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL, lister__backspace_text_field);
+bind(context, key_back, MDFR_ALT, lister__backspace_text_field);
+bind(context, key_back, MDFR_CMND, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL|MDFR_ALT, lister__backspace_text_field);
+bind(context, key_back, MDFR_ALT|MDFR_CMND, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL|MDFR_CMND, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL|MDFR_ALT|MDFR_CMND, lister__backspace_text_field);
 bind(context, key_up, MDFR_NONE, lister__move_up);
 bind(context, 'k', MDFR_ALT, lister__move_up);
 bind(context, key_page_up, MDFR_NONE, lister__move_up);
@@ -340,6 +347,13 @@ bind(context, key_esc, MDFR_NONE, lister__quit);
 bind(context, '\n', MDFR_NONE, lister__activate);
 bind(context, '\t', MDFR_NONE, lister__activate);
 bind(context, key_back, MDFR_NONE, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL, lister__backspace_text_field);
+bind(context, key_back, MDFR_ALT, lister__backspace_text_field);
+bind(context, key_back, MDFR_CMND, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL|MDFR_ALT, lister__backspace_text_field);
+bind(context, key_back, MDFR_ALT|MDFR_CMND, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL|MDFR_CMND, lister__backspace_text_field);
+bind(context, key_back, MDFR_CTRL|MDFR_ALT|MDFR_CMND, lister__backspace_text_field);
 bind(context, key_up, MDFR_NONE, lister__move_up);
 bind(context, key_page_up, MDFR_NONE, lister__move_up);
 bind(context, key_down, MDFR_NONE, lister__move_down);
@@ -542,12 +556,19 @@ static Meta_Key_Bind fcoder_binds_for_default_default_code_map[31] = {
 {0, 50, 2, "open_matching_file_cpp", 22, LINK_PROCS(open_matching_file_cpp)},
 {0, 48, 1, "write_zero_struct", 17, LINK_PROCS(write_zero_struct)},
 };
-static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[16] = {
+static Meta_Key_Bind fcoder_binds_for_default_default_lister_ui_map[23] = {
 {1, 0, 0, "lister__write_character", 23, LINK_PROCS(lister__write_character)},
 {0, 55307, 0, "lister__quit", 12, LINK_PROCS(lister__quit)},
 {0, 10, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
 {0, 9, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
 {0, 55296, 0, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 1, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 2, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 4, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 3, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 6, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 5, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 7, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
 {0, 55297, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
 {0, 107, 2, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
 {0, 55305, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
@@ -564,7 +585,7 @@ static Meta_Sub_Map fcoder_submaps_for_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_default_mapid_global, 43},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_default_mapid_file, 78},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_default_default_code_map, 31},
-{"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 16},
+{"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_default_default_lister_ui_map, 23},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[40] = {
 {0, 44, 4, "change_active_panel", 19, LINK_PROCS(change_active_panel)},
@@ -720,12 +741,19 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[31] = {
 {0, 50, 1, "open_matching_file_cpp", 22, LINK_PROCS(open_matching_file_cpp)},
 {0, 48, 4, "write_zero_struct", 17, LINK_PROCS(write_zero_struct)},
 };
-static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[14] = {
+static Meta_Key_Bind fcoder_binds_for_mac_default_default_lister_ui_map[21] = {
 {1, 0, 0, "lister__write_character", 23, LINK_PROCS(lister__write_character)},
 {0, 55307, 0, "lister__quit", 12, LINK_PROCS(lister__quit)},
 {0, 10, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
 {0, 9, 0, "lister__activate", 16, LINK_PROCS(lister__activate)},
 {0, 55296, 0, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 1, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 2, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 4, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 3, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 6, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 5, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
+{0, 55296, 7, "lister__backspace_text_field", 28, LINK_PROCS(lister__backspace_text_field)},
 {0, 55297, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
 {0, 55305, 0, "lister__move_up", 15, LINK_PROCS(lister__move_up)},
 {0, 55298, 0, "lister__move_down", 17, LINK_PROCS(lister__move_down)},
@@ -740,7 +768,7 @@ static Meta_Sub_Map fcoder_submaps_for_mac_default[4] = {
 {"mapid_global", 12, "The following bindings apply in all situations.", 47, 0, 0, fcoder_binds_for_mac_default_mapid_global, 40},
 {"mapid_file", 10, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.", 145, 0, 0, fcoder_binds_for_mac_default_mapid_file, 77},
 {"default_code_map", 16, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.", 94, "mapid_file", 10, fcoder_binds_for_mac_default_default_code_map, 31},
-{"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_mac_default_default_lister_ui_map, 14},
+{"default_lister_ui_map", 21, "These commands apply in 'lister mode' such as when you open a file.", 67, 0, 0, fcoder_binds_for_mac_default_default_lister_ui_map, 21},
 };
 static Meta_Mapping fcoder_meta_maps[2] = {
 {"default", 7, "The default 4coder bindings - typically good for Windows and Linux", 66, fcoder_submaps_for_default, 4, LINK_PROCS(fill_keys_default)},

@@ -947,7 +947,9 @@ App_Step_Sig(app_step){
     models->animate_next_frame = false;
     
     // NOTE(allen): per-frame update of models state
+    begin_frame(target);
     models->target = target;
+    models->input = input;
     
     // NOTE(allen): OS clipboard event handling
     String clipboard = input->clipboard;
@@ -1056,9 +1058,6 @@ App_Step_Sig(app_step){
         
         end_temp_memory(temp);
     }
-    
-    // NOTE(allen): init event context
-    models->input = input;
     
     // NOTE(allen): input filter and simulated events
     if (models->input_filter != 0){

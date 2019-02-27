@@ -48,7 +48,9 @@ enum Style_Tag{
     Stag_Text_Cycle_2 = 39,
     Stag_Text_Cycle_3 = 40,
     Stag_Text_Cycle_4 = 41,
-    Stag_COUNT = 42
+    Stag_Line_Numbers_Back = 42,
+    Stag_Line_Numbers_Text = 43,
+    Stag_COUNT = 44
 };
 
 #define FirstCustomColor Stag_COUNT

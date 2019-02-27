@@ -577,14 +577,26 @@ STRUCT Full_Cursor{
     i32 character;
     /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping into account.  This field is one based.) */
     i32 wrap_line;
-    /* DOC(This field contains the x position measured with unwrapped lines.) */
-    float unwrapped_x;
-    /* DOC(This field contains the y position measured with unwrapped lines.) */
-    float unwrapped_y;
-    /* DOC(This field contains the x position measured with wrapped lines.) */
-    float wrapped_x;
-    /* DOC(This field contains the y position measured with wrapped lines.) */
-    float wrapped_y;
+    union{
+        struct{
+            /* DOC(This field contains the x position measured with unwrapped lines.) */
+            f32 unwrapped_x;
+            /* DOC(This field contains the y position measured with unwrapped lines.) */
+            f32 unwrapped_y;
+        };
+        /* DOC(TODO) */
+        Vec2 unwrapped_p;
+    };
+    union{
+        struct{
+            /* DOC(This field contains the x position measured with wrapped lines.) */
+            f32 wrapped_x;
+            /* DOC(This field contains the y position measured with wrapped lines.) */
+            f32 wrapped_y;
+        };
+        /* DOC(TODO) */
+        Vec2 wrapped_p;
+    };
 };
 
 /* DOC(Partial_Cursor describes the position of a cursor in all of the coordinate systems that a invariant to the View.  In other words the coordinate systems available here can be used on a buffer that is not currently associated with a View.)
@@ -616,7 +628,7 @@ STRUCT Buffer_Summary{
     /* DOC(If this is not a null summary, this field indicates whether the buffer has finished loading.) */
     b32 ready;
     /* DOC(If this is not a null summary this field is the id of the associated buffer. If this is a null summary then buffer_id is 0.) */
-    i32 buffer_id;
+    Buffer_ID buffer_id;
     /* DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.) */
     Access_Flag lock_flags;
     
@@ -1053,6 +1065,7 @@ STRUCT Render_Parameters{
     Frame_Info frame;
     View_ID view_id;
     Range on_screen_range;
+    Rect_i32 buffer_region;
     Render_Callback *do_core_render;
 };
 

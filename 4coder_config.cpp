@@ -1363,6 +1363,8 @@ config_init_default(Config_Data *config){
     config->use_scope_highlight = true;
     config->use_paren_helper = true;
     config->use_comment_keyword = true;
+    config->file_lister_per_character_backspace = false;
+    config->show_line_number_margins = false;
     
     config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
@@ -1431,6 +1433,8 @@ config_parse__data(Partition *arena, String file_name, String data, Config_Data 
         config_bool_var(parsed, "use_scope_highlight", 0, &config->use_scope_highlight);
         config_bool_var(parsed, "use_paren_helper", 0, &config->use_paren_helper);
         config_bool_var(parsed, "use_comment_keyword", 0, &config->use_comment_keyword);
+        config_bool_var(parsed, "file_lister_per_character_backspace", 0, &config->file_lister_per_character_backspace);
+        config_bool_var(parsed, "show_line_number_margins", 0, &config->show_line_number_margins);
         
         
         config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
@@ -1652,6 +1656,8 @@ load_config_and_apply(Application_Links *app, Partition *scratch, Config_Data *c
             config_feedback_bool(&space, "use_scope_highlight", config->use_scope_highlight);
             config_feedback_bool(&space, "use_paren_helper", config->use_paren_helper);
             config_feedback_bool(&space, "use_comment_keyword", config->use_comment_keyword);
+            config_feedback_bool(&space, "file_lister_per_character_backspace", config->file_lister_per_character_backspace);
+            config_feedback_bool(&space, "show_line_number_margins", config->show_line_number_margins);
             
             config_feedback_bool(&space, "enable_virtual_whitespace", config->enable_virtual_whitespace);
             config_feedback_bool(&space, "enable_code_wrapping", config->enable_code_wrapping);

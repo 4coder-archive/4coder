@@ -356,6 +356,18 @@ emit_bind(Partition *part, Mapping_Array *array, u32 keycode, u32 modifiers, cha
 }
 
 internal void
+emit_bind_all_modifiers(Partition *part, Mapping_Array *mappings, u32 code, char *command){
+    emit_bind(part, mappings, code, MDFR_NONE, command);
+    emit_bind(part, mappings, code, MDFR_CTRL, command);
+    emit_bind(part, mappings, code, MDFR_ALT , command);
+    emit_bind(part, mappings, code, MDFR_CMND, command);
+    emit_bind(part, mappings, code, MDFR_CTRL|MDFR_ALT , command);
+    emit_bind(part, mappings, code, MDFR_ALT |MDFR_CMND, command);
+    emit_bind(part, mappings, code, MDFR_CTRL|MDFR_CMND, command);
+    emit_bind(part, mappings, code, MDFR_CTRL|MDFR_ALT|MDFR_CMND, command);
+}
+
+internal void
 emit_bind_vanilla_keys(Partition *part, Mapping_Array *array, u32 modifiers, char *command){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map != 0);
@@ -390,6 +402,7 @@ emit_bind_vanilla_keys(Partition *part, Mapping_Array *array, u32 modifiers, cha
 #define end_map(mp)              emit_end_map(mp)
 #define inherit_map(pa,mp,mapid)      emit_inherit_map(pa,mp, #mapid)
 #define bind(pa,mp,k,md,c)            emit_bind(pa,mp, k, md, #c)
+#define bind_all_modifiers(pa,mp,k,c) emit_bind_all_modifiers(pa,mp, k, #c)
 #define bind_vanilla_keys(pa,mp,md,c) emit_bind_vanilla_keys(pa,mp, md, #c)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -614,7 +627,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_esc, MDFR_NONE, lister__quit);
         bind(part, mappings, '\n', MDFR_NONE, lister__activate);
         bind(part, mappings, '\t', MDFR_NONE, lister__activate);
-        bind(part, mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
+        bind_all_modifiers(part, mappings, key_back, lister__backspace_text_field);
         bind(part, mappings, key_up       , MDFR_NONE, lister__move_up);
         bind(part, mappings, 'k'          , MDFR_ALT , lister__move_up);
         bind(part, mappings, key_page_up  , MDFR_NONE, lister__move_up);
@@ -838,7 +851,7 @@ generate_remapping_code_and_data(Partition *part){
         bind(part, mappings, key_esc, MDFR_NONE, lister__quit);
         bind(part, mappings, '\n', MDFR_NONE, lister__activate);
         bind(part, mappings, '\t', MDFR_NONE, lister__activate);
-        bind(part, mappings, key_back     , MDFR_NONE, lister__backspace_text_field);
+        bind_all_modifiers(part, mappings, key_back, lister__backspace_text_field);
         bind(part, mappings, key_up       , MDFR_NONE, lister__move_up);
         bind(part, mappings, key_page_up  , MDFR_NONE, lister__move_up);
         bind(part, mappings, key_down     , MDFR_NONE, lister__move_down);

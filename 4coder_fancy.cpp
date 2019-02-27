@@ -131,7 +131,7 @@ push_fancy_string(Arena *arena, String value){
 }
 
 static Fancy_String*
-push_fancy_vstringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, va_list args){
+push_fancy_stringfv(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, va_list args){
     // TODO(casey): Allen, ideally we would have our own formatter here that just outputs into a buffer and can't ever "run out of space".
     char temp[1024];
     i32 length = vsprintf(temp, format, args);
@@ -146,7 +146,7 @@ static Fancy_String*
 push_fancy_stringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, ...){
     va_list args;
     va_start(args, format);
-    Fancy_String *result = push_fancy_vstringf(arena, list, fore, back, format, args);
+    Fancy_String *result = push_fancy_stringfv(arena, list, fore, back, format, args);
     va_end(args);
     return(result);
 }
@@ -155,7 +155,7 @@ static Fancy_String*
 push_fancy_stringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, char *format, ...){
     va_list args;
     va_start(args, format);
-    Fancy_String *result = push_fancy_vstringf(arena, list, fore, pass_through_fancy_color(), format, args);
+    Fancy_String *result = push_fancy_stringfv(arena, list, fore, pass_through_fancy_color(), format, args);
     va_end(args);
     return(result);
 }
@@ -164,7 +164,34 @@ static Fancy_String*
 push_fancy_stringf(Arena *arena, Fancy_String_List *list, char *format, ...){
     va_list args;
     va_start(args, format);
-    Fancy_String *result = push_fancy_vstringf(arena, list, pass_through_fancy_color(), pass_through_fancy_color(), format, args);
+    Fancy_String *result = push_fancy_stringfv(arena, list, pass_through_fancy_color(), pass_through_fancy_color(), format, args);
+    va_end(args);
+    return(result);
+}
+
+static Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Color fore, Fancy_Color back, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    Fancy_String *result = push_fancy_stringfv(arena, 0, fore, back, format, args);
+    va_end(args);
+    return(result);
+}
+
+static Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Color fore, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    Fancy_String *result = push_fancy_stringfv(arena, 0, fore, pass_through_fancy_color(), format, args);
+    va_end(args);
+    return(result);
+}
+
+static Fancy_String*
+push_fancy_stringf(Arena *arena, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    Fancy_String *result = push_fancy_stringfv(arena, 0, pass_through_fancy_color(), pass_through_fancy_color(), format, args);
     va_end(args);
     return(result);
 }

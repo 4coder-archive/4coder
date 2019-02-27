@@ -250,6 +250,16 @@ get_mouse_position_in_panel_space(Application_Links *app, Vec2_i32 file_region_p
     return(get_mouse_position_in_panel_space(get_mouse_state(app), file_region_p0));
 }
 
+static Vec2
+panel_space_from_view_space(Vec2 p, Vec2 scroll_p){
+    return(p - scroll_p);
+}
+
+static Vec2_i32
+panel_space_from_view_space(Vec2_i32 p, Vec2_i32 scroll_p){
+    return(p - scroll_p);
+}
+
 ////////////////////////////////
 
 Lister_State global_lister_state_[16] = {};
