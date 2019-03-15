@@ -453,6 +453,11 @@ file_end_file(Models *models, Editing_File *file){
 internal void
 edit_clear(System_Functions *system, Models *models, Editing_File *file){
     file_end_file(models, file);
+    if(file)
+    {
+        file->is_updating = false;
+        file->return_code = 0;
+    }
     
     b32 no_views_see_file = true;
     

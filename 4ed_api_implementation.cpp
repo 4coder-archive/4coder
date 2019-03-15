@@ -362,6 +362,7 @@ DOC_SEE(The_4coder_Clipboard)
     return(true);
 }
 
+// TODO(casey): Allen, why does this return a bool?  Like, shouldn't it just return the count?  If there's nothing in that clipboard, it'd just be 0?
 API_EXPORT b32
 Clipboard_Count(Application_Links *app, i32 clipboard_id, i32 *count_out)
 /*
@@ -4212,6 +4213,26 @@ draw_helper__view_space_to_screen_space(Models *models, f32_Rect rect){
     return(rect);
 }
 
+internal Vec2
+draw_helper__screen_space_to_view_space(Models *models, Vec2 point){
+    i32_Rect region = models->render_view_rect;
+    point.x -= (f32)region.x0;
+    point.y -= (f32)region.y0;
+    return(point);
+}
+
+internal f32_Rect
+draw_helper__screen_space_to_view_space(Models *models, f32_Rect rect){
+    i32_Rect region = models->render_view_rect;
+    f32 x_corner = (f32)region.x0;
+    f32 y_corner = (f32)region.y0;
+    rect.x0 -= x_corner;
+    rect.y0 -= y_corner;
+    rect.x1 -= x_corner;
+    rect.y1 -= y_corner;
+    return(rect);
+}
+
 // NOTE(allen): Coordinate space of draw calls:
 // The render space is such that 0,0 is _always_ the top left corner of the renderable region of the view.
 // To make text scroll with the buffer users should read the view's scroll position and subtract it first.
@@ -4219,18 +4240,18 @@ draw_helper__view_space_to_screen_space(Models *models, f32_Rect rect){
 API_EXPORT Vec2
 Draw_String(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 {
-    Vec2 result = {};
+    Vec2 result = point;
     Models *models = (Models*)app->cmd_context;
     if (models->render_view == 0){
         f32 width = font_string_width(models->system, models->target, font_id, str);
-        result = delta*width;
+        result += delta*width;
     }
     else{
         Color_Table color_table = models->color_table;
         point = draw_helper__view_space_to_screen_space(models, point);
         u32 actual_color = finalize_color(color_table, color);
         f32 width = draw_string(models->system, models->target, font_id, str, point, actual_color, flags, delta);
-        result = delta*width;
+        result += delta*width;
     }
     return(result);
 }
@@ -4267,6 +4288,21 @@ Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
         u32 actual_color = finalize_color(color_table, color);
         draw_rectangle_outline(models->target, rect, actual_color);
     }
+}
+
+API_EXPORT void
+Draw_Clip_Push(Application_Links *app, f32_Rect clip_box){
+    Models *models = (Models*)app->cmd_context;
+    clip_box = draw_helper__view_space_to_screen_space(models, clip_box);
+    render_push_clip(models->target, i32R(clip_box));
+}
+
+API_EXPORT f32_Rect
+Draw_Clip_Pop(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    f32_Rect result = f32R(render_pop_clip(models->target));
+    result = draw_helper__screen_space_to_view_space(models, result);
+    return(result);
 }
 
 API_EXPORT Face_ID
@@ -4504,6 +4540,22 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
         }
     }
 
+    return(result);
+}
+
+API_EXPORT Process_State
+Get_Process_State(Application_Links *app, Buffer_ID buffer_id)
+{
+    Process_State result = {};
+    
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    if(file != 0)
+    {
+        result.is_updating = file->is_updating;
+        result.return_code = file->return_code;
+    }
+    
     return(result);
 }
 

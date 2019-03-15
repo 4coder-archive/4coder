@@ -2337,23 +2337,22 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): Frame Clipboard Input
         memset(&win32vars.clipboard_contents, 0, sizeof(win32vars.clipboard_contents));
+        input.clipboard_changed = false;
         if (win32vars.clipboard_sequence != 0){
             DWORD new_number = GetClipboardSequenceNumber();
             if (new_number != win32vars.clipboard_sequence){
                 if (win32vars.next_clipboard_is_self){
                     win32vars.next_clipboard_is_self = false;
-                    win32vars.clipboard_sequence = new_number;
                 }
                 else{
-                    b32 got_contents = false;
                     for (i32 R = 0; R < 4; ++R){
                         if (win32_read_clipboard_contents()){
-                            win32vars.clipboard_sequence = new_number;
-                            got_contents = true;
+                            input.clipboard_changed = true;
                             break;
                         }
                     }
                 }
+                win32vars.clipboard_sequence = new_number;
             }
         }
         input.clipboard = win32vars.clipboard_contents;

@@ -113,6 +113,10 @@ struct Editing_File{
     Editing_File_Name canon;
     Node main_chain_node;
     Node edit_finished_mark_node;
+    
+    // NOTE(casey): Allen, these are for tracking whether a process is currently executing and what it's result was
+    b32 is_updating;
+    int64_t return_code;
 };
 
 #endif

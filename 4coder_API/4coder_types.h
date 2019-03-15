@@ -1109,6 +1109,8 @@ ENUM(i32, Special_Hook_ID){
     /* DOC(TODO) */
     special_hook_modify_color_table,
     /* DOC(TODO) */
+    special_hook_clipboard_change,
+    /* DOC(TODO) */
     special_hook_get_view_buffer_region,
 };
 
@@ -1141,6 +1143,12 @@ STRUCT Color_Table{
 
 TYPEDEF_FUNC Color_Table Modify_Color_Table_Function(struct Application_Links *app, Frame_Info frame);
 #define MODIFY_COLOR_TABLE_SIG(name) Color_Table name(struct Application_Links *app, Frame_Info frame)
+
+ENUM(i32, Clipboard_Change_Flag){
+    clipboard_from_os = 0x1,
+};
+TYPEDEF_FUNC void Clipboard_Change_Hook_Function(struct Application_Links *app, String contents, u32 flags);
+#define CLIPBOARD_CHANGE_HOOK_SIG(name) void name(struct Application_Links *app, String contents, u32 flags)
 
 TYPEDEF_FUNC Rect_i32 Get_View_Buffer_Region_Function(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region);
 #define GET_VIEW_BUFFER_REGION_SIG(name) Rect_i32 name(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region)
@@ -1237,6 +1245,11 @@ STRUCT Found_String_List{
     Found_String *first;
     Found_String *last;
     i32 count;
+};
+
+STRUCT Process_State {
+    b32 is_updating;
+    i64 return_code;
 };
 
 #endif

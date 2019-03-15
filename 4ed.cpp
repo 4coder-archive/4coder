@@ -397,6 +397,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                     models->modify_color_table = (Modify_Color_Table_Function*)unit->hook.func;
                                 }break;
                                 
+								case special_hook_clipboard_change:
+                                {
+                                    models->clipboard_change = (Clipboard_Change_Hook_Function*)unit->hook.func;
+                                }break;
+								
                                 case special_hook_get_view_buffer_region:
                                 {
                                     models->get_view_buffer_region = (Get_View_Buffer_Region_Function*)unit->hook.func;
@@ -956,6 +961,9 @@ App_Step_Sig(app_step){
     if (clipboard.str != 0){
         String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
+        if(input->clipboard_changed && models->clipboard_change) {
+            models->clipboard_change(&models->app_links, *dest, clipboard_from_os);
+        }
     }
     
     // NOTE(allen): check files are up to date
@@ -1043,6 +1051,9 @@ App_Step_Sig(app_step){
                     append_int_to_str(&str, cli->exit);
                     output_file_append(system, models, file, str);
                     edited_file = true;
+                    
+                    file->is_updating = false;
+                    file->return_code = cli->exit;
                 }
                 procs_to_free[proc_free_count++] = proc_ptr;
             }

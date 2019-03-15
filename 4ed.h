@@ -97,6 +97,7 @@ struct Application_Step_Input{
     Key_Input_Data keys;
     Mouse_State mouse;
     String clipboard;
+    b32 clipboard_changed;
     b32 trying_to_kill;
     u32 debug_number;
 };
