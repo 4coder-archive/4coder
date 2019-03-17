@@ -974,7 +974,7 @@ exec_project_command(Application_Links *app, Project_Command *command){
         View_Summary view = {};
         View_Summary *view_ptr = 0;
         Buffer_Identifier buffer_id = {};
-        u32 flags = CLI_OverlapWithConflict;
+        u32 flags = CLI_OverlapWithConflict|CLI_SendEndSignal;
         if (cursor_at_end){
             flags |= CLI_CursorAtEnd;
         }

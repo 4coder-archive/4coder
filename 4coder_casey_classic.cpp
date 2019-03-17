@@ -776,7 +776,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
                             buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
                             dir.str, dir.size,
                             command.str, command.size,
-                            CLI_OverlapWithConflict);
+                            CLI_OverlapWithConflict|CLI_SendEndSignal);
         lock_jump_buffer(GlobalCompilationBufferName, str_size(GlobalCompilationBufferName));
     }
     exec_command(app, change_active_panel);

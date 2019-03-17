@@ -443,50 +443,10 @@ file_end_file(Models *models, Editing_File *file){
     if (models->hook_end_file != 0){
         models->hook_end_file(&models->app_links, file->id.id);
     }
-    
     Heap *heap = &models->mem.heap;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
     file->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_Buffer, file);
-}
-
-internal void
-edit_clear(System_Functions *system, Models *models, Editing_File *file){
-    file_end_file(models, file);
-    if(file)
-    {
-        file->is_updating = false;
-        file->return_code = 0;
-    }
-    
-    b32 no_views_see_file = true;
-    
-    Layout *layout = &models->layout;
-    for (Panel *panel = layout_get_first_open_panel(layout);
-         panel != 0;
-         panel = layout_get_next_open_panel(layout, panel)){
-        View *view = panel->view;
-        if (view->file == file){
-            Full_Cursor cursor = {};
-            cursor.line = 1;
-            cursor.character = 1;
-            cursor.wrap_line = 1;
-            view_set_cursor(system, models, view, cursor, true);
-            no_views_see_file = false;
-        }
-    }
-    
-    if (no_views_see_file){
-        block_zero_struct(&file->state.edit_pos_most_recent);
-        block_zero(file->state.edit_pos_stack, sizeof(file->state.edit_pos_stack));
-        file->state.edit_pos_stack_top = -1;
-    }
-    
-    Edit edit = {};
-    edit.range.one_past_last = buffer_size(&file->state.buffer);
-    
-    Edit_Behaviors behaviors = {};
-    edit_single(system, models, file, edit, behaviors);
 }
 
 internal void

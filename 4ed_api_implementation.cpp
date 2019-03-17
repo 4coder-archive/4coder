@@ -285,7 +285,46 @@ DOC_SEE(Command_Line_Interface_Flag)
         
         // NOTE(allen): If we have an output file, prepare it for child proc output.
         if (file != 0){
-            edit_clear(system, models, file);
+            //edit_clear(system, models, file);
+            file->is_updating = false;
+            file->return_code = 0;
+            
+            // TODO(allen): not sure why any of this would be needed, the cursor fixing should automatically handle it, right?
+#if 0
+            b32 no_views_see_file = true;
+            
+            Layout *layout = &models->layout;
+            for (Panel *panel = layout_get_first_open_panel(layout);
+                 panel != 0;
+                 panel = layout_get_next_open_panel(layout, panel)){
+                View *view = panel->view;
+                if (view->file == file){
+                    Full_Cursor cursor = {};
+                    cursor.line = 1;
+                    cursor.character = 1;
+                    cursor.wrap_line = 1;
+                    view_set_cursor(system, models, view, cursor, true);
+                    no_views_see_file = false;
+                }
+            }
+            
+            if (no_views_see_file){
+                block_zero_struct(&file->state.edit_pos_most_recent);
+                block_zero(file->state.edit_pos_stack, sizeof(file->state.edit_pos_stack));
+                file->state.edit_pos_stack_top = -1;
+            }
+#endif
+            
+            Edit edit = {};
+            edit.range.one_past_last = buffer_size(&file->state.buffer);
+            
+            Edit_Behaviors behaviors = {};
+            edit_single(system, models, file, edit, behaviors);
+            
+            if (HasFlag(flags, CLI_SendEndSignal)){
+                file_end_file(models, file);
+            }
+            
             file_set_unimportant(file, true);
         }
         
@@ -1082,12 +1121,15 @@ If the buffer_id does not specify a valid buffer, the returned scope is null.)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
     if (buffer_api_check_file(file)){
         *scope_out = buffer_get_managed_scope__inner(file);
-        return(true);
+        result = true;
     }
-    *scope_out = 0;
-    return(false);
+    else{
+        *scope_out = 0;
+    }
+    return(result);
 }
 
 // TODO(allen): redocument

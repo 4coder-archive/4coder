@@ -266,6 +266,8 @@ ENUM(u32, Command_Line_Interface_Flag){
     CLI_AlwaysBindToView    = 0x2,
     /* DOC(If CLI_CursorAtEnd is set the cursor will be kept at the end of the output buffer, otherwise the cursor is kept at the beginning.) */
     CLI_CursorAtEnd         = 0x4,
+    /* DOC(TODO) */
+    CLI_SendEndSignal       = 0x8,
 };
 
 /* DOC(An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.) */

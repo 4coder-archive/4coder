@@ -15,7 +15,7 @@ CUSTOM_DOC("If the command execute_any_cli has already been used, this will exec
         u32 access = AccessAll;
         View_Summary view = get_active_view(app, access);
         
-        exec_system_command(app, &view, buffer_identifier(out_buffer.str, out_buffer.size), hot_directory.str, hot_directory.size, cmd.str, cmd.size, CLI_OverlapWithConflict | CLI_CursorAtEnd);
+        exec_system_command(app, &view, buffer_identifier(out_buffer.str, out_buffer.size), hot_directory.str, hot_directory.size, cmd.str, cmd.size, CLI_OverlapWithConflict|CLI_CursorAtEnd|CLI_SendEndSignal);
         lock_jump_buffer(out_buffer.str, out_buffer.size);
     }
 }

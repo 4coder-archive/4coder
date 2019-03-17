@@ -72,7 +72,7 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
                 save_all_dirty_buffers(app);
             }
             
-            exec_system_command(app, view, buffer_identifier(literal("*compilation*")), dir->str, dir->size, command->str, command->size, CLI_OverlapWithConflict);
+            exec_system_command(app, view, buffer_identifier(literal("*compilation*")), dir->str, dir->size, command->str, command->size, CLI_OverlapWithConflict|CLI_SendEndSignal);
             result = true;
             break;
         }
@@ -85,7 +85,7 @@ standard_build_search(Application_Links *app, View_Summary *view, Buffer_Summary
                 String backup_command = make_fixed_width_string(backup_space);
                 append_ss(&backup_command, make_lit_string("echo could not find "));
                 append_ss(&backup_command, filename);
-                exec_system_command(app, view, buffer_identifier(literal("*compilation*")), dir->str, dir->size, backup_command.str, backup_command.size, CLI_OverlapWithConflict);
+                exec_system_command(app, view, buffer_identifier(literal("*compilation*")), dir->str, dir->size, backup_command.str, backup_command.size, CLI_OverlapWithConflict|CLI_SendEndSignal);
             }
             break;
         }
