@@ -144,10 +144,13 @@ struct Application_Links;
 #define GET_STRING_ADVANCE_SIG(n) f32 n(Application_Links *app, Face_ID font_id, String str)
 #define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
 #define DRAW_RECTANGLE_OUTLINE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
+#define DRAW_CLIP_PUSH_SIG(n) void n(Application_Links *app, f32_Rect clip_box)
+#define DRAW_CLIP_POP_SIG(n) f32_Rect n(Application_Links *app)
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
 #define ANIMATE_SIG(n) void n(Application_Links *app)
 #define FIND_ALL_IN_RANGE_INSENSITIVE_SIG(n) Found_String_List n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory)
+#define GET_PROCESS_STATE_SIG(n) Process_State n(Application_Links *app, Buffer_ID buffer_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
 typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
@@ -293,10 +296,13 @@ typedef DRAW_STRING_SIG(Draw_String_Function);
 typedef GET_STRING_ADVANCE_SIG(Get_String_Advance_Function);
 typedef DRAW_RECTANGLE_SIG(Draw_Rectangle_Function);
 typedef DRAW_RECTANGLE_OUTLINE_SIG(Draw_Rectangle_Outline_Function);
+typedef DRAW_CLIP_PUSH_SIG(Draw_Clip_Push_Function);
+typedef DRAW_CLIP_POP_SIG(Draw_Clip_Pop_Function);
 typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
 typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
 typedef ANIMATE_SIG(Animate_Function);
 typedef FIND_ALL_IN_RANGE_INSENSITIVE_SIG(Find_All_In_Range_Insensitive_Function);
+typedef GET_PROCESS_STATE_SIG(Get_Process_State_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
@@ -444,10 +450,13 @@ Draw_String_Function *draw_string;
 Get_String_Advance_Function *get_string_advance;
 Draw_Rectangle_Function *draw_rectangle;
 Draw_Rectangle_Outline_Function *draw_rectangle_outline;
+Draw_Clip_Push_Function *draw_clip_push;
+Draw_Clip_Pop_Function *draw_clip_pop;
 Get_Default_Font_For_View_Function *get_default_font_for_view;
 Open_Color_Picker_Function *open_color_picker;
 Animate_Function *animate;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive;
+Get_Process_State_Function *get_process_state;
 #else
 Global_Set_Setting_Function *global_set_setting_;
 Global_Set_Mapping_Function *global_set_mapping_;
@@ -594,10 +603,13 @@ Draw_String_Function *draw_string_;
 Get_String_Advance_Function *get_string_advance_;
 Draw_Rectangle_Function *draw_rectangle_;
 Draw_Rectangle_Outline_Function *draw_rectangle_outline_;
+Draw_Clip_Push_Function *draw_clip_push_;
+Draw_Clip_Pop_Function *draw_clip_pop_;
 Get_Default_Font_For_View_Function *get_default_font_for_view_;
 Open_Color_Picker_Function *open_color_picker_;
 Animate_Function *animate_;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive_;
+Get_Process_State_Function *get_process_state_;
 #endif
 void *memory;
 int32_t memory_size;
@@ -752,10 +764,13 @@ app_links->draw_string_ = Draw_String;\
 app_links->get_string_advance_ = Get_String_Advance;\
 app_links->draw_rectangle_ = Draw_Rectangle;\
 app_links->draw_rectangle_outline_ = Draw_Rectangle_Outline;\
+app_links->draw_clip_push_ = Draw_Clip_Push;\
+app_links->draw_clip_pop_ = Draw_Clip_Pop;\
 app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
 app_links->open_color_picker_ = Open_Color_Picker;\
 app_links->animate_ = Animate;\
-app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;} while(false)
+app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;\
+app_links->get_process_state_ = Get_Process_State;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping(app, data, size));}
@@ -902,10 +917,13 @@ static Vec2 draw_string(Application_Links *app, Face_ID font_id, String str, Vec
 static f32 get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance(app, font_id, str));}
 static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline(app, rect, color));}
+static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw_clip_push(app, clip_box));}
+static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
 static void animate(Application_Links *app){(app->animate(app));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive(app, buffer_id, start, end, key, memory));}
+static Process_State get_process_state(Application_Links *app, Buffer_ID buffer_id){return(app->get_process_state(app, buffer_id));}
 #else
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping_(app, data, size));}
@@ -1052,8 +1070,11 @@ static Vec2 draw_string(Application_Links *app, Face_ID font_id, String str, Vec
 static f32 get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance_(app, font_id, str));}
 static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline_(app, rect, color));}
+static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw_clip_push_(app, clip_box));}
+static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop_(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
 static void animate(Application_Links *app){(app->animate_(app));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive_(app, buffer_id, start, end, key, memory));}
+static Process_State get_process_state(Application_Links *app, Buffer_ID buffer_id){return(app->get_process_state_(app, buffer_id));}
 #endif

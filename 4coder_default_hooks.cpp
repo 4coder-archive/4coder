@@ -439,6 +439,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
             r_cursor.x0 = left_margin.x1;
             
             draw_rectangle(app, left_margin, Stag_Line_Numbers_Back);
+            draw_clip_push(app, left_margin);
             
             Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
             
@@ -447,19 +448,19 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
             for (;cursor.pos <= render_params.on_screen_range.one_past_last;){
                 Vec2 p = panel_space_from_view_space(cursor.wrapped_p, view.scroll_vars.scroll_p);
                 p += V2(render_params.buffer_region.p0);
-                if (p.y >= left_margin.y0){
-                    p.x = left_margin.x0;
-                    Temp_Memory_Arena temp = begin_temp_memory(&arena);
-                    Fancy_String *line_string = push_fancy_stringf(&arena, line_color, "%*d", line_count_digit_count, cursor.line);
-                    draw_fancy_string(app, font_id, line_string, p, Stag_Margin_Active, 0);
-                    end_temp_memory(temp);
-                }
+                p.x = left_margin.x0;
+                Temp_Memory_Arena temp = begin_temp_memory(&arena);
+                Fancy_String *line_string = push_fancy_stringf(&arena, line_color, "%*d", line_count_digit_count, cursor.line);
+                draw_fancy_string(app, font_id, line_string, p, Stag_Margin_Active, 0);
+                end_temp_memory(temp);
                 i32 next_line = cursor.line + 1;
                 view_compute_cursor(app, render_params.view_id, seek_line_char(next_line, 1), &cursor);
                 if (cursor.line < next_line){
                     break;
                 }
             }
+            
+            draw_clip_pop(app);
         }
     }
     
