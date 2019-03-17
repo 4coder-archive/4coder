@@ -82,7 +82,13 @@ Render_Change_Clip_Sig(render_change_clip, t, clip_box){
 
 internal
 Render_Push_Clip_Sig(render_push_clip, t, clip_box){
-    Assert(t->clip_top == -1 || fits_inside(clip_box, t->clip_boxes[t->clip_top]));
+    // NOTE(casey): Allen, I nerfed this assertion because really people should be able to push any clip region they want, it
+    // should just be "restricted" to the previous clip regions, right?
+//    Assert(t->clip_top == -1 || fits_inside(clip_box, t->clip_boxes[t->clip_top]));
+    if(t->clip_top != -1)
+    {
+        clip_box = intersection_of(clip_box, t->clip_boxes[t->clip_top]);
+    }
     Assert(t->clip_top + 1 < ArrayCount(t->clip_boxes));
     t->clip_boxes[++t->clip_top] = clip_box;
     render_internal_push_clip(t, clip_box);

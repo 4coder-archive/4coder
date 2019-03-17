@@ -24,6 +24,7 @@ cli_list_call(System_Functions *system, CLI_List *list, char *path, char *comman
     
     if (list->count < list->max){
         CLI_Process *proc = &list->procs[list->count++];
+        file->is_updating = true;
         proc->out_file = file;
         proc->cursor_at_end = cursor_at_end;
         result = system->cli_call(path, command, &proc->cli);

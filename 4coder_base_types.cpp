@@ -984,5 +984,49 @@ rect_width(f32_Rect rect){
     return(rect.x1 - rect.x0);
 }
 
+static i32_Rect
+intersection_of(i32_Rect a, i32_Rect b)
+{
+    i32_Rect result;
+    result.x0 = Max(a.x0, b.x0);
+    result.y0 = Max(a.y0, b.y0);
+    result.x1 = Min(a.x1, b.x1);
+    result.y1 = Min(a.y1, b.y1);
+    return(result);
+}
+
+static i32_Rect
+union_of(i32_Rect a, i32_Rect b)
+{
+    i32_Rect result;
+    result.x0 = Max(a.x0, b.x0);
+    result.y0 = Max(a.y0, b.y0);
+    result.x1 = Min(a.x1, b.x1);
+    result.y1 = Min(a.y1, b.y1);
+    return(result);
+}
+
+static f32_Rect
+intersection_of(f32_Rect a, f32_Rect b)
+{
+    f32_Rect result;
+    result.x0 = Max(a.x0, b.x0);
+    result.y0 = Max(a.y0, b.y0);
+    result.x1 = Min(a.x1, b.x1);
+    result.y1 = Min(a.y1, b.y1);
+    return(result);
+}
+
+static f32_Rect
+union_of(f32_Rect a, f32_Rect b)
+{
+    f32_Rect result;
+    result.x0 = Max(a.x0, b.x0);
+    result.y0 = Max(a.y0, b.y0);
+    result.x1 = Min(a.x1, b.x1);
+    result.y1 = Min(a.y1, b.y1);
+    return(result);
+}
+
 // BOTTOM
 
