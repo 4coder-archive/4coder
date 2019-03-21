@@ -934,8 +934,8 @@ App_Init_Sig(app_init){
     // NOTE(allen): hot directory
     hot_directory_init(&models->hot_directory, current_directory);
     
-    // NOTE(allen): child proc list setup
-    vars->cli_processes = make_cli_list(part, MAX_VIEWS);
+    // NOTE(allen): child process container
+    child_process_container_init(&models->child_processes, models);
     
     // NOTE(allen): init GUI keys
     models->user_up_key = key_up;
@@ -1017,20 +1017,24 @@ App_Step_Sig(app_step){
     f32 dt = input->dt;
     if (dt > 0){
         Partition *scratch = &models->mem.part;
+        Child_Process_Container *child_processes = &models->child_processes;
         
-        CLI_List *list = &vars->cli_processes;
-        
-        Temp_Memory temp = begin_temp_memory(&models->mem.part);
-        CLI_Process **procs_to_free = push_array(scratch, CLI_Process*, list->count);
-        u32 proc_free_count = 0;
+        Temp_Memory temp = begin_temp_memory(scratch);
+        Child_Process **processes_to_free = push_array(scratch, Child_Process*, child_processes->active_child_process_count);
+        i32 processes_to_free_count = 0;
         
         u32 max = KB(128);
         char *dest = push_array(scratch, char, max);
         
-        CLI_Process *proc_ptr = list->procs;
-        for (u32 i = 0; i < list->count; ++i, ++proc_ptr){
-            Editing_File *file = proc_ptr->out_file;
-            CLI_Handles *cli = &proc_ptr->cli;
+        for (Node *node = child_processes->child_process_active_list.next;
+             node != &child_processes->child_process_active_list;
+             node = node->next){
+            Child_Process *child_process = CastFromMember(Child_Process, node, node);
+            
+            Editing_File *file = child_process->out_file;
+            CLI_Handles *cli = &child_process->cli;
+            
+            // TODO(allen): do(call a 'child process updated hook' let that hook populate the buffer if it so chooses)
             
             b32 edited_file = false;
             u32 amount = 0;
@@ -1051,20 +1055,18 @@ App_Step_Sig(app_step){
                     append_int_to_str(&str, cli->exit);
                     output_file_append(system, models, file, str);
                     edited_file = true;
-                    
-                    file->is_updating = false;
-                    file->return_code = cli->exit;
                 }
-                procs_to_free[proc_free_count++] = proc_ptr;
+                processes_to_free[processes_to_free_count++] = child_process;
+                child_process_set_return_code(models, child_processes, child_process->id, cli->exit);
             }
             
-            if (proc_ptr->cursor_at_end && file != 0){
+            if (child_process->cursor_at_end && file != 0){
                 file_cursor_to_end(system, models, file);
             }
         }
         
-        for (i32 i = proc_free_count - 1; i >= 0; --i){
-            cli_list_free_proc(list, procs_to_free[i]);
+        for (i32 i = 0; i < processes_to_free_count; ++i){
+            child_process_free(child_processes, processes_to_free[i]->id);
         }
         
         end_temp_memory(temp);

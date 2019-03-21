@@ -1,7 +1,11 @@
 struct Application_Links;
 #define GLOBAL_SET_SETTING_SIG(n) b32 n(Application_Links *app, Global_Setting_ID setting, i32 value)
 #define GLOBAL_SET_MAPPING_SIG(n) b32 n(Application_Links *app, void *data, i32 size)
-#define EXEC_SYSTEM_COMMAND_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Identifier buffer_id, String path, String command, Command_Line_Interface_Flag flags)
+#define CREATE_CHILD_PROCESS_SIG(n) b32 n(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out)
+#define CHILD_PROCESS_SET_TARGET_BUFFER_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags)
+#define BUFFER_GET_ATTACHED_CHILD_PROCESS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Child_Process_ID *child_process_id_out)
+#define CHILD_PROCESS_GET_ATTACHED_BUFFER_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID *buffer_id_out)
+#define CHILD_PROCESS_GET_STATE_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Process_State *process_state_out)
 #define CLIPBOARD_POST_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, String string)
 #define CLIPBOARD_COUNT_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, i32 *count_out)
 #define CLIPBOARD_INDEX_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out)
@@ -150,10 +154,13 @@ struct Application_Links;
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
 #define ANIMATE_SIG(n) void n(Application_Links *app)
 #define FIND_ALL_IN_RANGE_INSENSITIVE_SIG(n) Found_String_List n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory)
-#define GET_PROCESS_STATE_SIG(n) Process_State n(Application_Links *app, Buffer_ID buffer_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
-typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
+typedef CREATE_CHILD_PROCESS_SIG(Create_Child_Process_Function);
+typedef CHILD_PROCESS_SET_TARGET_BUFFER_SIG(Child_Process_Set_Target_Buffer_Function);
+typedef BUFFER_GET_ATTACHED_CHILD_PROCESS_SIG(Buffer_Get_Attached_Child_Process_Function);
+typedef CHILD_PROCESS_GET_ATTACHED_BUFFER_SIG(Child_Process_Get_Attached_Buffer_Function);
+typedef CHILD_PROCESS_GET_STATE_SIG(Child_Process_Get_State_Function);
 typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
 typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
 typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
@@ -302,12 +309,15 @@ typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
 typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
 typedef ANIMATE_SIG(Animate_Function);
 typedef FIND_ALL_IN_RANGE_INSENSITIVE_SIG(Find_All_In_Range_Insensitive_Function);
-typedef GET_PROCESS_STATE_SIG(Get_Process_State_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
 Global_Set_Mapping_Function *global_set_mapping;
-Exec_System_Command_Function *exec_system_command;
+Create_Child_Process_Function *create_child_process;
+Child_Process_Set_Target_Buffer_Function *child_process_set_target_buffer;
+Buffer_Get_Attached_Child_Process_Function *buffer_get_attached_child_process;
+Child_Process_Get_Attached_Buffer_Function *child_process_get_attached_buffer;
+Child_Process_Get_State_Function *child_process_get_state;
 Clipboard_Post_Function *clipboard_post;
 Clipboard_Count_Function *clipboard_count;
 Clipboard_Index_Function *clipboard_index;
@@ -456,11 +466,14 @@ Get_Default_Font_For_View_Function *get_default_font_for_view;
 Open_Color_Picker_Function *open_color_picker;
 Animate_Function *animate;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive;
-Get_Process_State_Function *get_process_state;
 #else
 Global_Set_Setting_Function *global_set_setting_;
 Global_Set_Mapping_Function *global_set_mapping_;
-Exec_System_Command_Function *exec_system_command_;
+Create_Child_Process_Function *create_child_process_;
+Child_Process_Set_Target_Buffer_Function *child_process_set_target_buffer_;
+Buffer_Get_Attached_Child_Process_Function *buffer_get_attached_child_process_;
+Child_Process_Get_Attached_Buffer_Function *child_process_get_attached_buffer_;
+Child_Process_Get_State_Function *child_process_get_state_;
 Clipboard_Post_Function *clipboard_post_;
 Clipboard_Count_Function *clipboard_count_;
 Clipboard_Index_Function *clipboard_index_;
@@ -609,7 +622,6 @@ Get_Default_Font_For_View_Function *get_default_font_for_view_;
 Open_Color_Picker_Function *open_color_picker_;
 Animate_Function *animate_;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive_;
-Get_Process_State_Function *get_process_state_;
 #endif
 void *memory;
 int32_t memory_size;
@@ -621,7 +633,11 @@ int32_t type_coroutine;
 #define FillAppLinksAPI(app_links) do{\
 app_links->global_set_setting_ = Global_Set_Setting;\
 app_links->global_set_mapping_ = Global_Set_Mapping;\
-app_links->exec_system_command_ = Exec_System_Command;\
+app_links->create_child_process_ = Create_Child_Process;\
+app_links->child_process_set_target_buffer_ = Child_Process_Set_Target_Buffer;\
+app_links->buffer_get_attached_child_process_ = Buffer_Get_Attached_Child_Process;\
+app_links->child_process_get_attached_buffer_ = Child_Process_Get_Attached_Buffer;\
+app_links->child_process_get_state_ = Child_Process_Get_State;\
 app_links->clipboard_post_ = Clipboard_Post;\
 app_links->clipboard_count_ = Clipboard_Count;\
 app_links->clipboard_index_ = Clipboard_Index;\
@@ -769,12 +785,15 @@ app_links->draw_clip_pop_ = Draw_Clip_Pop;\
 app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
 app_links->open_color_picker_ = Open_Color_Picker;\
 app_links->animate_ = Animate;\
-app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;\
-app_links->get_process_state_ = Get_Process_State;} while(false)
+app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping(app, data, size));}
-static b32 exec_system_command(Application_Links *app, View_ID view_id, Buffer_Identifier buffer_id, String path, String command, Command_Line_Interface_Flag flags){return(app->exec_system_command(app, view_id, buffer_id, path, command, flags));}
+static b32 create_child_process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){return(app->create_child_process(app, path, command, child_process_id_out));}
+static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer(app, child_process_id, buffer_id, flags));}
+static b32 buffer_get_attached_child_process(Application_Links *app, Buffer_ID buffer_id, Child_Process_ID *child_process_id_out){return(app->buffer_get_attached_child_process(app, buffer_id, child_process_id_out));}
+static b32 child_process_get_attached_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID *buffer_id_out){return(app->child_process_get_attached_buffer(app, child_process_id, buffer_id_out));}
+static b32 child_process_get_state(Application_Links *app, Child_Process_ID child_process_id, Process_State *process_state_out){return(app->child_process_get_state(app, child_process_id, process_state_out));}
 static b32 clipboard_post(Application_Links *app, i32 clipboard_id, String string){return(app->clipboard_post(app, clipboard_id, string));}
 static b32 clipboard_count(Application_Links *app, i32 clipboard_id, i32 *count_out){return(app->clipboard_count(app, clipboard_id, count_out));}
 static b32 clipboard_index(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out){return(app->clipboard_index(app, clipboard_id, item_index, string_out, required_size_out));}
@@ -923,11 +942,14 @@ static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
 static void animate(Application_Links *app){(app->animate(app));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive(app, buffer_id, start, end, key, memory));}
-static Process_State get_process_state(Application_Links *app, Buffer_ID buffer_id){return(app->get_process_state(app, buffer_id));}
 #else
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping_(app, data, size));}
-static b32 exec_system_command(Application_Links *app, View_ID view_id, Buffer_Identifier buffer_id, String path, String command, Command_Line_Interface_Flag flags){return(app->exec_system_command_(app, view_id, buffer_id, path, command, flags));}
+static b32 create_child_process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){return(app->create_child_process_(app, path, command, child_process_id_out));}
+static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer_(app, child_process_id, buffer_id, flags));}
+static b32 buffer_get_attached_child_process(Application_Links *app, Buffer_ID buffer_id, Child_Process_ID *child_process_id_out){return(app->buffer_get_attached_child_process_(app, buffer_id, child_process_id_out));}
+static b32 child_process_get_attached_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID *buffer_id_out){return(app->child_process_get_attached_buffer_(app, child_process_id, buffer_id_out));}
+static b32 child_process_get_state(Application_Links *app, Child_Process_ID child_process_id, Process_State *process_state_out){return(app->child_process_get_state_(app, child_process_id, process_state_out));}
 static b32 clipboard_post(Application_Links *app, i32 clipboard_id, String string){return(app->clipboard_post_(app, clipboard_id, string));}
 static b32 clipboard_count(Application_Links *app, i32 clipboard_id, i32 *count_out){return(app->clipboard_count_(app, clipboard_id, count_out));}
 static b32 clipboard_index(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out){return(app->clipboard_index_(app, clipboard_id, item_index, string_out, required_size_out));}
@@ -1076,5 +1098,4 @@ static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
 static void animate(Application_Links *app){(app->animate_(app));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive_(app, buffer_id, start, end, key, memory));}
-static Process_State get_process_state(Application_Links *app, Buffer_ID buffer_id){return(app->get_process_state_(app, buffer_id));}
 #endif

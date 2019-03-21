@@ -39,6 +39,7 @@ struct Models{
     Coroutine_Head *command_coroutine;
     u32 command_coroutine_flags[2];
     
+    Child_Process_Container child_processes;
     Custom_API config_api;
     
     Application_Links app_links;
@@ -156,7 +157,6 @@ struct Consumption_Record{
 
 struct App_Vars{
     Models models;
-    CLI_List cli_processes;
     App_State state;
 };
 

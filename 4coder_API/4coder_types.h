@@ -24,6 +24,8 @@ TYPEDEF u16 id_color;
 /* DOC(Parse_Context_ID identifies a parse context, which is a guiding rule for the parser.  Each buffer sets which parse context to use when it is parsed.) */
 TYPEDEF u32 Parse_Context_ID;
 
+TYPEDEF u32 Child_Process_ID;
+
 /* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but when a buffer is closed it's id may be recycled by future, different buffers.) */
 TYPEDEF i32 Buffer_ID;
 
@@ -31,6 +33,13 @@ TYPEDEF i32 Buffer_ID;
 TYPEDEF i32 View_ID;
 
 TYPEDEF i32 Panel_ID;
+
+ENUM(u32, Child_Process_Set_Target_Flags){
+    ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess = 1,
+    ChildProcessSet_FailIfProcessAlreadyAttachedToABuffer = 2,
+    ChildProcessSet_NeverOverrideExistingAttachment = 3,
+    ChildProcessSet_CursorAtEnd = 4,
+};
 
 /* DOC(A Key_Modifier_Index acts as an index for specifying modifiers in arrays.) */
 ENUM(i32, Key_Modifier_Index){

@@ -26,6 +26,7 @@
 
 typedef b32 bool32;
 
+#if 0
 static b32
 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
                     char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
@@ -34,6 +35,53 @@ exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifie
         result = exec_system_command(app, view->view_id, buffer_id, make_string(path, path_len), make_string(command, command_len), flags);
         get_view_summary(app, view->view_id, AccessAll, view);
     }
+    return(result);
+}
+#endif
+
+static b32
+exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
+                    char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
+    b32 result = false;
+    
+    String path_string = make_string(path, path_len);
+    String command_string = make_string(command, command_len);
+    Child_Process_ID child_process_id = 0;
+    if (create_child_process(app, path_string, command_string, &child_process_id)){
+        result = true;
+        
+        Buffer_ID buffer_attach_id = 0;
+        if (buffer_id.name != 0 && buffer_id.name_len > 0){
+            String buffer_name = make_string(buffer_id.name, buffer_id.name_len);
+            if (!get_buffer_by_name(app, buffer_name, AccessAll, &buffer_attach_id)){
+                if (create_buffer(app, buffer_name, BufferCreate_AlwaysNew|BufferCreate_NeverAttachToFile, &buffer_attach_id)){
+                    buffer_set_setting(app, buffer_attach_id, BufferSetting_ReadOnly, true);
+                    buffer_set_setting(app, buffer_attach_id, BufferSetting_Unimportant, true);
+                }
+            }
+        }
+        else if (buffer_id.id != 0){
+            buffer_attach_id = buffer_id.id;
+        }
+        
+        b32 set_a_buffer = false;
+        if (buffer_attach_id != 0){
+            Child_Process_Set_Target_Flags set_buffer_flags = 0;
+            if (!HasFlag(flags, CLI_OverlapWithConflict)){
+                set_buffer_flags |= ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess;
+            }
+            if (HasFlag(flags, CLI_CursorAtEnd)){
+                set_buffer_flags |= ChildProcessSet_CursorAtEnd;
+            }
+            set_a_buffer = child_process_set_target_buffer(app, child_process_id, buffer_attach_id, set_buffer_flags);
+            
+            if (view != 0){
+                view_set_buffer(app, view->view_id, buffer_attach_id, 0);
+                get_view_summary(app, view->view_id, AccessAll, view);
+            }
+        }
+    }
+    
     return(result);
 }
 
@@ -581,6 +629,16 @@ static void
 set_window_title(Application_Links *app, char *title){
     String title_string = make_string_slowly(title);
     set_window_title(app, title_string);
+}
+
+static Process_State
+get_process_state(Application_Links *app, Buffer_ID buffer_id){
+    Process_State state = {};
+    Child_Process_ID child_process_id = 0;
+    if (buffer_get_attached_child_process(app, buffer_id, &child_process_id)){
+        child_process_get_state(app, child_process_id, &state);
+    }
+    return(state);
 }
 
 #endif
