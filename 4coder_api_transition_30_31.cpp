@@ -26,19 +26,6 @@
 
 typedef b32 bool32;
 
-#if 0
-static b32
-exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
-                    char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
-    b32 result = false;
-    if (view != 0 && view->exists){
-        result = exec_system_command(app, view->view_id, buffer_id, make_string(path, path_len), make_string(command, command_len), flags);
-        get_view_summary(app, view->view_id, AccessAll, view);
-    }
-    return(result);
-}
-#endif
-
 static b32
 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
                     char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
@@ -64,7 +51,6 @@ exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifie
             buffer_attach_id = buffer_id.id;
         }
         
-        b32 set_a_buffer = false;
         if (buffer_attach_id != 0){
             Child_Process_Set_Target_Flags set_buffer_flags = 0;
             if (!HasFlag(flags, CLI_OverlapWithConflict)){
@@ -73,11 +59,18 @@ exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifie
             if (HasFlag(flags, CLI_CursorAtEnd)){
                 set_buffer_flags |= ChildProcessSet_CursorAtEnd;
             }
-            set_a_buffer = child_process_set_target_buffer(app, child_process_id, buffer_attach_id, set_buffer_flags);
             
-            if (view != 0){
-                view_set_buffer(app, view->view_id, buffer_attach_id, 0);
-                get_view_summary(app, view->view_id, AccessAll, view);
+            if (child_process_set_target_buffer(app, child_process_id, buffer_attach_id, set_buffer_flags)){
+                Buffer_Summary buffer = {};
+                get_buffer_summary(app, buffer_attach_id, AccessAll, &buffer);
+                buffer_replace_range(app, buffer_attach_id, 0, buffer.size, make_lit_string(""));
+                if (HasFlag(flags, CLI_SendEndSignal)){
+                    buffer_send_end_signal(app, buffer_attach_id);
+                }
+                if (view != 0){
+                    view_set_buffer(app, view->view_id, buffer_attach_id, 0);
+                    get_view_summary(app, view->view_id, AccessAll, view);
+                }
             }
         }
     }

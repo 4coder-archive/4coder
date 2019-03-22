@@ -231,24 +231,22 @@ Child_Process_Set_Target_Buffer(Application_Links *app, Child_Process_ID child_p
         b32 okay_if_process_has_buffer = ((flags & ChildProcessSet_FailIfProcessAlreadyAttachedToABuffer) == 0);
         b32 okay_if_buffer_has_process = ((flags & ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess) == 0);
         
-        b32 process_has_buffer = (child_process->out_file == 0);
-        b32 buffer_has_process = (file->state.attached_child_process == 0);
-        Child_Process *attached_child_process = 0;
-        if (buffer_has_process){
-            attached_child_process = child_process_from_id(&models->child_processes, file->state.attached_child_process);
-        }
-        
+        b32 process_has_buffer = (child_process->out_file != 0);
+        b32 buffer_has_process = (file->state.attached_child_process != 0);
+                
         if ((!process_has_buffer || okay_if_process_has_buffer) && (!buffer_has_process || okay_if_buffer_has_process)){
-            if (child_process->out_file != 0){
+            if (process_has_buffer){
                 child_process->out_file->state.attached_child_process = 0;
             }
-            if (file->state.attached_child_process != 0){
+            if (buffer_has_process){
+                Child_Process *attached_child_process = child_process_from_id(&models->child_processes, file->state.attached_child_process);
                 if (attached_child_process != 0){
                     attached_child_process->out_file = 0;
                 }
             }
             child_process->out_file = file;
             file->state.attached_child_process = child_process_id;
+            result = true;
         }
     }
     return(result);
