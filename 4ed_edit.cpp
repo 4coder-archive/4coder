@@ -315,9 +315,15 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
 // TODO(allen): this isn't "real" anymore, batch edits are now superseded a combination of other features, we should dump this someday
 internal void
 edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Array edits, Edit_Behaviors behaviors){
-    Edit *edit = edits.vals;
-    for (i32 i = 0; i < edits.count; i += 1, edit += 1){
-        edit_single(system, models, file, *edit, behaviors);
+    Edit *edit_ptr = edits.vals;
+    i32 shift = 0;
+    for (i32 i = 0; i < edits.count; i += 1, edit_ptr += 1){
+        Edit edit = *edit_ptr;
+        i32 shift_change = edit.length - (edit.range.one_past_last - edit.range.first);
+        edit.range.first += shift;
+        edit.range.one_past_last += shift;
+        edit_single(system, models, file, edit, behaviors);
+        shift += shift_change;
     }
 }
 
