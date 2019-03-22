@@ -348,34 +348,6 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
             edit_single(system, models, file, edit, behaviors_prototype);
         }break;
         
-        case RecordKind_Batch:
-        {
-            Partition *scratch = &models->mem.part;
-            Temp_Memory temp = begin_temp_memory(scratch);
-            
-            i32 count = record->batch.count;
-            Edit_Array edits = {};
-            edits.vals = push_array(scratch, Edit, count);
-            edits.count = count;
-            
-            Edit *edit = edits.vals;
-            Record_Batch_Slot *batch_slot = record->batch.batch_records;
-            char *str_base_forward = record->batch.str_base_forward;
-            for (i32 i = 0; i < count; i += 1, edit += 1, batch_slot += 1){
-                edit->str = str_base_forward;
-                edit->length = batch_slot->length_forward;
-                edit->range.first = batch_slot->first;
-                edit->range.one_past_last = edit->range.first + batch_slot->length_backward;
-                str_base_forward += batch_slot->length_forward;
-            }
-            
-            Edit_Behaviors behaviors = behaviors_prototype;
-            behaviors.batch_type = record->batch.type;
-            edit_batch(system, models, file, edits, behaviors);
-            
-            end_temp_memory(temp);
-        }break;
-        
         case RecordKind_Group:
         {
             Node *sentinel = &record->group.children;
@@ -408,37 +380,6 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
             edit.range.first = record->single.first;
             edit.range.one_past_last = edit.range.first + record->single.length_forward;
             edit_single(system, models, file, edit, behaviors_prototype);
-        }break;
-        
-        case RecordKind_Batch:
-        {
-            Partition *scratch = &models->mem.part;
-            Temp_Memory temp = begin_temp_memory(scratch);
-            
-            i32 count = record->batch.count;
-            Edit_Array edits = {};
-            edits.vals = push_array(scratch, Edit, count);
-            edits.count = count;
-            
-            i32 shift_amount = 0;
-            
-            Edit *edit = edits.vals;
-            Record_Batch_Slot *batch_slot = record->batch.batch_records;
-            char *str_base_backward = record->batch.str_base_backward;
-            for (i32 i = 0; i < count; i += 1, edit += 1, batch_slot += 1){
-                edit->str = str_base_backward;
-                edit->length = batch_slot->length_backward;
-                edit->range.first = batch_slot->first + shift_amount;
-                edit->range.one_past_last = edit->range.first + batch_slot->length_forward;
-                str_base_backward += batch_slot->length_backward;
-                shift_amount += batch_slot->length_forward - batch_slot->length_backward;
-            }
-            
-            Edit_Behaviors behaviors = behaviors_prototype;
-            behaviors.batch_type = record->batch.type;
-            edit_batch(system, models, file, edits, behaviors);
-            
-            end_temp_memory(temp);
         }break;
         
         case RecordKind_Group:

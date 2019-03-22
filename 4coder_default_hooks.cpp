@@ -1129,6 +1129,7 @@ OPEN_FILE_HOOK_SIG(default_file_save){
 }
 
 FILE_EDIT_RANGE_SIG(default_file_edit_range){
+#if 0
     Buffer_Summary buffer_summary = {};
     if (get_buffer_summary(app, buffer_id, AccessAll, &buffer_summary)){
         if (!match(make_string(buffer_summary.buffer_name, buffer_summary.buffer_name_len), make_lit_string("*messages*"))){
@@ -1146,6 +1147,7 @@ FILE_EDIT_RANGE_SIG(default_file_edit_range){
             print_message(app, str.str, str.size);
         }
     }
+#endif
     
     // no meaning for return
     return(0);

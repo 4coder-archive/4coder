@@ -36,6 +36,7 @@ struct Application_Links;
 #define BUFFER_GET_FILE_ATTRIBUTES_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out)
 #define GET_VIEW_FIRST_SIG(n) b32 n(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 #define GET_VIEW_NEXT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
+#define GET_VIEW_PREV_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
 #define GET_VIEW_SUMMARY_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out)
 #define GET_ACTIVE_VIEW_SIG(n) b32 n(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 #define GET_ACTIVE_PANEL_SIG(n) b32 n(Application_Links *app, Panel_ID *panel_id_out)
@@ -191,6 +192,7 @@ typedef BUFFER_REOPEN_SIG(Buffer_Reopen_Function);
 typedef BUFFER_GET_FILE_ATTRIBUTES_SIG(Buffer_Get_File_Attributes_Function);
 typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
 typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
+typedef GET_VIEW_PREV_SIG(Get_View_Prev_Function);
 typedef GET_VIEW_SUMMARY_SIG(Get_View_Summary_Function);
 typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
 typedef GET_ACTIVE_PANEL_SIG(Get_Active_Panel_Function);
@@ -348,6 +350,7 @@ Buffer_Reopen_Function *buffer_reopen;
 Buffer_Get_File_Attributes_Function *buffer_get_file_attributes;
 Get_View_First_Function *get_view_first;
 Get_View_Next_Function *get_view_next;
+Get_View_Prev_Function *get_view_prev;
 Get_View_Summary_Function *get_view_summary;
 Get_Active_View_Function *get_active_view;
 Get_Active_Panel_Function *get_active_panel;
@@ -504,6 +507,7 @@ Buffer_Reopen_Function *buffer_reopen_;
 Buffer_Get_File_Attributes_Function *buffer_get_file_attributes_;
 Get_View_First_Function *get_view_first_;
 Get_View_Next_Function *get_view_next_;
+Get_View_Prev_Function *get_view_prev_;
 Get_View_Summary_Function *get_view_summary_;
 Get_Active_View_Function *get_active_view_;
 Get_Active_Panel_Function *get_active_panel_;
@@ -668,6 +672,7 @@ app_links->buffer_reopen_ = Buffer_Reopen;\
 app_links->buffer_get_file_attributes_ = Buffer_Get_File_Attributes;\
 app_links->get_view_first_ = Get_View_First;\
 app_links->get_view_next_ = Get_View_Next;\
+app_links->get_view_prev_ = Get_View_Prev;\
 app_links->get_view_summary_ = Get_View_Summary;\
 app_links->get_active_view_ = Get_Active_View;\
 app_links->get_active_panel_ = Get_Active_Panel;\
@@ -824,6 +829,7 @@ static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reo
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes(app, buffer_id, attributes_out));}
 static b32 get_view_first(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_view_first(app, access, view_id_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next(app, view_id, access, view_id_out));}
+static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev(app, view_id, access, view_id_out));}
 static b32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out){return(app->get_view_summary(app, view_id, access, view_summary_out));}
 static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view(app, access, view_id_out));}
 static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel(app, panel_id_out));}
@@ -980,6 +986,7 @@ static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reo
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes_(app, buffer_id, attributes_out));}
 static b32 get_view_first(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_view_first_(app, access, view_id_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next_(app, view_id, access, view_id_out));}
+static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev_(app, view_id, access, view_id_out));}
 static b32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out){return(app->get_view_summary_(app, view_id, access, view_summary_out));}
 static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view_(app, access, view_id_out));}
 static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel_(app, panel_id_out));}

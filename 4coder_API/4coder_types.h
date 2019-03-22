@@ -972,7 +972,6 @@ STRUCT Buffer_Batch_Edit{
 
 ENUM(i32, Record_Kind){
     RecordKind_Single,
-    RecordKind_Batch,
     RecordKind_Group,
 };
 
@@ -1003,10 +1002,6 @@ STRUCT Record_Info{
             String string_backward;
             i32 first;
         } single;
-        struct{
-            Buffer_Batch_Edit_Type type;
-            i32 count;
-        } batch;
         struct{
             i32 count;
         } group;

@@ -73,6 +73,7 @@ typedef double f64;
 #define PtrDif(a,b) ((u8*)(a) - (u8*)(b))
 #define PtrAsInt(a) PtrDif(a,0)
 #define HandleAsU64(a) (uint64_t)(PtrAsInt(a))
+#define NullMember(S,m) (&Member(S,m))
 #define OffsetOfMember(S,m) PtrAsInt(&Member(S,m))
 #define CastFromMember(S,m,ptr) (S*)( (u8*)(ptr) - OffsetOfMember(S,m) )
 #define IntAsPtr(a) (void*)(((u8*)0) + a)
@@ -215,12 +216,13 @@ static const u64 bit_63 = (((u64)1) << (31 + 32));
 #define dll_remove(n)        (n)->next->prev=(n)->prev,(n)->prev->next=(n)->next,(n)->next=(n)->prev=0
 
 #define zdll_push_back_(f,l,n) if(f==0){n->next=n->prev=0;f=l=n;}else{n->prev=l;n->next=0;l->next=n;l=n;}
-#define zdll_push_back(f,l,n) Stmnt( zdll_push_back_((f),(l),(n)) )
 #define zdll_push_front_(f,l,n) if(f==0){n->prev=n->next=0;f=l=n;}else{n->next=l;n->prev=0;l->prev=n;l=n;}
-#define zdll_push_front(f,l,n) Stmnt( zdll_push_front_((f),(l),(n)) )
 #define zdll_remove_front_(f,l,n) if(f==l){f=l=0;}else{f=f->next;f->prev=0;}
-#define zdll_remove_back_(f,l,n) if(f==l){f=l=0;}else{l=l->prev;l->next=0;}
 #define zdll_remove_(f,l,n) if(f==n){zdll_remove_front_(f,l,n);}else if(l==n){zdll_remove_back_(f,l,n);}else{dll_remove(n);}
+
+#define zdll_push_back(f,l,n) Stmnt( zdll_push_back_((f),(l),(n)) )
+#define zdll_push_front(f,l,n) Stmnt( zdll_push_front_((f),(l),(n)) )
+#define zdll_remove_back_(f,l,n) if(f==l){f=l=0;}else{l=l->prev;l->next=0;}
 #define zdll_remove(f,l,n) Stmnt( zdll_remove_((f),(l),(n)) )
 
 #define sll_clear(f,l) (f)=(l)=0
@@ -230,17 +232,6 @@ static const u64 bit_63 = (((u64)1) << (31 + 32));
 #define sll_init_sentinel(s) Stmnt( (s)->next=(s); )
 #define sll_insert(p,v) Stmnt( (v)->next=(p)->next; (p)->next = (v); )
 #define sll_remove(p,v) Stmnt( Assert((p)->next == (v)); (p)->next = (v)->next; )
-
-#if 0
-#define dll_remove(n)        (n)->next->prev=(n)->prev,(n)->prev->next=(n)->next
-
-#define zdll_push_back_(f,l,n) if(f==0){n->next=n->prev=0;f=l=n;}else{n->prev=l;n->next=0;l->next=n;l=n;}
-#define zdll_push_back(f,l,n) do{ zdll_push_back_((f),(l),(n)) }while(0)
-#define zdll_remove_front_(f,l,n) if(f==l){f=l=0;}else{f=f->next;f->prev=0;}
-#define zdll_remove_back_(f,l,n) if(f==l){f=l=0;}else{l=l->prev;l->next=0;}
-#define zdll_remove_(f,l,n) if(f==n){zdll_remove_front_(f,l,n);}else if(l==n){zdll_remove_back_(f,l,n);}else{dll_remove(n);}
-#define zdll_remove(f,l,n) do{ zdll_remove_((f),(l),(n)) }while(0)
-#endif
 
 struct Node{
     Node *next;

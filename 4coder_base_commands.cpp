@@ -1622,6 +1622,58 @@ CUSTOM_DOC("Reopen the current buffer from the hard drive.")
 
 ////////////////////////////////
 
+static i32
+record_get_new_cursor_position_undo(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info record){
+    i32 new_edit_position = 0;
+    switch (record.kind){
+        default:
+        case RecordKind_Single:
+        {
+            new_edit_position = record.single.first + record.single.string_backward.size;
+        }break;
+        case RecordKind_Group:
+        {
+            Record_Info sub_record = {};
+            buffer_history_get_group_sub_record(app, buffer_id, index, 0, &sub_record);
+            new_edit_position = sub_record.single.first + sub_record.single.string_backward.size;
+        }break;
+    }
+    return(new_edit_position);
+}
+
+static i32
+record_get_new_cursor_position_undo(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
+    Record_Info record = {};
+    buffer_history_get_record_info(app, buffer_id, index, &record);
+    return(record_get_new_cursor_position_undo(app, buffer_id, index, record));
+}
+
+static i32
+record_get_new_cursor_position_redo(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info record){
+    i32 new_edit_position = 0;
+    switch (record.kind){
+        default:
+        case RecordKind_Single:
+        {
+            new_edit_position = record.single.first + record.single.string_forward.size;
+        }break;
+        case RecordKind_Group:
+        {
+            Record_Info sub_record = {};
+            buffer_history_get_group_sub_record(app, buffer_id, index, record.group.count - 1, &sub_record);
+            new_edit_position = sub_record.single.first + sub_record.single.string_forward.size;
+        }break;
+    }
+    return(new_edit_position);
+}
+
+static i32
+record_get_new_cursor_position_redo(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
+    Record_Info record = {};
+    buffer_history_get_record_info(app, buffer_id, index, &record);
+    return(record_get_new_cursor_position_redo(app, buffer_id, index, record));
+}
+
 CUSTOM_COMMAND_SIG(undo_this_buffer)
 CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
 {
@@ -1630,7 +1682,9 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
     History_Record_Index current = 0;
     buffer_history_get_current_state_index(app, buffer_id, &current);
     if (current > 0){
+        i32 new_position = record_get_new_cursor_position_undo(app, buffer_id, current);
         buffer_history_set_current_state_index(app, buffer_id, current - 1);
+        view_set_cursor(app, view.view_id, seek_pos(new_position), true);
     }
 }
 
@@ -1644,7 +1698,9 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
     buffer_history_get_current_state_index(app, buffer_id, &current);
     buffer_history_get_max_record_index(app, buffer_id, &max_index);
     if (current < max_index){
+        i32 new_position = record_get_new_cursor_position_redo(app, buffer_id, current + 1);
         buffer_history_set_current_state_index(app, buffer_id, current + 1);
+        view_set_cursor(app, view.view_id, seek_pos(new_position), true);
     }
 }
 
@@ -1680,6 +1736,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
     
     Temp_Memory temp = begin_temp_memory(scratch);
     Buffer_ID *match_buffers = push_array(scratch, Buffer_ID, match_count);
+    i32 *new_positions = push_array(scratch, i32, match_count);
     match_count = 0;
     
     if (highest_edit_number != -1){
@@ -1687,6 +1744,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
             b32 did_match = false;
+            i32 new_edit_position = 0;
             for (;;){
                 History_Record_Index index = 0;
                 buffer_history_get_current_state_index(app, buffer.buffer_id, &index);
@@ -1695,6 +1753,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
                     buffer_history_get_record_info(app, buffer.buffer_id, index, &record);
                     if (record.edit_number == highest_edit_number){
                         did_match = true;
+                        new_edit_position = record_get_new_cursor_position_undo(app, buffer.buffer_id, index, record);
                         buffer_history_set_current_state_index(app, buffer.buffer_id, index - 1);
                     }
                     else{
@@ -1707,6 +1766,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
             }
             if (did_match){
                 match_buffers[match_count] = buffer.buffer_id;
+                new_positions[match_count] = new_edit_position;
                 match_count += 1;
             }
             if (buffer.buffer_id == last_buffer_match){
@@ -1715,7 +1775,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
         }
     }
     
-    view_buffer_set(app, match_buffers, match_count);
+    view_buffer_set(app, match_buffers, new_positions, match_count);
     
     end_temp_memory(temp);
 }
@@ -1754,6 +1814,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
     
     Temp_Memory temp = begin_temp_memory(scratch);
     Buffer_ID *match_buffers = push_array(scratch, Buffer_ID, match_count);
+    i32 *new_positions = push_array(scratch, i32, match_count);
     match_count = 0;
     
     if (lowest_edit_number != -1){
@@ -1761,6 +1822,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
              buffer.exists;
              get_buffer_next(app, &buffer, AccessAll)){
             b32 did_match = false;
+            i32 new_edit_position = 0;
             History_Record_Index max_index = 0;
             buffer_history_get_max_record_index(app, buffer.buffer_id, &max_index);
             for (;;){
@@ -1771,6 +1833,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
                     buffer_history_get_record_info(app, buffer.buffer_id, index + 1, &record);
                     if (record.edit_number == lowest_edit_number){
                         did_match = true;
+                        new_edit_position = record_get_new_cursor_position_redo(app, buffer.buffer_id, index + 1, record);
                         buffer_history_set_current_state_index(app, buffer.buffer_id, index + 1);
                     }
                     else{
@@ -1783,6 +1846,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
             }
             if (did_match){
                 match_buffers[match_count] = buffer.buffer_id;
+                new_positions[match_count] = new_edit_position;
                 match_count += 1;
             }
             if (buffer.buffer_id == last_buffer_match){
@@ -1791,7 +1855,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
         }
     }
     
-    view_buffer_set(app, match_buffers, match_count);
+    view_buffer_set(app, match_buffers, new_positions, match_count);
     
     end_temp_memory(temp);
 }

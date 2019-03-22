@@ -134,6 +134,16 @@ layout_get_next_open_panel(Layout *layout, Panel *panel){
 }
 
 internal Panel*
+layout_get_prev_open_panel(Layout *layout, Panel *panel){
+    panel = CastFromMember(Panel, node, panel->node.prev);
+    if (&panel->node == &layout->open_panels){
+        panel = 0;
+    }
+    AssertImplies(panel != 0, panel->kind == PanelKind_Final);
+    return(panel);
+}
+
+internal Panel*
 layout_get_active_panel(Layout *layout){
     return(layout->active_panel);
 }

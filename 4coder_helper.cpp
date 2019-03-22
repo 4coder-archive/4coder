@@ -608,10 +608,8 @@ buffer_identifier_to_buffer_summary(Application_Links *app, Buffer_Identifier id
 }
 
 static b32
-view_open_file(Application_Links *app, View_Summary *view,
-               char *filename, i32 filename_len, b32 never_new){
+view_open_file(Application_Links *app, View_Summary *view, char *filename, i32 filename_len, b32 never_new){
     b32 result = false;
-    
     if (view != 0){
         Buffer_Summary buffer = {};
         if (open_file(app, &buffer, filename, filename_len, false, never_new)){
@@ -619,36 +617,69 @@ view_open_file(Application_Links *app, View_Summary *view,
             result = true;
         }
     }
-    
     return(result);
 }
 
-static void
-get_view_prev(Application_Links *app, View_Summary *view, u32 access){
-    if (view->exists){
-        View_ID original_id = view->view_id;
-        View_ID check_id = original_id;
-        
-        View_Summary new_view = {};
-        
-        for (;;){
-            --check_id;
-            if (check_id <= 0){
-                check_id = 16;
-            }
-            if (check_id == original_id){
-                new_view = *view;
-                break;
-            }
-            new_view = get_view(app, check_id, access);
-            if (new_view.exists){
-                break;
-            }
-        }
-        
-        *view = new_view;
-    }
+////////////////////////////////
+
+// TODO(allen): replace this with get_view_prev(app, 0, access, view_id_out);
+static b32
+get_view_last(Application_Links *app, Access_Flag access, View_ID *view_id_out){
+    return(get_view_prev(app, 0, access, view_id_out));
 }
+
+static View_ID
+get_next_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_Flag access){
+    if (!get_view_next(app, view_id, access, &view_id)){
+        if (!get_view_first(app, access, &view_id)){
+            view_id = 0;
+        }
+    }
+    return(view_id);
+}
+
+static View_ID
+get_prev_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_Flag access){
+    if (!get_view_prev(app, view_id, access, &view_id)){
+        if (!get_view_prev(app, 0, access, &view_id)){
+            view_id = 0;
+        }
+    }
+    return(view_id);
+}
+
+////
+
+static void
+get_view_prev(Application_Links *app, View_Summary *view, Access_Flag access){
+    View_ID new_id = 0;
+    get_view_prev(app, view->view_id, access, &new_id);
+    get_view_summary(app, new_id, access, view);
+}
+
+static View_Summary
+get_view_last(Application_Links *app, Access_Flag access){
+    View_Summary view = {};
+    View_ID new_id = 0;
+    if (get_view_last(app, access, &new_id)){
+        get_view_summary(app, new_id, access, &view);
+    }
+    return(view);
+}
+
+static void
+get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, Access_Flag access){
+    View_ID new_id = get_next_view_looped_all_panels(app, view->view_id, access);
+    get_view_summary(app, new_id, access, view);
+}
+
+static void
+get_prev_view_looped_all_panels(Application_Links *app, View_Summary *view, u32 access){
+    View_ID new_id = get_prev_view_looped_all_panels(app, view->view_id, access);
+    get_view_summary(app, new_id, access, view);
+}
+
+////////////////////////////////
 
 static Buffer_Kill_Result
 kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_view_id, Buffer_Kill_Flag flags){
@@ -659,33 +690,6 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
         do_gui_sure_to_kill(app, &buffer, &view);
     }
     return(result);
-}
-
-static View_Summary
-get_view_last(Application_Links *app, u32 access){
-    View_Summary view = {};
-    view.exists = true;
-    get_view_prev(app, &view, access);
-    if (view.view_id < 1 || view.view_id > 16){
-        memset(&view, 0, sizeof(view));
-    }
-    return(view);
-}
-
-static void
-get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, u32 access){
-    get_view_next(app, view, access);
-    if (!view->exists){
-        *view = get_view_first(app, access);
-    }
-}
-
-static void
-get_prev_view_looped_all_panels(Application_Links *app, View_Summary *view, u32 access){
-    get_view_prev(app, view, access);
-    if (!view->exists){
-        *view = get_view_last(app, access);
-    }
 }
 
 static void
@@ -1660,32 +1664,20 @@ get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_In
 ////////////////////////////////
 
 static void
-view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 count){
-    // TODO(allen): do(implement view_buffer_set)
-}
-
-////////////////////////////////
-
-static void
 condense_whitespace(String *a)
 {
     *a = skip_chop_whitespace(*a);
-    
     int size = a->size;
     a->size = 0;
     int i = 0;
-    while(i < size)
-    {
-        if(char_is_whitespace(a->str[i]))
-        {
+    for (;i < size;){
+        if (char_is_whitespace(a->str[i])){
             a->str[a->size++] = ' ';
-            while((i < size) && char_is_whitespace(a->str[i]))
-            {
+            for (;(i < size) && char_is_whitespace(a->str[i]);){
                 ++i;
             }
         }
-        else
-        {
+        else{
             a->str[a->size++] = a->str[i++];
         }
     }

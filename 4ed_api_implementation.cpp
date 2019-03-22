@@ -1720,6 +1720,26 @@ get_view_next__inner(Layout *layout, View *view){
     return(view);
 }
 
+internal View*
+get_view_prev__inner(Layout *layout, View *view){
+    if (view != 0){
+        Panel *panel = view->panel;
+        panel = layout_get_prev_open_panel(layout, panel);
+        if (panel != 0){
+            view = panel->view;
+        }
+        else{
+            view = 0;
+        }
+    }
+    else{
+        Panel *panel = layout_get_first_open_panel(layout);
+        view = panel->view;
+    }
+    return(view);
+}
+
+// TODO(allen): replace this with get_view_next(app, 0, access, view_id_out);
 // TODO(allen): redocument
 API_EXPORT b32
 Get_View_First(Application_Links *app, Access_Flag access, View_ID *view_id_out)
@@ -1771,6 +1791,24 @@ DOC_SEE(get_view_first)
     view = get_view_next__inner(layout, view);
     for (;view != 0 && !access_test(view_get_access_flags(view), access);){
         view = get_view_next__inner(layout, view);
+    }
+    b32 result = false;
+    if (view != 0){
+        *view_id_out = view_get_id(&models->live_set, view);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Get_View_Prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
+{
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    View *view = imp_get_view(models, view_id);
+    view = get_view_prev__inner(layout, view);
+    for (;view != 0 && !access_test(view_get_access_flags(view), access);){
+        view = get_view_prev__inner(layout, view);
     }
     b32 result = false;
     if (view != 0){
@@ -3621,11 +3659,6 @@ buffer_history__fill_record_info(Record *record, Record_Info *out){
             out->single.string_forward  = make_string(record->single.str_forward , record->single.length_forward );
             out->single.string_backward = make_string(record->single.str_backward, record->single.length_backward);
             out->single.first = record->single.first;
-        }break;
-        case RecordKind_Batch:
-        {
-            out->batch.type = record->batch.type;
-            out->batch.count = record->batch.count;
         }break;
         case RecordKind_Group:
         {

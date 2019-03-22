@@ -60,14 +60,14 @@ new_view_settings(Application_Links *app, View_Summary *view){
 ////////////////////////////////
 
 static void
-view_set_passive(Application_Links *app, View_Summary *view, b32 value){
-    Managed_Scope scope = view_get_managed_scope(app, view->view_id);
+view_set_passive(Application_Links *app, View_ID view_id, b32 value){
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
     managed_variable_set(app, scope, view_is_passive_loc, (u64)value);
 }
 
 static b32
-view_get_is_passive(Application_Links *app, View_Summary *view){
-    Managed_Scope scope = view_get_managed_scope(app, view->view_id);
+view_get_is_passive(Application_Links *app, View_ID view_id){
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
     u64 is_passive = 0;
     managed_variable_get(app, scope, view_is_passive_loc, &is_passive);
     return(is_passive != 0);
@@ -78,11 +78,9 @@ open_footer_panel(Application_Links *app, View_Summary *view){
     View_Summary special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, &special_view);
     view_set_split_pixel_size(app, &special_view, (i32)(special_view.line_height*20.f));
-    view_set_passive(app, &special_view, true);
+    view_set_passive(app, special_view.view_id, true);
     return(special_view);
 }
-
-////////////////////////////////
 
 static void
 close_build_footer_panel(Application_Links *app){
@@ -93,48 +91,78 @@ close_build_footer_panel(Application_Links *app){
     build_footer_panel_view_id = 0;
 }
 
-static View_Summary
-open_build_footer_panel(Application_Links *app, b32 create_if_not_exist = true){
-    View_Summary special_view = get_view(app, build_footer_panel_view_id, AccessAll);
-    if (create_if_not_exist && !special_view.exists){
+static b32
+open_build_footer_panel(Application_Links *app, View_ID *view_id_out){
+    View_Summary special_view = {};
+    get_view_summary(app, build_footer_panel_view_id, AccessAll, &special_view);
+    if (!special_view.exists){
         View_Summary view = get_active_view(app, AccessAll);
         special_view = open_footer_panel(app, &view);
         set_active_view(app, &view);
         build_footer_panel_view_id = special_view.view_id;
     }
-    return(special_view);
+    *view_id_out = build_footer_panel_view_id;
+    return(true);
+}
+
+static View_ID
+get_next_view_looped_primary_panels(Application_Links *app, View_ID start_view_id, Access_Flag access){
+    View_ID view_id = start_view_id;
+    do{
+        view_id = get_next_view_looped_all_panels(app, view_id, access);
+        if (!view_get_is_passive(app, view_id)){
+            break;
+        }
+    }while(view_id != start_view_id);
+    return(view_id);
+}
+
+static View_ID
+get_prev_view_looped_primary_panels(Application_Links *app, View_ID start_view_id, Access_Flag access){
+    View_ID view_id = start_view_id;
+    do{
+        view_id = get_prev_view_looped_all_panels(app, view_id, access);
+        if (!view_get_is_passive(app, view_id)){
+            break;
+        }
+    }while(view_id != start_view_id);
+    return(view_id);
+}
+
+////
+
+static void
+view_set_passive(Application_Links *app, View_Summary *view, b32 value){
+    if (view != 0){
+        view_set_passive(app, view->view_id, value);
+    }
+}
+
+static b32
+view_get_is_passive(Application_Links *app, View_Summary *view){
+    return(view != 0 && view_get_is_passive(app, view->view_id));
+}
+
+static View_Summary
+open_build_footer_panel(Application_Links *app){
+    View_Summary summary = {};
+    View_ID build_footer_id = 0;
+    if (open_build_footer_panel(app, &build_footer_id)){
+        get_view_summary(app, build_footer_id, AccessAll, &summary);
+    }
+    return(summary);
 }
 
 static void
 get_next_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
-    View_ID original_view_id = view_start->view_id;
-    View_Summary view = *view_start;
-    do{
-        get_next_view_looped_all_panels(app, &view, access);
-        if (!view_get_is_passive(app, &view)){
-            break;
-        }
-    }while(view.view_id != original_view_id);
-    if (!view.exists){
-        memset(&view, 0, sizeof(view));
-    }
-    *view_start = view;
+    View_ID new_id = get_next_view_looped_primary_panels(app, view_start->view_id, access);
+    get_view_summary(app, new_id, AccessAll, view_start);
 }
 
 static void
 get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
-    View_ID original_view_id = view_start->view_id;
-    View_Summary view = *view_start;
-    do{
-        get_prev_view_looped_all_panels(app, &view, access);
-        if (!view_get_is_passive(app, &view)){
-            break;
-        }
-    }while(view.view_id != original_view_id);
-    if (!view.exists){
-        memset(&view, 0, sizeof(view));
-    }
-    *view_start = view;
+    View_ID new_id = get_prev_view_looped_primary_panels(app, view_start->view_id, access);
+    get_view_summary(app, new_id, AccessAll, view_start);
 }
 
 static View_Summary
@@ -145,6 +173,63 @@ get_next_view_after_active(Application_Links *app, u32 access){
     }
     return(view);
 }
+
+////////////////////////////////
+
+static void
+view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
+    if (count > 0){
+        // TODO(allen): replace with context supplied arena
+        Arena arena = make_arena(app);
+        
+        struct View_Node{
+            View_Node *next;
+            View_ID view_id;
+        };
+        
+        View_ID active_view_id = 0;
+        get_active_view(app, AccessAll, &active_view_id);
+        View_ID first_view_id = active_view_id;
+        if (view_get_is_passive(app, active_view_id)){
+            first_view_id = get_next_view_looped_primary_panels(app, active_view_id, AccessAll);
+        }
+        
+        View_ID view_id = first_view_id;
+        
+        View_Node *primary_view_first = 0;
+        View_Node *primary_view_last = 0;
+        i32 available_view_count = 0;
+        
+        primary_view_first = primary_view_last = push_array(&arena, View_Node, 1);
+        primary_view_last->next = 0;
+        primary_view_last->view_id = view_id;
+        available_view_count += 1;
+        for (;;){
+            view_id = get_next_view_looped_primary_panels(app, view_id, AccessAll);
+            if (view_id == first_view_id){
+                break;
+            }
+            View_Node *node = push_array(&arena, View_Node, 1);
+            primary_view_last->next = node;
+            node->next = 0;
+            node->view_id = view_id;
+            primary_view_last = node;
+            available_view_count += 1;
+        }
+        
+        i32 buffer_set_count = clamp_top(count, available_view_count);
+        View_Node *node = primary_view_first;
+        for (i32 i = 0; i < buffer_set_count; i += 1, node = node->next){
+            if (view_set_buffer(app, node->view_id, buffers[i], 0)){
+                view_set_cursor(app, node->view_id, seek_pos(positions[i]), true);
+            }
+        }
+        
+        arena_release_all(&arena);
+    }
+}
+
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")

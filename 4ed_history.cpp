@@ -239,115 +239,56 @@ history__free_nodes(History *history, i32 first_index, Node *first_node, Node *l
 
 internal void
 history_record_edit(Heap *heap, Global_History *global_history, History *history, Gap_Buffer *buffer, Edit edit){
-    if (!history->activated){
-        return;
-    }
-    
-    Assert(history->record_lookup.count == history->record_count);
-    
-    Record *new_record = history__allocate_record(heap, history);
-    history__stash_record(heap, history, new_record);
-    
-    new_record->restore_point = temp_memory_light(begin_temp_memory(&history->arena));
-    new_record->edit_number = global_history_get_edit_number(global_history);
-    
-    new_record->kind = RecordKind_Single;
-    
-    i32 length_forward = edit.length;
-    i32 length_backward = edit.range.one_past_last - edit.range.first;
-    
-    new_record->single.str_forward  = push_array(&history->arena, char, length_forward);
-    new_record->single.str_backward = push_array(&history->arena, char, length_backward);
-    new_record->single.length_forward  = length_forward;
-    new_record->single.length_backward = length_backward;
-    new_record->single.first = edit.range.first;
-    
-    block_copy(new_record->single.str_forward, edit.str, length_forward);
-    buffer_stringify_range(buffer, edit.range, new_record->single.str_backward);
-    
-    Assert(history->record_lookup.count == history->record_count);
-}
-
-internal void
-history_record_edit(Heap *heap, Global_History *global_history, History *history, Gap_Buffer *buffer, Edit_Array edits, Buffer_Batch_Edit_Type batch_type){
-    if (!history->activated){
-        return;
-    }
-    Assert(history->record_lookup.count == history->record_count);
-    
-    Record *new_record = history__allocate_record(heap, history);
-    history__stash_record(heap, history, new_record);
-    
-    new_record->restore_point = temp_memory_light(begin_temp_memory(&history->arena));
-    new_record->edit_number = global_history_get_edit_number(global_history);
-    
-    new_record->kind = RecordKind_Batch;
-    
-    i32 length_forward = 0;
-    i32 length_backward = 0;
-    
-    for (i32 i = 0; i < edits.count; i += 1){
-        length_forward += edits.vals[i].length;
-        length_backward += edits.vals[i].range.one_past_last - edits.vals[i].range.first;
-    }
-    
-    new_record->batch.type = batch_type;
-    new_record->batch.count = edits.count;
-    new_record->batch.str_base_forward  = push_array(&history->arena, char, length_forward);
-    new_record->batch.str_base_backward = push_array(&history->arena, char, length_backward);
-    new_record->batch.batch_records     = push_array(&history->arena, Record_Batch_Slot, edits.count);
-    
-    char *str_base_forward  = new_record->batch.str_base_forward;
-    char *cursor_forward    = str_base_forward;
-    char *str_base_backward = new_record->batch.str_base_backward;
-    char *cursor_backward   = str_base_backward;
-    
-    Record_Batch_Slot *batch_slot = new_record->batch.batch_records;
-    Edit *edit = edits.vals;
-    
-    for (i32 i = 0; i < edits.count; i += 1, batch_slot += 1, edit += 1){
-        i32 edit_first = edit->range.first;
-        i32 edit_length_forward = edit->length;
-        i32 edit_length_backward = edit->range.one_past_last - edit_first;
+    if (history->activated){
+        Assert(history->record_lookup.count == history->record_count);
         
-        batch_slot->length_forward  = edit_length_forward ;
-        batch_slot->length_backward = edit_length_backward;
-        batch_slot->first = edit_first;
+        Record *new_record = history__allocate_record(heap, history);
+        history__stash_record(heap, history, new_record);
         
-        block_copy(cursor_forward , edit->str, edit_length_forward);
-        buffer_stringify_range(buffer, edit->range, cursor_backward);
+        new_record->restore_point = temp_memory_light(begin_temp_memory(&history->arena));
+        new_record->edit_number = global_history_get_edit_number(global_history);
         
-        cursor_forward  += edit_length_forward ;
-        cursor_backward += edit_length_backward;
+        new_record->kind = RecordKind_Single;
+        
+        i32 length_forward = edit.length;
+        i32 length_backward = edit.range.one_past_last - edit.range.first;
+        
+        new_record->single.str_forward  = push_array(&history->arena, char, length_forward);
+        new_record->single.str_backward = push_array(&history->arena, char, length_backward);
+        new_record->single.length_forward  = length_forward;
+        new_record->single.length_backward = length_backward;
+        new_record->single.first = edit.range.first;
+        
+        block_copy(new_record->single.str_forward, edit.str, length_forward);
+        buffer_stringify_range(buffer, edit.range, new_record->single.str_backward);
+        
+        Assert(history->record_lookup.count == history->record_count);
     }
-    
-    Assert(history->record_lookup.count == history->record_count);
 }
 
 internal void
 history_dump_records_after_index(History *history, i32 index){
-    if (!history->activated){
-        return;
+    if (history->activated){
+        Assert(history->record_lookup.count == history->record_count);
+        
+        Assert(0 <= index && index <= history->record_count);
+        if (index < history->record_count){
+            Node *node = history__to_node(history, index);
+            Node *first_node_to_clear = node->next;
+            
+            Node *sentinel = &history->records;
+            Assert(first_node_to_clear != sentinel);
+            
+            Record *first_record_to_clear = CastFromMember(Record, node, first_node_to_clear);
+            end_temp_memory(&history->arena, first_record_to_clear->restore_point);
+            
+            Node *last_node_to_clear = sentinel->prev;
+            
+            history__free_nodes(history, index + 1, first_node_to_clear, last_node_to_clear);
+        }
+        
+        Assert(history->record_lookup.count == history->record_count);
     }
-    Assert(history->record_lookup.count == history->record_count);
-    
-    Assert(0 <= index && index <= history->record_count);
-    if (index < history->record_count){
-        Node *node = history__to_node(history, index);
-        Node *first_node_to_clear = node->next;
-        
-        Node *sentinel = &history->records;
-        Assert(first_node_to_clear != sentinel);
-        
-        Record *first_record_to_clear = CastFromMember(Record, node, first_node_to_clear);
-        end_temp_memory(&history->arena, first_record_to_clear->restore_point);
-        
-        Node *last_node_to_clear = sentinel->prev;
-        
-        history__free_nodes(history, index + 1, first_node_to_clear, last_node_to_clear);
-    }
-    
-    Assert(history->record_lookup.count == history->record_count);
 }
 
 internal void
@@ -429,91 +370,82 @@ history__optimize_group(Partition *scratch, History *history, Record *record){
 
 internal void
 history_merge_records(Partition *scratch, Heap *heap, History *history, i32 first_index, i32 last_index){
-    if (!history->activated){
-        return;
-    }
-    
-    Assert(history->record_lookup.count == history->record_count);
-    
-    Assert(first_index < last_index);
-    Node *first_node = history__to_node(history, first_index);
-    Node *last_node  = history__to_node(history, last_index );
-    Assert(first_node != &history->records && first_node != 0);
-    Assert(last_node  != &history->records && last_node  != 0);
-    
-    Record *new_record = history__allocate_record(heap, history);
-    
-    Node *left  = first_node->prev;
-    Node *right = last_node->next;
-    left->next  = &new_record->node;
-    new_record->node.prev = left;
-    right->prev = &new_record->node;
-    new_record->node.next = right;
-    
-    // NOTE(allen): here we remove (last_index - first_index + 1) nodes, and insert 1 node
-    // which simplifies to this:
-    history->record_count -= last_index - first_index;
-    
-    Record *first_record = CastFromMember(Record, node, first_node);
-    Record *last_record  = CastFromMember(Record, node, last_node);
-    
-    new_record->restore_point = first_record->restore_point;
-    new_record->edit_number = last_record->edit_number;
-    new_record->kind = RecordKind_Group;
-    
-    Node *new_sentinel = &new_record->group.children;
-    dll_init_sentinel(new_sentinel);
-    
-    Node *one_past_last_node = last_node->next;
-    i32 count = 0;
-    for (Node *node = first_node, *next = 0;
-         node != one_past_last_node;
-         node = next){
-        next = node->next;
-        Record *record = CastFromMember(Record, node, node);
-        switch (record->kind){
-            case RecordKind_Single:
-            {
-                dll_insert_back(new_sentinel, &record->node);
-                count += 1;
-            }break;
-            
-            case RecordKind_Batch:
-            {
-                dll_insert_back(new_sentinel, &record->node);
-                count += 1;
-            }break;
-            
-            case RecordKind_Group:
-            {
-                Node *first = record->group.children.next;
-                Node *last  = record->group.children.prev;
-                Assert(first != &record->group.children);
-                Assert(last  != &record->group.children);
+    if (history->activated){
+        Assert(history->record_lookup.count == history->record_count);
+        Assert(first_index < last_index);
+        Node *first_node = history__to_node(history, first_index);
+        Node *last_node  = history__to_node(history, last_index );
+        Assert(first_node != &history->records && first_node != 0);
+        Assert(last_node  != &history->records && last_node  != 0);
+        
+        Record *new_record = history__allocate_record(heap, history);
+        
+        Node *left  = first_node->prev;
+        Node *right = last_node->next;
+        left->next  = &new_record->node;
+        new_record->node.prev = left;
+        right->prev = &new_record->node;
+        new_record->node.next = right;
+        
+        // NOTE(allen): here we remove (last_index - first_index + 1) nodes, and insert 1 node
+        // which simplifies to this:
+        history->record_count -= last_index - first_index;
+        
+        Record *first_record = CastFromMember(Record, node, first_node);
+        Record *last_record  = CastFromMember(Record, node, last_node);
+        
+        new_record->restore_point = first_record->restore_point;
+        new_record->edit_number = last_record->edit_number;
+        new_record->kind = RecordKind_Group;
+        
+        Node *new_sentinel = &new_record->group.children;
+        dll_init_sentinel(new_sentinel);
+        
+        Node *one_past_last_node = last_node->next;
+        i32 count = 0;
+        for (Node *node = first_node, *next = 0;
+             node != one_past_last_node;
+             node = next){
+            next = node->next;
+            Record *record = CastFromMember(Record, node, node);
+            switch (record->kind){
+                case RecordKind_Single:
+                {
+                    dll_insert_back(new_sentinel, &record->node);
+                    count += 1;
+                }break;
                 
-                Node *sub_right = new_sentinel;
-                Node *sub_left = new_sentinel->prev;
-                sub_left->next = first;
-                first->prev = sub_left;
-                last->next = sub_right;
-                sub_right->prev = last;
-                count += record->group.count;
-            }break;
-            
-            default:
-            {
-                InvalidCodePath;
-            }break;
+                case RecordKind_Group:
+                {
+                    Node *first = record->group.children.next;
+                    Node *last  = record->group.children.prev;
+                    Assert(first != &record->group.children);
+                    Assert(last  != &record->group.children);
+                    
+                    Node *sub_right = new_sentinel;
+                    Node *sub_left = new_sentinel->prev;
+                    sub_left->next = first;
+                    first->prev = sub_left;
+                    last->next = sub_right;
+                    sub_right->prev = last;
+                    count += record->group.count;
+                }break;
+                
+                default:
+                {
+                    InvalidCodePath;
+                }break;
+            }
         }
-    }
-    
-    new_record->group.count = count;
-    
-    history__merge_record_ptr_range_to_one_ptr(&history->record_lookup, first_index, last_index, new_record);
-    Assert(history->record_lookup.count == history->record_count);
-    
-    if (first_index == history->record_count){
-        history__optimize_group(scratch, history, new_record);
+        
+        new_record->group.count = count;
+        
+        history__merge_record_ptr_range_to_one_ptr(&history->record_lookup, first_index, last_index, new_record);
+        Assert(history->record_lookup.count == history->record_count);
+        
+        if (first_index == history->record_count){
+            history__optimize_group(scratch, history, new_record);
+        }
     }
 }
 
