@@ -207,6 +207,15 @@ set_end_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 }
 
 static void
+set_file_edit_range_hook(Bind_Helper *helper, File_Edit_Range_Function *func){
+    Binding_Unit unit = {};
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_file_edit_range;
+    unit.hook.func = (void*)func;
+    write_unit(helper, unit);
+}
+
+static void
 set_file_edit_finished_hook(Bind_Helper *helper, File_Edit_Finished_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;

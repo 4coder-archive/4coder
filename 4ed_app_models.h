@@ -50,6 +50,7 @@ struct Models{
     Open_File_Hook_Function *hook_new_file;
     Open_File_Hook_Function *hook_save_file;
     Open_File_Hook_Function *hook_end_file;
+    File_Edit_Range_Function *hook_file_edit_range;
     File_Edit_Finished_Function *hook_file_edit_finished;
     Command_Caller_Hook_Function *command_caller;
     Render_Caller_Function *render_caller;

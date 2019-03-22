@@ -1128,7 +1128,30 @@ OPEN_FILE_HOOK_SIG(default_file_save){
     return(0);
 }
 
-FILE_EDIT_FINISHED_SIG(default_file_edit){
+FILE_EDIT_RANGE_SIG(default_file_edit_range){
+    Buffer_Summary buffer_summary = {};
+    if (get_buffer_summary(app, buffer_id, AccessAll, &buffer_summary)){
+        if (!match(make_string(buffer_summary.buffer_name, buffer_summary.buffer_name_len), make_lit_string("*messages*"))){
+            char space[1024];
+            String str = make_fixed_width_string(space);
+            append(&str, "'");
+            append(&str, make_string(buffer_summary.buffer_name, buffer_summary.buffer_name_len));
+            append(&str, "' [");
+            append_int_to_str(&str, range.first);
+            append(&str, ", ");
+            append_int_to_str(&str, range.one_past_last);
+            append(&str, ") '");
+            append(&str, substr(text, 0, 32));
+            append(&str, "'\n");
+            print_message(app, str.str, str.size);
+        }
+    }
+    
+    // no meaning for return
+    return(0);
+}
+
+FILE_EDIT_FINISHED_SIG(default_file_edit_finished){
     for (i32 i = 0; i < buffer_id_count; i += 1){
 #if 0
         // NOTE(allen|4.0.31): This code is example usage, it's not a particularly nice feature to actually have.
@@ -1269,7 +1292,9 @@ set_all_default_hooks(Bind_Helper *context){
     set_open_file_hook(context, default_file_settings);
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
-    set_file_edit_finished_hook(context, default_file_edit);
+    set_file_edit_range_hook(context, default_file_edit_range);
+    set_file_edit_finished_hook(context, default_file_edit_finished);
+    set_file_edit_range_hook(context, default_file_edit_range);
     
     set_end_file_hook(context, end_file_close_jump_list);
     

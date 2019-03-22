@@ -166,6 +166,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     models->hook_new_file = 0;
     models->hook_save_file = 0;
     models->hook_end_file = 0;
+    models->hook_file_edit_range = 0;
     models->hook_file_edit_finished = 0;
     models->command_caller = 0;
     models->render_caller = 0;
@@ -365,6 +366,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                 case special_hook_end_file:
                                 {
                                     models->hook_end_file = (Open_File_Hook_Function*)unit->hook.func;
+                                }break;
+                                
+                                case special_hook_file_edit_range:
+                                {
+                                    models->hook_file_edit_range = (File_Edit_Range_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_file_edit_finished:

@@ -90,9 +90,7 @@ edit_fix_markers__compute_scroll_y(i32 line_height, i32 old_y_val, f32 new_y_val
 }
 
 internal void
-edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Edit_Array edits){
-    Assert(edits.count > 0);
-    
+edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Edit edit){
     Partition *part = &models->mem.part;
     Layout *layout = &models->layout;
     
@@ -162,15 +160,8 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     if (cursor_count > 0 || r_cursor_count > 0){
         buffer_sort_cursors(  cursors,   cursor_count);
         buffer_sort_cursors(r_cursors, r_cursor_count);
-        if (edits.count > 1){
-            buffer_batch_edit_update_cursors(  cursors,   cursor_count, edits, false);
-            buffer_batch_edit_update_cursors(r_cursors, r_cursor_count, edits, true);
-        }
-        else{
-            Edit edit = edits.vals[0];
-            buffer_update_cursors(  cursors,   cursor_count, edit.range.first, edit.range.one_past_last, edit.length, false);
-            buffer_update_cursors(r_cursors, r_cursor_count, edit.range.first, edit.range.one_past_last, edit.length, true);
-        }
+        buffer_update_cursors(  cursors,   cursor_count, edit.range.first, edit.range.one_past_last, edit.length, false);
+        buffer_update_cursors(r_cursors, r_cursor_count, edit.range.first, edit.range.one_past_last, edit.length, true);
         buffer_unsort_cursors(  cursors,   cursor_count);
         buffer_unsort_cursors(r_cursors, r_cursor_count);
         
@@ -239,14 +230,6 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
 }
 
 internal void
-edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Edit edit){
-    Edit_Array edits = {};
-    edits.vals = &edit;
-    edits.count = 1;
-    edit_fix_markers(system, models, file, edits);
-}
-
-internal void
 edit_single(System_Functions *system, Models *models, Editing_File *file, Edit edit, Edit_Behaviors behaviors){
     Mem_Options *mem = &models->mem;
     Heap *heap = &mem->heap;
@@ -265,7 +248,12 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
     }
     
     // NOTE(allen): fixing stuff beforewards????
-    edit_pre_state_change(system, &mem->heap, models, file);
+    edit_pre_state_change(system, heap, models, file);
+    
+    // NOTE(allen): edit range hook
+    if (models->hook_file_edit_range != 0){
+        models->hook_file_edit_range(&models->app_links, file->id.id, edit.range, make_string(edit.str, edit.length));
+    }
     
     // NOTE(allen): expand spec, compute shift
     i32 shift_amount = buffer_replace_range_compute_shift(edit.range.first, edit.range.one_past_last, edit.length);
@@ -308,7 +296,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
     }
     
     // NOTE(allen): wrap meta data
-    file_measure_wraps(system, &models->mem, file, font);
+    file_measure_wraps(system, mem, file, font);
     
     // NOTE(allen): cursor fixing
     edit_fix_markers(system, models, file, edit);
@@ -324,117 +312,12 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
     }
 }
 
+// TODO(allen): this isn't "real" anymore, batch edits are now superseded a combination of other features, we should dump this someday
 internal void
 edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Array edits, Edit_Behaviors behaviors){
-    Mem_Options *mem = &models->mem;
-    Heap *heap = &mem->heap;
-    Partition *part = &mem->part;
-    
-    Gap_Buffer *buffer = &file->state.buffer;
-    Assert(edits.count > 0);
-    
-    // NOTE(allen): history update
-    if (!behaviors.do_not_post_to_history){
-        history_dump_records_after_index(&file->state.history, file->state.current_record_index);
-        history_record_edit(heap, &models->global_history, &file->state.history, buffer, edits, behaviors.batch_type);
-        file->state.current_record_index = history_get_record_count(&file->state.history);
-    }
-    
-    // NOTE(allen): fixing stuff "beforewards"???
-    edit_pre_state_change(system, &mem->heap, models, file);
-    
-    // NOTE(allen): actual text replacement
-    void *scratch = push_array(part, u8, 0);
-    i32 scratch_size = part_remaining(part);
-    Buffer_Batch_State state = {};
-    i32 request_amount = 0;
-    for (;buffer_batch_edit_step(&state, buffer, edits, scratch, scratch_size, &request_amount);){
-        void *new_data = 0;
-        if (request_amount > 0){
-            new_data = heap_allocate(heap, request_amount);
-        }
-        void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
-        if (old_data){
-            heap_free(heap, old_data);
-        }
-    }
-    i32 shift_total = state.shift_total;
-    
-    // NOTE(allen): line meta data
-    // TODO(allen): Let's try to switch to remeasuring here moron!
-    file_measure_starts(heap, &file->state.buffer);
-    
-    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-    Assert(font.valid);
-    
-    file_allocate_character_starts_as_needed(heap, file);
-    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-    
-    // NOTE(allen): token fixing
-    switch (behaviors.batch_type){
-        case BatchEdit_Normal:
-        {
-            if (file->settings.tokens_exist){
-                // TODO(allen): Write a smart fast one here someday.
-                i32 start = edits.vals[0].range.first;
-                i32 end   = edits.vals[edits.count - 1].range.one_past_last;
-                file_relex(system, models, file, start, end, shift_total);
-            }
-            else{
-                file_mark_edit_finished(&models->working_set, file);
-            }
-        }break;
-        
-        case BatchEdit_PreserveTokens:
-        {
-            if (file->state.tokens_complete){
-                Cpp_Token_Array tokens = file->state.token_array;
-                Cpp_Token *token = tokens.tokens;
-                Cpp_Token *end_token = tokens.tokens + tokens.count;
-                Cpp_Token original = {};
-                
-                Edit *edit = edits.vals;
-                Edit *one_past_last_edit = edits.vals + edits.count;
-                
-                i32 shift_amount = 0;
-                i32 local_shift = 0;
-                
-                for (;token < end_token; ++token){
-                    original = *token;
-                    for (;edit < one_past_last_edit && edit->range.first <= original.start;
-                         ++edit){
-                        local_shift = (edit->length - (edit->range.one_past_last - edit->range.first));
-                        shift_amount += local_shift;
-                    }
-                    token->start += shift_amount;
-                    local_shift = 0;
-                    i32 original_end = original.start + original.size;
-                    for (;edit < one_past_last_edit && edit->range.first < original_end;
-                         ++edit){
-                        local_shift += (edit->length - (edit->range.one_past_last - edit->range.first));
-                    }
-                    token->size += local_shift;
-                    shift_amount += local_shift;
-                }
-                file_mark_edit_finished(&models->working_set, file);
-            }
-        }break;
-    }
-    
-    // NOTE(allen): wrap meta data
-    file_measure_wraps(system, &models->mem, file, font);
-    
-    // NOTE(allen): cursor fixing
-    edit_fix_markers(system, models, file, edits);
-    
-    // NOTE(allen): mark edit finished
-    if (file->settings.tokens_exist){
-        if (file->settings.virtual_white){
-            file_mark_edit_finished(&models->working_set, file);
-        }
-    }
-    else{
-        file_mark_edit_finished(&models->working_set, file);
+    Edit *edit = edits.vals;
+    for (i32 i = 0; i < edits.count; i += 1, edit += 1){
+        edit_single(system, models, file, *edit, behaviors);
     }
 }
 

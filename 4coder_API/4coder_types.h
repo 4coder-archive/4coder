@@ -1106,6 +1106,8 @@ ENUM(i32, Special_Hook_ID){
     /* DOC(TODO) */
     special_hook_end_file,
     /* DOC(TODO) */
+    special_hook_file_edit_range,
+    /* DOC(TODO) */
     special_hook_file_edit_finished,
     /* DOC(TODO) */
     special_hook_command_caller,
@@ -1136,6 +1138,9 @@ TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
 
 TYPEDEF_FUNC i32 Open_File_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define OPEN_FILE_HOOK_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
+
+TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_ID buffer_id, Range range, String text);
+#define FILE_EDIT_RANGE_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id, Range range, String text)
 
 TYPEDEF_FUNC i32 File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count);
 #define FILE_EDIT_FINISHED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count)
