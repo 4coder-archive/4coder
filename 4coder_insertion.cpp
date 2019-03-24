@@ -40,6 +40,8 @@ insertf(Buffer_Insertion *insertion, char *format, ...){
     
     va_list args;
     va_start(args, format);
+    // TODO(casey): Allen, ideally we would have our own formatted here that could handle our string type, via %S or something, so 
+    // we don't have to keep doing %.*s and passing two parameters and all that garbage.
     i32 result = vsprintf(temp, format, args);
     va_end(args);
     
@@ -95,6 +97,17 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 li
 static b32
 insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 line){
     return(insert_line_from_buffer(insertion, buffer_id, line, 0));
+}
+
+static b32
+insert_mirror_range(Buffer_Insertion *insertion, Buffer_ID source, i32 source_first, i32 length)
+{
+    b32 result = mirror_buffer_insert_range(insertion->app, insertion->buffer, source, insertion->at, source_first, length);
+    if(result)
+    {
+        insertion->at += length;
+    }
+    return(result);
 }
 
 // BOTTOM
