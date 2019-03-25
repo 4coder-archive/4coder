@@ -821,6 +821,7 @@ get_bindings(void *data, i32 size){
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);
     set_modify_color_table_hook(context, default_modify_color_table);
+    set_get_view_buffer_region_hook(context, default_view_buffer_region);
     
     default_keys(context);
     
