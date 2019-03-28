@@ -229,6 +229,11 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     end_temp_memory(cursor_temp);
 }
 
+internal b32
+edit_abstract_mode(Editing_File *file){
+    return(file->settings.edit_handler != 0 && !file->state.in_edit_handler);
+}
+
 internal void
 edit_single(System_Functions *system, Models *models, Editing_File *file, Edit edit, Edit_Behaviors behaviors){
     Mem_Options *mem = &models->mem;
@@ -242,6 +247,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
     
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
+        // TODO(allen): if the edit number counter is not updated, maybe auto-merge edits?  Wouldn't that just work?
         history_dump_records_after_index(&file->state.history, file->state.current_record_index);
         history_record_edit(heap, &models->global_history, &file->state.history, buffer, edit);
         file->state.current_record_index = history_get_record_count(&file->state.history);
@@ -269,7 +275,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
             new_data = heap_allocate(heap, request_amount);
         }
         void *old_data = buffer_edit_provide_memory(buffer, new_data, request_amount);
-        if (old_data){
+        if (old_data != 0){
             heap_free(heap, old_data);
         }
     }
@@ -312,19 +318,13 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
     }
 }
 
-// TODO(allen): this isn't "real" anymore, batch edits are now superseded a combination of other features, we should dump this someday
 internal void
-edit_batch(System_Functions *system, Models *models, Editing_File *file, Edit_Array edits, Edit_Behaviors behaviors){
-    Edit *edit_ptr = edits.vals;
-    i32 shift = 0;
-    for (i32 i = 0; i < edits.count; i += 1, edit_ptr += 1){
-        Edit edit = *edit_ptr;
-        i32 shift_change = edit.length - (edit.range.one_past_last - edit.range.first);
-        edit.range.first += shift;
-        edit.range.one_past_last += shift;
-        edit_single(system, models, file, edit, behaviors);
-        shift += shift_change;
-    }
+edit_single(System_Functions *system, Models *models, Editing_File *file, Range range, String string, Edit_Behaviors behaviors){
+    Edit edit = {};
+    edit.str = string.str;
+    edit.length = string.size;
+    edit.range = range;
+    edit_single(system, models, file, edit, behaviors);
 }
 
 internal void

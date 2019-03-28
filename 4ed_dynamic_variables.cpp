@@ -677,5 +677,115 @@ lifetime_key_check(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key){
     return(lookup_Ptr_table(&lifetime_allocator->key_check_table, key));
 }
 
+////////////////////////////////
+
+// TODO(allen): move this shit somewhere real, clean up all object creation functions to be more cleanly layered.
+internal u8*
+get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
+    u8 *ptr = 0;
+    if (header != 0){
+        switch (header->type){
+            case ManagedObjectType_Memory:
+            case ManagedObjectType_Markers:
+            {
+                ptr = ((u8*)header) + managed_header_type_sizes[header->type];
+            }break;
+            case ManagedObjectType_Arena:
+            {
+                ptr = ((u8*)header) + managed_header_type_sizes[header->type];
+                Managed_Arena_Header *arena_header = (Managed_Arena_Header*)header;
+                *(Arena**)ptr = &arena_header->arena;
+            }break;
+        }
+    }
+    return(ptr);
+}
+
+internal Managed_Object
+managed_object_alloc_managed_memory(Heap *heap, Dynamic_Workspace *workspace, i32 item_size, i32 count, void **ptr_out){
+    i32 size = item_size*count;
+    void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, sizeof(Managed_Memory_Header) + size);
+    Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
+    header->std_header.type = ManagedObjectType_Memory;
+    header->std_header.item_size = item_size;
+    header->std_header.count = count;
+    if (ptr_out != 0){
+        *ptr_out = get_dynamic_object_memory_ptr(&header->std_header);
+    }
+    u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
+    return(((u64)workspace->scope_id << 32) | (u64)id);
+}
+
+internal Managed_Object
+managed_object_alloc_buffer_markers(Heap *heap, Dynamic_Workspace *workspace, Buffer_ID buffer_id, i32 count, Marker **markers_out){
+    i32 size = count*sizeof(Marker);
+    void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
+    Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
+    header->std_header.type = ManagedObjectType_Markers;
+    header->std_header.item_size = sizeof(Marker);
+    header->std_header.count = count;
+    zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
+    workspace->buffer_markers_list.count += 1;
+    workspace->total_marker_count += count;
+    header->buffer_id = buffer_id;
+    header->visual_first = 0;
+    header->visual_last = 0;
+    header->visual_count = 0;
+    if (markers_out != 0){
+        *markers_out = (Marker*)get_dynamic_object_memory_ptr(&header->std_header);
+    }
+    u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
+    return(((u64)workspace->scope_id << 32) | (u64)id);
+}
+
+internal Managed_Object
+managed_object_alloc_managed_arena_in_scope(Heap *heap, Dynamic_Workspace *workspace, Application_Links *app, i32 page_size, Arena **arena_out){
+    void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, sizeof(Managed_Arena_Header) + sizeof(Arena*));
+    Managed_Arena_Header *header = (Managed_Arena_Header*)ptr;
+    header->std_header.type = ManagedObjectType_Arena;
+    header->std_header.item_size = sizeof(Arena*);
+    header->std_header.count = 1;
+    zdll_push_back(workspace->arena_list.first, workspace->arena_list.last, header);
+    header->arena = make_arena(app, page_size);
+    if (arena_out != 0){
+        *arena_out = &header->arena;
+    }
+    u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
+    return(((u64)workspace->scope_id << 32) | (u64)id);
+}
+
+internal b32
+managed_object_free(Dynamic_Workspace *workspace, Managed_Object object){
+    b32 result = false;
+    u32 lo_id = object&max_u32;
+    u8 *object_ptr = (u8*)dynamic_workspace_get_pointer(workspace, lo_id);
+    if (object_ptr != 0){
+        Managed_Object_Type *type = (Managed_Object_Type*)object_ptr;
+        switch (*type){
+            case ManagedObjectType_Markers:
+            {
+                Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
+                workspace->total_marker_count -= header->std_header.count;
+                if (header->visual_count > 0){
+                    marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
+                }
+                zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
+                workspace->buffer_markers_list.count -= 1;
+            }break;
+            
+            case ManagedObjectType_Arena:
+            {
+                Managed_Arena_Header *header = (Managed_Arena_Header*)object_ptr;
+                arena_release_all(&header->arena);
+                zdll_remove(workspace->arena_list.first, workspace->arena_list.last, header);
+            }break;
+        }
+        dynamic_workspace_erase_pointer(workspace, lo_id);
+        memory_bank_free(&workspace->mem_bank, object_ptr);
+        result = true;
+    }
+    return(result);
+}
+
 // BOTTOM
 

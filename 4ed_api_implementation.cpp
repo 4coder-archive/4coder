@@ -764,14 +764,9 @@ DOC_PARAM(start, This parameter specifies absolute position of the first charact
 DOC_PARAM(one_past_last, This parameter specifies the absolute position of the the character one past the end of the read range.)
 DOC_PARAM(out, This paramter provides the output character buffer to fill with the result of the read.)
 DOC_RETURN(This call returns non-zero if the read succeeds.)
-DOC
-(
-The output buffer must have a capacity of at least (one_past_last - start).
-The output is not null terminated.
+DOC(The output buffer must have a capacity of at least (one_past_last - start). The output is not null terminated.
 
-This call fails if the buffer does not exist,
-or if the read range is not within the bounds of the buffer.
-)
+This call fails if the buffer does not exist, or if the read range is not within the bounds of the buffer.)
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
     Models *models = (Models*)app->cmd_context;
@@ -797,17 +792,11 @@ DOC_PARAM(one_past_last, This parameter specifies the absolute position of the t
 DOC_PARAM(str, This parameter specifies the the string to write into the range; it need not be null terminated.)
 DOC_PARAM(len, This parameter specifies the length of the str string.)
 DOC_RETURN(This call returns non-zero if the replacement succeeds.)
-DOC
-(
-If this call succeeds it deletes the range from start to one_past_last
-and writes str in the same position.  If one_past_last == start then
-this call is equivalent to inserting the string at start.
-If len == 0 this call is equivalent to deleteing the range
-from start to one_past_last.
+DOC(If this call succeeds it deletes the range from start to one_past_last and writes str in the same position.
+If one_past_last == start then this call is equivalent to inserting the string at start.
+If len == 0 this call is equivalent to deleteing the range from start to one_past_last.
 
-This call fails if the buffer does not exist, or if the replace
-range is not within the bounds of the buffer.
-)
+This call fails if the buffer does not exist, or if the replace range is not within the bounds of the buffer.)
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
     Models *models = (Models*)app->cmd_context;
@@ -817,21 +806,16 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     if (buffer_api_check_file(file)){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= one_past_last && one_past_last <= size){
-            b32 do_low_level_edit = (file->settings.edit_handler == 0 || file->state.in_edit_handler);
-            if (do_low_level_edit){
-                Edit edit = {};
-                edit.str = string.str;
-                edit.length = string.size;
-                edit.range.first = start;
-                edit.range.one_past_last = one_past_last;
-                Edit_Behaviors behaviors = {};
-                edit_single(models->system, models, file, edit, behaviors);
-                result = true;
-            }
-            else{
+            if (edit_abstract_mode(file)){
                 file->state.in_edit_handler = true;
                 result = file->settings.edit_handler(app, buffer_id, start, one_past_last, string);
                 file->state.in_edit_handler = false;
+            }
+            else{
+                Edit_Behaviors behaviors = {};
+                Range range = {start, one_past_last};
+                edit_single(models->system, models, file, range, string, behaviors);
+                result = true;
             }
         }
     }
@@ -842,7 +826,7 @@ API_EXPORT b32
 Buffer_Set_Edit_Handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = (buffer_api_check_file(file));
+    b32 result = buffer_api_check_file(file);
     if (result){
         file->settings.edit_handler = handler;
     }
@@ -876,7 +860,6 @@ DOC_SEE(Partial_Cursor)
     return(result);
 }
 
-// TODO(allen): work with edit handler
 // TODO(allen): redocument
 API_EXPORT b32
 Buffer_Batch_Edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type)
@@ -893,33 +876,54 @@ DOC_SEE(Buffer_Edit)
 DOC_SEE(Buffer_Batch_Edit_Type)
 */{
     Models *models = (Models*)app->cmd_context;
-    Mem_Options *mem = &models->mem;
-    Partition *part = &mem->part;
-    System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (buffer_api_check_file(file)){
-        if (edit_count > 0){
-            Temp_Memory temp = begin_temp_memory(part);
-            Edit_Array real_edits = {};
-            real_edits.vals = push_array(part, Edit, edit_count);
-            real_edits.count = edit_count;
-            Edit *edit_out = real_edits.vals;
-            Buffer_Edit *edit_in = edits;
-            Edit *one_past_last_edit_out = real_edits.vals + edit_count;
-            for (;edit_out < one_past_last_edit_out;
-                 edit_out += 1, edit_in += 1){
-                edit_out->str = str + edit_in->str_start;
-                edit_out->length = edit_in->len;
-                edit_out->range.first = edit_in->start;
-                edit_out->range.one_past_last = edit_in->end;
-            }
-            Edit_Behaviors behaviors = {};
-            behaviors.batch_type = type;
-            edit_batch(system, models, file, real_edits, behaviors);
-            end_temp_memory(temp);
-        }
         result = true;
+        if (edit_count > 0){
+            global_history_edit_group_begin(app);
+            if (edit_abstract_mode(file)){
+                Lifetime_Object *lifetime_object = file->lifetime_object;
+                Dynamic_Workspace *workspace = &lifetime_object->workspace;
+                Marker *markers = 0;
+                Managed_Object markers_object = managed_object_alloc_buffer_markers(&models->mem.heap, workspace, buffer_id, edit_count*2, &markers);
+                for (i32 i = 0; i < edit_count; i += 1){
+                    markers[2*i].pos = edits[i].start;
+                    markers[2*i].lean_right = false;
+                    markers[2*i + 1].pos = edits[i].end;
+                    markers[2*i + 1].lean_right = false;
+                }
+                for (i32 i = 0; i < edit_count; i += 1){
+                    char *edit_str = str + edits[i].str_start;
+                    i32 edit_length = edits[i].len;
+                    Range edit_range = {markers[2*i].pos, markers[2*i + 1].pos};
+                    if (!buffer_replace_range(app, buffer_id, edit_range.first, edit_range.one_past_last, make_string(edit_str, edit_length))){
+                        result = false;
+                    }
+                }
+                managed_object_free(app, markers_object);
+            }
+            else{
+                Buffer_Edit *edit_in = edits;
+                Buffer_Edit *one_past_last = edits + edit_count;
+                i32 shift = 0;
+                for (;edit_in < one_past_last; edit_in += 1){
+                    char *edit_str = str + edit_in->str_start;
+                    i32 edit_length = edit_in->len;
+                    Range edit_range = {edit_in->start, edit_in->end};
+                    i32 shift_change = edit_length - (edit_range.one_past_last - edit_range.first);
+                    edit_range.first += shift;
+                    edit_range.one_past_last += shift;
+                    if (!buffer_replace_range(app, buffer_id, edit_range.first, edit_range.one_past_last, make_string(edit_str, edit_length))){
+                        result = false;
+                    }
+                    else{
+                        shift += shift_change;
+                    }
+                }
+            }
+            global_history_edit_group_end(app);
+        }
     }
     return(result);
 }
@@ -2830,18 +2834,10 @@ DOC(Managed objects allocate memory that is tied to the scope.  When the scope i
 */
 {
     Models *models = (Models*)app->cmd_context;
-    Heap *heap = &models->mem.heap;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     Managed_Object result = 0;
     if (workspace != 0){
-        i32 size = count*item_size;
-        void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Memory_Header));
-        Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
-        header->std_header.type = ManagedObjectType_Memory;
-        header->std_header.item_size = item_size;
-        header->std_header.count = count;
-        u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-        result = ((u64)scope << 32) | (u64)id;
+        result = managed_object_alloc_managed_memory(&models->mem.heap, workspace, item_size, count, 0);
     }
     return(result);
 }
@@ -2867,25 +2863,10 @@ DOC_SEE(Marker)
         scope_array[1] = *optional_extra_scope;
         markers_scope = Get_Managed_Scope_With_Multiple_Dependencies(app, scope_array, 2);
     }
-    Heap *heap = &models->mem.heap;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_scope);
     Managed_Object result = 0;
     if (workspace != 0){
-        i32 size = count*sizeof(Marker);
-		void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
-        Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
-        header->std_header.type = ManagedObjectType_Markers;
-        header->std_header.item_size = sizeof(Marker);
-        header->std_header.count = count;
-        zdll_push_back(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
-        workspace->buffer_markers_list.count += 1;
-        workspace->total_marker_count += count;
-        header->buffer_id = buffer_id;
-        header->visual_first = 0;
-        header->visual_last = 0;
-        header->visual_count = 0;
-        u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-        result = ((u64)markers_scope << 32) | (u64)id;
+        result = managed_object_alloc_buffer_markers(&models->mem.heap, workspace, buffer_id, count, 0);
     }
     return(result);
 }
@@ -2893,19 +2874,10 @@ DOC_SEE(Marker)
 API_EXPORT Managed_Object
 Alloc_Managed_Arena_In_Scope(Application_Links *app, Managed_Scope scope, i32 page_size){
     Models *models = (Models*)app->cmd_context;
-    Heap *heap = &models->mem.heap;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     Managed_Object result = 0;
     if (workspace != 0){
-        void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, sizeof(Managed_Arena_Header) + sizeof(Arena*));
-        Managed_Arena_Header *header = (Managed_Arena_Header*)ptr;
-        header->std_header.type = ManagedObjectType_Arena;
-        header->std_header.item_size = sizeof(Arena*);
-        header->std_header.count = 1;
-        zdll_push_back(workspace->arena_list.first, workspace->arena_list.last, header);
-        header->arena = make_arena(app, page_size);
-        u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-        result = ((u64)scope << 32) | (u64)id;
+        result = managed_object_alloc_managed_arena_in_scope(&models->mem.heap, workspace, app, page_size, 0);
     }
     return(result);
 }
@@ -2921,8 +2893,17 @@ get_dynamic_object_ptrs(Models *models, Managed_Object object){
         if (header != 0){
             result.workspace = workspace;
             result.header = header;
-            return(result);
         }
+    }
+    return(result);
+}
+
+internal Marker_Visual_Data*
+get_marker_visual_pointer(Models *models, Marker_Visual visual){
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visual.scope);
+    Marker_Visual_Data *result = 0;
+    if (workspace != 0){
+        result = dynamic_workspace_get_visual_pointer(workspace, visual.slot_id, visual.gen_id);
     }
     return(result);
 }
@@ -2955,15 +2936,6 @@ DOC_SEE(destroy_marker_visuals)
         visual.gen_id = data->gen_id;
     }
     return(visual);
-}
-
-internal Marker_Visual_Data*
-get_marker_visual_pointer(Models *models, Marker_Visual visual){
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, visual.scope);
-    if (workspace != 0){
-        return(dynamic_workspace_get_visual_pointer(workspace, visual.slot_id, visual.gen_id));
-    }
-    return(0);
 }
 
 API_EXPORT b32
@@ -3140,28 +3112,6 @@ DOC_RETURN(Pushes an array onto part containing the handle to every marker visua
     return(0);
 }
 
-internal u8*
-get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
-    u8 *ptr = 0;
-    if (header != 0){
-        switch (header->type){
-            case ManagedObjectType_Memory:
-            case ManagedObjectType_Markers:
-            {
-                ptr = ((u8*)header) + managed_header_type_sizes[header->type];
-            }break;
-            
-            case ManagedObjectType_Arena:
-            {
-                ptr = ((u8*)header) + managed_header_type_sizes[header->type];
-                Managed_Arena_Header *arena_header = (Managed_Arena_Header*)header;
-                *(Arena**)ptr = &arena_header->arena;
-            }break;
-        }
-    }
-    return(ptr);
-}
-
 API_EXPORT u32
 Managed_Object_Get_Item_Size(Application_Links *app, Managed_Object object)
 /*
@@ -3171,10 +3121,11 @@ DOC_RETURN(Returns the size, in bytes, of a single item in the managed object.  
 {
     Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    u32 result = 0;
     if (object_ptrs.header != 0){
-        return(object_ptrs.header->item_size);
+        result = object_ptrs.header->item_size;
     }
-    return(0);
+    return(result);
 }
 
 API_EXPORT u32
@@ -3186,10 +3137,11 @@ DOC_RETURN(Returns the count of items this object can store, this count is used 
 {
     Models *models = (Models*)app->cmd_context;
     Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    u32 result = 0;
     if (object_ptrs.header != 0){
-        return(object_ptrs.header->count);
+        result = object_ptrs.header->count;
     }
-    return(0);
+    return(result);
 }
 
 API_EXPORT Managed_Object_Type
@@ -3241,33 +3193,7 @@ DOC(Permanently frees the specified object.  Not only does this free up the memo
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, hi_id);
     b32 result = false;
     if (workspace != 0){
-        u32 lo_id = object&max_u32;
-        u8 *object_ptr = (u8*)dynamic_workspace_get_pointer(workspace, lo_id);
-        if (object_ptr != 0){
-            Managed_Object_Type *type = (Managed_Object_Type*)object_ptr;
-            switch (*type){
-                case ManagedObjectType_Markers:
-                {
-                    Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
-                    workspace->total_marker_count -= header->std_header.count;
-                    if (header->visual_count > 0){
-                        marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
-                    }
-                    zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
-                    workspace->buffer_markers_list.count -= 1;
-                }break;
-                
-                case ManagedObjectType_Arena:
-                {
-                    Managed_Arena_Header *header = (Managed_Arena_Header*)object_ptr;
-                    arena_release_all(&header->arena);
-                    zdll_remove(workspace->arena_list.first, workspace->arena_list.last, header);
-                }break;
-            }
-            dynamic_workspace_erase_pointer(workspace, lo_id);
-            memory_bank_free(&workspace->mem_bank, object_ptr);
-            result = true;
-        }
+        result = managed_object_free(workspace, object);
     }
     return(result);
 }

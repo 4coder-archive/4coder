@@ -24,7 +24,6 @@ struct Edit_Array{
 };
 
 struct Edit_Behaviors{
-    Buffer_Batch_Edit_Type batch_type;
     b32 do_not_post_to_history;
 };
 
