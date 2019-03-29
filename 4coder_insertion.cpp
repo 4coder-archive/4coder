@@ -42,6 +42,8 @@ insertf(Buffer_Insertion *insertion, char *format, ...){
     // TODO(casey): Allen, ideally we would have our own formatted here that could handle our string type, via %S or something, so 
     // we don't have to keep doing %.*s and passing two parameters and all that garbage.
     va_start(args, format);
+    // TODO(casey): Allen, ideally we would have our own formatted here that could handle our string type, via %S or something, so 
+    // we don't have to keep doing %.*s and passing two parameters and all that garbage.
     i32 result = vsprintf(temp, format, args);
     va_end(args);
     

@@ -4684,6 +4684,7 @@ Get_Process_State(Application_Links *app, Buffer_ID buffer_id)
         result.is_updating = file->is_updating;
         result.return_code = file->return_code;
     }
+    
     return(result);
 }
 */
