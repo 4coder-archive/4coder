@@ -4684,9 +4684,31 @@ Get_Process_State(Application_Links *app, Buffer_ID buffer_id)
         result.is_updating = file->is_updating;
         result.return_code = file->return_code;
     }
+
+*/
+
+API_EXPORT Range
+Get_View_Visible_Range(Application_Links *app, View_ID view_id)
+{
+    Range result = {};
+    
+    // TODO(casey): Allen, I leave it to you to actually compute this the way you want.  Hopefully all
+    // this sort of thing will get sorted out as the render/layout stuff becomes more disentangled.
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    if(view && view->panel)
+    {
+        i32 view_height = rect_height(view->panel->rect_inner);
+    
+        Full_Cursor min_cursor = view_get_render_cursor(models->system, view);
+        Full_Cursor max_cursor;
+        view_compute_cursor(app, view_id, seek_xy(min_cursor.wrapped_x, min_cursor.wrapped_y + view_height, false, false), &max_cursor);
+    
+        result.min = min_cursor.pos;
+        result.max = max_cursor.pos;
+    }
     
     return(result);
 }
-*/
 
 // BOTTOM

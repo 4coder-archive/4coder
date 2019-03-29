@@ -597,6 +597,9 @@ mirror_buffer_insert_range(Application_Links *app, Buffer_ID mirror, Buffer_ID s
             if (mode == MirrorMode_Constructing){
                 b32 did_insert = false;
                 {
+                    // TODO(casey): Allen, this is going to be suuuuuper slow - it has to do a whole memory block
+                    // reserve just to get the temporary space.  This is the kind of thing that would be super simple and
+                    // very efficient with a stack off the app pointer.
                     Arena arena = make_arena(app, (8 << 10));
                     char *buffer = push_array(&arena, char, length);
                     if (buffer_read_range(app, source, source_first, source_first + length, buffer)){
