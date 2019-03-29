@@ -946,6 +946,9 @@ App_Init_Sig(app_init){
     // NOTE(allen): init GUI keys
     models->user_up_key = key_up;
     models->user_down_key = key_down;
+    
+    // NOTE(allen): 
+    models->custom_layer_arena = make_arena(&models->app_links);
 }
 
 App_Step_Sig(app_step){

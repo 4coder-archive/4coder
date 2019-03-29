@@ -179,8 +179,8 @@ get_next_view_after_active(Application_Links *app, u32 access){
 static void
 view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
     if (count > 0){
-        // TODO(allen): replace with context supplied arena
-        Arena arena = make_arena(app);
+        Arena *arena = context_get_arena(app);
+        Temp_Memory_Arena temp = begin_temp_memory(arena);
         
         struct View_Node{
             View_Node *next;
@@ -200,7 +200,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
         View_Node *primary_view_last = 0;
         i32 available_view_count = 0;
         
-        primary_view_first = primary_view_last = push_array(&arena, View_Node, 1);
+        primary_view_first = primary_view_last = push_array(arena, View_Node, 1);
         primary_view_last->next = 0;
         primary_view_last->view_id = view_id;
         available_view_count += 1;
@@ -209,7 +209,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
             if (view_id == first_view_id){
                 break;
             }
-            View_Node *node = push_array(&arena, View_Node, 1);
+            View_Node *node = push_array(arena, View_Node, 1);
             primary_view_last->next = node;
             node->next = 0;
             node->view_id = view_id;
@@ -225,7 +225,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
             }
         }
         
-        arena_release_all(&arena);
+        end_temp_memory(temp);
     }
 }
 

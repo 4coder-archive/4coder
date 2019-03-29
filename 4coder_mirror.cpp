@@ -262,116 +262,115 @@ mirror_add_range__inner_check_optimization(Application_Links *app, Managed_Objec
         if (get_buffer_summary(app, source, AccessAll, &source_buffer)){
             Managed_Scope scope = managed_object_get_containing_scope(app, mirror);
             Managed_Object mirror_check = mirror__check_scope_for_mirror(app, scope);
-            if (mirror_check == mirror){
-                Mirror mirror_data = {};
-                if (managed_object_load_data(app, mirror, 0, 1, &mirror_data)){
-                    Buffer_Summary mirror_buffer = {};
-                    Buffer_ID mirror_id = mirror_data.mirror_buffer_id;
-                    if (get_buffer_summary(app, mirror_id, AccessAll, &mirror_buffer)){
-                        Arena arena = make_arena(app, (8 << 10));
-                        
-                        // read mirror data into hot structure
-                        Mirror_Hot mirror_hot = {};
-                        mirror_hot.count = mirror_data.count;
-                        mirror_hot.source_buffer_ids = push_array(&arena, Buffer_ID, mirror_hot.count);
-                        mirror_hot.mirror_ranges = push_array(&arena, Marker, (mirror_hot.count)*2);
-                        mirror_hot.source_ranges = push_array(&arena, Managed_Object, mirror_hot.count);
-                        
-                        b32 load_success = false;
-                        if (mirror_hot.count == 0){
-                            load_success = true;
-                        }
-                        else{
-                            load_success = (managed_object_load_data(app, mirror_data.source_buffer_ids, 0, mirror_hot.count  , mirror_hot.source_buffer_ids) &&
-                                            managed_object_load_data(app, mirror_data.mirror_ranges    , 0, mirror_hot.count*2, mirror_hot.mirror_ranges    ) &&
-                                            managed_object_load_data(app, mirror_data.source_ranges    , 0, mirror_hot.count  , mirror_hot.source_ranges    ));
-                        }
-                        
-                        if (load_success){
-                            Mirror__Check_Range_Result check = mirror__check_range_to_add(app, &arena, mirror_first, source_first, length,
-                                                                                          &source_buffer, &mirror_buffer, &mirror_hot,
-                                                                                          collidable_indices_first, auto_trust_text);
-                            
-                            if (check.passed_checks){
-                                // insert the new range at the insert index
-                                b32 r = true;
-                                i32 insert_index = check.insert_index;
-                                *insert_index_out = insert_index;
-                                
-                                Marker mirror_range[2] = {};
-                                mirror_range[0].pos = mirror_first;
-                                mirror_range[0].lean_right = false;
-                                mirror_range[1].pos = mirror_first + length;
-                                mirror_range[1].lean_right = true;
-                                
-                                Marker source_range[2] = {};
-                                source_range[0].pos = source_first;
-                                source_range[0].lean_right = false;
-                                source_range[1].pos = source_first + length;
-                                source_range[1].lean_right = true;
-                                
-                                Managed_Scope scopes[3] = {};
-                                scopes[0] = scope;
-                                scopes[1] = mirror_data.mirror_scope;
-                                buffer_get_managed_scope(app, source, &scopes[2]);
-                                
-                                Managed_Scope source_sub_scope = get_managed_scope_with_multiple_dependencies(app, scopes, 3);
-                                
-                                Managed_Object new_source_range = alloc_buffer_markers_on_buffer(app, source, 2, &source_sub_scope);
-                                r = r && managed_object_store_data(app, new_source_range, 0, 2, &source_range);
-                                
-                                if (mirror_data.count + 1 > mirror_data.max){
-                                    if (mirror_data.count != 0){
-                                        r = r && managed_object_free(app, mirror_data.source_buffer_ids);
-                                        r = r && managed_object_free(app, mirror_data.mirror_ranges);
-                                        r = r && managed_object_free(app, mirror_data.source_ranges);
-                                    }
-                                    
-                                    Managed_Scope mirror_sub_scope = get_managed_scope_with_multiple_dependencies(app, scopes, 2);
-                                    i32 new_max = 256;
-                                    if (new_max <= mirror_data.max){
-                                        new_max = mirror_data.max*2;
-                                    }
-                                    mirror_data.source_buffer_ids = alloc_managed_memory_in_scope(app, mirror_sub_scope, sizeof(Buffer_ID), new_max);
-                                    mirror_data.mirror_ranges = alloc_buffer_markers_on_buffer(app, mirror_id, new_max*2, &mirror_sub_scope);
-                                    mirror_data.source_ranges = alloc_managed_memory_in_scope(app, mirror_sub_scope, sizeof(Managed_Object), new_max);
-                                    
-                                    mirror_data.max = new_max;
-                                    
-                                    // head ranges
-                                    i32 head_count = insert_index;
-                                    if (head_count > 0){
-                                        r = r && managed_object_store_data(app, mirror_data.source_buffer_ids, 0, head_count  , mirror_hot.source_buffer_ids);
-                                        r = r && managed_object_store_data(app, mirror_data.mirror_ranges    , 0, head_count*2, mirror_hot.mirror_ranges    );
-                                        r = r && managed_object_store_data(app, mirror_data.source_ranges    , 0, head_count  , mirror_hot.source_ranges    );
-                                    }
-                                }
-                                
-                                // tail ranges
-                                i32 tail_count = mirror_hot.count - insert_index;
-                                if (tail_count > 0){
-                                    i32 to = insert_index + 1;
-                                    i32 from = insert_index;
-                                    r = r && managed_object_store_data(app, mirror_data.source_buffer_ids, to  , tail_count  , mirror_hot.source_buffer_ids + from);
-                                    r = r && managed_object_store_data(app, mirror_data.mirror_ranges    , to*2, tail_count*2, mirror_hot.mirror_ranges + from*2  );
-                                    r = r && managed_object_store_data(app, mirror_data.source_ranges    , to  , tail_count  , mirror_hot.source_ranges + from    );
-                                }
-                                
-                                // new range
-                                r = r && managed_object_store_data(app, mirror_data.source_buffer_ids, insert_index  , 1, &source          );
-                                r = r && managed_object_store_data(app, mirror_data.mirror_ranges    , insert_index*2, 2, mirror_range     );
-                                r = r && managed_object_store_data(app, mirror_data.source_ranges    , insert_index  , 1, &new_source_range);
-                                
-                                mirror_data.count += 1;
-                                
-                                managed_object_store_data(app, mirror, 0, 1, &mirror_data);
-                                
-                                result = r;
-                            }
-                        }
-                        
-                        arena_release_all(&arena);
+            Mirror mirror_data = {};
+            if (mirror_check == mirror && managed_object_load_data(app, mirror, 0, 1, &mirror_data)){
+                Buffer_Summary mirror_buffer = {};
+                Buffer_ID mirror_id = mirror_data.mirror_buffer_id;
+                if (get_buffer_summary(app, mirror_id, AccessAll, &mirror_buffer)){
+                    Arena *arena = context_get_arena(app);
+                    Temp_Memory_Arena temp = begin_temp_memory(arena);
+                    
+                    // read mirror data into hot structure
+                    Mirror_Hot mirror_hot = {};
+                    mirror_hot.count = mirror_data.count;
+                    mirror_hot.source_buffer_ids = push_array(arena, Buffer_ID, mirror_hot.count);
+                    mirror_hot.mirror_ranges = push_array(arena, Marker, (mirror_hot.count)*2);
+                    mirror_hot.source_ranges = push_array(arena, Managed_Object, mirror_hot.count);
+                    
+                    b32 load_success = false;
+                    if (mirror_hot.count == 0){
+                        load_success = true;
                     }
+                    else{
+                        load_success = (managed_object_load_data(app, mirror_data.source_buffer_ids, 0, mirror_hot.count  , mirror_hot.source_buffer_ids) &&
+                                        managed_object_load_data(app, mirror_data.mirror_ranges    , 0, mirror_hot.count*2, mirror_hot.mirror_ranges    ) &&
+                                        managed_object_load_data(app, mirror_data.source_ranges    , 0, mirror_hot.count  , mirror_hot.source_ranges    ));
+                    }
+                    
+                    if (load_success){
+                        Mirror__Check_Range_Result check = mirror__check_range_to_add(app, arena, mirror_first, source_first, length,
+                                                                                      &source_buffer, &mirror_buffer, &mirror_hot,
+                                                                                      collidable_indices_first, auto_trust_text);
+                        
+                        if (check.passed_checks){
+                            // insert the new range at the insert index
+                            b32 r = true;
+                            i32 insert_index = check.insert_index;
+                            *insert_index_out = insert_index;
+                            
+                            Marker mirror_range[2] = {};
+                            mirror_range[0].pos = mirror_first;
+                            mirror_range[0].lean_right = false;
+                            mirror_range[1].pos = mirror_first + length;
+                            mirror_range[1].lean_right = true;
+                            
+                            Marker source_range[2] = {};
+                            source_range[0].pos = source_first;
+                            source_range[0].lean_right = false;
+                            source_range[1].pos = source_first + length;
+                            source_range[1].lean_right = true;
+                            
+                            Managed_Scope scopes[3] = {};
+                            scopes[0] = scope;
+                            scopes[1] = mirror_data.mirror_scope;
+                            buffer_get_managed_scope(app, source, &scopes[2]);
+                            
+                            Managed_Scope source_sub_scope = get_managed_scope_with_multiple_dependencies(app, scopes, 3);
+                            
+                            Managed_Object new_source_range = alloc_buffer_markers_on_buffer(app, source, 2, &source_sub_scope);
+                            r = r && managed_object_store_data(app, new_source_range, 0, 2, &source_range);
+                            
+                            if (mirror_data.count + 1 > mirror_data.max){
+                                if (mirror_data.count != 0){
+                                    r = r && managed_object_free(app, mirror_data.source_buffer_ids);
+                                    r = r && managed_object_free(app, mirror_data.mirror_ranges);
+                                    r = r && managed_object_free(app, mirror_data.source_ranges);
+                                }
+                                
+                                Managed_Scope mirror_sub_scope = get_managed_scope_with_multiple_dependencies(app, scopes, 2);
+                                i32 new_max = 256;
+                                if (new_max <= mirror_data.max){
+                                    new_max = mirror_data.max*2;
+                                }
+                                mirror_data.source_buffer_ids = alloc_managed_memory_in_scope(app, mirror_sub_scope, sizeof(Buffer_ID), new_max);
+                                mirror_data.mirror_ranges = alloc_buffer_markers_on_buffer(app, mirror_id, new_max*2, &mirror_sub_scope);
+                                mirror_data.source_ranges = alloc_managed_memory_in_scope(app, mirror_sub_scope, sizeof(Managed_Object), new_max);
+                                
+                                mirror_data.max = new_max;
+                                
+                                // head ranges
+                                i32 head_count = insert_index;
+                                if (head_count > 0){
+                                    r = r && managed_object_store_data(app, mirror_data.source_buffer_ids, 0, head_count  , mirror_hot.source_buffer_ids);
+                                    r = r && managed_object_store_data(app, mirror_data.mirror_ranges    , 0, head_count*2, mirror_hot.mirror_ranges    );
+                                    r = r && managed_object_store_data(app, mirror_data.source_ranges    , 0, head_count  , mirror_hot.source_ranges    );
+                                }
+                            }
+                            
+                            // tail ranges
+                            i32 tail_count = mirror_hot.count - insert_index;
+                            if (tail_count > 0){
+                                i32 to = insert_index + 1;
+                                i32 from = insert_index;
+                                r = r && managed_object_store_data(app, mirror_data.source_buffer_ids, to  , tail_count  , mirror_hot.source_buffer_ids + from);
+                                r = r && managed_object_store_data(app, mirror_data.mirror_ranges    , to*2, tail_count*2, mirror_hot.mirror_ranges + from*2  );
+                                r = r && managed_object_store_data(app, mirror_data.source_ranges    , to  , tail_count  , mirror_hot.source_ranges + from    );
+                            }
+                            
+                            // new range
+                            r = r && managed_object_store_data(app, mirror_data.source_buffer_ids, insert_index  , 1, &source          );
+                            r = r && managed_object_store_data(app, mirror_data.mirror_ranges    , insert_index*2, 2, mirror_range     );
+                            r = r && managed_object_store_data(app, mirror_data.source_ranges    , insert_index  , 1, &new_source_range);
+                            
+                            mirror_data.count += 1;
+                            
+                            managed_object_store_data(app, mirror, 0, 1, &mirror_data);
+                            
+                            result = r;
+                        }
+                    }
+                    
+                    end_temp_memory(temp);
                 }
             }
         }
@@ -553,9 +552,10 @@ static i32
 mirror__range_loose_get_length(Application_Links *app, Buffer_ID mirror, Buffer_ID source,
                                i32 mirror_first, i32 source_first, i32 max_length){
     i32 result = 0;
-    Arena arena = make_arena(app, (8 << 10));
-    char *buffer_1 = push_array(&arena, char, max_length);
-    char *buffer_2 = push_array(&arena, char, max_length);
+    Arena *arena = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(arena);
+    char *buffer_1 = push_array(arena, char, max_length);
+    char *buffer_2 = push_array(arena, char, max_length);
     if (buffer_read_range(app, source, source_first, source_first + max_length, buffer_1)){
         if (buffer_read_range(app, mirror, mirror_first, mirror_first + max_length, buffer_2)){
             for (; result < max_length;
@@ -566,7 +566,7 @@ mirror__range_loose_get_length(Application_Links *app, Buffer_ID mirror, Buffer_
             }
         }
     }
-    arena_release_all(&arena);
+    end_temp_memory(temp);
     return(result);
 }
 
@@ -597,18 +597,16 @@ mirror_buffer_insert_range(Application_Links *app, Buffer_ID mirror, Buffer_ID s
             if (mode == MirrorMode_Constructing){
                 b32 did_insert = false;
                 {
-                    // TODO(casey): Allen, this is going to be suuuuuper slow - it has to do a whole memory block
-                    // reserve just to get the temporary space.  This is the kind of thing that would be super simple and
-                    // very efficient with a stack off the app pointer.
-                    Arena arena = make_arena(app, (8 << 10));
-                    char *buffer = push_array(&arena, char, length);
+                    Arena *arena = context_get_arena(app);
+                    Temp_Memory_Arena temp = begin_temp_memory(arena);
+                    char *buffer = push_array(arena, char, length);
                     if (buffer_read_range(app, source, source_first, source_first + length, buffer)){
                         String string = make_string(buffer, length);
                         if (buffer_replace_range(app, mirror, mirror_insert_pos, mirror_insert_pos, string)){
                             did_insert = true;
                         }
                     }
-                    arena_release_all(&arena);
+                    end_temp_memory(temp);
                 }
                 if (did_insert){
                     result = mirror_add_range__inner(app, mirror_object, source, mirror_insert_pos, source_first, length);
@@ -798,20 +796,21 @@ mirror_buffer_insert_range_array(Application_Links *app, Buffer_ID mirror, Mirro
                     Mirror_Range *range = ranges;
                     i32 safe_to_ignore_index = 0;
                     i32 total_shift = 0;
-                    Arena arena = make_arena(app, (8 << 10));
+                    Arena *arena = context_get_arena(app);
+                    Temp_Memory_Arena temp = begin_temp_memory(arena);
                     for (i32 i = 0; i < count; i += 1, range += 1){
                         i32 mirror_first = range->mirror_first + total_shift;
                         b32 did_insert = false;
                         {
-                            Temp_Memory_Arena temp = begin_temp_memory(&arena);
-                            char *buffer = push_array(&arena, char, range->length);
+                            Temp_Memory_Arena buffer_temp = begin_temp_memory(arena);
+                            char *buffer = push_array(arena, char, range->length);
                             if (buffer_read_range(app, range->source_buffer_id, range->source_first, range->source_first + range->length, buffer)){
                                 String string = make_string(buffer, range->length);
                                 if (buffer_replace_range(app, mirror, mirror_first, mirror_first, string)){
                                     did_insert = true;
                                 }
                             }
-                            end_temp_memory(temp);
+                            end_temp_memory(buffer_temp);
                         }
                         i32 new_range_index = 0;
                         if (range->length > 0){
@@ -826,7 +825,7 @@ mirror_buffer_insert_range_array(Application_Links *app, Buffer_ID mirror, Mirro
                         }
                         total_shift += range->length;
                     }
-                    arena_release_all(&arena);
+                    end_temp_memory(temp);
                     result = r;
                 }
             }
@@ -849,9 +848,10 @@ mirror_edit_handler(Application_Links *app, Buffer_ID buffer_id, i32 first, i32 
             if (mirror_get_mode__inner(app, mirror, &mode)){
                 Mirror mirror_data = {};
                 if (managed_object_load_data(app, mirror, 0, 1, &mirror_data)){
-                    Arena arena = make_arena(app, (8 << 10));
+                    Arena *arena = context_get_arena(app);
+                    Temp_Memory_Arena temp = begin_temp_memory(arena);
                     
-                    Mirror_Hot mirror_hot = mirror__hot_from_data(app, &arena, mirror_data);
+                    Mirror_Hot mirror_hot = mirror__hot_from_data(app, arena, mirror_data);
                     switch (mode){
                         case MirrorMode_Constructing:
                         {
@@ -944,7 +944,7 @@ mirror_edit_handler(Application_Links *app, Buffer_ID buffer_id, i32 first, i32 
                         }break;
                     }
                     
-                    arena_release_all(&arena);
+                    end_temp_memory(temp);
                 }
             }
         }

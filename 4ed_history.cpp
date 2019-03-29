@@ -144,33 +144,32 @@ history_is_activated(History *history){
 
 internal void
 history_free(Heap *heap, History *history){
-    if (!history->activated){
-        return;
+    if (history->activated){
+        arena_release_all(&history->arena);
+        memory_bank_free_all(heap, &history->bank);
+        block_zero_struct(history);
     }
-    arena_release_all(&history->arena);
-    memory_bank_free_all(heap, &history->bank);
-    block_zero_struct(history);
 }
 
 internal i32
 history_get_record_count(History *history){
-    if (!history->activated){
-        return(0);
+    i32 result = 0;
+    if (history->activated){
+        result = history->record_count;
     }
-    return(history->record_count);
+    return(result);
 }
 
 internal Record*
 history_get_record(History *history, i32 index){
-    if (!history->activated){
-        return(0);
+    Record *result = 0;
+    if (history->activated){
+        Node *node = history__to_node(history, index);
+        if (node != 0){
+            result = CastFromMember(Record, node, node);
+        }
     }
-    Record *record = 0;
-    Node *node = history__to_node(history, index);
-    if (node != 0){
-        record = CastFromMember(Record, node, node);
-    }
-    return(record);
+    return(result);
 }
 
 internal Record*
@@ -189,10 +188,11 @@ history_get_sub_record(Record *record, i32 sub_index){
 
 internal Record*
 history_get_dummy_record(History *history){
-    if (!history->activated){
-        return(0);
+    Record *result = 0;
+    if (history->activated){
+        result = CastFromMember(Record, node, &history->records);
     }
-    return(CastFromMember(Record, node, &history->records));
+    return(result);
 }
 
 internal void

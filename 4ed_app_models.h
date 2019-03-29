@@ -29,6 +29,7 @@ struct App_Settings{
 
 struct Models{
     Mem_Options mem;
+    
     App_Settings settings;
     
     Face_ID global_font_id;
@@ -81,6 +82,7 @@ struct Models{
     
     b32 keep_playing;
     
+    // TODO(allen): do(eliminate user_*_key* nonsense from the core)
     Key_Code user_up_key;
     Key_Code user_down_key;
     Key_Modifier user_up_key_modifier;
@@ -97,6 +99,8 @@ struct Models{
     Panel *resizing_intermediate_panel;
     
     b32 animate_next_frame;
+    
+    Arena custom_layer_arena;
     
     // Last frame state
     Vec2_i32 prev_p;

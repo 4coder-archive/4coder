@@ -190,6 +190,12 @@ DOC(Dumps away the previous mappings and instantiates the mappings described in 
     return(result);
 }
 
+API_EXPORT Arena*
+Context_Get_Arena(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    return(&models->custom_layer_arena);
+}
+
 API_EXPORT b32
 Create_Child_Process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){
     Models *models = (Models*)app->cmd_context;
