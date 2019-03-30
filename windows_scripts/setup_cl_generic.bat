@@ -1,5 +1,9 @@
 @echo off
 
+REM (allen): quit early if we already have cl
+where /q cl
+IF %ERRORLEVEL% EQ 0 (EXIT)
+
 SET "LIB="
 
 SET VC_PATH=C:\Program Files (x86)\Microsoft Visual Studio 12.0
