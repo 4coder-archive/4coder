@@ -963,8 +963,8 @@ App_Step_Sig(app_step){
     if (clipboard.str != 0){
         String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
-        if(input->clipboard_changed && models->clipboard_change) {
-            models->clipboard_change(&models->app_links, *dest, clipboard_from_os);
+        if (input->clipboard_changed && models->clipboard_change != 0){
+            models->clipboard_change(&models->app_links, *dest, ClipboardFlag_FromOS);
         }
     }
     
