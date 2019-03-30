@@ -1329,7 +1329,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
         b32 do_wrap = false;
         i32 wrap_unit_end = 0;
         
-        b32 first_wrap_determination = 1;
+        b32 first_wrap_determination = true;
         i32 wrap_array_index = 0;
         
         do{
@@ -1348,7 +1348,7 @@ render_loaded_file_in_view(System_Functions *system, View *view, Models *models,
                             do_wrap = false;
                             wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                         }
-                        first_wrap_determination = 0;
+                        first_wrap_determination = false;
                     }
                     else{
                         Assert(stop.pos == wrap_unit_end);

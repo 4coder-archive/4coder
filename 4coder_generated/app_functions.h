@@ -22,7 +22,16 @@ struct Application_Links;
 #define BUFFER_SET_EDIT_HANDLER_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type)
+#define BUFFER_EXISTS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_GET_ACCESS_FLAGS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out)
+#define BUFFER_GET_SIZE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 *size_out)
+#define BUFFER_GET_LINE_COUNT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 *line_count_out)
 #define BUFFER_GET_BASE_BUFFER_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out)
+#define BUFFER_GET_UNIQUE_BUFFER_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out)
+#define BUFFER_GET_FILE_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out)
+#define BUFFER_GET_DIRTY_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out)
+#define BUFFER_TOKENS_ARE_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_GET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)
 #define BUFFER_SET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
 #define BUFFER_GET_MANAGED_SCOPE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out)
@@ -181,7 +190,16 @@ typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
 typedef BUFFER_SET_EDIT_HANDLER_SIG(Buffer_Set_Edit_Handler_Function);
 typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
+typedef BUFFER_EXISTS_SIG(Buffer_Exists_Function);
+typedef BUFFER_READY_SIG(Buffer_Ready_Function);
+typedef BUFFER_GET_ACCESS_FLAGS_SIG(Buffer_Get_Access_Flags_Function);
+typedef BUFFER_GET_SIZE_SIG(Buffer_Get_Size_Function);
+typedef BUFFER_GET_LINE_COUNT_SIG(Buffer_Get_Line_Count_Function);
 typedef BUFFER_GET_BASE_BUFFER_NAME_SIG(Buffer_Get_Base_Buffer_Name_Function);
+typedef BUFFER_GET_UNIQUE_BUFFER_NAME_SIG(Buffer_Get_Unique_Buffer_Name_Function);
+typedef BUFFER_GET_FILE_NAME_SIG(Buffer_Get_File_Name_Function);
+typedef BUFFER_GET_DIRTY_STATE_SIG(Buffer_Get_Dirty_State_Function);
+typedef BUFFER_TOKENS_ARE_READY_SIG(Buffer_Tokens_Are_Ready_Function);
 typedef BUFFER_GET_SETTING_SIG(Buffer_Get_Setting_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
 typedef BUFFER_GET_MANAGED_SCOPE_SIG(Buffer_Get_Managed_Scope_Function);
@@ -342,7 +360,16 @@ Buffer_Replace_Range_Function *buffer_replace_range;
 Buffer_Set_Edit_Handler_Function *buffer_set_edit_handler;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
+Buffer_Exists_Function *buffer_exists;
+Buffer_Ready_Function *buffer_ready;
+Buffer_Get_Access_Flags_Function *buffer_get_access_flags;
+Buffer_Get_Size_Function *buffer_get_size;
+Buffer_Get_Line_Count_Function *buffer_get_line_count;
 Buffer_Get_Base_Buffer_Name_Function *buffer_get_base_buffer_name;
+Buffer_Get_Unique_Buffer_Name_Function *buffer_get_unique_buffer_name;
+Buffer_Get_File_Name_Function *buffer_get_file_name;
+Buffer_Get_Dirty_State_Function *buffer_get_dirty_state;
+Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready;
 Buffer_Get_Setting_Function *buffer_get_setting;
 Buffer_Set_Setting_Function *buffer_set_setting;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope;
@@ -502,7 +529,16 @@ Buffer_Replace_Range_Function *buffer_replace_range_;
 Buffer_Set_Edit_Handler_Function *buffer_set_edit_handler_;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Batch_Edit_Function *buffer_batch_edit_;
+Buffer_Exists_Function *buffer_exists_;
+Buffer_Ready_Function *buffer_ready_;
+Buffer_Get_Access_Flags_Function *buffer_get_access_flags_;
+Buffer_Get_Size_Function *buffer_get_size_;
+Buffer_Get_Line_Count_Function *buffer_get_line_count_;
 Buffer_Get_Base_Buffer_Name_Function *buffer_get_base_buffer_name_;
+Buffer_Get_Unique_Buffer_Name_Function *buffer_get_unique_buffer_name_;
+Buffer_Get_File_Name_Function *buffer_get_file_name_;
+Buffer_Get_Dirty_State_Function *buffer_get_dirty_state_;
+Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready_;
 Buffer_Get_Setting_Function *buffer_get_setting_;
 Buffer_Set_Setting_Function *buffer_set_setting_;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope_;
@@ -670,7 +706,16 @@ app_links->buffer_replace_range_ = Buffer_Replace_Range;\
 app_links->buffer_set_edit_handler_ = Buffer_Set_Edit_Handler;\
 app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
+app_links->buffer_exists_ = Buffer_Exists;\
+app_links->buffer_ready_ = Buffer_Ready;\
+app_links->buffer_get_access_flags_ = Buffer_Get_Access_Flags;\
+app_links->buffer_get_size_ = Buffer_Get_Size;\
+app_links->buffer_get_line_count_ = Buffer_Get_Line_Count;\
 app_links->buffer_get_base_buffer_name_ = Buffer_Get_Base_Buffer_Name;\
+app_links->buffer_get_unique_buffer_name_ = Buffer_Get_Unique_Buffer_Name;\
+app_links->buffer_get_file_name_ = Buffer_Get_File_Name;\
+app_links->buffer_get_dirty_state_ = Buffer_Get_Dirty_State;\
+app_links->buffer_tokens_are_ready_ = Buffer_Tokens_Are_Ready;\
 app_links->buffer_get_setting_ = Buffer_Get_Setting;\
 app_links->buffer_set_setting_ = Buffer_Set_Setting;\
 app_links->buffer_get_managed_scope_ = Buffer_Get_Managed_Scope;\
@@ -830,7 +875,16 @@ static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, i32
 static b32 buffer_set_edit_handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){return(app->buffer_set_edit_handler(app, buffer_id, handler));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer_id, seek, cursor_out));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer_id, str, str_len, edits, edit_count, type));}
+static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists(app, buffer_id));}
+static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready(app, buffer_id));}
+static b32 buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out){return(app->buffer_get_access_flags(app, buffer_id, access_flags_out));}
+static b32 buffer_get_size(Application_Links *app, Buffer_ID buffer_id, i32 *size_out){return(app->buffer_get_size(app, buffer_id, size_out));}
+static b32 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id, i32 *line_count_out){return(app->buffer_get_line_count(app, buffer_id, line_count_out));}
 static b32 buffer_get_base_buffer_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_base_buffer_name(app, buffer_id, name_out, required_size_out));}
+static b32 buffer_get_unique_buffer_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_unique_buffer_name(app, buffer_id, name_out, required_size_out));}
+static b32 buffer_get_file_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_file_name(app, buffer_id, name_out, required_size_out));}
+static b32 buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out){return(app->buffer_get_dirty_state(app, buffer_id, dirty_state_out));}
+static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting(app, buffer_id, setting, value));}
 static b32 buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out){return(app->buffer_get_managed_scope(app, buffer_id, scope_out));}
@@ -990,7 +1044,16 @@ static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, i32
 static b32 buffer_set_edit_handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){return(app->buffer_set_edit_handler_(app, buffer_id, handler));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer_id, seek, cursor_out));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer_id, str, str_len, edits, edit_count, type));}
+static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists_(app, buffer_id));}
+static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready_(app, buffer_id));}
+static b32 buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out){return(app->buffer_get_access_flags_(app, buffer_id, access_flags_out));}
+static b32 buffer_get_size(Application_Links *app, Buffer_ID buffer_id, i32 *size_out){return(app->buffer_get_size_(app, buffer_id, size_out));}
+static b32 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id, i32 *line_count_out){return(app->buffer_get_line_count_(app, buffer_id, line_count_out));}
 static b32 buffer_get_base_buffer_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_base_buffer_name_(app, buffer_id, name_out, required_size_out));}
+static b32 buffer_get_unique_buffer_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_unique_buffer_name_(app, buffer_id, name_out, required_size_out));}
+static b32 buffer_get_file_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_file_name_(app, buffer_id, name_out, required_size_out));}
+static b32 buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out){return(app->buffer_get_dirty_state_(app, buffer_id, dirty_state_out));}
+static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready_(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting_(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting_(app, buffer_id, setting, value));}
 static b32 buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out){return(app->buffer_get_managed_scope_(app, buffer_id, scope_out));}

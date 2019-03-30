@@ -37,7 +37,7 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         
         buffer->is_lexed = file->settings.tokens_exist;
         
-        buffer->tokens_are_ready = (file->state.token_array.tokens && file->state.tokens_complete && !file->state.still_lexing);
+        buffer->tokens_are_ready = file_tokens_are_ready(file);
         buffer->map_id = file->settings.base_map_id;
         buffer->unwrapped_lines = file->settings.unwrapped_lines;
         
@@ -142,6 +142,18 @@ imp_get_panel(Models *models, Panel_ID panel_id){
 }
 
 internal b32
+string_api_output(String val, String *out, i32 *required_size_out){
+    b32 result = false;
+    if (required_size_out != 0){
+        *required_size_out = val.size;
+    }
+    if (out != 0){
+        result = append(out, val);
+    }
+    return(result);
+}
+
+internal b32
 panel_api_check_panel(Panel *panel){
     b32 result = false;
     if (panel != 0 && panel->kind != PanelKind_Unused){
@@ -153,6 +165,26 @@ panel_api_check_panel(Panel *panel){
 internal b32
 buffer_api_check_file(Editing_File *file){
     return(file != 0 && !file->is_dummy);
+}
+
+internal b32
+buffer_api_check_file_and_tokens(Editing_File *file){
+    return(buffer_api_check_file(file) && file->state.token_array.tokens != 0 && file->state.tokens_complete);
+}
+
+internal b32
+buffer_api_check_file(Editing_File *file, Access_Flag access){
+    return(buffer_api_check_file(file) && access_test(file_get_access_flags(file), access));
+}
+
+internal b32
+view_api_check_view(View *view){
+    return(view != 0 && view->in_use);
+}
+
+internal b32
+view_api_check_view(View *view, Access_Flag access){
+    return(view_api_check_view(view) && access_test(view_get_access_flags(view), access));
 }
 
 API_EXPORT b32
@@ -662,26 +694,6 @@ DOC_SEE(get_buffer_first)
     return(result);
 }
 
-internal b32
-buffer_api_check_file_and_tokens(Editing_File *file){
-    return(buffer_api_check_file(file) && file->state.token_array.tokens != 0 && file->state.tokens_complete);
-}
-
-internal b32
-buffer_api_check_file(Editing_File *file, Access_Flag access){
-    return(buffer_api_check_file(file) && access_test(file_get_access_flags(file), access));
-}
-
-internal b32
-view_api_check_view(View *view){
-    return(view != 0 && view->in_use);
-}
-
-internal b32
-view_api_check_view(View *view, Access_Flag access){
-    return(view_api_check_view(view) && access_test(view_get_access_flags(view), access));
-}
-
 // TODO(allen): redocument
 API_EXPORT b32
 Get_Buffer_Summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
@@ -938,19 +950,111 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 }
 
 API_EXPORT b32
+Buffer_Exists(Application_Links *app, Buffer_ID buffer_id){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    return(buffer_api_check_file(file));
+}
+
+API_EXPORT b32
+Buffer_Ready(Application_Links *app, Buffer_ID buffer_id){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        result = file_is_ready(file);
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Get_Access_Flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        *access_flags_out = file_get_access_flags(file);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Get_Size(Application_Links *app, Buffer_ID buffer_id, i32 *size_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        *size_out = buffer_size(&file->state.buffer);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Get_Line_Count(Application_Links *app, Buffer_ID buffer_id, i32 *line_count_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        *line_count_out = file->state.buffer.line_count;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
 Buffer_Get_Base_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (buffer_api_check_file(file)){
-        if (required_size_out != 0){
-            *required_size_out = file->base_name.name.size;
-        }
-        if (name_out != 0){
-            if (append(name_out, file->base_name.name)){
-                result = true;
-            }
-        }
+        result = string_api_output(file->base_name.name, name_out, required_size_out);
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Get_Unique_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        result = string_api_output(file->unique_name.name, name_out, required_size_out);
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Get_File_Name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        result = string_api_output(file->canon.name, name_out, required_size_out);
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Get_Dirty_State(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        *dirty_state_out = file->state.dirty;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Tokens_Are_Ready(Application_Links *app, Buffer_ID buffer_id){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        result = file_tokens_are_ready(file);
     }
     return(result);
 }
@@ -4704,37 +4808,17 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
     return(result);
 }
 
-/*
-// TODO(allen): remove
-API_EXPORT Process_State
-Get_Process_State(Application_Links *app, Buffer_ID buffer_id)
-{
-    Process_State result = {};
-    
-    Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    if(file != 0)
-    {
-        result.is_updating = file->is_updating;
-        result.return_code = file->return_code;
-    }
-    
-    return(result);
-}
-*/
-
 API_EXPORT Range
 Get_View_Visible_Range(Application_Links *app, View_ID view_id){
     Range result = {};
-    // TODO(casey): Allen, I leave it to you to actually compute this the way you want.  Hopefully all
-    // this sort of thing will get sorted out as the render/layout stuff becomes more disentangled.
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     if (view_api_check_view(view)){
         i32 view_height = rect_height(view->panel->rect_inner);
+        i32 line_height = view->line_height;
         Full_Cursor min_cursor = view_get_render_cursor(models->system, view);
         Full_Cursor max_cursor;
-        view_compute_cursor(app, view_id, seek_xy(min_cursor.wrapped_x, min_cursor.wrapped_y + view_height, false, false), &max_cursor);
+        view_compute_cursor(app, view_id, seek_unwrapped_xy(0.f, min_cursor.wrapped_y + view_height + line_height, false), &max_cursor);
         result.min = min_cursor.pos;
         result.max = max_cursor.pos;
     }

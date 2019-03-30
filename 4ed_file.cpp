@@ -541,5 +541,12 @@ file_get_current_record_index(Editing_File *file){
     return(file->state.current_record_index);
 }
 
+////////////////////////////////
+
+internal b32
+file_tokens_are_ready(Editing_File *file){
+    return(file->state.token_array.tokens != 0 && file->state.tokens_complete && !file->state.still_lexing);
+}
+
 // BOTTOM
 
