@@ -972,23 +972,35 @@ activate_command(Application_Links *app, Partition *scratch, Heap *heap,
     }
 }
 
-CUSTOM_COMMAND_SIG(command_lister)
-CUSTOM_DOC("Opens an interactive list of all registered commands.")
-{
-    Partition *arena = &global_part;
+static void
+launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 command_id_count){
+    if (command_ids == 0){
+        command_id_count = command_one_past_last_id;
+    }
     
+    Partition *arena = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, &view);
     Temp_Memory temp = begin_temp_memory(arena);
-    i32 option_count = command_one_past_last_id;
-    Lister_Option *options = push_array(arena, Lister_Option, option_count);
-    for (i32 i = 0; i < command_one_past_last_id; i += 1){
-        options[i].string = make_string_slowly(fcoder_metacmd_table[i].name);
-        options[i].status = make_string_slowly(fcoder_metacmd_table[i].description);
-        options[i].user_data = (void*)fcoder_metacmd_table[i].proc;
+    Lister_Option *options = push_array(arena, Lister_Option, command_id_count);
+    for (i32 i = 0; i < command_id_count; i += 1){
+        i32 j = i;
+        if (command_ids != 0){
+            j = command_ids[i];
+        }
+        j = clamp(0, j, command_one_past_last_id);
+        options[i].string = make_string_slowly(fcoder_metacmd_table[j].name);
+        options[i].status = make_string_slowly(fcoder_metacmd_table[j].description);
+        options[i].user_data = (void*)fcoder_metacmd_table[j].proc;
     }
-    begin_integrated_lister__basic_list(app, "Command:", activate_command, 0, 0, options, option_count, 0, &view);
+    begin_integrated_lister__basic_list(app, "Command:", activate_command, 0, 0, options, command_id_count, 0, &view);
     end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(command_lister)
+CUSTOM_DOC("Opens an interactive list of all registered commands.")
+{
+    launch_custom_command_lister(app, 0, 0);
 }
 
 // BOTTOM
