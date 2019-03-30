@@ -4527,7 +4527,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                     while(*partial)
                     {
                         Found_String *check = *partial;
-                        i32 trailing_char_at = ((check->start + key.size) - check->end);
+                        i32 trailing_char_at = ((check->location.start + key.size) - check->location.end);
                         i32 remaining = trailing_char_at;
                         b32 valid = true;
                         b32 full = true;
@@ -4555,7 +4555,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                                 break;
                             }
                         }
-                        check->end += remaining;
+                        check->location.end += remaining;
                         
                         if(valid)
                         {
@@ -4643,8 +4643,8 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                                 found->buffer_id = buffer_id;
                                 found->flags = FoundString_Insensitive | exact_matched | clean_edegs;
                                 found->string_id = 0;
-                                found->start = i + at;
-                                found->end = found->start + remaining;
+                                found->location.start = i + at;
+                                found->location.end = found->location.start + remaining;
                                 
                                 // NOTE(casey): Although technically "full matches" are full, we haven't yet checked the trailing edge for tokenization,
                                 // so we need to shunt to partial in the cases where we _can't_ check the overhanging character.

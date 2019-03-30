@@ -1247,8 +1247,7 @@ STRUCT Found_String{
     u32 flags;
     i32 string_id;
     
-    i32 start;
-    i32 end;
+    Range location;
 };
 
 // TODO(casey): If this sticks around, there should be a way to export add/remove/merge as inlines that are shared
