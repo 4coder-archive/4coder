@@ -934,6 +934,24 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
+API_EXPORT b32
+Buffer_Get_Base_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        if (required_size_out != 0){
+            *required_size_out = file->base_name.name.size;
+        }
+        if (name_out != 0){
+            if (append(name_out, file->base_name.name)){
+                result = true;
+            }
+        }
+    }
+    return(result);
+}
+
 // TODO(allen): redocument
 API_EXPORT b32
 Buffer_Get_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)

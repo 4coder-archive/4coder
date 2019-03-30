@@ -350,9 +350,21 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                     Fancy_Color pop2_color = fancy_id(Stag_Pop2);
                     
                     Temp_Memory_Arena temp = begin_temp_memory(&arena);
+                    
                     Fancy_String_List list = {};
+#if 0
+                    // NOTE(allen): this is just an example of using base names instead of buffer names.
+                    i32 buffer_name_size = 0;
+                    buffer_get_base_buffer_name(app, buffer.buffer_id, 0, &buffer_name_size);
+                    char *space = push_array(&arena, char, buffer_name_size);
+                    String string = make_string_cap(space, 0, buffer_name_size);
+                    buffer_get_base_buffer_name(app, buffer.buffer_id, &string, 0);
+                    push_fancy_string (&arena, &list, base_color, string);
+#else
                     push_fancy_string (&arena, &list, base_color, make_string(buffer.buffer_name, buffer.buffer_name_len));
-                    push_fancy_stringf(&arena, &list, base_color, " - C#%d -", view.cursor.character);
+#endif
+                    
+                    push_fancy_stringf(&arena, &list, base_color, " - L#%d C#%d -", view.cursor.line, view.cursor.character);
                     
                     b32 is_dos_mode = false;
                     if (buffer_get_setting(app, buffer.buffer_id, BufferSetting_Eol, &is_dos_mode)){
