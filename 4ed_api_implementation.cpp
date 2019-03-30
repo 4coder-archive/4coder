@@ -859,6 +859,9 @@ DOC_SEE(Partial_Cursor)
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (buffer_api_check_file(file)){
+        if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
+            seek.type = buffer_seek_unwrapped_xy;
+        }
         if (file_compute_partial_cursor(file, seek, cursor_out)){
             result = true;
         }
@@ -2290,12 +2293,14 @@ DOC_SEE(Full_Cursor)
 */{
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    
     b32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = view->file;
         Assert(file != 0);
         if (buffer_api_check_file(file)){
+            if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
+                seek.type = buffer_seek_unwrapped_xy;
+            }
             *cursor_out = file_compute_cursor(models->system, file, seek);
             if (file->settings.unwrapped_lines){
                 cursor_out->wrapped_x = cursor_out->unwrapped_x;

@@ -15,7 +15,7 @@ if "%src%" == "" set src=4coder_default_bindings.cpp
 set opts=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
 set opts=%opts% /GR- /nologo /FC
 set debug=/Zi
-set release=/O2
+set release=/O2 /Zi
 set build_dll=/LD /link /INCREMENTAL:NO /OPT:REF /RELEASE /PDBALTPATH:%%%%_PDB%%%%
 set exports=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 
