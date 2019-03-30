@@ -33,7 +33,6 @@ link_system_code(){
     SYSLINK(wake_up_timer_set);
     
     SYSLINK(post_clipboard);
-    SYSLINK(animate);
     
     SYSLINK(create_coroutine);
     SYSLINK(launch_coroutine);

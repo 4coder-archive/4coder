@@ -2,7 +2,7 @@
 
 REM (allen): quit early if we already have cl
 where /q cl
-IF %ERRORLEVEL% EQU 0 (EXIT /b)
+IF %ERRORLEVEL% == 0 (EXIT /b)
 
 SET "LIB="
 

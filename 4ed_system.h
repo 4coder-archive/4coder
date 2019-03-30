@@ -75,9 +75,6 @@ typedef Sys_Wake_Up_Timer_Set_Sig(System_Wake_Up_Timer_Set);
 #define Sys_Wake_Up_Timer_Check_Sig(name) u64 name(Plat_Handle handle)
 typedef Sys_Wake_Up_Timer_Check_Sig(System_Wake_Up_Timer_Check);
 
-#define Sys_Animate_Sig(name) void name()
-typedef Sys_Animate_Sig(System_Animate);
-
 // clipboard
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
@@ -253,7 +250,6 @@ struct System_Functions{
     System_Wake_Up_Timer_Create *wake_up_timer_create;
     System_Wake_Up_Timer_Release *wake_up_timer_release;
     System_Wake_Up_Timer_Set *wake_up_timer_set;
-    System_Animate *animate;
     
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;

@@ -92,12 +92,13 @@ struct Models{
     char *title_space;
     i32 title_capacity;
     
-    u32 edit_finished_hook_repeat_speed;
-    
-    i32 frame_counter;
-    
     Panel *resizing_intermediate_panel;
     
+    u32 edit_finished_hook_repeat_speed;
+    
+    Plat_Handle period_wakeup_timer;
+    i32 frame_counter;
+    u32 next_animate_delay;
     b32 animate_next_frame;
     
     Arena custom_layer_arena;

@@ -588,10 +588,5 @@ Sys_Open_Color_Picker_Sig(system_open_color_picker){
     CloseHandle(ThreadHandle);
 }
 
-internal
-Sys_Animate_Sig(system_animate){
-    system_schedule_step();
-};
-
 // BOTTOM
 

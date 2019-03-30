@@ -4484,10 +4484,15 @@ DOC(Opens a color picker using the parameters in the supplied structure.)
 }
 
 API_EXPORT void
-Animate(Application_Links *app)
+Animate_In_N_Milliseconds(Application_Links *app, u32 n)
 {
     Models *models = (Models*)app->cmd_context;
-    models->animate_next_frame = true;
+    if (n == 0){
+        models->animate_next_frame = true;
+    }
+    else{
+        models->next_animate_delay = Min(models->next_animate_delay, n);
+    }
 }
 
 // NOTE(casey): Find_All_In_Range_Insensitive is the only routine supplied, because anyone who would prefer case-sensitive can

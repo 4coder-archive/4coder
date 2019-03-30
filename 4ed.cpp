@@ -768,7 +768,7 @@ force_abort_coroutine(System_Functions *system, Models *models, View *view){
 }
 
 internal void
-launch_command_via_event(System_Functions *system, Application_Step_Result *app_result, Models *models, View *view, Key_Event_Data event){
+launch_command_via_event(System_Functions *system, Models *models, View *view, Key_Event_Data event){
     models->key = event;
     
     i32 map = view_get_map(view);
@@ -787,16 +787,16 @@ launch_command_via_event(System_Functions *system, Application_Step_Result *app_
         
         models->prev_command = cmd_bind;
         if (event.keycode != key_animate){
-            app_result->animating = true;
+            models->animate_next_frame = true;
         }
     }
 }
 
 internal void
-launch_command_via_keycode(System_Functions *system, Application_Step_Result *app_result, Models *models, View *view, Key_Code keycode){
+launch_command_via_keycode(System_Functions *system, Models *models, View *view, Key_Code keycode){
     Key_Event_Data event = {};
     event.keycode = keycode;
-    launch_command_via_event(system, app_result, models, view, event);
+    launch_command_via_event(system, models, view, event);
 }
 
 App_Read_Command_Line_Sig(app_read_command_line){
@@ -937,17 +937,12 @@ App_Init_Sig(app_init){
         view_set_file(system, models, new_view, models->scratch_buffer);
     }
     
-    // NOTE(allen): hot directory
+    // NOTE(allen): miscellaneous init
     hot_directory_init(&models->hot_directory, current_directory);
-    
-    // NOTE(allen): child process container
     child_process_container_init(&models->child_processes, models);
-    
-    // NOTE(allen): init GUI keys
     models->user_up_key = key_up;
     models->user_down_key = key_down;
-    
-    // NOTE(allen): 
+    models->period_wakeup_timer = system->wake_up_timer_create();
     models->custom_layer_arena = make_arena(&models->app_links);
 }
 
@@ -955,9 +950,7 @@ App_Step_Sig(app_step){
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
     
-    Application_Step_Result app_result = {};
-    app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-    app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
+    models->next_animate_delay = max_u32;
     models->animate_next_frame = false;
     
     // NOTE(allen): per-frame update of models state
@@ -1236,7 +1229,7 @@ App_Step_Sig(app_step){
                         }
                         
                         // NOTE(allen): run deactivate command
-                        launch_command_via_keycode(system, &app_result, models, view, key_click_deactivate_view);
+                        launch_command_via_keycode(system, models, view, key_click_deactivate_view);
                         
                         // NOTE(allen): kill coroutine if we have one (again because we just launched a command)
                         if (models->command_coroutine != 0){
@@ -1244,12 +1237,12 @@ App_Step_Sig(app_step){
                         }
                         
                         layout->active_panel = mouse_panel;
-                        app_result.animating = true;
+                        models->animate_next_frame = true;
                         active_panel = mouse_panel;
                         view = active_panel->view;
                         
                         // NOTE(allen): run activate command
-                        launch_command_via_keycode(system, &app_result, models, view, key_click_activate_view);
+                        launch_command_via_keycode(system, models, view, key_click_activate_view);
                     }break;
                     
                     case EventConsume_Command:
@@ -1275,7 +1268,7 @@ App_Step_Sig(app_step){
                                 models->command_coroutine =  app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                                 
                                 if (user_in.key.keycode != key_animate){
-                                    app_result.animating = true;
+                                    models->animate_next_frame = true;
                                 }
                                 
                                 if (models->command_coroutine == 0){
@@ -1286,11 +1279,10 @@ App_Step_Sig(app_step){
                         
                         // NOTE(allen): launch command
                         else{
-                            launch_command_via_event(system, &app_result, models, view, *key_ptr);
+                            launch_command_via_event(system, models, view, *key_ptr);
                         }
                     }break;
                 }
-                
             }break;
             
             case APP_STATE_RESIZING:
@@ -1440,7 +1432,7 @@ App_Step_Sig(app_step){
         Hook_Function *exit_func = models->hooks[hook_exit];
         if (exit_func != 0){
             if (exit_func(&models->app_links) == 0){
-                app_result.animating = true;
+                models->animate_next_frame = true;
                 models->keep_playing = true;
             }
         }
@@ -1522,6 +1514,11 @@ App_Step_Sig(app_step){
         end_render_section(target, system);
     }
     
+    // NOTE(allen): set the app_result
+    Application_Step_Result app_result = {};
+    app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+    app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
+    
     // NOTE(allen): get new window title
     if (models->has_new_title){
         models->has_new_title = false;
@@ -1546,11 +1543,17 @@ App_Step_Sig(app_step){
     }
     
     models->prev_mouse_panel = mouse_panel;
-    
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     app_result.perform_kill = !models->keep_playing;
-    // TODO(allen): whenever something wants to animate it should set animate_next_frame now.
-    app_result.animating = app_result.animating || models->animate_next_frame;
+    app_result.animating = models->animate_next_frame;
+    if (models->animate_next_frame){
+        // NOTE(allen): Silence the timer, because we're going to do another frame right away anyways.
+        system->wake_up_timer_set(models->period_wakeup_timer, max_u32);
+    }
+    else{
+        // NOTE(allen): Set the timer's wakeup period, possibly to max_u32 thus effectively silencing it.
+        system->wake_up_timer_set(models->period_wakeup_timer, models->next_animate_delay);
+    }
     
     // NOTE(allen): Update Frame to Frame States
     models->prev_p = input->mouse.p;

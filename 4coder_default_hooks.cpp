@@ -324,13 +324,13 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
     
     f32 line_height = view.line_height;
     
-    Arena arena = make_arena(app);
+    Arena *arena = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(arena);
+    
     static Managed_Scope render_scope = 0;
     if (render_scope == 0){
         render_scope = create_user_managed_scope(app);
     }
-    
-    Partition *scratch = &global_part;
     
     {
         Rect_f32 r_cursor = f32R(view.render_region);
@@ -349,34 +349,34 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                     Fancy_Color base_color = fancy_id(Stag_Base);
                     Fancy_Color pop2_color = fancy_id(Stag_Pop2);
                     
-                    Temp_Memory_Arena temp = begin_temp_memory(&arena);
+                    Temp_Memory_Arena temp = begin_temp_memory(arena);
                     
                     Fancy_String_List list = {};
 #if 0
                     // NOTE(allen): this is just an example of using base names instead of buffer names.
                     i32 buffer_name_size = 0;
                     buffer_get_base_buffer_name(app, buffer.buffer_id, 0, &buffer_name_size);
-                    char *space = push_array(&arena, char, buffer_name_size);
+                    char *space = push_array(arena, char, buffer_name_size);
                     String string = make_string_cap(space, 0, buffer_name_size);
                     buffer_get_base_buffer_name(app, buffer.buffer_id, &string, 0);
-                    push_fancy_string (&arena, &list, base_color, string);
+                    push_fancy_string (arena, &list, base_color, string);
 #else
-                    push_fancy_string (&arena, &list, base_color, make_string(buffer.buffer_name, buffer.buffer_name_len));
+                    push_fancy_string (arena, &list, base_color, make_string(buffer.buffer_name, buffer.buffer_name_len));
 #endif
                     
-                    push_fancy_stringf(&arena, &list, base_color, " - L#%d C#%d -", view.cursor.line, view.cursor.character);
+                    push_fancy_stringf(arena, &list, base_color, " - L#%d C#%d -", view.cursor.line, view.cursor.character);
                     
                     b32 is_dos_mode = false;
                     if (buffer_get_setting(app, buffer.buffer_id, BufferSetting_Eol, &is_dos_mode)){
                         if (is_dos_mode){
-                            push_fancy_string(&arena, &list, base_color, make_lit_string(" dos"));
+                            push_fancy_string(arena, &list, base_color, make_lit_string(" dos"));
                         }
                         else{
-                            push_fancy_string(&arena, &list, base_color, make_lit_string(" nix"));
+                            push_fancy_string(arena, &list, base_color, make_lit_string(" nix"));
                         }
                     }
                     else{
-                        push_fancy_string(&arena, &list, base_color, make_lit_string(" ???"));
+                        push_fancy_string(arena, &list, base_color, make_lit_string(" ???"));
                     }
                     
                     {
@@ -392,7 +392,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                         if (HasFlag(dirty, DirtyState_UnloadedChanges)){
                             append(&str, "!");
                         }
-                        push_fancy_string(&arena, &list, pop2_color, str);
+                        push_fancy_string(arena, &list, pop2_color, str);
                     }
                     
                     Face_ID font_id = 0;
@@ -418,14 +418,14 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                     bar.y1 = bar.y0 + line_height + 2.f;
                     r_cursor.y0 = bar.y1;
                     
-                    Temp_Memory_Arena temp = begin_temp_memory(&arena);
+                    Temp_Memory_Arena temp = begin_temp_memory(arena);
                     Fancy_String_List list = {};
                     
                     Fancy_Color default_color = fancy_id(Stag_Default);
                     Fancy_Color pop1_color = fancy_id(Stag_Pop1);
                     
-                    push_fancy_string(&arena, &list, pop1_color   , query_bar->prompt);
-                    push_fancy_string(&arena, &list, default_color, query_bar->string);
+                    push_fancy_string(arena, &list, pop1_color   , query_bar->prompt);
+                    push_fancy_string(arena, &list, default_color, query_bar->string);
                     
                     Face_ID font_id = 0;
                     get_face_id(app, view.buffer_id, &font_id);
@@ -461,8 +461,8 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                 Vec2 p = panel_space_from_view_space(cursor.wrapped_p, view.scroll_vars.scroll_p);
                 p += V2(render_params.buffer_region.p0);
                 p.x = left_margin.x0;
-                Temp_Memory_Arena temp = begin_temp_memory(&arena);
-                Fancy_String *line_string = push_fancy_stringf(&arena, line_color, "%*d", line_count_digit_count, cursor.line);
+                Temp_Memory_Arena temp = begin_temp_memory(arena);
+                Fancy_String *line_string = push_fancy_stringf(arena, line_color, "%*d", line_count_digit_count, cursor.line);
                 draw_fancy_string(app, font_id, line_string, p, Stag_Margin_Active, 0);
                 end_temp_memory(temp);
                 i32 next_line = cursor.line + 1;
@@ -476,6 +476,8 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
         }
     }
     
+    // TODO(allen): eliminate scratch partition usage
+    Partition *scratch = &global_part;
     // NOTE(allen): Scan for TODOs and NOTEs
     {
         Temp_Memory temp = begin_temp_memory(scratch);
@@ -560,8 +562,9 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                 
                 Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
                 Marker_Visual_Type type = is_active_view?VisualType_CharacterBlocks:VisualType_CharacterWireFrames;
+                int_color cursor_color = Stag_Cursor;
                 int_color text_color = is_active_view?Stag_At_Cursor:Stag_Default;
-                marker_visual_set_effect(app, visual, type, Stag_Cursor, text_color, 0);
+                marker_visual_set_effect(app, visual, type, cursor_color, text_color, 0);
                 marker_visual_set_take_rule(app, visual, take_rule);
                 marker_visual_set_priority(app, visual, VisualPriority_Highest);
                 
@@ -705,30 +708,29 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
                 Fancy_Color pink  = fancy_rgba(1.f, 0.f, 1.f, 1.f);
                 Fancy_Color green = fancy_rgba(0.f, 1.f, 0.f, 1.f);
                 Fancy_String_List list = {};
-                push_fancy_stringf(&arena, &list, pink , "FPS: ");
-                push_fancy_stringf(&arena, &list, green, "[");
-                push_fancy_stringf(&arena, &list, white, "%5d", frame_index);
-                push_fancy_stringf(&arena, &list, green, "]: ");
+                push_fancy_stringf(arena, &list, pink , "FPS: ");
+                push_fancy_stringf(arena, &list, green, "[");
+                push_fancy_stringf(arena, &list, white, "%5d", frame_index);
+                push_fancy_stringf(arena, &list, green, "]: ");
                 
                 for (i32 k = 0; k < 2; k += 1){
                     f32 dt = dts[k];
                     str.size = 0;
                     if (dt == 0.f){
-                        push_fancy_stringf(&arena, &list, white, "-----");
+                        push_fancy_stringf(arena, &list, white, "-----");
                     }
                     else{
-                        push_fancy_stringf(&arena, &list, white, "%5d", round32(1.f/dt));
+                        push_fancy_stringf(arena, &list, white, "%5d", round32(1.f/dt));
                     }
-                    push_fancy_stringf(&arena, &list, green, " | ");
+                    push_fancy_stringf(arena, &list, green, " | ");
                 }
                 
                 draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
-                
             }
         }
     }
     
-    arena_release_all(&arena);
+    end_temp_memory(temp);
     managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 

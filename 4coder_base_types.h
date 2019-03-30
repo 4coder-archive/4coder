@@ -103,6 +103,10 @@ typedef double f64;
 #define GB(x) (((umem)x) << 30)
 #define TB(x) (((umem)x) << 40)
 
+#define Thousand(x) (x*1000)
+#define Million(x)  (x*1000000)
+#define Billion(x)  (x*1000000000)
+
 #define max_i8  ((i8)0x7F)
 #define max_i16 ((i16)0x7FFF)
 #define max_i32 ((i32)0x7FFFFFFF)

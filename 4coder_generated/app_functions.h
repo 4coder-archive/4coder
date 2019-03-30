@@ -155,7 +155,7 @@ struct Application_Links;
 #define DRAW_CLIP_POP_SIG(n) f32_Rect n(Application_Links *app)
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
-#define ANIMATE_SIG(n) void n(Application_Links *app)
+#define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
 #define FIND_ALL_IN_RANGE_INSENSITIVE_SIG(n) Found_String_List n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory)
 #define GET_VIEW_VISIBLE_RANGE_SIG(n) Range n(Application_Links *app, View_ID view_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
@@ -314,7 +314,7 @@ typedef DRAW_CLIP_PUSH_SIG(Draw_Clip_Push_Function);
 typedef DRAW_CLIP_POP_SIG(Draw_Clip_Pop_Function);
 typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
 typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
-typedef ANIMATE_SIG(Animate_Function);
+typedef ANIMATE_IN_N_MILLISECONDS_SIG(Animate_In_N_Milliseconds_Function);
 typedef FIND_ALL_IN_RANGE_INSENSITIVE_SIG(Find_All_In_Range_Insensitive_Function);
 typedef GET_VIEW_VISIBLE_RANGE_SIG(Get_View_Visible_Range_Function);
 struct Application_Links{
@@ -475,7 +475,7 @@ Draw_Clip_Push_Function *draw_clip_push;
 Draw_Clip_Pop_Function *draw_clip_pop;
 Get_Default_Font_For_View_Function *get_default_font_for_view;
 Open_Color_Picker_Function *open_color_picker;
-Animate_Function *animate;
+Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive;
 Get_View_Visible_Range_Function *get_view_visible_range;
 #else
@@ -635,7 +635,7 @@ Draw_Clip_Push_Function *draw_clip_push_;
 Draw_Clip_Pop_Function *draw_clip_pop_;
 Get_Default_Font_For_View_Function *get_default_font_for_view_;
 Open_Color_Picker_Function *open_color_picker_;
-Animate_Function *animate_;
+Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds_;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive_;
 Get_View_Visible_Range_Function *get_view_visible_range_;
 #endif
@@ -803,7 +803,7 @@ app_links->draw_clip_push_ = Draw_Clip_Push;\
 app_links->draw_clip_pop_ = Draw_Clip_Pop;\
 app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
 app_links->open_color_picker_ = Open_Color_Picker;\
-app_links->animate_ = Animate;\
+app_links->animate_in_n_milliseconds_ = Animate_In_N_Milliseconds;\
 app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;\
 app_links->get_view_visible_range_ = Get_View_Visible_Range;} while(false)
 #if defined(ALLOW_DEP_4CODER)
@@ -963,7 +963,7 @@ static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
-static void animate(Application_Links *app){(app->animate(app));}
+static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive(app, buffer_id, start, end, key, memory));}
 static Range get_view_visible_range(Application_Links *app, View_ID view_id){return(app->get_view_visible_range(app, view_id));}
 #else
@@ -1123,7 +1123,7 @@ static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop_(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
-static void animate(Application_Links *app){(app->animate_(app));}
+static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive_(app, buffer_id, start, end, key, memory));}
 static Range get_view_visible_range(Application_Links *app, View_ID view_id){return(app->get_view_visible_range_(app, view_id));}
 #endif
