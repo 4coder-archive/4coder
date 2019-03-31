@@ -1,6 +1,7 @@
 struct Application_Links;
 #define GLOBAL_SET_SETTING_SIG(n) b32 n(Application_Links *app, Global_Setting_ID setting, i32 value)
 #define GLOBAL_SET_MAPPING_SIG(n) b32 n(Application_Links *app, void *data, i32 size)
+#define GLOBAL_GET_SCREEN_RECTANGLE_SIG(n) b32 n(Application_Links *app, Rect_i32 *rect_out)
 #define CONTEXT_GET_ARENA_SIG(n) Arena* n(Application_Links *app)
 #define CREATE_CHILD_PROCESS_SIG(n) b32 n(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out)
 #define CHILD_PROCESS_SET_TARGET_BUFFER_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags)
@@ -174,6 +175,7 @@ struct Application_Links;
 #define GET_VIEW_VISIBLE_RANGE_SIG(n) Range n(Application_Links *app, View_ID view_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
+typedef GLOBAL_GET_SCREEN_RECTANGLE_SIG(Global_Get_Screen_Rectangle_Function);
 typedef CONTEXT_GET_ARENA_SIG(Context_Get_Arena_Function);
 typedef CREATE_CHILD_PROCESS_SIG(Create_Child_Process_Function);
 typedef CHILD_PROCESS_SET_TARGET_BUFFER_SIG(Child_Process_Set_Target_Buffer_Function);
@@ -349,6 +351,7 @@ struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
 Global_Set_Setting_Function *global_set_setting;
 Global_Set_Mapping_Function *global_set_mapping;
+Global_Get_Screen_Rectangle_Function *global_get_screen_rectangle;
 Context_Get_Arena_Function *context_get_arena;
 Create_Child_Process_Function *create_child_process;
 Child_Process_Set_Target_Buffer_Function *child_process_set_target_buffer;
@@ -523,6 +526,7 @@ Get_View_Visible_Range_Function *get_view_visible_range;
 #else
 Global_Set_Setting_Function *global_set_setting_;
 Global_Set_Mapping_Function *global_set_mapping_;
+Global_Get_Screen_Rectangle_Function *global_get_screen_rectangle_;
 Context_Get_Arena_Function *context_get_arena_;
 Create_Child_Process_Function *create_child_process_;
 Child_Process_Set_Target_Buffer_Function *child_process_set_target_buffer_;
@@ -705,6 +709,7 @@ int32_t type_coroutine;
 #define FillAppLinksAPI(app_links) do{\
 app_links->global_set_setting_ = Global_Set_Setting;\
 app_links->global_set_mapping_ = Global_Set_Mapping;\
+app_links->global_get_screen_rectangle_ = Global_Get_Screen_Rectangle;\
 app_links->context_get_arena_ = Context_Get_Arena;\
 app_links->create_child_process_ = Create_Child_Process;\
 app_links->child_process_set_target_buffer_ = Child_Process_Set_Target_Buffer;\
@@ -879,6 +884,7 @@ app_links->get_view_visible_range_ = Get_View_Visible_Range;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping(app, data, size));}
+static b32 global_get_screen_rectangle(Application_Links *app, Rect_i32 *rect_out){return(app->global_get_screen_rectangle(app, rect_out));}
 static Arena* context_get_arena(Application_Links *app){return(app->context_get_arena(app));}
 static b32 create_child_process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){return(app->create_child_process(app, path, command, child_process_id_out));}
 static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer(app, child_process_id, buffer_id, flags));}
@@ -1053,6 +1059,7 @@ static Range get_view_visible_range(Application_Links *app, View_ID view_id){ret
 #else
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping_(app, data, size));}
+static b32 global_get_screen_rectangle(Application_Links *app, Rect_i32 *rect_out){return(app->global_get_screen_rectangle_(app, rect_out));}
 static Arena* context_get_arena(Application_Links *app){return(app->context_get_arena_(app));}
 static b32 create_child_process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){return(app->create_child_process_(app, path, command, child_process_id_out));}
 static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer_(app, child_process_id, buffer_id, flags));}

@@ -193,6 +193,15 @@ DOC(Dumps away the previous mappings and instantiates the mappings described in 
     return(result);
 }
 
+API_EXPORT b32
+Global_Get_Screen_Rectangle(Application_Links *app, Rect_i32 *rect_out){
+    Models *models = (Models*)app->cmd_context;
+    Vec2_i32 dim = layout_get_root_size(&models->layout);
+    rect_out->p0 = V2i32(0, 0);
+    rect_out->p1 = dim;
+    return(true);
+}
+
 API_EXPORT Arena*
 Context_Get_Arena(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
