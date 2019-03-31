@@ -14,7 +14,6 @@ struct Application_Links;
 #define GET_BUFFER_COUNT_SIG(n) i32 n(Application_Links *app)
 #define GET_BUFFER_FIRST_SIG(n) b32 n(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out)
 #define GET_BUFFER_NEXT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out)
-#define GET_BUFFER_SUMMARY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
 #define GET_BUFFER_BY_NAME_SIG(n) b32 n(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out)
 #define GET_BUFFER_BY_FILE_NAME_SIG(n) b32 n(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out)
 #define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
@@ -45,12 +44,12 @@ struct Application_Links;
 #define BUFFER_KILL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result)
 #define BUFFER_REOPEN_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result)
 #define BUFFER_GET_FILE_ATTRIBUTES_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out)
-#define GET_VIEW_FIRST_SIG(n) b32 n(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 #define GET_VIEW_NEXT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
 #define GET_VIEW_PREV_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
 #define GET_VIEW_SUMMARY_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out)
 #define GET_ACTIVE_VIEW_SIG(n) b32 n(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 #define GET_ACTIVE_PANEL_SIG(n) b32 n(Application_Links *app, Panel_ID *panel_id_out)
+#define VIEW_GET_BUFFER_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out)
 #define VIEW_GET_PANEL_SIG(n) b32 n(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out)
 #define PANEL_GET_VIEW_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out)
 #define PANEL_IS_SPLIT_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id)
@@ -63,6 +62,7 @@ struct Application_Links;
 #define PANEL_GET_MAX_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
 #define PANEL_GET_MARGIN_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out)
 #define VIEW_CLOSE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_REGION_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_i32 *region_out)
 #define VIEW_GET_BUFFER_REGION_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_i32 *region_out)
 #define VIEW_SET_ACTIVE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out)
@@ -158,11 +158,15 @@ struct Application_Links;
 #define GET_MICROSECONDS_TIMESTAMP_SIG(n) Microsecond_Time_Stamp n(Application_Links *app)
 #define DRAW_STRING_SIG(n) Vec2 n(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 #define GET_STRING_ADVANCE_SIG(n) f32 n(Application_Links *app, Face_ID font_id, String str)
-#define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
+#define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, Rect_f32 rect, int_color color)
 #define DRAW_RECTANGLE_OUTLINE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
 #define DRAW_CLIP_PUSH_SIG(n) void n(Application_Links *app, f32_Rect clip_box)
 #define DRAW_CLIP_POP_SIG(n) f32_Rect n(Application_Links *app)
+#define DRAW_COORDINATE_CENTER_PUSH_SIG(n) void n(Application_Links *app, Vec2 point)
+#define DRAW_COORDINATE_CENTER_POP_SIG(n) Vec2 n(Application_Links *app)
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
+#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out)
+#define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
 #define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
 #define FIND_ALL_IN_RANGE_INSENSITIVE_SIG(n) Found_String_List n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory)
@@ -182,7 +186,6 @@ typedef CREATE_PARSE_CONTEXT_SIG(Create_Parse_Context_Function);
 typedef GET_BUFFER_COUNT_SIG(Get_Buffer_Count_Function);
 typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
 typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
-typedef GET_BUFFER_SUMMARY_SIG(Get_Buffer_Summary_Function);
 typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
 typedef GET_BUFFER_BY_FILE_NAME_SIG(Get_Buffer_By_File_Name_Function);
 typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
@@ -213,12 +216,12 @@ typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
 typedef BUFFER_KILL_SIG(Buffer_Kill_Function);
 typedef BUFFER_REOPEN_SIG(Buffer_Reopen_Function);
 typedef BUFFER_GET_FILE_ATTRIBUTES_SIG(Buffer_Get_File_Attributes_Function);
-typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
 typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
 typedef GET_VIEW_PREV_SIG(Get_View_Prev_Function);
 typedef GET_VIEW_SUMMARY_SIG(Get_View_Summary_Function);
 typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
 typedef GET_ACTIVE_PANEL_SIG(Get_Active_Panel_Function);
+typedef VIEW_GET_BUFFER_SIG(View_Get_Buffer_Function);
 typedef VIEW_GET_PANEL_SIG(View_Get_Panel_Function);
 typedef PANEL_GET_VIEW_SIG(Panel_Get_View_Function);
 typedef PANEL_IS_SPLIT_SIG(Panel_Is_Split_Function);
@@ -231,6 +234,7 @@ typedef PANEL_GET_CHILD_SIG(Panel_Get_Child_Function);
 typedef PANEL_GET_MAX_SIG(Panel_Get_Max_Function);
 typedef PANEL_GET_MARGIN_SIG(Panel_Get_Margin_Function);
 typedef VIEW_CLOSE_SIG(View_Close_Function);
+typedef VIEW_GET_REGION_SIG(View_Get_Region_Function);
 typedef VIEW_GET_BUFFER_REGION_SIG(View_Get_Buffer_Region_Function);
 typedef VIEW_SET_ACTIVE_SIG(View_Set_Active_Function);
 typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
@@ -330,7 +334,11 @@ typedef DRAW_RECTANGLE_SIG(Draw_Rectangle_Function);
 typedef DRAW_RECTANGLE_OUTLINE_SIG(Draw_Rectangle_Outline_Function);
 typedef DRAW_CLIP_PUSH_SIG(Draw_Clip_Push_Function);
 typedef DRAW_CLIP_POP_SIG(Draw_Clip_Pop_Function);
+typedef DRAW_COORDINATE_CENTER_PUSH_SIG(Draw_Coordinate_Center_Push_Function);
+typedef DRAW_COORDINATE_CENTER_POP_SIG(Draw_Coordinate_Center_Pop_Function);
 typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
+typedef COMPUTE_RENDER_LAYOUT_SIG(Compute_Render_Layout_Function);
+typedef DRAW_RENDER_LAYOUT_SIG(Draw_Render_Layout_Function);
 typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
 typedef ANIMATE_IN_N_MILLISECONDS_SIG(Animate_In_N_Milliseconds_Function);
 typedef FIND_ALL_IN_RANGE_INSENSITIVE_SIG(Find_All_In_Range_Insensitive_Function);
@@ -352,7 +360,6 @@ Create_Parse_Context_Function *create_parse_context;
 Get_Buffer_Count_Function *get_buffer_count;
 Get_Buffer_First_Function *get_buffer_first;
 Get_Buffer_Next_Function *get_buffer_next;
-Get_Buffer_Summary_Function *get_buffer_summary;
 Get_Buffer_By_Name_Function *get_buffer_by_name;
 Get_Buffer_By_File_Name_Function *get_buffer_by_file_name;
 Buffer_Read_Range_Function *buffer_read_range;
@@ -383,12 +390,12 @@ Buffer_Save_Function *buffer_save;
 Buffer_Kill_Function *buffer_kill;
 Buffer_Reopen_Function *buffer_reopen;
 Buffer_Get_File_Attributes_Function *buffer_get_file_attributes;
-Get_View_First_Function *get_view_first;
 Get_View_Next_Function *get_view_next;
 Get_View_Prev_Function *get_view_prev;
 Get_View_Summary_Function *get_view_summary;
 Get_Active_View_Function *get_active_view;
 Get_Active_Panel_Function *get_active_panel;
+View_Get_Buffer_Function *view_get_buffer;
 View_Get_Panel_Function *view_get_panel;
 Panel_Get_View_Function *panel_get_view;
 Panel_Is_Split_Function *panel_is_split;
@@ -401,6 +408,7 @@ Panel_Get_Child_Function *panel_get_child;
 Panel_Get_Max_Function *panel_get_max;
 Panel_Get_Margin_Function *panel_get_margin;
 View_Close_Function *view_close;
+View_Get_Region_Function *view_get_region;
 View_Get_Buffer_Region_Function *view_get_buffer_region;
 View_Set_Active_Function *view_set_active;
 View_Get_Setting_Function *view_get_setting;
@@ -500,7 +508,11 @@ Draw_Rectangle_Function *draw_rectangle;
 Draw_Rectangle_Outline_Function *draw_rectangle_outline;
 Draw_Clip_Push_Function *draw_clip_push;
 Draw_Clip_Pop_Function *draw_clip_pop;
+Draw_Coordinate_Center_Push_Function *draw_coordinate_center_push;
+Draw_Coordinate_Center_Pop_Function *draw_coordinate_center_pop;
 Get_Default_Font_For_View_Function *get_default_font_for_view;
+Compute_Render_Layout_Function *compute_render_layout;
+Draw_Render_Layout_Function *draw_render_layout;
 Open_Color_Picker_Function *open_color_picker;
 Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive;
@@ -521,7 +533,6 @@ Create_Parse_Context_Function *create_parse_context_;
 Get_Buffer_Count_Function *get_buffer_count_;
 Get_Buffer_First_Function *get_buffer_first_;
 Get_Buffer_Next_Function *get_buffer_next_;
-Get_Buffer_Summary_Function *get_buffer_summary_;
 Get_Buffer_By_Name_Function *get_buffer_by_name_;
 Get_Buffer_By_File_Name_Function *get_buffer_by_file_name_;
 Buffer_Read_Range_Function *buffer_read_range_;
@@ -552,12 +563,12 @@ Buffer_Save_Function *buffer_save_;
 Buffer_Kill_Function *buffer_kill_;
 Buffer_Reopen_Function *buffer_reopen_;
 Buffer_Get_File_Attributes_Function *buffer_get_file_attributes_;
-Get_View_First_Function *get_view_first_;
 Get_View_Next_Function *get_view_next_;
 Get_View_Prev_Function *get_view_prev_;
 Get_View_Summary_Function *get_view_summary_;
 Get_Active_View_Function *get_active_view_;
 Get_Active_Panel_Function *get_active_panel_;
+View_Get_Buffer_Function *view_get_buffer_;
 View_Get_Panel_Function *view_get_panel_;
 Panel_Get_View_Function *panel_get_view_;
 Panel_Is_Split_Function *panel_is_split_;
@@ -570,6 +581,7 @@ Panel_Get_Child_Function *panel_get_child_;
 Panel_Get_Max_Function *panel_get_max_;
 Panel_Get_Margin_Function *panel_get_margin_;
 View_Close_Function *view_close_;
+View_Get_Region_Function *view_get_region_;
 View_Get_Buffer_Region_Function *view_get_buffer_region_;
 View_Set_Active_Function *view_set_active_;
 View_Get_Setting_Function *view_get_setting_;
@@ -669,7 +681,11 @@ Draw_Rectangle_Function *draw_rectangle_;
 Draw_Rectangle_Outline_Function *draw_rectangle_outline_;
 Draw_Clip_Push_Function *draw_clip_push_;
 Draw_Clip_Pop_Function *draw_clip_pop_;
+Draw_Coordinate_Center_Push_Function *draw_coordinate_center_push_;
+Draw_Coordinate_Center_Pop_Function *draw_coordinate_center_pop_;
 Get_Default_Font_For_View_Function *get_default_font_for_view_;
+Compute_Render_Layout_Function *compute_render_layout_;
+Draw_Render_Layout_Function *draw_render_layout_;
 Open_Color_Picker_Function *open_color_picker_;
 Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds_;
 Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive_;
@@ -698,7 +714,6 @@ app_links->create_parse_context_ = Create_Parse_Context;\
 app_links->get_buffer_count_ = Get_Buffer_Count;\
 app_links->get_buffer_first_ = Get_Buffer_First;\
 app_links->get_buffer_next_ = Get_Buffer_Next;\
-app_links->get_buffer_summary_ = Get_Buffer_Summary;\
 app_links->get_buffer_by_name_ = Get_Buffer_By_Name;\
 app_links->get_buffer_by_file_name_ = Get_Buffer_By_File_Name;\
 app_links->buffer_read_range_ = Buffer_Read_Range;\
@@ -729,12 +744,12 @@ app_links->buffer_save_ = Buffer_Save;\
 app_links->buffer_kill_ = Buffer_Kill;\
 app_links->buffer_reopen_ = Buffer_Reopen;\
 app_links->buffer_get_file_attributes_ = Buffer_Get_File_Attributes;\
-app_links->get_view_first_ = Get_View_First;\
 app_links->get_view_next_ = Get_View_Next;\
 app_links->get_view_prev_ = Get_View_Prev;\
 app_links->get_view_summary_ = Get_View_Summary;\
 app_links->get_active_view_ = Get_Active_View;\
 app_links->get_active_panel_ = Get_Active_Panel;\
+app_links->view_get_buffer_ = View_Get_Buffer;\
 app_links->view_get_panel_ = View_Get_Panel;\
 app_links->panel_get_view_ = Panel_Get_View;\
 app_links->panel_is_split_ = Panel_Is_Split;\
@@ -747,6 +762,7 @@ app_links->panel_get_child_ = Panel_Get_Child;\
 app_links->panel_get_max_ = Panel_Get_Max;\
 app_links->panel_get_margin_ = Panel_Get_Margin;\
 app_links->view_close_ = View_Close;\
+app_links->view_get_region_ = View_Get_Region;\
 app_links->view_get_buffer_region_ = View_Get_Buffer_Region;\
 app_links->view_set_active_ = View_Set_Active;\
 app_links->view_get_setting_ = View_Get_Setting;\
@@ -846,7 +862,11 @@ app_links->draw_rectangle_ = Draw_Rectangle;\
 app_links->draw_rectangle_outline_ = Draw_Rectangle_Outline;\
 app_links->draw_clip_push_ = Draw_Clip_Push;\
 app_links->draw_clip_pop_ = Draw_Clip_Pop;\
+app_links->draw_coordinate_center_push_ = Draw_Coordinate_Center_Push;\
+app_links->draw_coordinate_center_pop_ = Draw_Coordinate_Center_Pop;\
 app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
+app_links->compute_render_layout_ = Compute_Render_Layout;\
+app_links->draw_render_layout_ = Draw_Render_Layout;\
 app_links->open_color_picker_ = Open_Color_Picker;\
 app_links->animate_in_n_milliseconds_ = Animate_In_N_Milliseconds;\
 app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;\
@@ -867,7 +887,6 @@ static Parse_Context_ID create_parse_context(Application_Links *app, Parser_Stri
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
 static b32 get_buffer_first(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_first(app, access, buffer_id_out));}
 static b32 get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_next(app, buffer_id, access, buffer_id_out));}
-static b32 get_buffer_summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out){return(app->get_buffer_summary(app, buffer_id, access, buffer_summary_out));}
 static b32 get_buffer_by_name(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_name(app, name, access, buffer_id_out));}
 static b32 get_buffer_by_file_name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name(app, file_name, access, buffer_id_out));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range(app, buffer_id, start, one_past_last, out));}
@@ -898,12 +917,12 @@ static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String file_
 static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result){return(app->buffer_kill(app, buffer_id, flags, result));}
 static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result){return(app->buffer_reopen(app, buffer_id, flags, result));}
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes(app, buffer_id, attributes_out));}
-static b32 get_view_first(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_view_first(app, access, view_id_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next(app, view_id, access, view_id_out));}
 static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev(app, view_id, access, view_id_out));}
 static b32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out){return(app->get_view_summary(app, view_id, access, view_summary_out));}
 static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view(app, access, view_id_out));}
 static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel(app, panel_id_out));}
+static b32 view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->view_get_buffer(app, view_id, access, buffer_id_out));}
 static b32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel(app, view_id, panel_id_out));}
 static b32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view(app, panel_id, view_id_out));}
 static b32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split(app, panel_id));}
@@ -916,6 +935,7 @@ static b32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Chil
 static b32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max(app, panel_id, panel_id_out));}
 static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin(app, panel_id, margins_out));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close(app, view_id));}
+static b32 view_get_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_region(app, view_id, region_out));}
 static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region(app, view_id, region_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting(app, view_id, setting, value_out));}
@@ -1011,11 +1031,15 @@ static b32 set_window_title(Application_Links *app, String title){return(app->se
 static Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp(app));}
 static Vec2 draw_string(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta){return(app->draw_string(app, font_id, str, point, color, flags, delta));}
 static f32 get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance(app, font_id, str));}
-static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle(app, rect, color));}
+static void draw_rectangle(Application_Links *app, Rect_f32 rect, int_color color){(app->draw_rectangle(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline(app, rect, color));}
 static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw_clip_push(app, clip_box));}
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop(app));}
+static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push(app, point));}
+static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out){return(app->compute_render_layout(app, view_id, buffer_id, rect, on_screen_range_out));}
+static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive(app, buffer_id, start, end, key, memory));}
@@ -1036,7 +1060,6 @@ static Parse_Context_ID create_parse_context(Application_Links *app, Parser_Stri
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
 static b32 get_buffer_first(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_first_(app, access, buffer_id_out));}
 static b32 get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_next_(app, buffer_id, access, buffer_id_out));}
-static b32 get_buffer_summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out){return(app->get_buffer_summary_(app, buffer_id, access, buffer_summary_out));}
 static b32 get_buffer_by_name(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_name_(app, name, access, buffer_id_out));}
 static b32 get_buffer_by_file_name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name_(app, file_name, access, buffer_id_out));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range_(app, buffer_id, start, one_past_last, out));}
@@ -1067,12 +1090,12 @@ static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String file_
 static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result){return(app->buffer_kill_(app, buffer_id, flags, result));}
 static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result){return(app->buffer_reopen_(app, buffer_id, flags, result));}
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes_(app, buffer_id, attributes_out));}
-static b32 get_view_first(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_view_first_(app, access, view_id_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next_(app, view_id, access, view_id_out));}
 static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev_(app, view_id, access, view_id_out));}
 static b32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out){return(app->get_view_summary_(app, view_id, access, view_summary_out));}
 static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view_(app, access, view_id_out));}
 static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel_(app, panel_id_out));}
+static b32 view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->view_get_buffer_(app, view_id, access, buffer_id_out));}
 static b32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel_(app, view_id, panel_id_out));}
 static b32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view_(app, panel_id, view_id_out));}
 static b32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split_(app, panel_id));}
@@ -1085,6 +1108,7 @@ static b32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Chil
 static b32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max_(app, panel_id, panel_id_out));}
 static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin_(app, panel_id, margins_out));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close_(app, view_id));}
+static b32 view_get_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_region_(app, view_id, region_out));}
 static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region_(app, view_id, region_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active_(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting_(app, view_id, setting, value_out));}
@@ -1180,11 +1204,15 @@ static b32 set_window_title(Application_Links *app, String title){return(app->se
 static Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links *app){return(app->get_microseconds_timestamp_(app));}
 static Vec2 draw_string(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta){return(app->draw_string_(app, font_id, str, point, color, flags, delta));}
 static f32 get_string_advance(Application_Links *app, Face_ID font_id, String str){return(app->get_string_advance_(app, font_id, str));}
-static void draw_rectangle(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_(app, rect, color));}
+static void draw_rectangle(Application_Links *app, Rect_f32 rect, int_color color){(app->draw_rectangle_(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline_(app, rect, color));}
 static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw_clip_push_(app, clip_box));}
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop_(app));}
+static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push_(app, point));}
+static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop_(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out){return(app->compute_render_layout_(app, view_id, buffer_id, rect, on_screen_range_out));}
+static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}
 static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory){return(app->find_all_in_range_insensitive_(app, buffer_id, start, end, key, memory));}

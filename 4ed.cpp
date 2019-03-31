@@ -1453,13 +1453,14 @@ App_Step_Sig(app_step){
             animation_dt = literal_dt;
         }
         
+        Frame_Info frame = {};
+        frame.index = models->frame_counter;
+        frame.literal_dt = literal_dt;
+        frame.animation_dt = animation_dt;
+        
         {
             Color_Table color_table = models->fallback_color_table;
             if (models->modify_color_table != 0){
-                Frame_Info frame = {};
-                frame.index = models->frame_counter;
-                frame.literal_dt = literal_dt;
-                frame.animation_dt = animation_dt;
                 color_table = models->modify_color_table(&models->app_links, frame);
                 if (color_table.count < models->fallback_color_table.count){
                     block_copy(models->fallback_color_table.vals, color_table.vals, color_table.count*sizeof(*color_table.vals));
@@ -1470,7 +1471,13 @@ App_Step_Sig(app_step){
         }
         
         begin_render_section(target, system, models->frame_counter, literal_dt, animation_dt);
+        models->in_render_mode = true;
         
+        if (models->render_caller != 0){
+            models->render_caller(&models->app_links, frame);
+        }
+        
+#if 0        
         Panel *active_panel = layout_get_active_panel(layout);
         View *active_view = active_panel->view;
         
@@ -1510,7 +1517,9 @@ App_Step_Sig(app_step){
             draw_rectangle(target, i32R( full.x0, inner.y0, inner.x0, inner.y1), margin_color);
             draw_rectangle(target, i32R(inner.x1, inner.y0,  full.x1, inner.y1), margin_color);
         }
+#endif
         
+        models->in_render_mode = false;
         end_render_section(target, system);
     }
     

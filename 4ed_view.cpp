@@ -87,7 +87,7 @@ view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
 ////////////////////////////////
 
 internal Rect_i32
-view_get_file_region(Models *models, View *view){
+view_get_buffer_rect(Models *models, View *view){
     Rect_i32 region = {};
     if (models->get_view_buffer_region != 0){
         Rect_i32 rect = view->panel->rect_inner;
@@ -108,12 +108,12 @@ view_get_file_region(Models *models, View *view){
 
 internal i32
 view_width(Models *models, View *view){
-    return(rect_width(view_get_file_region(models, view)));
+    return(rect_width(view_get_buffer_rect(models, view)));
 }
 
 internal i32
 view_height(Models *models, View *view){
-    return(rect_height(view_get_file_region(models, view)));
+    return(rect_height(view_get_buffer_rect(models, view)));
 }
 
 internal Vec2_i32
@@ -1195,6 +1195,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     }
 }
 
+#if 0
 internal void
 dont_do_core_render(Application_Links *app){}
 
@@ -1212,6 +1213,7 @@ do_core_render(Application_Links *app){
     render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);
     draw_pop_clip(target);
 }
+#endif
 
 internal Full_Cursor
 view_get_render_cursor(System_Functions *system, View *view, f32 scroll_y){
@@ -1242,6 +1244,7 @@ view_get_render_cursor_target(System_Functions *system, View *view){
     return(view_get_render_cursor(system, view, scroll_y));
 }
 
+#if 0
 internal void
 view_call_render_caller(Models *models, Render_Target *target, View *view,
                         i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range, Buffer_Render_Item *items, i32 item_count, Render_Callback *core_render){
@@ -1255,136 +1258,22 @@ view_call_render_caller(Models *models, Render_Target *target, View *view,
         models->render_items = items;
         models->render_item_count = item_count;
         
+        Frame_Info frame = {};
+        frame.index = target->frame_index;
+        frame.literal_dt = target->literal_dt;
+        frame.animation_dt = target->animation_dt;
+#if 0
         Render_Parameters params = {};
         params.view_id = view_id;
         params.on_screen_range = on_screen_range;
-        params.frame.index = target->frame_index;
-        params.frame.literal_dt = target->literal_dt;
-        params.frame.animation_dt = target->animation_dt;
         params.buffer_region = rect;
         params.do_core_render = core_render;
-        models->render_caller(&models->app_links, params);
+#endif
+        models->render_caller(&models->app_links, frame);
         models->render_view = 0;
     }
 }
-
-internal void
-render_loaded_file_in_view(System_Functions *system, View *view, Models *models, i32_Rect rect, b32 is_active, Render_Target *target){
-    Editing_File *file = view->file;
-    i32 line_height = view->line_height;
-    
-    f32 max_x = (f32)file->settings.display_width;
-    i32 max_y = rect.y1 - rect.y0 + line_height;
-    
-    Assert(file != 0);
-    Assert(!file->is_dummy);
-    Assert(buffer_good(&file->state.buffer));
-    
-    Partition *part = &models->mem.part;
-    Temp_Memory temp = begin_temp_memory(part);
-    
-    push_align(part, 4);
-    
-    f32 left_side_space = 0;
-    
-    i32 max = part_remaining(part)/sizeof(Buffer_Render_Item);
-    Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, 0);
-    
-    b32 wrapped = !file->settings.unwrapped_lines;
-    Face_ID font_id = file->settings.font_id;
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
-    
-    File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    f32 scroll_x = edit_pos.scroll.scroll_x;
-    f32 scroll_y = edit_pos.scroll.scroll_y;
-    
-    Full_Cursor render_cursor = view_get_render_cursor(system, view);
-    
-    i32 item_count = 0;
-    i32 end_pos = 0;
-    {
-        Buffer_Render_Params params;
-        params.buffer        = &file->state.buffer;
-        params.items         = items;
-        params.max           = max;
-        params.count         = &item_count;
-        params.port_x        = (f32)rect.x0 + left_side_space;
-        params.port_y        = (f32)rect.y0;
-        params.clip_w        = view_width(models, view) - left_side_space;
-        params.scroll_x      = scroll_x;
-        params.scroll_y      = scroll_y;
-        params.width         = max_x;
-        params.height        = (f32)max_y;
-        params.start_cursor  = render_cursor;
-        params.wrapped       = wrapped;
-        params.system        = system;
-        params.font          = font;
-        params.virtual_white = file->settings.virtual_white;
-        params.wrap_slashes  = file->settings.wrap_indicator;
-        
-        Buffer_Render_State state = {};
-        Buffer_Layout_Stop stop = {};
-        
-        f32 line_shift = 0.f;
-        b32 do_wrap = false;
-        i32 wrap_unit_end = 0;
-        
-        b32 first_wrap_determination = true;
-        i32 wrap_array_index = 0;
-        
-        do{
-            stop = buffer_render_data(&state, params, line_shift, do_wrap, wrap_unit_end);
-            switch (stop.status){
-                case BLStatus_NeedWrapDetermination:
-                {
-                    if (first_wrap_determination){
-                        wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
-                        ++wrap_array_index;
-                        if (file->state.wrap_positions[wrap_array_index] == stop.pos){
-                            do_wrap = true;
-                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                        }
-                        else{
-                            do_wrap = false;
-                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                        }
-                        first_wrap_determination = false;
-                    }
-                    else{
-                        Assert(stop.pos == wrap_unit_end);
-                        do_wrap = true;
-                        ++wrap_array_index;
-                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                    }
-                }break;
-                
-                case BLStatus_NeedWrapLineShift:
-                case BLStatus_NeedLineShift:
-                {
-                    line_shift = file->state.line_indents[stop.wrap_line_index];
-                }break;
-            }
-        }while(stop.status != BLStatus_Finished);
-        
-        end_pos = state.i;
-    }
-    push_array(part, Buffer_Render_Item, item_count);
-    
-    Range on_screen_range = {};
-    on_screen_range.first = render_cursor.pos;
-    on_screen_range.one_past_last = end_pos;
-    
-    ////////////////////////////////
-    
-    if (models->render_caller != 0){
-        view_call_render_caller(models, target, view, rect, render_cursor, on_screen_range, items, item_count, do_core_render);
-    }
-    else{
-        render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);
-    }
-    
-    end_temp_memory(temp);
-}
+#endif
 
 // BOTTOM
 

@@ -167,8 +167,10 @@ struct Buffer_Render_Item{
     i32 index;
     u32 codepoint;
     u32 flags;
-    f32 x0, y0;
-    f32 x1, y1;
+    f32 x0;
+    f32 y0;
+    f32 x1;
+    f32 y1;
 };
 
 struct Render_Item_Write{

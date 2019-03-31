@@ -315,17 +315,39 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     return(sub_region);
 }
 
+struct View_Render_Parameters{
+    View_ID view_id;
+    Range on_screen_range;
+    Rect_i32 buffer_rect;
+};
+
 static void
-default_buffer_render_caller(Application_Links *app, Render_Parameters render_params){
-    View_Summary view = get_view(app, render_params.view_id, AccessAll);
+default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id, Rect_i32 view_inner_rect){
+    Buffer_ID buffer_id = 0;
+    view_get_buffer(app, view_id, AccessAll, &buffer_id);
+    
+    Rect_i32 sub_region = i32R(0, 0, rect_width(view_inner_rect), rect_height(view_inner_rect));
+    sub_region = default_view_buffer_region(app, view_id, sub_region);
+    Rect_i32 buffer_rect = {};
+    buffer_rect.p0 = view_inner_rect.p0 + sub_region.p0;
+    buffer_rect.p1 = view_inner_rect.p0 + sub_region.p1;
+    buffer_rect.x1 = clamp_top(buffer_rect.x1, view_inner_rect.x1);
+    buffer_rect.y1 = clamp_top(buffer_rect.y1, view_inner_rect.y1);
+    buffer_rect.x0 = clamp_top(buffer_rect.x0, buffer_rect.x1);
+    buffer_rect.y0 = clamp_top(buffer_rect.y0, buffer_rect.y1);
+    
+    Range on_screen_range = {};
+    compute_render_layout(app, view_id, buffer_id, buffer_rect, &on_screen_range);
+    
+    View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     View_Summary active_view = get_active_view(app, AccessAll);
-    b32 is_active_view = (active_view.view_id == render_params.view_id);
+    b32 is_active_view = (active_view.view_id == view_id);
     
     f32 line_height = view.line_height;
     
     Arena *arena = context_get_arena(app);
-    Temp_Memory_Arena temp = begin_temp_memory(arena);
+    Temp_Memory_Arena major_temp = begin_temp_memory(arena);
     
     static Managed_Scope render_scope = 0;
     if (render_scope == 0){
@@ -338,7 +360,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
         // NOTE(allen): Filebar
         {
             b32 showing_file_bar = false;
-            if (view_get_setting(app, render_params.view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
+            if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
                 if (showing_file_bar){
                     Rect_f32 bar = r_cursor;
                     bar.y1 = bar.y0 + line_height + 2.f;
@@ -410,7 +432,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
             Query_Bar *space[32];
             Query_Bar_Ptr_Array query_bars = {};
             query_bars.ptrs = space;
-            if (get_active_query_bars(app, render_params.view_id, ArrayCount(space), &query_bars)){
+            if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
                 for (i32 i = 0; i < query_bars.count; i += 1){
                     Query_Bar *query_bar = query_bars.ptrs[i];
                     
@@ -456,17 +478,17 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
             Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
             
             Full_Cursor cursor = {};
-            view_compute_cursor(app, render_params.view_id, seek_pos(render_params.on_screen_range.first), &cursor);
-            for (;cursor.pos <= render_params.on_screen_range.one_past_last;){
+            view_compute_cursor(app, view_id, seek_pos(on_screen_range.first), &cursor);
+            for (;cursor.pos <= on_screen_range.one_past_last;){
                 Vec2 p = panel_space_from_view_space(cursor.wrapped_p, view.scroll_vars.scroll_p);
-                p += V2(render_params.buffer_region.p0);
+                p += V2(buffer_rect.p0);
                 p.x = left_margin.x0;
                 Temp_Memory_Arena temp = begin_temp_memory(arena);
                 Fancy_String *line_string = push_fancy_stringf(arena, line_color, "%*d", line_count_digit_count, cursor.line);
                 draw_fancy_string(app, font_id, line_string, p, Stag_Margin_Active, 0);
                 end_temp_memory(temp);
                 i32 next_line = cursor.line + 1;
-                view_compute_cursor(app, render_params.view_id, seek_line_char(next_line, 1), &cursor);
+                view_compute_cursor(app, view_id, seek_line_char(next_line, 1), &cursor);
                 if (cursor.line < next_line){
                     break;
                 }
@@ -481,16 +503,16 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
     // NOTE(allen): Scan for TODOs and NOTEs
     {
         Temp_Memory temp = begin_temp_memory(scratch);
-        i32 text_size = render_params.on_screen_range.one_past_last - render_params.on_screen_range.first;
+        i32 text_size = on_screen_range.one_past_last - on_screen_range.first;
         char *text = push_array(scratch, char, text_size);
-        buffer_read_range(app, &buffer, render_params.on_screen_range.first, render_params.on_screen_range.one_past_last, text);
+        buffer_read_range(app, &buffer, on_screen_range.first, on_screen_range.one_past_last, text);
         
         Highlight_Record *records = push_array(scratch, Highlight_Record, 0);
         String tail = make_string(text, text_size);
         for (i32 i = 0; i < text_size; tail.str += 1, tail.size -= 1, i += 1){
             if (match_part(tail, make_lit_string("NOTE"))){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                record->first = i + render_params.on_screen_range.first;
+                record->first = i + on_screen_range.first;
                 record->one_past_last = record->first + 4;
                 record->color = Stag_Text_Cycle_2;
                 tail.str += 3;
@@ -499,7 +521,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
             }
             else if (match_part(tail, make_lit_string("TODO"))){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                record->first = i + render_params.on_screen_range.first;
+                record->first = i + on_screen_range.first;
                 record->one_past_last = record->first + 4;
                 record->color = Stag_Text_Cycle_1;
                 tail.str += 3;
@@ -664,7 +686,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
         mark_enclosures(app, scratch, render_scope, &buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
-    render_params.do_core_render(app);
+    draw_render_layout(app, view_id);
     
     // NOTE(allen): FPS HUD
     if (show_fps_hud){
@@ -673,10 +695,10 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
         static f32 history_animation_dt[history_depth] = {};
         static i32 history_frame_index[history_depth] = {};
         
-        i32 wrapped_index = render_params.frame.index%history_depth;
-        history_literal_dt[wrapped_index]   = render_params.frame.literal_dt;
-        history_animation_dt[wrapped_index] = render_params.frame.animation_dt;
-        history_frame_index[wrapped_index]  = render_params.frame.index;
+        i32 wrapped_index = frame_info.index%history_depth;
+        history_literal_dt[wrapped_index]   = frame_info.literal_dt;
+        history_animation_dt[wrapped_index] = frame_info.animation_dt;
+        history_frame_index[wrapped_index]  = frame_info.index;
         
         Rect_f32 hud_rect = f32R(view.render_region);
         hud_rect.y0 = hud_rect.y1 - view.line_height*(f32)(history_depth);
@@ -730,7 +752,7 @@ default_buffer_render_caller(Application_Links *app, Render_Parameters render_pa
         }
     }
     
-    end_temp_memory(temp);
+    end_temp_memory(major_temp);
     managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 
@@ -756,12 +778,12 @@ get_margin_color(i32 level){
 }
 
 static void
-default_ui_render_caller(Application_Links *app, Render_Parameters render_params){
+default_ui_render_caller(Application_Links *app, View_ID view_id){
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
-    if (view_get_ui_data(app, render_params.view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
+    if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
         View_Summary view = {};
-        if (get_view_summary(app, render_params.view_id, AccessAll, &view)){
+        if (get_view_summary(app, view_id, AccessAll, &view)){
             Rect_f32 rect_f32 = f32R(view.render_region);
             GUI_Scroll_Vars ui_scroll = view.scroll_vars;
             
@@ -806,12 +828,33 @@ default_ui_render_caller(Application_Links *app, Render_Parameters render_params
     }
 }
 
-RENDER_CALLER_SIG(default_render_caller){
-    if (view_is_in_ui_mode(app, render_params.view_id)){
-        default_ui_render_caller(app, render_params);
+static void
+default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view_id, b32 is_active){
+    Rect_i32 view_rect = {};
+    view_get_region(app, view_id, &view_rect);
+    Rect_i32 inner = get_inner_rect(view_rect, 3);
+    draw_rectangle(app, f32R(view_rect), get_margin_color(is_active?UIActivation_Active:UIActivation_None));
+    draw_rectangle(app, f32R(inner), Stag_Back);
+    draw_clip_push(app, f32R(inner));
+    draw_coordinate_center_push(app, V2(inner.p0));
+    if (view_is_in_ui_mode(app, view_id)){
+        default_ui_render_caller(app, view_id);
     }
     else{
-        default_buffer_render_caller(app, render_params);
+        default_buffer_render_caller(app, frame_info, view_id, inner);
+    }
+    draw_clip_pop(app);
+    draw_coordinate_center_pop(app);
+}
+
+RENDER_CALLER_SIG(default_render_caller){
+    View_ID active_view_id = 0;
+    get_active_view(app, AccessAll, &active_view_id);
+    View_ID view_id = 0;
+    for (get_view_next(app, 0, AccessAll, &view_id);
+         view_id != 0;
+         get_view_next(app, view_id, AccessAll, &view_id)){
+        default_render_view(app, frame_info, view_id, (active_view_id == view_id));
     }
 }
 

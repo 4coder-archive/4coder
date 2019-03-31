@@ -17,35 +17,6 @@ access_test(u32 lock_flags, u32 access_flags){
 }
 
 internal void
-fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
-    block_zero_struct(buffer);
-    if (!file->is_dummy){
-        buffer->exists = 1;
-        buffer->ready = file_is_ready(file);
-        
-        buffer->buffer_id = file->id.id;
-        buffer->size = buffer_size(&file->state.buffer);
-        buffer->line_count = file->state.buffer.line_count;
-        
-        buffer->file_name_len = file->canon.name.size;
-        buffer->file_name = file->canon.name.str;
-        
-        buffer->buffer_name_len = file->unique_name.name.size;
-        buffer->buffer_name = file->unique_name.name.str;
-        
-        buffer->dirty = file->state.dirty;
-        
-        buffer->is_lexed = file->settings.tokens_exist;
-        
-        buffer->tokens_are_ready = file_tokens_are_ready(file);
-        buffer->map_id = file->settings.base_map_id;
-        buffer->unwrapped_lines = file->settings.unwrapped_lines;
-        
-        buffer->lock_flags = file_get_access_flags(file);
-    }
-}
-
-internal void
 fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
     block_zero_struct(view);
     if (vptr->in_use){
@@ -691,12 +662,16 @@ DOC_SEE(get_buffer_first)
         *buffer_id_out = file->id.id;
         result = true;
     }
+    else{
+        *buffer_id_out = 0;
+    }
     return(result);
 }
 
+#if 0
 // TODO(allen): redocument
 API_EXPORT b32
-Get_Buffer_Summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
+//Get_Buffer_Summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
 /*
 DOC_PARAM(buffer_id, The parameter buffer_id specifies which buffer to try to get.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
@@ -715,6 +690,7 @@ DOC_SEE(Buffer_ID)
     }
     return(result);
 }
+#endif
 
 // TODO(allen): redocument
 API_EXPORT b32
@@ -1872,36 +1848,6 @@ get_view_prev__inner(Layout *layout, View *view){
     return(view);
 }
 
-// TODO(allen): replace this with get_view_next(app, 0, access, view_id_out);
-// TODO(allen): redocument
-API_EXPORT b32
-Get_View_First(Application_Links *app, Access_Flag access, View_ID *view_id_out)
-/*
-DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
-DOC_RETURN(This call returns the summary of the first view in a view loop.)
-DOC(
-This call begins a loop across all the open views.
-
-If the View_Summary returned is a null summary, the loop is finished.
-Views should not be closed or opened durring a view loop.
-)
-DOC_SEE(Access_Flag)
-DOC_SEE(get_view_next)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    Layout *layout = &models->layout;
-    View *view = get_view_next__inner(layout, 0);
-    for (;view != 0 && !access_test(view_get_access_flags(view), access);){
-        view = get_view_next__inner(layout, view);
-    }
-    b32 result = false;
-    if (view != 0){
-        *view_id_out = view_get_id(&models->live_set, view);
-        result = true;
-    }
-    return(result);
-}
-
 // TODO(allen): redocument
 API_EXPORT b32
 Get_View_Next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
@@ -1929,6 +1875,9 @@ DOC_SEE(get_view_first)
     if (view != 0){
         *view_id_out = view_get_id(&models->live_set, view);
         result = true;
+    }
+    else{
+        *view_id_out = 0;
     }
     return(result);
 }
@@ -2005,6 +1954,21 @@ Get_Active_Panel(Application_Links *app, Panel_ID *panel_id_out){
     }
     else{
         *panel_id_out = 0;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+View_Get_Buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        Editing_File *file = view->file;
+        if (buffer_api_check_file(file, access)){
+            *buffer_id_out = file->id.id;
+            result = true;
+        }
     }
     return(result);
 }
@@ -2239,12 +2203,24 @@ in the system, the call will fail.)
 }
 
 API_EXPORT b32
+View_Get_Region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        *region_out = view->panel->rect_full;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
 View_Get_Buffer_Region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (view_api_check_view(view)){
-        *region_out = view_get_file_region(models, view);
+        *region_out = view_get_buffer_rect(models, view);
         result = true;
     }
     return(result);
@@ -4454,16 +4430,39 @@ DOC(Returns a microsecond resolution timestamp.)
 }
 
 internal Vec2
-draw_helper__view_space_to_screen_space(Models *models, Vec2 point){
-    i32_Rect region = models->render_view_rect;
+models_get_coordinate_center(Models *models){
+    Vec2 result = {};
+    if (models->coordinate_center_stack_top > 0){
+        result = models->coordinate_center_stack[models->coordinate_center_stack_top - 1];
+    }
+    return(result);
+}
+
+internal Vec2
+draw_helper__models_space_to_screen_space(Models *models, Vec2 point){
+    Vec2 c = models_get_coordinate_center(models);
+    return(point + c);
+}
+
+internal f32_Rect
+draw_helper__models_space_to_screen_space(Models *models, f32_Rect rect){
+    Vec2 c = models_get_coordinate_center(models);
+    rect.p0 += c;
+    rect.p1 += c;
+    return(rect);
+}
+
+internal Vec2
+draw_helper__view_space_to_screen_space(View *view, Vec2 point){
+    i32_Rect region = view->render.view_rect;
     point.x += (f32)region.x0;
     point.y += (f32)region.y0;
     return(point);
 }
 
 internal f32_Rect
-draw_helper__view_space_to_screen_space(Models *models, f32_Rect rect){
-    i32_Rect region = models->render_view_rect;
+draw_helper__view_space_to_screen_space(View *view, f32_Rect rect){
+    i32_Rect region = view->render.view_rect;
     f32 x_corner = (f32)region.x0;
     f32 y_corner = (f32)region.y0;
     rect.x0 += x_corner;
@@ -4474,16 +4473,16 @@ draw_helper__view_space_to_screen_space(Models *models, f32_Rect rect){
 }
 
 internal Vec2
-draw_helper__screen_space_to_view_space(Models *models, Vec2 point){
-    i32_Rect region = models->render_view_rect;
+draw_helper__screen_space_to_view_space(View *view, Vec2 point){
+    i32_Rect region = view->render.view_rect;
     point.x -= (f32)region.x0;
     point.y -= (f32)region.y0;
     return(point);
 }
 
 internal f32_Rect
-draw_helper__screen_space_to_view_space(Models *models, f32_Rect rect){
-    i32_Rect region = models->render_view_rect;
+draw_helper__screen_space_to_view_space(View *view, f32_Rect rect){
+    i32_Rect region = view->render.view_rect;
     f32 x_corner = (f32)region.x0;
     f32 y_corner = (f32)region.y0;
     rect.x0 -= x_corner;
@@ -4502,13 +4501,13 @@ Draw_String(Application_Links *app, Face_ID font_id, String str, Vec2 point, int
 {
     Vec2 result = point;
     Models *models = (Models*)app->cmd_context;
-    if (models->render_view == 0){
+    if (models->target == 0){
         f32 width = font_string_width(models->system, models->target, font_id, str);
         result += delta*width;
     }
     else{
         Color_Table color_table = models->color_table;
-        point = draw_helper__view_space_to_screen_space(models, point);
+        point = draw_helper__models_space_to_screen_space(models, point);
         u32 actual_color = finalize_color(color_table, color);
         f32 width = draw_string(models->system, models->target, font_id, str, point, actual_color, flags, delta);
         result += delta*width;
@@ -4524,11 +4523,11 @@ Get_String_Advance(Application_Links *app, Face_ID font_id, String str)
 }
 
 API_EXPORT void
-Draw_Rectangle(Application_Links *app, f32_Rect rect, int_color color){
+Draw_Rectangle(Application_Links *app, Rect_f32 rect, int_color color){
     Models *models = (Models*)app->cmd_context;
-    if (models->render_view != 0){
+    if (models->in_render_mode){
         Color_Table color_table = models->color_table;
-        rect = draw_helper__view_space_to_screen_space(models, rect);
+        rect = draw_helper__models_space_to_screen_space(models, rect);
         u32 actual_color = finalize_color(color_table, color);
         draw_rectangle(models->target, rect, actual_color);
     }
@@ -4538,13 +4537,9 @@ API_EXPORT void
 Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
-    if (models->render_view != 0){
+    if (models->in_render_mode){
         Color_Table color_table = models->color_table;
-        //Style *style = &models->styles.styles[0];
-        //Theme *theme_data = &style->theme;
-        
-        rect = draw_helper__view_space_to_screen_space(models, rect);
-        
+        rect = draw_helper__models_space_to_screen_space(models, rect);
         u32 actual_color = finalize_color(color_table, color);
         draw_rectangle_outline(models->target, rect, actual_color);
     }
@@ -4553,7 +4548,7 @@ Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
 API_EXPORT void
 Draw_Clip_Push(Application_Links *app, f32_Rect clip_box){
     Models *models = (Models*)app->cmd_context;
-    clip_box = draw_helper__view_space_to_screen_space(models, clip_box);
+    clip_box = draw_helper__models_space_to_screen_space(models, clip_box);
     render_push_clip(models->target, i32R(clip_box));
 }
 
@@ -4561,7 +4556,27 @@ API_EXPORT f32_Rect
 Draw_Clip_Pop(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
     f32_Rect result = f32R(render_pop_clip(models->target));
-    result = draw_helper__screen_space_to_view_space(models, result);
+    return(result);
+}
+
+API_EXPORT void
+Draw_Coordinate_Center_Push(Application_Links *app, Vec2 point){
+    Models *models = (Models*)app->cmd_context;
+    if (models->coordinate_center_stack_top < ArrayCount(models->coordinate_center_stack)){
+        point = draw_helper__models_space_to_screen_space(models, point);
+        models->coordinate_center_stack[models->coordinate_center_stack_top] = point;
+        models->coordinate_center_stack_top += 1;
+    }
+}
+
+API_EXPORT Vec2
+Draw_Coordinate_Center_Pop(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    Vec2 result = {};
+    if (models->coordinate_center_stack_top > 0){
+        models->coordinate_center_stack_top -= 1;
+        result = models->coordinate_center_stack[models->coordinate_center_stack_top];
+    }
     return(result);
 }
 
@@ -4576,11 +4591,142 @@ Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
     return(face_id);
 }
 
+API_EXPORT b32
+Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out){
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    View *view = imp_get_view(models, view_id);
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (view_api_check_view(view) && buffer_api_check_file(file)){
+        i32 line_height = view->line_height;
+        f32 max_x = (f32)file->settings.display_width;
+        i32 max_y = rect.y1 - rect.y0 + line_height;
+        
+        f32 left_side_space = 0;
+        
+        // TODO(allen): Don't force me to over-allocate!  Write a looser buffer render thingy,
+        // or just stop doing that nonsense all together.
+        f32 screen_width  = (f32)rect_width(rect);
+        f32 screen_height = (f32)rect_height(rect);
+        f32 smallest_char_width  = 6.f;
+        f32 smallest_char_height = 8.f;
+        i32 max = (i32)(screen_width*screen_height/(smallest_char_width*smallest_char_height))*2;
+        if (view->layout_arena.app == 0){
+            view->layout_arena = make_arena(app);
+        }
+        else{
+            arena_release_all(&view->layout_arena);
+        }
+        Buffer_Render_Item *items = push_array(&view->layout_arena, Buffer_Render_Item, max);
+        
+        b32 wrapped = !file->settings.unwrapped_lines;
+        Face_ID font_id = file->settings.font_id;
+        Font_Pointers font = system->font.get_pointers_by_id(font_id);
+        
+        File_Edit_Positions edit_pos = view_get_edit_pos(view);
+        f32 scroll_x = edit_pos.scroll.scroll_x;
+        f32 scroll_y = edit_pos.scroll.scroll_y;
+        
+        Full_Cursor render_cursor = view_get_render_cursor(system, view);
+        
+        i32 item_count = 0;
+        i32 end_pos = 0;
+        {
+            Buffer_Render_Params params;
+            params.buffer        = &file->state.buffer;
+            params.items         = items;
+            params.max           = max;
+            params.count         = &item_count;
+            params.port_x        = (f32)rect.x0 + left_side_space;
+            params.port_y        = (f32)rect.y0;
+            params.clip_w        = view_width(models, view) - left_side_space;
+            params.scroll_x      = scroll_x;
+            params.scroll_y      = scroll_y;
+            params.width         = max_x;
+            params.height        = (f32)max_y;
+            params.start_cursor  = render_cursor;
+            params.wrapped       = wrapped;
+            params.system        = system;
+            params.font          = font;
+            params.virtual_white = file->settings.virtual_white;
+            params.wrap_slashes  = file->settings.wrap_indicator;
+            
+            Buffer_Render_State state = {};
+            Buffer_Layout_Stop stop = {};
+            
+            f32 line_shift = 0.f;
+            b32 do_wrap = false;
+            i32 wrap_unit_end = 0;
+            
+            b32 first_wrap_determination = true;
+            i32 wrap_array_index = 0;
+            
+            do{
+                stop = buffer_render_data(&state, params, line_shift, do_wrap, wrap_unit_end);
+                switch (stop.status){
+                    case BLStatus_NeedWrapDetermination:
+                    {
+                        if (first_wrap_determination){
+                            wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
+                            ++wrap_array_index;
+                            if (file->state.wrap_positions[wrap_array_index] == stop.pos){
+                                do_wrap = true;
+                                wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                            }
+                            else{
+                                do_wrap = false;
+                                wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                            }
+                            first_wrap_determination = false;
+                        }
+                        else{
+                            Assert(stop.pos == wrap_unit_end);
+                            do_wrap = true;
+                            ++wrap_array_index;
+                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                        }
+                    }break;
+                    
+                    case BLStatus_NeedWrapLineShift:
+                    case BLStatus_NeedLineShift:
+                    {
+                        line_shift = file->state.line_indents[stop.wrap_line_index];
+                    }break;
+                }
+            }while(stop.status != BLStatus_Finished);
+            
+            end_pos = state.i;
+        }
+        
+        Range range = {render_cursor.pos, end_pos};
+        
+        view->render.view_rect = view->panel->rect_inner;
+        view->render.buffer_rect = rect;
+        view->render.cursor = render_cursor;
+        view->render.range = range;
+        view->render.items = items;
+        view->render.item_count = item_count;
+        
+        *on_screen_range_out = range;
+    }
+    return(result);
+}
+
+API_EXPORT void
+Draw_Render_Layout(Application_Links *app, View_ID view_id){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    if (view_api_check_view(view) && models->target != 0){
+        render_loaded_file_in_view__inner(models, models->target, view, view->render.buffer_rect,
+                                          view->render.cursor, view->render.range,
+                                          view->render.items, view->render.item_count);
+        arena_release_all(&view->layout_arena);
+    }
+}
+
 API_EXPORT void
 Open_Color_Picker(Application_Links *app, color_picker *picker)
-/*
-DOC(Opens a color picker using the parameters in the supplied structure.)
-*/
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;

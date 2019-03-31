@@ -127,16 +127,11 @@ typedef double f64;
 #define min_u32 ((u32)0)
 #define min_u64 ((u64)0)
 
-static f32
-max_f32_proc(void){
-    union{
-        u32 x;
-        f32 f;
-    } c;
-    c.x = 0x7f800000;
-    return(c.f);
-}
-static const f32 max_f32 = max_f32_proc();
+static const f32 max_f32 = 3.4028234e+38f;
+static const f32 min_f32 = 1.1754943e-38f;
+
+static const f64 max_f64 = 1.7976931348623157e+308;
+static const f64 min_f64 = 2.2250738585072014e-308;
 
 ////////////////////////////////
 

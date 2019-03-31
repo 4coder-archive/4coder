@@ -631,7 +631,7 @@ get_view_last(Application_Links *app, Access_Flag access, View_ID *view_id_out){
 static View_ID
 get_next_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_Flag access){
     if (!get_view_next(app, view_id, access, &view_id)){
-        if (!get_view_first(app, access, &view_id)){
+        if (!get_view_next(app, 0, access, &view_id)){
             view_id = 0;
         }
     }

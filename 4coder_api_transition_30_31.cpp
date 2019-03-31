@@ -3,7 +3,7 @@
  *
  * In order to keep your layer on the old API you don't have to do anything, this provides wrappers
  *  idential to the 4.0.30 API.
- * In order to transition your entire layer over to the 4.0.31 API define 'REMOVE_TRANSITION_HELPER' and fix errors.
+ * In order to transition your entire layer over to the 4.0.31 API define 'REMOVE_TRANSITION_HELPER_31' and fix errors.
  * Or you can do it step by step by removing a few wrappers at a time.
  * This transition helper will be removed in a future version so it is recommended to get off sooner or laster.
  *
@@ -22,9 +22,40 @@
 
 // TOP
 
-#if !defined(REMOVE_TRANSITION_HELPER)
+#if !defined(REMOVE_TRANSITION_HELPER_31)
 
 typedef b32 bool32;
+
+static b32
+get_buffer_summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer){
+    b32 result = false;
+    if (buffer_exists(app, buffer_id)){
+        Access_Flag buffer_access_flags = 0;
+        buffer_get_access_flags(app, buffer_id, &buffer_access_flags);
+        if ((buffer_access_flags & ~access) == 0){
+            result = true;
+            buffer->exists = true;
+            buffer->ready = buffer_ready(app, buffer_id);
+            buffer->buffer_id = buffer_id;
+            buffer_get_size(app, buffer_id, &buffer->size);
+            buffer_get_line_count(app, buffer_id, &buffer->line_count);
+            String file_name = make_fixed_width_string(buffer->file_name);
+            buffer_get_file_name(app, buffer_id, &file_name, 0);
+            buffer->file_name_len = file_name.size;
+            String buffer_name = make_fixed_width_string(buffer->buffer_name);
+            buffer_get_unique_buffer_name(app, buffer_id, &buffer_name, 0);
+            buffer->buffer_name_len = buffer_name.size;
+            buffer_get_dirty_state(app, buffer_id, &buffer->dirty);
+            buffer_get_setting(app, buffer_id, BufferSetting_Lex, &buffer->is_lexed);
+            buffer->tokens_are_ready = buffer_tokens_are_ready(app, buffer_id);
+            buffer_get_setting(app, buffer_id, BufferSetting_MapID, &buffer->map_id);
+            buffer_get_setting(app, buffer_id, BufferSetting_WrapLine, &buffer->unwrapped_lines);
+            buffer->unwrapped_lines = !buffer->unwrapped_lines;
+            buffer->lock_flags = buffer_access_flags;
+        }
+    }
+    return(result);
+}
 
 static b32
 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
@@ -312,7 +343,7 @@ static View_Summary
 get_view_first(Application_Links *app, Access_Flag access){
     View_Summary view = {};
     View_ID view_id = 0;
-    if (get_view_first(app, access, &view_id)){
+    if (get_view_next(app, 0, access, &view_id)){
         get_view_summary(app, view_id, access, &view);
     }
     return(view);

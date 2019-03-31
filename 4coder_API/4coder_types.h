@@ -630,50 +630,6 @@ STRUCT File_Attributes{
     u64 last_write_time;
 };
 
-/* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
-DOC_SEE(Access_Flag)
-DOC_SEE(Dirty_State) */
-STRUCT Buffer_Summary{
-    /* DOC(This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder. When this field is false the summary is referred to as a "null summary".) */
-    b32 exists;
-    /* DOC(If this is not a null summary, this field indicates whether the buffer has finished loading.) */
-    b32 ready;
-    /* DOC(If this is not a null summary this field is the id of the associated buffer. If this is a null summary then buffer_id is 0.) */
-    Buffer_ID buffer_id;
-    /* DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.) */
-    Access_Flag lock_flags;
-    
-    /* DOC(TODO) */
-    Buffer_Edit_Handler *edit_handler;
-    
-    /* DOC(If this is not a null summary, this field specifies the number of bytes in the buffer.) */
-    i32 size;
-    /* DOC(If this is not a null summary, this field specifies the number of lines in the buffer.) */
-    i32 line_count;
-    
-    /* DOC(If this is not a null summary, this field specifies the file name associated to this buffer.) */
-    char *file_name;
-    /* DOC(This field specifies the length of the file_name string.) */
-    i32 file_name_len;
-    
-    /* DOC(If this is not a null summary, this field specifies the name of the buffer.) */
-    char *buffer_name;
-    /* DOC(This field specifies the length of the buffer_name string.) */
-    i32 buffer_name_len;
-    
-    /* DOC(This field indicates the dirty state of the buffer.) */
-    Dirty_State dirty;
-    
-    /* DOC(If this is not a null summary, this field indicates whether the buffer is set to lex tokens.) */
-    b32 is_lexed;
-    /* DOC(If this is not a null summary, this field indicates whether the buffer has up to date tokens available. If this field is false, it may simply mean the tokens are still being generated in a background task and will be available later.  If that is the case, is_lexed will be true to indicate that the buffer is trying to get it's tokens up to date.) */
-    b32 tokens_are_ready;
-    /* DOC(If this is not a null summary, this field specifies the id of the command map for this buffer.) */
-    i32 map_id;
-    /* DOC(If this is not a null summary, this field indicates whether the buffer 'prefers' wrapped lines.) */
-    b32 unwrapped_lines;
-};
-
 /*
 DOC(A markers is a location in a buffer that, once placed, is effected by edits the same way characters are effected.  In particular if an edit occurs in a location in the buffer before a marker, the marker is shifted forward or backward so that it remains on the same character.)
 DOC_SEE(buffer_add_markers)
@@ -1067,14 +1023,6 @@ STRUCT Frame_Info{
 
 TYPEDEF_FUNC void Render_Callback(struct Application_Links *app);
 
-STRUCT Render_Parameters{
-    Frame_Info frame;
-    View_ID view_id;
-    Range on_screen_range;
-    Rect_i32 buffer_region;
-    Render_Callback *do_core_render;
-};
-
 /* DOC(Hook_IDs name the various hooks in 4coder, these hooks use the Hook_Function signature.)
 DOC_SEE(Hook_Function) */
 ENUM(i32, Hook_ID){
@@ -1125,8 +1073,8 @@ ENUM(i32, Special_Hook_ID){
 TYPEDEF_FUNC i32 Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
 #define COMMAND_CALLER_HOOK(name) i32 name(struct Application_Links *app, Generic_Command cmd)
 
-TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, Render_Parameters render_params);
-#define RENDER_CALLER_SIG(name) void name(struct Application_Links *app, Render_Parameters render_params)
+TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, Frame_Info frame_info);
+#define RENDER_CALLER_SIG(name) void name(struct Application_Links *app, Frame_Info frame_info)
 
 TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) i32 name(struct Application_Links *app)

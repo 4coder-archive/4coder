@@ -46,6 +46,19 @@ struct View{
     i32 line_height;
     
     Query_Set query_set;
+    
+    // Render Context
+    Arena layout_arena;
+    
+    struct{    
+        i32_Rect view_rect;
+        i32_Rect buffer_rect;
+        Full_Cursor cursor;
+        Range range;
+        Buffer_Render_Item *items;
+        i32 item_count;
+    } render;
+    
 #if 0
     f32 widget_height;
 #endif

@@ -117,8 +117,13 @@ struct Models{
     Application_Step_Input *input;
     Key_Event_Data key;
     
-    // Render Context
     Render_Target *target;
+    b32 in_render_mode;
+    // TODO(allen): endless stack?
+    Vec2 coordinate_center_stack[32];
+    i32 coordinate_center_stack_top;
+    
+#if 0
     View *render_view;
     i32_Rect render_view_rect;
     i32_Rect render_buffer_rect;
@@ -126,6 +131,7 @@ struct Models{
     Range render_range;
     Buffer_Render_Item *render_items;
     i32 render_item_count;
+#endif
 };
 
 ////////////////////////////////
