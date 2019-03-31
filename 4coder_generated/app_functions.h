@@ -64,6 +64,7 @@ struct Application_Links;
 #define VIEW_CLOSE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_REGION_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_i32 *region_out)
 #define VIEW_GET_BUFFER_REGION_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_i32 *region_out)
+#define VIEW_GET_SCROLL_VARS_SIG(n) b32 n(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out)
 #define VIEW_SET_ACTIVE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out)
 #define VIEW_SET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value)
@@ -165,7 +166,7 @@ struct Application_Links;
 #define DRAW_COORDINATE_CENTER_PUSH_SIG(n) void n(Application_Links *app, Vec2 point)
 #define DRAW_COORDINATE_CENTER_POP_SIG(n) Vec2 n(Application_Links *app)
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
-#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out)
+#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out)
 #define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
 #define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
@@ -236,6 +237,7 @@ typedef PANEL_GET_MARGIN_SIG(Panel_Get_Margin_Function);
 typedef VIEW_CLOSE_SIG(View_Close_Function);
 typedef VIEW_GET_REGION_SIG(View_Get_Region_Function);
 typedef VIEW_GET_BUFFER_REGION_SIG(View_Get_Buffer_Region_Function);
+typedef VIEW_GET_SCROLL_VARS_SIG(View_Get_Scroll_Vars_Function);
 typedef VIEW_SET_ACTIVE_SIG(View_Set_Active_Function);
 typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
@@ -410,6 +412,7 @@ Panel_Get_Margin_Function *panel_get_margin;
 View_Close_Function *view_close;
 View_Get_Region_Function *view_get_region;
 View_Get_Buffer_Region_Function *view_get_buffer_region;
+View_Get_Scroll_Vars_Function *view_get_scroll_vars;
 View_Set_Active_Function *view_set_active;
 View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
@@ -583,6 +586,7 @@ Panel_Get_Margin_Function *panel_get_margin_;
 View_Close_Function *view_close_;
 View_Get_Region_Function *view_get_region_;
 View_Get_Buffer_Region_Function *view_get_buffer_region_;
+View_Get_Scroll_Vars_Function *view_get_scroll_vars_;
 View_Set_Active_Function *view_set_active_;
 View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
@@ -764,6 +768,7 @@ app_links->panel_get_margin_ = Panel_Get_Margin;\
 app_links->view_close_ = View_Close;\
 app_links->view_get_region_ = View_Get_Region;\
 app_links->view_get_buffer_region_ = View_Get_Buffer_Region;\
+app_links->view_get_scroll_vars_ = View_Get_Scroll_Vars;\
 app_links->view_set_active_ = View_Set_Active;\
 app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
@@ -937,6 +942,7 @@ static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect 
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close(app, view_id));}
 static b32 view_get_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_region(app, view_id, region_out));}
 static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region(app, view_id, region_out));}
+static b32 view_get_scroll_vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){return(app->view_get_scroll_vars(app, view_id, scroll_vars_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting(app, view_id, setting, value_out));}
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting(app, view_id, setting, value));}
@@ -1038,7 +1044,7 @@ static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop(
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out){return(app->compute_render_layout(app, view_id, buffer_id, rect, on_screen_range_out));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out){return(app->compute_render_layout(app, view_id, buffer_id, screen_rect, buffer_line_number, y_pixel_shift, scroll_x, on_screen_range_out));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
@@ -1110,6 +1116,7 @@ static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect 
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close_(app, view_id));}
 static b32 view_get_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_region_(app, view_id, region_out));}
 static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region_(app, view_id, region_out));}
+static b32 view_get_scroll_vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){return(app->view_get_scroll_vars_(app, view_id, scroll_vars_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active_(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting_(app, view_id, setting, value_out));}
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting_(app, view_id, setting, value));}
@@ -1211,7 +1218,7 @@ static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop_
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push_(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop_(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out){return(app->compute_render_layout_(app, view_id, buffer_id, rect, on_screen_range_out));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out){return(app->compute_render_layout_(app, view_id, buffer_id, screen_rect, buffer_line_number, y_pixel_shift, scroll_x, on_screen_range_out));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}

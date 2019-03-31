@@ -670,8 +670,8 @@ DOC_SEE(get_buffer_first)
 
 #if 0
 // TODO(allen): redocument
-API_EXPORT b32
-//Get_Buffer_Summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
+//API_EXPORT b32
+Get_Buffer_Summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
 /*
 DOC_PARAM(buffer_id, The parameter buffer_id specifies which buffer to try to get.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
@@ -2221,6 +2221,24 @@ View_Get_Buffer_Region(Application_Links *app, View_ID view_id, Rect_i32 *region
     b32 result = false;
     if (view_api_check_view(view)){
         *region_out = view_get_buffer_rect(models, view);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+View_Get_Scroll_Vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        if (view->ui_mode){
+            *scroll_vars_out = view->ui_scroll;
+        }
+        else{
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            *scroll_vars_out = edit_pos.scroll;
+        }
         result = true;
     }
     return(result);
@@ -4592,7 +4610,7 @@ Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
 }
 
 API_EXPORT b32
-Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 rect, Range *on_screen_range_out){
+Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     View *view = imp_get_view(models, view_id);
@@ -4601,14 +4619,13 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
     if (view_api_check_view(view) && buffer_api_check_file(file)){
         i32 line_height = view->line_height;
         f32 max_x = (f32)file->settings.display_width;
-        i32 max_y = rect.y1 - rect.y0 + line_height;
+        i32 max_y = screen_rect.y1 - screen_rect.y0 + line_height;
         
         f32 left_side_space = 0;
         
-        // TODO(allen): Don't force me to over-allocate!  Write a looser buffer render thingy,
-        // or just stop doing that nonsense all together.
-        f32 screen_width  = (f32)rect_width(rect);
-        f32 screen_height = (f32)rect_height(rect);
+        // TODO(allen): Don't force me to over-allocate!  Write a looser buffer render thingy.
+        f32 screen_width  = (f32)rect_width(screen_rect);
+        f32 screen_height = (f32)rect_height(screen_rect);
         f32 smallest_char_width  = 6.f;
         f32 smallest_char_height = 8.f;
         i32 max = (i32)(screen_width*screen_height/(smallest_char_width*smallest_char_height))*2;
@@ -4623,13 +4640,19 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         b32 wrapped = !file->settings.unwrapped_lines;
         Face_ID font_id = file->settings.font_id;
         Font_Pointers font = system->font.get_pointers_by_id(font_id);
-        
+
+#if 0        
         File_Edit_Positions edit_pos = view_get_edit_pos(view);
         f32 scroll_x = edit_pos.scroll.scroll_x;
         f32 scroll_y = edit_pos.scroll.scroll_y;
         
         Full_Cursor render_cursor = view_get_render_cursor(system, view);
-        
+#else
+        Full_Cursor intermediate_cursor = file_compute_cursor(system, file, seek_line_char(buffer_line_number, 1));
+        f32 scroll_y = intermediate_cursor.unwrapped_y + y_pixel_shift;
+        Full_Cursor render_cursor = view_get_render_cursor(system, view, scroll_y);
+#endif
+
         i32 item_count = 0;
         i32 end_pos = 0;
         {
@@ -4638,8 +4661,8 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             params.items         = items;
             params.max           = max;
             params.count         = &item_count;
-            params.port_x        = (f32)rect.x0 + left_side_space;
-            params.port_y        = (f32)rect.y0;
+            params.port_x        = (f32)screen_rect.x0 + left_side_space;
+            params.port_y        = (f32)screen_rect.y0;
             params.clip_w        = view_width(models, view) - left_side_space;
             params.scroll_x      = scroll_x;
             params.scroll_y      = scroll_y;
@@ -4702,7 +4725,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         Range range = {render_cursor.pos, end_pos};
         
         view->render.view_rect = view->panel->rect_inner;
-        view->render.buffer_rect = rect;
+        view->render.buffer_rect = screen_rect;
         view->render.cursor = render_cursor;
         view->render.range = range;
         view->render.items = items;
