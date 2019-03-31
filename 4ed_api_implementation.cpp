@@ -194,11 +194,10 @@ DOC(Dumps away the previous mappings and instantiates the mappings described in 
 }
 
 API_EXPORT b32
-Global_Get_Screen_Rectangle(Application_Links *app, Rect_i32 *rect_out){
+Global_Get_Screen_Rectangle(Application_Links *app, Rect_f32 *rect_out){
     Models *models = (Models*)app->cmd_context;
-    Vec2_i32 dim = layout_get_root_size(&models->layout);
-    rect_out->p0 = V2i32(0, 0);
-    rect_out->p1 = dim;
+    rect_out->p0 = V2(0, 0);
+    rect_out->p1 = V2(layout_get_root_size(&models->layout));
     return(true);
 }
 
@@ -4014,6 +4013,22 @@ DOC_SEE(Face_Description)
         description.hinting = models->settings.use_hinting;
     }
     return(description);
+}
+
+API_EXPORT b32
+Get_Face_Metrics(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out){
+    Models *models = (Models*)app->cmd_context;
+    System_Functions *system = models->system;
+    b32 result = false;
+    if (face_id != 0){
+        Font_Pointers font = system->font.get_pointers_by_id(face_id);
+        if (font.valid){
+            metrics_out->line_height = (f32)font.metrics->height;
+            metrics_out->typical_character_width = font.metrics->sub_advances[1];
+            result = true;
+        }
+    }
+    return(result);
 }
 
 // TODO(allen): redocument

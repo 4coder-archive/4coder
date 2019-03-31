@@ -888,6 +888,11 @@ STRUCT Face_Description{
     b32 hinting;
 };
 
+STRUCT Face_Metrics{
+    f32 line_height;
+    f32 typical_character_width;
+};
+
 /* DOC(A Buffer_Batch_Edit_Type is a type of batch operation.) */
 ENUM(i32, Buffer_Batch_Edit_Type){
     /* DOC(The BatchEdit_Normal operation is always correct but does the most work if there are tokens to correct.) */

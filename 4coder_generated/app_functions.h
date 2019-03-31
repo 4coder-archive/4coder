@@ -1,7 +1,7 @@
 struct Application_Links;
 #define GLOBAL_SET_SETTING_SIG(n) b32 n(Application_Links *app, Global_Setting_ID setting, i32 value)
 #define GLOBAL_SET_MAPPING_SIG(n) b32 n(Application_Links *app, void *data, i32 size)
-#define GLOBAL_GET_SCREEN_RECTANGLE_SIG(n) b32 n(Application_Links *app, Rect_i32 *rect_out)
+#define GLOBAL_GET_SCREEN_RECTANGLE_SIG(n) b32 n(Application_Links *app, Rect_f32 *rect_out)
 #define CONTEXT_GET_ARENA_SIG(n) Arena* n(Application_Links *app)
 #define CREATE_CHILD_PROCESS_SIG(n) b32 n(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out)
 #define CHILD_PROCESS_SET_TARGET_BUFFER_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags)
@@ -131,6 +131,7 @@ struct Application_Links;
 #define GLOBAL_HISTORY_EDIT_GROUP_END_SIG(n) void n(Application_Links *app)
 #define BUFFER_SET_FACE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Face_ID id)
 #define GET_FACE_DESCRIPTION_SIG(n) Face_Description n(Application_Links *app, Face_ID id)
+#define GET_FACE_METRICS_SIG(n) b32 n(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out)
 #define GET_FACE_ID_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out)
 #define TRY_CREATE_NEW_FACE_SIG(n) Face_ID n(Application_Links *app, Face_Description *description)
 #define TRY_MODIFY_FACE_SIG(n) b32 n(Application_Links *app, Face_ID id, Face_Description *description)
@@ -305,6 +306,7 @@ typedef GLOBAL_HISTORY_EDIT_GROUP_BEGIN_SIG(Global_History_Edit_Group_Begin_Func
 typedef GLOBAL_HISTORY_EDIT_GROUP_END_SIG(Global_History_Edit_Group_End_Function);
 typedef BUFFER_SET_FACE_SIG(Buffer_Set_Face_Function);
 typedef GET_FACE_DESCRIPTION_SIG(Get_Face_Description_Function);
+typedef GET_FACE_METRICS_SIG(Get_Face_Metrics_Function);
 typedef GET_FACE_ID_SIG(Get_Face_ID_Function);
 typedef TRY_CREATE_NEW_FACE_SIG(Try_Create_New_Face_Function);
 typedef TRY_MODIFY_FACE_SIG(Try_Modify_Face_Function);
@@ -481,6 +483,7 @@ Global_History_Edit_Group_Begin_Function *global_history_edit_group_begin;
 Global_History_Edit_Group_End_Function *global_history_edit_group_end;
 Buffer_Set_Face_Function *buffer_set_face;
 Get_Face_Description_Function *get_face_description;
+Get_Face_Metrics_Function *get_face_metrics;
 Get_Face_ID_Function *get_face_id;
 Try_Create_New_Face_Function *try_create_new_face;
 Try_Modify_Face_Function *try_modify_face;
@@ -656,6 +659,7 @@ Global_History_Edit_Group_Begin_Function *global_history_edit_group_begin_;
 Global_History_Edit_Group_End_Function *global_history_edit_group_end_;
 Buffer_Set_Face_Function *buffer_set_face_;
 Get_Face_Description_Function *get_face_description_;
+Get_Face_Metrics_Function *get_face_metrics_;
 Get_Face_ID_Function *get_face_id_;
 Try_Create_New_Face_Function *try_create_new_face_;
 Try_Modify_Face_Function *try_modify_face_;
@@ -839,6 +843,7 @@ app_links->global_history_edit_group_begin_ = Global_History_Edit_Group_Begin;\
 app_links->global_history_edit_group_end_ = Global_History_Edit_Group_End;\
 app_links->buffer_set_face_ = Buffer_Set_Face;\
 app_links->get_face_description_ = Get_Face_Description;\
+app_links->get_face_metrics_ = Get_Face_Metrics;\
 app_links->get_face_id_ = Get_Face_ID;\
 app_links->try_create_new_face_ = Try_Create_New_Face;\
 app_links->try_modify_face_ = Try_Modify_Face;\
@@ -884,7 +889,7 @@ app_links->get_view_visible_range_ = Get_View_Visible_Range;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping(app, data, size));}
-static b32 global_get_screen_rectangle(Application_Links *app, Rect_i32 *rect_out){return(app->global_get_screen_rectangle(app, rect_out));}
+static b32 global_get_screen_rectangle(Application_Links *app, Rect_f32 *rect_out){return(app->global_get_screen_rectangle(app, rect_out));}
 static Arena* context_get_arena(Application_Links *app){return(app->context_get_arena(app));}
 static b32 create_child_process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){return(app->create_child_process(app, path, command, child_process_id_out));}
 static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer(app, child_process_id, buffer_id, flags));}
@@ -1014,6 +1019,7 @@ static void global_history_edit_group_begin(Application_Links *app){(app->global
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end(app));}
 static b32 buffer_set_face(Application_Links *app, Buffer_ID buffer_id, Face_ID id){return(app->buffer_set_face(app, buffer_id, id));}
 static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description(app, id));}
+static b32 get_face_metrics(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out){return(app->get_face_metrics(app, face_id, metrics_out));}
 static b32 get_face_id(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out){return(app->get_face_id(app, buffer_id, face_id_out));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face(app, description));}
 static b32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face(app, id, description));}
@@ -1059,7 +1065,7 @@ static Range get_view_visible_range(Application_Links *app, View_ID view_id){ret
 #else
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping_(app, data, size));}
-static b32 global_get_screen_rectangle(Application_Links *app, Rect_i32 *rect_out){return(app->global_get_screen_rectangle_(app, rect_out));}
+static b32 global_get_screen_rectangle(Application_Links *app, Rect_f32 *rect_out){return(app->global_get_screen_rectangle_(app, rect_out));}
 static Arena* context_get_arena(Application_Links *app){return(app->context_get_arena_(app));}
 static b32 create_child_process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){return(app->create_child_process_(app, path, command, child_process_id_out));}
 static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer_(app, child_process_id, buffer_id, flags));}
@@ -1189,6 +1195,7 @@ static void global_history_edit_group_begin(Application_Links *app){(app->global
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end_(app));}
 static b32 buffer_set_face(Application_Links *app, Buffer_ID buffer_id, Face_ID id){return(app->buffer_set_face_(app, buffer_id, id));}
 static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description_(app, id));}
+static b32 get_face_metrics(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out){return(app->get_face_metrics_(app, face_id, metrics_out));}
 static b32 get_face_id(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out){return(app->get_face_id_(app, buffer_id, face_id_out));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face_(app, description));}
 static b32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face_(app, id, description));}

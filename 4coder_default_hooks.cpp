@@ -384,6 +384,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             b32 showing_file_bar = false;
             if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
                 if (showing_file_bar){
+                    Face_ID face_id = 0;
+                    get_face_id(app, view.buffer_id, &face_id);
+                    
                     Rect_f32 bar = r_cursor;
                     bar.y1 = bar.y0 + line_height + 2.f;
                     r_cursor.y0 = bar.y1;
@@ -396,19 +399,13 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     Temp_Memory_Arena temp = begin_temp_memory(arena);
                     
                     Fancy_String_List list = {};
-#if 0
-                    // NOTE(allen): this is just an example of using base names instead of buffer names.
-                    i32 buffer_name_size = 0;
-                    buffer_get_base_buffer_name(app, buffer.buffer_id, 0, &buffer_name_size);
-                    char *space = push_array(arena, char, buffer_name_size);
-                    String string = make_string_cap(space, 0, buffer_name_size);
-                    buffer_get_base_buffer_name(app, buffer.buffer_id, &string, 0);
-                    push_fancy_string (arena, &list, base_color, string);
-#else
-                    push_fancy_string (arena, &list, base_color, make_string(buffer.buffer_name, buffer.buffer_name_len));
-#endif
-                    
+                    push_fancy_string(arena, &list, base_color, make_string(buffer.buffer_name, buffer.buffer_name_len));
                     push_fancy_stringf(arena, &list, base_color, " - L#%d C#%d -", view.cursor.line, view.cursor.character);
+                    
+                    Face_Metrics face_metrics = {};
+                    get_face_metrics(app, face_id, &face_metrics);
+                    push_fancy_stringf(arena, &list, base_color, " LH: %f; TCW: %f-",
+                                       face_metrics.line_height, face_metrics.typical_character_width);
                     
                     b32 is_dos_mode = false;
                     if (buffer_get_setting(app, buffer.buffer_id, BufferSetting_Eol, &is_dos_mode)){
@@ -439,10 +436,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                         push_fancy_string(arena, &list, pop2_color, str);
                     }
                     
-                    Face_ID font_id = 0;
-                    get_face_id(app, view.buffer_id, &font_id);
                     Vec2 p = bar.p0 + V2(0.f, 2.f);
-                    draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0);
+                    draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
                     
                     end_temp_memory(temp);
                 }
