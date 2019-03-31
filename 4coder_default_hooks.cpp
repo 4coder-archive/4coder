@@ -795,53 +795,76 @@ get_margin_color(i32 level){
 }
 
 static void
-default_ui_render_caller(Application_Links *app, View_ID view_id){
+default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32, Face_ID face_id){
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
-        View_Summary view = {};
-        if (get_view_summary(app, view_id, AccessAll, &view)){
-            Rect_f32 rect_f32 = f32R(view.render_region);
-            GUI_Scroll_Vars ui_scroll = view.scroll_vars;
+        GUI_Scroll_Vars ui_scroll = {};
+        view_get_scroll_vars(app, view_id, &ui_scroll);
+        
+        for (UI_Item *item = ui_data->list.first;
+             item != 0;
+             item = item->next){
+            Rect_i32 item_rect_i32 = item->rect_outer;
+            Rect_f32 item_rect = f32R(item_rect_i32);
             
-            for (UI_Item *item = ui_data->list.first;
-                 item != 0;
-                 item = item->next){
-                Rect_i32 item_rect_i32 = item->rect_outer;
-                Rect_f32 item_rect = f32R(item_rect_i32);
+            switch (item->coordinates){
+                case UICoordinates_ViewSpace:
+                {
+                    item_rect.p0 -= ui_scroll.scroll_p;
+                    item_rect.p1 -= ui_scroll.scroll_p;
+                }break;
+                case UICoordinates_PanelSpace:
+                {}break;
+            }
+            
+            if (rect_overlap(item_rect, rect_f32)){
+                Rect_f32 inner_rect = get_inner_rect(item_rect, (f32)item->inner_margin);
                 
-                switch (item->coordinates){
-                    case UICoordinates_ViewSpace:
-                    {
-                        item_rect.p0 -= ui_scroll.scroll_p;
-                        item_rect.p1 -= ui_scroll.scroll_p;
-                    }break;
-                    case UICoordinates_PanelSpace:
-                    {}break;
+                Face_Metrics metrics = {};
+                get_face_metrics(app, face_id, &metrics);
+                f32 line_height = metrics.line_height;
+                f32 info_height = (f32)item->line_count*line_height;
+                
+                draw_rectangle(app, inner_rect, Stag_Back);
+                Vec2 p = V2(inner_rect.x0 + 3.f, (f32)(round32((inner_rect.y0 + inner_rect.y1 - info_height)*0.5f)));
+                for (i32 i = 0; i < item->line_count; i += 1){
+                    draw_fancy_string(app, face_id, item->lines[i].first, p, Stag_Default, 0, 0, V2(1.f, 0));
+                    p.y += line_height;
                 }
-                
-                if (rect_overlap(item_rect, rect_f32)){
-                    Rect_f32 inner_rect = get_inner_rect(item_rect, (f32)item->inner_margin);
-                    
-                    Face_ID font_id = 0;
-                    get_face_id(app, view.buffer_id, &font_id);
-                    
-                    // TODO(allen): get font_id line height
-                    f32 line_height = view.line_height;
-                    f32 info_height = (f32)item->line_count*line_height;
-                    
-                    draw_rectangle(app, inner_rect, Stag_Back);
-                    Vec2 p = V2(inner_rect.x0 + 3.f, (f32)(round32((inner_rect.y0 + inner_rect.y1 - info_height)*0.5f)));
-                    for (i32 i = 0; i < item->line_count; i += 1){
-                        draw_fancy_string(app, font_id, item->lines[i].first, p, Stag_Default, 0, 0, V2(1.f, 0));
-                        p.y += view.line_height;
-                    }
-                    if (item->inner_margin > 0){
-                        draw_margin(app, item_rect, inner_rect, get_margin_color(item->activation_level));
-                    }
+                if (item->inner_margin > 0){
+                    draw_margin(app, item_rect, inner_rect, get_margin_color(item->activation_level));
                 }
             }
         }
+    }
+}
+static void
+default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32){
+    Buffer_ID buffer_id = 0;
+    view_get_buffer(app, view_id, AccessAll, &buffer_id);
+    Face_ID face_id = 0;
+    get_face_id(app, buffer_id, &face_id);
+    default_ui_render_caller(app, view_id, rect_f32, face_id);
+}
+static void
+default_ui_render_caller(Application_Links *app, View_ID view_id, Face_ID face_id){
+    View_Summary view = {};
+    if (get_view_summary(app, view_id, AccessAll, &view)){
+        Rect_f32 rect_f32 = f32R(view.render_region);
+        default_ui_render_caller(app, view_id, rect_f32, face_id);
+    }
+}
+static void
+default_ui_render_caller(Application_Links *app, View_ID view_id){
+    View_Summary view = {};
+    if (get_view_summary(app, view_id, AccessAll, &view)){
+        Rect_f32 rect_f32 = f32R(view.render_region);
+        Buffer_ID buffer_id = 0;
+        view_get_buffer(app, view_id, AccessAll, &buffer_id);
+        Face_ID face_id = 0;
+        get_face_id(app, buffer_id, &face_id);
+        default_ui_render_caller(app, view_id, rect_f32, face_id);
     }
 }
 
