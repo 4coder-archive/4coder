@@ -41,6 +41,17 @@ struct Name_Line_Column_Location{
     i32 column;
 };
 
+struct Parsed_Jump{
+    b32 success;
+    Name_Line_Column_Location location;
+    i32 colon_position;
+    b32 is_sub_jump;
+    b32 sub_jump_indented;
+    b32 sub_jump_note;
+    b32 is_ms_style;
+    b32 has_rust_arrow;
+};
+
 struct ID_Pos_Jump_Location_Array{
     struct ID_Pos_Jump_Location *jumps;
     i32 count;

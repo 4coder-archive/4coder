@@ -30,6 +30,7 @@ struct Application_Links;
 #define BUFFER_GET_UNIQUE_BUFFER_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out)
 #define BUFFER_GET_FILE_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out)
 #define BUFFER_GET_DIRTY_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out)
+#define BUFFER_DIRECTLY_SET_DIRTY_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state)
 #define BUFFER_TOKENS_ARE_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_GET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)
 #define BUFFER_SET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
@@ -207,6 +208,7 @@ typedef BUFFER_GET_BASE_BUFFER_NAME_SIG(Buffer_Get_Base_Buffer_Name_Function);
 typedef BUFFER_GET_UNIQUE_BUFFER_NAME_SIG(Buffer_Get_Unique_Buffer_Name_Function);
 typedef BUFFER_GET_FILE_NAME_SIG(Buffer_Get_File_Name_Function);
 typedef BUFFER_GET_DIRTY_STATE_SIG(Buffer_Get_Dirty_State_Function);
+typedef BUFFER_DIRECTLY_SET_DIRTY_STATE_SIG(Buffer_Directly_Set_Dirty_State_Function);
 typedef BUFFER_TOKENS_ARE_READY_SIG(Buffer_Tokens_Are_Ready_Function);
 typedef BUFFER_GET_SETTING_SIG(Buffer_Get_Setting_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
@@ -386,6 +388,7 @@ Buffer_Get_Base_Buffer_Name_Function *buffer_get_base_buffer_name;
 Buffer_Get_Unique_Buffer_Name_Function *buffer_get_unique_buffer_name;
 Buffer_Get_File_Name_Function *buffer_get_file_name;
 Buffer_Get_Dirty_State_Function *buffer_get_dirty_state;
+Buffer_Directly_Set_Dirty_State_Function *buffer_directly_set_dirty_state;
 Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready;
 Buffer_Get_Setting_Function *buffer_get_setting;
 Buffer_Set_Setting_Function *buffer_set_setting;
@@ -564,6 +567,7 @@ Buffer_Get_Base_Buffer_Name_Function *buffer_get_base_buffer_name_;
 Buffer_Get_Unique_Buffer_Name_Function *buffer_get_unique_buffer_name_;
 Buffer_Get_File_Name_Function *buffer_get_file_name_;
 Buffer_Get_Dirty_State_Function *buffer_get_dirty_state_;
+Buffer_Directly_Set_Dirty_State_Function *buffer_directly_set_dirty_state_;
 Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready_;
 Buffer_Get_Setting_Function *buffer_get_setting_;
 Buffer_Set_Setting_Function *buffer_set_setting_;
@@ -750,6 +754,7 @@ app_links->buffer_get_base_buffer_name_ = Buffer_Get_Base_Buffer_Name;\
 app_links->buffer_get_unique_buffer_name_ = Buffer_Get_Unique_Buffer_Name;\
 app_links->buffer_get_file_name_ = Buffer_Get_File_Name;\
 app_links->buffer_get_dirty_state_ = Buffer_Get_Dirty_State;\
+app_links->buffer_directly_set_dirty_state_ = Buffer_Directly_Set_Dirty_State;\
 app_links->buffer_tokens_are_ready_ = Buffer_Tokens_Are_Ready;\
 app_links->buffer_get_setting_ = Buffer_Get_Setting;\
 app_links->buffer_set_setting_ = Buffer_Set_Setting;\
@@ -928,6 +933,7 @@ static b32 buffer_get_base_buffer_name(Application_Links *app, Buffer_ID buffer_
 static b32 buffer_get_unique_buffer_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_unique_buffer_name(app, buffer_id, name_out, required_size_out));}
 static b32 buffer_get_file_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_file_name(app, buffer_id, name_out, required_size_out));}
 static b32 buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out){return(app->buffer_get_dirty_state(app, buffer_id, dirty_state_out));}
+static b32 buffer_directly_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_directly_set_dirty_state(app, buffer_id, dirty_state));}
 static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting(app, buffer_id, setting, value));}
@@ -1106,6 +1112,7 @@ static b32 buffer_get_base_buffer_name(Application_Links *app, Buffer_ID buffer_
 static b32 buffer_get_unique_buffer_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_unique_buffer_name_(app, buffer_id, name_out, required_size_out));}
 static b32 buffer_get_file_name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){return(app->buffer_get_file_name_(app, buffer_id, name_out, required_size_out));}
 static b32 buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out){return(app->buffer_get_dirty_state_(app, buffer_id, dirty_state_out));}
+static b32 buffer_directly_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_directly_set_dirty_state_(app, buffer_id, dirty_state));}
 static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready_(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting_(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting_(app, buffer_id, setting, value));}

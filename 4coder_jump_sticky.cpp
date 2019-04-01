@@ -53,19 +53,17 @@ parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summ
         Temp_Memory temp = begin_temp_memory(arena);
         String line_str = {};
         if (read_line(app, arena, buffer.buffer_id, line, &line_str)){
-            Name_Line_Column_Location location = {};
-            if (parse_jump_location(line_str, &location, &colon_index, &is_sub_error)){
+            Parsed_Jump parsed_jump = parse_jump_location(line_str);
+            if (parsed_jump.success){
                 Buffer_Summary jump_buffer = {};
-                if (open_file(app, &jump_buffer, location.file.str, location.file.size, false, true)){
-                    if (jump_buffer.exists){
-                        Partial_Cursor cursor = {};
-                        if (buffer_compute_cursor(app, &jump_buffer,
-                                                  seek_line_char(location.line, location.column),
-                                                  &cursor)){
-                            out_buffer_id = jump_buffer.buffer_id;
-                            out_pos = cursor.pos;
-                            output_jump = true;
-                        }
+                if (open_file(app, &jump_buffer, parsed_jump.location.file.str, parsed_jump.location.file.size, false, true) && jump_buffer.exists){
+                    Partial_Cursor cursor = {};
+                    if (buffer_compute_cursor(app, &jump_buffer,
+                                              seek_line_char(parsed_jump.location.line, parsed_jump.location.column),
+                                              &cursor)){
+                        out_buffer_id = jump_buffer.buffer_id;
+                        out_pos = cursor.pos;
+                        output_jump = true;
                     }
                 }
             }

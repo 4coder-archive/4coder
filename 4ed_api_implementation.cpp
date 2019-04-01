@@ -992,6 +992,18 @@ Buffer_Get_Dirty_State(Application_Links *app, Buffer_ID buffer_id, Dirty_State 
 }
 
 API_EXPORT b32
+Buffer_Directly_Set_Dirty_State(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (buffer_api_check_file(file)){
+        file->state.dirty = dirty_state;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
 Buffer_Tokens_Are_Ready(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -1396,9 +1408,9 @@ DOC_SEE(cpp_get_token)
 */{
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    Cpp_Token_Array token_array = file->state.token_array;
     b32 result = false;
     if (buffer_api_check_file_and_tokens(file)){
+        Cpp_Token_Array token_array = file->state.token_array;
         *get_result = cpp_get_token(token_array, pos);
         result = true;
     }
