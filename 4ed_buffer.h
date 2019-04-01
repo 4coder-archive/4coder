@@ -203,6 +203,7 @@ struct Buffer_Render_Params{
     Font_Pointers font;
     b32 virtual_white;
     i32 wrap_slashes;
+    i32 one_past_last_abs_pos;
 };
 
 struct Buffer_Render_State{

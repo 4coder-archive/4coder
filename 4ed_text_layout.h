@@ -21,6 +21,8 @@ struct Text_Layout{
     // system that attempts to query the layout for hit testing.
     Buffer_ID buffer_id;
     Buffer_Point point;
+    Range on_screen_range;
+    f32 height;
 };
 
 union Text_Layout_Node{

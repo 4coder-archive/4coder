@@ -333,6 +333,16 @@ buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Ve
     return(result);
 }
 
+static i32
+abs_position_from_buffer_point(Application_Links *app, View_ID view_id, Buffer_Point buffer_point){
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view_id, seek_line_char(buffer_point.line_number, 0), &cursor);
+    view_compute_cursor(app, view_id, seek_wrapped_xy(buffer_point.pixel_shift.x,
+                                                      buffer_point.pixel_shift.y + cursor.wrapped_y, false),
+                        &cursor);
+    return(cursor.pos);
+}
+
 static void
 default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id, Rect_i32 view_inner_rect){
     Buffer_ID buffer_id = 0;
@@ -340,22 +350,22 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     
     Rect_i32 sub_region = i32R(0, 0, rect_width(view_inner_rect), rect_height(view_inner_rect));
     sub_region = default_view_buffer_region(app, view_id, sub_region);
-    Rect_i32 buffer_rect = {};
-    buffer_rect.p0 = view_inner_rect.p0 + sub_region.p0;
-    buffer_rect.p1 = view_inner_rect.p0 + sub_region.p1;
-    buffer_rect.x1 = clamp_top(buffer_rect.x1, view_inner_rect.x1);
-    buffer_rect.y1 = clamp_top(buffer_rect.y1, view_inner_rect.y1);
-    buffer_rect.x0 = clamp_top(buffer_rect.x0, buffer_rect.x1);
-    buffer_rect.y0 = clamp_top(buffer_rect.y0, buffer_rect.y1);
+    Rect_f32 buffer_rect = {};
+    buffer_rect.p0 = V2(view_inner_rect.p0 + sub_region.p0);
+    buffer_rect.p1 = V2(view_inner_rect.p0 + sub_region.p1);
+    buffer_rect = intersection_of(buffer_rect, f32R(view_inner_rect));
     
     GUI_Scroll_Vars scroll = {};
     view_get_scroll_vars(app, view_id, &scroll);
     
     Buffer_Point buffer_point = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
-    Range on_screen_range = {};
     Text_Layout_ID text_layout_id = 0;
-    compute_render_layout(app, view_id, buffer_id, buffer_rect, buffer_point,
-                          &on_screen_range, &text_layout_id);
+    
+    compute_render_layout(app, view_id, buffer_id, buffer_rect.p0, rect_dim(buffer_rect), buffer_point,
+                          max_i32, &text_layout_id);
+    
+    Range on_screen_range = {};
+    text_layout_get_on_screen_range(app, view_id, &on_screen_range);
     
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);

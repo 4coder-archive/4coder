@@ -1034,6 +1034,11 @@ rect_width(f32_Rect rect){
     return(rect.x1 - rect.x0);
 }
 
+static Vec2
+rect_dim(f32_Rect rect){
+    return(V2(rect.x1 - rect.x0, rect.y1 - rect.y0));
+}
+
 static i32_Rect
 intersection_of(i32_Rect a, i32_Rect b)
 {

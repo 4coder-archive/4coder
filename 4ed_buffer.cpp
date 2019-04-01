@@ -1660,6 +1660,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     }
     
     S.size = buffer_size(params.buffer);
+    S.size = Min(S.size, params.one_past_last_abs_pos);
     S.shift_x = params.port_x - params.scroll_x;
     S.shift_y = params.port_y - params.scroll_y;
     

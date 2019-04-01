@@ -4665,28 +4665,52 @@ Text_Layout_Layout_Point_To_Buffer_Point(Application_Links *app, Text_Layout_ID 
 }
 
 API_EXPORT b32
+Text_Layout_Get_On_Screen_Range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    b32 result = false;
+    if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
+        *on_screen_range_out = layout.on_screen_range;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Text_Layout_Get_Height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    b32 result = false;
+    if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
+        *height_out = layout.height;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
 Text_Layout_Free(Application_Links *app, Text_Layout_ID text_layout_id){
     Models *models = (Models*)app->cmd_context;
     return(text_layout_erase(&models->text_layouts, text_layout_id));
 }
 
 API_EXPORT b32
-Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out){
+Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     View *view = imp_get_view(models, view_id);
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (view_api_check_view(view) && buffer_api_check_file(file)){
-        i32 line_height = view->line_height;
+        f32 line_height = (f32)view->line_height;
         f32 max_x = (f32)file->settings.display_width;
-        i32 max_y = screen_rect.y1 - screen_rect.y0 + line_height;
+        f32 max_y = layout_dim.y + line_height;
         
         f32 left_side_space = 0;
         
         // TODO(allen): Don't force me to over-allocate!  Write a looser buffer render thingy.
-        f32 screen_width  = (f32)rect_width(screen_rect);
-        f32 screen_height = (f32)rect_height(screen_rect);
+        f32 screen_width  = layout_dim.x;
+        f32 screen_height = layout_dim.y;
         f32 smallest_char_width  = 6.f;
         f32 smallest_char_height = 8.f;
         i32 max = (i32)(screen_width*screen_height/(smallest_char_width*smallest_char_height))*2;
@@ -4727,8 +4751,8 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             params.items         = items;
             params.max           = max;
             params.count         = &item_count;
-            params.port_x        = (f32)screen_rect.x0 + left_side_space;
-            params.port_y        = (f32)screen_rect.y0;
+            params.port_x        = (f32)screen_p.x + left_side_space;
+            params.port_y        = (f32)screen_p.y;
             params.clip_w        = view_width(models, view) - left_side_space;
             params.scroll_x      = scroll_x;
             params.scroll_y      = scroll_y;
@@ -4740,6 +4764,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             params.font          = font;
             params.virtual_white = file->settings.virtual_white;
             params.wrap_slashes  = file->settings.wrap_indicator;
+            params.one_past_last_abs_pos = one_past_last;
             
             Buffer_Render_State state = {};
             Buffer_Layout_Stop stop = {};
@@ -4791,17 +4816,18 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         Range range = {render_cursor.pos, end_pos};
         
         view->render.view_rect = view->panel->rect_inner;
-        view->render.buffer_rect = screen_rect;
+        view->render.buffer_rect = i32R(f32R(screen_p.x, screen_p.y,
+                                             screen_p.x + layout_dim.x, screen_p.y + layout_dim.y));
         view->render.cursor = render_cursor;
         view->render.range = range;
         view->render.items = items;
         view->render.item_count = item_count;
         
-        if (on_screen_range_out != 0){
-            *on_screen_range_out = range;
-        }
         if (text_layout_id_out != 0){
-            *text_layout_id_out = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point);
+            Buffer_Render_Item *render_item_first = items;
+            Buffer_Render_Item *render_item_last = items + item_count - 1;
+            f32 height = render_item_last->y1 - render_item_first->y0;
+            *text_layout_id_out = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point, range, height);
         }
     }
     return(result);

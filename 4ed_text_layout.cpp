@@ -28,10 +28,12 @@ text_layout_new__alloc_layout(Text_Layout_Container *container){
 }
 
 internal Text_Layout_ID
-text_layout_new(Heap *heap, Text_Layout_Container *container, Buffer_ID buffer_id, Buffer_Point point){
+text_layout_new(Heap *heap, Text_Layout_Container *container, Buffer_ID buffer_id, Buffer_Point point, Range on_screen_range, f32 height){
     Text_Layout *new_layout_data = text_layout_new__alloc_layout(container);
     new_layout_data->buffer_id = buffer_id;
     new_layout_data->point = point;
+    new_layout_data->on_screen_range = on_screen_range;
+    new_layout_data->height = height;
     Text_Layout_ID new_id = ++container->id_counter;
     insert_u32_Ptr_table(heap, &container->table, new_id, new_layout_data);
     return(new_id);

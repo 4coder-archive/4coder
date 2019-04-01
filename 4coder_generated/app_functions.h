@@ -171,8 +171,10 @@ struct Application_Links;
 #define TEXT_LAYOUT_GET_BUFFER_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out)
 #define TEXT_LAYOUT_BUFFER_POINT_TO_LAYOUT_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out)
 #define TEXT_LAYOUT_LAYOUT_POINT_TO_BUFFER_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out)
+#define TEXT_LAYOUT_GET_ON_SCREEN_RANGE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out)
+#define TEXT_LAYOUT_GET_HEIGHT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out)
 #define TEXT_LAYOUT_FREE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id)
-#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out)
+#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out)
 #define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
 #define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
@@ -350,6 +352,8 @@ typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
 typedef TEXT_LAYOUT_GET_BUFFER_SIG(Text_Layout_Get_Buffer_Function);
 typedef TEXT_LAYOUT_BUFFER_POINT_TO_LAYOUT_POINT_SIG(Text_Layout_Buffer_Point_To_Layout_Point_Function);
 typedef TEXT_LAYOUT_LAYOUT_POINT_TO_BUFFER_POINT_SIG(Text_Layout_Layout_Point_To_Buffer_Point_Function);
+typedef TEXT_LAYOUT_GET_ON_SCREEN_RANGE_SIG(Text_Layout_Get_On_Screen_Range_Function);
+typedef TEXT_LAYOUT_GET_HEIGHT_SIG(Text_Layout_Get_Height_Function);
 typedef TEXT_LAYOUT_FREE_SIG(Text_Layout_Free_Function);
 typedef COMPUTE_RENDER_LAYOUT_SIG(Compute_Render_Layout_Function);
 typedef DRAW_RENDER_LAYOUT_SIG(Draw_Render_Layout_Function);
@@ -531,6 +535,8 @@ Get_Default_Font_For_View_Function *get_default_font_for_view;
 Text_Layout_Get_Buffer_Function *text_layout_get_buffer;
 Text_Layout_Buffer_Point_To_Layout_Point_Function *text_layout_buffer_point_to_layout_point;
 Text_Layout_Layout_Point_To_Buffer_Point_Function *text_layout_layout_point_to_buffer_point;
+Text_Layout_Get_On_Screen_Range_Function *text_layout_get_on_screen_range;
+Text_Layout_Get_Height_Function *text_layout_get_height;
 Text_Layout_Free_Function *text_layout_free;
 Compute_Render_Layout_Function *compute_render_layout;
 Draw_Render_Layout_Function *draw_render_layout;
@@ -711,6 +717,8 @@ Get_Default_Font_For_View_Function *get_default_font_for_view_;
 Text_Layout_Get_Buffer_Function *text_layout_get_buffer_;
 Text_Layout_Buffer_Point_To_Layout_Point_Function *text_layout_buffer_point_to_layout_point_;
 Text_Layout_Layout_Point_To_Buffer_Point_Function *text_layout_layout_point_to_buffer_point_;
+Text_Layout_Get_On_Screen_Range_Function *text_layout_get_on_screen_range_;
+Text_Layout_Get_Height_Function *text_layout_get_height_;
 Text_Layout_Free_Function *text_layout_free_;
 Compute_Render_Layout_Function *compute_render_layout_;
 Draw_Render_Layout_Function *draw_render_layout_;
@@ -899,6 +907,8 @@ app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
 app_links->text_layout_get_buffer_ = Text_Layout_Get_Buffer;\
 app_links->text_layout_buffer_point_to_layout_point_ = Text_Layout_Buffer_Point_To_Layout_Point;\
 app_links->text_layout_layout_point_to_buffer_point_ = Text_Layout_Layout_Point_To_Buffer_Point;\
+app_links->text_layout_get_on_screen_range_ = Text_Layout_Get_On_Screen_Range;\
+app_links->text_layout_get_height_ = Text_Layout_Get_Height;\
 app_links->text_layout_free_ = Text_Layout_Free;\
 app_links->compute_render_layout_ = Compute_Render_Layout;\
 app_links->draw_render_layout_ = Draw_Render_Layout;\
@@ -1079,8 +1089,10 @@ static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id
 static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer(app, text_layout_id, buffer_id_out));}
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point(app, text_layout_id, layout_relative_p, p_out));}
+static b32 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){return(app->text_layout_get_on_screen_range(app, text_layout_id, on_screen_range_out));}
+static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height(app, text_layout_id, height_out));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free(app, text_layout_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout(app, view_id, buffer_id, screen_rect, buffer_point, on_screen_range_out, text_layout_id_out));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last, text_layout_id_out));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
@@ -1259,8 +1271,10 @@ static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id
 static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer_(app, text_layout_id, buffer_id_out));}
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point_(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point_(app, text_layout_id, layout_relative_p, p_out));}
+static b32 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){return(app->text_layout_get_on_screen_range_(app, text_layout_id, on_screen_range_out));}
+static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height_(app, text_layout_id, height_out));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free_(app, text_layout_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout_(app, view_id, buffer_id, screen_rect, buffer_point, on_screen_range_out, text_layout_id_out));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout_(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last, text_layout_id_out));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}
