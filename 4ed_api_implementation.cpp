@@ -4617,7 +4617,7 @@ Text_Layout_Get_Buffer(Application_Links *app, Text_Layout_ID text_layout_id, Bu
 }
 
 API_EXPORT b32
-Text_Layout_Compute_Cursor(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 p, b32 round_down, Full_Cursor *cursor_out){
+Text_Layout_Buffer_Point_To_Layout_Point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){
     Models *models = (Models*)app->cmd_context;
     Text_Layout layout = {};
     b32 result = false;
@@ -4625,15 +4625,39 @@ Text_Layout_Compute_Cursor(Application_Links *app, Text_Layout_ID text_layout_id
         Editing_File *file = imp_get_file(models, layout.buffer_id);
         if (buffer_api_check_file(file)){
             System_Functions *system = models->system;
+            // TODO(allen): this could be computed and stored _once_ right?
             Full_Cursor top = file_compute_cursor(system, file, seek_line_char(layout.point.line_number, 1));
             f32 top_y = top.wrapped_y;
             if (file->settings.unwrapped_lines){
                 top_y = top.unwrapped_y;
             }
-            p += layout.point.pixel_shift;
-            p.y += top_y;
-            Buffer_Seek seek = seek_xy(p.x, p.y, round_down, file->settings.unwrapped_lines);
-            *cursor_out = file_compute_cursor(system, file, seek);
+            buffer_relative_p -= layout.point.pixel_shift;
+            buffer_relative_p.y -= top_y;
+            *p_out = buffer_relative_p;
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Text_Layout_Layout_Point_To_Buffer_Point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    b32 result = false;
+    if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
+        Editing_File *file = imp_get_file(models, layout.buffer_id);
+        if (buffer_api_check_file(file)){
+            System_Functions *system = models->system;
+            // TODO(allen): this could be computed and stored _once_ right?
+            Full_Cursor top = file_compute_cursor(system, file, seek_line_char(layout.point.line_number, 1));
+            f32 top_y = top.wrapped_y;
+            if (file->settings.unwrapped_lines){
+                top_y = top.unwrapped_y;
+            }
+            layout_relative_p += layout.point.pixel_shift;
+            layout_relative_p.y += top_y;
+            *p_out = layout_relative_p;
             result = true;
         }
     }

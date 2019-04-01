@@ -80,6 +80,15 @@ struct Temp_Memory_Arena_Light{
     i32_4tech pos;
 };
 
+struct Scratch_Block{
+    Scratch_Block(Application_Links *app);
+    ~Scratch_Block();
+    operator Arena *();
+    
+    Arena *scratch;
+    Temp_Memory_Arena temp;
+};
+
 #endif
 
 #endif

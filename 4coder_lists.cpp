@@ -573,8 +573,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
              info < one_past_last;
              info += 1){
             if (!info->folder) continue;
-            String file_name = build_string(arena_use_as_part(&lister->arena, info->filename_len + 1),
-                                            make_string(info->filename, info->filename_len), "/", "");
+            String file_name = string_push_f(&lister->arena, "%.*s/", info->filename_len, info->filename);
             lister_add_item(lister, lister_prealloced(file_name), empty_string_prealloced, file_name.str, 0);
         }
         
@@ -613,8 +612,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                     case DirtyState_UnsavedChangesAndUnloadedChanges: status_flag = " *!"; break;
                 }
             }
-            i32 more_than_enough_memory = 32;
-            String status = build_string(arena_use_as_part(&lister->arena, more_than_enough_memory), is_loaded, status_flag, "");
+            String status = string_push_f(&lister->arena, "%s%s", is_loaded, status_flag);
             lister_add_item(lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
         }
     }
@@ -796,10 +794,12 @@ activate_open_or_new__generic(Application_Links *app, Partition *scratch, View_S
         Temp_Memory temp = begin_temp_memory(scratch);
         String full_file_name = {};
         if (path.size == 0 || !char_is_slash(path.str[path.size - 1])){
-            full_file_name = build_string(scratch, path, "/", file_name);
+            full_file_name = string_push_f(scratch, "%.*s/%.*s", 
+                                           path.size, path.str, file_name.size, file_name.str);
         }
         else{
-            full_file_name = build_string(scratch, path, "", file_name);
+            full_file_name = string_push_f(scratch, "%.*s%.*s",
+                                           path.size, path.str, file_name.size, file_name.str);
         }
         if (is_folder){
             directory_set_hot(app, full_file_name.str, full_file_name.size);

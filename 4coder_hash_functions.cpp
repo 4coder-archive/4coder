@@ -9,7 +9,10 @@
 
 // TOP
 
-internal u64
+#if !defined(FCODER_HASH_FUNCTIONS_CPP)
+#define FCODER_HASH_FUNCTIONS_CPP
+
+static u64
 table_hash_u8(u8 *v, i32 size){
     u64 hash = 0;
     for (u8 *p = v, *e = v + size; p < e; p += 1){
@@ -22,7 +25,7 @@ table_hash_u8(u8 *v, i32 size){
     }
     return(hash);
 }
-internal u64
+static u64
 table_hash_u16(u16 *v, i32 size){
     u64 hash = 0;
     for (u16 *p = v, *e = v + size; p < e; p += 1){
@@ -35,7 +38,7 @@ table_hash_u16(u16 *v, i32 size){
     }
     return(hash);
 }
-internal u64
+static u64
 table_hash_u32(u32 *v, i32 size){
     u64 hash = 0;
     for (u32 *p = v, *e = v + size; p < e; p += 1){
@@ -48,7 +51,7 @@ table_hash_u32(u32 *v, i32 size){
     }
     return(hash);
 }
-internal u64
+static u64
 table_hash_u64(u64 *v, i32 size){
     u64 hash = 0;
     for (u64 *p = v, *e = v + size; p < e; p += 1){
@@ -61,7 +64,7 @@ table_hash_u64(u64 *v, i32 size){
     }
     return(hash);
 }
-internal u64
+static u64
 table_hash(void *v, i32 it_size, i32 size){
     u64 hash = 0;
     switch (it_size){
@@ -89,6 +92,7 @@ table_hash(void *v, i32 it_size, i32 size){
     return(hash);
 }
 
-// BOTTOM
+#endif
 
+// BOTTOM
 

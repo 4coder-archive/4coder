@@ -44,6 +44,7 @@
 
 #include "4coder_api_transition_30_31.cpp"
 
+#include "4coder_hash_functions.cpp"
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
 #include "4coder_helper.cpp"

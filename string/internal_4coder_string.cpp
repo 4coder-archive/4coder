@@ -39,6 +39,7 @@ typedef struct String{
 } String;
 
 static String null_string = {};
+static String empty_string = {"", 0, 0};
 #endif
 
 FSTRING_DECLS

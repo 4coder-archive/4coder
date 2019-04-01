@@ -263,6 +263,21 @@ push_allocator_align(Arena *arena, i32_4tech b){
     arena_align(arena, b);
 }
 
+////////////////////////////////
+
+Scratch_Block::Scratch_Block(Application_Links *app){
+    scratch = context_get_arena(app);
+    temp = begin_temp_memory(scratch);
+}
+
+Scratch_Block::~Scratch_Block(){
+    end_temp_memory(temp);
+}
+
+Scratch_Block::operator Arena*(){
+    return(scratch);
+}
+
 #endif
 
 ////////////////////////////////

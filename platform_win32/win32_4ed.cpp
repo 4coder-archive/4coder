@@ -126,7 +126,7 @@ global System_Functions sysfunc;
 #include "4ed_font.cpp"
 
 #include "4ed_mem.cpp"
-#include "4ed_hash_functions.cpp"
+#include "4coder_hash_functions.cpp"
 
 ////////////////////////////////
 

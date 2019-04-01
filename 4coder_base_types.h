@@ -420,6 +420,14 @@ struct Rect_i32{
 typedef Rect_f32 f32_Rect;
 typedef Rect_i32 i32_Rect;
 
+struct f32_Rect_Pair
+{
+    f32_Rect E[2];
+};
+
+typedef f32_Rect_Pair Rect_f32_Pair;
+
+
 #endif
 
 // BOTTOM

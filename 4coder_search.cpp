@@ -601,47 +601,6 @@ buffered_print_buffer_length(Partition *part, Temp_Memory temp){
     return(part->pos - temp.pos);
 }
 
-#if 0
-static void
-buffered_print_match_jump_line(Application_Links *app, Partition *part, Temp_Memory temp, Partition *line_part, Buffer_Summary *output_buffer,
-                               Buffer_Summary *match_buffer, Partial_Cursor word_pos){
-    char *file_name = match_buffer->buffer_name;
-    int32_t file_len = match_buffer->buffer_name_len;
-    
-    int32_t line_num_len = int_to_str_size(word_pos.line);
-    int32_t column_num_len = int_to_str_size(word_pos.character);
-    
-    Temp_Memory line_temp = begin_temp_memory(line_part);
-    String line_str = {};
-    if (read_line(app, line_part, match_buffer, word_pos.line, &line_str)){
-        line_str = skip_chop_whitespace(line_str);
-        
-        int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
-        
-        char *spare = buffered_memory_reserve(app, part, temp, output_buffer, str_len);
-        
-        String out_line = make_string_cap(spare, 0, str_len);
-        append_ss(&out_line, make_string(file_name, file_len));
-        append_s_char(&out_line, ':');
-        append_int_to_str(&out_line, word_pos.line);
-        append_s_char(&out_line, ':');
-        append_int_to_str(&out_line, word_pos.character);
-        append_s_char(&out_line, ':');
-        append_s_char(&out_line, ' ');
-        append_ss(&out_line, line_str);
-        append_s_char(&out_line, '\n');
-        Assert(out_line.size == str_len);
-    }
-    
-    end_temp_memory(line_temp);
-}
-#endif
-
-#if 0
-static b32
-search_buffer_edit_handler(Application_Links *app, Buffer_ID buffer_id, int32_t start, int32_t one_past_last, String text);
-#endif
-
 static String search_name = make_lit_string("*search*");
 
 static void
@@ -804,15 +763,15 @@ list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *
     
     String match_strings[9];
     int32_t i = 0;
-    match_strings[i++] = build_string(scratch, "struct ", str, "{");
-    match_strings[i++] = build_string(scratch, "struct ", str, "\n{");
-    match_strings[i++] = build_string(scratch, "struct ", str, " {");
-    match_strings[i++] = build_string(scratch, "union " , str, "{");
-    match_strings[i++] = build_string(scratch, "union " , str, "\n{");
-    match_strings[i++] = build_string(scratch, "union " , str, " {");
-    match_strings[i++] = build_string(scratch, "enum "  , str, "{");
-    match_strings[i++] = build_string(scratch, "enum "  , str, "\n{");
-    match_strings[i++] = build_string(scratch, "enum "  , str, " {");
+    match_strings[i++] = string_push_f(scratch, "struct %.*s{"  , str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "struct %.*s\n{", str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "struct %.*s {" , str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "union %.*s{"   , str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "union %.*s\n{" , str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "union %.*s {"  , str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "enum %.*s{"    , str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "enum %.*s\n{"  , str.size, str.str);
+    match_strings[i++] = string_push_f(scratch, "enum %.*s {"   , str.size, str.str);
     
     list__parameters(app, heap, scratch,
                      match_strings, ArrayCount(match_strings), 0,

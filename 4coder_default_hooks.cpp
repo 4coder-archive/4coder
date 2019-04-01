@@ -753,10 +753,10 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     f32 dt = dts[k];
                     str.size = 0;
                     if (dt == 0.f){
-                        push_fancy_stringf(arena, &list, white, "-----");
+                        push_fancy_stringf(arena, &list, white, "----------");
                     }
                     else{
-                        push_fancy_stringf(arena, &list, white, "%5d", round32(1.f/dt));
+                        push_fancy_stringf(arena, &list, white, "%10.6f", dt);
                     }
                     push_fancy_stringf(arena, &list, green, " | ");
                 }
@@ -764,6 +764,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 draw_fancy_string(app, font_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
             }
         }
+        
+        animate_in_n_milliseconds(app, 1000);
     }
     
     end_temp_memory(major_temp);

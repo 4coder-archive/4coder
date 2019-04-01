@@ -66,7 +66,6 @@ struct Mem_Options{
 #include "4ed_app_models.h"
 
 #include "4ed_mem.cpp"
-#include "4ed_hash_functions.cpp"
 #include "4ed_ptr_check.cpp"
 #include "4ed_memory_bank.cpp"
 #include "4ed_dynamic_variables.cpp"

@@ -35,21 +35,15 @@ insert_string(Buffer_Insertion *insertion, String string){
 
 static i32
 insertf(Buffer_Insertion *insertion, char *format, ...){
-    // TODO(casey): Allen, ideally we would have our own formatter here that just outputs into a buffer and can't ever "run out of space".
-    char temp[1024];
-    
+    Arena *arena = context_get_arena(insertion->app);
+    Temp_Memory_Arena temp = begin_temp_memory(arena);
     va_list args;
-    // TODO(casey): Allen, ideally we would have our own formatted here that could handle our string type, via %S or something, so 
-    // we don't have to keep doing %.*s and passing two parameters and all that garbage.
     va_start(args, format);
-    // TODO(casey): Allen, ideally we would have our own formatted here that could handle our string type, via %S or something, so 
-    // we don't have to keep doing %.*s and passing two parameters and all that garbage.
-    i32 result = vsprintf(temp, format, args);
+    String string = string_push_fv(arena, format, args);
     va_end(args);
-    
-    insert_string(insertion, make_string(temp, result));
-    
-    return(result);
+    insert_string(insertion, string);
+    end_temp_memory(temp);
+    return(string.size);
 }
 
 static void

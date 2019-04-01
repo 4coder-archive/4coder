@@ -840,6 +840,56 @@ hsla_to_rgba(Vec4 hsla){
 
 ////////////////////////////////
 
+static i32
+get_width(Range range){
+    i32 result = range.end - range.start;
+    if (result < 0){
+        result = 0;
+    }
+    return(result);
+}
+
+static Range
+make_range(i32 p1, i32 p2){
+    Range range;
+    if (p1 < p2){
+        range.min = p1;
+        range.max = p2;
+    }
+    else{
+        range.min = p2;
+        range.max = p1;
+    }
+    return(range);
+}
+
+static Range
+rectify(Range range) {
+    return(make_range(range.min, range.max));
+}
+
+static b32
+interval_overlap(i32 a0, i32 a1, i32 b0, i32 b1){
+    return(!(a1 < b0 || b1 < a0));
+}
+
+static b32
+interval_overlap(Range a, Range b){
+    return(interval_overlap(a.first, a.one_past_last, b.first, b.one_past_last));
+}
+
+static b32
+interval_contains(i32 a0, i32 a1, i32 b){
+    return((a0 <= b) && (b < a1));
+}
+
+static b32
+interval_contains(Range range, i32 b){
+    return(interval_contains(range.start, range.one_past_last, b));
+}
+
+////////////////////////////////
+
 static i32_Rect
 i32R(i32 l, i32 t, i32 r, i32 b){
     i32_Rect rect = {};

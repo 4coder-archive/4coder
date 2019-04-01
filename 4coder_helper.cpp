@@ -4,6 +4,74 @@
 
 // TOP
 
+static String
+string_push(Arena *arena, i32 size){
+    String result = {};
+    if (size != 0){
+        result.str = push_array(arena, char, size);
+        if (result.str != 0){
+            result.memory_size = size;
+        }
+    }
+    return(result);
+}
+
+static String
+string_push_copy(Arena *arena, String str){
+    String result = {};
+    if (str.str != 0){
+        result.str = push_array(arena, char, str.size + 1);
+        if (result.str != 0){
+            result.memory_size = str.size + 1;
+            copy(&result, str);
+            result.str[result.size] = 0;
+        }
+    }
+    return(result);
+}
+
+static String
+string_push_fv(Arena *arena, char *format, va_list args){
+    char temp[KB(4)];
+    i32 n = vsnprintf(temp, sizeof(temp), format, args);
+    String result = {};
+    if (0 <= n && n < sizeof(temp)){
+        result = string_push_copy(arena, make_string(temp, n));
+    }
+    return(result);
+}
+
+static String
+string_push_fv(Partition *part, char *format, va_list args){
+    char temp[KB(4)];
+    i32 n = vsnprintf(temp, sizeof(temp), format, args);
+    String result = {};
+    if (0 <= n && n < sizeof(temp)){
+        result = string_push_copy(part, make_string(temp, n));
+    }
+    return(result);
+}
+
+static String
+string_push_f(Arena *arena, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    String result = string_push_fv(arena, format, args);
+    va_end(args);
+    return(result);
+}
+
+static String
+string_push_f(Partition *part, char *format, ...){
+    va_list args;
+    va_start(args, format);
+    String result = string_push_fv(part, format, args);
+    va_end(args);
+    return(result);
+}
+
+////////////////////////////////
+
 static Binding_Unit*
 write_unit(Bind_Helper *helper, Binding_Unit unit){
     Binding_Unit *p = 0;
@@ -423,6 +491,11 @@ query_user_number(Application_Links *app, Query_Bar *bar){
     return(query_user_general(app, bar, true));
 }
 
+static i32
+buffer_replace_range_compute_shift(i32 start, i32 end, i32 len){
+    return(len - (end - start));
+}
+
 static char
 buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i32 pos){
     i32 buffer_size = 0;
@@ -450,20 +523,6 @@ buffer_identifier(Buffer_ID id){
     identifier.name_len = 0;
     identifier.id = id;
     return(identifier);
-}
-
-static Range
-make_range(i32 p1, i32 p2){
-    Range range;
-    if (p1 < p2){
-        range.min = p1;
-        range.max = p2;
-    }
-    else{
-        range.min = p2;
-        range.max = p1;
-    }
-    return(range);
 }
 
 static void
@@ -737,6 +796,15 @@ get_view_range(View_Summary *view){
     return(make_range(view->cursor.pos, view->mark.pos));
 }
 
+static String
+buffer_read_string(Application_Links *app, Buffer_ID buffer, Range range, void *dest) {
+    String result = {};
+    if (dest != 0 && buffer_read_range(app, buffer, range.start, range.end, (char *)dest)){
+        result = make_string((char *)dest, get_width(range));
+    }
+    return(result);
+}
+
 static b32
 read_line(Application_Links *app, Partition *part, Buffer_ID buffer_id, i32 line, String *str,
           Partial_Cursor *start_out, Partial_Cursor *one_past_last_out){
@@ -789,9 +857,39 @@ scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, i32 s
 }
 
 static String
+scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, Range range){
+    return(scratch_read(app, scratch, buffer, range.first, range.one_past_last));
+}
+
+static String
+scratch_read(Application_Links *app, Arena *scratch, Buffer_ID buffer, i32 start, i32 end){
+    String result = {};
+    if (start <= end){
+        i32 len = end - start;
+        result = string_push(scratch, len);
+        if (buffer_read_range(app, buffer, start, end, result.str)){
+            result.size = len;
+        }
+    }
+    return(result);
+}
+
+static String
+scratch_read(Application_Links *app, Arena *scratch, Buffer_ID buffer, Range range){
+    return(scratch_read(app, scratch, buffer, range.first, range.one_past_last));
+}
+
+static String
 scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, Cpp_Token token){
     String result = scratch_read(app, scratch, buffer, token.start, token.start + token.size);
     return(result);
+}
+
+static String
+read_entire_buffer(Application_Links *app, Buffer_ID buffer_id, Arena *scratch){
+    i32 size = 0;
+    buffer_get_size(app, buffer_id, &size);
+    return(scratch_read(app, scratch, buffer_id, 0, size));
 }
 
 static i32
@@ -1216,131 +1314,6 @@ get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 
             if (success){
                 result = make_string(space, size);
             }
-        }
-    }
-    return(result);
-}
-
-static String
-build_string(Partition *part, char *s0, char *s1, char *s2){
-    String sr = {};
-    sr.memory_size = str_size(s0) + str_size(s1) + str_size(s2) + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    return(sr);
-}
-
-static String
-build_string(Partition *part, char *s0, char *s1, String s2){
-    String sr = {};
-    sr.memory_size = str_size(s0) + str_size(s1) + s2.size + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    terminate_with_null(&sr);
-    return(sr);
-}
-
-static String
-build_string(Partition *part, char *s0, String s1, char *s2){
-    String sr = {};
-    sr.memory_size = str_size(s0) + s1.size + str_size(s2) + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    terminate_with_null(&sr);
-    return(sr);
-}
-
-static String
-build_string(Partition *part, char *s0, String s1, String s2){
-    String sr = {};
-    sr.memory_size = str_size(s0) + s1.size + s2.size + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    terminate_with_null(&sr);
-    return(sr);
-}
-
-static String
-build_string(Partition *part, String s0, char *s1, char *s2){
-    String sr = {};
-    sr.memory_size = s0.size + str_size(s1) + str_size(s2) + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    terminate_with_null(&sr);
-    return(sr);
-}
-
-static String
-build_string(Partition *part, String s0, char *s1, String s2){
-    String sr = {};
-    sr.memory_size = s0.size + str_size(s1) + s2.size + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    terminate_with_null(&sr);
-    return(sr);
-}
-
-static String
-build_string(Partition *part, String s0, String s1, char *s2){
-    String sr = {};
-    sr.memory_size = s0.size + s1.size + str_size(s2) + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    terminate_with_null(&sr);
-    return(sr);
-}
-
-static String
-build_string(Partition *part, String s0, String s1, String s2){
-    String sr = {};
-    sr.memory_size = s0.size + s1.size + s2.size + 1;
-    sr.str = push_array(part, char, sr.memory_size);
-    if (sr.str != 0){
-        append(&sr, s0);
-        append(&sr, s1);
-        append(&sr, s2);
-    }
-    terminate_with_null(&sr);
-    return(sr);
-}
-
-static String
-string_push_copy(Arena *arena, String str){
-    String result = {};
-    if (str.str != 0){
-        result.str = push_array(arena, char, str.size + 1);
-        if (result.str != 0){
-            result.memory_size = str.size + 1;
-            copy(&result, str);
-            result.str[result.size] = 0;
         }
     }
     return(result);
