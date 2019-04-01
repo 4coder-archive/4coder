@@ -869,8 +869,9 @@ App_Init_Sig(app_init){
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
-    // NOTE(allen): history setup
+    // NOTE(allen): 
     global_history_init(&models->global_history);
+    text_layout_init(&models->app_links, &models->text_layouts);
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);

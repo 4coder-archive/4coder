@@ -34,6 +34,13 @@ TYPEDEF i32 View_ID;
 
 TYPEDEF i32 Panel_ID;
 
+TYPEDEF u32 Text_Layout_ID;
+
+STRUCT Buffer_Point{
+    i32 line_number;
+    Vec2 pixel_shift;
+};
+
 ENUM(u32, Child_Process_Set_Target_Flags){
     ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess = 1,
     ChildProcessSet_FailIfProcessAlreadyAttachedToABuffer = 2,

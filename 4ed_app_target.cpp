@@ -62,6 +62,7 @@ struct Mem_Options{
 #include "4ed_layout.h"
 #include "4ed_view.h"
 #include "4ed_edit.h"
+#include "4ed_text_layout.h"
 #include "4ed_app_models.h"
 
 #include "4ed_mem.cpp"
@@ -89,6 +90,7 @@ struct Mem_Options{
 #include "4ed_view.cpp"
 #include "4ed_edit.cpp"
 #include "4ed_view_ui.cpp"
+#include "4ed_text_layout.cpp"
 #include "4ed.cpp"
 
 // BOTTOM

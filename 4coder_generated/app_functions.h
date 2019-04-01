@@ -168,7 +168,10 @@ struct Application_Links;
 #define DRAW_COORDINATE_CENTER_PUSH_SIG(n) void n(Application_Links *app, Vec2 point)
 #define DRAW_COORDINATE_CENTER_POP_SIG(n) Vec2 n(Application_Links *app)
 #define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
-#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out)
+#define TEXT_LAYOUT_GET_BUFFER_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out)
+#define TEXT_LAYOUT_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 p, b32 round_down, Full_Cursor *cursor_out)
+#define TEXT_LAYOUT_FREE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id)
+#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out)
 #define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
 #define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
@@ -343,6 +346,9 @@ typedef DRAW_CLIP_POP_SIG(Draw_Clip_Pop_Function);
 typedef DRAW_COORDINATE_CENTER_PUSH_SIG(Draw_Coordinate_Center_Push_Function);
 typedef DRAW_COORDINATE_CENTER_POP_SIG(Draw_Coordinate_Center_Pop_Function);
 typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
+typedef TEXT_LAYOUT_GET_BUFFER_SIG(Text_Layout_Get_Buffer_Function);
+typedef TEXT_LAYOUT_COMPUTE_CURSOR_SIG(Text_Layout_Compute_Cursor_Function);
+typedef TEXT_LAYOUT_FREE_SIG(Text_Layout_Free_Function);
 typedef COMPUTE_RENDER_LAYOUT_SIG(Compute_Render_Layout_Function);
 typedef DRAW_RENDER_LAYOUT_SIG(Draw_Render_Layout_Function);
 typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
@@ -520,6 +526,9 @@ Draw_Clip_Pop_Function *draw_clip_pop;
 Draw_Coordinate_Center_Push_Function *draw_coordinate_center_push;
 Draw_Coordinate_Center_Pop_Function *draw_coordinate_center_pop;
 Get_Default_Font_For_View_Function *get_default_font_for_view;
+Text_Layout_Get_Buffer_Function *text_layout_get_buffer;
+Text_Layout_Compute_Cursor_Function *text_layout_compute_cursor;
+Text_Layout_Free_Function *text_layout_free;
 Compute_Render_Layout_Function *compute_render_layout;
 Draw_Render_Layout_Function *draw_render_layout;
 Open_Color_Picker_Function *open_color_picker;
@@ -696,6 +705,9 @@ Draw_Clip_Pop_Function *draw_clip_pop_;
 Draw_Coordinate_Center_Push_Function *draw_coordinate_center_push_;
 Draw_Coordinate_Center_Pop_Function *draw_coordinate_center_pop_;
 Get_Default_Font_For_View_Function *get_default_font_for_view_;
+Text_Layout_Get_Buffer_Function *text_layout_get_buffer_;
+Text_Layout_Compute_Cursor_Function *text_layout_compute_cursor_;
+Text_Layout_Free_Function *text_layout_free_;
 Compute_Render_Layout_Function *compute_render_layout_;
 Draw_Render_Layout_Function *draw_render_layout_;
 Open_Color_Picker_Function *open_color_picker_;
@@ -880,6 +892,9 @@ app_links->draw_clip_pop_ = Draw_Clip_Pop;\
 app_links->draw_coordinate_center_push_ = Draw_Coordinate_Center_Push;\
 app_links->draw_coordinate_center_pop_ = Draw_Coordinate_Center_Pop;\
 app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
+app_links->text_layout_get_buffer_ = Text_Layout_Get_Buffer;\
+app_links->text_layout_compute_cursor_ = Text_Layout_Compute_Cursor;\
+app_links->text_layout_free_ = Text_Layout_Free;\
 app_links->compute_render_layout_ = Compute_Render_Layout;\
 app_links->draw_render_layout_ = Draw_Render_Layout;\
 app_links->open_color_picker_ = Open_Color_Picker;\
@@ -1056,7 +1071,10 @@ static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop(
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out){return(app->compute_render_layout(app, view_id, buffer_id, screen_rect, buffer_line_number, y_pixel_shift, scroll_x, on_screen_range_out));}
+static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer(app, text_layout_id, buffer_id_out));}
+static b32 text_layout_compute_cursor(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 p, b32 round_down, Full_Cursor *cursor_out){return(app->text_layout_compute_cursor(app, text_layout_id, p, round_down, cursor_out));}
+static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free(app, text_layout_id));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout(app, view_id, buffer_id, screen_rect, buffer_point, on_screen_range_out, text_layout_id_out));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
@@ -1232,7 +1250,10 @@ static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop_
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push_(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop_(app));}
 static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out){return(app->compute_render_layout_(app, view_id, buffer_id, screen_rect, buffer_line_number, y_pixel_shift, scroll_x, on_screen_range_out));}
+static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer_(app, text_layout_id, buffer_id_out));}
+static b32 text_layout_compute_cursor(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 p, b32 round_down, Full_Cursor *cursor_out){return(app->text_layout_compute_cursor_(app, text_layout_id, p, round_down, cursor_out));}
+static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free_(app, text_layout_id));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout_(app, view_id, buffer_id, screen_rect, buffer_point, on_screen_range_out, text_layout_id_out));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}

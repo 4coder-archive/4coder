@@ -2402,7 +2402,6 @@ DOC_SEE(Full_Cursor)
     b32 result = false;
     if (view_api_check_view(view)){
         Editing_File *file = view->file;
-        Assert(file != 0);
         if (buffer_api_check_file(file)){
             if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
                 seek.type = buffer_seek_unwrapped_xy;
@@ -4634,7 +4633,49 @@ Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
 }
 
 API_EXPORT b32
-Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, i32 buffer_line_number, f32 y_pixel_shift, f32 scroll_x, Range *on_screen_range_out){
+Text_Layout_Get_Buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    b32 result = false;
+    if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
+        *buffer_id_out = layout.buffer_id;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Text_Layout_Compute_Cursor(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 p, b32 round_down, Full_Cursor *cursor_out){
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    b32 result = false;
+    if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
+        Editing_File *file = imp_get_file(models, layout.buffer_id);
+        if (buffer_api_check_file(file)){
+            System_Functions *system = models->system;
+            Full_Cursor top = file_compute_cursor(system, file, seek_line_char(layout.point.line_number, 1));
+            f32 top_y = top.wrapped_y;
+            if (file->settings.unwrapped_lines){
+                top_y = top.unwrapped_y;
+            }
+            p += layout.point.pixel_shift;
+            p.y += top_y;
+            Buffer_Seek seek = seek_xy(p.x, p.y, round_down, file->settings.unwrapped_lines);
+            *cursor_out = file_compute_cursor(system, file, seek);
+            result = true;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Text_Layout_Free(Application_Links *app, Text_Layout_ID text_layout_id){
+    Models *models = (Models*)app->cmd_context;
+    return(text_layout_erase(&models->text_layouts, text_layout_id));
+}
+
+API_EXPORT b32
+Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Rect_i32 screen_rect, Buffer_Point buffer_point, Range *on_screen_range_out, Text_Layout_ID *text_layout_id_out){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     View *view = imp_get_view(models, view_id);
@@ -4672,8 +4713,9 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         
         Full_Cursor render_cursor = view_get_render_cursor(system, view);
 #else
-        Full_Cursor intermediate_cursor = file_compute_cursor(system, file, seek_line_char(buffer_line_number, 1));
-        f32 scroll_y = intermediate_cursor.unwrapped_y + y_pixel_shift;
+        Full_Cursor intermediate_cursor = file_compute_cursor(system, file, seek_line_char(buffer_point.line_number, 1));
+        f32 scroll_x = buffer_point.pixel_shift.x;
+        f32 scroll_y = intermediate_cursor.unwrapped_y + buffer_point.pixel_shift.y;
         Full_Cursor render_cursor = view_get_render_cursor(system, view, scroll_y);
 #endif
 
@@ -4755,7 +4797,12 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         view->render.items = items;
         view->render.item_count = item_count;
         
-        *on_screen_range_out = range;
+        if (on_screen_range_out != 0){
+            *on_screen_range_out = range;
+        }
+        if (text_layout_id_out != 0){
+            *text_layout_id_out = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point);
+        }
     }
     return(result);
 }

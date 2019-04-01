@@ -3,7 +3,7 @@
  *
  * 31.03.2019
  *
- * Implementation of the API functions.
+ * Text layout representation
  *
  */
 
@@ -20,8 +20,19 @@ struct Text_Layout{
     // this just stores the parameters that should be handed to any
     // system that attempts to query the layout for hit testing.
     Buffer_ID buffer_id;
-    i32 line;
-    Vec2 pixel_shift;
+    Buffer_Point point;
+};
+
+union Text_Layout_Node{
+    Text_Layout_Node *next;
+    Text_Layout layout;
+};
+
+struct Text_Layout_Container{
+    Arena node_arena;
+    Text_Layout_Node *free_nodes;
+    u32_Ptr_Table table;
+    u32 id_counter;
 };
 
 #endif

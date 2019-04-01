@@ -70,6 +70,7 @@ struct Models{
     Live_Views live_set;
     Parse_Context_Memory parse_context_memory;
     Global_History global_history;
+    Text_Layout_Container text_layouts;
     
     Dynamic_Variable_Layout variable_layout;
     Dynamic_Workspace dynamic_workspace;

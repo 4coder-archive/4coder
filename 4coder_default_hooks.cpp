@@ -321,16 +321,11 @@ struct View_Render_Parameters{
     Rect_i32 buffer_rect;
 };
 
-struct Buffer_Position{
-    i32 line_number;
-    Vec2 pixel_shift;
-};
-
-static Buffer_Position
+static Buffer_Point
 buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Vec2 scroll){
     Full_Cursor render_cursor = {};
     view_compute_cursor(app, view_id, seek_wrapped_xy(scroll.x, scroll.y, false), &render_cursor);
-    Buffer_Position result = {};
+    Buffer_Point result = {};
     result.line_number = render_cursor.line;
     result.pixel_shift.x = scroll.x;
     result.pixel_shift.y = scroll.y - render_cursor.wrapped_y;
@@ -355,11 +350,11 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     GUI_Scroll_Vars scroll = {};
     view_get_scroll_vars(app, view_id, &scroll);
     
-    Buffer_Position buffer_pos = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
+    Buffer_Point buffer_point = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
     Range on_screen_range = {};
-    compute_render_layout(app, view_id, buffer_id, buffer_rect,
-                          buffer_pos.line_number, buffer_pos.pixel_shift.y, buffer_pos.pixel_shift.x,
-                          &on_screen_range);
+    Text_Layout_ID text_layout_id = 0;
+    compute_render_layout(app, view_id, buffer_id, buffer_rect, buffer_point,
+                          &on_screen_range, &text_layout_id);
     
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
@@ -704,6 +699,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     draw_render_layout(app, view_id);
+    text_layout_free(app, text_layout_id);
     
     // NOTE(allen): FPS HUD
     if (show_fps_hud){
