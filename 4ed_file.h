@@ -39,7 +39,6 @@ union Buffer_Slot_ID{
 };
 
 struct Editing_File_Settings{
-    Buffer_Edit_Handler *edit_handler;
     i32 base_map_id;
     i32 display_width;
     i32 minimum_base_display_width;

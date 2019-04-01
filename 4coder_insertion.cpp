@@ -101,14 +101,5 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 li
     return(insert_line_from_buffer(insertion, buffer_id, line, 0));
 }
 
-static b32
-insert_mirror_range(Buffer_Insertion *insertion, Buffer_ID source, i32 source_first, i32 length){
-    b32 result = mirror_buffer_insert_range(insertion->app, insertion->buffer, source, insertion->at, source_first, length);
-    if (result){
-        insertion->at += length;
-    }
-    return(result);
-}
-
 // BOTTOM
 

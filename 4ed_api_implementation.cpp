@@ -808,29 +808,11 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     if (buffer_api_check_file(file)){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= one_past_last && one_past_last <= size){
-            if (edit_abstract_mode(file)){
-                file->state.in_edit_handler = true;
-                result = file->settings.edit_handler(app, buffer_id, start, one_past_last, string);
-                file->state.in_edit_handler = false;
-            }
-            else{
-                Edit_Behaviors behaviors = {};
-                Range range = {start, one_past_last};
-                edit_single(models->system, models, file, range, string, behaviors);
-                result = true;
-            }
+            Edit_Behaviors behaviors = {};
+            Range range = {start, one_past_last};
+            edit_single(models->system, models, file, range, string, behaviors);
+            result = true;
         }
-    }
-    return(result);
-}
-
-API_EXPORT b32
-Buffer_Set_Edit_Handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){
-    Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = buffer_api_check_file(file);
-    if (result){
-        file->settings.edit_handler = handler;
     }
     return(result);
 }
@@ -887,44 +869,21 @@ DOC_SEE(Buffer_Batch_Edit_Type)
         result = true;
         if (edit_count > 0){
             global_history_edit_group_begin(app);
-            if (edit_abstract_mode(file)){
-                Lifetime_Object *lifetime_object = file->lifetime_object;
-                Dynamic_Workspace *workspace = &lifetime_object->workspace;
-                Marker *markers = 0;
-                Managed_Object markers_object = managed_object_alloc_buffer_markers(&models->mem.heap, workspace, buffer_id, edit_count*2, &markers);
-                for (i32 i = 0; i < edit_count; i += 1){
-                    markers[2*i].pos = edits[i].start;
-                    markers[2*i].lean_right = false;
-                    markers[2*i + 1].pos = edits[i].end;
-                    markers[2*i + 1].lean_right = false;
+            Buffer_Edit *edit_in = edits;
+            Buffer_Edit *one_past_last = edits + edit_count;
+            i32 shift = 0;
+            for (;edit_in < one_past_last; edit_in += 1){
+                char *edit_str = str + edit_in->str_start;
+                i32 edit_length = edit_in->len;
+                Range edit_range = {edit_in->start, edit_in->end};
+                i32 shift_change = edit_length - (edit_range.one_past_last - edit_range.first);
+                edit_range.first += shift;
+                edit_range.one_past_last += shift;
+                if (!buffer_replace_range(app, buffer_id, edit_range.first, edit_range.one_past_last, make_string(edit_str, edit_length))){
+                    result = false;
                 }
-                for (i32 i = 0; i < edit_count; i += 1){
-                    char *edit_str = str + edits[i].str_start;
-                    i32 edit_length = edits[i].len;
-                    Range edit_range = {markers[2*i].pos, markers[2*i + 1].pos};
-                    if (!buffer_replace_range(app, buffer_id, edit_range.first, edit_range.one_past_last, make_string(edit_str, edit_length))){
-                        result = false;
-                    }
-                }
-                managed_object_free(app, markers_object);
-            }
-            else{
-                Buffer_Edit *edit_in = edits;
-                Buffer_Edit *one_past_last = edits + edit_count;
-                i32 shift = 0;
-                for (;edit_in < one_past_last; edit_in += 1){
-                    char *edit_str = str + edit_in->str_start;
-                    i32 edit_length = edit_in->len;
-                    Range edit_range = {edit_in->start, edit_in->end};
-                    i32 shift_change = edit_length - (edit_range.one_past_last - edit_range.first);
-                    edit_range.first += shift;
-                    edit_range.one_past_last += shift;
-                    if (!buffer_replace_range(app, buffer_id, edit_range.first, edit_range.one_past_last, make_string(edit_str, edit_length))){
-                        result = false;
-                    }
-                    else{
-                        shift += shift_change;
-                    }
+                else{
+                    shift += shift_change;
                 }
             }
             global_history_edit_group_end(app);
@@ -1730,12 +1689,12 @@ DOC_SEE(Buffer_Identifier)
 }
 
 API_EXPORT b32
-Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result)
+Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out)
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
-    *result = BufferReopenResult_Failed;
+    Buffer_Reopen_Result result = BufferReopenResult_Failed;
     if (buffer_api_check_file(file)){
         if (file->canon.name.str != 0 && file->canon.name.size != 0){
             Plat_Handle handle = {};
@@ -1786,8 +1745,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                             
                             view_set_cursor(system, models, vptrs[i], cursor, true);
                         }
-                        
-                        *result = BufferReopenResult_Reopened;
+                        result = BufferReopenResult_Reopened;
                     }
                     else{
                         system->load_close(handle);
@@ -1801,8 +1759,10 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
             }
         }
     }
-    
-    return(*result == BufferReopenResult_Reopened);
+    if (result_out != 0){
+        *result_out = result;
+    }
+    return(result == BufferReopenResult_Reopened);
 }
 
 API_EXPORT b32

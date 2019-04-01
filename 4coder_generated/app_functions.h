@@ -19,7 +19,6 @@ struct Application_Links;
 #define GET_BUFFER_BY_FILE_NAME_SIG(n) b32 n(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out)
 #define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string)
-#define BUFFER_SET_EDIT_HANDLER_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_EXISTS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
@@ -43,7 +42,7 @@ struct Application_Links;
 #define CREATE_BUFFER_SIG(n) b32 n(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out)
 #define BUFFER_SAVE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags)
 #define BUFFER_KILL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result)
-#define BUFFER_REOPEN_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result)
+#define BUFFER_REOPEN_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out)
 #define BUFFER_GET_FILE_ATTRIBUTES_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out)
 #define GET_VIEW_NEXT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
 #define GET_VIEW_PREV_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
@@ -197,7 +196,6 @@ typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
 typedef GET_BUFFER_BY_FILE_NAME_SIG(Get_Buffer_By_File_Name_Function);
 typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
 typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
-typedef BUFFER_SET_EDIT_HANDLER_SIG(Buffer_Set_Edit_Handler_Function);
 typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
 typedef BUFFER_EXISTS_SIG(Buffer_Exists_Function);
@@ -377,7 +375,6 @@ Get_Buffer_By_Name_Function *get_buffer_by_name;
 Get_Buffer_By_File_Name_Function *get_buffer_by_file_name;
 Buffer_Read_Range_Function *buffer_read_range;
 Buffer_Replace_Range_Function *buffer_replace_range;
-Buffer_Set_Edit_Handler_Function *buffer_set_edit_handler;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
 Buffer_Exists_Function *buffer_exists;
@@ -556,7 +553,6 @@ Get_Buffer_By_Name_Function *get_buffer_by_name_;
 Get_Buffer_By_File_Name_Function *get_buffer_by_file_name_;
 Buffer_Read_Range_Function *buffer_read_range_;
 Buffer_Replace_Range_Function *buffer_replace_range_;
-Buffer_Set_Edit_Handler_Function *buffer_set_edit_handler_;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Batch_Edit_Function *buffer_batch_edit_;
 Buffer_Exists_Function *buffer_exists_;
@@ -743,7 +739,6 @@ app_links->get_buffer_by_name_ = Get_Buffer_By_Name;\
 app_links->get_buffer_by_file_name_ = Get_Buffer_By_File_Name;\
 app_links->buffer_read_range_ = Buffer_Read_Range;\
 app_links->buffer_replace_range_ = Buffer_Replace_Range;\
-app_links->buffer_set_edit_handler_ = Buffer_Set_Edit_Handler;\
 app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
 app_links->buffer_exists_ = Buffer_Exists;\
@@ -922,7 +917,6 @@ static b32 get_buffer_by_name(Application_Links *app, String name, Access_Flag a
 static b32 get_buffer_by_file_name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name(app, file_name, access, buffer_id_out));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string){return(app->buffer_replace_range(app, buffer_id, start, one_past_last, string));}
-static b32 buffer_set_edit_handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){return(app->buffer_set_edit_handler(app, buffer_id, handler));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer_id, seek, cursor_out));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer_id, str, str_len, edits, edit_count, type));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists(app, buffer_id));}
@@ -946,7 +940,7 @@ static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){r
 static b32 create_buffer(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out){return(app->create_buffer(app, file_name, flags, new_buffer_id_out));}
 static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags){return(app->buffer_save(app, buffer_id, file_name, flags));}
 static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result){return(app->buffer_kill(app, buffer_id, flags, result));}
-static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result){return(app->buffer_reopen(app, buffer_id, flags, result));}
+static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out){return(app->buffer_reopen(app, buffer_id, flags, result_out));}
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes(app, buffer_id, attributes_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next(app, view_id, access, view_id_out));}
 static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev(app, view_id, access, view_id_out));}
@@ -1101,7 +1095,6 @@ static b32 get_buffer_by_name(Application_Links *app, String name, Access_Flag a
 static b32 get_buffer_by_file_name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name_(app, file_name, access, buffer_id_out));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range_(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string){return(app->buffer_replace_range_(app, buffer_id, start, one_past_last, string));}
-static b32 buffer_set_edit_handler(Application_Links *app, Buffer_ID buffer_id, Buffer_Edit_Handler *handler){return(app->buffer_set_edit_handler_(app, buffer_id, handler));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer_id, seek, cursor_out));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer_id, str, str_len, edits, edit_count, type));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists_(app, buffer_id));}
@@ -1125,7 +1118,7 @@ static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){r
 static b32 create_buffer(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out){return(app->create_buffer_(app, file_name, flags, new_buffer_id_out));}
 static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags){return(app->buffer_save_(app, buffer_id, file_name, flags));}
 static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result){return(app->buffer_kill_(app, buffer_id, flags, result));}
-static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result){return(app->buffer_reopen_(app, buffer_id, flags, result));}
+static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out){return(app->buffer_reopen_(app, buffer_id, flags, result_out));}
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes_(app, buffer_id, attributes_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next_(app, view_id, access, view_id_out));}
 static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev_(app, view_id, access, view_id_out));}

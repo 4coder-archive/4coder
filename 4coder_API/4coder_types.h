@@ -629,9 +629,6 @@ STRUCT Partial_Cursor{
     i32 character;
 };
 
-TYPEDEF_FUNC b32 Buffer_Edit_Handler(struct Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String str);
-// TODO(allen): what to do with batches???
-
 STRUCT File_Attributes{
     u64 size;
     u64 last_write_time;

@@ -650,13 +650,9 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
                         Buffer_ID search_buffer_id){
     Buffer_Summary search_buffer = get_buffer(app, search_buffer_id, AccessAll);
     
-    // Setup the search buffer for 'init' mode - the history will begin only AFTER the buffer is filled
+    // Setup the search buffer for 'init' mode
+    buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
     buffer_set_setting(app, &search_buffer, BufferSetting_RecordsHistory, false);
-    {
-        mirror_buffer_end(app, search_buffer_id);
-        Managed_Object ignore = 0;
-        mirror_init(app, search_buffer_id, MirrorFlag_CharacterRangeHighlight|MirrorFlag_NewlinesAreJumps, &ignore);
-    }
     
     // Initialize a generic search all buffers
     Search_Set set = {};
@@ -665,11 +661,7 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
     
     // List all locations into search buffer
     Temp_Memory all_temp = begin_temp_memory(scratch);
-    
     Partition line_part = part_sub_part(scratch, (4 << 10));
-    int32_t mirror_range_count = 0;
-    int32_t mirror_range_max = (1 << 10);
-    Mirror_Range *mirror_ranges = push_array(scratch, Mirror_Range, mirror_range_max);
     
     Temp_Memory temp = begin_temp_memory(scratch);
     Buffer_ID prev_match_id = 0;
@@ -698,25 +690,11 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
             Partial_Cursor line_one_past_last_cursor = {};
             String full_line_str = {};
             if (read_line(app, &line_part, match.buffer.buffer_id, word_pos.line, &full_line_str, &line_start_cursor, &line_one_past_last_cursor)){
-                int32_t source_full_line_start = line_start_cursor.pos;
                 String line_str = skip_chop_whitespace(full_line_str);
-                int32_t source_line_start = source_full_line_start + (int32_t)(line_str.str - full_line_str.str);
                 
-                int32_t out_pos = search_buffer.size + buffered_print_buffer_length(scratch, temp);
-                
-                if (mirror_range_count == mirror_range_max){
-                    buffered_print_flush(app, scratch, temp, &search_buffer);
-                    mirror_buffer_add_range_exact_array(app, search_buffer_id, mirror_ranges, mirror_range_count);
-                    mirror_range_count = 0;
-                    Assert(out_pos == search_buffer.size);
-                }
                 b32 flushed = false;
                 int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
                 char *spare = buffered_memory_reserve(app, scratch, temp, &search_buffer, str_len, &flushed);
-                if (flushed){
-                    mirror_buffer_add_range_exact_array(app, search_buffer_id, mirror_ranges, mirror_range_count);
-                    mirror_range_count = 0;
-                }
                 
                 search_buffer = get_buffer(app, search_buffer_id, AccessAll);
                 String out_line = make_string_cap(spare, 0, str_len);
@@ -727,18 +705,9 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
                 append_int_to_str(&out_line, word_pos.character);
                 append_s_char(&out_line, ':');
                 append_s_char(&out_line, ' ');
-                int32_t mirror_range_start = out_pos + out_line.size;
                 append_ss(&out_line, line_str);
                 append_s_char(&out_line, '\n');
                 Assert(out_line.size == str_len);
-                
-                Assert(mirror_range_count < mirror_range_max);
-                Mirror_Range *mirror_range = &mirror_ranges[mirror_range_count];
-                mirror_range_count += 1;
-                mirror_range->source_buffer_id = match.buffer.buffer_id;
-                mirror_range->mirror_first = mirror_range_start;
-                mirror_range->source_first = source_line_start;
-                mirror_range->length = line_str.size;
             }
             end_temp_memory(line_temp);
             
@@ -754,18 +723,11 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
     }
     
     buffered_print_flush(app, scratch, temp, &search_buffer);
-    mirror_buffer_add_range_exact_array(app, search_buffer_id, mirror_ranges, mirror_range_count);
-    mirror_range_count = 0;
     
     end_temp_memory(all_temp);
     
     // Lock *search* as the jump buffer
     lock_jump_buffer(search_name.str, search_name.size);
-    
-    // Setup the search buffer for 'reflecting' mode
-    mirror_buffer_set_mode(app, search_buffer_id, MirrorMode_Reflecting);
-    buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, false);
-    buffer_set_setting(app, &search_buffer, BufferSetting_RecordsHistory, true);
 }
 
 static void

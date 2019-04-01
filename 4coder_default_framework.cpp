@@ -280,7 +280,6 @@ create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_
     
     if (search_buffer.exists){
         buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
-        buffer_set_edit_handler(app, search_buffer.buffer_id, 0);
         
         View_Summary target_view = default_target_view;
         

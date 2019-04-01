@@ -229,11 +229,6 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     end_temp_memory(cursor_temp);
 }
 
-internal b32
-edit_abstract_mode(Editing_File *file){
-    return(file->settings.edit_handler != 0 && !file->state.in_edit_handler);
-}
-
 internal void
 edit_single(System_Functions *system, Models *models, Editing_File *file, Edit edit, Edit_Behaviors behaviors){
     Mem_Options *mem = &models->mem;
