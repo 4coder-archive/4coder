@@ -68,8 +68,6 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
     
     Marker_List *list = get_or_make_list_for_buffer(app, scratch, heap, list_buffer_id);
     if (list != 0){
-        Buffer_Summary list_buffer = get_buffer(app, list_buffer_id, AccessAll);
-        
         i32 estimated_string_space_size = 0;
         view_end_ui_mode(app, ui_view);
         Temp_Memory temp = begin_temp_memory(scratch);
@@ -80,7 +78,7 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
             Sticky_Jump_Stored stored = {};
             managed_object_load_data(app, stored_jumps, i, 1, &stored);
             String line = {};
-            read_line(app, scratch, &list_buffer, stored.list_line, &line);
+            read_line(app, scratch, list_buffer_id, stored.list_line, &line);
             options[i].string = line;
             memset(&options[i].status, 0, sizeof(options[i].status));
             options[i].user_data = IntAsPtr(i);

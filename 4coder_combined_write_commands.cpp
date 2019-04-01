@@ -49,7 +49,7 @@ long_braces(Application_Links *app, char *text, i32 size){
     view_set_cursor(app, &view, seek_pos(pos + 2), true);
     
     buffer_auto_indent(app, &global_part, &buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
-    move_past_lead_whitespace(app, &view, &buffer);
+    move_past_lead_whitespace(app, &view, buffer.buffer_id);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces)

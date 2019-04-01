@@ -59,7 +59,7 @@ struct Buffer_Rect{
 
 struct Stream_Chunk{
     Application_Links *app;
-    Buffer_Summary *buffer;
+    Buffer_ID buffer_id;
     
     char *base_data;
     i32 start;
@@ -77,7 +77,7 @@ struct Stream_Chunk{
 // If you want to keep your code working easily uncomment the typedef for Stream_Tokens.
 struct Stream_Tokens_DEP{
     Application_Links *app;
-    Buffer_Summary *buffer;
+    Buffer_ID buffer_id;
     
     Cpp_Token *base_tokens;
     Cpp_Token *tokens;

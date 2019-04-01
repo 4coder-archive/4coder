@@ -75,6 +75,8 @@
 #include "4coder_default_hooks.cpp"
 #include "4coder_remapping_commands.cpp"
 
+#include "4coder_api_transition_30_31_helpers.cpp"
+
 #endif
 
 // BOTTOM

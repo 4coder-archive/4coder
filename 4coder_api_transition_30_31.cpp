@@ -665,10 +665,6 @@ get_process_state(Application_Links *app, Buffer_ID buffer_id){
     return(state);
 }
 
-////////////////////////////////
-
-
-
 #endif
 
 // BOTTOM

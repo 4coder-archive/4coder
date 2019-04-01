@@ -435,10 +435,10 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
     Range range = get_view_range(&view);
     lines.min = buffer_get_line_number(app, &buffer, range.min);
     lines.max = buffer_get_line_number(app, &buffer, range.max);
-    range.min = buffer_get_line_start(app, &buffer, lines.min);
-    range.max = buffer_get_line_end(app, &buffer, lines.max);
+    range.min = buffer_get_line_start(app, buffer.buffer_id, lines.min);
+    range.max = buffer_get_line_end(app, buffer.buffer_id, lines.max);
     
-    b32 do_full = (lines.min < lines.max) || (!buffer_line_is_blank(app, &buffer, lines.min));
+    b32 do_full = (lines.min < lines.max) || (!buffer_line_is_blank(app, buffer.buffer_id, lines.min));
     
     Temp_Memory temp = begin_temp_memory(scratch);
     i32 begin_len = str_size(begin);
@@ -458,13 +458,13 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
         i32 min_adjustment = 0;
         i32 max_adjustment = 4;
         
-        if (buffer_line_is_blank(app, &buffer, lines.min)){
+        if (buffer_line_is_blank(app, buffer.buffer_id, lines.min)){
             memmove(str + 1, str, begin_len);
             str[0] = '\n';
             ++min_adjustment;
         }
         
-        if (buffer_line_is_blank(app, &buffer, lines.max)){
+        if (buffer_line_is_blank(app, buffer.buffer_id, lines.max)){
             memmove(str + begin_len + 1, str + begin_len + 2, end_len);
             str[begin_len + end_len + 1] = '\n';
             --max_adjustment;
@@ -528,26 +528,27 @@ CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves
         bottom = x;
     }
     
-    if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
+    if (buffer_get_char(app, buffer.buffer_id, top) == '{' &&
+        buffer_get_char(app, buffer.buffer_id, bottom - 1) == '}'){
         i32 top_len = 1;
         i32 bottom_len = 1;
-        if (buffer_get_char(app, &buffer, top-1) == '\n'){
+        if (buffer_get_char(app, buffer.buffer_id, top - 1) == '\n'){
             top_len = 2;
         }
-        if (buffer_get_char(app, &buffer, bottom+1) == '\n'){
+        if (buffer_get_char(app, buffer.buffer_id, bottom + 1) == '\n'){
             bottom_len = 2;
         }
         
         Buffer_Edit edits[2];
         edits[0].str_start = 0;
         edits[0].len = 0;
-        edits[0].start = top+1 - top_len;
-        edits[0].end = top+1;
+        edits[0].start = top + 1 - top_len;
+        edits[0].end = top + 1;
         
         edits[1].str_start = 0;
         edits[1].len = 0;
-        edits[1].start = bottom-1;
-        edits[1].end = bottom-1 + bottom_len;
+        edits[1].start = bottom - 1;
+        edits[1].end = bottom - 1 + bottom_len;
         
         buffer_batch_edit(app, &buffer, 0, 0, edits, 2, BatchEdit_Normal);
     }
@@ -766,7 +767,8 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
-    if (buffer_get_char(app, &buffer, top) == '{' && buffer_get_char(app, &buffer, bottom-1) == '}'){
+    if (buffer_get_char(app, buffer.buffer_id, top) == '{' &&
+        buffer_get_char(app, buffer.buffer_id, bottom-1) == '}'){
         Range range = {};
         if (find_whole_statement_down(app, &buffer, bottom, &range.start, &range.end)){
             char *string_space = push_array(part, char, range.end - range.start);

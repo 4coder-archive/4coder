@@ -52,7 +52,7 @@ parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summ
         
         Temp_Memory temp = begin_temp_memory(arena);
         String line_str = {};
-        if (read_line(app, arena, &buffer, line, &line_str)){
+        if (read_line(app, arena, buffer.buffer_id, line, &line_str)){
             Name_Line_Column_Location location = {};
             if (parse_jump_location(line_str, &location, &colon_index, &is_sub_error)){
                 Buffer_Summary jump_buffer = {};

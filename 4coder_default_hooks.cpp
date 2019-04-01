@@ -657,9 +657,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         u32 token_flags = BoundaryToken|BoundaryWhitespace;
         i32 pos0 = view.cursor.pos;
-        i32 pos1 = buffer_boundary_seek(app, &buffer, pos0, DirLeft , token_flags);
+        i32 pos1 = buffer_boundary_seek(app, buffer.buffer_id, pos0, DirLeft , token_flags);
         if (pos1 >= 0){
-            i32 pos2 = buffer_boundary_seek(app, &buffer, pos1, DirRight, token_flags);
+            i32 pos2 = buffer_boundary_seek(app, buffer.buffer_id, pos1, DirRight, token_flags);
             if (pos2 <= buffer.size){
                 Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
                 Marker range_markers[2] = {};
@@ -683,11 +683,11 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     if (do_matching_paren_highlight){
         i32 pos = view.cursor.pos;
-        if (buffer_get_char(app, &buffer, pos) == '('){
+        if (buffer_get_char(app, buffer.buffer_id, pos) == '('){
             pos += 1;
         }
         else if (pos > 0){
-            if (buffer_get_char(app, &buffer, pos - 1) == ')'){
+            if (buffer_get_char(app, buffer.buffer_id, pos - 1) == ')'){
                 pos -= 1;
             }
         }

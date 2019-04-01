@@ -207,8 +207,7 @@ parse_jump_from_buffer_line(Application_Links *app, Partition *arena,
                             b32 skip_sub_errors, Name_Line_Column_Location *location){
     i32 result = false;
     String line_str = {};
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-    if (read_line(app, arena, &buffer, line, &line_str)){
+    if (read_line(app, arena, buffer_id, line, &line_str)){
         i32 colon_char = 0;
         if (parse_jump_location(line_str, skip_sub_errors, location, &colon_char)){
             result = true;
@@ -278,15 +277,12 @@ seek_next_jump_in_buffer(Application_Links *app, Partition *part,
                          i32 buffer_id, i32 first_line, b32 skip_sub_errors,
                          i32 direction,
                          i32 *line_out, i32 *colon_index_out, Name_Line_Column_Location *location_out){
-    
     Assert(direction == 1 || direction == -1);
-    
     b32 result = false;
     i32 line = first_line;
     String line_str = {};
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     for (;;){
-        if (read_line(app, part, &buffer, line, &line_str)){
+        if (read_line(app, part, buffer_id, line, &line_str)){
             if (parse_jump_location(line_str, skip_sub_errors, location_out, colon_index_out)){
                 result = true;
                 break;
@@ -297,13 +293,10 @@ seek_next_jump_in_buffer(Application_Links *app, Partition *part,
             break;
         }
     }
-    
     if (line < 0){
         line = 0;
     }
-    
     *line_out = line;
-    
     return(result);
 }
 
@@ -311,13 +304,11 @@ static ID_Line_Column_Jump_Location
 convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location loc){
     ID_Line_Column_Jump_Location result = {};
     Buffer_Summary buffer = get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
-    
     if (buffer.exists){
         result.buffer_id = buffer.buffer_id;
         result.line = loc.line;
         result.column = loc.column;
     }
-    
     return(result);
 }
 

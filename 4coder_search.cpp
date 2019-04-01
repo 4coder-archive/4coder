@@ -178,7 +178,7 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
     for (int32_t i = 0; i < key.count; ++i){
         String word = key.words[i];
         int32_t new_pos = -1;
-        buffer_seek_string(app, &result->buffer, start_pos, end_pos, range->start, word.str, word.size, &new_pos, flags);
+        buffer_seek_string(app, result->buffer.buffer_id, start_pos, end_pos, range->start, word.str, word.size, &new_pos, flags);
         
         if (new_pos >= 0){
             if (forward){
@@ -201,7 +201,7 @@ static int32_t
 buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char space[1024];
     Stream_Chunk chunk = {};
-    if (init_stream_chunk(&chunk, app, buffer, pos, space, sizeof(space))){
+    if (init_stream_chunk(&chunk, app, buffer->buffer_id, pos, space, sizeof(space))){
         int32_t still_looping = true;
         do{
             for (; pos < chunk.end; ++pos){
@@ -234,7 +234,7 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
             {
                 char prev = ' ';
                 if (char_is_alpha_numeric_utf8(word.str[0])){
-                    prev = buffer_get_char(app, &result.buffer, result.start - 1);
+                    prev = buffer_get_char(app, result.buffer.buffer_id, result.start - 1);
                 }
                 
                 if (!char_is_alpha_numeric_utf8(prev)){
@@ -242,7 +242,7 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
                     if (result.end <= end_pos){
                         char next = ' ';
                         if (char_is_alpha_numeric_utf8(word.str[word.size-1])){
-                            next = buffer_get_char(app, &result.buffer, result.end);
+                            next = buffer_get_char(app, result.buffer.buffer_id, result.end);
                         }
                         
                         if (!char_is_alpha_numeric_utf8(next)){
@@ -258,7 +258,7 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
             
             case SearchFlag_MatchWordPrefix:
             {
-                char prev = buffer_get_char(app, &result.buffer, result.start - 1);
+                char prev = buffer_get_char(app, result.buffer.buffer_id, result.start - 1);
                 if (!char_is_alpha_numeric_utf8(prev)){
                     result.end =
                         buffer_seek_alpha_numeric_end(app, &result.buffer, result.start);
@@ -697,7 +697,7 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
             Partial_Cursor line_start_cursor = {};
             Partial_Cursor line_one_past_last_cursor = {};
             String full_line_str = {};
-            if (read_line(app, &line_part, &match.buffer, word_pos.line, &full_line_str, &line_start_cursor, &line_one_past_last_cursor)){
+            if (read_line(app, &line_part, match.buffer.buffer_id, word_pos.line, &full_line_str, &line_start_cursor, &line_one_past_last_cursor)){
                 int32_t source_full_line_start = line_start_cursor.pos;
                 String line_str = skip_chop_whitespace(full_line_str);
                 int32_t source_line_start = source_full_line_start + (int32_t)(line_str.str - full_line_str.str);
@@ -992,7 +992,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             
             char space[1024];
             Stream_Chunk chunk = {};
-            if (init_stream_chunk(&chunk, app, &buffer, cursor_pos, space, sizeof(space))){
+            if (init_stream_chunk(&chunk, app, buffer.buffer_id, cursor_pos, space, sizeof(space))){
                 int32_t still_looping = true;
                 do{
                     for (; cursor_pos >= chunk.start; --cursor_pos){

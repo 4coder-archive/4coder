@@ -424,11 +424,12 @@ query_user_number(Application_Links *app, Query_Bar *bar){
 }
 
 static char
-buffer_get_char(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i32 pos){
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer_id, &buffer_size);
     char result = ' ';
-    *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
-    if (pos < buffer->size){
-        buffer_read_range(app, buffer, pos, pos + 1, &result);
+    if (pos < buffer_size){
+        buffer_read_range(app, buffer_id, pos, pos + 1, &result);
     }
     return(result);
 }
@@ -737,30 +738,30 @@ get_view_range(View_Summary *view){
 }
 
 static b32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, String *str,
+read_line(Application_Links *app, Partition *part, Buffer_ID buffer_id, i32 line, String *str,
           Partial_Cursor *start_out, Partial_Cursor *one_past_last_out){
     Partial_Cursor begin = {};
     Partial_Cursor end = {};
     
     b32 success = false;
-    if (buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &begin)){
-        if (buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &end)){
-            if (begin.line == line){
-                if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
-                    i32 size = (end.pos - begin.pos);
-                    i32 alloc_size = size + 1;
-                    char *memory = push_array(part, char, alloc_size);
-                    if (memory != 0){
-                        *str = make_string(memory, 0, alloc_size);
-                        buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
-                        str->size = size;
-                        terminate_with_null(str);
-                        
-                        *start_out = begin;
-                        *one_past_last_out = end;
-                        success = true;
-                    }
-                }
+    if (buffer_compute_cursor(app, buffer_id, seek_line_char(line, 1), &begin) &&
+        buffer_compute_cursor(app, buffer_id, seek_line_char(line, -1), &end) &&
+        begin.line == line){
+        i32 buffer_size = 0;
+        buffer_get_size(app, buffer_id, &buffer_size);
+        if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer_size){
+            i32 size = (end.pos - begin.pos);
+            i32 alloc_size = size + 1;
+            char *memory = push_array(part, char, alloc_size);
+            if (memory != 0){
+                *str = make_string(memory, 0, alloc_size);
+                buffer_read_range(app, buffer_id, begin.pos, end.pos, str->str);
+                str->size = size;
+                terminate_with_null(str);
+                
+                *start_out = begin;
+                *one_past_last_out = end;
+                success = true;
             }
         }
     }
@@ -769,9 +770,9 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 l
 }
 
 static b32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, String *str){
+read_line(Application_Links *app, Partition *part, Buffer_ID buffer_id, i32 line, String *str){
     Partial_Cursor ignore = {};
-    return(read_line(app, part, buffer, line, str, &ignore, &ignore));
+    return(read_line(app, part, buffer_id, line, str, &ignore, &ignore));
 }
 
 static String
@@ -794,22 +795,28 @@ scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, Cpp_T
 }
 
 static i32
-buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, i32 line){
-    i32 result = buffer->size;
-    if (line <= buffer->line_count){
+buffer_get_line_start(Application_Links *app, Buffer_ID buffer_id, i32 line){
+    i32 result = 0;
+    buffer_get_size(app, buffer_id, &result);
+    i32 line_count = 0;
+    buffer_get_line_count(app, buffer_id, &line_count);
+    if (line <= line_count){
         Partial_Cursor partial_cursor = {};
-        buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &partial_cursor);
+        buffer_compute_cursor(app, buffer_id, seek_line_char(line, 1), &partial_cursor);
         result = partial_cursor.pos;
     }
     return(result);
 }
 
 static i32
-buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, i32 line){
-    i32 result = buffer->size;
-    if (line <= buffer->line_count){
+buffer_get_line_end(Application_Links *app, Buffer_ID buffer_id, i32 line){
+    i32 result = 0;
+    buffer_get_size(app, buffer_id, &result);
+    i32 line_count = 0;
+    buffer_get_line_count(app, buffer_id, &line_count);
+    if (line <= line_count){
         Partial_Cursor partial_cursor = {};
-        buffer_compute_cursor(app, buffer, seek_line_char(line, -1), &partial_cursor);
+        buffer_compute_cursor(app, buffer_id, seek_line_char(line, -1), &partial_cursor);
         result = partial_cursor.pos;
     }
     return(result);
@@ -823,44 +830,41 @@ buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, i32 pos){
 }
 
 static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, i32 line, i32 *line_start_out = 0){
-    i32 line_start = buffer_get_line_start(app, buffer, line);
+get_first_token_at_line(Application_Links *app, Buffer_ID buffer_id, Cpp_Token_Array tokens, i32 line, i32 *line_start_out = 0){
+    i32 line_start = buffer_get_line_start(app, buffer_id, line);
     Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
-    
     if (get_token.in_whitespace_after_token){
         get_token.token_index += 1;
     }
-    
     if (line_start_out){
         *line_start_out = line_start;
     }
-    
     Cpp_Token *result = 0;
     if (get_token.token_index < tokens.count){
         result = &tokens.tokens[get_token.token_index];
     }
-    
     return(result);
 }
 
 ////////////////////////////////
 
 static b32
-init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *buffer,
+init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_ID buffer_id,
                   i32 pos, char *data, u32 size){
     b32 result = false;
     
-    refresh_buffer(app, buffer);
-    if (0 <= pos && pos < buffer->size && size > 0){
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer_id, &buffer_size);
+    if (0 <= pos && pos < buffer_size && size > 0){
         chunk->app = app;
-        chunk->buffer = buffer;
+        chunk->buffer_id = buffer_id;
         chunk->base_data = data;
         chunk->data_size = size;
         chunk->start = round_down(pos, size);
         chunk->end = round_up(pos, size);
         
-        if (chunk->max_end > buffer->size || chunk->max_end == 0){
-            chunk->max_end = buffer->size;
+        if (chunk->max_end > buffer_size || chunk->max_end == 0){
+            chunk->max_end = buffer_size;
         }
         
         if (chunk->max_end && chunk->max_end < chunk->end){
@@ -871,7 +875,7 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *b
         }
         
         if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+            buffer_read_range(app, buffer_id, chunk->start, chunk->end, chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
             result = true;
         }
@@ -883,11 +887,12 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *b
 static b32
 forward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
-    Buffer_Summary *buffer = chunk->buffer;
+    Buffer_ID buffer_id = chunk->buffer_id;
     b32 result = 0;
     
-    refresh_buffer(app, buffer);
-    if (chunk->end < buffer->size){
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer_id, &buffer_size);
+    if (chunk->end < buffer_size){
         chunk->start = chunk->end;
         chunk->end += chunk->data_size;
         
@@ -899,15 +904,15 @@ forward_stream_chunk(Stream_Chunk *chunk){
         }
         
         if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+            buffer_read_range(app, buffer_id, chunk->start, chunk->end, chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
             result = 1;
         }
     }
     
-    else if (chunk->add_null && chunk->end + 1 < buffer->size){
-        chunk->start = buffer->size;
-        chunk->end = buffer->size + 1;
+    else if (chunk->add_null && chunk->end + 1 < buffer_size){
+        chunk->start = buffer_size;
+        chunk->end = buffer_size + 1;
         chunk->base_data[0] = 0;
         chunk->data = chunk->base_data - chunk->start;
         result = 1;
@@ -919,10 +924,9 @@ forward_stream_chunk(Stream_Chunk *chunk){
 static b32
 backward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
-    Buffer_Summary *buffer = chunk->buffer;
-    b32 result = 0;
+    Buffer_ID buffer_id = chunk->buffer_id;
+    b32 result = false;
     
-    refresh_buffer(app, buffer);
     if (chunk->start > 0){
         chunk->end = chunk->start;
         chunk->start -= chunk->data_size;
@@ -935,9 +939,9 @@ backward_stream_chunk(Stream_Chunk *chunk){
         }
         
         if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+            buffer_read_range(app, buffer_id, chunk->start, chunk->end, chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
-            result = 1;
+            result = true;
         }
     }
     
@@ -946,7 +950,7 @@ backward_stream_chunk(Stream_Chunk *chunk){
         chunk->end = 0;
         chunk->base_data[0] = 0;
         chunk->data = chunk->base_data - chunk->start;
-        result = 1;
+        result = true;
     }
     
     return(result);
@@ -955,16 +959,14 @@ backward_stream_chunk(Stream_Chunk *chunk){
 ////////////////////////////////
 
 static b32
-init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_Summary *buffer,
-                   i32 pos, Cpp_Token *data, i32 count){
+init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_ID buffer_id, i32 pos, Cpp_Token *data, i32 count){
     b32 result = false;
     
-    refresh_buffer(app, buffer);
-    
-    i32 token_count = buffer_token_count(app, buffer);
-    if (buffer->tokens_are_ready && pos >= 0 && pos < token_count && count > 0){
+    i32 token_count = 0;
+    buffer_token_count(app, buffer_id, &token_count);
+    if (buffer_tokens_are_ready(app, buffer_id) && pos >= 0 && pos < token_count && count > 0){
         stream->app = app;
-        stream->buffer = buffer;
+        stream->buffer_id = buffer_id;
         stream->base_tokens = data;
         stream->count = count;
         stream->start = round_down(pos, count);
@@ -978,7 +980,7 @@ init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_Sum
             stream->end = stream->token_count;
         }
         
-        buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
+        buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
         stream->tokens = stream->base_tokens - stream->start;
         result = true;
     }
@@ -995,7 +997,7 @@ static void
 end_temp_stream_token(Stream_Tokens_DEP *stream, Stream_Tokens_DEP temp){
     if (stream->start != temp.start || stream->end != temp.end){
         Application_Links *app = stream->app;
-        buffer_read_tokens(app, temp.buffer, temp.start, temp.end, temp.base_tokens);
+        buffer_read_tokens(app, temp.buffer_id, temp.start, temp.end, temp.base_tokens);
         stream->tokens = stream->base_tokens - temp.start;
         stream->start = temp.start;
         stream->end = temp.end;
@@ -1005,50 +1007,40 @@ end_temp_stream_token(Stream_Tokens_DEP *stream, Stream_Tokens_DEP temp){
 static b32
 forward_stream_tokens(Stream_Tokens_DEP *stream){
     Application_Links *app = stream->app;
-    Buffer_Summary *buffer = stream->buffer;
+    Buffer_ID buffer_id = stream->buffer_id;
     b32 result = false;
-    
-    refresh_buffer(app, buffer);
     if (stream->end < stream->token_count){
         stream->start = stream->end;
         stream->end += stream->count;
-        
         if (stream->end > stream->token_count){
             stream->end = stream->token_count;
         }
-        
         if (stream->start < stream->end){
-            buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
+            buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
             stream->tokens = stream->base_tokens - stream->start;
             result = true;
         }
     }
-    
     return(result);
 }
 
 static b32
 backward_stream_tokens(Stream_Tokens_DEP *stream){
     Application_Links *app = stream->app;
-    Buffer_Summary *buffer = stream->buffer;
+    Buffer_ID buffer_id = stream->buffer_id;
     b32 result = false;
-    
-    refresh_buffer(app, buffer);
     if (stream->start > 0){
         stream->end = stream->start;
         stream->start -= stream->count;
-        
         if (0 > stream->start){
             stream->start = 0;
         }
-        
         if (stream->start < stream->end){
-            buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
+            buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
             stream->tokens = stream->base_tokens - stream->start;
             result = true;
         }
     }
-    
     return(result);
 }
 
