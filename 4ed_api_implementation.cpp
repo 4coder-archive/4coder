@@ -4687,7 +4687,11 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
 #else
         Full_Cursor intermediate_cursor = file_compute_cursor(system, file, seek_line_char(buffer_point.line_number, 1));
         f32 scroll_x = buffer_point.pixel_shift.x;
-        f32 scroll_y = intermediate_cursor.unwrapped_y + buffer_point.pixel_shift.y;
+        f32 scroll_y = intermediate_cursor.wrapped_y;
+        if (file->settings.unwrapped_lines){
+            scroll_y = intermediate_cursor.unwrapped_y;
+        }
+        scroll_y += buffer_point.pixel_shift.y;
         Full_Cursor render_cursor = view_get_render_cursor(system, view, scroll_y);
 #endif
 

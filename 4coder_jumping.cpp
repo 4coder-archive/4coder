@@ -80,7 +80,7 @@ parse_jump_location(String line){
                     jump.sub_jump_note = true;
                 }
                 
-                String location_str = substr(line, 0, jump.is_sub_jump);
+                String location_str = substr(line, 0, jump.colon_position);
                 
                 location_str = skip_chop_whitespace(location_str);
                 
@@ -273,7 +273,7 @@ seek_next_jump_in_buffer(Application_Links *app, Partition *part,
     String line_str = {};
     for (;;){
         if (read_line(app, part, buffer_id, line, &line_str)){
-            Parsed_Jump jump = parse_jump_location(line_str, skip_sub_errors);
+            jump = parse_jump_location(line_str, skip_sub_errors);
             if (jump.success){
                 break;
             }

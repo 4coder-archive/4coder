@@ -24,7 +24,7 @@ struct File_Edit_Positions{
     i32 cursor_pos;
 };
 
-// TODO(NAME): do(replace Text_Effect with markers over time)
+// TODO(allen): do(replace Text_Effect with markers over time)
 struct Text_Effect{
     i32 start;
     i32 end;

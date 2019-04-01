@@ -323,12 +323,13 @@ struct View_Render_Parameters{
 
 static Buffer_Point
 buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Vec2 scroll){
-    Full_Cursor render_cursor = {};
-    view_compute_cursor(app, view_id, seek_wrapped_xy(scroll.x, scroll.y, false), &render_cursor);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view_id, seek_wrapped_xy(0.f, scroll.y, false), &cursor);
+    view_compute_cursor(app, view_id, seek_line_char(cursor.line, 1), &cursor);
     Buffer_Point result = {};
-    result.line_number = render_cursor.line;
+    result.line_number = cursor.line;
     result.pixel_shift.x = scroll.x;
-    result.pixel_shift.y = scroll.y - render_cursor.wrapped_y;
+    result.pixel_shift.y = scroll.y - cursor.wrapped_y;
     return(result);
 }
 
