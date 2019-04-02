@@ -741,7 +741,7 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
             
             Replace_Target *new_target = push_array(part, Replace_Target, 1);
             if (new_target != 0){
-                new_target->buffer_id = match.buffer.buffer_id;
+                new_target->buffer_id = match.buffer;
                 new_target->start_pos = match.start;
                 ++target_count;
             }

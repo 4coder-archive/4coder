@@ -13,24 +13,75 @@ begin_buffer_insertion_at(Application_Links *app, Buffer_ID buffer_id, i32 at){
     return(result);
 }
 
+static Buffer_Insertion
+begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, i32 at, Partition *part){
+    Buffer_Insertion result = begin_buffer_insertion_at(app, buffer_id, at);
+    result.buffering = true;
+    result.part = part;
+    result.temp = begin_temp_memory(part);
+    return(result);
+}
+
+#if 0
 static Buffer_Summary
 get_active_buffer(Application_Links *app, Access_Flag access){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary result = get_buffer(app, view.buffer_id, access);
     return(result);
 }
+#endif
 
 static Buffer_Insertion
 begin_buffer_insertion(Application_Links *app){
-    View_Summary view = get_active_view(app, AccessAll);
-    Buffer_Insertion result = begin_buffer_insertion_at(app, view.buffer_id, view.cursor.pos);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessAll, &buffer);
+    i32 cursor_pos = 0;
+    view_get_cursor_pos(app, view, &cursor_pos);
+    Buffer_Insertion result = begin_buffer_insertion_at(app, buffer, cursor_pos);
     return(result);
 }
 
 static void
-insert_string(Buffer_Insertion *insertion, String string){
+insert_string__no_buffering(Buffer_Insertion *insertion, String string){
     buffer_replace_range(insertion->app, insertion->buffer, insertion->at, insertion->at, string);
     insertion->at += string.size;
+}
+
+static void
+insert__flush(Buffer_Insertion *insertion){
+    Partition *part = insertion->part;
+    i32 pos = insertion->temp.pos;
+    String string = make_string(part->base + pos, part->pos - pos);
+    insert_string__no_buffering(insertion, string);
+    end_temp_memory(insertion->temp);
+}
+
+static char*
+insert__reserve(Buffer_Insertion *insertion, i32 size){
+    char *space = push_array(insertion->part, char, size);
+    if (space == 0){
+        insert__flush(insertion);
+        space = push_array(insertion->part, char, size);
+    }
+    return(space);
+}
+
+static void
+insert_string(Buffer_Insertion *insertion, String string){
+    if (!insertion->buffering){
+        insert_string__no_buffering(insertion, string);
+    }
+    else{
+        char *space = insert__reserve(insertion, string.size);
+        if (space != 0){
+            memcpy(space, string.str, string.size);
+        }
+        else{
+            insert_string__no_buffering(insertion, string);
+        }
+    }
 }
 
 static i32
@@ -48,8 +99,7 @@ insertf(Buffer_Insertion *insertion, char *format, ...){
 
 static void
 insertc(Buffer_Insertion *insertion, char C){
-    buffer_replace_range(insertion->app, insertion->buffer, insertion->at, insertion->at, make_string(&C, 1));
-    insertion->at += 1;
+    insert_string(insertion, make_string(&C, 1));
 }
 
 static b32

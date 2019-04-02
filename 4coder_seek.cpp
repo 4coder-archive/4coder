@@ -1140,8 +1140,11 @@ CUSTOM_COMMAND_SIG(goto_end_of_file)
 CUSTOM_DOC("Sets the cursor to the end of the file.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    view_set_cursor(app, &view, seek_pos(buffer.size), true);
+    Buffer_ID buffer_id = 0;
+    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
+    i32 size = 0;
+    buffer_get_size(app, buffer_id, &size);
+    view_set_cursor(app, &view, seek_pos(size), true);
     no_mark_snap_to_cursor_if_shift(app, view.view_id);
 }
 

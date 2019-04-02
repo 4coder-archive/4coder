@@ -36,9 +36,9 @@ enum{
 };
 
 struct Search_Range{
-    i32 type;
-    u32 flags;
-    i32 buffer;
+    Search_Range_Type type;
+    Search_Range_Flag flags;
+    Buffer_ID buffer;
     i32 start;
     i32 size;
     i32 mid_start;
@@ -68,7 +68,7 @@ struct Search_Iter{
 };
 
 struct Search_Match{
-    Buffer_Summary buffer;
+    Buffer_ID buffer;
     i32 start;
     i32 end;
     i32 match_word_index;

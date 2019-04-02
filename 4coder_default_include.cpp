@@ -27,6 +27,7 @@
 #include "4coder_api_transition_30_31.h"
 
 #include "4coder_helper.h"
+#include "4coder_insertion.h"
 #include "4coder_fancy.h"
 #include "4coder_ui_helper.h"
 #include "4coder_default_framework.h"

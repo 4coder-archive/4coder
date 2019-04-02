@@ -623,7 +623,6 @@ This call begins a loop across all the buffers.
 If the buffer returned does not exist, the loop is finished.
 Buffers should not be killed durring a buffer loop.
 )
-DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_next)
 */{
@@ -645,16 +644,15 @@ DOC_SEE(get_buffer_next)
 API_EXPORT b32
 Get_Buffer_Next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out)
 /*
-DOC_PARAM(buffer, The Buffer_Summary pointed to by buffer is iterated to the next buffer or to a null summary if this is the last buffer.)
+DOC_PARAM(buffer, The  pointed to by buffer is iterated to the next buffer or to a null summary if this is the last buffer.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access. The buffer outputted will be the next buffer that is accessible.)
 DOC(
-This call steps a Buffer_Summary to the next buffer in the global buffer order.
+This call steps a  to the next buffer in the global buffer order.
 The global buffer order is kept roughly in the order of most recently used to least recently used.
 
 If the buffer outputted does not exist, the loop is finished.
 Buffers should not be killed or created durring a buffer loop.
 )
-DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_first)
 */{
@@ -676,30 +674,6 @@ DOC_SEE(get_buffer_first)
     return(result);
 }
 
-#if 0
-// TODO(allen): redocument
-//API_EXPORT b32
-Get_Buffer_Summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer_summary_out)
-/*
-DOC_PARAM(buffer_id, The parameter buffer_id specifies which buffer to try to get.)
-DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
-DOC_RETURN(This call returns a summary that describes the indicated buffer if it exists and is accessible.)
-DOC_SEE(Buffer_Summary)
-DOC_SEE(Access_Flag)
-DOC_SEE(Buffer_ID)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    Working_Set *working_set = &models->working_set;
-    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
-    b32 result = false;
-    if (buffer_api_check_file(file, access)){
-        fill_buffer_summary(buffer_summary_out, file, working_set);
-        result = true;
-    }
-    return(result);
-}
-#endif
-
 // TODO(allen): redocument
 API_EXPORT b32
 Get_Buffer_By_Name(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out)
@@ -712,7 +686,6 @@ DOC_RETURN(This call returns a summary that describes the indicated buffer if it
 DOC(This call searches the buffers by their buffer name.  The buffer name is the short name in the file bar.  The name must match exactly including any alterations put on the buffer name to avoid duplicates.)
 
 DOC_SEE(get_buffer_by_file_name)
-DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 */{
     Models *models = (Models*)app->cmd_context;
@@ -738,7 +711,6 @@ DOC_RETURN(This call returns a summary that describes the indicated buffer if it
 DOC(This call searches the buffers by their canonicalized file names.  Not all buffers have file names, only buffers that are tied to files.  For instance *scratch* does not have a file name.  Every file has one canonicalized file name.  For instance on windows this involves converting w:/a/b into W:\a\b.  If the name passed is not canonicalized a canonicalized copy is made first.  This includes turning relative paths to files that exist into full paths.  So the passed in name can be relative to the working directory.)
 
 DOC_SEE(get_buffer_by_name)
-DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 */
 {
@@ -1949,6 +1921,19 @@ View_Get_Buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buf
             *buffer_id_out = file->id.id;
             result = true;
         }
+    }
+    return(result);
+}
+
+API_EXPORT b32
+View_Get_Cursor_Pos(Application_Links *app, View_ID view_id, i32 *pos_out){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        File_Edit_Positions edit_pos = view_get_edit_pos(view);
+        *pos_out = edit_pos.cursor_pos;
+        result = true;
     }
     return(result);
 }
@@ -4007,7 +3992,7 @@ API_EXPORT b32
 Get_Face_ID(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out)
 /*
 DOC_PARAM(buffer, The buffer from which to get a face id.  If NULL gets global face id.)
-DOC(Retrieves a face id if buffer is a valid Buffer_Summary.  If buffer is set to NULL, the parameter is ignored and the global default face is returned.)
+DOC(Retrieves a face id if buffer is a valid   If buffer is set to NULL, the parameter is ignored and the global default face is returned.)
 DOC_RETURN(On success a valid Face_ID, otherwise returns zero.)
 */
 {

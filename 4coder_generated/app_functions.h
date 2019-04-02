@@ -51,6 +51,7 @@ struct Application_Links;
 #define GET_ACTIVE_VIEW_SIG(n) b32 n(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 #define GET_ACTIVE_PANEL_SIG(n) b32 n(Application_Links *app, Panel_ID *panel_id_out)
 #define VIEW_GET_BUFFER_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out)
+#define VIEW_GET_CURSOR_POS_SIG(n) b32 n(Application_Links *app, View_ID view_id, i32 *pos_out)
 #define VIEW_GET_PANEL_SIG(n) b32 n(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out)
 #define PANEL_GET_VIEW_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out)
 #define PANEL_IS_SPLIT_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id)
@@ -232,6 +233,7 @@ typedef GET_VIEW_SUMMARY_SIG(Get_View_Summary_Function);
 typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
 typedef GET_ACTIVE_PANEL_SIG(Get_Active_Panel_Function);
 typedef VIEW_GET_BUFFER_SIG(View_Get_Buffer_Function);
+typedef VIEW_GET_CURSOR_POS_SIG(View_Get_Cursor_Pos_Function);
 typedef VIEW_GET_PANEL_SIG(View_Get_Panel_Function);
 typedef PANEL_GET_VIEW_SIG(Panel_Get_View_Function);
 typedef PANEL_IS_SPLIT_SIG(Panel_Is_Split_Function);
@@ -415,6 +417,7 @@ Get_View_Summary_Function *get_view_summary;
 Get_Active_View_Function *get_active_view;
 Get_Active_Panel_Function *get_active_panel;
 View_Get_Buffer_Function *view_get_buffer;
+View_Get_Cursor_Pos_Function *view_get_cursor_pos;
 View_Get_Panel_Function *view_get_panel;
 Panel_Get_View_Function *panel_get_view;
 Panel_Is_Split_Function *panel_is_split;
@@ -597,6 +600,7 @@ Get_View_Summary_Function *get_view_summary_;
 Get_Active_View_Function *get_active_view_;
 Get_Active_Panel_Function *get_active_panel_;
 View_Get_Buffer_Function *view_get_buffer_;
+View_Get_Cursor_Pos_Function *view_get_cursor_pos_;
 View_Get_Panel_Function *view_get_panel_;
 Panel_Get_View_Function *panel_get_view_;
 Panel_Is_Split_Function *panel_is_split_;
@@ -787,6 +791,7 @@ app_links->get_view_summary_ = Get_View_Summary;\
 app_links->get_active_view_ = Get_Active_View;\
 app_links->get_active_panel_ = Get_Active_Panel;\
 app_links->view_get_buffer_ = View_Get_Buffer;\
+app_links->view_get_cursor_pos_ = View_Get_Cursor_Pos;\
 app_links->view_get_panel_ = View_Get_Panel;\
 app_links->panel_get_view_ = Panel_Get_View;\
 app_links->panel_is_split_ = Panel_Is_Split;\
@@ -969,6 +974,7 @@ static b32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag
 static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view(app, access, view_id_out));}
 static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel(app, panel_id_out));}
 static b32 view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->view_get_buffer(app, view_id, access, buffer_id_out));}
+static b32 view_get_cursor_pos(Application_Links *app, View_ID view_id, i32 *pos_out){return(app->view_get_cursor_pos(app, view_id, pos_out));}
 static b32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel(app, view_id, panel_id_out));}
 static b32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view(app, panel_id, view_id_out));}
 static b32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split(app, panel_id));}
@@ -1151,6 +1157,7 @@ static b32 get_view_summary(Application_Links *app, View_ID view_id, Access_Flag
 static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view_(app, access, view_id_out));}
 static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel_(app, panel_id_out));}
 static b32 view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->view_get_buffer_(app, view_id, access, buffer_id_out));}
+static b32 view_get_cursor_pos(Application_Links *app, View_ID view_id, i32 *pos_out){return(app->view_get_cursor_pos_(app, view_id, pos_out));}
 static b32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel_(app, view_id, panel_id_out));}
 static b32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view_(app, panel_id, view_id_out));}
 static b32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split_(app, panel_id));}

@@ -168,7 +168,7 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
     Buffer_Seek_String_Flags flags = 0
         | OptFlag(case_insensitive, BufferSeekString_CaseInsensitive)
         | OptFlag(!forward, BufferSeekString_Backward);
-    result->buffer = get_buffer(app, range->buffer, AccessAll);
+    result->buffer = range->buffer;
     
     int32_t best_pos = -1;
     if (forward){
@@ -178,7 +178,7 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
     for (int32_t i = 0; i < key.count; ++i){
         String word = key.words[i];
         int32_t new_pos = -1;
-        buffer_seek_string(app, result->buffer.buffer_id, start_pos, end_pos, range->start, word.str, word.size, &new_pos, flags);
+        buffer_seek_string(app, result->buffer, start_pos, end_pos, range->start, word.str, word.size, &new_pos, flags);
         
         if (new_pos >= 0){
             if (forward){
@@ -197,11 +197,11 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
     result->start = best_pos;
 }
 
-static int32_t
-buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+static i32
+buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_ID buffer_id, int32_t pos){
     char space[1024];
     Stream_Chunk chunk = {};
-    if (init_stream_chunk(&chunk, app, buffer->buffer_id, pos, space, sizeof(space))){
+    if (init_stream_chunk(&chunk, app, buffer_id, pos, space, sizeof(space))){
         int32_t still_looping = true;
         do{
             for (; pos < chunk.end; ++pos){
@@ -234,7 +234,7 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
             {
                 char prev = ' ';
                 if (char_is_alpha_numeric_utf8(word.str[0])){
-                    prev = buffer_get_char(app, result.buffer.buffer_id, result.start - 1);
+                    prev = buffer_get_char(app, result.buffer, result.start - 1);
                 }
                 
                 if (!char_is_alpha_numeric_utf8(prev)){
@@ -242,7 +242,7 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
                     if (result.end <= end_pos){
                         char next = ' ';
                         if (char_is_alpha_numeric_utf8(word.str[word.size-1])){
-                            next = buffer_get_char(app, result.buffer.buffer_id, result.end);
+                            next = buffer_get_char(app, result.buffer, result.end);
                         }
                         
                         if (!char_is_alpha_numeric_utf8(next)){
@@ -258,11 +258,9 @@ match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Ma
             
             case SearchFlag_MatchWordPrefix:
             {
-                char prev = buffer_get_char(app, result.buffer.buffer_id, result.start - 1);
+                char prev = buffer_get_char(app, result.buffer, result.start - 1);
                 if (!char_is_alpha_numeric_utf8(prev)){
-                    result.end =
-                        buffer_seek_alpha_numeric_end(app, &result.buffer, result.start);
-                    
+                    result.end = buffer_seek_alpha_numeric_end(app, result.buffer, result.start);
                     if (result.end <= end_pos){
                         result.found_match = true;
                         found_match = FindResult_FoundMatch;
@@ -484,42 +482,44 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
 //
 
 static void
-initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String *strings, int32_t count, Search_Range_Flag match_flags, int32_t *skip_buffers, int32_t skip_buffer_count, Search_Set *set, Search_Iter *iter){
+initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String *strings, i32 count, Search_Range_Flag match_flags, Buffer_ID *skip_buffers, i32 skip_buffer_count, Search_Set *set, Search_Iter *iter){
     memset(set, 0, sizeof(*set));
     memset(iter, 0, sizeof(*iter));
     
     Search_Key key = {};
-    int32_t sizes[ArrayCount(key.words)];
+    i32 sizes[ArrayCount(key.words)];
     memset(sizes, 0, sizeof(sizes));
     
     if (count > ArrayCount(key.words)){
         count = ArrayCount(key.words);
     }
-    for (int32_t i = 0; i < count; ++i){
+    for (i32 i = 0; i < count; ++i){
         sizes[i] = strings[i].size;
     }
     
     // TODO(allen): Why on earth am I allocating these separately in this case?  Upgrade to just use the string array on the stack!
     search_key_alloc(heap, &key, sizes, count);
-    for (int32_t i = 0; i < count; ++i){
+    for (i32 i = 0; i < count; ++i){
         copy(&key.words[i], strings[i]);
     }
     
     search_iter_init(iter, key);
     
-    int32_t buffer_count = get_buffer_count(app);
+    i32 buffer_count = get_buffer_count(app);
     search_set_init(heap, set, buffer_count);
     
     Search_Range *ranges = set->ranges;
     
-    View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
     
-    int32_t j = 0;
-    if (buffer.exists){
+    i32 j = 0;
+    if (buffer_exists(app, buffer)){
         b32 skip = false;
-        for (int32_t i = 0; i < skip_buffer_count; ++i){
-            if (buffer.buffer_id == skip_buffers[i]){
+        for (i32 i = 0; i < skip_buffer_count; ++i){
+            if (buffer == skip_buffers[i]){
                 skip = true;
                 break;
             }
@@ -528,35 +528,39 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
         if (!skip){
             ranges[j].type = SearchRange_FrontToBack;
             ranges[j].flags = match_flags;
-            ranges[j].buffer = buffer.buffer_id;
+            ranges[j].buffer = buffer;
             ranges[j].start = 0;
-            ranges[j].size = buffer.size;
+            buffer_get_size(app, buffer, &ranges[j].size);
             ++j;
         }
     }
     
-    for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
-         buffer_it.exists;
-         get_buffer_next(app, &buffer_it, AccessAll)){
-        if (buffer_it.buffer_id == buffer.buffer_id){
+    Buffer_ID buffer_it = 0;
+    for (get_buffer_next(app, 0, AccessAll, &buffer_it);
+         buffer_exists(app, buffer_it);
+         get_buffer_next(app, buffer_it, AccessAll, &buffer_it)){
+        if (buffer_it == buffer){
             continue;
         }
         
         b32 skip = false;
-        for (int32_t i = 0; i < skip_buffer_count; ++i){
-            if (buffer_it.buffer_id == skip_buffers[i]){
+        for (i32 i = 0; i < skip_buffer_count; ++i){
+            if (buffer_it == skip_buffers[i]){
                 skip = true;
                 break;
             }
         }
         
         if (!skip){
-            if (buffer_it.buffer_name[0] != '*'){
+            char first_char = 0;
+            String str = make_string_cap(&first_char, 0, 1);
+            buffer_get_unique_buffer_name(app, buffer_it, &str, 0);
+            if (first_char != '*'){
                 ranges[j].type = SearchRange_FrontToBack;
                 ranges[j].flags = match_flags;
-                ranges[j].buffer = buffer_it.buffer_id;
+                ranges[j].buffer = buffer_it;
                 ranges[j].start = 0;
-                ranges[j].size = buffer_it.size;
+                buffer_get_size(app, buffer_it, &ranges[j].size);
                 ++j;
             }
         }
@@ -568,22 +572,42 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
 
 ////////////////////////////////
 
+static String search_name = make_lit_string("*search*");
+
+// TODO(allen): can this get merged with the insertion stuff???
+struct Buffered_Printing{
+    Partition *part;
+    Temp_Memory temp;
+    Buffer_ID buffer;
+    i32 pos;
+};
+
+static Buffered_Printing
+make_buffered_print(Application_Links *app, Partition *part, Buffer_ID buffer){
+    Buffered_Printing buffered_print = {};
+    buffered_print.part = part;
+    buffered_print.temp = begin_temp_memory(part);
+    buffered_print.buffer = buffer;
+    buffer_get_size(app, buffer, &buffered_print.pos);
+    return(buffered_print);
+}
+
 static void
-buffered_print_flush(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer){
-    int32_t size = output_buffer->size;
-    int32_t write_size = part->pos - temp.pos;
-    char *str = part->base + temp.pos;
-    buffer_replace_range(app, output_buffer, size, size, str, write_size);
+buffered_print_flush(Application_Links *app, Buffered_Printing *out){
+    i32 write_size = out->part->pos - out->temp.pos;
+    char *str = out->part->base + out->temp.pos;
+    buffer_replace_range(app, out->buffer, out->pos, out->pos, make_string(str, write_size));
+    out->pos += write_size;
+    end_temp_memory(out->temp);
 }
 
 static char*
-buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer, int32_t length, b32 *did_flush){
-    char *mem = push_array(part, char, length);
+buffered_memory_reserve(Application_Links *app, Buffered_Printing *out, i32 length, b32 *did_flush){
+    char *mem = push_array(out->part, char, length);
     *did_flush = false;
     if (mem == 0){
-        buffered_print_flush(app, part, temp, output_buffer);
-        end_temp_memory(temp);
-        mem = push_array(part, char, length);
+        buffered_print_flush(app, out);
+        mem = push_array(out->part, char, length);
         *did_flush = true;
     }
     Assert(mem != 0);
@@ -591,73 +615,70 @@ buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory tem
 }
 
 static char*
-buffered_memory_reserve(Application_Links *app, Partition *part, Temp_Memory temp, Buffer_Summary *output_buffer, int32_t length){
+buffered_memory_reserve(Application_Links *app, Buffered_Printing *out, i32 length){
     b32 ignore;
-    return(buffered_memory_reserve(app, part, temp, output_buffer, length, &ignore));
+    return(buffered_memory_reserve(app, out, length, &ignore));
 }
 
-static int32_t
-buffered_print_buffer_length(Partition *part, Temp_Memory temp){
-    return(part->pos - temp.pos);
+static i32
+buffered_print_buffer_length(Buffered_Printing *out){
+    return(out->part->pos - out->temp.pos);
 }
-
-static String search_name = make_lit_string("*search*");
 
 static void
 list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
-                        String *strings, int32_t count, Search_Range_Flag match_flags,
+                        String *strings, i32 count, Search_Range_Flag match_flags,
                         Buffer_ID search_buffer_id){
-    Buffer_Summary search_buffer = get_buffer(app, search_buffer_id, AccessAll);
-    
     // Setup the search buffer for 'init' mode
-    buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
-    buffer_set_setting(app, &search_buffer, BufferSetting_RecordsHistory, false);
+    buffer_set_setting(app, search_buffer_id, BufferSetting_ReadOnly, true);
+    buffer_set_setting(app, search_buffer_id, BufferSetting_RecordsHistory, false);
     
     // Initialize a generic search all buffers
     Search_Set set = {};
     Search_Iter iter = {};
-    initialize_generic_search_all_buffers(app, heap, strings, count, match_flags, &search_buffer.buffer_id, 1, &set, &iter);
+    initialize_generic_search_all_buffers(app, heap, strings, count, match_flags, &search_buffer_id, 1, &set, &iter);
     
     // List all locations into search buffer
     Temp_Memory all_temp = begin_temp_memory(scratch);
     Partition line_part = part_sub_part(scratch, (4 << 10));
     
-    Temp_Memory temp = begin_temp_memory(scratch);
+    // Setup buffered output
+    Buffered_Printing out = make_buffered_print(app, scratch, search_buffer_id);
+    
     Buffer_ID prev_match_id = 0;
     b32 no_matches = true;
     for (Search_Match match = search_next_match(app, &set, &iter);
          match.found_match;
          match = search_next_match(app, &set, &iter)){
         Partial_Cursor word_pos = {};
-        if (buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
-            if (prev_match_id != match.buffer.buffer_id){
+        if (buffer_compute_cursor(app, match.buffer, seek_pos(match.start), &word_pos)){
+            if (prev_match_id != match.buffer){
                 if (prev_match_id != 0){
-                    char *newline = buffered_memory_reserve(app, scratch, temp, &search_buffer, 1);
+                    char *newline = buffered_memory_reserve(app, &out, 1);
                     *newline = '\n';
                 }
-                prev_match_id = match.buffer.buffer_id;
+                prev_match_id = match.buffer;
             }
             
-            char *file_name = match.buffer.buffer_name;
-            int32_t file_len = match.buffer.buffer_name_len;
+            char file_name_space[256];
+            String file_name = make_fixed_width_string(file_name_space);
+            buffer_get_file_name(app, match.buffer, &file_name, 0);
             
-            int32_t line_num_len = int_to_str_size(word_pos.line);
-            int32_t column_num_len = int_to_str_size(word_pos.character);
+            i32 line_num_len = int_to_str_size(word_pos.line);
+            i32 column_num_len = int_to_str_size(word_pos.character);
             
             Temp_Memory line_temp = begin_temp_memory(&line_part);
             Partial_Cursor line_start_cursor = {};
             Partial_Cursor line_one_past_last_cursor = {};
             String full_line_str = {};
-            if (read_line(app, &line_part, match.buffer.buffer_id, word_pos.line, &full_line_str, &line_start_cursor, &line_one_past_last_cursor)){
+            if (read_line(app, &line_part, match.buffer, word_pos.line, &full_line_str, &line_start_cursor, &line_one_past_last_cursor)){
                 String line_str = skip_chop_whitespace(full_line_str);
                 
-                b32 flushed = false;
-                int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
-                char *spare = buffered_memory_reserve(app, scratch, temp, &search_buffer, str_len, &flushed);
+                i32 str_len = file_name.size + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
+                char *spare = buffered_memory_reserve(app, &out, str_len);
                 
-                search_buffer = get_buffer(app, search_buffer_id, AccessAll);
                 String out_line = make_string_cap(spare, 0, str_len);
-                append_ss(&out_line, make_string(file_name, file_len));
+                append_ss(&out_line, file_name);
                 append_s_char(&out_line, ':');
                 append_int_to_str(&out_line, word_pos.line);
                 append_s_char(&out_line, ':');
@@ -676,12 +697,12 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
     
     if (no_matches){
         char no_matches_message[] = "no matches\n";
-        int32_t no_matches_message_length = sizeof(no_matches_message) - 1;
-        char *no_matches_message_out = buffered_memory_reserve(app, scratch, temp, &search_buffer, no_matches_message_length);
+        i32 no_matches_message_length = sizeof(no_matches_message) - 1;
+        char *no_matches_message_out = buffered_memory_reserve(app, &out, no_matches_message_length);
         memcpy(no_matches_message_out, no_matches_message, no_matches_message_length);
     }
     
-    buffered_print_flush(app, scratch, temp, &search_buffer);
+    buffered_print_flush(app, &out);
     
     end_temp_memory(all_temp);
     
@@ -690,7 +711,7 @@ list__parameters_buffer(Application_Links *app, Heap *heap, Partition *scratch,
 }
 
 static void
-list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String *strings, int32_t count,
+list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String *strings, i32 count,
                  Search_Range_Flag match_flags, View_Summary default_target_view){
     // Open the search buffer
     Buffer_ID search_buffer_id = create_or_switch_to_buffer_by_name(app, search_name.str, search_name.size, default_target_view);
@@ -721,8 +742,7 @@ list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch,
     char space[1024];
     String str = get_query_string(app, "List Locations For: ", space, sizeof(space));
     if (str.size > 0){
-        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive,
-                                default_target_view);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive, default_target_view);
     }
 }
 
@@ -736,8 +756,7 @@ list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scrat
     char space[512];
     String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space));
     if (str.size > 0){
-        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive,
-                                default_target_view);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive, default_target_view);
     }
 }
 
@@ -749,8 +768,7 @@ list_selected_range__parameters(Application_Links *app, Heap *heap, Partition *s
     Temp_Memory temp = begin_temp_memory(scratch);
     String str = get_string_in_view_range(app, scratch, &view);
     if (str.size > 0){
-        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive,
-                                default_target_view);
+        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive, default_target_view);
     }
     end_temp_memory(temp);
 }
@@ -762,7 +780,7 @@ list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *
     Temp_Memory temp = begin_temp_memory(scratch);
     
     String match_strings[9];
-    int32_t i = 0;
+    i32 i = 0;
     match_strings[i++] = string_push_f(scratch, "struct %.*s{"  , str.size, str.str);
     match_strings[i++] = string_push_f(scratch, "struct %.*s\n{", str.size, str.str);
     match_strings[i++] = string_push_f(scratch, "struct %.*s {" , str.size, str.str);
@@ -885,7 +903,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     // NOTE(allen): I just do this because this command is a lot of work
     // and there is no point in doing any of it if nothing will happen anyway.
     if (buffer.exists){
-        int32_t do_init = false;
+        i32 do_init = false;
         
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
         
@@ -899,10 +917,10 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             do_init = true;
         }
         
-        int32_t word_end = 0;
-        int32_t word_start = 0;
-        int32_t cursor_pos = 0;
-        int32_t size = 0;
+        i32 word_end = 0;
+        i32 word_start = 0;
+        i32 cursor_pos = 0;
+        i32 size = 0;
         
         if (do_init){
             // NOTE(allen): Get the range where the
@@ -914,7 +932,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             char space[1024];
             Stream_Chunk chunk = {};
             if (init_stream_chunk(&chunk, app, buffer.buffer_id, cursor_pos, space, sizeof(space))){
-                int32_t still_looping = true;
+                i32 still_looping = true;
                 do{
                     for (; cursor_pos >= chunk.start; --cursor_pos){
                         char c = chunk.data[cursor_pos];
@@ -947,7 +965,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             search_iter_init(&complete_state.iter, key);
             
             // NOTE(allen): Initialize the set of ranges to be searched.
-            int32_t buffer_count = get_buffer_count(app);
+            i32 buffer_count = get_buffer_count(app);
             search_set_init(&global_heap, &complete_state.set, buffer_count);
             
             Search_Range *ranges = complete_state.set.ranges;
@@ -959,7 +977,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             ranges[0].mid_start = word_start;
             ranges[0].mid_size = size;
             
-            int32_t j = 1;
+            i32 j = 1;
             for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
                  buffer_it.exists;
                  get_buffer_next(app, &buffer_it, AccessAll)){
@@ -991,7 +1009,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         // NOTE(allen): Iterate through matches.
         if (size > 0){
             for (;;){
-                int32_t match_size = 0;
+                i32 match_size = 0;
                 Search_Match match = search_next_match(app, &complete_state.set, &complete_state.iter);
                 
                 if (match.found_match){
@@ -999,7 +1017,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     Temp_Memory temp = begin_temp_memory(&global_part);
                     char *spare = push_array(&global_part, char, match_size);
                     
-                    buffer_read_range(app, &match.buffer, match.start, match.end, spare);
+                    buffer_read_range(app, match.buffer, match.start, match.end, spare);
                     
                     if (search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, spare, match_size)){
                         buffer_replace_range(app, &buffer, word_start, word_end, spare, match_size);

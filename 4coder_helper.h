@@ -102,15 +102,6 @@ struct Sort_Pair_i32{
     i32 key;
 };
 
-////////////////////////////////
-
-struct Buffer_Insertion
-{
-    Application_Links *app;
-    Buffer_ID buffer;
-    i32 at;
-};
-
 #endif
 
 // BOTTOM

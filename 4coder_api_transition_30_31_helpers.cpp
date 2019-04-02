@@ -142,6 +142,11 @@ buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *b
     return(buffer==0?0:buffer_seek_alphanumeric_or_camel_left(app, buffer->buffer_id, pos));
 }
 
+static i32
+buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    return(buffer!=0?0:buffer_seek_alpha_numeric_end(app, buffer->buffer_id, pos));
+}
+
 static Cpp_Token_Array
 buffer_get_all_tokens(Application_Links *app, Partition *part, Buffer_Summary *buffer){
     Cpp_Token_Array result = {};
