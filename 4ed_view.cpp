@@ -1216,9 +1216,8 @@ do_core_render(Application_Links *app){
 #endif
 
 internal Full_Cursor
-view_get_render_cursor(System_Functions *system, View *view, f32 scroll_y){
+file_get_render_cursor(System_Functions *system, Editing_File *file, f32 scroll_y){
     Full_Cursor result = {};
-    Editing_File *file = view->file;
     if (file->settings.unwrapped_lines){
         result = file_compute_cursor_hint(system, file, seek_unwrapped_xy(0, scroll_y, false));
     }
@@ -1226,6 +1225,11 @@ view_get_render_cursor(System_Functions *system, View *view, f32 scroll_y){
         result = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, false));
     }
     return(result);
+}
+
+internal Full_Cursor
+view_get_render_cursor(System_Functions *system, View *view, f32 scroll_y){
+    return(file_get_render_cursor(system, view->file, scroll_y));
 }
 
 internal Full_Cursor

@@ -4561,7 +4561,7 @@ Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
 API_EXPORT void
 Draw_Clip_Push(Application_Links *app, f32_Rect clip_box){
     Models *models = (Models*)app->cmd_context;
-    clip_box = draw_helper__models_space_to_screen_space(models, clip_box);
+    //clip_box = draw_helper__models_space_to_screen_space(models, clip_box);
     render_push_clip(models->target, i32R(clip_box));
 }
 
@@ -4706,14 +4706,10 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         f32 max_x = (f32)file->settings.display_width;
         f32 max_y = layout_dim.y + line_height;
         
-        f32 left_side_space = 0;
-        
         // TODO(allen): Don't force me to over-allocate!  Write a looser buffer render thingy.
-        f32 screen_width  = layout_dim.x;
-        f32 screen_height = layout_dim.y;
         f32 smallest_char_width  = 6.f;
         f32 smallest_char_height = 8.f;
-        i32 max = (i32)(screen_width*screen_height/(smallest_char_width*smallest_char_height))*2;
+        i32 max = (i32)(layout_dim.x*layout_dim.y/(smallest_char_width*smallest_char_height))*2;
         if (view->layout_arena.app == 0){
             view->layout_arena = make_arena(app);
         }
@@ -4740,7 +4736,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             scroll_y = intermediate_cursor.unwrapped_y;
         }
         scroll_y += buffer_point.pixel_shift.y;
-        Full_Cursor render_cursor = view_get_render_cursor(system, view, scroll_y);
+        Full_Cursor render_cursor = file_get_render_cursor(system, file, scroll_y);
 #endif
 
         i32 item_count = 0;
@@ -4751,9 +4747,9 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             params.items         = items;
             params.max           = max;
             params.count         = &item_count;
-            params.port_x        = (f32)screen_p.x + left_side_space;
-            params.port_y        = (f32)screen_p.y;
-            params.clip_w        = view_width(models, view) - left_side_space;
+            params.port_x        = screen_p.x;
+            params.port_y        = screen_p.y;
+            params.clip_w        = layout_dim.x;
             params.scroll_x      = scroll_x;
             params.scroll_y      = scroll_y;
             params.width         = max_x;
@@ -4815,6 +4811,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         
         Range range = {render_cursor.pos, end_pos};
         
+        // TODO(allen): 
         view->render.view_rect = view->panel->rect_inner;
         view->render.buffer_rect = i32R(f32R(screen_p.x, screen_p.y,
                                              screen_p.x + layout_dim.x, screen_p.y + layout_dim.y));

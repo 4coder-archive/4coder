@@ -315,12 +315,6 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     return(sub_region);
 }
 
-struct View_Render_Parameters{
-    View_ID view_id;
-    Range on_screen_range;
-    Rect_i32 buffer_rect;
-};
-
 static Buffer_Point
 buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Vec2 scroll){
     Full_Cursor cursor = {};
@@ -363,9 +357,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     
     compute_render_layout(app, view_id, buffer_id, buffer_rect.p0, rect_dim(buffer_rect), buffer_point,
                           max_i32, &text_layout_id);
-    
     Range on_screen_range = {};
-    text_layout_get_on_screen_range(app, view_id, &on_screen_range);
+    text_layout_get_on_screen_range(app, text_layout_id, &on_screen_range);
+    text_layout_free(app, text_layout_id);
     
     View_Summary view = get_view(app, view_id, AccessAll);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
@@ -709,8 +703,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         mark_enclosures(app, scratch, render_scope, &buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
+    draw_clip_push(app, buffer_rect);
     draw_render_layout(app, view_id);
-    text_layout_free(app, text_layout_id);
+    draw_clip_pop(app);
     
     // NOTE(allen): FPS HUD
     if (show_fps_hud){
