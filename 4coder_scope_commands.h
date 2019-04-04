@@ -17,7 +17,7 @@ enum{
 
 struct Statement_Parser{
     Token_Iterator token_iterator;
-    Buffer_Summary *buffer;
+    Buffer_ID buffer;
 };
 
 typedef i32 Find_Scope_Token_Type;

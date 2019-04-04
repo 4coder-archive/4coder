@@ -55,6 +55,7 @@ read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 l
     return(buffer==0?0:read_line(app, part, buffer->buffer_id, line, str));
 }
 
+
 static b32
 init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *buffer, i32 pos, char *data, u32 size){
     return(buffer==0?0:init_stream_chunk(chunk, app, buffer->buffer_id, pos, data, size));
@@ -63,6 +64,33 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *b
 static b32
 init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_Summary *buffer, i32 pos, Cpp_Token *data, i32 count){
     return(buffer==0?0:init_stream_tokens(stream, app, buffer->buffer_id, pos, data, count));
+}
+
+static String
+token_get_lexeme(Application_Links *app, Buffer_Summary *buffer, Cpp_Token *token, char *out_buffer, i32 out_buffer_size){
+    String result = {};
+    if (buffer != 0){
+        result = token_get_lexeme(app, buffer->buffer_id, token, out_buffer, out_buffer_size);
+    }
+    return(result);
+}
+
+static String
+token_get_lexeme(Application_Links *app, Partition *part, Buffer_Summary *buffer, Cpp_Token *token){
+    String result = {};
+    if (buffer != 0){
+        result = token_get_lexeme(app, part, buffer->buffer_id, token);
+    }
+    return(result);
+}
+
+static String
+get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, char *space, i32 capacity){
+    String result = {};
+    if (buffer != 0){
+        result = get_token_or_word_under_pos(app, buffer->buffer_id, pos, space, capacity);
+    }
+    return(result);
 }
 
 static i32
@@ -258,6 +286,253 @@ static void
 query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 pos, String r, String w){
     if (buffer != 0){
         query_replace_base(app, view, buffer->buffer_id, pos, r, w);
+    }
+}
+
+static Statement_Parser
+make_statement_parser(Application_Links *app, Buffer_Summary *buffer, i32 token_index){
+    Statement_Parser parser = {};
+    if (buffer != 0){
+        parser = make_statement_parser(app, buffer->buffer_id, token_index);
+    }
+    return(parser);
+}
+
+static b32
+find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 *start_out, i32 *end_out){
+    return(buffer==0?false:find_whole_statement_down(app, buffer->buffer_id, pos, start_out, end_out));
+}
+
+static b32
+find_scope_top(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
+    return(buffer==0?false:find_scope_top(app, buffer->buffer_id, start_pos, flags, end_pos_out));
+}
+
+static b32
+find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
+    return(buffer==0?false:find_scope_bottom(app, buffer->buffer_id, start_pos, flags, end_pos_out));
+}
+
+static b32
+find_scope_range(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, Range *range_out, u32 flags){
+    return(buffer==0?false:find_scope_range(app, buffer->buffer_id, start_pos, range_out, flags));
+}
+
+static b32
+find_next_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
+    return(buffer==0?false:find_next_scope(app, buffer->buffer_id, start_pos, flags, end_pos_out));
+}
+
+static b32
+find_prev_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
+    return(buffer==0?false:find_prev_scope(app, buffer->buffer_id, start_pos, flags, end_pos_out));
+}
+
+static Range_Array
+get_enclosure_ranges(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 pos, u32 flags){
+    Range_Array result = {};
+    if (buffer != 0){
+        result = get_enclosure_ranges(app, part, buffer->buffer_id, pos, flags);
+    }
+    return(result);
+}
+
+static void
+mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope, Buffer_Summary *buffer, i32 pos, u32 flags, Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
+    if (buffer != 0){
+        mark_enclosures(app, scratch, render_scope, buffer->buffer_id, pos, flags, type, back_colors, fore_colors, color_count);
+    }
+}
+
+static Hard_Start_Result
+buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, i32 line_start, i32 tab_width){
+    Hard_Start_Result result = {};
+    if (buffer != 0){
+        buffer_find_hard_start(app, buffer->buffer_id, line_start, tab_width);
+    }
+    return(result);
+}
+
+static Buffer_Batch_Edit
+make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
+    Buffer_Batch_Edit result = {};
+    if (buffer != 0){
+        make_batch_from_indent_marks(app, arena, buffer->buffer_id, first_line, one_past_last_line, indent_marks, opts);
+    }
+    return(result);
+}
+
+static void
+set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
+    if (buffer != 0){
+        set_line_indents(app, part, buffer->buffer_id, first_line, one_past_last_line, indent_marks, opts);
+    }
+}
+
+static Indent_Anchor_Position
+find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, i32 line_start, i32 tab_width){
+    Indent_Anchor_Position result = {};
+    if (buffer != 0){
+        result = find_anchor_token(app, buffer->buffer_id, tokens, line_start, tab_width);
+    }
+    return(result);
+}
+
+static i32*
+get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer,
+                      Cpp_Token_Array tokens, i32 first_line, i32 one_past_last_line,
+                      b32 exact_align, i32 tab_width){
+    return(buffer==0?0:get_indentation_marks(app, arena, buffer->buffer_id, tokens, first_line, one_past_last_line, exact_align, tab_width));
+}
+
+static i32
+buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+    return(buffer==0?0:buffer_get_line_number(app, buffer->buffer_id, pos));
+}
+
+static void
+get_indent_lines_minimum(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
+    if (buffer != 0){
+        get_indent_lines_minimum(app, buffer->buffer_id, start_pos, end_pos, line_start_out, line_end_out);
+    }
+}
+
+static void
+get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
+    if (buffer != 0){
+        get_indent_lines_whole_tokens(app, buffer->buffer_id, tokens, start_pos, end_pos, line_start_out, line_end_out);
+    }
+}
+
+static b32
+buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
+    return(buffer==0?0:buffer_auto_indent(app, part, buffer->buffer_id, start, end, tab_width, flags));
+}
+
+static b32
+buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
+    return(buffer==0?0:buffer_auto_indent(app, buffer->buffer_id, start, end, tab_width, flags));
+}
+
+static void
+print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, i32 positions_count, Buffered_Write_Stream *stream){
+    if (buffer != 0){
+        print_positions_buffered(app, buffer->buffer_id, positions_array, positions_count, stream);
+    }
+}
+
+static Get_Positions_Results
+get_function_positions(Application_Links *app, Buffer_Summary *buffer, i32 first_token_index, Function_Positions *positions_array, i32 positions_max){
+    Get_Positions_Results result = {};
+    if (buffer != 0){
+        result = get_function_positions(app, buffer->buffer_id, first_token_index, positions_array, positions_max);
+    }
+    return(result);
+}
+
+static void
+list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *optional_target_buffer){
+    if (optional_target_buffer != 0){
+        list_all_functions(app, part, optional_target_buffer->buffer_id);
+    }
+}
+
+static i32
+get_start_of_line_at_cursor(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
+    return(buffer==0?0:get_start_of_line_at_cursor(app, view, buffer->buffer_id));
+}
+
+static b32
+c_line_comment_starts_at_position(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+    return(buffer==0?0:c_line_comment_starts_at_position(app, buffer->buffer_id, pos));
+}
+
+static void
+write_string(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, String string){
+    if (buffer != 0){
+        write_string(app, view, buffer->buffer_id, string);
+    }
+}
+
+static b32
+open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, i32 filename_len, b32 background, b32 never_new){
+    b32 result = false;
+    Buffer_ID id_out = 0;
+    result = open_file(app, &id_out, filename, filename_len, background, never_new);
+    if (result && buffer_out != 0){
+        get_buffer_summary(app, id_out, AccessAll, buffer_out);
+    }
+    return(result);
+}
+
+static b32
+get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summary *buffer_out){
+    b32 result = false;
+    if (buffer.exists){
+        Buffer_ID id_out = 0;
+        result = get_cpp_matching_file(app, buffer.buffer_id, &id_out);
+        if (result && buffer_out != 0){
+            get_buffer_summary(app, id_out, AccessAll, buffer_out);
+        }
+    }
+    return(result);
+}
+
+static b32
+get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, Name_Line_Column_Location *location){
+    Buffer_ID id = 0;
+    b32 result = get_jump_buffer(app, &id, location);
+    if (result){
+        get_buffer_summary(app, id, AccessAll, buffer);
+    }
+    return(result);
+}
+
+static b32
+get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location, Access_Flag access){
+    Buffer_ID id = 0;
+    b32 result = get_jump_buffer(app, &id, location, access);
+    if (result){
+        get_buffer_summary(app, id, AccessAll, buffer);
+    }
+    return(result);
+}
+
+static b32
+get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location){
+    Buffer_ID id = 0;
+    b32 result = get_jump_buffer(app, &id, location);
+    if (result){
+        get_buffer_summary(app, id, AccessAll, buffer);
+    }
+    return(result);
+}
+
+static void
+switch_to_existing_view(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
+    if (buffer != 0){
+        switch_to_existing_view(app, view, buffer->buffer_id);
+    }
+}
+
+static void
+set_view_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Buffer_Seek seek){
+    if (buffer != 0){
+        set_view_to_location(app, view, buffer->buffer_id, seek);
+    }
+}
+
+static void
+jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Name_Line_Column_Location location){
+    if (buffer != 0){
+        jump_to_location(app, view, buffer->buffer_id, location);
+    }
+}
+
+static void
+jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, ID_Pos_Jump_Location location){
+    if (buffer != 0){
+        jump_to_location(app, view, buffer->buffer_id, location);
     }
 }
 

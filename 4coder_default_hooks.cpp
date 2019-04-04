@@ -140,8 +140,7 @@ sort_highlight_record(Highlight_Record *records, i32 first, i32 one_past_last){
 }
 
 static Range_Array
-get_enclosure_ranges(Application_Links *app, Partition *part,
-                     Buffer_Summary *buffer, i32 pos, u32 flags){
+get_enclosure_ranges(Application_Links *app, Partition *part, Buffer_ID buffer, i32 pos, u32 flags){
     Range_Array array = {};
     array.ranges = push_array(part, Range, 0);
     for (;;){
@@ -160,10 +159,8 @@ get_enclosure_ranges(Application_Links *app, Partition *part,
 }
 
 static void
-mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope,
-                Buffer_Summary *buffer, i32 pos, u32 flags,
-                Marker_Visual_Type type,
-                int_color *back_colors, int_color *fore_colors, i32 color_count){
+mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope, Buffer_ID buffer, i32 pos, u32 flags,
+                Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
     Temp_Memory temp = begin_temp_memory(scratch);
     Range_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
@@ -178,7 +175,7 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
             marker[0].pos = range->first;
             marker[1].pos = range->one_past_last - 1;
         }
-        Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer->buffer_id, marker_count, &render_scope);
+        Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer, marker_count, &render_scope);
         managed_object_store_data(app, o, 0, marker_count, markers);
         
         Marker_Visual_Take_Rule take_rule = {};
@@ -301,14 +298,16 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     
     // line number margins
     if (global_config.show_line_number_margins){
-        Buffer_Summary buffer = {};
-        get_buffer_summary(app, view.buffer_id, AccessAll, &buffer);
-        i32 line_count_digit_count = int_to_str_size(buffer.line_count);
-        Face_ID font_id = 0;
-        get_face_id(app, view.buffer_id, &font_id);
-        // TODO(allen): I need a "digit width"
-        f32 zero = get_string_advance(app, font_id, make_lit_string("0"));
-        i32 margin_width = ceil32((f32)line_count_digit_count*zero);
+        Buffer_ID buffer = 0;
+        view_get_buffer(app, view.view_id, AccessAll, &buffer);
+        i32 line_count = 0;
+        buffer_get_line_count(app, buffer, &line_count);
+        i32 line_count_digit_count = int_to_str_size(line_count);
+        Face_ID face_id = 0;
+        get_face_id(app, buffer, &face_id);
+        Face_Metrics metrics = {};
+        get_face_metrics(app, face_id, &metrics);
+        i32 margin_width = ceil32((f32)line_count_digit_count*metrics.typical_character_width);
         sub_region.x0 += margin_width + 2;
     }
     
@@ -362,8 +361,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     text_layout_free(app, text_layout_id);
     
     View_Summary view = get_view(app, view_id, AccessAll);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
     View_Summary active_view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view_id, AccessAll, &buffer);
     b32 is_active_view = (active_view.view_id == view_id);
     
     f32 line_height = view.line_height;
@@ -385,7 +385,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
                 if (showing_file_bar){
                     Face_ID face_id = 0;
-                    get_face_id(app, view.buffer_id, &face_id);
+                    get_face_id(app, buffer, &face_id);
                     
                     Rect_f32 bar = r_cursor;
                     bar.y1 = bar.y0 + line_height + 2.f;
@@ -399,7 +399,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     Temp_Memory_Arena temp = begin_temp_memory(arena);
                     
                     Fancy_String_List list = {};
-                    push_fancy_string(arena, &list, base_color, make_string(buffer.buffer_name, buffer.buffer_name_len));
+                    push_fancy_string(arena, &list, base_color, buffer_push_unique_buffer_name(app, buffer, arena));
                     push_fancy_stringf(arena, &list, base_color, " - L#%d C#%d -", view.cursor.line, view.cursor.character);
                     
                     Face_Metrics face_metrics = {};
@@ -408,7 +408,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                                        face_metrics.line_height, face_metrics.typical_character_width);
                     
                     b32 is_dos_mode = false;
-                    if (buffer_get_setting(app, buffer.buffer_id, BufferSetting_Eol, &is_dos_mode)){
+                    if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
                         if (is_dos_mode){
                             push_fancy_string(arena, &list, base_color, make_lit_string(" dos"));
                         }
@@ -421,7 +421,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     }
                     
                     {
-                        Dirty_State dirty = buffer.dirty;
+                        Dirty_State dirty = 0;
+                        buffer_get_dirty_state(app, buffer, &dirty);
                         char space[3];
                         String str = make_fixed_width_string(space);
                         if (dirty != 0){
@@ -478,7 +479,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         // NOTE(allen): Line Numbers
         if (global_config.show_line_number_margins){
-            i32 line_count_digit_count = int_to_str_size(buffer.line_count);
+            i32 line_count = 0;
+            buffer_get_line_count(app, buffer, &line_count);
+            i32 line_count_digit_count = int_to_str_size(line_count);
             Face_ID font_id = 0;
             get_face_id(app, view.buffer_id, &font_id);
             // TODO(allen): I need a "digit width"
@@ -522,7 +525,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         Temp_Memory temp = begin_temp_memory(scratch);
         i32 text_size = on_screen_range.one_past_last - on_screen_range.first;
         char *text = push_array(scratch, char, text_size);
-        buffer_read_range(app, &buffer, on_screen_range.first, on_screen_range.one_past_last, text);
+        buffer_read_range(app, buffer, on_screen_range.first, on_screen_range.one_past_last, text);
         
         Highlight_Record *records = push_array(scratch, Highlight_Record, 0);
         String tail = make_string(text, text_size);
@@ -563,7 +566,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 b32 do_emit = i == record_count || (records[i].color != current_color);
                 if (do_emit){
                     i32 marker_count = (i32)(push_array(scratch, Marker, 0) - markers);
-                    Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, marker_count, &render_scope);
+                    Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer, marker_count, &render_scope);
                     managed_object_store_data(app, o, 0, marker_count, markers);
                     Marker_Visual v = create_marker_visual(app, o);
                     marker_visual_set_effect(app, v, VisualType_CharacterHighlightRanges, SymbolicColor_Default, current_color, 0);
@@ -582,7 +585,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     // NOTE(allen): Cursor and mark
-    Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
+    Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
     Marker cm_markers[2] = {};
     cm_markers[0].pos = view.cursor.pos;
     cm_markers[1].pos = view.mark.pos;
@@ -662,11 +665,13 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         u32 token_flags = BoundaryToken|BoundaryWhitespace;
         i32 pos0 = view.cursor.pos;
-        i32 pos1 = buffer_boundary_seek(app, buffer.buffer_id, pos0, DirLeft , token_flags);
+        i32 pos1 = buffer_boundary_seek(app, buffer, pos0, DirLeft , token_flags);
         if (pos1 >= 0){
-            i32 pos2 = buffer_boundary_seek(app, buffer.buffer_id, pos1, DirRight, token_flags);
-            if (pos2 <= buffer.size){
-                Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer.buffer_id, 2, &render_scope);
+            i32 pos2 = buffer_boundary_seek(app, buffer, pos1, DirRight, token_flags);
+            i32 buffer_size = 0;
+            buffer_get_size(app, buffer, &buffer_size);
+            if (pos2 <= buffer_size){
+                Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
                 Marker range_markers[2] = {};
                 range_markers[0].pos = pos1;
                 range_markers[1].pos = pos2;
@@ -684,15 +689,15 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         for (u16 i = 0; i < color_count; i += 1){
             colors[i] = Stag_Back_Cycle_1 + i;
         }
-        mark_enclosures(app, scratch, render_scope, &buffer, view.cursor.pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
+        mark_enclosures(app, scratch, render_scope, buffer, view.cursor.pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
         i32 pos = view.cursor.pos;
-        if (buffer_get_char(app, buffer.buffer_id, pos) == '('){
+        if (buffer_get_char(app, buffer, pos) == '('){
             pos += 1;
         }
         else if (pos > 0){
-            if (buffer_get_char(app, buffer.buffer_id, pos - 1) == ')'){
+            if (buffer_get_char(app, buffer, pos - 1) == ')'){
                 pos -= 1;
             }
         }
@@ -700,7 +705,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         for (u16 i = 0; i < color_count; i += 1){
             colors[i] = Stag_Text_Cycle_1 + i;
         }
-        mark_enclosures(app, scratch, render_scope, &buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
+        mark_enclosures(app, scratch, render_scope, buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
     draw_clip_push(app, buffer_rect);
@@ -903,29 +908,30 @@ RENDER_CALLER_SIG(default_render_caller){
 }
 
 HOOK_SIG(default_exit){
+    i32 result = 1;
+    
     // If this returns zero it cancels the exit.
-    if (allow_immediate_close_without_checking_for_changes){
-        return(1);
-    }
-    
-    b32 has_unsaved_changes = false;
-    
-    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
-         buffer.exists;
-         get_buffer_next(app, &buffer, AccessAll)){
-        if (HasFlag(buffer.dirty, DirtyState_UnsavedChanges)){
-            has_unsaved_changes = true;
-            break;
+    if (!allow_immediate_close_without_checking_for_changes){
+        b32 has_unsaved_changes = false;
+        Buffer_ID buffer = 0;
+        for (get_buffer_next(app, 0, AccessAll, &buffer);
+             buffer != 0;
+             get_buffer_next(app, buffer, AccessAll, &buffer)){
+            Dirty_State dirty = 0;
+            buffer_get_dirty_state(app, buffer, &dirty);
+            if (HasFlag(dirty, DirtyState_UnsavedChanges)){
+                has_unsaved_changes = true;
+                break;
+            }
+        }
+        if (has_unsaved_changes){
+            View_Summary view = get_active_view(app, AccessAll);
+            do_gui_sure_to_close_4coder(app, &view);
+            result = 0;
         }
     }
     
-    if (has_unsaved_changes){
-        View_Summary view = get_active_view(app, AccessAll);
-        do_gui_sure_to_close_4coder(app, &view);
-        return(0);
-    }
-    
-    return(1);
+    return(result);
 }
 
 // TODO(allen): how to deal with multiple sizes on a single view
@@ -934,7 +940,8 @@ HOOK_SIG(default_view_adjust){
     for (View_Summary view = get_view_first(app, AccessAll);
          view.exists;
          get_view_next(app, &view, AccessAll)){
-        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
+        Buffer_ID buffer = 0;
+        view_get_buffer(app, view.view_id, AccessAll, &buffer);
         i32 view_width = view.render_region.x1 - view.render_region.x0;
         Face_ID face_id = get_default_font_for_view(app, view.view_id);
         f32 em = get_string_advance(app, face_id, make_lit_string("m"));
@@ -946,8 +953,8 @@ HOOK_SIG(default_view_adjust){
         }
         
         f32 min_base_width = 20.0f*em;
-        buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, (i32)(wrap_width));
-        buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, (i32)(min_base_width));
+        buffer_set_setting(app, buffer, BufferSetting_WrapPosition, (i32)(wrap_width));
+        buffer_set_setting(app, buffer, BufferSetting_MinimumBaseWrapPosition, (i32)(min_base_width));
     }
     return(0);
 }
@@ -1074,12 +1081,6 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
 }
 
 OPEN_FILE_HOOK_SIG(default_file_settings){
-    // NOTE(allen|a4.0.8): The get_parameter_buffer was eliminated
-    // and instead the buffer is passed as an explicit parameter through
-    // the function call.  That is where buffer_id comes from here.
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-    Assert(buffer.exists);
-    
     b32 treat_as_code = false;
     b32 treat_as_todo = false;
     b32 lex_without_strings = false;
@@ -1088,9 +1089,15 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     
     Parse_Context_ID parse_context_id = 0;
     
-    if (buffer.file_name != 0 && buffer.size < (16 << 20)){
-        String name = make_string(buffer.file_name, buffer.file_name_len);
-        String ext = file_extension(name);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(scratch);
+    
+    String file_name = buffer_push_file_name(app, buffer_id, scratch);
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer_id, &buffer_size);
+    
+    if (file_name.size > 0 && buffer_size < (32 << 20)){
+        String ext = file_extension(file_name);
         for (i32 i = 0; i < extensions.count; ++i){
             if (match(ext, extensions.strings[i])){
                 treat_as_code = true;
@@ -1145,23 +1152,23 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         }
         
         if (!treat_as_code){
-            treat_as_todo = match_insensitive(front_of_directory(name), "todo.txt");
+            treat_as_todo = match_insensitive(front_of_directory(file_name), "todo.txt");
         }
     }
     
     i32 map_id = (treat_as_code)?((i32)default_code_map):((i32)mapid_file);
     i32 map_id_query = 0;
     
-    buffer_set_setting(app, &buffer, BufferSetting_MapID, default_lister_ui_map);
-    buffer_get_setting(app, &buffer, BufferSetting_MapID, &map_id_query);
+    buffer_set_setting(app, buffer_id, BufferSetting_MapID, default_lister_ui_map);
+    buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
     Assert(map_id_query == default_lister_ui_map);
     
-    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, global_config.default_wrap_width);
-    buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, global_config.default_min_base_width);
-    buffer_set_setting(app, &buffer, BufferSetting_MapID, map_id);
-    buffer_get_setting(app, &buffer, BufferSetting_MapID, &map_id_query);
+    buffer_set_setting(app, buffer_id, BufferSetting_WrapPosition, global_config.default_wrap_width);
+    buffer_set_setting(app, buffer_id, BufferSetting_MinimumBaseWrapPosition, global_config.default_min_base_width);
+    buffer_set_setting(app, buffer_id, BufferSetting_MapID, map_id);
+    buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
     Assert(map_id_query == map_id);
-    buffer_set_setting(app, &buffer, BufferSetting_ParserContext, parse_context_id);
+    buffer_set_setting(app, buffer_id, BufferSetting_ParserContext, parse_context_id);
     
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
@@ -1178,11 +1185,12 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         use_virtual_whitespace = global_config.enable_virtual_whitespace;
         use_lexer = true;
     }
-    if (match(make_string(buffer.buffer_name, buffer.buffer_name_len), "*compilation*")){
+    
+    String buffer_name = buffer_push_base_buffer_name(app, buffer_id, scratch);
+    if (match(buffer_name, "*compilation*")){
         wrap_lines = false;
     }
-    //if (buffer.size >= (192 << 10)){
-    if (buffer.size >= (128 << 10)){
+    if (buffer_size >= (1 << 20)){
         wrap_lines = false;
         use_virtual_whitespace = false;
     }
@@ -1193,101 +1201,65 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     // Unfortunantely without tokens virtual whitespace doesn't really make sense.
     // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
     // Cleaning some of that up is a goal for future versions.
-    buffer_set_setting(app, &buffer, BufferSetting_LexWithoutStrings, lex_without_strings);
-    buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
-    buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, use_virtual_whitespace);
-    buffer_set_setting(app, &buffer, BufferSetting_Lex, use_lexer);
+    buffer_set_setting(app, buffer_id, BufferSetting_LexWithoutStrings, lex_without_strings);
+    buffer_set_setting(app, buffer_id, BufferSetting_WrapLine, wrap_lines);
+    buffer_set_setting(app, buffer_id, BufferSetting_VirtualWhitespace, use_virtual_whitespace);
+    buffer_set_setting(app, buffer_id, BufferSetting_Lex, use_lexer);
+    
+    end_temp_memory(temp);
     
     // no meaning for return
     return(0);
 }
 
 OPEN_FILE_HOOK_SIG(default_new_file){
-#if 0
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessOpen);
-    char str[] = "/*\nNew File\n*/\n\n\n";
-    buffer_replace_range(app, &buffer, 0, 0, str, sizeof(str)-1);
-#endif
-    
     // no meaning for return
+    // buffer_id
     return(0);
 }
 
 OPEN_FILE_HOOK_SIG(default_file_save){
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-    Assert(buffer.exists);
-    
     i32 is_virtual = 0;
     if (global_config.automatically_indent_text_on_save &&
-        buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace, &is_virtual)){ 
+        buffer_get_setting(app, buffer_id, BufferSetting_VirtualWhitespace, &is_virtual)){ 
         if (is_virtual){
-            buffer_auto_indent(app, &global_part, &buffer, 0, buffer.size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+            i32 buffer_size = 0;
+            buffer_get_size(app, buffer_id, &buffer_size);
+            buffer_auto_indent(app, &global_part, buffer_id, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         }
     }
-    
     // no meaning for return
     return(0);
 }
 
 FILE_EDIT_RANGE_SIG(default_file_edit_range){
-#if 0
-    Buffer_Summary buffer_summary = {};
-    if (get_buffer_summary(app, buffer_id, AccessAll, &buffer_summary)){
-        if (!match(make_string(buffer_summary.buffer_name, buffer_summary.buffer_name_len), make_lit_string("*messages*"))){
-            char space[1024];
-            String str = make_fixed_width_string(space);
-            append(&str, "'");
-            append(&str, make_string(buffer_summary.buffer_name, buffer_summary.buffer_name_len));
-            append(&str, "' [");
-            append_int_to_str(&str, range.first);
-            append(&str, ", ");
-            append_int_to_str(&str, range.one_past_last);
-            append(&str, ") '");
-            append(&str, substr(text, 0, 32));
-            append(&str, "'\n");
-            print_message(app, str.str, str.size);
-        }
-    }
-#endif
-    
     // no meaning for return
+    // buffer_id, range, text
     return(0);
 }
 
 FILE_EDIT_FINISHED_SIG(default_file_edit_finished){
-    for (i32 i = 0; i < buffer_id_count; i += 1){
 #if 0
-        // NOTE(allen|4.0.31): This code is example usage, it's not a particularly nice feature to actually have.
-        
-        Buffer_Summary buffer = get_buffer(app, buffer_ids[i], AccessAll);
-        Assert(buffer.exists);
-        
-        String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
-        char space[256];
-        String str = make_fixed_width_string(space);
-        append(&str, "edit finished: ");
-        append(&str, buffer_name);
-        append(&str, "\n");
-        print_message(app, str.str, str.size);
-#endif
+    for (i32 i = 0; i < buffer_id_count; i += 1){
+        // buffer_ids[i]
     }
+#endif
     
     // no meaning for return
     return(0);
 }
 
 OPEN_FILE_HOOK_SIG(default_end_file){
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-    Assert(buffer.exists);
-    
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(scratch);
     char space[1024];
+    String buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
     String str = make_fixed_width_string(space);
     append(&str, "Ending file: ");
-    append(&str, make_string(buffer.buffer_name, buffer.buffer_name_len));
+    append(&str, buffer_name);
     append(&str, "\n");
-    
     print_message(app, str.str, str.size);
-    
+    end_temp_memory(temp);
     // no meaning for return
     return(0);
 }

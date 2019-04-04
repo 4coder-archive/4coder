@@ -751,12 +751,14 @@ list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scrat
                             b32 substrings, b32 case_insensitive,
                             View_Summary default_target_view){
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    if (!buffer.exists) return;
-    char space[512];
-    String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space));
-    if (str.size > 0){
-        list_single__parameters(app, heap, scratch, str, substrings, case_insensitive, default_target_view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
+    if (buffer_exists(app, buffer)){
+        char space[512];
+        String str = get_token_or_word_under_pos(app, buffer, view.cursor.pos, space, sizeof(space));
+        if (str.size > 0){
+            list_single__parameters(app, heap, scratch, str, substrings, case_insensitive, default_target_view);
+        }
     }
 }
 
@@ -878,9 +880,10 @@ CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition_of_identifier)
 CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of strings that appear to define a type whose name matches it.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
     char space[512];
-    String str = get_token_or_word_under_pos(app, &buffer, view.cursor.pos, space, sizeof(space) - 1);
+    String str = get_token_or_word_under_pos(app, buffer, view.cursor.pos, space, sizeof(space) - 1);
     if (str.size > 0){
         View_Summary target_view = get_next_view_after_active(app, AccessAll);
         list_type_definition__parameters(app, &global_heap, &global_part, str, target_view);

@@ -1474,18 +1474,20 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
 ////////////////////////////////
 
 static b32
-get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summary *buffer_out){
+get_cpp_matching_file(Application_Links *app, Buffer_ID buffer, Buffer_ID *buffer_out){
     b32 result = false;
-    
-    if (buffer.file_name != 0){
-        char space[512];
-        String file_name = make_string_cap(space, 0, sizeof(space));
-        append(&file_name, make_string(buffer.file_name, buffer.file_name_len));
-        
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(scratch);
+    String file_name = {};
+    buffer_get_file_name(app, buffer, 0, &file_name.memory_size);
+    file_name.memory_size += 4;
+    file_name.str = push_array(scratch, char, file_name.memory_size);
+    buffer_get_file_name(app, buffer, &file_name, 0);
+    buffer_push_file_name(app, buffer, scratch);
+    if (file_name.size > 0){
         String extension = file_extension(file_name);
         String new_extensions[2] = {};
         i32 new_extensions_count = 0;
-        
         if (match(extension, "cpp") || match(extension, "cc")){
             new_extensions[0] = make_lit_string("h");
             new_extensions[1] = make_lit_string("hpp");
@@ -1504,7 +1506,6 @@ get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summ
             new_extensions[0] = make_lit_string("cpp");
             new_extensions_count = 1;
         }
-        
         remove_extension(&file_name);
         i32 base_pos = file_name.size;
         for (i32 i = 0; i < new_extensions_count; ++i){
@@ -1518,6 +1519,8 @@ get_cpp_matching_file(Application_Links *app, Buffer_Summary buffer, Buffer_Summ
             }
         }
     }
+    
+    end_temp_memory(temp);
     
     return(result);
 }
@@ -1569,12 +1572,12 @@ CUSTOM_COMMAND_SIG(open_matching_file_cpp)
 CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessAll);
-    
-    Buffer_Summary new_buffer = {};
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessAll, &buffer);
+    Buffer_ID new_buffer = 0;
     if (get_cpp_matching_file(app, buffer, &new_buffer)){
         get_next_view_looped_primary_panels(app, &view, AccessAll);
-        view_set_buffer(app, &view, new_buffer.buffer_id, 0);
+        view_set_buffer(app, &view, new_buffer, 0);
         set_active_view(app, &view);
     }
 }

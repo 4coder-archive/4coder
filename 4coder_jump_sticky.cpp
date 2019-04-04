@@ -55,15 +55,15 @@ parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summ
         if (read_line(app, arena, buffer.buffer_id, line, &line_str)){
             Parsed_Jump parsed_jump = parse_jump_location(line_str);
             if (parsed_jump.success){
-                Buffer_Summary jump_buffer = {};
-                if (open_file(app, &jump_buffer, parsed_jump.location.file.str, parsed_jump.location.file.size, false, true) && jump_buffer.exists){
-                    Partial_Cursor cursor = {};
-                    if (buffer_compute_cursor(app, &jump_buffer,
-                                              seek_line_char(parsed_jump.location.line, parsed_jump.location.column),
-                                              &cursor)){
-                        out_buffer_id = jump_buffer.buffer_id;
-                        out_pos = cursor.pos;
-                        output_jump = true;
+                Buffer_ID jump_buffer = {};
+                if (open_file(app, &jump_buffer, parsed_jump.location.file.str, parsed_jump.location.file.size, false, true)){
+                    if (buffer_exists(app, jump_buffer)){
+                        Partial_Cursor cursor = {};
+                        if (buffer_compute_cursor(app, jump_buffer, seek_line_char(parsed_jump.location.line, parsed_jump.location.column), &cursor)){
+                            out_buffer_id = jump_buffer;
+                            out_pos = cursor.pos;
+                            output_jump = true;
+                        }
                     }
                 }
             }
@@ -355,12 +355,12 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, list, list_index, &location)){
-            Buffer_Summary buffer = {};
+            Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 change_active_panel(app);
                 View_Summary target_view = get_active_view(app, AccessAll);
-                switch_to_existing_view(app, &target_view, &buffer);
-                jump_to_location(app, &target_view, &buffer, location);
+                switch_to_existing_view(app, &target_view, buffer);
+                jump_to_location(app, &target_view, buffer, location);
             }
         }
     }
@@ -382,10 +382,10 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, list, list_index, &location)){
-            Buffer_Summary buffer = {};
+            Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 View_Summary target_view = view;
-                jump_to_location(app, &target_view, &buffer, location);
+                jump_to_location(app, &target_view, buffer, location);
             }
         }
     }
@@ -395,15 +395,15 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 
 static void
 goto_jump_in_order(Application_Links *app, Marker_List *list, View_Summary *jump_view, ID_Pos_Jump_Location location){
-    Buffer_Summary buffer = {};
+    Buffer_ID buffer = {};
     if (get_jump_buffer(app, &buffer, &location)){
         View_Summary target_view = get_active_view(app, AccessAll);
         if (target_view.view_id == jump_view->view_id){
             change_active_panel(app);
             target_view = get_active_view(app, AccessAll);
         }
-        switch_to_existing_view(app, &target_view, &buffer);
-        jump_to_location(app, &target_view, &buffer, location);
+        switch_to_existing_view(app, &target_view, buffer);
+        jump_to_location(app, &target_view, buffer, location);
         prev_location.buffer_id = location.buffer_id;
         prev_location.line = location.pos;
         prev_location.column = 0;
@@ -553,9 +553,9 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
         i32 list_index = 0;
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, jump_state.list, list_index, &location)){
-            Buffer_Summary buffer = {};
+            Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
-                jump_to_location(app, &jump_state.view, &buffer, location);
+                jump_to_location(app, &jump_state.view, buffer, location);
             }
         }
     }

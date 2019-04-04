@@ -21,10 +21,12 @@ make_buffered_write_stream(Buffer_ID output_buffer_id, Partition *buffering_aren
 
 static void
 buffered_write_stream_flush(Application_Links *app, Buffered_Write_Stream *stream){
-    Buffer_Summary buffer = get_buffer(app, stream->output_buffer_id, AccessProtected);
-    i32 buffer_size = (i32)(push_array(stream->buffering_arena, char, 0) - stream->buffer);
-    buffer_replace_range(app, &buffer, buffer.size, buffer.size, stream->buffer, buffer_size);
-    stream->buffering_arena->pos -= buffer_size;
+    Buffer_ID buffer = stream->output_buffer_id;
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer, &buffer_size);
+    i32 stream_size = (i32)(push_array(stream->buffering_arena, char, 0) - stream->buffer);
+    buffer_replace_range(app, buffer, buffer_size, buffer_size, make_string(stream->buffer, stream_size));
+    stream->buffering_arena->pos -= stream_size;
 }
 
 static void
@@ -56,10 +58,10 @@ buffered_write_stream_write_int(Application_Links *app, Buffered_Write_Stream *s
 }
 
 static Get_Positions_Results
-get_function_positions(Application_Links *app, Buffer_Summary *buffer, i32 first_token_index, Function_Positions *positions_array, i32 positions_max){
+get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token_index, Function_Positions *positions_array, i32 positions_max){
     Get_Positions_Results result = {};
     
-    Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
+    Token_Range token_range = buffer_get_token_range(app, buffer);
     if (token_range.first != 0){
         Token_Iterator token_it = make_token_iterator(token_range, first_token_index);
         
@@ -186,9 +188,11 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, i32 first
 }
 
 static void
-print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, i32 positions_count, Buffered_Write_Stream *stream){
+print_positions_buffered(Application_Links *app, Buffer_ID buffer, Function_Positions *positions_array, i32 positions_count, Buffered_Write_Stream *stream){
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(scratch);
     
-    String buffer_name = make_string(buffer->buffer_name, buffer->buffer_name_len);
+    String buffer_name = buffer_push_unique_buffer_name(app, buffer, scratch);
     
     for (i32 i = 0; i < positions_count; ++i){
         Function_Positions *positions = &positions_array[i];
@@ -200,7 +204,7 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
         
         Assert(end_index > start_index);
         
-        Token_Range token_range = buffer_get_token_range(app, buffer->buffer_id);
+        Token_Range token_range = buffer_get_token_range(app, buffer);
         if (token_range.first != 0){
             buffered_write_stream_write(app, stream, buffer_name);
             buffered_write_stream_write(app, stream, make_lit_string(":"));
@@ -241,21 +245,26 @@ print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Functio
             buffered_write_stream_write(app, stream, make_lit_string("\n"));
         }
     }
+    
+    end_temp_memory(temp);
 }
 
 static void
-list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *optional_target_buffer){
+list_all_functions(Application_Links *app, Partition *part, Buffer_ID optional_target_buffer){
     String decls_name = make_lit_string("*decls*");
-    Buffer_Summary decls_buffer = get_buffer_by_name(app, decls_name.str, decls_name.size, AccessAll);
-    if (!decls_buffer.exists){
-        decls_buffer = create_buffer(app, decls_name.str, decls_name.size, BufferCreate_AlwaysNew);
-        buffer_set_setting(app, &decls_buffer, BufferSetting_Unimportant, true);
-        buffer_set_setting(app, &decls_buffer, BufferSetting_ReadOnly, true);
-        buffer_set_setting(app, &decls_buffer, BufferSetting_WrapLine, false);
+    Buffer_ID decls_buffer = 0;
+    get_buffer_by_name(app, decls_name, AccessAll, &decls_buffer);
+    if (!buffer_exists(app, decls_buffer)){
+        create_buffer(app, decls_name, BufferCreate_AlwaysNew, &decls_buffer);
+        buffer_set_setting(app, decls_buffer, BufferSetting_Unimportant, true);
+        buffer_set_setting(app, decls_buffer, BufferSetting_ReadOnly, true);
+        buffer_set_setting(app, decls_buffer, BufferSetting_WrapLine, false);
     }
     else{
-        buffer_send_end_signal(app, &decls_buffer);
-        buffer_replace_range(app, &decls_buffer, 0, decls_buffer.size, 0, 0);
+        buffer_send_end_signal(app, decls_buffer);
+        i32 size = 0;
+        buffer_get_size(app, decls_buffer, &size);
+        buffer_replace_range(app, decls_buffer, 0, size, make_lit_string(""));
     }
     
     Temp_Memory temp = begin_temp_memory(part);
@@ -263,42 +272,44 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *opti
     i32 positions_max = (4<<10)/sizeof(Function_Positions);
     Function_Positions *positions_array = push_array(part, Function_Positions, positions_max);
     
-    Buffered_Write_Stream buffered_write_stream = make_buffered_write_stream(decls_buffer.buffer_id, part);
+    Buffered_Write_Stream buffered_write_stream = make_buffered_write_stream(decls_buffer, part);
     
-    for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
-         buffer_it.exists;
-         get_buffer_next(app, &buffer_it, AccessAll)){
-        Buffer_Summary buffer = buffer_it;
+    Buffer_ID buffer_it = 0;
+    for (get_buffer_next(app, 0, AccessAll, &buffer_it);
+         buffer_it != 0;
+         get_buffer_next(app, buffer_it, AccessAll, &buffer_it)){
+        Buffer_ID buffer = buffer_it;
         if (optional_target_buffer != 0){
-            buffer = *optional_target_buffer;
+            buffer = optional_target_buffer;
         }
         
-        if (!buffer.tokens_are_ready){
+        if (buffer_tokens_are_ready(app, buffer)){
+            i32 token_index = 0;
+            b32 still_looping = false;
+            do{
+                Get_Positions_Results get_positions_results = get_function_positions(app, buffer, token_index, positions_array, positions_max);
+                
+                i32 positions_count = get_positions_results.positions_count;
+                token_index = get_positions_results.next_token_index;
+                still_looping = get_positions_results.still_looping;
+                
+                print_positions_buffered(app, buffer, positions_array, positions_count, &buffered_write_stream);
+                //print_positions(app, &buffer, positions_array, positions_count, &decls_buffer, part);
+            }while(still_looping);
+            
+            if (optional_target_buffer != 0){
+                break;
+            }
+        }
+        else{
             continue;
-        }
-        
-        i32 token_index = 0;
-        b32 still_looping = false;
-        do{
-            Get_Positions_Results get_positions_results = get_function_positions(app, &buffer, token_index, positions_array, positions_max);
-            
-            i32 positions_count = get_positions_results.positions_count;
-            token_index = get_positions_results.next_token_index;
-            still_looping = get_positions_results.still_looping;
-            
-            print_positions_buffered(app, &buffer, positions_array, positions_count, &buffered_write_stream);
-            //print_positions(app, &buffer, positions_array, positions_count, &decls_buffer, part);
-        }while(still_looping);
-        
-        if (optional_target_buffer != 0){
-            break;
         }
     }
     
     buffered_write_stream_flush(app, &buffered_write_stream);
     
     View_Summary view = get_active_view(app, AccessAll);
-    view_set_buffer(app, &view, decls_buffer.buffer_id, 0);
+    view_set_buffer(app, &view, decls_buffer, 0);
     
     lock_jump_buffer(decls_name.str, decls_name.size);
     
@@ -310,9 +321,10 @@ CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
 CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to define or declare functions.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    if (buffer.exists){
-        list_all_functions(app, &global_part, &buffer);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
+    if (buffer_exists(app, buffer)){
+        list_all_functions(app, &global_part, buffer);
     }
 }
 
@@ -320,12 +332,12 @@ CUSTOM_COMMAND_SIG(list_all_functions_current_buffer_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations in the buffer.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    if (buffer.exists){
-        list_all_functions(app, &global_part, &buffer);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
+    if (buffer_exists(app, buffer)){
+        list_all_functions(app, &global_part, buffer);
         view = get_active_view(app, AccessAll);
-        open_jump_lister(app, &global_part, &global_heap,
-                         &view, view.buffer_id, JumpListerActivation_OpenInUIView, 0);
+        open_jump_lister(app, &global_part, &global_heap, &view, buffer, JumpListerActivation_OpenInUIView, 0);
     }
 }
 

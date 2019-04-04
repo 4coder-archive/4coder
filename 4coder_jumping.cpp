@@ -210,25 +210,25 @@ parse_jump_from_buffer_line(Application_Links *app, Partition *arena, Buffer_ID 
 ////////////////////////////////
 
 static b32
-get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, Name_Line_Column_Location *location){
+get_jump_buffer(Application_Links *app, Buffer_ID *buffer, Name_Line_Column_Location *location){
     return(open_file(app, buffer, location->file.str, location->file.size, false, true));
 }
 
 static b32
-get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location, Access_Flag access){
-    *buffer = get_buffer(app, location->buffer_id, access);
-    return((b32)buffer->exists);
+get_jump_buffer(Application_Links *app, Buffer_ID *buffer, ID_Pos_Jump_Location *location, Access_Flag access){
+    *buffer = location->buffer_id;
+    return(buffer_exists(app, *buffer));
 }
 
 static b32
-get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Location *location){
+get_jump_buffer(Application_Links *app, Buffer_ID *buffer, ID_Pos_Jump_Location *location){
     return(get_jump_buffer(app, buffer, location, AccessAll));
 }
 
 static void
-switch_to_existing_view(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
-    if (!(view->exists && view->buffer_id == buffer->buffer_id)){
-        View_Summary existing_view = get_first_view_with_buffer(app, buffer->buffer_id);
+switch_to_existing_view(Application_Links *app, View_Summary *view, Buffer_ID buffer){
+    if (!view->exists || view->buffer_id != buffer){
+        View_Summary existing_view = get_first_view_with_buffer(app, buffer);
         if (existing_view.exists){
             *view = existing_view;
         }
@@ -236,15 +236,15 @@ switch_to_existing_view(Application_Links *app, View_Summary *view, Buffer_Summa
 }
 
 static void
-set_view_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Buffer_Seek seek){
-    if (view->buffer_id != buffer->buffer_id){
-        view_set_buffer(app, view, buffer->buffer_id, 0);
+set_view_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, Buffer_Seek seek){
+    if (view->buffer_id != buffer){
+        view_set_buffer(app, view, buffer, 0);
     }
     view_set_cursor(app, view, seek, true);
 }
 
 static void
-jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Name_Line_Column_Location location){
+jump_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, Name_Line_Column_Location location){
     set_active_view(app, view);
     set_view_to_location(app, view, buffer, seek_line_char(location.line, location.column));
     if (auto_center_after_jumps){
@@ -253,7 +253,7 @@ jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buf
 }
 
 static void
-jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, ID_Pos_Jump_Location location){
+jump_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, ID_Pos_Jump_Location location){
     set_active_view(app, view);
     set_view_to_location(app, view, buffer, seek_pos(location.pos));
     if (auto_center_after_jumps){
@@ -367,15 +367,15 @@ seek_jump(Application_Links *app, Partition *part, b32 skip_repeats, b32 skip_su
         Name_Line_Column_Location location = {};
         if (advance_cursor_in_jump_view(app, &global_part, &view, skip_repeats, skip_sub_errors, direction, &location)){
             
-            Buffer_Summary buffer = {};
+            Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 View_Summary target_view = get_active_view(app, AccessAll);
                 if (target_view.view_id == view.view_id){
                     change_active_panel(app);
                     target_view = get_active_view(app, AccessAll);
                 }
-                switch_to_existing_view(app, &target_view, &buffer);
-                jump_to_location(app, &target_view, &buffer, location);
+                switch_to_existing_view(app, &target_view, buffer);
+                jump_to_location(app, &target_view, buffer, location);
                 result = true;
             }
         }

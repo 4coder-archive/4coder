@@ -50,10 +50,10 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
         
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, list, list_index, &location)){
-            Buffer_Summary buffer = {};
+            Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 set_active_view(app, &target_view);
-                jump_to_location(app, &target_view, &buffer, location);
+                jump_to_location(app, &target_view, buffer, location);
             }
         }
         

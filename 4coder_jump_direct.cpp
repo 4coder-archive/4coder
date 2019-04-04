@@ -15,10 +15,10 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     if (jump.success){
         change_active_panel(app);
         View_Summary target_view = get_active_view(app, AccessAll);
-        Buffer_Summary buffer = {};
+        Buffer_ID buffer = {};
         if (get_jump_buffer(app, &buffer, &jump.location)){
-            switch_to_existing_view(app, &target_view, &buffer);
-            jump_to_location(app, &target_view, &buffer, jump.location);
+            switch_to_existing_view(app, &target_view, buffer);
+            jump_to_location(app, &target_view, buffer, jump.location);
         }
     }
     
@@ -34,9 +34,9 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Parsed_Jump jump = parse_jump_from_buffer_line(app, &global_part, view.buffer_id, view.cursor.line, false);
     if (jump.success){
         View_Summary target_view = view;
-        Buffer_Summary buffer = {};
+        Buffer_ID buffer = {};
         if (get_jump_buffer(app, &buffer, &jump.location)){
-            jump_to_location(app, &target_view, &buffer, jump.location);
+            jump_to_location(app, &target_view, buffer, jump.location);
         }
     }
     

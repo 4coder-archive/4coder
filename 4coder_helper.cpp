@@ -527,11 +527,12 @@ buffer_identifier(Buffer_ID id){
 
 static void
 adjust_all_buffer_wrap_widths(Application_Links *app, i32 wrap_width, i32 min_base_width){
-    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
-         buffer.exists;
-         get_buffer_next(app, &buffer, AccessAll)){
-        buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap_width);
-        buffer_set_setting(app, &buffer, BufferSetting_MinimumBaseWrapPosition, min_base_width);
+    Buffer_ID buffer = 0;
+    for (get_buffer_next(app, 0, AccessAll, &buffer);
+         buffer != 0;
+         get_buffer_next(app, buffer, AccessAll, &buffer)){
+        buffer_set_setting(app, buffer, BufferSetting_WrapPosition, wrap_width);
+        buffer_set_setting(app, buffer, BufferSetting_MinimumBaseWrapPosition, min_base_width);
     }
 }
 
@@ -584,38 +585,26 @@ static View_Summary
 get_first_view_with_buffer(Application_Links *app, i32 buffer_id){
     View_Summary result = {};
     View_Summary test = {};
-    
     if (buffer_id != 0){
-        u32 access = AccessAll;
-        for(test = get_view_first(app, access);
-            test.exists;
-            get_view_next(app, &test, access)){
-            
-            Buffer_Summary buffer = get_buffer(app, test.buffer_id, access);
-            
-            if(buffer.buffer_id == buffer_id){
+        for (test = get_view_first(app, AccessAll);
+             test.exists;
+             get_view_next(app, &test, AccessAll)){
+            if (test.buffer_id == buffer_id){
                 result = test;
                 break;
             }
         }
     }
-    
     return(result);
 }
 
 static b32
-open_file(Application_Links *app, Buffer_Summary *buffer_out,
-          char *filename, i32 filename_len, b32 background, b32 never_new){
+open_file(Application_Links *app, Buffer_ID *buffer_out, char *filename, i32 filename_len, b32 background, b32 never_new){
     b32 result = false;
-    Buffer_Summary buffer = get_buffer_by_name(app, filename, filename_len, AccessProtected|AccessHidden);
-    
-    if (buffer.exists){
-        if (buffer_out){
-            *buffer_out = buffer;
-        }
-        result = true;
-    }
-    else{
+    Buffer_ID buffer = 0;
+    get_buffer_by_name(app, filename, filename_len, AccessProtected);
+    b32 exists = buffer_exists(app, buffer);
+    if (!exists){
         Buffer_Create_Flag flags = 0;
         if (background){
             flags |= BufferCreate_Background;
@@ -623,15 +612,15 @@ open_file(Application_Links *app, Buffer_Summary *buffer_out,
         if (never_new){
             flags |= BufferCreate_NeverNew;
         }
-        buffer = create_buffer(app, filename, filename_len, flags);
-        if (buffer.exists){
-            if (buffer_out != 0){
-                *buffer_out = buffer;
-            }
-            result = true;
-        }
+        create_buffer(app, make_string(filename, filename_len), flags, &buffer);
+        exists = buffer_exists(app, buffer);
     }
-    
+    if (exists){
+        if (buffer_out != 0){
+            *buffer_out = buffer;
+        }
+        result = true;
+    }
     return(result);
 }
 
@@ -642,11 +631,10 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
         id = identifier.id;
     }
     else{
-        Buffer_Summary buffer = get_buffer_by_name(app, identifier.name, identifier.name_len, AccessAll);
-        id = buffer.buffer_id;
+        String name = make_string(identifier.name, identifier.name_len);
+        get_buffer_by_name(app, name, AccessAll, &id);
         if (id == 0){
-            buffer = get_buffer_by_file_name(app, identifier.name, identifier.name_len, AccessAll);
-            id = buffer.buffer_id;
+            get_buffer_by_file_name(app, name, AccessAll, &id);
         }
     }
     return(id);
@@ -671,9 +659,9 @@ static b32
 view_open_file(Application_Links *app, View_Summary *view, char *filename, i32 filename_len, b32 never_new){
     b32 result = false;
     if (view != 0){
-        Buffer_Summary buffer = {};
+        Buffer_ID buffer = {};
         if (open_file(app, &buffer, filename, filename_len, false, never_new)){
-            view_set_buffer(app, view, buffer.buffer_id, 0);
+            view_set_buffer(app, view, buffer, 0);
             result = true;
         }
     }
@@ -921,7 +909,7 @@ buffer_get_line_end(Application_Links *app, Buffer_ID buffer_id, i32 line){
 }
 
 static i32
-buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, i32 pos){
+buffer_get_line_number(Application_Links *app, Buffer_ID buffer, i32 pos){
     Partial_Cursor partial_cursor = {};
     buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
     return(partial_cursor.line);
@@ -1145,10 +1133,9 @@ backward_stream_tokens(Stream_Tokens_DEP *stream){
 ////////////////////////////////
 
 static Token_Range
-buffer_get_token_range(Application_Links *app, Buffer_ID buffer_id){
+buffer_get_token_range(Application_Links *app, Buffer_ID buffer){
     Token_Range range = {};
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-    buffer_get_token_range(app, &buffer, &range.first, &range.one_past_last);
+    buffer_get_token_range(app, buffer, &range.first, &range.one_past_last);
     return(range);
 }
 
@@ -1244,7 +1231,7 @@ token_iterator_goto_prev_raw(Token_Iterator *iterator){
 }
 
 static String
-token_get_lexeme(Application_Links *app, Buffer_Summary *buffer, Cpp_Token *token, char *out_buffer, i32 out_buffer_size){
+token_get_lexeme(Application_Links *app, Buffer_ID buffer, Cpp_Token *token, char *out_buffer, i32 out_buffer_size){
     String result = {};
     if (out_buffer_size > 1){
         i32 read_size = token->size;
@@ -1260,7 +1247,7 @@ token_get_lexeme(Application_Links *app, Buffer_Summary *buffer, Cpp_Token *toke
 }
 
 static String
-token_get_lexeme(Application_Links *app, Partition *part, Buffer_Summary *buffer, Cpp_Token *token){
+token_get_lexeme(Application_Links *app, Partition *part, Buffer_ID buffer, Cpp_Token *token){
     String result = {};
     Temp_Memory restore_point = begin_temp_memory(part);
     char *s = push_array(part, char, token->size);
@@ -1289,21 +1276,23 @@ get_query_string(Application_Links *app, char *query_str, char *string_space, i3
 static String
 get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary *view){
     String str = {};
-    Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessProtected);
-    if (!buffer.exists) return(str);
-    Range range = get_view_range(view);
-    i32 query_length = range.max - range.min;
-    if (query_length != 0){
-        char *query_space = push_array(arena, char, query_length);
-        if (buffer_read_range(app, &buffer, range.min, range.max, query_space)){
-            str = make_string(query_space, query_length);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view->view_id, AccessProtected, &buffer);
+    if (buffer_exists(app, buffer)){
+        Range range = get_view_range(view);
+        i32 query_length = range.max - range.min;
+        if (query_length != 0){
+            char *query_space = push_array(arena, char, query_length);
+            if (buffer_read_range(app, buffer, range.min, range.max, query_space)){
+                str = make_string(query_space, query_length);
+            }
         }
     }
     return(str);
 }
 
 static String
-get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, char *space, i32 capacity){
+get_token_or_word_under_pos(Application_Links *app, Buffer_ID buffer, i32 pos, char *space, i32 capacity){
     String result = {};
     Cpp_Get_Token_Result get_result = {};
     b32 success = buffer_get_token_index(app, buffer, pos, &get_result);
@@ -1661,6 +1650,35 @@ draw_margin(Application_Links *app, f32_Rect outer, f32_Rect inner, int_color co
     draw_rectangle(app, f32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
     draw_rectangle(app, f32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
     draw_rectangle(app, f32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+}
+
+////////////////////////////////
+
+static String
+buffer_push_base_buffer_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
+    String result = {};
+    buffer_get_base_buffer_name(app, buffer, 0, &result.memory_size);
+    result.str = push_array(arena, char, result.memory_size);
+    buffer_get_base_buffer_name(app, buffer, &result, 0);
+    return(result);
+}
+
+static String
+buffer_push_unique_buffer_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
+    String result = {};
+    buffer_get_unique_buffer_name(app, buffer, 0, &result.memory_size);
+    result.str = push_array(arena, char, result.memory_size);
+    buffer_get_unique_buffer_name(app, buffer, &result, 0);
+    return(result);
+}
+
+static String
+buffer_push_file_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
+    String result = {};
+    buffer_get_file_name(app, buffer, 0, &result.memory_size);
+    result.str = push_array(arena, char, result.memory_size);
+    buffer_get_file_name(app, buffer, &result, 0);
+    return(result);
 }
 
 // BOTTOM
