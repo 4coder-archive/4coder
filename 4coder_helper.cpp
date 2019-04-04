@@ -735,7 +735,7 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
     if (result == BufferKillResult_Dirty){
         Buffer_Summary buffer = buffer_identifier_to_buffer_summary(app, identifier, AccessAll);
         View_Summary view = get_view(app, gui_view_id, AccessAll);
-        do_gui_sure_to_kill(app, &buffer, &view);
+        do_gui_sure_to_kill(app, buffer.buffer_id, &view);
     }
     return(result);
 }

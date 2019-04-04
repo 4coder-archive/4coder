@@ -683,7 +683,7 @@ activate_confirm_kill(Application_Links *app, Partition *scratch, Heap *heap, Vi
 }
 
 static void
-do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary *view){
+do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_Summary *view){
     Lister_Fixed_Option options[] = {
         {"(N)o"           , "", "Nn", IntAsPtr(SureToKill_No)  },
         {"(Y)es"          , "", "Yy", IntAsPtr(SureToKill_Yes) },
@@ -692,7 +692,7 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_Summary *buffer, View_Summary
     i32 option_count = sizeof(options)/sizeof(options[0]);
     begin_integrated_lister__with_fixed_options(app, "There are unsaved changes, close anyway?",
                                                 activate_confirm_kill,
-                                                &buffer->buffer_id, sizeof(buffer->buffer_id),
+                                                &buffer, sizeof(buffer),
                                                 options, option_count, default_string_size_estimation,
                                                 view);
 }
