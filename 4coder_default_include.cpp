@@ -43,11 +43,12 @@
 #include "4coder_scope_commands.h"
 #include "4coder_combined_write_commands.h"
 
+#include "4coder_buffer_seek_constructors.cpp"
+#include "4coder_hash_functions.cpp"
+
 #include "4coder_api_transition_30_31.cpp"
 
-#include "4coder_hash_functions.cpp"
 #include "4coder_default_framework_variables.cpp"
-#include "4coder_buffer_seek_constructors.cpp"
 #include "4coder_helper.cpp"
 #include "4coder_fancy.cpp"
 #include "4coder_ui_helper.cpp"

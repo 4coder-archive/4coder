@@ -65,6 +65,41 @@ STRUCT Buffer_Summary{
     b32 unwrapped_lines;
 };
 
+/* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
+DOC_SEE(Access_Flag)
+DOC_SEE(Full_Cursor)
+DOC_SEE(GUI_Scroll_Vars) */
+STRUCT View_Summary{
+    /* DOC(This field indicates whether the View_Summary describes a view that is open in 4coder. When this field is false the summary is referred to as a "null summary". ) */
+    b32 exists;
+    /* DOC(This field is the id of the associated view. If this is a null summary then view_id is 0. ) */
+    i32 view_id;
+    /* DOC(Then this is the id of the buffer this view currently sees.) */
+    i32 buffer_id;
+    /* DOC(This field contains flags describing the protection status of the view.) */
+    Access_Flag lock_flags;
+    
+    /* DOC(This describes the position of the cursor.) */
+    Full_Cursor cursor;
+    /* DOC(This describes the position of the mark.) */
+    Full_Cursor mark;
+    /* DOC(This is the x position that is maintained in vertical navigation.) */
+    f32 preferred_x;
+    /* DOC(This specifies the height of a line rendered in the view.) */
+    f32 line_height;
+    /* DOC(This indicates that the view is set to render with unwrapped lines.) */
+    b32 unwrapped_lines;
+    /* DOC(This indicates that the view is set to highlight white space.) */
+    b32 show_whitespace;
+    
+    /* DOC(This describes the screen position in which this view is displayed.) */
+    Rect_f32 view_region;
+    /* DOC(TODO) */
+    Rect_f32 render_region;
+    /* DOC(This describes the scrolling position inside the view.) */
+    GUI_Scroll_Vars scroll_vars;
+};
+
 #endif
 
 // BOTTOM

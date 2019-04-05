@@ -377,7 +377,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     {
-        Rect_f32 r_cursor = f32R(view.render_region);
+        Rect_f32 r_cursor = view.render_region;
         
         // NOTE(allen): Filebar
         {
@@ -724,7 +724,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         history_animation_dt[wrapped_index] = frame_info.animation_dt;
         history_frame_index[wrapped_index]  = frame_info.index;
         
-        Rect_f32 hud_rect = f32R(view.render_region);
+        Rect_f32 hud_rect = view.render_region;
         hud_rect.y0 = hud_rect.y1 - view.line_height*(f32)(history_depth);
         draw_rectangle(app, hud_rect, 0xFF000000);
         draw_rectangle_outline(app, hud_rect, 0xFFFFFFFF);
@@ -860,7 +860,7 @@ static void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Face_ID face_id){
     View_Summary view = {};
     if (get_view_summary(app, view_id, AccessAll, &view)){
-        Rect_f32 rect_f32 = f32R(view.render_region);
+        Rect_f32 rect_f32 = view.render_region;
         default_ui_render_caller(app, view_id, rect_f32, face_id);
     }
 }
@@ -868,7 +868,7 @@ static void
 default_ui_render_caller(Application_Links *app, View_ID view_id){
     View_Summary view = {};
     if (get_view_summary(app, view_id, AccessAll, &view)){
-        Rect_f32 rect_f32 = f32R(view.render_region);
+        Rect_f32 rect_f32 = view.render_region;
         Buffer_ID buffer_id = 0;
         view_get_buffer(app, view_id, AccessAll, &buffer_id);
         Face_ID face_id = 0;
@@ -942,7 +942,7 @@ HOOK_SIG(default_view_adjust){
          get_view_next(app, &view, AccessAll)){
         Buffer_ID buffer = 0;
         view_get_buffer(app, view.view_id, AccessAll, &buffer);
-        i32 view_width = view.render_region.x1 - view.render_region.x0;
+        f32 view_width = view.render_region.x1 - view.render_region.x0;
         Face_ID face_id = get_default_font_for_view(app, view.view_id);
         f32 em = get_string_advance(app, face_id, make_lit_string("m"));
         

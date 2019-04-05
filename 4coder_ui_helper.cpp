@@ -260,12 +260,13 @@ panel_space_from_view_space(Vec2_i32 p, Vec2_i32 scroll_p){
 
 ////////////////////////////////
 
+// TODO(allen): VIEW_16_LIMIT
 Lister_State global_lister_state_[16] = {};
 Lister_State *global_lister_state = global_lister_state_ - 1;
 
 static Lister_State*
-view_get_lister_state(View_Summary *view){
-    return(&global_lister_state[view->view_id]);
+view_get_lister_state(View_ID view){
+    return(&global_lister_state[view]);
 }
 
 static i32
@@ -292,9 +293,9 @@ init_lister_state(Application_Links *app, Lister_State *state, Heap *heap){
 }
 
 UI_QUIT_FUNCTION(lister_quit_function){
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view);
     state->initialized = false;
-    view_clear_ui_data(app, view.view_id);
+    view_clear_ui_data(app, view);
 }
 
 static UI_Item
@@ -348,7 +349,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     b32 is_theme_list = state->lister.data.theme_list;
     
     i32 x0 = 0;
-    i32 x1 = rect_width(view->view_region);
+    i32 x1 = (i32)(rect_width(view->view_region));
     i32 line_height = lister_get_line_height(view);
     i32 block_height = lister_get_block_height(line_height, is_theme_list);
     i32 text_field_height = lister_get_text_field_height(view);

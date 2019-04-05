@@ -58,6 +58,42 @@ get_buffer_summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag acce
 }
 
 static b32
+get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view){
+    b32 result = false;
+    if (view_exists(app, view_id)){
+        Buffer_ID buffer = 0;
+        if (view_get_buffer(app, view_id, access, &buffer)){
+            result = true;
+            
+            Face_ID face_id = 0;
+            get_face_id(app, buffer, &face_id);
+            Face_Metrics metrics = {};
+            get_face_metrics(app, face_id, &metrics);
+            
+            view->exists = true;
+            view->view_id = view_id;
+            view->line_height = metrics.line_height;
+            buffer_get_setting(app, buffer, BufferSetting_WrapLine, &view->unwrapped_lines);
+            view->unwrapped_lines = !view->unwrapped_lines;
+            view_get_setting(app, view_id, ViewSetting_ShowWhitespace, &view->show_whitespace);
+            view->buffer_id = buffer;
+            i32 pos = 0;
+            view_get_mark_pos(app, view_id, &pos);
+            view_compute_cursor(app, view_id, seek_pos(pos), &view->mark);
+            view_get_cursor_pos(app, view_id, &pos);
+            view_compute_cursor(app, view_id, seek_pos(pos), &view->cursor);
+            view_get_preferred_x(app, view_id, &view->preferred_x);
+            Rect_f32 screen_rect = {};
+            view_get_screen_rect(app, view_id, &screen_rect);
+            view->view_region = screen_rect;
+            view->render_region = f32R(0.f, 0.f, rect_width(screen_rect), rect_height(screen_rect));
+            view_get_scroll_vars(app, view_id, &view->scroll_vars);
+        }
+    }
+    return(result);
+}
+
+static b32
 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
                     char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
     b32 result = false;

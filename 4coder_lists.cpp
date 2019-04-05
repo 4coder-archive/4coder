@@ -18,7 +18,7 @@ CUSTOM_DOC("A lister mode command that activates the list's action on the highli
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         void *user_data = 0;
         if (0 <= state->raw_item_index && state->raw_item_index < state->lister.data.options.count){
@@ -32,7 +32,7 @@ CUSTOM_COMMAND_SIG(lister__write_character)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's write character handler.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->lister.data.handlers.write_character != 0){
         state->lister.data.handlers.write_character(app);
     }
@@ -42,7 +42,7 @@ CUSTOM_COMMAND_SIG(lister__backspace_text_field)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's backspace text field handler.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->lister.data.handlers.backspace != 0){
         state->lister.data.handlers.backspace(app);
     }
@@ -52,7 +52,7 @@ CUSTOM_COMMAND_SIG(lister__move_up)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate up handler.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->lister.data.handlers.navigate_up != 0){
         state->lister.data.handlers.navigate_up(app);
     }
@@ -62,7 +62,7 @@ CUSTOM_COMMAND_SIG(lister__move_down)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate down handler.")
 {
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->lister.data.handlers.navigate_down != 0){
         state->lister.data.handlers.navigate_down(app);
     }
@@ -77,7 +77,7 @@ CUSTOM_DOC("A lister mode command that scrolls the list in response to the mouse
     Mouse_State mouse = get_mouse_state(app);
     scroll.target_y += mouse.wheel;
     view_set_scroll(app, &view, scroll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         lister_update_ui(app, scratch, &view, state);
     }
@@ -88,7 +88,7 @@ CUSTOM_DOC("A lister mode command that beings a click interaction with a list it
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         UI_Item clicked = lister_get_clicked_item(app, view.view_id, scratch);
         state->hot_user_data = clicked.user_data;
@@ -101,7 +101,7 @@ CUSTOM_DOC("A lister mode command that ends a click interaction with a list item
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized && state->hot_user_data != 0){
         UI_Item clicked = lister_get_clicked_item(app, view.view_id, scratch);
         if (state->hot_user_data == clicked.user_data){
@@ -116,7 +116,7 @@ CUSTOM_DOC("A lister mode command that updates the lists UI data.")
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         lister_update_ui(app, scratch, &view, state);
     }
@@ -127,7 +127,7 @@ CUSTOM_DOC("A lister mode command that inserts a new character to the text field
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         User_Input in = get_command_input(app);
         u8 character[4];
@@ -147,7 +147,7 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         backspace_utf8(&state->lister.data.text_field);
         backspace_utf8(&state->lister.data.key_string);
@@ -162,7 +162,7 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one up in the 
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         state->item_index = state->item_index - 1;
         if (state->item_index < 0){
@@ -178,7 +178,7 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one down in th
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         state->item_index = state->item_index + 1;
         if (state->item_index > state->item_count_after_filter - 1){
@@ -194,7 +194,7 @@ CUSTOM_DOC("A lister mode command that inserts a character into the text field o
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         User_Input in = get_command_input(app);
         u8 character[4];
@@ -219,7 +219,7 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
 {
     Partition *scratch = &global_part;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         if (state->lister.data.text_field.size > 0){
             char last_char = state->lister.data.text_field.str[state->lister.data.text_field.size - 1];
@@ -259,7 +259,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
     Partition *scratch = &global_part;
     Heap *heap = &global_heap;
     View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(&view);
+    Lister_State *state = view_get_lister_state(view.view_id);
     if (state->initialized){
         User_Input in = get_command_input(app);
         u8 character[4];
@@ -316,7 +316,7 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
         Heap *heap = &global_heap;
         view_begin_ui_mode(app, view);
         view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
-        Lister_State *state = view_get_lister_state(view);
+        Lister_State *state = view_get_lister_state(view->view_id);
         init_lister_state(app, state, heap);
         lister_first_init(app, &state->lister, user_data, user_data_size);
         lister_set_query_string(&state->lister.data, query_string);
@@ -354,7 +354,7 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
     Heap *heap = &global_heap;
     view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
-    Lister_State *state = view_get_lister_state(view);
+    Lister_State *state = view_get_lister_state(view->view_id);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
     for (i32 i = 0; i < option_count; i += 1){
@@ -377,7 +377,7 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
     Heap *heap = &global_heap;
     view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
-    Lister_State *state = view_get_lister_state(view);
+    Lister_State *state = view_get_lister_state(view->view_id);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
     for (i32 i = 0; i < option_count; i += 1){
@@ -423,7 +423,7 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
     Heap *heap = &global_heap;
     view_begin_ui_mode(app, view);
     view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
-    Lister_State *state = view_get_lister_state(view);
+    Lister_State *state = view_get_lister_state(view->view_id);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
     state->lister.data.theme_list = true;

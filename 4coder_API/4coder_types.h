@@ -646,41 +646,6 @@ STRUCT Marker{
 };
 
 
-/* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
-DOC_SEE(Access_Flag)
-DOC_SEE(Full_Cursor)
-DOC_SEE(GUI_Scroll_Vars) */
-STRUCT View_Summary{
-    /* DOC(This field indicates whether the View_Summary describes a view that is open in 4coder. When this field is false the summary is referred to as a "null summary". ) */
-    b32 exists;
-    /* DOC(This field is the id of the associated view. If this is a null summary then view_id is 0. ) */
-    i32 view_id;
-    /* DOC(Then this is the id of the buffer this view currently sees.) */
-    i32 buffer_id;
-    /* DOC(This field contains flags describing the protection status of the view.) */
-    Access_Flag lock_flags;
-    
-    /* DOC(This describes the position of the cursor.) */
-    Full_Cursor cursor;
-    /* DOC(This describes the position of the mark.) */
-    Full_Cursor mark;
-    /* DOC(This is the x position that is maintained in vertical navigation.) */
-    float preferred_x;
-    /* DOC(This specifies the height of a line rendered in the view.) */
-    float line_height;
-    /* DOC(This indicates that the view is set to render with unwrapped lines.) */
-    b32 unwrapped_lines;
-    /* DOC(This indicates that the view is set to highlight white space.) */
-    b32 show_whitespace;
-    
-    /* DOC(This describes the screen position in which this view is displayed.) */
-    i32_Rect view_region;
-    /* DOC(TODO) */
-    i32_Rect render_region;
-    /* DOC(This describes the scrolling position inside the view.) */
-    GUI_Scroll_Vars scroll_vars;
-};
-
 /* DOC(The enumeration of types of managed objects.) */
 ENUM(i32, Managed_Object_Type)
 {
@@ -830,8 +795,8 @@ STRUCT Query_Bar_Ptr_Array{
     i32 count;
 };
 
-TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_Summary view);
-#define UI_QUIT_FUNCTION(name) void name(struct Application_Links *app, View_Summary view)
+TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_ID view);
+#define UI_QUIT_FUNCTION(name) void name(struct Application_Links *app, View_ID view)
 
 /*
 DOC(Theme_Color stores a style tag/color pair, for the purpose of setting and getting colors in the theme.)

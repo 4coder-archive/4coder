@@ -17,51 +17,11 @@ access_test(u32 lock_flags, u32 access_flags){
 }
 
 internal void
-fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
-    block_zero_struct(view);
-    if (vptr->in_use){
-        Assert(vptr->file != 0);
-        
-        view->exists = true;
-        view->view_id = (i32)(vptr - live_set->views) + 1;
-        view->line_height = (f32)(vptr->line_height);
-        view->unwrapped_lines = vptr->file->settings.unwrapped_lines;
-        view->show_whitespace = vptr->show_whitespace;
-        view->lock_flags = view_get_access_flags(vptr);
-        
-        view->buffer_id = vptr->file->id.id;
-        
-        File_Edit_Positions edit_pos = view_get_edit_pos(vptr);
-        view->mark    = file_compute_cursor(system, vptr->file, seek_pos(vptr->mark));
-        view->cursor  = file_compute_cursor(system, vptr->file, seek_pos(edit_pos.cursor_pos));
-        
-        view->preferred_x = vptr->preferred_x;
-        
-        Rect_i32 region = vptr->panel->rect_inner;
-        view->view_region = region;
-        view->render_region = i32R(0, 0, rect_width(region), rect_height(region));
-        if (vptr->ui_mode){
-            view->scroll_vars = vptr->ui_scroll;
-        }
-        else{
-            view->scroll_vars = edit_pos.scroll;
-        }
-    }
-}
-
-internal void
-fill_view_summary(System_Functions *system, View_Summary *view, View *vptr, Models *models){
-    fill_view_summary(system, view, vptr, &models->live_set, &models->working_set);
-}
-
-internal void
 view_quit_ui(System_Functions *system, Models *models, View *view){
     Assert(view != 0);
     view->ui_mode = false;
     if (view->ui_quit != 0){
-        View_Summary view_summary = {};
-        fill_view_summary(system, &view_summary, view, models);
-        view->ui_quit(&models->app_links, view_summary);
+        view->ui_quit(&models->app_links, view_get_id(&models->live_set, view));
     }
 }
 
@@ -250,7 +210,7 @@ Child_Process_Set_Target_Buffer(Application_Links *app, Child_Process_ID child_p
         
         b32 process_has_buffer = (child_process->out_file != 0);
         b32 buffer_has_process = (file->state.attached_child_process != 0);
-                
+        
         if ((!process_has_buffer || okay_if_process_has_buffer) && (!buffer_has_process || okay_if_buffer_has_process)){
             if (process_has_buffer){
                 child_process->out_file->state.attached_child_process = 0;
@@ -1807,11 +1767,11 @@ get_view_prev__inner(Layout *layout, View *view){
 API_EXPORT b32
 Get_View_Next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
 /*
-DOC_PARAM(view, The View_Summary pointed to by view is iterated to the next view or to a null summary if this is the last view.)
+DOC_PARAM(view, The  pointed to by view is iterated to the next view or to a null summary if this is the last view.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access. The view outputted will be the next view that is accessible.)
 DOC
 (
-This call steps a View_Summary to the next view in the global view order.
+This call steps a  to the next view in the global view order.
 
 If the view outputted does not exist, the loop is finished.
 Views should not be closed or opened durring a view loop.
@@ -1857,26 +1817,6 @@ Get_View_Prev(Application_Links *app, View_ID view_id, Access_Flag access, View_
 
 // TODO(allen): redocument
 API_EXPORT b32
-Get_View_Summary(Application_Links *app, View_ID view_id, Access_Flag access, View_Summary *view_summary_out)
-/*
-DOC_PARAM(view_id, The view_id specifies the view to try to get.)
-DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
-DOC_RETURN(This call returns a summary that describes the indicated view if it is open and accessible.)
-DOC_SEE(Access_Flag)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    View *view = imp_get_view(models, view_id);
-    b32 result = false;
-    if (view_api_check_view(view, access)){
-        fill_view_summary(system, view_summary_out, view, models);
-        result = true;
-    }
-    return(result);
-}
-
-// TODO(allen): redocument
-API_EXPORT b32
 Get_Active_View(Application_Links *app, Access_Flag access, View_ID *view_id_out)
 /*
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
@@ -1914,6 +1854,17 @@ Get_Active_Panel(Application_Links *app, Panel_ID *panel_id_out){
 }
 
 API_EXPORT b32
+View_Exists(Application_Links *app, View_ID view_id){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
 View_Get_Buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
@@ -1942,12 +1893,47 @@ View_Get_Cursor_Pos(Application_Links *app, View_ID view_id, i32 *pos_out){
 }
 
 API_EXPORT b32
+View_Get_Mark_Pos(Application_Links *app, View_ID view_id, i32 *pos_out){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        *pos_out = view->mark;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+View_Get_Preferred_X(Application_Links *app, View_ID view_id, f32 *preferred_x_out){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view_api_check_view(view)){
+        *preferred_x_out = view->preferred_x;
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
+View_Get_Screen_Rect(Application_Links *app, View_ID view_id, Rect_f32 *rect_out){
+    Models *models = (Models*)app->cmd_context;
+    b32 result = false;
+    View *view = imp_get_view(models, view_id);
+    if (view_api_check_view(view)){
+        *rect_out = f32R(view->panel->rect_full);
+        result = true;
+    }
+    return(result);
+}
+
+API_EXPORT b32
 View_Get_Panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
     b32 result = false;
     View *view = imp_get_view(models, view_id);
-    *panel_id_out = 0;
     if (view_api_check_view(view)){
         Panel *panel = view->panel;
         *panel_id_out = panel_get_id(layout, panel);
@@ -1961,7 +1947,6 @@ Panel_Get_View(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    *view_id_out = 0;
     if (panel_api_check_panel(panel)){
         if (panel->kind == PanelKind_Final){
             View *view = panel->view;
@@ -4711,7 +4696,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         b32 wrapped = !file->settings.unwrapped_lines;
         Face_ID font_id = file->settings.font_id;
         Font_Pointers font = system->font.get_pointers_by_id(font_id);
-
+        
 #if 0        
         File_Edit_Positions edit_pos = view_get_edit_pos(view);
         f32 scroll_x = edit_pos.scroll.scroll_x;
@@ -4728,7 +4713,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         scroll_y += buffer_point.pixel_shift.y;
         Full_Cursor render_cursor = file_get_render_cursor(system, file, scroll_y);
 #endif
-
+        
         i32 item_count = 0;
         i32 end_pos = 0;
         {
