@@ -11,32 +11,34 @@ unlock_jump_buffer(void){
 }
 
 static void
-lock_jump_buffer(char *name, i32 size){
-    if (size <= locked_buffer.memory_size){
-        copy(&locked_buffer, make_string(name, size));
+lock_jump_buffer(String name){
+    if (name.size < locked_buffer.memory_size){
+        copy(&locked_buffer, name);
     }
 }
 
 static void
-lock_jump_buffer(Buffer_Summary buffer){
-    lock_jump_buffer(buffer.buffer_name, buffer.buffer_name_len);
+lock_jump_buffer(char *name, i32 size){
+    lock_jump_buffer(make_string(name, size));
 }
 
 static void
 lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
-    Buffer_Summary buffer = {};
-    if (get_buffer_summary(app, buffer_id, AccessAll, &buffer)){
-        lock_jump_buffer(buffer.buffer_name, buffer.buffer_name_len);
-    }
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(scratch);
+    String buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
+    lock_jump_buffer(buffer_name);
+    end_temp_memory(temp);
 }
 
 static View_Summary
 get_view_for_locked_jump_buffer(Application_Links *app){
     View_Summary view = {};
     if (locked_buffer.size > 0){
-        Buffer_Summary buffer = get_buffer_by_name(app, locked_buffer.str, locked_buffer.size, AccessAll);
-        if (buffer.exists){
-            view = get_first_view_with_buffer(app, buffer.buffer_id);
+        Buffer_ID buffer = 0;
+        get_buffer_by_name(app, locked_buffer, AccessAll, &buffer);
+        if (buffer != 0){
+            view = get_first_view_with_buffer(app, buffer);
         }
         else{
             unlock_jump_buffer();
@@ -275,37 +277,40 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 
 static Buffer_ID
 create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_length, View_Summary default_target_view){
-    u32 access = AccessAll;
-    Buffer_Summary search_buffer = get_buffer_by_name(app, name, name_length, access);
-    
-    if (search_buffer.exists){
-        buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
+    String name_string = make_string(name, name_length);
+    Buffer_ID search_buffer = 0;
+    get_buffer_by_name(app, name_string, AccessAll, &search_buffer);
+    if (search_buffer != 0){
+        buffer_set_setting(app, search_buffer, BufferSetting_ReadOnly, true);
         
         View_Summary target_view = default_target_view;
         
-        View_Summary view_with_buffer_already_open = get_first_view_with_buffer(app, search_buffer.buffer_id);
+        View_Summary view_with_buffer_already_open = get_first_view_with_buffer(app, search_buffer);
         if (view_with_buffer_already_open.exists){
             target_view = view_with_buffer_already_open;
             view_end_ui_mode(app, &target_view);
         }
         else{
-            view_set_buffer(app, &target_view, search_buffer.buffer_id, 0);
+            view_set_buffer(app, &target_view, search_buffer, 0);
         }
         set_active_view(app, &target_view);
         
-        buffer_send_end_signal(app, &search_buffer);
-        buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
+        i32 buffer_size = 0;
+        buffer_get_size(app, search_buffer, &buffer_size);
+        
+        buffer_send_end_signal(app, search_buffer);
+        buffer_replace_range(app, search_buffer, 0, buffer_size, make_lit_string(""));
     }
     else{
-        search_buffer = create_buffer(app, name, name_length, BufferCreate_AlwaysNew);
-        buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
-        buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
-        buffer_set_setting(app, &search_buffer, BufferSetting_WrapLine, false);
-        view_set_buffer(app, &default_target_view, search_buffer.buffer_id, 0);
+        create_buffer(app, name_string, BufferCreate_AlwaysNew, &search_buffer);
+        buffer_set_setting(app, search_buffer, BufferSetting_Unimportant, true);
+        buffer_set_setting(app, search_buffer, BufferSetting_ReadOnly, true);
+        buffer_set_setting(app, search_buffer, BufferSetting_WrapLine, false);
+        view_set_buffer(app, &default_target_view, search_buffer, 0);
         set_active_view(app, &default_target_view);
     }
     
-    return(search_buffer.buffer_id);
+    return(search_buffer);
 }
 
 ////////////////////////////////

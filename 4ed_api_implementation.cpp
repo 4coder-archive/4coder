@@ -1602,7 +1602,7 @@ DOC_SEE(Buffer_Save_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result)
+Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result_out)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to try to kill.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for the buffer kill.)
@@ -1620,7 +1620,7 @@ DOC_SEE(Buffer_Identifier)
     System_Functions *system = models->system;
     Working_Set *working_set = &models->working_set;
     Editing_File *file = imp_get_file(models, buffer_id);
-    *result = BufferKillResult_DoesNotExist;
+    Buffer_Kill_Result result = BufferKillResult_DoesNotExist;
     if (buffer_api_check_file(file)){
         if (!file->settings.never_kill){
             b32 needs_to_save = file_needs_save(file);
@@ -1659,17 +1659,20 @@ DOC_SEE(Buffer_Identifier)
                     }
                 }
                 
-                *result = BufferKillResult_Killed;
+                result = BufferKillResult_Killed;
             }
             else{
-                *result = BufferKillResult_Dirty;
+                result = BufferKillResult_Dirty;
             }
         }
         else{
-            *result = BufferKillResult_Unkillable;
+            result = BufferKillResult_Unkillable;
         }
     }
-    return(*result == BufferKillResult_Killed);
+    if (result_out != 0){
+        *result_out = result;
+    }
+    return(result == BufferKillResult_Killed);
 }
 
 API_EXPORT b32
@@ -4160,7 +4163,7 @@ Finalize_Color(Application_Links *app, int_color color){
 }
 
 // TODO(allen): redocument
-API_EXPORT i32
+API_EXPORT b32
 Get_Hot_Directory(Application_Links *app, String *out, i32 *required_size_out)
 /*
 DOC_PARAM(out, On success this character buffer is filled with the 4coder 'hot directory'.)
@@ -4172,7 +4175,9 @@ DOC_SEE(directory_set_hot)
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
-    *required_size_out = hot->string.size;
+    if (required_size_out != 0){
+        *required_size_out = hot->string.size;
+    }
     b32 result = false;
     if (append(out, hot->string)){
         terminate_with_null(out);

@@ -42,7 +42,7 @@ struct Application_Links;
 #define BUFFER_SEND_END_SIGNAL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define CREATE_BUFFER_SIG(n) b32 n(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out)
 #define BUFFER_SAVE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags)
-#define BUFFER_KILL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result)
+#define BUFFER_KILL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result_out)
 #define BUFFER_REOPEN_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out)
 #define BUFFER_GET_FILE_ATTRIBUTES_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out)
 #define GET_VIEW_NEXT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
@@ -142,7 +142,7 @@ struct Application_Links;
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, i32 count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, i32 count)
 #define FINALIZE_COLOR_SIG(n) argb_color n(Application_Links *app, int_color color)
-#define GET_HOT_DIRECTORY_SIG(n) i32 n(Application_Links *app, String *out, i32 *required_size_out)
+#define GET_HOT_DIRECTORY_SIG(n) b32 n(Application_Links *app, String *out, i32 *required_size_out)
 #define SET_HOT_DIRECTORY_SIG(n) b32 n(Application_Links *app, String string)
 #define GET_FILE_LIST_SIG(n) b32 n(Application_Links *app, String directory, File_List *list_out)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
@@ -965,7 +965,7 @@ static b32 buffer_get_token_index(Application_Links *app, Buffer_ID buffer_id, i
 static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_send_end_signal(app, buffer_id));}
 static b32 create_buffer(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out){return(app->create_buffer(app, file_name, flags, new_buffer_id_out));}
 static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags){return(app->buffer_save(app, buffer_id, file_name, flags));}
-static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result){return(app->buffer_kill(app, buffer_id, flags, result));}
+static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result_out){return(app->buffer_kill(app, buffer_id, flags, result_out));}
 static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out){return(app->buffer_reopen(app, buffer_id, flags, result_out));}
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes(app, buffer_id, attributes_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next(app, view_id, access, view_id_out));}
@@ -1065,7 +1065,7 @@ static Available_Font get_available_font(Application_Links *app, i32 index){retu
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->set_theme_colors(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->get_theme_colors(app, colors, count));}
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color(app, color));}
-static i32 get_hot_directory(Application_Links *app, String *out, i32 *required_size_out){return(app->get_hot_directory(app, out, required_size_out));}
+static b32 get_hot_directory(Application_Links *app, String *out, i32 *required_size_out){return(app->get_hot_directory(app, out, required_size_out));}
 static b32 set_hot_directory(Application_Links *app, String string){return(app->set_hot_directory(app, string));}
 static b32 get_file_list(Application_Links *app, String directory, File_List *list_out){return(app->get_file_list(app, directory, list_out));}
 static void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
@@ -1148,7 +1148,7 @@ static b32 buffer_get_token_index(Application_Links *app, Buffer_ID buffer_id, i
 static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_send_end_signal_(app, buffer_id));}
 static b32 create_buffer(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out){return(app->create_buffer_(app, file_name, flags, new_buffer_id_out));}
 static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags){return(app->buffer_save_(app, buffer_id, file_name, flags));}
-static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result){return(app->buffer_kill_(app, buffer_id, flags, result));}
+static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result_out){return(app->buffer_kill_(app, buffer_id, flags, result_out));}
 static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out){return(app->buffer_reopen_(app, buffer_id, flags, result_out));}
 static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes_(app, buffer_id, attributes_out));}
 static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next_(app, view_id, access, view_id_out));}
@@ -1248,7 +1248,7 @@ static Available_Font get_available_font(Application_Links *app, i32 index){retu
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->set_theme_colors_(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->get_theme_colors_(app, colors, count));}
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color_(app, color));}
-static i32 get_hot_directory(Application_Links *app, String *out, i32 *required_size_out){return(app->get_hot_directory_(app, out, required_size_out));}
+static b32 get_hot_directory(Application_Links *app, String *out, i32 *required_size_out){return(app->get_hot_directory_(app, out, required_size_out));}
 static b32 set_hot_directory(Application_Links *app, String string){return(app->set_hot_directory_(app, string));}
 static b32 get_file_list(Application_Links *app, String directory, File_List *list_out){return(app->get_file_list_(app, directory, list_out));}
 static void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}

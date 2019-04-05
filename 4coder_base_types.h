@@ -428,6 +428,21 @@ struct f32_Rect_Pair
 typedef f32_Rect_Pair Rect_f32_Pair;
 
 
+typedef i32 Coordinate;
+typedef i32 Side;
+
+enum{
+    Coordinate_X = 0,
+    Coordinate_Y = 1,
+    Coordinate_Z = 2,
+    Coordinate_W = 3,
+};
+
+enum{
+    Side_Min = 0,
+    Side_Max = 1,
+};
+
 #endif
 
 // BOTTOM

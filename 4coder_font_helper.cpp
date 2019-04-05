@@ -5,8 +5,9 @@
 // TOP
 
 static Face_Description
-get_buffer_face_description(Application_Links *app, Buffer_Summary *buffer){
-    Face_ID current_id = get_face_id(app, buffer);
+get_buffer_face_description(Application_Links *app, Buffer_ID buffer){
+    Face_ID current_id = 0;
+    get_face_id(app, buffer, &current_id);
     Face_Description description = {};
     if (current_id != 0){
         description = get_face_description(app, current_id);
@@ -114,8 +115,9 @@ change_global_face_by_description(Application_Links *app, Face_Description descr
 }
 
 static void
-set_buffer_face_by_name(Application_Links *app, Buffer_Summary *buffer, char *name, i32 len){
-    Face_ID current_id = get_face_id(app, buffer);
+set_buffer_face_by_name(Application_Links *app, Buffer_ID buffer, char *name, i32 len){
+    Face_ID current_id = 0;
+    get_face_id(app, buffer, &current_id);
     if (current_id != 0){
         Face_Description description = get_face_description(app, current_id);
         Face_ID new_id = get_face_id_by_name(app, name, len, &description);

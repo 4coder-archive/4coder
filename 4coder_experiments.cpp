@@ -27,7 +27,8 @@ CUSTOM_COMMAND_SIG(kill_rect)
 CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by unwrapped-xy coordinates.")
 {
     View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
     
     i32_Rect rect = get_line_x_rect(&view);
     
@@ -37,7 +38,7 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
         i32 start = 0;
         i32 end = 0;
         
-        b32 success = 1;
+        b32 success = true;
         Full_Cursor cursor = {};
         
         float y = get_line_y(app, &view, line);
@@ -53,13 +54,13 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
         end = cursor.pos;
         
         if (success){
-            buffer_replace_range(app, &buffer, start, end, 0, 0);
+            buffer_replace_range(app, buffer, start, end, make_lit_string(""));
         }
     }
 }
 
 static void
-pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, char padchar, i32 target){
+pad_buffer_line(Application_Links *app, Partition *part, Buffer_ID buffer, i32 line, char padchar, i32 target){
     Partial_Cursor start = {};
     Partial_Cursor end = {};
     
@@ -68,10 +69,10 @@ pad_buffer_line(Application_Links *app, Partition *part, Buffer_Summary *buffer,
             if (start.line == line){
                 if (end.character-1 < target){
                     Temp_Memory temp = begin_temp_memory(part);
-                    i32 size = target - (end.character-1);
+                    i32 size = target - (end.character - 1);
                     char *str = push_array(part, char, size);
                     memset(str, ' ', size);
-                    buffer_replace_range(app, buffer, end.pos, end.pos, str, size);
+                    buffer_replace_range(app, buffer, end.pos, end.pos, make_string(str, size));
                     end_temp_memory(temp);
                 }
             }
@@ -120,7 +121,8 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     Partition *part = &global_part;
     
     View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
     
     Buffer_Rect rect = get_rect(&view);
     
@@ -128,7 +130,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     i32 pos = view.cursor.character-1;
     
     for (i32 i = rect.line0; i <= rect.line1; ++i){
-        pad_buffer_line(app, &global_part, &buffer, i, ' ', pos);
+        pad_buffer_line(app, &global_part, buffer, i, ' ', pos);
     }
     
     i32 line_count = rect.line1 - rect.line0 + 1;
@@ -147,7 +149,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             for (i32 i = rect.line0; i <= rect.line1; ++i){
                 Partial_Cursor cursor = {};
                 
-                if (buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
+                if (buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1), &cursor)){
                     edit->str_start = 0;
                     edit->len = 1;
                     edit->start = cursor.pos;
@@ -157,7 +159,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             }
             
             i32 edit_count = (int)(edit - edits);
-            buffer_batch_edit(app, &buffer, &str, 1, edits, edit_count, BatchEdit_Normal);
+            buffer_batch_edit(app, buffer, &str, 1, edits, edit_count, BatchEdit_Normal);
             
             end_temp_memory(temp);
             
@@ -175,7 +177,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 for (i32 i = rect.line0; i <= rect.line1; ++i){
                     Partial_Cursor cursor = {};
                     
-                    if (buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
+                    if (buffer_compute_cursor(app, buffer, seek_line_char(i, pos+1), &cursor)){
                         edit->str_start = 0;
                         edit->len = 0;
                         edit->start = cursor.pos-1;
@@ -185,7 +187,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 }
                 
                 i32 edit_count = (int)(edit - edits);
-                buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_Normal);
+                buffer_batch_edit(app, buffer, 0, 0, edits, edit_count, BatchEdit_Normal);
                 
                 end_temp_memory(temp);
                 
@@ -223,9 +225,10 @@ CUSTOM_COMMAND_SIG(multi_paste){
                 str[0] = '\n';
                 clipboard_index(app, 0, paste_index, str + 1, len);
                 
-                Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+                Buffer_ID buffer = 0;
+                view_get_buffer(app, view.view_id, AccessOpen, &buffer);
                 Range range = get_view_range(&view);
-                buffer_replace_range(app, &buffer, range.max, range.max, str, len + 1);
+                buffer_replace_range(app, buffer, range.max, range.max, make_string(str, len + 1));
                 view_set_mark(app, &view, seek_pos(range.max + 1));
                 view_set_cursor(app, &view, seek_pos(range.max + len + 1), true);
                 
@@ -246,8 +249,8 @@ static Range
 multi_paste_range(Application_Links *app, View_Summary *view, Range range, i32 paste_count, b32 old_to_new){
     Range finish_range = range;
     if (paste_count >= 1){
-        Buffer_Summary buffer = get_buffer(app, view->buffer_id, AccessOpen);
-        if (buffer.exists){
+        Buffer_ID buffer = 0;
+        if (view_get_buffer(app, view->view_id, AccessOpen, &buffer)){
             i32 total_size = 0;
             for (i32 paste_index = 0; paste_index < paste_count; ++paste_index){
                 total_size += 1 + clipboard_index(app, 0, paste_index, 0, 0);
@@ -279,7 +282,7 @@ multi_paste_range(Application_Links *app, View_Summary *view, Range range, i32 p
                 }
                 
                 i32 pos = range.min;
-                buffer_replace_range(app, &buffer, range.min, range.max, str, total_size);
+                buffer_replace_range(app, buffer, range.min, range.max, make_string(str, total_size));
                 finish_range.min = pos;
                 finish_range.max = pos + total_size;
                 view_set_mark(app, view, seek_pos(finish_range.min));
@@ -343,8 +346,9 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     }
     
     if (in.abort){
-        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-        buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+        Buffer_ID buffer = 0;
+        view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+        buffer_replace_range(app, buffer, range.min, range.max, make_lit_string(""));
     }
 }
 
@@ -383,22 +387,22 @@ CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
 CUSTOM_COMMAND_SIG(rename_parameter)
 CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in the signature of a function definition, all occurences within the scope of the function will be replaced with a new provided string.")
 {
-    u32 access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
     
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
     
     Cpp_Get_Token_Result result;
-    if (buffer_get_token_index(app, &buffer, view.cursor.pos, &result)){
+    if (buffer_get_token_index(app, buffer, view.cursor.pos, &result)){
         if (!result.in_whitespace_after_token){
             static const i32 stream_space_size = 512;
             Cpp_Token stream_space[stream_space_size];
             Stream_Tokens_DEP stream = {};
             
-            if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, stream_space_size)){
+            if (init_stream_tokens(&stream, app, buffer, result.token_index, stream_space, stream_space_size)){
                 i32 token_index = result.token_index;
                 Cpp_Token token = stream.tokens[token_index];
                 
@@ -410,7 +414,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                     if (token.size < sizeof(old_lexeme_base)){
                         Cpp_Token original_token = token;
                         old_lexeme.size = token.size;
-                        buffer_read_range(app, &buffer, token.start, token.start+token.size, old_lexeme.str);
+                        buffer_read_range(app, buffer, token.start, token.start+token.size, old_lexeme.str);
                         
                         i32 proc_body_found = 0;
                         b32 still_looping = 0;
@@ -476,9 +480,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                                                 char other_lexeme_base[128];
                                                 String other_lexeme = make_fixed_width_string(other_lexeme_base);
                                                 other_lexeme.size = old_lexeme.size;
-                                                buffer_read_range(app, &buffer, token_ptr->start,
-                                                                  token_ptr->start+token_ptr->size,
-                                                                  other_lexeme.str);
+                                                buffer_read_range(app, buffer, token_ptr->start, token_ptr->start+token_ptr->size, other_lexeme.str);
                                                 
                                                 if (match(old_lexeme, other_lexeme)){
                                                     Buffer_Edit edit;
@@ -520,8 +522,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                             doublebreak2:;
                             
                             if (closed_correctly){
-                                buffer_batch_edit(app, &buffer, replace_string.str, replace_string.size,
-                                                  edits, edit_count, BatchEdit_Normal);
+                                buffer_batch_edit(app, buffer, replace_string.str, replace_string.size, edits, edit_count, BatchEdit_Normal);
                             }
                         }
                     }
@@ -541,26 +542,25 @@ enum{
 
 static void
 write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enum_Values_Mode mode){
-    u32 access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
     
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
     
     Cpp_Get_Token_Result result;
-    if (buffer_get_token_index(app, &buffer, view.cursor.pos, &result)){
+    if (buffer_get_token_index(app, buffer, view.cursor.pos, &result)){
         if (!result.in_whitespace_after_token){
             Cpp_Token stream_space[32];
             Stream_Tokens_DEP stream = {};
             
-            if (init_stream_tokens(&stream, app, &buffer, result.token_index, stream_space, 32)){
+            if (init_stream_tokens(&stream, app, buffer, result.token_index, stream_space, 32)){
                 i32 token_index = result.token_index;
                 Cpp_Token token = stream.tokens[token_index];
                 
                 if (token.type == CPP_TOKEN_BRACE_OPEN){
-                    
                     ++token_index;
                     
                     i32 seeker_index = token_index;
@@ -684,8 +684,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         
                         finished:;
                         if (closed_correctly){
-                            buffer_batch_edit(app, &buffer, string_base, string.size,
-                                              edits, edit_count, BatchEdit_Normal);
+                            buffer_batch_edit(app, buffer, string_base, string.size, edits, edit_count, BatchEdit_Normal);
                         }
                     }
                 }
@@ -766,9 +765,8 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
                 current_buffer_id = target->buffer_id;
                 current_offset = 0;
             }
-            Buffer_Summary buffer = get_buffer(app, target->buffer_id, AccessOpen);
             i32 pos = target->start_pos + current_offset;
-            buffer_replace_range(app, &buffer, pos, pos + target_string.size, new_string.str, new_string.size);
+            buffer_replace_range(app, target->buffer_id, pos, pos + target_string.size, new_string);
             current_offset += shift_per_replacement;
         }
         

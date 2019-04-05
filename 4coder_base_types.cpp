@@ -870,12 +870,17 @@ rectify(Range range) {
 
 static b32
 interval_overlap(i32 a0, i32 a1, i32 b0, i32 b1){
-    return(!(a1 < b0 || b1 < a0));
+    return(a0 < b1 && b0 < a1);
 }
 
 static b32
 interval_overlap(Range a, Range b){
     return(interval_overlap(a.first, a.one_past_last, b.first, b.one_past_last));
+}
+
+static i32
+interval_overlap(f32 a0, f32 a1, f32 b0, f32 b1){
+    return(a0 < b1 && b0 < a1);
 }
 
 static b32
@@ -886,6 +891,18 @@ interval_contains(i32 a0, i32 a1, i32 b){
 static b32
 interval_contains(Range range, i32 b){
     return(interval_contains(range.start, range.one_past_last, b));
+}
+
+static Range
+clip_range_to_width(Range range, i32 max_width) {
+    i32 top = range.first + max_width;
+    range.end = clamp_top(range.end, top);
+    return(range);
+}
+
+static b32
+interval_is_valid(Range range){
+    return(range.start <= range.one_past_last);
 }
 
 ////////////////////////////////
@@ -949,33 +966,23 @@ rect_equal(i32_Rect r1, i32_Rect r2){
 }
 
 static b32
-hit_check(f32 x, f32 y, f32 x0, f32 y0, f32 x1, f32 y1){
-    return(x >= x0 && x < x1 && y >= y0 && y < y1);
+rect_contains_point(b32 BLAH, f32 x0, f32 y0, f32 x1, f32 y1, f32 x, f32 y){
+    return(x0 <= x && x < x1 && y0 <= y && y < y1);
 }
 
 static b32
-hit_check(f32 x, f32 y, f32_Rect rect){
-    return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
+rect_contains_point(b32 BLAH, i32 x0, i32 y0, i32 x1, i32 y1, i32 x, i32 y){
+    return(x0 <= x && x < x1 && y0 <= y && y < y1);
 }
 
 static b32
-hit_check(Rect_f32 rect, Vec2_f32 p){
-    return(hit_check(p.x, p.y, rect.x0, rect.y0, rect.x1, rect.y1));
+rect_contains_point(Rect_f32 rect, Vec2_f32 p){
+    return(rect_contains_point(false, rect.x0, rect.y0, rect.x1, rect.y1, p.x, p.y));
 }
 
 static b32
-hit_check(i32 x, i32 y, i32 x0, i32 y0, i32 x1, i32 y1){
-    return(x >= x0 && x < x1 && y >= y0 && y < y1);
-}
-
-static b32
-hit_check(i32 x, i32 y, i32_Rect rect){
-    return(hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
-}
-
-static b32
-hit_check(Rect_i32 rect, Vec2_i32 p){
-    return(hit_check(p.x, p.y, rect.x0, rect.y0, rect.x1, rect.y1));
+rect_contains_point(Rect_i32 rect, Vec2_i32 p){
+    return(rect_contains_point(false, rect.x0, rect.y0, rect.x1, rect.y1, p.x, p.y));
 }
 
 static i32_Rect
@@ -1014,11 +1021,6 @@ fits_inside(i32_Rect rect, i32_Rect outer){
 }
 
 static i32
-interval_overlap(f32 a0, f32 a1, f32 b0, f32 b1){
-    return(a0 < b1 && b0 < a1);
-}
-
-static i32
 rect_overlap(f32_Rect a, f32_Rect b){
     return(interval_overlap(a.x0, a.x1, b.x0, b.x1) &&
            interval_overlap(a.y0, a.y1, b.y0, b.y1));
@@ -1038,6 +1040,13 @@ static Vec2
 rect_dim(f32_Rect rect){
     return(V2(rect.x1 - rect.x0, rect.y1 - rect.y0));
 }
+
+static Vec2
+rect_center(f32_Rect rect){
+    return(V2(0.5f*(rect.x0 + rect.x1), 0.5f*(rect.y0 + rect.y1)));
+}
+
+#define center_of rect_center
 
 static i32_Rect
 intersection_of(i32_Rect a, i32_Rect b)

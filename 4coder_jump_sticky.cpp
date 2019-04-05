@@ -39,7 +39,7 @@ binary_search(u32 *array, i32 stride, i32 count, u32 x){
 }
 
 static Sticky_Jump_Array
-parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summary buffer){
+parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_ID buffer){
     Sticky_Jump_Array result = {};
     result.jumps = push_array(arena, Sticky_Jump, 0);
     
@@ -52,7 +52,7 @@ parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summ
         
         Temp_Memory temp = begin_temp_memory(arena);
         String line_str = {};
-        if (read_line(app, arena, buffer.buffer_id, line, &line_str)){
+        if (read_line(app, arena, buffer, line, &line_str)){
             Parsed_Jump parsed_jump = parse_jump_location(line_str);
             if (parsed_jump.success){
                 Buffer_ID jump_buffer = {};
@@ -92,16 +92,16 @@ static char    sticky_jump_marker_handle_var[] = "DEFAULT.sticky_jump_marker_han
 static i32 sticky_jump_marker_handle_loc;
 
 static void
-init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_ID buffer_id,
-                 Marker_List *list){
-    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-    b32 is_compilation_buffer = match(make_string(buffer.buffer_name, buffer.buffer_name_len), "*compilation*");
+init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_ID buffer, Marker_List *list){
+    Arena *scratch_arena = context_get_arena(app);
+    Temp_Memory_Arena temp_arena = begin_temp_memory(scratch_arena);
+    
+    String buffer_name = buffer_push_base_buffer_name(app, buffer, scratch_arena);
+    b32 is_compilation_buffer = match(buffer_name, "*compilation*");
     
     Temp_Memory temp = begin_temp_memory(scratch);
     Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);
-    Range_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch,
-                                                             &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps),
-                                                             jumps.count);
+    Range_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch, &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps), jumps.count);
     Sort_Pair_i32 *range_index_buffer_id_pairs = push_array(scratch, Sort_Pair_i32, buffer_ranges.count);
     for (i32 i = 0; i < buffer_ranges.count; i += 1){
         range_index_buffer_id_pairs[i].index = i;
@@ -116,7 +116,7 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
     Sticky_Jump_Stored *stored = push_array(scratch, Sticky_Jump_Stored, jumps.count);
     
     Managed_Scope scope_array[2] = {};
-    scope_array[0] = buffer_get_managed_scope(app, buffer_id);
+    scope_array[0] = buffer_get_managed_scope(app, buffer);
     
     for (i32 i = 0; i < scoped_buffer_ranges.count; i += 1){
         Range buffer_range_indices = scoped_buffer_ranges.ranges[i];
@@ -173,8 +173,10 @@ init_marker_list(Application_Links *app, Partition *scratch, Heap *heap, Buffer_
     
     list->jump_array = stored_jump_array;
     list->jump_count = jumps.count;
-    list->previous_size = buffer.size;
-    list->buffer_id = buffer_id;
+    buffer_get_size(app, buffer, &list->previous_size);
+    list->buffer_id = buffer;
+    
+    end_temp_memory(temp_arena);
 }
 
 static void
@@ -213,9 +215,10 @@ static Marker_List*
 get_or_make_list_for_buffer(Application_Links *app, Partition *scratch, Heap *heap, Buffer_ID buffer_id){
     Marker_List *result = get_marker_list_for_buffer(buffer_id);
     if (result != 0){
-        Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-        // TODO(allen): When buffers get an "edit sequence number" use that instead.
-        if (result->previous_size != buffer.size){
+        i32 buffer_size = 0;
+        buffer_get_size(app, buffer_id, &buffer_size);
+        // TODO(allen):  // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): When buffers get an "edit sequence number" use that instead.
+        if (result->previous_size != buffer_size){
             delete_marker_list(result);
             result = 0;
         }
@@ -569,13 +572,13 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position_sticky)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    if (buffer.lock_flags & AccessProtected){
-        goto_jump_at_cursor_sticky(app);
-        lock_jump_buffer(buffer);
-    }
-    else{
+    Buffer_ID buffer = 0;
+    if (view_get_buffer(app, view.view_id, AccessOpen, &buffer)){
         write_character(app);
+    }
+    else if (view_get_buffer(app, view.view_id, AccessProtected, &buffer)){
+        goto_jump_at_cursor_sticky(app);
+        lock_jump_buffer(app, buffer);
     }
 }
 
@@ -583,13 +586,13 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel_sticky)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    if (buffer.lock_flags & AccessProtected){
-        goto_jump_at_cursor_same_panel_sticky(app);
-        lock_jump_buffer(buffer);
-    }
-    else{
+    Buffer_ID buffer = 0;
+    if (view_get_buffer(app, view.view_id, AccessOpen, &buffer)){
         write_character(app);
+    }
+    else if (view_get_buffer(app, view.view_id, AccessProtected, &buffer)){
+        goto_jump_at_cursor_same_panel_sticky(app);
+        lock_jump_buffer(app, buffer);
     }
 }
 

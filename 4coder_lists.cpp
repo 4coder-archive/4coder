@@ -458,15 +458,20 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
 ////////////////////////////////
 
 static void
-generate_all_buffers_list__output_buffer(Lister *lister, Buffer_Summary buffer){
+generate_all_buffers_list__output_buffer(Application_Links *app, Lister *lister, Buffer_ID buffer){
+    Dirty_State dirty = 0;
+    buffer_get_dirty_state(app, buffer, &dirty);
     String status = {};
-    switch (buffer.dirty){
+    switch (dirty){
         case DirtyState_UnsavedChanges:  status = make_lit_string("*"); break;
         case DirtyState_UnloadedChanges: status = make_lit_string("!"); break;
         case DirtyState_UnsavedChangesAndUnloadedChanges: status = make_lit_string("*!"); break;
     }
-    String buffer_name = make_string(buffer.buffer_name, buffer.buffer_name_len);
-    lister_add_item(lister, buffer_name, status, IntAsPtr(buffer.buffer_id), 0);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(scratch);
+    String buffer_name = buffer_push_unique_buffer_name(app, buffer, scratch);
+    lister_add_item(lister, buffer_name, status, IntAsPtr(buffer), 0);
+    end_temp_memory(temp);
 }
 
 static void
@@ -474,10 +479,15 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     i32 buffer_count = get_buffer_count(app);
     i32 memory_size = 0;
     memory_size += buffer_count*(sizeof(Lister_Node) + 3);
-    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
-         buffer.exists;
-         get_buffer_next(app, &buffer, AccessAll)){
-        memory_size += buffer.buffer_name_len;
+    {
+        Buffer_ID buffer = 0;
+        for (get_buffer_next(app, 0, AccessAll, &buffer);
+             buffer != 0;
+             get_buffer_next(app, buffer, AccessAll, &buffer)){
+            i32 name_length = 0;
+            buffer_get_unique_buffer_name(app, buffer, 0, &name_length);
+            memory_size += name_length;
+        }
     }
     
     lister_begin_new_item_set(app, lister, memory_size);
@@ -500,37 +510,42 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     }
     
     // Regular Buffers
-    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
-         buffer.exists;
-         get_buffer_next(app, &buffer, AccessAll)){
-        for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-            if (buffer.buffer_id == buffers_currently_being_viewed[i]){
-                goto skip1;
+    {
+        Buffer_ID buffer = 0;
+        for (get_buffer_next(app, 0, AccessAll, &buffer);
+             buffer != 0;
+             get_buffer_next(app, buffer, AccessAll, &buffer)){
+            for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
+                if (buffer == buffers_currently_being_viewed[i]){
+                    goto skip1;
+                }
             }
+            if (!buffer_has_name_with_star(app, buffer)){
+                generate_all_buffers_list__output_buffer(app, lister, buffer);
+            }
+            skip1:;
         }
-        if (buffer.buffer_name_len == 0 || buffer.buffer_name[0] != '*'){
-            generate_all_buffers_list__output_buffer(lister, buffer);
-        }
-        skip1:;
     }
     // Buffers Starting with *
-    for (Buffer_Summary buffer = get_buffer_first(app, AccessAll);
-         buffer.exists;
-         get_buffer_next(app, &buffer, AccessAll)){
-        for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-            if (buffer.buffer_id == buffers_currently_being_viewed[i]){
-                goto skip2;
+    {
+        Buffer_ID buffer = 0;
+        for (get_buffer_next(app, 0, AccessAll, &buffer);
+             buffer != 0;
+             get_buffer_next(app, buffer, AccessAll, &buffer)){
+            for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
+                if (buffer == buffers_currently_being_viewed[i]){
+                    goto skip2;
+                }
             }
+            if (!buffer_has_name_with_star(app, buffer)){
+                generate_all_buffers_list__output_buffer(app, lister, buffer);
+            }
+            skip2:;
         }
-        if (buffer.buffer_name_len != 0 && buffer.buffer_name[0] == '*'){
-            generate_all_buffers_list__output_buffer(lister, buffer);
-        }
-        skip2:;
     }
     // Buffers That Are Open in Views
     for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-        Buffer_Summary buffer = get_buffer(app, buffers_currently_being_viewed[i], AccessAll);
-        generate_all_buffers_list__output_buffer(lister, buffer);
+        generate_all_buffers_list__output_buffer(app, lister, buffers_currently_being_viewed[i]);
     }
 }
 
@@ -586,7 +601,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
             char *status_flag = "";
             
             
-            Buffer_Summary buffer = {};
+            Buffer_ID buffer = {};
             
             {
                 Temp_Memory_Arena path_temp = begin_temp_memory(&lister->arena);
@@ -600,13 +615,15 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                     append(&full_file_path, "/");
                 }
                 append(&full_file_path, make_string(info->filename, info->filename_len));
-                buffer = get_buffer_by_file_name(app, full_file_path.str, full_file_path.size, AccessAll);
+                get_buffer_by_file_name(app, full_file_path, AccessAll, &buffer);
                 end_temp_memory(path_temp);
             }
             
-            if (buffer.exists){
+            if (buffer != 0){
                 is_loaded = "LOADED";
-                switch (buffer.dirty){
+                Dirty_State dirty = 0;
+                buffer_get_dirty_state(app, buffer, &dirty);
+                switch (dirty){
                     case DirtyState_UnsavedChanges:  status_flag = " *"; break;
                     case DirtyState_UnloadedChanges: status_flag = " !"; break;
                     case DirtyState_UnsavedChangesAndUnloadedChanges: status_flag = " *!"; break;
@@ -665,18 +682,23 @@ activate_confirm_kill(Application_Links *app, Partition *scratch, Heap *heap, Vi
         
         case SureToKill_Save:
         {
-            Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
-            if (save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, BufferSave_IgnoreDirtyFlag)){
-                kill_buffer(app, buffer_identifier(buffer_id), BufferKill_AlwaysKill);
+            Arena *scratch_arena = context_get_arena(app);
+            Temp_Memory_Arena temp = begin_temp_memory(scratch_arena);
+            String file_name = buffer_push_file_name(app, buffer_id, scratch_arena);
+            
+            if (buffer_save(app, buffer_id, file_name, BufferSave_IgnoreDirtyFlag)){
+                buffer_kill(app, buffer_id, BufferKill_AlwaysKill, 0);
             }
             else{
                 char space[256];
                 String str = make_fixed_width_string(space);
                 append(&str, "Did not close '");
-                append(&str, make_string(buffer.file_name, buffer.file_name_len));
+                append(&str, file_name);
                 append(&str, "' because it did not successfully save.\n");
                 print_message(app, str.str, str.size);
             }
+            
+            end_temp_memory(temp);
         }break;
     }
     lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
@@ -794,21 +816,20 @@ activate_open_or_new__generic(Application_Links *app, Partition *scratch, View_S
         Temp_Memory temp = begin_temp_memory(scratch);
         String full_file_name = {};
         if (path.size == 0 || !char_is_slash(path.str[path.size - 1])){
-            full_file_name = string_push_f(scratch, "%.*s/%.*s", 
-                                           path.size, path.str, file_name.size, file_name.str);
+            full_file_name = string_push_f(scratch, "%.*s/%.*s", path.size, path.str, file_name.size, file_name.str);
         }
         else{
-            full_file_name = string_push_f(scratch, "%.*s%.*s",
-                                           path.size, path.str, file_name.size, file_name.str);
+            full_file_name = string_push_f(scratch, "%.*s%.*s", path.size, path.str, file_name.size, file_name.str);
         }
         if (is_folder){
             directory_set_hot(app, full_file_name.str, full_file_name.size);
             result = ListerActivation_ContinueAndRefresh;
         }
         else{
-            Buffer_Summary buffer = create_buffer(app, full_file_name.str, full_file_name.size, flags);
-            if (buffer.exists){
-                view_set_buffer(app, view, buffer.buffer_id, SetBuffer_KeepOriginalGUI);
+            Buffer_ID buffer = 0;
+            create_buffer(app, full_file_name, flags, &buffer);
+            if (buffer != 0){
+                view_set_buffer(app, view, buffer, SetBuffer_KeepOriginalGUI);
             }
             result = ListerActivation_Finished;
         }

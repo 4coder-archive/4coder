@@ -37,45 +37,47 @@ get_pattern_array_from_extension_list(Partition *arena, Extension_List extension
 ///////////////////////////////
 
 static void
-close_all_files_with_extension(Application_Links *app, Partition *scratch_part,
-                               CString_Array extension_array){
+close_all_files_with_extension(Application_Links *app, Partition *scratch_part, CString_Array extension_array){
     Temp_Memory temp = begin_temp_memory(scratch_part);
     
     i32 buffers_to_close_max = part_remaining(scratch_part)/sizeof(i32);
     i32 *buffers_to_close = push_array(scratch_part, i32, buffers_to_close_max);
     
     i32 buffers_to_close_count = 0;
-    b32 do_repeat = 0;
+    b32 do_repeat = false;
     do{
         buffers_to_close_count = 0;
-        do_repeat = 0;
+        do_repeat = false;
         
-        u32 access = AccessAll;
-        Buffer_Summary buffer = {};
-        for (buffer = get_buffer_first(app, access);
-             buffer.exists;
-             get_buffer_next(app, &buffer, access)){
+        Buffer_ID buffer = 0;
+        for (buffer = get_buffer_next(app, 0, AccessAll, &buffer);
+             buffer != 0;
+             get_buffer_next(app, buffer, AccessAll, &buffer)){
+            b32 is_match = true;
             
-            b32 is_match = 1;
             if (extension_array.count > 0){
-                is_match = 0;
-                if (buffer.file_name != 0){
-                    String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+                Arena *scratch = context_get_arena(app);
+                Temp_Memory_Arena name_temp = begin_temp_memory(scratch);
+                String file_name = buffer_push_file_name(app, buffer, scratch);
+                is_match = false;
+                if (file_name.size > 0){
+                    String extension = file_extension(file_name);
                     for (i32 i = 0; i < extension_array.count; ++i){
                         if (match(extension, extension_array.strings[i])){
-                            is_match = 1;
+                            is_match = true;
                             break;
                         }
                     }
                 }
+                end_temp_memory(name_temp);
             }
             
             if (is_match){
                 if (buffers_to_close_count >= buffers_to_close_max){
-                    do_repeat = 1;
+                    do_repeat = true;
                     break;
                 }
-                buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
+                buffers_to_close[buffers_to_close_count++] = buffer;
             }
         }
         

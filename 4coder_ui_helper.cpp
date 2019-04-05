@@ -140,20 +140,18 @@ ui_control_set_bottom(UI_Data *data, i32 bottom_y){
 static UI_Item*
 ui_control_get_mouse_hit(UI_Data *data, Vec2_i32 view_p, Vec2_i32 panel_p){
     UI_Item *result = 0;
-    for (UI_Item *item = data->list.first;
-         item != 0 && result == 0;
-         item = item->next){
+    for (UI_Item *item = data->list.first; item != 0 && result == 0; item = item->next){
         i32_Rect r = item->rect_outer;
         switch (item->coordinates){
             case UICoordinates_ViewSpace:
             {
-                if (hit_check(r, view_p)){
+                if (rect_contains_point(r, view_p)){
                     result = item;
                 }
             }break;
             case UICoordinates_PanelSpace:
             {
-                if (hit_check(r, panel_p)){
+                if (rect_contains_point(r, panel_p)){
                     result = item;
                 }
             }break;
@@ -463,7 +461,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
                 
                 
                 UI_Item *item_ptr = ui_list_add_item(ui_arena, &ui_data->list, item);
-                if (hit_check(item_rect, view_m)){
+                if (rect_contains_point(item_rect, view_m)){
                     hovered_item = item_ptr;
                 }
                 if (state->item_index == item_index_counter){

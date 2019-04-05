@@ -536,6 +536,67 @@ jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buf
     }
 }
 
+static Buffer_Summary
+buffer_identifier_to_buffer_summary(Application_Links *app, Buffer_Identifier identifier, Access_Flag access){
+    Buffer_Summary buffer = {};
+    if (identifier.id != 0){
+        buffer = get_buffer(app, identifier.id, access);
+    }
+    else{
+        buffer = get_buffer_by_name(app, identifier.name, identifier.name_len, access);
+        if (!buffer.exists){
+            buffer = get_buffer_by_file_name(app, identifier.name, identifier.name_len, access);
+        }
+    }
+    return(buffer);
+}
+
+static void
+refresh_buffer(Application_Links *app, Buffer_Summary *buffer){
+    get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
+}
+
+static Sticky_Jump_Array
+parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summary buffer){
+    return(parse_buffer_to_jump_array(app, arena, buffer.buffer_id));
+}
+
+static void
+lock_jump_buffer(Buffer_Summary buffer){
+    lock_jump_buffer(buffer.buffer_name, buffer.buffer_name_len);
+}
+
+static Face_Description
+get_buffer_face_description(Application_Links *app, Buffer_Summary *buffer){
+    Face_Description result = {};
+    if (buffer != 0){
+        result = get_buffer_face_description(app, buffer->buffer_id);
+    }
+    return(result);
+}
+
+static void
+set_buffer_face_by_name(Application_Links *app, Buffer_Summary *buffer, char *name, i32 len){
+    if (buffer != 0){
+        set_buffer_face_by_name(app, buffer->buffer_id, name, len);
+    }
+}
+
+static i32
+get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
+    return(get_build_directory(app, buffer==0?0:buffer->buffer_id, dir_out));
+}
+
+static void
+execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer){
+    execute_standard_build(app, view, active_buffer==0?0:active_buffer->buffer_id);
+}
+
+static b32
+post_buffer_range_to_clipboard(Application_Links *app, Partition *scratch, i32 clipboard_index, Buffer_Summary *buffer, i32 first, i32 one_past_last){
+    return(post_buffer_range_to_clipboard(app, scratch, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
+}
+
 #endif
 
 // BOTTOM

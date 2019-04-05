@@ -1107,8 +1107,8 @@ App_Step_Sig(app_step){
     }
     
     if (input->mouse.p != models->prev_p){
-        b32 was_in_window = hit_check(i32R(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
-        b32 is_in_window  = hit_check(i32R(0, 0, current_dim.x, current_dim.y), input->mouse.p);
+        b32 was_in_window = rect_contains_point(i32R(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
+        b32 is_in_window  = rect_contains_point(i32R(0, 0, current_dim.x, current_dim.y), input->mouse.p);
         if (is_in_window || was_in_window){
             mouse_event.keycode = key_mouse_move;
             input->keys.keys[input->keys.count++] = mouse_event;
@@ -1132,14 +1132,14 @@ App_Step_Sig(app_step){
         for (Panel *panel = layout_get_first_open_panel(layout);
              panel != 0;
              panel = layout_get_next_open_panel(layout, panel)){
-            if (hit_check(mouse.x, mouse.y, panel->rect_full)){
+            if (rect_contains_point(panel->rect_full, mouse)){
                 mouse_panel = panel;
-                if (!hit_check(mouse.x, mouse.y, panel->rect_inner)){
+                if (!rect_contains_point(panel->rect_inner, mouse)){
                     mouse_in_margin = true;
                     for (divider_panel = mouse_panel->parent;
                          divider_panel != 0;
                          divider_panel = divider_panel->parent){
-                        if (hit_check(mouse.x, mouse.y, divider_panel->rect_inner)){
+                        if (rect_contains_point(divider_panel->rect_inner, mouse)){
                             break;
                         }
                     }

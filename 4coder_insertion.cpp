@@ -22,15 +22,6 @@ begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, 
     return(result);
 }
 
-#if 0
-static Buffer_Summary
-get_active_buffer(Application_Links *app, Access_Flag access){
-    View_Summary view = get_active_view(app, access);
-    Buffer_Summary result = get_buffer(app, view.buffer_id, access);
-    return(result);
-}
-#endif
-
 static Buffer_Insertion
 begin_buffer_insertion(Application_Links *app){
     View_ID view = 0;
@@ -110,13 +101,13 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 li
     Partial_Cursor begin = {};
     Partial_Cursor end = {};
     
-    Buffer_Summary buffer = get_buffer(insertion->app, buffer_id, AccessAll);
-    
     b32 success = false;
-    if (buffer_compute_cursor(insertion->app, &buffer, seek_line_char(line, 1), &begin)){
-        if (buffer_compute_cursor(insertion->app, &buffer, seek_line_char(line, -1), &end)){
+    if (buffer_compute_cursor(insertion->app, buffer_id, seek_line_char(line, 1), &begin)){
+        if (buffer_compute_cursor(insertion->app, buffer_id, seek_line_char(line, -1), &end)){
             if (begin.line == line){
-                if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer.size){
+                i32 buffer_size = 0;
+                buffer_get_size(insertion->app, buffer_id, &buffer_size);
+                if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer_size){
                     i32 size = (end.pos - begin.pos);
                     if(truncate_at && (size > truncate_at))
                     {
@@ -127,7 +118,7 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 li
                     if (memory != 0){
                         String str = make_string(memory, 0, size);
                         success = true;
-                        buffer_read_range(insertion->app, &buffer, begin.pos, end.pos, str.str);
+                        buffer_read_range(insertion->app, buffer_id, begin.pos, end.pos, str.str);
                         str.size = size;
                         insert_string(insertion, str);
                     }

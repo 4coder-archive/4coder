@@ -100,14 +100,13 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position_direct)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    
-    if (buffer.lock_flags & AccessProtected){
-        goto_jump_at_cursor_direct(app);
-        lock_jump_buffer(buffer);
-    }
-    else{
+    Buffer_ID buffer = 0;
+    if (view_get_buffer(app, view.view_id, AccessOpen, &buffer)){
         write_character(app);
+    }
+    else if (view_get_buffer(app, view.view_id, AccessProtected, &buffer)){
+        goto_jump_at_cursor_direct(app);
+        lock_jump_buffer(app, buffer);
     }
 }
 
@@ -115,14 +114,13 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel_direct)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
     View_Summary view = get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
-    
-    if (buffer.lock_flags & AccessProtected){
-        goto_jump_at_cursor_same_panel_direct(app);
-        lock_jump_buffer(buffer);
-    }
-    else{
+    Buffer_ID buffer = 0;
+    if (view_get_buffer(app, view.view_id, AccessOpen, &buffer)){
         write_character(app);
+    }
+    else if (view_get_buffer(app, view.view_id, AccessProtected, &buffer)){
+        goto_jump_at_cursor_same_panel_direct(app);
+        lock_jump_buffer(app, buffer);
     }
 }
 

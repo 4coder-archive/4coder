@@ -640,21 +640,6 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
     return(id);
 }
 
-static Buffer_Summary
-buffer_identifier_to_buffer_summary(Application_Links *app, Buffer_Identifier identifier, Access_Flag access){
-    Buffer_Summary buffer = {};
-    if (identifier.id != 0){
-        buffer = get_buffer(app, identifier.id, access);
-    }
-    else{
-        buffer = get_buffer_by_name(app, identifier.name, identifier.name_len, access);
-        if (!buffer.exists){
-            buffer = get_buffer_by_file_name(app, identifier.name, identifier.name_len, access);
-        }
-    }
-    return(buffer);
-}
-
 static b32
 view_open_file(Application_Links *app, View_Summary *view, char *filename, i32 filename_len, b32 never_new){
     b32 result = false;
@@ -733,16 +718,11 @@ static Buffer_Kill_Result
 kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_view_id, Buffer_Kill_Flag flags){
     Buffer_Kill_Result result = kill_buffer(app, identifier, flags);
     if (result == BufferKillResult_Dirty){
-        Buffer_Summary buffer = buffer_identifier_to_buffer_summary(app, identifier, AccessAll);
+        Buffer_ID buffer = buffer_identifier_to_id(app, identifier);
         View_Summary view = get_view(app, gui_view_id, AccessAll);
-        do_gui_sure_to_kill(app, buffer.buffer_id, &view);
+        do_gui_sure_to_kill(app, buffer, &view);
     }
     return(result);
-}
-
-static void
-refresh_buffer(Application_Links *app, Buffer_Summary *buffer){
-    *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
 }
 
 static void
@@ -752,7 +732,7 @@ refresh_view(Application_Links *app, View_Summary *view){
 
 // TODO(allen): Setup buffer seeking to do character_pos and get View_Summary out of this parameter list.
 static i32
-character_pos_to_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 character_pos){
+character_pos_to_pos(Application_Links *app, View_Summary *view, i32 character_pos){
     i32 result = 0;
     Full_Cursor cursor = {};
     if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
@@ -873,11 +853,35 @@ scratch_read(Application_Links *app, Partition *scratch, Buffer_ID buffer, Cpp_T
     return(result);
 }
 
+static b32
+token_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String b){
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory_Arena temp = begin_temp_memory(scratch);
+    String a = scratch_read(app, scratch, buffer, make_range(token.start, token.start + token.size));
+    b32 result = match(a, b);
+    end_temp_memory(temp);
+    return(result);
+}
+
 static String
 read_entire_buffer(Application_Links *app, Buffer_ID buffer_id, Arena *scratch){
     i32 size = 0;
     buffer_get_size(app, buffer_id, &size);
     return(scratch_read(app, scratch, buffer_id, 0, size));
+}
+
+static i32
+buffer_get_line_number(Application_Links *app, Buffer_ID buffer, i32 pos){
+    Partial_Cursor partial_cursor = {};
+    buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
+    return(partial_cursor.line);
+}
+
+static i32
+view_get_line_number(Application_Links *app, View_ID view, i32 pos){
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    return(cursor.line);
 }
 
 static i32
@@ -908,13 +912,6 @@ buffer_get_line_end(Application_Links *app, Buffer_ID buffer_id, i32 line){
     return(result);
 }
 
-static i32
-buffer_get_line_number(Application_Links *app, Buffer_ID buffer, i32 pos){
-    Partial_Cursor partial_cursor = {};
-    buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
-    return(partial_cursor.line);
-}
-
 static Cpp_Token*
 get_first_token_at_line(Application_Links *app, Buffer_ID buffer_id, Cpp_Token_Array tokens, i32 line, i32 *line_start_out = 0){
     i32 line_start = buffer_get_line_start(app, buffer_id, line);
@@ -930,6 +927,15 @@ get_first_token_at_line(Application_Links *app, Buffer_ID buffer_id, Cpp_Token_A
         result = &tokens.tokens[get_token.token_index];
     }
     return(result);
+}
+
+////////////////////////////////
+
+static void
+clear_buffer(Application_Links *app, Buffer_ID buffer_id){
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer_id, &buffer_size);
+    buffer_replace_range(app, buffer_id, 0, buffer_size, make_lit_string(""));
 }
 
 ////////////////////////////////
@@ -1571,14 +1577,16 @@ view_has_highlighted_range(Application_Links *app, View_ID view_id){
 
 static b32
 if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_id){
+    b32 result = false;
     if (view_has_highlighted_range(app, view_id)){
         View_Summary view = get_view(app, view_id, AccessAll);
         Range range = get_view_range(&view);
-        Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-        buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
-        return(true);
+        Buffer_ID buffer = 0;
+        view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+        buffer_replace_range(app, buffer, range.min, range.max, make_lit_string(""));
+        result = true;
     }
-    return(false);
+    return(result);
 }
 
 static void
@@ -1654,6 +1662,40 @@ draw_margin(Application_Links *app, f32_Rect outer, f32_Rect inner, int_color co
 
 ////////////////////////////////
 
+static f32_Rect_Pair
+split_rect(f32_Rect rect, View_Split_Kind kind, Coordinate coord, Side from_side, f32 t){
+    f32_Rect_Pair result = {};
+    if (kind == ViewSplitKind_FixedPixels){
+        result.E[0] = rect;
+        result.E[1] = rect;
+        if (coord == Coordinate_X){
+            result.E[0].x1 = (from_side == Side_Max) ? (rect.x1 - t) : (rect.x0 + t);
+            result.E[1].x0 = result.E[0].x1;
+        }
+        else{
+            Assert(coord == Coordinate_Y);
+            result.E[0].y1 = (from_side == Side_Max) ? (rect.y1 - t) : (rect.y0 + t);
+            result.E[1].y0 = result.E[0].y1;
+        }
+    }
+    else{
+        Assert(kind == ViewSplitKind_Ratio);
+        f32 pixel_count;
+        if (coord == Coordinate_X){
+            pixel_count = t*(rect.x1 - rect.x0);
+        }
+        else{
+            Assert(coord == Coordinate_Y);
+            pixel_count = t*(rect.y1 - rect.y0);
+        }
+        result = split_rect(rect, ViewSplitKind_FixedPixels, coord, from_side, pixel_count);
+    }
+    return(result);
+}
+
+
+////////////////////////////////
+
 static String
 buffer_push_base_buffer_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
     String result = {};
@@ -1678,6 +1720,53 @@ buffer_push_file_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
     buffer_get_file_name(app, buffer, 0, &result.memory_size);
     result.str = push_array(arena, char, result.memory_size);
     buffer_get_file_name(app, buffer, &result, 0);
+    return(result);
+}
+
+static String
+buffer_limited_base_buffer_name(Application_Links *app, Buffer_ID buffer, char *memory, i32 max){
+    String result = {};
+    result.str = memory;
+    result.memory_size = max;
+    buffer_get_base_buffer_name(app, buffer, &result, 0);
+    return(result);
+}
+
+static String
+buffer_limited_unique_buffer_name(Application_Links *app, Buffer_ID buffer, char *memory, i32 max){
+    String result = {};
+    result.str = memory;
+    result.memory_size = max;
+    buffer_get_unique_buffer_name(app, buffer, &result, 0);
+    return(result);
+}
+
+static String
+buffer_limited_file_name(Application_Links *app, Buffer_ID buffer, char *memory, i32 max){
+    String result = {};
+    result.str = memory;
+    result.memory_size = max;
+    buffer_get_file_name(app, buffer, &result, 0);
+    return(result);
+}
+
+////////////////////////////////
+
+static b32
+buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
+    char first = 0;
+    String str = buffer_limited_unique_buffer_name(app, buffer, &first, 1);
+    return(str.size == 0 || first == '*');
+}
+
+////////////////////////////////
+
+static float
+get_dpi_scaling_value(Application_Links *app)
+{
+    // TODO(casey): Allen, this should return the multiplier for the display relative to whatever 4coder
+    // gets tuned to.
+    float result = 2.0f;
     return(result);
 }
 

@@ -295,9 +295,10 @@ seek_next_jump_in_buffer(Application_Links *app, Partition *part,
 static ID_Line_Column_Jump_Location
 convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location loc){
     ID_Line_Column_Jump_Location result = {};
-    Buffer_Summary buffer = get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
-    if (buffer.exists){
-        result.buffer_id = buffer.buffer_id;
+    Buffer_ID buffer = 0;
+    get_buffer_by_name(app, loc.file, AccessAll, &buffer);
+    if (buffer != 0){
+        result.buffer_id = buffer;
         result.line = loc.line;
         result.column = loc.column;
     }

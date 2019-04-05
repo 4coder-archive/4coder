@@ -552,10 +552,7 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
         }
         
         if (!skip){
-            char first_char = 0;
-            String str = make_string_cap(&first_char, 0, 1);
-            buffer_get_unique_buffer_name(app, buffer_it, &str, 0);
-            if (first_char != '*'){
+            if (!buffer_has_name_with_star(app, buffer_it)){
                 ranges[j].type = SearchRange_FrontToBack;
                 ranges[j].flags = match_flags;
                 ranges[j].buffer = buffer_it;
@@ -564,7 +561,6 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
                 ++j;
             }
         }
-        
     }
     
     set->count = j;
@@ -798,13 +794,6 @@ list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *
                      default_target_view);
     
     end_temp_memory(temp);
-    
-#if 0    
-    Buffer_Summary buffer = get_buffer_by_name(app, literal("*search*"), AccessAll);
-    if (buffer.line_count == 2){
-        goto_first_jump_same_panel_sticky(app);
-    }
-#endif
 }
 
 ////////////////////////////////
@@ -901,11 +890,8 @@ CUSTOM_COMMAND_SIG(word_complete)
 CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
 {
     View_Summary view = get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    
-    // NOTE(allen): I just do this because this command is a lot of work
-    // and there is no point in doing any of it if nothing will happen anyway.
-    if (buffer.exists){
+    Buffer_ID buffer = 0;
+    if (view_get_buffer(app, view.view_id, AccessOpen, &buffer)){
         i32 do_init = false;
         
         Managed_Scope scope = view_get_managed_scope(app, view.view_id);
@@ -934,7 +920,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             
             char space[1024];
             Stream_Chunk chunk = {};
-            if (init_stream_chunk(&chunk, app, buffer.buffer_id, cursor_pos, space, sizeof(space))){
+            if (init_stream_chunk(&chunk, app, buffer, cursor_pos, space, sizeof(space))){
                 i32 still_looping = true;
                 do{
                     for (; cursor_pos >= chunk.start; --cursor_pos){
@@ -962,7 +948,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             complete_state.initialized = true;
             Search_Key key = {};
             search_key_alloc(&global_heap, &key, &size, 1);
-            buffer_read_range(app, &buffer, word_start, word_end, key.words[0].str);
+            buffer_read_range(app, buffer, word_start, word_end, key.words[0].str);
             key.words[0].size = size;
             
             search_iter_init(&complete_state.iter, key);
@@ -974,22 +960,24 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             Search_Range *ranges = complete_state.set.ranges;
             ranges[0].type = SearchRange_Wave;
             ranges[0].flags = SearchFlag_MatchWordPrefix;
-            ranges[0].buffer = buffer.buffer_id;
+            ranges[0].buffer = buffer;
             ranges[0].start = 0;
-            ranges[0].size = buffer.size;
+            buffer_get_size(app, buffer, &ranges[0].size);
             ranges[0].mid_start = word_start;
             ranges[0].mid_size = size;
             
+            Buffer_ID buffer_it = 0;
+            
             i32 j = 1;
-            for (Buffer_Summary buffer_it = get_buffer_first(app, AccessAll);
-                 buffer_it.exists;
-                 get_buffer_next(app, &buffer_it, AccessAll)){
-                if (buffer.buffer_id != buffer_it.buffer_id){
+            for (get_buffer_next(app, 0, AccessAll, &buffer_it);
+                 buffer_it != 0;
+                 get_buffer_next(app, buffer_it, AccessAll, &buffer_it)){
+                if (buffer != buffer_it){
                     ranges[j].type = SearchRange_FrontToBack;
                     ranges[j].flags = SearchFlag_MatchWordPrefix;
-                    ranges[j].buffer = buffer_it.buffer_id;
+                    ranges[j].buffer = buffer_it;
                     ranges[j].start = 0;
-                    ranges[j].size = buffer_it.size;
+                    buffer_get_size(app, buffer_it, &ranges[j].size);
                     ++j;
                 }
             }
@@ -1023,7 +1011,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     buffer_read_range(app, match.buffer, match.start, match.end, spare);
                     
                     if (search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, spare, match_size)){
-                        buffer_replace_range(app, &buffer, word_start, word_end, spare, match_size);
+                        buffer_replace_range(app, buffer, word_start, word_end, make_string(spare, match_size));
                         view_set_cursor(app, &view, seek_pos(word_start + match_size), true);
                         
                         complete_state.word_end = word_start + match_size;
@@ -1043,7 +1031,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     
                     match_size = word.size;
                     char *str = word.str;
-                    buffer_replace_range(app, &buffer, word_start, word_end, str, match_size);
+                    buffer_replace_range(app, buffer, word_start, word_end, make_string(str, match_size));
                     view_set_cursor(app, &view, seek_pos(word_start + match_size), true);
                     
                     complete_state.word_end = word_start + match_size;
