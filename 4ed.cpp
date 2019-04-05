@@ -819,6 +819,7 @@ App_Init_Sig(app_init){
     models->keep_playing = true;
     
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
+    models->custom_layer_arena = make_arena(&models->app_links);
     
     models->config_api = api;
     models->app_links.cmd_context = models;
@@ -944,7 +945,6 @@ App_Init_Sig(app_init){
     models->user_up_key = key_up;
     models->user_down_key = key_down;
     models->period_wakeup_timer = system->wake_up_timer_create();
-    models->custom_layer_arena = make_arena(&models->app_links);
 }
 
 App_Step_Sig(app_step){
