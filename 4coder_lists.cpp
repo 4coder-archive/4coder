@@ -537,7 +537,7 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
                     goto skip2;
                 }
             }
-            if (!buffer_has_name_with_star(app, buffer)){
+            if (buffer_has_name_with_star(app, buffer)){
                 generate_all_buffers_list__output_buffer(app, lister, buffer);
             }
             skip2:;
