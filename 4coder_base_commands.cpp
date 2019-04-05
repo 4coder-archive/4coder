@@ -1756,24 +1756,26 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
     Buffer_ID last_buffer_match = 0;
     i32 match_count = 0;
     
-    Buffer_ID buffer = 0;
-    for (get_buffer_next(app, 0, AccessAll, &buffer);
-         buffer != 0;
-         get_buffer_next(app, buffer, AccessAll, &buffer)){
-        History_Record_Index index = 0;
-        buffer_history_get_current_state_index(app, buffer, &index);
-        if (index > 0){
-            Record_Info record = {};
-            buffer_history_get_record_info(app, buffer, index, &record);
-            if (record.edit_number > highest_edit_number){
-                highest_edit_number = record.edit_number;
-                first_buffer_match = buffer;
-                last_buffer_match = buffer;
-                match_count = 1;
-            }
-            else if (record.edit_number == highest_edit_number){
-                last_buffer_match = buffer;
-                match_count += 1;
+    {
+        Buffer_ID buffer = 0;
+        for (get_buffer_next(app, 0, AccessAll, &buffer);
+             buffer != 0;
+             get_buffer_next(app, buffer, AccessAll, &buffer)){
+            History_Record_Index index = 0;
+            buffer_history_get_current_state_index(app, buffer, &index);
+            if (index > 0){
+                Record_Info record = {};
+                buffer_history_get_record_info(app, buffer, index, &record);
+                if (record.edit_number > highest_edit_number){
+                    highest_edit_number = record.edit_number;
+                    first_buffer_match = buffer;
+                    last_buffer_match = buffer;
+                    match_count = 1;
+                }
+                else if (record.edit_number == highest_edit_number){
+                    last_buffer_match = buffer;
+                    match_count += 1;
+                }
             }
         }
     }
@@ -1833,26 +1835,28 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
     Buffer_ID last_buffer_match = 0;
     i32 match_count = 0;
     
-    Buffer_ID buffer = 0;
-    for (get_buffer_next(app, 0, AccessAll, &buffer);
-         buffer != 0;
-         get_buffer_next(app, buffer, AccessAll, &buffer)){
-        History_Record_Index max_index = 0;
-        History_Record_Index index = 0;
-        buffer_history_get_max_record_index(app, buffer, &max_index);
-        buffer_history_get_current_state_index(app, buffer, &index);
-        if (index < max_index){
-            Record_Info record = {};
-            buffer_history_get_record_info(app, buffer, index + 1, &record);
-            if (record.edit_number < lowest_edit_number){
-                lowest_edit_number = record.edit_number;
-                first_buffer_match = buffer;
-                last_buffer_match = buffer;
-                match_count = 1;
-            }
-            else if (record.edit_number == lowest_edit_number){
-                last_buffer_match = buffer;
-                match_count += 1;
+    {
+        Buffer_ID buffer = 0;
+        for (get_buffer_next(app, 0, AccessAll, &buffer);
+             buffer != 0;
+             get_buffer_next(app, buffer, AccessAll, &buffer)){
+            History_Record_Index max_index = 0;
+            History_Record_Index index = 0;
+            buffer_history_get_max_record_index(app, buffer, &max_index);
+            buffer_history_get_current_state_index(app, buffer, &index);
+            if (index < max_index){
+                Record_Info record = {};
+                buffer_history_get_record_info(app, buffer, index + 1, &record);
+                if (record.edit_number < lowest_edit_number){
+                    lowest_edit_number = record.edit_number;
+                    first_buffer_match = buffer;
+                    last_buffer_match = buffer;
+                    match_count = 1;
+                }
+                else if (record.edit_number == lowest_edit_number){
+                    last_buffer_match = buffer;
+                    match_count += 1;
+                }
             }
         }
     }
