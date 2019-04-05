@@ -299,7 +299,7 @@ create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_
         buffer_get_size(app, search_buffer, &buffer_size);
         
         buffer_send_end_signal(app, search_buffer);
-        buffer_replace_range(app, search_buffer, 0, buffer_size, make_lit_string(""));
+        buffer_replace_range(app, search_buffer, make_range(0, buffer_size), make_lit_string(""));
     }
     else{
         create_buffer(app, name_string, BufferCreate_AlwaysNew, &search_buffer);

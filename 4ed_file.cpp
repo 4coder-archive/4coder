@@ -421,7 +421,7 @@ file_allocate_wrap_positions_as_needed(Heap *heap, Editing_File *file, i32 min_l
 ////////////////////////////////
 
 internal void
-file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, File_Attributes attributes, u32 flags){
+file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, File_Attributes attributes){
     Heap *heap = &models->mem.heap;
     Partition *part = &models->mem.part;
     Application_Links *app_links = &models->app_links;
@@ -463,11 +463,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     //adjust_views_looking_at_files_to_new_cursor(system, models, file);
     
     file->lifetime_object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Buffer, file);
-    
-    file->settings.read_only = ((flags & FileCreateFlag_ReadOnly) != 0);
-    if (!file->settings.read_only){
-        history_init(&models->app_links, &file->state.history);
-    }
+    history_init(&models->app_links, &file->state.history);
     
     // TODO(allen): do(cleanup the create and settings dance)
     // Right now we have this thing where we call hook_open_file, which may or may not
@@ -521,19 +517,6 @@ file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_all
     file_unmark_edit_finished(file);
 }
 
-internal void
-init_normal_file(System_Functions *system, Models *models, char *buffer, i32 size, File_Attributes attributes, Editing_File *file){
-    String val = make_string(buffer, size);
-    file_create_from_string(system, models, file, val, attributes, 0);
-}
-
-internal void
-init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
-    String val = {};
-    File_Attributes attributes = {};
-    file_create_from_string(system, models, file, val, attributes, FileCreateFlag_ReadOnly);
-}
-
 ////////////////////////////////
 
 internal i32
@@ -541,11 +524,19 @@ file_get_current_record_index(Editing_File *file){
     return(file->state.current_record_index);
 }
 
-////////////////////////////////
-
 internal b32
 file_tokens_are_ready(Editing_File *file){
     return(file->state.token_array.tokens != 0 && file->state.tokens_complete && !file->state.still_lexing);
+}
+
+internal Managed_Scope
+file_get_managed_scope(Editing_File *file){
+    Managed_Scope scope = 0;
+    if (file != 0){
+        Assert(file->lifetime_object != 0);
+        scope = (Managed_Scope)file->lifetime_object->workspace.scope_id;
+    }
+    return(scope);
 }
 
 // BOTTOM

@@ -36,7 +36,7 @@ begin_buffer_insertion(Application_Links *app){
 
 static void
 insert_string__no_buffering(Buffer_Insertion *insertion, String string){
-    buffer_replace_range(insertion->app, insertion->buffer, insertion->at, insertion->at, string);
+    buffer_replace_range(insertion->app, insertion->buffer, make_range(insertion->at), string);
     insertion->at += string.size;
 }
 

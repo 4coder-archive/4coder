@@ -58,14 +58,8 @@ internal void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
-        Edit edit = {};
-        edit.str = value.str;
-        edit.length = value.size;
-        edit.range.first = end;
-        edit.range.one_past_last = end;
-        
         Edit_Behaviors behaviors = {};
-        edit_single(system, models, file, edit, behaviors);
+        edit_single(system, models, file, make_range(end), value, behaviors);
     }
 }
 
@@ -919,12 +913,11 @@ App_Init_Sig(app_init){
             *init_files[i].ptr = file;
         }
         
+        File_Attributes attributes = {};
+        file_create_from_string(system, models, file, make_lit_string(""), attributes);
         if (init_files[i].read_only){
-            init_read_only_file(system, models, file);
-        }
-        else{
-            File_Attributes attributes = {};
-            init_normal_file(system, models, 0, 0, attributes, file);
+            file->settings.read_only = true;
+            history_free(&models->mem.heap, &file->state.history);
         }
         
         file->settings.never_kill = true;

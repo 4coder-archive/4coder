@@ -1021,7 +1021,7 @@ current_view_boundary_delete(Application_Links *app, i32 dir, u32 flags){
     view_get_buffer(app, view.view_id, AccessOpen, &buffer_id);
     Range range = view_buffer_boundary_range(app, &view, buffer_id, dir, flags);
     String zero = {};
-    buffer_replace_range(app, buffer_id, range.min, range.max, zero);
+    buffer_replace_range(app, buffer_id, range, zero);
 }
 
 static void
@@ -1031,7 +1031,7 @@ current_view_snipe_delete(Application_Links *app, i32 dir, u32 flags){
     view_get_buffer(app, view.view_id, AccessOpen, &buffer_id);
     Range range = view_buffer_snipe_range(app, &view, buffer_id, dir, flags);
     String zero = {};
-    buffer_replace_range(app, buffer_id, range.min, range.max, zero);
+    buffer_replace_range(app, buffer_id, range, zero);
 }
 
 ////////////////////////////////

@@ -123,7 +123,7 @@ static void
 set_line_indents(Application_Links *app, Partition *part, Buffer_ID buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
     Buffer_Batch_Edit batch = make_batch_from_indent_marks(app, part, buffer, first_line, one_past_last_line, indent_marks, opts);
     if (batch.edit_count > 0){
-        buffer_batch_edit(app, buffer, batch.str, batch.str_len, batch.edits, batch.edit_count, BatchEdit_PreserveTokens);
+        buffer_batch_edit(app, buffer, batch.str, batch.edits, batch.edit_count);
     }
 }
 

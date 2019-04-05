@@ -25,7 +25,7 @@ buffered_write_stream_flush(Application_Links *app, Buffered_Write_Stream *strea
     i32 buffer_size = 0;
     buffer_get_size(app, buffer, &buffer_size);
     i32 stream_size = (i32)(push_array(stream->buffering_arena, char, 0) - stream->buffer);
-    buffer_replace_range(app, buffer, buffer_size, buffer_size, make_string(stream->buffer, stream_size));
+    buffer_replace_range(app, buffer, make_range(buffer_size), make_string(stream->buffer, stream_size));
     stream->buffering_arena->pos -= stream_size;
 }
 
@@ -264,7 +264,7 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_ID optional_t
         buffer_send_end_signal(app, decls_buffer);
         i32 size = 0;
         buffer_get_size(app, decls_buffer, &size);
-        buffer_replace_range(app, decls_buffer, 0, size, make_lit_string(""));
+        buffer_replace_range(app, decls_buffer, make_range(0, size), make_lit_string(""));
     }
     
     Temp_Memory temp = begin_temp_memory(part);

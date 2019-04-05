@@ -47,7 +47,7 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         }
         
         // NOTE(allen): perform the edit
-        b32 edit_success = buffer_replace_range(app, buffer, pos, pos, make_string((char*)character, length));
+        b32 edit_success = buffer_replace_range(app, buffer, make_range(pos), make_string((char*)character, length));
         
         // NOTE(allen): finish merging records if necessary
         if (do_merge){
@@ -96,7 +96,7 @@ CUSTOM_DOC("Deletes the character to the right of the cursor.")
             Full_Cursor cursor = {};
             view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos + 1), &cursor);
             i32 end = cursor.pos;
-            buffer_replace_range(app, buffer, start, end, make_lit_string(""));
+            buffer_replace_range(app, buffer, make_range(start, end), make_lit_string(""));
         }
     }
 }
@@ -116,7 +116,7 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
             Full_Cursor cursor = {};
             view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), &cursor);
             i32 start = cursor.pos;
-            if (buffer_replace_range(app, buffer, start, end, make_lit_string(""))){
+            if (buffer_replace_range(app, buffer, make_range(start, end), make_lit_string(""))){
                 view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos - 1), true);
             }
         }
@@ -148,7 +148,7 @@ CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
     Buffer_ID buffer = 0;
     view_get_buffer(app, view.view_id, AccessOpen, &buffer);
     Range range = get_view_range(&view);
-    buffer_replace_range(app, buffer, range.min, range.max, make_lit_string(""));
+    buffer_replace_range(app, buffer, range, make_lit_string(""));
 }
 
 ////////////////////////////////
@@ -420,7 +420,7 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
         for (i32 i = 0; i < size; ++i){
             mem[i] = char_to_upper(mem[i]);
         }
-        buffer_replace_range(app, buffer, range.min, range.max, make_string(mem, size));
+        buffer_replace_range(app, buffer, range, make_string(mem, size));
         view_set_cursor(app, &view, seek_pos(range.max), true);
     }
 }
@@ -439,7 +439,7 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
         for (i32 i = 0; i < size; ++i){
             mem[i] = char_to_lower(mem[i]);
         }
-        buffer_replace_range(app, buffer, range.min, range.max, make_string(mem, size));
+        buffer_replace_range(app, buffer, range, make_string(mem, size));
         view_set_cursor(app, &view, seek_pos(range.max), true);
     }
 }
@@ -506,7 +506,7 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
             }
             
             i32 edit_count = (i32)(edit - edits);
-            buffer_batch_edit(app, buffer_id, 0, 0, edits, edit_count, BatchEdit_PreserveTokens);
+            buffer_batch_edit(app, buffer_id, 0, edits, edit_count);
         }
     }
 }
@@ -990,7 +990,7 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     
     global_history_edit_group_begin(app);
     for (;new_pos + r.size <= range.end;){
-        buffer_replace_range(app, buffer_id, new_pos, new_pos + r.size, w);
+        buffer_replace_range(app, buffer_id, make_range(new_pos, new_pos + r.size), w);
         refresh_view(app, &view);
         range = get_view_range(&view);
         pos = new_pos + w.size;
@@ -1027,7 +1027,7 @@ query_replace_base(Application_Links *app, View_Summary *view, Buffer_ID buffer_
         
         if (in.key.character == 'y' || in.key.character == 'Y' ||
             in.key.character == '\n' || in.key.character == '\t'){
-            buffer_replace_range(app, buffer_id, match.min, match.max, w);
+            buffer_replace_range(app, buffer_id, match, w);
             pos = match.start + w.size;
         }
         else{
@@ -1397,7 +1397,7 @@ CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves th
                     }
                     
                     if (buffer_read_range(app, buffer, prev_line_pos, this_line_pos, swap + first_len)){
-                        buffer_replace_range(app, buffer, prev_line_pos, next_line_pos, make_string(swap, length));
+                        buffer_replace_range(app, buffer, make_range(prev_line_pos, next_line_pos), make_string(swap, length));
                         view_set_cursor(app, &view, seek_line_char(prev_line, 1), true);
                     }
                 }
@@ -1443,7 +1443,7 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
         line_string.size += 1;
         
         i32 pos = buffer_get_line_end(app, buffer_id, view.cursor.line);
-        buffer_replace_range(app, buffer_id, pos, pos, line_string);
+        buffer_replace_range(app, buffer_id, make_range(pos), line_string);
     }
     end_temp_memory(temp);
 }
@@ -1473,7 +1473,7 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
     }
     
     String zero = {};
-    buffer_replace_range(app, buffer_id, start, end, zero);
+    buffer_replace_range(app, buffer_id, make_range(start, end), zero);
     
     end_temp_memory(temp);
 }

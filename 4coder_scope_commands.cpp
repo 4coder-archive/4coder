@@ -457,13 +457,13 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
         edits[1].start = range.max;
         edits[1].end = range.max;
         
-        buffer_batch_edit(app, buffer, str, str_size, edits, 2, BatchEdit_Normal);
+        buffer_batch_edit(app, buffer, str, edits, 2);
         
         view_set_cursor(app, &view, seek_pos(cursor_pos), true);
         view_set_mark(app, &view, seek_pos(mark_pos));
     }
     else{
-        buffer_replace_range(app, buffer, range.min, range.max, make_string(str, str_size));
+        buffer_replace_range(app, buffer, range, make_string(str, str_size));
         i32 center_pos = range.min + begin_len + 1;
         view_set_cursor(app, &view, seek_pos(center_pos), true);
         view_set_mark(app, &view, seek_pos(center_pos));
@@ -515,7 +515,7 @@ CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves
         edits[1].start = bottom - 1;
         edits[1].end = bottom - 1 + bottom_len;
         
-        buffer_batch_edit(app, buffer, 0, 0, edits, 2, BatchEdit_Normal);
+        buffer_batch_edit(app, buffer, 0, edits, 2);
     }
 }
 
@@ -780,7 +780,7 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
             edits[1].start = range.start;
             edits[1].end = range.end;
             
-            buffer_batch_edit(app, buffer, edit_str, edit_len, edits, 2, BatchEdit_Normal);
+            buffer_batch_edit(app, buffer, edit_str, edits, 2);
         }
     }
     end_temp_memory(temp);

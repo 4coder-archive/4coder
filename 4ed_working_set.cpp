@@ -120,27 +120,23 @@ internal Editing_File*
 working_set_index(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
     File_Array *array = 0;
-    
     if (id.part[1] >= 0 && id.part[1] < working_set->array_count){
         array = working_set->file_arrays + id.part[1];
         if (id.part[0] >= 0 && id.part[0] < array->size){
             result = array->files + id.part[0];
         }
     }
-    
     return(result);
 }
 
 internal Editing_File*
 working_set_index(Working_Set *working_set, i32 id){
-    Editing_File *result = working_set_index(working_set, to_file_id(id));
-    return(result);
+    return(working_set_index(working_set, to_file_id(id)));
 }
 
 internal Editing_File*
 working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
-    Editing_File *result = 0;
-    result = working_set_index(working_set, id);
+    Editing_File *result = working_set_index(working_set, id);
     if (result != 0 && result->is_dummy){
         result = 0;
     }
@@ -148,9 +144,8 @@ working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
 }
 
 internal Editing_File*
-working_set_get_active_file(Working_Set *working_set, i32 id){
-    Editing_File *result= working_set_get_active_file(working_set, to_file_id(id));
-    return(result);
+working_set_get_active_file(Working_Set *working_set, Buffer_ID id){
+    return(working_set_get_active_file(working_set, to_file_id(id)));
 }
 
 internal void
@@ -269,8 +264,7 @@ working_set_canon_remove(Working_Set *working_set, String name){
 
 internal Editing_File*
 working_set_contains_name(Working_Set *working_set, String name){
-    Editing_File *result = working_set_contains_basic(working_set, &working_set->name_table, name);
-    return(result);
+    return(working_set_contains_basic(working_set, &working_set->name_table, name));
 }
 
 internal b32
@@ -284,35 +278,16 @@ working_set_remove_name(Working_Set *working_set, String name){
     working_set_remove_basic(working_set, &working_set->name_table, name);
 }
 
-
-// TODO(allen): Pick better first options.
 internal Editing_File*
-working_set_lookup_file(Working_Set *working_set, String string){
+get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
     Editing_File *file = 0;
-    
-    // TODO(allen): use the name table for this
-    for (Node *node = working_set->used_sentinel.next;
-         node != &working_set->used_sentinel;
-         node = node->next){
-        Editing_File *nfile = CastFromMember(Editing_File, main_chain_node, node);
-        if (string.size == 0 || match_ss(string, nfile->unique_name.name)){
-            file = nfile;
-            break;
-        }
+    if (buffer.id != 0){
+        file = working_set_get_active_file(working_set, buffer.id);
     }
-    
-    if (file == 0){
-        for (Node *node = working_set->used_sentinel.next;
-             node != &working_set->used_sentinel;
-             node = node->next){
-            Editing_File *nfile = CastFromMember(Editing_File, main_chain_node, node);
-            if (string.size == 0 || has_substr_s(nfile->unique_name.name, string)){
-                file = nfile;
-                break;
-            }
-        }
+    else if (buffer.name != 0){
+        String name = make_string(buffer.name, buffer.name_len);
+        file = working_set_contains_name(working_set, name);
     }
-    
     return(file);
 }
 
@@ -573,6 +548,23 @@ file_touch(Working_Set *working_set, Editing_File *file){
     dll_insert(&working_set->used_sentinel, &file->main_chain_node);
 }
 
+internal Editing_File*
+file_get_next(Working_Set *working_set, Editing_File *file){
+    if (file != 0){
+        file = CastFromMember(Editing_File, main_chain_node, file->main_chain_node.next);
+        if (file == CastFromMember(Editing_File, main_chain_node, &working_set->used_sentinel)){
+            file = 0;
+        }
+    }
+    else{
+        if (working_set->file_count > 0){
+            Node *node = working_set->used_sentinel.next;
+            file = CastFromMember(Editing_File, main_chain_node, node);
+        }
+    }
+    return(file);
+}
+
 internal void
 file_mark_edit_finished(Working_Set *working_set, Editing_File *file){
     // TODO(allen): do(propogate do_not_mark_edits down the edit pipeline to here)
@@ -593,6 +585,18 @@ file_unmark_edit_finished(Editing_File *file){
         result = true;
     }
     return(result);
+}
+
+////////////////////////////////
+
+internal Editing_File*
+imp_get_file(Models *models, Buffer_ID buffer_id){
+    Working_Set *working_set = &models->working_set;
+    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
+    if (file != 0 && !file_is_ready(file)){
+        file = 0;
+    }
+    return(file);
 }
 
 // BOTTOM

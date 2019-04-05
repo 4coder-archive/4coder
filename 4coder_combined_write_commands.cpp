@@ -6,7 +6,7 @@
 
 static void
 write_string(Application_Links *app, View_Summary *view, Buffer_ID buffer, String string){
-    buffer_replace_range(app, buffer, view->cursor.pos, view->cursor.pos, string);
+    buffer_replace_range(app, buffer, make_range(view->cursor.pos), string);
     view_set_cursor(app, view, seek_pos(view->cursor.pos + string.size), 1);
 }
 
@@ -46,7 +46,7 @@ long_braces(Application_Links *app, char *text, i32 size){
     Buffer_ID buffer = 0;
     view_get_buffer(app, view.view_id, AccessOpen, &buffer);
     i32 pos = view.cursor.pos;
-    buffer_replace_range(app, buffer, pos, pos, make_string(text, size));
+    buffer_replace_range(app, buffer, make_range(pos), make_string(text, size));
     view_set_cursor(app, &view, seek_pos(pos + 2), true);
     buffer_auto_indent(app, &global_part, buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, buffer);
@@ -141,7 +141,7 @@ CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
     i32 pos = get_start_of_line_at_cursor(app, &view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (!alread_has_comment){
-        buffer_replace_range(app, buffer, pos, pos, make_lit_string("//"));
+        buffer_replace_range(app, buffer, make_range(pos), make_lit_string("//"));
     }
 }
 
@@ -154,7 +154,7 @@ CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading w
     i32 pos = get_start_of_line_at_cursor(app, &view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
-        buffer_replace_range(app, buffer, pos, pos + 2, make_lit_string(""));
+        buffer_replace_range(app, buffer, make_range(pos, pos + 2), make_lit_string(""));
     }
 }
 
@@ -167,10 +167,10 @@ CUSTOM_DOC("Turns uncommented lines into commented lines and vice versa for comm
     i32 pos = get_start_of_line_at_cursor(app, &view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
-        buffer_replace_range(app, buffer, pos, pos + 2, make_lit_string(""));
+        buffer_replace_range(app, buffer, make_range(pos, pos + 2), make_lit_string(""));
     }
     else{
-        buffer_replace_range(app, buffer, pos, pos, make_lit_string("//"));
+        buffer_replace_range(app, buffer, make_range(pos), make_lit_string("//"));
     }
 }
 
@@ -218,7 +218,7 @@ activate_snippet(Application_Links *app, Partition *scratch, Heap *heap,
         Buffer_ID buffer = 0;
         view_get_buffer(app, view->view_id, AccessOpen, &buffer);
         i32 pos = view->cursor.pos;
-        buffer_replace_range(app, buffer, pos, pos, make_string_slowly(snippet.text));
+        buffer_replace_range(app, buffer, make_range(pos), make_string_slowly(snippet.text));
         view_set_cursor(app, view, seek_pos(pos + snippet.cursor_offset), true);
         view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
     }

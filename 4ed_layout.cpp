@@ -455,5 +455,17 @@ panel_get_id(Layout *layout, Panel *panel){
     return(id);
 }
 
+////////////////////////////////
+
+internal Panel*
+imp_get_panel(Models *models, Panel_ID panel_id){
+    Layout *layout = &models->layout;
+    Panel *panel = layout->panel_first + panel_id - 1;
+    if (!(layout->panel_first <= panel && panel < layout->panel_one_past_last)){
+        panel = 0;
+    }
+    return(panel);
+}
+
 // BOTTOM
 

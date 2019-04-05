@@ -62,7 +62,11 @@ get_numeric_string_at_cursor(Application_Links *app, Buffer_ID buffer, i32 start
 }
 
 struct Miblo_Number_Info{
-    i32 start, end;
+    union{
+        Range range;
+        i32 start;
+        i32 end;
+    };
     i32 x;
 };
 
@@ -101,7 +105,7 @@ CUSTOM_DOC("Increment an integer under the cursor by one.")
         char str_space[1024];
         String str = make_fixed_width_string(str_space);
         int_to_str(&str, number.x + 1);
-        buffer_replace_range(app, buffer, number.start, number.end, str);
+        buffer_replace_range(app, buffer, number.range, str);
         view_set_cursor(app, &view, seek_pos(number.start + str.size - 1), 1);
     }
 }
@@ -117,7 +121,7 @@ CUSTOM_DOC("Decrement an integer under the cursor by one.")
         char str_space[1024];
         String str = make_fixed_width_string(str_space);
         int_to_str(&str, number.x - 1);
-        buffer_replace_range(app, buffer, number.start, number.end, str);
+        buffer_replace_range(app, buffer, number.range, str);
         view_set_cursor(app, &view, seek_pos(number.start + str.size - 1), 1);
     }
 }
@@ -274,7 +278,11 @@ timestamp_to_str(String *dest, Miblo_Timestamp t){
 }
 
 struct Miblo_Timestamp_Info{
-    i32 start, end;
+    union{
+        Range range;
+        i32 start;
+        i32 end;
+    };
     Miblo_Timestamp time;
 };
 
@@ -369,7 +377,7 @@ miblo_time_stamp_alter(Application_Links *app, i32 unit_type, i32 amt){
         
         Miblo_Timestamp inc_timestamp = increment_timestamp(timestamp.time, unit_type, amt);
         timestamp_to_str(&str, inc_timestamp);
-        buffer_replace_range(app, buffer, timestamp.start, timestamp.end, str);
+        buffer_replace_range(app, buffer, timestamp.range, str);
         view_set_cursor(app, &view, seek_pos(timestamp.start + str.size - 1), 1);
     }
 }

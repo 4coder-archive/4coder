@@ -89,5 +89,62 @@ child_process_lookup_return_code(Child_Process_Container *container, Child_Proce
     return(result);
 }
 
+////////////////////////////////
+
+internal b32
+child_process_call(Models *models, System_Functions *system, String path, String command, Child_Process_ID *id_out){
+    b32 result = false;
+    char *path_cstr = 0;
+    char *command_cstr = 0;
+    if (terminate_with_null(&path)){
+        path_cstr = path.str;
+    }
+    else{
+        String s = string_push_copy(&models->mem.part, path);
+        path_cstr = s.str;
+    }
+    if (terminate_with_null(&command)){
+        command_cstr = command.str;
+    }
+    else{
+        String s = string_push_copy(&models->mem.part, command);
+        command_cstr = s.str;
+    }
+    CLI_Handles cli_handles = {};
+    if (system->cli_call(path_cstr, command_cstr, &cli_handles)){
+        Child_Process_And_ID new_process = child_process_alloc_new(models, &models->child_processes);
+        *id_out = new_process.id;
+        new_process.process->cli = cli_handles;
+        result = true;
+    }
+    return(result);
+}
+
+internal b32
+child_process_set_target_buffer(Models *models, Child_Process *child_process, Editing_File *file, Child_Process_Set_Target_Flags flags){
+    b32 result = false;
+    b32 fail_if_process_has_buffer = HasFlag(flags, ChildProcessSet_FailIfProcessAlreadyAttachedToABuffer);
+    b32 fail_if_buffer_has_process = HasFlag(flags, ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess);
+    b32 process_has_buffer = (child_process->out_file != 0);
+    b32 buffer_has_process = (file->state.attached_child_process != 0);
+    b32 fail = ((process_has_buffer && fail_if_process_has_buffer) ||
+                (buffer_has_process && fail_if_buffer_has_process));
+    if (!fail){
+        if (process_has_buffer){
+            child_process->out_file->state.attached_child_process = 0;
+        }
+        if (buffer_has_process){
+            Child_Process *attached_child_process = child_process_from_id(&models->child_processes, file->state.attached_child_process);
+            if (attached_child_process != 0){
+                attached_child_process->out_file = 0;
+            }
+        }
+        child_process->out_file = file;
+        file->state.attached_child_process = child_process->id;
+        result = true;
+    }
+    return(result);
+}
+
 // BOTTOM
 

@@ -33,14 +33,6 @@ struct Record{
         } single;
         
         struct{
-            Buffer_Batch_Edit_Type type;
-            i32 count;
-            char *str_base_forward;
-            char *str_base_backward;
-            Record_Batch_Slot *batch_records;
-        } batch;
-        
-        struct{
             Node children;
             i32 count;
         } group;

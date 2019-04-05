@@ -130,7 +130,7 @@ exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifie
             if (child_process_set_target_buffer(app, child_process_id, buffer_attach_id, set_buffer_flags)){
                 Buffer_Summary buffer = {};
                 get_buffer_summary(app, buffer_attach_id, AccessAll, &buffer);
-                buffer_replace_range(app, buffer_attach_id, 0, buffer.size, make_lit_string(""));
+                buffer_replace_range(app, buffer_attach_id, make_range(0, buffer.size), make_lit_string(""));
                 if (HasFlag(flags, CLI_SendEndSignal)){
                     buffer_send_end_signal(app, buffer_attach_id);
                 }
@@ -169,7 +169,7 @@ static Buffer_Summary
 get_buffer_first(Application_Links *app, Access_Flag access){
     Buffer_ID buffer_id = 0;
     Buffer_Summary buffer = {};
-    if (get_buffer_first(app, access, &buffer_id)){
+    if (get_buffer_next(app, 0, access, &buffer_id)){
         get_buffer_summary(app, buffer_id, access, &buffer);
     }
     return(buffer);
@@ -229,7 +229,7 @@ static b32
 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, i32 start, i32 one_past_last, char *str, i32 len){
     b32 result = false;
     if (buffer != 0 && buffer->exists){
-        result = buffer_replace_range(app, buffer->buffer_id, start, one_past_last, make_string(str, len));
+        result = buffer_replace_range(app, buffer->buffer_id, make_range(start, one_past_last), make_string(str, len));
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
     }
     return(result);
@@ -246,10 +246,10 @@ buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_See
 }
 
 static b32
-buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type){
+buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, i32 type){
     b32 result = false;
     if (buffer != 0 && buffer->exists){
-        result = buffer_batch_edit(app, buffer->buffer_id, str, str_len, edits, edit_count, type);
+        result = buffer_batch_edit(app, buffer->buffer_id, str, edits, edit_count);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
     }
     return(result);

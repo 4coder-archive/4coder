@@ -147,10 +147,6 @@ struct View_Step_Result{
     b32 consume_esc;
 };
 
-enum{
-    FileCreateFlag_ReadOnly = 1,
-};
-
 struct Render_Marker_Brush{
     b8 color_noop;
     b8 text_color_noop;

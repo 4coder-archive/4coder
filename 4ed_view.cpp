@@ -1195,26 +1195,6 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     }
 }
 
-#if 0
-internal void
-dont_do_core_render(Application_Links *app){}
-
-internal void
-do_core_render(Application_Links *app){
-    Models *models = (Models*)app->cmd_context;
-    Render_Target *target = models->target;
-    View *view = models->render_view;
-    i32_Rect rect = models->render_buffer_rect;
-    Full_Cursor render_cursor = models->render_cursor;
-    Range on_screen_range = models->render_range;
-    Buffer_Render_Item *items = models->render_items;
-    i32 item_count = models->render_item_count;
-    draw_push_clip(target, rect);
-    render_loaded_file_in_view__inner(models, target, view, rect, render_cursor, on_screen_range, items, item_count);
-    draw_pop_clip(target);
-}
-#endif
-
 internal Full_Cursor
 file_get_render_cursor(System_Functions *system, Editing_File *file, f32 scroll_y){
     Full_Cursor result = {};
@@ -1248,36 +1228,30 @@ view_get_render_cursor_target(System_Functions *system, View *view){
     return(view_get_render_cursor(system, view, scroll_y));
 }
 
-#if 0
 internal void
-view_call_render_caller(Models *models, Render_Target *target, View *view,
-                        i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range, Buffer_Render_Item *items, i32 item_count, Render_Callback *core_render){
-    if (models->render_caller != 0){
-        View_ID view_id = view_get_id(&models->live_set, view);
-        models->render_view = view;
-        models->render_view_rect = view->panel->rect_inner;
-        models->render_buffer_rect = rect;
-        models->render_cursor = render_cursor;
-        models->render_range = on_screen_range;
-        models->render_items = items;
-        models->render_item_count = item_count;
-        
-        Frame_Info frame = {};
-        frame.index = target->frame_index;
-        frame.literal_dt = target->literal_dt;
-        frame.animation_dt = target->animation_dt;
-#if 0
-        Render_Parameters params = {};
-        params.view_id = view_id;
-        params.on_screen_range = on_screen_range;
-        params.buffer_region = rect;
-        params.do_core_render = core_render;
-#endif
-        models->render_caller(&models->app_links, frame);
-        models->render_view = 0;
+view_quit_ui(System_Functions *system, Models *models, View *view){
+    Assert(view != 0);
+    view->ui_mode = false;
+    if (view->ui_quit != 0){
+        view->ui_quit(&models->app_links, view_get_id(&models->live_set, view));
     }
 }
-#endif
+
+////////////////////////////////
+
+internal View*
+imp_get_view(Models *models, View_ID view_id){
+    Live_Views *live_set = &models->live_set;
+    View *view = 0;
+    view_id -= 1;
+    if (0 <= view_id && view_id < live_set->max){
+        view = live_set->views + view_id;
+        if (!view->in_use){
+            view = 0;
+        }
+    }
+    return(view);
+}
 
 // BOTTOM
 

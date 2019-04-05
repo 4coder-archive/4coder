@@ -592,7 +592,7 @@ static void
 buffered_print_flush(Application_Links *app, Buffered_Printing *out){
     i32 write_size = out->part->pos - out->temp.pos;
     char *str = out->part->base + out->temp.pos;
-    buffer_replace_range(app, out->buffer, out->pos, out->pos, make_string(str, write_size));
+    buffer_replace_range(app, out->buffer, make_range(out->pos), make_string(str, write_size));
     out->pos += write_size;
     end_temp_memory(out->temp);
 }
@@ -1011,7 +1011,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     buffer_read_range(app, match.buffer, match.start, match.end, spare);
                     
                     if (search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, spare, match_size)){
-                        buffer_replace_range(app, buffer, word_start, word_end, make_string(spare, match_size));
+                        buffer_replace_range(app, buffer, make_range(word_start, word_end), make_string(spare, match_size));
                         view_set_cursor(app, &view, seek_pos(word_start + match_size), true);
                         
                         complete_state.word_end = word_start + match_size;
@@ -1031,7 +1031,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     
                     match_size = word.size;
                     char *str = word.str;
-                    buffer_replace_range(app, buffer, word_start, word_end, make_string(str, match_size));
+                    buffer_replace_range(app, buffer, make_range(word_start, word_end), make_string(str, match_size));
                     view_set_cursor(app, &view, seek_pos(word_start + match_size), true);
                     
                     complete_state.word_end = word_start + match_size;

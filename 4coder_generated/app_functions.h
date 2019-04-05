@@ -13,14 +13,13 @@ struct Application_Links;
 #define CLIPBOARD_INDEX_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out)
 #define CREATE_PARSE_CONTEXT_SIG(n) Parse_Context_ID n(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count)
 #define GET_BUFFER_COUNT_SIG(n) i32 n(Application_Links *app)
-#define GET_BUFFER_FIRST_SIG(n) b32 n(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out)
 #define GET_BUFFER_NEXT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out)
 #define GET_BUFFER_BY_NAME_SIG(n) b32 n(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out)
 #define GET_BUFFER_BY_FILE_NAME_SIG(n) b32 n(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out)
 #define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string)
+#define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Range range, String string)
+#define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out)
-#define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_EXISTS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_GET_ACCESS_FLAGS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out)
@@ -198,14 +197,13 @@ typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
 typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
 typedef CREATE_PARSE_CONTEXT_SIG(Create_Parse_Context_Function);
 typedef GET_BUFFER_COUNT_SIG(Get_Buffer_Count_Function);
-typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
 typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
 typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
 typedef GET_BUFFER_BY_FILE_NAME_SIG(Get_Buffer_By_File_Name_Function);
 typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
 typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
-typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
+typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_EXISTS_SIG(Buffer_Exists_Function);
 typedef BUFFER_READY_SIG(Buffer_Ready_Function);
 typedef BUFFER_GET_ACCESS_FLAGS_SIG(Buffer_Get_Access_Flags_Function);
@@ -385,14 +383,13 @@ Clipboard_Count_Function *clipboard_count;
 Clipboard_Index_Function *clipboard_index;
 Create_Parse_Context_Function *create_parse_context;
 Get_Buffer_Count_Function *get_buffer_count;
-Get_Buffer_First_Function *get_buffer_first;
 Get_Buffer_Next_Function *get_buffer_next;
 Get_Buffer_By_Name_Function *get_buffer_by_name;
 Get_Buffer_By_File_Name_Function *get_buffer_by_file_name;
 Buffer_Read_Range_Function *buffer_read_range;
 Buffer_Replace_Range_Function *buffer_replace_range;
-Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
+Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Exists_Function *buffer_exists;
 Buffer_Ready_Function *buffer_ready;
 Buffer_Get_Access_Flags_Function *buffer_get_access_flags;
@@ -571,14 +568,13 @@ Clipboard_Count_Function *clipboard_count_;
 Clipboard_Index_Function *clipboard_index_;
 Create_Parse_Context_Function *create_parse_context_;
 Get_Buffer_Count_Function *get_buffer_count_;
-Get_Buffer_First_Function *get_buffer_first_;
 Get_Buffer_Next_Function *get_buffer_next_;
 Get_Buffer_By_Name_Function *get_buffer_by_name_;
 Get_Buffer_By_File_Name_Function *get_buffer_by_file_name_;
 Buffer_Read_Range_Function *buffer_read_range_;
 Buffer_Replace_Range_Function *buffer_replace_range_;
-Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Batch_Edit_Function *buffer_batch_edit_;
+Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Exists_Function *buffer_exists_;
 Buffer_Ready_Function *buffer_ready_;
 Buffer_Get_Access_Flags_Function *buffer_get_access_flags_;
@@ -765,14 +761,13 @@ app_links->clipboard_count_ = Clipboard_Count;\
 app_links->clipboard_index_ = Clipboard_Index;\
 app_links->create_parse_context_ = Create_Parse_Context;\
 app_links->get_buffer_count_ = Get_Buffer_Count;\
-app_links->get_buffer_first_ = Get_Buffer_First;\
 app_links->get_buffer_next_ = Get_Buffer_Next;\
 app_links->get_buffer_by_name_ = Get_Buffer_By_Name;\
 app_links->get_buffer_by_file_name_ = Get_Buffer_By_File_Name;\
 app_links->buffer_read_range_ = Buffer_Read_Range;\
 app_links->buffer_replace_range_ = Buffer_Replace_Range;\
-app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
+app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_exists_ = Buffer_Exists;\
 app_links->buffer_ready_ = Buffer_Ready;\
 app_links->buffer_get_access_flags_ = Buffer_Get_Access_Flags;\
@@ -951,14 +946,13 @@ static b32 clipboard_count(Application_Links *app, i32 clipboard_id, i32 *count_
 static b32 clipboard_index(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out){return(app->clipboard_index(app, clipboard_id, item_index, string_out, required_size_out));}
 static Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count){return(app->create_parse_context(app, kw, kw_count, pp, pp_count));}
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
-static b32 get_buffer_first(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_first(app, access, buffer_id_out));}
 static b32 get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_next(app, buffer_id, access, buffer_id_out));}
 static b32 get_buffer_by_name(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_name(app, name, access, buffer_id_out));}
 static b32 get_buffer_by_file_name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name(app, file_name, access, buffer_id_out));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range(app, buffer_id, start, one_past_last, out));}
-static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string){return(app->buffer_replace_range(app, buffer_id, start, one_past_last, string));}
+static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String string){return(app->buffer_replace_range(app, buffer_id, range, string));}
+static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit(app, buffer_id, str, edits, edit_count));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer_id, seek, cursor_out));}
-static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer_id, str, str_len, edits, edit_count, type));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready(app, buffer_id));}
 static b32 buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out){return(app->buffer_get_access_flags(app, buffer_id, access_flags_out));}
@@ -1137,14 +1131,13 @@ static b32 clipboard_count(Application_Links *app, i32 clipboard_id, i32 *count_
 static b32 clipboard_index(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out){return(app->clipboard_index_(app, clipboard_id, item_index, string_out, required_size_out));}
 static Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count){return(app->create_parse_context_(app, kw, kw_count, pp, pp_count));}
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
-static b32 get_buffer_first(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_first_(app, access, buffer_id_out));}
 static b32 get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_next_(app, buffer_id, access, buffer_id_out));}
 static b32 get_buffer_by_name(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_name_(app, name, access, buffer_id_out));}
 static b32 get_buffer_by_file_name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name_(app, file_name, access, buffer_id_out));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range_(app, buffer_id, start, one_past_last, out));}
-static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string){return(app->buffer_replace_range_(app, buffer_id, start, one_past_last, string));}
+static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String string){return(app->buffer_replace_range_(app, buffer_id, range, string));}
+static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit_(app, buffer_id, str, edits, edit_count));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer_id, seek, cursor_out));}
-static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer_id, str, str_len, edits, edit_count, type));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists_(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready_(app, buffer_id));}
 static b32 buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out){return(app->buffer_get_access_flags_(app, buffer_id, access_flags_out));}

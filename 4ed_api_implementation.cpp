@@ -16,76 +16,20 @@ access_test(u32 lock_flags, u32 access_flags){
     return((lock_flags & ~access_flags) == 0);
 }
 
-internal void
-view_quit_ui(System_Functions *system, Models *models, View *view){
-    Assert(view != 0);
-    view->ui_mode = false;
-    if (view->ui_quit != 0){
-        view->ui_quit(&models->app_links, view_get_id(&models->live_set, view));
-    }
-}
-
-internal Editing_File*
-get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
-    Editing_File *file = 0;
-    if (buffer.id != 0){
-        file = working_set_get_active_file(working_set, buffer.id);
-    }
-    else if (buffer.name != 0){
-        String name = make_string(buffer.name, buffer.name_len);
-        file = working_set_contains_name(working_set, name);
-    }
-    return(file);
-}
-
-internal Editing_File*
-imp_get_file(Models *models, Buffer_ID buffer_id){
-    Working_Set *working_set = &models->working_set;
-    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
-    if (file != 0 && !file_is_ready(file)){
-        file = 0;
-    }
-    return(file);
-}
-
-internal View*
-imp_get_view(Models *models, View_ID view_id){
-    Live_Views *live_set = &models->live_set;
-    View *view = 0;
-    view_id -= 1;
-    if (0 <= view_id && view_id < live_set->max){
-        view = live_set->views + view_id;
-        if (!view->in_use){
-            view = 0;
-        }
-    }
-    return(view);
-}
-
-internal Panel*
-imp_get_panel(Models *models, Panel_ID panel_id){
-    Layout *layout = &models->layout;
-    Panel *panel = layout->panel_first + panel_id - 1;
-    if (!(layout->panel_first <= panel && panel < layout->panel_one_past_last)){
-        panel = 0;
-    }
-    return(panel);
-}
-
 internal b32
-string_api_output(String val, String *out, i32 *required_size_out){
+api_string_out(String val, String *out, i32 *required_size_out){
     b32 result = false;
     if (required_size_out != 0){
         *required_size_out = val.size;
     }
     if (out != 0){
-        result = append(out, val);
+        result = append_partial(out, val);
     }
     return(result);
 }
 
 internal b32
-panel_api_check_panel(Panel *panel){
+api_check_panel(Panel *panel){
     b32 result = false;
     if (panel != 0 && panel->kind != PanelKind_Unused){
         result = true;
@@ -94,28 +38,28 @@ panel_api_check_panel(Panel *panel){
 }
 
 internal b32
-buffer_api_check_file(Editing_File *file){
+api_check_buffer(Editing_File *file){
     return(file != 0 && !file->is_dummy);
 }
 
 internal b32
-buffer_api_check_file_and_tokens(Editing_File *file){
-    return(buffer_api_check_file(file) && file->state.token_array.tokens != 0 && file->state.tokens_complete);
+api_check_buffer_and_tokens(Editing_File *file){
+    return(api_check_buffer(file) && file->state.token_array.tokens != 0 && file->state.tokens_complete);
 }
 
 internal b32
-buffer_api_check_file(Editing_File *file, Access_Flag access){
-    return(buffer_api_check_file(file) && access_test(file_get_access_flags(file), access));
+api_check_buffer(Editing_File *file, Access_Flag access){
+    return(api_check_buffer(file) && access_test(file_get_access_flags(file), access));
 }
 
 internal b32
-view_api_check_view(View *view){
+api_check_view(View *view){
     return(view != 0 && view->in_use);
 }
 
 internal b32
-view_api_check_view(View *view, Access_Flag access){
-    return(view_api_check_view(view) && access_test(view_get_access_flags(view), access));
+api_check_view(View *view, Access_Flag access){
+    return(api_check_view(view) && access_test(view_get_access_flags(view), access));
 }
 
 API_EXPORT b32
@@ -171,60 +115,17 @@ API_EXPORT b32
 Create_Child_Process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    b32 result = false;
-    char *path_cstr = 0;
-    char *command_cstr = 0;
-    if (terminate_with_null(&path)){
-        path_cstr = path.str;
-    }
-    else{
-        String s = string_push_copy(&models->mem.part, path);
-        path_cstr = s.str;
-    }
-    if (terminate_with_null(&command)){
-        command_cstr = command.str;
-    }
-    else{
-        String s = string_push_copy(&models->mem.part, command);
-        command_cstr = s.str;
-    }
-    CLI_Handles cli_handles = {};
-    if (system->cli_call(path_cstr, command_cstr, &cli_handles)){
-        Child_Process_And_ID new_process = child_process_alloc_new(models, &models->child_processes);
-        *child_process_id_out = new_process.id;
-        new_process.process->cli = cli_handles;
-        result = true;
-    }
-    return(result);
+    return(child_process_call(models, system, path, command, child_process_id_out));
 }
 
 API_EXPORT b32
 Child_Process_Set_Target_Buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){
     Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
     Child_Process *child_process = child_process_from_id(&models->child_processes, child_process_id);
+    Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file) && child_process != 0){
-        b32 okay_if_process_has_buffer = ((flags & ChildProcessSet_FailIfProcessAlreadyAttachedToABuffer) == 0);
-        b32 okay_if_buffer_has_process = ((flags & ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess) == 0);
-        
-        b32 process_has_buffer = (child_process->out_file != 0);
-        b32 buffer_has_process = (file->state.attached_child_process != 0);
-        
-        if ((!process_has_buffer || okay_if_process_has_buffer) && (!buffer_has_process || okay_if_buffer_has_process)){
-            if (process_has_buffer){
-                child_process->out_file->state.attached_child_process = 0;
-            }
-            if (buffer_has_process){
-                Child_Process *attached_child_process = child_process_from_id(&models->child_processes, file->state.attached_child_process);
-                if (attached_child_process != 0){
-                    attached_child_process->out_file = 0;
-                }
-            }
-            child_process->out_file = file;
-            file->state.attached_child_process = child_process_id;
-            result = true;
-        }
+    if (api_check_buffer(file) && child_process != 0){
+        result = child_process_set_target_buffer(models, child_process, file, flags);
     }
     return(result);
 }
@@ -234,7 +135,7 @@ Buffer_Get_Attached_Child_Process(Application_Links *app, Buffer_ID buffer_id, C
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         *child_process_id_out = file->state.attached_child_process;
         result = true;
     }
@@ -272,205 +173,6 @@ Child_Process_Get_State(Application_Links *app, Child_Process_ID child_process_i
     }
     return(result);
 }
-
-#if 0
-// TODO(allen): redocument
-//API_EXPORT b32
-//Exec_System_Command(Application_Links *app, View_ID view_id, Buffer_Identifier buffer_id, String path, String command, Command_Line_Interface_Flag flags)
-/*
-DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer, otherwise the command will still work but if there is a buffer capturing the output it will not automatically be displayed.)
-DOC_PARAM(buffer_id, The buffer the command will output to is specified by the buffer parameter. See Buffer_Identifier for information on how this type specifies a buffer.  If output from the command should just be ignored, then buffer_identifier(0) can be specified to indicate no output buffer.)
-DOC_PARAM(path, The path parameter specifies the current working directory in which the command shall be executed. The string need not be null terminated.)
-DOC_PARAM(path_len, The parameter path_len specifies the length of the path string.)
-DOC_PARAM(command, The command parameter specifies the command that shall be executed. The string need not be null terminated.)
-DOC_PARAM(command_len, The parameter command_len specifies the length of the command string.)
-DOC_PARAM(flags, Flags for the behavior of the call are specified in the flags parameter.)
-DOC_RETURN(This call returns non-zero on success.)
-DOC(A call to exec_system_command executes a command as if called from the command line, and sends the output to a buffer. To output to an existing buffer, the buffer identifier can name a new buffer that does not exist, or provide the id of a buffer that does exist.  If the buffer identifier uses a name for a buffer that does not exist, the buffer is created and used. If the buffer identifier uses an id that does not belong to an open buffer, then no buffer is used.
-
-If there in an output buffer and it is not already in an open view and the view parameter is not NULL, then the provided view will display the output buffer.
-
-If the view parameter is NULL, no view will switch to the output.)
-DOC_SEE(Buffer_Identifier)
-DOC_SEE(Command_Line_Interface_Flag)
-*/{
-    return(false);
-    Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    App_Vars *vars = models->vars;
-    Partition *part = &models->mem.part;
-    Heap *heap = &models->mem.heap;
-    Working_Set *working_set = &models->working_set;
-    
-    b32 result = true;
-    char feedback_space[256];
-    String feedback_str = make_fixed_width_string(feedback_space);
-    
-    Temp_Memory temp = begin_temp_memory(part);
-    
-    {
-        // NOTE(allen): Check that it is possible to store a new child process.
-        if (!cli_list_has_space(&vars->cli_processes)){
-            append(&feedback_str, make_lit_string("ERROR: no available process slot\n"));
-            result = false;
-            goto done;
-        }
-        
-        // NOTE(allen): Try to get the buffer that was specified if it exists.
-        Editing_File *file = get_file_from_identifier(system, working_set, buffer_id);
-        
-        // NOTE(allen): If the file exists check that it is legal.
-        if (file != 0){
-            if (file->settings.read_only == 0){
-                append(&feedback_str, make_lit_string("ERROR: "));
-                append(&feedback_str, file->unique_name.name);
-                append(&feedback_str, make_lit_string(" is not a read-only buffer\n"));
-                result = false;
-                goto done;
-            }
-            if (file->settings.never_kill){
-                append(&feedback_str, make_lit_string("ERROR: The buffer "));
-                append(&feedback_str, file->unique_name.name);
-                append(&feedback_str, make_lit_string(" is not killable"));
-                result = false;
-                goto done;
-            }
-        }
-        
-        // NOTE(allen): If the buffer is specified by name but does not already exist, then create it.
-        if (file == 0 && buffer_id.name != 0){
-            file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
-            Assert(file != 0);
-            
-            String name = push_string(part, buffer_id.name, buffer_id.name_len);
-            buffer_bind_name(models, heap, part, working_set, file, name);
-            init_read_only_file(system, models, file);
-        }
-        
-        // NOTE(allen): If there are conflicts in output buffer with an existing child process resolve it.
-        if (file != 0){
-            CLI_List *list = &vars->cli_processes;
-            CLI_Process *proc_ptr = list->procs;
-            for (u32 i = 0; i < list->count; ++i, ++proc_ptr){
-                if (proc_ptr->out_file == file){
-                    if (flags & CLI_OverlapWithConflict){
-                        proc_ptr->out_file = 0;
-                    }
-                    else{
-                        file = 0;
-                    }
-                    break;
-                }
-            }
-            
-            if (file == 0){
-                append(&feedback_str, "did not begin command-line command because the target buffer is already in use\n");
-                result = false;
-                goto done;
-            }
-        }
-        
-        // NOTE(allen): If we have an output file, prepare it for child proc output.
-        if (file != 0){
-            //edit_clear(system, models, file);
-            file->is_updating = false;
-            file->return_code = 0;
-            
-            // TODO(allen): not sure why any of this would be needed, the cursor fixing should automatically handle it, right?
-#if 0
-            b32 no_views_see_file = true;
-            
-            Layout *layout = &models->layout;
-            for (Panel *panel = layout_get_first_open_panel(layout);
-                 panel != 0;
-                 panel = layout_get_next_open_panel(layout, panel)){
-                View *view = panel->view;
-                if (view->file == file){
-                    Full_Cursor cursor = {};
-                    cursor.line = 1;
-                    cursor.character = 1;
-                    cursor.wrap_line = 1;
-                    view_set_cursor(system, models, view, cursor, true);
-                    no_views_see_file = false;
-                }
-            }
-            
-            if (no_views_see_file){
-                block_zero_struct(&file->state.edit_pos_most_recent);
-                block_zero(file->state.edit_pos_stack, sizeof(file->state.edit_pos_stack));
-                file->state.edit_pos_stack_top = -1;
-            }
-#endif
-            
-            Edit edit = {};
-            edit.range.one_past_last = buffer_size(&file->state.buffer);
-            
-            Edit_Behaviors behaviors = {};
-            edit_single(system, models, file, edit, behaviors);
-            
-            if (HasFlag(flags, CLI_SendEndSignal)){
-                file_end_file(models, file);
-            }
-            
-            file_set_unimportant(file, true);
-        }
-        
-        // NOTE(allen): If we have an output file and we need to bring it up in a new view, do so.
-        if (file != 0){
-            b32 bind_to_new_view = true;
-            if (!(flags & CLI_AlwaysBindToView)){
-                if (file_is_viewed(&models->layout, file)){
-                    bind_to_new_view = false;
-                }
-            }
-            
-            if (bind_to_new_view){
-                View *vptr = imp_get_view(models, view_id);
-                if (vptr != 0){
-                    view_set_file(system, models, vptr, file);
-                    view_quit_ui(system, models, vptr);
-                }
-            }
-        }
-        
-        // NOTE(allen): Figure out the root path for the command.
-        String path_string = {};
-        if (path.size == 0){
-            terminate_with_null(&models->hot_directory.string);
-            path_string = models->hot_directory.string;
-        }
-        else{
-            path_string = push_string(part, path);
-        }
-        
-        // NOTE(allen): Figure out the command string.
-        String command_string = {};
-        if (command.size == 0){
-            command_string = make_lit_string(" echo no script specified");
-        }
-        else{
-            command_string = push_string(part, command);
-        }
-        
-        // NOTE(allen): Attept to execute the command.
-        char *path_str = path_string.str;
-        char *command_str = command_string.str;
-        b32 cursor_at_end = ((flags & CLI_CursorAtEnd) != 0);
-        if (!cli_list_call(system, &vars->cli_processes, path_str, command_str, file, cursor_at_end)){
-            append(&feedback_str, "ERROR: Failed to make the cli call\n");
-            result = false;
-        }
-    }
-    
-    done:;
-    if (!result){
-        print_message(app, feedback_str);
-    }
-    
-    end_temp_memory(temp);
-    return(result);
-}
-#endif
 
 // TODO(allen): redocument
 API_EXPORT b32
@@ -522,10 +224,7 @@ DOC_SEE(The_4coder_Clipboard)
     String *str = working_set_clipboard_index(&models->working_set, item_index);
     b32 result = false;
     if (str != 0){
-        *required_size_out = str->size;
-        if (append(string_out, *str)){
-            result = true;
-        }
+        result = api_string_out(*str, string_out, required_size_out);
     }
     return(result);
 }
@@ -555,51 +254,6 @@ DOC(Gives the total number of buffers in the application.)
     return(result);
 }
 
-internal Editing_File*
-get_buffer_next__inner(Working_Set *working_set, Editing_File *file){
-    if (file != 0){
-        file = CastFromMember(Editing_File, main_chain_node, file->main_chain_node.next);
-        if (file == CastFromMember(Editing_File, main_chain_node, &working_set->used_sentinel)){
-            file = 0;
-        }
-    }
-    else{
-        if (working_set->file_count > 0){
-            Node *node = working_set->used_sentinel.next;
-            file = CastFromMember(Editing_File, main_chain_node, node);
-        }
-    }
-    return(file);
-}
-
-// TODO(allen): redocument
-API_EXPORT b32
-Get_Buffer_First(Application_Links *app, Access_Flag access, Buffer_ID *buffer_id_out)
-/*
-DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
-DOC_RETURN(This call returns the summary of the first buffer in a buffer loop.)
-DOC(
-This call begins a loop across all the buffers.
-If the buffer returned does not exist, the loop is finished.
-Buffers should not be killed durring a buffer loop.
-)
-DOC_SEE(Access_Flag)
-DOC_SEE(get_buffer_next)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    Working_Set *working_set = &models->working_set;
-    Editing_File *file  = get_buffer_next__inner(working_set, 0);
-    for (;file != 0 && !access_test(file_get_access_flags(file), access);){
-        file = get_buffer_next__inner(working_set, file);
-    }
-    b32 result = false;
-    if (file != 0){
-        *buffer_id_out = file->id.id;
-        result = true;
-    }
-    return(result);
-}
-
 // TODO(allen): redocument
 API_EXPORT b32
 Get_Buffer_Next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out)
@@ -619,17 +273,14 @@ DOC_SEE(get_buffer_first)
     Models *models = (Models*)app->cmd_context;
     Working_Set *working_set = &models->working_set;
     Editing_File *file = working_set_get_active_file(working_set, buffer_id);
-    file = get_buffer_next__inner(working_set, file);
+    file = file_get_next(working_set, file);
     for (;file != 0 && !access_test(file_get_access_flags(file), access);){
-        file = get_buffer_next__inner(working_set, file);
+        file = file_get_next(working_set, file);
     }
     b32 result = false;
     if (file != 0){
         *buffer_id_out = file->id.id;
         result = true;
-    }
-    else{
-        *buffer_id_out = 0;
     }
     return(result);
 }
@@ -652,7 +303,7 @@ DOC_SEE(Access_Flag)
     Working_Set *working_set = &models->working_set;
     Editing_File *file = working_set_contains_name(working_set, name);
     b32 result = false;
-    if (buffer_api_check_file(file, access)){
+    if (api_check_buffer(file, access)){
         *buffer_id_out = file->id.id;
         result = true;
     }
@@ -681,7 +332,7 @@ DOC_SEE(Access_Flag)
     b32 result = false;
     if (get_canon_name(system, file_name, &canon)){
         Editing_File *file = working_set_contains_canon(working_set, canon.name);
-        if (buffer_api_check_file(file, access)){
+        if (api_check_buffer(file, access)){
             *buffer_id_out = file->id.id;
             result = true;
         }
@@ -706,7 +357,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         i32 size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= one_past_last && one_past_last <= size){
             buffer_stringify(&file->state.buffer, start, one_past_last, out);
@@ -718,7 +369,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, String string)
+Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, Range range, String string)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
@@ -737,14 +388,38 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     i32 size = 0;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         size = buffer_size(&file->state.buffer);
-        if (0 <= start && start <= one_past_last && one_past_last <= size){
+        if (0 <= range.first && range.first <= range.one_past_last && range.one_past_last <= size){
             Edit_Behaviors behaviors = {};
-            Range range = {start, one_past_last};
             edit_single(models->system, models, file, range, string, behaviors);
             result = true;
         }
+    }
+    return(result);
+}
+
+// TODO(allen): redocument
+API_EXPORT b32
+Buffer_Batch_Edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count)
+/*
+DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
+DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
+DOC_PARAM(str_len, This parameter specifies the length of the str string.)
+DOC_PARAM(edits, This parameter provides about the source string and destination range of each edit as an array.)
+DOC_PARAM(edit_count, This parameter specifies the number of Buffer_Edit structs in edits.)
+DOC_PARAM(type, This prameter specifies what type of batch edit to execute.)
+DOC_RETURN(This call returns non-zero if the batch edit succeeds.  This call can fail if the provided buffer summary does not refer to an actual buffer in 4coder.)
+DOC(Apply an array of edits all at once.  This combines all the edits into one undo operation.)
+DOC_SEE(Buffer_Edit)
+DOC_SEE(Buffer_Batch_Edit_Type)
+*/{
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (api_check_buffer(file)){
+        Edit_Behaviors behaviors = {};
+        result = edit_batch(models->system, models, file, str, edits, edit_count, behaviors);
     }
     return(result);
 }
@@ -768,7 +443,7 @@ DOC_SEE(Partial_Cursor)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
             seek.type = buffer_seek_unwrapped_xy;
         }
@@ -779,56 +454,11 @@ DOC_SEE(Partial_Cursor)
     return(result);
 }
 
-// TODO(allen): redocument
-API_EXPORT b32
-Buffer_Batch_Edit(Application_Links *app, Buffer_ID buffer_id, char *str, i32 str_len, Buffer_Edit *edits, i32 edit_count, Buffer_Batch_Edit_Type type)
-/*
-DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
-DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
-DOC_PARAM(str_len, This parameter specifies the length of the str string.)
-DOC_PARAM(edits, This parameter provides about the source string and destination range of each edit as an array.)
-DOC_PARAM(edit_count, This parameter specifies the number of Buffer_Edit structs in edits.)
-DOC_PARAM(type, This prameter specifies what type of batch edit to execute.)
-DOC_RETURN(This call returns non-zero if the batch edit succeeds.  This call can fail if the provided buffer summary does not refer to an actual buffer in 4coder.)
-DOC(Apply an array of edits all at once.  This combines all the edits into one undo operation.)
-DOC_SEE(Buffer_Edit)
-DOC_SEE(Buffer_Batch_Edit_Type)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
-    if (buffer_api_check_file(file)){
-        result = true;
-        if (edit_count > 0){
-            global_history_edit_group_begin(app);
-            Buffer_Edit *edit_in = edits;
-            Buffer_Edit *one_past_last = edits + edit_count;
-            i32 shift = 0;
-            for (;edit_in < one_past_last; edit_in += 1){
-                char *edit_str = str + edit_in->str_start;
-                i32 edit_length = edit_in->len;
-                Range edit_range = {edit_in->start, edit_in->end};
-                i32 shift_change = edit_length - (edit_range.one_past_last - edit_range.first);
-                edit_range.first += shift;
-                edit_range.one_past_last += shift;
-                if (!buffer_replace_range(app, buffer_id, edit_range.first, edit_range.one_past_last, make_string(edit_str, edit_length))){
-                    result = false;
-                }
-                else{
-                    shift += shift_change;
-                }
-            }
-            global_history_edit_group_end(app);
-        }
-    }
-    return(result);
-}
-
 API_EXPORT b32
 Buffer_Exists(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    return(buffer_api_check_file(file));
+    return(api_check_buffer(file));
 }
 
 API_EXPORT b32
@@ -836,7 +466,7 @@ Buffer_Ready(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         result = file_is_ready(file);
     }
     return(result);
@@ -847,7 +477,7 @@ Buffer_Get_Access_Flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         *access_flags_out = file_get_access_flags(file);
         result = true;
     }
@@ -859,7 +489,7 @@ Buffer_Get_Size(Application_Links *app, Buffer_ID buffer_id, i32 *size_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         *size_out = buffer_size(&file->state.buffer);
         result = true;
     }
@@ -871,7 +501,7 @@ Buffer_Get_Line_Count(Application_Links *app, Buffer_ID buffer_id, i32 *line_cou
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         *line_count_out = file->state.buffer.line_count;
         result = true;
     }
@@ -883,8 +513,8 @@ Buffer_Get_Base_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, String 
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
-        result = string_api_output(file->base_name.name, name_out, required_size_out);
+    if (api_check_buffer(file)){
+        result = api_string_out(file->base_name.name, name_out, required_size_out);
     }
     return(result);
 }
@@ -894,8 +524,8 @@ Buffer_Get_Unique_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, Strin
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
-        result = string_api_output(file->unique_name.name, name_out, required_size_out);
+    if (api_check_buffer(file)){
+        result = api_string_out(file->unique_name.name, name_out, required_size_out);
     }
     return(result);
 }
@@ -905,8 +535,8 @@ Buffer_Get_File_Name(Application_Links *app, Buffer_ID buffer_id, String *name_o
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
-        result = string_api_output(file->canon.name, name_out, required_size_out);
+    if (api_check_buffer(file)){
+        result = api_string_out(file->canon.name, name_out, required_size_out);
     }
     return(result);
 }
@@ -916,7 +546,7 @@ Buffer_Get_Dirty_State(Application_Links *app, Buffer_ID buffer_id, Dirty_State 
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         *dirty_state_out = file->state.dirty;
         result = true;
     }
@@ -928,7 +558,7 @@ Buffer_Directly_Set_Dirty_State(Application_Links *app, Buffer_ID buffer_id, Dir
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         file->state.dirty = dirty_state;
         result = true;
     }
@@ -940,7 +570,7 @@ Buffer_Tokens_Are_Ready(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         result = file_tokens_are_ready(file);
     }
     return(result);
@@ -958,7 +588,7 @@ DOC_RETURN(returns non-zero on success)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         result = true;
         switch (setting){
             case BufferSetting_Lex:
@@ -1044,7 +674,7 @@ DOC_SEE(Buffer_Setting_ID)
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         result = true;
         switch (setting){
             case BufferSetting_Lex:
@@ -1228,16 +858,6 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
-internal Managed_Scope
-buffer_get_managed_scope__inner(Editing_File *file){
-    Managed_Scope lifetime = 0;
-    if (file != 0){
-        Assert(file->lifetime_object != 0);
-        lifetime = (Managed_Scope)file->lifetime_object->workspace.scope_id;
-    }
-    return(lifetime);
-}
-
 // TODO(allen): redocument
 API_EXPORT b32
 Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out)
@@ -1251,12 +871,9 @@ If the buffer_id does not specify a valid buffer, the returned scope is null.)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
-        *scope_out = buffer_get_managed_scope__inner(file);
+    if (api_check_buffer(file)){
+        *scope_out = file_get_managed_scope(file);
         result = true;
-    }
-    else{
-        *scope_out = 0;
     }
     return(result);
 }
@@ -1272,7 +889,7 @@ If the buffer does not exist or if it is not a lexed buffer, the return is zero.
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file_and_tokens(file)){
+    if (api_check_buffer_and_tokens(file)){
         *count_out = file->state.token_array.count;
         result = true;
     }
@@ -1295,7 +912,7 @@ The number of output tokens will be end_token - start_token.)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file_and_tokens(file)){
+    if (api_check_buffer_and_tokens(file)){
         Cpp_Token_Array token_array = file->state.token_array;
         if (0 <= start_token && start_token <= end_token && end_token <= token_array.count){
             block_copy(tokens_out, token_array.tokens + start_token, sizeof(Cpp_Token)*(end_token - start_token));
@@ -1312,16 +929,16 @@ Buffer_Get_Token_Range(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    Cpp_Token_Array token_array = file->state.token_array;
     b32 result = false;
-    if (file != 0 && token_array.tokens != 0 && file->state.tokens_complete){
-        *first_token_out = token_array.tokens;
-        *one_past_last_token_out = token_array.tokens + token_array.count;
+    if (api_check_buffer_and_tokens(file)){
+        Cpp_Token_Array token_array = file->state.token_array;
+        if (first_token_out != 0){
+            *first_token_out = token_array.tokens;
+        }
+        if (one_past_last_token_out != 0){
+            *one_past_last_token_out = token_array.tokens + token_array.count;
+        }
         result = true;
-    }
-    else{
-        *first_token_out = 0;
-        *one_past_last_token_out = 0;
     }
     return(result);
 }
@@ -1341,13 +958,9 @@ DOC_SEE(cpp_get_token)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file_and_tokens(file)){
-        Cpp_Token_Array token_array = file->state.token_array;
-        *get_result = cpp_get_token(token_array, pos);
+    if (api_check_buffer_and_tokens(file)){
+        *get_result = cpp_get_token(file->state.token_array, pos);
         result = true;
-    }
-    else{
-        block_zero_struct(get_result);
     }
     return(result);
 }
@@ -1364,7 +977,7 @@ This is useful in cases such as clearing a buffer and refilling it with new cont
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         file_end_file(models, file);
         result = true;
     }
@@ -1388,138 +1001,11 @@ Otherwise a buffer is created without a matching file until the buffer is saved 
 DOC_SEE(Buffer_Create_Flag)
 */{
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    Working_Set *working_set = &models->working_set;
-    Heap *heap = &models->mem.heap;
-    Partition *part = &models->mem.part;
-    
-    b32 result = false;
-    
-    *new_buffer_id_out = 0;
-    
-    if (file_name.size > 0){
-        Temp_Memory temp = begin_temp_memory(part);
-        
-        Editing_File *file = 0;
-        b32 do_empty_buffer = false;
-        Editing_File_Name canon = {};
-        b32 has_canon_name = false;
-        b32 buffer_is_for_new_file = false;
-        
-        // NOTE(allen): Try to get the file by canon name.
-        if ((flags & BufferCreate_NeverAttachToFile) == 0){
-            if (get_canon_name(system, file_name, &canon)){
-                has_canon_name = true;
-                file = working_set_contains_canon(working_set, canon.name);
-            }
-            else{
-                do_empty_buffer = true;
-            }
-        }
-        
-        // NOTE(allen): Try to get the file by buffer name.
-        if ((flags & BufferCreate_MustAttachToFile) == 0){
-            if (file == 0){
-                file = working_set_contains_name(working_set, file_name);
-            }
-        }
-        
-        // NOTE(allen): If there is still no file, create a new buffer.
-        if (file == 0){
-            Plat_Handle handle = {};
-            
-            // NOTE(allen): Figure out whether this is a new file, or an existing file.
-            if (!do_empty_buffer){
-                if ((flags & BufferCreate_AlwaysNew) != 0){
-                    do_empty_buffer = true;
-                }
-                else{
-                    if (!system->load_handle(canon.name.str, &handle)){
-                        do_empty_buffer = true;
-                    }
-                }
-            }
-            
-            if (do_empty_buffer){
-                if (has_canon_name){
-                    buffer_is_for_new_file = true;
-                }
-                if ((flags & BufferCreate_NeverNew) == 0){
-                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
-                    if (file != 0){
-                        if (has_canon_name){
-                            file_bind_file_name(system, heap, working_set, file, canon.name);
-                        }
-                        buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
-                        File_Attributes attributes = {};
-                        init_normal_file(system, models, 0, 0, attributes, file);
-                        *new_buffer_id_out = file->id.id;
-                        result = true;
-                    }
-                }
-            }
-            else{
-                File_Attributes attributes = system->load_attributes(handle);
-                b32 in_heap_mem = false;
-                char *buffer = push_array(part, char, (i32)attributes.size);
-                
-                if (buffer == 0){
-                    buffer = heap_array(heap, char, (i32)attributes.size);
-                    Assert(buffer != 0);
-                    in_heap_mem = true;
-                }
-                
-                if (system->load_file(handle, buffer, (i32)attributes.size)){
-                    system->load_close(handle);
-                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
-                    if (file != 0){
-                        file_bind_file_name(system, heap, working_set, file, canon.name);
-                        buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
-                        init_normal_file(system, models, buffer, (i32)attributes.size, attributes, file);
-                        *new_buffer_id_out = file->id.id;
-                        result = true;
-                    }
-                }
-                else{
-                    system->load_close(handle);
-                }
-                
-                if (in_heap_mem){
-                    heap_free(heap, buffer);
-                }
-            }
-        }
-        else{
-            *new_buffer_id_out = file->id.id;
-            result = true;
-        }
-        
-        if (file != 0 && (flags & BufferCreate_JustChangedFile) != 0){
-            file->state.ignore_behind_os = 1;
-        }
-        
-        if (file != 0 && (flags & BufferCreate_AlwaysNew) != 0){
-            i32 size = buffer_size(&file->state.buffer);
-            if (size > 0){
-                Edit edit = {};
-                edit.range.one_past_last = size;
-                Edit_Behaviors behaviors = {};
-                edit_single(system, models, file, edit, behaviors);
-                if (has_canon_name){
-                    buffer_is_for_new_file = true;
-                }
-            }
-        }
-        
-        if (file != 0 && buffer_is_for_new_file && (flags & BufferCreate_SuppressNewFileHook) == 0 &&
-            models->hook_new_file != 0){
-            models->hook_new_file(&models->app_links, file->id.id);
-        }
-        
-        end_temp_memory(temp);
+    Editing_File *new_file = create_file(models, file_name, flags);
+    if (new_file != 0 && new_buffer_id_out != 0){
+        *new_buffer_id_out = new_file->id.id;
     }
-    
-    return(result);
+    return(new_file != 0);
 }
 
 // TODO(allen): redocument
@@ -1539,7 +1025,7 @@ DOC_SEE(Buffer_Save_Flag)
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         b32 skip_save = false;
         if (!(flags & BufferSave_IgnoreDirtyFlag)){
             if (file->state.dirty == DirtyState_UpToDate){
@@ -1581,7 +1067,7 @@ DOC_SEE(Buffer_Identifier)
     Working_Set *working_set = &models->working_set;
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Kill_Result result = BufferKillResult_DoesNotExist;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         if (!file->settings.never_kill){
             b32 needs_to_save = file_needs_save(file);
             if (!needs_to_save || (flags & BufferKill_AlwaysKill) != 0){
@@ -1642,7 +1128,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
     System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Reopen_Result result = BufferReopenResult_Failed;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         if (file->canon.name.str != 0 && file->canon.name.size != 0){
             Plat_Handle handle = {};
             if (system->load_handle(file->canon.name.str, &handle)){
@@ -1682,7 +1168,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         
                         file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
                         working_set_file_default_settings(&models->working_set, file);
-                        init_normal_file(system, models, file_memory, (i32)attributes.size, attributes, file);
+                        file_create_from_string(system, models, file, make_string(file_memory, (i32)attributes.size), attributes);
                         
                         for (i32 i = 0; i < vptr_count; ++i){
                             view_set_file(system, models, vptrs[i], file);
@@ -1718,7 +1204,7 @@ Buffer_Get_File_Attributes(Application_Links *app, Buffer_ID buffer_id, File_Att
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         block_copy(attributes_out, &file->attributes, sizeof(*attributes_out));
         result = true;
     }
@@ -1830,7 +1316,7 @@ DOC_SEE(Access_Flag)
     View *view = panel->view;
     Assert(view != 0);
     b32 result = false;
-    if (view_api_check_view(view, access)){
+    if (api_check_view(view, access)){
         *view_id_out = view_get_id(&models->live_set, view);
         result = true;
     }
@@ -1843,7 +1329,7 @@ Get_Active_Panel(Application_Links *app, Panel_ID *panel_id_out){
     Panel *panel = layout_get_active_panel(&models->layout);
     Assert(panel != 0);
     b32 result = false;
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         *panel_id_out = panel_get_id(&models->layout, panel);
         result = true;
     }
@@ -1858,7 +1344,7 @@ View_Exists(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         result = true;
     }
     return(result);
@@ -1869,9 +1355,9 @@ View_Get_Buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buf
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Editing_File *file = view->file;
-        if (buffer_api_check_file(file, access)){
+        if (api_check_buffer(file, access)){
             *buffer_id_out = file->id.id;
             result = true;
         }
@@ -1884,7 +1370,7 @@ View_Get_Cursor_Pos(Application_Links *app, View_ID view_id, i32 *pos_out){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         File_Edit_Positions edit_pos = view_get_edit_pos(view);
         *pos_out = edit_pos.cursor_pos;
         result = true;
@@ -1897,7 +1383,7 @@ View_Get_Mark_Pos(Application_Links *app, View_ID view_id, i32 *pos_out){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         *pos_out = view->mark;
         result = true;
     }
@@ -1909,7 +1395,7 @@ View_Get_Preferred_X(Application_Links *app, View_ID view_id, f32 *preferred_x_o
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         *preferred_x_out = view->preferred_x;
         result = true;
     }
@@ -1921,7 +1407,7 @@ View_Get_Screen_Rect(Application_Links *app, View_ID view_id, Rect_f32 *rect_out
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
     View *view = imp_get_view(models, view_id);
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         *rect_out = f32R(view->panel->rect_full);
         result = true;
     }
@@ -1934,7 +1420,7 @@ View_Get_Panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){
     Layout *layout = &models->layout;
     b32 result = false;
     View *view = imp_get_view(models, view_id);
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Panel *panel = view->panel;
         *panel_id_out = panel_get_id(layout, panel);
         result = true;
@@ -1947,7 +1433,7 @@ Panel_Get_View(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Final){
             View *view = panel->view;
             Assert(view != 0);
@@ -1963,7 +1449,7 @@ Panel_Is_Split(Application_Links *app, Panel_ID panel_id){
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
             result = true;
         }
@@ -1976,7 +1462,7 @@ Panel_Is_Leaf(Application_Links *app, Panel_ID panel_id){
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Final){
             result = true;
         }
@@ -1990,7 +1476,7 @@ Panel_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation o
     Layout *layout = &models->layout;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         Panel *new_panel = 0;
         if (layout_split_panel(layout, panel, (orientation == PanelSplit_LeftAndRight), &new_panel)){
             Live_Views *live_set = &models->live_set;
@@ -2008,7 +1494,7 @@ Panel_Set_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind
     Layout *layout = &models->layout;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
             panel->split.kind = kind;
             switch (kind){
@@ -2042,7 +1528,7 @@ Panel_Swap_Children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind 
     Layout *layout = &models->layout;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
             Swap(Panel*, panel->tl_panel, panel->br_panel);
             layout_propogate_sizes_down_from_node(layout, panel);
@@ -2058,7 +1544,7 @@ Panel_Get_Parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_o
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     *panel_id_out = 0;
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         *panel_id_out = panel_get_id(layout, panel->parent);
         result = true;
     }
@@ -2072,7 +1558,7 @@ Panel_Get_Child(Application_Links *app, Panel_ID panel_id, Panel_Child which_chi
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     *panel_id_out = 0;
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
             Panel *child = 0;
             switch (which_child){
@@ -2100,7 +1586,7 @@ Panel_Get_Max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
     Layout *layout = &models->layout;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Intermediate){
             Panel *child = panel->br_panel;
             *panel_id_out = panel_get_id(layout, child);
@@ -2116,7 +1602,7 @@ Panel_Get_Margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_ou
     Layout *layout = &models->layout;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
-    if (panel_api_check_panel(panel)){
+    if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Final){
             i32 margin = layout->margin;
             margins_out->x0 = margin;
@@ -2146,7 +1632,7 @@ in the system, the call will fail.)
     Layout *layout = &models->layout;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         if (layout_close_panel(layout, view->panel)){
             live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, view);
             result = true;
@@ -2160,7 +1646,7 @@ View_Get_Region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         *region_out = view->panel->rect_full;
         result = true;
     }
@@ -2172,7 +1658,7 @@ View_Get_Buffer_Region(Application_Links *app, View_ID view_id, Rect_i32 *region
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         *region_out = view_get_buffer_rect(models, view);
         result = true;
     }
@@ -2184,7 +1670,7 @@ View_Get_Scroll_Vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *s
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         if (view->ui_mode){
             *scroll_vars_out = view->ui_scroll;
         }
@@ -2211,7 +1697,7 @@ DOC_SEE(get_active_view)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         models->layout.active_panel = view->panel;
         result = true;
     }
@@ -2231,7 +1717,7 @@ DOC_RETURN(returns non-zero on success)
     View *view = imp_get_view(models, view_id);
     
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         result = true;
         switch (setting){
             case ViewSetting_ShowWhitespace:
@@ -2277,7 +1763,7 @@ DOC_SEE(View_Setting_ID)
     View *view = imp_get_view(models, view_id);
     
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         result = true;
         switch (setting){
             case ViewSetting_ShowWhitespace:
@@ -2322,7 +1808,7 @@ If the view_id does not specify a valid view, the returned scope is null.)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Assert(view->lifetime_object != 0);
         *scope = (Managed_Scope)(view->lifetime_object->workspace.scope_id);
         result = true;
@@ -2345,9 +1831,9 @@ DOC_SEE(Full_Cursor)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Editing_File *file = view->file;
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
                 seek.type = buffer_seek_unwrapped_xy;
             }
@@ -2376,10 +1862,10 @@ DOC_SEE(Buffer_Seek)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Editing_File *file = view->file;
         Assert(file != 0);
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             Full_Cursor cursor = file_compute_cursor(models->system, file, seek);
             view_set_cursor(models->system, models, view, cursor, set_preferred_x);
             result = true;
@@ -2400,10 +1886,10 @@ DOC_SEE(GUI_Scroll_Vars)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Editing_File *file = view->file;
         Assert(file != 0);
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             if (!view->ui_mode){
                 view_set_scroll(models->system, models, view, scroll);
             }
@@ -2430,10 +1916,10 @@ DOC_SEE(Buffer_Seek)
     View *view = imp_get_view(models, view_id);
     
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Editing_File *file = view->file;
         Assert(file != 0);
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             if (seek.type != buffer_seek_pos){
                 Full_Cursor cursor = file_compute_cursor(models->system, file, seek);
                 view->mark = cursor.pos;
@@ -2462,9 +1948,9 @@ DOC_SEE(Set_Buffer_Flag)
     View *view = imp_get_view(models, view_id);
     
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             if (file != view->file){
                 view_set_file(models->system, models, view, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
@@ -2492,7 +1978,7 @@ DOC_SEE(int_color)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         i32 size = end - start;
         if (size > 0){
             view_post_paste_effect(view, seconds, start, size, color|0xFF000000);
@@ -2516,7 +2002,7 @@ DOC_SEE(view_set_ui)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         if (!view->ui_mode){
             view->ui_mode = true;
             result = true;
@@ -2540,7 +2026,7 @@ DOC_SEE(view_set_ui)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view) && view->ui_mode){
+    if (api_check_view(view) && view->ui_mode){
         view_quit_ui(models->system, models, view);
         view->ui_mode = false;
         result = true;
@@ -2553,7 +2039,7 @@ View_Is_In_UI_Mode(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         result = view->ui_mode;
     }
     return(result);
@@ -2577,7 +2063,7 @@ DOC_SEE(UI_Quit_Function_Type)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         view->ui_quit = quit_function;
         result = true;
     }
@@ -2597,7 +2083,7 @@ DOC_SEE(view_set_ui)
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         *quit_function_out = view->ui_quit;
         result = true;
     }
@@ -2935,7 +2421,7 @@ DOC_SEE(Marker)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    Managed_Scope markers_scope = buffer_get_managed_scope__inner(file);
+    Managed_Scope markers_scope = file_get_managed_scope(file);
     if (optional_extra_scope != 0){
         Managed_Object scope_array[2];
         scope_array[0] = markers_scope;
@@ -3645,7 +3131,7 @@ Buffer_History_Get_Max_Record_Index(Application_Links *app, Buffer_ID buffer_id,
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file) && history_is_activated(&file->state.history)){
+    if (api_check_buffer(file) && history_is_activated(&file->state.history)){
         *index_out  = history_get_record_count(&file->state.history);
         result = true;
     }
@@ -3680,7 +3166,7 @@ Buffer_History_Get_Record_Info(Application_Links *app, Buffer_ID buffer_id, Hist
     Editing_File *file = imp_get_file(models, buffer_id);
     block_zero_struct(record_out);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         History *history = &file->state.history;
         if (history_is_activated(history)){
             i32 max_index = history_get_record_count(history);
@@ -3714,7 +3200,7 @@ Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id,
     Editing_File *file = imp_get_file(models, buffer_id);
     block_zero_struct(record_out);
     b32 result = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         History *history = &file->state.history;
         if (history_is_activated(history)){
             i32 max_index = history_get_record_count(history);
@@ -3753,7 +3239,7 @@ Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_ID buffer_
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file) && history_is_activated(&file->state.history)){
+    if (api_check_buffer(file) && history_is_activated(&file->state.history)){
         *index_out  = file_get_current_record_index(file);
         result = true;
     }
@@ -3765,7 +3251,7 @@ Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_ID buffer_
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file) && history_is_activated(&file->state.history)){
+    if (api_check_buffer(file) && history_is_activated(&file->state.history)){
         i32 max_index = history_get_record_count(&file->state.history);
         if (0 <= index && index <= max_index){
             System_Functions *system = models->system;
@@ -3828,7 +3314,7 @@ Buffer_History_Clear_After_Current_State(Application_Links *app, Buffer_ID buffe
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (buffer_api_check_file(file) && history_is_activated(&file->state.history)){
+    if (api_check_buffer(file) && history_is_activated(&file->state.history)){
         history_dump_records_after_index(&file->state.history, file->state.current_record_index);
         result = true;
     }
@@ -3918,7 +3404,7 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     Editing_File *file = imp_get_file(models, buffer_id);
     
     b32 did_change = false;
-    if (buffer_api_check_file(file)){
+    if (api_check_buffer(file)){
         System_Functions *system = models->system;
         Font_Pointers font = system->font.get_pointers_by_id(id);
         if (font.valid){
@@ -3988,7 +3474,7 @@ DOC_RETURN(On success a valid Face_ID, otherwise returns zero.)
     b32 result = false;
     if (buffer_id != 0){
         Editing_File *file = imp_get_file(models, buffer_id);
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             *face_id_out = file->settings.font_id;
             result = true;
         }
@@ -4160,15 +3646,7 @@ DOC_SEE(directory_set_hot)
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
-    if (required_size_out != 0){
-        *required_size_out = hot->string.size;
-    }
-    b32 result = false;
-    if (append(out, hot->string)){
-        terminate_with_null(out);
-        result = true;
-    }
-    return(result);
+    return(api_string_out(hot->string, out, required_size_out));
 }
 
 // TODO(allen): redocument
@@ -4290,6 +3768,7 @@ File_Get_Attributes(Application_Links *app, String file_name, File_Attributes *a
     return(attributes_out->last_write_time > 0);
 }
 
+// TODO(allen): remove this nonsense and make a real API here instead.
 // TODO(allen): redocument
 API_EXPORT b32
 Directory_CD(Application_Links *app, String *directory, String relative_path)
@@ -4320,6 +3799,7 @@ DOC_RETURN(This call returns non-zero on success.)
 */{
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
+    // TODO(allen): rewrite this with a better OS layer API
     i32 required_size = system->get_4ed_path(0, 0);
     *required_size_out = required_size;
     i32 remaining_size = path_out->memory_size - path_out->size;
@@ -4598,7 +4078,7 @@ Text_Layout_Buffer_Point_To_Layout_Point(Application_Links *app, Text_Layout_ID 
     b32 result = false;
     if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
         Editing_File *file = imp_get_file(models, layout.buffer_id);
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             System_Functions *system = models->system;
             // TODO(allen): this could be computed and stored _once_ right?
             Full_Cursor top = file_compute_cursor(system, file, seek_line_char(layout.point.line_number, 1));
@@ -4622,7 +4102,7 @@ Text_Layout_Layout_Point_To_Buffer_Point(Application_Links *app, Text_Layout_ID 
     b32 result = false;
     if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
         Editing_File *file = imp_get_file(models, layout.buffer_id);
-        if (buffer_api_check_file(file)){
+        if (api_check_buffer(file)){
             System_Functions *system = models->system;
             // TODO(allen): this could be computed and stored _once_ right?
             Full_Cursor top = file_compute_cursor(system, file, seek_line_char(layout.point.line_number, 1));
@@ -4676,7 +4156,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
     View *view = imp_get_view(models, view_id);
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (view_api_check_view(view) && buffer_api_check_file(file)){
+    if (api_check_view(view) && api_check_buffer(file)){
         f32 line_height = (f32)view->line_height;
         f32 max_x = (f32)file->settings.display_width;
         f32 max_y = layout_dim.y + line_height;
@@ -4809,7 +4289,7 @@ API_EXPORT void
 Draw_Render_Layout(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    if (view_api_check_view(view) && models->target != 0){
+    if (api_check_view(view) && models->target != 0){
         render_loaded_file_in_view__inner(models, models->target, view, view->render.buffer_rect,
                                           view->render.cursor, view->render.range,
                                           view->render.items, view->render.item_count);
@@ -5051,7 +4531,7 @@ Get_View_Visible_Range(Application_Links *app, View_ID view_id){
     Range result = {};
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    if (view_api_check_view(view)){
+    if (api_check_view(view)){
         i32 view_height = rect_height(view->panel->rect_inner);
         i32 line_height = view->line_height;
         Full_Cursor min_cursor = view_get_render_cursor(models->system, view);

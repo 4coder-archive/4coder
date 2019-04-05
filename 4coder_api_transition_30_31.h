@@ -24,6 +24,9 @@
 
 #if !defined(REMOVE_TRANSITION_HELPER_31)
 
+#define BatchEdit_PreserveTokens 0
+#define BatchEdit_Normal 0
+
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */

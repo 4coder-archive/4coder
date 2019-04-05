@@ -54,7 +54,7 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
         end = cursor.pos;
         
         if (success){
-            buffer_replace_range(app, buffer, start, end, make_lit_string(""));
+            buffer_replace_range(app, buffer, make_range(start, end), make_lit_string(""));
         }
     }
 }
@@ -72,7 +72,7 @@ pad_buffer_line(Application_Links *app, Partition *part, Buffer_ID buffer, i32 l
                     i32 size = target - (end.character - 1);
                     char *str = push_array(part, char, size);
                     memset(str, ' ', size);
-                    buffer_replace_range(app, buffer, end.pos, end.pos, make_string(str, size));
+                    buffer_replace_range(app, buffer, make_range(end.pos), make_string(str, size));
                     end_temp_memory(temp);
                 }
             }
@@ -159,7 +159,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             }
             
             i32 edit_count = (int)(edit - edits);
-            buffer_batch_edit(app, buffer, &str, 1, edits, edit_count, BatchEdit_Normal);
+            buffer_batch_edit(app, buffer, &str, edits, edit_count);
             
             end_temp_memory(temp);
             
@@ -187,7 +187,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 }
                 
                 i32 edit_count = (int)(edit - edits);
-                buffer_batch_edit(app, buffer, 0, 0, edits, edit_count, BatchEdit_Normal);
+                buffer_batch_edit(app, buffer, 0, edits, edit_count);
                 
                 end_temp_memory(temp);
                 
@@ -228,7 +228,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
                 Buffer_ID buffer = 0;
                 view_get_buffer(app, view.view_id, AccessOpen, &buffer);
                 Range range = get_view_range(&view);
-                buffer_replace_range(app, buffer, range.max, range.max, make_string(str, len + 1));
+                buffer_replace_range(app, buffer, make_range(range.max), make_string(str, len + 1));
                 view_set_mark(app, &view, seek_pos(range.max + 1));
                 view_set_cursor(app, &view, seek_pos(range.max + len + 1), true);
                 
@@ -282,7 +282,7 @@ multi_paste_range(Application_Links *app, View_Summary *view, Range range, i32 p
                 }
                 
                 i32 pos = range.min;
-                buffer_replace_range(app, buffer, range.min, range.max, make_string(str, total_size));
+                buffer_replace_range(app, buffer, range, make_string(str, total_size));
                 finish_range.min = pos;
                 finish_range.max = pos + total_size;
                 view_set_mark(app, view, seek_pos(finish_range.min));
@@ -348,7 +348,7 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     if (in.abort){
         Buffer_ID buffer = 0;
         view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-        buffer_replace_range(app, buffer, range.min, range.max, make_lit_string(""));
+        buffer_replace_range(app, buffer, range, make_lit_string(""));
     }
 }
 
@@ -522,7 +522,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                             doublebreak2:;
                             
                             if (closed_correctly){
-                                buffer_batch_edit(app, buffer, replace_string.str, replace_string.size, edits, edit_count, BatchEdit_Normal);
+                                buffer_batch_edit(app, buffer, replace_string.str, edits, edit_count);
                             }
                         }
                     }
@@ -684,7 +684,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         
                         finished:;
                         if (closed_correctly){
-                            buffer_batch_edit(app, buffer, string_base, string.size, edits, edit_count, BatchEdit_Normal);
+                            buffer_batch_edit(app, buffer, string_base, edits, edit_count);
                         }
                     }
                 }
@@ -766,7 +766,7 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition
                 current_offset = 0;
             }
             i32 pos = target->start_pos + current_offset;
-            buffer_replace_range(app, target->buffer_id, pos, pos + target_string.size, new_string);
+            buffer_replace_range(app, target->buffer_id, make_range(pos, pos + target_string.size), new_string);
             current_offset += shift_per_replacement;
         }
         

@@ -862,14 +862,6 @@ STRUCT Face_Metrics{
     f32 typical_character_width;
 };
 
-/* DOC(A Buffer_Batch_Edit_Type is a type of batch operation.) */
-ENUM(i32, Buffer_Batch_Edit_Type){
-    /* DOC(The BatchEdit_Normal operation is always correct but does the most work if there are tokens to correct.) */
-    BatchEdit_Normal,
-    /* DOC(The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens. This usually applies when whitespace is being replaced with whitespace.) */
-    BatchEdit_PreserveTokens
-};
-
 /* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual
 text that will be replaced into the buffer.) */
 STRUCT Buffer_Edit{

@@ -491,11 +491,6 @@ query_user_number(Application_Links *app, Query_Bar *bar){
     return(query_user_general(app, bar, true));
 }
 
-static i32
-buffer_replace_range_compute_shift(i32 start, i32 end, i32 len){
-    return(len - (end - start));
-}
-
 static char
 buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i32 pos){
     i32 buffer_size = 0;
@@ -935,7 +930,7 @@ static void
 clear_buffer(Application_Links *app, Buffer_ID buffer_id){
     i32 buffer_size = 0;
     buffer_get_size(app, buffer_id, &buffer_size);
-    buffer_replace_range(app, buffer_id, 0, buffer_size, make_lit_string(""));
+    buffer_replace_range(app, buffer_id, make_range(0, buffer_size), make_lit_string(""));
 }
 
 ////////////////////////////////
@@ -1583,7 +1578,7 @@ if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_
         Range range = get_view_range(&view);
         Buffer_ID buffer = 0;
         view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-        buffer_replace_range(app, buffer, range.min, range.max, make_lit_string(""));
+        buffer_replace_range(app, buffer, range, make_lit_string(""));
         result = true;
     }
     return(result);

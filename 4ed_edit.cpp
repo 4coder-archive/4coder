@@ -230,7 +230,12 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
 }
 
 internal void
-edit_single(System_Functions *system, Models *models, Editing_File *file, Edit edit, Edit_Behaviors behaviors){
+edit_single(System_Functions *system, Models *models, Editing_File *file, Range range, String string, Edit_Behaviors behaviors){
+    Edit edit = {};
+    edit.str = string.str;
+    edit.length = string.size;
+    edit.range = range;
+    
     Mem_Options *mem = &models->mem;
     Heap *heap = &mem->heap;
     Partition *part = &mem->part;
@@ -313,13 +318,34 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Edit e
     }
 }
 
-internal void
-edit_single(System_Functions *system, Models *models, Editing_File *file, Range range, String string, Edit_Behaviors behaviors){
-    Edit edit = {};
-    edit.str = string.str;
-    edit.length = string.size;
-    edit.range = range;
-    edit_single(system, models, file, edit, behaviors);
+internal b32
+edit_batch(System_Functions *system, Models *models, Editing_File *file, char *str, Buffer_Edit *edits, i32 edit_count, Edit_Behaviors behaviors){
+    b32 result = true;
+    if (edit_count > 0){
+        global_history_adjust_edit_grouping_counter(&models->global_history, 1);
+        
+        Buffer_Edit *edit_in = edits;
+        Buffer_Edit *one_past_last = edits + edit_count;
+        i32 shift = 0;
+        for (;edit_in < one_past_last; edit_in += 1){
+            String insert_string = make_string(str + edit_in->str_start, edit_in->len);
+            Range edit_range = {edit_in->start, edit_in->end};
+            edit_range.first += shift;
+            edit_range.one_past_last += shift;
+            i32 size = buffer_size(&file->state.buffer);
+            if (0 <= edit_range.first && edit_range.first <= edit_range.one_past_last && edit_range.one_past_last <= size){
+                edit_single(system, models, file, edit_range, insert_string, behaviors);
+                shift += replace_range_compute_shift(edit_range, insert_string.size);
+            }
+            else{
+                result = false;
+                break;
+            }
+        }
+        
+        global_history_adjust_edit_grouping_counter(&models->global_history, -1);
+    }
+    return(result);
 }
 
 internal void
@@ -341,12 +367,9 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
     switch (record->kind){
         case RecordKind_Single:
         {
-            Edit edit = {};
-            edit.str = record->single.str_forward;
-            edit.length = record->single.length_forward;
-            edit.range.first = record->single.first;
-            edit.range.one_past_last = edit.range.first + record->single.length_backward;
-            edit_single(system, models, file, edit, behaviors_prototype);
+            String str = make_string(record->single.str_forward, record->single.length_forward);
+            Range range = {record->single.first, record->single.first + record->single.length_backward};
+            edit_single(system, models, file, range, str, behaviors_prototype);
         }break;
         
         case RecordKind_Group:
@@ -375,12 +398,9 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
     switch (record->kind){
         case RecordKind_Single:
         {
-            Edit edit = {};
-            edit.str = record->single.str_backward;
-            edit.length = record->single.length_backward;
-            edit.range.first = record->single.first;
-            edit.range.one_past_last = edit.range.first + record->single.length_forward;
-            edit_single(system, models, file, edit, behaviors_prototype);
+            String str = make_string(record->single.str_backward, record->single.length_backward);
+            Range range = {record->single.first, record->single.first + record->single.length_forward};
+            edit_single(system, models, file, range, str, behaviors_prototype);
         }break;
         
         case RecordKind_Group:
@@ -434,6 +454,136 @@ edit_change_current_history_state(System_Functions *system, Models *models, Edit
         
         file->state.current_record_index = current;
     }
+}
+
+////////////////////////////////
+
+internal Editing_File*
+create_file(Models *models, String file_name, Buffer_Create_Flag flags){
+    Editing_File *result = 0;
+    
+    if (file_name.size > 0){
+        System_Functions *system = models->system;
+        Working_Set *working_set = &models->working_set;
+        Heap *heap = &models->mem.heap;
+        Partition *part = &models->mem.part;
+        
+        Temp_Memory temp = begin_temp_memory(part);
+        
+        Editing_File *file = 0;
+        b32 do_empty_buffer = false;
+        Editing_File_Name canon = {};
+        b32 has_canon_name = false;
+        b32 buffer_is_for_new_file = false;
+        
+        // NOTE(allen): Try to get the file by canon name.
+        if ((flags & BufferCreate_NeverAttachToFile) == 0){
+            if (get_canon_name(system, file_name, &canon)){
+                has_canon_name = true;
+                file = working_set_contains_canon(working_set, canon.name);
+            }
+            else{
+                do_empty_buffer = true;
+            }
+        }
+        
+        // NOTE(allen): Try to get the file by buffer name.
+        if ((flags & BufferCreate_MustAttachToFile) == 0){
+            if (file == 0){
+                file = working_set_contains_name(working_set, file_name);
+            }
+        }
+        
+        // NOTE(allen): If there is still no file, create a new buffer.
+        if (file == 0){
+            Plat_Handle handle = {};
+            
+            // NOTE(allen): Figure out whether this is a new file, or an existing file.
+            if (!do_empty_buffer){
+                if ((flags & BufferCreate_AlwaysNew) != 0){
+                    do_empty_buffer = true;
+                }
+                else{
+                    if (!system->load_handle(canon.name.str, &handle)){
+                        do_empty_buffer = true;
+                    }
+                }
+            }
+            
+            if (do_empty_buffer){
+                if (has_canon_name){
+                    buffer_is_for_new_file = true;
+                }
+                if (!HasFlag(flags, BufferCreate_NeverNew)){
+                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
+                    if (file != 0){
+                        if (has_canon_name){
+                            file_bind_file_name(system, heap, working_set, file, canon.name);
+                        }
+                        buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
+                        File_Attributes attributes = {};
+                        file_create_from_string(system, models, file, make_lit_string(""), attributes);
+                        result = file;
+                    }
+                }
+            }
+            else{
+                File_Attributes attributes = system->load_attributes(handle);
+                b32 in_heap_mem = false;
+                char *buffer = push_array(part, char, (i32)attributes.size);
+                
+                if (buffer == 0){
+                    buffer = heap_array(heap, char, (i32)attributes.size);
+                    Assert(buffer != 0);
+                    in_heap_mem = true;
+                }
+                
+                if (system->load_file(handle, buffer, (i32)attributes.size)){
+                    system->load_close(handle);
+                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
+                    if (file != 0){
+                        file_bind_file_name(system, heap, working_set, file, canon.name);
+                        buffer_bind_name(models, heap, part, working_set, file, front_of_directory(file_name));
+                        file_create_from_string(system, models, file, make_string(buffer, (i32)attributes.size), attributes);
+                        result = file;
+                    }
+                }
+                else{
+                    system->load_close(handle);
+                }
+                
+                if (in_heap_mem){
+                    heap_free(heap, buffer);
+                }
+            }
+        }
+        else{
+            result = file;
+        }
+        
+        if (file != 0 && HasFlag(flags, BufferCreate_JustChangedFile)){
+            file->state.ignore_behind_os = 1;
+        }
+        
+        if (file != 0 && HasFlag(flags, BufferCreate_AlwaysNew)){
+            i32 size = buffer_size(&file->state.buffer);
+            if (size > 0){
+                Edit_Behaviors behaviors = {};
+                edit_single(system, models, file, make_range(0, size), make_lit_string(""), behaviors);
+                if (has_canon_name){
+                    buffer_is_for_new_file = true;
+                }
+            }
+        }
+        
+        if (file != 0 && buffer_is_for_new_file && !HasFlag(flags, BufferCreate_SuppressNewFileHook) && models->hook_new_file != 0){
+            models->hook_new_file(&models->app_links, file->id.id);
+        }
+        
+        end_temp_memory(temp);
+    }
+    
+    return(result);
 }
 
 // BOTTOM

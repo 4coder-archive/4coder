@@ -864,6 +864,12 @@ make_range(i32 p1, i32 p2){
 }
 
 static Range
+make_range(i32 p){
+    Range range = {p, p};
+    return(range);
+}
+
+static Range
 rectify(Range range) {
     return(make_range(range.min, range.max));
 }
@@ -903,6 +909,16 @@ clip_range_to_width(Range range, i32 max_width) {
 static b32
 interval_is_valid(Range range){
     return(range.start <= range.one_past_last);
+}
+
+static i32
+replace_range_compute_shift(i32 replace_start, i32 replace_end, i32 insert_length){
+    return(insert_length - (replace_end - replace_start));
+}
+
+static i32
+replace_range_compute_shift(Range range, i32 insert_length){
+    return(replace_range_compute_shift(range.first, range.one_past_last, insert_length));
 }
 
 ////////////////////////////////

@@ -41,7 +41,7 @@ CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipb
     view_get_buffer(app, view.view_id, AccessOpen, &buffer);
     Range range = get_view_range(&view);
     if (post_buffer_range_to_clipboard(app, &global_part, 0, buffer, range.min, range.max)){
-        buffer_replace_range(app, buffer, range.min, range.max, make_lit_string(""));
+        buffer_replace_range(app, buffer, range, make_lit_string(""));
     }
 }
 
@@ -72,7 +72,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             view_get_buffer(app, view.view_id, AccessOpen, &buffer);
             
             i32 pos = view.cursor.pos;
-            buffer_replace_range(app, buffer, pos, pos, make_string(str, len));
+            buffer_replace_range(app, buffer, make_range(pos), make_string(str, len));
             view_set_mark(app, &view, seek_pos(pos));
             view_set_cursor(app, &view, seek_pos(pos + len), true);
             
@@ -119,7 +119,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
                 Range range = get_view_range(&view);
                 i32 pos = range.min;
                 
-                buffer_replace_range(app, buffer, range.min, range.max, make_string(str, len));
+                buffer_replace_range(app, buffer, range, make_string(str, len));
                 view_set_cursor(app, &view, seek_pos(pos + len), true);
                 
                 // TODO(allen): Send this to all views.
