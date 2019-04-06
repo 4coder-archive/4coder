@@ -147,7 +147,7 @@ CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = 0;
     view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    Range range = get_view_range(&view);
+    Range range = get_view_range(app, view.view_id);
     buffer_replace_range(app, buffer, range, make_lit_string(""));
 }
 
@@ -412,7 +412,7 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = 0;
     view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    Range range = get_view_range(&view);
+    Range range = get_view_range(app, view.view_id);
     i32 size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
@@ -431,7 +431,7 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = 0;
     view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    Range range = get_view_range(&view);
+    Range range = get_view_range(app, view.view_id);
     i32 size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
@@ -982,7 +982,7 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     Buffer_ID buffer_id = 0;
     view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
     
-    Range range = get_view_range(&view);
+    Range range = get_view_range(app, view.view_id);
     
     i32 pos = range.min;
     i32 new_pos;
@@ -992,7 +992,7 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     for (;new_pos + r.size <= range.end;){
         buffer_replace_range(app, buffer_id, make_range(new_pos, new_pos + r.size), w);
         refresh_view(app, &view);
-        range = get_view_range(&view);
+        range = get_view_range(app, view.view_id);
         pos = new_pos + w.size;
         buffer_seek_string_forward(app, buffer_id, pos, 0, r.str, r.size, &new_pos);
     }
@@ -1129,7 +1129,7 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
         Partition *part = &global_part;
         Temp_Memory temp = begin_temp_memory(part);
         
-        Range range = get_view_range(&view);
+        Range range = get_view_range(app, view.view_id);
         i32 replace_length = range.max - range.min;
         if (replace_length != 0){
             char *replace_space = push_array(part, char, replace_length);

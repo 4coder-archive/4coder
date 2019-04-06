@@ -5,17 +5,20 @@
 // TOP
 
 static void
-write_string(Application_Links *app, View_Summary *view, Buffer_ID buffer, String string){
-    buffer_replace_range(app, buffer, make_range(view->cursor.pos), string);
-    view_set_cursor(app, view, seek_pos(view->cursor.pos + string.size), 1);
+write_string(Application_Links *app, View_ID view, Buffer_ID buffer, String string){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    buffer_replace_range(app, buffer, make_range(pos), string);
+    view_set_cursor(app, view, seek_pos(pos + string.size), 1);
 }
 
 static void
 write_string(Application_Links *app, String string){
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    write_string(app, &view, buffer, string);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    write_string(app, view, buffer, string);
 }
 
 static void
@@ -42,14 +45,16 @@ write_named_comment_string(Application_Links *app, char *type_string){
 
 static void
 long_braces(Application_Links *app, char *text, i32 size){
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    i32 pos = view.cursor.pos;
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
     buffer_replace_range(app, buffer, make_range(pos), make_string(text, size));
-    view_set_cursor(app, &view, seek_pos(pos + 2), true);
+    view_set_cursor(app, view, seek_pos(pos + 2), true);
     buffer_auto_indent(app, &global_part, buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
-    move_past_lead_whitespace(app, &view, buffer);
+    move_past_lead_whitespace(app, view, buffer);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces)
@@ -113,9 +118,12 @@ CUSTOM_DOC("At the cursor, insert a ' = {};'.")
 }
 
 static i32
-get_start_of_line_at_cursor(Application_Links *app, View_Summary *view, Buffer_ID buffer){
+get_start_of_line_at_cursor(Application_Links *app, View_ID view, Buffer_ID buffer){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
     Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_line_char(view->cursor.line, 1), &cursor);
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    view_compute_cursor(app, view, seek_line_char(cursor.line, 1), &cursor);
     Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, cursor.pos, DEF_TAB_WIDTH);
     return(hard_start.char_pos);
 }
@@ -135,10 +143,11 @@ c_line_comment_starts_at_position(Application_Links *app, Buffer_ID buffer, i32 
 CUSTOM_COMMAND_SIG(comment_line)
 CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    i32 pos = get_start_of_line_at_cursor(app, &view, buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (!alread_has_comment){
         buffer_replace_range(app, buffer, make_range(pos), make_lit_string("//"));
@@ -148,10 +157,11 @@ CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
 CUSTOM_COMMAND_SIG(uncomment_line)
 CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading whitespace.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    i32 pos = get_start_of_line_at_cursor(app, &view, buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
         buffer_replace_range(app, buffer, make_range(pos, pos + 2), make_lit_string(""));
@@ -161,10 +171,11 @@ CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading w
 CUSTOM_COMMAND_SIG(comment_line_toggle)
 CUSTOM_DOC("Turns uncommented lines into commented lines and vice versa for comments starting with '//'.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    i32 pos = get_start_of_line_at_cursor(app, &view, buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
         buffer_replace_range(app, buffer, make_range(pos, pos + 2), make_lit_string(""));

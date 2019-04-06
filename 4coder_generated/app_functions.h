@@ -170,7 +170,6 @@ struct Application_Links;
 #define DRAW_CLIP_POP_SIG(n) f32_Rect n(Application_Links *app)
 #define DRAW_COORDINATE_CENTER_PUSH_SIG(n) void n(Application_Links *app, Vec2 point)
 #define DRAW_COORDINATE_CENTER_POP_SIG(n) Vec2 n(Application_Links *app)
-#define GET_DEFAULT_FONT_FOR_VIEW_SIG(n) Face_ID n(Application_Links *app, View_ID view_id)
 #define TEXT_LAYOUT_GET_BUFFER_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out)
 #define TEXT_LAYOUT_BUFFER_POINT_TO_LAYOUT_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out)
 #define TEXT_LAYOUT_LAYOUT_POINT_TO_BUFFER_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out)
@@ -354,7 +353,6 @@ typedef DRAW_CLIP_PUSH_SIG(Draw_Clip_Push_Function);
 typedef DRAW_CLIP_POP_SIG(Draw_Clip_Pop_Function);
 typedef DRAW_COORDINATE_CENTER_PUSH_SIG(Draw_Coordinate_Center_Push_Function);
 typedef DRAW_COORDINATE_CENTER_POP_SIG(Draw_Coordinate_Center_Pop_Function);
-typedef GET_DEFAULT_FONT_FOR_VIEW_SIG(Get_Default_Font_For_View_Function);
 typedef TEXT_LAYOUT_GET_BUFFER_SIG(Text_Layout_Get_Buffer_Function);
 typedef TEXT_LAYOUT_BUFFER_POINT_TO_LAYOUT_POINT_SIG(Text_Layout_Buffer_Point_To_Layout_Point_Function);
 typedef TEXT_LAYOUT_LAYOUT_POINT_TO_BUFFER_POINT_SIG(Text_Layout_Layout_Point_To_Buffer_Point_Function);
@@ -540,7 +538,6 @@ Draw_Clip_Push_Function *draw_clip_push;
 Draw_Clip_Pop_Function *draw_clip_pop;
 Draw_Coordinate_Center_Push_Function *draw_coordinate_center_push;
 Draw_Coordinate_Center_Pop_Function *draw_coordinate_center_pop;
-Get_Default_Font_For_View_Function *get_default_font_for_view;
 Text_Layout_Get_Buffer_Function *text_layout_get_buffer;
 Text_Layout_Buffer_Point_To_Layout_Point_Function *text_layout_buffer_point_to_layout_point;
 Text_Layout_Layout_Point_To_Buffer_Point_Function *text_layout_layout_point_to_buffer_point;
@@ -725,7 +722,6 @@ Draw_Clip_Push_Function *draw_clip_push_;
 Draw_Clip_Pop_Function *draw_clip_pop_;
 Draw_Coordinate_Center_Push_Function *draw_coordinate_center_push_;
 Draw_Coordinate_Center_Pop_Function *draw_coordinate_center_pop_;
-Get_Default_Font_For_View_Function *get_default_font_for_view_;
 Text_Layout_Get_Buffer_Function *text_layout_get_buffer_;
 Text_Layout_Buffer_Point_To_Layout_Point_Function *text_layout_buffer_point_to_layout_point_;
 Text_Layout_Layout_Point_To_Buffer_Point_Function *text_layout_layout_point_to_buffer_point_;
@@ -918,7 +914,6 @@ app_links->draw_clip_push_ = Draw_Clip_Push;\
 app_links->draw_clip_pop_ = Draw_Clip_Pop;\
 app_links->draw_coordinate_center_push_ = Draw_Coordinate_Center_Push;\
 app_links->draw_coordinate_center_pop_ = Draw_Coordinate_Center_Pop;\
-app_links->get_default_font_for_view_ = Get_Default_Font_For_View;\
 app_links->text_layout_get_buffer_ = Text_Layout_Get_Buffer;\
 app_links->text_layout_buffer_point_to_layout_point_ = Text_Layout_Buffer_Point_To_Layout_Point;\
 app_links->text_layout_layout_point_to_buffer_point_ = Text_Layout_Layout_Point_To_Buffer_Point;\
@@ -1103,7 +1098,6 @@ static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop(app));}
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop(app));}
-static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view(app, view_id));}
 static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer(app, text_layout_id, buffer_id_out));}
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point(app, text_layout_id, layout_relative_p, p_out));}
@@ -1288,7 +1282,6 @@ static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop_(app));}
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push_(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop_(app));}
-static Face_ID get_default_font_for_view(Application_Links *app, View_ID view_id){return(app->get_default_font_for_view_(app, view_id));}
 static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer_(app, text_layout_id, buffer_id_out));}
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point_(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point_(app, text_layout_id, layout_relative_p, p_out));}

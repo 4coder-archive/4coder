@@ -8,8 +8,9 @@ such as open file, switch buffer, or kill buffer.
 CUSTOM_COMMAND_SIG(lister__quit)
 CUSTOM_DOC("A lister mode command that quits the list without executing any actions.")
 {
-    View_Summary view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, &view);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    view_end_ui_mode(app, view);
 }
 
 CUSTOM_COMMAND_SIG(lister__activate)
@@ -32,8 +33,9 @@ CUSTOM_DOC("A lister mode command that activates the list's action on the highli
 CUSTOM_COMMAND_SIG(lister__write_character)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's write character handler.")
 {
-    View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.write_character != 0){
         state->lister.data.handlers.write_character(app);
     }
@@ -42,8 +44,9 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's write characte
 CUSTOM_COMMAND_SIG(lister__backspace_text_field)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's backspace text field handler.")
 {
-    View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.backspace != 0){
         state->lister.data.handlers.backspace(app);
     }
@@ -52,8 +55,9 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's backspace text
 CUSTOM_COMMAND_SIG(lister__move_up)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate up handler.")
 {
-    View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.navigate_up != 0){
         state->lister.data.handlers.navigate_up(app);
     }
@@ -62,8 +66,9 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate up ha
 CUSTOM_COMMAND_SIG(lister__move_down)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate down handler.")
 {
-    View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.navigate_down != 0){
         state->lister.data.handlers.navigate_down(app);
     }
@@ -90,10 +95,11 @@ CUSTOM_COMMAND_SIG(lister__mouse_press)
 CUSTOM_DOC("A lister mode command that beings a click interaction with a list item under the mouse.")
 {
     Partition *scratch = &global_part;
-    View_Summary view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
-        UI_Item clicked = lister_get_clicked_item(app, view.view_id, scratch);
+        UI_Item clicked = lister_get_clicked_item(app, view, scratch);
         state->hot_user_data = clicked.user_data;
     }
 }
@@ -508,17 +514,21 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     i32 currently_viewed_buffer_count = 0;
     
     // List currently viewed buffers
-    for (View_Summary view = get_view_first(app, AccessAll);
-         view.exists;
-         get_view_next(app, &view, AccessAll)){
-        Buffer_ID new_buffer_id = view.buffer_id;
-        for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-            if (new_buffer_id == buffers_currently_being_viewed[i]){
-                goto skip0;
+    {
+        View_ID view = 0;
+        for (get_view_next(app, 0, AccessAll, &view);
+             view != 0;
+             get_view_next(app, view, AccessAll, &view)){
+            Buffer_ID new_buffer_id = 0;
+            view_get_buffer(app, view, AccessAll, &new_buffer_id);
+            for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
+                if (new_buffer_id == buffers_currently_being_viewed[i]){
+                    goto skip0;
+                }
             }
+            buffers_currently_being_viewed[currently_viewed_buffer_count++] = new_buffer_id;
+            skip0:;
         }
-        buffers_currently_being_viewed[currently_viewed_buffer_count++] = new_buffer_id;
-        skip0:;
     }
     
     // Regular Buffers

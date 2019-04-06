@@ -531,51 +531,6 @@ adjust_all_buffer_wrap_widths(Application_Links *app, i32 wrap_width, i32 min_ba
     }
 }
 
-static Buffer_Rect
-get_rect(View_Summary *view){
-    Buffer_Rect rect = {};
-    
-    rect.char0 = view->mark.character;
-    rect.line0 = view->mark.line;
-    
-    rect.char1 = view->cursor.character;
-    rect.line1 = view->cursor.line;
-    
-    if (rect.line0 > rect.line1){
-        Swap(i32, rect.line0, rect.line1);
-    }
-    if (rect.char0 > rect.char1){
-        Swap(i32, rect.char0, rect.char1);
-    }
-    
-    return(rect);
-}
-
-static i32_Rect
-get_line_x_rect(View_Summary *view){
-    i32_Rect rect = {};
-    
-    if (view->unwrapped_lines){
-        rect.x0 = (i32)view->mark.unwrapped_x;
-        rect.x1 = (i32)view->cursor.unwrapped_x;
-    }
-    else{
-        rect.x0 = (i32)view->mark.wrapped_x;
-        rect.x1 = (i32)view->cursor.wrapped_x;
-    }
-    rect.y0 = view->mark.line;
-    rect.y1 = view->cursor.line;
-    
-    if (rect.y0 > rect.y1){
-        Swap(i32, rect.y0, rect.y1);
-    }
-    if (rect.x0 > rect.x1){
-        Swap(i32, rect.x0, rect.x1);
-    }
-    
-    return(rect);
-}
-
 static View_ID
 get_first_view_with_buffer(Application_Links *app, Buffer_ID buffer_id){
     View_ID result = {};
@@ -756,8 +711,11 @@ get_view_x(View_Summary *view){
 }
 
 static Range
-get_view_range(View_Summary *view){
-    return(make_range(view->cursor.pos, view->mark.pos));
+get_view_range(Application_Links *app, View_ID view){
+    Range range = {};
+    view_get_cursor_pos(app, view, &range.first);
+    view_get_mark_pos(app, view, &range.one_past_last);
+    return(rectify(range));
 }
 
 static String
@@ -1281,7 +1239,7 @@ get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary 
     Buffer_ID buffer = 0;
     view_get_buffer(app, view->view_id, AccessProtected, &buffer);
     if (buffer_exists(app, buffer)){
-        Range range = get_view_range(view);
+        Range range = get_view_range(app, view->view_id);
         i32 query_length = range.max - range.min;
         if (query_length != 0){
             char *query_space = push_array(arena, char, query_length);
@@ -1576,7 +1534,7 @@ if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_
     b32 result = false;
     if (view_has_highlighted_range(app, view_id)){
         View_Summary view = get_view(app, view_id, AccessAll);
-        Range range = get_view_range(&view);
+        Range range = get_view_range(app, view_id);
         Buffer_ID buffer = 0;
         view_get_buffer(app, view.view_id, AccessOpen, &buffer);
         buffer_replace_range(app, buffer, range, make_lit_string(""));

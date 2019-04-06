@@ -612,9 +612,10 @@ buffer_auto_indent(Application_Links *app, Buffer_ID buffer, i32 start, i32 end,
 CUSTOM_COMMAND_SIG(auto_tab_whole_file)
 CUSTOM_DOC("Audo-indents the entire current buffer.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
     i32 buffer_size = 0;
     buffer_get_size(app, buffer, &buffer_size);
     buffer_auto_indent(app, &global_part, buffer, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
@@ -623,38 +624,45 @@ CUSTOM_DOC("Audo-indents the entire current buffer.")
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor)
 CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    buffer_auto_indent(app, &global_part, buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
-    move_past_lead_whitespace(app, &view, buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    buffer_auto_indent(app, &global_part, buffer, pos, pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    move_past_lead_whitespace(app, view, buffer);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range)
 CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    Range range = get_view_range(&view);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    Range range = get_view_range(app, view);
     buffer_auto_indent(app, &global_part, buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
-    move_past_lead_whitespace(app, &view, buffer);
+    move_past_lead_whitespace(app, view, buffer);
 }
 
 CUSTOM_COMMAND_SIG(write_and_auto_tab)
 CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor sits.")
 {
-    exec_command(app, write_character);
-    View_Summary view = get_active_view(app, AccessOpen);
+    write_character(app);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
     u32 flags = DEFAULT_INDENT_FLAGS;
     User_Input in = get_command_input(app);
     if (in.key.character == '\n'){
         flags |= AutoIndent_ExactAlignBlock;
     }
-    buffer_auto_indent(app, &global_part, buffer, view.cursor.pos, view.cursor.pos, DEF_TAB_WIDTH, flags);
-    move_past_lead_whitespace(app, &view, buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    buffer_auto_indent(app, &global_part, buffer, pos, pos, DEF_TAB_WIDTH, flags);
+    move_past_lead_whitespace(app, view, buffer);
 }
 
 // BOTTOM

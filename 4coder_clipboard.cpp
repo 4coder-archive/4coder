@@ -26,20 +26,22 @@ post_buffer_range_to_clipboard(Application_Links *app, Partition *scratch, i32 c
 CUSTOM_COMMAND_SIG(copy)
 CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clipboard.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
-    Range range = get_view_range(&view);
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    Range range = get_view_range(app, view);
     post_buffer_range_to_clipboard(app, &global_part, 0, buffer, range.min, range.max);
 }
 
 CUSTOM_COMMAND_SIG(cut)
 CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipboard.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
-    Range range = get_view_range(&view);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    Range range = get_view_range(app, view);
     if (post_buffer_range_to_clipboard(app, &global_part, 0, buffer, range.min, range.max)){
         buffer_replace_range(app, buffer, range, make_lit_string(""));
     }
@@ -50,11 +52,11 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
 {
     i32 count = clipboard_count(app, 0);
     if (count > 0){
-        View_Summary view = get_active_view(app, AccessOpen);
-        if_view_has_highlighted_range_delete_range(app, view.view_id);
-        view = get_view(app, view.view_id, AccessOpen);
+        View_ID view = 0;
+        get_active_view(app, AccessOpen, &view);
+        if_view_has_highlighted_range_delete_range(app, view);
         
-        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
+        Managed_Scope scope = view_get_managed_scope(app, view);
         managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
         i32 paste_index = 0;
         managed_variable_set(app, scope, view_paste_index_loc, paste_index);
@@ -69,18 +71,19 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             clipboard_index(app, 0, paste_index, str, len);
             
             Buffer_ID buffer = 0;
-            view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+            view_get_buffer(app, view, AccessOpen, &buffer);
             
-            i32 pos = view.cursor.pos;
+            i32 pos = 0;
+            view_get_cursor_pos(app, view, &pos);
             buffer_replace_range(app, buffer, make_range(pos), make_string(str, len));
-            view_set_mark(app, &view, seek_pos(pos));
-            view_set_cursor(app, &view, seek_pos(pos + len), true);
+            view_set_mark(app, view, seek_pos(pos));
+            view_set_cursor(app, view, seek_pos(pos + len), true);
             
             // TODO(allen): Send this to all views.
             Theme_Color paste = {};
             paste.tag = Stag_Paste;
             get_theme_colors(app, &paste, 1);
-            view_post_fade(app, &view, 0.667f, pos, pos + len, paste.color);
+            view_post_fade(app, view, 0.667f, pos, pos + len, paste.color);
         }
     }
 }
@@ -90,8 +93,9 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
 {
     i32 count = clipboard_count(app, 0);
     if (count > 0){
-        View_Summary view = get_active_view(app, AccessOpen);
-        Managed_Scope scope = view_get_managed_scope(app, view.view_id);
+        View_ID view = 0;
+        get_active_view(app, AccessOpen, &view);
+        Managed_Scope scope = view_get_managed_scope(app, view);
         no_mark_snap_to_cursor(app, scope);
         
         u64 rewrite = 0;
@@ -114,19 +118,19 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
                 clipboard_index(app, 0, paste_index, str, len);
                 
                 Buffer_ID buffer = 0;
-                view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+                view_get_buffer(app, view, AccessOpen, &buffer);
                 
-                Range range = get_view_range(&view);
+                Range range = get_view_range(app, view);
                 i32 pos = range.min;
                 
                 buffer_replace_range(app, buffer, range, make_string(str, len));
-                view_set_cursor(app, &view, seek_pos(pos + len), true);
+                view_set_cursor(app, view, seek_pos(pos + len), true);
                 
                 // TODO(allen): Send this to all views.
                 Theme_Color paste = {};
                 paste.tag = Stag_Paste;
                 get_theme_colors(app, &paste, 1);
-                view_post_fade(app, &view, 0.667f, pos, pos + len, paste.color);
+                view_post_fade(app, view, 0.667f, pos, pos + len, paste.color);
             }
         }
         else{

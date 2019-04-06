@@ -44,15 +44,6 @@ struct File_Name_Path_Data{
 
 ////////////////////////////////
 
-struct Buffer_Rect{
-    i32 char0;
-    i32 line0;
-    i32 char1;
-    i32 line1;
-};
-
-////////////////////////////////
-
 struct Stream_Chunk{
     Application_Links *app;
     Buffer_ID buffer_id;

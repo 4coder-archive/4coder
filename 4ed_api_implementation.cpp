@@ -4051,17 +4051,6 @@ Draw_Coordinate_Center_Pop(Application_Links *app){
     return(result);
 }
 
-API_EXPORT Face_ID
-Get_Default_Font_For_View(Application_Links *app, View_ID view_id)
-{
-    Models *models = (Models*)app->cmd_context;
-    View *view = imp_get_view(models, view_id);
-    Editing_File *file = view->file;
-    Assert(file != 0);
-    Face_ID face_id = file->settings.font_id;
-    return(face_id);
-}
-
 API_EXPORT b32
 Text_Layout_Get_Buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){
     Models *models = (Models*)app->cmd_context;

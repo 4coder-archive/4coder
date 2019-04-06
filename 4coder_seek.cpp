@@ -60,10 +60,11 @@ seek_line_beginning(Application_Links *app, Buffer_ID buffer_id, i32 pos){
 }
 
 static void
-move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_ID buffer_id){
-    refresh_view(app, view);
+move_past_lead_whitespace(Application_Links *app, View_ID view, Buffer_ID buffer_id){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
     
-    i32 new_pos = seek_line_beginning(app, buffer_id, view->cursor.pos);
+    i32 new_pos = seek_line_beginning(app, buffer_id, pos);
     char space[1024];
     Stream_Chunk chunk = {};
     i32 still_looping = false;
@@ -81,7 +82,7 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_ID 
         }while(still_looping);
         break2:;
         
-        if (i > view->cursor.pos){
+        if (i > pos){
             view_set_cursor(app, view, seek_pos(i), true);
         }
     }
@@ -962,51 +963,52 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, i32 start_pos,
 }
 
 static void
-view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, i32 dir, u32 flags){
-    i32 pos = buffer_boundary_seek(app, buffer_id, &global_part, view->cursor.pos, dir, flags);
+view_buffer_boundary_seek_set_pos(Application_Links *app, View_ID view, Buffer_ID buffer_id, i32 dir, u32 flags){
+    i32 cursor_pos = 0;
+    view_get_cursor_pos(app, view, &cursor_pos);
+    i32 pos = buffer_boundary_seek(app, buffer_id, &global_part, cursor_pos, dir, flags);
     view_set_cursor(app, view, seek_pos(pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view->view_id);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 static void
-view_boundary_seek_set_pos(Application_Links *app, View_Summary *view, i32 dir, u32 flags){
+view_boundary_seek_set_pos(Application_Links *app, View_ID view, i32 dir, u32 flags){
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view->view_id, AccessProtected, &buffer_id);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
     view_buffer_boundary_seek_set_pos(app, view, buffer_id, dir, flags);
 }
 
 static void
 current_view_boundary_seek_set_pos(Application_Links *app, i32 dir, u32 flags){
-    View_Summary view = get_active_view(app, AccessProtected);
-    view_boundary_seek_set_pos(app, &view, dir, flags);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    view_boundary_seek_set_pos(app, view, dir, flags);
 }
 
 static Range
-view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, i32 dir, u32 flags){
-    i32 pos1 = view->cursor.pos;
+view_buffer_boundary_range(Application_Links *app, View_ID view, Buffer_ID buffer_id, i32 dir, u32 flags){
+    i32 pos1 = 0;
+    view_get_cursor_pos(app, view, &pos1);
     i32 pos2 = buffer_boundary_seek(app, buffer_id, pos1, dir, flags);
     return(make_range(pos1, pos2));
 }
 
 static Range
-view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, i32 dir, u32 flags){
+view_buffer_snipe_range(Application_Links *app, View_ID view, Buffer_ID buffer_id, i32 dir, u32 flags){
     i32 buffer_size = 0;
     buffer_get_size(app, buffer_id, &buffer_size);
     Range result = {};
-    i32 pos0 = view->cursor.pos;
+    i32 pos0 = 0;
+    view_get_cursor_pos(app, view, &pos0);
     i32 pos1 = buffer_boundary_seek(app, buffer_id, pos0, dir, flags);
     if (0 <= pos1 && pos1 <= buffer_size){
         i32 pos2 = buffer_boundary_seek(app, buffer_id, pos1, flip_dir(dir), flags);
         if (0 <= pos2 && pos2 <= buffer_size){
             if (dir == DirLeft){
-                if (pos2 < pos0){
-                    pos2 = pos0;
-                }
+                pos2 = clamp_bottom(pos2, pos0);
             }
             else{
-                if (pos2 > pos0){
-                    pos2 = pos0;
-                }
+                pos2 = clamp_top(pos2, pos0);
             }
             result = make_range(pos1, pos2);
         }
@@ -1016,22 +1018,22 @@ view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_ID bu
 
 static void
 current_view_boundary_delete(Application_Links *app, i32 dir, u32 flags){
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer_id);
-    Range range = view_buffer_boundary_range(app, &view, buffer_id, dir, flags);
-    String zero = {};
-    buffer_replace_range(app, buffer_id, range, zero);
+    view_get_buffer(app, view, AccessOpen, &buffer_id);
+    Range range = view_buffer_boundary_range(app, view, buffer_id, dir, flags);
+    buffer_replace_range(app, buffer_id, range, make_lit_string(""));
 }
 
 static void
 current_view_snipe_delete(Application_Links *app, i32 dir, u32 flags){
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer_id);
-    Range range = view_buffer_snipe_range(app, &view, buffer_id, dir, flags);
-    String zero = {};
-    buffer_replace_range(app, buffer_id, range, zero);
+    view_get_buffer(app, view, AccessOpen, &buffer_id);
+    Range range = view_buffer_snipe_range(app, view, buffer_id, dir, flags);
+    buffer_replace_range(app, buffer_id, range, make_lit_string(""));
 }
 
 ////////////////////////////////
@@ -1039,113 +1041,137 @@ current_view_snipe_delete(Application_Links *app, i32 dir, u32 flags){
 CUSTOM_COMMAND_SIG(seek_whitespace_up)
 CUSTOM_DOC("Seeks the cursor up to the next blank line.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
-    i32 new_pos = buffer_seek_whitespace_up(app, buffer_id, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = buffer_seek_whitespace_up(app, buffer_id, pos);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down)
 CUSTOM_DOC("Seeks the cursor down to the next blank line.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
-    i32 new_pos = buffer_seek_whitespace_down(app, buffer_id, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = buffer_seek_whitespace_down(app, buffer_id, pos);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line)
 CUSTOM_DOC("Seeks the cursor to the beginning of the line across all text.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
-    i32 new_pos = seek_line_beginning(app, buffer_id, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = seek_line_beginning(app, buffer_id, pos);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_textual_line)
 CUSTOM_DOC("Seeks the cursor to the end of the line across all text.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
-    i32 new_pos = seek_line_end(app, buffer_id, view.cursor.pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = seek_line_end(app, buffer_id, pos);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_line)
 CUSTOM_DOC("Seeks the cursor to the beginning of the visual line.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
-    float y = view.cursor.wrapped_y;
-    if (view.unwrapped_lines){
-        y = view.cursor.unwrapped_y;
-    }
-    view_set_cursor(app, &view, seek_xy(0, y, 1, view.unwrapped_lines), 1);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    f32 y = cursor.wrapped_y;
+    view_set_cursor(app, view, seek_wrapped_xy(0.f, y, true), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_line)
 CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
-    float y = view.cursor.wrapped_y;
-    if (view.unwrapped_lines){
-        y = view.cursor.unwrapped_y;
-    }
-    view_set_cursor(app, &view, seek_xy(max_f32, y, 1, view.unwrapped_lines), 1);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    f32 y = cursor.wrapped_y;
+    view_set_cursor(app, view, seek_wrapped_xy(max_f32, y, true), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line)
 CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
-    i32 new_pos = buffer_seek_whitespace_up(app, buffer_id, view.cursor.pos);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = buffer_seek_whitespace_up(app, buffer_id, pos);
     new_pos = seek_line_end(app, buffer_id, new_pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line)
 CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
-    i32 new_pos = buffer_seek_whitespace_down(app, buffer_id, view.cursor.pos);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = buffer_seek_whitespace_down(app, buffer_id, pos);
     new_pos = seek_line_end(app, buffer_id, new_pos);
-    view_set_cursor(app, &view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(goto_beginning_of_file)
 CUSTOM_DOC("Sets the cursor to the beginning of the file.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
-    view_set_cursor(app, &view, seek_pos(0), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    view_set_cursor(app, view, seek_pos(0), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 CUSTOM_COMMAND_SIG(goto_end_of_file)
 CUSTOM_DOC("Sets the cursor to the end of the file.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer_id);
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
     i32 size = 0;
     buffer_get_size(app, buffer_id, &size);
-    view_set_cursor(app, &view, seek_pos(size), true);
-    no_mark_snap_to_cursor_if_shift(app, view.view_id);
+    view_set_cursor(app, view, seek_pos(size), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
 }
 
 ////////////////////////////////

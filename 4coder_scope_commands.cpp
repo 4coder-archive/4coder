@@ -287,7 +287,7 @@ find_scope_range(Application_Links *app, Buffer_ID buffer, i32 start_pos, Range 
 }
 
 static void
-view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i32 minor_pos, f32 normalized_threshold){
+view_set_to_region(Application_Links *app, View_ID view, i32 major_pos, i32 minor_pos, f32 normalized_threshold){
     Range range = make_range(major_pos, minor_pos);
     b32 bottom_major = false;
     if (major_pos == range.max){
@@ -300,15 +300,12 @@ view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i3
         if (view_compute_cursor(app, view, seek_pos(range.max), &bottom)){
             f32 top_y = top.wrapped_y;
             f32 bottom_y = bottom.wrapped_y;
-            if (view->unwrapped_lines){
-                top_y = top.unwrapped_y;
-                bottom_y = bottom.unwrapped_y;
-            }
             
             Rect_i32 region = {};
-            view_get_buffer_region(app, view->view_id, &region);
+            view_get_buffer_region(app, view, &region);
             
-            GUI_Scroll_Vars scroll = view->scroll_vars;
+            GUI_Scroll_Vars scroll = {};
+            view_get_scroll_vars(app, view, &scroll);
             f32 half_view_height = .5f*(f32)(rect_height(region));
             f32 threshold = normalized_threshold * half_view_height;
             f32 current_center_y = ((f32)scroll.target_y) + half_view_height;
@@ -342,33 +339,39 @@ view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i3
 CUSTOM_COMMAND_SIG(select_surrounding_scope)
 CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
     Range range = {};
-    if (find_scope_range(app, buffer, view.cursor.pos, &range, FindScope_Brace)){
-        view_set_cursor(app, &view, seek_pos(range.first), true);
-        view_set_mark(app, &view, seek_pos(range.end));
-        view_set_to_region(app, &view, range.first, range.end, scope_center_threshold);
-        no_mark_snap_to_cursor(app, view.view_id);
+    if (find_scope_range(app, buffer, pos, &range, FindScope_Brace)){
+        view_set_cursor(app, view, seek_pos(range.first), true);
+        view_set_mark(app, view, seek_pos(range.end));
+        view_set_to_region(app, view, range.first, range.end, scope_center_threshold);
+        no_mark_snap_to_cursor(app, view);
     }
 }
 
 CUSTOM_COMMAND_SIG(select_next_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
-    i32 start_pos = view.cursor.pos;
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 start_pos = pos;
     i32 top = 0;
     i32 bottom = 0;
     if (find_next_scope(app, buffer, start_pos, FindScope_Brace, &top)){
         if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
-            view_set_cursor(app, &view, seek_pos(top), true);
-            view_set_mark(app, &view, seek_pos(bottom));
-            view_set_to_region(app, &view, top, bottom, scope_center_threshold);
-            no_mark_snap_to_cursor(app, view.view_id);
+            view_set_cursor(app, view, seek_pos(top), true);
+            view_set_mark(app, view, seek_pos(bottom));
+            view_set_to_region(app, view, top, bottom, scope_center_threshold);
+            no_mark_snap_to_cursor(app, view);
         }
     }
 }
@@ -376,29 +379,34 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
 CUSTOM_COMMAND_SIG(select_prev_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
-    i32 start_pos = view.cursor.pos;
-    i32 top = 0, bottom = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 start_pos = pos;
+    i32 top = 0;
+    i32 bottom = 0;
     if (find_prev_scope(app, buffer, start_pos, FindScope_Brace, &top)){
         if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
-            view_set_cursor(app, &view, seek_pos(top), true);
-            view_set_mark(app, &view, seek_pos(bottom));
-            view_set_to_region(app, &view, top, bottom, scope_center_threshold);
-            no_mark_snap_to_cursor(app, view.view_id);
+            view_set_cursor(app, view, seek_pos(top), true);
+            view_set_mark(app, view, seek_pos(bottom));
+            view_set_to_region(app, view, top, bottom, scope_center_threshold);
+            no_mark_snap_to_cursor(app, view);
         }
     }
 }
 
 static void
 place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, char *begin, char *end){
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
     
     Range lines = {};
-    Range range = get_view_range(&view);
+    Range range = get_view_range(app, view);
     lines.min = buffer_get_line_number(app, buffer, range.min);
     lines.max = buffer_get_line_number(app, buffer, range.max);
     range.min = buffer_get_line_start(app, buffer, lines.min);
@@ -442,7 +450,11 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
         i32 cursor_pos = min_pos;
         i32 mark_pos = max_pos;
         
-        if (view.cursor.pos > view.mark.pos){
+        i32 view_cursor_pos = 0;
+        view_get_cursor_pos(app, view, &view_cursor_pos);
+        i32 view_mark_pos = 0;
+        view_get_mark_pos(app, view, &view_mark_pos);
+        if (view_cursor_pos > view_mark_pos){
             cursor_pos = max_pos;
             mark_pos = min_pos;
         }
@@ -459,14 +471,14 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
         
         buffer_batch_edit(app, buffer, str, edits, 2);
         
-        view_set_cursor(app, &view, seek_pos(cursor_pos), true);
-        view_set_mark(app, &view, seek_pos(mark_pos));
+        view_set_cursor(app, view, seek_pos(cursor_pos), true);
+        view_set_mark(app, view, seek_pos(mark_pos));
     }
     else{
         buffer_replace_range(app, buffer, range, make_string(str, str_size));
         i32 center_pos = range.min + begin_len + 1;
-        view_set_cursor(app, &view, seek_pos(center_pos), true);
-        view_set_mark(app, &view, seek_pos(center_pos));
+        view_set_cursor(app, view, seek_pos(center_pos), true);
+        view_set_mark(app, view, seek_pos(center_pos));
     }
     
     end_temp_memory(temp);
@@ -481,12 +493,18 @@ CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a
 CUSTOM_COMMAND_SIG(delete_current_scope)
 CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves the contents within the scope.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
     
-    i32 top = view.cursor.pos;
-    i32 bottom = view.mark.pos;
+    i32 view_cursor_pos = 0;
+    view_get_cursor_pos(app, view, &view_cursor_pos);
+    i32 view_mark_pos = 0;
+    view_get_mark_pos(app, view, &view_mark_pos);
+    
+    i32 top = view_cursor_pos;
+    i32 bottom = view_mark_pos;
     
     if (top > bottom){
         i32 x = top;
@@ -716,12 +734,18 @@ find_whole_statement_down(Application_Links *app, Buffer_ID buffer, i32 pos, i32
 CUSTOM_COMMAND_SIG(scope_absorb_down)
 CUSTOM_DOC("If a scope is currently selected, and a statement or block statement is present below the current scope, the statement is moved into the scope.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
     
-    i32 top = view.cursor.pos;
-    i32 bottom = view.mark.pos;
+    i32 view_cursor_pos = 0;
+    view_get_cursor_pos(app, view, &view_cursor_pos);
+    i32 view_mark_pos = 0;
+    view_get_mark_pos(app, view, &view_mark_pos);
+    
+    i32 top = view_cursor_pos;
+    i32 bottom = view_mark_pos;
     
     if (top > bottom){
         i32 x = top;
@@ -785,7 +809,7 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
     }
     end_temp_memory(temp);
     
-    no_mark_snap_to_cursor(app, view.view_id);
+    no_mark_snap_to_cursor(app, view);
 }
 
 // BOTTOM

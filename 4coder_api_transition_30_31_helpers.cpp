@@ -105,9 +105,7 @@ seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, i32 pos){
 
 static void
 move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
-    if (view != 0 && buffer != 0){
-        move_past_lead_whitespace(app, view, buffer->buffer_id);
-    }
+    move_past_lead_whitespace(app, view!=0?0:view->view_id, buffer!=0?0:buffer->buffer_id);
 }
 
 static i32
@@ -259,27 +257,22 @@ buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, i32 start_p
 
 static void
 view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
-    if (buffer != 0){
-        view_buffer_boundary_seek_set_pos(app, view, buffer->buffer_id, dir, flags);
-    }
+    view_buffer_boundary_seek_set_pos(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, dir, flags);
+}
+
+static void
+view_boundary_seek_set_pos(Application_Links *app, View_Summary *view, i32 dir, u32 flags){
+    view_boundary_seek_set_pos(app, view==0?0:view->view_id, dir, flags);
 }
 
 static Range
 view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
-    Range result = {};
-    if (buffer != 0){
-        result = view_buffer_boundary_range(app, view, buffer->buffer_id, dir, flags);
-    }
-    return(result);
+    return(view_buffer_boundary_range(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, dir, flags));
 }
 
 static Range
 view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
-    Range result = {};
-    if (buffer != 0){
-        result = view_buffer_snipe_range(app, view, buffer->buffer_id, dir, flags);
-    }
-    return(result);
+    return(view_buffer_snipe_range(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, dir, flags));
 }
 
 static void
@@ -439,7 +432,7 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *opti
 
 static i32
 get_start_of_line_at_cursor(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
-    return(buffer==0?0:get_start_of_line_at_cursor(app, view, buffer->buffer_id));
+    return(get_start_of_line_at_cursor(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id));
 }
 
 static b32
@@ -449,9 +442,7 @@ c_line_comment_starts_at_position(Application_Links *app, Buffer_Summary *buffer
 
 static void
 write_string(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, String string){
-    if (buffer != 0){
-        write_string(app, view, buffer->buffer_id, string);
-    }
+    write_string(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, string);
 }
 
 static b32
@@ -640,6 +631,11 @@ activate_project_command(Application_Links *app, Partition *scratch, Heap *heap,
 static void
 activate_snippet(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *view, struct Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
     activate_snippet(app, scratch, heap, view==0?0:view->view_id, state, text_field, user_data, activated_by_mouse);
+}
+
+static void
+view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i32 minor_pos, f32 normalized_threshold){
+    view_set_to_region(app, view==0?0:view->view_id, major_pos, minor_pos, normalized_threshold);
 }
 
 #endif
