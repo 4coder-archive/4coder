@@ -593,10 +593,10 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
 }
 
 static b32
-view_open_file(Application_Links *app, View_Summary *view, char *filename, i32 filename_len, b32 never_new){
+view_open_file(Application_Links *app, View_ID view, char *filename, i32 filename_len, b32 never_new){
     b32 result = false;
     if (view != 0){
-        Buffer_ID buffer = {};
+        Buffer_ID buffer = 0;
         if (open_file(app, &buffer, filename, filename_len, false, never_new)){
             view_set_buffer(app, view, buffer, 0);
             result = true;
@@ -681,9 +681,8 @@ refresh_view(Application_Links *app, View_Summary *view){
     *view = get_view(app, view->view_id, AccessAll);
 }
 
-// TODO(allen): Setup buffer seeking to do character_pos and get View_Summary out of this parameter list.
 static i32
-character_pos_to_pos(Application_Links *app, View_Summary *view, i32 character_pos){
+character_pos_to_pos(Application_Links *app, View_ID view, i32 character_pos){
     i32 result = 0;
     Full_Cursor cursor = {};
     if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
@@ -692,22 +691,22 @@ character_pos_to_pos(Application_Links *app, View_Summary *view, i32 character_p
     return(result);
 }
 
-static float
-get_view_y(View_Summary *view){
-    float y = view->cursor.wrapped_y;
-    if (view->unwrapped_lines){
-        y = view->cursor.unwrapped_y;
-    }
-    return(y);
+static f32
+get_view_y(Application_Links *app, View_ID view){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    return(cursor.wrapped_y);
 }
 
-static float
-get_view_x(View_Summary *view){
-    float x = view->cursor.wrapped_x;
-    if (view->unwrapped_lines){
-        x = view->cursor.unwrapped_x;
-    }
-    return(x);
+static f32
+get_view_x(Application_Links *app, View_ID view){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    return(cursor.wrapped_x);
 }
 
 static Range
@@ -1556,13 +1555,13 @@ begin_notepad_mode(Application_Links *app){
 ////////////////////////////////
 
 static b32
-view_set_split_proportion(Application_Links *app, View_Summary *view, float t){
+view_set_split_proportion(Application_Links *app, View_Summary *view, f32 t){
     return(view_set_split(app, view, ViewSplitKind_Ratio, t));
 }
 
 static b32
 view_set_split_pixel_size(Application_Links *app, View_Summary *view, i32 t){
-    return(view_set_split(app, view, ViewSplitKind_FixedPixels, (float)t));
+    return(view_set_split(app, view, ViewSplitKind_FixedPixels, (f32)t));
 }
 
 ////////////////////////////////
@@ -1715,12 +1714,12 @@ buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
 
 ////////////////////////////////
 
-static float
+static f32
 get_dpi_scaling_value(Application_Links *app)
 {
     // TODO(casey): Allen, this should return the multiplier for the display relative to whatever 4coder
     // gets tuned to.
-    float result = 2.0f;
+    f32 result = 2.0f;
     return(result);
 }
 

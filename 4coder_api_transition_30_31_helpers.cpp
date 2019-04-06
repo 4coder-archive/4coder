@@ -277,9 +277,7 @@ view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summa
 
 static void
 query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 pos, String r, String w){
-    if (buffer != 0){
-        query_replace_base(app, view, buffer->buffer_id, pos, r, w);
-    }
+    query_replace_base(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, pos, r, w);
 }
 
 static Statement_Parser
@@ -636,6 +634,26 @@ activate_snippet(Application_Links *app, Partition *scratch, Heap *heap, View_Su
 static void
 view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i32 minor_pos, f32 normalized_threshold){
     view_set_to_region(app, view==0?0:view->view_id, major_pos, minor_pos, normalized_threshold);
+}
+
+static i32
+character_pos_to_pos(Application_Links *app, View_Summary *view, i32 character_pos){
+    return(character_pos_to_pos(app, view==0?0:view->view_id, character_pos));
+}
+
+static b32
+view_open_file(Application_Links *app, View_Summary *view, char *filename, i32 filename_len, b32 never_new){
+    return(view_open_file(app, view==0?0:view->view_id, filename, filename_len, never_new));
+}
+
+static f32
+get_page_jump(Application_Links *app, View_Summary *view){
+    return(get_page_jump(app, view==0?0:view->view_id));
+}
+
+static void
+isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Object highlight, i32 start, i32 end){
+    isearch__update_highlight(app, view==0?0:view->view_id, highlight, start, end);
 }
 
 #endif
