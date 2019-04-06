@@ -973,8 +973,8 @@ exec_project_command(Application_Links *app, Project_Command *command){
             save_all_dirty_buffers(app);
         }
         
-        View_Summary view = {};
-        View_Summary *view_ptr = 0;
+        View_ID view = 0;
+        View_ID view_ptr = 0;
         Buffer_Identifier buffer_id = {};
         u32 flags = CLI_OverlapWithConflict|CLI_SendEndSignal;
         if (cursor_at_end){
@@ -992,9 +992,9 @@ exec_project_command(Application_Links *app, Project_Command *command){
                 }
             }
             else{
-                view = get_active_view(app, AccessAll);
+                get_active_view(app, AccessAll, &view);
             }
-            view_ptr = &view;
+            view_ptr = view;
             
             memset(&prev_location, 0, sizeof(prev_location));
             lock_jump_buffer(command->out.str, command->out.size);
@@ -1518,9 +1518,7 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
 ///////////////////////////////
 
 static void
-activate_project_command(Application_Links *app, Partition *scratch, Heap *heap,
-                         View_Summary *view, Lister_State *state,
-                         String text_field, void *user_data, b32 activated_by_mouse){
+activate_project_command(Application_Links *app, Partition *scratch, Heap *heap, View_ID view, Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
     i32 command_index = (i32)PtrAsInt(user_data);
     exec_project_command_by_index(app, command_index);
     lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
@@ -1535,8 +1533,9 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     
     Partition *arena = &global_part;
     
-    View_Summary view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, &view);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    view_end_ui_mode(app, view);
     Temp_Memory temp = begin_temp_memory(arena);
     i32 option_count = current_project.command_array.count;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
@@ -1545,10 +1544,7 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
         options[i].status = string_push_copy(arena, current_project.command_array.commands[i].cmd);
         options[i].user_data = IntAsPtr(i);
     }
-    begin_integrated_lister__basic_list(app, "Command:", activate_project_command, 0, 0,
-                                        options, option_count,
-                                        0,
-                                        &view);
+    begin_integrated_lister__basic_list(app, "Command:", activate_project_command, 0, 0, options, option_count, 0, view);
     end_temp_memory(temp);
 }
 

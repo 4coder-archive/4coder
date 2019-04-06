@@ -282,6 +282,9 @@ DOC_SEE(get_buffer_first)
         *buffer_id_out = file->id.id;
         result = true;
     }
+    else{
+        *buffer_id_out = 0;
+    }
     return(result);
 }
 

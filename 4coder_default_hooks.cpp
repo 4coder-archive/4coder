@@ -925,8 +925,9 @@ HOOK_SIG(default_exit){
             }
         }
         if (has_unsaved_changes){
-            View_Summary view = get_active_view(app, AccessAll);
-            do_gui_sure_to_close_4coder(app, &view);
+            View_ID view = 0;
+            get_active_view(app, AccessAll, &view);
+            do_gui_sure_to_close_4coder(app, view);
             result = 0;
         }
     }

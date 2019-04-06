@@ -41,7 +41,7 @@ get_build_directory(Application_Links *app, Buffer_ID buffer, String *dir_out){
 
 // TODO(allen): Better names for the "standard build search" family.
 static i32
-standard_build_search(Application_Links *app, View_Summary *view, String *dir, String *command, b32 perform_backup, b32 use_path_in_command, String filename, String command_name){
+standard_build_search(Application_Links *app, View_ID view, String *dir, String *command, b32 perform_backup, b32 use_path_in_command, String filename, String command_name){
     i32 result = false;
     
     for(;;){
@@ -98,7 +98,7 @@ standard_build_search(Application_Links *app, View_Summary *view, String *dir, S
 
 // NOTE(allen): Build search rule for windows.
 static i32
-execute_standard_build_search(Application_Links *app, View_Summary *view, String *dir, String *command, i32 perform_backup){
+execute_standard_build_search(Application_Links *app, View_ID view, String *dir, String *command, i32 perform_backup){
     i32 result = standard_build_search(app, view, dir, command, perform_backup, true, make_lit_string("build.bat"), make_lit_string("build"));
     return(result);
 }
@@ -107,7 +107,7 @@ execute_standard_build_search(Application_Links *app, View_Summary *view, String
 
 // NOTE(allen): Build search rule for linux and mac.
 static i32
-execute_standard_build_search(Application_Links *app, View_Summary *view, String *dir, String *command, b32 perform_backup){
+execute_standard_build_search(Application_Links *app, View_ID view, String *dir, String *command, b32 perform_backup){
     char dir_space[512];
     String dir_copy = make_fixed_width_string(dir_space);
     copy(&dir_copy, *dir);
@@ -125,7 +125,7 @@ execute_standard_build_search(Application_Links *app, View_Summary *view, String
 // NOTE(allen): This searches first using the active file's directory,
 // then if no build script is found, it searches from 4coders hot directory.
 static void
-execute_standard_build(Application_Links *app, View_Summary *view, Buffer_ID active_buffer){
+execute_standard_build(Application_Links *app, View_ID view, Buffer_ID active_buffer){
     char dir_space[512];
     String dir = make_fixed_width_string(dir_space);
     char command_str_space[512];
@@ -149,23 +149,23 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
     View_Summary view = get_active_view(app, AccessAll);
     Buffer_ID buffer = 0;
     view_get_buffer(app, view.view_id, AccessAll, &buffer);
-    execute_standard_build(app, &view, buffer);
+    execute_standard_build(app, view.view_id, buffer);
     memset(&prev_location, 0, sizeof(prev_location));
     lock_jump_buffer(make_lit_string("*compilation*"));
 }
 
 #define GET_COMP_BUFFER(app,id) get_buffer_by_name(app, make_lit_string("*compilation*"), AccessAll, (id))
 
-static View_Summary
+static View_ID
 get_or_open_build_panel(Application_Links *app){
-    View_Summary view = {};
+    View_ID view = 0;
     Buffer_ID buffer = 0;
     GET_COMP_BUFFER(app, &buffer);
     if (buffer != 0){
         view = get_first_view_with_buffer(app, buffer);
     }
-    if (!view.exists){
-        view = open_build_footer_panel(app);
+    if (view != 0){
+        open_build_footer_panel(app, &view);
     }
     return(view);
 }
@@ -184,9 +184,9 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
     Buffer_ID buffer = 0;
     view_get_buffer(app, view.view_id, AccessAll, &buffer);
     
-    View_Summary build_view = get_or_open_build_panel(app);
+    View_ID build_view = get_or_open_build_panel(app);
     
-    execute_standard_build(app, &build_view, buffer);
+    execute_standard_build(app, build_view, buffer);
     set_fancy_compilation_buffer_font(app);
     
     memset(&prev_location, 0, sizeof(prev_location));
@@ -202,9 +202,9 @@ CUSTOM_DOC("If the special build panel is open, closes it.")
 CUSTOM_COMMAND_SIG(change_to_build_panel)
 CUSTOM_DOC("If the special build panel is open, makes the build panel the active panel.")
 {
-    View_Summary view = get_or_open_build_panel(app);
-    if (view.exists){
-        set_active_view(app, &view);
+    View_ID view = get_or_open_build_panel(app);
+    if (view != 0){
+        view_set_active(app, view);
     }
 }
 

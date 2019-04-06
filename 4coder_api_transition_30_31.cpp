@@ -146,6 +146,14 @@ exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifie
 }
 
 static b32
+exec_system_command(Application_Links *app, View_ID view, Buffer_Identifier buffer_id,
+                    char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
+    View_Summary view_summary = {};
+    get_view_summary(app, view, AccessAll, &view_summary);
+    return(exec_system_command(app, &view_summary, buffer_id, path, path_len, command, command_len, flags));
+}
+
+static b32
 clipboard_post(Application_Links *app, i32 clipboard_id, char *str, i32 len){
     return(clipboard_post(app, clipboard_id, make_string(str, len)));
 }

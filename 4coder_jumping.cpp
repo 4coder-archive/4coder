@@ -225,27 +225,32 @@ get_jump_buffer(Application_Links *app, Buffer_ID *buffer, ID_Pos_Jump_Location 
     return(get_jump_buffer(app, buffer, location, AccessAll));
 }
 
-static void
-switch_to_existing_view(Application_Links *app, View_Summary *view, Buffer_ID buffer){
-    if (!view->exists || view->buffer_id != buffer){
-        View_Summary existing_view = get_first_view_with_buffer(app, buffer);
-        if (existing_view.exists){
-            *view = existing_view;
+static View_ID
+switch_to_existing_view(Application_Links *app, View_ID view, Buffer_ID buffer){
+    Buffer_ID current_buffer = 0;
+    view_get_buffer(app, view, AccessAll, &current_buffer);
+    if (view != 0 || current_buffer != buffer){
+        View_ID existing_view = get_first_view_with_buffer(app, buffer);
+        if (existing_view != 0){
+            view = existing_view;
         }
     }
+    return(view);
 }
 
 static void
-set_view_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, Buffer_Seek seek){
-    if (view->buffer_id != buffer){
+set_view_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Buffer_Seek seek){
+    Buffer_ID current_buffer = 0;
+    view_get_buffer(app, view, AccessAll, &current_buffer);
+    if (current_buffer != buffer){
         view_set_buffer(app, view, buffer, 0);
     }
     view_set_cursor(app, view, seek, true);
 }
 
 static void
-jump_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, Name_Line_Column_Location location){
-    set_active_view(app, view);
+jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Name_Line_Column_Location location){
+    view_set_active(app, view);
     set_view_to_location(app, view, buffer, seek_line_char(location.line, location.column));
     if (auto_center_after_jumps){
         center_view(app);
@@ -253,8 +258,8 @@ jump_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, N
 }
 
 static void
-jump_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, ID_Pos_Jump_Location location){
-    set_active_view(app, view);
+jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, ID_Pos_Jump_Location location){
+    view_set_active(app, view);
     set_view_to_location(app, view, buffer, seek_pos(location.pos));
     if (auto_center_after_jumps){
         center_view(app);
@@ -306,10 +311,15 @@ convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location
 }
 
 static Parsed_Jump
-seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_sub_errors, i32 direction, i32 *line_out){
-    Parsed_Jump jump = {};
-    i32 line = view->cursor.line;
-    jump = seek_next_jump_in_buffer(app, part, view->buffer_id, line + direction, skip_sub_errors, direction, &line);
+seek_next_jump_in_view(Application_Links *app, Partition *part, View_ID view, i32 skip_sub_errors, i32 direction, i32 *line_out){
+    i32 cursor_position = 0;
+    view_get_cursor_pos(app, view, &cursor_position);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(cursor_position), &cursor);
+    i32 line = cursor.line;
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessAll, &buffer);
+    Parsed_Jump jump = seek_next_jump_in_buffer(app, part, buffer, line + direction, skip_sub_errors, direction, &line);
     if (jump.success){
         *line_out = line;
     }
@@ -326,7 +336,7 @@ skip_this_jump(ID_Line_Column_Jump_Location prev, ID_Line_Column_Jump_Location j
 }
 
 static b32
-advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
+advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_ID view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
     b32 result = true;
     
     Name_Line_Column_Location location = {};
@@ -363,20 +373,20 @@ static b32
 seek_jump(Application_Links *app, Partition *part, b32 skip_repeats, b32 skip_sub_errors, i32 direction){
     b32 result = false;
     
-    View_Summary view = get_view_for_locked_jump_buffer(app);
-    if (view.exists){
+    View_ID view = get_view_for_locked_jump_buffer(app);
+    if (view != 0){
         Name_Line_Column_Location location = {};
-        if (advance_cursor_in_jump_view(app, &global_part, &view, skip_repeats, skip_sub_errors, direction, &location)){
-            
+        if (advance_cursor_in_jump_view(app, &global_part, view, skip_repeats, skip_sub_errors, direction, &location)){
             Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
-                View_Summary target_view = get_active_view(app, AccessAll);
-                if (target_view.view_id == view.view_id){
+                View_ID target_view = 0;
+                get_active_view(app, AccessAll, &target_view);
+                if (target_view == view){
                     change_active_panel(app);
-                    target_view = get_active_view(app, AccessAll);
+                    get_active_view(app, AccessAll, &target_view);
                 }
-                switch_to_existing_view(app, &target_view, buffer);
-                jump_to_location(app, &target_view, buffer, location);
+                switch_to_existing_view(app, target_view, buffer);
+                jump_to_location(app, target_view, buffer, location);
                 result = true;
             }
         }

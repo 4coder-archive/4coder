@@ -510,30 +510,25 @@ get_jump_buffer(Application_Links *app, Buffer_Summary *buffer, ID_Pos_Jump_Loca
 
 static void
 switch_to_existing_view(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
-    if (buffer != 0){
-        switch_to_existing_view(app, view, buffer->buffer_id);
+    View_ID result = switch_to_existing_view(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id);
+    if (view != 0 && result != 0){
+        get_view_summary(app, result, AccessAll, view);
     }
 }
 
 static void
 set_view_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Buffer_Seek seek){
-    if (buffer != 0){
-        set_view_to_location(app, view, buffer->buffer_id, seek);
-    }
+    set_view_to_location(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, seek);
 }
 
 static void
-jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, Name_Line_Column_Location location){
-    if (buffer != 0){
-        jump_to_location(app, view, buffer->buffer_id, location);
-    }
+jump_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, Name_Line_Column_Location location){
+    jump_to_location(app, view==0?0:view->view_id, buffer, location);
 }
 
 static void
-jump_to_location(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, ID_Pos_Jump_Location location){
-    if (buffer != 0){
-        jump_to_location(app, view, buffer->buffer_id, location);
-    }
+jump_to_location(Application_Links *app, View_Summary *view, Buffer_ID buffer, ID_Pos_Jump_Location location){
+    jump_to_location(app, view==0?0:view->view_id, buffer, location);
 }
 
 static Buffer_Summary
@@ -587,14 +582,64 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     return(get_build_directory(app, buffer==0?0:buffer->buffer_id, dir_out));
 }
 
+static i32
+standard_build_search(Application_Links *app, View_Summary *view, String *dir, String *command, b32 perform_backup, b32 use_path_in_command, String filename, String command_name){
+    return(standard_build_search(app, view==0?0:view->view_id, dir, command, perform_backup, use_path_in_command, filename, command_name));
+}
+
+static i32
+execute_standard_build_search(Application_Links *app, View_Summary *view, String *dir, String *command, i32 perform_backup){
+    return(execute_standard_build_search(app, view==0?0:view->view_id, dir, command, perform_backup));
+}
+
 static void
-execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer){
-    execute_standard_build(app, view, active_buffer==0?0:active_buffer->buffer_id);
+execute_standard_build(Application_Links *app, View_Summary *view, Buffer_ID active_buffer){
+    execute_standard_build(app, view==0?0:view->view_id, active_buffer);
 }
 
 static b32
 post_buffer_range_to_clipboard(Application_Links *app, Partition *scratch, i32 clipboard_index, Buffer_Summary *buffer, i32 first, i32 one_past_last){
     return(post_buffer_range_to_clipboard(app, scratch, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
+}
+
+static void
+view_set_vertical_focus(Application_Links *app, View_Summary *view, i32 y_top, i32 y_bot){
+    view_set_vertical_focus(app, view==0?0:view->view_id, y_top, y_bot);
+}
+
+static b32
+advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
+    return(advance_cursor_in_jump_view(app, part, view==0?0:view->view_id, skip_repeats, skip_sub_error, direction, location_out));
+}
+
+static Parsed_Jump
+seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_sub_errors, i32 direction, i32 *line_out){
+    return(seek_next_jump_in_view(app, part, view==0?0:view->view_id, skip_sub_errors, direction, line_out));
+}
+
+static void
+goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_Summary *jump_view, i32 list_index, i32 direction, b32 skip_repeats, b32 skip_sub_errors){
+    goto_next_filtered_jump(app, list, jump_view==0?0:jump_view->view_id, list_index, direction, skip_repeats, skip_sub_errors);
+}
+
+static void
+goto_jump_in_order(Application_Links *app, Marker_List *list, View_Summary *jump_view, ID_Pos_Jump_Location location){
+    goto_jump_in_order(app, list, jump_view==0?0:jump_view->view_id, location);
+}
+
+static void
+open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *ui_view, Buffer_ID list_buffer_id, Jump_Lister_Activation_Rule activation_rule, View_Summary *optional_target_view){
+    open_jump_lister(app, scratch, heap, ui_view==0?0:ui_view->view_id, list_buffer_id, activation_rule, optional_target_view==0?0:optional_target_view->view_id);
+}
+
+static void
+activate_project_command(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *view, Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
+    activate_project_command(app, scratch, heap, view==0?0:view->view_id, state, text_field, user_data, activated_by_mouse);
+}
+
+static void
+activate_snippet(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *view, struct Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
+    activate_snippet(app, scratch, heap, view==0?0:view->view_id, state, text_field, user_data, activated_by_mouse);
 }
 
 #endif

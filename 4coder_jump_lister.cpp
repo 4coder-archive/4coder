@@ -6,44 +6,44 @@
 
 static void
 activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
-              View_Summary *view, struct Lister_State *state,
+              View_ID view, struct Lister_State *state,
               String text_field, void *user_data, b32 activated_by_mouse){
     Lister_Activation_Code result_code = ListerActivation_Finished;
     i32 list_index = (i32)PtrAsInt(user_data);
     Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.data.user_data;
     Marker_List *list = get_marker_list_for_buffer(params->list_buffer_id);
     if (list != 0){
-        View_Summary target_view = {};
+        View_ID target_view = {};
         switch (params->activation_rule){
             case JumpListerActivation_OpenInUIView:
             {
-                target_view = *view;
+                target_view = view;
                 result_code = ListerActivation_Finished;
             }break;
             
             case JumpListerActivation_OpenInTargetViewKeepUI:
             {
-                target_view = get_view(app, params->target_view_id, AccessAll);
+                target_view = params->target_view_id;;
                 result_code = ListerActivation_Continue;
             }break;
             
             case JumpListerActivation_OpenInTargetViewCloseUI:
             {
-                target_view = get_view(app, params->target_view_id, AccessAll);
+                target_view = params->target_view_id;
                 result_code = ListerActivation_Finished;
             }break;
             
             case JumpListerActivation_OpenInNextViewKeepUI:
             {
-                target_view = *view;
-                get_next_view_looped_primary_panels(app, &target_view, AccessAll);
+                target_view = view;
+                target_view = get_next_view_looped_primary_panels(app, target_view, AccessAll);
                 result_code = ListerActivation_Continue;
             }break;
             
             case JumpListerActivation_OpenInNextViewCloseUI:
             {
-                target_view = *view;
-                get_next_view_looped_primary_panels(app, &target_view, AccessAll);
+                target_view = view;
+                target_view = get_next_view_looped_primary_panels(app, target_view, AccessAll);
                 result_code = ListerActivation_Finished;
             }break;
         }
@@ -52,8 +52,8 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
         if (get_jump_from_list(app, list, list_index, &location)){
             Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
-                set_active_view(app, &target_view);
-                jump_to_location(app, &target_view, buffer, location);
+                view_set_active(app, target_view);
+                jump_to_location(app, target_view, buffer, location);
             }
         }
         
@@ -62,9 +62,7 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
 }
 
 static void
-open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
-                 View_Summary *ui_view, Buffer_ID list_buffer_id,
-                 Jump_Lister_Activation_Rule activation_rule, View_Summary *optional_target_view){
+open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap, View_ID ui_view, Buffer_ID list_buffer_id, Jump_Lister_Activation_Rule activation_rule, View_ID optional_target_view){
     
     Marker_List *list = get_or_make_list_for_buffer(app, scratch, heap, list_buffer_id);
     if (list != 0){
@@ -91,7 +89,7 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
         jump_lister_params.list_buffer_id = list_buffer_id;
         jump_lister_params.activation_rule = activation_rule;
         if (optional_target_view != 0){
-            jump_lister_params.target_view_id = optional_target_view->view_id;
+            jump_lister_params.target_view_id = optional_target_view;
         }
         
         begin_integrated_lister__basic_list(app, "Jump:", activate_jump,
@@ -106,9 +104,11 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap,
 CUSTOM_COMMAND_SIG(view_jump_list_with_lister)
 CUSTOM_DOC("When executed on a buffer with jumps, creates a persistent lister for all the jumps")
 {
-    View_Summary view = get_active_view(app, AccessAll);
-    open_jump_lister(app, &global_part, &global_heap,
-                     &view, view.buffer_id, JumpListerActivation_OpenInNextViewKeepUI, 0);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessAll, &buffer);
+    open_jump_lister(app, &global_part, &global_heap, view, buffer, JumpListerActivation_OpenInNextViewKeepUI, 0);
 }
 
 // BOTTOM

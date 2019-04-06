@@ -576,15 +576,17 @@ get_line_x_rect(View_Summary *view){
     return(rect);
 }
 
-static View_Summary
-get_first_view_with_buffer(Application_Links *app, i32 buffer_id){
-    View_Summary result = {};
-    View_Summary test = {};
+static View_ID
+get_first_view_with_buffer(Application_Links *app, Buffer_ID buffer_id){
+    View_ID result = {};
+    View_ID test = {};
     if (buffer_id != 0){
-        for (test = get_view_first(app, AccessAll);
-             test.exists;
-             get_view_next(app, &test, AccessAll)){
-            if (test.buffer_id == buffer_id){
+        for (get_view_next(app, 0, AccessAll, &test);
+             test != 0;
+             get_view_next(app, test, AccessAll, &test)){
+            Buffer_ID test_buffer = 0;
+            view_get_buffer(app, test, AccessAll, &test_buffer);
+            if (test_buffer == buffer_id){
                 result = test;
                 break;
             }
@@ -714,8 +716,7 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
     Buffer_Kill_Result result = kill_buffer(app, identifier, flags);
     if (result == BufferKillResult_Dirty){
         Buffer_ID buffer = buffer_identifier_to_id(app, identifier);
-        View_Summary view = get_view(app, gui_view_id, AccessAll);
-        do_gui_sure_to_kill(app, buffer, &view);
+        do_gui_sure_to_kill(app, buffer, gui_view_id);
     }
     return(result);
 }

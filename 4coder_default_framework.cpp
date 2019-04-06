@@ -31,9 +31,9 @@ lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
     end_temp_memory(temp);
 }
 
-static View_Summary
+static View_ID
 get_view_for_locked_jump_buffer(Application_Links *app){
-    View_Summary view = {};
+    View_ID view = 0;
     if (locked_buffer.size > 0){
         Buffer_ID buffer = 0;
         get_buffer_by_name(app, locked_buffer, AccessAll, &buffer);
@@ -283,17 +283,17 @@ create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_
     if (search_buffer != 0){
         buffer_set_setting(app, search_buffer, BufferSetting_ReadOnly, true);
         
-        View_Summary target_view = default_target_view;
+        View_ID target_view = default_target_view.view_id;
         
-        View_Summary view_with_buffer_already_open = get_first_view_with_buffer(app, search_buffer);
-        if (view_with_buffer_already_open.exists){
+        View_ID view_with_buffer_already_open = get_first_view_with_buffer(app, search_buffer);
+        if (view_with_buffer_already_open != 0){
             target_view = view_with_buffer_already_open;
-            view_end_ui_mode(app, &target_view);
+            view_end_ui_mode(app, target_view);
         }
         else{
-            view_set_buffer(app, &target_view, search_buffer, 0);
+            view_set_buffer(app, target_view, search_buffer, 0);
         }
-        set_active_view(app, &target_view);
+        view_set_active(app, target_view);
         
         i32 buffer_size = 0;
         buffer_get_size(app, search_buffer, &buffer_size);

@@ -331,13 +331,14 @@ CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to de
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations in the buffer.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
+    view_get_buffer(app, view, AccessProtected, &buffer);
     if (buffer_exists(app, buffer)){
         list_all_functions(app, &global_part, buffer);
-        view = get_active_view(app, AccessAll);
-        open_jump_lister(app, &global_part, &global_heap, &view, buffer, JumpListerActivation_OpenInUIView, 0);
+        get_active_view(app, AccessAll, &view);
+        open_jump_lister(app, &global_part, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
     }
 }
 
@@ -351,9 +352,11 @@ CUSTOM_COMMAND_SIG(list_all_functions_all_buffers_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations all buffers.")
 {
     list_all_functions(app, &global_part, 0);
-    View_Summary view = get_active_view(app, AccessAll);
-    open_jump_lister(app, &global_part, &global_heap,
-                     &view, view.buffer_id, JumpListerActivation_OpenInUIView, 0);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessAll, &buffer);
+    open_jump_lister(app, &global_part, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
 }
 
 // BOTTOM

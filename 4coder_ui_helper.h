@@ -61,7 +61,7 @@ enum{
 };
 
 typedef void Lister_Activation_Function_Type(Application_Links *app, Partition *scratch, Heap *heap,
-                                             View_Summary *view, struct Lister_State *state,
+                                             View_ID view, struct Lister_State *state,
                                              String text_field, void *user_data, b32 activated_by_mouse);
 
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, struct Lister *lister);

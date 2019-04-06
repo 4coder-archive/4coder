@@ -54,7 +54,7 @@ struct Marker_List_Node{
 };
 
 struct Locked_Jump_State{
-    View_Summary view;
+    View_ID view;
     Marker_List *list;
     i32 list_index;
 };

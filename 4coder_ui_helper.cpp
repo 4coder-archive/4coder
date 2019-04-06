@@ -168,20 +168,29 @@ ui_control_get_mouse_hit(UI_Data *data, i32 mx_scrolled, i32 my_scrolled, i32 mx
 ////////////////////////////////
 
 static void
-view_zero_scroll(Application_Links *app, View_Summary *view){
+view_zero_scroll(Application_Links *app, View_ID view){
     GUI_Scroll_Vars zero_scroll = {};
     view_set_scroll(app, view, zero_scroll);
 }
 
 static void
-view_set_vertical_focus(Application_Links *app, View_Summary *view, i32 y_top, i32 y_bot){
+view_set_vertical_focus(Application_Links *app, View_ID view, i32 y_top, i32 y_bot){
     Rect_i32 buffer_region = {};
-    view_get_buffer_region(app, view->view_id, &buffer_region);
-    GUI_Scroll_Vars scroll = view->scroll_vars;
+    view_get_buffer_region(app, view, &buffer_region);
+    GUI_Scroll_Vars scroll = {};
+    view_get_scroll_vars(app, view, &scroll);
     i32 view_y_top = scroll.target_y;
     i32 view_y_dim = rect_height(buffer_region);
     i32 view_y_bot = view_y_top + view_y_dim;
-    i32 line_dim = (i32)view->line_height;
+    
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessAll, &buffer);
+    Face_ID face_id = 0;
+    get_face_id(app, buffer, &face_id);
+    Face_Metrics metrics = {};
+    get_face_metrics(app, face_id, &metrics);
+    
+    i32 line_dim = (i32)metrics.line_height;
     i32 hot_y_top = view_y_top + line_dim*3;
     i32 hot_y_bot = view_y_bot - line_dim*3;
     if (hot_y_bot - hot_y_top < line_dim*6){
@@ -322,19 +331,14 @@ lister_get_clicked_item(Application_Links *app, View_ID view_id, Partition *scra
     return(result);
 }
 
-static i32
-lister_get_line_height(View_Summary *view){
-    return((i32)view->line_height);
+static f32
+lister_get_text_field_height(f32 line_height){
+    return(line_height);
 }
 
-static i32
-lister_get_text_field_height(View_Summary *view){
-    return((i32)view->line_height);
-}
-
-static i32
-lister_get_block_height(i32 line_height, b32 is_theme_list){
-    i32 block_height = 0;
+static f32
+lister_get_block_height(f32 line_height, b32 is_theme_list){
+    f32 block_height = 0;
     if (is_theme_list){
         block_height = line_height*3 + 6;
     }
@@ -345,23 +349,34 @@ lister_get_block_height(i32 line_height, b32 is_theme_list){
 }
 
 static void
-lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view, Lister_State *state){
+lister_update_ui(Application_Links *app, Partition *scratch, View_ID view, Lister_State *state){
     b32 is_theme_list = state->lister.data.theme_list;
     
-    i32 x0 = 0;
-    i32 x1 = (i32)(rect_width(view->view_region));
-    i32 line_height = lister_get_line_height(view);
-    i32 block_height = lister_get_block_height(line_height, is_theme_list);
-    i32 text_field_height = lister_get_text_field_height(view);
+    Rect_f32 screen_rect = {};
+    view_get_screen_rect(app, view, &screen_rect);
+    
+    Face_ID face_id = 0;
+    get_face_id(app, 0, &face_id);
+    Face_Metrics metrics = {};
+    get_face_metrics(app, face_id, &metrics);
+    
+    GUI_Scroll_Vars scroll_vars = {};
+    view_get_scroll_vars(app, view, &scroll_vars);
+    
+    f32 x0 = 0;
+    f32 x1 = (rect_width(screen_rect));
+    f32 line_height = metrics.line_height;
+    f32 block_height = lister_get_block_height(line_height, is_theme_list);
+    f32 text_field_height = lister_get_text_field_height(metrics.line_height);
     
     Temp_Memory full_temp = begin_temp_memory(scratch);
     
+    // TODO(allen): switch to float
     Rect_i32 buffer_region = {};
-    view_get_buffer_region(app, view->view_id, &buffer_region);
-    Vec2_i32 view_m = get_mouse_position_in_view_space(app, buffer_region.p0, V2i32(view->scroll_vars.scroll_p));
+    view_get_buffer_region(app, view, &buffer_region);
+    Vec2_i32 view_m = get_mouse_position_in_view_space(app, buffer_region.p0, V2i32(scroll_vars.scroll_p));
     
-    refresh_view(app, view);
-    i32 y_pos = text_field_height;
+    f32 y_pos = text_field_height;
     
     state->raw_item_index = -1;
     
@@ -406,7 +421,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
     
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
-    if (view_get_ui_data(app, view->view_id, ViewGetUIFlag_ClearData, &ui_data, &ui_arena)){
+    if (view_get_ui_data(app, view, ViewGetUIFlag_ClearData, &ui_data, &ui_arena)){
         memset(ui_data, 0, sizeof(*ui_data));
         
         UI_Item *highlighted_item = 0;
@@ -418,12 +433,13 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
             for (i32 node_index = 0; node_index < node_ptr_array.count; node_index += 1){
                 Lister_Node *node = node_ptr_array.node_ptrs[node_index];
                 
+                // TODO(allen): switch to float
                 i32_Rect item_rect = {};
-                item_rect.x0 = x0;
-                item_rect.y0 = y_pos;
-                item_rect.x1 = x1;
-                item_rect.y1 = y_pos + block_height;
-                y_pos = item_rect.y1;
+                item_rect.x0 = (i32)x0;
+                item_rect.y0 = (i32)y_pos;
+                item_rect.x1 = (i32)x1;
+                item_rect.y1 = (i32)y_pos + (i32)block_height;
+                y_pos = (f32)item_rect.y1;
                 
                 UI_Item item = {};
                 item.activation_level = UIActivation_None;
@@ -500,12 +516,13 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         }
         
         {
+            // TODO(allen): switch to float
             i32_Rect item_rect = {};
-            item_rect.x0 = x0;
+            item_rect.x0 = (i32)x0;
             item_rect.y0 = 0;
-            item_rect.x1 = x1;
-            item_rect.y1 = item_rect.y0 + text_field_height;
-            y_pos = item_rect.y1;
+            item_rect.x1 = (i32)x1;
+            item_rect.y1 = item_rect.y0 + (i32)text_field_height;
+            y_pos = (f32)item_rect.y1;
             
             UI_Item item = {};
             item.activation_level = UIActivation_Active;
@@ -530,7 +547,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_Summary *view,
         
         // TODO(allen): what to do with control now?
         //UI_Control control = ui_list_to_ui_control(scratch, &list);
-        view_set_quit_ui_handler(app, view->view_id, lister_quit_function);
+        view_set_quit_ui_handler(app, view, lister_quit_function);
     }
     
     end_temp_memory(full_temp);
@@ -649,9 +666,7 @@ lister_call_refresh_handler(Application_Links *app, Lister *lister){
 }
 
 static void
-lister_default(Application_Links *app, Partition *scratch, Heap *heap,
-               View_Summary *view, Lister_State *state,
-               Lister_Activation_Code code){
+lister_default(Application_Links *app, Partition *scratch, Heap *heap, View_ID view, Lister_State *state, Lister_Activation_Code code){
     switch (code){
         case ListerActivation_Finished:
         {
@@ -676,13 +691,10 @@ lister_default(Application_Links *app, Partition *scratch, Heap *heap,
 }
 
 static void
-lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap,
-                             View_Summary *view, Lister_State *state,
-                             void *user_data, b32 activated_by_mouse){
+lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap, View_ID view, Lister_State *state, void *user_data, b32 activated_by_mouse){
     Lister_Data *lister = &state->lister.data;
     if (lister->handlers.activate != 0){
-        lister->handlers.activate(app, scratch, heap, view, state,
-                                  lister->text_field, user_data, activated_by_mouse);
+        lister->handlers.activate(app, scratch, heap, view, state, lister->text_field, user_data, activated_by_mouse);
     }
     else{
         lister_default(app, scratch, heap, view, state, ListerActivation_Finished);

@@ -207,17 +207,16 @@ static Snippet default_snippets[] = {
 };
 
 static void
-activate_snippet(Application_Links *app, Partition *scratch, Heap *heap,
-                 View_Summary *view, struct Lister_State *state,
-                 String text_field, void *user_data, b32 activated_by_mouse){
+activate_snippet(Application_Links *app, Partition *scratch, Heap *heap, View_ID view, struct Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
     i32 index = (i32)PtrAsInt(user_data);
     Snippet_Array snippets = *(Snippet_Array*)state->lister.data.user_data;
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
         lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
         Buffer_ID buffer = 0;
-        view_get_buffer(app, view->view_id, AccessOpen, &buffer);
-        i32 pos = view->cursor.pos;
+        view_get_buffer(app, view, AccessOpen, &buffer);
+        i32 pos = 0;
+        view_get_cursor_pos(app, view, &pos);
         buffer_replace_range(app, buffer, make_range(pos), make_string_slowly(snippet.text));
         view_set_cursor(app, view, seek_pos(pos + snippet.cursor_offset), true);
         view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
@@ -232,8 +231,9 @@ static void
 snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_array){
     Partition *arena = &global_part;
     
-    View_Summary view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, &view);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    view_end_ui_mode(app, view);
     Temp_Memory temp = begin_temp_memory(arena);
     i32 option_count = snippet_array.count;
     Lister_Option *options = push_array(arena, Lister_Option, option_count);
@@ -242,9 +242,7 @@ snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_arra
         options[i].status = make_string_slowly(snippet_array.snippets[i].text);
         options[i].user_data = IntAsPtr(i);
     }
-    begin_integrated_lister__basic_list(app, "Snippet:", activate_snippet,
-                                        &snippet_array, sizeof(snippet_array),
-                                        options, option_count, 0, &view);
+    begin_integrated_lister__basic_list(app, "Snippet:", activate_snippet, &snippet_array, sizeof(snippet_array), options, option_count, 0, view);
     end_temp_memory(temp);
 }
 

@@ -67,10 +67,10 @@ struct Named_Mapping{
 ////////////////////////////////
 
 static void
-do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_Summary *view);
+do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view);
 
 static void
-do_gui_sure_to_close_4coder(Application_Links *app, View_Summary *view);
+do_gui_sure_to_close_4coder(Application_Links *app, View_ID view);
 
 #endif
 
