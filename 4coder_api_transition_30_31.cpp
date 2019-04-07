@@ -446,6 +446,14 @@ open_view(Application_Links *app, View_Summary *view_location, View_Split_Positi
     return(view);
 }
 
+static View_ID
+open_view(Application_Links *app, View_ID view_location, View_Split_Position position){
+    View_Summary summary = {};
+    get_view_summary(app, view_location, AccessAll, &summary);
+    summary = open_view(app, &summary, position);
+    return(summary.view_id);
+}
+
 static b32
 close_view(Application_Links *app, View_Summary *view){
     b32 result = false;
@@ -496,33 +504,6 @@ enum{
     ViewSplitKind_Ratio,
     ViewSplitKind_FixedPixels,
 };
-
-static b32
-view_set_split(Application_Links *app, View_Summary *view, View_Split_Kind kind, float t){
-    b32 result = false;
-    if (view != 0 && view->exists){
-        Panel_ID panel_id = 0;
-        if (view_get_panel(app, view->view_id, &panel_id)){
-            Panel_ID parent_panel_id = 0;
-            if (panel_get_parent(app, panel_id, &parent_panel_id)){
-                Panel_ID min_child_id = 0;
-                if (panel_get_child(app, parent_panel_id, PanelChild_Min, &min_child_id)){
-                    b32 panel_is_min = (min_child_id == panel_id);
-                    Panel_Split_Kind panel_kind = 0;
-                    if (kind == ViewSplitKind_Ratio){
-                        panel_kind = panel_is_min?PanelSplitKind_Ratio_Min:PanelSplitKind_Ratio_Max;
-                    }
-                    else{
-                        panel_kind = panel_is_min?PanelSplitKind_FixedPixels_Min:PanelSplitKind_FixedPixels_Max;
-                    }
-                    result = panel_set_split(app, parent_panel_id, panel_kind, t);
-                    get_view_summary(app, view->view_id, AccessAll, view);
-                }
-            }
-        }
-    }
-    return(result);
-}
 
 static b32
 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){

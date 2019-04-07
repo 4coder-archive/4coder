@@ -314,13 +314,13 @@ lister_get_clicked_item(Application_Links *app, View_ID view_id, Partition *scra
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
-        View_Summary view = {};
-        get_view_summary(app, view_id, AccessAll, &view);
+        GUI_Scroll_Vars scroll_vars = {};
+        view_get_scroll_vars(app, view_id, &scroll_vars);
         Mouse_State mouse = get_mouse_state(app);
         Rect_i32 buffer_region = {};
         view_get_buffer_region(app, view_id, &buffer_region);
         Vec2_i32 region_p0 = buffer_region.p0;
-        Vec2_i32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, V2i32(view.scroll_vars.scroll_p));
+        Vec2_i32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, V2i32(scroll_vars.scroll_p));
         Vec2_i32 m_panel_space = get_mouse_position_in_panel_space(mouse, region_p0);
         UI_Item *clicked = ui_control_get_mouse_hit(ui_data, m_view_space, m_panel_space);
         if (clicked != 0){

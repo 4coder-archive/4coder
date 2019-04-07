@@ -146,10 +146,11 @@ execute_standard_build(Application_Links *app, View_ID view, Buffer_ID active_bu
 CUSTOM_COMMAND_SIG(build_search)
 CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.")
 {
-    View_Summary view = get_active_view(app, AccessAll);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessAll, &buffer);
-    execute_standard_build(app, view.view_id, buffer);
+    view_get_buffer(app, view, AccessAll, &buffer);
+    execute_standard_build(app, view, buffer);
     memset(&prev_location, 0, sizeof(prev_location));
     lock_jump_buffer(make_lit_string("*compilation*"));
 }
@@ -164,8 +165,8 @@ get_or_open_build_panel(Application_Links *app){
     if (buffer != 0){
         view = get_first_view_with_buffer(app, buffer);
     }
-    if (view != 0){
-        open_build_footer_panel(app, &view);
+    if (view == 0){
+        view = open_build_footer_panel(app);
     }
     return(view);
 }
@@ -180,9 +181,10 @@ set_fancy_compilation_buffer_font(Application_Links *app){
 CUSTOM_COMMAND_SIG(build_in_build_panel)
 CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.  Puts the *compilation* buffer in a panel at the footer of the current view.")
 {
-    View_Summary view = get_active_view(app, AccessAll);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessAll, &buffer);
+    view_get_buffer(app, view, AccessAll, &buffer);
     
     View_ID build_view = get_or_open_build_panel(app);
     

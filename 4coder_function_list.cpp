@@ -308,8 +308,9 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_ID optional_t
     
     buffered_write_stream_flush(app, &buffered_write_stream);
     
-    View_Summary view = get_active_view(app, AccessAll);
-    view_set_buffer(app, &view, decls_buffer, 0);
+    View_ID view = 0;
+    get_active_view(app, AccessAll, &view);
+    view_set_buffer(app, view, decls_buffer, 0);
     
     lock_jump_buffer(decls_name.str, decls_name.size);
     
@@ -320,9 +321,10 @@ list_all_functions(Application_Links *app, Partition *part, Buffer_ID optional_t
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
 CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to define or declare functions.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessProtected, &buffer);
+    view_get_buffer(app, view, AccessProtected, &buffer);
     if (buffer_exists(app, buffer)){
         list_all_functions(app, &global_part, buffer);
     }

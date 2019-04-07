@@ -97,32 +97,38 @@ get_numeric_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo_N
 CUSTOM_COMMAND_SIG(miblo_increment_basic)
 CUSTOM_DOC("Increment an integer under the cursor by one.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
     Miblo_Number_Info number = {};
-    if (get_numeric_at_cursor(app, buffer, view.cursor.pos, &number)){
+    if (get_numeric_at_cursor(app, buffer, pos, &number)){
         char str_space[1024];
         String str = make_fixed_width_string(str_space);
         int_to_str(&str, number.x + 1);
         buffer_replace_range(app, buffer, number.range, str);
-        view_set_cursor(app, &view, seek_pos(number.start + str.size - 1), 1);
+        view_set_cursor(app, view, seek_pos(number.start + str.size - 1), true);
     }
 }
 
 CUSTOM_COMMAND_SIG(miblo_decrement_basic)
 CUSTOM_DOC("Decrement an integer under the cursor by one.")
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
     Miblo_Number_Info number = {};
-    if (get_numeric_at_cursor(app, buffer, view.cursor.pos, &number)){
+    if (get_numeric_at_cursor(app, buffer, pos, &number)){
         char str_space[1024];
         String str = make_fixed_width_string(str_space);
         int_to_str(&str, number.x - 1);
         buffer_replace_range(app, buffer, number.range, str);
-        view_set_cursor(app, &view, seek_pos(number.start + str.size - 1), 1);
+        view_set_cursor(app, view, seek_pos(number.start + str.size - 1), true);
     }
 }
 
@@ -366,19 +372,22 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo
 
 static void
 miblo_time_stamp_alter(Application_Links *app, i32 unit_type, i32 amt){
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
     
     Miblo_Timestamp_Info timestamp = {};
-    if (get_timestamp_at_cursor(app, buffer, view.cursor.pos, &timestamp)){
+    if (get_timestamp_at_cursor(app, buffer, pos, &timestamp)){
         char str_space[1024];
         String str = make_fixed_width_string(str_space);
         
         Miblo_Timestamp inc_timestamp = increment_timestamp(timestamp.time, unit_type, amt);
         timestamp_to_str(&str, inc_timestamp);
         buffer_replace_range(app, buffer, timestamp.range, str);
-        view_set_cursor(app, &view, seek_pos(timestamp.start + str.size - 1), 1);
+        view_set_cursor(app, view, seek_pos(timestamp.start + str.size - 1), true);
     }
 }
 

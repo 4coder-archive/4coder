@@ -607,12 +607,6 @@ view_open_file(Application_Links *app, View_ID view, char *filename, i32 filenam
 
 ////////////////////////////////
 
-// TODO(allen): replace this with get_view_prev(app, 0, access, view_id_out);
-static b32
-get_view_last(Application_Links *app, Access_Flag access, View_ID *view_id_out){
-    return(get_view_prev(app, 0, access, view_id_out));
-}
-
 static View_ID
 get_next_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_Flag access){
     if (!get_view_next(app, view_id, access, &view_id)){
@@ -633,37 +627,6 @@ get_prev_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_
     return(view_id);
 }
 
-////
-
-static void
-get_view_prev(Application_Links *app, View_Summary *view, Access_Flag access){
-    View_ID new_id = 0;
-    get_view_prev(app, view->view_id, access, &new_id);
-    get_view_summary(app, new_id, access, view);
-}
-
-static View_Summary
-get_view_last(Application_Links *app, Access_Flag access){
-    View_Summary view = {};
-    View_ID new_id = 0;
-    if (get_view_last(app, access, &new_id)){
-        get_view_summary(app, new_id, access, &view);
-    }
-    return(view);
-}
-
-static void
-get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, Access_Flag access){
-    View_ID new_id = get_next_view_looped_all_panels(app, view->view_id, access);
-    get_view_summary(app, new_id, access, view);
-}
-
-static void
-get_prev_view_looped_all_panels(Application_Links *app, View_Summary *view, u32 access){
-    View_ID new_id = get_prev_view_looped_all_panels(app, view->view_id, access);
-    get_view_summary(app, new_id, access, view);
-}
-
 ////////////////////////////////
 
 static Buffer_Kill_Result
@@ -674,11 +637,6 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
         do_gui_sure_to_kill(app, buffer, gui_view_id);
     }
     return(result);
-}
-
-static void
-refresh_view(Application_Links *app, View_Summary *view){
-    *view = get_view(app, view->view_id, AccessAll);
 }
 
 static i32
@@ -1233,12 +1191,12 @@ get_query_string(Application_Links *app, char *query_str, char *string_space, i3
 }
 
 static String
-get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary *view){
+get_string_in_view_range(Application_Links *app, Partition *arena, View_ID view){
     String str = {};
     Buffer_ID buffer = 0;
-    view_get_buffer(app, view->view_id, AccessProtected, &buffer);
+    view_get_buffer(app, view, AccessProtected, &buffer);
     if (buffer_exists(app, buffer)){
-        Range range = get_view_range(app, view->view_id);
+        Range range = get_view_range(app, view);
         i32 query_length = range.max - range.min;
         if (query_length != 0){
             char *query_space = push_array(arena, char, query_length);
@@ -1521,21 +1479,24 @@ no_mark_snap_to_cursor_if_shift(Application_Links *app, View_ID view_id){
 
 static b32
 view_has_highlighted_range(Application_Links *app, View_ID view_id){
+    b32 result = false;
     if (fcoder_mode == FCoderMode_NotepadLike){
-        View_Summary view = get_view(app, view_id, AccessAll);
-        return(view.cursor.pos != view.mark.pos);
+        i32 pos = 0;
+        i32 mark = 0;
+        view_get_cursor_pos(app, view_id, &pos);
+        view_get_mark_pos(app, view_id, &mark);
+        result = (pos != mark);
     }
-    return(false);
+    return(result);
 }
 
 static b32
 if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_id){
     b32 result = false;
     if (view_has_highlighted_range(app, view_id)){
-        View_Summary view = get_view(app, view_id, AccessAll);
         Range range = get_view_range(app, view_id);
         Buffer_ID buffer = 0;
-        view_get_buffer(app, view.view_id, AccessOpen, &buffer);
+        view_get_buffer(app, view_id, AccessOpen, &buffer);
         buffer_replace_range(app, buffer, range, make_lit_string(""));
         result = true;
     }
@@ -1545,22 +1506,47 @@ if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_
 static void
 begin_notepad_mode(Application_Links *app){
     fcoder_mode = FCoderMode_NotepadLike;
-    for (View_Summary view = get_view_first(app, AccessAll);
-         view.exists;
-         get_view_next(app, &view, AccessAll)){
-        view_set_mark(app, &view, seek_pos(view.cursor.pos));
+    View_ID view = 0;
+    for (get_view_next(app, 0, AccessAll, &view);
+         view != 0;
+         get_view_next(app, view, AccessAll, &view)){
+        i32 pos = 0;
+        view_get_cursor_pos(app, view, &pos);
+        view_set_mark(app, view, seek_pos(pos));
     }
 }
 
 ////////////////////////////////
 
 static b32
-view_set_split_proportion(Application_Links *app, View_Summary *view, f32 t){
+view_set_split(Application_Links *app, View_ID view, View_Split_Kind kind, f32 t){
+    b32 result = false;
+    if (view != 0){
+        Panel_ID panel_id = 0;
+        if (view_get_panel(app, view, &panel_id)){
+            Panel_ID parent_panel_id = 0;
+            if (panel_get_parent(app, panel_id, &parent_panel_id)){
+                Panel_ID min_child_id = 0;
+                if (panel_get_child(app, parent_panel_id, PanelChild_Min, &min_child_id)){
+                    b32 panel_is_min = (min_child_id == panel_id);
+                    Panel_Split_Kind panel_kind = ((kind == ViewSplitKind_Ratio)?
+                                                   (panel_is_min?PanelSplitKind_Ratio_Min:PanelSplitKind_Ratio_Max):
+                                                   (panel_is_min?PanelSplitKind_FixedPixels_Min:PanelSplitKind_FixedPixels_Max));
+                    result = panel_set_split(app, parent_panel_id, panel_kind, t);
+                }
+            }
+        }
+    }
+    return(result);
+}
+
+static b32
+view_set_split_proportion(Application_Links *app, View_ID view, f32 t){
     return(view_set_split(app, view, ViewSplitKind_Ratio, t));
 }
 
 static b32
-view_set_split_pixel_size(Application_Links *app, View_Summary *view, i32 t){
+view_set_split_pixel_size(Application_Links *app, View_ID view, i32 t){
     return(view_set_split(app, view, ViewSplitKind_FixedPixels, (f32)t));
 }
 

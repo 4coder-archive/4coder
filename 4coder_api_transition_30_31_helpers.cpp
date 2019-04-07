@@ -656,6 +656,122 @@ isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Ob
     isearch__update_highlight(app, view==0?0:view->view_id, highlight, start, end);
 }
 
+static void
+get_view_prev(Application_Links *app, View_Summary *view, Access_Flag access){
+    View_ID new_id = 0;
+    get_view_prev(app, view->view_id, access, &new_id);
+    get_view_summary(app, new_id, access, view);
+}
+
+static void
+get_next_view_looped_all_panels(Application_Links *app, View_Summary *view, Access_Flag access){
+    View_ID new_id = get_next_view_looped_all_panels(app, view==0?0:view->view_id, access);
+    get_view_summary(app, new_id, access, view);
+}
+
+static void
+get_prev_view_looped_all_panels(Application_Links *app, View_Summary *view, Access_Flag access){
+    View_ID new_id = get_prev_view_looped_all_panels(app, view->view_id, access);
+    get_view_summary(app, new_id, access, view);
+}
+
+static void
+refresh_view(Application_Links *app, View_Summary *view){
+    *view = get_view(app, view->view_id, AccessAll);
+}
+
+static String
+get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary *view){
+    return(get_string_in_view_range(app, arena, view==0?0:view->view_id));
+}
+
+static b32
+view_set_split(Application_Links *app, View_Summary *view, View_Split_Kind kind, f32 t){
+    b32 result = view_set_split(app, view==0?0:view->view_id, kind, t);
+    if (result && view != 0){
+        get_view_summary(app, view->view_id, AccessAll, view);
+    }
+    return(result);
+}
+
+static b32
+view_set_split_proportion(Application_Links *app, View_Summary *view, f32 t){
+    b32 result = view_set_split_proportion(app, view==0?0:view->view_id, t);
+    if (result && view != 0){
+        get_view_summary(app, view->view_id, AccessAll, view);
+    }
+    return(result);
+}
+
+static b32
+view_set_split_pixel_size(Application_Links *app, View_Summary *view, i32 t){
+    b32 result = view_set_split_pixel_size(app, view==0?0:view->view_id, t);
+    if (result && view != 0){
+        get_view_summary(app, view->view_id, AccessAll, view);
+    }
+    return(result);
+}
+
+static View_Summary
+open_footer_panel(Application_Links *app, View_Summary *view){
+    View_ID new_id = open_footer_panel(app, view==0?0:view->view_id);
+    View_Summary result = {};
+    get_view_summary(app, new_id, AccessAll, &result);
+    return(result);
+}
+
+static void
+new_view_settings(Application_Links *app, View_Summary *view){
+    new_view_settings(app, view==0?0:view->view_id);
+}
+
+static void
+view_set_passive(Application_Links *app, View_Summary *view, b32 value){
+    view_set_passive(app, view==0?0:view->view_id, value);
+}
+
+static b32
+view_get_is_passive(Application_Links *app, View_Summary *view){
+    return(view != 0 && view_get_is_passive(app, view->view_id));
+}
+
+static void
+get_next_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
+    View_ID new_id = get_next_view_looped_primary_panels(app, view_start->view_id, access);
+    get_view_summary(app, new_id, AccessAll, view_start);
+}
+
+static void
+get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_start, Access_Flag access){
+    View_ID new_id = get_prev_view_looped_primary_panels(app, view_start->view_id, access);
+    get_view_summary(app, new_id, AccessAll, view_start);
+}
+
+static void
+list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String *strings, i32 count, Search_Range_Flag match_flags, View_Summary default_target_view){
+    list__parameters(app, heap, scratch, strings, count, match_flags, default_target_view.view_id);
+}
+
+static void
+list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
+    list_query__parameters(app, heap, scratch, substrings, case_insensitive, default_target_view.view_id);
+}
+
+static Buffer_ID
+create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_length, View_Summary default_target_view){
+    return(create_or_switch_to_buffer_by_name(app, make_string(name, name_length), default_target_view.view_id));
+}
+
+static void
+list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scratch, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
+    list_identifier__parameters(app, heap, scratch, substrings, case_insensitive, default_target_view.view_id);
+}
+
+static void
+list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *scratch, String str, View_Summary default_target_view){
+    list_type_definition__parameters(app, heap, scratch, str, default_target_view.view_id);
+}
+
 #endif
 
 // BOTTOM

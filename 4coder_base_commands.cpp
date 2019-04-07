@@ -1052,11 +1052,12 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
         String r = replace.string;
         String w = with.string;
         
-        View_Summary view = get_active_view(app, AccessOpen);
+        View_ID view = 0;
+        get_active_view(app, AccessOpen, &view);
         Buffer_ID buffer_id = 0;
-        view_get_buffer(app, view.view_id, AccessOpen, &buffer_id);
+        view_get_buffer(app, view, AccessOpen, &buffer_id);
         
-        Range range = get_view_range(app, view.view_id);
+        Range range = get_view_range(app, view);
         
         i32 pos = range.min;
         i32 new_pos;
@@ -1065,8 +1066,7 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
         global_history_edit_group_begin(app);
         for (;new_pos + r.size <= range.end;){
             buffer_replace_range(app, buffer_id, make_range(new_pos, new_pos + r.size), w);
-            refresh_view(app, &view);
-            range = get_view_range(app, view.view_id);
+            range = get_view_range(app, view);
             pos = new_pos + w.size;
             buffer_seek_string_forward(app, buffer_id, pos, 0, r.str, r.size, &new_pos);
         }
@@ -1834,8 +1834,7 @@ record_get_new_cursor_position_redo(Application_Links *app, Buffer_ID buffer_id,
     return(record_get_new_cursor_position_redo(app, buffer_id, index, record));
 }
 
-// TODO(allen): switch to this being the default
-CUSTOM_COMMAND_SIG(undo_this_buffer)
+CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
 {
     View_ID view = 0;
@@ -1851,8 +1850,7 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
     }
 }
 
-// TODO(allen): switch to this being the default
-CUSTOM_COMMAND_SIG(redo_this_buffer)
+CUSTOM_COMMAND_SIG(redo)
 CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 {
     View_ID view = 0;
@@ -1870,7 +1868,7 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
     }
 }
 
-CUSTOM_COMMAND_SIG(undo)
+CUSTOM_COMMAND_SIG(undo_all_buffers)
 CUSTOM_DOC("Advances backward through the undo history in the buffer containing the most recent regular edit.")
 {
     Partition *scratch = &global_part;
@@ -1949,7 +1947,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
     end_temp_memory(temp);
 }
 
-CUSTOM_COMMAND_SIG(redo)
+CUSTOM_COMMAND_SIG(redo_all_buffers)
 CUSTOM_DOC("Advances forward through the undo history in the buffer containing the most recent regular edit.")
 {
     Partition *scratch = &global_part;

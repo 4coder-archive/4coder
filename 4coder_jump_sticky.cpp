@@ -350,10 +350,18 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
-    View_Summary view = get_active_view(app, AccessProtected);
-    Marker_List *list = get_or_make_list_for_buffer(app, part, heap, view.buffer_id);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    Marker_List *list = get_or_make_list_for_buffer(app, part, heap, buffer);
     
-    i32 list_index = get_index_exact_from_list(app, part, list, view.cursor.line);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    
+    i32 list_index = get_index_exact_from_list(app, part, list, cursor.line);
     
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {};
@@ -361,9 +369,10 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
             Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 change_active_panel(app);
-                View_Summary target_view = get_active_view(app, AccessAll);
-                switch_to_existing_view(app, target_view.view_id, buffer);
-                jump_to_location(app, target_view.view_id, buffer, location);
+                View_ID target_view = 0;
+                get_active_view(app, AccessAll, &target_view);
+                switch_to_existing_view(app, target_view, buffer);
+                jump_to_location(app, target_view, buffer, location);
             }
         }
     }
@@ -378,16 +387,26 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Partition *part = &global_part;
     
     Temp_Memory temp = begin_temp_memory(part);
-    View_Summary view = get_active_view(app, AccessProtected);
-    Marker_List *list = get_or_make_list_for_buffer(app, part, heap, view.buffer_id);
-    i32 list_index = get_index_exact_from_list(app, part, list, view.cursor.line);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    
+    Marker_List *list = get_or_make_list_for_buffer(app, part, heap, buffer);
+    
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    
+    i32 list_index = get_index_exact_from_list(app, part, list, cursor.line);
     
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, list, list_index, &location)){
             Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
-                jump_to_location(app, view.view_id, buffer, location);
+                jump_to_location(app, view, buffer, location);
             }
         }
     }
@@ -399,13 +418,14 @@ static void
 goto_jump_in_order(Application_Links *app, Marker_List *list, View_ID jump_view, ID_Pos_Jump_Location location){
     Buffer_ID buffer = {};
     if (get_jump_buffer(app, &buffer, &location)){
-        View_Summary target_view = get_active_view(app, AccessAll);
-        if (target_view.view_id == jump_view){
+        View_ID target_view = 0;
+        get_active_view(app, AccessAll, &target_view);
+        if (target_view == jump_view){
             change_active_panel(app);
-            target_view = get_active_view(app, AccessAll);
+            get_active_view(app, AccessAll, &target_view);
         }
-        switch_to_existing_view(app, target_view.view_id, buffer);
-        jump_to_location(app, target_view.view_id, buffer, location);
+        switch_to_existing_view(app, target_view, buffer);
+        jump_to_location(app, target_view, buffer, location);
         prev_location.buffer_id = location.buffer_id;
         prev_location.line = location.pos;
         prev_location.column = 0;
@@ -585,12 +605,13 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(newline_or_goto_position_sticky)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    if (view_get_buffer(app, view.view_id, AccessOpen, &buffer)){
+    if (view_get_buffer(app, view, AccessOpen, &buffer)){
         write_character(app);
     }
-    else if (view_get_buffer(app, view.view_id, AccessProtected, &buffer)){
+    else if (view_get_buffer(app, view, AccessProtected, &buffer)){
         goto_jump_at_cursor_sticky(app);
         lock_jump_buffer(app, buffer);
     }
@@ -599,12 +620,13 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
 CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel_sticky)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
-    View_Summary view = get_active_view(app, AccessProtected);
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer = 0;
-    if (view_get_buffer(app, view.view_id, AccessOpen, &buffer)){
+    if (view_get_buffer(app, view, AccessOpen, &buffer)){
         write_character(app);
     }
-    else if (view_get_buffer(app, view.view_id, AccessProtected, &buffer)){
+    else if (view_get_buffer(app, view, AccessProtected, &buffer)){
         goto_jump_at_cursor_same_panel_sticky(app);
         lock_jump_buffer(app, buffer);
     }
