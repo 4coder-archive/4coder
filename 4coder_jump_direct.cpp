@@ -23,7 +23,6 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
         change_active_panel(app);
         View_ID target_view = 0;
         get_active_view(app, AccessAll, &target_view);
-        Buffer_ID buffer = {};
         if (get_jump_buffer(app, &buffer, &jump.location)){
             switch_to_existing_view(app, target_view, buffer);
             jump_to_location(app, target_view, buffer, jump.location);
@@ -49,7 +48,6 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Parsed_Jump jump = parse_jump_from_buffer_line(app, &global_part, buffer, cursor.line, false);
     if (jump.success){
         View_ID target_view = view;
-        Buffer_ID buffer = {};
         if (get_jump_buffer(app, &buffer, &jump.location)){
             jump_to_location(app, target_view, buffer, jump.location);
         }

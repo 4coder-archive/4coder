@@ -184,9 +184,8 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             Buffer_Edit *edits = edit;
             
             for (i32 i = rect.line0; i <= rect.line1; ++i){
-                Partial_Cursor cursor = {};
-                
-                if (buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1), &cursor)){
+                Partial_Cursor partial_cursor = {};
+                if (buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1), &partial_cursor)){
                     edit->str_start = 0;
                     edit->len = 1;
                     edit->start = cursor.pos;
@@ -211,9 +210,8 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 Buffer_Edit *edits = edit;
                 
                 for (i32 i = rect.line0; i <= rect.line1; ++i){
-                    Partial_Cursor cursor = {};
-                    
-                    if (buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1), &cursor)){
+                    Partial_Cursor partial_cursor = {};
+                    if (buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1), &partial_cursor)){
                         edit->str_start = 0;
                         edit->len = 0;
                         edit->start = cursor.pos-1;

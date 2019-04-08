@@ -366,7 +366,6 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, list, list_index, &location)){
-            Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 change_active_panel(app);
                 View_ID target_view = 0;
@@ -404,7 +403,6 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     if (list_index >= 0){
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, list, list_index, &location)){
-            Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 jump_to_location(app, view, buffer, location);
             }

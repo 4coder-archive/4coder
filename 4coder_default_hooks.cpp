@@ -312,10 +312,6 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
         i32 line_count = 0;
         buffer_get_line_count(app, buffer, &line_count);
         i32 line_count_digit_count = int_to_str_size(line_count);
-        Face_ID face_id = 0;
-        get_face_id(app, buffer, &face_id);
-        Face_Metrics metrics = {};
-        get_face_metrics(app, face_id, &metrics);
         i32 margin_width = ceil32((f32)line_count_digit_count*metrics.typical_character_width);
         sub_region.x0 += margin_width + 2;
     }
@@ -399,9 +395,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             b32 showing_file_bar = false;
             if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
                 if (showing_file_bar){
-                    Face_ID face_id = 0;
-                    get_face_id(app, buffer_id, &face_id);
-                    
                     Rect_f32 bar = r_cursor;
                     bar.y1 = bar.y0 + line_height + 2.f;
                     r_cursor.y0 = bar.y1;
