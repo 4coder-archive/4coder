@@ -1869,6 +1869,9 @@ DOC_SEE(Buffer_Seek)
         Editing_File *file = view->file;
         Assert(file != 0);
         if (api_check_buffer(file)){
+            if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
+                seek.type = buffer_seek_unwrapped_xy;
+            }
             Full_Cursor cursor = file_compute_cursor(models->system, file, seek);
             view_set_cursor(models->system, models, view, cursor, set_preferred_x);
             result = true;

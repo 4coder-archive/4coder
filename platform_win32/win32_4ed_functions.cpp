@@ -127,8 +127,8 @@ Sys_Log_Sig(system_log){
 internal String
 win32_remove_unc_prefix_characters(String path){
     if (match_part(path, make_lit_string("\\\\?\\UNC"))){
-        path.size -= 6;
-        memmove(path.str, path.str + 6, path.size);
+        path.size -= 7;
+        memmove(path.str, path.str + 7, path.size);
         path.str[0] = '\\';
     }
     else if (match_part(path, make_lit_string("\\\\?\\"))){
@@ -168,7 +168,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                 c_str_dir[final_length + 2] = 0;
                 
                 if (canon_directory_out != 0){
-                    if (final_length+1 < canon_directory_max){
+                    if (final_length + 1 < canon_directory_max){
                         memcpy(canon_directory_out, c_str_dir, final_length);
                         if (canon_directory_out[final_length-1] != '\\'){
                             canon_directory_out[final_length++] = '\\';
