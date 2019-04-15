@@ -974,7 +974,6 @@ exec_project_command(Application_Links *app, Project_Command *command){
         }
         
         View_ID view = 0;
-        View_ID view_ptr = 0;
         Buffer_Identifier buffer_id = {};
         u32 flags = CLI_OverlapWithConflict|CLI_SendEndSignal;
         if (cursor_at_end){
@@ -992,9 +991,12 @@ exec_project_command(Application_Links *app, Project_Command *command){
                 }
             }
             else{
-                get_active_view(app, AccessAll, &view);
+                Buffer_ID buffer = buffer_identifier_to_id(app, buffer_id);
+                view = get_first_view_with_buffer(app, buffer);
+                if (view == 0){
+                    get_active_view(app, AccessAll, &view);
+                }
             }
-            view_ptr = view;
             
             memset(&prev_location, 0, sizeof(prev_location));
             lock_jump_buffer(command->out.str, command->out.size);
@@ -1006,7 +1008,7 @@ exec_project_command(Application_Links *app, Project_Command *command){
         
         String dir = current_project.dir;
         String cmd = command->cmd;
-        exec_system_command(app, view_ptr, buffer_id, dir.str, dir.size, cmd.str, cmd.size, flags);
+        exec_system_command(app, view, buffer_id, dir.str, dir.size, cmd.str, cmd.size, flags);
         if (set_fancy_font){
             set_fancy_compilation_buffer_font(app);
         }
