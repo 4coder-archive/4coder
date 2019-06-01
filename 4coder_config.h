@@ -19,9 +19,9 @@ struct Error_Location{
 struct Config_Error{
     Config_Error *next;
     Config_Error *prev;
-    String file_name;
-    char *pos;
-    String text;
+    String_Const_u8 file_name;
+    u8 *pos;
+    String_Const_u8 text;
 };
 
 struct Config_Error_List{
@@ -35,16 +35,16 @@ struct Config_Parser{
     Cpp_Token *token;
     Cpp_Token *end;
     
-    String file_name;
-    String data;
+    String_Const_u8 file_name;
+    String_Const_u8 data;
     
-    Partition *arena;
+    Arena *arena;
     
     Config_Error_List errors;
 };
 
 struct Config_LValue{
-    String identifier;
+    String_Const_u8 identifier;
     i32 index;
 };
 
@@ -76,7 +76,7 @@ struct Config_RValue{
         b32 boolean;
         i32 integer;
         u32 uinteger;
-        String string;
+        String_Const_u8 string;
         char character;
         Config_Compound *compound;
     };
@@ -99,9 +99,9 @@ enum{
 };
 struct Config_Layout{
     Config_Layout_Type type;
-    char *pos;
+    u8 *pos;
     union{
-        String identifier;
+        String_Const_u8 identifier;
         i32 integer;
     };
 };
@@ -118,7 +118,7 @@ struct Config_Assignment{
     Config_Assignment *next;
     Config_Assignment *prev;
     
-    char *pos;
+    u8 *pos;
     Config_LValue *l;
     Config_RValue *r;
     
@@ -133,8 +133,8 @@ struct Config{
     
     Config_Error_List errors;
     
-    String file_name;
-    String data;
+    String_Const_u8 file_name;
+    String_Const_u8 data;
 };
 
 ////////////////////////////////
@@ -149,12 +149,12 @@ enum{
 struct Config_Get_Result{
     b32 success;
     Config_RValue_Type type;
-    char *pos;
+    u8 *pos;
     union{
         b32 boolean;
         i32 integer;
         u32 uinteger;
-        String string;
+        String_Const_u8 string;
         char character;
         Config_Compound *compound;
     };
@@ -179,28 +179,17 @@ struct Config_Get_Result_List{
 
 ////////////////////////////////
 
-struct Extension_List{
-    char space[256];
-    char *exts[94];
-    i32 count;
-};
-
-struct CString_Array{
-    char **strings;
-    i32 count;
-};
-
 struct Config_Data{
-    char user_name_space[256];
-    String user_name;
+    u8 user_name_space[256];
+    String_Const_u8 user_name;
     
-    Extension_List code_exts;
+    String_Const_u8_Array code_exts;
     
-    char current_mapping_space[256];
-    String current_mapping;
+    u8 current_mapping_space[256];
+    String_Const_u8 current_mapping;
     
-    char mode_space[64];
-    String mode;
+    u8 mode_space[64];
+    String_Const_u8 mode;
     
     b32 use_scroll_bars;
     b32 use_file_bars;
@@ -224,27 +213,27 @@ struct Config_Data{
     i32 default_wrap_width;
     i32 default_min_base_width;
     
-    char default_theme_name_space[256];
-    String default_theme_name;
+    u8 default_theme_name_space[256];
+    String_Const_u8 default_theme_name;
     
     b32 highlight_line_at_cursor;
     
-    char default_font_name_space[256];
-    String default_font_name;
+    u8 default_font_name_space[256];
+    String_Const_u8 default_font_name;
     i32 default_font_size;
     b32 default_font_hinting;
     
-    char default_compiler_bat_space[256];
-    String default_compiler_bat;
+    u8 default_compiler_bat_space[256];
+    String_Const_u8 default_compiler_bat;
     
-    char default_flags_bat_space[1024];
-    String default_flags_bat;
+    u8 default_flags_bat_space[1024];
+    String_Const_u8 default_flags_bat;
     
-    char default_compiler_sh_space[256];
-    String default_compiler_sh;
+    u8 default_compiler_sh_space[256];
+    String_Const_u8 default_compiler_sh;
     
-    char default_flags_sh_space[1024];
-    String default_flags_sh;
+    u8 default_flags_sh_space[1024];
+    String_Const_u8 default_flags_sh;
     
     b32 lalt_lctrl_is_altgr;
 };

@@ -12,12 +12,15 @@
 #if !defined(FRED_FILE_MOVING_H)
 #define FRED_FILE_MOVING_H
 
-#include "../4coder_os_comp_cracking.h"
+#include "../4coder_base_types.h"
 
 #include <stdio.h>  // include system for windows
 #include <stdlib.h> // include system for linux   (YAY!)
 #include <stdarg.h>
 #include <string.h>
+
+#include "../4coder_base_types.cpp"
+#include "../4coder_malloc_allocator.cpp"
 
 //
 // API
@@ -36,7 +39,6 @@ static i32 prev_error = 0;
 
 #define systemf(...) do{                                       \
     i32 n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__);     \
-    AllowLocal(n);                                             \
     Assert(n < sizeof(SF_CMD));                                \
     SYSTEMF_PRINTF("%s\n", SF_CMD);                            \
     prev_error = system(SF_CMD);                               \
@@ -46,7 +48,7 @@ static i32 prev_error = 0;
 internal void fm_execute_in_dir(char *dir, char *str, char *args);
 
 // Init
-internal Partition fm_init_system();
+internal Arena fm_init_system();
 
 // Timing
 internal u64 fm_get_time();
@@ -56,12 +58,12 @@ internal u64 fm_get_time();
 #define END_TIME_SECTION(n) u64 total = fm_get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
 
 // Files and Folders Manipulation
-internal void fm_make_folder_if_missing(Partition *part, char *dir);
+internal void fm_make_folder_if_missing(Arena *arena, char *dir);
 internal void fm_clear_folder(char *folder);
 internal void fm_delete_file(char *file);
 internal void fm_copy_file(char *file, char *newname);
 internal void fm_copy_all(char *source, char *tag, char *folder);
-internal void fm_copy_folder(Partition *part, char *src_dir, char *dst_dir, char *src_folder);
+internal void fm_copy_folder(Arena *arena, char *src_dir, char *dst_dir, char *src_folder);
 
 // File Reading and Writing
 internal void fm_write_file(char *file_name, char *data, u32 size);
@@ -73,16 +75,16 @@ internal void fm_zip(char *parent, char *folder, char *dest);
 internal void fm_slash_fix(char *path);
 
 // Memory concat helpers
-internal char *fm_prepare_string_internal(Partition *part, char *s1, ...);
+internal char *fm_prepare_string_internal(Arena *arena, char *s1, ...);
 #define fm_str(...) fm_prepare_string_internal(__VA_ARGS__, (void*)0)
 
-internal char *fm_basic_string_internal(Partition *part, char *s1, ...);
+internal char *fm_basic_string_internal(Arena *arena, char *s1, ...);
 #define fm_basic_str(...) fm_basic_string_internal(__VA_ARGS__, (void*)0)
 
-internal char **fm_prepare_list_internal(Partition *part, char **l1, ...);
+internal char **fm_prepare_list_internal(Arena *arena, char **l1, ...);
 #define fm_list(...) fm_prepare_list_internal(__VA_ARGS__, (void*)0)
 
-internal char **fm_list_one_item(Partition *part, char *item);
+internal char **fm_list_one_item(Arena *arena, char *item);
 
 // File System Navigation
 internal i32  fm_get_current_directory(char *buffer, i32 max);
@@ -109,7 +111,7 @@ internal void fm_finish_build_line(Build_Line *line);
 
 internal void fm__swap_ptr(char **A, char **B);
 
-#if defined(IS_CL)
+#if COMPILER_CL
 
 #define fm_add_to_line(line, str, ...) do{  \
     snprintf(line.build_options,            \
@@ -118,7 +120,7 @@ internal void fm__swap_ptr(char **A, char **B);
     fm__swap_ptr(&line.build_options, &line.build_options_prev); \
 }while(0)
 
-#elif defined(IS_GCC)
+#elif COMPILER_GCC
 
 #define fm_add_to_line(line, str, ...) do{                   \
     snprintf(line.build_options, line.build_max, "%s "str,   \
@@ -129,10 +131,10 @@ internal void fm__swap_ptr(char **A, char **B);
 #endif
 
 // Slashes
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 # define SLASH "\\"
 static char platform_correct_slash = '\\';
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 # define SLASH "/"
 static char platform_correct_slash = '/';
 #else
@@ -140,33 +142,33 @@ static char platform_correct_slash = '/';
 #endif
 
 // File Extensions
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 # define EXE ".exe"
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 # define EXE ""
 #else
 # error No EXE format specified for this OS
 #endif
 
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 # define PDB ".pdb"
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 # define PDB ""
 #else
 # error No PDB format specified for this OS
 #endif
 
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 # define DLL ".dll"
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 # define DLL ".so"
 #else
 # error No DLL format specified for this OS
 #endif
 
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 # define BAT ".bat"
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 # define BAT ".sh"
 #else
 # error No BAT format specified for this OS
@@ -181,18 +183,16 @@ static char platform_correct_slash = '/';
 #if defined(FTECH_FILE_MOVING_IMPLEMENTATION) && !defined(FTECH_FILE_MOVING_IMPL_GUARD)
 #define FTECH_FILE_MOVING_IMPL_GUARD
 
-internal Partition
-fm__init_memory(){
-    i32_4tech size = MB(512);
-    Partition part = make_part(malloc(size), size);
-    return(part);
+internal Arena
+fm__init_memory(void){
+    return(make_arena_malloc(MB(512), 8));
 }
 
 //
 // Windows implementation
 //
 
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 
 typedef u32 DWORD;
 typedef i32  LONG;
@@ -270,8 +270,8 @@ extern "C"{
 
 global u64 perf_frequency;
 
-internal Partition
-fm_init_system(){
+internal Arena
+fm_init_system(void){
     LARGE_INTEGER lint;
     if (QueryPerformanceFrequency(&lint)){
         perf_frequency = lint.QuadPart;
@@ -341,8 +341,8 @@ fm_slash_fix(char *path){
 }
 
 internal void
-fm_make_folder_if_missing(Partition *part, char *dir){
-    char *path = fm_str(part, dir);
+fm_make_folder_if_missing(Arena *arena, char *dir){
+    char *path = fm_str(arena, dir);
     char *p = path;
     for (; *p; ++p){
         if (*p == '\\'){
@@ -415,7 +415,7 @@ fm_zip(char *parent, char *folder, char *dest){
 // Unix implementation
 //
 
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 
 #include <time.h>
 #include <unistd.h>
@@ -545,10 +545,10 @@ fm_zip(char *parent, char *folder, char *file){
 #endif
 
 internal void
-fm_copy_folder(Partition *part, char *src_dir, char *dst_dir, char *src_folder){
+fm_copy_folder(Arena *arena, char *src_dir, char *dst_dir, char *src_folder){
     Temp_Dir temp = fm_pushdir(src_dir);
-    fm_make_folder_if_missing(part, fm_str(part, dst_dir, "/", src_folder));
-    char *copy_name = fm_str(part, dst_dir, "/", src_folder);
+    fm_make_folder_if_missing(arena, fm_str(arena, dst_dir, "/", src_folder));
+    char *copy_name = fm_str(arena, dst_dir, "/", src_folder);
     fm_copy_all(src_folder, "*", copy_name);
     fm_popdir(temp);
 }
@@ -564,58 +564,56 @@ listsize(void *p, umem item_size){
 }
 
 internal void*
-fm__prepare(Partition *part, i32 item_size, void *i1, va_list list){
+fm__prepare(Arena *arena, i32 item_size, void *i1, va_list list){
+    List_String_Const_char out_list = {};
     i32 size = listsize(i1, item_size);
-    void *result = push_array(part, char, size);
-    memcpy(result, i1, (size_t)size);
-    
+    string_list_push(arena, &out_list, SCchar((char*)i1, size));
     void *ln = va_arg(list, void*);
     for (;ln != 0;){
         size = listsize(ln, item_size);
-        void *new_str = push_array(part, char, size);
-        memcpy(new_str, ln, (size_t)size);
+        string_list_push(arena, &out_list, SCchar((char*)ln, size));
         ln = va_arg(list, void*);
     }
-    
-    void *terminator = push_array(part, char, item_size);
-    memset(terminator, 0, (size_t)item_size);
-    return(result);
+    void *terminator = push_array_zero(arena, char, item_size);
+    string_list_push(arena, &out_list, SCchar((char*)terminator, item_size));
+    String_Const_char result = string_list_flatten(arena, out_list);
+    return(result.str);
 }
 
 internal char*
-fm_basic_string_internal(Partition *part, char *s1, ...){
+fm_basic_string_internal(Arena *arena, char *s1, ...){
     i32 item_size = sizeof(*s1);
     va_list list;
     va_start(list, s1);
-    char *result = (char*)fm__prepare(part, item_size, s1, list);
+    char *result = (char*)fm__prepare(arena, item_size, s1, list);
     va_end(list);
     return(result);
 }
 
 internal char*
-fm_prepare_string_internal(Partition *part, char *s1, ...){
+fm_prepare_string_internal(Arena *arena, char *s1, ...){
     i32 item_size = sizeof(*s1);
     va_list list;
     va_start(list, s1);
-    char *result = (char*)fm__prepare(part, item_size, s1, list);
+    char *result = (char*)fm__prepare(arena, item_size, s1, list);
     va_end(list);
     fm_slash_fix(result);
     return(result);
 }
 
 internal char**
-fm_prepare_list_internal(Partition *part, char **p1, ...){
+fm_prepare_list_internal(Arena *arena, char **p1, ...){
     i32 item_size = sizeof(*p1);
     va_list list;
     va_start(list, p1);
-    char **result = (char**)fm__prepare(part, item_size, p1, list);
+    char **result = (char**)fm__prepare(arena, item_size, p1, list);
     va_end(list);
     return(result);
 }
 
 internal char**
-fm_list_one_item(Partition *part, char *item){
-    char **result = push_array(part, char*, 2);
+fm_list_one_item(Arena *arena, char *item){
+    char **result = push_array(arena, char*, 2);
     result[0] = item;
     result[1] = 0;
     return(result);

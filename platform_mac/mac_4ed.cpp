@@ -11,7 +11,7 @@
 
 #define IS_PLAT_LAYER
 
-#include "4ed_defines.h"
+#include "4coder_base_types.h"
 #include "4coder_API/4coder_version.h"
 
 #include "4coder_lib/4coder_utf8.h"

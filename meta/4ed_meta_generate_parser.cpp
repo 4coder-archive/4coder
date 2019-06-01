@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 
-#include "../4ed_defines.h"
+#include "4coder_base_types.h"
 #include "4ed_meta_generate_parser.h"
 
 #define ConfigOpClassList(M) \

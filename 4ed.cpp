@@ -55,11 +55,11 @@ app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine
 }
 
 internal void
-output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
+output_file_append(Models *models, Editing_File *file, String_Const_u8 value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
         Edit_Behaviors behaviors = {};
-        edit_single(system, models, file, make_range(end), value, behaviors);
+        edit_single(models->system, models, file, make_range(end), value, behaviors);
     }
 }
 
@@ -119,8 +119,8 @@ SCROLL_RULE_SIG(fallback_scroll_rule){
 #define DEFAULT_UI_MAP_SIZE 32
 
 internal void
-setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
-    map_init(commands, part, DEFAULT_UI_MAP_SIZE, parent);
+setup_ui_commands(Command_Map *commands, Cursor *cursor, i32 parent){
+    map_init(commands, cursor, DEFAULT_UI_MAP_SIZE, parent);
     // TODO(allen): do(fix the weird built-in-ness of the ui map)
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
@@ -134,24 +134,23 @@ setup_ui_commands(Command_Map *commands, Partition *part, i32 parent){
 }
 
 internal void
-setup_file_commands(Command_Map *commands, Partition *part, i32 parent){
-    map_init(commands, part, DEFAULT_MAP_SIZE, parent);
+setup_file_commands(Command_Map *commands, Cursor *cursor, i32 parent){
+    map_init(commands, cursor, DEFAULT_MAP_SIZE, parent);
 }
 
 internal void
-setup_top_commands(Command_Map *commands, Partition *part, i32 parent){
-    map_init(commands, part, DEFAULT_MAP_SIZE, parent);
+setup_top_commands(Command_Map *commands, Cursor *cursor, i32 parent){
+    map_init(commands, cursor, DEFAULT_MAP_SIZE, parent);
 }
 
+// TODO(allen): REWRITE REWRITE REWRITE!
 internal b32
 interpret_binding_buffer(Models *models, void *buffer, i32 size){
     b32 result = true;
     
     Heap *gen = &models->mem.heap;
-    Partition *part = &models->mem.part;
-    Temp_Memory temp = begin_temp_memory(part);
-    
-    Partition local_part = {};
+    Arena *scratch = &models->mem.arena;
+    Temp_Memory temp = begin_temp(scratch);
     
     Mapping new_mapping = {};
     
@@ -179,10 +178,10 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         new_mapping.user_map_count = user_map_count;
         
         // Initialize Table and User Maps in Temp Buffer
-        new_mapping.map_id_table = push_array(part, i32, user_map_count);
+        new_mapping.map_id_table = push_array(scratch, i32, user_map_count);
         memset(new_mapping.map_id_table, -1, user_map_count*sizeof(i32));
         
-        new_mapping.user_maps = push_array(part, Command_Map, user_map_count);
+        new_mapping.user_maps = push_array(scratch, Command_Map, user_map_count);
         memset(new_mapping.user_maps, 0, user_map_count*sizeof(Command_Map));
         
         // Find the Size of Each Map
@@ -227,12 +226,12 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         // Add up the Map Counts
         i32 count_global = DEFAULT_MAP_SIZE;
         if (did_top){
-            count_global = clamp_bottom(6, new_mapping.map_top.count*3/2);
+            count_global = clamp_bot(6, new_mapping.map_top.count*3/2);
         }
         
         i32 count_file = DEFAULT_MAP_SIZE;
         if (did_file){
-            count_file = clamp_bottom(6, new_mapping.map_file.count*3/2);
+            count_file = clamp_bot(6, new_mapping.map_file.count*3/2);
         }
         
         i32 count_ui = DEFAULT_UI_MAP_SIZE;
@@ -240,7 +239,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         i32 count_user = 0;
         for (i32 i = 0; i < user_map_count; ++i){
             Command_Map *map = &new_mapping.user_maps[i];
-            count_user += clamp_bottom(6, map->max*3/2);
+            count_user += clamp_bot(6, map->max*3/2);
         }
         
         i32 binding_memsize = (count_global + count_file + count_ui + count_user)*sizeof(Command_Binding);
@@ -249,23 +248,23 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         i32 map_id_table_memsize = user_map_count*sizeof(i32);
         i32 user_maps_memsize = user_map_count*sizeof(Command_Map);
         
-        i32 map_id_table_rounded_memsize = l_round_up_i32(map_id_table_memsize, 8);
-        i32 user_maps_rounded_memsize = l_round_up_i32(user_maps_memsize, 8);
+        i32 map_id_table_rounded_memsize = round_up_i32(map_id_table_memsize, 8);
+        i32 user_maps_rounded_memsize = round_up_i32(user_maps_memsize, 8);
         
-        i32 binding_rounded_memsize = l_round_up_i32(binding_memsize, 8);
+        i32 binding_rounded_memsize = round_up_i32(binding_memsize, 8);
         
         i32 needed_memsize = map_id_table_rounded_memsize + user_maps_rounded_memsize + binding_rounded_memsize;
         new_mapping.memory = heap_allocate(gen, needed_memsize);
-        local_part = make_part(new_mapping.memory, needed_memsize);
+        Cursor local_cursor = make_cursor(new_mapping.memory, needed_memsize);
         
         // Move ID Table Memory and Pointer
         i32 *old_table = new_mapping.map_id_table;
-        new_mapping.map_id_table = push_array(&local_part, i32, user_map_count);
+        new_mapping.map_id_table = push_array(&local_cursor, i32, user_map_count);
         memmove(new_mapping.map_id_table, old_table, map_id_table_memsize);
         
         // Move User Maps Memory and Pointer
         Command_Map *old_maps = new_mapping.user_maps;
-        new_mapping.user_maps = push_array(&local_part, Command_Map, user_map_count);
+        new_mapping.user_maps = push_array(&local_cursor, Command_Map, user_map_count);
         memmove(new_mapping.user_maps, old_maps, user_maps_memsize);
         
         // Fill in Command Maps
@@ -304,8 +303,8 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                         // NOTE(allen): Map can begin multiple times, only alloc and clear when we first see it.
                         if (map_ptr->commands == 0){
                             i32 count = map->max;
-                            i32 table_max = clamp_bottom(6, count*3/2);
-                            map_init(map_ptr, &local_part, table_max, mapid_global);
+                            i32 table_max = clamp_bot(6, count*3/2);
+                            map_init(map_ptr, &local_cursor, table_max, mapid_global);
                         }
                     }
                 }break;
@@ -424,17 +423,17 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         }
         
         if (!did_top){
-            setup_top_commands(&new_mapping.map_top, &local_part, mapid_global);
+            setup_top_commands(&new_mapping.map_top, &local_cursor, mapid_global);
         }
         if (!did_file){
-            setup_file_commands(&new_mapping.map_file, &local_part, mapid_global);
+            setup_file_commands(&new_mapping.map_file, &local_cursor, mapid_global);
         }
-        setup_ui_commands(&new_mapping.map_ui, &local_part, mapid_global);
+        setup_ui_commands(&new_mapping.map_ui, &local_cursor, mapid_global);
     }
     else{
         // TODO(allen): do(Error report: bad binding units map.)
         // TODO(allen): do(no bindings set recovery plan.)
-        InvalidCodePath;
+        InvalidPath;
     }
     
     Mapping old_mapping = models->mapping;
@@ -443,7 +442,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     }
     
     models->mapping = new_mapping;
-    end_temp_memory(temp);
+    end_temp(temp);
     
     return(result);
 }
@@ -528,10 +527,10 @@ fill_hardcode_default_style(Color_Table color_table){
 
 internal void
 app_hardcode_default_style(Models *models){
-    Partition *part = &models->mem.part;
+    Arena *arena = &models->mem.arena;
     Color_Table color_table = {};
-    color_table.vals = push_array(part, u32, Stag_COUNT);
     color_table.count = Stag_COUNT;
+    color_table.vals = push_array(arena, u32, color_table.count);
     fill_hardcode_default_style(color_table);
     models->fallback_color_table = color_table;
 }
@@ -554,7 +553,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
         
         if (arg[0] == '-' && arg[1] == '-'){
             char *long_arg_name = arg+2;
-            if (match_cc(long_arg_name, "custom")){
+            if (string_match(SCu8(long_arg_name),
+                             string_u8_litexpr("custom"))){
                 mode = CLMode_Custom;
                 continue;
             }
@@ -606,7 +606,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_InitialFilePosition:
                     {
                         if (i < argc){
-                            settings->initial_line = str_to_int_c(argv[i]);
+                            settings->initial_line = (i32)string_to_integer(SCu8(argv[i]), 10);
                         }
                         action = CLAct_Nothing;
                     }break;
@@ -616,8 +616,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (i + 1 < argc){
                             plat_settings->set_window_size = true;
                             
-                            i32 w = str_to_int_c(argv[i]);
-                            i32 h = str_to_int_c(argv[i+1]);
+                            i32 w = (i32)string_to_integer(SCu8(argv[i]), 10);
+                            i32 h = (i32)string_to_integer(SCu8(argv[i + 1]), 10);
                             if (w > 0){
                                 plat_settings->window_w = w;
                             }
@@ -642,8 +642,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (i + 1 < argc){
                             plat_settings->set_window_pos = true;
                             
-                            i32 x = str_to_int_c(argv[i]);
-                            i32 y = str_to_int_c(argv[i+1]);
+                            i32 x = (i32)string_to_integer(SCu8(argv[i]), 10);
+                            i32 y = (i32)string_to_integer(SCu8(argv[i + 1]), 10);
                             if (x > 0){
                                 plat_settings->window_x = x;
                             }
@@ -666,7 +666,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_FontSize:
                     {
                         if (i < argc){
-                            plat_settings->font_size = str_to_int_c(argv[i]);
+                            plat_settings->font_size = (i32)string_to_integer(SCu8(argv[i]), 10);
                             settings->font_size = plat_settings->font_size;
                         }
                         action = CLAct_Nothing;
@@ -704,13 +704,59 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
     }
 }
 
+////////////////////////////////
+
+internal void*
+base_reserve__system(void *user_data, umem size, umem *size_out){
+    System_Functions *system = (System_Functions*)user_data;
+    umem extra_size = 128;
+    umem increased_size = size + extra_size;
+    size = round_up_umem(increased_size, KB(4));
+    *size_out = size - extra_size;
+    void *ptr = system->memory_allocate(size);
+    *(umem*)ptr = size;
+    ptr = (u8*)ptr + extra_size;
+    return(ptr);
+}
+
+internal void
+base_free__system(void *user_data, void *ptr){
+    System_Functions *system = (System_Functions*)user_data;
+    umem extra_size = 128;
+    ptr = (u8*)ptr - extra_size;
+    umem size = *(umem*)ptr;
+    system->memory_free(ptr, size);
+}
+
+internal Base_Allocator
+make_base_allocator_system(System_Functions *system){
+    return(make_base_allocator(base_reserve__system, 0, 0,
+                               base_free__system, 0, system));
+}
+
+internal Arena
+make_arena_models(Models *models, umem chunk_size, umem align){
+    return(make_arena(&models->allocator, chunk_size, align));
+}
+
+internal Arena
+make_arena_models(Models *models, umem chunk_size){
+    return(make_arena(&models->allocator, chunk_size, 8));
+}
+
+internal Arena
+make_arena_models(Models *models){
+    return(make_arena(&models->allocator, KB(16), 8));
+}
+
+////////////////////////////////
+
 internal App_Vars*
 app_setup_memory(System_Functions *system, Application_Memory *memory){
-    Partition _partition = make_part(memory->vars_memory, memory->vars_memory_size);
-    App_Vars *vars = push_array(&_partition, App_Vars, 1);
-    Assert(vars != 0);
-    memset(vars, 0, sizeof(*vars));
-    vars->models.mem.part = _partition;
+    Cursor cursor = make_cursor(memory->vars_memory, memory->vars_memory_size);
+    App_Vars *vars = push_array_zero(&cursor, App_Vars, 1);
+    vars->models.allocator = make_base_allocator_system(system);
+    vars->models.mem.arena = make_arena(&vars->models.allocator);
     heap_init(&vars->models.mem.heap);
     heap_extend(&vars->models.mem.heap, memory->target_memory, memory->target_memory_size);
     return(vars);
@@ -813,18 +859,18 @@ App_Init_Sig(app_init){
     models->keep_playing = true;
     
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
-    models->custom_layer_arena = make_arena(&models->app_links);
+    models->custom_layer_arena = make_arena_models(models);
     
     models->config_api = api;
     models->app_links.cmd_context = models;
     
-    Partition *part = &models->mem.part;
+    Arena *arena = &models->mem.arena;
     
     // NOTE(allen): live set
     {
         models->live_set.count = 0;
         models->live_set.max = MAX_VIEWS;
-        models->live_set.views = push_array(part, View, models->live_set.max);
+        models->live_set.views = push_array(arena, View, models->live_set.max);
         
         //dll_init_sentinel
         models->live_set.free_sentinel.next = &models->live_set.free_sentinel;
@@ -843,7 +889,7 @@ App_Init_Sig(app_init){
     
     {
         umem memsize = KB(8);
-        void *mem = push_array(part, u8, (i32)memsize);
+        void *mem = push_array(arena, u8, (i32)memsize);
         parse_context_init_memory(&models->parse_context_memory, mem, memsize);
         parse_context_add_default(&models->parse_context_memory, &models->mem.heap);
     }
@@ -860,7 +906,7 @@ App_Init_Sig(app_init){
     dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
-    working_set_init(system, &models->working_set, part, &vars->models.mem.heap);
+    working_set_init(system, &models->working_set, arena, &vars->models.mem.heap);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
@@ -876,8 +922,8 @@ App_Init_Sig(app_init){
     
     // TODO(allen): do(better clipboard allocation)
     if (clipboard.str != 0){
-        String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
-        copy(dest, make_string((char*)clipboard.str, clipboard.size));
+        String_Const_u8 *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
+        block_copy(dest->str, clipboard.str, clipboard.size);
     }
     
     // NOTE(allen): style setup
@@ -887,12 +933,8 @@ App_Init_Sig(app_init){
     // NOTE(allen): title space
     models->has_new_title = true;
     models->title_capacity = KB(4);
-    models->title_space = push_array(part, char, models->title_capacity);
-    {
-        String builder = make_string_cap(models->title_space, 0, models->title_capacity);
-        append(&builder, WINDOW_NAME);
-        terminate_with_null(&builder);
-    }
+    models->title_space = push_array(arena, char, models->title_capacity);
+    block_copy(models->title_space, WINDOW_NAME, sizeof(WINDOW_NAME));
     
     // NOTE(allen): init system context
     models->system = system;
@@ -900,21 +942,21 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): init baked in buffers
     File_Init init_files[] = {
-        { make_lit_string("*messages*"), &models->message_buffer, true , },
-        { make_lit_string("*scratch*"),  &models->scratch_buffer, false, },
+        { string_u8_litinit("*messages*"), &models->message_buffer, true , },
+        { string_u8_litinit("*scratch*"),  &models->scratch_buffer, false, },
     };
     
     Heap *heap = &models->mem.heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_alloc_always(&models->working_set, heap, &models->lifetime_allocator);
-        buffer_bind_name(models, heap, part, &models->working_set, file, init_files[i].name);
+        buffer_bind_name(models, heap, arena, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].ptr != 0){
             *init_files[i].ptr = file;
         }
         
         File_Attributes attributes = {};
-        file_create_from_string(system, models, file, make_lit_string(""), attributes);
+        file_create_from_string(system, models, file, SCu8(), attributes);
         if (init_files[i].read_only){
             file->settings.read_only = true;
             history_free(&models->mem.heap, &file->state.history);
@@ -927,7 +969,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): setup first panel
     {
-        Panel *panel = layout_initialize(part, &models->layout);
+        Panel *panel = layout_initialize(arena, &models->layout);
         View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, panel);
         view_set_file(system, models, new_view, models->scratch_buffer);
     }
@@ -953,10 +995,10 @@ App_Step_Sig(app_step){
     models->input = input;
     
     // NOTE(allen): OS clipboard event handling
-    String clipboard = input->clipboard;
+    String_Const_u8 clipboard = input->clipboard;
     if (clipboard.str != 0){
-        String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
-        dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
+        String_Const_u8 *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
+        dest->size = eol_convert_in((char*)dest->str, (char*)clipboard.str, (i32)clipboard.size);
         if (input->clipboard_changed && models->clipboard_change != 0){
             models->clipboard_change(&models->app_links, *dest, ClipboardFlag_FromOS);
         }
@@ -968,20 +1010,20 @@ App_Step_Sig(app_step){
         i32 size = 0;
         i32 buffer_size = KB(32);
         
-        Partition *part = &models->mem.part;
-        Temp_Memory temp = begin_temp_memory(part);
-        char *buffer = push_array(part, char, buffer_size);
+        Arena *scratch = &models->mem.arena;
+        Temp_Memory temp = begin_temp(scratch);
+        char *buffer = push_array(scratch, char, buffer_size);
         u32 unmark_top = 0;
-        u32 unmark_max = (8 << 10);
-        Editing_File **unmark = (Editing_File**)push_array(part, Editing_File*, unmark_max);
+        u32 unmark_max = Thousand(8);
+        Editing_File **unmark = (Editing_File**)push_array(scratch, Editing_File*, unmark_max);
         
         Working_Set *working_set = &models->working_set;
         
         for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
             Assert(!mem_too_small);
             Editing_File_Name canon = {};
-            if (get_canon_name(system, make_string(buffer, size), &canon)){
-                Editing_File *file = working_set_contains_canon(working_set, canon.name);
+            if (get_canon_name(system, SCu8(buffer, size), &canon)){
+                Editing_File *file = working_set_contains_canon(working_set, string_from_file_name(&canon));
                 if (file != 0){
                     if (file->state.ignore_behind_os == 0){
                         file_add_dirty_flag(file, DirtyState_UnloadedChanges);
@@ -1001,7 +1043,7 @@ App_Step_Sig(app_step){
             unmark[i]->state.ignore_behind_os = 0;
         }
         
-        end_temp_memory(temp);
+        end_temp(temp);
     }
     
     // NOTE(allen): reorganizing panels on screen
@@ -1012,10 +1054,10 @@ App_Step_Sig(app_step){
     // NOTE(allen): update child processes
     f32 dt = input->dt;
     if (dt > 0){
-        Partition *scratch = &models->mem.part;
+        Arena *scratch = &models->mem.arena;
         Child_Process_Container *child_processes = &models->child_processes;
         
-        Temp_Memory temp = begin_temp_memory(scratch);
+        Temp_Memory temp = begin_temp(scratch);
         Child_Process **processes_to_free = push_array(scratch, Child_Process*, child_processes->active_child_process_count);
         i32 processes_to_free_count = 0;
         
@@ -1038,18 +1080,16 @@ App_Step_Sig(app_step){
             if (system->cli_update_step(cli, dest, max, &amount)){
                 if (file != 0 && amount > 0){
                     amount = eol_in_place_convert_in(dest, amount);
-                    output_file_append(system, models, file, make_string(dest, amount));
+                    output_file_append(models, file, SCu8(dest, amount));
                     edited_file = true;
                 }
             }
             
             if (system->cli_end_update(cli)){
                 if (file != 0){
-                    char str_space[256];
-                    String str = make_fixed_width_string(str_space);
-                    append(&str, make_lit_string("exited with code "));
-                    append_int_to_str(&str, cli->exit);
-                    output_file_append(system, models, file, str);
+                    String_Const_u8 str = string_u8_pushf(scratch, "exited with code %d",
+                                                          cli->exit);
+                    output_file_append(models, file, str);
                     edited_file = true;
                 }
                 processes_to_free[processes_to_free_count++] = child_process;
@@ -1065,7 +1105,7 @@ App_Step_Sig(app_step){
             child_process_free(child_processes, processes_to_free[i]->id);
         }
         
-        end_temp_memory(temp);
+        end_temp(temp);
     }
     
     // NOTE(allen): input filter and simulated events
@@ -1361,7 +1401,9 @@ App_Step_Sig(app_step){
         File_Edit_Finished_Function *hook_file_edit_finished = models->hook_file_edit_finished;
         if (hook_file_edit_finished != 0){
             Working_Set *working_set = &models->working_set;
-            if (working_set->edit_finished_list.next != &working_set->edit_finished_list){
+            if (working_set->edit_finished_count > 0){
+                Assert(working_set->edit_finished_list_first != 0);
+                Assert(working_set->edit_finished_list_last != 0);
                 b32 trigger_hook = false;
                 
                 u32 elapse_time = models->edit_finished_hook_repeat_speed;
@@ -1381,24 +1423,21 @@ App_Step_Sig(app_step){
                     trigger_hook = true;
                 }
                 if (trigger_hook){
-                    Partition *scratch = &models->mem.part;
+                    Arena *scratch = &models->mem.arena;
+                    Temp_Memory temp = begin_temp(scratch);
+                    Node *first = working_set->edit_finished_list_first;
                     
-                    Temp_Memory temp = begin_temp_memory(scratch);
-                    Node *first = working_set->edit_finished_list.next;
-                    Node *stop = &working_set->edit_finished_list;
-                    
-                    Editing_File **file_ptrs = push_array(scratch, Editing_File*, 0);
+                    i32 max_id_count = working_set->edit_finished_count;
+                    Editing_File **file_ptrs = push_array(scratch, Editing_File*, max_id_count);
+                    Buffer_ID *ids = push_array(scratch, Buffer_ID, max_id_count);
+                    i32 id_count = 0;
                     for (Node *node = first;
-                         node != stop;
+                         node != 0;
                          node = node->next){
-                        Editing_File **file_ptr = push_array(scratch, Editing_File*, 1);
-                        *file_ptr = CastFromMember(Editing_File, edit_finished_mark_node, node);
-                    }
-                    i32 id_count = (i32)(push_array(scratch, Editing_File*, 0) - file_ptrs);
-                    
-                    Buffer_ID *ids = push_array(scratch, Buffer_ID, id_count);
-                    for (i32 i = 0; i < id_count; i += 1){
-                        ids[i] = file_ptrs[i]->id.id;
+                        Editing_File *file_ptr = CastFromMember(Editing_File, edit_finished_mark_node, node);
+                        file_ptrs[id_count] = file_ptr;
+                        ids[id_count] = file_ptr->id.id;
+                        id_count += 1;
                     }
                     
                     working_set->do_not_mark_edits = true;
@@ -1406,13 +1445,15 @@ App_Step_Sig(app_step){
                     working_set->do_not_mark_edits = false;
                     
                     for (i32 i = 0; i < id_count; i += 1){
-                        block_zero_struct(&file_ptrs[i]->edit_finished_mark_node);
+                        file_ptrs[i]->edit_finished_marked = false;
                     }
                     
-                    dll_init_sentinel(&working_set->edit_finished_list);
+                    working_set->edit_finished_list_first = 0;
+                    working_set->edit_finished_list_last = 0;
+                    working_set->edit_finished_count = 0;
                     working_set->time_of_next_edit_finished_signal = 0;
                     
-                    end_temp_memory(temp);
+                    end_temp(temp);
                 }
             }
         }

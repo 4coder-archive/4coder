@@ -12,8 +12,6 @@
 #if !defined(FTECH_META_DEFINES_H)
 #define FTECH_META_DEFINES_H
 
-#include "../4ed_defines.h"
-
 #include <setjmp.h>
 #include <stdio.h>
 
@@ -29,13 +27,11 @@ __meta_finish__(){
 
 #define META_FINISH() } __META_FINISH__: __meta_finish__()
 
-#define LINE_STR STR_(__LINE__)
-
 #if defined(Assert)
 # undef Assert
 #endif
 
-#define Assert(c) do { if (!(c)) { META_ASSERT_MSG = __FILE__":"LINE_STR": "#c; longjmp(META_ASSERT_ENV, 1); } } while(0)
+#define Assert(c) do { if (!(c)) { META_ASSERT_MSG = FNLN " assert: " #c; longjmp(META_ASSERT_ENV, 1); } } while(0)
 
 #define META_BEGIN() META_ASSERT_MSG = 0; if (setjmp(META_ASSERT_ENV) == 1){ goto __META_FINISH__; } { 
 

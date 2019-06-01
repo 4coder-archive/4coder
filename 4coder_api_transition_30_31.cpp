@@ -30,6 +30,7 @@ static b32
 get_buffer_summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_Summary *buffer){
     b32 result = false;
     if (buffer_exists(app, buffer_id)){
+        Scratch_Block scratch(app);
         Access_Flag buffer_access_flags = 0;
         buffer_get_access_flags(app, buffer_id, &buffer_access_flags);
         if ((buffer_access_flags & ~access) == 0){
@@ -39,12 +40,17 @@ get_buffer_summary(Application_Links *app, Buffer_ID buffer_id, Access_Flag acce
             buffer->buffer_id = buffer_id;
             buffer_get_size(app, buffer_id, &buffer->size);
             buffer_get_line_count(app, buffer_id, &buffer->line_count);
-            String file_name = make_fixed_width_string(buffer->file_name);
-            buffer_get_file_name(app, buffer_id, &file_name, 0);
-            buffer->file_name_len = file_name.size;
-            String buffer_name = make_fixed_width_string(buffer->buffer_name);
-            buffer_get_unique_buffer_name(app, buffer_id, &buffer_name, 0);
-            buffer->buffer_name_len = buffer_name.size;
+            
+            String_Const_u8 file_name_get = {};
+            buffer_get_file_name(app, buffer_id, scratch, &file_name_get);
+            block_copy(buffer->file_name, file_name_get.str, file_name_get.size);
+            buffer->file_name_len = (i32)file_name_get.size;
+            
+            String_Const_u8 buffer_name_get = {};
+            buffer_get_unique_buffer_name(app, buffer_id, scratch, &buffer_name_get);
+            block_copy(buffer->buffer_name, buffer_name_get.str, buffer_name_get.size);
+            buffer->buffer_name_len = (i32)buffer_name_get.size;
+            
             buffer_get_dirty_state(app, buffer_id, &buffer->dirty);
             buffer_get_setting(app, buffer_id, BufferSetting_Lex, &buffer->is_lexed);
             buffer->tokens_are_ready = buffer_tokens_are_ready(app, buffer_id);
@@ -94,68 +100,8 @@ get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, Vi
 }
 
 static b32
-exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
-                    char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
-    b32 result = false;
-    
-    String path_string = make_string(path, path_len);
-    String command_string = make_string(command, command_len);
-    Child_Process_ID child_process_id = 0;
-    if (create_child_process(app, path_string, command_string, &child_process_id)){
-        result = true;
-        
-        Buffer_ID buffer_attach_id = 0;
-        if (buffer_id.name != 0 && buffer_id.name_len > 0){
-            String buffer_name = make_string(buffer_id.name, buffer_id.name_len);
-            if (!get_buffer_by_name(app, buffer_name, AccessAll, &buffer_attach_id)){
-                if (create_buffer(app, buffer_name, BufferCreate_AlwaysNew|BufferCreate_NeverAttachToFile, &buffer_attach_id)){
-                    buffer_set_setting(app, buffer_attach_id, BufferSetting_ReadOnly, true);
-                    buffer_set_setting(app, buffer_attach_id, BufferSetting_Unimportant, true);
-                }
-            }
-        }
-        else if (buffer_id.id != 0){
-            buffer_attach_id = buffer_id.id;
-        }
-        
-        if (buffer_attach_id != 0){
-            Child_Process_Set_Target_Flags set_buffer_flags = 0;
-            if (!HasFlag(flags, CLI_OverlapWithConflict)){
-                set_buffer_flags |= ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess;
-            }
-            if (HasFlag(flags, CLI_CursorAtEnd)){
-                set_buffer_flags |= ChildProcessSet_CursorAtEnd;
-            }
-            
-            if (child_process_set_target_buffer(app, child_process_id, buffer_attach_id, set_buffer_flags)){
-                Buffer_Summary buffer = {};
-                get_buffer_summary(app, buffer_attach_id, AccessAll, &buffer);
-                buffer_replace_range(app, buffer_attach_id, make_range(0, buffer.size), make_lit_string(""));
-                if (HasFlag(flags, CLI_SendEndSignal)){
-                    buffer_send_end_signal(app, buffer_attach_id);
-                }
-                if (view != 0){
-                    view_set_buffer(app, view->view_id, buffer_attach_id, 0);
-                    get_view_summary(app, view->view_id, AccessAll, view);
-                }
-            }
-        }
-    }
-    
-    return(result);
-}
-
-static b32
-exec_system_command(Application_Links *app, View_ID view, Buffer_Identifier buffer_id,
-                    char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
-    View_Summary view_summary = {};
-    get_view_summary(app, view, AccessAll, &view_summary);
-    return(exec_system_command(app, &view_summary, buffer_id, path, path_len, command, command_len, flags));
-}
-
-static b32
 clipboard_post(Application_Links *app, i32 clipboard_id, char *str, i32 len){
-    return(clipboard_post(app, clipboard_id, make_string(str, len)));
+    return(clipboard_post(app, clipboard_id, SCu8(str, len)));
 }
 
 static i32
@@ -167,10 +113,11 @@ clipboard_count(Application_Links *app, i32 clipboard_id){
 
 static i32
 clipboard_index(Application_Links *app, i32 clipboard_id, i32 item_index, char *out, i32 len){
-    i32 required_size = 0;
-    String string = make_string_cap(out, 0, len);
-    clipboard_index(app, clipboard_id, item_index, &string, &required_size);
-    return(required_size);
+    Scratch_Block scratch(app);
+    String_Const_u8 string = {};
+    clipboard_index(app, clipboard_id, item_index, scratch, &string);
+    block_copy(out, string.str, clamp_top((i32)string.size, len));
+    return((i32)string.size);
 }
 
 static Buffer_Summary
@@ -207,7 +154,7 @@ static Buffer_Summary
 get_buffer_by_name(Application_Links *app, char *name, i32 len, Access_Flag access){
     Buffer_ID id = 0;
     Buffer_Summary buffer = {};
-    if (get_buffer_by_name(app, make_string(name, len), access, &id)){
+    if (get_buffer_by_name(app, SCu8(name, len), access, &id)){
         get_buffer_summary(app, id, access, &buffer);
     }
     return(buffer);
@@ -217,7 +164,7 @@ static Buffer_Summary
 get_buffer_by_file_name(Application_Links *app, char *name, i32 len, Access_Flag access){
     Buffer_ID id = 0;
     Buffer_Summary buffer = {};
-    if (get_buffer_by_file_name(app, make_string(name, len), access, &id)){
+    if (get_buffer_by_file_name(app, SCu8(name, len), access, &id)){
         get_buffer_summary(app, id, access, &buffer);
     }
     return(buffer);
@@ -237,7 +184,7 @@ static b32
 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, i32 start, i32 one_past_last, char *str, i32 len){
     b32 result = false;
     if (buffer != 0 && buffer->exists){
-        result = buffer_replace_range(app, buffer->buffer_id, make_range(start, one_past_last), make_string(str, len));
+        result = buffer_replace_range(app, buffer->buffer_id, make_range(start, one_past_last), SCu8(str, len));
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
     }
     return(result);
@@ -343,7 +290,7 @@ static Buffer_Summary
 create_buffer(Application_Links *app, char *filename, i32 filename_len, Buffer_Create_Flag flags){
     Buffer_Summary buffer = {};
     Buffer_ID buffer_id = 0;
-    if (create_buffer(app, make_string(filename, filename_len), flags, &buffer_id)){
+    if (create_buffer(app, SCu8(filename, filename_len), flags, &buffer_id)){
         get_buffer_summary(app, buffer_id, AccessAll, &buffer);
     }
     return(buffer);
@@ -353,7 +300,7 @@ static b32
 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *file_name, i32 file_name_len, u32 flags){
     b32 result = false;
     if (buffer != 0 && buffer->exists){
-        result = buffer_save(app, buffer->buffer_id, make_string(file_name, file_name_len), flags);
+        result = buffer_save(app, buffer->buffer_id, SCu8(file_name, file_name_len), flags);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
     }
     return(result);
@@ -367,7 +314,7 @@ kill_buffer(Application_Links *app, Buffer_Identifier buffer, Buffer_Kill_Flag f
     }
     else if (buffer.name != 0){
         Buffer_ID id = 0;
-        if (get_buffer_by_name(app, make_string(buffer.name, buffer.name_len), AccessAll, &id)){
+        if (get_buffer_by_name(app, SCu8(buffer.name, buffer.name_len), AccessAll, &id)){
             buffer_kill(app, id, flags, &result);
         }
     }
@@ -446,14 +393,6 @@ open_view(Application_Links *app, View_Summary *view_location, View_Split_Positi
     return(view);
 }
 
-static View_ID
-open_view(Application_Links *app, View_ID view_location, View_Split_Position position){
-    View_Summary summary = {};
-    get_view_summary(app, view_location, AccessAll, &summary);
-    summary = open_view(app, &summary, position);
-    return(summary.view_id);
-}
-
 static b32
 close_view(Application_Links *app, View_Summary *view){
     b32 result = false;
@@ -498,12 +437,6 @@ view_get_managed_scope(Application_Links *app, View_ID view_id){
     view_get_managed_scope(app, view_id, &scope);
     return(scope);
 }
-
-typedef i32 View_Split_Kind;
-enum{
-    ViewSplitKind_Ratio,
-    ViewSplitKind_FixedPixels,
-};
 
 static b32
 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){
@@ -615,7 +548,7 @@ get_face_id(Application_Links *app, Buffer_Summary *buffer){
 
 static void
 print_message(Application_Links *app, char *str, i32 len){
-    print_message(app, make_string(str, len));
+    print_message(app, SCu8(str, len));
 }
 
 #if 0
@@ -632,51 +565,57 @@ change_theme(Application_Links *app, char *name, i32 len){
 
 static i32
 directory_get_hot(Application_Links *app, char *out, i32 capacity){
-    i32 required_size = 0;
-    String string = make_string_cap(out, 0, capacity);
-    get_hot_directory(app, &string, &required_size);
-    return(required_size);
+    Scratch_Block scratch(app);
+    String_Const_u8 string = {};
+    get_hot_directory(app, scratch, &string);
+    block_copy(out, string.str, clamp_top((i32)string.size, capacity));
+    return((i32)string.size);
 }
 
 static b32
 directory_set_hot(Application_Links *app, char *str, i32 len){
-    return(set_hot_directory(app, make_string(str, len)));
+    return(set_hot_directory(app, SCu8(str, len)));
 }
 
 static File_List
 get_file_list(Application_Links *app, char *dir, i32 len){
     File_List list = {};
-    get_file_list(app, make_string(dir, len), &list);
+    get_file_list(app, SCu8(dir, len), &list);
     return(list);
 }
 
 static b32
 file_exists(Application_Links *app, char *file_name, i32 len){
     File_Attributes attributes = {};
-    file_get_attributes(app, make_string(file_name, len), &attributes);
+    file_get_attributes(app, SCu8(file_name, len), &attributes);
     return(attributes.last_write_time > 0);
 }
 
 static b32
 directory_cd(Application_Links *app, char *dir, i32 *len, i32 capacity, char *rel_path, i32 rel_len){
-    String directory = make_string_cap(dir, *len, capacity);
-    String relative_path = make_string(rel_path, rel_len);
-    b32 result = directory_cd(app, &directory, relative_path);
-    *len = directory.size;
+    String_Const_u8 directory = SCu8(dir, *len);
+    String_Const_u8 relative_path = SCu8(rel_path, rel_len);
+    Scratch_Block scratch(app);
+    String_Const_u8 new_directory = {};
+    b32 result = directory_cd(app, directory, relative_path, scratch, &new_directory);
+    i32 new_len = clamp_top((i32)new_directory.size, capacity);
+    block_copy(dir, new_directory.str, new_len);
+    *len = new_len;
     return(result);
 }
 
 static i32
 get_4ed_path(Application_Links *app, char *out, i32 capacity){
-    i32 required_size = 0;
-    String string = make_string_cap(out, 0, capacity);
-    get_4ed_path(app, &string, &required_size);
-    return(required_size);
+    Scratch_Block scratch(app);
+    String_Const_u8 string = {};
+    get_4ed_path(app, scratch, &string);
+    block_copy(out, string.str, clamp_top((i32)string.size, capacity));
+    return((i32)string.size);
 }
 
 static void
 set_window_title(Application_Links *app, char *title){
-    String title_string = make_string_slowly(title);
+    String_Const_u8 title_string = SCu8(title);
     set_window_title(app, title_string);
 }
 

@@ -392,9 +392,9 @@ DOC_SEE(cpp_make_token_array)
 HIDE_MEMBERS() */
 STRUCT Cpp_Keyword_Table{
     void *mem;
-    umem_4tech memsize;
-    u64_4tech *keywords;
-    u32_4tech max;
+    umem memsize;
+    u64 *keywords;
+    u32 max;
 };
 
 /* DOC(Cpp_Lex_Data represents the state of the lexer so that the system may be resumable and the user can manage the lexer state and decide when to resume lexing with it.  To create a new lexer state call cpp_lex_data_init.
@@ -404,31 +404,31 @@ DOC_SEE(cpp_lex_data_init)
 HIDE_MEMBERS() */
 STRUCT Cpp_Lex_Data{
     char tb[32];
-    i32_4tech tb_pos;
-    i32_4tech token_start;
+    i32 tb_pos;
+    i32 token_start;
     
-    i32_4tech pos;
-    i32_4tech pos_overide;
-    i32_4tech chunk_pos;
+    i32 pos;
+    i32 pos_overide;
+    i32 chunk_pos;
     
     Cpp_Lex_FSM fsm;
-    u8_4tech white_done;
-    u8_4tech pp_state;
-    u8_4tech completed;
+    u8 white_done;
+    u8 pp_state;
+    u8 completed;
     
     Cpp_Token token;
     
     char raw_delim[16];
-    i32_4tech delim_length;
+    i32 delim_length;
     
-    b8_4tech str_raw;
-    b8_4tech str_include;
-    b8_4tech ignore_string_delims;
+    b8 str_raw;
+    b8 str_include;
+    b8 ignore_string_delims;
     
     Cpp_Keyword_Table keyword_table;
     Cpp_Keyword_Table preprops_table;
     
-    i32_4tech __pc__;
+    i32 __pc__;
 };
 
 /* DOC(Cpp_Lex_Result is returned from the lexing engine to indicate why it stopped lexing.) */

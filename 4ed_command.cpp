@@ -157,11 +157,11 @@ map_drop(Command_Map *map, Key_Code event_code, u8 modifiers){
 }
 
 internal void
-map_init(Command_Map *map, Partition *part, i32 max, i32 parent){
+map_init(Command_Map *map, Cursor *cursor, i32 max, i32 parent){
     Assert(max >= 6);
     Assert(map->commands == 0);
     map->parent = parent;
-    map->commands = push_array(part, Command_Binding, max);
+    map->commands = push_array(cursor, Command_Binding, max);
     map->count = 0;
     map->max = max;
     

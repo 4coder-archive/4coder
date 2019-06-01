@@ -9,40 +9,6 @@
 
 // TOP
 
-// TODO(allen): Find a real home for this... string library needs a makeover.
-internal String
-push_string(Partition *part, char *str, i32 len){
-    char *space = (char*)push_array(part, char, len + 1);
-    memcpy(space, str, len);
-    space[len] = 0;
-    String string = make_string_cap(space, len, len + 1);
-    return(string);
-}
-
-internal String
-push_string(Partition *part, String str){
-    String res = push_string(part, str.str, str.size);
-    return(res);
-}
-
-internal String
-push_string(Partition *part, char *str, i32 len, i32 cap){
-    cap = clamp_bottom(len + 1, cap);
-    char *space = (char*)push_array(part, char, cap);
-    memcpy(space, str, len);
-    space[len] = 0;
-    String string = make_string_cap(space, len, cap);
-    return(string);
-}
-
-internal String
-push_string(Partition *part, String str, i32 cap){
-    String res = push_string(part, str.str, str.size, cap);
-    return(res);
-}
-
-////////////////////////////////
-
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
     Assert(working_set->array_count < working_set->array_max);
@@ -148,23 +114,27 @@ working_set_get_active_file(Working_Set *working_set, Buffer_ID id){
     return(working_set_get_active_file(working_set, to_file_id(id)));
 }
 
+// TODO(allen): REWRITE all of working set
 internal void
-working_set_init(System_Functions *system, Working_Set *working_set, Partition *partition, Heap *heap){
+working_set_init(System_Functions *system, Working_Set *working_set, Arena *arena, Heap *heap){
     i16 init_count = 16;
     i16 array_init_count = 256;
     
     dll_init_sentinel(&working_set->free_sentinel);
     dll_init_sentinel(&working_set->used_sentinel);
     
-    dll_init_sentinel(&working_set->edit_finished_list);
+    working_set->edit_finished_list_first = 0;
+    working_set->edit_finished_list_last = 0;
+    working_set->edit_finished_count = 0;
+    
     working_set->time_of_next_edit_finished_signal = 0;
     working_set->edit_finished_timer = system->wake_up_timer_create();
     working_set->do_not_mark_edits = false;
     
     working_set->array_max = array_init_count;
-    working_set->file_arrays = push_array(partition, File_Array, array_init_count);
+    working_set->file_arrays = push_array(arena, File_Array, array_init_count);
     
-    Editing_File *files = push_array(partition, Editing_File, init_count);
+    Editing_File *files = push_array(arena, Editing_File, init_count);
     working_set_extend_memory(working_set, files, init_count);
     
     // TODO(NAME): do(clean up the rest of the null_file)
@@ -217,7 +187,7 @@ working_set__grow_if_needed(Table *table, Heap *heap, void *arg, Hash_Function *
 }
 
 internal Editing_File*
-working_set_contains_basic(Working_Set *working_set, Table *table, String name){
+working_set_contains_basic(Working_Set *working_set, Table *table, String_Const_u8 name){
     Editing_File *result = 0;
     
     File_Name_Entry *entry = (File_Name_Entry*)
@@ -230,7 +200,7 @@ working_set_contains_basic(Working_Set *working_set, Table *table, String name){
 }
 
 internal b32
-working_set_add_basic(Heap *heap, Working_Set *working_set, Table *table, Editing_File *file, String name){
+working_set_add_basic(Heap *heap, Working_Set *working_set, Table *table, Editing_File *file, String_Const_u8 name){
     working_set__grow_if_needed(table, heap, 0, tbl_string_hash, tbl_string_compare);
     
     File_Name_Entry entry;
@@ -241,40 +211,40 @@ working_set_add_basic(Heap *heap, Working_Set *working_set, Table *table, Editin
 }
 
 internal void
-working_set_remove_basic(Working_Set *working_set, Table *table, String name){
+working_set_remove_basic(Working_Set *working_set, Table *table, String_Const_u8 name){
     table_remove_match(table, &name, 0, tbl_string_hash, tbl_string_compare);
 }
 
 internal Editing_File*
-working_set_contains_canon(Working_Set *working_set, String name){
+working_set_contains_canon(Working_Set *working_set, String_Const_u8 name){
     Editing_File *result = working_set_contains_basic(working_set, &working_set->canon_table, name);
     return(result);
 }
 
 internal b32
-working_set_canon_add(Heap *heap, Working_Set *working_set, Editing_File *file, String name){
+working_set_canon_add(Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 name){
     b32 result = working_set_add_basic(heap,working_set, &working_set->canon_table, file, name);
     return(result);
 }
 
 internal void
-working_set_canon_remove(Working_Set *working_set, String name){
+working_set_canon_remove(Working_Set *working_set, String_Const_u8 name){
     working_set_remove_basic(working_set, &working_set->canon_table, name);
 }
 
 internal Editing_File*
-working_set_contains_name(Working_Set *working_set, String name){
+working_set_contains_name(Working_Set *working_set, String_Const_u8 name){
     return(working_set_contains_basic(working_set, &working_set->name_table, name));
 }
 
 internal b32
-working_set_add_name(Heap *heap, Working_Set *working_set, Editing_File *file, String name){
+working_set_add_name(Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 name){
     b32 result = working_set_add_basic(heap, working_set, &working_set->name_table, file, name);
     return(result);
 }
 
 internal void
-working_set_remove_name(Working_Set *working_set, String name){
+working_set_remove_name(Working_Set *working_set, String_Const_u8 name){
     working_set_remove_basic(working_set, &working_set->name_table, name);
 }
 
@@ -285,7 +255,7 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
         file = working_set_get_active_file(working_set, buffer.id);
     }
     else if (buffer.name != 0){
-        String name = make_string(buffer.name, buffer.name_len);
+        String_Const_u8 name = SCu8(buffer.name, buffer.name_len);
         file = working_set_contains_name(working_set, name);
     }
     return(file);
@@ -294,8 +264,8 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
 ////////////////////////////////
 
 // TODO(allen): Bring the clipboard fully to the custom side.
-internal String*
-working_set_next_clipboard_string(Heap *heap, Working_Set *working, i32 str_size){
+internal String_Const_u8*
+working_set_next_clipboard_string(Heap *heap, Working_Set *working, umem str_size){
     i32 clipboard_current = working->clipboard_current;
     if (working->clipboard_size == 0){
         clipboard_current = 0;
@@ -310,29 +280,20 @@ working_set_next_clipboard_string(Heap *heap, Working_Set *working, i32 str_size
             working->clipboard_size = clipboard_current + 1;
         }
     }
-    String *result = &working->clipboards[clipboard_current];
+    String_Const_u8 *result = &working->clipboards[clipboard_current];
     working->clipboard_current = clipboard_current;
     working->clipboard_rolling = clipboard_current;
     if (result->str != 0){
-        if (result->memory_size <= str_size){
-            heap_free(heap, result->str);
-            char *new_str = (char*)heap_allocate(heap, str_size + 1);
-            *result = make_string_cap(new_str, 0, str_size + 1);
-        }
-        else{
-            result->size = 0;
-        }
+        heap_free(heap, result->str);
     }
-    else{
-        char *new_str = (char*)heap_allocate(heap, str_size + 1);
-        *result = make_string_cap(new_str, 0, str_size + 1);
-    }
+    u8 *new_str = (u8*)heap_allocate(heap, (i32)(str_size + 1));
+    *result = SCu8(new_str, str_size);
     return(result);
 }
 
-internal String*
+internal String_Const_u8*
 working_set_clipboard_index(Working_Set *working, i32 index){
-    String *result = 0;
+    String_Const_u8 *result = 0;
     i32 size = working->clipboard_size;
     i32 current = working->clipboard_current;
     if (index >= 0 && size > 0){
@@ -344,9 +305,9 @@ working_set_clipboard_index(Working_Set *working, i32 index){
     return(result);
 }
 
-internal String*
+internal String_Const_u8*
 working_set_clipboard_head(Working_Set *working){
-    String *result = 0;
+    String_Const_u8 *result = 0;
     if (working->clipboard_size > 0){
         working->clipboard_rolling = 0;
         result = working_set_clipboard_index(working, working->clipboard_rolling);
@@ -354,9 +315,9 @@ working_set_clipboard_head(Working_Set *working){
     return(result);
 }
 
-internal String*
+internal String_Const_u8*
 working_set_clipboard_roll_down(Working_Set *working){
-    String *result = 0;
+    String_Const_u8 *result = 0;
     if (working->clipboard_size > 0){
         i32 clipboard_index = working->clipboard_rolling;
         ++clipboard_index;
@@ -369,151 +330,168 @@ working_set_clipboard_roll_down(Working_Set *working){
 ////////////////////////////////
 
 internal b32
-get_canon_name(System_Functions *system, String file_name, Editing_File_Name *canon_name){
-    canon_name->name = make_fixed_width_string(canon_name->name_);
-    canon_name->name.size = system->get_canonical(file_name.str, file_name.size, canon_name->name.str, canon_name->name.memory_size);
-    terminate_with_null(&canon_name->name);
-    b32 result = (canon_name->name.size != 0);
-    return(result);
+get_canon_name(System_Functions *system, String_Const_u8 file_name, Editing_File_Name *canon_name){
+    canon_name->name_size = system->get_canonical((char*)file_name.str, (u32)file_name.size,
+                                                  (char*)canon_name->name_space, sizeof(canon_name->name_space));
+    file_name_terminate(canon_name);
+    return(canon_name->name_size > 0);
 }
 
 internal void
-file_bind_file_name(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String canon_file_name){
-    Assert(file->unique_name.name.size == 0);
-    Assert(file->canon.name.size == 0);
-    file->canon.name = make_fixed_width_string(file->canon.name_);
-    copy(&file->canon.name, canon_file_name);
-    terminate_with_null(&file->canon.name);
-    system->add_listener(file->canon.name.str);
-    if (!working_set_canon_add(heap, working_set, file, file->canon.name)){
-        InvalidCodePath;
-    }
+file_bind_file_name(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 canon_file_name){
+    Assert(file->unique_name.name_size == 0);
+    Assert(file->canon.name_size == 0);
+    umem size = canon_file_name.size;
+    size = clamp_top(size, sizeof(file->canon.name_space) - 1);
+    file->canon.name_size = size;
+    block_copy(file->canon.name_space, canon_file_name.str, size);
+    file_name_terminate(&file->canon);
+    system->add_listener((char*)file->canon.name_space);
+    b32 result = working_set_canon_add(heap, working_set, file, string_from_file_name(&file->canon));
+    Assert(result);
 }
 
 internal void
 buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
-    Assert(file->unique_name.name.size == 0);
-    Assert(file->canon.name.size != 0);
-    
-    system->remove_listener(file->canon.name_);
-    working_set_canon_remove(working_set, file->canon.name);
-    file->canon.name.size = 0;
+    Assert(file->unique_name.name_size == 0);
+    Assert(file->canon.name_size != 0);
+    system->remove_listener((char*)file->canon.name_space);
+    working_set_canon_remove(working_set, string_from_file_name(&file->canon));
+    file->canon.name_size = 0;
 }
 
 internal b32
-buffer_name_has_conflict(Working_Set *working_set, String base_name){
+buffer_name_has_conflict(Working_Set *working_set, String_Const_u8 base_name){
     b32 hit_conflict = false;
-    
     Node *used_nodes = &working_set->used_sentinel;
     for (Node *node = used_nodes->next; node != used_nodes; node = node->next){
         Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
-        if (file_is_ready(file_ptr) && match(base_name, file_ptr->unique_name.name)){
+        if (file_is_ready(file_ptr) && string_match(base_name, string_from_file_name(&file_ptr->unique_name))){
             hit_conflict = true;
             break;
         }
     }
-    
     return(hit_conflict);
 }
 
 internal void
-buffer_resolve_name_low_level(Working_Set *working_set, Editing_File_Name *name, String base_name){
-    Assert(name->name.str != 0);
-    
-    copy(&name->name, base_name);
-    
-    i32 original_len = name->name.size;
-    i32 file_x = 0;
+buffer_resolve_name_low_level(Arena *scratch, Working_Set *working_set, Editing_File_Name *name, String_Const_u8 base_name){
+    umem size = base_name.size;
+    size = clamp_top(size, sizeof(name->name_space));
+    block_copy(name->name_space, base_name.str, size);
+    String_u8 string = Su8(name->name_space, size, sizeof(name->name_space));
+    umem original_size = string.size;
+    u64 file_x = 0;
     for (b32 hit_conflict = true; hit_conflict;){
-        hit_conflict = buffer_name_has_conflict(working_set, name->name);
+        hit_conflict = buffer_name_has_conflict(working_set, string.string);
         if (hit_conflict){
-            ++file_x;
-            name->name.size = original_len;
-            append(&name->name, " (");
-            append_int_to_str(&name->name, file_x);
-            append(&name->name, ")");
+            file_x += 1;
+            string.size = original_size;
+            Temp_Memory temp = begin_temp(scratch);
+            String_Const_u8 int_str = string_from_integer(scratch, file_x, 10);
+            string_append(&string, string_u8_litexpr(" ("));
+            string_append(&string, int_str);
+            string_append(&string, string_u8_litexpr(")"));
+            end_temp(temp);
         }
     }
+    name->name_size = string.size;
 }
 
 internal void
-buffer_bind_name_low_level(Heap *heap, Working_Set *working_set, Editing_File *file, String base_name, String name){
-    Assert(file->base_name.name.size == 0);
-    Assert(file->unique_name.name.size == 0);
+buffer_bind_name_low_level(Arena *scratch, Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name, String_Const_u8 name){
+    Assert(file->base_name.name_size == 0);
+    Assert(file->unique_name.name_size == 0);
     
     Editing_File_Name new_name = {};
-    new_name.name = make_fixed_width_string(new_name.name_);
-    buffer_resolve_name_low_level(working_set, &new_name, name);
+    buffer_resolve_name_low_level(scratch, working_set, &new_name, name);
     
-    file->base_name.name = make_fixed_width_string(file->base_name.name_);
-    copy(&file->base_name.name, base_name);
-    
-    file->unique_name.name = make_fixed_width_string(file->unique_name.name_);
-    copy(&file->unique_name.name, new_name.name);
-    
-    if (!working_set_add_name(heap, working_set, file, file->unique_name.name)){
-        InvalidCodePath;
+    {
+        umem size = base_name.size;
+        size = clamp_top(size, sizeof(file->base_name.name_space));
+        block_copy(file->base_name.name_space, base_name.str, size);
+        file->base_name.name_size = size;
     }
+    
+    {
+        umem size = new_name.name_size;
+        block_copy(file->unique_name.name_space, new_name.name_space, size);
+        file->unique_name.name_size = size;
+    }
+    
+    b32 result = working_set_add_name(heap, working_set, file, string_from_file_name(&file->unique_name));
+    Assert(result);
 }
 
 internal void
 buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
-    Assert(file->base_name.name.size != 0);
-    Assert(file->unique_name.name.size != 0);
-    working_set_remove_name(working_set, file->unique_name.name);
-    file->base_name.name.size = 0;
-    file->unique_name.name.size = 0;
+    Assert(file->base_name.name_size != 0);
+    Assert(file->unique_name.name_size != 0);
+    working_set_remove_name(working_set, string_from_file_name(&file->unique_name));
+    file->base_name.name_size = 0;
+    file->unique_name.name_size = 0;
 }
 
 internal void
-buffer_bind_name(Models *models, Heap *heap, Partition *scratch, Working_Set *working_set, Editing_File *file, String base_name){
-    Temp_Memory temp = begin_temp_memory(scratch);
+buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name){
+    Temp_Memory temp = begin_temp(scratch);
     
     // List of conflict files.
-    Editing_File **conflict_file_ptrs = push_array(scratch, Editing_File*, 0);
+    struct Node_Ptr{
+        Node_Ptr *next;
+        Editing_File *file_ptr;
+    };
+    Node_Ptr *conflict_first = 0;
+    Node_Ptr *conflict_last = 0;
     i32 conflict_count = 0;
     
     {
-        Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
-        *new_file_ptr = file;
-        ++conflict_count;
+        Node_Ptr *node = push_array(scratch, Node_Ptr, 1);
+        sll_queue_push(conflict_first, conflict_last, node);
+        node->file_ptr = file;
+        conflict_count += 1;
     }
     
     Node *used_nodes = &working_set->used_sentinel;
-    for (Node *node = used_nodes->next; node != used_nodes; node = node->next){
+    for (Node *node = used_nodes->next;
+         node != used_nodes;
+         node = node->next){
         Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
-        if (file_is_ready(file_ptr) && match(base_name, file_ptr->base_name.name)){
-            Editing_File **new_file_ptr = push_array(scratch, Editing_File*, 1);
-            *new_file_ptr = file_ptr;
-            ++conflict_count;
+        if (file_is_ready(file_ptr) && string_match(base_name, string_from_file_name(&file_ptr->base_name))){
+            Node_Ptr *new_node = push_array(scratch, Node_Ptr, 1);
+            sll_queue_push(conflict_first, conflict_last, new_node);
+            new_node->file_ptr = file_ptr;
+            conflict_count += 1;
         }
     }
     
     // Fill conflict array.
     Buffer_Name_Conflict_Entry *conflicts = push_array(scratch, Buffer_Name_Conflict_Entry, conflict_count);
     
-    for (i32 i = 0; i < conflict_count; ++i){
-        Editing_File *file_ptr = conflict_file_ptrs[i];
-        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
-        entry->buffer_id = file_ptr->id.id;
-        
-        String file_name = push_string(scratch, file_ptr->canon.name);
-        entry->file_name = file_name.str;
-        entry->file_name_len = file_name.size;
-        
-        String term_base_name = push_string(scratch, base_name);
-        entry->base_name = term_base_name.str;
-        entry->base_name_len = term_base_name.size;
-        
-        String b = base_name;
-        if (i > 0){
-            b = file_ptr->unique_name.name;
+    {
+        i32 i = 0;
+        for (Node_Ptr *node = conflict_first;
+             node != 0;
+             node = node->next, i += 1){
+            Editing_File *file_ptr = node->file_ptr;
+            Buffer_Name_Conflict_Entry *entry = &conflicts[i];
+            entry->buffer_id = file_ptr->id.id;
+            
+            entry->file_name = string_copy(scratch, string_from_file_name(&file_ptr->canon));
+            entry->base_name = string_copy(scratch, base_name);
+            
+            String_Const_u8 b = base_name;
+            if (i > 0){
+                b = string_from_file_name(&file_ptr->unique_name);
+            }
+            umem unique_name_capacity = 256;
+            u8 *unique_name_buffer = push_array(scratch, u8, unique_name_capacity);
+            Assert(b.size <= unique_name_capacity);
+            block_copy(unique_name_buffer, b.str, b.size);
+            entry->unique_name_in_out = unique_name_buffer;
+            entry->unique_name_len_in_out = b.size;
+            entry->unique_name_capacity = unique_name_capacity;
         }
-        i32 unique_name_capacity = 256;
-        String unique_name = push_string(scratch, b, unique_name_capacity);
-        entry->unique_name_in_out = unique_name.str;
-        entry->unique_name_len_in_out = unique_name.size;
-        entry->unique_name_capacity = unique_name_capacity;
     }
     
     // Get user's resolution data.
@@ -522,20 +500,31 @@ buffer_bind_name(Models *models, Heap *heap, Partition *scratch, Working_Set *wo
     }
     
     // Re-bind all of the files
-    for (i32 i = 0; i < conflict_count; ++i){
-        Editing_File *file_ptr = conflict_file_ptrs[i];
-        if (file_ptr->unique_name.name.str != 0){
-            buffer_unbind_name_low_level(working_set, file_ptr);
+    {
+        i32 i = 0;
+        for (Node_Ptr *node = conflict_first;
+             node != 0;
+             node = node->next, i += 1){
+            Editing_File *file_ptr = node->file_ptr;
+            if (file_ptr->unique_name.name_size > 0){
+                buffer_unbind_name_low_level(working_set, file_ptr);
+            }
         }
     }
-    for (i32 i = 0; i < conflict_count; ++i){
-        Editing_File *file_ptr = conflict_file_ptrs[i];
-        Buffer_Name_Conflict_Entry *entry = &conflicts[i];
-        String unique_name = make_string(entry->unique_name_in_out, entry->unique_name_len_in_out);
-        buffer_bind_name_low_level(heap, working_set, file_ptr, base_name, unique_name);
+    
+    {
+        i32 i = 0;
+        for (Node_Ptr *node = conflict_first;
+             node != 0;
+             node = node->next, i += 1){
+            Editing_File *file_ptr = node->file_ptr;
+            Buffer_Name_Conflict_Entry *entry = &conflicts[i];
+            String_Const_u8 unique_name = SCu8(entry->unique_name_in_out, entry->unique_name_len_in_out);
+            buffer_bind_name_low_level(scratch, heap, working_set, file_ptr, base_name, unique_name);
+        }
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 ////////////////////////////////
@@ -571,18 +560,31 @@ file_mark_edit_finished(Working_Set *working_set, Editing_File *file){
     // This current method only works for synchronous calls, asynchronous calls will get the
     // wrong do_not_mark_edits value.
     if (!working_set->do_not_mark_edits){
-        if (file->edit_finished_mark_node.next == 0){
-            dll_insert_back(&working_set->edit_finished_list, &file->edit_finished_mark_node);
+        if (!file->edit_finished_marked == 0){
+            zdll_push_back(working_set->edit_finished_list_first,
+                           working_set->edit_finished_list_last,
+                           &file->edit_finished_mark_node);
+            file->edit_finished_marked = true;
+            working_set->edit_finished_count += 1;
         }
     }
 }
 
 internal b32
-file_unmark_edit_finished(Editing_File *file){
+file_unmark_edit_finished(Working_Set *working_set, Editing_File *file){
     b32 result = false;
-    if (file->edit_finished_mark_node.next != 0){
-        dll_remove(&file->edit_finished_mark_node);
-        result = true;
+    if (!working_set->do_not_mark_edits){
+        if (file->edit_finished_marked){
+            zdll_remove(working_set->edit_finished_list_first,
+                        working_set->edit_finished_list_last,
+                        &file->edit_finished_mark_node);
+            file->edit_finished_mark_node.next = 0;
+            file->edit_finished_mark_node.prev = 0;
+            file->edit_finished_marked = false;
+            working_set->edit_finished_count -= 1;
+            
+            result = true;
+        }
     }
     return(result);
 }

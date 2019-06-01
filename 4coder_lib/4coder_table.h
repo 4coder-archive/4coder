@@ -12,67 +12,35 @@ distribute, and modify this file as you see fit.
 #if !defined(FCODER_TABLE_H)
 #define FCODER_TABLE_H
 
-// 4tech_standard_preamble.h
-#if !defined(FTECH_INTEGERS)
-#define FTECH_INTEGERS
-#include <stdint.h>
-typedef int8_t i8_4tech;
-typedef int16_t i16_4tech;
-typedef int32_t i32_4tech;
-typedef int64_t i64_4tech;
-
-typedef uint8_t u8_4tech;
-typedef uint16_t u16_4tech;
-typedef uint32_t u32_4tech;
-typedef uint64_t u64_4tech;
-
-#if defined(FTECH_32_BIT)
-typedef u32_4tech umem_4tech;
-#else
-typedef u64_4tech umem_4tech;
-#endif
-
-typedef float f32_4tech;
-typedef double f64_4tech;
-
-typedef int8_t b8_4tech;
-typedef int32_t b32_4tech;
-#endif
-
-#if !defined(Assert)
-# define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
-#endif
-// standard preamble end 
-
 #define TableHashEmpty 0
 #define TableHashDeleted 1
 #define TableHashMin 0x10000000
 
 #include <string.h>
 
-typedef u32_4tech Hash_Function(void *item, void *arg);
-typedef i32_4tech Compare_Function(void *key, void *item, void *arg);
+typedef u32 Hash_Function(void *item, void *arg);
+typedef i32 Compare_Function(void *key, void *item, void *arg);
 
 struct Table{
-    u32_4tech *hash_array;
+    u32 *hash_array;
     char *data_array;
-    i32_4tech count, max;
-    i32_4tech item_size;
+    i32 count, max;
+    i32 item_size;
 };
 
-static i32_4tech
-table_required_mem_size(i32_4tech table_size, i32_4tech item_size){
-    i32_4tech hash_size = ((table_size*sizeof(u32_4tech)) + 7) & ~7;
-    i32_4tech mem_size = hash_size + table_size*item_size;
+static i32
+table_required_mem_size(i32 table_size, i32 item_size){
+    i32 hash_size = ((table_size*sizeof(u32)) + 7) & ~7;
+    i32 mem_size = hash_size + table_size*item_size;
     return(mem_size);
 }
 
 static void
-table_init_memory(Table *table, void *memory, i32_4tech table_size, i32_4tech item_size){
-    i32_4tech hash_size = table_size * sizeof(u32_4tech);
+table_init_memory(Table *table, void *memory, i32 table_size, i32 item_size){
+    i32 hash_size = table_size * sizeof(u32);
     hash_size = (hash_size + 7) & ~7;
     
-    table->hash_array = (u32_4tech*)memory;
+    table->hash_array = (u32*)memory;
     table->data_array = (char*)(table->hash_array) + hash_size;
     
     table->count = 0;
@@ -80,23 +48,23 @@ table_init_memory(Table *table, void *memory, i32_4tech table_size, i32_4tech it
     table->item_size = item_size;
 }
 
-static i32_4tech
+static i32
 table_at_capacity(Table *table){
-    i32_4tech result = true;
+    i32 result = true;
     if (table->count * 8 < table->max * 7){
         result = false;
     }
     return(result);
 }
 
-static i32_4tech
+static i32
 table_add(Table *table, void *item, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     Assert(table->count * 8 < table->max * 7);
     
-    u32_4tech hash = (hash_func(item, arg) | TableHashMin);
-    i32_4tech i = hash % table->max;
-    i32_4tech start = i;
-    u32_4tech *inspect = table->hash_array + i;
+    u32 hash = (hash_func(item, arg) | TableHashMin);
+    i32 i = hash % table->max;
+    i32 start = i;
+    u32 *inspect = table->hash_array + i;
     
     while (*inspect >= TableHashMin){
         if (*inspect == hash){
@@ -119,14 +87,14 @@ table_add(Table *table, void *item, void *arg, Hash_Function *hash_func, Compare
     return(0);
 }
 
-static i32_4tech
-table_find_pos(Table *table, void *search_key, void *arg, i32_4tech *pos, i32_4tech *index, Hash_Function *hash_func, Compare_Function *comp_func){
+static i32
+table_find_pos(Table *table, void *search_key, void *arg, i32 *pos, i32 *index, Hash_Function *hash_func, Compare_Function *comp_func){
     Assert((table->count - 1) * 8 < table->max * 7);
     
-    u32_4tech hash = (hash_func(search_key, arg) | TableHashMin);
-    i32_4tech i = hash % table->max;
-    i32_4tech start = i;
-    u32_4tech *inspect = table->hash_array + i;
+    u32 hash = (hash_func(search_key, arg) | TableHashMin);
+    i32 i = hash % table->max;
+    i32 start = i;
+    u32 *inspect = table->hash_array + i;
     
     while (*inspect != TableHashEmpty){
         if (*inspect == hash){
@@ -151,7 +119,7 @@ table_find_pos(Table *table, void *search_key, void *arg, i32_4tech *pos, i32_4t
 static void*
 table_find_item(Table *table, void *search_key, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     void *result = 0;
-    i32_4tech pos;
+    i32 pos;
     if (table_find_pos(table, search_key, arg, &pos, 0, hash_func, comp_func)){
         result = table->data_array + pos;
     }
@@ -159,15 +127,15 @@ table_find_item(Table *table, void *search_key, void *arg, Hash_Function *hash_f
 }
 
 static void
-table_remove_index(Table *table, i32_4tech index){
+table_remove_index(Table *table, i32 index){
     table->hash_array[index] = TableHashDeleted;
     --table->count;
 }
 
-static i32_4tech
+static i32
 table_remove_match(Table *table, void *search_key, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
-    i32_4tech result = false;
-    i32_4tech index;
+    i32 result = false;
+    i32 index;
     if (table_find_pos(table, search_key, arg, 0, &index, hash_func, comp_func)){
         table_remove_index(table, index);
         result = true;
@@ -186,11 +154,11 @@ table_rehash(Table *src, Table *dst, void *arg, Hash_Function *hash_func, Compar
     Assert((dst->count + src->count - 1) * 7 < dst->max * 8);
     Assert(dst->item_size == src->item_size);
     
-    i32_4tech count = src->count;
-    i32_4tech item_size = src->item_size;
-    u32_4tech *hash_item = src->hash_array;
+    i32 count = src->count;
+    i32 item_size = src->item_size;
+    u32 *hash_item = src->hash_array;
     char *data_item = src->data_array;
-    for (i32_4tech i = 0, c = 0;
+    for (i32 i = 0, c = 0;
          c < count;
          ++i, ++hash_item, data_item += item_size){
         if (*hash_item >= TableHashMin){
@@ -200,71 +168,65 @@ table_rehash(Table *src, Table *dst, void *arg, Hash_Function *hash_func, Compar
     }
 }
 
-static u32_4tech
+static u32
 tbl_string_hash(void *item, void *arg){
-    String *string = (String*)item;
-    u32_4tech x = 5381;
+    String_Const_u8 *string = (String_Const_u8*)item;
+    u32 x = 5381;
     (void)arg;
-    
-    char *str = string->str;
-    i32_4tech len = string->size;
-    i32_4tech i = 0;
-    while (i < len){
-        char c = str[i++];
+    u8 *str = string->str;
+    umem len = string->size;
+    for (umem i = 0; i < len; i += 1){
+        u8 c = str[i];
         x = ((x << 5) + x) + c;
     }
-    
     return(x);
 }
 
-static i32_4tech
+static i32
 tbl_string_compare(void *a, void *b, void *arg){
-    String *stra = (String*)a;
-    String *strb = (String*)b;
-    i32_4tech result = !match_ss(*stra, *strb);
+    String_Const_u8 *stra = (String_Const_u8*)a;
+    String_Const_u8 *strb = (String_Const_u8*)b;
+    i32 result = (!string_match(*stra, *strb));
     return(result);
 }
 
 struct Offset_String{
-    i32_4tech offset;
-    i32_4tech size;
+    umem offset;
+    umem size;
 };
 
-static u32_4tech
+static u32
 tbl_offset_string_hash(void *item, void *arg){
     Offset_String *string = (Offset_String*)item;
-    u32_4tech x = 5381;
-    
-    char *str = ((char*)arg) + string->offset;
-    i32_4tech len = string->size;
-    i32_4tech i = 0;
-    while (i < len){
-        char c = str[i++];
+    u32 x = 5381;
+    u8 *str = ((u8*)arg) + string->offset;
+    umem size = string->size;
+    for (umem i = 0; i < size; i += 1){
+        u8 c = str[i];
         x = ((x << 5) + x) + c;
     }
-    
     return(x);
 }
 
-static i32_4tech
+static i32
 tbl_offset_string_compare(void *a, void *b, void *arg){
     Offset_String *ostra = (Offset_String*)a;
     Offset_String *ostrb = (Offset_String*)b;
-    String stra = make_string((char*)arg + ostra->offset, ostra->size);
-    String strb = make_string((char*)arg + ostrb->offset, ostrb->size);
-    i32_4tech result = !match_ss(stra, strb);
+    String_Const_u8 stra = SCu8((u8*)arg + ostra->offset, ostra->size);
+    String_Const_u8 strb = SCu8((u8*)arg + ostrb->offset, ostrb->size);
+    i32 result = (!string_match(stra, strb));
     return(result);
 }
 
 struct String_Space{
     char *space;
-    i32_4tech pos;
-    i32_4tech new_pos;
-    i32_4tech max;
+    i32 pos;
+    i32 new_pos;
+    i32 max;
 };
 
 static Offset_String
-strspace_append(String_Space *space, char *str, i32_4tech len){
+strspace_append(String_Space *space, char *str, i32 len){
     Offset_String result = {};
     if (space->new_pos + len <= space->max){
         result.offset = space->new_pos;

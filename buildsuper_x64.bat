@@ -30,6 +30,8 @@ metadata_generator -R "%code_home%" "%cd%\\%preproc_file%"
 
 call cl /I"%code_home%" %opts% %mode% %src% /Fecustom_4coder %build_dll% %exports%
 
+exit
+
 REM file spammation preventation
 del metadata_generator*
 del *.exp

@@ -7,32 +7,41 @@
 CUSTOM_COMMAND_SIG(execute_previous_cli)
 CUSTOM_DOC("If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.")
 {
-    String out_buffer = make_string_slowly(out_buffer_space);
-    String cmd = make_string_slowly(command_space);
-    String hot_directory = make_string_slowly(hot_directory_space);
+    String_Const_u8 out_buffer = SCu8(out_buffer_space);
+    String_Const_u8 cmd = SCu8(command_space);
+    String_Const_u8 hot_directory = SCu8(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
         View_ID view = 0;
         get_active_view(app, AccessAll, &view);
-        exec_system_command(app, view, buffer_identifier(out_buffer.str, out_buffer.size), hot_directory.str, hot_directory.size, cmd.str, cmd.size, CLI_OverlapWithConflict|CLI_CursorAtEnd|CLI_SendEndSignal);
+        Buffer_Identifier id = buffer_identifier(out_buffer);
+        exec_system_command(app, view, id, hot_directory, cmd, CLI_OverlapWithConflict|CLI_CursorAtEnd|CLI_SendEndSignal);
         lock_jump_buffer(out_buffer);
     }
 }
 
 CUSTOM_COMMAND_SIG(execute_any_cli)
 CUSTOM_DOC("Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer."){
-    Query_Bar bar_out = {};
-    Query_Bar bar_cmd = {};
+    Scratch_Block scratch(app);
     
-    bar_out.prompt = make_lit_string("Output Buffer: ");
-    bar_out.string = make_fixed_width_string(out_buffer_space);
+    Query_Bar bar_out = {};
+    bar_out.prompt = string_u8_litexpr("Output Buffer: ");
+    bar_out.string = SCu8(out_buffer_space, (umem)0);
+    bar_out.string_capacity = sizeof(out_buffer_space);
     if (!query_user_string(app, &bar_out)) return;
     
-    bar_cmd.prompt = make_lit_string("Command: ");
-    bar_cmd.string = make_fixed_width_string(command_space);
+    Query_Bar bar_cmd = {};
+    bar_cmd.prompt = string_u8_litexpr("Command: ");
+    bar_cmd.string = SCu8(command_space, (umem)0);
+    bar_cmd.string_capacity = sizeof(command_space);
     if (!query_user_string(app, &bar_cmd)) return;
     
-    directory_get_hot(app, hot_directory_space, sizeof(hot_directory_space));
+    String_Const_u8 hot = push_hot_directory(app, scratch);
+    {
+        umem size = clamp_top(hot.size, sizeof(hot_directory_space));
+        block_copy(hot_directory_space, hot.str, size);
+        hot_directory_space[hot.size] = 0;
+    }
     
     execute_previous_cli(app);
 }

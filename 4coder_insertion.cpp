@@ -14,11 +14,11 @@ begin_buffer_insertion_at(Application_Links *app, Buffer_ID buffer_id, i32 at){
 }
 
 static Buffer_Insertion
-begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, i32 at, Partition *part){
+begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, i32 at, Cursor *cursor){
     Buffer_Insertion result = begin_buffer_insertion_at(app, buffer_id, at);
     result.buffering = true;
-    result.part = part;
-    result.temp = begin_temp_memory(part);
+    result.cursor = cursor;
+    result.temp = begin_temp(cursor);
     return(result);
 }
 
@@ -35,32 +35,39 @@ begin_buffer_insertion(Application_Links *app){
 }
 
 static void
-insert_string__no_buffering(Buffer_Insertion *insertion, String string){
-    buffer_replace_range(insertion->app, insertion->buffer, make_range(insertion->at), string);
+insert_string__no_buffering(Buffer_Insertion *insertion, String_Const_u8 string){
+    buffer_replace_range(insertion->app, insertion->buffer, make_range((i32)insertion->at), string);
     insertion->at += string.size;
 }
 
 static void
 insert__flush(Buffer_Insertion *insertion){
-    Partition *part = insertion->part;
-    i32 pos = insertion->temp.pos;
-    String string = make_string(part->base + pos, part->pos - pos);
+    Cursor *cursor = insertion->cursor;
+    umem pos = insertion->temp.temp_memory_cursor.pos;
+    String_Const_u8 string = SCu8(cursor->base + pos, cursor->pos - pos);
     insert_string__no_buffering(insertion, string);
-    end_temp_memory(insertion->temp);
+    end_temp(insertion->temp);
 }
 
 static char*
-insert__reserve(Buffer_Insertion *insertion, i32 size){
-    char *space = push_array(insertion->part, char, size);
+insert__reserve(Buffer_Insertion *insertion, umem size){
+    char *space = push_array(insertion->cursor, char, size);
     if (space == 0){
         insert__flush(insertion);
-        space = push_array(insertion->part, char, size);
+        space = push_array(insertion->cursor, char, size);
     }
     return(space);
 }
 
 static void
-insert_string(Buffer_Insertion *insertion, String string){
+end_buffer_insertion(Buffer_Insertion *insertion){
+    if (insertion->buffering){
+        insert__flush(insertion);
+    }
+}
+
+static void
+insert_string(Buffer_Insertion *insertion, String_Const_u8 string){
     if (!insertion->buffering){
         insert_string__no_buffering(insertion, string);
     }
@@ -75,28 +82,27 @@ insert_string(Buffer_Insertion *insertion, String string){
     }
 }
 
-static i32
+static umem
 insertf(Buffer_Insertion *insertion, char *format, ...){
-    Arena *arena = context_get_arena(insertion->app);
-    Temp_Memory_Arena temp = begin_temp_memory(arena);
+    Arena *scratch = context_get_arena(insertion->app);
+    Temp_Memory temp = begin_temp(scratch);
     va_list args;
     va_start(args, format);
-    String string = string_push_fv(arena, format, args);
+    String_Const_u8 string = string_u8_pushfv(scratch, format, args);
     va_end(args);
     insert_string(insertion, string);
-    end_temp_memory(temp);
+    end_temp(temp);
     return(string.size);
 }
 
 static void
 insertc(Buffer_Insertion *insertion, char C){
-    insert_string(insertion, make_string(&C, 1));
+    insert_string(insertion, SCu8(&C, 1));
 }
 
 static b32
 insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 line, i32 truncate_at){
-    Partition *part = &global_part;
-    Temp_Memory temp = begin_temp_memory(part);
+    Scratch_Block scratch(insertion->app);
     
     Partial_Cursor begin = {};
     Partial_Cursor end = {};
@@ -109,25 +115,18 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 li
                 buffer_get_size(insertion->app, buffer_id, &buffer_size);
                 if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer_size){
                     i32 size = (end.pos - begin.pos);
-                    if(truncate_at && (size > truncate_at))
-                    {
+                    if (truncate_at && (size > truncate_at)){
                         size = truncate_at;
                     }
                     
-                    char *memory = push_array(part, char, size);
-                    if (memory != 0){
-                        String str = make_string(memory, 0, size);
-                        success = true;
-                        buffer_read_range(insertion->app, buffer_id, begin.pos, end.pos, str.str);
-                        str.size = size;
-                        insert_string(insertion, str);
-                    }
+                    String_Const_u8 string = scratch_read(insertion->app, scratch, buffer_id, begin.pos, end.pos);
+                    insert_string(insertion, string);
+                    success = true;
                 }
             }
         }
     }
     
-    end_temp_memory(temp);
     return(success);
 }
 

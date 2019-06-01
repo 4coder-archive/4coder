@@ -27,8 +27,8 @@ static char *default_extensions[] = {
 #define AUTO_CENTER_AFTER_JUMPS true
 #endif
 static b32 auto_center_after_jumps = AUTO_CENTER_AFTER_JUMPS;
-static char locked_buffer_space[256];
-static String locked_buffer = make_fixed_width_string(locked_buffer_space);
+static u8 locked_buffer_space[256];
+static String_Const_u8 locked_buffer = {};
 
 
 static View_ID build_footer_panel_view_id = 0;
@@ -41,8 +41,8 @@ static Managed_Variable_ID view_is_passive_loc = 0;
 static Managed_Variable_ID view_snap_mark_to_cursor = 0;
 static Managed_Variable_ID view_ui_data = 0;
 
-static char out_buffer_space[1024];
-static char command_space[1024];
+static u8 out_buffer_space[1024];
+static u8 command_space[1024];
 static char hot_directory_space[1024];
 
 
@@ -56,7 +56,6 @@ static b32 cursor_is_hidden = false;
 
 static b32 show_fps_hud = false;
 
-static Partition global_part;
 static Heap global_heap;
 
 enum{
@@ -68,6 +67,7 @@ static i32 fcoder_mode = FCoderMode_Original;
 static ID_Line_Column_Jump_Location prev_location = {};
 
 
+static Arena global_config_arena = {};
 static Config_Data global_config = {};
 
 static char previous_isearch_query[256] = {};

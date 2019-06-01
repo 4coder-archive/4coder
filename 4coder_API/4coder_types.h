@@ -429,30 +429,6 @@ STRUCT Mouse_State{
     };
 };
 
-/* DOC(Range describes an integer range typically used for ranges within a buffer. Ranges are not used to pass into the API, but this struct is used for returns.
-
-Throughout the API ranges are thought of in the form [min,max) where max is "one past the end" of the range that is actually read/edited/modified.) */
-UNION Range{
-    STRUCT{
-        /* DOC(This is the smaller value in the range.) */
-        i32 min;
-        /* DOC(This is the larger value in the range.) */
-        i32 max;
-    };
-    STRUCT{
-        /* DOC(This is the start of the range, unioned with min.) */
-        i32 start;
-        /* DOC(This is the end of the range, unioned with max.) */
-        i32 end;
-    };
-    STRUCT{
-        /* DOC(This is the first value in the range, unioned with min.) */
-        i32 first;
-        /* DOC(This is one_past_the_last value in the range, unioned with max.) */
-        i32 one_past_last;
-    };
-};
-
 /* DOC(An array of ranges.  This is just a plain pointer bundled with a count, no additional special structure.) */
 STRUCT Range_Array{
     /* DOC(A pointer to the array of ranges.) */
@@ -629,6 +605,25 @@ STRUCT Partial_Cursor{
     i32 character;
 };
 
+STRUCT Range_Partial_Cursor{
+    struct{
+        Partial_Cursor min;
+        Partial_Cursor max;
+    };
+    struct{
+        Partial_Cursor begin;
+        Partial_Cursor end;
+    };
+    struct{
+        Partial_Cursor start;
+        Partial_Cursor end;
+    };
+    struct{
+        Partial_Cursor first;
+        Partial_Cursor one_past_last;
+    };
+};
+
 STRUCT File_Attributes{
     u64 size;
     u64 last_write_time;
@@ -785,9 +780,11 @@ ENUM(u32, Glyph_Flag){
 /* DOC(Query_Bar is a struct used to store information in the user's control that will be displayed as a drop down bar durring an interactive command.) */
 STRUCT Query_Bar{
     /* DOC(This specifies the prompt portion of the drop down bar.) */
-    String prompt;
+    String_Const_u8 prompt;
     /* DOC(This specifies the main string portion of the drop down bar.) */
-    String string;
+    String_Const_u8 string;
+    /* DOC(This specifies the memory capacity allocated for string.) */
+    umem string_capacity;
 };
 
 STRUCT Query_Bar_Ptr_Array{
@@ -902,6 +899,7 @@ ENUM(i32, Record_Error){
     RecordError_InvalidBuffer,
     RecordError_NoHistoryAttached,
     RecordError_IndexOutOfBounds,
+    RecordError_SubIndexOutOfBounds,
     RecordError_InitialStateDummyRecord,
     RecordError_WrongRecordTypeAtIndex,
 };
@@ -920,8 +918,8 @@ STRUCT Record_Info{
     i32 edit_number;
     union{
         struct{
-            String string_forward;
-            String string_backward;
+            String_Const_u8 string_forward;
+            String_Const_u8 string_backward;
             i32 first;
         } single;
         struct{
@@ -969,16 +967,6 @@ STRUCT User_Input{
 This can be set even if key and command are also set, in which case the command still needs to abort, and the key and command simply reflect
 what event triggered the abort event.) */
     b32 abort;
-};
-
-/*
-DOC(Data is used for passing and returing pointer size pairs.)
-*/
-STRUCT Data{
-    /* DOC(A pointer to the data.) */
-    u8 *data;
-    /* DOC(The size of the data in bytes.) */
-    u64 size;
 };
 
 STRUCT Frame_Info{
@@ -1048,8 +1036,8 @@ TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
 TYPEDEF_FUNC i32 Open_File_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define OPEN_FILE_HOOK_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
 
-TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_ID buffer_id, Range range, String text);
-#define FILE_EDIT_RANGE_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id, Range range, String text)
+TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 text);
+#define FILE_EDIT_RANGE_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 text)
 
 TYPEDEF_FUNC i32 File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count);
 #define FILE_EDIT_FINISHED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count)
@@ -1072,21 +1060,19 @@ TYPEDEF_FUNC Color_Table Modify_Color_Table_Function(struct Application_Links *a
 ENUM(u32, Clipboard_Change_Flag){
     ClipboardFlag_FromOS = 0x1,
 };
-TYPEDEF_FUNC void Clipboard_Change_Hook_Function(struct Application_Links *app, String contents, Clipboard_Change_Flag  flags);
-#define CLIPBOARD_CHANGE_HOOK_SIG(name) void name(struct Application_Links *app, String contents, Clipboard_Change_Flag flags)
+TYPEDEF_FUNC void Clipboard_Change_Hook_Function(struct Application_Links *app, String_Const_u8 contents, Clipboard_Change_Flag  flags);
+#define CLIPBOARD_CHANGE_HOOK_SIG(name) void name(struct Application_Links *app, String_Const_u8 contents, Clipboard_Change_Flag flags)
 
 TYPEDEF_FUNC Rect_i32 Get_View_Buffer_Region_Function(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region);
 #define GET_VIEW_BUFFER_REGION_SIG(name) Rect_i32 name(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region)
 
 STRUCT Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;
-    char *file_name;
-    i32 file_name_len;
-    char *base_name;
-    i32 base_name_len;
-    char *unique_name_in_out;
-    i32 unique_name_len_in_out;
-    i32 unique_name_capacity;
+    String_Const_u8 file_name;
+    String_Const_u8 base_name;
+    u8 *unique_name_in_out;
+    umem unique_name_len_in_out;
+    umem unique_name_capacity;
 };
 
 TYPEDEF_FUNC void Buffer_Name_Resolver_Function(struct Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count);
@@ -1141,7 +1127,7 @@ typedef i32 _Get_Version_Function(i32 maj, i32 min, i32 patch);
 #define _GET_VERSION_SIG(n) i32 n(i32 maj, i32 min, i32 patch)
 
 STRUCT color_picker{
-    String title;
+    String_Const_u8 title;
     argb_color *dest;
     b32 *finished;
 };

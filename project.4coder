@@ -33,16 +33,6 @@ command_list = {
    .cmd = { {"echo build: x64 & build.bat" , .os = "win"  },
             {"echo build: x64 & ./build.sh", .os = "linux"},
             {"echo build: x64 & ./build.sh", .os = "mac"  }, }, },
- { .name = "build site",
-   .out = "*site*", .footer_panel = false, .save_dirty_files = true,
-   .cmd = { {"build_site.bat" , .os = "win"  },
-            {"./build_site.sh", .os = "linux"},
-            {"./build_site.sh", .os = "mac"  }, }, },
- { .name = "build string",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { {"build_string.bat" , .os = "win"  },
-            {"./build_string.sh", .os = "linux"},
-            {"./build_string.sh", .os = "mac"  }, }, },
  { .name = "build x86",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
    .cmd = { {build_x86_win32, .os = "win"  },
@@ -68,21 +58,27 @@ command_list = {
    .cmd = { {"..\\build\\generate_config_parser", .os = "win"  },
             {"../build/generate_config_parser"  , .os = "linux"},
             {"../build/generate_config_parser"  , .os = "mac"  }, }, },
+
  { .name = "build one time",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
    .cmd = { { "pushd ..\\..\\one_time_code & build.bat" , .os = "win"   }, }, },
  { .name = "run one time",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,
    .cmd = { { "pushd ..\\..\\one_time_code\\build & one_time", .os = "win"   }, }, },
+
+ { .name = "build pinky one time",
+   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
+   .cmd = { { "pushd ..\\..\\pinky\\code & build.bat" , .os = "win"   }, }, },
+ { .name = "run pinky one time",
+   .out = "*run*", .footer_panel = false, .save_dirty_files = false,
+   .cmd = { { "pushd ..\\..\\pinky\\build & one_time", .os = "win"   }, }, },
 };
 
 fkey_command[1]  = "build x64";
-fkey_command[2]  = "build site";
-fkey_command[3]  = "build string";
-fkey_command[4]  = "build x86";
-fkey_command[5]  = "build metadata";
-fkey_command[6]  = "build config parser generator";
-fkey_command[7]  = "generate config parser";
-fkey_command[9]  = "build one time";
-fkey_command[10] = "run one time";
+fkey_command[3]  = "build x86";
+fkey_command[4]  = "build metadata";
+fkey_command[5]  = "build config parser generator";
+fkey_command[6]  = "generate config parser";
+fkey_command[9]  = "build pinky one time";
+fkey_command[10] = "run pinky one time";
 fkey_command[12] = "package";

@@ -24,6 +24,71 @@
 
 #if !defined(REMOVE_TRANSITION_HELPER_31)
 
+static b32
+exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer_id,
+                    char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
+    return(exec_system_command(app, (view == 0)?0:view->view_id, buffer_id,
+                               SCu8(path, path_len), SCu8(command, command_len), flags));
+    
+#if 0
+    b32 result = false;
+    
+    String_Const_u8 path_string = SCu8((u8*)path, path_len);
+    String_Const_u8 command_string = SCu8((u8*)command, command_len);
+    Child_Process_ID child_process_id = 0;
+    if (create_child_process(app, path_string, command_string, &child_process_id)){
+        result = true;
+        
+        Buffer_ID buffer_attach_id = 0;
+        if (buffer_id.name != 0 && buffer_id.name_len > 0){
+            String_Const_u8 buffer_name = SCu8((u8*)buffer_id.name, buffer_id.name_len);
+            if (!get_buffer_by_name(app, buffer_name, AccessAll, &buffer_attach_id)){
+                if (create_buffer(app, buffer_name, BufferCreate_AlwaysNew|BufferCreate_NeverAttachToFile, &buffer_attach_id)){
+                    buffer_set_setting(app, buffer_attach_id, BufferSetting_ReadOnly, true);
+                    buffer_set_setting(app, buffer_attach_id, BufferSetting_Unimportant, true);
+                }
+            }
+        }
+        else if (buffer_id.id != 0){
+            buffer_attach_id = buffer_id.id;
+        }
+        
+        if (buffer_attach_id != 0){
+            Child_Process_Set_Target_Flags set_buffer_flags = 0;
+            if (!HasFlag(flags, CLI_OverlapWithConflict)){
+                set_buffer_flags |= ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess;
+            }
+            if (HasFlag(flags, CLI_CursorAtEnd)){
+                set_buffer_flags |= ChildProcessSet_CursorAtEnd;
+            }
+            
+            if (child_process_set_target_buffer(app, child_process_id, buffer_attach_id, set_buffer_flags)){
+                Buffer_Summary buffer = {};
+                get_buffer_summary(app, buffer_attach_id, AccessAll, &buffer);
+                buffer_replace_range(app, buffer_attach_id, make_range(0, buffer.size), string_u8_litexpr(""));
+                if (HasFlag(flags, CLI_SendEndSignal)){
+                    buffer_send_end_signal(app, buffer_attach_id);
+                }
+                if (view != 0){
+                    view_set_buffer(app, view->view_id, buffer_attach_id, 0);
+                    get_view_summary(app, view->view_id, AccessAll, view);
+                }
+            }
+        }
+    }
+    
+    return(result);
+#endif
+}
+
+static b32
+exec_system_command(Application_Links *app, View_ID view, Buffer_Identifier buffer_id,
+                    char *path, int32_t path_len, char *command, i32 command_len, Command_Line_Interface_Flag flags){
+    View_Summary view_summary = {};
+    get_view_summary(app, view, AccessAll, &view_summary);
+    return(exec_system_command(app, &view_summary, buffer_id, path, path_len, command, command_len, flags));
+}
+
 static char
 buffer_get_char(Application_Links *app, Buffer_Summary *buffer, i32 pos){
     return(buffer==0?0:buffer_get_char(app, buffer->buffer_id, pos));
@@ -45,14 +110,31 @@ get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Toke
 }
 
 static b32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, String *str,
+read_line(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 line, String *str,
           Partial_Cursor *start_out, Partial_Cursor *one_past_last_out){
-    return(buffer==0?0:read_line(app, part, buffer->buffer_id, line, str, start_out, one_past_last_out));
+    String_Const_u8 string = {};
+    Range_Partial_Cursor out = {};
+    b32 result = (buffer != 0 && is_valid_line(app, buffer->buffer_id, line));
+    if (result){
+        out = get_line_range(app, buffer->buffer_id, line);
+        string = scratch_read(app, arena, buffer->buffer_id, make_range_from_cursors(out));
+    }
+    *start_out = out.start;
+    *one_past_last_out = out.one_past_last;
+    *str = string_old_from_new(string);
+    return(result);
 }
 
 static b32
-read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 line, String *str){
-    return(buffer==0?0:read_line(app, part, buffer->buffer_id, line, str));
+read_line(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 line, String *str){
+    String_Const_u8 string = {};
+    b32 result = (buffer != 0 && is_valid_line(app, buffer->buffer_id, line));
+    if (result){
+        Range_Partial_Cursor range = get_line_range(app, buffer->buffer_id, line);
+        string = scratch_read(app, arena, buffer->buffer_id, make_range_from_cursors(range));
+    }
+    *str = string_old_from_new(string);
+    return(result);
 }
 
 
@@ -67,19 +149,10 @@ init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_Sum
 }
 
 static String
-token_get_lexeme(Application_Links *app, Buffer_Summary *buffer, Cpp_Token *token, char *out_buffer, i32 out_buffer_size){
+token_get_lexeme(Application_Links *app, Arena *arena, Buffer_Summary *buffer, Cpp_Token *token){
     String result = {};
-    if (buffer != 0){
-        result = token_get_lexeme(app, buffer->buffer_id, token, out_buffer, out_buffer_size);
-    }
-    return(result);
-}
-
-static String
-token_get_lexeme(Application_Links *app, Partition *part, Buffer_Summary *buffer, Cpp_Token *token){
-    String result = {};
-    if (buffer != 0){
-        result = token_get_lexeme(app, part, buffer->buffer_id, token);
+    if (buffer != 0 && token != 0){
+        result = string_old_from_new(token_get_lexeme(app, arena, buffer->buffer_id, *token));
     }
     return(result);
 }
@@ -88,7 +161,12 @@ static String
 get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, char *space, i32 capacity){
     String result = {};
     if (buffer != 0){
-        result = get_token_or_word_under_pos(app, buffer->buffer_id, pos, space, capacity);
+        Scratch_Block scratch(app);
+        String_Const_u8 string = get_token_or_word_under_pos(app, scratch, buffer->buffer_id, pos);
+        i32 size = (i32)string.size;
+        size = clamp_top(size, capacity);
+        block_copy(space, string.str, size);
+        result = make_string_cap(space, size, capacity);
     }
     return(result);
 }
@@ -174,17 +252,17 @@ buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, in
 }
 
 static Cpp_Token_Array
-buffer_get_all_tokens(Application_Links *app, Partition *part, Buffer_Summary *buffer){
+buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_Summary *buffer){
     Cpp_Token_Array result = {};
     if (buffer != 0){
-        result = buffer_get_all_tokens(app, part, buffer->buffer_id);
+        result = buffer_get_all_tokens(app, arena, buffer->buffer_id);
     }
     return(result);
 }
 
 static i32
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Partition *part, i32 start_pos, b32 seek_forward, Seek_Boundary_Flag flags){
-    return(buffer==0?0:buffer_boundary_seek(app, buffer->buffer_id, part, start_pos, seek_forward, flags));
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Arena *arena, i32 start_pos, b32 seek_forward, Seek_Boundary_Flag flags){
+    return(buffer==0?0:buffer_boundary_seek(app, buffer->buffer_id, arena, start_pos, seek_forward, flags));
 }
 
 static void
@@ -204,35 +282,35 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i
 static void
 buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_forward(app, buffer->buffer_id, pos, end, str, size, result);
+        buffer_seek_string_forward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
     }
 }
 
 static void
 buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_backward(app, buffer->buffer_id, pos, end, str, size, result);
+        buffer_seek_string_backward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
     }
 }
 
 static void
 buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_insensitive_forward(app, buffer->buffer_id, pos, end, str, size, result);
+        buffer_seek_string_insensitive_forward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
     }
 }
 
 static void
 buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_insensitive_backward(app, buffer->buffer_id, pos, end, str, size, result);
+        buffer_seek_string_insensitive_backward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
     }
 }
 
 static void
 buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, i32 min, char *str, i32 size, i32 *result, Buffer_Seek_String_Flags flags){
     if (buffer != 0){
-        buffer_seek_string(app, buffer->buffer_id, pos, end, min, str, size, result, flags);
+        buffer_seek_string(app, buffer->buffer_id, pos, end, min, SCu8(str, size), result, flags);
     }
 }
 
@@ -245,7 +323,12 @@ static String
 read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, char *space, i32 max, Range *range_out){
     String result = {};
     if (buffer != 0){
-        result = read_identifier_at_pos(app, buffer->buffer_id, pos, space, max, range_out);
+        Scratch_Block scratch(app);
+        String_Const_u8 string = read_identifier_at_pos(app, scratch, buffer->buffer_id, pos, range_out);
+        i32 size = (i32)string.size;
+        size = clamp_top(size, max);
+        block_copy(space, string.str, size);
+        result = make_string_cap(space, size, max);
     }
     return(result);
 }
@@ -277,7 +360,9 @@ view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summa
 
 static void
 query_replace_base(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 pos, String r, String w){
-    query_replace_base(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, pos, r, w);
+    query_replace_base(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, pos,
+                       string_new_u8_from_old(r),
+                       string_new_u8_from_old(w));
 }
 
 static Statement_Parser
@@ -320,18 +405,18 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u
 }
 
 static Range_Array
-get_enclosure_ranges(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 pos, u32 flags){
+get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 pos, u32 flags){
     Range_Array result = {};
     if (buffer != 0){
-        result = get_enclosure_ranges(app, part, buffer->buffer_id, pos, flags);
+        result = get_enclosure_ranges(app, arena, buffer->buffer_id, pos, flags);
     }
     return(result);
 }
 
 static void
-mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope, Buffer_Summary *buffer, i32 pos, u32 flags, Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
+mark_enclosures(Application_Links *app, Managed_Scope render_scope, Buffer_Summary *buffer, i32 pos, u32 flags, Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
     if (buffer != 0){
-        mark_enclosures(app, scratch, render_scope, buffer->buffer_id, pos, flags, type, back_colors, fore_colors, color_count);
+        mark_enclosures(app, render_scope, buffer->buffer_id, pos, flags, type, back_colors, fore_colors, color_count);
     }
 }
 
@@ -345,7 +430,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, i32 line_
 }
 
 static Buffer_Batch_Edit
-make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
+make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
     Buffer_Batch_Edit result = {};
     if (buffer != 0){
         make_batch_from_indent_marks(app, arena, buffer->buffer_id, first_line, one_past_last_line, indent_marks, opts);
@@ -354,9 +439,9 @@ make_batch_from_indent_marks(Application_Links *app, Partition *arena, Buffer_Su
 }
 
 static void
-set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
+set_line_indents(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
     if (buffer != 0){
-        set_line_indents(app, part, buffer->buffer_id, first_line, one_past_last_line, indent_marks, opts);
+        set_line_indents(app, arena, buffer->buffer_id, first_line, one_past_last_line, indent_marks, opts);
     }
 }
 
@@ -370,7 +455,7 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
 }
 
 static i32*
-get_indentation_marks(Application_Links *app, Partition *arena, Buffer_Summary *buffer,
+get_indentation_marks(Application_Links *app, Arena *arena, Buffer_Summary *buffer,
                       Cpp_Token_Array tokens, i32 first_line, i32 one_past_last_line,
                       b32 exact_align, i32 tab_width){
     return(buffer==0?0:get_indentation_marks(app, arena, buffer->buffer_id, tokens, first_line, one_past_last_line, exact_align, tab_width));
@@ -396,20 +481,13 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cp
 }
 
 static b32
-buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
-    return(buffer==0?0:buffer_auto_indent(app, part, buffer->buffer_id, start, end, tab_width, flags));
+buffer_auto_indent(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
+    return(buffer==0?0:buffer_auto_indent(app, arena, buffer->buffer_id, start, end, tab_width, flags));
 }
 
 static b32
 buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
     return(buffer==0?0:buffer_auto_indent(app, buffer->buffer_id, start, end, tab_width, flags));
-}
-
-static void
-print_positions_buffered(Application_Links *app, Buffer_Summary *buffer, Function_Positions *positions_array, i32 positions_count, Buffered_Write_Stream *stream){
-    if (buffer != 0){
-        print_positions_buffered(app, buffer->buffer_id, positions_array, positions_count, stream);
-    }
 }
 
 static Get_Positions_Results
@@ -422,9 +500,9 @@ get_function_positions(Application_Links *app, Buffer_Summary *buffer, i32 first
 }
 
 static void
-list_all_functions(Application_Links *app, Partition *part, Buffer_Summary *optional_target_buffer){
+list_all_functions(Application_Links *app, Buffer_Summary *optional_target_buffer){
     if (optional_target_buffer != 0){
-        list_all_functions(app, part, optional_target_buffer->buffer_id);
+        list_all_functions(app, optional_target_buffer->buffer_id);
     }
 }
 
@@ -440,14 +518,14 @@ c_line_comment_starts_at_position(Application_Links *app, Buffer_Summary *buffer
 
 static void
 write_string(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, String string){
-    write_string(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, string);
+    write_string(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, string_new_u8_from_old(string));
 }
 
 static b32
 open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename, i32 filename_len, b32 background, b32 never_new){
     b32 result = false;
     Buffer_ID id_out = 0;
-    result = open_file(app, &id_out, filename, filename_len, background, never_new);
+    result = open_file(app, &id_out, SCu8(filename, filename_len), background, never_new);
     if (result && buffer_out != 0){
         get_buffer_summary(app, id_out, AccessAll, buffer_out);
     }
@@ -541,7 +619,7 @@ refresh_buffer(Application_Links *app, Buffer_Summary *buffer){
 }
 
 static Sticky_Jump_Array
-parse_buffer_to_jump_array(Application_Links *app, Partition *arena, Buffer_Summary buffer){
+parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_Summary buffer){
     return(parse_buffer_to_jump_array(app, arena, buffer.buffer_id));
 }
 
@@ -562,33 +640,18 @@ get_buffer_face_description(Application_Links *app, Buffer_Summary *buffer){
 static void
 set_buffer_face_by_name(Application_Links *app, Buffer_Summary *buffer, char *name, i32 len){
     if (buffer != 0){
-        set_buffer_face_by_name(app, buffer->buffer_id, name, len);
+        set_buffer_face_by_name(app, buffer->buffer_id, SCu8(name, len));
     }
-}
-
-static i32
-get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
-    return(get_build_directory(app, buffer==0?0:buffer->buffer_id, dir_out));
-}
-
-static i32
-standard_build_search(Application_Links *app, View_Summary *view, String *dir, String *command, b32 perform_backup, b32 use_path_in_command, String filename, String command_name){
-    return(standard_build_search(app, view==0?0:view->view_id, dir, command, perform_backup, use_path_in_command, filename, command_name));
-}
-
-static i32
-execute_standard_build_search(Application_Links *app, View_Summary *view, String *dir, String *command, i32 perform_backup){
-    return(execute_standard_build_search(app, view==0?0:view->view_id, dir, command, perform_backup));
 }
 
 static void
 execute_standard_build(Application_Links *app, View_Summary *view, Buffer_ID active_buffer){
-    execute_standard_build(app, view==0?0:view->view_id, active_buffer);
+    standard_search_and_build(app, view==0?0:view->view_id, active_buffer);
 }
 
 static b32
-post_buffer_range_to_clipboard(Application_Links *app, Partition *scratch, i32 clipboard_index, Buffer_Summary *buffer, i32 first, i32 one_past_last){
-    return(post_buffer_range_to_clipboard(app, scratch, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
+post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buffer_Summary *buffer, i32 first, i32 one_past_last){
+    return(post_buffer_range_to_clipboard(app, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
 }
 
 static void
@@ -597,13 +660,13 @@ view_set_vertical_focus(Application_Links *app, View_Summary *view, i32 y_top, i
 }
 
 static b32
-advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
-    return(advance_cursor_in_jump_view(app, part, view==0?0:view->view_id, skip_repeats, skip_sub_error, direction, location_out));
+advance_cursor_in_jump_view(Application_Links *app, View_Summary *view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
+    return(advance_cursor_in_jump_view(app, view==0?0:view->view_id, skip_repeats, skip_sub_error, direction, location_out));
 }
 
 static Parsed_Jump
-seek_next_jump_in_view(Application_Links *app, Partition *part, View_Summary *view, i32 skip_sub_errors, i32 direction, i32 *line_out){
-    return(seek_next_jump_in_view(app, part, view==0?0:view->view_id, skip_sub_errors, direction, line_out));
+seek_next_jump_in_view(Application_Links *app, Arena *arena, View_Summary *view, i32 skip_sub_errors, i32 direction, i32 *line_out){
+    return(seek_next_jump_in_view(app, arena, view==0?0:view->view_id, skip_sub_errors, direction, line_out));
 }
 
 static void
@@ -617,18 +680,8 @@ goto_jump_in_order(Application_Links *app, Marker_List *list, View_Summary *jump
 }
 
 static void
-open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *ui_view, Buffer_ID list_buffer_id, Jump_Lister_Activation_Rule activation_rule, View_Summary *optional_target_view){
-    open_jump_lister(app, scratch, heap, ui_view==0?0:ui_view->view_id, list_buffer_id, activation_rule, optional_target_view==0?0:optional_target_view->view_id);
-}
-
-static void
-activate_project_command(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *view, Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
-    activate_project_command(app, scratch, heap, view==0?0:view->view_id, state, text_field, user_data, activated_by_mouse);
-}
-
-static void
-activate_snippet(Application_Links *app, Partition *scratch, Heap *heap, View_Summary *view, struct Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
-    activate_snippet(app, scratch, heap, view==0?0:view->view_id, state, text_field, user_data, activated_by_mouse);
+open_jump_lister(Application_Links *app, Heap *heap, View_Summary *ui_view, Buffer_ID list_buffer_id, Jump_Lister_Activation_Rule activation_rule, View_Summary *optional_target_view){
+    open_jump_lister(app, heap, ui_view==0?0:ui_view->view_id, list_buffer_id, activation_rule, optional_target_view==0?0:optional_target_view->view_id);
 }
 
 static void
@@ -643,7 +696,7 @@ character_pos_to_pos(Application_Links *app, View_Summary *view, i32 character_p
 
 static b32
 view_open_file(Application_Links *app, View_Summary *view, char *filename, i32 filename_len, b32 never_new){
-    return(view_open_file(app, view==0?0:view->view_id, filename, filename_len, never_new));
+    return(view_open_file(app, view==0?0:view->view_id, SCu8(filename, filename_len), never_new));
 }
 
 static f32
@@ -681,8 +734,8 @@ refresh_view(Application_Links *app, View_Summary *view){
 }
 
 static String
-get_string_in_view_range(Application_Links *app, Partition *arena, View_Summary *view){
-    return(get_string_in_view_range(app, arena, view==0?0:view->view_id));
+get_string_in_view_range(Application_Links *app, Arena *arena, View_Summary *view){
+    return(string_old_from_new(get_string_in_view_range(app, arena, view==0?0:view->view_id)));
 }
 
 static b32
@@ -748,28 +801,160 @@ get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_s
 }
 
 static void
-list__parameters(Application_Links *app, Heap *heap, Partition *scratch, String *strings, i32 count, Search_Range_Flag match_flags, View_Summary default_target_view){
-    list__parameters(app, heap, scratch, strings, count, match_flags, default_target_view.view_id);
+list__parameters(Application_Links *app, Heap *heap, String_Const_u8 *strings, i32 count, Search_Range_Flag match_flags, View_Summary default_target_view){
+    list__parameters(app, heap, strings, count, match_flags, default_target_view.view_id);
 }
 
 static void
-list_query__parameters(Application_Links *app, Heap *heap, Partition *scratch, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
-    list_query__parameters(app, heap, scratch, substrings, case_insensitive, default_target_view.view_id);
+list_query__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
+    list_query__parameters(app, heap, substrings, case_insensitive, default_target_view.view_id);
 }
 
 static Buffer_ID
 create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_length, View_Summary default_target_view){
-    return(create_or_switch_to_buffer_by_name(app, make_string(name, name_length), default_target_view.view_id));
+    return(create_or_switch_to_buffer_and_clear_by_name(app, SCu8(name, name_length), default_target_view.view_id));
 }
 
 static void
-list_identifier__parameters(Application_Links *app, Heap *heap, Partition *scratch, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
-    list_identifier__parameters(app, heap, scratch, substrings, case_insensitive, default_target_view.view_id);
+list_identifier__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
+    list_identifier__parameters(app, heap, substrings, case_insensitive, default_target_view.view_id);
 }
 
 static void
-list_type_definition__parameters(Application_Links *app, Heap *heap, Partition *scratch, String str, View_Summary default_target_view){
-    list_type_definition__parameters(app, heap, scratch, str, default_target_view.view_id);
+list_type_definition__parameters(Application_Links *app, Heap *heap, String str, View_Summary default_target_view){
+    list_type_definition__parameters(app, heap, string_new_u8_from_old(str), default_target_view.view_id);
+}
+
+static b32
+backspace_utf8(String *str){
+    b32 result = false;
+    uint8_t *s = (uint8_t*)str->str;
+    if (str->size > 0){
+        u32 i = str->size-1;
+        for (; i > 0; --i){
+            if (s[i] <= 0x7F || s[i] >= 0xC0){
+                break;
+            }
+        }
+        str->size = i;
+        result = true;
+    }
+    return(result);
+}
+
+static void
+change_mapping(Application_Links *app, String mapping){
+    change_mapping(app, string_new_u8_from_old(mapping));
+}
+
+static void
+query_replace_parameter(Application_Links *app, String replace_str, i32 start_pos, b32 add_replace_query_bar){
+    query_replace_parameter(app, SCu8(string_new_from_old(replace_str)), start_pos, add_replace_query_bar);
+}
+
+static String
+hot_directory_push(Application_Links *app, Arena *arena){
+    return(string_old_from_new(push_hot_directory(app, arena)));
+}
+
+static void
+append_int_to_str_left_pad(String *str, i32 x, i32 minimum_width, char pad_char){
+    i32 length = int_to_str_size(x);
+    i32 left_over = minimum_width - length;
+    if (left_over > 0){
+        append_padding(str, pad_char, str->size + left_over);
+    }
+    append_int_to_str(str, x);
+}
+
+static void
+condense_whitespace(String *a){
+    *a = skip_chop_whitespace(*a);
+    int size = a->size;
+    a->size = 0;
+    int i = 0;
+    for (;i < size;){
+        if (char_is_whitespace(a->str[i])){
+            a->str[a->size++] = ' ';
+            for (;(i < size) && char_is_whitespace(a->str[i]);){
+                ++i;
+            }
+        }
+        else{
+            a->str[a->size++] = a->str[i++];
+        }
+    }
+}
+
+static Face_ID
+get_existing_face_id_matching_name(Application_Links *app, char *name, i32 len){
+    return(get_existing_face_id_matching_name(app, SCu8(name, len)));
+}
+
+static Face_ID
+get_face_id_by_name(Application_Links *app, char *name, i32 len, Face_Description *base_description){
+    return(get_face_id_by_name(app, SCu8(name, len), base_description));
+}
+
+static void
+set_global_face_by_name(Application_Links *app, char *name, i32 len, b32 apply_to_all_buffers){
+    set_global_face_by_name(app, SCu8(name, len), apply_to_all_buffers);
+}
+
+static void
+insert_string__no_buffering(Buffer_Insertion *insertion, String string){
+    insert_string__no_buffering(insertion, string_new_u8_from_old(string));
+}
+
+static void
+insert_string(Buffer_Insertion *insertion, String string){
+    insert_string(insertion, string_new_u8_from_old(string));
+}
+
+static void
+save_all_dirty_buffers_with_postfix(Application_Links *app, String postfix){
+    save_all_dirty_buffers_with_postfix(app, string_new_u8_from_old(postfix));
+}
+
+static void
+delete_file_base(Application_Links *app, String file_name, Buffer_ID buffer_id){
+    delete_file_base(app, string_new_u8_from_old(file_name), buffer_id);
+}
+
+static b32
+ms_style_verify(String line, i32 left_paren_pos, i32 right_paren_pos){
+    return(ms_style_verify(string_new_u8_from_old(line), left_paren_pos, right_paren_pos));
+}
+
+static i32
+try_skip_rust_arrow(String line){
+    return((i32)(try_skip_rust_arrow(string_new_u8_from_old(line))));
+}
+
+static b32
+check_is_note(String line, i32 colon_pos){
+    return(check_is_note(string_new_u8_from_old(line), colon_pos));
+}
+
+static void
+close_all_files_with_extension(Application_Links *app, CString_Array extension_array){
+    Scratch_Block scratch(app);
+    String_Const_u8_Array array = {};
+    array.count = extension_array.count;
+    array.strings = push_array(scratch, String_Const_u8, array.count);
+    for (i32 i = 0; i < array.count; i += 1){
+        array.strings[i] = SCu8(extension_array.strings[i]);
+    }
+    close_all_files_with_extension(app, array);
+}
+
+static void
+open_all_files_in_directory_pattern_match(Application_Links *app,
+                                          String dir,
+                                          Project_File_Pattern_Array whitelist,
+                                          Project_File_Pattern_Array blacklist,
+                                          u32 flags){
+    open_all_files_in_directory_pattern_match(app, string_new_u8_from_old(dir), whitelist, blacklist, flags);
 }
 
 #endif

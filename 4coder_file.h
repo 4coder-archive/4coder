@@ -10,7 +10,7 @@
 #include "4coder_lib/4coder_arena.h"
 #include "4coder_lib/4coder_arena.cpp"
 
-#include "4coder_os_comp_cracking.h"
+#include "4coder_base_types.h"
 #define FSTRING_IMPLEMENTATION
 #include "4coder_lib/4coder_string.h"
 
@@ -18,9 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef int32_t bool32;
-
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 
 //// WINDOWS BEGIN ////
 #define UNICODE
@@ -29,7 +27,7 @@ typedef TCHAR Filename_Character;
 #define SLASH '\\'
 //// WINDOWS END ////
 
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 
 //// UNIX BEGIN ////
 #include <sys/types.h>
@@ -47,7 +45,7 @@ typedef char Filename_Character;
 struct Cross_Platform_File_Info{
     Filename_Character *name;
     int32_t len;
-    bool32 is_folder;
+    b32 is_folder;
 };
 
 struct Cross_Platform_File_List{
@@ -57,18 +55,17 @@ struct Cross_Platform_File_List{
     Filename_Character path_name[4096];
 };
 
-typedef bool32 File_Filter(Filename_Character *name, int32_t len);
+typedef b32 File_Filter(Filename_Character *name, int32_t len);
 
 static Cross_Platform_File_List
-get_file_list(Partition *part, Filename_Character *dir, File_Filter *filter);
+get_file_list(Arena *arena, Filename_Character *dir, File_Filter *filter);
 
 static Filename_Character*
-encode(Partition *part, char *str){
+encode(Arena *arena, char *str){
     int32_t size = 0;
     for (;str[size]!=0;++size);
     
-    Filename_Character *out = push_array(part, Filename_Character, size + 1);
-    push_align(part, 8);
+    Filename_Character *out = push_array(arena, Filename_Character, size + 1);
     
     if (out == 0){
         fprintf(stdout, "fatal error: ran out of memory encoding string to filename\n");
@@ -86,10 +83,9 @@ encode(Partition *part, char *str){
 }
 
 static char*
-unencode(Partition *part, Filename_Character *str, int32_t len){
-    Temp_Memory temp = begin_temp_memory(part);
-    char *out = push_array(part, char, len + 1);
-    push_align(part, 8);
+unencode(Arena *arena, Filename_Character *str, int32_t len){
+    Temp_Memory temp = begin_temp(arena);
+    char *out = push_array(arena, char, len + 1);
     
     if (out == 0){
         fprintf(stdout, "fatal error: ran out of memory unencoding string to filename\n");
@@ -102,7 +98,7 @@ unencode(Partition *part, Filename_Character *str, int32_t len){
         }
         else{
             out = 0;
-            end_temp_memory(temp);
+            end_temp(temp);
             break;
         }
     }
@@ -110,14 +106,14 @@ unencode(Partition *part, Filename_Character *str, int32_t len){
     return(out);
 }
 
-static bool32
+static b32
 filter_all(Filename_Character *name, int32_t len){
     return(true);
 }
 
-static bool32
+static b32
 filter_is_code_file(Filename_Character *name, int32_t len){
-    bool32 is_code = false;
+    b32 is_code = false;
     if (len >= 5){
         Filename_Character *ext = &name[len - 4];
         if (ext[0] == '.' && ext[1] == 'c' && ext[2] == 'p' && ext[3] == 'p'){
@@ -145,12 +141,12 @@ filter_is_code_file(Filename_Character *name, int32_t len){
     return(is_code);
 }
 
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 
 //// WINDOWS BEGIN ////
 static Cross_Platform_File_List
-get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter){
-    if (part == 0){
+get_file_list(Arena *arena, Filename_Character *pattern, File_Filter *filter){
+    if (arena == 0){
         fprintf(stdout, "fatal error: NULL part passed to %s\n", __FUNCTION__);
         exit(1);
     }
@@ -217,8 +213,8 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
         for(;name[size];++size);
         
         uint32_t attribs = find_data.dwFileAttributes;
-        bool32 is_folder = ((attribs & FILE_ATTRIBUTE_DIRECTORY) != 0);
-        bool32 is_hidden = ((attribs & FILE_ATTRIBUTE_HIDDEN) != 0);
+        b32 is_folder = ((attribs & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        b32 is_hidden = ((attribs & FILE_ATTRIBUTE_HIDDEN) != 0);
         
         if (!is_hidden){
             if (name[0] != '.' && (is_folder || filter(name, size))){
@@ -232,11 +228,11 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
     FindClose(search);
     
     Cross_Platform_File_List list = {};
-    Temp_Memory part_reset = begin_temp_memory(part);
+    Temp_Memory part_reset = begin_temp(arena);
     
     int32_t rounded_char_size = (character_count*sizeof(Filename_Character) + 7)&(~7);
     int32_t memsize = rounded_char_size + file_count*sizeof(Cross_Platform_File_Info);
-    void *mem = push_array(part, uint8_t, memsize);
+    void *mem = push_array(arena, u8, memsize);
     if (mem == 0){
         fprintf(stdout, "fatal error: not enough memory on the partition for a file list.\n");
         exit(1);
@@ -265,14 +261,14 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
         for(;name[size]!=0;++size);
         
         uint32_t attribs = find_data.dwFileAttributes;
-        bool32 is_folder = ((attribs & FILE_ATTRIBUTE_DIRECTORY) != 0);
-        bool32 is_hidden = ((attribs & FILE_ATTRIBUTE_HIDDEN) != 0);
+        b32 is_folder = ((attribs & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        b32 is_hidden = ((attribs & FILE_ATTRIBUTE_HIDDEN) != 0);
         
         if (!is_hidden){
             if (name[0] != '.' && (is_folder || filter(name, size))){
                 if (info_ptr + 1 > info_ptr_end || char_ptr + size + 1 > char_ptr_end){
                     memset(&list, 0, sizeof(list));
-                    end_temp_memory(part_reset);
+                    end_temp(part_reset);
                     FindClose(search);
                     return(list);
                 }
@@ -304,12 +300,12 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
 }
 //// WINDOWS END ////
 
-#elif defined(IS_LINUX) || defined(IS_MAC)
+#elif OS_LINUX || OS_MAC
 
 //// UNIX BEGIN ////
-static bool32
+static b32
 match_pattern(Filename_Character *name, Filename_Character *pattern){
-    bool32 match = false;
+    b32 match = false;
     if (sizeof(*name) == 1){
         Absolutes absolutes = {};
         String pattern_str = make_string_slowly(pattern);
@@ -380,7 +376,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
         int32_t size = 0;
         for(;name[size];++size);
         
-        bool32 is_folder = false;
+        b32 is_folder = false;
         if (entry->d_type == DT_LNK){
             struct stat st;
             if (stat(entry->d_name, &st) != -1){
@@ -430,7 +426,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
         int32_t size = 0;
         for(;name[size];++size);
         
-        bool32 is_folder = false;
+        b32 is_folder = false;
         if (entry->d_type == DT_LNK){
             struct stat st;
             if (stat(entry->d_name, &st) != -1){
@@ -477,27 +473,23 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
 # error metdata generator not supported on this platform
 #endif
 
-static String
-file_dump(Partition *part, char *name){
-    String text = {};
-    
+static String_Const_char
+file_dump(Arena *arena, char *name){
+    String_Const_char text = {};
     FILE *file = fopen(name, "rb");
     if (file != 0){
         fseek(file, 0, SEEK_END);
         text.size = ftell(file);
         fseek(file, 0, SEEK_SET);
-        text.memory_size = text.size + 1;
-        text.str = push_array(part, char, text.memory_size);
-        push_align(part, 8);
+        text.str = push_array(arena, char, text.size + 1);
         if (text.str == 0){
             fprintf(stdout, "fatal error: not enough memory in partition for file dumping");
             exit(1);
         }
         fread(text.str, 1, text.size, file);
-        terminate_with_null(&text);
+        text.str[text.size] = 0;
         fclose(file);
     }
-    
     return(text);
 }
 

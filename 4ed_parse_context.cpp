@@ -11,11 +11,11 @@
 
 internal void
 parse_context_init_memory(Parse_Context_Memory *parse_mem, void *mem, umem memsize){
-    sll_init_sentinel(&parse_mem->free_sentinel);
+    parse_mem->free_list = 0;
     
     parse_mem->parse_context_array = (Stored_Parse_Context_Slot*)mem;
     parse_mem->parse_context_counter = 0;
-    parse_mem->parse_context_max = (u32)(memsize / sizeof(*parse_mem->parse_context_array));
+    parse_mem->parse_context_max = (u32)(memsize/sizeof(*parse_mem->parse_context_array));
 }
 
 internal Parse_Context_ID
@@ -30,9 +30,9 @@ parse_context_valid_id(Parse_Context_Memory *parse_mem, Parse_Context_ID id){
 internal Parse_Context_ID
 parse_context_add(Parse_Context_Memory *parse_mem, Heap *heap, Parser_String_And_Type *kw_sats, u32 kw_count, Parser_String_And_Type *pp_sats, u32 pp_count){
     Stored_Parse_Context_Slot *slot = 0;
-    if (parse_mem->free_sentinel.next != &parse_mem->free_sentinel){
-        slot = parse_mem->free_sentinel.next;
-        sll_remove(&parse_mem->free_sentinel, slot);
+    if (parse_mem->free_list != 0){
+        slot = parse_mem->free_list;
+        sll_stack_pop(parse_mem->free_list);
     }
     else if (parse_mem->parse_context_counter < parse_mem->parse_context_max){
         slot = &parse_mem->parse_context_array[parse_mem->parse_context_counter++];
@@ -72,9 +72,9 @@ parse_context_add(Parse_Context_Memory *parse_mem, Heap *heap, Parser_String_And
 internal u32
 parse_context_add_default(Parse_Context_Memory *parse_mem, Heap *heap){
     Stored_Parse_Context_Slot *slot = 0;
-    if (parse_mem->free_sentinel.next != &parse_mem->free_sentinel){
-        slot = parse_mem->free_sentinel.next;
-        sll_remove(&parse_mem->free_sentinel, slot);
+    if (parse_mem->free_list != 0){
+        slot = parse_mem->free_list;
+        sll_stack_pop(parse_mem->free_list);
     }
     else if (parse_mem->parse_context_counter < parse_mem->parse_context_max){
         slot = &parse_mem->parse_context_array[parse_mem->parse_context_counter++];
@@ -109,10 +109,8 @@ parse_context_add_default(Parse_Context_Memory *parse_mem, Heap *heap){
     return(result);
 }
 
-internal Parse_Context
-parse_context_get(Parse_Context_Memory *parse_mem, Parse_Context_ID id, void *mem, umem memsize){
-    Parse_Context result = {};
-    
+internal Stored_Parse_Context_Slot*
+parse_context_get_slot(Parse_Context_Memory *parse_mem, Parse_Context_ID id){
     Stored_Parse_Context_Slot *slot = 0;
     if (id == 0){
         // do nothing
@@ -120,14 +118,19 @@ parse_context_get(Parse_Context_Memory *parse_mem, Parse_Context_ID id, void *me
     else{
         id -= parse_mem->parse_context_max;
     }
-    
     if (id < parse_mem->parse_context_counter){
         slot = &parse_mem->parse_context_array[id];
         if (slot->freed){
             slot = 0;
         }
     }
-    
+    return(slot);
+}
+
+internal Parse_Context
+parse_context_get(Parse_Context_Memory *parse_mem, Parse_Context_ID id, void *mem, umem memsize){
+    Stored_Parse_Context_Slot *slot = parse_context_get_slot(parse_mem, id);
+    Parse_Context result = {};
     if (slot != 0){
         Stored_Parse_Context *context = slot->context;
         if (context->memsize < memsize){
@@ -143,7 +146,19 @@ parse_context_get(Parse_Context_Memory *parse_mem, Parse_Context_ID id, void *me
             memcpy(mem, context, context->memsize);
         }
     }
-    
+    return(result);
+}
+
+internal Parse_Context
+parse_context_get(Arena *arena, Parse_Context_Memory *parse_mem, Parse_Context_ID id){
+    Stored_Parse_Context_Slot *slot = parse_context_get_slot(parse_mem, id);
+    Parse_Context result = {};
+    if (slot != 0){
+        Stored_Parse_Context *context = slot->context;
+        umem memsize = context->memsize + 1;
+        u8 *mem = push_array(arena, u8, memsize);
+        result = parse_context_get(parse_mem, id, mem, memsize);
+    }
     return(result);
 }
 

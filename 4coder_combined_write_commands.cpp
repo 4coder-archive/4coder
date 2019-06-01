@@ -5,15 +5,15 @@
 // TOP
 
 static void
-write_string(Application_Links *app, View_ID view, Buffer_ID buffer, String string){
+write_string(Application_Links *app, View_ID view, Buffer_ID buffer, String_Const_u8 string){
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
     buffer_replace_range(app, buffer, make_range(pos), string);
-    view_set_cursor(app, view, seek_pos(pos + string.size), 1);
+    view_set_cursor(app, view, seek_pos(pos + (i32)string.size), 1);
 }
 
 static void
-write_string(Application_Links *app, String string){
+write_string(Application_Links *app, String_Const_u8 string){
     View_ID view = 0;
     get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
@@ -23,23 +23,15 @@ write_string(Application_Links *app, String string){
 
 static void
 write_named_comment_string(Application_Links *app, char *type_string){
-    char space[512];
-    String str = make_fixed_width_string(space);
-    
-    String name = global_config.user_name;
+    Scratch_Block scratch(app);
+    String_Const_u8 name = global_config.user_name;
+    String_Const_u8 str = {};
     if (name.size > 0){
-        append(&str, "// ");
-        append(&str, type_string);
-        append(&str, "(");
-        append(&str, name);
-        append(&str, "): ");
+        str = string_u8_pushf(scratch, "// %s(%.*s): ", type_string, string_expand(name));
     }
     else{
-        append(&str, "// ");
-        append(&str, type_string);
-        append(&str, ": ");
+        str = string_u8_pushf(scratch, "// %s: ", type_string);
     }
-    
     write_string(app, str);
 }
 
@@ -51,9 +43,9 @@ long_braces(Application_Links *app, char *text, i32 size){
     view_get_buffer(app, view, AccessOpen, &buffer);
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
-    buffer_replace_range(app, buffer, make_range(pos), make_string(text, size));
+    buffer_replace_range(app, buffer, make_range(pos), SCu8(text, size));
     view_set_cursor(app, view, seek_pos(pos + 2), true);
-    buffer_auto_indent(app, &global_part, buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    buffer_auto_indent(app, buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, view, buffer);
 }
 
@@ -84,7 +76,7 @@ CUSTOM_DOC("At the cursor, insert a '{' and '}break;' separated by a blank line.
 CUSTOM_COMMAND_SIG(if0_off)
 CUSTOM_DOC("Surround the range between the cursor and mark with an '#if 0' and an '#endif'")
 {
-    place_begin_and_end_on_own_lines(app, &global_part, "#if 0", "#endif");
+    place_begin_and_end_on_own_lines(app, "#if 0", "#endif");
 }
 
 CUSTOM_COMMAND_SIG(write_todo)
@@ -108,13 +100,13 @@ CUSTOM_DOC("At the cursor, insert a '// NOTE' comment, includes user name if it 
 CUSTOM_COMMAND_SIG(write_block)
 CUSTOM_DOC("At the cursor, insert a block comment.")
 {
-    write_string(app, make_lit_string("/*  */"));
+    write_string(app, string_u8_litexpr("/*  */"));
 }
 
 CUSTOM_COMMAND_SIG(write_zero_struct)
 CUSTOM_DOC("At the cursor, insert a ' = {};'.")
 {
-    write_string(app, make_lit_string(" = {};"));
+    write_string(app, string_u8_litexpr(" = {};"));
 }
 
 static i32
@@ -150,7 +142,7 @@ CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
     i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (!alread_has_comment){
-        buffer_replace_range(app, buffer, make_range(pos), make_lit_string("//"));
+        buffer_replace_range(app, buffer, make_range(pos), string_u8_litexpr("//"));
     }
 }
 
@@ -164,7 +156,7 @@ CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading w
     i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
-        buffer_replace_range(app, buffer, make_range(pos, pos + 2), make_lit_string(""));
+        buffer_replace_range(app, buffer, make_range(pos, pos + 2), string_u8_litexpr(""));
     }
 }
 
@@ -178,10 +170,10 @@ CUSTOM_DOC("Turns uncommented lines into commented lines and vice versa for comm
     i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
-        buffer_replace_range(app, buffer, make_range(pos, pos + 2), make_lit_string(""));
+        buffer_replace_range(app, buffer, make_range(pos, pos + 2), string_u8_litexpr(""));
     }
     else{
-        buffer_replace_range(app, buffer, make_range(pos), make_lit_string("//"));
+        buffer_replace_range(app, buffer, make_range(pos), string_u8_litexpr("//"));
     }
 }
 
@@ -218,43 +210,43 @@ static Snippet default_snippets[] = {
 };
 
 static void
-activate_snippet(Application_Links *app, Partition *scratch, Heap *heap, View_ID view, struct Lister_State *state, String text_field, void *user_data, b32 activated_by_mouse){
+activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister_State *state, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     i32 index = (i32)PtrAsInt(user_data);
     Snippet_Array snippets = *(Snippet_Array*)state->lister.data.user_data;
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
-        lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
+        lister_default(app, heap, view, state, ListerActivation_Finished);
         Buffer_ID buffer = 0;
         view_get_buffer(app, view, AccessOpen, &buffer);
         i32 pos = 0;
         view_get_cursor_pos(app, view, &pos);
-        buffer_replace_range(app, buffer, make_range(pos), make_string_slowly(snippet.text));
+        buffer_replace_range(app, buffer, make_range(pos), SCu8(snippet.text));
         view_set_cursor(app, view, seek_pos(pos + snippet.cursor_offset), true);
         view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
     }
     else{
-        lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
+        lister_default(app, heap, view, state, ListerActivation_Finished);
     }
     
 }
 
 static void
 snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_array){
-    Partition *arena = &global_part;
     
     View_ID view = 0;
     get_active_view(app, AccessAll, &view);
     view_end_ui_mode(app, view);
-    Temp_Memory temp = begin_temp_memory(arena);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
     i32 option_count = snippet_array.count;
-    Lister_Option *options = push_array(arena, Lister_Option, option_count);
+    Lister_Option *options = push_array(scratch, Lister_Option, option_count);
     for (i32 i = 0; i < snippet_array.count; i += 1){
-        options[i].string = make_string_slowly(snippet_array.snippets[i].name);
-        options[i].status = make_string_slowly(snippet_array.snippets[i].text);
+        options[i].string = SCu8(snippet_array.snippets[i].name);
+        options[i].status = SCu8(snippet_array.snippets[i].text);
         options[i].user_data = IntAsPtr(i);
     }
     begin_integrated_lister__basic_list(app, "Snippet:", activate_snippet, &snippet_array, sizeof(snippet_array), options, option_count, 0, view);
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(snippet_lister)

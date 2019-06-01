@@ -24,17 +24,9 @@ system_get_binary_path_string(String *out){
 
 internal void
 init_shared_vars(){
-    umem scratch_size = KB(128);
-    void *scratch_memory = system_memory_allocate(scratch_size);
-    shared_vars.scratch = make_part(scratch_memory, (i32)scratch_size);
-    
-    umem font_scratch_size = MB(4);
-    void *font_scratch_memory = system_memory_allocate(font_scratch_size);
-    shared_vars.font_scratch = make_part(font_scratch_memory, (i32)font_scratch_size);
-    
-    umem pixel_scratch_size = MB(4);
-    void *pixel_scratch_memory = system_memory_allocate(pixel_scratch_size);
-    shared_vars.pixel_scratch = make_part(pixel_scratch_memory, (i32)pixel_scratch_size);
+    shared_vars.scratch = make_arena_system(&sysfunc);
+    shared_vars.font_scratch = make_arena_system(&sysfunc);
+    shared_vars.pixel_scratch = make_arena_system(&sysfunc);
 }
 
 //
@@ -52,38 +44,6 @@ sysshared_filter_real_files(char **files, i32 *file_count){
         }
     }
     *file_count = j;
-}
-
-// HACK(allen): Get rid of this now!?
-internal Partition
-sysshared_scratch_partition(i32 size){
-    void *data = system_memory_allocate((umem)size);
-    Partition part = make_part(data, size);
-    return(part);
-}
-
-internal void
-sysshared_partition_grow(Partition *part, i32 new_size){
-    Assert(part->pos == 0);
-    
-    void *data = 0;
-    if (new_size > part->max){
-        data = system_memory_allocate((umem)new_size);
-        memcpy(data, part->base, part->pos);
-        system_memory_free(part->base, part->max);
-        part->base = (char*)data;
-        part->max = new_size;
-    }
-}
-
-internal void*
-sysshared_push_block(Partition *part, i32 size){
-    void *result = push_array(part, i8, size);
-    if (result == 0){
-        sysshared_partition_grow(part, size + part->max);
-        result = push_array(part, i8, size);
-    }
-    return(result);
 }
 
 internal b32

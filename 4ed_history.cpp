@@ -27,7 +27,7 @@ history__to_node(Node *sentinel, i32 index){
 internal void
 history__push_back_record_ptr(Heap *heap, Record_Ptr_Lookup_Table *lookup, Record *record){
     if (lookup->records == 0 || lookup->count == lookup->max){
-        i32 new_max = clamp_bottom(1024, lookup->max*2);
+        i32 new_max = clamp_bot(1024, lookup->max*2);
         Record **new_records = (Record**)heap_allocate(heap, sizeof(Record*)*new_max);
         block_copy(new_records, lookup->records, sizeof(*new_records)*lookup->count);
         if (lookup->records != 0){
@@ -120,7 +120,7 @@ global_history_get_edit_number(Global_History *global_history){
 internal void
 global_history_adjust_edit_grouping_counter(Global_History *global_history, i32 adjustment){
     i32 original = global_history->edit_grouping_counter;
-    global_history->edit_grouping_counter = clamp_bottom(0, global_history->edit_grouping_counter + adjustment);
+    global_history->edit_grouping_counter = clamp_bot(0, global_history->edit_grouping_counter + adjustment);
     if (global_history->edit_grouping_counter == 0 && original > 0){
         global_history->edit_number_counter += 1;
     }
@@ -129,7 +129,7 @@ global_history_adjust_edit_grouping_counter(Global_History *global_history, i32 
 internal void
 history_init(Application_Links *app, History *history){
     history->activated = true;
-    history->arena = make_arena(app, KB(32));
+    history->arena = make_arena_app_links(app, KB(32));
     memory_bank_init(&history->bank);
     dll_init_sentinel(&history->free_records);
     dll_init_sentinel(&history->records);
@@ -145,7 +145,7 @@ history_is_activated(History *history){
 internal void
 history_free(Heap *heap, History *history){
     if (history->activated){
-        arena_release_all(&history->arena);
+        linalloc_clear(&history->arena);
         memory_bank_free_all(heap, &history->bank);
         block_zero_struct(history);
     }
@@ -173,11 +173,11 @@ history_get_record(History *history, i32 index){
 }
 
 internal Record*
-history_get_sub_record(Record *record, i32 sub_index){
+history_get_sub_record(Record *record, i32 sub_index_one_based){
     Record *result = 0;
     if (record->kind == RecordKind_Group){
-        if (0 <= sub_index && sub_index <= record->group.count){
-            Node *node = history__to_node(&record->group.children, sub_index);
+        if (0 < sub_index_one_based && sub_index_one_based <= record->group.count){
+            Node *node = history__to_node(&record->group.children, sub_index_one_based);
             if (node != 0){
                 result = CastFromMember(Record, node, node);
             }
@@ -245,7 +245,7 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
         Record *new_record = history__allocate_record(heap, history);
         history__stash_record(heap, history, new_record);
         
-        new_record->restore_point = temp_memory_light(begin_temp_memory(&history->arena));
+        new_record->restore_point = begin_temp(&history->arena);
         new_record->edit_number = global_history_get_edit_number(global_history);
         
         new_record->kind = RecordKind_Single;
@@ -280,7 +280,7 @@ history_dump_records_after_index(History *history, i32 index){
             Assert(first_node_to_clear != sentinel);
             
             Record *first_record_to_clear = CastFromMember(Record, node, first_node_to_clear);
-            end_temp_memory(&history->arena, first_record_to_clear->restore_point);
+            end_temp(first_record_to_clear->restore_point);
             
             Node *last_node_to_clear = sentinel->prev;
             
@@ -292,7 +292,7 @@ history_dump_records_after_index(History *history, i32 index){
 }
 
 internal void
-history__optimize_group(Partition *scratch, History *history, Record *record){
+history__optimize_group(Arena *scratch, History *history, Record *record){
     Assert(record->kind == RecordKind_Group);
     for (;;){
         Record *right = CastFromMember(Record, node, record->group.children.prev);
@@ -312,7 +312,7 @@ history__optimize_group(Partition *scratch, History *history, Record *record){
         if (right->kind == RecordKind_Single && left->kind == RecordKind_Single){
             b32 do_merge = false;
             
-            Temp_Memory temp = begin_temp_memory(scratch);
+            Temp_Memory temp = begin_temp(scratch);
             i32 new_length_forward  = left->single.length_forward  + right->single.length_forward ;
             i32 new_length_backward = left->single.length_backward + right->single.length_backward;
             
@@ -342,7 +342,7 @@ history__optimize_group(Partition *scratch, History *history, Record *record){
             }
             
             if (do_merge){
-                end_temp_memory(&history->arena, left->restore_point);
+                end_temp(left->restore_point);
                 
                 char *new_str_forward  = push_array(&history->arena, char, new_length_forward );
                 char *new_str_backward = push_array(&history->arena, char, new_length_backward);
@@ -360,7 +360,7 @@ history__optimize_group(Partition *scratch, History *history, Record *record){
                 record->group.count -= 1;
             }
             
-            end_temp_memory(temp);
+            end_temp(temp);
         }
         else{
             break;
@@ -369,7 +369,7 @@ history__optimize_group(Partition *scratch, History *history, Record *record){
 }
 
 internal void
-history_merge_records(Partition *scratch, Heap *heap, History *history, i32 first_index, i32 last_index){
+history_merge_records(Arena *scratch, Heap *heap, History *history, i32 first_index, i32 last_index){
     if (history->activated){
         Assert(history->record_lookup.count == history->record_count);
         Assert(first_index < last_index);
@@ -380,16 +380,13 @@ history_merge_records(Partition *scratch, Heap *heap, History *history, i32 firs
         
         Record *new_record = history__allocate_record(heap, history);
         
-        Node *left  = first_node->prev;
-        Node *right = last_node->next;
-        left->next  = &new_record->node;
-        new_record->node.prev = left;
-        right->prev = &new_record->node;
-        new_record->node.next = right;
-        
         // NOTE(allen): here we remove (last_index - first_index + 1) nodes, and insert 1 node
         // which simplifies to this:
         history->record_count -= last_index - first_index;
+        
+        Node *left = first_node->prev;
+        dll_remove_multiple(first_node, last_node);
+        dll_insert(left, &new_record->node);
         
         Record *first_record = CastFromMember(Record, node, first_node);
         Record *last_record  = CastFromMember(Record, node, last_node);
@@ -401,10 +398,9 @@ history_merge_records(Partition *scratch, Heap *heap, History *history, i32 firs
         Node *new_sentinel = &new_record->group.children;
         dll_init_sentinel(new_sentinel);
         
-        Node *one_past_last_node = last_node->next;
         i32 count = 0;
         for (Node *node = first_node, *next = 0;
-             node != one_past_last_node;
+             node != 0;
              node = next){
             next = node->next;
             Record *record = CastFromMember(Record, node, node);
@@ -422,18 +418,15 @@ history_merge_records(Partition *scratch, Heap *heap, History *history, i32 firs
                     Assert(first != &record->group.children);
                     Assert(last  != &record->group.children);
                     
-                    Node *sub_right = new_sentinel;
-                    Node *sub_left = new_sentinel->prev;
-                    sub_left->next = first;
-                    first->prev = sub_left;
-                    last->next = sub_right;
-                    sub_right->prev = last;
+                    dll_insert_multiple_back(new_sentinel, first, last);
                     count += record->group.count;
+                    
+                    // TODO(allen): free the record for the old group!?
                 }break;
                 
                 default:
                 {
-                    InvalidCodePath;
+                    InvalidPath;
                 }break;
             }
         }

@@ -20,7 +20,7 @@ struct Record_Batch_Slot{
 
 struct Record{
     Node node;
-    Temp_Memory_Arena_Light restore_point;
+    Temp_Memory restore_point;
     i32 edit_number;
     Record_Kind kind;
     union{

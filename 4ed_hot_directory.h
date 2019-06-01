@@ -13,10 +13,10 @@
 #define FRED_HOT_DIRECTORY_H
 
 struct Hot_Directory{
-    char string_space[256];
-    char canon_dir_space[256];
-    String string;
-    String canon_dir;
+    u8 string_space[256];
+    umem string_size;
+    u8 canon_dir_space[256];
+    umem canon_dir_size;
     File_List file_list;
 };
 

@@ -52,24 +52,24 @@ heap_init(Heap *heap){
 }
 
 static void
-heap_extend(Heap *heap, void *memory, i32_4tech size){
+heap_extend(Heap *heap, void *memory, i32 size){
     heap_assert_good(heap);
     if (size >= sizeof(Heap_Node)){
         Heap_Node *new_node = (Heap_Node*)memory;
         heap__insert_prev(&heap->in_order, &new_node->order);
         heap__insert_next(&heap->free_nodes, &new_node->alloc);
         new_node->size = size - sizeof(*new_node);
-        heap->total_space += (umem_4tech)size;
+        heap->total_space += (umem)size;
     }
     heap_assert_good(heap);
 }
 
 static void*
-heap__reserve_chunk(Heap *heap, Heap_Node *node, i32_4tech size){
-    u8_4tech *ptr = (u8_4tech*)(node + 1);
-    i32_4tech left_over_size = node->size - size;
+heap__reserve_chunk(Heap *heap, Heap_Node *node, i32 size){
+    u8 *ptr = (u8*)(node + 1);
+    i32 left_over_size = node->size - size;
     if (left_over_size > sizeof(*node)){
-        i32_4tech new_node_size = left_over_size - sizeof(*node);
+        i32 new_node_size = left_over_size - sizeof(*node);
         Heap_Node *new_node = (Heap_Node*)(ptr + size);
         heap__insert_next(&node->order, &new_node->order);
         heap__insert_next(&node->alloc, &new_node->alloc);
@@ -84,10 +84,10 @@ heap__reserve_chunk(Heap *heap, Heap_Node *node, i32_4tech size){
 }
 
 static void*
-heap_allocate(Heap *heap, i32_4tech size){
+heap_allocate(Heap *heap, i32 size){
     if (heap->in_order.next != 0){
         heap_assert_good(heap);
-        i32_4tech aligned_size = (size + sizeof(Heap_Node) - 1);
+        i32 aligned_size = (size + sizeof(Heap_Node) - 1);
         aligned_size = aligned_size - (aligned_size%sizeof(Heap_Node));
         for (Heap_Basic_Node *n = heap->free_nodes.next;
              n != &heap->free_nodes;
@@ -109,7 +109,7 @@ heap__merge(Heap *heap, Heap_Node *l, Heap_Node *r){
     if (&l->order != &heap->in_order && &r->order != &heap->in_order &&
         l->alloc.next != 0 && l->alloc.prev != 0 &&
         r->alloc.next != 0 && r->alloc.prev != 0){
-        u8_4tech *ptr = (u8_4tech*)(l + 1) + l->size;
+        u8 *ptr = (u8*)(l + 1) + l->size;
         if (PtrDif(ptr, r) == 0){
             heap__remove(&r->order);
             heap__remove(&r->alloc);

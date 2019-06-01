@@ -30,60 +30,50 @@ mac_default_keys(Bind_Helper *context){
 //
 
 static Bind_Helper
-get_context_on_global_part(void){
+get_context_on_arena(Arena *arena){
     Bind_Helper result = {};
-    i32 size = (1 << 20);
-    for (;;){
-        void *data = push_array(&global_part, char, size);
-        if (data != 0){
-            result = begin_bind_helper(data, size);
-            break;
-        }
-        size = (size >> 1);
-    }
+    result = begin_bind_helper(push_array(arena, char, MB(1)), MB(1));
     return(result);
 }
 
 CUSTOM_COMMAND_SIG(set_bindings_choose)
 CUSTOM_DOC("Remap keybindings using the 'choose' mapping rule.")
 {
-#if defined(IS_WINDOWS) || defined(IS_LINUX)
-    
+#if OS_WINDOWS || OS_LINUX
     set_bindings_default(app);
-    
-#elif defined(IS_MAC)
-    
+#elif OS_MAC
     set_bindings_mac_default(app);
-    
 #endif
 }
 
 CUSTOM_COMMAND_SIG(set_bindings_default)
 CUSTOM_DOC("Remap keybindings using the 'default' mapping rule.")
 {
-    Temp_Memory temp = begin_temp_memory(&global_part);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
     
-    Bind_Helper context = get_context_on_global_part();
+    Bind_Helper context = get_context_on_arena(scratch);
     set_all_default_hooks(&context);
     default_keys(&context);
     Bind_Buffer result = end_bind_helper_get_buffer(&context);
     global_set_mapping(app, result.data, result.size);
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(set_bindings_mac_default)
 CUSTOM_DOC("Remap keybindings using the 'mac-default' mapping rule.")
 {
-    Temp_Memory temp = begin_temp_memory(&global_part);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
     
-    Bind_Helper context = get_context_on_global_part();
+    Bind_Helper context = get_context_on_arena(scratch);
     set_all_default_hooks(&context);
     mac_default_keys(&context);
     Bind_Buffer result = end_bind_helper_get_buffer(&context);
     global_set_mapping(app, result.data, result.size);
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 #endif

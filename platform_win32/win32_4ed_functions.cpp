@@ -276,12 +276,11 @@ internal
 Sys_Get_Canonical_Sig(system_get_canonical){
     u32 result = 0;
     
+    String_Const_char file_name = SCchar(filename, len);
     char src_space[MAX_PATH + 32];
     if (len < sizeof(src_space) &&
-        (len >= 2 &&
-         ((filename[0] >= 'a' && filename[0] <= 'z') ||
-          (filename[0] >= 'A' && filename[0] <= 'Z')) && filename[1] == ':') ||
-        (filename[0] == '\\' && filename[1] == '\\')){
+        ((character_is_alpha(string_get_character(file_name, 0)) && string_get_character(file_name, 1) == ':') ||
+         string_match(string_prefix(file_name, 2), string_litexpr("\\\\")))){
         memcpy(src_space, filename, len);
         src_space[len] = 0;
         
@@ -473,11 +472,11 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
             color_picker *picker = (color_picker *)win32_params->lCustData;
             SetWindowLongPtr(Window, GWLP_USERDATA, (LONG_PTR)LParam);
             
-            u16_4tech Temp[256];
+            u16 Temp[256];
             Temp[ArrayCount(Temp) - 1] = 0;
             
-            b32_4tech ignored;
-            utf8_to_utf16_minimal_checking(Temp, ArrayCount(Temp), (u8_4tech *)picker->title.str, picker->title.size, &ignored);
+            b32 ignored;
+            utf8_to_utf16_minimal_checking(Temp, ArrayCount(Temp), (u8 *)picker->title.str, picker->title.size, &ignored);
             if(picker->title.size < ArrayCount(Temp))
             {
                 Temp[picker->title.size] = 0;

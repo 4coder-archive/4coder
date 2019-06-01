@@ -19,12 +19,6 @@ struct Get_Positions_Results{
     b32 still_looping;
 };
 
-struct Buffered_Write_Stream{
-    Buffer_ID output_buffer_id;
-    Partition *buffering_arena;
-    char *buffer;
-};
-
 #endif
 
 // BOTTOM

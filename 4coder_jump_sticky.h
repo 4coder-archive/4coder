@@ -23,6 +23,11 @@ struct Sticky_Jump_Stored{
     i32 index_into_marker_array;
 };
 
+struct Sticky_Jump_Node{
+    Sticky_Jump_Node *next;
+    Sticky_Jump jump;
+};
+
 struct Sticky_Jump_Array{
     Sticky_Jump *jumps;
     i32 count;

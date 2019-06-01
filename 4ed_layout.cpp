@@ -74,7 +74,7 @@ layout__evaluate_split(Panel_Split split, i32 v0, i32 v1){
         }break;
         case PanelSplitKind_FixedPixels_Max:
         {
-            v = clamp_bottom(v0, v1 - split.v_i32);
+            v = clamp_bot(v0, v1 - split.v_i32);
         }break;
     }
     return(v);
@@ -255,9 +255,9 @@ layout_close_panel(Layout *layout, Panel *panel){
 }
 
 internal Panel*
-layout_initialize(Partition *part, Layout *layout){
+layout_initialize(Arena *arena, Layout *layout){
     i32 panel_alloc_count = MAX_VIEWS*2 - 1;
-    Panel *panels = push_array(part, Panel, panel_alloc_count);
+    Panel *panels = push_array(arena, Panel, panel_alloc_count);
     block_zero(panels, sizeof(*panels)*panel_alloc_count);
     
     layout->panel_first = panels;

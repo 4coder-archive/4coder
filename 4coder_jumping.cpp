@@ -5,24 +5,24 @@
 // TOP
 
 static b32
-ms_style_verify(String line, i32 left_paren_pos, i32 right_paren_pos){
+ms_style_verify(String_Const_u8 line, umem left_paren_pos, umem right_paren_pos){
     i32 result = false;
-    String line_part = substr_tail(line, right_paren_pos);
-    if (match_part_sc(line_part, ") : ")){
+    String_Const_u8 line_part = string_skip(line, right_paren_pos);
+    if (string_match(string_prefix(line_part, 4), string_u8_litexpr(") : "))){
         result = true;
     }
-    else if (match_part_sc(line_part, "): ")){
+    else if (string_match(string_prefix(line_part, 3), string_u8_litexpr("): "))){
         result = true;
     }
     if (result){
-        String number = substr(line, left_paren_pos + 1, right_paren_pos - left_paren_pos - 2);
-        if (!str_is_int_s(number)){
+        String_Const_u8 number = string_skip(string_prefix(line, right_paren_pos - 1), left_paren_pos + 1);
+        if (!string_is_integer(number, 10)){
             result = false;
-            i32 comma_pos = find_s_char(number, 0, ',');
+            umem comma_pos = string_find_first(number, ',');
             if (comma_pos < number.size){
-                String sub_number0 = substr(number, 0, comma_pos);
-                String sub_number1 = substr(number, comma_pos + 1, number.size - comma_pos - 1);
-                if (str_is_int_s(sub_number0) && str_is_int_s(sub_number1)){
+                String_Const_u8 sub_number0 = string_prefix(number, comma_pos);
+                String_Const_u8 sub_number1 = string_skip(number, comma_pos + 1);
+                if (string_is_integer(sub_number0, 10) && string_is_integer(sub_number1, 10)){
                     result = true;
                 }
             }
@@ -31,25 +31,25 @@ ms_style_verify(String line, i32 left_paren_pos, i32 right_paren_pos){
     return(result);
 }
 
-static i32
-try_skip_rust_arrow(String line){
-    i32 pos = 0;
-    if (match_part(line, "-->")){
-        String sub = substr_tail(line, 3);
-        sub = skip_chop_whitespace(sub);
-        pos = (i32)(sub.str - line.str);
+static umem
+try_skip_rust_arrow(String_Const_u8 line){
+    umem pos = 0;
+    if (string_match(string_prefix(line, 3), string_u8_litexpr("-->"))){
+        String_Const_u8 sub = string_skip(line, 3);
+        sub = string_skip_chop_whitespace(sub);
+        pos = (umem)(sub.str - line.str);
     }
     return(pos);
 }
 
 static b32
-check_is_note(String line, i32 colon_pos){
+check_is_note(String_Const_u8 line, umem colon_pos){
     b32 is_note = false;
-    i32 note_pos = find_substr(line, colon_pos, make_lit_string("note"));
+    umem note_pos = colon_pos + string_find_first(string_skip(line, colon_pos), string_u8_litexpr("note"));
     if (note_pos < line.size){
         b32 is_all_whitespace = true;
-        for (i32 i = colon_pos + 1; i < note_pos; i += 1){
-            if (!char_is_whitespace(line.str[i])){
+        for (umem i = colon_pos + 1; i < note_pos; i += 1){
+            if (!character_is_whitespace(line.str[i])){
                 is_all_whitespace = false;
                 break;
             }
@@ -62,54 +62,53 @@ check_is_note(String line, i32 colon_pos){
 }
 
 static Parsed_Jump
-parse_jump_location(String line){
+parse_jump_location(String_Const_u8 line){
     Parsed_Jump jump = {};
-    jump.sub_jump_indented = (line.str[0] == ' ');
+    jump.sub_jump_indented = (string_get_character(line, 0) == ' ');
     
-    i32 whitespace_length = 0;
-    line = skip_chop_whitespace(line, &whitespace_length);
+    String_Const_u8 reduced_line = string_skip_chop_whitespace(line);
+    umem whitespace_length = (umem)(reduced_line.str - line.str);
+    line = reduced_line;
     
-    i32 left_paren_pos = find_s_char(line, 0, '(');
-    i32 right_paren_pos = find_s_char(line, left_paren_pos, ')');
+    umem left_paren_pos = string_find_first(line, '(');
+    umem right_paren_pos = left_paren_pos + string_find_first(string_skip(line, left_paren_pos), ')');
     for (;!jump.is_ms_style && right_paren_pos < line.size;){
         if (ms_style_verify(line, left_paren_pos, right_paren_pos)){
             jump.is_ms_style = true;
-            jump.colon_position = find_s_char(line, right_paren_pos, ':');
+            jump.colon_position = (i32)(right_paren_pos + string_find_first(string_skip(line, right_paren_pos), ':'));
             if (jump.colon_position < line.size){
                 if (check_is_note(line, jump.colon_position)){
                     jump.sub_jump_note = true;
                 }
                 
-                String location_str = substr(line, 0, jump.colon_position);
+                String_Const_u8 location_str = string_prefix(line, jump.colon_position);
+                location_str = string_skip_chop_whitespace(location_str);
                 
-                location_str = skip_chop_whitespace(location_str);
-                
-                i32 close_pos = right_paren_pos;
-                i32 open_pos = left_paren_pos;
+                i32 close_pos = (i32)right_paren_pos;
+                i32 open_pos = (i32)left_paren_pos;
                 
                 if (0 < open_pos && open_pos < location_str.size){
-                    String file = substr(location_str, 0, open_pos);
-                    file = skip_chop_whitespace(file);
+                    String_Const_u8 file = SCu8(location_str.str, open_pos);
+                    file = string_skip_chop_whitespace(file);
                     
                     if (file.size > 0){
-                        String line_number = substr(location_str, open_pos + 1, close_pos-open_pos - 1);
-                        line_number = skip_chop_whitespace(line_number);
+                        String_Const_u8 line_number = string_skip(string_prefix(location_str, close_pos), open_pos + 1);
+                        line_number = string_skip_chop_whitespace(line_number);
                         
                         if (line_number.size > 0){
-                            i32 comma_pos = find_s_char(line_number, 0, ',');
+                            umem comma_pos = string_find_first(line_number, ',');
                             if (comma_pos < line_number.size){
-                                i32 start = comma_pos + 1;
-                                String column_number = substr(line_number, start, line_number.size-start);
-                                line_number = substr(line_number, 0, comma_pos);
-                                jump.location.line = str_to_int_s(line_number);
-                                jump.location.column = str_to_int_s(column_number);
+                                String_Const_u8 column_number = string_skip(line_number, comma_pos + 1);
+                                line_number = string_prefix(line_number, comma_pos);
+                                jump.location.line = (i32)string_to_integer(line_number, 10);
+                                jump.location.column = (i32)string_to_integer(column_number, 10);
                             }
                             else{
-                                jump.location.line = str_to_int_s(line_number);
+                                jump.location.line = (i32)string_to_integer(line_number, 10);
                                 jump.location.column = 0;
                             }
                             jump.location.file = file;
-                            jump.colon_position = jump.colon_position + whitespace_length;
+                            jump.colon_position = jump.colon_position + (i32)whitespace_length;
                             jump.success = true;
                         }
                     }
@@ -117,43 +116,41 @@ parse_jump_location(String line){
             }
         }
         else{
-            left_paren_pos = find_s_char(line, left_paren_pos + 1, '(');
-            right_paren_pos = find_s_char(line, left_paren_pos, ')');
+            left_paren_pos = string_find_first(string_skip(line, left_paren_pos + 1), '(') + left_paren_pos + 1;
+            right_paren_pos = string_find_first(string_skip(line, left_paren_pos), ')') + left_paren_pos;
         }
     }
     
     if (!jump.is_ms_style){
-        i32 start = try_skip_rust_arrow(line);
+        i32 start = (i32)try_skip_rust_arrow(line);
         if (start != 0){
             jump.has_rust_arrow = true;
         }
         
-        i32 colon_pos1 = find_s_char(line, start, ':');
+        umem colon_pos1 = string_find_first(string_skip(line, start), ':') + start;
         if (line.size > colon_pos1 + 1){
-            if (char_is_slash(line.str[colon_pos1 + 1])){
-                colon_pos1 = find_s_char(line, colon_pos1 + 1, ':');
+            if (character_is_slash(string_get_character(line, colon_pos1 + 1))){
+                colon_pos1 = string_find_first(string_skip(line, colon_pos1 + 1), ':') + colon_pos1 + 1;
             }
         }
         
-        i32 colon_pos2 = find_s_char(line, colon_pos1 + 1, ':');
-        i32 colon_pos3 = find_s_char(line, colon_pos2 + 1, ':');
+        umem colon_pos2 = string_find_first(string_skip(line, colon_pos1 + 1), ':') + colon_pos1 + 1;
+        umem colon_pos3 = string_find_first(string_skip(line, colon_pos2 + 1), ':') + colon_pos2 + 1;
         
         if (colon_pos3 < line.size){
             if (check_is_note(line, colon_pos3)){
                 jump.sub_jump_note = true;
             }
             
-            String filename = substr(line, start, colon_pos1 - start);
-            String line_number = substr(line, colon_pos1 + 1, colon_pos2 - colon_pos1 - 1);
-            String column_number = substr(line, colon_pos2 + 1, colon_pos3 - colon_pos2 - 1);
+            String_Const_u8 file_name = string_skip(string_prefix(line, colon_pos1), start);
+            String_Const_u8 line_number = string_skip(string_prefix(line, colon_pos2), colon_pos1 + 1);
+            String_Const_u8 column_number = string_skip(string_prefix(line, colon_pos3), colon_pos2 + 1);
             
-            if (filename.size > 0 &&
-                line_number.size > 0 &&
-                column_number.size > 0){
-                jump.location.file = filename;
-                jump.location.line = str_to_int_s(line_number);
-                jump.location.column = str_to_int_s(column_number);
-                jump.colon_position = colon_pos3 + whitespace_length;
+            if (file_name.size > 0 && line_number.size > 0 && column_number.size > 0){
+                jump.location.file = file_name;
+                jump.location.line = (i32)string_to_integer(line_number, 10);
+                jump.location.column = (i32)string_to_integer(column_number, 10);
+                jump.colon_position = (i32)(colon_pos3 + whitespace_length);
                 jump.success = true;
             }
         }
@@ -163,15 +160,15 @@ parse_jump_location(String line){
                     jump.sub_jump_note = true;
                 }
                 
-                String filename = substr(line, 0, colon_pos1);
-                String line_number = substr(line, colon_pos1 + 1, colon_pos2 - colon_pos1 - 1);
+                String_Const_u8 file_name = string_prefix(line, colon_pos1);
+                String_Const_u8 line_number = string_skip(string_prefix(line, colon_pos2), colon_pos1 + 1);
                 
-                if (str_is_int_s(line_number)){
-                    if (filename.size > 0 && line_number.size > 0){
-                        jump.location.file = filename;
-                        jump.location.line = str_to_int_s(line_number);
+                if (string_is_integer(line_number, 10)){
+                    if (file_name.size > 0 && line_number.size > 0){
+                        jump.location.file = file_name;
+                        jump.location.line = (i32)string_to_integer(line_number, 10);
                         jump.location.column = 0;
-                        jump.colon_position = colon_pos3 + whitespace_length;
+                        jump.colon_position = (i32)(colon_pos3 + whitespace_length);
                         jump.success = true;
                     }
                 }
@@ -189,20 +186,20 @@ parse_jump_location(String line){
 }
 
 static Parsed_Jump
-parse_jump_location(String line, b32 skip_sub_jump){
+parse_jump_location(String_Const_u8 line, Jump_Flag flags){
     Parsed_Jump jump = parse_jump_location(line);
-    if (jump.is_sub_jump && skip_sub_jump){
-        memset(&jump, 0, sizeof(jump));
+    if (HasFlag(flags, JumpFlag_SkipSubs) && jump.is_sub_jump){
+        block_zero_struct(&jump);
     }
     return(jump);
 }
 
 static Parsed_Jump
-parse_jump_from_buffer_line(Application_Links *app, Partition *arena, Buffer_ID buffer_id, i32 line, b32 skip_sub_errors){
+parse_jump_from_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer_id, i32 line, Jump_Flag flags){
     Parsed_Jump jump = {};
-    String line_str = {};
-    if (read_line(app, arena, buffer_id, line, &line_str)){
-        jump = parse_jump_location(line_str, skip_sub_errors);
+    String_Const_u8 line_str = scratch_read_line(app, arena, buffer_id, line);
+    if (line_str.size > 0){
+        jump = parse_jump_location(line_str, flags);
     }
     return(jump);
 }
@@ -211,7 +208,7 @@ parse_jump_from_buffer_line(Application_Links *app, Partition *arena, Buffer_ID 
 
 static b32
 get_jump_buffer(Application_Links *app, Buffer_ID *buffer, Name_Line_Column_Location *location){
-    return(open_file(app, buffer, location->file.str, location->file.size, false, true));
+    return(open_file(app, buffer, location->file, false, true));
 }
 
 static b32
@@ -269,16 +266,16 @@ jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, ID_Pos_
 ////////////////////////////////
 
 static Parsed_Jump
-seek_next_jump_in_buffer(Application_Links *app, Partition *part,
-                         i32 buffer_id, i32 first_line, b32 skip_sub_errors, i32 direction,
+seek_next_jump_in_buffer(Application_Links *app, Arena *arena,
+                         i32 buffer_id, i32 first_line, Jump_Flag flags, i32 direction,
                          i32 *line_out){
     Assert(direction == 1 || direction == -1);
     Parsed_Jump jump = {};
     i32 line = first_line;
-    String line_str = {};
     for (;;){
-        if (read_line(app, part, buffer_id, line, &line_str)){
-            jump = parse_jump_location(line_str, skip_sub_errors);
+        if (is_valid_line(app, buffer_id, line)){
+            String_Const_u8 line_str = scratch_read_line(app, arena, buffer_id, line);
+            jump = parse_jump_location(line_str, flags);
             if (jump.success){
                 break;
             }
@@ -288,11 +285,8 @@ seek_next_jump_in_buffer(Application_Links *app, Partition *part,
             break;
         }
     }
-    if (line < 0){
-        line = 0;
-    }
     if (jump.success){
-        *line_out = line;
+        *line_out = clamp_bot(line, 0);
     }
     return(jump);
 }
@@ -311,7 +305,7 @@ convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location
 }
 
 static Parsed_Jump
-seek_next_jump_in_view(Application_Links *app, Partition *part, View_ID view, i32 skip_sub_errors, i32 direction, i32 *line_out){
+seek_next_jump_in_view(Application_Links *app, Arena *arena, View_ID view, i32 skip_sub_errors, i32 direction, i32 *line_out){
     i32 cursor_position = 0;
     view_get_cursor_pos(app, view, &cursor_position);
     Full_Cursor cursor = {};
@@ -319,7 +313,7 @@ seek_next_jump_in_view(Application_Links *app, Partition *part, View_ID view, i3
     i32 line = cursor.line;
     Buffer_ID buffer = 0;
     view_get_buffer(app, view, AccessAll, &buffer);
-    Parsed_Jump jump = seek_next_jump_in_buffer(app, part, buffer, line + direction, skip_sub_errors, direction, &line);
+    Parsed_Jump jump = seek_next_jump_in_buffer(app, arena, buffer, line + direction, skip_sub_errors, direction, &line);
     if (jump.success){
         *line_out = line;
     }
@@ -336,7 +330,7 @@ skip_this_jump(ID_Line_Column_Jump_Location prev, ID_Line_Column_Jump_Location j
 }
 
 static b32
-advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_ID view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
+advance_cursor_in_jump_view(Application_Links *app, View_ID view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
     b32 result = true;
     
     Name_Line_Column_Location location = {};
@@ -345,8 +339,9 @@ advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_ID vie
     i32 colon_index = 0;
     
     do{
-        Temp_Memory temp = begin_temp_memory(part);
-        Parsed_Jump parsed_jump = seek_next_jump_in_view(app, part, view, skip_sub_error, direction, &line);
+        Arena *scratch = context_get_arena(app);
+        Temp_Memory temp = begin_temp(scratch);
+        Parsed_Jump parsed_jump = seek_next_jump_in_view(app, scratch, view, skip_sub_error, direction, &line);
         if (parsed_jump.success){
             jump = convert_name_based_to_id_based(app, parsed_jump.location);
             view_set_cursor(app, view, seek_line_char(line, parsed_jump.colon_position + 1), true);
@@ -356,7 +351,7 @@ advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_ID vie
             jump.buffer_id = 0;
             result = false;
         }
-        end_temp_memory(temp);
+        end_temp(temp);
     }while(skip_repeats && skip_this_jump(prev_location, jump));
     
     if (result){
@@ -370,13 +365,13 @@ advance_cursor_in_jump_view(Application_Links *app, Partition *part, View_ID vie
 }
 
 static b32
-seek_jump(Application_Links *app, Partition *part, b32 skip_repeats, b32 skip_sub_errors, i32 direction){
+seek_jump(Application_Links *app, b32 skip_repeats, b32 skip_sub_errors, i32 direction){
     b32 result = false;
     
     View_ID view = get_view_for_locked_jump_buffer(app);
     if (view != 0){
         Name_Line_Column_Location location = {};
-        if (advance_cursor_in_jump_view(app, &global_part, view, skip_repeats, skip_sub_errors, direction, &location)){
+        if (advance_cursor_in_jump_view(app, view, skip_repeats, skip_sub_errors, direction, &location)){
             Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
                 View_ID target_view = 0;

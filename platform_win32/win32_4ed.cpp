@@ -10,7 +10,6 @@
 // TOP
 
 #define IS_PLAT_LAYER
-#include "4coder_os_comp_cracking.h"
 
 //
 // Program setup
@@ -21,7 +20,6 @@
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
-#include "4ed_defines.h"
 #include "4coder_base_types.h"
 #include "4coder_API/4coder_version.h"
 
@@ -31,6 +29,11 @@
 #if defined(FRED_SUPER)
 # include "4coder_lib/4coder_arena.h"
 # include "4coder_lib/4coder_heap.h"
+
+# include "4coder_lib/4coder_string.h"
+
+#include "4coder_base_types.cpp"
+
 # include "4coder_lib/4coder_arena.cpp"
 # include "4coder_lib/4coder_heap.cpp"
 # define FSTRING_IMPLEMENTATION
@@ -114,6 +117,58 @@ struct Win32_Input_Chunk{
 
 ////////////////////////////////
 
+// TODO(allen): MERGE WITH 4ed.exe version!!!!!!!
+
+internal void*
+base_reserve__system(void *user_data, umem size, umem *size_out){
+    System_Functions *system = (System_Functions*)user_data;
+    umem extra_size = 128;
+    umem increased_size = size + extra_size;
+    size = round_up_umem(increased_size, KB(4));
+    *size_out = size - extra_size;
+    void *ptr = system->memory_allocate(size);
+    *(umem*)ptr = size;
+    ptr = (u8*)ptr + extra_size;
+    return(ptr);
+}
+
+internal void
+base_free__system(void *user_data, void *ptr){
+    System_Functions *system = (System_Functions*)user_data;
+    umem extra_size = 128;
+    ptr = (u8*)ptr - extra_size;
+    umem size = *(umem*)ptr;
+    system->memory_free(ptr, size);
+}
+
+internal Base_Allocator
+make_base_allocator_system(System_Functions *system){
+    return(make_base_allocator(base_reserve__system, 0, 0,
+                               base_free__system, 0, system));
+}
+
+global Base_Allocator base_allocator_system = {};
+
+internal Arena
+make_arena_system(System_Functions *system, umem chunk_size, umem align){
+    if (base_allocator_system.reserve == 0){
+        base_allocator_system = make_base_allocator_system(system);
+    }
+    return(make_arena(&base_allocator_system, chunk_size, align));
+}
+
+internal Arena
+make_arena_system(System_Functions *system, umem chunk_size){
+    return(make_arena_system(system, chunk_size, 8));
+}
+
+internal Arena
+make_arena_system(System_Functions *system){
+    return(make_arena_system(system, KB(16), 8));
+}
+
+////////////////////////////////
+
 #define SLASH '\\'
 #define DLL "dll"
 
@@ -172,8 +227,8 @@ struct Win32_Vars{
     b32 next_clipboard_is_self;
     DWORD clipboard_sequence;
     
-    Partition clip_post_part;
-    i32 clip_post_len;
+    Arena clip_post_arena;
+    String_Const_u8 clip_post;
     
     HWND window_handle;
     i32 dpi_x;
@@ -404,7 +459,7 @@ struct File_Track_Note_Node{
 };
 
 Heap file_track_heap = {};
-Partition file_track_scratch = {};
+Arena file_track_scratch = {};
 
 CString_Ptr_Table file_track_dir_table = {};
 Directory_Track_Node *file_track_dir_free_first = 0;
@@ -607,7 +662,7 @@ alloc_insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size,
 internal String
 file_track_store_string_copy(String string){
     i32 alloc_size = string.size + 1;
-    alloc_size = l_round_up_i32(alloc_size, 16);
+    alloc_size = round_up_i32(alloc_size, 16);
     char *buffer = (char*)heap_allocate(&file_track_heap, alloc_size);
     if (buffer == 0){
         i32 size = MB(1);
@@ -826,7 +881,7 @@ file_track_worker(void*){
                 
                 i32 req_size = dir_len + (len + 1)*2 + 4;
                 
-                Temp_Memory temp = begin_temp_memory(&file_track_scratch);
+                Temp_Memory temp = begin_temp(&file_track_scratch);
                 u8 *buffer = push_array(&file_track_scratch, u8, req_size);
                 
                 if (buffer != 0){
@@ -854,7 +909,7 @@ file_track_worker(void*){
                     }
                 }
                 
-                end_temp_memory(temp);
+                end_temp(temp);
             }
             LeaveCriticalSection(&file_track_critical_section);
         }
@@ -864,8 +919,7 @@ file_track_worker(void*){
 internal void
 file_track_init(){
     heap_init(&file_track_heap);
-    i32 scratch_size = KB(128);
-    file_track_scratch = make_part(system_memory_allocate(scratch_size), scratch_size);
+    file_track_scratch = make_arena_system(&sysfunc);
     InitializeCriticalSection(&file_track_critical_section);
     file_track_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
     file_track_thread = CreateThread(0, 0, file_track_worker, 0, 0, 0);
@@ -889,7 +943,7 @@ Sys_Add_Listener_Sig(system_add_listener){
         Directory_Track_Node *existing_dir_node = file_track_dir_lookup(dir_name_string);
         
         if (existing_dir_node == 0){
-            Temp_Memory temp = begin_temp_memory(&file_track_scratch);
+            Temp_Memory temp = begin_temp(&file_track_scratch);
             String dir_name_string_terminated = string_push_copy(&file_track_scratch, dir_name_string);
             HANDLE dir_handle = CreateFile_utf8(&file_track_scratch, (u8*)dir_name_string_terminated.str,
                                                 FILE_LIST_DIRECTORY,
@@ -906,7 +960,7 @@ Sys_Add_Listener_Sig(system_add_listener){
                 existing_dir_node = new_node;
             }
             
-            end_temp_memory(temp);
+            end_temp(temp);
         }
         
         if (existing_dir_node != 0){
@@ -1000,23 +1054,28 @@ win32_post_clipboard(char *text, i32 len){
 
 internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
-    Partition *part = &win32vars.clip_post_part;
-    part->pos = 0;
-    u8 *post = (u8*)sysshared_push_block(part, str.size + 1);
-    if (post != 0){
-        memcpy(post, str.str, str.size);
-        post[str.size] = 0;
-        win32vars.clip_post_len = str.size;
+    Arena *arena = &win32vars.clip_post_arena;
+    if (arena->base_allocator == 0){
+        *arena = make_arena_system(&sysfunc);
     }
     else{
-        LOGF("Failed to allocate buffer for clipboard post (%d)\n", str.size + 1);
+        linalloc_clear(arena);
+    }
+    win32vars.clip_post.str = push_array(arena, u8, str.size + 1);
+    if (win32vars.clip_post.str != 0){
+        block_copy(win32vars.clip_post.str, str.str, str.size);
+        win32vars.clip_post.str[str.size] = 0;
+        win32vars.clip_post.size = str.size;
+    }
+    else{
+        LOGF("Failed to allocate buffer for clipboard post (%d)\n", (i32)str.size + 1);
     }
 }
 
 internal b32
 win32_read_clipboard_contents(void){
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
+    Arena *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp(scratch);
     
     b32 result = false;
     
@@ -1045,7 +1104,7 @@ win32_read_clipboard_contents(void){
                         
                         for (;clip_8_len >= win32vars.clip_max && !error;){
                             system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
-                            win32vars.clip_max = l_round_up_u32(clip_8_len + 1, KB(4));
+                            win32vars.clip_max = round_up_u32(clip_8_len + 1, KB(4));
                             win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
                             clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max - 1, clip_16, clip_16_len, &error);
                         }
@@ -1067,7 +1126,7 @@ win32_read_clipboard_contents(void){
                         
                         if (clip_ascii_len >= win32vars.clip_max){
                             system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
-                            win32vars.clip_max = l_round_up_u32(clip_ascii_len + 1, KB(4));
+                            win32vars.clip_max = round_up_u32(clip_ascii_len + 1, KB(4));
                             win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
                         }
                         memcpy(win32vars.clip_buffer, clip_ascii, clip_ascii_len + 1);
@@ -1086,7 +1145,7 @@ win32_read_clipboard_contents(void){
         }
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
     
     return(result);
 }
@@ -1196,14 +1255,14 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
         if (remaining + pos < max){
             has_more = 1;
             ReadFile(handle, dest + pos, remaining, &read_amount, 0);
-            TentativeAssert(remaining == read_amount);
+            Assert(remaining == read_amount);
             pos += remaining;
             remaining = 0;
         }
         else{
             has_more = 1;
             ReadFile(handle, dest + pos, max - pos, &read_amount, 0);
-            TentativeAssert(max - pos == read_amount);
+            Assert(max - pos == read_amount);
             loop->remaining_amount = remaining - (max - pos);
             pos = max;
             break;
@@ -1283,20 +1342,11 @@ Sys_Font_Data(name, parameters){
             SelectObject(hdc, hfont);
             DWORD size = GetFontData(hdc, 0, 0, NULL, 0);
             if (size > 0){
-                Partition *part = &shared_vars.font_scratch;
-                data.temp = begin_temp_memory(part);
-                u8 *buffer = push_array(part, u8, size);
-                if (buffer == 0){
-                    sysshared_partition_grow(part, l_round_up_i32(size, KB(4)));
-                    buffer = push_array(part, u8, size);
-                }
-                
-                if (buffer != 0){
-                    push_align(part, 8);
-                    if (GetFontData(hdc, 0, 0, buffer, size) == size){
-                        data.data = buffer;
-                        data.size = size;
-                    }
+                Arena *arena = &shared_vars.font_scratch;
+                u8 *buffer = push_array(arena, u8, size);
+                if (GetFontData(hdc, 0, 0, buffer, size) == size){
+                    data.data = buffer;
+                    data.size = size;
                 }
             }
             DeleteDC(hdc);
@@ -1307,7 +1357,7 @@ Sys_Font_Data(name, parameters){
 }
 
 struct Win32_Font_Enum{
-    Partition *part;
+    Arena *arena;
     Font_Setup_List *list;
 };
 
@@ -1323,40 +1373,30 @@ LPARAM     lParam
         ENUMLOGFONTEXDV *log_font = (ENUMLOGFONTEXDV*)lpelfe;
         TCHAR *name = ((log_font)->elfEnumLogfontEx).elfLogFont.lfFaceName;
         
-        if ((char)name[0] == '@'){
-            return(1);
-        }
-        
-        i32 len = 0;
-        for (;name[len]!=0;++len);
-        
-        if (len >= sizeof(((Font_Loadable_Stub*)0)->name)){
-            return(1);
-        }
-        
-        Win32_Font_Enum p = *(Win32_Font_Enum*)lParam;
-        
-        Temp_Memory reset = begin_temp_memory(p.part);
-        Font_Setup *setup = push_array(p.part, Font_Setup, 1);
-        if (setup != 0){
-            memset(setup, 0, sizeof(*setup));
+        if ((char)name[0] != '@'){
+            i32 len = 0;
+            for (;name[len]!=0;++len);
             
-            b32 good = true;
-            for (i32 i = 0; i < len; ++i){
-                if (name[i] >= 128){
-                    good = false;
-                    break;
+            if (len < sizeof(Member(Font_Loadable_Stub, name))){
+                Win32_Font_Enum p = *(Win32_Font_Enum*)lParam;
+                Temp_Memory reset = begin_temp(p.arena);
+                Font_Setup *setup = push_array_zero(p.arena, Font_Setup, 1);
+                b32 good = true;
+                for (i32 i = 0; i < len; ++i){
+                    if (name[i] >= 128){
+                        good = false;
+                        break;
+                    }
+                    setup->stub.name[i] = (char)name[i];
                 }
-                setup->stub.name[i] = (char)name[i];
-            }
-            
-            if (good){
-                setup->stub.load_from_path = false;
-                setup->stub.len = len;
-                sll_push(p.list->first, p.list->last, setup);
-            }
-            else{
-                end_temp_memory(reset);
+                if (good){
+                    setup->stub.load_from_path = false;
+                    setup->stub.len = len;
+                    sll_queue_push(p.list->first, p.list->last, setup);
+                }
+                else{
+                    end_temp(reset);
+                }
             }
         }
     }
@@ -1365,7 +1405,7 @@ LPARAM     lParam
 }
 
 internal void
-win32_get_loadable_fonts(Partition *part, Font_Setup_List *list){
+win32_get_loadable_fonts(Arena *arena, Font_Setup_List *list){
     HDC hdc= GetDC(0);
     
     LOGFONT log_font = {};
@@ -1373,11 +1413,10 @@ win32_get_loadable_fonts(Partition *part, Font_Setup_List *list){
     log_font.lfFaceName[0] = 0;
     
     Win32_Font_Enum p = {};
-    p.part = part;
+    p.arena = arena;
     p.list = list;
     
-    int result = EnumFontFamiliesEx(hdc, &log_font, win32_font_enum_callback, (LPARAM)&p,0);
-    AllowLocal(result);
+    EnumFontFamiliesEx(hdc, &log_font, win32_font_enum_callback, (LPARAM)&p,0);
     
     ReleaseDC(0, hdc);
 }
@@ -1690,6 +1729,10 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_KEYDOWN:
         case WM_KEYUP:
         {
+            b8 release = HasFlag(lParam, bit_32);
+            b8 down = !release;
+            b8 is_right = HasFlag(lParam, bit_25);
+            
             switch (wParam){
                 case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
@@ -1698,49 +1741,46 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     Control_Keys *controls = &win32vars.input_chunk.pers.controls;
                     b8 *control_keys = win32vars.input_chunk.pers.control_keys;
                     
-                    b8 down = ((lParam & bit_31)?(0):(1));
-                    b8 is_right = ((lParam & bit_24)?(1):(0));
-                    
                     if (wParam != 255){
                         switch (wParam){
                             case VK_SHIFT:
                             {
                                 control_keys[MDFR_SHIFT_INDEX] = down;
                             }break;
-                            
                             case VK_CONTROL:
                             {
-                                if (is_right) controls->r_ctrl = down;
-                                else controls->l_ctrl = down;
+                                if (is_right){
+                                    controls->r_ctrl = down;
+                                }
+                                else{
+                                    controls->l_ctrl = down;
+                                }
                             }break;
-                            
                             case VK_MENU:
                             {
-                                if (is_right) controls->r_alt = down;
-                                else controls->l_alt = down;
+                                if (is_right){
+                                    controls->r_alt = down;
+                                }
+                                else{
+                                    controls->l_alt = down;
+                                }
                             }break;
                         }
                         
                         b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
                         b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
-                        
-                        if (win32vars.lctrl_lalt_is_altgr){
-                            if (controls->l_alt && controls->l_ctrl){
-                                ctrl = 0;
-                                alt = 0;
-                            }
+                        if (win32vars.lctrl_lalt_is_altgr && controls->l_alt && controls->l_ctrl){
+                            ctrl = false;
+                            alt = false;
                         }
-                        
                         control_keys[MDFR_CONTROL_INDEX] = ctrl;
                         control_keys[MDFR_ALT_INDEX] = alt;
                     }
                 }break;
             }
             
-            b8 current_state = ((lParam & bit_31)?(0):(1));
-            if (current_state){
+            if (down){
                 Key_Code key = keycode_lookup_table[(u8)wParam];
-                
                 if (key != 0){
                     i32 *count = &win32vars.input_chunk.trans.key_data.count;
                     Key_Event_Data *data = win32vars.input_chunk.trans.key_data.keys;
@@ -1858,7 +1898,6 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.got_useful_event = true;
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
-            
             for (i32 i = 0; i < MDFR_INDEX_COUNT; ++i){
                 win32vars.input_chunk.pers.control_keys[i] = 0;
             }
@@ -1898,7 +1937,6 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
             // NOTE(allen): Do nothing?
-            AllowLocal(hdc);
             EndPaint(hwnd, &ps);
         }break;
         
@@ -2089,12 +2127,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     LOG("Initializing fonts\n");
-    Partition *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp_memory(scratch);
+    Arena *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp(scratch);
     Font_Setup_List font_setup = system_font_get_local_stubs(scratch);
     win32_get_loadable_fonts(scratch, &font_setup);
     system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup);
-    end_temp_memory(temp);
+    end_temp(temp);
     
     //
     // Misc System Initializations
@@ -2151,12 +2189,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (size == 0 || size >= sizeof(cwd)){
         system_error_box("Could not get current directory at launch.");
     }
-    String curdir = make_string(cwd, size);
-    terminate_with_null(&curdir);
-    replace_char(&curdir, '\\', '/');
+    String_Const_u8 curdir = SCu8(cwd, size);
+    curdir = string_mod_replace_character(curdir, '\\', '/');
     
     LOG("Initializing application variables\n");
-    app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
+    app.init(&sysfunc, &target, &memory_vars, string_new_u8_from_old(win32vars.clipboard_contents), curdir, custom_api);
     
     //
     // Main loop
@@ -2355,9 +2392,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 win32vars.clipboard_sequence = new_number;
             }
         }
-        input.clipboard = win32vars.clipboard_contents;
+        input.clipboard = string_new_u8_from_old(win32vars.clipboard_contents);
         
-        win32vars.clip_post_len = 0;
+        win32vars.clip_post.size = 0;
         
         
         // NOTE(allen): Application Core Update
@@ -2375,8 +2412,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         // NOTE(allen): Post New Clipboard Content
-        if (win32vars.clip_post_len > 0){
-            win32_post_clipboard((char*)win32vars.clip_post_part.base, win32vars.clip_post_len);
+        if (win32vars.clip_post.size > 0){
+            win32_post_clipboard((char*)win32vars.clip_post.str, (i32)win32vars.clip_post.size);
         }
         
         // NOTE(allen): Switch to New Title

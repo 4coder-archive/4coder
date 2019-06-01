@@ -7,53 +7,12 @@
 
 // TOP
 
-// 4tech_standard_preamble.h
-#if !defined(FTECH_INTEGERS)
-#define FTECH_INTEGERS
-#include <stdint.h>
-typedef int8_t i8_4tech;
-typedef int16_t i16_4tech;
-typedef int32_t i32_4tech;
-typedef int64_t i64_4tech;
-
-typedef uint8_t u8_4tech;
-typedef uint16_t u16_4tech;
-typedef uint32_t u32_4tech;
-typedef uint64_t u64_4tech;
-
-#if defined(FTECH_32_BIT)
-typedef u32_4tech umem_4tech;
-#else
-typedef u64_4tech umem_4tech;
-#endif
-
-typedef float f32_4tech;
-typedef double f64_4tech;
-
-typedef int8_t b8_4tech;
-typedef int32_t b32_4tech;
-#endif
-
-#if !defined(Assert)
-# define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
-#endif
-
-#if !defined(API_EXPORT)
-# define API_EXPORT
-#endif
-
-#if !defined(internal)
-# define internal static
-#endif
-// standard preamble end 
+#include "../4coder_base_types.h"
+#include "../4coder_base_types.cpp"
 
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-typedef int32_t bool32;
-
-#define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
 #define LEXER_TABLE_FILE "4coder_lib/4cpp_lexer_tables.c"
 
@@ -76,7 +35,7 @@ whitespace_skip_fsm(Whitespace_FSM wfsm, char c){
     return(wfsm);
 }
 
-#define FSM_SIG(n) Cpp_Lex_FSM n(Cpp_Lex_FSM fsm, char c, b32_4tech get_flags)
+#define FSM_SIG(n) Cpp_Lex_FSM n(Cpp_Lex_FSM fsm, char c, b32 get_flags)
 typedef FSM_SIG(FSM_Function);
 
 FSM_SIG(int_fsm){
@@ -271,26 +230,26 @@ FSM_SIG(include_str_fsm){
     return(fsm);
 }
 
-b32_4tech
-is_identifier_char(u8_4tech c, b32_4tech ignore_string_delims){
-    b32_4tech result = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+b32
+is_identifier_char(u8 c, b32 ignore_string_delims){
+    b32 result = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
     return(result);
 }
 
-b32_4tech
-is_identifier_char_restricted(u8_4tech c, b32_4tech ignore_string_delims){
-    b32_4tech result = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+b32
+is_identifier_char_restricted(u8 c, b32 ignore_string_delims){
+    b32 result = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
     return(result);
 }
 
-b32_4tech
-is_identifier_char_non_numeric(u8_4tech c, b32_4tech ignore_string_delims){
-    b32_4tech result = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
+b32
+is_identifier_char_non_numeric(u8 c, b32 ignore_string_delims){
+    b32 result = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 128 || (ignore_string_delims && (c == '\'' || c == '"'));
     return(result);
 }
 
 Cpp_Lex_FSM
-main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_delims){
+main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, b32 ignore_string_delims){
     if (c == 0){
         switch (fsm.state){
             case LS_string_R:
@@ -418,7 +377,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                 
                 case LS_identifier:
                 {
-                    b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
+                    b32 is_ident = is_identifier_char(c, ignore_string_delims);
                     if (!is_ident){
                         fsm.emit_token = true;
                     }
@@ -463,7 +422,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                             default:
                             {
                                 fsm.state = LS_identifier;
-                                b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
+                                b32 is_ident = is_identifier_char(c, ignore_string_delims);
                                 if (!is_ident){
                                     fsm.emit_token = true;
                                 }
@@ -486,7 +445,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                             default:
                             {
                                 fsm.state = LS_identifier;
-                                b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
+                                b32 is_ident = is_identifier_char(c, ignore_string_delims);
                                 if (!is_ident){
                                     fsm.emit_token = true;
                                 }
@@ -510,7 +469,7 @@ main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c, bool32 ignore_string_deli
                             default:
                             {
                                 fsm.state = LS_identifier;
-                                b32_4tech is_ident = is_identifier_char(c, ignore_string_delims);
+                                b32 is_ident = is_identifier_char(c, ignore_string_delims);
                                 if (!is_ident){
                                     fsm.emit_token = true;
                                 }
@@ -770,15 +729,15 @@ end_table(FILE *file){
 }
 
 struct FSM_Tables{
-    u8_4tech *full_transition_table;
-    u8_4tech *marks;
-    u8_4tech *eq_class;
-    u8_4tech *eq_class_rep;
-    u8_4tech *reduced_transition_table;
-    u8_4tech *flags;
+    u8 *full_transition_table;
+    u8 *marks;
+    u8 *eq_class;
+    u8 *eq_class_rep;
+    u8 *reduced_transition_table;
+    u8 *flags;
     
-    u8_4tech eq_class_counter;
-    u16_4tech state_count;
+    u8 eq_class_counter;
+    u16 state_count;
 };
 
 static void
@@ -849,30 +808,30 @@ generate_whitespace_skip_table(){
 }
 
 static FSM_Tables
-generate_table(u8_4tech state_count, FSM_Function *fsm_call){
+generate_table(u8 state_count, FSM_Function *fsm_call){
     FSM_Tables table = {};
     allocate_full_tables(&table, state_count);
     
-    i32_4tech i = 0;
+    i32 i = 0;
     Cpp_Lex_FSM fsm = {};
     Cpp_Lex_FSM new_fsm = {};
     for (uint16_t c = 0; c < 256; ++c){
-        for (u8_4tech state = 0; state < state_count; ++state){
+        for (u8 state = 0; state < state_count; ++state){
             fsm.state = state;
             fsm.emit_token = false;
-            new_fsm = fsm_call(fsm, (u8_4tech)c, false);
+            new_fsm = fsm_call(fsm, (u8)c, false);
             table.full_transition_table[i++] = new_fsm.state + state_count*new_fsm.emit_token;
         }
     }
     
-    for (u8_4tech state = 0; state < state_count; ++state){
+    for (u8 state = 0; state < state_count; ++state){
         fsm.state = state;
         fsm.emit_token = false;
         fsm.flags = 0;
         new_fsm = fsm_call(fsm, 0, true);
         if (new_fsm.flags != 0){
             if (table.flags == 0){
-                table.flags = (u8_4tech*)malloc(state_count);
+                table.flags = (u8*)malloc(state_count);
                 memset(table.flags, 0, state_count);
             }
             table.flags[state] = new_fsm.flags;
@@ -885,7 +844,7 @@ generate_table(u8_4tech state_count, FSM_Function *fsm_call){
 }
 
 static FSM_Tables
-generate_fsm_table(uint8_t pp_state, bool32 ignore_string_delims){
+generate_fsm_table(uint8_t pp_state, b32 ignore_string_delims){
     uint8_t state_count = LS_count;
     FSM_Tables table = {};
     allocate_full_tables(&table, state_count);
@@ -909,8 +868,8 @@ generate_fsm_table(uint8_t pp_state, bool32 ignore_string_delims){
 
 static void
 render_fsm_table(FILE *file, FSM_Tables tables, char *group_name){
-    begin_table(file, "u16_4tech", group_name, "eq_classes");
-    for (u16_4tech c = 0; c < 256; ++c){
+    begin_table(file, "u16", group_name, "eq_classes");
+    for (u16 c = 0; c < 256; ++c){
         if ((c % 16) == 0 && c > 0){
             end_row(file);
         }
@@ -919,12 +878,12 @@ render_fsm_table(FILE *file, FSM_Tables tables, char *group_name){
     end_row(file);
     end_table(file);
     
-    fprintf(file, "const i32_4tech num_%s_eq_classes = %d;\n\n", group_name, tables.eq_class_counter);
+    fprintf(file, "const i32 num_%s_eq_classes = %d;\n\n", group_name, tables.eq_class_counter);
     
-    i32_4tech i = 0;
-    begin_table(file, "u8_4tech", group_name, "table");
-    for (u16_4tech c = 0; c < tables.eq_class_counter; ++c){
-        for (u8_4tech state = 0; state < tables.state_count; ++state){
+    i32 i = 0;
+    begin_table(file, "u8", group_name, "table");
+    for (u16 c = 0; c < tables.eq_class_counter; ++c){
+        for (u8 state = 0; state < tables.state_count; ++state){
             do_table_item(file, tables.reduced_transition_table[i++]);
         }
         end_row(file);
@@ -932,8 +891,8 @@ render_fsm_table(FILE *file, FSM_Tables tables, char *group_name){
     end_table(file);
     
     if (tables.flags != 0){
-        begin_table(file, "u8_4tech", group_name, "flags");
-        for (u8_4tech state = 0; state < tables.state_count; ++state){
+        begin_table(file, "u8", group_name, "flags");
+        for (u8 state = 0; state < tables.state_count; ++state){
             if ((state % 4) == 0 && state > 0){
                 end_row(file);
             }
@@ -957,7 +916,7 @@ render_comment(FILE *file, char *comment){
 struct PP_Names{
     uint8_t pp_state;
     char *name;
-    bool32 ignore_string_delims;
+    b32 ignore_string_delims;
 };
 
 static PP_Names pp_names[] = {
@@ -995,7 +954,7 @@ main(){
             {"normal_char", LSSTR_count,         normal_char_fsm }
         };
         
-        for (u32_4tech i = 0; i < ArrayCount(tables); ++i){
+        for (u32 i = 0; i < ArrayCount(tables); ++i){
             FSM_Tables str_tables = generate_table(tables[i].count, tables[i].fsm_call);
             render_fsm_table(file, str_tables, tables[i].name);
         }

@@ -16,6 +16,11 @@ to_file_id(i32 id){
     return(result);
 }
 
+internal String_Const_u8
+string_from_file_name(Editing_File_Name *name){
+    return(SCu8(name->name_space, name->name_size));
+}
+
 ////////////////////////////////
 
 internal void
@@ -123,14 +128,24 @@ file_clear_dirty_flags(Editing_File *file){
 
 ////////////////////////////////
 
+internal void
+file_name_terminate(Editing_File_Name *name){
+    umem size = name->name_size;
+    size = clamp_top(size, sizeof(name->name_space) - 1);
+    name->name_space[size] = 0;
+    name->name_size = size;
+}
+
+////////////////////////////////
+
 internal b32
-save_file_to_name(System_Functions *system, Models *models, Editing_File *file, char *file_name){
+save_file_to_name(System_Functions *system, Models *models, Editing_File *file, u8 *file_name){
     b32 result = false;
     b32 using_actual_file_name = false;
     
     if (file_name == 0){
-        terminate_with_null(&file->canon.name);
-        file_name = file->canon.name.str;
+        file_name_terminate(&file->canon);
+        file_name = file->canon.name_space;
         using_actual_file_name = true;
     }
     
@@ -151,19 +166,15 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             max = buffer_size(buffer);
         }
         
-        b32 used_heap = 0;
-        Temp_Memory temp = begin_temp_memory(&mem->part);
+        Arena *scratch = &mem->arena;
+        Temp_Memory temp = begin_temp(scratch);
         char empty = 0;
         char *data = 0;
         if (max == 0){
             data = &empty;
         }
         else{
-            data = (char*)push_array(&mem->part, char, max);
-            if (!data){
-                used_heap = 1;
-                data = heap_array(&mem->heap, char, max);
-            }
+            data = (char*)push_array(scratch, char, max);
         }
         Assert(data != 0);
         
@@ -176,18 +187,16 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             buffer_stringify(buffer, 0, size, data);
         }
         
-        if (!using_actual_file_name && file->canon.name.str != 0){
+        if (!using_actual_file_name){
             char space[512];
-            u32 length = str_size(file_name);
-            system->get_canonical(file_name, length, space, sizeof(space));
-            
-            char *source_path = file->canon.name.str;
-            if (match(space, source_path)){
+            umem length = cstring_length(file_name);
+            system->get_canonical((char*)file_name, (u32)length, space, sizeof(space));
+            if (string_match(SCu8(space), string_from_file_name(&file->canon))){
                 using_actual_file_name = true;
             }
         }
         
-        File_Attributes new_attributes = system->save_file(file_name, data, size);
+        File_Attributes new_attributes = system->save_file((char*)file_name, data, size);
         if (new_attributes.last_write_time > 0){
             if (using_actual_file_name){
                 file->state.ignore_behind_os = 1;
@@ -196,12 +205,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         }
         
         file_clear_dirty_flags(file);
-        
-        if (used_heap){
-            heap_free(&mem->heap, data);
-        }
-        end_temp_memory(temp);
-        
+        end_temp(temp);
     }
     
     return(result);
@@ -331,7 +335,7 @@ file_grow_starts_as_needed(Heap *heap, Gap_Buffer *buffer, i32 additional_lines)
     i32 count = buffer->line_count;
     i32 target_lines = count + additional_lines;
     if (target_lines > max || max == 0){
-        max = l_round_up_i32(target_lines + max, KB(1));
+        max = round_up_i32(target_lines + max, KB(1));
         i32 *new_lines = heap_array(heap, i32, max);
         if (new_lines != 0){
             result = GROW_SUCCESS;
@@ -371,14 +375,14 @@ file_measure_starts(Heap *heap, Gap_Buffer *buffer){
 internal void
 file_allocate_metadata_as_needed(Heap *heap, Gap_Buffer *buffer, void **mem, i32 *mem_max_count, i32 count, i32 item_size){
     if (*mem == 0){
-        i32 max = l_round_up_i32(((count + 1)*2), KB(1));
+        i32 max = round_up_i32(((count + 1)*2), KB(1));
         *mem = heap_allocate(heap, max*item_size);
         *mem_max_count = max;
         Assert(*mem != 0);
     }
     else if (*mem_max_count < count){
         i32 old_max = *mem_max_count;
-        i32 max = l_round_up_i32(((count + 1)*2), KB(1));
+        i32 max = round_up_i32(((count + 1)*2), KB(1));
         void *new_mem = heap_allocate(heap, item_size*max);
         memcpy(new_mem, *mem, item_size*old_max);
         heap_free(heap, *mem);
@@ -421,16 +425,16 @@ file_allocate_wrap_positions_as_needed(Heap *heap, Editing_File *file, i32 min_l
 ////////////////////////////////
 
 internal void
-file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String val, File_Attributes attributes){
+file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
     Heap *heap = &models->mem.heap;
-    Partition *part = &models->mem.part;
+    Arena *scratch = &models->mem.arena;
     Application_Links *app_links = &models->app_links;
     
     block_zero_struct(&file->state);
     Gap_Buffer_Init init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (;buffer_init_need_more(&init);){
         i32 page_size = buffer_init_page_size(&init);
-        page_size = l_round_up_i32(page_size, KB(4));
+        page_size = round_up_i32(page_size, KB(4));
         if (page_size < KB(4)){
             page_size = KB(4);
         }
@@ -438,10 +442,8 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         buffer_init_provide_page(&init, data, page_size);
     }
     
-    i32 scratch_size = part_remaining(part);
-    Assert(scratch_size > 0);
-    b32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
-    AllowLocal(init_success); Assert(init_success);
+    b32 init_success = buffer_end_init(&init);
+    Assert(init_success);
     
     if (buffer_size(&file->state.buffer) < val.size){
         file->settings.dos_write_mode = true;
@@ -488,7 +490,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
 }
 
 internal void
-file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_allocator, Editing_File *file){
+file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_allocator, Working_Set *working_set, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -514,7 +516,7 @@ file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_all
     
     history_free(heap, &file->state.history);
     
-    file_unmark_edit_finished(file);
+    file_unmark_edit_finished(working_set, file);
 }
 
 ////////////////////////////////

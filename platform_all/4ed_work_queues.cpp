@@ -341,7 +341,7 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_acquire_lock(cancel_lock);
     void *old_data = memory->data;
     i32 old_size = memory->size;
-    i32 new_size = l_round_up_i32(memory->size*2, KB(4));
+    i32 new_size = round_up_i32(memory->size*2, KB(4));
     memory->data = system_memory_allocate(new_size);
     memory->size = new_size;
     if (old_data != 0){
@@ -356,9 +356,7 @@ work_system_init(){
     AssertThreadSizes();
     
     u32 core_count = CORE_COUNT;
-    i32 thread_system_memory_size = core_count*(sizeof(Thread_Context) + sizeof(Thread_Memory));
-    void *thread_system_memory = system_memory_allocate(thread_system_memory_size);
-    Partition thread_part = make_part(thread_system_memory, thread_system_memory_size);
+    Arena thread_arena = make_arena_system(&sysfunc);
     
     for (i32 i = 0; i < LOCK_COUNT; ++i){
         system_init_lock(&threadvars.locks[i]);
@@ -368,10 +366,10 @@ work_system_init(){
         system_init_cv(&threadvars.conds[i]);
     }
     
-    threadvars.thread_memory = push_array(&thread_part, Thread_Memory, core_count);
+    threadvars.thread_memory = push_array(&thread_arena, Thread_Memory, core_count);
     
     for (u32 group_i = 0; group_i < THREAD_GROUP_COUNT; ++group_i){
-        Thread_Context *threads = push_array(&thread_part, Thread_Context, core_count);
+        Thread_Context *threads = push_array(&thread_arena, Thread_Context, core_count);
         threadvars.groups[group_i].threads = threads;
         threadvars.groups[group_i].count = core_count;
         threadvars.groups[group_i].cancel_lock0 = CANCEL_LOCK0;

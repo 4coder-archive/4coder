@@ -12,13 +12,14 @@
 #define API_H "4coder_generated/app_functions.h"
 #define REMAPPING_FILE "4coder_generated/remapping.h"
 
-#include "4ed_defines.h"
 #include "4coder_base_types.h"
 #include "4ed_meta_defines.h"
 #include "4coder_API/4coder_version.h"
 #include "4coder_API/4coder_keycodes.h"
 
 # include "4coder_lib/4coder_arena.h"
+#include "4coder_base_types.cpp"
+#include "4coder_stringf.cpp"
 # include "4coder_lib/4coder_arena.cpp"
 # define FSTRING_IMPLEMENTATION
 # include "4coder_lib/4coder_string.h"
@@ -38,8 +39,8 @@
 //
 
 struct App_API_Name{
-    String macro;
-    String public_name;
+    String_Const_char macro;
+    String_Const_char public_name;
 };
 
 struct App_API{
@@ -47,49 +48,50 @@ struct App_API{
 };
 
 internal App_API
-allocate_app_api(Partition *part, i32 count){
+allocate_app_api(Arena *arena, i32 count){
     App_API app_api = {};
-    app_api.names = push_array(part, App_API_Name, count);
+    app_api.names = push_array(arena, App_API_Name, count);
     memset(app_api.names, 0, sizeof(App_API_Name)*count);
     return(app_api);
 }
 
 internal void
-generate_custom_headers(Partition *part){
-    Temp_Memory temp = begin_temp_memory(part);
+generate_custom_headers(Arena *arena){
+    Temp_Memory temp = begin_temp(arena);
     
     // NOTE(allen): Parse the customization API files
     static char *functions_files[] = { "4ed_api_implementation.cpp", 0 };
-    Meta_Unit unit_custom = compile_meta_unit(part, ".", functions_files, ExpandArray(meta_keywords));
+    Meta_Unit unit_custom = compile_meta_unit(arena, ".", functions_files, ExpandArray(meta_keywords));
     if (unit_custom.parse == 0){
         Assert(!"Missing one or more input files!");
     }
     
     // NOTE(allen): Compute and store variations of the function names
-    App_API func_4ed_names = allocate_app_api(part, unit_custom.set.count);
+    App_API func_4ed_names = allocate_app_api(arena, unit_custom.set.count);
     
     for (i32 i = 0; i < unit_custom.set.count; ++i){
-        String name_string = unit_custom.set.items[i].name;
-        String *macro = &func_4ed_names.names[i].macro;
-        String *public_name = &func_4ed_names.names[i].public_name;
+        String_Const_char name_string = unit_custom.set.items[i].name;
         
-        *macro = string_push(part, name_string.size + 4);
-        to_upper(macro, name_string);
-        append(macro, make_lit_string("_SIG"));
+        List_String_Const_char macro_list = {};
+        string_list_push(arena, &macro_list, string_mod_upper(string_copy(arena, name_string)));
+        string_list_push_lit(arena, &macro_list, "_SIG");
+        func_4ed_names.names[i].macro = string_list_flatten(arena, macro_list);
         
-        *public_name = string_push(part, name_string.size);
-        to_lower(public_name, name_string);
-        
-        push_align(part, 8);
+        func_4ed_names.names[i].public_name = string_mod_lower(string_copy(arena, name_string));
     }
     
     // NOTE(allen): Output
-    String out = string_push(part, 10 << 20);
+    List_String_Const_char out_list = {};
     
     // NOTE(allen): Custom API headers
-    append(&out, "struct Application_Links;\n");
+    string_list_push_lit(arena, &out_list, "struct Application_Links;\n");
     
     for (i32 i = 0; i < unit_custom.set.count; ++i){
+        string_list_pushf(arena, &out_list, "#define %.*s(n) %.*s n%.*s\n",
+                          string_expand(func_4ed_names.names[i].macro),
+                          string_expand(unit_custom.set.items[i].ret),
+                          string_expand(unit_custom.set.items[i].args));
+#if 0
         append(&out, "#define ");
         append(&out, func_4ed_names.names[i].macro);
         append(&out, "(n) ");
@@ -97,110 +99,125 @@ generate_custom_headers(Partition *part){
         append(&out, " n");
         append(&out, unit_custom.set.items[i].args);
         append_s_char(&out, '\n');
+#endif
     }
     
     for (i32 i = 0; i < unit_custom.set.count; ++i){
+        string_list_pushf(arena, &out_list, "typedef %.*s(%.*s_Function);\n",
+                          string_expand(func_4ed_names.names[i].macro),
+                          string_expand(unit_custom.set.items[i].name));
+#if 0
         append(&out, "typedef ");
         append(&out, func_4ed_names.names[i].macro);
         append_s_char(&out, '(');
         append(&out, unit_custom.set.items[i].name);
         append(&out, "_Function);\n");
+#endif
     }
     
-    append(&out, "struct Application_Links{\n");
-    
-    append(&out, "#if defined(ALLOW_DEP_4CODER)\n");
+    string_list_push_lit(arena, &out_list, "struct Application_Links{\n");
+    string_list_push_lit(arena, &out_list, "#if defined(ALLOW_DEP_4CODER)\n");
     for (i32 i = 0; i < unit_custom.set.count; ++i){
+        string_list_pushf(arena, &out_list, "%.*s_Function *%.*s;\n",
+                          string_expand(unit_custom.set.items[i].name),
+                          string_expand(func_4ed_names.names[i].public_name));
+#if 0
         append(&out, unit_custom.set.items[i].name);
         append(&out, "_Function *");
         append(&out, func_4ed_names.names[i].public_name);
         append(&out, ";\n");
+#endif
     }
     
-    append(&out, "#else\n");
+    string_list_push_lit(arena, &out_list, "#else\n");
     
     for (i32 i = 0; i < unit_custom.set.count; ++i){
+        string_list_pushf(arena, &out_list, "%.*s_Function *%.*s_;\n",
+                          string_expand(unit_custom.set.items[i].name),
+                          string_expand(func_4ed_names.names[i].public_name));
+#if 0
         append(&out, unit_custom.set.items[i].name);
         append(&out, "_Function *");
         append(&out, func_4ed_names.names[i].public_name);
         append(&out, "_;\n");
+#endif
     }
-    append(&out, "#endif\n");
     
-    append(&out,
-           "void *memory;\n"
-           "int32_t memory_size;\n"
-           "void *cmd_context;\n"
-           "void *system_links;\n"
-           "void *current_coroutine;\n"
-           "int32_t type_coroutine;\n"
-           "};\n");
+    string_list_push_lit(arena, &out_list, "#endif\n");
     
-    append(&out, "#define FillAppLinksAPI(app_links) do{");
+    string_list_push_lit(arena, &out_list,
+                         "void *memory;\n"
+                         "int32_t memory_size;\n"
+                         "void *cmd_context;\n"
+                         "void *system_links;\n"
+                         "void *current_coroutine;\n"
+                         "int32_t type_coroutine;\n"
+                         "};\n");
+    
+    string_list_push_lit(arena, &out_list, "#define FillAppLinksAPI(app_links) do{");
+    
     for (i32 i = 0; i < unit_custom.set.count; ++i){
-        append(&out, "\\\napp_links->");
-        append(&out, func_4ed_names.names[i].public_name);
-        append(&out, "_ = ");
-        append(&out, unit_custom.set.items[i].name);
-        append_s_char(&out, ';');
+        string_list_pushf(arena, &out_list, "\\\napp_links->%.*s_ = %.*s;",
+                          string_expand(func_4ed_names.names[i].public_name),
+                          string_expand(unit_custom.set.items[i].name));
     }
-    append(&out, "} while(false)\n");
     
-    append(&out, "#if defined(ALLOW_DEP_4CODER)\n");
+    string_list_push_lit(arena, &out_list, "} while(false)\n");
+    
+    string_list_push_lit(arena, &out_list, "#if defined(ALLOW_DEP_4CODER)\n");
     for (i32 use_dep = 1; use_dep >= 0; --use_dep){
         for (i32 i = 0; i < unit_custom.set.count; ++i){
             Argument_Breakdown breakdown = unit_custom.set.items[i].breakdown;
-            String ret = unit_custom.set.items[i].ret;
-            String public_name = func_4ed_names.names[i].public_name;
+            String_Const_char ret = unit_custom.set.items[i].ret;
+            String_Const_char public_name = func_4ed_names.names[i].public_name;
             
-            append(&out, "static ");
-            append(&out, ret);
-            append(&out, " ");
-            append(&out, public_name);
-            
-            append(&out, "(");
-            for (i32 j = 0; j < breakdown.count; ++j){
-                append(&out, breakdown.args[j].param_string);
-                if (j+1 != breakdown.count){
-                    append(&out, ", ");
+            string_list_pushf(arena, &out_list, "static %.*s %.*s(",
+                              string_expand(ret), string_expand(public_name));
+            for (i32 j = 0; j < breakdown.count; j += 1){
+                if (j + 1 != breakdown.count){
+                    string_list_pushf(arena, &out_list, "%.*s, ", 
+                                      string_expand(breakdown.args[j].param_string));
+                }
+                else{
+                    string_list_push(arena, &out_list, breakdown.args[j].param_string);
                 }
             }
-            append(&out, "){");
+            string_list_push_lit(arena, &out_list, "){");
             
-            if (match(ret, make_lit_string("void"))){
-                append(&out, "(");
+            if (string_match(ret, string_litexpr("void"))){
+                string_list_push_lit(arena, &out_list, "(");
             }
             else{
-                append(&out, "return(");
+                string_list_push_lit(arena, &out_list, "return(");
             }
             
-            append(&out, "app->");
-            append(&out, public_name);
+            string_list_pushf(arena, &out_list, "app->%.*s", string_expand(public_name));
             if (!use_dep){
-                append(&out, "_");
+                string_list_push_lit(arena, &out_list, "_");
             }
             
-            append(&out, "(");
+            string_list_push_lit(arena, &out_list, "(");
             for (i32 j = 0; j < breakdown.count; ++j){
-                append(&out, breakdown.args[j].param_name);
-                if (j+1 != breakdown.count){
-                    append(&out, ", ");
+                if (j + 1 != breakdown.count){
+                    string_list_pushf(arena, &out_list, "%.*s, ",
+                                      string_expand(breakdown.args[j].param_name));
+                }
+                else{
+                    string_list_push(arena, &out_list, breakdown.args[j].param_name);
                 }
             }
-            append(&out, ")");
-            
-            append(&out, ");}\n");
+            string_list_push_lit(arena, &out_list, "));}\n");
         }
         if (use_dep == 1){
-            append(&out, "#else\n");
+            string_list_push_lit(arena, &out_list, "#else\n");
         }
     }
-    append(&out, "#endif\n");
+    string_list_push_lit(arena, &out_list, "#endif\n");
     
-    fm_write_file(API_H, out.str, out.size);
-    out.size = 0;
+    String_Const_char out = string_list_flatten(arena, out_list);
+    fm_write_file(API_H, out.str, (i32)out.size);
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,17 +280,17 @@ enum{
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 internal void
-emit_begin_mapping(Partition *part, Mapping_Array *array, char *name, char *description){
+emit_begin_mapping(Arena *arena, Mapping_Array *array, char *name, char *description){
     Assert(array->current_mapping == 0);
-    Mapping *mapping = push_array(part, Mapping, 1);
-    mapping->name = fm_basic_str(part, name);
-    mapping->name_len = str_size(name);
-    mapping->description = fm_basic_str(part, description);
-    mapping->description_len = str_size(description);
+    Mapping *mapping = push_array(arena, Mapping, 1);
+    mapping->name = fm_basic_str(arena, name);
+    mapping->name_len = (i32)cstring_length(name);
+    mapping->description = fm_basic_str(arena, description);
+    mapping->description_len = (i32)cstring_length(description);
     mapping->first_sub_map = 0;
     mapping->last_sub_map = 0;
     mapping->sub_map_count = 0;
-    sll_push(array->first_mapping, array->last_mapping, mapping);
+    sll_queue_push(array->first_mapping, array->last_mapping, mapping);
     ++array->mapping_count;
     array->current_mapping = mapping;
 }
@@ -285,15 +302,15 @@ emit_end_mapping(Mapping_Array *array){
 }
 
 internal void
-emit_begin_map(Partition *part, Mapping_Array *array, char *mapid, char *description){
+emit_begin_map(Arena *arena, Mapping_Array *array, char *mapid, char *description){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map == 0);
     
-    Sub_Map *sub_map = push_array(part, Sub_Map, 1);
-    sub_map->name = fm_basic_str(part, mapid);
-    sub_map->name_len = str_size(mapid);
-    sub_map->description = fm_basic_str(part, description);
-    sub_map->description_len = str_size(description);
+    Sub_Map *sub_map = push_array(arena, Sub_Map, 1);
+    sub_map->name = fm_basic_str(arena, mapid);
+    sub_map->name_len = (i32)cstring_length(mapid);
+    sub_map->description = fm_basic_str(arena, description);
+    sub_map->description_len = (i32)cstring_length(description);
     sub_map->parent = 0;
     sub_map->parent_len = 0;
     sub_map->first_key_bind = 0;
@@ -301,7 +318,7 @@ emit_begin_map(Partition *part, Mapping_Array *array, char *mapid, char *descrip
     sub_map->key_bind_count = 0;
     
     Mapping *mapping = array->current_mapping;
-    sll_push(mapping->first_sub_map, mapping->last_sub_map, sub_map);
+    sll_queue_push(mapping->first_sub_map, mapping->last_sub_map, sub_map);
     ++mapping->sub_map_count;
     
     array->current_sub_map = sub_map;
@@ -315,19 +332,19 @@ emit_end_map(Mapping_Array *array){
 }
 
 internal void
-emit_inherit_map(Partition *part, Mapping_Array *array, char *mapid){
+emit_inherit_map(Arena *arena, Mapping_Array *array, char *mapid){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map != 0);
     
     Sub_Map *sub_map = array->current_sub_map;
     Assert(sub_map->parent == 0);
     
-    sub_map->parent = fm_basic_str(part, mapid);
-    sub_map->parent_len = str_size(mapid);
+    sub_map->parent = fm_basic_str(arena, mapid);
+    sub_map->parent_len = (i32)cstring_length(mapid);
 }
 
 internal void
-emit_bind(Partition *part, Mapping_Array *array, u32 keycode, u32 modifiers, char *command){
+emit_bind(Arena *arena, Mapping_Array *array, u32 keycode, u32 modifiers, char *command){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map != 0);
     
@@ -344,31 +361,31 @@ emit_bind(Partition *part, Mapping_Array *array, u32 keycode, u32 modifiers, cha
     }
     
     if (!is_duplicate){
-        Key_Bind *bind = push_array(part, Key_Bind, 1);
+        Key_Bind *bind = push_array(arena, Key_Bind, 1);
         bind->vanilla = false;
         bind->keycode = keycode;
         bind->modifiers = modifiers;
-        bind->command = fm_basic_str(part, command);
-        bind->command_len = str_size(command);
-        sll_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
+        bind->command = fm_basic_str(arena, command);
+        bind->command_len = (i32)cstring_length(command);
+        sll_queue_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
         ++sub_map->key_bind_count;
     }
 }
 
 internal void
-emit_bind_all_modifiers(Partition *part, Mapping_Array *mappings, u32 code, char *command){
-    emit_bind(part, mappings, code, MDFR_NONE, command);
-    emit_bind(part, mappings, code, MDFR_CTRL, command);
-    emit_bind(part, mappings, code, MDFR_ALT , command);
-    emit_bind(part, mappings, code, MDFR_CMND, command);
-    emit_bind(part, mappings, code, MDFR_CTRL|MDFR_ALT , command);
-    emit_bind(part, mappings, code, MDFR_ALT |MDFR_CMND, command);
-    emit_bind(part, mappings, code, MDFR_CTRL|MDFR_CMND, command);
-    emit_bind(part, mappings, code, MDFR_CTRL|MDFR_ALT|MDFR_CMND, command);
+emit_bind_all_modifiers(Arena *arena, Mapping_Array *mappings, u32 code, char *command){
+    emit_bind(arena, mappings, code, MDFR_NONE, command);
+    emit_bind(arena, mappings, code, MDFR_CTRL, command);
+    emit_bind(arena, mappings, code, MDFR_ALT , command);
+    emit_bind(arena, mappings, code, MDFR_CMND, command);
+    emit_bind(arena, mappings, code, MDFR_CTRL|MDFR_ALT , command);
+    emit_bind(arena, mappings, code, MDFR_ALT |MDFR_CMND, command);
+    emit_bind(arena, mappings, code, MDFR_CTRL|MDFR_CMND, command);
+    emit_bind(arena, mappings, code, MDFR_CTRL|MDFR_ALT|MDFR_CMND, command);
 }
 
 internal void
-emit_bind_vanilla_keys(Partition *part, Mapping_Array *array, u32 modifiers, char *command){
+emit_bind_vanilla_keys(Arena *arena, Mapping_Array *array, u32 modifiers, char *command){
     Assert(array->current_mapping != 0);
     Assert(array->current_sub_map != 0);
     
@@ -385,13 +402,13 @@ emit_bind_vanilla_keys(Partition *part, Mapping_Array *array, u32 modifiers, cha
     }
     
     if (!is_duplicate){
-        Key_Bind *bind = push_array(part, Key_Bind, 1);
+        Key_Bind *bind = push_array(arena, Key_Bind, 1);
         bind->vanilla = true;
         bind->keycode = 0;
         bind->modifiers = modifiers;
-        bind->command = fm_basic_str(part, command);
-        bind->command_len = str_size(command);
-        sll_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
+        bind->command = fm_basic_str(arena, command);
+        bind->command_len = (i32)cstring_length(command);
+        sll_queue_push(sub_map->first_key_bind, sub_map->last_key_bind, bind);
         ++sub_map->key_bind_count;
     }
 }
@@ -408,459 +425,459 @@ emit_bind_vanilla_keys(Partition *part, Mapping_Array *array, u32 modifiers, cha
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 internal void
-generate_remapping_code_and_data(Partition *part){
-    Temp_Memory temp = begin_temp_memory(part);
+generate_remapping_code_and_data(Arena *arena){
+    Temp_Memory temp = begin_temp(arena);
     
     // Generate mapping array data structure
     Mapping_Array mappings_ = {};
     Mapping_Array *mappings = &mappings_;
     
-    begin_mapping(part, mappings, default, "The default 4coder bindings - typically good for Windows and Linux");
+    begin_mapping(arena, mappings, default, "The default 4coder bindings - typically good for Windows and Linux");
     {
         // NOTE(allen): GLOBAL
-        begin_map(part, mappings, mapid_global, "The following bindings apply in all situations.");
+        begin_map(arena, mappings, mapid_global, "The following bindings apply in all situations.");
         
-        bind(part, mappings, ',', MDFR_CTRL, change_active_panel);
-        bind(part, mappings, '<', MDFR_CTRL, change_active_panel_backwards);
+        bind(arena, mappings, ',', MDFR_CTRL, change_active_panel);
+        bind(arena, mappings, '<', MDFR_CTRL, change_active_panel_backwards);
         
-        bind(part, mappings, 'n', MDFR_CTRL, interactive_new);
-        bind(part, mappings, 'o', MDFR_CTRL, interactive_open_or_new);
-        bind(part, mappings, 'o', MDFR_ALT , open_in_other);
-        bind(part, mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
-        bind(part, mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
-        bind(part, mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
-        bind(part, mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
+        bind(arena, mappings, 'n', MDFR_CTRL, interactive_new);
+        bind(arena, mappings, 'o', MDFR_CTRL, interactive_open_or_new);
+        bind(arena, mappings, 'o', MDFR_ALT , open_in_other);
+        bind(arena, mappings, 'k', MDFR_CTRL, interactive_kill_buffer);
+        bind(arena, mappings, 'i', MDFR_CTRL, interactive_switch_buffer);
+        bind(arena, mappings, 'h', MDFR_CTRL, project_go_to_root_directory);
+        bind(arena, mappings, 'S', MDFR_CTRL, save_all_dirty_buffers);
         
-        bind(part, mappings, key_scroll_lock, MDFR_NONE, toggle_filebar);
-        bind(part, mappings, key_pause, MDFR_NONE, toggle_filebar);
-        bind(part, mappings, key_caps, MDFR_NONE, toggle_filebar);
+        bind(arena, mappings, key_scroll_lock, MDFR_NONE, toggle_filebar);
+        bind(arena, mappings, key_pause, MDFR_NONE, toggle_filebar);
+        bind(arena, mappings, key_caps, MDFR_NONE, toggle_filebar);
         
-        bind(part, mappings, '.', MDFR_ALT, change_to_build_panel);
-        bind(part, mappings, ',', MDFR_ALT, close_build_panel);
-        bind(part, mappings, 'n', MDFR_ALT, goto_next_jump_sticky);
-        bind(part, mappings, 'N', MDFR_ALT, goto_prev_jump_sticky);
-        bind(part, mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
-        bind(part, mappings, 'm', MDFR_ALT, build_in_build_panel);
-        bind(part, mappings, 'b', MDFR_ALT, toggle_filebar);
+        bind(arena, mappings, '.', MDFR_ALT, change_to_build_panel);
+        bind(arena, mappings, ',', MDFR_ALT, close_build_panel);
+        bind(arena, mappings, 'n', MDFR_ALT, goto_next_jump_sticky);
+        bind(arena, mappings, 'N', MDFR_ALT, goto_prev_jump_sticky);
+        bind(arena, mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
+        bind(arena, mappings, 'm', MDFR_ALT, build_in_build_panel);
+        bind(arena, mappings, 'b', MDFR_ALT, toggle_filebar);
         
-        bind(part, mappings, 'z', MDFR_ALT, execute_any_cli);
-        bind(part, mappings, 'Z', MDFR_ALT, execute_previous_cli);
+        bind(arena, mappings, 'z', MDFR_ALT, execute_any_cli);
+        bind(arena, mappings, 'Z', MDFR_ALT, execute_previous_cli);
         
-        bind(part, mappings, 'x', MDFR_ALT, command_lister);
-        bind(part, mappings, 'X', MDFR_ALT, project_command_lister);
+        bind(arena, mappings, 'x', MDFR_ALT, command_lister);
+        bind(arena, mappings, 'X', MDFR_ALT, project_command_lister);
         
-        bind(part, mappings, 'I', MDFR_CTRL, list_all_functions_all_buffers_lister);
-        bind(part, mappings, 'E', MDFR_ALT, exit_4coder);
+        bind(arena, mappings, 'I', MDFR_CTRL, list_all_functions_all_buffers_lister);
+        bind(arena, mappings, 'E', MDFR_ALT, exit_4coder);
         
-        bind(part, mappings, key_f1, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f2, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f3, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f4, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f1, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f2, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f3, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f4, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_f5, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f6, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f7, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f8, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f5, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f6, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f7, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f8, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_f9, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f10, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f11, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f12, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f9, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f10, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f11, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f12, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_f13, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f14, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f15, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f16, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f13, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f14, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f15, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f16, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
-        bind(part, mappings, key_mouse_wheel, MDFR_CTRL, mouse_wheel_change_face_size);
+        bind(arena, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+        bind(arena, mappings, key_mouse_wheel, MDFR_CTRL, mouse_wheel_change_face_size);
         
         end_map(mappings);
         
         // NOTE(allen): FILE
-        begin_map(part, mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
+        begin_map(arena, mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
         
-        bind_vanilla_keys(part, mappings, MDFR_NONE, write_character);
+        bind_vanilla_keys(arena, mappings, MDFR_NONE, write_character);
         
-        bind(part, mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
-        bind(part, mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
-        bind(part, mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
-        bind(part, mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
+        bind(arena, mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(arena, mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
+        bind(arena, mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+        bind(arena, mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
-        bind(part, mappings, key_del,  MDFR_NONE, delete_char);
-        bind(part, mappings, key_del,  MDFR_SHIFT, delete_char);
-        bind(part, mappings, key_back, MDFR_NONE, backspace_char);
-        bind(part, mappings, key_back, MDFR_SHIFT, backspace_char);
+        bind(arena, mappings, key_del,  MDFR_NONE, delete_char);
+        bind(arena, mappings, key_del,  MDFR_SHIFT, delete_char);
+        bind(arena, mappings, key_back, MDFR_NONE, backspace_char);
+        bind(arena, mappings, key_back, MDFR_SHIFT, backspace_char);
         
-        bind(part, mappings, key_up,    MDFR_NONE, move_up);
-        bind(part, mappings, key_down,  MDFR_NONE, move_down);
-        bind(part, mappings, key_left,  MDFR_NONE, move_left);
-        bind(part, mappings, key_right, MDFR_NONE, move_right);
-        bind(part, mappings, key_up,    MDFR_SHIFT, move_up);
-        bind(part, mappings, key_down,  MDFR_SHIFT, move_down);
-        bind(part, mappings, key_left,  MDFR_SHIFT, move_left);
-        bind(part, mappings, key_right, MDFR_SHIFT, move_right);
+        bind(arena, mappings, key_up,    MDFR_NONE, move_up);
+        bind(arena, mappings, key_down,  MDFR_NONE, move_down);
+        bind(arena, mappings, key_left,  MDFR_NONE, move_left);
+        bind(arena, mappings, key_right, MDFR_NONE, move_right);
+        bind(arena, mappings, key_up,    MDFR_SHIFT, move_up);
+        bind(arena, mappings, key_down,  MDFR_SHIFT, move_down);
+        bind(arena, mappings, key_left,  MDFR_SHIFT, move_left);
+        bind(arena, mappings, key_right, MDFR_SHIFT, move_right);
         
-        bind(part, mappings, key_end,       MDFR_NONE, seek_end_of_line);
-        bind(part, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
-        bind(part, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
-        bind(part, mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
-        bind(part, mappings, key_page_up,   MDFR_NONE, page_up);
-        bind(part, mappings, key_page_down, MDFR_NONE, page_down);
-        bind(part, mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
-        bind(part, mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
-        bind(part, mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
-        bind(part, mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
-        bind(part, mappings, key_page_up,   MDFR_SHIFT, page_up);
-        bind(part, mappings, key_page_down, MDFR_SHIFT, page_down);
+        bind(arena, mappings, key_end,       MDFR_NONE, seek_end_of_line);
+        bind(arena, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
+        bind(arena, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
+        bind(arena, mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
+        bind(arena, mappings, key_page_up,   MDFR_NONE, page_up);
+        bind(arena, mappings, key_page_down, MDFR_NONE, page_down);
+        bind(arena, mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
+        bind(arena, mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
+        bind(arena, mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
+        bind(arena, mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
+        bind(arena, mappings, key_page_up,   MDFR_SHIFT, page_up);
+        bind(arena, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(part, mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
-        bind(part, mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
-        bind(part, mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
-        bind(part, mappings, key_right, MDFR_CTRL, seek_whitespace_right);
-        bind(part, mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, seek_whitespace_up_end_line);
-        bind(part, mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_down_end_line);
-        bind(part, mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
-        bind(part, mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
+        bind(arena, mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
+        bind(arena, mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
+        bind(arena, mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
+        bind(arena, mappings, key_right, MDFR_CTRL, seek_whitespace_right);
+        bind(arena, mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, seek_whitespace_up_end_line);
+        bind(arena, mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_down_end_line);
+        bind(arena, mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
+        bind(arena, mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
         
-        bind(part, mappings, key_up,   MDFR_ALT, move_line_up);
-        bind(part, mappings, key_down, MDFR_ALT, move_line_down);
+        bind(arena, mappings, key_up,   MDFR_ALT, move_line_up);
+        bind(arena, mappings, key_down, MDFR_ALT, move_line_down);
         
-        bind(part, mappings, key_back, MDFR_CTRL, backspace_word);
-        bind(part, mappings, key_del,  MDFR_CTRL, delete_word);
-        bind(part, mappings, key_back, MDFR_ALT, snipe_token_or_word);
-        bind(part, mappings, key_del,  MDFR_ALT, snipe_token_or_word_right);
+        bind(arena, mappings, key_back, MDFR_CTRL, backspace_word);
+        bind(arena, mappings, key_del,  MDFR_CTRL, delete_word);
+        bind(arena, mappings, key_back, MDFR_ALT, snipe_token_or_word);
+        bind(arena, mappings, key_del,  MDFR_ALT, snipe_token_or_word_right);
         
-        bind(part, mappings, ' ', MDFR_CTRL, set_mark);
-        bind(part, mappings, 'a', MDFR_CTRL, replace_in_range);
-        bind(part, mappings, 'c', MDFR_CTRL, copy);
-        bind(part, mappings, 'd', MDFR_CTRL, delete_range);
-        bind(part, mappings, 'D', MDFR_CTRL, delete_line);
-        bind(part, mappings, 'e', MDFR_CTRL, center_view);
-        bind(part, mappings, 'E', MDFR_CTRL, left_adjust_view);
-        bind(part, mappings, 'f', MDFR_CTRL, search);
-        bind(part, mappings, 'F', MDFR_CTRL, list_all_locations);
-        bind(part, mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
-        bind(part, mappings, 'g', MDFR_CTRL, goto_line);
-        bind(part, mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
-        bind(part, mappings, 'j', MDFR_CTRL, snippet_lister);
-        bind(part, mappings, 'K', MDFR_CTRL, kill_buffer);
-        bind(part, mappings, 'L', MDFR_CTRL, duplicate_line);
-        bind(part, mappings, 'm', MDFR_CTRL, cursor_mark_swap);
-        bind(part, mappings, 'O', MDFR_CTRL, reopen);
-        bind(part, mappings, 'q', MDFR_CTRL, query_replace);
-        bind(part, mappings, 'Q', MDFR_CTRL, query_replace_identifier);
-        bind(part, mappings, 'q', MDFR_ALT , query_replace_selection);
-        bind(part, mappings, 'r', MDFR_CTRL, reverse_search);
-        bind(part, mappings, 's', MDFR_CTRL, save);
-        bind(part, mappings, 't', MDFR_CTRL, search_identifier);
-        bind(part, mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
-        bind(part, mappings, 'v', MDFR_CTRL, paste_and_indent);
-        bind(part, mappings, 'V', MDFR_CTRL, paste_next_and_indent);
-        bind(part, mappings, 'x', MDFR_CTRL, cut);
-        bind(part, mappings, 'y', MDFR_CTRL, redo);
-        bind(part, mappings, 'z', MDFR_CTRL, undo);
+        bind(arena, mappings, ' ', MDFR_CTRL, set_mark);
+        bind(arena, mappings, 'a', MDFR_CTRL, replace_in_range);
+        bind(arena, mappings, 'c', MDFR_CTRL, copy);
+        bind(arena, mappings, 'd', MDFR_CTRL, delete_range);
+        bind(arena, mappings, 'D', MDFR_CTRL, delete_line);
+        bind(arena, mappings, 'e', MDFR_CTRL, center_view);
+        bind(arena, mappings, 'E', MDFR_CTRL, left_adjust_view);
+        bind(arena, mappings, 'f', MDFR_CTRL, search);
+        bind(arena, mappings, 'F', MDFR_CTRL, list_all_locations);
+        bind(arena, mappings, 'F', MDFR_ALT , list_all_substring_locations_case_insensitive);
+        bind(arena, mappings, 'g', MDFR_CTRL, goto_line);
+        bind(arena, mappings, 'G', MDFR_CTRL, list_all_locations_of_selection);
+        bind(arena, mappings, 'j', MDFR_CTRL, snippet_lister);
+        bind(arena, mappings, 'K', MDFR_CTRL, kill_buffer);
+        bind(arena, mappings, 'L', MDFR_CTRL, duplicate_line);
+        bind(arena, mappings, 'm', MDFR_CTRL, cursor_mark_swap);
+        bind(arena, mappings, 'O', MDFR_CTRL, reopen);
+        bind(arena, mappings, 'q', MDFR_CTRL, query_replace);
+        bind(arena, mappings, 'Q', MDFR_CTRL, query_replace_identifier);
+        bind(arena, mappings, 'q', MDFR_ALT , query_replace_selection);
+        bind(arena, mappings, 'r', MDFR_CTRL, reverse_search);
+        bind(arena, mappings, 's', MDFR_CTRL, save);
+        bind(arena, mappings, 't', MDFR_CTRL, search_identifier);
+        bind(arena, mappings, 'T', MDFR_CTRL, list_all_locations_of_identifier);
+        bind(arena, mappings, 'v', MDFR_CTRL, paste_and_indent);
+        bind(arena, mappings, 'V', MDFR_CTRL, paste_next_and_indent);
+        bind(arena, mappings, 'x', MDFR_CTRL, cut);
+        bind(arena, mappings, 'y', MDFR_CTRL, redo);
+        bind(arena, mappings, 'z', MDFR_CTRL, undo);
         
-        bind(part, mappings, '1', MDFR_CTRL, view_buffer_other_panel);
-        bind(part, mappings, '2', MDFR_CTRL, swap_buffers_between_panels);
+        bind(arena, mappings, '1', MDFR_CTRL, view_buffer_other_panel);
+        bind(arena, mappings, '2', MDFR_CTRL, swap_buffers_between_panels);
         
-        bind(part, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-        bind(part, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
-        bind(part, mappings, '>', MDFR_CTRL, view_jump_list_with_lister);
-        bind(part, mappings, ' ', MDFR_SHIFT, write_character);
+        bind(arena, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+        bind(arena, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(arena, mappings, '>', MDFR_CTRL, view_jump_list_with_lister);
+        bind(arena, mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
         // NOTE(allen): CODE
-        begin_map(part, mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
+        begin_map(arena, mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
         
-        inherit_map(part, mappings, mapid_file);
+        inherit_map(arena, mappings, mapid_file);
         
-        bind(part, mappings, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
-        bind(part, mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
+        bind(arena, mappings, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
+        bind(arena, mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
         
-        bind(part, mappings, '\n', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
-        bind(part, mappings, '}', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, ')', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, ']', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, ';', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, '#', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, '\n', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
+        bind(arena, mappings, '}', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, ')', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, ']', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, ';', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, '#', MDFR_NONE, write_and_auto_tab);
         
-        bind(part, mappings, ';', MDFR_CTRL, comment_line_toggle);
+        bind(arena, mappings, ';', MDFR_CTRL, comment_line_toggle);
         
-        bind(part, mappings, '\t', MDFR_NONE, word_complete);
-        bind(part, mappings, '\t', MDFR_CTRL, auto_tab_range);
-        bind(part, mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
+        bind(arena, mappings, '\t', MDFR_NONE, word_complete);
+        bind(arena, mappings, '\t', MDFR_CTRL, auto_tab_range);
+        bind(arena, mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
         
-        bind(part, mappings, 'r', MDFR_ALT, write_block);
-        bind(part, mappings, 't', MDFR_ALT, write_todo);
-        bind(part, mappings, 'y', MDFR_ALT, write_note);
+        bind(arena, mappings, 'r', MDFR_ALT, write_block);
+        bind(arena, mappings, 't', MDFR_ALT, write_todo);
+        bind(arena, mappings, 'y', MDFR_ALT, write_note);
         
-        bind(part, mappings, 'D', MDFR_ALT, list_all_locations_of_type_definition);
-        bind(part, mappings, 'T', MDFR_ALT, list_all_locations_of_type_definition_of_identifier);
+        bind(arena, mappings, 'D', MDFR_ALT, list_all_locations_of_type_definition);
+        bind(arena, mappings, 'T', MDFR_ALT, list_all_locations_of_type_definition_of_identifier);
         
-        bind(part, mappings, '[', MDFR_CTRL, open_long_braces);
-        bind(part, mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
-        bind(part, mappings, '}', MDFR_CTRL, open_long_braces_break);
+        bind(arena, mappings, '[', MDFR_CTRL, open_long_braces);
+        bind(arena, mappings, '{', MDFR_CTRL, open_long_braces_semicolon);
+        bind(arena, mappings, '}', MDFR_CTRL, open_long_braces_break);
         
-        bind(part, mappings, '[', MDFR_ALT, select_surrounding_scope);
-        bind(part, mappings, ']', MDFR_ALT, select_prev_scope_absolute);
-        bind(part, mappings, '\'', MDFR_ALT, select_next_scope_absolute);
-        bind(part, mappings, '/', MDFR_ALT, place_in_scope);
-        bind(part, mappings, '-', MDFR_ALT, delete_current_scope);
-        bind(part, mappings, 'j', MDFR_ALT, scope_absorb_down);
+        bind(arena, mappings, '[', MDFR_ALT, select_surrounding_scope);
+        bind(arena, mappings, ']', MDFR_ALT, select_prev_scope_absolute);
+        bind(arena, mappings, '\'', MDFR_ALT, select_next_scope_absolute);
+        bind(arena, mappings, '/', MDFR_ALT, place_in_scope);
+        bind(arena, mappings, '-', MDFR_ALT, delete_current_scope);
+        bind(arena, mappings, 'j', MDFR_ALT, scope_absorb_down);
         
-        bind(part, mappings, 'i', MDFR_ALT, if0_off);
+        bind(arena, mappings, 'i', MDFR_ALT, if0_off);
         
-        bind(part, mappings, '1', MDFR_ALT, open_file_in_quotes);
-        bind(part, mappings, '2', MDFR_ALT, open_matching_file_cpp);
-        bind(part, mappings, '0', MDFR_CTRL, write_zero_struct);
+        bind(arena, mappings, '1', MDFR_ALT, open_file_in_quotes);
+        bind(arena, mappings, '2', MDFR_ALT, open_matching_file_cpp);
+        bind(arena, mappings, '0', MDFR_CTRL, write_zero_struct);
         
         end_map(mappings);
         
         // NOTE(allen): LISTER
-        begin_map(part, mappings, default_lister_ui_map,
+        begin_map(arena, mappings, default_lister_ui_map,
                   "These commands apply in 'lister mode' such as when you open a file.");
         
-        bind_vanilla_keys(part, mappings, MDFR_NONE, lister__write_character);
-        bind(part, mappings, key_esc, MDFR_NONE, lister__quit);
-        bind(part, mappings, '\n', MDFR_NONE, lister__activate);
-        bind(part, mappings, '\t', MDFR_NONE, lister__activate);
-        bind_all_modifiers(part, mappings, key_back, lister__backspace_text_field);
-        bind(part, mappings, key_up       , MDFR_NONE, lister__move_up);
-        bind(part, mappings, 'k'          , MDFR_ALT , lister__move_up);
-        bind(part, mappings, key_page_up  , MDFR_NONE, lister__move_up);
-        bind(part, mappings, key_down     , MDFR_NONE, lister__move_down);
-        bind(part, mappings, 'j'          , MDFR_ALT , lister__move_down);
-        bind(part, mappings, key_page_down, MDFR_NONE, lister__move_down);
-        bind(part, mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
-        bind(part, mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
-        bind(part, mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
-        bind(part, mappings, key_mouse_move, MDFR_NONE, lister__repaint);
-        bind(part, mappings, key_animate   , MDFR_NONE, lister__repaint);
+        bind_vanilla_keys(arena, mappings, MDFR_NONE, lister__write_character);
+        bind(arena, mappings, key_esc, MDFR_NONE, lister__quit);
+        bind(arena, mappings, '\n', MDFR_NONE, lister__activate);
+        bind(arena, mappings, '\t', MDFR_NONE, lister__activate);
+        bind_all_modifiers(arena, mappings, key_back, lister__backspace_text_field);
+        bind(arena, mappings, key_up       , MDFR_NONE, lister__move_up);
+        bind(arena, mappings, 'k'          , MDFR_ALT , lister__move_up);
+        bind(arena, mappings, key_page_up  , MDFR_NONE, lister__move_up);
+        bind(arena, mappings, key_down     , MDFR_NONE, lister__move_down);
+        bind(arena, mappings, 'j'          , MDFR_ALT , lister__move_down);
+        bind(arena, mappings, key_page_down, MDFR_NONE, lister__move_down);
+        bind(arena, mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
+        bind(arena, mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(arena, mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+        bind(arena, mappings, key_mouse_move, MDFR_NONE, lister__repaint);
+        bind(arena, mappings, key_animate   , MDFR_NONE, lister__repaint);
         
         end_map(mappings);
     }
     end_mapping(mappings);
     
-    begin_mapping(part, mappings, mac_default, "Default 4coder bindings on a Mac keyboard");
+    begin_mapping(arena, mappings, mac_default, "Default 4coder bindings on a Mac keyboard");
     {
         // NOTE(allen): GLOBAL
-        begin_map(part, mappings, mapid_global, "The following bindings apply in all situations.");
+        begin_map(arena, mappings, mapid_global, "The following bindings apply in all situations.");
         
-        bind(part, mappings, ',', MDFR_CMND, change_active_panel);
-        bind(part, mappings, '<', MDFR_CMND, change_active_panel_backwards);
+        bind(arena, mappings, ',', MDFR_CMND, change_active_panel);
+        bind(arena, mappings, '<', MDFR_CMND, change_active_panel_backwards);
         
-        bind(part, mappings, 'n', MDFR_CMND, interactive_new);
-        bind(part, mappings, 'o', MDFR_CMND, interactive_open_or_new);
-        bind(part, mappings, 'o', MDFR_CTRL, open_in_other);
-        bind(part, mappings, 'k', MDFR_CMND, interactive_kill_buffer);
-        bind(part, mappings, 'i', MDFR_CMND, interactive_switch_buffer);
-        bind(part, mappings, 'h', MDFR_CMND, project_go_to_root_directory);
-        bind(part, mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
+        bind(arena, mappings, 'n', MDFR_CMND, interactive_new);
+        bind(arena, mappings, 'o', MDFR_CMND, interactive_open_or_new);
+        bind(arena, mappings, 'o', MDFR_CTRL, open_in_other);
+        bind(arena, mappings, 'k', MDFR_CMND, interactive_kill_buffer);
+        bind(arena, mappings, 'i', MDFR_CMND, interactive_switch_buffer);
+        bind(arena, mappings, 'h', MDFR_CMND, project_go_to_root_directory);
+        bind(arena, mappings, 'S', MDFR_CMND, save_all_dirty_buffers);
         
-        bind(part, mappings, '.', MDFR_CTRL, change_to_build_panel);
-        bind(part, mappings, ',', MDFR_CTRL, close_build_panel);
-        bind(part, mappings, 'n', MDFR_CTRL, goto_next_jump_sticky);
-        bind(part, mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
-        bind(part, mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
-        bind(part, mappings, 'm', MDFR_CTRL, build_in_build_panel);
-        bind(part, mappings, 'b', MDFR_CTRL, toggle_filebar);
+        bind(arena, mappings, '.', MDFR_CTRL, change_to_build_panel);
+        bind(arena, mappings, ',', MDFR_CTRL, close_build_panel);
+        bind(arena, mappings, 'n', MDFR_CTRL, goto_next_jump_sticky);
+        bind(arena, mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
+        bind(arena, mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
+        bind(arena, mappings, 'm', MDFR_CTRL, build_in_build_panel);
+        bind(arena, mappings, 'b', MDFR_CTRL, toggle_filebar);
         
-        bind(part, mappings, 'z', MDFR_CTRL, execute_any_cli);
-        bind(part, mappings, 'Z', MDFR_CTRL, execute_previous_cli);
+        bind(arena, mappings, 'z', MDFR_CTRL, execute_any_cli);
+        bind(arena, mappings, 'Z', MDFR_CTRL, execute_previous_cli);
         
-        bind(part, mappings, 'x', MDFR_CTRL, command_lister);
-        bind(part, mappings, 'X', MDFR_CTRL, project_command_lister);
+        bind(arena, mappings, 'x', MDFR_CTRL, command_lister);
+        bind(arena, mappings, 'X', MDFR_CTRL, project_command_lister);
         
-        bind(part, mappings, 'I', MDFR_CMND, list_all_functions_all_buffers_lister);
-        bind(part, mappings, 'E', MDFR_CTRL, exit_4coder);
+        bind(arena, mappings, 'I', MDFR_CMND, list_all_functions_all_buffers_lister);
+        bind(arena, mappings, 'E', MDFR_CTRL, exit_4coder);
         
-        bind(part, mappings, key_f1, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f2, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f3, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f4, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f1, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f2, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f3, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f4, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_f5, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f6, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f7, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f8, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f5, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f6, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f7, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f8, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_f9, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f10, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f11, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f12, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f9, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f10, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f11, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f12, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_f13, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f14, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f15, MDFR_NONE, project_fkey_command);
-        bind(part, mappings, key_f16, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f13, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f14, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f15, MDFR_NONE, project_fkey_command);
+        bind(arena, mappings, key_f16, MDFR_NONE, project_fkey_command);
         
-        bind(part, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
-        bind(part, mappings, key_mouse_wheel, MDFR_CMND, mouse_wheel_change_face_size);
+        bind(arena, mappings, key_mouse_wheel, MDFR_NONE, mouse_wheel_scroll);
+        bind(arena, mappings, key_mouse_wheel, MDFR_CMND, mouse_wheel_change_face_size);
         
         end_map(mappings);
         
         // NOTE(allen): FILE
-        begin_map(part, mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
+        begin_map(arena, mappings, mapid_file, "The following bindings apply in general text files and most apply in code files, but some are overriden by other commands specific to code files.");
         
-        bind_vanilla_keys(part, mappings, MDFR_NONE, write_character);
-        bind_vanilla_keys(part, mappings, MDFR_ALT, write_character);
+        bind_vanilla_keys(arena, mappings, MDFR_NONE, write_character);
+        bind_vanilla_keys(arena, mappings, MDFR_ALT, write_character);
         
-        bind(part, mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
-        bind(part, mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
-        bind(part, mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
-        bind(part, mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
+        bind(arena, mappings, key_mouse_left, MDFR_NONE, click_set_cursor_and_mark);
+        bind(arena, mappings, key_click_activate_view, MDFR_NONE, click_set_cursor_and_mark);
+        bind(arena, mappings, key_mouse_left_release, MDFR_NONE, click_set_cursor);
+        bind(arena, mappings, key_mouse_move, MDFR_NONE, click_set_cursor_if_lbutton);
         
-        bind(part, mappings, key_del, MDFR_NONE, delete_char);
-        bind(part, mappings, key_del, MDFR_SHIFT, delete_char);
-        bind(part, mappings, key_back, MDFR_NONE, backspace_char);
-        bind(part, mappings, key_back, MDFR_SHIFT, backspace_char);
+        bind(arena, mappings, key_del, MDFR_NONE, delete_char);
+        bind(arena, mappings, key_del, MDFR_SHIFT, delete_char);
+        bind(arena, mappings, key_back, MDFR_NONE, backspace_char);
+        bind(arena, mappings, key_back, MDFR_SHIFT, backspace_char);
         
-        bind(part, mappings, key_up,    MDFR_NONE, move_up);
-        bind(part, mappings, key_down,  MDFR_NONE, move_down);
-        bind(part, mappings, key_left,  MDFR_NONE, move_left);
-        bind(part, mappings, key_right, MDFR_NONE, move_right);
-        bind(part, mappings, key_up,    MDFR_SHIFT, move_up);
-        bind(part, mappings, key_down,  MDFR_SHIFT, move_down);
-        bind(part, mappings, key_left,  MDFR_SHIFT, move_left);
-        bind(part, mappings, key_right, MDFR_SHIFT, move_right);
+        bind(arena, mappings, key_up,    MDFR_NONE, move_up);
+        bind(arena, mappings, key_down,  MDFR_NONE, move_down);
+        bind(arena, mappings, key_left,  MDFR_NONE, move_left);
+        bind(arena, mappings, key_right, MDFR_NONE, move_right);
+        bind(arena, mappings, key_up,    MDFR_SHIFT, move_up);
+        bind(arena, mappings, key_down,  MDFR_SHIFT, move_down);
+        bind(arena, mappings, key_left,  MDFR_SHIFT, move_left);
+        bind(arena, mappings, key_right, MDFR_SHIFT, move_right);
         
-        bind(part, mappings, key_end,       MDFR_NONE, seek_end_of_line);
-        bind(part, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
-        bind(part, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
-        bind(part, mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
-        bind(part, mappings, key_page_up,   MDFR_NONE, page_up);
-        bind(part, mappings, key_page_down, MDFR_NONE, page_down);
-        bind(part, mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
-        bind(part, mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
-        bind(part, mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
-        bind(part, mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
-        bind(part, mappings, key_page_up,   MDFR_SHIFT, page_up);
-        bind(part, mappings, key_page_down, MDFR_SHIFT, page_down);
+        bind(arena, mappings, key_end,       MDFR_NONE, seek_end_of_line);
+        bind(arena, mappings, key_home,      MDFR_NONE, seek_beginning_of_line);
+        bind(arena, mappings, key_page_up,   MDFR_CTRL, goto_beginning_of_file);
+        bind(arena, mappings, key_page_down, MDFR_CTRL, goto_end_of_file);
+        bind(arena, mappings, key_page_up,   MDFR_NONE, page_up);
+        bind(arena, mappings, key_page_down, MDFR_NONE, page_down);
+        bind(arena, mappings, key_end,       MDFR_SHIFT, seek_end_of_line);
+        bind(arena, mappings, key_home,      MDFR_SHIFT, seek_beginning_of_line);
+        bind(arena, mappings, key_page_up,   MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
+        bind(arena, mappings, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
+        bind(arena, mappings, key_page_up,   MDFR_SHIFT, page_up);
+        bind(arena, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(part, mappings, key_up,    MDFR_CMND, seek_whitespace_up_end_line);
-        bind(part, mappings, key_down,  MDFR_CMND, seek_whitespace_down_end_line);
-        bind(part, mappings, key_left,  MDFR_CMND, seek_whitespace_left);
-        bind(part, mappings, key_right, MDFR_CMND, seek_whitespace_right);
-        bind(part, mappings, key_up,    MDFR_CMND|MDFR_SHIFT, seek_whitespace_up_end_line);
-        bind(part, mappings, key_down,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_down_end_line);
-        bind(part, mappings, key_left,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
-        bind(part, mappings, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
+        bind(arena, mappings, key_up,    MDFR_CMND, seek_whitespace_up_end_line);
+        bind(arena, mappings, key_down,  MDFR_CMND, seek_whitespace_down_end_line);
+        bind(arena, mappings, key_left,  MDFR_CMND, seek_whitespace_left);
+        bind(arena, mappings, key_right, MDFR_CMND, seek_whitespace_right);
+        bind(arena, mappings, key_up,    MDFR_CMND|MDFR_SHIFT, seek_whitespace_up_end_line);
+        bind(arena, mappings, key_down,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_down_end_line);
+        bind(arena, mappings, key_left,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
+        bind(arena, mappings, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
         
-        bind(part, mappings, key_up,   MDFR_ALT, move_line_up);
-        bind(part, mappings, key_down, MDFR_ALT, move_line_down);
+        bind(arena, mappings, key_up,   MDFR_ALT, move_line_up);
+        bind(arena, mappings, key_down, MDFR_ALT, move_line_down);
         
-        bind(part, mappings, key_back, MDFR_CMND, backspace_word);
-        bind(part, mappings, key_del, MDFR_CMND, delete_word);
-        bind(part, mappings, key_back, MDFR_CTRL, snipe_token_or_word);
-        bind(part, mappings, key_del, MDFR_CTRL, snipe_token_or_word_right);
+        bind(arena, mappings, key_back, MDFR_CMND, backspace_word);
+        bind(arena, mappings, key_del, MDFR_CMND, delete_word);
+        bind(arena, mappings, key_back, MDFR_CTRL, snipe_token_or_word);
+        bind(arena, mappings, key_del, MDFR_CTRL, snipe_token_or_word_right);
         
-        bind(part, mappings, '/', MDFR_CMND, set_mark);
-        bind(part, mappings, 'a', MDFR_CMND, replace_in_range);
-        bind(part, mappings, 'c', MDFR_CMND, copy);
-        bind(part, mappings, 'd', MDFR_CMND, delete_range);
-        bind(part, mappings, 'D', MDFR_CMND, delete_line);
-        bind(part, mappings, 'e', MDFR_CMND, center_view);
-        bind(part, mappings, 'E', MDFR_CMND, left_adjust_view);
-        bind(part, mappings, 'f', MDFR_CMND, search);
-        bind(part, mappings, 'F', MDFR_CMND, list_all_locations);
-        bind(part, mappings, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
-        bind(part, mappings, 'g', MDFR_CMND, goto_line);
-        bind(part, mappings, 'G', MDFR_CMND, list_all_locations_of_selection);
-        bind(part, mappings, 'K', MDFR_CMND, kill_buffer);
-        bind(part, mappings, 'L', MDFR_CMND, duplicate_line);
-        bind(part, mappings, 'm', MDFR_CMND, cursor_mark_swap);
-        bind(part, mappings, 'O', MDFR_CMND, reopen);
-        bind(part, mappings, 'q', MDFR_CMND, query_replace);
-        bind(part, mappings, 'Q', MDFR_CMND, query_replace_identifier);
-        bind(part, mappings, 'r', MDFR_CMND, reverse_search);
-        bind(part, mappings, 's', MDFR_CMND, save);
-        bind(part, mappings, 't', MDFR_CMND, search_identifier);
-        bind(part, mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
-        bind(part, mappings, 'v', MDFR_CMND, paste_and_indent);
-        bind(part, mappings, 'V', MDFR_CMND, paste_next_and_indent);
-        bind(part, mappings, 'x', MDFR_CMND, cut);
-        bind(part, mappings, 'y', MDFR_CMND, redo);
-        bind(part, mappings, 'z', MDFR_CMND, undo);
+        bind(arena, mappings, '/', MDFR_CMND, set_mark);
+        bind(arena, mappings, 'a', MDFR_CMND, replace_in_range);
+        bind(arena, mappings, 'c', MDFR_CMND, copy);
+        bind(arena, mappings, 'd', MDFR_CMND, delete_range);
+        bind(arena, mappings, 'D', MDFR_CMND, delete_line);
+        bind(arena, mappings, 'e', MDFR_CMND, center_view);
+        bind(arena, mappings, 'E', MDFR_CMND, left_adjust_view);
+        bind(arena, mappings, 'f', MDFR_CMND, search);
+        bind(arena, mappings, 'F', MDFR_CMND, list_all_locations);
+        bind(arena, mappings, 'F', MDFR_CTRL, list_all_substring_locations_case_insensitive);
+        bind(arena, mappings, 'g', MDFR_CMND, goto_line);
+        bind(arena, mappings, 'G', MDFR_CMND, list_all_locations_of_selection);
+        bind(arena, mappings, 'K', MDFR_CMND, kill_buffer);
+        bind(arena, mappings, 'L', MDFR_CMND, duplicate_line);
+        bind(arena, mappings, 'm', MDFR_CMND, cursor_mark_swap);
+        bind(arena, mappings, 'O', MDFR_CMND, reopen);
+        bind(arena, mappings, 'q', MDFR_CMND, query_replace);
+        bind(arena, mappings, 'Q', MDFR_CMND, query_replace_identifier);
+        bind(arena, mappings, 'r', MDFR_CMND, reverse_search);
+        bind(arena, mappings, 's', MDFR_CMND, save);
+        bind(arena, mappings, 't', MDFR_CMND, search_identifier);
+        bind(arena, mappings, 'T', MDFR_CMND, list_all_locations_of_identifier);
+        bind(arena, mappings, 'v', MDFR_CMND, paste_and_indent);
+        bind(arena, mappings, 'V', MDFR_CMND, paste_next_and_indent);
+        bind(arena, mappings, 'x', MDFR_CMND, cut);
+        bind(arena, mappings, 'y', MDFR_CMND, redo);
+        bind(arena, mappings, 'z', MDFR_CMND, undo);
         
-        bind(part, mappings, '1', MDFR_CMND, view_buffer_other_panel);
-        bind(part, mappings, '2', MDFR_CMND, swap_buffers_between_panels);
+        bind(arena, mappings, '1', MDFR_CMND, view_buffer_other_panel);
+        bind(arena, mappings, '2', MDFR_CMND, swap_buffers_between_panels);
         
-        bind(part, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-        bind(part, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
-        bind(part, mappings, '>', MDFR_CMND, view_jump_list_with_lister);
-        bind(part, mappings, ' ', MDFR_SHIFT, write_character);
+        bind(arena, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
+        bind(arena, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(arena, mappings, '>', MDFR_CMND, view_jump_list_with_lister);
+        bind(arena, mappings, ' ', MDFR_SHIFT, write_character);
         
         end_map(mappings);
         
         // NOTE(allen): CODE
-        begin_map(part, mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
+        begin_map(arena, mappings, default_code_map, "The following commands only apply in files where the lexer (syntax highlighting) is turned on.");
         
-        inherit_map(part, mappings, mapid_file);
+        inherit_map(arena, mappings, mapid_file);
         
-        bind(part, mappings, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
-        bind(part, mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
+        bind(arena, mappings, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
+        bind(arena, mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
         
-        bind(part, mappings, '\n', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
-        bind(part, mappings, '}', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, ')', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, ']', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, ';', MDFR_NONE, write_and_auto_tab);
-        bind(part, mappings, '#', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, '\n', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
+        bind(arena, mappings, '}', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, ')', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, ']', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, ';', MDFR_NONE, write_and_auto_tab);
+        bind(arena, mappings, '#', MDFR_NONE, write_and_auto_tab);
         
-        bind(part, mappings, ';', MDFR_CTRL, comment_line_toggle);
+        bind(arena, mappings, ';', MDFR_CTRL, comment_line_toggle);
         
-        bind(part, mappings, '\t', MDFR_NONE, word_complete);
-        bind(part, mappings, '\t', MDFR_CMND, auto_tab_range);
-        bind(part, mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
+        bind(arena, mappings, '\t', MDFR_NONE, word_complete);
+        bind(arena, mappings, '\t', MDFR_CMND, auto_tab_range);
+        bind(arena, mappings, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
         
-        bind(part, mappings, 'r', MDFR_CTRL, write_block);
-        bind(part, mappings, 't', MDFR_CTRL, write_todo);
-        bind(part, mappings, 'y', MDFR_CTRL, write_note);
+        bind(arena, mappings, 'r', MDFR_CTRL, write_block);
+        bind(arena, mappings, 't', MDFR_CTRL, write_todo);
+        bind(arena, mappings, 'y', MDFR_CTRL, write_note);
         
-        bind(part, mappings, 'D', MDFR_CTRL, list_all_locations_of_type_definition);
-        bind(part, mappings, 'T', MDFR_CTRL, list_all_locations_of_type_definition_of_identifier);
+        bind(arena, mappings, 'D', MDFR_CTRL, list_all_locations_of_type_definition);
+        bind(arena, mappings, 'T', MDFR_CTRL, list_all_locations_of_type_definition_of_identifier);
         
-        bind(part, mappings, '[', MDFR_CMND, open_long_braces);
-        bind(part, mappings, '{', MDFR_CMND, open_long_braces_semicolon);
-        bind(part, mappings, '}', MDFR_CMND, open_long_braces_break);
+        bind(arena, mappings, '[', MDFR_CMND, open_long_braces);
+        bind(arena, mappings, '{', MDFR_CMND, open_long_braces_semicolon);
+        bind(arena, mappings, '}', MDFR_CMND, open_long_braces_break);
         
-        bind(part, mappings, '[', MDFR_CTRL, select_surrounding_scope);
-        bind(part, mappings, ']', MDFR_CTRL, select_prev_scope_absolute);
-        bind(part, mappings, '\'', MDFR_CTRL, select_next_scope_absolute);
-        bind(part, mappings, '/', MDFR_CTRL, place_in_scope);
-        bind(part, mappings, '-', MDFR_CTRL, delete_current_scope);
-        bind(part, mappings, 'j', MDFR_CTRL, scope_absorb_down);
+        bind(arena, mappings, '[', MDFR_CTRL, select_surrounding_scope);
+        bind(arena, mappings, ']', MDFR_CTRL, select_prev_scope_absolute);
+        bind(arena, mappings, '\'', MDFR_CTRL, select_next_scope_absolute);
+        bind(arena, mappings, '/', MDFR_CTRL, place_in_scope);
+        bind(arena, mappings, '-', MDFR_CTRL, delete_current_scope);
+        bind(arena, mappings, 'j', MDFR_CTRL, scope_absorb_down);
         
-        bind(part, mappings, 'i', MDFR_CTRL, if0_off);
+        bind(arena, mappings, 'i', MDFR_CTRL, if0_off);
         
-        bind(part, mappings, '1', MDFR_CTRL, open_file_in_quotes);
-        bind(part, mappings, '2', MDFR_CTRL, open_matching_file_cpp);
-        bind(part, mappings, '0', MDFR_CMND, write_zero_struct);
+        bind(arena, mappings, '1', MDFR_CTRL, open_file_in_quotes);
+        bind(arena, mappings, '2', MDFR_CTRL, open_matching_file_cpp);
+        bind(arena, mappings, '0', MDFR_CMND, write_zero_struct);
         
         end_map(mappings);
         
         // NOTE(allen): LISTER
-        begin_map(part, mappings, default_lister_ui_map,
+        begin_map(arena, mappings, default_lister_ui_map,
                   "These commands apply in 'lister mode' such as when you open a file.");
         
-        bind_vanilla_keys(part, mappings, MDFR_NONE, lister__write_character);
-        bind(part, mappings, key_esc, MDFR_NONE, lister__quit);
-        bind(part, mappings, '\n', MDFR_NONE, lister__activate);
-        bind(part, mappings, '\t', MDFR_NONE, lister__activate);
-        bind_all_modifiers(part, mappings, key_back, lister__backspace_text_field);
-        bind(part, mappings, key_up       , MDFR_NONE, lister__move_up);
-        bind(part, mappings, key_page_up  , MDFR_NONE, lister__move_up);
-        bind(part, mappings, key_down     , MDFR_NONE, lister__move_down);
-        bind(part, mappings, key_page_down, MDFR_NONE, lister__move_down);
-        bind(part, mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
-        bind(part, mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
-        bind(part, mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
-        bind(part, mappings, key_mouse_move, MDFR_NONE, lister__repaint);
-        bind(part, mappings, key_animate   , MDFR_NONE, lister__repaint);
+        bind_vanilla_keys(arena, mappings, MDFR_NONE, lister__write_character);
+        bind(arena, mappings, key_esc, MDFR_NONE, lister__quit);
+        bind(arena, mappings, '\n', MDFR_NONE, lister__activate);
+        bind(arena, mappings, '\t', MDFR_NONE, lister__activate);
+        bind_all_modifiers(arena, mappings, key_back, lister__backspace_text_field);
+        bind(arena, mappings, key_up       , MDFR_NONE, lister__move_up);
+        bind(arena, mappings, key_page_up  , MDFR_NONE, lister__move_up);
+        bind(arena, mappings, key_down     , MDFR_NONE, lister__move_down);
+        bind(arena, mappings, key_page_down, MDFR_NONE, lister__move_down);
+        bind(arena, mappings, key_mouse_wheel       , MDFR_NONE, lister__wheel_scroll);
+        bind(arena, mappings, key_mouse_left        , MDFR_NONE, lister__mouse_press);
+        bind(arena, mappings, key_mouse_left_release, MDFR_NONE, lister__mouse_release);
+        bind(arena, mappings, key_mouse_move, MDFR_NONE, lister__repaint);
+        bind(arena, mappings, key_animate   , MDFR_NONE, lister__repaint);
         
         end_map(mappings);
     }
@@ -888,50 +905,51 @@ generate_remapping_code_and_data(Partition *part){
                 for (Key_Bind *bind = sub_map->first_key_bind;
                      bind != 0;
                      bind = bind->next){
-                    char mdfr_str[256];
-                    String m = make_fixed_width_string(mdfr_str);
+                    Temp_Memory bind_temp = begin_temp(arena);
+                    
+                    List_String_Const_char mdfr_list = {};
                     b32 has_base = false;
                     
                     if (bind->modifiers & MDFR_CTRL){
                         if (has_base){
-                            append(&m, "|");
+                            string_list_push_lit(arena, &mdfr_list, "|");
                         }
-                        append(&m, "MDFR_CTRL");
+                        string_list_push_lit(arena, &mdfr_list, "MDFR_CTRL");
                         has_base = true;
                     }
                     if (bind->modifiers & MDFR_ALT){
                         if (has_base){
-                            append(&m, "|");
+                            string_list_push_lit(arena, &mdfr_list, "|");
                         }
-                        append(&m, "MDFR_ALT");
+                        string_list_push_lit(arena, &mdfr_list, "MDFR_ALT");
                         has_base = true;
                     }
                     if (bind->modifiers & MDFR_CMND){
                         if (has_base){
-                            append(&m, "|");
+                            string_list_push_lit(arena, &mdfr_list, "|");
                         }
-                        append(&m, "MDFR_CMND");
+                        string_list_push_lit(arena, &mdfr_list, "MDFR_CMND");
                         has_base = true;
                     }
                     if (bind->modifiers & MDFR_SHIFT){
                         if (has_base){
-                            append(&m, "|");
+                            string_list_push_lit(arena, &mdfr_list, "|");
                         }
-                        append(&m, "MDFR_SHIFT");
+                        string_list_push_lit(arena, &mdfr_list, "MDFR_SHIFT");
                         has_base = true;
                     }
                     if (bind->modifiers == 0){
-                        append(&m, "MDFR_NONE");
+                        string_list_push_lit(arena, &mdfr_list, "MDFR_NONE");
                         has_base = true;
                     }
-                    terminate_with_null(&m);
+                    String_Const_char mdfr = string_list_flatten(arena, mdfr_list, StringFill_NullTerminate);
                     
                     if (bind->vanilla){
                         if (bind->modifiers == 0){
                             fprintf(out, "bind_vanilla_keys(context, %s);\n", bind->command);
                         }
                         else{
-                            fprintf(out, "bind_vanilla_keys(context, %s, %s);\n", mdfr_str, bind->command);
+                            fprintf(out, "bind_vanilla_keys(context, %s, %s);\n", mdfr.str, bind->command);
                         }
                     }
                     else{
@@ -961,8 +979,10 @@ generate_remapping_code_and_data(Partition *part){
                             }
                         }
                         
-                        fprintf(out, "bind(context, %s, %s, %s);\n", key_str, mdfr_str, bind->command);
+                        fprintf(out, "bind(context, %s, %s, %s);\n", key_str, mdfr.str, bind->command);
                     }
+                    
+                    end_temp(bind_temp);
                 }
                 
                 fprintf(out, "end_map(context);\n");
@@ -1071,16 +1091,16 @@ generate_remapping_code_and_data(Partition *part){
         fclose(out);
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char **argv){
     META_BEGIN();
-    Partition part = fm_init_system();
-    generate_custom_headers(&part);
-    generate_remapping_code_and_data(&part);
+    Arena arena = fm_init_system();
+    generate_custom_headers(&arena);
+    generate_remapping_code_and_data(&arena);
     META_FINISH();
 }
 

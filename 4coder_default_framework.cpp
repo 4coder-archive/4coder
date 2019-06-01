@@ -11,24 +11,25 @@ unlock_jump_buffer(void){
 }
 
 static void
-lock_jump_buffer(String name){
-    if (name.size < locked_buffer.memory_size){
-        copy(&locked_buffer, name);
+lock_jump_buffer(String_Const_u8 name){
+    if (name.size < sizeof(locked_buffer_space)){
+        block_copy(locked_buffer_space, name.str, name.size);
+        locked_buffer = SCu8(locked_buffer_space, name.size);
     }
 }
 
 static void
 lock_jump_buffer(char *name, i32 size){
-    lock_jump_buffer(make_string(name, size));
+    lock_jump_buffer(SCu8(name, size));
 }
 
 static void
 lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
     Arena *scratch = context_get_arena(app);
-    Temp_Memory_Arena temp = begin_temp_memory(scratch);
-    String buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
+    Temp_Memory temp = begin_temp(scratch);
+    String_Const_u8 buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
     lock_jump_buffer(buffer_name);
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 static View_ID
@@ -63,13 +64,15 @@ new_view_settings(Application_Links *app, View_ID view){
 
 static void
 view_set_passive(Application_Links *app, View_ID view_id, b32 value){
-    Managed_Scope scope = view_get_managed_scope(app, view_id);
+    Managed_Scope scope = 0;
+    view_get_managed_scope(app, view_id, &scope);
     managed_variable_set(app, scope, view_is_passive_loc, (u64)value);
 }
 
 static b32
 view_get_is_passive(Application_Links *app, View_ID view_id){
-    Managed_Scope scope = view_get_managed_scope(app, view_id);
+    Managed_Scope scope = 0;
+    view_get_managed_scope(app, view_id, &scope);
     u64 is_passive = 0;
     managed_variable_get(app, scope, view_is_passive_loc, &is_passive);
     return(is_passive != 0);
@@ -149,7 +152,7 @@ static void
 view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
     if (count > 0){
         Arena *arena = context_get_arena(app);
-        Temp_Memory_Arena temp = begin_temp_memory(arena);
+        Temp_Memory temp = begin_temp(arena);
         
         struct View_Node{
             View_Node *next;
@@ -194,7 +197,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
             }
         }
         
-        end_temp_memory(temp);
+        end_temp(temp);
     }
 }
 
@@ -251,7 +254,7 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 // NOTE(allen): Credits to nj/FlyingSolomon for authoring the original version of this helper.
 
 static Buffer_ID
-create_or_switch_to_buffer_by_name(Application_Links *app, String name_string, View_ID default_target_view){
+create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Const_u8 name_string, View_ID default_target_view){
     Buffer_ID search_buffer = 0;
     get_buffer_by_name(app, name_string, AccessAll, &search_buffer);
     if (search_buffer != 0){
@@ -273,7 +276,7 @@ create_or_switch_to_buffer_by_name(Application_Links *app, String name_string, V
         buffer_get_size(app, search_buffer, &buffer_size);
         
         buffer_send_end_signal(app, search_buffer);
-        buffer_replace_range(app, search_buffer, make_range(0, buffer_size), make_lit_string(""));
+        buffer_replace_range(app, search_buffer, make_range(0, buffer_size), string_u8_litexpr(""));
     }
     else{
         create_buffer(app, name_string, BufferCreate_AlwaysNew, &search_buffer);
@@ -361,9 +364,10 @@ CUSTOM_COMMAND_SIG(remap_interactive)
 CUSTOM_DOC("Switch to a named key binding map.")
 {
     Query_Bar bar = {};
-    char space[1024];
-    bar.prompt = make_lit_string("Map Name: ");
-    bar.string = make_fixed_width_string(space);
+    u8 space[1024];
+    bar.prompt = string_u8_litexpr("Map Name: ");
+    bar.string = SCu8(space, (umem)0);
+    bar.string_capacity = sizeof(space);
     if (!query_user_string(app, &bar)) return;
     change_mapping(app, bar.string);
 }
@@ -372,28 +376,26 @@ CUSTOM_DOC("Switch to a named key binding map.")
 
 static void
 default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count, i32 override_font_size, b32 override_hinting){
-    i32 part_size = (32 << 20);
-    void *part_mem = memory_allocate(app, part_size);
-    global_part = make_part(part_mem, part_size);
-    
     i32 heap_size = (4 << 20);
     void *heap_mem = memory_allocate(app, heap_size);
     heap_init(&global_heap);
     heap_extend(&global_heap, heap_mem, heap_size);
     
-    static char message[] =
-        "Welcome to " VERSION "\n"
-        "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n"
-        "Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n"
-        "Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n"
-        "The change log can be found in CHANGES.txt\n"
-        "\n";
-    print_message(app, message, sizeof(message) - 1);
+#define M \
+    "Welcome to " VERSION "\n" \
+    "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n" \
+    "Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n" \
+    "Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n" \
+    "The change log can be found in CHANGES.txt\n" \
+    "\n"
+    print_message(app, string_u8_litexpr(M));
+#undef M
     
 #if 0
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
 #endif
-    load_config_and_apply(app, &global_part, &global_config, override_font_size, override_hinting);
+    global_config_arena = make_arena_app_links(app);
+    load_config_and_apply(app, &global_config_arena, &global_config, override_font_size, override_hinting);
     
     view_rewrite_loc         = managed_variable_create_or_get_id(app, "DEFAULT.rewrite"       , 0);
     view_next_rewrite_loc    = managed_variable_create_or_get_id(app, "DEFAULT.next_rewrite"  , 0);
@@ -403,23 +405,20 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     view_ui_data             = managed_variable_create_or_get_id(app, "DEFAULT.ui_data"       , 0);
     
     // open command line files
-    Temp_Memory temp = begin_temp_memory(&global_part);
-    char *space = push_array(&global_part, char, (32 << 10));
-    String file_name = make_string_cap(space, 0, (32 << 10));
-    i32 hot_directory_length = 0;
-    if (get_hot_directory(app, &file_name, &hot_directory_length)){
-        for (i32 i = 0; i < file_count; i += 1){
-            String input_name = make_string_slowly(command_line_files[i]);
-            file_name.size = hot_directory_length;
-            append(&file_name, input_name);
-            Buffer_ID ignore = 0;
-            if (!create_buffer(app, file_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile, &ignore)){
-                create_buffer(app, input_name, 0, &ignore);
-            }
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
+    String_Const_u8 hot_directory = push_hot_directory(app, scratch);
+    for (i32 i = 0; i < file_count; i += 1){
+        Temp_Memory temp2 = begin_temp(scratch);
+        String_Const_u8 input_name = SCu8(command_line_files[i]);
+        String_Const_u8 file_name = string_u8_pushf(scratch, "%.*s/%.*s", string_expand(hot_directory), string_expand(input_name));
+        Buffer_ID ignore = 0;
+        if (!create_buffer(app, file_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile, &ignore)){
+            create_buffer(app, input_name, 0, &ignore);
         }
+        end_temp(temp2);
     }
-    
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 static void
@@ -461,23 +460,21 @@ default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier lef
 }
 
 static void
-default_4coder_side_by_side_panels(Application_Links *app, char **command_line_files, i32 file_count){
-    Buffer_Identifier left = buffer_identifier(literal("*scratch*"));
-    Buffer_Identifier right = buffer_identifier(literal("*messages*"));
-    
+default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier left, Buffer_Identifier right, char **command_line_files, i32 file_count){
     if (file_count > 0){
-        char *left_name = command_line_files[0];
-        i32 left_len = str_size(left_name);
-        left = buffer_identifier(left_name, left_len);
-        
+        left = buffer_identifier(SCu8(command_line_files[0]));
         if (file_count > 1){
-            char *right_name = command_line_files[1];
-            i32 right_len = str_size(right_name);
-            right = buffer_identifier(right_name, right_len);
+            right = buffer_identifier(SCu8(command_line_files[1]));
         }
     }
-    
     default_4coder_side_by_side_panels(app, left, right);
+}
+
+static void
+default_4coder_side_by_side_panels(Application_Links *app, char **command_line_files, i32 file_count){
+    Buffer_Identifier left = buffer_identifier(string_u8_litexpr("*scratch*"));
+    Buffer_Identifier right = buffer_identifier(string_u8_litexpr("*messages*"));
+    default_4coder_side_by_side_panels(app, left, right, command_line_files, file_count);
 }
 
 static void
@@ -496,14 +493,10 @@ default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
 
 static void
 default_4coder_one_panel(Application_Links *app, char **command_line_files, i32 file_count){
-    Buffer_Identifier buffer = buffer_identifier(literal("*messages*"));
-    
+    Buffer_Identifier buffer = buffer_identifier(string_u8_litexpr("*messages*"));
     if (file_count > 0){
-        char *name = command_line_files[0];
-        i32 len = str_size(name);
-        buffer = buffer_identifier(name, len);
+        buffer = buffer_identifier(SCu8(command_line_files[0]));
     }
-    
     default_4coder_one_panel(app, buffer);
 }
 

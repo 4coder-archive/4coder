@@ -12,6 +12,8 @@
 #if !defined(FRED_PARSE_CONTEXT_H)
 #define FRED_PARSE_CONTEXT_H
 
+// TODO(allen): this needs a rewrite
+
 struct Stored_Parse_Context{
     umem memsize;
     u64 *kw_keywords;
@@ -33,7 +35,7 @@ struct Parse_Context_Memory{
     u32 parse_context_counter;
     u32 parse_context_max;
     
-    Stored_Parse_Context_Slot free_sentinel;
+    Stored_Parse_Context_Slot *free_list;
 };
 
 struct Parse_Context{

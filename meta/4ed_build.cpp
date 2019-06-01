@@ -11,12 +11,14 @@
 
 //#define FM_PRINT_COMMANDS
 
-#include "../4ed_defines.h"
 #include "../4coder_base_types.h"
 # include "../4coder_lib/4coder_arena.h"
 # include "../4coder_lib/4coder_arena.cpp"
+
+#if 0
 # define FSTRING_IMPLEMENTATION
 # include "../4coder_lib/4coder_string.h"
+#endif
 
 #define FTECH_FILE_MOVING_IMPLEMENTATION
 #include "4ed_file_moving.h"
@@ -55,19 +57,19 @@ char *compiler_names[] = {
     "gcc",
 };
 
-#if defined(IS_WINDOWS)
+#if OS_WINDOWS
 # define This_OS Platform_Windows
-#elif defined(IS_LINUX)
+#elif OS_LINUX
 # define This_OS Platform_Linux
-#elif defined(IS_MAC)
+#elif OS_MAC
 # define This_OS Platform_Mac
 #else
 # error This platform is not enumerated.
 #endif
 
-#if defined(IS_CL)
+#if COMPILER_CL
 # define This_Compiler Compiler_CL
-#elif defined(IS_GCC)
+#elif COMPILER_GCC
 # define This_Compiler Compiler_GCC
 #else
 # error This compilers is not enumerated.
@@ -165,20 +167,20 @@ enum{
 };
 
 internal char**
-get_defines_from_flags(Partition *part, u32 flags){
+get_defines_from_flags(Arena *arena, u32 flags){
     char **result = 0;
-    if (flags & KEEP_ASSERT){
-        result = fm_list(part, fm_list_one_item(part, "FRED_KEEP_ASSERT"), result);
+    if (HasFlag(flags, KEEP_ASSERT)){
+        result = fm_list(arena, fm_list_one_item(arena, "FRED_KEEP_ASSERT"), result);
     }
-    if (flags & INTERNAL){
-        result = fm_list(part, fm_list_one_item(part, "FRED_INTERNAL"), result);
+    if (HasFlag(flags, INTERNAL)){
+        result = fm_list(arena, fm_list_one_item(arena, "FRED_INTERNAL"), result);
     }
-    if (flags & SUPER){
-        result = fm_list(part, fm_list_one_item(part, "FRED_SUPER"), result);
+    if (HasFlag(flags, SUPER)){
+        result = fm_list(arena, fm_list_one_item(arena, "FRED_SUPER"), result);
     }
-    if (flags & LOG){
+    if (HasFlag(flags, LOG)){
         char *log_defines[] = { "USE_LOG", "USE_LOGF", 0};
-        result = fm_list(part, log_defines, result);
+        result = fm_list(arena, log_defines, result);
     }
     return(result);
 }
@@ -187,12 +189,12 @@ get_defines_from_flags(Partition *part, u32 flags){
 // build implementation: cl
 //
 
-#if defined(IS_CL)
+#if COMPILER_CL
 
 #define CL_OPTS                                  \
 "-W4 -wd4310 -wd4100 -wd4201 -wd4505 -wd4996 "   \
 "-wd4127 -wd4510 -wd4512 -wd4610 -wd4390 "       \
-"-wd4611 -WX -GR- -EHa- -nologo -FC"
+"-wd4611 -wd4189 -WX -GR- -EHa- -nologo -FC"
 
 #define CL_LIBS_X64                              \
 "user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib "   \
@@ -205,7 +207,7 @@ FOREIGN_WIN"\\x86\\freetype.lib"
 #define CL_ICON "..\\4coder-non-source\\res\\icon.res"
 
 internal void
-build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
+build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Temp_Dir temp = fm_pushdir(out_path);
     
     Build_Line line;
@@ -224,13 +226,13 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     switch (arch){
         case Arch_X64: fm_add_to_line(line, "-DFTECH_64_BIT"); break;
         case Arch_X86: fm_add_to_line(line, "-DFTECH_32_BIT"); break;
-        default: InvalidCodePath;
+        default: InvalidPath;
     }
     
     fm_add_to_line(line, "-I%s", code_path);
     if (inc_folders != 0){
         for (u32 i = 0; inc_folders[i] != 0; ++i){
-            char *str = fm_str(part, code_path, "/", inc_folders[i]);
+            char *str = fm_str(arena, code_path, "/", inc_folders[i]);
             fm_add_to_line(line, "-I%s", str);
         }
     }
@@ -239,7 +241,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
         switch (arch){
             case Arch_X64: fm_add_to_line(line, CL_LIBS_X64); break;
             case Arch_X86: fm_add_to_line(line, CL_LIBS_X86); break;
-            default: InvalidCodePath;
+            default: InvalidPath;
         }
     }
     
@@ -262,7 +264,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     
     if (defines != 0){
         for (u32 i = 0; defines[i] != 0; ++i){
-            char *define_flag = fm_str(part, "-D", defines[i]);
+            char *define_flag = fm_str(arena, "-D", defines[i]);
             fm_add_to_line(line, "%s", define_flag);
         }
     }
@@ -277,7 +279,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     switch (arch){
         case Arch_X64: fm_add_to_line(line, "-MACHINE:X64"); break;
         case Arch_X86: fm_add_to_line(line, "-MACHINE:X86"); break;
-        default: InvalidCodePath;
+        default: InvalidPath;
     }
     
     if (flags & DEBUG_INFO){
@@ -288,7 +290,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
         Assert(exports != 0);
         fm_add_to_line(line, "-OPT:REF");
         for (u32 i = 0; exports[i] != 0; ++i){
-            char *str = fm_str(part, "-EXPORT:", exports[i]);
+            char *str = fm_str(arena, "-EXPORT:", exports[i]);
             fm_add_to_line(line, "%s", str);
         }
     }
@@ -306,9 +308,9 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
 // build implementation: gcc
 //
 
-#elif defined(IS_GCC)
+#elif COMPILER_GCC
 
-#if defined(IS_LINUX)
+#if OS_LINUX
 
 # define GCC_OPTS                     \
 "-Wno-write-strings "                 \
@@ -323,7 +325,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
 #define GCC_LIBS_X64 GCC_LIBS_COMMON
 #define GCC_LIBS_X86 GCC_LIBS_COMMON
 
-#elif defined(IS_MAC)
+#elif OS_MAC
 
 # define GCC_OPTS                                   \
 "-Wno-write-strings -Wno-deprecated-declarations "  \
@@ -421,11 +423,9 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
 #endif
 
 internal void
-build(Partition *part, u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
-    char *code_files[2];
-    code_files[0] = code_file;
-    code_files[1] = 0;
-    build(part, flags, arch, code_path, code_files, out_path, out_file, defines, exports, inc_folders);
+build(Arena *arena, u32 flags, u32 arch, char *code_path, char *code_file, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
+    char **code_files = fm_list_one_item(arena, code_file);
+    build(arena, flags, arch, code_path, code_files, out_path, out_file, defines, exports, inc_folders);
 }
 
 // TODO(NAME): build metadata fully from C++ and eliminate build_metadata.bat and build_metadata.sh
@@ -436,88 +436,88 @@ build_metadata(void){
 }
 
 internal void
-site_build(Partition *part, char *cdir, u32 flags){
+site_build(Arena *arena, char *cdir, u32 flags){
     build_metadata();
     
     {
-        char *file = fm_str(part, "site/4ed_sitegen.cpp");
-        char *dir = fm_str(part, BUILD_DIR);
+        char *file = fm_str(arena, "site/4ed_sitegen.cpp");
+        char *dir = fm_str(arena, BUILD_DIR);
         BEGIN_TIME_SECTION();
-        build(part, OPTS | flags, Arch_X64, cdir, file, dir, "sitegen", get_defines_from_flags(part, flags), 0, includes);
+        build(arena, OPTS | flags, Arch_X64, cdir, file, dir, "sitegen", get_defines_from_flags(arena, flags), 0, includes);
         END_TIME_SECTION("build sitegen");
     }
     
     if (prev_error == 0){
         BEGIN_TIME_SECTION();
-        char *cmd = fm_str(part, BUILD_DIR "/sitegen");
-        char *code_dir = fm_str(part, ".");
-        char *asset_dir = fm_str(part, "../4coder-non-source/site_resources");
-        char *site_source_dir = fm_str(part, "site/source_material");
-        char *dest_dir = fm_str(part, "../site");
-        fm_make_folder_if_missing(part, dest_dir);
+        char *cmd = fm_str(arena, BUILD_DIR "/sitegen");
+        char *code_dir = fm_str(arena, ".");
+        char *asset_dir = fm_str(arena, "../4coder-non-source/site_resources");
+        char *site_source_dir = fm_str(arena, "site/source_material");
+        char *dest_dir = fm_str(arena, "../site");
+        fm_make_folder_if_missing(arena, dest_dir);
         systemf("%s %s %s %s %s", cmd, code_dir, asset_dir, site_source_dir, dest_dir);
         END_TIME_SECTION("run sitegen");
     }
 }
 
 internal void
-build_and_run(Partition *part, char *cdir, char *filename, char *name, u32 flags){
-    char *dir = fm_str(part, BUILD_DIR);
+build_and_run(Arena *arena, char *cdir, char *filename, char *name, u32 flags){
+    char *dir = fm_str(arena, BUILD_DIR);
     
     {
-        char *file = fm_str(part, filename);
+        char *file = fm_str(arena, filename);
         BEGIN_TIME_SECTION();
-        build(part, flags, Arch_X64, cdir, file, dir, name, get_defines_from_flags(part, flags), 0, includes);
-        END_TIME_SECTION(fm_str(part, "build ", name));
+        build(arena, flags, Arch_X64, cdir, file, dir, name, get_defines_from_flags(arena, flags), 0, includes);
+        END_TIME_SECTION(fm_str(arena, "build ", name));
     }
     
     if (prev_error == 0){
-        char *cmd = fm_str(part, dir, "/", name);
+        char *cmd = fm_str(arena, dir, "/", name);
         BEGIN_TIME_SECTION();
         fm_execute_in_dir(cdir, cmd, 0);
-        END_TIME_SECTION(fm_str(part, "run ", name));
+        END_TIME_SECTION(fm_str(arena, "run ", name));
     }
 }
 
 internal void
-fsm_generator(Partition *part, char *cdir){
-    build_and_run(part, cdir, "meta/4ed_fsm_table_generator.cpp", "fsmgen", OPTS | DEBUG_INFO);
+fsm_generator(Arena *arena, char *cdir){
+    build_and_run(arena, cdir, "meta/4ed_fsm_table_generator.cpp", "fsmgen", OPTS | DEBUG_INFO);
 }
 
 internal void
-metagen(Partition *part, char *cdir){
-    build_and_run(part, cdir, "meta/4ed_metagen.cpp", "metagen", OPTS | DEBUG_INFO);
+metagen(Arena *arena, char *cdir){
+    build_and_run(arena, cdir, "meta/4ed_metagen.cpp", "metagen", OPTS | DEBUG_INFO);
 }
 
 internal void
-string_build(Partition *part, char *cdir){
-    char *dir = fm_str(part, BUILD_DIR);
+string_build(Arena *arena, char *cdir){
+    char *dir = fm_str(arena, BUILD_DIR);
     
     {
-        char *file = fm_str(part, "string/4ed_string_builder.cpp");
+        char *file = fm_str(arena, "string/4ed_string_builder.cpp");
         BEGIN_TIME_SECTION();
-        build(part, OPTS | DEBUG_INFO, Arch_X64, cdir, file, dir, "string_builder", 0, 0, includes);
+        build(arena, OPTS | DEBUG_INFO, Arch_X64, cdir, file, dir, "string_builder", 0, 0, includes);
         END_TIME_SECTION("build string_builder");
     }
     
     if (prev_error == 0){
-        char *cmd = fm_str(part, cdir, "/", dir, "/string_builder");
+        char *cmd = fm_str(arena, cdir, "/", dir, "/string_builder");
         BEGIN_TIME_SECTION();
-        fm_execute_in_dir(fm_str(part, cdir, "/string"), cmd, 0);
+        fm_execute_in_dir(fm_str(arena, cdir, "/string"), cmd, 0);
         END_TIME_SECTION("run string_builder");
     }
 }
 
 internal void
-do_buildsuper(Partition *part, char *cdir, char *file, u32 arch){
+do_buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
     BEGIN_TIME_SECTION();
-    Temp_Dir temp = fm_pushdir(fm_str(part, BUILD_DIR));
+    Temp_Dir temp = fm_pushdir(fm_str(arena, BUILD_DIR));
     
-    char *build_script = fm_str(part, "buildsuper_", arch_names[arch], BAT);
+    char *build_script = fm_str(arena, "buildsuper_", arch_names[arch], BAT);
     
-    char *build_command = fm_str(part, "\"", cdir, "/", build_script, "\" \"", file, "\"");
+    char *build_command = fm_str(arena, "\"", cdir, "/", build_script, "\" \"", file, "\"");
     if (This_OS == Platform_Windows){
-        build_command = fm_str(part, "call ", build_command);
+        build_command = fm_str(arena, "call ", build_command);
     }
     systemf("%s", build_command);
     
@@ -530,7 +530,7 @@ internal i32
 get_freetype_include(char *out, u32 max){
     i32 size = 0;
 #if 0
-#if defined(IS_LINUX)
+#if OS_LINUX
     char freetype_include[512];
     FILE *file = popen("pkg-config --cflags freetype2", "r");
     if (file != 0){
@@ -539,7 +539,7 @@ get_freetype_include(char *out, u32 max){
         memcpy(out, freetype_include, size);
         pclose(file);
     }
-#elif defined(IS_MAC)
+#elif OS_MAC
     char *freetype_include = "/usr/local/include/freetype2";
     size = strlen(freetype_include);
     memcpy(out, freetype_include, size);
@@ -549,12 +549,12 @@ get_freetype_include(char *out, u32 max){
 }
 
 internal void
-build_main(Partition *part, char *cdir, b32 update_local_theme, u32 flags, u32 arch){
-    char *dir = fm_str(part, BUILD_DIR);
+build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch){
+    char *dir = fm_str(arena, BUILD_DIR);
     
     {
-        char *file = fm_str(part, "4ed_app_target.cpp");
-        char **exports = fm_list_one_item(part, "app_get_functions");
+        char *file = fm_str(arena, "4ed_app_target.cpp");
+        char **exports = fm_list_one_item(arena, "app_get_functions");
         
         char **build_includes = includes;
         
@@ -563,67 +563,67 @@ build_main(Partition *part, char *cdir, b32 update_local_theme, u32 flags, u32 a
         if (ft_size > 0){
             ft_include[ft_size] = 0;
             fprintf(stdout, "FREETYPE: %s\n", ft_include);
-            build_includes = fm_list(part, build_includes, fm_list_one_item(part, ft_include));
+            build_includes = fm_list(arena, build_includes, fm_list_one_item(arena, ft_include));
         }
         
         BEGIN_TIME_SECTION();
-        build(part, OPTS | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, get_defines_from_flags(part, flags), exports, build_includes);
+        build(arena, OPTS | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, get_defines_from_flags(arena, flags), exports, build_includes);
         END_TIME_SECTION("build 4ed_app");
     }
     
     {
         BEGIN_TIME_SECTION();
-        char **inc = (char**)fm_list(part, includes, platform_includes[This_OS][This_Compiler]);
-        build(part, OPTS | LIBS | ICON | flags, arch, cdir, platform_layers[This_OS], dir, "4ed", get_defines_from_flags(part, flags), 0, inc);
+        char **inc = (char**)fm_list(arena, includes, platform_includes[This_OS][This_Compiler]);
+        build(arena, OPTS | LIBS | ICON | flags, arch, cdir, platform_layers[This_OS], dir, "4ed", get_defines_from_flags(arena, flags), 0, inc);
         END_TIME_SECTION("build 4ed");
     }
     
     if (update_local_theme){
         BEGIN_TIME_SECTION();
-        char *themes_folder = fm_str(part, "../build/themes");
-        char *source_themes_folder = fm_str(part, "themes");
+        char *themes_folder = fm_str(arena, "../build/themes");
+        char *source_themes_folder = fm_str(arena, "themes");
         fm_clear_folder(themes_folder);
-        fm_make_folder_if_missing(part, themes_folder);
+        fm_make_folder_if_missing(arena, themes_folder);
         fm_copy_all(source_themes_folder, "*", themes_folder);
         END_TIME_SECTION("move files");
     }
 }
 
 internal void
-standard_build(Partition *part, char *cdir, u32 flags, u32 arch){
-    fsm_generator(part, cdir);
-    metagen(part, cdir);
-    //do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Default]), arch);
-    do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Experiments]), arch);
-    //do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Casey]), arch);
-    //do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_ChronalVim]), arch);
-    build_main(part, cdir, true, flags, arch);
+standard_build(Arena *arena, char *cdir, u32 flags, u32 arch){
+    fsm_generator(arena, cdir);
+    metagen(arena, cdir);
+    //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
+    do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Experiments]), arch);
+    //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Casey]), arch);
+    //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_ChronalVim]), arch);
+    build_main(arena, cdir, true, flags, arch);
 }
 
 internal char*
-get_4coder_dist_name(Partition *part, u32 platform, char *tier, u32 arch){
-    char *name = fm_str(part, "4coder-alpha-" MAJOR_STR "-" MINOR_STR "-" PATCH_STR);
+get_4coder_dist_name(Arena *arena, u32 platform, char *tier, u32 arch){
+    char *name = fm_str(arena, "4coder-alpha-" MAJOR_STR "-" MINOR_STR "-" PATCH_STR);
     if (strcmp(tier, "alpha") != 0){
-        name = fm_str(part, name, "-", tier);
+        name = fm_str(arena, name, "-", tier);
     }
     if (platform != Platform_None){
-        name = fm_str(part, name, "-", platform_names[platform]);
+        name = fm_str(arena, name, "-", platform_names[platform]);
     }
     if (arch != Arch_None){
-        name = fm_str(part, name, "-", arch_names[arch]);
+        name = fm_str(arena, name, "-", arch_names[arch]);
     }
     return(name);
 }
 
 internal void
-package(Partition *part, char *cdir){
+package(Arena *arena, char *cdir){
     // NOTE(allen): meta
-    fsm_generator(part, cdir);
-    metagen(part, cdir);
+    fsm_generator(arena, cdir);
+    metagen(arena, cdir);
     
-    char *build_dir = fm_str(part, BUILD_DIR);
-    char *pack_dir = fm_str(part, PACK_DIR);
-    char *fonts_source_dir = fm_str(part, "../4coder-non-source/dist_files/fonts");
+    char *build_dir = fm_str(arena, BUILD_DIR);
+    char *pack_dir = fm_str(arena, PACK_DIR);
+    char *fonts_source_dir = fm_str(arena, "../4coder-non-source/dist_files/fonts");
     
     char *base_package_root = "../current_dist";
     
@@ -642,62 +642,62 @@ package(Partition *part, char *cdir){
         char *tier = tiers[tier_index];
         u32 flags = base_flags | tier_flags[tier_index];
         
-        Temp_Memory temp = begin_temp_memory(part);
-        char *tier_package_root = fm_str(part, base_package_root, "_", tier);
+        Temp_Memory temp = begin_temp(arena);
+        char *tier_package_root = fm_str(arena, base_package_root, "_", tier);
         for (u32 arch = 0; arch < Arch_COUNT; ++arch){
-            char *par_dir      = fm_str(part, tier_package_root, "_", arch_names[arch]);
-            char *dir          = fm_str(part, par_dir, "/4coder");
-            char *fonts_dir    = fm_str(part, dir, "/fonts");
-            char *zip_dir      = fm_str(part, pack_dir, "/", tier, "_", arch_names[arch]);
+            char *par_dir      = fm_str(arena, tier_package_root, "_", arch_names[arch]);
+            char *dir          = fm_str(arena, par_dir, "/4coder");
+            char *fonts_dir    = fm_str(arena, dir, "/fonts");
+            char *zip_dir      = fm_str(arena, pack_dir, "/", tier, "_", arch_names[arch]);
             
             build_metadata();
-            build_main(part, cdir, false, flags, arch);
+            build_main(arena, cdir, false, flags, arch);
             
             fm_clear_folder(par_dir);
             
-            fm_make_folder_if_missing(part, dir);
-            fm_copy_file(fm_str(part, build_dir, "/4ed" EXE), fm_str(part, dir, "/4ed" EXE));
-            fm_copy_file(fm_str(part, build_dir, "/4ed_app" DLL), fm_str(part, dir, "/4ed_app" DLL));
+            fm_make_folder_if_missing(arena, dir);
+            fm_copy_file(fm_str(arena, build_dir, "/4ed" EXE), fm_str(arena, dir, "/4ed" EXE));
+            fm_copy_file(fm_str(arena, build_dir, "/4ed_app" DLL), fm_str(arena, dir, "/4ed_app" DLL));
             
-            fm_copy_folder(part, cdir, dir, "themes");
-            fm_copy_file(fm_str(part, cdir, "/LICENSE.txt"), fm_str(part, dir, "/LICENSE.txt"));
-            fm_copy_file(fm_str(part, cdir, "/README.txt"), fm_str(part, dir, "/README.txt"));
-            fm_copy_file(fm_str(part, cdir, "/changes.txt"), fm_str(part, dir, "/changes.txt"));
+            fm_copy_folder(arena, cdir, dir, "themes");
+            fm_copy_file(fm_str(arena, cdir, "/LICENSE.txt"), fm_str(arena, dir, "/LICENSE.txt"));
+            fm_copy_file(fm_str(arena, cdir, "/README.txt"), fm_str(arena, dir, "/README.txt"));
+            fm_copy_file(fm_str(arena, cdir, "/changes.txt"), fm_str(arena, dir, "/changes.txt"));
             
-            fm_make_folder_if_missing(part, fonts_dir);
+            fm_make_folder_if_missing(arena, fonts_dir);
             fm_copy_all(fonts_source_dir, "*", fonts_dir);
-            fm_copy_file(fm_str(part, cdir, "/release-config.4coder"), fm_str(part, dir, "/config.4coder"));
+            fm_copy_file(fm_str(arena, cdir, "/release-config.4coder"), fm_str(arena, dir, "/config.4coder"));
             
             if (tier_index == Tier_Super){
                 fm_copy_all(0, "4coder_*", dir);
                 
-                do_buildsuper(part, cdir, fm_str(part, custom_files[Custom_Default]), arch);
-                fm_copy_file(fm_str(part, build_dir, "/custom_4coder" DLL), fm_str(part, dir, "/custom_4coder" DLL));
+                do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
+                fm_copy_file(fm_str(arena, build_dir, "/custom_4coder" DLL), fm_str(arena, dir, "/custom_4coder" DLL));
                 
-                char *build_script = fm_str(part, "buildsuper_", arch_names[arch], BAT);
-                fm_copy_file(build_script, fm_str(part, dir, "/buildsuper" BAT));
+                char *build_script = fm_str(arena, "buildsuper_", arch_names[arch], BAT);
+                fm_copy_file(build_script, fm_str(arena, dir, "/buildsuper" BAT));
                 
                 if (This_OS == Platform_Windows){
-                    fm_copy_folder(part, cdir, dir, "windows_scripts");
+                    fm_copy_folder(arena, cdir, dir, "windows_scripts");
                 }
                 
-                fm_copy_folder(part, cdir, dir, "4coder_API");
-                fm_copy_folder(part, cdir, dir, "4coder_lib");
-                fm_copy_folder(part, cdir, dir, "4coder_generated");
-                fm_copy_folder(part, cdir, dir, "languages");
+                fm_copy_folder(arena, cdir, dir, "4coder_API");
+                fm_copy_folder(arena, cdir, dir, "4coder_lib");
+                fm_copy_folder(arena, cdir, dir, "4coder_generated");
+                fm_copy_folder(arena, cdir, dir, "languages");
             }
             
-            char *dist_name = get_4coder_dist_name(part, This_OS, tier, arch);
-            char *zip_name = fm_str(part, zip_dir, "/", dist_name, ".zip");
-            fm_make_folder_if_missing(part, zip_dir);
+            char *dist_name = get_4coder_dist_name(arena, This_OS, tier, arch);
+            char *zip_name = fm_str(arena, zip_dir, "/", dist_name, ".zip");
+            fm_make_folder_if_missing(arena, zip_dir);
             fm_zip(par_dir, "4coder", zip_name);
         }
-        end_temp_memory(temp);
+        end_temp(temp);
     }
 }
 
 int main(int argc, char **argv){
-    Partition part = fm_init_system();
+    Arena arena = fm_init_system();
     
     char cdir[256];
     BEGIN_TIME_SECTION();
@@ -714,16 +714,10 @@ int main(int argc, char **argv){
 #if defined(DEV_BUILD_X86)
     arch = Arch_X86;
 #endif
-    standard_build(&part, cdir, flags, arch);
+    standard_build(&arena, cdir, flags, arch);
     
 #elif defined(PACKAGE)
-    package(&part, cdir);
-    
-#elif defined(SITE_BUILD)
-    site_build(&part, cdir, DEBUG_INFO);
-    
-#elif defined(STRING_BUILD)
-    string_build(&part, cdir);
+    package(&arena, cdir);
     
 #else
 # error No build type specified.

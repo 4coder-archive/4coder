@@ -49,7 +49,7 @@ private_draw_set_color(Render_Target *t, u32 color){
 }
 
 internal void
-interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
+interpret_render_buffer(Render_Target *t, Arena *scratch){
     local_persist b32 first_opengl_call = true;
     if (first_opengl_call){
         first_opengl_call = false;
@@ -110,7 +110,8 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
          free_texture = free_texture->next){
         glDeleteTextures(1, &free_texture->tex_id);
     }
-    sll_clear(t->free_texture_first, t->free_texture_last);
+    t->free_texture_first = 0;
+    t->free_texture_last = 0;
     
     u8 *start = (u8*)t->buffer.base;
     u8 *end = (u8*)t->buffer.base + t->buffer.pos;
@@ -169,13 +170,13 @@ interpret_render_buffer(Render_Target *t, Partition *growable_scratch){
                 }
                 
                 if (!page->has_gpu_setup){
-                    Temp_Memory temp = begin_temp_memory(growable_scratch);
+                    Temp_Memory temp = begin_temp(scratch);
                     i32 tex_width = 0;
                     i32 tex_height = 0;
-                    u32 *pixels = font_load_page_pixels(growable_scratch, font.settings, page, page_number, &tex_width, &tex_height);
+                    u32 *pixels = font_load_page_pixels(scratch, font.settings, page, page_number, &tex_width, &tex_height);
                     page->has_gpu_setup = true;
                     page->gpu_tex = private_texture_initialize(tex_width, tex_height, pixels);
-                    end_temp_memory(temp);
+                    end_temp(temp);
                 }
                 
                 if (page->gpu_tex == 0){

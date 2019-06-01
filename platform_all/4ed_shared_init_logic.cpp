@@ -12,9 +12,9 @@
 internal void
 memory_init(){
 #if defined(FRED_INTERNAL)
-# if defined(FTECH_64_BIT)
+# if ARCH_64BIT
     void *bases[] = { (void*)TB(1), (void*)TB(2), };
-# elif defined(FTECH_32_BIT)
+# else
     void *bases[] = { (void*)MB(96), (void*)MB(512), };
 # endif
 #else
@@ -31,7 +31,7 @@ memory_init(){
     memory_vars.debug_memory = system_memory_allocate_extended(0, memory_vars.debug_memory_size);
     
     i32 render_memsize = MB(1);
-    target.buffer = make_part(system_memory_allocate(render_memsize), render_memsize);
+    target.buffer = make_cursor(system_memory_allocate(render_memsize), render_memsize);
     
     b32 alloc_success = true;
     if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0 || target.buffer.base == 0){
@@ -132,9 +132,8 @@ read_command_line(i32 argc, char **argv){
         system_error_box("Could not get current directory at launch.");
     }
     
-    String curdir = make_string_cap(cwd, size, sizeof(cwd));
-    terminate_with_null(&curdir);
-    replace_char(&curdir, '\\', '/');
+    String_Const_u8 curdir = SCu8(cwd, size);
+    curdir = string_mod_replace_character(curdir, '\\', '/');
     
     char **files = 0;
     i32 *file_count = 0;

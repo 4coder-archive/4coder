@@ -74,7 +74,7 @@ move_past_lead_whitespace(Application_Links *app, View_ID view, Buffer_ID buffer
         do{
             for (; i < chunk.end; ++i){
                 char at_pos = chunk.data[i];
-                if (at_pos == '\n' || !char_is_whitespace(at_pos)){
+                if (at_pos == '\n' || !character_is_whitespace(at_pos)){
                     goto break2;
                 }
             }
@@ -103,7 +103,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_ID buffer_id, i32 pos){
         for (;still_looping;){
             for (; pos >= stream.start; --pos){
                 char at_pos = stream.data[pos];
-                if (!char_is_whitespace(at_pos)){
+                if (!character_is_whitespace(at_pos)){
                     goto double_break_1;
                 }
             }
@@ -128,7 +128,7 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_ID buffer_id, i32 pos){
                         no_hard = true;
                     }
                 }
-                else if (!char_is_whitespace(at_pos)){
+                else if (!character_is_whitespace(at_pos)){
                     no_hard = false;
                 }
             }
@@ -160,7 +160,7 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_ID buffer_id, i32 pos
         do{
             for (; pos < stream.end; ++pos){
                 char at_pos = stream.data[pos];
-                if (!char_is_whitespace(at_pos)){
+                if (!character_is_whitespace(at_pos)){
                     goto double_break_1;
                 }
             }
@@ -187,7 +187,7 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_ID buffer_id, i32 pos
                         prev_endline = pos;
                     }
                 }
-                else if (!char_is_whitespace(at_pos)){
+                else if (!character_is_whitespace(at_pos)){
                     no_hard = false;
                 }
             }
@@ -221,13 +221,13 @@ buffer_seek_whitespace_right(Application_Links *app, Buffer_ID buffer_id, i32 po
         stream.add_null = true;
         if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
             b32 still_looping = true;
-            b32 is_whitespace_1 = char_is_whitespace(buffer_get_char(app, buffer_id, pos - 1));
+            b32 is_whitespace_1 = character_is_whitespace(buffer_get_char(app, buffer_id, pos - 1));
             do{
                 for (; pos < stream.end; ++pos){
                     char c2 = stream.data[pos];
                     b32 is_whitespace_2 = true;
                     if (c2 != 0){
-                        is_whitespace_2 = char_is_whitespace(c2);
+                        is_whitespace_2 = character_is_whitespace(c2);
                     }
                     if (!is_whitespace_1 && is_whitespace_2){
                         result = pos;
@@ -258,11 +258,11 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_ID buffer_id, i32 pos
         Stream_Chunk stream = {};
         if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
             b32 still_looping = true;
-            b32 is_whitespace_2 = char_is_whitespace(buffer_get_char(app, buffer_id, pos + 1));
+            b32 is_whitespace_2 = character_is_whitespace(buffer_get_char(app, buffer_id, pos + 1));
             do{
                 for (; pos >= stream.start; --pos){
                     char c1 = stream.data[pos];
-                    b32 is_whitespace_1 = char_is_whitespace(c1);
+                    b32 is_whitespace_1 = character_is_whitespace(c1);
                     if (is_whitespace_1 && !is_whitespace_2){
                         result = pos + 1;
                         goto double_break;
@@ -275,7 +275,7 @@ buffer_seek_whitespace_left(Application_Links *app, Buffer_ID buffer_id, i32 pos
         }
     }
     if (pos == -1){
-        if (!char_is_whitespace(buffer_get_char(app, buffer_id, 0))){
+        if (!character_is_whitespace(buffer_get_char(app, buffer_id, 0))){
             result = 0;
         }
     }
@@ -290,7 +290,8 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_ID buffer_id, i32 
         b32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
-                if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
+                u8 c = stream.data[pos];
+                if (c != '_' && character_is_alpha_numeric_unicode(c)){
                     goto double_break1;
                 }
             }
@@ -300,7 +301,8 @@ buffer_seek_alphanumeric_right(Application_Links *app, Buffer_ID buffer_id, i32 
         still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
-                if (!char_is_alpha_numeric_true_utf8(stream.data[pos])){
+                u8 c = stream.data[pos];
+                if (!(c != '_' && character_is_alpha_numeric_unicode(c))){
                     goto double_break2;
                 }
             }
@@ -321,7 +323,8 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_ID buffer_id, i32 p
             b32 still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (char_is_alpha_numeric_true_utf8(stream.data[pos])){
+                    u8 c = stream.data[pos];
+                    if (c != '_' && character_is_alpha_numeric_unicode(c)){
                         goto double_break1;
                     }
                 }
@@ -331,7 +334,8 @@ buffer_seek_alphanumeric_left(Application_Links *app, Buffer_ID buffer_id, i32 p
             still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (!char_is_alpha_numeric_true_utf8(stream.data[pos])){
+                    u8 c = stream.data[pos];
+                    if (!(c != '_' && character_is_alpha_numeric_unicode(c))){
                         ++pos;
                         goto double_break2;
                     }
@@ -355,7 +359,8 @@ buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_ID b
         b32 still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
-                if (char_is_alpha_numeric_utf8(stream.data[pos])){
+                u8 c = stream.data[pos];
+                if (character_is_alpha_numeric_unicode(c)){
                     goto double_break1;
                 }
             }
@@ -365,7 +370,8 @@ buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_ID b
         still_looping = true;
         do{
             for (; pos < stream.end; ++pos){
-                if (!char_is_alpha_numeric_utf8(stream.data[pos])){
+                u8 c = stream.data[pos];
+                if (!character_is_alpha_numeric_unicode(c)){
                     goto double_break2;
                 }
             }
@@ -386,7 +392,8 @@ buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_ID bu
             b32 still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (char_is_alpha_numeric_utf8(stream.data[pos])){
+                    u8 c = stream.data[pos];
+                    if (character_is_alpha_numeric_unicode(c)){
                         goto double_break1;
                     }
                 }
@@ -396,7 +403,8 @@ buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_ID bu
             still_looping = true;
             do{
                 for (; pos >= stream.start; --pos){
-                    if (!char_is_alpha_numeric_utf8(stream.data[pos])){
+                    u8 c = stream.data[pos];
+                    if (!character_is_alpha_numeric_unicode(c)){
                         ++pos;
                         goto double_break2;
                     }
@@ -420,13 +428,14 @@ buffer_seek_range_camel_right(Application_Links *app, Buffer_ID buffer_id, i32 p
     if (pos < an_pos){
         stream.max_end = an_pos;
         if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            u8 c = 0, pc = stream.data[pos];
+            u8 c = 0;
+            u8 pc = stream.data[pos];
             ++pos;
             b32 still_looping = false;
             do{
                 for (; pos < stream.end; ++pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c) && char_is_lower_utf8(pc)){
+                    if (character_is_upper(c) && character_is_lower_unicode(pc)){
                         goto double_break1;
                     }
                     pc = c;
@@ -450,12 +459,13 @@ buffer_seek_range_camel_left(Application_Links *app, Buffer_ID buffer_id, i32 po
     if (pos > 0){
         stream.min_start = an_pos+1;
         if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            char c = 0, pc = stream.data[pos];
+            u8 c = 0;
+            u8 pc = stream.data[pos];
             b32 still_looping = false;
             do{
                 for (; pos >= stream.start; --pos){
                     c = stream.data[pos];
-                    if (char_is_upper(c) && char_is_lower_utf8(pc)){
+                    if (character_is_upper(c) && character_is_lower_unicode(pc)){
                         goto double_break1;
                     }
                     pc = c;
@@ -514,27 +524,28 @@ seek_token_right(Cpp_Token_Array *tokens, i32 pos, i32 buffer_end){
 }
 
 static Cpp_Token_Array
-buffer_get_all_tokens(Application_Links *app, Partition *part, Buffer_ID buffer_id){
+buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id){
     Cpp_Token_Array array = {};
     if (buffer_exists(app, buffer_id)){
         b32 is_lexed = false;
-        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed) &&
-            is_lexed){
-            buffer_token_count(app, buffer_id, &array.count);
-            array.max_count = array.count;
-            array.tokens = push_array(part, Cpp_Token, array.count);
-            buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
+        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
+            if (is_lexed){
+                buffer_token_count(app, buffer_id, &array.count);
+                array.max_count = array.count;
+                array.tokens = push_array(arena, Cpp_Token, array.count);
+                buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
+            }
         }
     }
     return(array);
 }
 
 static i32
-buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Partition *part, i32 start_pos, b32 seek_forward, Seek_Boundary_Flag flags){
+buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Arena *scratch, i32 start_pos, b32 seek_forward, Seek_Boundary_Flag flags){
     i32 result = 0;
     
     // TODO(allen): reduce duplication?
-    Temp_Memory temp = begin_temp_memory(part);
+    Temp_Memory temp = begin_temp(scratch);
     if (buffer_exists(app, buffer_id)){
         i32 pos[4];
         i32 size = 0;
@@ -559,7 +570,7 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Partition *par
             
             if (flags & BoundaryToken){
                 if (buffer_tokens_are_ready(app, buffer_id)){
-                    Cpp_Token_Array array = buffer_get_all_tokens(app, part, buffer_id);
+                    Cpp_Token_Array array = buffer_get_all_tokens(app, scratch, buffer_id);
                     pos[1] = seek_token_right(&array, start_pos, size);
                 }
                 else{
@@ -597,7 +608,7 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Partition *par
             
             if (flags & BoundaryToken){
                 if (buffer_tokens_are_ready(app, buffer_id)){
-                    Cpp_Token_Array array = buffer_get_all_tokens(app, part, buffer_id);
+                    Cpp_Token_Array array = buffer_get_all_tokens(app, scratch, buffer_id);
                     pos[1] = seek_token_left(&array, start_pos);
                 }
                 else{
@@ -626,7 +637,7 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Partition *par
         }
         result = new_pos;
     }
-    end_temp_memory(temp);
+    end_temp(temp);
     
     return(result);
 }
@@ -681,11 +692,8 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer_id, i32 
     finished:;
 }
 
-// NOTE(allen): This is limitted to a string size of 512.
-// You can push it up or do something more clever by just
-// replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, char *str, i32 size, i32 *result){
+buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, String_Const_u8 needle_string, i32 *result){
     i32 buffer_size = 0;
     buffer_get_size(app, buffer_id, &buffer_size);
     if (buffer_size > end){
@@ -695,14 +703,13 @@ buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos,
         *result = end;
     }
     
-    char read_buffer[512];
-    if (size > 0 && size <= sizeof(read_buffer)){
+    Scratch_Block scratch(app);
+    if (0 < needle_string.size){
         if (buffer_exists(app, buffer_id)){
-            String read_str = make_fixed_width_string(read_buffer);
-            String needle_str = make_string(str, size);
-            char first_char = str[0];
+            u8 first_char = string_get_character(needle_string, 0);
             
-            read_str.size = size;
+            u8 *read_buffer = push_array(scratch, u8, needle_string.size);
+            String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
             
             char chunk[1024];
             Stream_Chunk stream = {};
@@ -712,10 +719,10 @@ buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos,
                 b32 still_looping = true;
                 do{
                     for(; pos < stream.end; ++pos){
-                        char at_pos = stream.data[pos];
+                        u8 at_pos = stream.data[pos];
                         if (at_pos == first_char){
-                            buffer_read_range(app, buffer_id, pos, pos+size, read_buffer);
-                            if (match_ss(needle_str, read_str)){
+                            buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
+                            if (string_match(needle_string, read_str)){
                                 *result = pos;
                                 goto finished;
                             }
@@ -737,29 +744,28 @@ buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos,
     }
 }
 
-// NOTE(allen): This is limitted to a string size of 512.
-// You can push it up or do something more clever by just
-// replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 min, char *str, i32 size, i32 *result){
-    char read_buffer[512];
+buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 min, String_Const_u8 needle_string, i32 *result){
+    Scratch_Block scratch(app);
     *result = min - 1;
-    if (size > 0 && size <= sizeof(read_buffer) && buffer_exists(app, buffer_id)){
-        String read_str = make_fixed_width_string(read_buffer);
-        String needle_str = make_string(str, size);
-        char first_char = str[0];
-        read_str.size = size;
+    if (0 < needle_string.size && buffer_exists(app, buffer_id)){
+        u8 first_char = string_get_character(needle_string, 0);
+        
+        u8 *read_buffer = push_array(scratch, u8, needle_string.size);
+        String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
+        
         char chunk[1024];
         Stream_Chunk stream = {};
         stream.min_start = min;
+        
         if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, sizeof(chunk))){
-            i32 still_looping = 1;
+            b32 still_looping = true;
             do{
                 for(; pos >= stream.start; --pos){
-                    char at_pos = stream.data[pos];
+                    u8 at_pos = stream.data[pos];
                     if (at_pos == first_char){
-                        buffer_read_range(app, buffer_id, pos, pos+size, read_buffer);
-                        if (match_ss(needle_str, read_str)){
+                        buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
+                        if (string_match(needle_string, read_str)){
                             *result = pos;
                             goto finished;
                         }
@@ -772,11 +778,8 @@ buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos
     }
 }
 
-// NOTE(allen): This is limitted to a string size of 512.
-// You can push it up or do something more clever by just
-// replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, char *str, i32 size, i32 *result){
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, String_Const_u8 needle_string, i32 *result){
     i32 buffer_size = 0;
     buffer_get_size(app, buffer_id, &buffer_size);
     if (buffer_size > end){
@@ -785,24 +788,26 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer_
     else{
         *result = end;
     }
-    char read_buffer[512];
-    char chunk[1024];
-    i32 chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {};
-    stream.max_end = end;
-    if (size > 0 && size <= sizeof(read_buffer) && buffer_exists(app, buffer_id)){
-        String read_str = make_fixed_width_string(read_buffer);
-        String needle_str = make_string(str, size);
-        char first_char = char_to_upper(str[0]);
-        read_str.size = size;
-        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, chunk_size)){
-            i32 still_looping = 1;
+    
+    Scratch_Block scratch(app);
+    if (0 < needle_string.size && buffer_exists(app, buffer_id)){
+        u8 first_char = character_to_upper(string_get_character(needle_string, 0));
+        
+        u8 *read_buffer = push_array(scratch, u8, needle_string.size);
+        String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
+        
+        char chunk[1024];
+        Stream_Chunk stream = {};
+        stream.max_end = end;
+        
+        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, sizeof(chunk))){
+            b32 still_looping = true;
             do{
                 for(; pos < stream.end; ++pos){
-                    char at_pos = char_to_upper(stream.data[pos]);
+                    u8 at_pos = character_to_upper(stream.data[pos]);
                     if (at_pos == first_char){
-                        buffer_read_range(app, buffer_id, pos, pos+size, read_buffer);
-                        if (match_insensitive_ss(needle_str, read_str)){
+                        buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
+                        if (string_match_insensitive(needle_string, read_str)){
                             *result = pos;
                             goto finished;
                         }
@@ -815,31 +820,28 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer_
     }
 }
 
-// NOTE(allen): This is limitted to a string size of 512.
-// You can push it up or do something more clever by just
-// replacing char read_buffer[512]; with more memory.
 static void
-buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 min, char *str, i32 size, i32 *result){
-    char read_buffer[512];
-    char chunk[1024];
-    i32 chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {};
-    stream.min_start = min;
-    
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 min, String_Const_u8 needle_string, i32 *result){
+    Scratch_Block scratch(app);
     *result = min - 1;
-    if (size > 0 && size <= sizeof(read_buffer) && buffer_exists(app, buffer_id)){
-        String read_str = make_fixed_width_string(read_buffer);
-        String needle_str = make_string(str, size);
-        char first_char = char_to_upper(str[0]);
-        read_str.size = size;
-        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, chunk_size)){
-            i32 still_looping = 1;
+    if (0 < needle_string.size && buffer_exists(app, buffer_id)){
+        u8 first_char = character_to_upper(string_get_character(needle_string, 0));
+        
+        u8 *read_buffer = push_array(scratch, u8, needle_string.size);
+        String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
+        
+        char chunk[1024];
+        Stream_Chunk stream = {};
+        stream.min_start = min;
+        
+        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, sizeof(chunk))){
+            b32 still_looping = true;
             do{
                 for(; pos >= stream.start; --pos){
-                    char at_pos = char_to_upper(stream.data[pos]);
+                    u8 at_pos = character_to_upper(stream.data[pos]);
                     if (at_pos == first_char){
-                        buffer_read_range(app, buffer_id, pos, pos+size, read_buffer);
-                        if (match_insensitive_ss(needle_str, read_str)){
+                        buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
+                        if (string_match_insensitive(needle_string, read_str)){
                             *result = pos;
                             goto finished;
                         }
@@ -855,26 +857,26 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer
 ////////////////////////////////
 
 static void
-buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, i32 min, char *str, i32 size, i32 *result, Buffer_Seek_String_Flags flags){
+buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, i32 min, String_Const_u8 str, i32 *result, Buffer_Seek_String_Flags flags){
     switch (flags & 3){
         case 0:
         {
-            buffer_seek_string_forward(app, buffer_id, pos, end, str, size, result);
+            buffer_seek_string_forward(app, buffer_id, pos, end, str, result);
         }break;
         
         case BufferSeekString_Backward:
         {
-            buffer_seek_string_backward(app, buffer_id, pos, min, str, size, result);
+            buffer_seek_string_backward(app, buffer_id, pos, min, str, result);
         }break;
         
         case BufferSeekString_CaseInsensitive:
         {
-            buffer_seek_string_insensitive_forward(app, buffer_id, pos, end, str, size, result);
+            buffer_seek_string_insensitive_forward(app, buffer_id, pos, end, str, result);
         }break;
         
         case BufferSeekString_Backward|BufferSeekString_CaseInsensitive:
         {
-            buffer_seek_string_insensitive_backward(app, buffer_id, pos, min, str, size, result);
+            buffer_seek_string_insensitive_backward(app, buffer_id, pos, min, str, result);
         }break;
     }
 }
@@ -904,7 +906,7 @@ buffer_line_is_blank(Application_Links *app, Buffer_ID buffer_id, i32 line){
             do{
                 for (;i < stream.end; ++i){
                     char c = stream.data[i];
-                    if (!char_is_whitespace(c)){
+                    if (!character_is_whitespace(c)){
                         result = false;
                         goto double_break;
                     }
@@ -917,9 +919,9 @@ buffer_line_is_blank(Application_Links *app, Buffer_ID buffer_id, i32 line){
     return(result);
 }
 
-static String
-read_identifier_at_pos(Application_Links *app, Buffer_ID buffer_id, i32 pos, char *space, i32 max, Range *range_out){
-    String query = {};
+static String_Const_u8
+read_identifier_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer_id, i32 pos, Range *range_out){
+    String_Const_u8 result = {};
     
     i32 start = buffer_seek_alphanumeric_or_underscore_left(app, buffer_id, pos);
     i32 end = buffer_seek_alphanumeric_or_underscore_right(app, buffer_id, start);
@@ -930,17 +932,13 @@ read_identifier_at_pos(Application_Links *app, Buffer_ID buffer_id, i32 pos, cha
     }
     
     if (start <= pos && pos < end){
-        i32 size = end - start;
-        if (size <= max){
-            if (range_out != 0){
-                *range_out = make_range(start, end);
-            }
-            buffer_read_range(app, buffer_id, start, end, space);
-            query = make_string_cap(space, size, max);
+        if (range_out != 0){
+            *range_out = make_range(start, end);
         }
+        result = scratch_read(app, arena, buffer_id, start, end);
     }
     
-    return(query);
+    return(result);
 }
 
 ////////////////////////////////
@@ -959,14 +957,16 @@ flip_dir(i32 dir){
 static i32
 buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, i32 start_pos, i32 dir, Seek_Boundary_Flag flags){
     b32 forward = (dir != DirLeft);
-    return(buffer_boundary_seek(app, buffer_id, &global_part, start_pos, forward, flags));
+    Arena *scratch = context_get_arena(app);
+    return(buffer_boundary_seek(app, buffer_id, scratch, start_pos, forward, flags));
 }
 
 static void
 view_buffer_boundary_seek_set_pos(Application_Links *app, View_ID view, Buffer_ID buffer_id, i32 dir, u32 flags){
     i32 cursor_pos = 0;
     view_get_cursor_pos(app, view, &cursor_pos);
-    i32 pos = buffer_boundary_seek(app, buffer_id, &global_part, cursor_pos, dir, flags);
+    Arena *scratch = context_get_arena(app);
+    i32 pos = buffer_boundary_seek(app, buffer_id, scratch, cursor_pos, dir, flags);
     view_set_cursor(app, view, seek_pos(pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
@@ -1005,7 +1005,7 @@ view_buffer_snipe_range(Application_Links *app, View_ID view, Buffer_ID buffer_i
         i32 pos2 = buffer_boundary_seek(app, buffer_id, pos1, flip_dir(dir), flags);
         if (0 <= pos2 && pos2 <= buffer_size){
             if (dir == DirLeft){
-                pos2 = clamp_bottom(pos2, pos0);
+                pos2 = clamp_bot(pos2, pos0);
             }
             else{
                 pos2 = clamp_top(pos2, pos0);
@@ -1023,7 +1023,7 @@ current_view_boundary_delete(Application_Links *app, i32 dir, u32 flags){
     Buffer_ID buffer_id = 0;
     view_get_buffer(app, view, AccessOpen, &buffer_id);
     Range range = view_buffer_boundary_range(app, view, buffer_id, dir, flags);
-    buffer_replace_range(app, buffer_id, range, make_lit_string(""));
+    buffer_replace_range(app, buffer_id, range, string_u8_litexpr(""));
 }
 
 static void
@@ -1033,7 +1033,7 @@ current_view_snipe_delete(Application_Links *app, i32 dir, u32 flags){
     Buffer_ID buffer_id = 0;
     view_get_buffer(app, view, AccessOpen, &buffer_id);
     Range range = view_buffer_snipe_range(app, view, buffer_id, dir, flags);
-    buffer_replace_range(app, buffer_id, range, make_lit_string(""));
+    buffer_replace_range(app, buffer_id, range, string_u8_litexpr(""));
 }
 
 ////////////////////////////////

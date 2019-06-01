@@ -159,14 +159,12 @@ insert_Ptr_table(Heap *heap, Ptr_Table *table, void* key){
         if (table->mem != 0){
             b32 result = move_Ptr_table(&new_table, table);
             Assert(result);
-            AllowLocal(result);
             heap_free(heap, table->mem);
         }
         *table = new_table;
     }
     b32 result = insert_Ptr_table(table, &key);
     Assert(result);
-    AllowLocal(result);
 }
 
 ////////////////////////////////
@@ -351,14 +349,12 @@ insert_u32_Ptr_table(Heap *heap, u32_Ptr_Table *table, u32 key, void* val){
         if (table->mem != 0){
             b32 result = move_u32_Ptr_table(&new_table, table);
             Assert(result);
-            AllowLocal(result);
             heap_free(heap, table->mem);
         }
         *table = new_table;
     }
     b32 result = insert_u32_Ptr_table(table, &key, &val);
     Assert(result);
-    AllowLocal(result);
 }
 
 // BOTTOM

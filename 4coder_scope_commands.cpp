@@ -399,7 +399,7 @@ CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the 
 }
 
 static void
-place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, char *begin, char *end){
+place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end){
     View_ID view = 0;
     get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
@@ -412,82 +412,73 @@ place_begin_and_end_on_own_lines(Application_Links *app, Partition *scratch, cha
     range.min = buffer_get_line_start(app, buffer, lines.min);
     range.max = buffer_get_line_end(app, buffer, lines.max);
     
-    b32 do_full = (lines.min < lines.max) || (!buffer_line_is_blank(app, buffer, lines.min));
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
     
-    Temp_Memory temp = begin_temp_memory(scratch);
-    i32 begin_len = str_size(begin);
-    i32 end_len = str_size(end);
+    b32 min_line_blank = buffer_line_is_blank(app, buffer, lines.min);
+    b32 max_line_blank = buffer_line_is_blank(app, buffer, lines.max);
     
-    i32 str_size = begin_len + end_len + 2;
-    char *str = push_array(scratch, char, str_size);
-    String builder = make_string_cap(str, 0, str_size);
-    append(&builder, begin);
-    append(&builder, "\n");
-    append(&builder, "\n");
-    append(&builder, end);
-    
-    if (do_full){
-        Buffer_Edit edits[2];
+    if ((lines.min < lines.max) || (!min_line_blank)){
+        String_Const_u8 begin_str = {};
+        String_Const_u8 end_str = {};
         
-        i32 min_adjustment = 0;
-        i32 max_adjustment = 4;
+        umem min_adjustment = 0;
+        umem max_adjustment = 0;
         
-        if (buffer_line_is_blank(app, buffer, lines.min)){
-            memmove(str + 1, str, begin_len);
-            str[0] = '\n';
-            ++min_adjustment;
+        if (min_line_blank){
+            begin_str = string_u8_pushf(scratch, "\n%s", begin);
+            min_adjustment += 1;
+        }
+        else{
+            begin_str = string_u8_pushf(scratch, "%s\n", begin);
+        }
+        if (max_line_blank){
+            end_str = string_u8_pushf(scratch, "%s\n", end);
+        }
+        else{
+            end_str = string_u8_pushf(scratch, "\n%s", end);
+            max_adjustment += 1;
         }
         
-        if (buffer_line_is_blank(app, buffer, lines.max)){
-            memmove(str + begin_len + 1, str + begin_len + 2, end_len);
-            str[begin_len + end_len + 1] = '\n';
-            --max_adjustment;
+        max_adjustment += begin_str.size;
+        Range new_pos = make_range(range.min + (i32)min_adjustment, range.max + (i32)max_adjustment);
+        
+        i32 cursor_pos = 0;
+        i32 mark_pos = 0;
+        view_get_cursor_pos(app, view, &cursor_pos);
+        
+        if (cursor_pos == range.min){
+            cursor_pos = new_pos.min;
+            mark_pos = new_pos.max;
+        }
+        else{
+            cursor_pos = new_pos.max;
+            mark_pos = new_pos.min;
         }
         
-        i32 min_pos = range.min + min_adjustment;
-        i32 max_pos = range.max + max_adjustment;
-        
-        i32 cursor_pos = min_pos;
-        i32 mark_pos = max_pos;
-        
-        i32 view_cursor_pos = 0;
-        view_get_cursor_pos(app, view, &view_cursor_pos);
-        i32 view_mark_pos = 0;
-        view_get_mark_pos(app, view, &view_mark_pos);
-        if (view_cursor_pos > view_mark_pos){
-            cursor_pos = max_pos;
-            mark_pos = min_pos;
-        }
-        
-        edits[0].str_start = 0;
-        edits[0].len = begin_len + 1;
-        edits[0].start = range.min;
-        edits[0].end = range.min;
-        
-        edits[1].str_start = begin_len + 1;
-        edits[1].len = end_len + 1;
-        edits[1].start = range.max;
-        edits[1].end = range.max;
-        
-        buffer_batch_edit(app, buffer, str, edits, 2);
+        History_Group group = begin_history_group(app, buffer);
+        buffer_replace_range(app, buffer, make_range(range.min), begin_str);
+        buffer_replace_range(app, buffer, make_range(range.max + (i32)begin_str.size), end_str);
+        end_history_group(group);
         
         view_set_cursor(app, view, seek_pos(cursor_pos), true);
         view_set_mark(app, view, seek_pos(mark_pos));
     }
     else{
-        buffer_replace_range(app, buffer, range, make_string(str, str_size));
-        i32 center_pos = range.min + begin_len + 1;
+        String_Const_u8 str = string_u8_pushf(scratch, "%s\n\n%s", begin, end);
+        buffer_replace_range(app, buffer, range, str);
+        i32 center_pos = range.min + (i32)cstring_length(begin) + 1;
         view_set_cursor(app, view, seek_pos(center_pos), true);
         view_set_mark(app, view, seek_pos(center_pos));
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(place_in_scope)
 CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a new curly brace scope.")
 {
-    place_begin_and_end_on_own_lines(app, &global_part, "{", "}");
+    place_begin_and_end_on_own_lines(app, "{", "}");
 }
 
 CUSTOM_COMMAND_SIG(delete_current_scope)
@@ -548,7 +539,7 @@ parse_for_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *toke
     Cpp_Token *token = parser_next_token(parser);
     
     i32 paren_level = 0;
-    while (token != 0){
+    for (;token != 0;){
         if (!(token->flags & CPP_TFLAG_PP_BODY)){
             switch (token->type){
                 case CPP_TOKEN_PARENTHESE_OPEN:
@@ -570,7 +561,6 @@ parse_for_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *toke
                 }break;
             }
         }
-        
         token = parser_next_token(parser);
     }
     
@@ -582,21 +572,15 @@ static b32
 parse_if_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out){
     b32 success = false;
     Cpp_Token *token = parser_next_token(parser);
-    
     if (token != 0){
         success = parse_statement_down(app, parser, token_out);
         if (success){
             token = parser_next_token(parser);
-            if (token != 0 && cpp_token_category_from_type(token->type) == CPP_TOKEN_CAT_CONTROL_FLOW){
-                char lexeme[32];
-                token_get_lexeme(app, parser->buffer, token, lexeme, sizeof(lexeme));
-                if (match(lexeme, "else")){
-                    success = parse_statement_down(app, parser, token_out);
-                }
+            if (token != 0 && token->type == CPP_TOKEN_ELSE){
+                success = parse_statement_down(app, parser, token_out);
             }
         }
     }
-    
     return(success);
 }
 
@@ -753,20 +737,15 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
         bottom = x;
     }
     
-    Partition *part = &global_part;
-    
-    Temp_Memory temp = begin_temp_memory(part);
     if (buffer_get_char(app, buffer, top) == '{' && buffer_get_char(app, buffer, bottom - 1) == '}'){
+        Scratch_Block scratch(app);
         Range range = {};
         if (find_whole_statement_down(app, buffer, bottom, &range.start, &range.end)){
-            char *string_space = push_array(part, char, range.end - range.start);
-            buffer_read_range(app, buffer, range.start, range.end, string_space);
-            
-            String string = make_string(string_space, range.end - range.start);
-            string = skip_chop_whitespace(string);
+            String_Const_u8 base_string = scratch_read(app, scratch, buffer, range);
+            String_Const_u8 string = string_skip_chop_whitespace(base_string);
             
             i32 newline_count = 0;
-            for (char *ptr = string_space; ptr < string.str; ++ptr){
+            for (u8 *ptr = base_string.str; ptr < string.str; ++ptr){
                 if (*ptr == '\n'){
                     ++newline_count;
                 }
@@ -777,37 +756,26 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
                 extra_newline = true;
             }
             
-            i32 edit_len = string.size + 1;
+            String_Const_u8 edit_str = {};
             if (extra_newline){
-                edit_len += 1;
-            }
-            
-            char *edit_str = push_array(part, char, edit_len);
-            if (extra_newline){
-                edit_str[0] = '\n';
-                copy_fast_unsafe(edit_str+1, string);
-                edit_str[edit_len-1] = '\n';
+                edit_str = string_u8_pushf(scratch, "\n%.*s\n", string_expand(string));
             }
             else{
-                copy_fast_unsafe(edit_str, string);
-                edit_str[edit_len-1] = '\n';
+                edit_str = string_u8_pushf(scratch, "%.*s\n", string_expand(string));
             }
             
             Buffer_Edit edits[2];
             edits[0].str_start = 0;
-            edits[0].len = edit_len;
-            edits[0].start = bottom-1;
-            edits[0].end = bottom-1;
-            
+            edits[0].len = (i32)edit_str.size;
+            edits[0].start = bottom - 1;
+            edits[0].end = bottom - 1;
             edits[1].str_start = 0;
             edits[1].len = 0;
             edits[1].start = range.start;
             edits[1].end = range.end;
-            
-            buffer_batch_edit(app, buffer, edit_str, edits, 2);
+            buffer_batch_edit(app, buffer, (char*)edit_str.str, edits, 2);
         }
     }
-    end_temp_memory(temp);
     
     no_mark_snap_to_cursor(app, view);
 }
