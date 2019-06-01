@@ -16,11 +16,11 @@ dynamic_variables_init(Dynamic_Variable_Layout *layout){
 }
 
 internal Managed_Variable_ID
-dynamic_variables_lookup(Dynamic_Variable_Layout *layout, String name){
+dynamic_variables_lookup(Dynamic_Variable_Layout *layout, String_Const_u8 name){
     for (Dynamic_Variable_Slot *slot = layout->sentinel.next;
          slot != &layout->sentinel;
          slot = slot->next){
-        if (match(slot->name, name)){
+        if (string_match(slot->name, name)){
             return(slot->location);
         }
     }
@@ -28,35 +28,35 @@ dynamic_variables_lookup(Dynamic_Variable_Layout *layout, String name){
 }
 
 internal Managed_Variable_ID
-dynamic_variables_create__always(Heap *heap, Dynamic_Variable_Layout *layout, String name, u64 default_value){
-    i32 alloc_size = name.size + 1 + sizeof(Dynamic_Variable_Slot);
+dynamic_variables_create__always(Heap *heap, Dynamic_Variable_Layout *layout, String_Const_u8 name, u64 default_value){
+    i32 alloc_size = (i32)(name.size + 1 + sizeof(Dynamic_Variable_Slot));
     void *ptr = heap_allocate(heap, alloc_size);
+    Managed_Variable_ID result = ManagedVariableIndex_ERROR;
     if (ptr != 0){
         Dynamic_Variable_Slot *new_slot = (Dynamic_Variable_Slot*)ptr;
         char *c_str = (char*)(new_slot + 1);
-        String str = make_string_cap(c_str, 0, name.size + 1);
-        copy(&str, name);
-        terminate_with_null(&str);
-        new_slot->name = str;
+        block_copy(c_str, name.str, name.size);
+        c_str[name.size] = 0;
+        new_slot->name = SCu8(c_str, name.size);
         new_slot->default_value = default_value;
         new_slot->location = layout->location_counter++;
         dll_insert_back(&layout->sentinel, new_slot);
-        return(new_slot->location);
+        result = new_slot->location;
     }
-    return(ManagedVariableIndex_ERROR);
+    return(result);
 }
 
 internal Managed_Variable_ID
-dynamic_variables_lookup_or_create(Heap *heap, Dynamic_Variable_Layout *layout, String name, u64 default_value){
+dynamic_variables_lookup_or_create(Heap *heap, Dynamic_Variable_Layout *layout, String_Const_u8 name, u64 default_value){
     Managed_Variable_ID lookup_id = dynamic_variables_lookup(layout, name);
-    if (lookup_id != ManagedVariableIndex_ERROR){
-        return(lookup_id);
+    if (lookup_id == ManagedVariableIndex_ERROR){
+        lookup_id = dynamic_variables_create__always(heap, layout, name, default_value);
     }
-    return(dynamic_variables_create__always(heap, layout, name, default_value));
+    return(lookup_id);
 }
 
 internal i32
-dynamic_variables_create(Heap *heap, Dynamic_Variable_Layout *layout, String name, u64 default_value){
+dynamic_variables_create(Heap *heap, Dynamic_Variable_Layout *layout, String_Const_u8 name, u64 default_value){
     Managed_Variable_ID lookup_id = dynamic_variables_lookup(layout, name);
     if (lookup_id == ManagedVariableIndex_ERROR){
         return(dynamic_variables_create__always(heap, layout, name, default_value));
@@ -130,14 +130,12 @@ insert_u32_Ptr_table(Heap *heap, Memory_Bank *mem_bank, u32_Ptr_Table *table, u3
         if (table->mem != 0){
             b32 result = move_u32_Ptr_table(&new_table, table);
             Assert(result);
-            AllowLocal(result);
             memory_bank_free(mem_bank, table->mem);
         }
         *table = new_table;
     }
     b32 result = insert_u32_Ptr_table(table, &key, &val);
     Assert(result);
-    AllowLocal(result);
 }
 
 ////////////////////////////////
@@ -151,7 +149,7 @@ internal Marker_Visual_Data*
 dynamic_workspace_alloc_visual(Heap *heap, Memory_Bank *mem_bank, Dynamic_Workspace *workspace){
     Marker_Visual_Allocator *allocator = &workspace->visual_allocator;
     if (allocator->free_count == 0){
-        i32 new_slots_count = clamp_bottom(16, allocator->total_visual_count);
+        i32 new_slots_count = clamp_bot(16, allocator->total_visual_count);
         i32 memsize = new_slots_count*sizeof(Marker_Visual_Data);
         void *new_slots_memory = memory_bank_allocate(heap, mem_bank, memsize);
         memset(new_slots_memory, 0, memsize);
@@ -400,8 +398,8 @@ lifetime__key_table_erase(Lifetime_Key_Table *table, Lifetime_Key *erase_key){
 internal Lifetime_Key_Table
 lifetime__key_table_copy(Heap *heap, Lifetime_Key_Table table, u32 new_max){
     Lifetime_Key_Table new_table = {};
-    new_table.max = clamp_bottom(table.max, new_max);
-    new_table.max = clamp_bottom(307, new_table.max);
+    new_table.max = clamp_bot(table.max, new_max);
+    new_table.max = clamp_bot(307, new_table.max);
     i32 item_size = sizeof(*new_table.hashes) + sizeof(*new_table.keys);
     new_table.mem_ptr = heap_allocate(heap, item_size*new_table.max);
     memset(new_table.mem_ptr, 0, item_size*new_table.max);
@@ -746,7 +744,7 @@ managed_object_alloc_managed_arena_in_scope(Heap *heap, Dynamic_Workspace *works
     header->std_header.item_size = sizeof(Arena*);
     header->std_header.count = 1;
     zdll_push_back(workspace->arena_list.first, workspace->arena_list.last, header);
-    header->arena = make_arena(app, page_size);
+    header->arena = make_arena_app_links(app, page_size);
     if (arena_out != 0){
         *arena_out = &header->arena;
     }
@@ -776,7 +774,7 @@ managed_object_free(Dynamic_Workspace *workspace, Managed_Object object){
             case ManagedObjectType_Arena:
             {
                 Managed_Arena_Header *header = (Managed_Arena_Header*)object_ptr;
-                arena_release_all(&header->arena);
+                linalloc_clear(&header->arena);
                 zdll_remove(workspace->arena_list.first, workspace->arena_list.last, header);
             }break;
         }

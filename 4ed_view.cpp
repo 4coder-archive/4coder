@@ -146,7 +146,7 @@ view_cursor_limits(Models *models, View *view){
         }
         limits.min = 0;
     }
-    limits.max = clamp_bottom(0, limits.max);
+    limits.max = clamp_bot(0, limits.max);
     limits.min = clamp(0, limits.min, limits.max);
     limits.delta = clamp_top(line_height*5, (limits.max - limits.min + 1)/2);
     return(limits);
@@ -155,8 +155,8 @@ view_cursor_limits(Models *models, View *view){
 internal i32
 view_compute_max_target_y_from_bottom_y(Models *models, View *view, f32 max_item_y){
     i32 line_height = view->line_height;
-    f32 height = clamp_bottom((f32)line_height, view_height(models, view));
-    f32 max_target_y = clamp_bottom(0.f, max_item_y - height*0.5f);
+    f32 height = clamp_bot((f32)line_height, view_height(models, view));
+    f32 max_target_y = clamp_bot(0.f, max_item_y - height*0.5f);
     return(ceil32(max_target_y));
 }
 
@@ -200,7 +200,7 @@ view_move_view_to_cursor(System_Functions *system, Models *models, View *view, G
         target_x = cursor.x - max_x/2;
     }
     else if (cursor.x < target_x){
-        target_x = clamp_bottom(0, cursor.x - max_x/2);
+        target_x = clamp_bot(0, cursor.x - max_x/2);
     }
     
     if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
@@ -474,8 +474,9 @@ finalize_color(Color_Table color_table, int_color color){
     return(color_argb);
 }
 
-internal void
-get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, Buffer_ID buffer_id, i32 view_index, Color_Table color_table){
+internal Render_Marker_List
+get_visual_markers(Arena *arena, Dynamic_Workspace *workspace, Range range, Buffer_ID buffer_id, i32 view_index, Color_Table color_table){
+    Render_Marker_List list = {};
     View_ID view_id = view_index + 1;
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
@@ -519,12 +520,14 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, 
                              i < take_count_per_step && marker < marker_one_past_last;
                              marker += 1, i += 1){
                             if (range.first <= marker->pos && marker->pos <= range.one_past_last){
-                                Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
-                                render_marker->type = type;
-                                render_marker->pos = marker->pos;
-                                render_marker->brush = brush;
-                                render_marker->one_past_last = marker->pos;
-                                render_marker->priority = priority;
+                                Render_Marker_Node *new_node = push_array(arena, Render_Marker_Node, 1);
+                                sll_queue_push(list.first, list.last, new_node);
+                                list.count += 1;
+                                new_node->render_marker.type = type;
+                                new_node->render_marker.pos = marker->pos;
+                                new_node->render_marker.brush = brush;
+                                new_node->render_marker.one_past_last = marker->pos;
+                                new_node->render_marker.priority = priority;
                             }
                         }
                     }
@@ -556,12 +559,14 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, 
                                     continue;
                                 }
                                 
-                                Render_Marker *render_marker = push_array(arena, Render_Marker, 1);
-                                render_marker->type = type;
-                                render_marker->pos = range_b.min;
-                                render_marker->brush = brush;
-                                render_marker->one_past_last = range_b.max;
-                                render_marker->priority = priority;
+                                Render_Marker_Node *new_node = push_array(arena, Render_Marker_Node, 1);
+                                sll_queue_push(list.first, list.last, new_node);
+                                list.count += 1;
+                                new_node->render_marker.type = type;
+                                new_node->render_marker.pos = range_b.min;
+                                new_node->render_marker.brush = brush;
+                                new_node->render_marker.one_past_last = range_b.max;
+                                new_node->render_marker.priority = priority;
                             }
                         }
                     }
@@ -569,6 +574,7 @@ get_visual_markers(Partition *arena, Dynamic_Workspace *workspace, Range range, 
             }
         }
     }
+    return(list);
 }
 
 internal i32
@@ -799,7 +805,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                                   i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range,
                                   Buffer_Render_Item *items, i32 item_count){
     Editing_File *file = view->file;
-    Partition *part = &models->mem.part;
+    Arena *scratch = &models->mem.arena;
     Color_Table color_table = models->color_table;
     
     Assert(file != 0);
@@ -812,14 +818,16 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     Face_ID font_id = file->settings.font_id;
     
     // NOTE(allen): Get visual markers
-    Render_Marker_Array markers = {};
-    markers.markers = push_array(part, Render_Marker, 0);
+    Render_Marker_List markers_list = {};
     {
         Lifetime_Object *lifetime_object = file->lifetime_object;
         Buffer_ID buffer_id = file->id.id;
         i32 view_index = view_get_index(&models->live_set, view);
         
-        get_visual_markers(part, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, color_table);
+        Render_Marker_List list = get_visual_markers(scratch, &lifetime_object->workspace, on_screen_range, buffer_id, view_index, color_table);
+        
+        sll_queue_push_multiple(markers_list.first, markers_list.last, list.first, list.last);
+        markers_list.count += list.count;
         
         i32 key_count = lifetime_object->key_count;
         i32 key_index = 0;
@@ -829,12 +837,24 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             i32 local_count = clamp_top(lifetime_key_reference_per_node, key_count - key_index);
             for (i32 i = 0; i < local_count; i += 1){
                 Lifetime_Key *key = node->keys[i];
-                get_visual_markers(part, &key->dynamic_workspace, on_screen_range, buffer_id, view_index, color_table);
+                list = get_visual_markers(scratch, &key->dynamic_workspace, on_screen_range, buffer_id, view_index, color_table);
+                sll_queue_push_multiple(markers_list.first, markers_list.last, list.first, list.last);
+                markers_list.count += list.count;
             }
             key_index += local_count;
         }
     }
-    markers.count = (i32)(push_array(part, Render_Marker, 0) - markers.markers);
+    
+    Render_Marker_Array markers = {};
+    markers.count = markers_list.count;
+    markers.markers = push_array(scratch, Render_Marker, markers.count);
+    i32 marker_index = 0;
+    for (Render_Marker_Node *node = markers_list.first;
+         node != 0;
+         node = node->next){
+        markers.markers[marker_index] = node->render_marker;
+        marker_index += 1;
+    }
     
     // NOTE(allen): Sort visual markers by position
     Range marker_segments[4];
@@ -859,10 +879,10 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     line_range_markers.markers = markers.markers + marker_segments[3].first;
     line_range_markers.count = marker_segments[3].one_past_last - marker_segments[3].first;
     
-    Render_Range_Record *range_stack = push_array(part, Render_Range_Record, range_markers.count);
+    Render_Range_Record *range_stack = push_array(scratch, Render_Range_Record, range_markers.count);
     i32 range_stack_top = -1;
     
-    Render_Range_Record *line_range_stack = push_array(part, Render_Range_Record, line_range_markers.count);
+    Render_Range_Record *line_range_stack = push_array(scratch, Render_Range_Record, line_range_markers.count);
     i32 line_range_stack_top = -1;
     
     i32 *line_starts = file->state.buffer.line_starts;
@@ -1125,7 +1145,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                     
                     default:
                     {
-                        InvalidCodePath;
+                        InvalidPath;
                     }break;
                 }
             }

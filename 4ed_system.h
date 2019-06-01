@@ -9,6 +9,8 @@
 
 // TOP
 
+// TODO(allen): rewrite using new arenas and strings!!!!! rewrite rewrite rewrite rewrite rewrite
+
 #if !defined(FCODER_SYSTEM_INTERFACE_H)
 #define FCODER_SYSTEM_INTERFACE_H
 
@@ -31,7 +33,7 @@ typedef Sys_Set_File_List_Sig(System_Set_File_List);
 typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 
 // file load/save
-#define Sys_Quick_File_Attributes_Sig(name) File_Attributes name(String file_name)
+#define Sys_Quick_File_Attributes_Sig(name) File_Attributes name(String_Const_u8 file_name)
 typedef Sys_Quick_File_Attributes_Sig(System_Quick_File_Attributes);
 
 #define Sys_Load_Handle_Sig(name) b32 name(char *filename, Plat_Handle *handle_out)
@@ -76,7 +78,7 @@ typedef Sys_Wake_Up_Timer_Set_Sig(System_Wake_Up_Timer_Set);
 typedef Sys_Wake_Up_Timer_Check_Sig(System_Wake_Up_Timer_Check);
 
 // clipboard
-#define Sys_Post_Clipboard_Sig(name) void name(String str)
+#define Sys_Post_Clipboard_Sig(name) void name(String_Const_u8 str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
 
 // cli

@@ -1,3 +1,0 @@
-This is the documentation for \VERSION. The documentation is still under construction so some of the links are linking to sections that have not been written yet.  What is here should be correct and I suspect useful even without some of the other sections.
-
-If you have questions or discover errors please contact \STYLE{code}editor@4coder.net\END or to get help from members of the 4coder and handmade network community you can post on the  4coder forums hosted at \STYLE{code}4coder.handmade.network\END.

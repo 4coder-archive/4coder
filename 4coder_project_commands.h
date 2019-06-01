@@ -14,7 +14,7 @@ enum{
 ///////////////////////////////
 
 struct Project_File_Pattern{
-    Absolutes absolutes;
+    List_String_Const_u8 absolutes;
 };
 
 struct Project_File_Pattern_Array{
@@ -23,7 +23,7 @@ struct Project_File_Pattern_Array{
 };
 
 struct Project_File_Load_Path{
-    String path;
+    String_Const_u8 path;
     b32 recursive;
     b32 relative;
 };
@@ -34,9 +34,9 @@ struct Project_File_Load_Path_Array{
 };
 
 struct Project_Command{
-    String name;
-    String cmd;
-    String out;
+    String_Const_u8 name;
+    String_Const_u8 cmd;
+    String_Const_u8 out;
     b32 footer_panel;
     b32 save_dirty_files;
     b32 cursor_at_end;
@@ -50,8 +50,8 @@ struct Project_Command_Array{
 struct Project{
     b32 loaded;
     
-    String dir;
-    String name;
+    String_Const_u8 dir;
+    String_Const_u8 name;
     
     Project_File_Pattern_Array pattern_array;
     Project_File_Pattern_Array blacklist_pattern_array;
@@ -84,10 +84,10 @@ struct Project_Setup_Status{
 
 struct Project_Key_Strings{
     b32 success;
-    String script_file;
-    String code_file;
-    String output_dir;
-    String binary_file;
+    String_Const_u8 script_file;
+    String_Const_u8 code_file;
+    String_Const_u8 output_dir;
+    String_Const_u8 binary_file;
 };
 
 #endif

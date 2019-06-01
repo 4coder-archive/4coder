@@ -94,7 +94,7 @@ struct Managed_Arena_Header_List{
 struct Dynamic_Variable_Slot{
     Dynamic_Variable_Slot *next;
     Dynamic_Variable_Slot *prev;
-    String name;
+    String_Const_u8 name;
     u64 default_value;
     i32 location;
 };

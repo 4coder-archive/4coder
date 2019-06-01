@@ -6,6 +6,14 @@
 
 #define COMMAND_METADATA_OUT "4coder_generated/command_metadata.h"
 
+#include "4coder_base_types.h"
+
+#include "4coder_lib/4coder_string.h"
+
+#include "4coder_base_types.cpp"
+#include "4coder_stringf.cpp"
+#include "4coder_malloc_allocator.cpp"
+
 #include "4coder_file.h"
 
 #include "4coder_lib/4cpp_lexer.h"
@@ -14,8 +22,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define str_to_l_c(s) ((s).size), ((s).str)
-#define str_to_c_l(s) ((s).str), ((s).size)
+#define str_to_l_c(s) ((i32)(s).size), ((s).str)
+#define str_to_c_l(s) ((s).str), ((i32)(s).size)
 
 ///////////////////////////////
 
@@ -25,12 +33,12 @@ struct Line_Column_Coordinates{
 };
 
 static Line_Column_Coordinates
-line_column_coordinates(String text, int32_t pos){
+line_column_coordinates(String_Const_char text, int32_t pos){
     if (pos < 0){
         pos = 0;
     }
     if (pos > text.size){
-        pos = text.size;
+        pos = (i32)text.size;
     }
     
     Line_Column_Coordinates coords = {};
@@ -51,13 +59,13 @@ line_column_coordinates(String text, int32_t pos){
 }
 
 static int32_t
-line_number(String text, int32_t pos){
+line_number(String_Const_char text, int32_t pos){
     Line_Column_Coordinates coords = line_column_coordinates(text, pos);
     return(coords.line);
 }
 
 static void
-error(char *source_name, String text, int32_t pos, char *msg){
+error(char *source_name, String_Const_char text, int32_t pos, char *msg){
     Line_Column_Coordinates coords = line_column_coordinates(text, pos);
     fprintf(stdout, "%s:%d:%d: %s\n", source_name, coords.line, coords.column, msg);
     fflush(stdout);
@@ -66,8 +74,9 @@ error(char *source_name, String text, int32_t pos, char *msg){
 ///////////////////////////////
 
 struct Reader{
+    Arena *error_arena;
     char *source_name;
-    String text;
+    String_Const_char text;
     Cpp_Token_Array tokens;
     Cpp_Token *ptr;
 };
@@ -78,7 +87,7 @@ struct Temp_Read{
 };
 
 static Reader
-make_reader(Cpp_Token_Array array, char *source_name, String text){
+make_reader(Cpp_Token_Array array, char *source_name, String_Const_char text){
     Reader reader = {};
     reader.tokens = array;
     reader.ptr = array.tokens;
@@ -130,7 +139,7 @@ get_token(Reader *reader){
         else{
             reader->ptr = reader->tokens.tokens + reader->tokens.count;
             memset(&result, 0, sizeof(result));
-            result.start = reader->text.size;
+            result.start = (i32)reader->text.size;
             break;
         }
         
@@ -151,7 +160,7 @@ peek_token(Reader *reader){
     }
     
     if (reader->ptr >= reader->tokens.tokens + reader->tokens.count){
-        result.start = reader->text.size;
+        result.start = (i32)reader->text.size;
     }
     else{
         result = *reader->ptr;
@@ -192,15 +201,11 @@ end_temp_read(Temp_Read temp){
 
 ///////////////////////////////
 
-static String
-token_str(String text, Cpp_Token token){
-    String str = substr(text, token.start, token.size);
+static String_Const_char
+token_str(String_Const_char text, Cpp_Token token){
+    String_Const_char str = string_prefix(string_skip(text, token.start), token.size);
     return(str);
 }
-
-///////////////////////////////
-
-#define sll_push(f,l,n) if((f)==0){(f)=(l)=(n);}else{(l)->next=(n);(l)=(n);}(n)->next=0
 
 ///////////////////////////////
 
@@ -212,15 +217,15 @@ enum{
 
 struct Meta_Command_Entry{
     Meta_Command_Entry *next;
-    String name;
+    String_Const_char name;
     char *source_name;
     int32_t line_number;
     union{
         struct{
-            String doc;
+            String_Const_char doc;
         } docstring;
         struct{
-            String potential;
+            String_Const_char potential;
         } alias;
     };
 };
@@ -237,15 +242,13 @@ struct Meta_Command_Entry_Arrays{
 
 ///////////////////////////////
 
-#define Swap(T,a,b) {T t=a; a=b; b=t;}
-
 static int32_t
 quick_sort_part(Meta_Command_Entry **entries, int32_t first, int32_t one_past_last){
     int32_t pivot = one_past_last - 1;
-    String pivot_key = entries[pivot]->name;
+    String_Const_char pivot_key = entries[pivot]->name;
     int32_t j = first;
     for (int32_t i = first; i < pivot; ++i){
-        if (compare(entries[i]->name, pivot_key) < 0){
+        if (string_compare(entries[i]->name, pivot_key) < 0){
             Swap(Meta_Command_Entry*, entries[i], entries[j]);
             ++j;
         }
@@ -264,8 +267,8 @@ quick_sort(Meta_Command_Entry **entries, int32_t first, int32_t one_past_last){
 }
 
 static Meta_Command_Entry**
-get_sorted_meta_commands(Partition *part, Meta_Command_Entry *first, int32_t count){
-    Meta_Command_Entry **entries = push_array(part, Meta_Command_Entry*, count);
+get_sorted_meta_commands(Arena *arena, Meta_Command_Entry *first, int32_t count){
+    Meta_Command_Entry **entries = push_array(arena, Meta_Command_Entry*, count);
     
     int32_t i = 0;
     for (Meta_Command_Entry *entry = first;
@@ -282,13 +285,13 @@ get_sorted_meta_commands(Partition *part, Meta_Command_Entry *first, int32_t cou
 
 ///////////////////////////////
 
-static bool32
-has_duplicate_entry(Meta_Command_Entry *first, String name){
-    bool32 has_duplicate = false;
+static b32
+has_duplicate_entry(Meta_Command_Entry *first, String_Const_char name){
+    b32 has_duplicate = false;
     for (Meta_Command_Entry *entry = first;
          entry != 0;
          entry = entry->next){
-        if (match(name, entry->name)){
+        if (string_match(name, entry->name)){
             has_duplicate = true;
         }
     }
@@ -297,14 +300,16 @@ has_duplicate_entry(Meta_Command_Entry *first, String name){
 
 ///////////////////////////////
 
-static bool32
+static b32
 require_key_identifier(Reader *reader, char *str, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+    b32 success = false;
+    
+    String_Const_char string = SCchar(str);
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_TOKEN_IDENTIFIER){
-        String lexeme = token_str(reader->text, token);
-        if (match(lexeme, str)){
+        String_Const_char lexeme = token_str(reader->text, token);
+        if (string_match(lexeme, string)){
             success = true;
             if (opt_pos_out != 0){
                 *opt_pos_out = token.start;
@@ -313,21 +318,18 @@ require_key_identifier(Reader *reader, char *str, int32_t *opt_pos_out = 0){
     }
     
     if (!success){
-        char space[1024];
-        String s = make_fixed_width_string(space);
-        copy(&s, "expected to find '");
-        append(&s, str);
-        append(&s, "'");
-        terminate_with_null(&s);
-        error(reader, token.start, s.str);
+        Temp_Memory temp = begin_temp(reader->error_arena);
+        String_Const_char error_string = string_pushf(reader->error_arena, "expected to find '%s'", str);
+        error(reader, token.start, error_string.str);
+        end_temp(temp);
     }
     
     return(success);
 }
 
-static bool32
+static b32
 require_open_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+    b32 success = false;
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_TOKEN_PARENTHESE_OPEN){
@@ -344,9 +346,9 @@ require_open_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
     return(success);
 }
 
-static bool32
+static b32
 require_close_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+    b32 success = false;
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_TOKEN_PARENTHESE_CLOSE){
@@ -363,9 +365,9 @@ require_close_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
     return(success);
 }
 
-static bool32
+static b32
 require_comma(Reader *reader, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+    b32 success = false;
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_TOKEN_COMMA){
@@ -382,9 +384,9 @@ require_comma(Reader *reader, int32_t *opt_pos_out = 0){
     return(success);
 }
 
-static bool32
+static b32
 require_define(Reader *reader, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+    b32 success = false;
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_PP_DEFINE){
@@ -401,13 +403,13 @@ require_define(Reader *reader, int32_t *opt_pos_out = 0){
     return(success);
 }
 
-static bool32
-extract_identifier(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+static b32
+extract_identifier(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
+    b32 success = false;
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_TOKEN_IDENTIFIER){
-        String lexeme = token_str(reader->text, token);
+        String_Const_char lexeme = token_str(reader->text, token);
         *str_out = lexeme;
         success = true;
         if (opt_pos_out != 0){
@@ -422,13 +424,13 @@ extract_identifier(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
     return(success);
 }
 
-static bool32
-extract_integer(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+static b32
+extract_integer(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
+    b32 success = false;
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_TOKEN_INTEGER_CONSTANT){
-        String lexeme = token_str(reader->text, token);
+        String_Const_char lexeme = token_str(reader->text, token);
         *str_out = lexeme;
         success = true;
         if (opt_pos_out != 0){
@@ -443,13 +445,13 @@ extract_integer(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
     return(success);
 }
 
-static bool32
-extract_string(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
-    bool32 success = false;
+static b32
+extract_string(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
+    b32 success = false;
     
     Cpp_Token token = get_token(reader);
     if (token.type == CPP_TOKEN_STRING_CONSTANT){
-        String lexeme = token_str(reader->text, token);
+        String_Const_char lexeme = token_str(reader->text, token);
         *str_out = lexeme;
         success = true;
         if (opt_pos_out != 0){
@@ -464,12 +466,12 @@ extract_string(Reader *reader, String *str_out, int32_t *opt_pos_out = 0){
     return(success);
 }
 
-static bool32
-parse_documented_command(Partition *part, Meta_Command_Entry_Arrays *arrays, Reader *reader){
-    String name = {};
-    String file_name = {};
-    String line_number = {};
-    String doc = {};
+static b32
+parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
+    String_Const_char name = {};
+    String_Const_char file_name = {};
+    String_Const_char line_number = {};
+    String_Const_char doc = {};
     
     // Getting the command's name
     int32_t start_pos = 0;
@@ -533,27 +535,26 @@ parse_documented_command(Partition *part, Meta_Command_Entry_Arrays *arrays, Rea
         return(false);
     }
     
-    doc = substr(doc, 1, doc.size - 2);
+    doc = string_chop(string_skip(doc, 1), 1);
     
-    char *source_name = push_array(part, char, file_name.size + 1);
-    push_align(part, 8);
-    string_interpret_escapes(substr(file_name, 1, file_name.size - 2), source_name);
+    String_Const_char file_name_unquoted = string_chop(string_skip(file_name, 1), 1);
+    String_Const_char source_name = string_interpret_escapes(arena, file_name_unquoted);
     
-    Meta_Command_Entry *new_entry = push_array(part, Meta_Command_Entry, 1);
+    Meta_Command_Entry *new_entry = push_array(arena, Meta_Command_Entry, 1);
     new_entry->name = name;
-    new_entry->source_name = source_name;
-    new_entry->line_number = str_to_int(line_number);
+    new_entry->source_name = source_name.str;
+    new_entry->line_number = (i32)string_to_integer(line_number, 10);
     new_entry->docstring.doc = doc;
-    sll_push(arrays->first_doc_string, arrays->last_doc_string, new_entry);
+    sll_queue_push(arrays->first_doc_string, arrays->last_doc_string, new_entry);
     ++arrays->doc_string_count;
     
     return(true);
 }
 
-static bool32
-parse_alias(Partition *part, Meta_Command_Entry_Arrays *arrays, Reader *reader){
-    String name = {};
-    String potential = {};
+static b32
+parse_alias(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
+    String_Const_char name = {};
+    String_Const_char potential = {};
     
     // Getting the alias's name
     int32_t start_pos = 0;
@@ -582,12 +583,12 @@ parse_alias(Partition *part, Meta_Command_Entry_Arrays *arrays, Reader *reader){
         return(false);
     }
     
-    Meta_Command_Entry *new_entry = push_array(part, Meta_Command_Entry, 1);
+    Meta_Command_Entry *new_entry = push_array(arena, Meta_Command_Entry, 1);
     new_entry->name = name;
     new_entry->source_name = reader->source_name;
     new_entry->line_number = line_number(reader, start_pos);
     new_entry->alias.potential = potential;
-    sll_push(arrays->first_alias, arrays->last_alias, new_entry);
+    sll_queue_push(arrays->first_alias, arrays->last_alias, new_entry);
     ++arrays->alias_count;
     
     return(true);
@@ -596,9 +597,9 @@ parse_alias(Partition *part, Meta_Command_Entry_Arrays *arrays, Reader *reader){
 ///////////////////////////////
 
 static void
-parse_text(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, char *source_name, String text){
+parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_name, String_Const_char text){
     Cpp_Token_Array array = cpp_make_token_array(1024);
-    cpp_lex_file(text.str, text.size, &array);
+    cpp_lex_file(text.str, (i32)text.size, &array);
     
     Reader reader_ = make_reader(array, source_name, text);
     Reader *reader = &reader_;
@@ -607,19 +608,19 @@ parse_text(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, char *sourc
         Cpp_Token token = get_token(reader);
         
         if (token.type == CPP_TOKEN_IDENTIFIER){
-            String lexeme = token_str(text, token);
+            String_Const_char lexeme = token_str(text, token);
             
-            bool32 in_preproc_body = ((token.flags & CPP_TFLAG_PP_BODY) != 0);
+            b32 in_preproc_body = ((token.flags & CPP_TFLAG_PP_BODY) != 0);
             
-            if (!in_preproc_body && match(lexeme, "CUSTOM_DOC")){
+            if (!in_preproc_body && string_match(lexeme, string_litexpr("CUSTOM_DOC"))){
                 Temp_Read temp_read = begin_temp_read(reader);
                 
-                bool32 found_start_pos = false;
+                b32 found_start_pos = false;
                 for (int32_t R = 0; R < 10; ++R){
                     Cpp_Token p_token = prev_token(reader);
                     if (p_token.type == CPP_TOKEN_IDENTIFIER){
-                        String p_lexeme = token_str(text, p_token);
-                        if (match(p_lexeme, "CUSTOM_COMMAND_SIG")){
+                        String_Const_char p_lexeme = token_str(text, p_token);
+                        if (string_match(p_lexeme, string_litexpr("CUSTOM_COMMAND_SIG"))){
                             found_start_pos = true;
                             break;
                         }
@@ -633,15 +634,15 @@ parse_text(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, char *sourc
                     end_temp_read(temp_read);
                 }
                 else{
-                    if (!parse_documented_command(part, entry_arrays, reader)){
+                    if (!parse_documented_command(arena, entry_arrays, reader)){
                         end_temp_read(temp_read);
                     }
                 }
             }
-            else if (match(lexeme, "CUSTOM_ALIAS")){
+            else if (string_match(lexeme, string_litexpr("CUSTOM_ALIAS"))){
                 Temp_Read temp_read = begin_temp_read(reader);
                 
-                bool32 found_start_pos = false;
+                b32 found_start_pos = false;
                 for (int32_t R = 0; R < 3; ++R){
                     Cpp_Token p_token = prev_token(reader);
                     if (p_token.type == CPP_PP_DEFINE){
@@ -659,7 +660,7 @@ parse_text(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, char *sourc
                     end_temp_read(temp_read);
                 }
                 else{
-                    if (!parse_alias(part, entry_arrays, reader)){
+                    if (!parse_alias(arena, entry_arrays, reader)){
                         end_temp_read(temp_read);
                     }
                 }
@@ -675,8 +676,8 @@ parse_text(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, char *sourc
 }
 
 static void
-parse_file(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *name_, int32_t len){
-    char *name = unencode(part, name_, len);
+parse_file(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *name_, int32_t len){
+    char *name = unencode(arena, name_, len);
     if (name == 0){
         if (sizeof(*name_) == 2){
             fprintf(stdout, "warning: could not unencode file name %ls - file skipped\n", (wchar_t*)name_);
@@ -687,17 +688,23 @@ parse_file(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Ch
         return;
     }
     
-    String text = file_dump(part, name);
-    parse_text(part, entry_arrays, name, text);
+    String_Const_char text = file_dump(arena, name);
+    parse_text(arena, entry_arrays, name, text);
 }
 
 static void
-parse_files_by_pattern(Partition *part, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *pattern, bool32 recursive){
-    Cross_Platform_File_List list = get_file_list(part, pattern, filter_all);
+parse_files_by_pattern(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *pattern, b32 recursive){
+    Cross_Platform_File_List list = get_file_list(arena, pattern, filter_all);
     for (int32_t i = 0; i < list.count; ++i){
         Cross_Platform_File_Info *info = &list.info[i];
         
-        if (info->is_folder && match(make_string(info->name, info->len), "4coder_generated")){
+        String_Const_Any info_name = SCany(info->name, info->len);
+        Temp_Memory temp = begin_temp(arena);
+        String_Const_char info_name_ascii = string_char_from_any(arena, info_name);
+        b32 is_generated = string_match(info_name_ascii, string_litexpr("4coder_generated"));
+        end_temp(temp);
+        
+        if (info->is_folder && is_generated){
             continue;
         }
         if (!recursive && info->is_folder){
@@ -708,8 +715,7 @@ parse_files_by_pattern(Partition *part, Meta_Command_Entry_Arrays *entry_arrays,
         if (info->is_folder){
             full_name_len += 2;
         }
-        Filename_Character *full_name = push_array(part, Filename_Character, full_name_len + 1);
-        push_align(part, 8);
+        Filename_Character *full_name = push_array(arena, Filename_Character, full_name_len + 1);
         
         if (full_name == 0){
             fprintf(stdout, "fatal error: not enough memory to recurse to sub directory\n");
@@ -722,12 +728,12 @@ parse_files_by_pattern(Partition *part, Meta_Command_Entry_Arrays *entry_arrays,
         full_name[full_name_len] = 0;
         
         if (!info->is_folder){
-            parse_file(part, entry_arrays, full_name, full_name_len);
+            parse_file(arena, entry_arrays, full_name, full_name_len);
         }
         else{
             full_name[full_name_len - 2] = SLASH;
             full_name[full_name_len - 1] = '*';
-            parse_files_by_pattern(part, entry_arrays, full_name, true);
+            parse_files_by_pattern(arena, entry_arrays, full_name, true);
         }
     }
 }
@@ -748,15 +754,13 @@ main(int argc, char **argv){
         show_usage(argc, argv);
     }
     
-    bool32 recursive = match(argv[1], "-R");
+    b32 recursive = string_match(SCchar(argv[1]), string_litexpr("-R"));
     if (recursive && argc < 4){
         show_usage(argc, argv);
     }
     
-    int32_t size = (256 << 20);
-    void *mem = malloc(size);
-    Partition part_ = make_part(mem, size);
-    Partition *part = &part_;
+    Arena arena_ = make_arena_malloc(MB(1), 8);
+    Arena *arena = &arena_;
     
     char *out_directory = argv[2];
     
@@ -767,24 +771,24 @@ main(int argc, char **argv){
     
     Meta_Command_Entry_Arrays entry_arrays = {};
     for (int32_t i = start_i; i < argc; ++i){
-        Filename_Character *pattern_name = encode(part, argv[i]);
-        parse_files_by_pattern(part, &entry_arrays, pattern_name, recursive);
+        Filename_Character *pattern_name = encode(arena, argv[i]);
+        parse_files_by_pattern(arena, &entry_arrays, pattern_name, recursive);
     }
     
-    int32_t out_dir_len = str_size(out_directory);
+    umem out_dir_len = cstring_length(out_directory);
     if (out_directory[0] == '"'){
         out_directory += 1;
         out_dir_len -= 2;
     }
     
     {
-        String str = make_string(out_directory, out_dir_len);
-        str = skip_chop_whitespace(str);
+        String_Const_char str = SCchar(out_directory, out_dir_len);
+        str = string_skip_chop_whitespace(str);
         out_directory = str.str;
         out_dir_len = str.size;
     }
     
-    int32_t len = out_dir_len + 1 + sizeof(COMMAND_METADATA_OUT) - 1;
+    umem len = out_dir_len + 1 + sizeof(COMMAND_METADATA_OUT) - 1;
     char *out_file_name = (char*)malloc(len + 1);
     memcpy(out_file_name, out_directory, out_dir_len);
     memcpy(out_file_name + out_dir_len, "/", 1);
@@ -794,7 +798,7 @@ main(int argc, char **argv){
     
     if (out != 0){
         int32_t entry_count = entry_arrays.doc_string_count;
-        Meta_Command_Entry **entries = get_sorted_meta_commands(part, entry_arrays.first_doc_string, entry_count);
+        Meta_Command_Entry **entries = get_sorted_meta_commands(arena, entry_arrays.first_doc_string, entry_count);
         
         fprintf(out, "#if !defined(META_PASS)\n");
         fprintf(out, "#define command_id(c) (fcoder_metacmd_ID_##c)\n");
@@ -832,26 +836,23 @@ main(int argc, char **argv){
         for (int32_t i = 0; i < entry_count; ++i){
             Meta_Command_Entry *entry = entries[i];
             
-            Temp_Memory temp = begin_temp_memory(part);
+            Temp_Memory temp = begin_temp(arena);
             
             // HACK(allen): We could just get these at the HEAD END of the process,
             // then we only have to do it once per file, and pass the lengths through.
-            int32_t source_name_len = str_size(entry->source_name);
-            
-            char *fixed_name = push_array(part, char, source_name_len*2 + 1);
-            String s = make_string_cap(fixed_name, 0, source_name_len*2 + 1);
-            copy(&s, entry->source_name);
-            int32_t unescaped_size = s.size;
-            replace_str(&s, "\\", "\\\\");
-            terminate_with_null(&s);
+            //umem source_name_len = cstring_length(entry->source_name);
+            String_Const_char source_name = SCchar(entry->source_name);
+            String_Const_char printable = string_replace(arena, source_name,
+                                                         SCchar("\\"), SCchar("\\\\"),
+                                                         StringFill_NullTerminate);
             
             fprintf(out,
                     "{ PROC_LINKS(%.*s, 0), \"%.*s\", %d,  \"%.*s\", %d, \"%s\", %d, %d },\n",
                     str_to_l_c(entry->name),
-                    str_to_l_c(entry->name), entry->name.size,
-                    str_to_l_c(entry->docstring.doc), entry->docstring.doc.size,
-                    s.str, unescaped_size, entry->line_number);
-            end_temp_memory(temp);
+                    str_to_l_c(entry->name), (i32)entry->name.size,
+                    str_to_l_c(entry->docstring.doc), (i32)entry->docstring.doc.size,
+                    printable.str, (i32)source_name.size, entry->line_number);
+            end_temp(temp);
         }
         fprintf(out, "};\n");
         

@@ -12,47 +12,16 @@ distribute, and modify this file as you see fit.
 #if !defined(FCODER_ARENA_H)
 #define FCODER_ARENA_H
 
-// 4tech_standard_preamble.h
-#if !defined(FTECH_INTEGERS)
-#define FTECH_INTEGERS
-#include <stdint.h>
-typedef int8_t i8_4tech;
-typedef int16_t i16_4tech;
-typedef int32_t i32_4tech;
-typedef int64_t i64_4tech;
-
-typedef uint8_t u8_4tech;
-typedef uint16_t u16_4tech;
-typedef uint32_t u32_4tech;
-typedef uint64_t u64_4tech;
-
-#if defined(FTECH_32_BIT)
-typedef u32_4tech umem_4tech;
-#else
-typedef u64_4tech umem_4tech;
-#endif
-
-typedef float f32_4tech;
-typedef double f64_4tech;
-
-typedef int8_t b8_4tech;
-typedef int32_t b32_4tech;
-#endif
-
-#if !defined(Assert)
-# define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
-#endif
-// standard preamble end 
-
+#if !defined(Migrating__Arena)
 struct Partition{
     char *base;
-    i32_4tech pos;
-    i32_4tech max;
+    i32 pos;
+    i32 max;
 };
 
 struct Temp_Memory{
     Partition *part;
-    i32_4tech pos;
+    i32 pos;
 };
 
 #if defined(FCODER_CUSTOM_H)
@@ -65,19 +34,19 @@ struct Partition_Chained{
 struct Arena{
     struct Application_Links *app;
     Partition_Chained *part;
-    i32_4tech chunk_size;
-    i32_4tech align;
+    i32 chunk_size;
+    i32 align;
 };
 
 struct Temp_Memory_Arena{
     Arena *arena;
     Partition_Chained *part;
-    i32_4tech pos;
+    i32 pos;
 };
 
 struct Temp_Memory_Arena_Light{
     Partition_Chained *part;
-    i32_4tech pos;
+    i32 pos;
 };
 
 struct Scratch_Block{
@@ -88,6 +57,8 @@ struct Scratch_Block{
     Arena *scratch;
     Temp_Memory_Arena temp;
 };
+
+#endif
 
 #endif
 

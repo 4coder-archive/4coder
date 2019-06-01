@@ -31,7 +31,7 @@ view_get_ui_data(Application_Links *app, View_ID view_id, View_Get_UI_Flags flag
                     storage.data = ui_data;
                     storage.arena = arena;
                     storage.arena_object = arena_object;
-                    storage.temp = begin_temp_memory(arena);
+                    storage.temp = begin_temp(arena);
                     if (managed_object_store_data(app, new_ui_data_object, 0, 1, &storage)){
                         if (managed_variable_set(app, scope, view_ui_data, new_ui_data_object)){
                             ui_data_object = new_ui_data_object;
@@ -45,7 +45,7 @@ view_get_ui_data(Application_Links *app, View_ID view_id, View_Get_UI_Flags flag
                     *ui_data_out = storage.data;
                     *ui_arena_out = storage.arena;
                     if ((flags & ViewGetUIFlag_ClearData) != 0){
-                        end_temp_memory(storage.temp);
+                        end_temp(storage.temp);
                     }
                     result = true;
                 }
@@ -297,8 +297,6 @@ init_lister_state(Application_Links *app, Lister_State *state, Heap *heap){
     state->item_index = 0;
     state->set_view_vertical_focus_to_item = false;
     state->item_count_after_filter = 0;
-    arena_release_all(&state->lister.arena);
-    memset(&state->lister, 0, sizeof(state->lister));
 }
 
 UI_QUIT_FUNCTION(lister_quit_function){
@@ -308,9 +306,8 @@ UI_QUIT_FUNCTION(lister_quit_function){
 }
 
 static UI_Item
-lister_get_clicked_item(Application_Links *app, View_ID view_id, Partition *scratch){
+lister_get_clicked_item(Application_Links *app, View_ID view_id){
     UI_Item result = {};
-    Temp_Memory temp = begin_temp_memory(scratch);
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
@@ -327,7 +324,6 @@ lister_get_clicked_item(Application_Links *app, View_ID view_id, Partition *scra
             result = *clicked;
         }
     }
-    end_temp_memory(temp);
     return(result);
 }
 
@@ -349,7 +345,7 @@ lister_get_block_height(f32 line_height, b32 is_theme_list){
 }
 
 static void
-lister_update_ui(Application_Links *app, Partition *scratch, View_ID view, Lister_State *state){
+lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
     b32 is_theme_list = state->lister.data.theme_list;
     
     Rect_f32 screen_rect = {};
@@ -369,7 +365,8 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_ID view, Liste
     f32 block_height = lister_get_block_height(line_height, is_theme_list);
     f32 text_field_height = lister_get_text_field_height(metrics.line_height);
     
-    Temp_Memory full_temp = begin_temp_memory(scratch);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory full_temp = begin_temp(scratch);
     
     // TODO(allen): switch to float
     Rect_i32 buffer_region = {};
@@ -388,21 +385,25 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_ID view, Liste
     Lister_Node_Ptr_Array substring_matches = {};
     substring_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
     
-    String key = state->lister.data.key_string;
-    Absolutes absolutes = {};
-    get_absolutes(key, &absolutes, true, true);
-    b32 has_wildcard = (absolutes.count > 3);
+    String_Const_u8 key = state->lister.data.key_string.string;
+    List_String_Const_u8 absolutes = {};
+    string_list_push(scratch, &absolutes, string_u8_litexpr(""));
+    List_String_Const_u8 splits = string_split(scratch, key, (u8*)"*", 1);
+    b32 has_wildcard = (splits.node_count > 1);
+    string_list_push(&absolutes, &splits);
+    string_list_push(scratch, &absolutes, string_u8_litexpr(""));
     
     for (Lister_Node *node = state->lister.data.options.first;
          node != 0;
          node = node->next){
         if (key.size == 0 ||
-            wildcard_match_s(&absolutes, node->string, false)){
-            if (match_insensitive(node->string, key) && exact_matches.count == 0){
+            string_wildcard_match_insensitive(absolutes, node->string)){
+            String_Const_u8 node_string = node->string;
+            if (string_match_insensitive(node_string, key) && exact_matches.count == 0){
                 exact_matches.node_ptrs[exact_matches.count++] = node;
             }
             else if (!has_wildcard &&
-                     match_part_insensitive(node->string, key) &&
+                     string_match_insensitive(string_prefix(node_string, key.size), key) &&
                      node->string.size > key.size &&
                      node->string.str[key.size] == '.'){
                 before_extension_matches.node_ptrs[before_extension_matches.count++] = node;
@@ -458,7 +459,7 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_ID view, Liste
                 else{
                     //i32 style_index = node->index;
                     
-                    String name = make_lit_string("name");
+                    String_Const_u8 name = string_u8_litexpr("name");
                     item.lines[0] = fancy_string_list_single(push_fancy_string(ui_arena, fancy_id(Stag_Default), name));
                     
                     Fancy_String_List list = {};
@@ -531,9 +532,9 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_ID view, Liste
             item.inner_margin = 0;
             {
                 Fancy_String_List list = {};
-                push_fancy_string (ui_arena, &list, fancy_id(Stag_Pop1   ), state->lister.data.query);
+                push_fancy_string (ui_arena, &list, fancy_id(Stag_Pop1   ), state->lister.data.query.string);
                 push_fancy_stringf(ui_arena, &list, fancy_id(Stag_Pop1   ), " ");
-                push_fancy_string (ui_arena, &list, fancy_id(Stag_Default), state->lister.data.text_field);
+                push_fancy_string (ui_arena, &list, fancy_id(Stag_Default), state->lister.data.text_field.string);
                 item.lines[0] = list;
                 item.line_count = 1;
             }
@@ -550,11 +551,11 @@ lister_update_ui(Application_Links *app, Partition *scratch, View_ID view, Liste
         view_set_quit_ui_handler(app, view, lister_quit_function);
     }
     
-    end_temp_memory(full_temp);
+    end_temp(full_temp);
 }
 
 static Lister_Prealloced_String
-lister_prealloced(String string){
+lister_prealloced(String_Const_u8 string){
     Lister_Prealloced_String result = {};
     result.string = string;
     return(result);
@@ -562,11 +563,16 @@ lister_prealloced(String string){
 
 static void
 lister_first_init(Application_Links *app, Lister *lister, void *user_data, i32 user_data_size){
-    memset(lister, 0, sizeof(*lister));
-    lister->arena = make_arena(app, (16 << 10));
-    lister->data.query      = make_fixed_width_string(lister->data.query_space);
-    lister->data.text_field = make_fixed_width_string(lister->data.text_field_space);
-    lister->data.key_string = make_fixed_width_string(lister->data.key_string_space);
+	if (lister->arena.base_allocator == 0) {
+		lister->arena = make_arena_app_links(app, KB(16));
+	}
+	else{
+		linalloc_clear(&lister->arena);
+	}
+	block_zero_struct(&lister->data);
+    lister->data.query = Su8(lister->data.query_space, 0, sizeof(lister->data.query_space));
+    lister->data.text_field = Su8(lister->data.text_field_space, 0, sizeof(lister->data.text_field_space));
+    lister->data.key_string = Su8(lister->data.key_string_space, 0, sizeof(lister->data.key_string_space));
     lister->data.user_data = push_array(&lister->arena, char, user_data_size);
     lister->data.user_data_size = user_data_size;
     push_align(&lister->arena, 8);
@@ -576,45 +582,45 @@ lister_first_init(Application_Links *app, Lister *lister, void *user_data, i32 u
 }
 
 static void
-lister_begin_new_item_set(Application_Links *app, Lister *lister, i32 list_memory_size){
-    arena_release_all(&lister->arena);
-    memset(&lister->data.options, 0, sizeof(lister->data.options));
+lister_begin_new_item_set(Application_Links *app, Lister *lister){
+    linalloc_clear(&lister->arena);
+    block_zero_struct(&lister->data.options);
 }
 
 static void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status,
-                void *user_data, i32 extra_space){
-    Lister_Node *node = push_array(&lister->arena, Lister_Node, 1);
+                void *user_data, umem extra_space){
+    void *base_memory = push_array(&lister->arena, u8, sizeof(Lister_Node) + extra_space);
+    Lister_Node *node = (Lister_Node*)base_memory;
     node->string = string.string;
     node->status = status.string;
     node->user_data = user_data;
     node->raw_index = lister->data.options.count;
     zdll_push_back(lister->data.options.first, lister->data.options.last, node);
     lister->data.options.count += 1;
-    void *result = push_array(&lister->arena, char, extra_space);
-    push_align(&lister->arena, 8);
+    void *result = (node + 1);
     return(result);
 }
 
 static void*
-lister_add_item(Lister *lister, Lister_Prealloced_String string, String status,
-                void *user_data, i32 extra_space){
-    return(lister_add_item(lister, string, lister_prealloced(string_push_copy(&lister->arena, status)),
+lister_add_item(Lister *lister, Lister_Prealloced_String string, String_Const_u8 status,
+                void *user_data, umem  extra_space){
+    return(lister_add_item(lister, string, lister_prealloced(string_copy(&lister->arena, status)),
                            user_data, extra_space));
 }
 
 static void*
-lister_add_item(Lister *lister, String string, Lister_Prealloced_String status,
-                void *user_data, i32 extra_space){
-    return(lister_add_item(lister, lister_prealloced(string_push_copy(&lister->arena, string)), status,
+lister_add_item(Lister *lister, String_Const_u8 string, Lister_Prealloced_String status,
+                void *user_data, umem extra_space){
+    return(lister_add_item(lister, lister_prealloced(string_copy(&lister->arena, string)), status,
                            user_data, extra_space));
 }
 
 static void*
-lister_add_item(Lister *lister, String string, String status, void *user_data, i32 extra_space){
+lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, void *user_data, umem extra_space){
     return(lister_add_item(lister,
-                           lister_prealloced(string_push_copy(&lister->arena, string)),
-                           lister_prealloced(string_push_copy(&lister->arena, status)),
+                           lister_prealloced(string_copy(&lister->arena, string)),
+                           lister_prealloced(string_copy(&lister->arena, status)),
                            user_data, extra_space));
 }
 
@@ -635,9 +641,9 @@ lister_add_theme_item(Lister *lister,
 }
 
 static void*
-lister_add_theme_item(Lister *lister, String string, i32 index,
+lister_add_theme_item(Lister *lister, String_Const_u8 string, i32 index,
                       void *user_data, i32 extra_space){
-    return(lister_add_theme_item(lister, lister_prealloced(string_push_copy(&lister->arena, string)), index,
+    return(lister_add_theme_item(lister, lister_prealloced(string_copy(&lister->arena, string)), index,
                                  user_data, extra_space));
 }
 
@@ -666,13 +672,13 @@ lister_call_refresh_handler(Application_Links *app, Lister *lister){
 }
 
 static void
-lister_default(Application_Links *app, Partition *scratch, Heap *heap, View_ID view, Lister_State *state, Lister_Activation_Code code){
+lister_default(Application_Links *app, Heap *heap, View_ID view, Lister_State *state, Lister_Activation_Code code){
     switch (code){
         case ListerActivation_Finished:
         {
             view_end_ui_mode(app, view);
             state->initialized = false;
-            arena_release_all(&state->lister.arena);
+            linalloc_clear(&state->lister.arena);
         }break;
         
         case ListerActivation_Continue:
@@ -685,50 +691,130 @@ lister_default(Application_Links *app, Partition *scratch, Heap *heap, View_ID v
             view_begin_ui_mode(app, view);
             state->item_index = 0;
             lister_call_refresh_handler(app, &state->lister);
-            lister_update_ui(app, scratch, view, state);
+            lister_update_ui(app, view, state);
         }break;
     }
 }
 
 static void
-lister_call_activate_handler(Application_Links *app, Partition *scratch, Heap *heap, View_ID view, Lister_State *state, void *user_data, b32 activated_by_mouse){
+lister_call_activate_handler(Application_Links *app, Heap *heap, View_ID view, Lister_State *state, void *user_data, b32 activated_by_mouse){
     Lister_Data *lister = &state->lister.data;
     if (lister->handlers.activate != 0){
-        lister->handlers.activate(app, scratch, heap, view, state, lister->text_field, user_data, activated_by_mouse);
+        lister->handlers.activate(app, heap, view, state, lister->text_field.string, user_data, activated_by_mouse);
     }
     else{
-        lister_default(app, scratch, heap, view, state, ListerActivation_Finished);
+        lister_default(app, heap, view, state, ListerActivation_Finished);
     }
 }
 
 static void
-lister_set_query_string(Lister_Data *lister, char *string){
-    copy(&lister->query, string);
+lister_set_string(String_Const_u8 string, String_u8 *target){
+    target->size = 0;
+    string_append(target, string);
+}
+static void
+lister_append_string(String_Const_u8 string, String_u8 *target){
+    string_append(target, string);
 }
 
 static void
-lister_set_query_string(Lister_Data *lister, String string){
-    copy(&lister->query, string);
+lister_set_query(Lister_Data *lister, String_Const_u8 string){
+    lister_set_string(string, &lister->query);
+}
+static void
+lister_set_query(Lister_Data *lister, char *string){
+    lister_set_string(SCu8(string), &lister->query);
+}
+static void
+lister_set_text_field(Lister_Data *lister, String_Const_u8 string){
+    lister_set_string(string, &lister->text_field);
+}
+static void
+lister_set_text_field(Lister_Data *lister, char *string){
+    lister_set_string(SCu8(string), &lister->text_field);
+}
+static void
+lister_set_key(Lister_Data *lister, String_Const_u8 string){
+    lister_set_string(string, &lister->key_string);
+}
+static void
+lister_set_key(Lister_Data *lister, char *string){
+    lister_set_string(SCu8(string), &lister->key_string);
 }
 
 static void
-lister_set_text_field_string(Lister_Data *lister, char *string){
-    copy(&lister->text_field, string);
+lister_set_query(Lister *lister, String_Const_u8 string){
+    lister_set_query(&lister->data, string);
+}
+static void
+lister_set_query(Lister *lister, char *string){
+    lister_set_query(&lister->data, string);
+}
+static void
+lister_set_text_field(Lister *lister, String_Const_u8 string){
+    lister_set_text_field(&lister->data, string);
+}
+static void
+lister_set_text_field(Lister *lister, char *string){
+    lister_set_text_field(&lister->data, string);
+}
+static void
+lister_set_key(Lister *lister, String_Const_u8 string){
+    lister_set_key(&lister->data, string);
+}
+static void
+lister_set_key(Lister *lister, char *string){
+    lister_set_key(&lister->data, string);
 }
 
 static void
-lister_set_text_field_string(Lister_Data *lister, String string){
-    copy(&lister->text_field, string);
+lister_append_query(Lister_Data *lister, String_Const_u8 string){
+    lister_append_string(string, &lister->query);
+}
+static void
+lister_append_query(Lister_Data *lister, char *string){
+    lister_append_string(SCu8(string), &lister->query);
+}
+static void
+lister_append_text_field(Lister_Data *lister, String_Const_u8 string){
+    lister_append_string(string, &lister->text_field);
+}
+static void
+lister_append_text_field(Lister_Data *lister, char *string){
+    lister_append_string(SCu8(string), &lister->text_field);
+}
+static void
+lister_append_key(Lister_Data *lister, String_Const_u8 string){
+    lister_append_string(string, &lister->key_string);
+}
+static void
+lister_append_key(Lister_Data *lister, char *string){
+    lister_append_string(SCu8(string), &lister->key_string);
 }
 
 static void
-lister_set_key_string(Lister_Data *lister, char *string){
-    copy(&lister->key_string, string);
+lister_append_query(Lister *lister, String_Const_u8 string){
+    lister_append_query(&lister->data, string);
 }
-
 static void
-lister_set_key_string(Lister_Data *lister, String string){
-    copy(&lister->key_string, string);
+lister_append_query(Lister *lister, char *string){
+    lister_append_query(&lister->data, string);
+}
+static void
+lister_append_text_field(Lister *lister, String_Const_u8 string){
+    lister_append_text_field(&lister->data, string);
+}
+static void
+lister_append_text_field(Lister *lister, char *string){
+    lister_append_text_field(&lister->data, string);
+}
+static void
+lister_append_key(Lister *lister, String_Const_u8 string){
+    lister_append_key(&lister->data, string);
+}
+static void
+lister_append_key(Lister *lister, char *string){
+    lister_append_key(&lister->data, string);
 }
 
 // BOTTOM

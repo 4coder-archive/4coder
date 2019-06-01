@@ -14,9 +14,9 @@ CUSTOM_COMMAND_SIG(set_bindings_default);
 CUSTOM_COMMAND_SIG(set_bindings_mac_default);
 
 static Named_Mapping named_maps_values[] = {
-    {make_lit_string("mac-default")    , set_bindings_mac_default    },
-    {make_lit_string("choose")         , set_bindings_choose         },
-    {make_lit_string("default")        , set_bindings_default        },
+    {string_u8_litexpr("mac-default")    , set_bindings_mac_default    },
+    {string_u8_litexpr("choose")         , set_bindings_choose         },
+    {string_u8_litexpr("default")        , set_bindings_default        },
 };
 
 START_HOOK_SIG(default_start){
@@ -82,14 +82,16 @@ START_HOOK_SIG(default_start){
 COMMAND_CALLER_HOOK(default_command_caller){
     View_ID view = 0;
     get_active_view(app, AccessAll, &view);
-    Managed_Scope scope = view_get_managed_scope(app, view);
+    Managed_Scope scope = 0;
+    view_get_managed_scope(app, view, &scope);
     managed_variable_set(app, scope, view_next_rewrite_loc, 0);
     if (fcoder_mode == FCoderMode_NotepadLike){
         View_ID view_it = 0;
         for (get_view_next(app, 0, AccessAll, &view_it);
              view_it != 0;
              get_view_next(app, view_it, AccessAll, &view_it)){
-            Managed_Scope scope_it = view_get_managed_scope(app, view_it);
+            Managed_Scope scope_it = 0;
+            view_get_managed_scope(app, view_it, &scope_it);
             managed_variable_set(app, scope_it, view_snap_mark_to_cursor, true);
         }
     }
@@ -104,7 +106,8 @@ COMMAND_CALLER_HOOK(default_command_caller){
         for (get_view_next(app, 0, AccessAll, &view_it);
              view_it != 0;
              get_view_next(app, view_it, AccessAll, &view_it)){
-            Managed_Scope scope_it = view_get_managed_scope(app, view_it);
+            Managed_Scope scope_it = 0;
+            view_get_managed_scope(app, view_it, &scope_it);
             u64 val = 0;
             if (managed_variable_get(app, scope_it, view_snap_mark_to_cursor, &val)){
                 if (val != 0){
@@ -120,8 +123,8 @@ COMMAND_CALLER_HOOK(default_command_caller){
 }
 
 struct Highlight_Record{
-    i32 first;
-    i32 one_past_last;
+    Highlight_Record *next;
+    Range range;
     int_color color;
 };
 
@@ -147,28 +150,32 @@ sort_highlight_record(Highlight_Record *records, i32 first, i32 one_past_last){
 }
 
 static Range_Array
-get_enclosure_ranges(Application_Links *app, Partition *part, Buffer_ID buffer, i32 pos, u32 flags){
+get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos, u32 flags){
     Range_Array array = {};
-    array.ranges = push_array(part, Range, 0);
+    i32 max = 100;
+    array.ranges = push_array(arena, Range, max);
     for (;;){
         Range range = {};
         if (find_scope_range(app, buffer, pos, &range, flags)){
-            Range *r = push_array(part, Range, 1);
-            *r = range;
+            array.ranges[array.count] = range;
+            array.count += 1;
             pos = range.first;
+            if (array.count >= max){
+                break;
+            }
         }
         else{
             break;
         }
     }
-    array.count = (i32)(push_array(part, Range, 0) - array.ranges);
     return(array);
 }
 
 static void
-mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render_scope, Buffer_ID buffer, i32 pos, u32 flags,
+mark_enclosures(Application_Links *app, Managed_Scope render_scope, Buffer_ID buffer, i32 pos, u32 flags,
                 Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
-    Temp_Memory temp = begin_temp_memory(scratch);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
     Range_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
     if (ranges.count > 0){
@@ -212,7 +219,7 @@ mark_enclosures(Application_Links *app, Partition *scratch, Managed_Scope render
         }
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 static argb_color default_colors[Stag_COUNT] = {};
@@ -311,7 +318,7 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     if (global_config.show_line_number_margins){
         i32 line_count = 0;
         buffer_get_line_count(app, buffer, &line_count);
-        i32 line_count_digit_count = int_to_str_size(line_count);
+        i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
         i32 margin_width = ceil32((f32)line_count_digit_count*metrics.typical_character_width);
         sub_region.x0 += margin_width + 2;
     }
@@ -376,8 +383,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     get_active_view(app, AccessAll, &active_view);
     b32 is_active_view = (active_view == view_id);
     
-    Arena *arena = context_get_arena(app);
-    Temp_Memory_Arena major_temp = begin_temp_memory(arena);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory major_temp = begin_temp(scratch);
     
     static Managed_Scope render_scope = 0;
     if (render_scope == 0){
@@ -404,7 +411,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     Fancy_Color base_color = fancy_id(Stag_Base);
                     Fancy_Color pop2_color = fancy_id(Stag_Pop2);
                     
-                    Temp_Memory_Arena temp = begin_temp_memory(arena);
+                    Temp_Memory temp = begin_temp(scratch);
                     
                     i32 cursor_position = 0;
                     view_get_cursor_pos(app, view_id, &cursor_position);
@@ -412,43 +419,44 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     view_compute_cursor(app, view_id, seek_pos(cursor_position), &cursor);
                     
                     Fancy_String_List list = {};
-                    push_fancy_string(arena, &list, base_color, buffer_push_unique_buffer_name(app, buffer_id, arena));
-                    push_fancy_stringf(arena, &list, base_color, " - Row: %3.d Col: %3.d -", cursor.line, cursor.character);
+                    String_Const_u8 unique_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
+                    push_fancy_string(scratch, &list, base_color, unique_name);
+                    push_fancy_stringf(scratch, &list, base_color, " - Row: %3.d Col: %3.d -", cursor.line, cursor.character);
                     
                     b32 is_dos_mode = false;
                     if (buffer_get_setting(app, buffer_id, BufferSetting_Eol, &is_dos_mode)){
                         if (is_dos_mode){
-                            push_fancy_string(arena, &list, base_color, make_lit_string(" dos"));
+                            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
                         }
                         else{
-                            push_fancy_string(arena, &list, base_color, make_lit_string(" nix"));
+                            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" nix"));
                         }
                     }
                     else{
-                        push_fancy_string(arena, &list, base_color, make_lit_string(" ???"));
+                        push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" ???"));
                     }
                     
                     {
                         Dirty_State dirty = 0;
                         buffer_get_dirty_state(app, buffer_id, &dirty);
-                        char space[3];
-                        String str = make_fixed_width_string(space);
+                        u8 space[3];
+                        String_u8 str = Su8(space, 0, 3);
                         if (dirty != 0){
-                            append(&str, " ");
+                            string_append(&str, string_u8_litexpr(" "));
                         }
                         if (HasFlag(dirty, DirtyState_UnsavedChanges)){
-                            append(&str, "*");
+                            string_append(&str, string_u8_litexpr("*"));
                         }
                         if (HasFlag(dirty, DirtyState_UnloadedChanges)){
-                            append(&str, "!");
+                            string_append(&str, string_u8_litexpr("!"));
                         }
-                        push_fancy_string(arena, &list, pop2_color, str);
+                        push_fancy_string(scratch, &list, pop2_color, str.string);
                     }
                     
                     Vec2 p = bar.p0 + V2(0.f, 2.f);
                     draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
                     
-                    end_temp_memory(temp);
+                    end_temp(temp);
                 }
             }
         }
@@ -466,19 +474,19 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     bar.y1 = bar.y0 + line_height + 2.f;
                     r_cursor.y0 = bar.y1;
                     
-                    Temp_Memory_Arena temp = begin_temp_memory(arena);
+                    Temp_Memory temp = begin_temp(scratch);
                     Fancy_String_List list = {};
                     
                     Fancy_Color default_color = fancy_id(Stag_Default);
                     Fancy_Color pop1_color = fancy_id(Stag_Pop1);
                     
-                    push_fancy_string(arena, &list, pop1_color   , query_bar->prompt);
-                    push_fancy_string(arena, &list, default_color, query_bar->string);
+                    push_fancy_string(scratch, &list, pop1_color   , query_bar->prompt);
+                    push_fancy_string(scratch, &list, default_color, query_bar->string);
                     
                     Vec2 p = bar.p0 + V2(0.f, 2.f);
                     draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
                     
-                    end_temp_memory(temp);
+                    end_temp(temp);
                 }
             }
         }
@@ -487,9 +495,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         if (global_config.show_line_number_margins){
             i32 line_count = 0;
             buffer_get_line_count(app, buffer_id, &line_count);
-            i32 line_count_digit_count = int_to_str_size(line_count);
+            i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
             // TODO(allen): I need a "digit width"
-            f32 zero = get_string_advance(app, face_id, make_lit_string("0"));
+            f32 zero = get_string_advance(app, face_id, string_u8_litexpr("0"));
             f32 margin_width = (f32)line_count_digit_count*zero;
             
             Rect_f32 left_margin = r_cursor;
@@ -509,10 +517,10 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 Vec2 p = panel_space_from_view_space(cursor.wrapped_p, scroll_vars.scroll_p);
                 p += V2(buffer_rect.p0);
                 p.x = left_margin.x0;
-                Temp_Memory_Arena temp = begin_temp_memory(arena);
-                Fancy_String *line_string = push_fancy_stringf(arena, line_color, "%*d", line_count_digit_count, cursor.line);
+                Temp_Memory temp = begin_temp(scratch);
+                Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*d", line_count_digit_count, cursor.line);
                 draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
-                end_temp_memory(temp);
+                end_temp(temp);
                 i32 next_line = cursor.line + 1;
                 view_compute_cursor(app, view_id, seek_line_char(next_line, 1), &cursor);
                 if (cursor.line < next_line){
@@ -524,70 +532,82 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         }
     }
     
-    // TODO(allen): eliminate scratch partition usage
-    Partition *scratch = &global_part;
     // NOTE(allen): Scan for TODOs and NOTEs
     {
-        Temp_Memory temp = begin_temp_memory(scratch);
-        i32 text_size = on_screen_range.one_past_last - on_screen_range.first;
-        char *text = push_array(scratch, char, text_size);
-        buffer_read_range(app, buffer_id, on_screen_range.first, on_screen_range.one_past_last, text);
+        Temp_Memory temp = begin_temp(scratch);
+        String_Const_u8 tail = scratch_read(app, scratch, buffer_id, on_screen_range);
         
-        Highlight_Record *records = push_array(scratch, Highlight_Record, 0);
-        String tail = make_string(text, text_size);
-        for (i32 i = 0; i < text_size; tail.str += 1, tail.size -= 1, i += 1){
-            if (match_part(tail, make_lit_string("NOTE"))){
+        Highlight_Record *record_first = 0;
+        Highlight_Record *record_last = 0;
+        i32 record_count = 0;
+        i32 index = 0;
+        
+        for (;tail.size > 0; tail = string_skip(tail, 1), index += 1){
+            if (string_match(string_prefix(tail, 4), string_u8_litexpr("NOTE"))){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                record->first = i + on_screen_range.first;
-                record->one_past_last = record->first + 4;
+                sll_queue_push(record_first, record_last, record);
+                record_count += 1;
+                record->range.first = on_screen_range.first + index;
+                record->range.one_past_last = record->range.first + 4;
                 record->color = Stag_Text_Cycle_2;
-                tail.str += 3;
-                tail.size -= 3;
-                i += 3;
+                tail = string_skip(tail, 3);
+                index += 3;
             }
-            else if (match_part(tail, make_lit_string("TODO"))){
+            else if (string_match(string_prefix(tail, 4), string_u8_litexpr("TODO"))){
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                record->first = i + on_screen_range.first;
-                record->one_past_last = record->first + 4;
+                sll_queue_push(record_first, record_last, record);
+                record_count += 1;
+                record->range.first = on_screen_range.first + index;
+                record->range.one_past_last = record->range.first + 4;
                 record->color = Stag_Text_Cycle_1;
-                tail.str += 3;
-                tail.size -= 3;
-                i += 3;
+                tail = string_skip(tail, 3);
+                index += 3;
             }
         }
-        i32 record_count = (i32)(push_array(scratch, Highlight_Record, 0) - records);
-        push_array(scratch, Highlight_Record, 1);
+        
+        Highlight_Record *records = push_array(scratch, Highlight_Record, record_count);
+        i32 record_index = 0;
+        for (Highlight_Record *node = record_first;
+             node != 0;
+             node = node->next){
+            records[record_index] = *node;
+            record_index += 1;
+        }
         
         if (record_count > 0){
             sort_highlight_record(records, 0, record_count);
-            Temp_Memory marker_temp = begin_temp_memory(scratch);
-            Marker *markers = push_array(scratch, Marker, 0);
+            Marker *markers = push_array_zero(scratch, Marker, 2*record_count);
+            i32 marker_index_first = 0;
+            i32 marker_index = 0;
             int_color current_color = records[0].color;
             {
-                Marker *marker = push_array(scratch, Marker, 2);
-                marker[0].pos = records[0].first;
-                marker[1].pos = records[0].one_past_last;
+                Marker *marker = &markers[marker_index];
+                marker[0].pos = records[0].range.first;
+                marker[1].pos = records[0].range.one_past_last;
+                marker_index += 2;
             }
             for (i32 i = 1; i <= record_count; i += 1){
-                b32 do_emit = i == record_count || (records[i].color != current_color);
+                b32 do_emit = (i == record_count || records[i].color != current_color);
                 if (do_emit){
-                    i32 marker_count = (i32)(push_array(scratch, Marker, 0) - markers);
+                    i32 marker_count = marker_index - marker_index_first;
                     Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer_id, marker_count, &render_scope);
-                    managed_object_store_data(app, o, 0, marker_count, markers);
+                    managed_object_store_data(app, o, 0, marker_count, markers + marker_index_first);
                     Marker_Visual v = create_marker_visual(app, o);
                     marker_visual_set_effect(app, v, VisualType_CharacterHighlightRanges, SymbolicColor_Default, current_color, 0);
                     marker_visual_set_priority(app, v, VisualPriority_Lowest);
-                    end_temp_memory(marker_temp);
                     current_color = records[i].color;
+                    marker_index_first = marker_index;
                 }
-                
-                Marker *marker = push_array(scratch, Marker, 2);
-                marker[0].pos = records[i].first;
-                marker[1].pos = records[i].one_past_last;
+                if (i < record_count){
+                    Marker *marker = &markers[marker_index];
+                    marker[0].pos = records[i].range.first;
+                    marker[1].pos = records[i].range.one_past_last;
+                    marker_index += 2;
+                }
             }
         }
         
-        end_temp_memory(temp);
+        end_temp(temp);
     }
     
     // NOTE(allen): Cursor and mark
@@ -700,7 +720,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         for (u16 i = 0; i < color_count; i += 1){
             colors[i] = Stag_Back_Cycle_1 + i;
         }
-        mark_enclosures(app, scratch, render_scope, buffer_id, cursor_pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
+        mark_enclosures(app, render_scope, buffer_id, cursor_pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
         i32 pos = cursor_pos;
@@ -716,7 +736,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         for (u16 i = 0; i < color_count; i += 1){
             colors[i] = Stag_Text_Cycle_1 + i;
         }
-        mark_enclosures(app, scratch, render_scope, buffer_id, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
+        mark_enclosures(app, render_scope, buffer_id, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
     draw_clip_push(app, buffer_rect);
@@ -758,28 +778,24 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 dts[1] = history_animation_dt[j];
                 i32 frame_index = history_frame_index[j];
                 
-                char space[256];
-                String str = make_fixed_width_string(space);
-                
                 Fancy_Color white = fancy_rgba(1.f, 1.f, 1.f, 1.f);
                 Fancy_Color pink  = fancy_rgba(1.f, 0.f, 1.f, 1.f);
                 Fancy_Color green = fancy_rgba(0.f, 1.f, 0.f, 1.f);
                 Fancy_String_List list = {};
-                push_fancy_stringf(arena, &list, pink , "FPS: ");
-                push_fancy_stringf(arena, &list, green, "[");
-                push_fancy_stringf(arena, &list, white, "%5d", frame_index);
-                push_fancy_stringf(arena, &list, green, "]: ");
+                push_fancy_stringf(scratch, &list, pink , "FPS: ");
+                push_fancy_stringf(scratch, &list, green, "[");
+                push_fancy_stringf(scratch, &list, white, "%5d", frame_index);
+                push_fancy_stringf(scratch, &list, green, "]: ");
                 
                 for (i32 k = 0; k < 2; k += 1){
                     f32 dt = dts[k];
-                    str.size = 0;
                     if (dt == 0.f){
-                        push_fancy_stringf(arena, &list, white, "----------");
+                        push_fancy_stringf(scratch, &list, white, "----------");
                     }
                     else{
-                        push_fancy_stringf(arena, &list, white, "%10.6f", dt);
+                        push_fancy_stringf(scratch, &list, white, "%10.6f", dt);
                     }
-                    push_fancy_stringf(arena, &list, green, " | ");
+                    push_fancy_stringf(scratch, &list, green, " | ");
                 }
                 
                 draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
@@ -789,7 +805,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         animate_in_n_milliseconds(app, 1000);
     }
     
-    end_temp_memory(major_temp);
+    end_temp(major_temp);
     managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 
@@ -962,7 +978,7 @@ HOOK_SIG(default_view_adjust){
         
         Face_ID face_id = 0;
         get_face_id(app, buffer, &face_id);
-        f32 em = get_string_advance(app, face_id, make_lit_string("m"));
+        f32 em = get_string_advance(app, face_id, string_u8_litexpr("m"));
         
         f32 wrap_width = view_width - 2.0f*em;
         f32 min_width = 40.0f*em;
@@ -980,12 +996,9 @@ HOOK_SIG(default_view_adjust){
 BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
     if (conflict_count > 1){
         // List of unresolved conflicts
-        Partition *part = &global_part;
-        Temp_Memory temp = begin_temp_memory(part);
+        Scratch_Block scratch(app);
         
-        i32 *unresolved = push_array(part, i32, conflict_count);
-        if (unresolved == 0) return;
-        
+        i32 *unresolved = push_array(scratch, i32, conflict_count);
         i32 unresolved_count = conflict_count;
         for (i32 i = 0; i < conflict_count; ++i){
             unresolved[i] = i;
@@ -1000,57 +1013,50 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                 i32 conflict_index = unresolved[i];
                 Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
                 
-                i32 len = conflict->base_name_len;
-                if (len < 0){
-                    len = 0;
-                }
-                if (len > conflict->unique_name_capacity){
-                    len = conflict->unique_name_capacity;
-                }
-                conflict->unique_name_len_in_out = len;
-                memcpy(conflict->unique_name_in_out, conflict->base_name, len);
+                umem size = conflict->base_name.size;
+                size = clamp_top(size, conflict->unique_name_capacity);
+                conflict->unique_name_len_in_out = size;
+                memcpy(conflict->unique_name_in_out, conflict->base_name.str, size);
                 
-                if (conflict->file_name != 0){
-                    char uniqueifier_space[256];
-                    String uniqueifier = make_fixed_width_string(uniqueifier_space);
+                if (conflict->file_name.str != 0){
+                    Scratch_Block per_file_closer(scratch);
+                    String_Const_u8 uniqueifier = {};
                     
-                    String s_file_name = make_string(conflict->file_name, conflict->file_name_len);
-                    s_file_name = path_of_directory(s_file_name);
-                    if (s_file_name.size > 0){
-                        s_file_name.size -= 1;
-                        char *end = s_file_name.str + s_file_name.size;
+                    String_Const_u8 file_name = string_remove_last_folder(conflict->file_name);
+                    if (file_name.size > 0){
+                        file_name = string_chop(file_name, 1);
+                        u8 *end = file_name.str + file_name.size;
                         b32 past_the_end = false;
                         for (i32 j = 0; j < x; ++j){
-                            s_file_name = path_of_directory(s_file_name);
+                            file_name = string_remove_last_folder(file_name);
                             if (j + 1 < x){
-                                s_file_name.size -= 1;
+                                file_name = string_chop(file_name, 1);
                             }
-                            if (s_file_name.size <= 0){
+                            if (file_name.size == 0){
                                 if (j + 1 < x){
                                     past_the_end = true;
                                 }
-                                s_file_name.size = 0;
                                 break;
                             }
                         }
-                        char *start = s_file_name.str + s_file_name.size;
+                        u8 *start = file_name.str + file_name.size;
                         
-                        append(&uniqueifier, make_string(start, (i32)(end - start)));
+                        uniqueifier = SCu8(start, end);
                         if (past_the_end){
-                            append(&uniqueifier, "~");
-                            append_int_to_str(&uniqueifier, i);
+                            uniqueifier = string_u8_pushf(scratch, "%.*s~%d",
+                                                          string_expand(uniqueifier), i);
                         }
                     }
                     else{
-                        append_int_to_str(&uniqueifier, i);
+                        uniqueifier = string_u8_pushf(scratch, "%d", i);
                     }
                     
-                    String builder = make_string_cap(conflict->unique_name_in_out,
-                                                     conflict->unique_name_len_in_out,
-                                                     conflict->unique_name_capacity);
-                    append(&builder, " <");
-                    append(&builder, uniqueifier);
-                    append(&builder, ">");
+                    String_u8 builder = Su8(conflict->unique_name_in_out,
+                                            conflict->unique_name_len_in_out,
+                                            conflict->unique_name_capacity);
+                    string_append(&builder, string_u8_litexpr(" <"));
+                    string_append(&builder, uniqueifier);
+                    string_append(&builder, string_u8_litexpr(">"));
                     conflict->unique_name_len_in_out = builder.size;
                 }
             }
@@ -1060,19 +1066,21 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
             for (i32 i = 0; i < unresolved_count; ++i){
                 i32 conflict_index = unresolved[i];
                 Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
-                String conflict_name = make_string(conflict->unique_name_in_out,
-                                                   conflict->unique_name_len_in_out);
+                String_Const_u8 conflict_name = SCu8(conflict->unique_name_in_out,
+                                                     conflict->unique_name_len_in_out);
                 
                 b32 hit_conflict = false;
-                if (conflict->file_name != 0){
+                if (conflict->file_name.str != 0){
                     for (i32 j = 0; j < unresolved_count; ++j){
                         if (i == j) continue;
                         
                         i32 conflict_j_index = unresolved[j];
                         Buffer_Name_Conflict_Entry *conflict_j = &conflicts[conflict_j_index];
                         
-                        if (match(conflict_name, make_string(conflict_j->unique_name_in_out,
-                                                             conflict_j->unique_name_len_in_out))){
+                        String_Const_u8 conflict_name_j = SCu8(conflict_j->unique_name_in_out,
+                                                               conflict_j->unique_name_len_in_out);
+                        
+                        if (string_match(conflict_name, conflict_name_j)){
                             hit_conflict = true;
                             break;
                         }
@@ -1093,8 +1101,6 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                 break;
             }
         }
-        
-        end_temp_memory(temp);
     }
 }
 
@@ -1103,38 +1109,38 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     b32 treat_as_todo = false;
     b32 lex_without_strings = false;
     
-    CString_Array extensions = get_code_extensions(&global_config.code_exts);
+    String_Const_u8_Array extensions = global_config.code_exts;
     
     Parse_Context_ID parse_context_id = 0;
     
     Arena *scratch = context_get_arena(app);
-    Temp_Memory_Arena temp = begin_temp_memory(scratch);
+    Temp_Memory temp = begin_temp(scratch);
     
-    String file_name = buffer_push_file_name(app, buffer_id, scratch);
+    String_Const_u8 file_name = buffer_push_file_name(app, buffer_id, scratch);
     i32 buffer_size = 0;
     buffer_get_size(app, buffer_id, &buffer_size);
     
-    if (file_name.size > 0 && buffer_size < (32 << 20)){
-        String ext = file_extension(file_name);
+    if (file_name.size > 0 && buffer_size < MB(32)){
+        String_Const_u8 ext = string_file_extension(file_name);
         for (i32 i = 0; i < extensions.count; ++i){
-            if (match(ext, extensions.strings[i])){
+            if (string_match(ext, extensions.strings[i])){
                 treat_as_code = true;
                 
-                if (match(ext, "cs")){
+                if (string_match(ext, string_u8_litexpr("cs"))){
                     if (parse_context_language_cs == 0){
                         init_language_cs(app);
                     }
                     parse_context_id = parse_context_language_cs;
                 }
                 
-                if (match(ext, "java")){
+                if (string_match(ext, string_u8_litexpr("java"))){
                     if (parse_context_language_java == 0){
                         init_language_java(app);
                     }
                     parse_context_id = parse_context_language_java;
                 }
                 
-                if (match(ext, "rs")){
+                if (string_match(ext, string_u8_litexpr("rs"))){
                     if (parse_context_language_rust == 0){
                         init_language_rust(app);
                     }
@@ -1142,7 +1148,11 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                     lex_without_strings = true;
                 }
                 
-                if (match(ext, "cpp") || match(ext, "h") || match(ext, "c") || match(ext, "hpp") || match(ext, "cc")){
+                if (string_match(ext, string_u8_litexpr("cpp")) || 
+                    string_match(ext, string_u8_litexpr("h")) ||
+                    string_match(ext, string_u8_litexpr("c")) ||
+                    string_match(ext, string_u8_litexpr("hpp")) ||
+                    string_match(ext, string_u8_litexpr("cc"))){
                     if (parse_context_language_cpp == 0){
                         init_language_cpp(app);
                     }
@@ -1150,7 +1160,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                 }
                 
                 // TODO(NAME): Real GLSL highlighting
-                if (match(ext, "glsl")){
+                if (string_match(ext, string_u8_litexpr("glsl"))){
                     if (parse_context_language_cpp == 0){
                         init_language_cpp(app);
                     }
@@ -1158,7 +1168,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                 }
                 
                 // TODO(NAME): Real Objective-C highlighting
-                if (match(ext, "m")){
+                if (string_match(ext, string_u8_litexpr("m"))){
                     if (parse_context_language_cpp == 0){
                         init_language_cpp(app);
                     }
@@ -1170,7 +1180,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         }
         
         if (!treat_as_code){
-            treat_as_todo = match_insensitive(front_of_directory(file_name), "todo.txt");
+            treat_as_todo = string_match_insensitive(string_front_of_path(file_name),
+                                                     string_u8_litexpr("todo.txt"));
         }
     }
     
@@ -1204,8 +1215,8 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         use_lexer = true;
     }
     
-    String buffer_name = buffer_push_base_buffer_name(app, buffer_id, scratch);
-    if (match(buffer_name, "*compilation*")){
+    String_Const_u8 buffer_name = buffer_push_base_buffer_name(app, buffer_id, scratch);
+    if (string_match(buffer_name, string_u8_litexpr("*compilation*"))){
         wrap_lines = false;
     }
     if (buffer_size >= (1 << 20)){
@@ -1224,7 +1235,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     buffer_set_setting(app, buffer_id, BufferSetting_VirtualWhitespace, use_virtual_whitespace);
     buffer_set_setting(app, buffer_id, BufferSetting_Lex, use_lexer);
     
-    end_temp_memory(temp);
+    end_temp(temp);
     
     // no meaning for return
     return(0);
@@ -1243,7 +1254,7 @@ OPEN_FILE_HOOK_SIG(default_file_save){
         if (is_virtual){
             i32 buffer_size = 0;
             buffer_get_size(app, buffer_id, &buffer_size);
-            buffer_auto_indent(app, &global_part, buffer_id, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+            buffer_auto_indent(app, buffer_id, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         }
     }
     // no meaning for return
@@ -1268,16 +1279,11 @@ FILE_EDIT_FINISHED_SIG(default_file_edit_finished){
 }
 
 OPEN_FILE_HOOK_SIG(default_end_file){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory_Arena temp = begin_temp_memory(scratch);
-    char space[1024];
-    String buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
-    String str = make_fixed_width_string(space);
-    append(&str, "Ending file: ");
-    append(&str, buffer_name);
-    append(&str, "\n");
-    print_message(app, str.str, str.size);
-    end_temp_memory(temp);
+    Scratch_Block scratch(app);
+    String_Const_u8 buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
+    String_Const_u8 str = string_u8_pushf(scratch, "Ending file: %.*s\n",
+                                          string_expand(buffer_name));
+    print_message(app, str);
     // no meaning for return
     return(0);
 }

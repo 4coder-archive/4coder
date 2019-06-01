@@ -290,25 +290,22 @@ buffer_size(Gap_Buffer *buffer){
 }
 
 internal Gap_Buffer_Init
-buffer_begin_init(Gap_Buffer *buffer, char *data, i32 size){
+buffer_begin_init(Gap_Buffer *buffer, u8 *data, umem size){
     Gap_Buffer_Init init;
     init.buffer = buffer;
-    init.data = data;
-    init.size = size;
+    init.data = (char*)data;
+    init.size = (i32)size;
     return(init);
 }
 
-internal i32
+internal b32
 buffer_init_need_more(Gap_Buffer_Init *init){
-    i32 result = 1;
-    if (init->buffer->data) result = 0;
-    return(result);
+    return(init->buffer->data == 0);
 }
 
 internal i32
 buffer_init_page_size(Gap_Buffer_Init *init){
-    i32 result = init->size * 2;
-    return(result);
+    return(init->size * 2);
 }
 
 internal void
@@ -319,13 +316,13 @@ buffer_init_provide_page(Gap_Buffer_Init *init, void *page, i32 page_size){
 }
 
 internal b32
-buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
+buffer_end_init(Gap_Buffer_Init *init){
     Gap_Buffer *buffer = init->buffer;
     b32 result = false;
     
-    if (buffer->data && buffer->max >= init->size){
+    if (buffer->data != 0 && buffer->max >= init->size){
         i32 size = init->size;
-        i32 size2 = size >> 1;
+        i32 size2 = (size >> 1);
         i32 osize1 = size - size2;
         i32 size1 = osize1;
         
@@ -423,12 +420,11 @@ buffer_replace_range_compute_shift(i32 start, i32 end, i32 len){
     return(len - (end - start));
 }
 
-internal i32
-buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len, i32 shift_amount,
-                     void *scratch, i32 scratch_memory, i32 *request_amount){
+internal b32
+buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len, i32 shift_amount, i32 *request_amount){
     char *data = buffer->data;
     i32 size = buffer_size(buffer);
-    i32 result = false;
+    b32 result = false;
     i32 move_size = 0;
     
     Assert(0 <= start);
@@ -458,22 +454,15 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
         Assert(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
     }
     else{
-        *request_amount = l_round_up_i32(2*(shift_amount + size), 4 << 10);
+        *request_amount = round_up_i32(2*(shift_amount + size), KB(4));
         result = true;
     }
     
     return(result);
 }
 
-// TODO(allen): do(optimize Gap_Buffer batch edit)
-// Now that we are just using Gap_Buffer we could afford to improve
-// this for the Gap_Buffer's behavior.
-
-// TODO(allen): This now relies on Edit and Edit_Array from 4ed_edit.h even though we sort of think of that
-// as cheating... gotta rethink the separation of buffer from everything else moving forward or something.
-
 internal b32
-buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Edit_Array sorted_edits, void *scratch, i32 scratch_size, i32 *request_amount){
+buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Edit_Array sorted_edits, i32 *request_amount){
     b32 result = false;
     
     i32 shift_total = state->shift_total;
@@ -486,7 +475,7 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Edit_Array
         i32 start = edit->range.first + shift_total;
         i32 end = edit->range.one_past_last + shift_total;
         i32 shift_amount = buffer_replace_range_compute_shift(start, end, length);
-        result = buffer_replace_range(buffer, start, end, str, length, shift_amount, scratch, scratch_size, request_amount);
+        result = buffer_replace_range(buffer, start, end, str, length, shift_amount, request_amount);
         if (result){
             break;
         }
@@ -521,20 +510,29 @@ buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, i32 new_max){
 // High level buffer operations
 //
 
-internal String_Array
-buffer_get_chunks(Partition *part, Gap_Buffer *buffer){
-    String_Array result = {};
-    result.vals = push_array(part, String, 0);
+internal String_Const_u8_Array
+buffer_get_chunks(Cursor *cursor, Gap_Buffer *buffer, Buffer_Get_Chunk_Mode mode){
+    i32 total_count = (buffer->size1 > 0) + (buffer->size2 > 0) + (mode == BufferGetChunk_ZeroTerminated);
+    String_Const_u8_Array result = {};
+    result.vals = push_array(cursor, String_Const_u8, total_count);
     if (buffer->size1 > 0){
-        String *s = push_array(part, String, 1);
-        *s = make_string(buffer->data, buffer->size1);
+        result.vals[result.count] = SCu8(buffer->data, buffer->size1);
+        result.count += 1;
     }
     if (buffer->size2 > 0){
-        String *s = push_array(part, String, 1);
-        *s = make_string(buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
+        result.vals[result.count] = SCu8(buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
+        result.count += 1;
     }
-    result.count = (i32)(push_array(part, String, 0) - result.vals);
+    if (mode == BufferGetChunk_ZeroTerminated){
+        result.vals[result.count] = SCu8();
+        result.count += 1;
+    }
     return(result);
+}
+
+internal String_Const_u8_Array
+buffer_get_chunks(Cursor *cursor, Gap_Buffer *buffer){
+    return(buffer_get_chunks(cursor, buffer, BufferGetChunk_Basic));
 }
 
 internal void
@@ -1278,13 +1276,13 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             case buffer_seek_line_char:
             {
                 line_index = params.seek.line - 1;
-                line_index = clamp_bottom(0, line_index);
+                line_index = clamp_bot(0, line_index);
             }break;
             
             case buffer_seek_unwrapped_xy:
             {
                 line_index = (i32)(params.seek.y / S.font_height);
-                line_index = clamp_bottom(0, line_index);
+                line_index = clamp_bot(0, line_index);
             }break;
             
             case buffer_seek_wrapped_xy:
@@ -1292,7 +1290,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                 line_index = buffer_get_line_index_from_wrapped_y(params.wrap_line_index, params.seek.y, S.font_height, 0, params.buffer->line_count);
             }break;
             
-            default: InvalidCodePath;
+            default: InvalidPath;
         }
         
         i32 safe_line_index = line_index;
@@ -1341,7 +1339,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                 S.still_looping = buffer_stringify_next(&S.stream);
             }while(S.still_looping);
         }
-        InvalidCodePath;
+        InvalidPath;
         double_break_vwhite:;
     }
     
@@ -1548,7 +1546,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         }while(S.still_looping);
     }
     
-    InvalidCodePath;
+    InvalidPath;
     
     buffer_cursor_seek_end:;
     *params.cursor_out = S.this_cursor;

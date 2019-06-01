@@ -12,9 +12,10 @@
 #if !defined(FRED_BUFFER_H)
 #define FRED_BUFFER_H
 
-struct String_Array{
-    String *vals;
-    i32 count;
+typedef i32 Buffer_Get_Chunk_Mode;
+enum{
+    BufferGetChunk_Basic,
+    BufferGetChunk_ZeroTerminated,
 };
 
 struct Cursor_With_Index{

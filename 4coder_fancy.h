@@ -38,7 +38,7 @@ struct Fancy_Color{
 
 struct Fancy_String{
     Fancy_String *next;
-    String value;
+    String_Const_u8 value;
     
     Face_ID font_id;
     Fancy_Color fore;

@@ -12,37 +12,7 @@ To use in C mode: #define FSTRING_C
 
 // TOP
 
-// 4tech_standard_preamble.h
-#if !defined(FTECH_INTEGERS)
-#define FTECH_INTEGERS
-#include <stdint.h>
-typedef int8_t i8_4tech;
-typedef int16_t i16_4tech;
-typedef int32_t i32_4tech;
-typedef int64_t i64_4tech;
-
-typedef uint8_t u8_4tech;
-typedef uint16_t u16_4tech;
-typedef uint32_t u32_4tech;
-typedef uint64_t u64_4tech;
-
-#if defined(FTECH_32_BIT)
-typedef u32_4tech umem_4tech;
-#else
-typedef u64_4tech umem_4tech;
-#endif
-
-typedef float f32_4tech;
-typedef double f64_4tech;
-
-typedef int8_t b8_4tech;
-typedef int32_t b32_4tech;
-#endif
-
-#if !defined(Assert)
-# define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
-#endif
-// standard preamble end 
+#if !defined(REMOVE_OLD_STRING)
 
 #if !defined(FSTRING_LINK)
 # define FSTRING_LINK static
@@ -55,10 +25,15 @@ typedef int32_t b32_4tech;
 #if !defined(FSTRING_GUARD)
 #define literal(s) (s), (sizeof(s) - 1)
 
+struct CString_Array{
+    char **strings;
+    i32 count;
+};
+
 typedef struct String{
     char *str;
-    i32_4tech size;
-    i32_4tech memory_size;
+    i32 size;
+    i32 memory_size;
 } String;
 
 static String null_string = {};
@@ -67,28 +42,28 @@ static String null_string = {};
 #if !defined(FCODER_STRING_H)
 #define FCODER_STRING_H
 
-FSTRING_INLINE b32_4tech           char_is_slash(char c);
-FSTRING_INLINE b32_4tech           char_is_upper(char c);
-FSTRING_INLINE b32_4tech           char_is_upper_utf8(char c);
-FSTRING_INLINE b32_4tech           char_is_lower(char c);
-FSTRING_INLINE b32_4tech           char_is_lower_utf8(u8_4tech c);
+FSTRING_INLINE b32           char_is_slash(char c);
+FSTRING_INLINE b32           char_is_upper(char c);
+FSTRING_INLINE b32           char_is_upper_utf8(char c);
+FSTRING_INLINE b32           char_is_lower(char c);
+FSTRING_INLINE b32           char_is_lower_utf8(u8 c);
 FSTRING_INLINE char                char_to_upper(char c);
 FSTRING_INLINE char                char_to_lower(char c);
-FSTRING_INLINE b32_4tech           char_is_whitespace(char c);
-FSTRING_INLINE b32_4tech           char_is_alpha_numeric(char c);
-FSTRING_INLINE b32_4tech           char_is_alpha_numeric_utf8(u8_4tech c);
-FSTRING_INLINE b32_4tech           char_is_alpha_numeric_true(char c);
-FSTRING_INLINE b32_4tech           char_is_alpha_numeric_true_utf8(u8_4tech c);
-FSTRING_INLINE b32_4tech           char_is_alpha(char c);
-FSTRING_INLINE b32_4tech           char_is_alpha_utf8(u8_4tech c);
-FSTRING_INLINE b32_4tech           char_is_alpha_true(char c);
-FSTRING_INLINE b32_4tech           char_is_alpha_true_utf8(u8_4tech c);
-FSTRING_INLINE b32_4tech           char_is_hex(char c);
-FSTRING_INLINE b32_4tech           char_is_hex_utf8(u8_4tech c);
-FSTRING_INLINE b32_4tech           char_is_numeric(char c);
-FSTRING_INLINE b32_4tech           char_is_numeric_utf8(u8_4tech c);
-FSTRING_INLINE String              make_string_cap(void *str, i32_4tech size, i32_4tech mem_size);
-FSTRING_INLINE String              make_string(void *str, i32_4tech size);
+FSTRING_INLINE b32           char_is_whitespace(char c);
+FSTRING_INLINE b32           char_is_alpha_numeric(char c);
+FSTRING_INLINE b32           char_is_alpha_numeric_utf8(u8 c);
+FSTRING_INLINE b32           char_is_alpha_numeric_true(char c);
+FSTRING_INLINE b32           char_is_alpha_numeric_true_utf8(u8 c);
+FSTRING_INLINE b32           char_is_alpha(char c);
+FSTRING_INLINE b32           char_is_alpha_utf8(u8 c);
+FSTRING_INLINE b32           char_is_alpha_true(char c);
+FSTRING_INLINE b32           char_is_alpha_true_utf8(u8 c);
+FSTRING_INLINE b32           char_is_hex(char c);
+FSTRING_INLINE b32           char_is_hex_utf8(u8 c);
+FSTRING_INLINE b32           char_is_numeric(char c);
+FSTRING_INLINE b32           char_is_numeric_utf8(u8 c);
+FSTRING_INLINE String              make_string_cap(void *str, i32 size, i32 mem_size);
+FSTRING_INLINE String              make_string(void *str, i32 size);
 #ifndef   make_lit_string
 # define make_lit_string(s) (make_string_cap((char*)(s), sizeof(s)-1, sizeof(s)))
 #endif
@@ -101,72 +76,72 @@ FSTRING_INLINE String              make_string(void *str, i32_4tech size);
 #ifndef   expand_str
 # define expand_str(s) ((s).str), ((s).size)
 #endif
-FSTRING_LINK i32_4tech             str_size(char *str);
+FSTRING_LINK i32             str_size(char *str);
 FSTRING_INLINE String              make_string_slowly(void *str);
-FSTRING_INLINE String              substr_tail(String str, i32_4tech start);
-FSTRING_INLINE String              substr(String str, i32_4tech start, i32_4tech size);
+FSTRING_INLINE String              substr_tail(String str, i32 start);
+FSTRING_INLINE String              substr(String str, i32 start, i32 size);
 FSTRING_LINK String                skip_whitespace(String str);
-FSTRING_LINK String                skip_whitespace_measure(String str, i32_4tech *skip_length);
+FSTRING_LINK String                skip_whitespace_measure(String str, i32 *skip_length);
 FSTRING_LINK String                chop_whitespace(String str);
 FSTRING_LINK String                skip_chop_whitespace(String str);
-FSTRING_LINK String                skip_chop_whitespace_measure(String str, i32_4tech *skip_length);
+FSTRING_LINK String                skip_chop_whitespace_measure(String str, i32 *skip_length);
 FSTRING_INLINE String              tailstr(String str);
-FSTRING_LINK b32_4tech             match_cc(char *a, char *b);
-FSTRING_LINK b32_4tech             match_sc(String a, char *b);
-FSTRING_INLINE b32_4tech           match_cs(char *a, String b);
-FSTRING_LINK b32_4tech             match_ss(String a, String b);
-FSTRING_LINK b32_4tech             match_part_ccl(char *a, char *b, i32_4tech *len);
-FSTRING_LINK b32_4tech             match_part_scl(String a, char *b, i32_4tech *len);
-FSTRING_INLINE b32_4tech           match_part_cc(char *a, char *b);
-FSTRING_INLINE b32_4tech           match_part_sc(String a, char *b);
-FSTRING_LINK b32_4tech             match_part_cs(char *a, String b);
-FSTRING_LINK b32_4tech             match_part_ss(String a, String b);
-FSTRING_LINK b32_4tech             match_insensitive_cc(char *a, char *b);
-FSTRING_LINK b32_4tech             match_insensitive_sc(String a, char *b);
-FSTRING_INLINE b32_4tech           match_insensitive_cs(char *a, String b);
-FSTRING_LINK b32_4tech             match_insensitive_ss(String a, String b);
-FSTRING_LINK b32_4tech             match_part_insensitive_ccl(char *a, char *b, i32_4tech *len);
-FSTRING_LINK b32_4tech             match_part_insensitive_scl(String a, char *b, i32_4tech *len);
-FSTRING_INLINE b32_4tech           match_part_insensitive_cc(char *a, char *b);
-FSTRING_INLINE b32_4tech           match_part_insensitive_sc(String a, char *b);
-FSTRING_LINK b32_4tech             match_part_insensitive_cs(char *a, String b);
-FSTRING_LINK b32_4tech             match_part_insensitive_ss(String a, String b);
-FSTRING_LINK i32_4tech             compare_cc(char *a, char *b);
-FSTRING_LINK i32_4tech             compare_sc(String a, char *b);
-FSTRING_INLINE i32_4tech           compare_cs(char *a, String b);
-FSTRING_LINK i32_4tech             compare_ss(String a, String b);
-FSTRING_LINK i32_4tech             find_c_char(char *str, i32_4tech start, char character);
-FSTRING_LINK i32_4tech             find_s_char(String str, i32_4tech start, char character);
-FSTRING_LINK i32_4tech             rfind_s_char(String str, i32_4tech start, char character);
-FSTRING_LINK i32_4tech             find_c_chars(char *str, i32_4tech start, char *characters);
-FSTRING_LINK i32_4tech             find_s_chars(String str, i32_4tech start, char *characters);
-FSTRING_LINK i32_4tech             find_substr_c(char *str, i32_4tech start, String seek);
-FSTRING_LINK i32_4tech             find_substr_s(String str, i32_4tech start, String seek);
-FSTRING_LINK i32_4tech             rfind_substr_s(String str, i32_4tech start, String seek);
-FSTRING_LINK i32_4tech             find_substr_insensitive_c(char *str, i32_4tech start, String seek);
-FSTRING_LINK i32_4tech             find_substr_insensitive_s(String str, i32_4tech start, String seek);
-FSTRING_INLINE b32_4tech           has_substr_c(char *s, String seek);
-FSTRING_INLINE b32_4tech           has_substr_s(String s, String seek);
-FSTRING_INLINE b32_4tech           has_substr_insensitive_c(char *s, String seek);
-FSTRING_INLINE b32_4tech           has_substr_insensitive_s(String s, String seek);
-FSTRING_LINK i32_4tech             copy_fast_unsafe_cc(char *dest, char *src);
-FSTRING_LINK i32_4tech             copy_fast_unsafe_cs(char *dest, String src);
-FSTRING_LINK b32_4tech             copy_checked_ss(String *dest, String src);
-FSTRING_LINK b32_4tech             copy_checked_cs(char *dest, i32_4tech dest_cap, String src);
-FSTRING_LINK b32_4tech             copy_partial_sc(String *dest, char *src);
-FSTRING_LINK b32_4tech             copy_partial_ss(String *dest, String src);
-FSTRING_LINK b32_4tech             copy_partial_cs(char *dest, i32_4tech dest_cap, String src);
-FSTRING_INLINE i32_4tech           copy_cc(char *dest, char *src);
+FSTRING_LINK b32             match_cc(char *a, char *b);
+FSTRING_LINK b32             match_sc(String a, char *b);
+FSTRING_INLINE b32           match_cs(char *a, String b);
+FSTRING_LINK b32             match_ss(String a, String b);
+FSTRING_LINK b32             match_part_ccl(char *a, char *b, i32 *len);
+FSTRING_LINK b32             match_part_scl(String a, char *b, i32 *len);
+FSTRING_INLINE b32           match_part_cc(char *a, char *b);
+FSTRING_INLINE b32           match_part_sc(String a, char *b);
+FSTRING_LINK b32             match_part_cs(char *a, String b);
+FSTRING_LINK b32             match_part_ss(String a, String b);
+FSTRING_LINK b32             match_insensitive_cc(char *a, char *b);
+FSTRING_LINK b32             match_insensitive_sc(String a, char *b);
+FSTRING_INLINE b32           match_insensitive_cs(char *a, String b);
+FSTRING_LINK b32             match_insensitive_ss(String a, String b);
+FSTRING_LINK b32             match_part_insensitive_ccl(char *a, char *b, i32 *len);
+FSTRING_LINK b32             match_part_insensitive_scl(String a, char *b, i32 *len);
+FSTRING_INLINE b32           match_part_insensitive_cc(char *a, char *b);
+FSTRING_INLINE b32           match_part_insensitive_sc(String a, char *b);
+FSTRING_LINK b32             match_part_insensitive_cs(char *a, String b);
+FSTRING_LINK b32             match_part_insensitive_ss(String a, String b);
+FSTRING_LINK i32             compare_cc(char *a, char *b);
+FSTRING_LINK i32             compare_sc(String a, char *b);
+FSTRING_INLINE i32           compare_cs(char *a, String b);
+FSTRING_LINK i32             compare_ss(String a, String b);
+FSTRING_LINK i32             find_c_char(char *str, i32 start, char character);
+FSTRING_LINK i32             find_s_char(String str, i32 start, char character);
+FSTRING_LINK i32             rfind_s_char(String str, i32 start, char character);
+FSTRING_LINK i32             find_c_chars(char *str, i32 start, char *characters);
+FSTRING_LINK i32             find_s_chars(String str, i32 start, char *characters);
+FSTRING_LINK i32             find_substr_c(char *str, i32 start, String seek);
+FSTRING_LINK i32             find_substr_s(String str, i32 start, String seek);
+FSTRING_LINK i32             rfind_substr_s(String str, i32 start, String seek);
+FSTRING_LINK i32             find_substr_insensitive_c(char *str, i32 start, String seek);
+FSTRING_LINK i32             find_substr_insensitive_s(String str, i32 start, String seek);
+FSTRING_INLINE b32           has_substr_c(char *s, String seek);
+FSTRING_INLINE b32           has_substr_s(String s, String seek);
+FSTRING_INLINE b32           has_substr_insensitive_c(char *s, String seek);
+FSTRING_INLINE b32           has_substr_insensitive_s(String s, String seek);
+FSTRING_LINK i32             copy_fast_unsafe_cc(char *dest, char *src);
+FSTRING_LINK i32             copy_fast_unsafe_cs(char *dest, String src);
+FSTRING_LINK b32             copy_checked_ss(String *dest, String src);
+FSTRING_LINK b32             copy_checked_cs(char *dest, i32 dest_cap, String src);
+FSTRING_LINK b32             copy_partial_sc(String *dest, char *src);
+FSTRING_LINK b32             copy_partial_ss(String *dest, String src);
+FSTRING_LINK b32             copy_partial_cs(char *dest, i32 dest_cap, String src);
+FSTRING_INLINE i32           copy_cc(char *dest, char *src);
 FSTRING_INLINE void                copy_ss(String *dest, String src);
 FSTRING_INLINE void                copy_sc(String *dest, char *src);
-FSTRING_LINK b32_4tech             append_checked_ss(String *dest, String src);
-FSTRING_LINK b32_4tech             append_partial_sc(String *dest, char *src);
-FSTRING_LINK b32_4tech             append_partial_ss(String *dest, String src);
-FSTRING_LINK b32_4tech             append_s_char(String *dest, char c);
-FSTRING_INLINE b32_4tech           append_ss(String *dest, String src);
-FSTRING_INLINE b32_4tech           append_sc(String *dest, char *src);
-FSTRING_LINK b32_4tech             terminate_with_null(String *str);
-FSTRING_LINK b32_4tech             append_padding(String *dest, char c, i32_4tech target_size);
+FSTRING_LINK b32             append_checked_ss(String *dest, String src);
+FSTRING_LINK b32             append_partial_sc(String *dest, char *src);
+FSTRING_LINK b32             append_partial_ss(String *dest, String src);
+FSTRING_LINK b32             append_s_char(String *dest, char c);
+FSTRING_INLINE b32           append_ss(String *dest, String src);
+FSTRING_INLINE b32           append_sc(String *dest, char *src);
+FSTRING_LINK b32             terminate_with_null(String *str);
+FSTRING_LINK b32             append_padding(String *dest, char c, i32 target_size);
 FSTRING_LINK void                  string_interpret_escapes(String src, char *dst);
 FSTRING_LINK void                  replace_char(String *str, char replace, char with);
 FSTRING_LINK void                  replace_str_ss(String *str, String replace, String with);
@@ -180,104 +155,107 @@ FSTRING_LINK void                  to_upper_cc(char *src, char *dst);
 FSTRING_LINK void                  to_upper_ss(String *dst, String src);
 FSTRING_LINK void                  to_upper_s(String *str);
 FSTRING_LINK void                  to_camel_cc(char *src, char *dst);
-FSTRING_LINK i32_4tech             int_to_str_size(i32_4tech x);
-FSTRING_LINK b32_4tech             int_to_str(String *dest, i32_4tech x);
-FSTRING_LINK b32_4tech             append_int_to_str(String *dest, i32_4tech x);
-FSTRING_LINK i32_4tech             u64_to_str_size(uint64_t x);
-FSTRING_LINK b32_4tech             u64_to_str(String *dest, uint64_t x);
-FSTRING_LINK b32_4tech             append_u64_to_str(String *dest, uint64_t x);
-FSTRING_LINK i32_4tech             float_to_str_size(float x);
-FSTRING_LINK b32_4tech             append_float_to_str(String *dest, float x);
-FSTRING_LINK b32_4tech             float_to_str(String *dest, float x);
-FSTRING_LINK i32_4tech             str_is_int_c(char *str);
-FSTRING_LINK b32_4tech             str_is_int_s(String str);
-FSTRING_LINK i32_4tech             str_to_int_c(char *str);
-FSTRING_LINK i32_4tech             str_to_int_s(String str);
-FSTRING_LINK i32_4tech             hexchar_to_int(char c);
-FSTRING_LINK char                  int_to_hexchar(i32_4tech x);
-FSTRING_LINK u32_4tech             hexstr_to_int(String str);
-FSTRING_LINK b32_4tech             color_to_hexstr(String *s, u32_4tech color);
-FSTRING_LINK b32_4tech             hexstr_to_color(String s, u32_4tech *out);
-FSTRING_LINK i32_4tech             reverse_seek_slash_pos(String str, i32_4tech pos);
-FSTRING_INLINE i32_4tech           reverse_seek_slash(String str);
+FSTRING_LINK i32             int_to_str_size(i32 x);
+FSTRING_LINK b32             int_to_str(String *dest, i32 x);
+FSTRING_LINK b32             append_int_to_str(String *dest, i32 x);
+FSTRING_LINK i32             u64_to_str_size(uint64_t x);
+FSTRING_LINK b32             u64_to_str(String *dest, uint64_t x);
+FSTRING_LINK b32             append_u64_to_str(String *dest, uint64_t x);
+FSTRING_LINK i32             float_to_str_size(float x);
+FSTRING_LINK b32             append_float_to_str(String *dest, float x);
+FSTRING_LINK b32             float_to_str(String *dest, float x);
+FSTRING_LINK i32             str_is_int_c(char *str);
+FSTRING_LINK b32             str_is_int_s(String str);
+FSTRING_LINK i32             str_to_int_c(char *str);
+FSTRING_LINK i32             str_to_int_s(String str);
+FSTRING_LINK i32             hexchar_to_int(char c);
+FSTRING_LINK char                  int_to_hexchar(i32 x);
+FSTRING_LINK u32             hexstr_to_int(String str);
+FSTRING_LINK b32             color_to_hexstr(String *s, u32 color);
+FSTRING_LINK b32             hexstr_to_color(String s, u32 *out);
+FSTRING_LINK i32             reverse_seek_slash_pos(String str, i32 pos);
+FSTRING_INLINE i32           reverse_seek_slash(String str);
 FSTRING_INLINE String              front_of_directory(String dir);
 FSTRING_INLINE String              path_of_directory(String dir);
-FSTRING_LINK b32_4tech             set_last_folder_sc(String *dir, char *folder_name, char slash);
-FSTRING_LINK b32_4tech             set_last_folder_ss(String *dir, String folder_name, char slash);
+FSTRING_LINK b32             set_last_folder_sc(String *dir, char *folder_name, char slash);
+FSTRING_LINK b32             set_last_folder_ss(String *dir, String folder_name, char slash);
 FSTRING_LINK String                file_extension(String str);
-FSTRING_LINK b32_4tech             remove_extension(String *str);
-FSTRING_LINK b32_4tech             remove_last_folder(String *str);
-FSTRING_LINK b32_4tech             string_set_match_table(void *str_set, i32_4tech item_size, i32_4tech count, String str, i32_4tech *match_index);
-FSTRING_LINK b32_4tech             string_set_match(String *str_set, i32_4tech count, String str, i32_4tech *match_index);
+FSTRING_LINK b32             remove_extension(String *str);
+FSTRING_LINK b32             remove_last_folder(String *str);
+FSTRING_LINK b32             string_set_match_table(void *str_set, i32 item_size, i32 count, String str, i32 *match_index);
+FSTRING_LINK b32             string_set_match(String *str_set, i32 count, String str, i32 *match_index);
 FSTRING_LINK String                get_first_double_line(String source);
 FSTRING_LINK String                get_next_double_line(String source, String line);
 FSTRING_LINK String                get_next_word(String source, String prev_word);
 FSTRING_LINK String                get_first_word(String source);
-FSTRING_LINK String                string_push(Partition *part, i32_4tech size);
-FSTRING_LINK String                string_push_copy(Partition *part, String str);
+FSTRING_LINK String                string_push(Cursor *cursor, i32 size);
+FSTRING_LINK String                string_push_copy(Cursor *cursor, String str);
+FSTRING_LINK String                string_push(Arena *arena, i32 size);
+FSTRING_LINK String                string_push_copy(Arena *arena, String str);
+FSTRING_LINK char*                 get_null_terminated(Arena *arena, String str);
 
 #endif
 
 #if !defined(FSTRING_C) && !defined(FSTRING_GUARD)
 
-FSTRING_INLINE String              make_string(void *str, i32_4tech size, i32_4tech mem_size){return(make_string_cap(str,size,mem_size));}
-FSTRING_INLINE String              substr(String str, i32_4tech start){return(substr_tail(str,start));}
-FSTRING_LINK String                skip_whitespace(String str, i32_4tech *skip_length){return(skip_whitespace_measure(str,skip_length));}
-FSTRING_LINK String                skip_chop_whitespace(String str, i32_4tech *skip_length){return(skip_chop_whitespace_measure(str,skip_length));}
-FSTRING_LINK b32_4tech             match(char *a, char *b){return(match_cc(a,b));}
-FSTRING_LINK b32_4tech             match(String a, char *b){return(match_sc(a,b));}
-FSTRING_INLINE b32_4tech           match(char *a, String b){return(match_cs(a,b));}
-FSTRING_LINK b32_4tech             match(String a, String b){return(match_ss(a,b));}
-FSTRING_LINK b32_4tech             match_part(char *a, char *b, i32_4tech *len){return(match_part_ccl(a,b,len));}
-FSTRING_LINK b32_4tech             match_part(String a, char *b, i32_4tech *len){return(match_part_scl(a,b,len));}
-FSTRING_INLINE b32_4tech           match_part(char *a, char *b){return(match_part_cc(a,b));}
-FSTRING_INLINE b32_4tech           match_part(String a, char *b){return(match_part_sc(a,b));}
-FSTRING_LINK b32_4tech             match_part(char *a, String b){return(match_part_cs(a,b));}
-FSTRING_LINK b32_4tech             match_part(String a, String b){return(match_part_ss(a,b));}
-FSTRING_LINK b32_4tech             match_insensitive(char *a, char *b){return(match_insensitive_cc(a,b));}
-FSTRING_LINK b32_4tech             match_insensitive(String a, char *b){return(match_insensitive_sc(a,b));}
-FSTRING_INLINE b32_4tech           match_insensitive(char *a, String b){return(match_insensitive_cs(a,b));}
-FSTRING_LINK b32_4tech             match_insensitive(String a, String b){return(match_insensitive_ss(a,b));}
-FSTRING_LINK b32_4tech             match_part_insensitive(char *a, char *b, i32_4tech *len){return(match_part_insensitive_ccl(a,b,len));}
-FSTRING_LINK b32_4tech             match_part_insensitive(String a, char *b, i32_4tech *len){return(match_part_insensitive_scl(a,b,len));}
-FSTRING_INLINE b32_4tech           match_part_insensitive(char *a, char *b){return(match_part_insensitive_cc(a,b));}
-FSTRING_INLINE b32_4tech           match_part_insensitive(String a, char *b){return(match_part_insensitive_sc(a,b));}
-FSTRING_LINK b32_4tech             match_part_insensitive(char *a, String b){return(match_part_insensitive_cs(a,b));}
-FSTRING_LINK b32_4tech             match_part_insensitive(String a, String b){return(match_part_insensitive_ss(a,b));}
-FSTRING_LINK i32_4tech             compare(char *a, char *b){return(compare_cc(a,b));}
-FSTRING_LINK i32_4tech             compare(String a, char *b){return(compare_sc(a,b));}
-FSTRING_INLINE i32_4tech           compare(char *a, String b){return(compare_cs(a,b));}
-FSTRING_LINK i32_4tech             compare(String a, String b){return(compare_ss(a,b));}
-FSTRING_LINK i32_4tech             find(char *str, i32_4tech start, char character){return(find_c_char(str,start,character));}
-FSTRING_LINK i32_4tech             find(String str, i32_4tech start, char character){return(find_s_char(str,start,character));}
-FSTRING_LINK i32_4tech             rfind(String str, i32_4tech start, char character){return(rfind_s_char(str,start,character));}
-FSTRING_LINK i32_4tech             find(char *str, i32_4tech start, char *characters){return(find_c_chars(str,start,characters));}
-FSTRING_LINK i32_4tech             find(String str, i32_4tech start, char *characters){return(find_s_chars(str,start,characters));}
-FSTRING_LINK i32_4tech             find_substr(char *str, i32_4tech start, String seek){return(find_substr_c(str,start,seek));}
-FSTRING_LINK i32_4tech             find_substr(String str, i32_4tech start, String seek){return(find_substr_s(str,start,seek));}
-FSTRING_LINK i32_4tech             rfind_substr(String str, i32_4tech start, String seek){return(rfind_substr_s(str,start,seek));}
-FSTRING_LINK i32_4tech             find_substr_insensitive(char *str, i32_4tech start, String seek){return(find_substr_insensitive_c(str,start,seek));}
-FSTRING_LINK i32_4tech             find_substr_insensitive(String str, i32_4tech start, String seek){return(find_substr_insensitive_s(str,start,seek));}
-FSTRING_INLINE b32_4tech           has_substr(char *s, String seek){return(has_substr_c(s,seek));}
-FSTRING_INLINE b32_4tech           has_substr(String s, String seek){return(has_substr_s(s,seek));}
-FSTRING_INLINE b32_4tech           has_substr_insensitive(char *s, String seek){return(has_substr_insensitive_c(s,seek));}
-FSTRING_INLINE b32_4tech           has_substr_insensitive(String s, String seek){return(has_substr_insensitive_s(s,seek));}
-FSTRING_LINK i32_4tech             copy_fast_unsafe(char *dest, char *src){return(copy_fast_unsafe_cc(dest,src));}
-FSTRING_LINK i32_4tech             copy_fast_unsafe(char *dest, String src){return(copy_fast_unsafe_cs(dest,src));}
-FSTRING_LINK b32_4tech             copy_checked(String *dest, String src){return(copy_checked_ss(dest,src));}
-FSTRING_LINK b32_4tech             copy_checked(char *dest, i32_4tech dest_cap, String src){return(copy_checked_cs(dest,dest_cap,src));}
-FSTRING_LINK b32_4tech             copy_partial(String *dest, char *src){return(copy_partial_sc(dest,src));}
-FSTRING_LINK b32_4tech             copy_partial(String *dest, String src){return(copy_partial_ss(dest,src));}
-FSTRING_LINK b32_4tech             copy_partial(char *dest, i32_4tech dest_cap, String src){return(copy_partial_cs(dest,dest_cap,src));}
-FSTRING_INLINE i32_4tech           copy(char *dest, char *src){return(copy_cc(dest,src));}
+FSTRING_INLINE String              make_string(void *str, i32 size, i32 mem_size){return(make_string_cap(str,size,mem_size));}
+FSTRING_INLINE String              substr(String str, i32 start){return(substr_tail(str,start));}
+FSTRING_LINK String                skip_whitespace(String str, i32 *skip_length){return(skip_whitespace_measure(str,skip_length));}
+FSTRING_LINK String                skip_chop_whitespace(String str, i32 *skip_length){return(skip_chop_whitespace_measure(str,skip_length));}
+FSTRING_LINK b32             match(char *a, char *b){return(match_cc(a,b));}
+FSTRING_LINK b32             match(String a, char *b){return(match_sc(a,b));}
+FSTRING_INLINE b32           match(char *a, String b){return(match_cs(a,b));}
+FSTRING_LINK b32             match(String a, String b){return(match_ss(a,b));}
+FSTRING_LINK b32             match_part(char *a, char *b, i32 *len){return(match_part_ccl(a,b,len));}
+FSTRING_LINK b32             match_part(String a, char *b, i32 *len){return(match_part_scl(a,b,len));}
+FSTRING_INLINE b32           match_part(char *a, char *b){return(match_part_cc(a,b));}
+FSTRING_INLINE b32           match_part(String a, char *b){return(match_part_sc(a,b));}
+FSTRING_LINK b32             match_part(char *a, String b){return(match_part_cs(a,b));}
+FSTRING_LINK b32             match_part(String a, String b){return(match_part_ss(a,b));}
+FSTRING_LINK b32             match_insensitive(char *a, char *b){return(match_insensitive_cc(a,b));}
+FSTRING_LINK b32             match_insensitive(String a, char *b){return(match_insensitive_sc(a,b));}
+FSTRING_INLINE b32           match_insensitive(char *a, String b){return(match_insensitive_cs(a,b));}
+FSTRING_LINK b32             match_insensitive(String a, String b){return(match_insensitive_ss(a,b));}
+FSTRING_LINK b32             match_part_insensitive(char *a, char *b, i32 *len){return(match_part_insensitive_ccl(a,b,len));}
+FSTRING_LINK b32             match_part_insensitive(String a, char *b, i32 *len){return(match_part_insensitive_scl(a,b,len));}
+FSTRING_INLINE b32           match_part_insensitive(char *a, char *b){return(match_part_insensitive_cc(a,b));}
+FSTRING_INLINE b32           match_part_insensitive(String a, char *b){return(match_part_insensitive_sc(a,b));}
+FSTRING_LINK b32             match_part_insensitive(char *a, String b){return(match_part_insensitive_cs(a,b));}
+FSTRING_LINK b32             match_part_insensitive(String a, String b){return(match_part_insensitive_ss(a,b));}
+FSTRING_LINK i32             compare(char *a, char *b){return(compare_cc(a,b));}
+FSTRING_LINK i32             compare(String a, char *b){return(compare_sc(a,b));}
+FSTRING_INLINE i32           compare(char *a, String b){return(compare_cs(a,b));}
+FSTRING_LINK i32             compare(String a, String b){return(compare_ss(a,b));}
+FSTRING_LINK i32             find(char *str, i32 start, char character){return(find_c_char(str,start,character));}
+FSTRING_LINK i32             find(String str, i32 start, char character){return(find_s_char(str,start,character));}
+FSTRING_LINK i32             rfind(String str, i32 start, char character){return(rfind_s_char(str,start,character));}
+FSTRING_LINK i32             find(char *str, i32 start, char *characters){return(find_c_chars(str,start,characters));}
+FSTRING_LINK i32             find(String str, i32 start, char *characters){return(find_s_chars(str,start,characters));}
+FSTRING_LINK i32             find_substr(char *str, i32 start, String seek){return(find_substr_c(str,start,seek));}
+FSTRING_LINK i32             find_substr(String str, i32 start, String seek){return(find_substr_s(str,start,seek));}
+FSTRING_LINK i32             rfind_substr(String str, i32 start, String seek){return(rfind_substr_s(str,start,seek));}
+FSTRING_LINK i32             find_substr_insensitive(char *str, i32 start, String seek){return(find_substr_insensitive_c(str,start,seek));}
+FSTRING_LINK i32             find_substr_insensitive(String str, i32 start, String seek){return(find_substr_insensitive_s(str,start,seek));}
+FSTRING_INLINE b32           has_substr(char *s, String seek){return(has_substr_c(s,seek));}
+FSTRING_INLINE b32           has_substr(String s, String seek){return(has_substr_s(s,seek));}
+FSTRING_INLINE b32           has_substr_insensitive(char *s, String seek){return(has_substr_insensitive_c(s,seek));}
+FSTRING_INLINE b32           has_substr_insensitive(String s, String seek){return(has_substr_insensitive_s(s,seek));}
+FSTRING_LINK i32             copy_fast_unsafe(char *dest, char *src){return(copy_fast_unsafe_cc(dest,src));}
+FSTRING_LINK i32             copy_fast_unsafe(char *dest, String src){return(copy_fast_unsafe_cs(dest,src));}
+FSTRING_LINK b32             copy_checked(String *dest, String src){return(copy_checked_ss(dest,src));}
+FSTRING_LINK b32             copy_checked(char *dest, i32 dest_cap, String src){return(copy_checked_cs(dest,dest_cap,src));}
+FSTRING_LINK b32             copy_partial(String *dest, char *src){return(copy_partial_sc(dest,src));}
+FSTRING_LINK b32             copy_partial(String *dest, String src){return(copy_partial_ss(dest,src));}
+FSTRING_LINK b32             copy_partial(char *dest, i32 dest_cap, String src){return(copy_partial_cs(dest,dest_cap,src));}
+FSTRING_INLINE i32           copy(char *dest, char *src){return(copy_cc(dest,src));}
 FSTRING_INLINE void                copy(String *dest, String src){return(copy_ss(dest,src));}
 FSTRING_INLINE void                copy(String *dest, char *src){return(copy_sc(dest,src));}
-FSTRING_LINK b32_4tech             append_checked(String *dest, String src){return(append_checked_ss(dest,src));}
-FSTRING_LINK b32_4tech             append_partial(String *dest, char *src){return(append_partial_sc(dest,src));}
-FSTRING_LINK b32_4tech             append_partial(String *dest, String src){return(append_partial_ss(dest,src));}
-FSTRING_LINK b32_4tech             append(String *dest, char c){return(append_s_char(dest,c));}
-FSTRING_INLINE b32_4tech           append(String *dest, String src){return(append_ss(dest,src));}
-FSTRING_INLINE b32_4tech           append(String *dest, char *src){return(append_sc(dest,src));}
+FSTRING_LINK b32             append_checked(String *dest, String src){return(append_checked_ss(dest,src));}
+FSTRING_LINK b32             append_partial(String *dest, char *src){return(append_partial_sc(dest,src));}
+FSTRING_LINK b32             append_partial(String *dest, String src){return(append_partial_ss(dest,src));}
+FSTRING_LINK b32             append(String *dest, char c){return(append_s_char(dest,c));}
+FSTRING_INLINE b32           append(String *dest, String src){return(append_ss(dest,src));}
+FSTRING_INLINE b32           append(String *dest, char *src){return(append_sc(dest,src));}
 FSTRING_LINK void                  replace_str(String *str, String replace, String with){return(replace_str_ss(str,replace,with));}
 FSTRING_LINK void                  replace_str(String *str, String replace, char *with){return(replace_str_sc(str,replace,with));}
 FSTRING_LINK void                  replace_str(String *str, char *replace, String with){return(replace_str_cs(str,replace,with));}
@@ -289,14 +267,14 @@ FSTRING_LINK void                  to_upper(char *src, char *dst){return(to_uppe
 FSTRING_LINK void                  to_upper(String *dst, String src){return(to_upper_ss(dst,src));}
 FSTRING_LINK void                  to_upper(String *str){return(to_upper_s(str));}
 FSTRING_LINK void                  to_camel(char *src, char *dst){return(to_camel_cc(src,dst));}
-FSTRING_LINK i32_4tech             str_is_int(char *str){return(str_is_int_c(str));}
-FSTRING_LINK b32_4tech             str_is_int(String str){return(str_is_int_s(str));}
-FSTRING_LINK i32_4tech             str_to_int(char *str){return(str_to_int_c(str));}
-FSTRING_LINK i32_4tech             str_to_int(String str){return(str_to_int_s(str));}
-FSTRING_LINK i32_4tech             reverse_seek_slash(String str, i32_4tech pos){return(reverse_seek_slash_pos(str,pos));}
-FSTRING_LINK b32_4tech             set_last_folder(String *dir, char *folder_name, char slash){return(set_last_folder_sc(dir,folder_name,slash));}
-FSTRING_LINK b32_4tech             set_last_folder(String *dir, String folder_name, char slash){return(set_last_folder_ss(dir,folder_name,slash));}
-FSTRING_LINK b32_4tech             string_set_match(void *str_set, i32_4tech item_size, i32_4tech count, String str, i32_4tech *match_index){return(string_set_match_table(str_set,item_size,count,str,match_index));}
+FSTRING_LINK i32             str_is_int(char *str){return(str_is_int_c(str));}
+FSTRING_LINK b32             str_is_int(String str){return(str_is_int_s(str));}
+FSTRING_LINK i32             str_to_int(char *str){return(str_to_int_c(str));}
+FSTRING_LINK i32             str_to_int(String str){return(str_to_int_s(str));}
+FSTRING_LINK i32             reverse_seek_slash(String str, i32 pos){return(reverse_seek_slash_pos(str,pos));}
+FSTRING_LINK b32             set_last_folder(String *dir, char *folder_name, char slash){return(set_last_folder_sc(dir,folder_name,slash));}
+FSTRING_LINK b32             set_last_folder(String *dir, String folder_name, char slash){return(set_last_folder_ss(dir,folder_name,slash));}
+FSTRING_LINK b32             string_set_match(void *str_set, i32 item_size, i32 count, String str, i32 *match_index){return(string_set_match_table(str_set,item_size,count,str,match_index));}
 
 #endif
 
@@ -306,7 +284,7 @@ FSTRING_LINK b32_4tech             string_set_match(void *str_set, i32_4tech ite
 //
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_slash(char c)
 {
     return (c == '\\' || c == '/');
@@ -314,7 +292,7 @@ char_is_slash(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_upper(char c)
 {
     return (c >= 'A' && c <= 'Z');
@@ -322,7 +300,7 @@ char_is_upper(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_upper_utf8(char c)
 {
     return ((c >= 'A' && c <= 'Z') || (unsigned char)c >= 128);
@@ -330,7 +308,7 @@ char_is_upper_utf8(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_lower(char c)
 {
     return (c >= 'a' && c <= 'z');
@@ -338,8 +316,8 @@ char_is_lower(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
-char_is_lower_utf8(u8_4tech c)
+FSTRING_INLINE b32
+char_is_lower_utf8(u8 c)
 {
     return ((c >= 'a' && c <= 'z') || (unsigned char)c >= 128);
 }
@@ -362,7 +340,7 @@ char_to_lower(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_whitespace(char c)
 {
     return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
@@ -370,7 +348,7 @@ char_is_whitespace(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_alpha_numeric(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_');
@@ -378,15 +356,15 @@ char_is_alpha_numeric(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
-char_is_alpha_numeric_utf8(u8_4tech c)
+FSTRING_INLINE b32
+char_is_alpha_numeric_utf8(u8 c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || (unsigned char)c >= 128);
 }
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_alpha_numeric_true(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'));
@@ -394,15 +372,15 @@ char_is_alpha_numeric_true(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
-char_is_alpha_numeric_true_utf8(u8_4tech c)
+FSTRING_INLINE b32
+char_is_alpha_numeric_true_utf8(u8 c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || (unsigned char)c >= 128);
 }
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_alpha(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_');
@@ -410,15 +388,15 @@ char_is_alpha(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
-char_is_alpha_utf8(u8_4tech c)
+FSTRING_INLINE b32
+char_is_alpha_utf8(u8 c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (unsigned char)c >= 128);
 }
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_alpha_true(char c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'));
@@ -426,15 +404,15 @@ char_is_alpha_true(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
-char_is_alpha_true_utf8(u8_4tech c)
+FSTRING_INLINE b32
+char_is_alpha_true_utf8(u8 c)
 {
     return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (unsigned char)c >= 128);
 }
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_hex(char c)
 {
     return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f'));
@@ -442,15 +420,15 @@ char_is_hex(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
-char_is_hex_utf8(u8_4tech c)
+FSTRING_INLINE b32
+char_is_hex_utf8(u8 c)
 {
     return ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f') || (unsigned char)c >= 128);
 }
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 char_is_numeric(char c)
 {
     return (c >= '0' && c <= '9');
@@ -458,8 +436,8 @@ char_is_numeric(char c)
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
-char_is_numeric_utf8(u8_4tech c)
+FSTRING_INLINE b32
+char_is_numeric_utf8(u8 c)
 {
     return ((c >= '0' && c <= '9') || (unsigned char)c >= 128);
 }
@@ -473,7 +451,7 @@ char_is_numeric_utf8(u8_4tech c)
 
 #if !defined(FSTRING_GUARD)
 FSTRING_INLINE String
-make_string_cap(void *str, i32_4tech size, i32_4tech mem_size){
+make_string_cap(void *str, i32 size, i32 mem_size){
     String result;
     result.str = (char*)str;
     result.size = size;
@@ -484,16 +462,16 @@ make_string_cap(void *str, i32_4tech size, i32_4tech mem_size){
 
 #if !defined(FSTRING_GUARD)
 FSTRING_INLINE String
-make_string(void *str, i32_4tech size){
+make_string(void *str, i32 size){
     return(make_string(str, size, size));
 }
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 str_size(char *str)
 {
-    i32_4tech i = 0;
+    i32 i = 0;
     if (str != 0){
         for (;str[i];++i);
     }
@@ -516,7 +494,7 @@ make_string_slowly(void *str)
 
 #if !defined(FSTRING_GUARD)
 FSTRING_INLINE String
-substr_tail(String str, i32_4tech start)
+substr_tail(String str, i32 start)
 {
     String result;
     result.str = str.str + start;
@@ -528,7 +506,7 @@ substr_tail(String str, i32_4tech start)
 
 #if !defined(FSTRING_GUARD)
 FSTRING_INLINE String
-substr(String str, i32_4tech start, i32_4tech size)
+substr(String str, i32 start, i32 size)
 {
     String result;
     result.str = str.str + start;
@@ -546,7 +524,7 @@ FSTRING_LINK String
 skip_whitespace(String str)
 {
     String result = {};
-    i32_4tech i = 0;
+    i32 i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
     return(result);
@@ -556,10 +534,10 @@ skip_whitespace(String str)
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
-skip_whitespace_measure(String str, i32_4tech *skip_length)
+skip_whitespace_measure(String str, i32 *skip_length)
 {
     String result = {};
-    i32_4tech i = 0;
+    i32 i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
     *skip_length = i;
@@ -572,7 +550,7 @@ FSTRING_LINK String
 chop_whitespace(String str)
 {
     String result = {};
-    i32_4tech i = str.size;
+    i32 i = str.size;
     for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
     result = substr(str, 0, i);
     return(result);
@@ -592,7 +570,7 @@ skip_chop_whitespace(String str)
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
-skip_chop_whitespace_measure(String str, i32_4tech *skip_length)
+skip_chop_whitespace_measure(String str, i32 *skip_length)
 {
     str = skip_whitespace_measure(str, skip_length);
     str = chop_whitespace(str);
@@ -619,9 +597,9 @@ tailstr(String str)
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_cc(char *a, char *b){
-    for (i32_4tech i = 0;; ++i){
+    for (i32 i = 0;; ++i){
         if (a[i] != b[i]){
             return 0;
         }
@@ -634,9 +612,9 @@ match_cc(char *a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_sc(String a, char *b){
-    i32_4tech i = 0;
+    i32 i = 0;
     for (; i < a.size; ++i){
         if (a.str[i] != b[i]){
             return 0;
@@ -651,7 +629,7 @@ match_sc(String a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 match_cs(char *a, String b){
     return(match_sc(b,a));
 }
@@ -659,12 +637,12 @@ match_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_ss(String a, String b){
     if (a.size != b.size){
         return 0;
     }
-    for (i32_4tech i = 0; i < b.size; ++i){
+    for (i32 i = 0; i < b.size; ++i){
         if (a.str[i] != b.str[i]){
             return 0;
         }
@@ -675,8 +653,8 @@ match_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-match_part_ccl(char *a, char *b, i32_4tech *len){
+FSTRING_LINK b32
+match_part_ccl(char *a, char *b, i32 *len){
     if (a == 0){
         a = "";
     }
@@ -684,7 +662,7 @@ match_part_ccl(char *a, char *b, i32_4tech *len){
         b = "";
     }
     
-    i32_4tech i;
+    i32 i;
     for (i = 0; b[i] != 0; ++i){
         if (a[i] != b[i]){
             return(0);
@@ -697,12 +675,12 @@ match_part_ccl(char *a, char *b, i32_4tech *len){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-match_part_scl(String a, char *b, i32_4tech *len){
+FSTRING_LINK b32
+match_part_scl(String a, char *b, i32 *len){
     if (b == 0){
         b = "";
     }
-    i32_4tech i;
+    i32 i;
     for (i = 0; b[i] != 0; ++i){
         if (i == a.size || a.str[i] != b[i]){
             return(0);
@@ -715,27 +693,27 @@ match_part_scl(String a, char *b, i32_4tech *len){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 match_part_cc(char *a, char *b){
-    i32_4tech x;
+    i32 x;
     return match_part_ccl(a,b,&x);
 }
 #endif
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 match_part_sc(String a, char *b){
-    i32_4tech x;
+    i32 x;
     return match_part_scl(a,b,&x);
 }
 #endif
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_part_cs(char *a, String b){
-    for (i32_4tech i = 0; i != b.size; ++i){
+    for (i32 i = 0; i != b.size; ++i){
         if (a[i] != b.str[i]){
             return 0;
         }
@@ -746,12 +724,12 @@ match_part_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_part_ss(String a, String b){
     if (a.size < b.size){
         return(0);
     }
-    for (i32_4tech i = 0; i < b.size; ++i){
+    for (i32 i = 0; i < b.size; ++i){
         if (a.str[i] != b.str[i]){
             return(0);
         }
@@ -762,9 +740,9 @@ match_part_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_insensitive_cc(char *a, char *b){
-    for (i32_4tech i = 0;; ++i){
+    for (i32 i = 0;; ++i){
         if (char_to_upper(a[i]) !=
             char_to_upper(b[i])){
             return 0;
@@ -778,9 +756,9 @@ match_insensitive_cc(char *a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_insensitive_sc(String a, char *b){
-    i32_4tech i = 0;
+    i32 i = 0;
     for (; i < a.size; ++i){
         if (char_to_upper(a.str[i]) !=
             char_to_upper(b[i])){
@@ -796,7 +774,7 @@ match_insensitive_sc(String a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 match_insensitive_cs(char *a, String b){
     return match_insensitive_sc(b,a);
 }
@@ -804,12 +782,12 @@ match_insensitive_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_insensitive_ss(String a, String b){
     if (a.size != b.size){
         return 0;
     }
-    for (i32_4tech i = 0; i < b.size; ++i){
+    for (i32 i = 0; i < b.size; ++i){
         if (char_to_upper(a.str[i]) !=
             char_to_upper(b.str[i])){
             return 0;
@@ -821,9 +799,9 @@ match_insensitive_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-match_part_insensitive_ccl(char *a, char *b, i32_4tech *len){
-    i32_4tech i;
+FSTRING_LINK b32
+match_part_insensitive_ccl(char *a, char *b, i32 *len){
+    i32 i;
     for (i = 0; b[i] != 0; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b[i])){
             return 0;
@@ -836,9 +814,9 @@ match_part_insensitive_ccl(char *a, char *b, i32_4tech *len){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-match_part_insensitive_scl(String a, char *b, i32_4tech *len){
-    i32_4tech i;
+FSTRING_LINK b32
+match_part_insensitive_scl(String a, char *b, i32 *len){
+    i32 i;
     for (i = 0; b[i] != 0; ++i){
         if (char_to_upper(a.str[i]) != char_to_upper(b[i]) ||
             i == a.size){
@@ -852,27 +830,27 @@ match_part_insensitive_scl(String a, char *b, i32_4tech *len){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 match_part_insensitive_cc(char *a, char *b){
-    i32_4tech x;
+    i32 x;
     return match_part_insensitive_ccl(a,b,&x);
 }
 #endif
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 match_part_insensitive_sc(String a, char *b){
-    i32_4tech x;
+    i32 x;
     return match_part_insensitive_scl(a,b,&x);
 }
 #endif
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_part_insensitive_cs(char *a, String b){
-    for (i32_4tech i = 0; i != b.size; ++i){
+    for (i32 i = 0; i != b.size; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b.str[i])){
             return(0);
         }
@@ -883,12 +861,12 @@ match_part_insensitive_cs(char *a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 match_part_insensitive_ss(String a, String b){
     if (a.size < b.size){
         return(0);
     }
-    for (i32_4tech i = 0; i < b.size; ++i){
+    for (i32 i = 0; i < b.size; ++i){
         if (char_to_upper(a.str[i]) != char_to_upper(b.str[i])){
             return(0);
         }
@@ -899,9 +877,9 @@ match_part_insensitive_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 compare_cc(char *a, char *b){
-    i32_4tech i = 0, r = 0;
+    i32 i = 0, r = 0;
     while (a[i] == b[i] && a[i] != 0){
         ++i;
     }
@@ -912,9 +890,9 @@ compare_cc(char *a, char *b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 compare_sc(String a, char *b){
-    i32_4tech i = 0, r = 0;
+    i32 i = 0, r = 0;
     while (i < a.size && a.str[i] == b[i]){
         ++i;
     }
@@ -935,19 +913,19 @@ compare_sc(String a, char *b){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE i32_4tech
+FSTRING_INLINE i32
 compare_cs(char *a, String b){
-    i32_4tech r = -compare_sc(b,a);
+    i32 r = -compare_sc(b,a);
     return(r);
 }
 #endif
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 compare_ss(String a, String b){
-    i32_4tech i = 0, r = 0;
-    i32_4tech m = a.size;
+    i32 i = 0, r = 0;
+    i32 m = a.size;
     if (b.size < m){
         m = b.size;
     }
@@ -972,9 +950,9 @@ compare_ss(String a, String b){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_c_char(char *str, i32_4tech start, char character){
-    i32_4tech i = start;
+FSTRING_LINK i32
+find_c_char(char *str, i32 start, char character){
+    i32 i = start;
     while (str[i] != character && str[i] != 0) ++i;
     return(i);
 }
@@ -982,9 +960,9 @@ find_c_char(char *str, i32_4tech start, char character){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_s_char(String str, i32_4tech start, char character){
-    i32_4tech i = start;
+FSTRING_LINK i32
+find_s_char(String str, i32 start, char character){
+    i32 i = start;
     while (i < str.size && str.str[i] != character) ++i;
     return(i);
 }
@@ -992,9 +970,9 @@ find_s_char(String str, i32_4tech start, char character){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-rfind_s_char(String str, i32_4tech start, char character){
-    i32_4tech i = start;
+FSTRING_LINK i32
+rfind_s_char(String str, i32 start, char character){
+    i32 i = start;
     while (i >= 0 && str.str[i] != character) --i;
     return(i);
 }
@@ -1002,9 +980,9 @@ rfind_s_char(String str, i32_4tech start, char character){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_c_chars(char *str, i32_4tech start, char *characters){
-    i32_4tech i = start, j;
+FSTRING_LINK i32
+find_c_chars(char *str, i32 start, char *characters){
+    i32 i = start, j;
     while (str[i] != 0){
         for (j = 0; characters[j]; ++j){
             if (str[i] == characters[j]){
@@ -1019,9 +997,9 @@ find_c_chars(char *str, i32_4tech start, char *characters){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_s_chars(String str, i32_4tech start, char *characters){
-    i32_4tech i = start, j;
+FSTRING_LINK i32
+find_s_chars(String str, i32 start, char *characters){
+    i32 i = start, j;
     while (i < str.size){
         for (j = 0; characters[j]; ++j){
             if (str.str[i] == characters[j]){
@@ -1036,10 +1014,10 @@ find_s_chars(String str, i32_4tech start, char *characters){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_substr_c(char *str, i32_4tech start, String seek){
-    i32_4tech i, j, k;
-    b32_4tech hit;
+FSTRING_LINK i32
+find_substr_c(char *str, i32 start, String seek){
+    i32 i, j, k;
+    b32 hit;
     
     if (seek.size == 0){
         i = str_size(str);
@@ -1065,10 +1043,10 @@ find_substr_c(char *str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_substr_s(String str, i32_4tech start, String seek){
-    i32_4tech stop_at, i, j, k;
-    b32_4tech hit;
+FSTRING_LINK i32
+find_substr_s(String str, i32 start, String seek){
+    i32 stop_at, i, j, k;
+    b32 hit;
     
     if (seek.size == 0){
         return str.size;
@@ -1094,10 +1072,10 @@ find_substr_s(String str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-rfind_substr_s(String str, i32_4tech start, String seek){
-    i32_4tech i, j, k;
-    b32_4tech hit;
+FSTRING_LINK i32
+rfind_substr_s(String str, i32 start, String seek){
+    i32 i, j, k;
+    b32 hit;
     
     if (seek.size == 0){
         return -1;
@@ -1125,10 +1103,10 @@ rfind_substr_s(String str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_substr_insensitive_c(char *str, i32_4tech start, String seek){
-    i32_4tech i, j, k;
-    b32_4tech hit;
+FSTRING_LINK i32
+find_substr_insensitive_c(char *str, i32 start, String seek){
+    i32 i, j, k;
+    b32 hit;
     char a_upper, b_upper;
     char first_test_char;
     
@@ -1159,11 +1137,11 @@ find_substr_insensitive_c(char *str, i32_4tech start, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-find_substr_insensitive_s(String str, i32_4tech start, String seek){
-    i32_4tech i, j, k;
-    i32_4tech stop_at;
-    b32_4tech hit;
+FSTRING_LINK i32
+find_substr_insensitive_s(String str, i32 start, String seek){
+    i32 i, j, k;
+    i32 stop_at;
+    b32 hit;
     char a_upper, b_upper;
     char first_test_char;
     
@@ -1195,7 +1173,7 @@ find_substr_insensitive_s(String str, i32_4tech start, String seek){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 has_substr_c(char *s, String seek){
     return (s[find_substr_c(s, 0, seek)] != 0);
 }
@@ -1203,7 +1181,7 @@ has_substr_c(char *s, String seek){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 has_substr_s(String s, String seek){
     return (find_substr_s(s, 0, seek) < s.size);
 }
@@ -1211,7 +1189,7 @@ has_substr_s(String s, String seek){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 has_substr_insensitive_c(char *s, String seek){
     return (s[find_substr_insensitive_c(s, 0, seek)] != 0);
 }
@@ -1219,7 +1197,7 @@ has_substr_insensitive_c(char *s, String seek){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 has_substr_insensitive_s(String s, String seek){
     return (find_substr_insensitive_s(s, 0, seek) < s.size);
 }
@@ -1231,7 +1209,7 @@ has_substr_insensitive_s(String s, String seek){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 copy_fast_unsafe_cc(char *dest, char *src){
     char *start = dest;
     while (*src != 0){
@@ -1239,15 +1217,15 @@ copy_fast_unsafe_cc(char *dest, char *src){
         ++dest;
         ++src;
     }
-    return (i32_4tech)(dest - start);
+    return (i32)(dest - start);
 }
 #endif
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 copy_fast_unsafe_cs(char *dest, String src){
-    i32_4tech i = 0;
+    i32 i = 0;
     while (i != src.size){
         dest[i] = src.str[i];
         ++i;
@@ -1258,10 +1236,10 @@ copy_fast_unsafe_cs(char *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 copy_checked_ss(String *dest, String src){
     char *dest_str;
-    i32_4tech i;
+    i32 i;
     if (dest->memory_size < src.size){
         return 0;
     }
@@ -1276,9 +1254,9 @@ copy_checked_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-copy_checked_cs(char *dest, i32_4tech dest_cap, String src){
-    i32_4tech i;
+FSTRING_LINK b32
+copy_checked_cs(char *dest, i32 dest_cap, String src){
+    i32 i;
     if (dest_cap < src.size){
         return 0;
     }
@@ -1291,10 +1269,10 @@ copy_checked_cs(char *dest, i32_4tech dest_cap, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 copy_partial_sc(String *dest, char *src){
-    i32_4tech i = 0;
-    i32_4tech memory_size = dest->memory_size;
+    i32 i = 0;
+    i32 memory_size = dest->memory_size;
     char *dest_str = dest->str;
     while (src[i] != 0){
         if (i >= memory_size){
@@ -1310,16 +1288,16 @@ copy_partial_sc(String *dest, char *src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 copy_partial_ss(String *dest, String src){
     char *dest_str = dest->str;
-    i32_4tech memory_size = dest->memory_size;
-    b32_4tech result = 0;
+    i32 memory_size = dest->memory_size;
+    b32 result = 0;
     if (memory_size >= src.size){
         result = 1;
         memory_size = src.size;
     }
-    for (i32_4tech i = 0; i < memory_size; ++i){
+    for (i32 i = 0; i < memory_size; ++i){
         dest_str[i] = src.str[i];
     }
     dest->size = memory_size;
@@ -1329,11 +1307,11 @@ copy_partial_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-copy_partial_cs(char *dest, i32_4tech dest_cap, String src){
-    b32_4tech result = 0;
-    i32_4tech copy_size = dest_cap;
-    i32_4tech i;
+FSTRING_LINK b32
+copy_partial_cs(char *dest, i32 dest_cap, String src){
+    b32 result = 0;
+    i32 copy_size = dest_cap;
+    i32 i;
     if (dest_cap >= src.size){
         result = 1;
         copy_size = src.size;
@@ -1347,7 +1325,7 @@ copy_partial_cs(char *dest, i32_4tech dest_cap, String src){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE i32_4tech
+FSTRING_INLINE i32
 copy_cc(char *dest, char *src){
     return copy_fast_unsafe_cc(dest, src);
 }
@@ -1371,11 +1349,11 @@ copy_sc(String *dest, char *src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 append_checked_ss(String *dest, String src){
     String end;
     end = tailstr(*dest);
-    b32_4tech result = copy_checked_ss(&end, src);
+    b32 result = copy_checked_ss(&end, src);
     // NOTE(allen): This depends on end.size still being 0 if
     // the check failed and no coppy occurred.
     dest->size += end.size;
@@ -1385,10 +1363,10 @@ append_checked_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 append_partial_sc(String *dest, char *src){
     String end = tailstr(*dest);
-    b32_4tech result = copy_partial_sc(&end, src);
+    b32 result = copy_partial_sc(&end, src);
     dest->size += end.size;
     return result;
 }
@@ -1396,10 +1374,10 @@ append_partial_sc(String *dest, char *src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 append_partial_ss(String *dest, String src){
     String end = tailstr(*dest);
-    b32_4tech result = copy_partial_ss(&end, src);
+    b32 result = copy_partial_ss(&end, src);
     dest->size += end.size;
     return result;
 }
@@ -1407,9 +1385,9 @@ append_partial_ss(String *dest, String src){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 append_s_char(String *dest, char c){
-    b32_4tech result = 0;
+    b32 result = 0;
     if (dest->size < dest->memory_size){
         dest->str[dest->size++] = c;
         result = 1;
@@ -1420,7 +1398,7 @@ append_s_char(String *dest, char c){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 append_ss(String *dest, String src){
     return append_partial_ss(dest, src);
 }
@@ -1428,16 +1406,16 @@ append_ss(String *dest, String src){
 
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE b32_4tech
+FSTRING_INLINE b32
 append_sc(String *dest, char *src){
     return append_partial_sc(dest, src);
 }
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 terminate_with_null(String *str){
-    b32_4tech result = 0;
+    b32 result = 0;
     if (str->size < str->memory_size){
         str->str[str->size] = 0;
         result = 1;
@@ -1447,11 +1425,11 @@ terminate_with_null(String *str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-append_padding(String *dest, char c, i32_4tech target_size){
-    b32_4tech result = 1;
-    i32_4tech offset = target_size - dest->size;
-    i32_4tech r = 0;
+FSTRING_LINK b32
+append_padding(String *dest, char c, i32 target_size){
+    b32 result = 1;
+    i32 offset = target_size - dest->size;
+    i32 r = 0;
     if (offset > 0){
         for (r = 0; r < offset; ++r){
             if (append_s_char(dest, c) == 0){
@@ -1473,9 +1451,9 @@ append_padding(String *dest, char c, i32_4tech target_size){
 FSTRING_LINK void
 string_interpret_escapes(String src, char *dst)
 {
-    i32_4tech mode = 0;
-    i32_4tech j = 0;
-    for (i32_4tech i = 0; i < src.size; ++i){
+    i32 mode = 0;
+    i32 j = 0;
+    for (i32 i = 0; i < src.size; ++i){
         switch (mode){
             case 0:
             {
@@ -1510,7 +1488,7 @@ string_interpret_escapes(String src, char *dst)
 FSTRING_LINK void
 replace_char(String *str, char replace, char with){
     char *s = str->str;
-    i32_4tech i = 0;
+    i32 i = 0;
     for (i = 0; i < str->size; ++i, ++s){
         if (*s == replace) *s = with;
     }
@@ -1519,27 +1497,27 @@ replace_char(String *str, char replace, char with){
 
 #if !defined(FSTRING_GUARD)
 void
-block_move(void *a_ptr, void *b_ptr, i32_4tech s){
-    u8_4tech *a = (u8_4tech*)a_ptr;
-    u8_4tech *b = (u8_4tech*)b_ptr;
+block_move(void *a_ptr, void *b_ptr, i32 s){
+    u8 *a = (u8*)a_ptr;
+    u8 *b = (u8*)b_ptr;
     if (a < b){
-        for (i32_4tech i = 0; i < s; ++i, ++a, ++b){
+        for (i32 i = 0; i < s; ++i, ++a, ++b){
             *a = *b;
         }
     }
     else if (a > b){
         a = a + s - 1;
         b = b + s - 1;
-        for (i32_4tech i = 0; i < s; ++i, --a, --b){
+        for (i32 i = 0; i < s; ++i, --a, --b){
             *a = *b;
         }
     }
 }
 
 void
-replace_range_str(String *str, i32_4tech first, i32_4tech one_past_last, String with){
-    i32_4tech shift = with.size - (one_past_last - first);
-    i32_4tech new_size = str->size + shift;
+replace_range_str(String *str, i32 first, i32 one_past_last, String with){
+    i32 shift = with.size - (one_past_last - first);
+    i32 new_size = str->size + shift;
     if (new_size <= str->memory_size){
         if (shift != 0){
             char *tail = str->str + one_past_last;
@@ -1556,7 +1534,7 @@ replace_range_str(String *str, i32_4tech first, i32_4tech one_past_last, String 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
 replace_str_ss(String *str, String replace, String with){
-    i32_4tech i = 0;
+    i32 i = 0;
     for (;;){
         i = find_substr_s(*str, i, replace);
         if (i >= str->size){
@@ -1611,8 +1589,8 @@ to_lower_cc(char *src, char *dst){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
 to_lower_ss(String *dst, String src){
-    i32_4tech i = 0;
-    i32_4tech size = src.size;
+    i32 i = 0;
+    i32 size = src.size;
     char *c = src.str;
     char *d = dst->str;
     
@@ -1629,8 +1607,8 @@ to_lower_ss(String *dst, String src){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
 to_lower_s(String *str){
-    i32_4tech i = 0;
-    i32_4tech size = str->size;
+    i32 i = 0;
+    i32 size = str->size;
     char *c = str->str;
     for (; i < size; ++c, ++i){
         *c = char_to_lower(*c);
@@ -1653,8 +1631,8 @@ to_upper_cc(char *src, char *dst){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
 to_upper_ss(String *dst, String src){
-    i32_4tech i = 0;
-    i32_4tech size = src.size;
+    i32 i = 0;
+    i32 size = src.size;
     char *c = src.str;
     char *d = dst->str;
     
@@ -1671,8 +1649,8 @@ to_upper_ss(String *dst, String src){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
 to_upper_s(String *str){
-    i32_4tech i = 0;
-    i32_4tech size = str->size;
+    i32 i = 0;
+    i32 size = str->size;
     char *c = str->str;
     for (; i < size; ++c, ++i){
         *c = char_to_upper(*c);
@@ -1685,7 +1663,7 @@ to_upper_s(String *str){
 FSTRING_LINK void
 to_camel_cc(char *src, char *dst){
     char *c, ch;
-    i32_4tech is_first = 1;
+    i32 is_first = 1;
     for (c = src; *c != 0; ++c){
         ch = *c;
         if (char_is_alpha_numeric_true(ch)){
@@ -1712,9 +1690,9 @@ to_camel_cc(char *src, char *dst){
 //
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-int_to_str_size(i32_4tech x){
-    i32_4tech size = 1;
+FSTRING_LINK i32
+int_to_str_size(i32 x){
+    i32 size = 1;
     if (x < 0){
         size = 2;
     }
@@ -1728,13 +1706,13 @@ int_to_str_size(i32_4tech x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-int_to_str(String *dest, i32_4tech x){
-    b32_4tech result = 1;
+FSTRING_LINK b32
+int_to_str(String *dest, i32 x){
+    b32 result = 1;
     char *str = dest->str;
-    i32_4tech memory_size = dest->memory_size;
-    i32_4tech size, i, j;
-    b32_4tech negative;
+    i32 memory_size = dest->memory_size;
+    i32 size, i, j;
+    b32 negative;
     
     if (x == 0){
         str[0] = '0';
@@ -1775,10 +1753,10 @@ int_to_str(String *dest, i32_4tech x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-append_int_to_str(String *dest, i32_4tech x){
+FSTRING_LINK b32
+append_int_to_str(String *dest, i32 x){
     String last_part = tailstr(*dest);
-    b32_4tech result = int_to_str(&last_part, x);
+    b32 result = int_to_str(&last_part, x);
     if (result){
         dest->size += last_part.size;
     }
@@ -1787,9 +1765,9 @@ append_int_to_str(String *dest, i32_4tech x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 u64_to_str_size(uint64_t x){
-    i32_4tech size = 1;
+    i32 size = 1;
     x /= 10;
     while (x != 0){
         x /= 10;
@@ -1800,12 +1778,12 @@ u64_to_str_size(uint64_t x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 u64_to_str(String *dest, uint64_t x){
-    b32_4tech result = 1;
+    b32 result = 1;
     char *str = dest->str;
-    i32_4tech memory_size = dest->memory_size;
-    i32_4tech size, i, j;
+    i32 memory_size = dest->memory_size;
+    i32 size, i, j;
     
     if (x == 0){
         str[0] = '0';
@@ -1839,10 +1817,10 @@ u64_to_str(String *dest, uint64_t x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 append_u64_to_str(String *dest, uint64_t x){
     String last_part = tailstr(*dest);
-    b32_4tech result = u64_to_str(&last_part, x);
+    b32 result = u64_to_str(&last_part, x);
     if (result){
         dest->size += last_part.size;
     }
@@ -1852,9 +1830,9 @@ append_u64_to_str(String *dest, uint64_t x){
 
 #if !defined(FSTRING_GUARD)
 typedef struct Float_To_Str_Variables{
-    b32_4tech negative;
-    i32_4tech int_part;
-    i32_4tech dec_part;
+    b32 negative;
+    i32 int_part;
+    i32 dec_part;
 } Float_To_Str_Variables;
 
 static Float_To_Str_Variables
@@ -1866,26 +1844,26 @@ get_float_vars(float x){
         x = -x;
     }
     
-    vars.int_part = (i32_4tech)(x);
-    vars.dec_part = (i32_4tech)((x - vars.int_part) * 1000);
+    vars.int_part = (i32)(x);
+    vars.dec_part = (i32)((x - vars.int_part) * 1000);
     
     return(vars);
 }
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 float_to_str_size(float x){
     Float_To_Str_Variables vars = get_float_vars(x);
-    i32_4tech size = vars.negative + int_to_str_size(vars.int_part) + 1 + int_to_str_size(vars.dec_part);
+    i32 size = vars.negative + int_to_str_size(vars.int_part) + 1 + int_to_str_size(vars.dec_part);
     return(size);
 }
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 append_float_to_str(String *dest, float x){
-    b32_4tech result = 1;
+    b32 result = 1;
     Float_To_Str_Variables vars = get_float_vars(x);
     
     if (vars.negative){
@@ -1901,9 +1879,9 @@ append_float_to_str(String *dest, float x){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 float_to_str(String *dest, float x){
-    b32_4tech result = 1;
+    b32 result = 1;
     dest->size = 0;
     append_float_to_str(dest, x);
     return(result);
@@ -1912,9 +1890,9 @@ float_to_str(String *dest, float x){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 str_is_int_c(char *str){
-    b32_4tech result = 1;
+    b32 result = 1;
     for (; *str; ++str){
         if (!char_is_numeric(*str)){
             result = 0;
@@ -1927,10 +1905,10 @@ str_is_int_c(char *str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 str_is_int_s(String str){
-    b32_4tech result = 1;
-    for (i32_4tech i = 0; i < str.size; ++i){
+    b32 result = 1;
+    for (i32 i = 0; i < str.size; ++i){
         if (!char_is_numeric(str.str[i])){
             result = 0;
             break;
@@ -1942,9 +1920,9 @@ str_is_int_s(String str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 str_to_int_c(char *str){
-    i32_4tech x = 0;
+    i32 x = 0;
     for (; *str; ++str){
         if (*str >= '0' && *str <= '9'){
             x *= 10;
@@ -1961,9 +1939,9 @@ str_to_int_c(char *str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 str_to_int_s(String str){
-    i32_4tech x, i;
+    i32 x, i;
     if (str.size == 0){
         x = 0;
     }
@@ -1979,9 +1957,9 @@ str_to_int_s(String str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
+FSTRING_LINK i32
 hexchar_to_int(char c){
-    i32_4tech x = 0;
+    i32 x = 0;
     if (c >= '0' && c <= '9'){
         x = c-'0';
     }
@@ -1997,16 +1975,16 @@ hexchar_to_int(char c){
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK char
-int_to_hexchar(i32_4tech x){
+int_to_hexchar(i32 x){
     return (x<10)?((char)x+'0'):((char)x+'a'-10);
 }
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK u32_4tech
+FSTRING_LINK u32
 hexstr_to_int(String str){
-    u32_4tech x;
-    i32_4tech i;
+    u32 x;
+    i32 i;
     if (str.size == 0){
         x = 0;
     }
@@ -2022,10 +2000,10 @@ hexstr_to_int(String str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-color_to_hexstr(String *s, u32_4tech color){
-    b32_4tech result = 0;
-    i32_4tech i;
+FSTRING_LINK b32
+color_to_hexstr(String *s, u32 color){
+    b32 result = 0;
+    i32 i;
     
     if (s->memory_size == 7 || s->memory_size == 8){
         result = 1;
@@ -2051,19 +2029,19 @@ color_to_hexstr(String *s, u32_4tech color){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-hexstr_to_color(String s, u32_4tech *out){
-    b32_4tech result = 0;
-    u32_4tech color = 0;
+FSTRING_LINK b32
+hexstr_to_color(String s, u32 *out){
+    b32 result = 0;
+    u32 color = 0;
     if (s.size == 6){
         result = 1;
-        color = (u32_4tech)hexstr_to_int(s);
+        color = (u32)hexstr_to_int(s);
         color |= (0xFF << 24);
         *out = color;
     }
     else if (s.size == 8){
         result = 1;
-        color = (u32_4tech)hexstr_to_int(s);
+        color = (u32)hexstr_to_int(s);
         *out = color;
     }
     return(result);
@@ -2076,9 +2054,9 @@ hexstr_to_color(String s, u32_4tech *out){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK i32_4tech
-reverse_seek_slash_pos(String str, i32_4tech pos){
-    i32_4tech i = str.size - 1 - pos;
+FSTRING_LINK i32
+reverse_seek_slash_pos(String str, i32 pos){
+    i32 i = str.size - 1 - pos;
     while (i >= 0 && !char_is_slash(str.str[i])){
         --i;
     }
@@ -2087,7 +2065,7 @@ reverse_seek_slash_pos(String str, i32_4tech pos){
 #endif
 
 #if !defined(FSTRING_GUARD)
-FSTRING_INLINE i32_4tech
+FSTRING_INLINE i32
 reverse_seek_slash(String str){
     return(reverse_seek_slash_pos(str, 0));
 }
@@ -2109,10 +2087,10 @@ path_of_directory(String dir){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 set_last_folder_sc(String *dir, char *folder_name, char slash){
-    b32_4tech result = 0;
-    i32_4tech size = reverse_seek_slash(*dir) + 1;
+    b32 result = 0;
+    i32 size = reverse_seek_slash(*dir) + 1;
     dir->size = size;
     if (append_sc(dir, folder_name)){
         if (append_s_char(dir, slash)){
@@ -2128,10 +2106,10 @@ set_last_folder_sc(String *dir, char *folder_name, char slash){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 set_last_folder_ss(String *dir, String folder_name, char slash){
-    b32_4tech result = 0;
-    i32_4tech size = reverse_seek_slash(*dir) + 1;
+    b32 result = 0;
+    i32 size = reverse_seek_slash(*dir) + 1;
     dir->size = size;
     if (append_ss(dir, folder_name)){
         if (append_s_char(dir, slash)){
@@ -2148,7 +2126,7 @@ set_last_folder_ss(String *dir, String folder_name, char slash){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
 file_extension(String str){
-    i32_4tech i;
+    i32 i;
     for (i = str.size - 1; i >= 0; --i){
         if (str.str[i] == '.') break;
     }
@@ -2158,10 +2136,10 @@ file_extension(String str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 remove_extension(String *str){
-    b32_4tech result = 0;
-    i32_4tech i;
+    b32 result = 0;
+    i32 i;
     for (i = str->size - 1; i >= 0; --i){
         if (str->str[i] == '.') break;
     }
@@ -2174,10 +2152,10 @@ remove_extension(String *str){
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
+FSTRING_LINK b32
 remove_last_folder(String *str){
-    b32_4tech result = 0;
-    i32_4tech end = reverse_seek_slash_pos(*str, 1);
+    b32 result = 0;
+    i32 end = reverse_seek_slash_pos(*str, 1);
     if (end >= 0){
         result = 1;
         str->size = end + 1;
@@ -2188,10 +2166,10 @@ remove_last_folder(String *str){
 
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-string_set_match_table(void *str_set, i32_4tech item_size, i32_4tech count, String str, i32_4tech *match_index){
-    b32_4tech result = 0;
-    i32_4tech i = 0;
+FSTRING_LINK b32
+string_set_match_table(void *str_set, i32 item_size, i32 count, String str, i32 *match_index){
+    b32 result = 0;
+    i32 i = 0;
     uint8_t *ptr = (uint8_t*)str_set;
     for (; i < count; ++i, ptr += item_size){
         if (match_ss(*(String*)ptr, str)){
@@ -2205,9 +2183,9 @@ string_set_match_table(void *str_set, i32_4tech item_size, i32_4tech count, Stri
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION)
-FSTRING_LINK b32_4tech
-string_set_match(String *str_set, i32_4tech count, String str, i32_4tech *match_index){
-    b32_4tech result = string_set_match_table(str_set, sizeof(String), count, str, match_index);
+FSTRING_LINK b32
+string_set_match(String *str_set, i32 count, String str, i32 *match_index){
+    b32 result = string_set_match_table(str_set, sizeof(String), count, str, match_index);
     return(result);
 }
 #endif
@@ -2216,8 +2194,8 @@ string_set_match(String *str_set, i32_4tech count, String str, i32_4tech *match_
 FSTRING_LINK String
 get_first_double_line(String source){
     String line = {};
-    i32_4tech pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
-    i32_4tech pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
+    i32 pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
+    i32 pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
     if (pos1 < pos0){
         pos0 = pos1;
     }
@@ -2230,8 +2208,8 @@ get_first_double_line(String source){
 FSTRING_LINK String
 get_next_double_line(String source, String line){
     String next = {};
-    i32_4tech pos = (i32_4tech)(line.str - source.str) + line.size;
-    i32_4tech start = 0, pos0 = 0, pos1 = 0;
+    i32 pos = (i32)(line.str - source.str) + line.size;
+    i32 start = 0, pos0 = 0, pos1 = 0;
     
     if (pos < source.size){
         //Assert(source.str[pos] == '\n' || source.str[pos] == '\r');
@@ -2256,8 +2234,8 @@ FSTRING_LINK String
 get_next_word(String source, String prev_word){
     
     String word = {};
-    i32_4tech pos0 = (i32_4tech)(prev_word.str - source.str) + prev_word.size;
-    i32_4tech pos1 = 0;
+    i32 pos0 = (i32)(prev_word.str - source.str) + prev_word.size;
+    i32 pos1 = 0;
     char c = 0;
     
     for (; pos0 < source.size; ++pos0){
@@ -2293,10 +2271,10 @@ get_first_word(String source){
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
-string_push(Partition *part, i32_4tech size){
+string_push(Cursor *cursor, i32 size){
     String result = {};
     if (size > 0){
-        result.str = push_array(part, char, size);
+        result.str = push_array(cursor, char, size);
         if (result.str != 0){
             result.memory_size = size;
         }
@@ -2307,10 +2285,10 @@ string_push(Partition *part, i32_4tech size){
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK String
-string_push_copy(Partition *part, String str){
+string_push_copy(Cursor *cursor, String str){
     String result = {};
     if (str.str != 0){
-        result.str = push_array(part, char, str.size + 1);
+        result.str = push_array(cursor, char, str.size + 1);
         if (result.str != 0){
             result.memory_size = str.size + 1;
             copy(&result, str);
@@ -2318,6 +2296,58 @@ string_push_copy(Partition *part, String str){
         }
     }
     return(result);
+}
+#endif
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK String
+string_push(Arena *arena, i32 size){
+    String result = {};
+    if (size > 0){
+        result.str = push_array(arena, char, size);
+        if (result.str != 0){
+            result.memory_size = size;
+        }
+    }
+    return(result);
+}
+#endif
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK String
+string_push_copy(Arena *arena, String str){
+    String result = {};
+    if (str.str != 0){
+        result.str = push_array(arena, char, str.size + 1);
+        if (result.str != 0){
+            result.memory_size = str.size + 1;
+            copy(&result, str);
+            result.str[result.size] = 0;
+        }
+    }
+    return(result);
+}
+#endif
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK char*
+get_null_terminated(Arena *arena, String str){
+    char *str_terminated = 0;
+    if (str.size < str.memory_size){
+        if (str.str[str.size] != 0){
+            str.str[str.size] = 0;
+        }
+        str_terminated = str.str;
+    }
+    else{
+        str_terminated = push_array(arena, char, str.size + 1);
+        if (str_terminated != 0){
+            String builder = make_string_cap(str_terminated, 0, str.size + 1);
+            append(&builder, str);
+            str_terminated[str.size] = 0;
+        }
+    }
+    return(str_terminated);
 }
 #endif
 
@@ -2330,28 +2360,28 @@ string_push_copy(Partition *part, String str){
 
 typedef struct Absolutes{
     String a[8];
-    i32_4tech count;
+    i32 count;
 } Absolutes;
 
 static void
-get_absolutes(String name, Absolutes *absolutes, b32_4tech implicit_first, b32_4tech implicit_last){
+get_absolutes(String name, Absolutes *absolutes, b32 implicit_first, b32 implicit_last){
     if (name.size != 0){
-        i32_4tech count = 0;
-        i32_4tech max = (sizeof(absolutes->a)/sizeof(*absolutes->a)) - 1;
+        i32 count = 0;
+        i32 max = (sizeof(absolutes->a)/sizeof(*absolutes->a)) - 1;
         if (implicit_last) --max;
         
         String str;
         str.str = name.str;
         str.size = 0;
         str.memory_size = 0;
-        b32_4tech prev_was_wild = 0;
+        b32 prev_was_wild = 0;
         
         if (implicit_first){
             absolutes->a[count++] = str;
             prev_was_wild = 1;
         }
         
-        i32_4tech i;
+        i32 i;
         for (i = 0; i < name.size; ++i){
             if (name.str[i] == '*' && count < max){
                 if (!prev_was_wild){
@@ -2384,15 +2414,15 @@ get_absolutes(String name, Absolutes *absolutes, b32_4tech implicit_first, b32_4
     }
 }
 
-static b32_4tech
-wildcard_match_c(Absolutes *absolutes, char *x, i32_4tech case_sensitive){
-    b32_4tech r = 1;
+static b32
+wildcard_match_c(Absolutes *absolutes, char *x, i32 case_sensitive){
+    b32 r = 1;
     
     if (absolutes->count > 0){
         String *a = absolutes->a;
         
-        b32_4tech (*match_func)(char*, String);
-        b32_4tech (*match_part_func)(char*, String);
+        b32 (*match_func)(char*, String);
+        b32 (*match_part_func)(char*, String);
         
         if (case_sensitive){
             match_func = match_cs;
@@ -2445,8 +2475,8 @@ wildcard_match_c(Absolutes *absolutes, char *x, i32_4tech case_sensitive){
     return(r);
 }
 
-static b32_4tech
-wildcard_match_s(Absolutes *absolutes, String x, i32_4tech case_sensitive){
+static b32
+wildcard_match_s(Absolutes *absolutes, String x, i32 case_sensitive){
     terminate_with_null(&x);
     return(wildcard_match_c(absolutes, x.str, case_sensitive));
 }
@@ -2460,6 +2490,8 @@ wildcard_match_s(Absolutes *absolutes, String x, i32_4tech case_sensitive){
 
 #if !defined(FSTRING_GUARD)
 #define FSTRING_GUARD
+#endif
+
 #endif
 
 // BOTTOM

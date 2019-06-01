@@ -111,12 +111,14 @@ struct File_Bar{
     Face_ID font_id;
 };
 
+#if 0
 struct Style_Color_Edit{
     Style_Tag target;
     Style_Tag fore;
     Style_Tag back;
-    String text;
+    String_Const_u8 text;
 };
+#endif
 
 struct Single_Line_Input_Step{
     b8 hit_newline;
@@ -136,7 +138,7 @@ enum Single_Line_Input_Type{
 
 struct Single_Line_Mode{
     Single_Line_Input_Type type;
-    String *string;
+    String_Const_u8 *string;
     Hot_Directory *hot_directory;
     b32 fast_folder_select;
 };
@@ -160,6 +162,17 @@ struct Render_Marker{
     i32 pos;
     i32 one_past_last;
     i32 priority;
+};
+
+struct Render_Marker_Node{
+    Render_Marker_Node *next;
+    Render_Marker render_marker;
+};
+
+struct Render_Marker_List{
+    Render_Marker_Node *first;
+    Render_Marker_Node *last;
+    i32 count;
 };
 
 struct Render_Range_Record{

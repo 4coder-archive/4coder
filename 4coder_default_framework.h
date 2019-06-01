@@ -36,7 +36,7 @@ struct ID_Pos_Jump_Location{
 };
 
 struct Name_Line_Column_Location{
-    String file;
+    String_Const_u8 file;
     i32 line;
     i32 column;
 };
@@ -60,7 +60,7 @@ struct ID_Pos_Jump_Location_Array{
 ////////////////////////////////
 
 struct Named_Mapping{
-    String name;
+    String_Const_u8 name;
     Custom_Command_Function *remap_command;
 };
 

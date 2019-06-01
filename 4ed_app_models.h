@@ -28,6 +28,7 @@ struct App_Settings{
 };
 
 struct Models{
+    Base_Allocator allocator;
     Mem_Options mem;
     
     App_Settings settings;
@@ -168,6 +169,7 @@ struct Consumption_Record{
     char consumer[32];
 };
 
+// TODO(allen): GET RID OF IT!
 struct App_Vars{
     Models models;
     App_State state;
@@ -188,7 +190,7 @@ struct Command_In{
 };
 
 struct File_Init{
-    String name;
+    String_Const_u8 name;
     Editing_File **ptr;
     b32 read_only;
 };

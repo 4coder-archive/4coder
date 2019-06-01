@@ -5,9 +5,9 @@
 // TOP
 
 static void
-activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
+activate_jump(Application_Links *app, Heap *heap,
               View_ID view, struct Lister_State *state,
-              String text_field, void *user_data, b32 activated_by_mouse){
+              String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     Lister_Activation_Code result_code = ListerActivation_Finished;
     i32 list_index = (i32)PtrAsInt(user_data);
     Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.data.user_data;
@@ -58,29 +58,29 @@ activate_jump(Application_Links *app, Partition *scratch, Heap *heap,
         }
         
     }
-    lister_default(app, scratch, heap, view, state, result_code);
+    lister_default(app, heap, view, state, result_code);
 }
 
 static void
-open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap, View_ID ui_view, Buffer_ID list_buffer_id, Jump_Lister_Activation_Rule activation_rule, View_ID optional_target_view){
+open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID list_buffer_id, Jump_Lister_Activation_Rule activation_rule, View_ID optional_target_view){
     
-    Marker_List *list = get_or_make_list_for_buffer(app, scratch, heap, list_buffer_id);
+    Marker_List *list = get_or_make_list_for_buffer(app, heap, list_buffer_id);
     if (list != 0){
         i32 estimated_string_space_size = 0;
         view_end_ui_mode(app, ui_view);
-        Temp_Memory temp = begin_temp_memory(scratch);
+        Arena *scratch = context_get_arena(app);
+        Temp_Memory temp = begin_temp(scratch);
         i32 option_count = list->jump_count;
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);
         Managed_Object stored_jumps = list->jump_array;
         for (i32 i = 0; i < option_count; i += 1){
             Sticky_Jump_Stored stored = {};
             managed_object_load_data(app, stored_jumps, i, 1, &stored);
-            String line = {};
-            read_line(app, scratch, list_buffer_id, stored.list_line, &line);
+            String_Const_u8 line = scratch_read_line(app, scratch, list_buffer_id, stored.list_line);
             options[i].string = line;
             memset(&options[i].status, 0, sizeof(options[i].status));
             options[i].user_data = IntAsPtr(i);
-            i32 aligned_size = line.size + 1 + 7;
+            i32 aligned_size = ((i32)line.size) + 1 + 7;
             aligned_size = aligned_size - aligned_size%8;
             estimated_string_space_size += aligned_size;
         }
@@ -97,7 +97,7 @@ open_jump_lister(Application_Links *app, Partition *scratch, Heap *heap, View_ID
                                             options, option_count,
                                             estimated_string_space_size,
                                             ui_view);
-        end_temp_memory(temp);
+        end_temp(temp);
     }
 }
 
@@ -108,7 +108,7 @@ CUSTOM_DOC("When executed on a buffer with jumps, creates a persistent lister fo
     get_active_view(app, AccessAll, &view);
     Buffer_ID buffer = 0;
     view_get_buffer(app, view, AccessAll, &buffer);
-    open_jump_lister(app, &global_part, &global_heap, view, buffer, JumpListerActivation_OpenInNextViewKeepUI, 0);
+    open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInNextViewKeepUI, 0);
 }
 
 // BOTTOM

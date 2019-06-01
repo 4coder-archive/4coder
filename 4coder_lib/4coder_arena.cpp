@@ -9,8 +9,9 @@ distribute, and modify this file as you see fit.
 
 // TOP
 
+#if !defined(Migrating__Arena)
 static Partition
-make_part(void *memory, i32_4tech size){
+make_part(void *memory, i32 size){
     Partition part = {};
     part.base = (char*)memory;
     part.pos = 0;
@@ -19,7 +20,7 @@ make_part(void *memory, i32_4tech size){
 }
 
 static void*
-part_allocate(Partition *data, i32_4tech size){
+part_allocate(Partition *data, i32 size){
     void *ret = 0;
     if (size < 0){
         size = 0;
@@ -32,15 +33,15 @@ part_allocate(Partition *data, i32_4tech size){
 }
 
 static void
-part_reduce(Partition *data, i32_4tech size){
+part_reduce(Partition *data, i32 size){
     if (size > 0 && size <= data->pos){
         data->pos -= size;
     }
 }
 
 static void
-part_align(Partition *data, i32_4tech boundary){
-    i32_4tech p = data->pos;
+part_align(Partition *data, i32 boundary){
+    i32 p = data->pos;
     p += boundary - 1;
     data->pos = p - p%boundary;
 }
@@ -50,13 +51,13 @@ part_current(Partition *data){
     return(data->base + data->pos);
 }
 
-static i32_4tech
+static i32
 part_remaining(Partition *data){
     return(data->max - data->pos);
 }
 
 static Partition
-part_sub_part(Partition *data, i32_4tech size){
+part_sub_part(Partition *data, i32 size){
     Partition result = {};
     void *d = part_allocate(data, size);
     if (d != 0){
@@ -79,12 +80,12 @@ end_temp_memory(Temp_Memory temp){
 }
 
 static void*
-push_allocator_allocate(Partition *part, i32_4tech size){
+push_allocator_allocate(Partition *part, i32 size){
     return(part_allocate(part, size));
 }
 
 static void
-push_allocator_align(Partition *part, i32_4tech b){
+push_allocator_align(Partition *part, i32 b){
     part_align(part, b);
 }
 
@@ -93,7 +94,7 @@ push_allocator_align(Partition *part, i32_4tech b){
 #if defined(FCODER_CUSTOM_H)
 
 static Arena
-make_arena(Application_Links *app, i32_4tech chunk_size, i32_4tech initial_align){
+make_arena(Application_Links *app, i32 chunk_size, i32 initial_align){
     Arena arena = {};
     arena.app = app;
     arena.chunk_size = chunk_size;
@@ -102,7 +103,7 @@ make_arena(Application_Links *app, i32_4tech chunk_size, i32_4tech initial_align
 }
 
 static Arena
-make_arena(Application_Links *app, i32_4tech chunk_size){
+make_arena(Application_Links *app, i32 chunk_size){
     return(make_arena(app, chunk_size, 1));
 }
 
@@ -124,15 +125,15 @@ arena_release_all(Arena *arena){
 }
 
 static void
-arena_change_chunk_size(Arena *arena, i32_4tech chunk_size){
+arena_change_chunk_size(Arena *arena, i32 chunk_size){
     arena->chunk_size = chunk_size;
 }
 
 static Partition_Chained*
-arena__new_part(Arena *arena, i32_4tech new_chunk_size){
+arena__new_part(Arena *arena, i32 new_chunk_size){
     Application_Links *app = arena->app;
-    i32_4tech memory_size = new_chunk_size + sizeof(Partition_Chained);
-    i32_4tech boundardy = 4096;
+    i32 memory_size = new_chunk_size + sizeof(Partition_Chained);
+    i32 boundardy = 4096;
     if (memory_size < boundardy){
         memory_size = boundardy;
     }
@@ -155,7 +156,7 @@ arena__new_part(Arena *arena){
 }
 
 static void
-arena__align_inner(Arena *arena, i32_4tech b){
+arena__align_inner(Arena *arena, i32 b){
     if (arena->align != 1){
         Partition_Chained *part = arena->part;
         if (part == 0){
@@ -166,7 +167,7 @@ arena__align_inner(Arena *arena, i32_4tech b){
 }
 
 static void*
-arena_allocate(Arena *arena, i32_4tech size){
+arena_allocate(Arena *arena, i32 size){
     void *result = 0;
     Partition_Chained *part = arena->part;
     if (part == 0){
@@ -175,7 +176,7 @@ arena_allocate(Arena *arena, i32_4tech size){
     arena__align_inner(arena, arena->align);
     result = part_allocate(&part->part, size);
     if (result == 0){
-        i32_4tech new_chunk_size = arena->chunk_size;
+        i32 new_chunk_size = arena->chunk_size;
         if (size > new_chunk_size){
             new_chunk_size = size;
         }
@@ -188,13 +189,13 @@ arena_allocate(Arena *arena, i32_4tech size){
 }
 
 static void
-arena_align(Arena *arena, i32_4tech b){
+arena_align(Arena *arena, i32 b){
     arena__align_inner(arena, b);
     arena->align = b;
 }
 
 static Partition*
-arena_use_as_part(Arena *arena, i32_4tech minimum_part_size){
+arena_use_as_part(Arena *arena, i32 minimum_part_size){
     if (minimum_part_size < arena->chunk_size){
         minimum_part_size = arena->chunk_size;
     }
@@ -254,12 +255,12 @@ end_temp_memory(Arena *arena, Temp_Memory_Arena_Light temp){
 }
 
 static void*
-push_allocator_allocate(Arena *arena, i32_4tech size){
+push_allocator_allocate(Arena *arena, i32 size){
     return(arena_allocate(arena, size));
 }
 
 static void
-push_allocator_align(Arena *arena, i32_4tech b){
+push_allocator_align(Arena *arena, i32 b){
     arena_align(arena, b);
 }
 
@@ -285,6 +286,7 @@ Scratch_Block::operator Arena*(){
 #define push_array(A, T, size) (T*)push_allocator_allocate((A), sizeof(T)*(size))
 #define push_align(A, b) push_allocator_align((A), (b))
 #define reset_temp_memory end_temp_memory
+#endif
 
 // BOTTOM
 

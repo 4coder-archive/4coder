@@ -13,14 +13,14 @@
 #define FRED_META_KEYWORDS_H
 
 internal Meta_Keywords meta_keywords[] = {
-    {make_lit_string("API_EXPORT")        , Item_Function } ,
-    {make_lit_string("API_EXPORT_INLINE") , Item_Function } ,
-    {make_lit_string("API_EXPORT_MACRO")  , Item_Macro    } ,
-    {make_lit_string("CPP_NAME")          , Item_CppName  } ,
-    {make_lit_string("TYPEDEF") , Item_Typedef } ,
-    {make_lit_string("STRUCT")  , Item_Struct  } ,
-    {make_lit_string("UNION")   , Item_Union   } ,
-    {make_lit_string("ENUM")    , Item_Enum    } ,
+    {string_litinit("API_EXPORT")        , Item_Function } ,
+    {string_litinit("API_EXPORT_INLINE") , Item_Function } ,
+    {string_litinit("API_EXPORT_MACRO")  , Item_Macro    } ,
+    {string_litinit("CPP_NAME")          , Item_CppName  } ,
+    {string_litinit("TYPEDEF") , Item_Typedef } ,
+    {string_litinit("STRUCT")  , Item_Struct  } ,
+    {string_litinit("UNION")   , Item_Union   } ,
+    {string_litinit("ENUM")    , Item_Enum    } ,
 };
 
 #endif

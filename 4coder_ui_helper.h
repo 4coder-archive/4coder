@@ -48,7 +48,7 @@ struct UI_Storage{
     UI_Data *data;
     Arena *arena;
     Managed_Object arena_object;
-    Temp_Memory_Arena temp;
+    Temp_Memory temp;
 };
 
 ////////////////////////////////
@@ -60,18 +60,18 @@ enum{
     ListerActivation_ContinueAndRefresh = 2,
 };
 
-typedef void Lister_Activation_Function_Type(Application_Links *app, Partition *scratch, Heap *heap,
+typedef void Lister_Activation_Function_Type(Application_Links *app, Heap *heap,
                                              View_ID view, struct Lister_State *state,
-                                             String text_field, void *user_data, b32 activated_by_mouse);
+                                             String_Const_u8 text_field, void *user_data, b32 activated_by_mouse);
 
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, struct Lister *lister);
 
 struct Lister_Node{
     Lister_Node *next;
     Lister_Node *prev;
-    String string;
+    String_Const_u8 string;
     union{
-        String status;
+        String_Const_u8 status;
         i32 index;
     };
     void *user_data;
@@ -105,12 +105,12 @@ struct Lister_Data{
     // List Data
     void *user_data;
     i32 user_data_size;
-    char query_space[256];
-    String query;
-    char text_field_space[256];
-    String text_field;
-    char key_string_space[256];
-    String key_string;
+	u8 query_space[256];
+    u8 text_field_space[256];
+    u8 key_string_space[256];
+    String_u8 query;
+	String_u8 text_field;
+	String_u8 key_string;
     Lister_Option_List options;
     b32 theme_list;
 };
@@ -137,14 +137,14 @@ struct Lister_State{
 };
 
 struct Lister_Prealloced_String{
-    String string;
+    String_Const_u8 string;
 };
 
 ////////////////////////////////
 
 struct Lister_Option{
-    String string;
-    String status;
+    String_Const_u8 string;
+    String_Const_u8 status;
     void *user_data;
 };
 

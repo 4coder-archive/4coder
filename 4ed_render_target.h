@@ -34,7 +34,8 @@ struct Render_Target{
     Render_Free_Texture *free_texture_first;
     Render_Free_Texture *free_texture_last;
     
-    Partition buffer;
+    // TODO(allen): rewrite render system to work on an arena
+    Cursor buffer;
 };
 
 #endif

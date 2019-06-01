@@ -14,6 +14,7 @@
 
 #define MAX_VIEWS 16
 
+// TODO(allen): This is DONE! GET RID OF IT NAO!
 struct Application_Memory{
     void *vars_memory;
     i32 vars_memory_size;
@@ -66,7 +67,7 @@ struct Plat_Settings{
 };
 
 #define App_Read_Command_Line_Sig(name)             \
-i32 name(System_Functions *system, Application_Memory *memory, String current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, i32  argc, char **argv)
+i32 name(System_Functions *system, Application_Memory *memory, String_Const_u8 current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, i32  argc, char **argv)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
@@ -76,7 +77,7 @@ struct Custom_API{
 };
 
 #define App_Init_Sig(name) \
-void name(System_Functions *system, Render_Target *target, Application_Memory *memory, String clipboard, String current_directory, Custom_API api)
+void name(System_Functions *system, Render_Target *target, Application_Memory *memory, String_Const_u8 clipboard, String_Const_u8 current_directory, Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 
@@ -96,7 +97,7 @@ struct Application_Step_Input{
     f32 dt;
     Key_Input_Data keys;
     Mouse_State mouse;
-    String clipboard;
+    String_Const_u8 clipboard;
     b32 clipboard_changed;
     b32 trying_to_kill;
     u32 debug_number;

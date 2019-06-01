@@ -9,17 +9,19 @@
 
 // TOP
 
+//#define REMOVE_OLD_STRING
+
 // TODO(allen): get away from string.h
 #include <string.h>
 
 #include "4coder_API/4coder_custom.h"
 
-#include "4ed_defines.h"
-//#include "4ed_math.h"
+#include "4coder_base_types.h"
 #include "4ed_font.h"
 #include "4ed_system.h"
 
-#define PREFERRED_ALIGNMENT 8
+#include "4coder_base_types.cpp"
+#include "4coder_app_links_allocator.cpp"
 
 #include "4coder_lib/4coder_arena.cpp"
 #include "4coder_lib/4coder_heap.cpp"
@@ -28,8 +30,9 @@
 #include "4coder_lib/4coder_table.h"
 #include "4coder_lib/4coder_utf8.h"
 
+// TODO(allen): stop this nonsense
 struct Mem_Options{
-    Partition part;
+    Arena arena;
     Heap heap;
 };
 

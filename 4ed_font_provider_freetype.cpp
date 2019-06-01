@@ -58,7 +58,6 @@ font_ft_get_face(FT_Library ft, Font_Loadable_Stub *stub, Font_Parameters *param
                 else{
                     success = false;
                 }
-                end_temp_memory(path.temp);
             }break;
             
             case SystemFontMethod_RawData:
@@ -75,7 +74,6 @@ font_ft_get_face(FT_Library ft, Font_Loadable_Stub *stub, Font_Parameters *param
                 else{
                     success = false;
                 }
-                end_temp_memory(data.temp);
             }break;
         }
     }
@@ -115,6 +113,8 @@ font_load_page_layout(Font_Settings *settings, Font_Metrics *metrics, Glyph_Page
     
     u32 pt_size = settings->parameters.pt_size;
     b32 use_hinting = settings->parameters.use_hinting;
+    
+    Temp_Memory temp = begin_temp(&shared_vars.font_scratch);
     
     // TODO(allen): Stop redoing all this init for each call.
     FT_Library ft;
@@ -197,11 +197,13 @@ font_load_page_layout(Font_Settings *settings, Font_Metrics *metrics, Glyph_Page
     
     FT_Done_FreeType(ft);
     
+    end_temp(temp);
+    
     return(has_a_good_face);
 }
 
 internal u32*
-font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page, u32 page_number, i32 *tex_width_out, i32 *tex_height_out){
+font_load_page_pixels(Arena *arena, Font_Settings *settings, Glyph_Page *page, u32 page_number, i32 *tex_width_out, i32 *tex_height_out){
     Assert(page != 0);
     Assert(page->has_layout);
     Assert(page->page_number == page_number);
@@ -213,10 +215,10 @@ font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page
     FT_Library ft;
     FT_Init_FreeType(&ft);
     
-    FT_Face face;
-    b32 has_a_good_face = font_ft_get_face(ft, &settings->stub, &settings->parameters, &face);
     u32 *pixels = 0;
     
+    FT_Face face;
+    b32 has_a_good_face = font_ft_get_face(ft, &settings->stub, &settings->parameters, &face);
     if (has_a_good_face){
         FT_Size_RequestRec_ size = {};
         size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
@@ -229,7 +231,7 @@ font_load_page_pixels(Partition *part, Font_Settings *settings, Glyph_Page *page
         i32 tex_width   = page->tex_width;
         i32 tex_height  = page->tex_height;
         
-        pixels = (u32*)sysshared_push_block(part, tex_width*tex_height*sizeof(u32));
+        pixels = push_array(arena, u32, tex_width*tex_height);
         
         if (pixels != 0){
             memset(pixels, 0, tex_width*tex_height*sizeof(u32));
@@ -304,7 +306,7 @@ font_release_pages(System_Functions *system, Font_Page_Storage *storage){
                 Render_Pseudo_Command_Free_Texture *c = push_array(&target.buffer, Render_Pseudo_Command_Free_Texture, 1);
                 c->header.size = sizeof(*c);
                 c->free_texture_node.tex_id = this_page->gpu_tex;
-                sll_push(target.free_texture_first, target.free_texture_last, &c->free_texture_node);
+                sll_queue_push(target.free_texture_first, target.free_texture_last, &c->free_texture_node);
             }
             system->font.free(this_page);
         }
@@ -360,7 +362,7 @@ font_load(System_Functions *system, Font_Settings *settings, Font_Metrics *metri
             f32 relative_thickness = notional_to_real_ratio*face->underline_thickness;
             
             f32 center    = (f32)floor32(metrics->ascent + relative_center);
-            f32 thickness = clamp_bottom(1.f, relative_thickness);
+            f32 thickness = clamp_bot(1.f, relative_thickness);
             
             metrics->underline_yoff1 = center - thickness*0.5f;
             metrics->underline_yoff2 = center + thickness*0.5f;
@@ -458,7 +460,7 @@ Sys_Font_Face_Allocate_And_Init_Sig(system_font_face_allocate_and_init, new_sett
     
     Assert(fontvars.used_slot_count <= slot_max);
     if (fontvars.used_slot_count == slot_max){
-        i32 memsize = l_round_up_i32(SLOT_PAGE_SIZE, KB(4));
+        i32 memsize = round_up_i32(SLOT_PAGE_SIZE, KB(4));
         i32 page_count = memsize/SLOT_PAGE_SIZE;
         void *ptr = system_font_allocate(memsize);
         memset(ptr, 0, memsize);
@@ -724,11 +726,11 @@ Sys_Font_Load_Page_Sig(system_font_load_page, settings, metrics, page, page_numb
 ////////////////////////////////
 
 internal Font_Setup_List
-system_font_get_local_stubs(Partition *part){
+system_font_get_local_stubs(Arena *arena){
     Font_Setup_List list = {};
     
     u32 dir_max = KB(32);
-    u8 *directory = push_array(part, u8, dir_max);
+    u8 *directory = push_array(arena, u8, dir_max);
     String dir_str = make_string_cap(directory, 0, dir_max);
     u32 dir_len = dir_str.size = system_get_4ed_path(dir_str.str, dir_str.memory_size);
     Assert(dir_len < dir_max);
@@ -737,8 +739,7 @@ system_font_get_local_stubs(Partition *part){
     terminate_with_null(&dir_str);
     dir_len = dir_str.size;
     
-    part_reduce(part, dir_max - dir_len - 1);
-    push_align(part, 8);
+    pop_array(arena, u8, dir_max - dir_len - 1);
     
     File_List file_list = {};
     system_set_file_list(&file_list, (char*)directory, 0, 0, 0);
@@ -751,12 +752,8 @@ system_font_get_local_stubs(Partition *part){
         for (;filename[len];++len);
         
         if (dir_len + len + 1 <= sizeof(list.first->stub.name)){
-            Font_Setup *setup = push_array(part, Font_Setup, 1);
-            memset(setup, 0, sizeof(*setup));
-            part_align(part, 8);
-            
-            sll_push(list.first, list.last, setup);
-            
+            Font_Setup *setup = push_array_zero(arena, Font_Setup, 1);
+            sll_queue_push(list.first, list.last, setup);
             setup->stub.load_from_path = true;
             setup->stub.in_font_folder = true;
             memcpy(&setup->stub.name[0], directory, dir_len);

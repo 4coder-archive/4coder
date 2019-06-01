@@ -11,9 +11,8 @@
 
 #define IS_OBJC_LAYER
 
-#define internal internal
-#include "4ed_defines.h"
-#undef internal
+#include "4coder_base_types.h"
+
 #include "4coder_API/4coder_version.h"
 #include "4coder_API/4coder_keycodes.h"
 
@@ -21,7 +20,6 @@
 #include "4ed_cursor_codes.h"
 #include "4ed_linked_node_macros.h"
 
-#undef internal
 #undef global
 #undef external
 #define external

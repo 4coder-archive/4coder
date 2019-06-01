@@ -15,8 +15,8 @@
 
 struct String_And_Flag{
     char *str;
-    u32_4tech length;
-    u32_4tech flags;
+    u32 length;
+    u32 flags;
 };
 
 static String_And_Flag default_preprops[] = {
@@ -55,7 +55,7 @@ static String_And_Flag default_preprops[] = {
 #include FCPP_LEXER_EXTRA_PREPROPS
 #endif
 };
-static i32_4tech default_preprops_count = sizeof(default_preprops)/sizeof(default_preprops[0]);
+static i32 default_preprops_count = sizeof(default_preprops)/sizeof(default_preprops[0]);
 
 static String_And_Flag default_keywords[] = {
     // CPP_TOKEN_BOOLEAN_CONSTANT
@@ -162,7 +162,7 @@ static String_And_Flag default_keywords[] = {
 #include FCPP_LEXER_EXTRA_KEYWORDS
 #endif
 };
-static i32_4tech default_keywords_count = sizeof(default_keywords)/sizeof(default_keywords[0]);
+static i32 default_keywords_count = sizeof(default_keywords)/sizeof(default_keywords[0]);
 
 #endif
 

@@ -9,10 +9,11 @@
 
 // TOP
 
+// TODO(allen): REWRITE REWRITE REWRITE!!!
 internal void
 text_layout_init(Application_Links *app, Text_Layout_Container *container){
     block_zero_struct(container);
-    container->node_arena = make_arena(app);
+    container->node_arena = make_arena_app_links(app);
 }
 
 internal Text_Layout*

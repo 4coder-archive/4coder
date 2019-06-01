@@ -52,11 +52,11 @@ struct Search_Set{
 };
 
 struct Search_Key{
-    char *base;
-    i32 base_size;
-    String words[16];
+    u8 *base;
+    umem base_size;
+    umem min_size;
+    String_Const_u8 words[16];
     i32 count;
-    i32 min_size;
 };
 
 struct Search_Iter{

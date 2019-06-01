@@ -1,7 +1,0 @@
-The 4cpp lexer system provides a polished, fast, flexible system that takes in C/C++ and outputs a tokenization of the text data.  There are two API levels. One level is setup to let you easily get a tokenization of the file.  This level manages memory for you with malloc to make it as fast as possible to start getting your tokens. The second level enables deep integration by allowing control over allocation, data chunking, and output rate control.
-
-To use the quick setup API you simply include 4cpp_lexer.h and read the documentation at \DOC_LINK{cpp_lex_file}.
-
-To use the the fancier API include 4cpp_lexer.h and read the documentation at \DOC_LINK{cpp_lex_step}. If you want to be absolutely sure you are not including malloc into your program you can define FCPP_FORBID_MALLOC before the include and the "step" API will continue to work.
-
-There are a few more features in 4cpp that are not documented yet. You are free to try to use these, but I am not totally sure they are ready yet, and when they are they will be documented.

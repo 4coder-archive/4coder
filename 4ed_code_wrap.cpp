@@ -110,7 +110,7 @@ wrap_state_consume_token(System_Functions *system, Font_Pointers font, Code_Wrap
         end = fixed_end_point;
     }
     
-    i = clamp_bottom(line_start, i);
+    i = clamp_bot(line_start, i);
     if (i == line_start){
         skipping_whitespace = true;
     }
@@ -434,16 +434,16 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
         }
     }
     
-    result.shift = clamp_bottom(0.f, result.shift);
+    result.shift = clamp_bot(0.f, result.shift);
     return(result);
 }
 
 internal void
 file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *file, Font_Pointers font){
     Heap *heap = &mem->heap;
-    Partition *part = &mem->part;
+    Arena *scratch = &mem->arena;
     
-    Temp_Memory temp = begin_temp_memory(part);
+    Temp_Memory temp = begin_temp(scratch);
     
     file_allocate_wraps_as_needed(heap, file);
     file_allocate_indents_as_needed(heap, file, file->state.buffer.line_count);
@@ -478,18 +478,18 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     
     b32 use_tokens = false;
     
+    // TODO(allen): REWRITE REWRITE REWRITE
     Wrap_Indent_Pair *wrap_indent_marks = 0;
     Potential_Wrap_Indent_Pair *potential_marks = 0;
-    i32 max_wrap_indent_mark = 0;
+    i32 max_wrap_indent_mark = Million(1);
     
     if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
         wrap_state_init(system, &wrap_state, file, font);
         use_tokens = true;
         
-        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, floor32(width));
+        potential_marks = push_array(scratch, Potential_Wrap_Indent_Pair, floor32(width));
         
-        max_wrap_indent_mark = part_remaining(part)/sizeof(Wrap_Indent_Pair);
-        wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
+        wrap_indent_marks = push_array(scratch, Wrap_Indent_Pair, max_wrap_indent_mark);
     }
     
     i32 real_count = 0;
@@ -910,7 +910,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                         ++stage;
                     }
                     
-                    current_line_shift = clamp_bottom(0.f, current_line_shift);
+                    current_line_shift = clamp_bot(0.f, current_line_shift);
                 }
                 else{
                     current_line_shift = 0.f;
@@ -934,7 +934,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     file->state.wrap_positions[wrap_position_index++] = size;
     file->state.wrap_position_count = wrap_position_index;
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 // BOTTOM

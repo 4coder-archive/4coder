@@ -64,14 +64,14 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
             i32 start = cursor.pos;
             if (view_compute_cursor(app, view, seek_wrapped_xy((float)rect.x1, y, 0), &cursor)){
                 i32 end = cursor.pos;
-                buffer_replace_range(app, buffer, make_range(start, end), make_lit_string(""));
+                buffer_replace_range(app, buffer, make_range(start, end), string_u8_litexpr(""));
             }
         }
     }
 }
 
 static void
-pad_buffer_line(Application_Links *app, Partition *part, Buffer_ID buffer, i32 line, char padchar, i32 target){
+pad_buffer_line(Application_Links *app, Buffer_ID buffer, i32 line, char padchar, i32 target){
     Partial_Cursor start = {};
     Partial_Cursor end = {};
     
@@ -79,12 +79,13 @@ pad_buffer_line(Application_Links *app, Partition *part, Buffer_ID buffer, i32 l
         if (buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &end)){
             if (start.line == line){
                 if (end.character-1 < target){
-                    Temp_Memory temp = begin_temp_memory(part);
+                    Arena *scratch = context_get_arena(app);
+                    Temp_Memory temp = begin_temp(scratch);
                     i32 size = target - (end.character - 1);
-                    char *str = push_array(part, char, size);
-                    memset(str, ' ', size);
-                    buffer_replace_range(app, buffer, make_range(end.pos), make_string(str, size));
-                    end_temp_memory(temp);
+                    char *str = push_array(scratch, char, size);
+                    block_fill_u8(str, size, ' ');
+                    buffer_replace_range(app, buffer, make_range(end.pos), SCu8(str, size));
+                    end_temp(temp);
                 }
             }
         }
@@ -136,8 +137,6 @@ struct Buffer_Rect{
 CUSTOM_COMMAND_SIG(multi_line_edit)
 CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted at every line between the mark and cursor.  All characters are inserted at the same character offset into the line.  This mode uses line_char coordinates.")
 {
-    Partition *part = &global_part;
-    
     View_ID view = 0;
     get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
@@ -167,7 +166,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     i32 pos = cursor.character - 1;
     
     for (i32 i = rect.line0; i <= rect.line1; ++i){
-        pad_buffer_line(app, &global_part, buffer, i, ' ', pos);
+        pad_buffer_line(app, buffer, i, ' ', pos);
     }
     
     i32 line_count = rect.line1 - rect.line0 + 1;
@@ -179,8 +178,9 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
         if (in.key.character && key_is_unmodified(&in.key)){
             char str = (char)in.key.character;
             
-            Temp_Memory temp = begin_temp_memory(part);
-            Buffer_Edit *edit = push_array(part, Buffer_Edit, line_count);
+            Arena *scratch = context_get_arena(app);
+            Temp_Memory temp = begin_temp(scratch);
+            Buffer_Edit *edit = push_array(scratch, Buffer_Edit, line_count);
             Buffer_Edit *edits = edit;
             
             for (i32 i = rect.line0; i <= rect.line1; ++i){
@@ -197,7 +197,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             i32 edit_count = (int)(edit - edits);
             buffer_batch_edit(app, buffer, &str, edits, edit_count);
             
-            end_temp_memory(temp);
+            end_temp(temp);
             
             ++pos;
             
@@ -205,8 +205,9 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
         }
         else if (in.key.keycode == key_back){
             if (pos > 0){
-                Temp_Memory temp = begin_temp_memory(part);
-                Buffer_Edit *edit = push_array(part, Buffer_Edit, line_count);
+                Arena *scratch = context_get_arena(app);
+                Temp_Memory temp = begin_temp(scratch);
+                Buffer_Edit *edit = push_array(scratch, Buffer_Edit, line_count);
                 Buffer_Edit *edits = edit;
                 
                 for (i32 i = rect.line0; i <= rect.line1; ++i){
@@ -223,7 +224,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 i32 edit_count = (int)(edit - edits);
                 buffer_batch_edit(app, buffer, 0, edits, edit_count);
                 
-                end_temp_memory(temp);
+                end_temp(temp);
                 
                 --pos;
             }
@@ -237,11 +238,15 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
 // NOTE(allen): An experimental mutli-pasting thing
 
 CUSTOM_COMMAND_SIG(multi_paste){
-    i32 count = clipboard_count(app, 0);
+    Scratch_Block scratch(app);
+    
+    i32 count = 0;
+    clipboard_count(app, 0, &count);
     if (count > 0){
         View_ID view = 0;
         get_active_view(app, AccessOpen, &view);
-        Managed_Scope scope = view_get_managed_scope(app, view);
+        Managed_Scope scope = 0;
+        view_get_managed_scope(app, view, &scope);
         
         u64 rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
@@ -252,35 +257,34 @@ CUSTOM_COMMAND_SIG(multi_paste){
             i32 paste_index = (i32)prev_paste_index + 1;
             managed_variable_set(app, scope, view_paste_index_loc, paste_index);
             
-            i32 len = clipboard_index(app, 0, paste_index, 0, 0);
+            String_Const_u8 string = {};
+            clipboard_index(app, 0, paste_index, scratch, &string);
             
-            if (len + 1 <= app->memory_size){
-                char *str = (char*)app->memory;
-                str[0] = '\n';
-                clipboard_index(app, 0, paste_index, str + 1, len);
-                
-                Buffer_ID buffer = 0;
-                view_get_buffer(app, view, AccessOpen, &buffer);
-                Range range = get_view_range(app, view);
-                buffer_replace_range(app, buffer, make_range(range.max), make_string(str, len + 1));
-                view_set_mark(app, view, seek_pos(range.max + 1));
-                view_set_cursor(app, view, seek_pos(range.max + len + 1), true);
-                
-                // TODO(allen): Send this to all views.
-                Theme_Color paste;
-                paste.tag = Stag_Paste;
-                get_theme_colors(app, &paste, 1);
-                view_post_fade(app, view, 0.667f, range.max + 1, range.max + len + 1, paste.color);
-            }
+            String_Const_u8 insert_string = string_u8_pushf(scratch, "\n%.*s", string_expand(string));
+            
+            Buffer_ID buffer = 0;
+            view_get_buffer(app, view, AccessOpen, &buffer);
+            Range range = get_view_range(app, view);
+            buffer_replace_range(app, buffer, make_range(range.max), insert_string);
+            view_set_mark(app, view, seek_pos(range.max + 1));
+            view_set_cursor(app, view, seek_pos((i32)(range.max + insert_string.size)), true);
+            
+            // TODO(allen): Send this to all views.
+            Theme_Color paste = {};
+            paste.tag = Stag_Paste;
+            get_theme_colors(app, &paste, 1);
+            view_post_fade(app, view, 0.667f, range.max + 1, (i32)(range.max + insert_string.size), paste.color);
         }
         else{
-            exec_command(app, paste);
+            paste(app);
         }
     }
 }
 
 static Range
 multi_paste_range(Application_Links *app, View_ID view, Range range, i32 paste_count, b32 old_to_new){
+    Scratch_Block scratch(app);
+    
     Range finish_range = range;
     if (paste_count >= 1){
         Buffer_ID buffer = 0;
@@ -292,31 +296,31 @@ multi_paste_range(Application_Links *app, View_ID view, Range range, i32 paste_c
             total_size -= 1;
             
             if (total_size <= app->memory_size){
-                char *str = (char*)app->memory;
-                i32 position = 0;
-                
                 i32 first = paste_count - 1;
                 i32 one_past_last = -1;
                 i32 step = -1;
-                
                 if (!old_to_new){
                     first = 0;
                     one_past_last = paste_count;
                     step = 1;
                 }
                 
+                List_String_Const_u8 list = {};
+                
                 for (i32 paste_index = first; paste_index != one_past_last; paste_index += step){
                     if (paste_index != first){
-                        str[position] = '\n';
-                        ++position;
+                        string_list_push(scratch, &list, SCu8("\n", 1));
                     }
-                    
-                    i32 len = clipboard_index(app, 0, paste_index, str + position, total_size - position);
-                    position += len;
+                    String_Const_u8 string = {};
+                    if (clipboard_index(app, 0, paste_index, scratch, &string)){
+                        string_list_push(scratch, &list, string);
+                    }
                 }
                 
+                String_Const_u8 flattened = string_list_flatten(scratch, list);
+                
                 i32 pos = range.min;
-                buffer_replace_range(app, buffer, range, make_string(str, total_size));
+                buffer_replace_range(app, buffer, range, flattened);
                 finish_range.min = pos;
                 finish_range.max = pos + total_size;
                 view_set_mark(app, view, seek_pos(finish_range.min));
@@ -347,7 +351,7 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     range = multi_paste_range(app, view, range, paste_count, old_to_new);
     
     Query_Bar bar = {};
-    bar.prompt = make_lit_string("Up and Down to condense and expand paste stages; R to reverse order; Return to finish; Escape to abort.");
+    bar.prompt = string_u8_litexpr("Up and Down to condense and expand paste stages; R to reverse order; Return to finish; Escape to abort.");
     if (start_query_bar(app, &bar, 0) == 0) return;
     
     User_Input in = {};
@@ -384,34 +388,31 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     if (in.abort){
         Buffer_ID buffer = 0;
         view_get_buffer(app, view, AccessOpen, &buffer);
-        buffer_replace_range(app, buffer, range, make_lit_string(""));
+        buffer_replace_range(app, buffer, range, SCu8(""));
     }
 }
 
 CUSTOM_COMMAND_SIG(multi_paste_interactive){
-    i32 clip_count = clipboard_count(app, 0);
+    i32 clip_count = 0;
+    clipboard_count(app, 0, &clip_count);
     if (clip_count > 0){
         multi_paste_interactive_up_down(app, 1, clip_count);
     }
 }
 
 CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
-    i32 clip_count = clipboard_count(app, 0);
+    i32 clip_count = 0;
+    clipboard_count(app, 0, &clip_count);
     if (clip_count > 0){
-        char string_space[256];
+        u8 string_space[256];
         Query_Bar bar = {};
-        bar.prompt = make_lit_string("How Many Slots To Paste: ");
-        bar.string = make_fixed_width_string(string_space);
+        bar.prompt = string_u8_litexpr("How Many Slots To Paste: ");
+        bar.string = SCu8(string_space, (umem)0);
+        bar.string_capacity = sizeof(string_space);
         query_user_number(app, &bar);
         
-        i32 initial_paste_count = str_to_int_s(bar.string);
-        if (initial_paste_count > clip_count){
-            initial_paste_count = clip_count;
-        }
-        if (initial_paste_count < 1){
-            initial_paste_count = 1;
-        }
-        
+        i32 initial_paste_count = (i32)string_to_integer(bar.string, 10);
+        initial_paste_count = clamp(1, initial_paste_count, clip_count);
         end_query_bar(app, &bar, 0);
         
         multi_paste_interactive_up_down(app, initial_paste_count, clip_count);
@@ -430,9 +431,8 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
     i32 cursor_pos = 0;
     view_get_cursor_pos(app, view, &cursor_pos);
     
-    Partition *part = &global_part;
-    
-    Temp_Memory temp = begin_temp_memory(part);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
     
     Cpp_Get_Token_Result result;
     if (buffer_get_token_index(app, buffer, cursor_pos, &result)){
@@ -446,123 +446,113 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                 Cpp_Token token = stream.tokens[token_index];
                 
                 if (token.type == CPP_TOKEN_IDENTIFIER){
+                    Cpp_Token original_token = token;
+                    String_Const_u8 old_lexeme = scratch_read(app, scratch, buffer, token);
                     
-                    char old_lexeme_base[128];
-                    String old_lexeme = make_fixed_width_string(old_lexeme_base);
+                    i32 proc_body_found = 0;
+                    b32 still_looping = 0;
                     
-                    if (token.size < sizeof(old_lexeme_base)){
-                        Cpp_Token original_token = token;
-                        old_lexeme.size = token.size;
-                        buffer_read_range(app, buffer, token.start, token.start+token.size, old_lexeme.str);
+                    ++token_index;
+                    do{
+                        for (; token_index < stream.end; ++token_index){
+                            Cpp_Token *token_ptr = stream.tokens + token_index;
+                            switch (token_ptr->type){
+                                case CPP_TOKEN_BRACE_OPEN:
+                                {
+                                    proc_body_found = 1;
+                                    goto doublebreak;
+                                }break;
+                                
+                                case CPP_TOKEN_BRACE_CLOSE:
+                                case CPP_TOKEN_PARENTHESE_OPEN:
+                                {
+                                    goto doublebreak; 
+                                }break;
+                            }
+                        }
+                        still_looping = forward_stream_tokens(&stream);
+                    }while(still_looping);
+                    doublebreak:;
+                    
+                    if (proc_body_found){
                         
-                        i32 proc_body_found = 0;
-                        b32 still_looping = 0;
+                        u8 with_space[1024];
+                        Query_Bar with = {};
+                        with.prompt = string_u8_litexpr("New Name: ");
+                        with.string = SCu8(with_space, (umem)0);
+                        with.string_capacity = sizeof(with_space);
+                        if (!query_user_string(app, &with)) return;
                         
+                        String_Const_u8 replace_string = with.string;
+                        
+                        // TODO(allen): fix this up to work with arena better
+                        i32 edit_max = Thousand(100);
+                        Buffer_Edit *edits = push_array(scratch, Buffer_Edit, edit_max);
+                        i32 edit_count = 0;
+                        
+                        if (edit_max >= 1){
+                            Buffer_Edit edit = {};
+                            edit.str_start = 0;
+                            edit.len = (i32)replace_string.size;
+                            edit.start = original_token.start;
+                            edit.end = original_token.start + original_token.size;
+                            
+                            edits[edit_count] = edit;
+                            edit_count += 1;
+                        }
+                        
+                        i32 nesting_level = 0;
+                        i32 closed_correctly = 0;
                         ++token_index;
+                        still_looping = 0;
                         do{
                             for (; token_index < stream.end; ++token_index){
                                 Cpp_Token *token_ptr = stream.tokens + token_index;
                                 switch (token_ptr->type){
+                                    case CPP_TOKEN_IDENTIFIER:
+                                    {
+                                        if (token_ptr->size == old_lexeme.size){
+                                            String_Const_u8 other_lexeme = scratch_read(app, scratch, buffer, *token_ptr);
+                                            if (string_match(old_lexeme, other_lexeme)){
+                                                Buffer_Edit edit = {};
+                                                edit.str_start = 0;
+                                                edit.len = (i32)replace_string.size;
+                                                edit.start = token_ptr->start;
+                                                edit.end = token_ptr->start + token_ptr->size;
+                                                if (edit_count < edit_max){
+                                                    edits[edit_count] = edit;
+                                                    edit_count += 1;
+                                                }
+                                                else{
+                                                    goto doublebreak2;
+                                                }
+                                            }
+                                        }
+                                    }break;
+                                    
                                     case CPP_TOKEN_BRACE_OPEN:
                                     {
-                                        proc_body_found = 1;
-                                        goto doublebreak;
+                                        ++nesting_level;
                                     }break;
                                     
                                     case CPP_TOKEN_BRACE_CLOSE:
-                                    case CPP_TOKEN_PARENTHESE_OPEN:
                                     {
-                                        goto doublebreak; 
+                                        if (nesting_level == 0){
+                                            closed_correctly = 1;
+                                            goto doublebreak2;
+                                        }
+                                        else{
+                                            --nesting_level;
+                                        }
                                     }break;
                                 }
                             }
                             still_looping = forward_stream_tokens(&stream);
                         }while(still_looping);
-                        doublebreak:;
+                        doublebreak2:;
                         
-                        if (proc_body_found){
-                            
-                            Query_Bar with;
-                            char with_space[1024];
-                            with.prompt = make_lit_string("New Name: ");
-                            with.string = make_fixed_width_string(with_space);
-                            if (!query_user_string(app, &with)) return;
-                            
-                            String replace_string = with.string;
-                            
-                            Buffer_Edit *edits = push_array(part, Buffer_Edit, 0);
-                            i32 edit_max = (part_remaining(part))/sizeof(Buffer_Edit);
-                            i32 edit_count = 0;
-                            
-                            if (edit_max >= 1){
-                                Buffer_Edit edit;
-                                edit.str_start = 0;
-                                edit.len = replace_string.size;
-                                edit.start = original_token.start;
-                                edit.end = original_token.start + original_token.size;
-                                
-                                edits[edit_count] = edit;
-                                ++edit_count;
-                            }
-                            
-                            i32 nesting_level = 0;
-                            i32 closed_correctly = 0;
-                            ++token_index;
-                            still_looping = 0;
-                            do{
-                                for (; token_index < stream.end; ++token_index){
-                                    Cpp_Token *token_ptr = stream.tokens + token_index;
-                                    switch (token_ptr->type){
-                                        case CPP_TOKEN_IDENTIFIER:
-                                        {
-                                            if (token_ptr->size == old_lexeme.size){
-                                                char other_lexeme_base[128];
-                                                String other_lexeme = make_fixed_width_string(other_lexeme_base);
-                                                other_lexeme.size = old_lexeme.size;
-                                                buffer_read_range(app, buffer, token_ptr->start, token_ptr->start+token_ptr->size, other_lexeme.str);
-                                                
-                                                if (match(old_lexeme, other_lexeme)){
-                                                    Buffer_Edit edit;
-                                                    edit.str_start = 0;
-                                                    edit.len = replace_string.size;
-                                                    edit.start = token_ptr->start;
-                                                    edit.end = token_ptr->start + token_ptr->size;
-                                                    
-                                                    if (edit_count < edit_max){
-                                                        edits[edit_count] = edit;
-                                                        ++edit_count;
-                                                    }
-                                                    else{
-                                                        goto doublebreak2;
-                                                    }
-                                                }
-                                            }
-                                        }break;
-                                        
-                                        case CPP_TOKEN_BRACE_OPEN:
-                                        {
-                                            ++nesting_level;
-                                        }break;
-                                        
-                                        case CPP_TOKEN_BRACE_CLOSE:
-                                        {
-                                            if (nesting_level == 0){
-                                                closed_correctly = 1;
-                                                goto doublebreak2;
-                                            }
-                                            else{
-                                                --nesting_level;
-                                            }
-                                        }break;
-                                    }
-                                }
-                                still_looping = forward_stream_tokens(&stream);
-                            }while(still_looping);
-                            doublebreak2:;
-                            
-                            if (closed_correctly){
-                                buffer_batch_edit(app, buffer, replace_string.str, edits, edit_count);
-                            }
+                        if (closed_correctly){
+                            buffer_batch_edit(app, buffer, (char*)replace_string.str, edits, edit_count);
                         }
                     }
                 }
@@ -570,7 +560,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
         }
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 typedef u32 Write_Explicit_Enum_Values_Mode;
@@ -589,9 +579,8 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
     
-    Partition *part = &global_part;
-    
-    Temp_Memory temp = begin_temp_memory(part);
+    Arena *scratch = context_get_arena(app);
+    Temp_Memory temp = begin_temp(scratch);
     
     Cpp_Get_Token_Result result;
     if (buffer_get_token_index(app, buffer, pos, &result)){
@@ -632,10 +621,9 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         i32 count_estimate = 1 + (seeker_index - token_index)/2;
                         
                         i32 edit_count = 0;
-                        Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
+                        Buffer_Edit *edits = push_array(scratch, Buffer_Edit, count_estimate);
                         
-                        char *string_base = push_array(part, char, 0);
-                        String string = make_string(string_base, 0, part_remaining(part));
+                        List_String_Const_char list = {};
                         
                         closed_correctly = false;
                         still_looping = false;
@@ -680,24 +668,27 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                                         
                                         good_edit:;
                                         if (edit_is_good){
-                                            i32 str_pos = string.size;
+                                            i32 str_pos = (i32)(list.total_size);
                                             
-                                            append(&string, " = ");
-                                            append_int_to_str(&string, value);
+                                            string_list_pushf(scratch, &list, " = %d", value);
                                             if (closed_correctly){
-                                                append(&string, "\n");
+                                                string_list_push_lit(scratch, &list, "\n");
                                             }
                                             
-                                            if (mode == WriteExplicitEnumValues_Integers){
-                                                ++value;
-                                            }
-                                            else if (mode == WriteExplicitEnumValues_Flags){
-                                                if (value < (1 << 31)){
-                                                    value <<= 1;
-                                                }
+                                            switch (mode){
+                                                case WriteExplicitEnumValues_Integers:
+                                                {
+                                                    ++value;
+                                                }break;
+                                                case WriteExplicitEnumValues_Flags:
+                                                {
+                                                    if (value < (1 << 31)){
+                                                        value <<= 1;
+                                                    }
+                                                }break;
                                             }
                                             
-                                            i32 str_size = string.size - str_pos;
+                                            i32 str_size = (i32)(list.total_size) - str_pos;
                                             
                                             Buffer_Edit edit;
                                             edit.str_start = str_pos;
@@ -727,7 +718,8 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         
                         finished:;
                         if (closed_correctly){
-                            buffer_batch_edit(app, buffer, string_base, edits, edit_count);
+                            String_Const_char text = string_list_flatten(scratch, list);
+                            buffer_batch_edit(app, buffer, text.str, edits, edit_count);
                         }
                     }
                 }
@@ -735,7 +727,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
         }
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(write_explicit_enum_values)
@@ -755,91 +747,85 @@ CUSTOM_DOC("If the cursor is found to be on the '{' of an enum definition, the v
 //
 
 struct Replace_Target{
+    Replace_Target *next;
     Buffer_ID buffer_id;
     i32 start_pos;
 };
 
 static void
-replace_all_occurrences_parameters(Application_Links *app, Heap *heap, Partition *part, String target_string, String new_string){
-    if (target_string.size <= 0) return;
-    
-    global_history_edit_group_begin(app);
-    for (b32 got_all_occurrences = false;
-         !got_all_occurrences;){
+replace_all_occurrences_parameters(Application_Links *app, Heap *heap, String_Const_u8 target_string, String_Const_u8 new_string){
+    if (target_string.size > 0){
+        global_history_edit_group_begin(app);
+        
         // Initialize a generic search all buffers
         Search_Set set = {};
         Search_Iter iter = {};
         initialize_generic_search_all_buffers(app, heap, &target_string, 1, SearchFlag_MatchSubstring, 0, 0, &set, &iter);
         
         // Visit all locations and create replacement list
-        Temp_Memory temp = begin_temp_memory(part);
-        Replace_Target *targets = push_array(part, Replace_Target, 0);
+        Arena *scratch = context_get_arena(app);
+        Temp_Memory temp = begin_temp(scratch);
+        
+        Replace_Target *target_first = 0;
+        Replace_Target *target_last = 0;
         i32 target_count = 0;
         
-        got_all_occurrences = true;
         for (Search_Match match = search_next_match(app, &set, &iter);
              match.found_match;
              match = search_next_match(app, &set, &iter)){
             
-            Replace_Target *new_target = push_array(part, Replace_Target, 1);
-            if (new_target != 0){
-                new_target->buffer_id = match.buffer;
-                new_target->start_pos = match.start;
-                ++target_count;
-            }
-            else{
-                if (!has_substr(new_string, target_string)){
-                    got_all_occurrences = false;
-                }
-                else{
-                    print_message(app, literal("Could not replace all occurrences, ran out of memory\n"));
-                }
-                break;
-            }
+            Replace_Target *new_target = push_array(scratch, Replace_Target, 1);
+            sll_queue_push(target_first, target_last, new_target);
+            ++target_count;
+            new_target->buffer_id = match.buffer;
+            new_target->start_pos = match.start;
         }
         
         // Use replacement list to do replacements
-        i32 shift_per_replacement = new_string.size - target_string.size;
-        i32 current_offset = 0;
-        i32 current_buffer_id = 0;
-        Replace_Target *target = targets;
-        for (i32 i = 0; i < target_count; ++i, ++target){
+        imem shift_per_replacement = new_string.size - target_string.size;
+        imem current_offset = 0;
+        Buffer_ID current_buffer_id = 0;
+        for (Replace_Target *target = target_first;
+             target != 0;
+             target = target->next){
             if (target->buffer_id != current_buffer_id){
                 current_buffer_id = target->buffer_id;
                 current_offset = 0;
             }
-            i32 pos = target->start_pos + current_offset;
-            buffer_replace_range(app, target->buffer_id, make_range(pos, pos + target_string.size), new_string);
+            i32 pos = target->start_pos + (i32)current_offset;
+            buffer_replace_range(app, target->buffer_id, make_range(pos, pos + (i32)target_string.size), new_string);
             current_offset += shift_per_replacement;
         }
         
-        end_temp_memory(temp);
+        end_temp(temp);
+        
+        global_history_edit_group_end(app);
     }
-    global_history_edit_group_end(app);
 }
 
 CUSTOM_COMMAND_SIG(replace_all_occurrences)
 CUSTOM_DOC("Queries the user for two strings, and replaces all occurrences of the first string with the second string in all open buffers.")
 {
-    Query_Bar replace;
-    char replace_space[1024];
-    replace.prompt = make_lit_string("Replace (In All Buffers): ");
-    replace.string = make_fixed_width_string(replace_space);
+    u8 replace_space[1024];
+    Query_Bar replace = {};
+    replace.prompt = string_u8_litexpr("Replace (In All Buffers): ");
+    replace.string = SCu8(replace_space, (umem)0);
+    replace.string_capacity = sizeof(replace_space);
     
-    Query_Bar with;
-    char with_space[1024];
-    with.prompt = make_lit_string("With: ");
-    with.string = make_fixed_width_string(with_space);
+    u8 with_space[1024];
+    Query_Bar with = {};
+    with.prompt = string_u8_litexpr("With: ");
+    with.string = SCu8(with_space, (umem)0);
+    with.string_capacity = sizeof(with_space);
     
     if (!query_user_string(app, &replace)) return;
     if (replace.string.size == 0) return;
     
     if (!query_user_string(app, &with)) return;
     
-    String r = replace.string;
-    String w = with.string;
-    
-    replace_all_occurrences_parameters(app, &global_heap, &global_part, r, w);
+    String_Const_u8 r = replace.string;
+    String_Const_u8 w = with.string;
+    replace_all_occurrences_parameters(app, &global_heap, r, w);
 }
 
 extern "C" i32

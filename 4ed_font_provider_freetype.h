@@ -77,14 +77,12 @@ struct Font_Setup_List{
 
 // NOTE(allen): Procedures to be implemented per-OS for the freetype font provider.
 struct Font_Path{
-    Temp_Memory temp;
     char *name;
     i32 len;
     b32 used_base_file;
 };
 
 struct Font_Raw_Data{
-    Temp_Memory temp;
     u8 *data;
     i32 size;
     b32 used_base_file;

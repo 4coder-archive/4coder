@@ -97,8 +97,8 @@ struct Editing_File_State{
 };
 
 struct Editing_File_Name{
-    char name_[256];
-    String name;
+    u8 name_space[256];
+    umem name_size;
 };
 
 struct Editing_File{
@@ -113,6 +113,7 @@ struct Editing_File{
     Editing_File_Name unique_name;
     Editing_File_Name canon;
     Node main_chain_node;
+    b32 edit_finished_marked;
     Node edit_finished_mark_node;
 };
 

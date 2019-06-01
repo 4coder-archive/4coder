@@ -10,10 +10,16 @@
 // NOTE(allen): Define USE_OLD_STYLE_JUMPS before 4coder_default_include.cpp to get
 // the direct jumps (instead of sticky jumps).
 
+#define REMOVE_OLD_STRING
+#define REMOVE_TRANSITION_HELPER_31
+
 #include "4coder_API/4coder_custom.h"
-#include "4coder_os_comp_cracking.h"
 
 #include "4coder_generated/command_metadata.h"
+
+#include "4coder_base_types.cpp"
+#include "4coder_stringf.cpp"
+#include "4coder_app_links_allocator.cpp"
 
 #include "4coder_lib/4coder_arena.cpp"
 #include "4coder_lib/4coder_heap.cpp"
@@ -36,6 +42,7 @@
 #include "4coder_auto_indent.h"
 #include "4coder_search.h"
 #include "4coder_build_commands.h"
+#include "4coder_jumping.h"
 #include "4coder_jump_sticky.h"
 #include "4coder_jump_lister.h"
 #include "4coder_project_commands.h"

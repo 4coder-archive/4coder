@@ -90,49 +90,45 @@ fancy_string_list_push(Fancy_String_List *list, Fancy_String *string){
 }
 
 static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, String value){
-    Fancy_String *result = push_array(arena, Fancy_String, 1);
-    memset(result, 0, sizeof(*result));
-    
-    result->value = string_push_copy(arena, value);
+push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, String_Const_u8 value){
+    Fancy_String *result = push_array_zero(arena, Fancy_String, 1);
+    result->value = string_copy(arena, value);
     result->fore = fore;
     result->back = back;
-    
     if (list != 0){
         fancy_string_list_push(list, result);
     }
-    
     return(result);
 }
 
 static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_Color fore, Fancy_Color back, String value){
+push_fancy_string(Arena *arena, Fancy_Color fore, Fancy_Color back, String_Const_u8 value){
     return(push_fancy_string(arena, 0, fore, back, value));
 }
 
 static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, String value){
+push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, String_Const_u8 value){
     return(push_fancy_string(arena, list, fore, fancy_pass_through(), value));
 }
 
 static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_Color fore, String value){
+push_fancy_string(Arena *arena, Fancy_Color fore, String_Const_u8 value){
     return(push_fancy_string(arena, 0, fore, fancy_pass_through(), value));
 }
 
 static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_String_List *list, String value){
+push_fancy_string(Arena *arena, Fancy_String_List *list, String_Const_u8 value){
     return(push_fancy_string(arena, list, fancy_pass_through(), fancy_pass_through(), value));
 }
 
 static Fancy_String *
-push_fancy_string(Arena *arena, String value){
+push_fancy_string(Arena *arena, String_Const_u8 value){
     return(push_fancy_string(arena, 0, fancy_pass_through(), fancy_pass_through(), value));
 }
 
 static Fancy_String*
 push_fancy_stringfv(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, va_list args){
-    String str = string_push_fv(arena, format, args);
+    String_Const_u8 str = string_u8_pushfv(arena, format, args);
     Fancy_String *result = 0;
     if (str.size > 0){
         result = push_fancy_string(arena, list, fore, back, str);

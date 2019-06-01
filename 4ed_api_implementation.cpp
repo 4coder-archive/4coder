@@ -9,23 +9,9 @@
 
 // TOP
 
-#define API_EXPORT
-
 internal b32
 access_test(u32 lock_flags, u32 access_flags){
     return((lock_flags & ~access_flags) == 0);
-}
-
-internal b32
-api_string_out(String val, String *out, i32 *required_size_out){
-    b32 result = false;
-    if (required_size_out != 0){
-        *required_size_out = val.size;
-    }
-    if (out != 0){
-        result = append_partial(out, val);
-    }
-    return(result);
 }
 
 internal b32
@@ -111,8 +97,14 @@ Context_Get_Arena(Application_Links *app){
     return(&models->custom_layer_arena);
 }
 
+API_EXPORT Base_Allocator*
+Context_Get_Base_Allocator(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    return(&models->allocator);
+}
+
 API_EXPORT b32
-Create_Child_Process(Application_Links *app, String path, String command, Child_Process_ID *child_process_id_out){
+Create_Child_Process(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     return(child_process_call(models, system, path, command, child_process_id_out));
@@ -176,7 +168,7 @@ Child_Process_Get_State(Application_Links *app, Child_Process_ID child_process_i
 
 // TODO(allen): redocument
 API_EXPORT b32
-Clipboard_Post(Application_Links *app, i32 clipboard_id, String string)
+Clipboard_Post(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(str, The str parameter specifies the string to be posted to the clipboard, it need not be null terminated.)
@@ -185,8 +177,8 @@ DOC(Stores the string str in the clipboard initially with index 0. Also reports 
 DOC_SEE(The_4coder_Clipboard)
 */{
     Models *models = (Models*)app->cmd_context;
-    String *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, string.size);
-    copy(dest, string);
+    String_Const_u8 *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, (i32)string.size);
+    block_copy(dest->str, string.str, string.size);
     models->system->post_clipboard(*dest);
     return(true);
 }
@@ -205,8 +197,9 @@ DOC_SEE(The_4coder_Clipboard)
     return(true);
 }
 
+// TODO(allen): redocument
 API_EXPORT b32
-Clipboard_Index(Application_Links *app, i32 clipboard_id, i32 item_index, String *string_out, i32 *required_size_out)
+Clipboard_Index(Application_Links *app, i32 clipboard_id, i32 item_index, Arena *out, String_Const_u8 *string_out)
 /*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(item_index, This parameter specifies which item to read, 0 is the most recent copy, 1 is the second most recent copy, etc.)
@@ -220,11 +213,11 @@ it is filled with the first len character of the clipboard contents.  The output
 DOC_SEE(The_4coder_Clipboard)
 */{
     Models *models = (Models*)app->cmd_context;
-    *required_size_out = 0;
-    String *str = working_set_clipboard_index(&models->working_set, item_index);
+    String_Const_u8 *str = working_set_clipboard_index(&models->working_set, item_index);
     b32 result = false;
     if (str != 0){
-        result = api_string_out(*str, string_out, required_size_out);
+        *string_out = string_copy(out, *str);
+        result = true;
     }
     return(result);
 }
@@ -290,7 +283,7 @@ DOC_SEE(get_buffer_first)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Get_Buffer_By_Name(Application_Links *app, String name, Access_Flag access, Buffer_ID *buffer_id_out)
+Get_Buffer_By_Name(Application_Links *app, String_Const_u8 name, Access_Flag access, Buffer_ID *buffer_id_out)
 /*
 DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The string need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
@@ -315,7 +308,7 @@ DOC_SEE(Access_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Get_Buffer_By_File_Name(Application_Links *app, String file_name, Access_Flag access, Buffer_ID *buffer_id_out)
+Get_Buffer_By_File_Name(Application_Links *app, String_Const_u8 file_name, Access_Flag access, Buffer_ID *buffer_id_out)
 /*
 DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The string need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
@@ -334,7 +327,7 @@ DOC_SEE(Access_Flag)
     Editing_File_Name canon = {};
     b32 result = false;
     if (get_canon_name(system, file_name, &canon)){
-        Editing_File *file = working_set_contains_canon(working_set, canon.name);
+        Editing_File *file = working_set_contains_canon(working_set, string_from_file_name(&canon));
         if (api_check_buffer(file, access)){
             *buffer_id_out = file->id.id;
             result = true;
@@ -372,7 +365,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, Range range, String string)
+Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
@@ -395,7 +388,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
         size = buffer_size(&file->state.buffer);
         if (0 <= range.first && range.first <= range.one_past_last && range.one_past_last <= size){
             Edit_Behaviors behaviors = {};
-            edit_single(models->system, models, file, range, string, behaviors);
+            edit_single(models->system, models, file, range, string_old_from_new(string), behaviors);
             result = true;
         }
     }
@@ -512,34 +505,37 @@ Buffer_Get_Line_Count(Application_Links *app, Buffer_ID buffer_id, i32 *line_cou
 }
 
 API_EXPORT b32
-Buffer_Get_Base_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){
+Buffer_Get_Base_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        result = api_string_out(file->base_name.name, name_out, required_size_out);
+        *name_out = string_copy(out, string_from_file_name(&file->base_name));
+        result = true;
     }
     return(result);
 }
 
 API_EXPORT b32
-Buffer_Get_Unique_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){
+Buffer_Get_Unique_Buffer_Name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        result = api_string_out(file->unique_name.name, name_out, required_size_out);
+        *name_out = string_copy(out, string_from_file_name(&file->unique_name));
+        result = true;
     }
     return(result);
 }
 
 API_EXPORT b32
-Buffer_Get_File_Name(Application_Links *app, Buffer_ID buffer_id, String *name_out, i32 *required_size_out){
+Buffer_Get_File_Name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        result = api_string_out(file->canon.name, name_out, required_size_out);
+        *name_out = string_copy(out, string_from_file_name(&file->canon));
+        result = true;
     }
     return(result);
 }
@@ -989,7 +985,7 @@ This is useful in cases such as clearing a buffer and refilling it with new cont
 
 // TODO(allen): redocument
 API_EXPORT b32
-Create_Buffer(Application_Links *app, String file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out)
+Create_Buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out)
 /*
 DOC_PARAM(filename, The name of the file to associate to the new buffer.)
 DOC_PARAM(filename_len, The length of the filename string.)
@@ -1013,7 +1009,7 @@ DOC_SEE(Buffer_Create_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String file_name, u32 flags)
+Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, u32 flags)
 /*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to save to a file.)
 DOC_PARAM(file_name, The file_name parameter specifies the name of the file to write with the contents of the buffer; it need not be null terminated.)
@@ -1037,11 +1033,11 @@ DOC_SEE(Buffer_Save_Flag)
         }
         
         if (!skip_save){
-            Partition *part = &models->mem.part;
-            Temp_Memory temp = begin_temp_memory(part);
-            String name = push_string(part, file_name);
+            Arena *scratch = &models->mem.arena;
+            Temp_Memory temp = begin_temp(scratch);
+            String_Const_u8 name = string_copy(scratch, file_name);
             save_file_to_name(system, models, file, name.str);
-            end_temp_memory(temp);
+            end_temp(temp);
             result = true;
         }
     }
@@ -1079,10 +1075,10 @@ DOC_SEE(Buffer_Identifier)
                 }
                 
                 buffer_unbind_name_low_level(working_set, file);
-                if (file->canon.name.size != 0){
+                if (file->canon.name_size != 0){
                     buffer_unbind_file(system, working_set, file);
                 }
-                file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
+                file_free(system, &models->mem.heap, &models->lifetime_allocator, working_set, file);
                 working_set_free_file(&models->mem.heap, working_set, file);
                 
                 Layout *layout = &models->layout;
@@ -1132,14 +1128,14 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Reopen_Result result = BufferReopenResult_Failed;
     if (api_check_buffer(file)){
-        if (file->canon.name.str != 0 && file->canon.name.size != 0){
+        if (file->canon.name_size > 0){
             Plat_Handle handle = {};
-            if (system->load_handle(file->canon.name.str, &handle)){
+            if (system->load_handle((char*)file->canon.name_space, &handle)){
                 File_Attributes attributes = system->load_attributes(handle);
                 
-                Partition *part = &models->mem.part;
-                Temp_Memory temp = begin_temp_memory(part);
-                char *file_memory = push_array(part, char, (i32)attributes.size);
+                Arena *arena = &models->mem.arena;
+                Temp_Memory temp = begin_temp(arena);
+                char *file_memory = push_array(arena, char, (i32)attributes.size);
                 
                 if (file_memory != 0){
                     if (system->load_file(handle, file_memory, (i32)attributes.size)){
@@ -1157,21 +1153,21 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                              panel != 0;
                              panel = layout_get_next_open_panel(layout, panel)){
                             View *view_it = panel->view;
-                            if (view_it->file != file){
-                                continue;
+                            if (view_it->file == file){
+                                vptrs[vptr_count] = view_it;
+                                File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
+                                Full_Cursor cursor = file_compute_cursor(system, view_it->file, seek_pos(edit_pos.cursor_pos));
+                                line_numbers[vptr_count]   = cursor.line;
+                                column_numbers[vptr_count] = cursor.character;
+                                view_it->file = models->scratch_buffer;
+                                ++vptr_count;
                             }
-                            vptrs[vptr_count] = view_it;
-                            File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
-                            Full_Cursor cursor = file_compute_cursor(system, view_it->file, seek_pos(edit_pos.cursor_pos));
-                            line_numbers[vptr_count]   = cursor.line;
-                            column_numbers[vptr_count] = cursor.character;
-                            view_it->file = models->scratch_buffer;
-                            ++vptr_count;
                         }
                         
-                        file_free(system, &models->mem.heap, &models->lifetime_allocator, file);
-                        working_set_file_default_settings(&models->working_set, file);
-                        file_create_from_string(system, models, file, make_string(file_memory, (i32)attributes.size), attributes);
+                        Working_Set *working_set = &models->working_set;
+                        file_free(system, &models->mem.heap, &models->lifetime_allocator, working_set, file);
+                        working_set_file_default_settings(working_set, file);
+                        file_create_from_string(system, models, file, SCu8(file_memory, attributes.size), attributes);
                         
                         for (i32 i = 0; i < vptr_count; ++i){
                             view_set_file(system, models, vptrs[i], file);
@@ -1191,7 +1187,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                     system->load_close(handle);
                 }
                 
-                end_temp_memory(temp);
+                end_temp(temp);
             }
         }
     }
@@ -1515,7 +1511,7 @@ Panel_Set_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind
                 
                 default:
                 {
-                    print_message(app, make_lit_string("Invalid split kind passed to panel_set_split, no change made to view layout"));
+                    print_message(app, string_u8_litexpr("Invalid split kind passed to panel_set_split, no change made to view layout"));
                 }break;
             }
             layout_propogate_sizes_down_from_node(layout, panel);
@@ -2170,7 +2166,7 @@ get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
         }break;
         default:
         {
-            InvalidCodePath;
+            InvalidPath;
         }break;
     }
     return(result);
@@ -2188,12 +2184,21 @@ https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_
 {
     Models *models = (Models*)app->cmd_context;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
-    Partition *scratch = &models->mem.part;
+    Arena *scratch = &models->mem.arena;
     
-    Temp_Memory temp = begin_temp_memory(scratch);
+    Temp_Memory temp = begin_temp(scratch);
+    
+    // TODO(allen): revisit this
+    struct Node_Ptr{
+        Node_Ptr *next;
+        Lifetime_Object *object_ptr;
+    };
+    
+    Node_Ptr *first = 0;
+    Node_Ptr *last = 0;
+    i32 member_count = 0;
     
     b32 filled_array = true;
-    Lifetime_Object **object_ptr_array = push_array(scratch, Lifetime_Object*, 0);
     for (i32 i = 0; i < count; i += 1){
         Dynamic_Workspace *workspace = get_dynamic_workspace(models, scopes[i]);
         if (workspace == 0){
@@ -2213,40 +2218,51 @@ https://4coder.handmade.network/blogs/p/3412-new_features_p3__memory_management_
             {
                 Lifetime_Object *object = get_lifetime_object_from_workspace(workspace);
                 Assert(object != 0);
-                Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
-                *new_object_ptr = object;
+                Node_Ptr *new_node = push_array(scratch, Node_Ptr, 1);
+                sll_queue_push(first, last, new_node);
+                new_node->object_ptr = object;
+                member_count += 1;
             }break;
             
             case DynamicWorkspace_Intersected:
             {
                 Lifetime_Key *key = (Lifetime_Key*)workspace->user_back_ptr;
                 if (lifetime_key_check(lifetime_allocator, key)){
-                    i32 member_count = key->count;
+                    i32 key_member_count = key->count;
                     Lifetime_Object **key_member_ptr = key->members;
-                    for (i32 j = 0; j < member_count; j += 1, key_member_ptr += 1){
-                        Lifetime_Object **new_object_ptr = push_array(scratch, Lifetime_Object*, 1);
-                        *new_object_ptr = *key_member_ptr;
+                    for (i32 j = 0; j < key_member_count; j += 1, key_member_ptr += 1){
+                        Node_Ptr *new_node = push_array(scratch, Node_Ptr, 1);
+                        sll_queue_push(first, last, new_node);
+                        new_node->object_ptr = *key_member_ptr;
+                        member_count += 1;
                     }
                 }
             }break;
             
             default:
             {
-                InvalidCodePath;
+                InvalidPath;
             }break;
         }
     }
     
     Managed_Scope result = 0;
     if (filled_array){
-        i32 member_count = (i32)(push_array(scratch, Lifetime_Object*, 0) - object_ptr_array);
+        Lifetime_Object **object_ptr_array = push_array(scratch, Lifetime_Object*, member_count);
+        i32 index = 0;
+        for (Node_Ptr *node = first;
+             node != 0;
+             node = node->next){
+            object_ptr_array[index] = node->object_ptr;
+            index += 1;
+        }
         member_count = lifetime_sort_and_dedup_object_set(object_ptr_array, member_count);
         Heap *heap = &models->mem.heap;
         Lifetime_Key *key = lifetime_get_or_create_intersection_key(heap, lifetime_allocator, object_ptr_array, member_count);
         result = (Managed_Scope)key->dynamic_workspace.scope_id;
     }
     
-    end_temp_memory(temp);
+    end_temp(temp);
     
     return(result);
 }
@@ -2303,10 +2319,9 @@ DOC_SEE(managed_variable_create_or_get_id)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    String name = make_string_slowly(null_terminated_name);
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_create(heap, layout, name, default_value));
+    return(dynamic_variables_create(heap, layout, SCu8(null_terminated_name), default_value));
 }
 
 API_EXPORT Managed_Variable_ID
@@ -2319,9 +2334,8 @@ DOC_SEE(managed_variable_create_or_get_id)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    String name = make_string_slowly(null_terminated_name);
     Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_lookup(layout, name));
+    return(dynamic_variables_lookup(layout, SCu8(null_terminated_name)));
 }
 
 API_EXPORT Managed_Variable_ID
@@ -2336,10 +2350,9 @@ DOC_SEE(managed_variable_get_id)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    String name = make_string_slowly(null_terminated_name);
     Heap *heap = &models->mem.heap;
     Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_lookup_or_create(heap, layout, name, default_value));
+    return(dynamic_variables_lookup_or_create(heap, layout, SCu8(null_terminated_name), default_value));
 }
 
 internal b32
@@ -2551,9 +2564,9 @@ DOC_SEE(Marker_Visual_Take_Rule)
     b32 result = false;
     if (data != 0){
         Assert(take_rule.take_count_per_step != 0);
-        take_rule.first_index = clamp_bottom(0, take_rule.first_index);
-        take_rule.take_count_per_step = clamp_bottom(1, take_rule.take_count_per_step);
-        take_rule.step_stride_in_marker_count = clamp_bottom(take_rule.take_count_per_step, take_rule.step_stride_in_marker_count);
+        take_rule.first_index = clamp_bot(0, take_rule.first_index);
+        take_rule.take_count_per_step = clamp_bot(1, take_rule.take_count_per_step);
+        take_rule.step_stride_in_marker_count = clamp_bot(take_rule.take_count_per_step, take_rule.step_stride_in_marker_count);
         data->take_rule = take_rule;
         if (data->take_rule.maximum_number_of_markers != 0){
             i32 whole_steps = take_rule.maximum_number_of_markers/take_rule.take_count_per_step;
@@ -2652,8 +2665,9 @@ DOC_RETURN(Returns the number of marker visuals that are currently attached to t
     return(result);
 }
 
+// TODO(allen): redocument
 API_EXPORT Marker_Visual*
-Buffer_Markers_Get_Attached_Visual(Application_Links *app, Partition *part, Managed_Object object)
+Buffer_Markers_Get_Attached_Visual(Application_Links *app, Arena *arena, Managed_Object object)
 /*
 DOC_PARAM(part, The arena to be used to allocate the returned array.)
 DOC_PARAM(object, The handle to the marker object to be queried.)
@@ -2665,7 +2679,7 @@ DOC_RETURN(Pushes an array onto part containing the handle to every marker visua
     if (object_ptrs.header != 0 && object_ptrs.header->type == ManagedObjectType_Markers){
         Managed_Buffer_Markers_Header *markers = (Managed_Buffer_Markers_Header*)object_ptrs.header;
         i32 count = markers->visual_count;
-        Marker_Visual *visual = push_array(part, Marker_Visual, count);
+        Marker_Visual *visual = push_array(arena, Marker_Visual, count);
         if (visual != 0){
             Marker_Visual *v = visual;
             Managed_Scope scope = object_ptrs.workspace->scope_id;
@@ -2958,7 +2972,7 @@ DOC(Stops showing the particular query bar specified by the bar parameter.)
 }
 
 API_EXPORT b32
-Print_Message(Application_Links *app, String message)
+Print_Message(Application_Links *app, String_Const_u8 message)
 /*
 DOC_PARAM(str, The str parameter specifies the string to post to *messages*; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the str string.)
@@ -2968,129 +2982,12 @@ DOC(This call posts a string to the *messages* buffer.)
     Editing_File *file = models->message_buffer;
     b32 result = false;
     if (file != 0){
-        output_file_append(models->system, models, file, message);
+        output_file_append(models->system, models, file, string_old_from_new(message));
         file_cursor_to_end(models->system, models, file);
         result = true;
     }
     return(result);
 }
-
-#if 0
-//API_EXPORT i32
-Get_Theme_Count(Application_Links *app)
-/*
-DOC_RETURN(Returns the number of themes that currently exist in the core.)
-*/
-{
-    Models *models = (Models*)app->cmd_context;
-    return(models->styles.count);
-}
-
-//API_EXPORT String
-Get_Theme_Name(Application_Links *app, struct Partition *arena, i32 index)
-/*
-DOC_PARAM(arena, The arena which will be used to allocate the returned string.)
-DOC_PARAM(index, The index of the theme to query.  Index zero always refers to the active theme, all other indices refer to the static copies of available themes.)
-DOC_RETURN(On success this call returns a string allocated on arena that is the name of the queried theme, on failure a null string is returned.  This call fails when index is not less than the total number of themes, and when there is not enough space in arena to allocate the return string.)
-*/
-{
-    Models *models = (Models*)app->cmd_context;
-    Style_Library *library = &models->styles;
-    String str = {};
-    if (0 <= index && index < library->count){
-        Style *style = &library->styles[index];
-        char *mem = push_array(arena, char, style->name.size + 1);
-        if (mem != 0){
-            str.str = mem;
-            str.size = style->name.size;
-            str.memory_size = str.size + 1;
-            memcpy(str.str, style->name.str, str.size);
-            str.str[str.size] = 0;
-        }
-    }
-    return(str);
-}
-
-// TODO(allen): redocument
-//API_EXPORT b32
-Create_Theme(Application_Links *app, Theme *theme, String theme_name)
-/*
-DOC_PARAM(theme, The color data of the new theme.)
-DOC_PARAM(name, The name of the new theme. This string need not be null terminated.)
-DOC_PARAM(len, The length of the name string.)
-DOC(This call creates a new theme.  If the given name is already the name of a string, the old string will be replaced with the new one.  This call does not set the current theme.)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    Style_Library *library = &models->styles;
-    
-    i32 count = library->count;
-    Style *destination_style = 0;
-    Style *style = library->styles + 1;
-    for (i32 i = 1; i < count; ++i, ++style){
-        if (match(style->name, theme_name)){
-            destination_style = style;
-            break;
-        }
-    }
-    
-    if (destination_style == 0 && library->count < library->max){
-        destination_style = &library->styles[library->count++];
-        destination_style->name = make_fixed_width_string(destination_style->name_);
-        copy(&destination_style->name, theme_name);
-        terminate_with_null(&destination_style->name);
-    }
-    
-    b32 result = false;
-    if (destination_style != 0){
-        block_copy(&destination_style->theme, theme, sizeof(*theme));
-        result = true;
-    }
-    return(result);
-}
-
-// TODO(allen): redocument
-//API_EXPORT b32
-Change_Theme(Application_Links *app, String theme_name)
-/*
-DOC_PARAM(name, The name parameter specifies the name of the theme to begin using; it need not be null terminated.)
-DOC_PARAM(len, The len parameter specifies the length of the name string.)
-DOC(This call changes 4coder's color pallet to one of the built in themes.)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    Style_Library *styles = &models->styles;
-    i32 count = styles->count;
-    b32 result = false;
-    Style *s = styles->styles + 1;
-    for (i32 i = 1; i < count; ++i, ++s){
-        if (match(s->name, theme_name)){
-            styles->styles[0] = *s;
-            styles->styles[0].name.str = styles->styles[0].name_;
-            result = true;
-            break;
-        }
-    }
-    return(result);
-}
-
-//API_EXPORT b32
-Change_Theme_By_Index(Application_Links *app, i32 index)
-/*
-DOC_PARAM(index, The index parameter specifies the index of theme to begin using.)
-DOC_RETURN(Returns non-zero on success and zero on failure.  This call fails when index is not less than the total number of themes.)
-*/
-{
-    Models *models = (Models*)app->cmd_context;
-    Style_Library *styles = &models->styles;
-    i32 count = styles->count;
-    b32 result = false;
-    if (0 <= index && index < count){
-        styles->styles[0] = styles->styles[index];
-        styles->styles[0].name.str = styles->styles[0].name_;
-        result = true;
-    }
-    return(result);
-}
-#endif
 
 API_EXPORT Face_ID
 Get_Largest_Face_ID(Application_Links *app)
@@ -3151,8 +3048,8 @@ buffer_history__fill_record_info(Record *record, Record_Info *out){
     switch (out->kind){
         case RecordKind_Single:
         {
-            out->single.string_forward  = make_string(record->single.str_forward , record->single.length_forward );
-            out->single.string_backward = make_string(record->single.str_backward, record->single.length_backward);
+            out->single.string_forward  = SCu8(record->single.str_forward , record->single.length_forward );
+            out->single.string_backward = SCu8(record->single.str_backward, record->single.length_backward);
             out->single.first = record->single.first;
         }break;
         case RecordKind_Group:
@@ -3161,7 +3058,7 @@ buffer_history__fill_record_info(Record *record, Record_Info *out){
         }break;
         default:
         {
-            InvalidCodePath;
+            InvalidPath;
         }break;
     }
 }
@@ -3214,9 +3111,14 @@ Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id,
                 if (0 < index){
                     Record *record = history_get_record(history, index);
                     if (record->kind == RecordKind_Group){
-                        record = history_get_sub_record(record, sub_index);
-                        buffer_history__fill_record_info(record, record_out);
-                        result = true;
+                        record = history_get_sub_record(record, sub_index + 1);
+                        if (record != 0){
+                            buffer_history__fill_record_info(record, record_out);
+                            result = true;
+                        }
+                        else{
+                            record_out->error = RecordError_SubIndexOutOfBounds;
+                        }
                     }
                     else{
                         record_out->error = RecordError_WrongRecordTypeAtIndex;
@@ -3276,12 +3178,12 @@ Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_ID buffer_id, H
     if (file != 0 && history_is_activated(&file->state.history)){
         History *history = &file->state.history;
         i32 max_index = history_get_record_count(history);
-        first_index = clamp_bottom(1, first_index);
+        first_index = clamp_bot(1, first_index);
         if (first_index <= last_index && last_index <= max_index){
             i32 current_index = file->state.current_record_index;
             if (first_index <= current_index && current_index < last_index){
                 System_Functions *system = models->system;
-                u32 in_range_handler = flags & (bit_0 | bit_1);
+                u32 in_range_handler = flags & bitmask_2;
                 switch (in_range_handler){
                     case RecordMergeFlag_StateInRange_MoveStateForward:
                     {
@@ -3302,7 +3204,7 @@ Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_ID buffer_id, H
                 }
             }
             if (first_index < last_index){
-                history_merge_records(&models->mem.part, &models->mem.heap, history, first_index, last_index);
+                history_merge_records(&models->mem.arena, &models->mem.heap, history, first_index, last_index);
             }
             if (current_index >= last_index){
                 current_index -= (last_index - first_index);
@@ -3641,7 +3543,7 @@ Finalize_Color(Application_Links *app, int_color color){
 
 // TODO(allen): redocument
 API_EXPORT b32
-Get_Hot_Directory(Application_Links *app, String *out, i32 *required_size_out)
+Get_Hot_Directory(Application_Links *app, Arena *out, String_Const_u8 *out_directory)
 /*
 DOC_PARAM(out, On success this character buffer is filled with the 4coder 'hot directory'.)
 DOC_PARAM(capacity, Specifies the capacity in bytes of the of the out buffer.)
@@ -3652,12 +3554,13 @@ DOC_SEE(directory_set_hot)
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
-    return(api_string_out(hot->string, out, required_size_out));
+    *out_directory = string_copy(out, SCu8(hot->string_space, hot->string_size));
+    return(true);
 }
 
 // TODO(allen): redocument
 API_EXPORT b32
-Set_Hot_Directory(Application_Links *app, String string)
+Set_Hot_Directory(Application_Links *app, String_Const_u8 string)
 /*
 DOC_PARAM(str, The new value of the hot directory.  This does not need to be a null terminated string.)
 DOC_PARAM(len, The length of str in bytes.)
@@ -3668,7 +3571,7 @@ DOC_SEE(directory_get_hot)
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     b32 success = false;
-    if (string.size < hot->string.memory_size){
+    if (string.size < sizeof(hot->string_space)){
         hot_directory_set(models->system, hot, string);
         success = true;
     }
@@ -3677,7 +3580,7 @@ DOC_SEE(directory_get_hot)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Get_File_List(Application_Links *app, String directory, File_List *list_out)
+Get_File_List(Application_Links *app, String_Const_u8 directory, File_List *list_out)
 /*
 DOC_PARAM(dir, This parameter specifies the directory whose files will be enumerated in the returned list; it need not be null terminated.)
 DOC_PARAM(len, This parameter the length of the dir string.)
@@ -3686,15 +3589,23 @@ DOC_SEE(File_List)
 */{
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    Partition *part = &models->mem.part;
     block_zero_struct(list_out);
     Editing_File_Name canon = {};
     b32 result = false;
     if (get_canon_name(system, directory, &canon)){
-        Temp_Memory temp = begin_temp_memory(part);
-        String str = push_string(part, canon.name.str, canon.name.size);
-        system->set_file_list(list_out, str.str, 0, 0, 0);
-        end_temp_memory(temp);
+        Arena *scratch = &models->mem.arena;
+        Temp_Memory temp = begin_temp(scratch);
+        char *str = 0;
+        if (canon.name_size < sizeof(canon.name_space)){
+            canon.name_space[canon.name_size] = 0;
+            str = (char*)canon.name_space;
+        }
+        else{
+            String_Const_u8 s = string_copy(scratch, string_from_file_name(&canon));
+            str = (char*)s.str;
+        }
+        system->set_file_list(list_out, str, 0, 0, 0);
+        end_temp(temp);
         result = true;
     }
     return(result);
@@ -3767,7 +3678,7 @@ DOC_SEE(memory_allocate)
 }
 
 API_EXPORT b32
-File_Get_Attributes(Application_Links *app, String file_name, File_Attributes *attributes_out)
+File_Get_Attributes(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out)
 {
     Models *models = (Models*)app->cmd_context;
     *attributes_out = models->system->quick_file_attributes(file_name);
@@ -3775,9 +3686,18 @@ File_Get_Attributes(Application_Links *app, String file_name, File_Attributes *a
 }
 
 // TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
+// TODO(allen): remove this nonsense and make a real API here instead.
 // TODO(allen): redocument
 API_EXPORT b32
-Directory_CD(Application_Links *app, String *directory, String relative_path)
+Directory_CD(Application_Links *app, String_Const_u8 directory, String_Const_u8 relative_path, Arena *out, String_Const_u8 *directory_out)
 /*
 DOC_PARAM(dir, This parameter provides a character buffer that stores a directory; it need not be null terminated.)
 DOC_PARAM(len, This parameter specifies the length of the dir string.)
@@ -3791,13 +3711,19 @@ This call succeeds if the new directory exists and it fits inside the dir buffer
 For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain "C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can also be used with rel set to ".." to traverse to parent folders.
 )*/{
     Models *models = (Models*)app->cmd_context;
-    return(models->system->directory_cd(directory->str, &directory->size, directory->memory_size,
-                                        relative_path.str,relative_path.size));
+    i32 memory_size = (i32)(directory.size + relative_path.size + 2);
+    char *memory = push_array(out, char, memory_size);
+    i32 size = (i32)directory.size;
+    block_copy(memory, directory.str, directory.size);
+    b32 result = models->system->directory_cd(memory, &size, memory_size,
+                                              (char*)relative_path.str, (i32)relative_path.size);
+    *directory_out = SCu8(memory, size);
+    return(result);
 }
 
 // TODO(allen): redocument
 API_EXPORT b32
-Get_4ed_Path(Application_Links *app, String *path_out, i32 *required_size_out)
+Get_4ed_Path(Application_Links *app, Arena *out, String_Const_u8 *path_out)
 /*
 DOC_PARAM(out, This parameter provides a character buffer that receives the path to the 4ed executable file.)
 DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buffer.)
@@ -3807,15 +3733,10 @@ DOC_RETURN(This call returns non-zero on success.)
     System_Functions *system = models->system;
     // TODO(allen): rewrite this with a better OS layer API
     i32 required_size = system->get_4ed_path(0, 0);
-    *required_size_out = required_size;
-    i32 remaining_size = path_out->memory_size - path_out->size;
-    b32 result = false;
-    if (required_size <= remaining_size){
-        *required_size_out = system->get_4ed_path(path_out->str + path_out->size, remaining_size);
-        path_out->size += required_size;
-        result = true;
-    }
-    return(result);
+    char *memory = push_array(out, char, required_size + 1);
+    required_size = system->get_4ed_path(memory, required_size);
+    *path_out = SCu8(memory, required_size);
+    return(true);
 }
 
 // TODO(allen): do(add a "shown but auto-hides on timer" setting for cursor show type)
@@ -3845,7 +3766,7 @@ DOC(This call tells 4coder to set the full_screen mode.  The change to full scre
     Models *models = (Models*)app->cmd_context;
     b32 success = models->system->set_fullscreen(full_screen);
     if (!success){
-        print_message(app, make_lit_string("ERROR: Failed to go fullscreen.\n"));
+        print_message(app, string_u8_litexpr("ERROR: Failed to go fullscreen.\n"));
     }
     return(success);
 }
@@ -3875,20 +3796,18 @@ To make send_exit_signal exit no matter what, setup your hook in such a way that
 
 // TODO(allen): redocument
 API_EXPORT b32
-Set_Window_Title(Application_Links *app, String title)
+Set_Window_Title(Application_Links *app, String_Const_u8 title)
 /*
 DOC_PARAM(title, A null terminated string indicating the new title for the 4coder window.)
 DOC(Sets 4coder's window title to the specified title string.)
 */{
     Models *models = (Models*)app->cmd_context;
     models->has_new_title = true;
-    String dst = make_string_cap(models->title_space, 0, models->title_capacity);
-    b32 result = false;
-    if (append(&dst, title)){
-        terminate_with_null(&dst);
-        result = true;
-    }
-    return(result);
+    umem cap_before_null = (umem)(models->title_capacity - 1);
+    umem copy_size = clamp_top(title.size, cap_before_null);
+    block_copy(models->title_space, title.str, copy_size);
+    models->title_space[copy_size] = 0;
+    return(true);
 }
 
 API_EXPORT Microsecond_Time_Stamp
@@ -3971,7 +3890,7 @@ draw_helper__screen_space_to_view_space(View *view, f32_Rect rect){
 // To make text scroll with the buffer users should read the view's scroll position and subtract it first.
 
 API_EXPORT Vec2
-Draw_String(Application_Links *app, Face_ID font_id, String str, Vec2 point, int_color color, u32 flags, Vec2 delta)
+Draw_String(Application_Links *app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 {
     Vec2 result = point;
     Models *models = (Models*)app->cmd_context;
@@ -3990,7 +3909,7 @@ Draw_String(Application_Links *app, Face_ID font_id, String str, Vec2 point, int
 }
 
 API_EXPORT f32
-Get_String_Advance(Application_Links *app, Face_ID font_id, String str)
+Get_String_Advance(Application_Links *app, Face_ID font_id, String_Const_u8 str)
 {
     Models *models = (Models*)app->cmd_context;
     return(font_string_width(models->system, models->target, font_id, str));
@@ -4160,11 +4079,11 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         f32 smallest_char_width  = 6.f;
         f32 smallest_char_height = 8.f;
         i32 max = (i32)(layout_dim.x*layout_dim.y/(smallest_char_width*smallest_char_height))*2;
-        if (view->layout_arena.app == 0){
-            view->layout_arena = make_arena(app);
+        if (view->layout_arena.base_allocator == 0){
+            view->layout_arena = make_arena_app_links(app);
         }
         else{
-            arena_release_all(&view->layout_arena);
+            linalloc_clear(&view->layout_arena);
         }
         Buffer_Render_Item *items = push_array(&view->layout_arena, Buffer_Render_Item, max);
         
@@ -4172,13 +4091,6 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         Face_ID font_id = file->settings.font_id;
         Font_Pointers font = system->font.get_pointers_by_id(font_id);
         
-#if 0        
-        File_Edit_Positions edit_pos = view_get_edit_pos(view);
-        f32 scroll_x = edit_pos.scroll.scroll_x;
-        f32 scroll_y = edit_pos.scroll.scroll_y;
-        
-        Full_Cursor render_cursor = view_get_render_cursor(system, view);
-#else
         Full_Cursor intermediate_cursor = file_compute_cursor(system, file, seek_line_char(buffer_point.line_number, 1));
         f32 scroll_x = buffer_point.pixel_shift.x;
         f32 scroll_y = intermediate_cursor.wrapped_y;
@@ -4187,7 +4099,6 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         }
         scroll_y += buffer_point.pixel_shift.y;
         Full_Cursor render_cursor = file_get_render_cursor(system, file, scroll_y);
-#endif
         
         i32 item_count = 0;
         i32 end_pos = 0;
@@ -4288,7 +4199,7 @@ Draw_Render_Layout(Application_Links *app, View_ID view_id){
         render_loaded_file_in_view__inner(models, models->target, view, view->render.buffer_rect,
                                           view->render.cursor, view->render.range,
                                           view->render.items, view->render.item_count);
-        arena_release_all(&view->layout_arena);
+        linalloc_clear(&view->layout_arena);
     }
 }
 
@@ -4322,7 +4233,7 @@ Animate_In_N_Milliseconds(Application_Links *app, u32 n)
 // TODO(casey): Allen, this routine is very intricate and needs to be tested thoroughly before mainlining.  I've only done cursory testing on it and have probably missed bugs that only occur in highly segmented buffers.
 // TODO(casey): I think this routine could potentially be simplified by making it into something that always works with a partial match list, where the partial matches have 0 characters matched, and they just get moved forward as they go.  This would solve the duplicate code problem the routine currently has where it does the same thing in its two halves, but slightly differently.
 API_EXPORT Found_String_List
-Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String key, Partition *memory)
+Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String_Const_u8 key, Arena *arena)
 {
     Found_String_List result = {};
     
@@ -4354,7 +4265,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                     while(*partial)
                     {
                         Found_String *check = *partial;
-                        i32 trailing_char_at = ((check->location.start + key.size) - check->location.end);
+                        i32 trailing_char_at = ((check->location.start + (i32)key.size) - check->location.end);
                         i32 remaining = trailing_char_at;
                         b32 valid = true;
                         b32 full = true;
@@ -4428,7 +4339,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                         if(remaining >= key.size)
                         {
                             full = true;
-                            remaining = key.size;
+                            remaining = (i32)key.size;
                         }
                         
                         u32 exact_matched = FoundString_Sensitive;
@@ -4461,7 +4372,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                             }
                             else
                             {
-                                found = push_array(memory, Found_String, 1);
+                                found = push_array(arena, Found_String, 1);
                             }
                             
                             if(found)
@@ -4475,7 +4386,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                                 
                                 // NOTE(casey): Although technically "full matches" are full, we haven't yet checked the trailing edge for tokenization,
                                 // so we need to shunt to partial in the cases where we _can't_ check the overhanging character.
-                                i32 trailing_char_at = (at + key.size);
+                                i32 trailing_char_at = (at + (i32)key.size);
                                 full = full && (trailing_char_at < size);
                                 
                                 if(full)

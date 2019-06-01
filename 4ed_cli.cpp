@@ -11,7 +11,7 @@
 
 internal void
 child_process_container_init(Child_Process_Container *container, Models *models){
-    container->arena = make_arena(&models->app_links);
+    container->arena = make_arena_app_links(&models->app_links);
     dll_init_sentinel(&container->child_process_active_list);
     dll_init_sentinel(&container->child_process_free_list);
     container->child_process_id_counter = 0;
@@ -20,7 +20,7 @@ child_process_container_init(Child_Process_Container *container, Models *models)
 
 internal void
 child_process_container_release(Child_Process_Container *container, Models *models){
-    arena_release_all(&container->arena);
+    linalloc_clear(&container->arena);
     heap_free(&models->mem.heap, container->id_to_ptr_table.mem);
     block_zero_struct(container);
 }
@@ -92,26 +92,13 @@ child_process_lookup_return_code(Child_Process_Container *container, Child_Proce
 ////////////////////////////////
 
 internal b32
-child_process_call(Models *models, System_Functions *system, String path, String command, Child_Process_ID *id_out){
+child_process_call(Models *models, System_Functions *system, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *id_out){
     b32 result = false;
-    char *path_cstr = 0;
-    char *command_cstr = 0;
-    if (terminate_with_null(&path)){
-        path_cstr = path.str;
-    }
-    else{
-        String s = string_push_copy(&models->mem.part, path);
-        path_cstr = s.str;
-    }
-    if (terminate_with_null(&command)){
-        command_cstr = command.str;
-    }
-    else{
-        String s = string_push_copy(&models->mem.part, command);
-        command_cstr = s.str;
-    }
+    Scratch_Block scratch(&models->app_links);
+    String_Const_u8 path_n = string_copy(scratch, path);
+    String_Const_u8 command_n = string_copy(scratch, command);
     CLI_Handles cli_handles = {};
-    if (system->cli_call(path_cstr, command_cstr, &cli_handles)){
+    if (system->cli_call((char*)path_n.str, (char*)command_n.str, &cli_handles)){
         Child_Process_And_ID new_process = child_process_alloc_new(models, &models->child_processes);
         *id_out = new_process.id;
         new_process.process->cli = cli_handles;

@@ -28,9 +28,9 @@ global File_Data null_file_data = {};
 internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
 
 struct Shared_Vars{
-    Partition scratch;
-    Partition font_scratch;
-    Partition pixel_scratch;
+    Arena scratch;
+    Arena font_scratch;
+    Arena pixel_scratch;
 };
 global Shared_Vars shared_vars;
 

@@ -26,20 +26,9 @@ struct Bind_Buffer{
 
 ////////////////////////////////
 
-struct File_Handle_Path{
-    FILE *file;
-    String path;
-};
-
 struct File_Name_Data{
-    String file_name;
-    String data;
-};
-
-struct File_Name_Path_Data{
-    String file_name;
-    String path;
-    String data;
+    String_Const_u8 file_name;
+    Data data;
 };
 
 ////////////////////////////////
@@ -91,6 +80,14 @@ struct Token_Iterator{
 struct Sort_Pair_i32{
     i32 index;
     i32 key;
+};
+
+////////////////////////////////
+
+struct History_Group{
+    Application_Links *app;
+    Buffer_ID buffer;
+    History_Record_Index first;
 };
 
 #endif
