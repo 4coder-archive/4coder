@@ -249,8 +249,6 @@ Sys_Now_Time_Sig(system_now_time){
     return(result);
 }
 
-#include "4ed_shared_file_handling.cpp"
-
 ////////////////////////////////
 
 internal void

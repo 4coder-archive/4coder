@@ -314,7 +314,6 @@ handle_type_ptr(void *ptr){
 ////////////////////////////////
 
 #include "win32_4ed_functions.cpp"
-#include "4ed_shared_file_handling.cpp"
 
 ////////////////////////////////
 
