@@ -229,10 +229,10 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
 }
 
 internal void
-edit_single(System_Functions *system, Models *models, Editing_File *file, Range range, String string, Edit_Behaviors behaviors){
+edit_single(System_Functions *system, Models *models, Editing_File *file, Range range, String_Const_u8 string, Edit_Behaviors behaviors){
     Edit edit = {};
-    edit.str = string.str;
-    edit.length = string.size;
+    edit.str = (char*)string.str;
+    edit.length = (i32)string.size;
     edit.range = range;
     
     
@@ -323,14 +323,14 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, char *s
         Buffer_Edit *one_past_last = edits + edit_count;
         i32 shift = 0;
         for (;edit_in < one_past_last; edit_in += 1){
-            String insert_string = make_string(str + edit_in->str_start, edit_in->len);
-            Range edit_range = {edit_in->start, edit_in->end};
+            String_Const_u8 insert_string = SCu8(str + edit_in->str_start, edit_in->len);
+            Range edit_range = make_range(edit_in->start, edit_in->end);
             edit_range.first += shift;
             edit_range.one_past_last += shift;
             i32 size = buffer_size(&file->state.buffer);
             if (0 <= edit_range.first && edit_range.first <= edit_range.one_past_last && edit_range.one_past_last <= size){
                 edit_single(system, models, file, edit_range, insert_string, behaviors);
-                shift += replace_range_compute_shift(edit_range, insert_string.size);
+                shift += replace_range_compute_shift(edit_range, (i32)insert_string.size);
             }
             else{
                 result = false;
@@ -362,8 +362,8 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
     switch (record->kind){
         case RecordKind_Single:
         {
-            String str = make_string(record->single.str_forward, record->single.length_forward);
-            Range range = {record->single.first, record->single.first + record->single.length_backward};
+            String_Const_u8 str = SCu8(record->single.str_forward, record->single.length_forward);
+            Range range = make_range(record->single.first, record->single.first + record->single.length_backward);
             edit_single(system, models, file, range, str, behaviors_prototype);
         }break;
         
@@ -393,8 +393,8 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
     switch (record->kind){
         case RecordKind_Single:
         {
-            String str = make_string(record->single.str_backward, record->single.length_backward);
-            Range range = {record->single.first, record->single.first + record->single.length_forward};
+            String_Const_u8 str = SCu8(record->single.str_backward, record->single.length_backward);
+            Range range = make_range(record->single.first, record->single.first + record->single.length_forward);
             edit_single(system, models, file, range, str, behaviors_prototype);
         }break;
         
@@ -566,7 +566,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
             i32 size = buffer_size(&file->state.buffer);
             if (size > 0){
                 Edit_Behaviors behaviors = {};
-                edit_single(system, models, file, make_range(0, size), make_lit_string(""), behaviors);
+                edit_single(system, models, file, make_range(0, size), string_u8_litexpr(""), behaviors);
                 if (has_canon_name){
                     buffer_is_for_new_file = true;
                 }

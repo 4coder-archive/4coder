@@ -450,17 +450,31 @@ STRUCT Parser_String_And_Type{
 /* DOC(Microsecond_Time_Stamp is a typedef of an unsigned 64 bit integer used to signify that the value is an arbitrary for a moment in time.) */
 TYPEDEF u64 Microsecond_Time_Stamp;
 
+ENUM(u32, File_Attribute_Flag){
+    FileAttribute_IsDirectory = 1,
+};
+
+STRUCT File_Attributes{
+    u64 size;
+    u64 last_write_time;
+    File_Attribute_Flag flags;
+};
+
 /*
 DOC(File_Info describes the name and type of a file.)
 DOC_SEE(File_List)
 */
 STRUCT File_Info{
+    // TODO(allen): Can we replace file_name this with the updated string type?
+    // This will be API breaking in a way I can't easily wrap, but it's probably the
+    // right long term thing to do...  Think more later.
     /* DOC(This field is a null terminated string specifying the name of the file.) */
     char *filename;
     /* DOC(This field specifies the length of the filename string not counting the null terminator.) */
     i32 filename_len;
     /* DOC(This field indicates that the description is for a folder not a file.) */
     b32 folder;
+    // TODO(allen): Can we just stick File_Attributes in here?  Or at least File_Attribute_Flag?
 };
 
 /* DOC(File_List is a list of File_Info structs.)
@@ -622,11 +636,6 @@ STRUCT Range_Partial_Cursor{
         Partial_Cursor first;
         Partial_Cursor one_past_last;
     };
-};
-
-STRUCT File_Attributes{
-    u64 size;
-    u64 last_write_time;
 };
 
 /*

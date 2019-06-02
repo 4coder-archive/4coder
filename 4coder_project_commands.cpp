@@ -1159,7 +1159,7 @@ project_generate_project_4coder_file(Arena *scratch, String_Const_u8 script_path
     FILE *out = fopen((char*)file_name.str, "wb");
     if (out != 0){
         fprintf(out, "version(1);\n");
-        fprintf(out, "project_name = \"%.*s\";\n", binary_file.size, binary_file.str);
+        fprintf(out, "project_name = \"%.*s\";\n", string_expand(binary_file));
         fprintf(out, "patterns = {\n");
         fprintf(out, "\"*.c\",\n");
         fprintf(out, "\"*.cpp\",\n");
@@ -1186,20 +1186,14 @@ project_generate_project_4coder_file(Arena *scratch, String_Const_u8 script_path
         fprintf(out, "command_list = {\n");
         fprintf(out, " { .name = \"build\",\n");
         fprintf(out, "   .out = \"*compilation*\", .footer_panel = true, .save_dirty_files = true,\n");
-        fprintf(out, "   .cmd = { { \"%.*s.bat\" , .os = \"win\"   },\n",
-                script_file.size, script_file.str);
-        fprintf(out, "            { \"./%.*s.sh\", .os = \"linux\" },\n",
-                script_file.size, script_file.str);
-        fprintf(out, "            { \"./%.*s.sh\", .os = \"mac\"   }, }, },\n",
-                script_file.size, script_file.str);
+        fprintf(out, "   .cmd = { { \"%.*s.bat\" , .os = \"win\"   },\n", string_expand(script_file));
+        fprintf(out, "            { \"./%.*s.sh\", .os = \"linux\" },\n", string_expand(script_file));
+        fprintf(out, "            { \"./%.*s.sh\", .os = \"mac\"   }, }, },\n", string_expand(script_file));
         fprintf(out, " { .name = \"run\",\n");
         fprintf(out, "   .out = \"*run*\", .footer_panel = false, .save_dirty_files = false,\n");
-        fprintf(out, "   .cmd = { { \"%.*s\\\\%.*s\", .os = \"win\"   },\n",
-                od_win.size, od_win.str, bf_win.size, bf_win.str);
-        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"linux\" },\n",
-                od.size, od.str, bf.size, bf.str);
-        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"mac\"   }, }, },\n",
-                od.size, od.str, bf.size, bf.str);
+        fprintf(out, "   .cmd = { { \"%.*s\\\\%.*s\", .os = \"win\"   },\n", string_expand(od_win), string_expand(bf_win));
+        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"linux\" },\n", string_expand(od), string_expand(bf));
+        fprintf(out, "            { \"%.*s/%.*s\" , .os = \"mac\"   }, }, },\n", string_expand(od), string_expand(bf));
         fprintf(out, "};\n");
         
         fprintf(out, "fkey_command[1] = \"build\";\n");

@@ -7,11 +7,14 @@
 #if !defined(FCODER_DEFAULT_INCLUDE_CPP)
 #define FCODER_DEFAULT_INCLUDE_CPP
 
-// NOTE(allen): Define USE_OLD_STYLE_JUMPS before 4coder_default_include.cpp to get
-// the direct jumps (instead of sticky jumps).
+// NOTE(allen): Defines before 4coder_default_include.cpp:
+// USE_OLD_STYLE_JUMPS -> use "old style" direct jumps instead of sticky jumps
+// REMOVE_TRANSITION_HELPER_31 -> does not include the transition helpers for the API changes in 4.0.31
+// REMOVE_OLD_STRING -> does not include the old 4coder_string.h library.
+//   NOTE: You may only remove "old string" if you first remove the transition helper.
 
-#define REMOVE_OLD_STRING
 #define REMOVE_TRANSITION_HELPER_31
+#define REMOVE_OLD_STRING
 
 #include "4coder_API/4coder_custom.h"
 

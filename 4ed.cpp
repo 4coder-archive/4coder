@@ -55,11 +55,11 @@ app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine
 }
 
 internal void
-output_file_append(System_Functions *system, Models *models, Editing_File *file, String value){
+output_file_append(Models *models, Editing_File *file, String_Const_u8 value){
     if (!file->is_dummy){
         i32 end = buffer_size(&file->state.buffer);
         Edit_Behaviors behaviors = {};
-        edit_single(system, models, file, make_range(end), value, behaviors);
+        edit_single(models->system, models, file, make_range(end), value, behaviors);
     }
 }
 
@@ -553,7 +553,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
         
         if (arg[0] == '-' && arg[1] == '-'){
             char *long_arg_name = arg+2;
-            if (match_cc(long_arg_name, "custom")){
+            if (string_match(SCu8(long_arg_name),
+                             string_u8_litexpr("custom"))){
                 mode = CLMode_Custom;
                 continue;
             }
@@ -605,7 +606,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_InitialFilePosition:
                     {
                         if (i < argc){
-                            settings->initial_line = str_to_int_c(argv[i]);
+                            settings->initial_line = (i32)string_to_integer(SCu8(argv[i]), 10);
                         }
                         action = CLAct_Nothing;
                     }break;
@@ -615,8 +616,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (i + 1 < argc){
                             plat_settings->set_window_size = true;
                             
-                            i32 w = str_to_int_c(argv[i]);
-                            i32 h = str_to_int_c(argv[i+1]);
+                            i32 w = (i32)string_to_integer(SCu8(argv[i]), 10);
+                            i32 h = (i32)string_to_integer(SCu8(argv[i + 1]), 10);
                             if (w > 0){
                                 plat_settings->window_w = w;
                             }
@@ -641,8 +642,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (i + 1 < argc){
                             plat_settings->set_window_pos = true;
                             
-                            i32 x = str_to_int_c(argv[i]);
-                            i32 y = str_to_int_c(argv[i+1]);
+                            i32 x = (i32)string_to_integer(SCu8(argv[i]), 10);
+                            i32 y = (i32)string_to_integer(SCu8(argv[i + 1]), 10);
                             if (x > 0){
                                 plat_settings->window_x = x;
                             }
@@ -665,7 +666,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_FontSize:
                     {
                         if (i < argc){
-                            plat_settings->font_size = str_to_int_c(argv[i]);
+                            plat_settings->font_size = (i32)string_to_integer(SCu8(argv[i]), 10);
                             settings->font_size = plat_settings->font_size;
                         }
                         action = CLAct_Nothing;
@@ -933,11 +934,7 @@ App_Init_Sig(app_init){
     models->has_new_title = true;
     models->title_capacity = KB(4);
     models->title_space = push_array(arena, char, models->title_capacity);
-    {
-        String builder = make_string_cap(models->title_space, 0, models->title_capacity);
-        append(&builder, WINDOW_NAME);
-        terminate_with_null(&builder);
-    }
+    block_copy(models->title_space, WINDOW_NAME, sizeof(WINDOW_NAME));
     
     // NOTE(allen): init system context
     models->system = system;
@@ -1083,18 +1080,16 @@ App_Step_Sig(app_step){
             if (system->cli_update_step(cli, dest, max, &amount)){
                 if (file != 0 && amount > 0){
                     amount = eol_in_place_convert_in(dest, amount);
-                    output_file_append(system, models, file, make_string(dest, amount));
+                    output_file_append(models, file, SCu8(dest, amount));
                     edited_file = true;
                 }
             }
             
             if (system->cli_end_update(cli)){
                 if (file != 0){
-                    char str_space[256];
-                    String str = make_fixed_width_string(str_space);
-                    append(&str, make_lit_string("exited with code "));
-                    append_int_to_str(&str, cli->exit);
-                    output_file_append(system, models, file, str);
+                    String_Const_u8 str = string_u8_pushf(scratch, "exited with code %d",
+                                                          cli->exit);
+                    output_file_append(models, file, str);
                     edited_file = true;
                 }
                 processes_to_free[processes_to_free_count++] = child_process;

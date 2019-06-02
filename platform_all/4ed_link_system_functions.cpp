@@ -57,6 +57,7 @@ link_system_code(){
     SYSLINK(memory_set_protection);
     SYSLINK(memory_free);
     
+    // TODO(allen): eliminate
     SYSLINK(directory_cd);
     SYSLINK(get_current_path);
     SYSLINK(get_4ed_path);

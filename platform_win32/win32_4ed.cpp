@@ -1068,7 +1068,7 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
         win32vars.clip_post.size = str.size;
     }
     else{
-        LOGF("Failed to allocate buffer for clipboard post (%d)\n", str.size + 1);
+        LOGF("Failed to allocate buffer for clipboard post (%d)\n", (i32)str.size + 1);
     }
 }
 

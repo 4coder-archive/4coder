@@ -595,12 +595,38 @@ static b32
 directory_cd(Application_Links *app, char *dir, i32 *len, i32 capacity, char *rel_path, i32 rel_len){
     String_Const_u8 directory = SCu8(dir, *len);
     String_Const_u8 relative_path = SCu8(rel_path, rel_len);
+    
     Scratch_Block scratch(app);
     String_Const_u8 new_directory = {};
-    b32 result = directory_cd(app, directory, relative_path, scratch, &new_directory);
-    i32 new_len = clamp_top((i32)new_directory.size, capacity);
-    block_copy(dir, new_directory.str, new_len);
-    *len = new_len;
+    b32 result = false;
+    if (relative_path.size > 0){
+        if (string_match(relative_path, string_u8_litexpr("."))){
+            new_directory = directory;
+            result = true;
+        }
+        else if (string_match(relative_path, string_u8_litexpr(".."))){
+            directory = string_remove_last_folder(directory);
+            if (file_exists(app, (char*)directory.str, (i32)directory.size)){
+                new_directory = directory;
+                result = true;
+            }
+        }
+        else{
+            new_directory = string_u8_pushf(scratch, "%.*s/%.*s",
+                                            string_expand(directory),
+                                            string_expand(relative_path));
+            if (file_exists(app, (char*)new_directory.str, (i32)new_directory.size)){
+                result = true;
+            }
+        }
+    }
+    
+    if (result){
+        i32 new_len = clamp_top((i32)new_directory.size, capacity);
+        block_copy(dir, new_directory.str, new_len);
+        *len = new_len;
+    }
+    
     return(result);
 }
 

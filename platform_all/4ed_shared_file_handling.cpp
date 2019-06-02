@@ -9,6 +9,7 @@
 
 // TOP
 
+// TODO(allen): eliminate
 internal
 Sys_Directory_CD_Sig(system_directory_cd){
     String directory = make_string_cap(dir, *len, cap);

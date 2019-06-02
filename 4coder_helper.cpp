@@ -630,7 +630,6 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
     Buffer_Kill_Result result = 0;
     buffer_kill(app, buffer, flags, &result);
     if (result == BufferKillResult_Dirty){
-        Buffer_ID buffer = buffer_identifier_to_id(app, identifier);
         do_gui_sure_to_kill(app, buffer, gui_view_id);
     }
     return(result);
@@ -1197,6 +1196,22 @@ file_exists(Application_Links *app, String_Const_u8 file_name){
     File_Attributes attributes = {};
     file_get_attributes(app, file_name, &attributes);
     return(attributes.last_write_time > 0);
+}
+
+static b32
+file_exists_and_is_file(Application_Links *app, String_Const_u8 file_name){
+    File_Attributes attributes = {};
+    file_get_attributes(app, file_name, &attributes);
+    return(attributes.last_write_time > 0 &&
+           !HasFlag(attributes.flags, FileAttribute_IsDirectory));
+}
+
+static b32
+file_exists_and_is_folder(Application_Links *app, String_Const_u8 file_name){
+    File_Attributes attributes = {};
+    file_get_attributes(app, file_name, &attributes);
+    return(attributes.last_write_time > 0 &&
+           HasFlag(attributes.flags, FileAttribute_IsDirectory));
 }
 
 static Data

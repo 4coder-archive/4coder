@@ -339,6 +339,13 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     return(result);
 }
 
+internal File_Attribute_Flag
+win32_convert_file_attribute_flags(DWORD dwFileAttributes){
+    File_Attribute_Flag result = {};
+    MovFlag(dwFileAttributes, FILE_ATTRIBUTE_DIRECTORY, result, FileAttribute_IsDirectory);
+    return(result);
+}
+
 internal File_Attributes
 win32_file_attributes_from_HANDLE(HANDLE file){
     BY_HANDLE_FILE_INFORMATION info = {};
@@ -346,6 +353,7 @@ win32_file_attributes_from_HANDLE(HANDLE file){
     File_Attributes result = {};
     result.size = ((u64)info.nFileSizeHigh << 32LL) | ((u64)info.nFileSizeLow);
     result.last_write_time = ((u64)info.ftLastWriteTime.dwHighDateTime << 32LL) | ((u64)info.ftLastWriteTime.dwLowDateTime);
+    result.flags = win32_convert_file_attribute_flags(info.dwFileAttributes);
     return(result);
 }
 
@@ -356,6 +364,7 @@ Sys_Quick_File_Attributes_Sig(system_quick_file_attributes){
     if (GetFileAttributesEx_utf8String(&shared_vars.scratch, file_name, GetFileExInfoStandard, &info)){
         result.size = ((u64)info.nFileSizeHigh << 32LL) | ((u64)info.nFileSizeLow);
         result.last_write_time = ((u64)info.ftLastWriteTime.dwHighDateTime << 32LL) | ((u64)info.ftLastWriteTime.dwLowDateTime);
+        result.flags = win32_convert_file_attribute_flags(info.dwFileAttributes);
     }
     return(result);
 }

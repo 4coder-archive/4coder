@@ -388,7 +388,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
         size = buffer_size(&file->state.buffer);
         if (0 <= range.first && range.first <= range.one_past_last && range.one_past_last <= size){
             Edit_Behaviors behaviors = {};
-            edit_single(models->system, models, file, range, string_old_from_new(string), behaviors);
+            edit_single(models->system, models, file, range, string, behaviors);
             result = true;
         }
     }
@@ -2982,7 +2982,7 @@ DOC(This call posts a string to the *messages* buffer.)
     Editing_File *file = models->message_buffer;
     b32 result = false;
     if (file != 0){
-        output_file_append(models->system, models, file, string_old_from_new(message));
+        output_file_append(models, file, message);
         file_cursor_to_end(models->system, models, file);
         result = true;
     }
@@ -3244,8 +3244,8 @@ Global_History_Edit_Group_End(Application_Links *app){
 internal void
 font_pointers_to_face_description(Font_Pointers font, Face_Description *description){
     Font_Metrics *metrics = font.metrics;
-    i32 len = str_size(metrics->name);
-    memcpy(description->font.name, metrics->name, len);
+    umem len = cstring_length(metrics->name);
+    block_copy(description->font.name, metrics->name, len);
     
     Font_Settings *settings = font.settings;
     description->font.in_local_font_folder = settings->stub.in_font_folder;
@@ -3260,6 +3260,7 @@ internal b32
 face_description_to_settings(System_Functions *system, Face_Description description, Font_Settings *settings){
     b32 success = false;
     
+    String_Const_u8 desc_name = SCu8(description.font.name);
     if (description.font.in_local_font_folder){
         i32 count = system->font.get_loadable_count();
         for (i32 i = 0; i < count; ++i){
@@ -3271,9 +3272,10 @@ face_description_to_settings(System_Functions *system, Face_Description descript
                     break;
                 }
                 
-                if (match(make_string(loadable.display_name, loadable.display_len), description.font.name)){
+                String_Const_u8 loadable_name = SCu8(loadable.display_name, loadable.display_len);
+                if (string_match(loadable_name, desc_name)){
                     success = true;
-                    memcpy(&settings->stub, &loadable.stub, sizeof(settings->stub));
+                    block_copy_struct(&settings->stub, &loadable.stub);
                     break;
                 }
             }
@@ -3284,7 +3286,7 @@ face_description_to_settings(System_Functions *system, Face_Description descript
         
         settings->stub.load_from_path = false;
         settings->stub.in_font_folder = false;
-        settings->stub.len = str_size(description.font.name);
+        settings->stub.len = (i32)cstring_length(description.font.name);
         memcpy(settings->stub.name, description.font.name, settings->stub.len + 1);
     }
     
@@ -3683,42 +3685,6 @@ File_Get_Attributes(Application_Links *app, String_Const_u8 file_name, File_Attr
     Models *models = (Models*)app->cmd_context;
     *attributes_out = models->system->quick_file_attributes(file_name);
     return(attributes_out->last_write_time > 0);
-}
-
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): remove this nonsense and make a real API here instead.
-// TODO(allen): redocument
-API_EXPORT b32
-Directory_CD(Application_Links *app, String_Const_u8 directory, String_Const_u8 relative_path, Arena *out, String_Const_u8 *directory_out)
-/*
-DOC_PARAM(dir, This parameter provides a character buffer that stores a directory; it need not be null terminated.)
-DOC_PARAM(len, This parameter specifies the length of the dir string.)
-DOC_PARAM(capacity, This parameter specifies the maximum size of the dir string.)
-DOC_PARAM(rel_path, This parameter specifies the path to change to, may include '.' or '..'; it need not be null terminated.)
-DOC_PARAM(rel_len, This parameter specifies the length of the rel_path string.)
-DOC_RETURN(This call returns non-zero if the call succeeds.)
-DOC(
-This call succeeds if the new directory exists and it fits inside the dir buffer. If the call succeeds the dir buffer is filled with the new directory and len is overwritten with the length of the new string in the buffer.
-
-For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain "C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can also be used with rel set to ".." to traverse to parent folders.
-)*/{
-    Models *models = (Models*)app->cmd_context;
-    i32 memory_size = (i32)(directory.size + relative_path.size + 2);
-    char *memory = push_array(out, char, memory_size);
-    i32 size = (i32)directory.size;
-    block_copy(memory, directory.str, directory.size);
-    b32 result = models->system->directory_cd(memory, &size, memory_size,
-                                              (char*)relative_path.str, (i32)relative_path.size);
-    *directory_out = SCu8(memory, size);
-    return(result);
 }
 
 // TODO(allen): redocument
@@ -4287,7 +4253,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                                 check->flags &= ~FoundString_Sensitive;
                             }
                             
-                            if(char_to_lower(a) != char_to_lower(b))
+                            if(character_to_lower(a) != character_to_lower(b))
                             {
                                 valid = false;
                                 break;
@@ -4302,7 +4268,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                             full = full && (trailing_char_at < size);
                             if(full)
                             {
-                                if(char_is_alpha_numeric(data[trailing_char_at]) || (data[trailing_char_at] == '_'))
+                                if(character_is_alpha_numeric(data[trailing_char_at]))
                                 {
                                     check->flags &= ~FoundString_CleanEdges;
                                 }
@@ -4356,7 +4322,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                                 exact_matched = 0;
                             }
                             
-                            if(char_to_lower(a) != char_to_lower(b))
+                            if(character_to_lower(a) != character_to_lower(b))
                             {
                                 lower_matched = false;
                                 break;
@@ -4391,7 +4357,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                                 
                                 if(full)
                                 {
-                                    if(char_is_alpha_numeric(data[trailing_char_at]) || (data[trailing_char_at] == '_'))
+                                    if(character_is_alpha_numeric(data[trailing_char_at]))
                                     {
                                         found->flags &= ~FoundString_CleanEdges;
                                     }
@@ -4412,7 +4378,7 @@ Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 s
                             }
                         }
                         
-                        if(char_is_alpha(data[at]) || (data[at] == '_'))
+                        if(character_is_alpha(data[at]))
                         {
                             clean_edegs = 0;
                         }

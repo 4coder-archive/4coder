@@ -154,7 +154,6 @@ struct Application_Links;
 #define MEMORY_SET_PROTECTION_SIG(n) b32 n(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags)
 #define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, i32 size)
 #define FILE_GET_ATTRIBUTES_SIG(n) b32 n(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out)
-#define DIRECTORY_CD_SIG(n) b32 n(Application_Links *app, String_Const_u8 directory, String_Const_u8 relative_path, Arena *out, String_Const_u8 *directory_out)
 #define GET_4ED_PATH_SIG(n) b32 n(Application_Links *app, Arena *out, String_Const_u8 *path_out)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
 #define SET_EDIT_FINISHED_HOOK_REPEAT_SPEED_SIG(n) b32 n(Application_Links *app, u32 milliseconds)
@@ -338,7 +337,6 @@ typedef MEMORY_ALLOCATE_SIG(Memory_Allocate_Function);
 typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
 typedef MEMORY_FREE_SIG(Memory_Free_Function);
 typedef FILE_GET_ATTRIBUTES_SIG(File_Get_Attributes_Function);
-typedef DIRECTORY_CD_SIG(Directory_CD_Function);
 typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
 typedef SHOW_MOUSE_CURSOR_SIG(Show_Mouse_Cursor_Function);
 typedef SET_EDIT_FINISHED_HOOK_REPEAT_SPEED_SIG(Set_Edit_Finished_Hook_Repeat_Speed_Function);
@@ -524,7 +522,6 @@ Memory_Allocate_Function *memory_allocate;
 Memory_Set_Protection_Function *memory_set_protection;
 Memory_Free_Function *memory_free;
 File_Get_Attributes_Function *file_get_attributes;
-Directory_CD_Function *directory_cd;
 Get_4ed_Path_Function *get_4ed_path;
 Show_Mouse_Cursor_Function *show_mouse_cursor;
 Set_Edit_Finished_Hook_Repeat_Speed_Function *set_edit_finished_hook_repeat_speed;
@@ -709,7 +706,6 @@ Memory_Allocate_Function *memory_allocate_;
 Memory_Set_Protection_Function *memory_set_protection_;
 Memory_Free_Function *memory_free_;
 File_Get_Attributes_Function *file_get_attributes_;
-Directory_CD_Function *directory_cd_;
 Get_4ed_Path_Function *get_4ed_path_;
 Show_Mouse_Cursor_Function *show_mouse_cursor_;
 Set_Edit_Finished_Hook_Repeat_Speed_Function *set_edit_finished_hook_repeat_speed_;
@@ -902,7 +898,6 @@ app_links->memory_allocate_ = Memory_Allocate;\
 app_links->memory_set_protection_ = Memory_Set_Protection;\
 app_links->memory_free_ = Memory_Free;\
 app_links->file_get_attributes_ = File_Get_Attributes;\
-app_links->directory_cd_ = Directory_CD;\
 app_links->get_4ed_path_ = Get_4ed_Path;\
 app_links->show_mouse_cursor_ = Show_Mouse_Cursor;\
 app_links->set_edit_finished_hook_repeat_speed_ = Set_Edit_Finished_Hook_Repeat_Speed;\
@@ -1087,7 +1082,6 @@ static void* memory_allocate(Application_Links *app, i32 size){return(app->memor
 static b32 memory_set_protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
 static void memory_free(Application_Links *app, void *ptr, i32 size){(app->memory_free(app, ptr, size));}
 static b32 file_get_attributes(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out){return(app->file_get_attributes(app, file_name, attributes_out));}
-static b32 directory_cd(Application_Links *app, String_Const_u8 directory, String_Const_u8 relative_path, Arena *out, String_Const_u8 *directory_out){return(app->directory_cd(app, directory, relative_path, out, directory_out));}
 static b32 get_4ed_path(Application_Links *app, Arena *out, String_Const_u8 *path_out){return(app->get_4ed_path(app, out, path_out));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor(app, show));}
 static b32 set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){return(app->set_edit_finished_hook_repeat_speed(app, milliseconds));}
@@ -1272,7 +1266,6 @@ static void* memory_allocate(Application_Links *app, i32 size){return(app->memor
 static b32 memory_set_protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
 static void memory_free(Application_Links *app, void *ptr, i32 size){(app->memory_free_(app, ptr, size));}
 static b32 file_get_attributes(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out){return(app->file_get_attributes_(app, file_name, attributes_out));}
-static b32 directory_cd(Application_Links *app, String_Const_u8 directory, String_Const_u8 relative_path, Arena *out, String_Const_u8 *directory_out){return(app->directory_cd_(app, directory, relative_path, out, directory_out));}
 static b32 get_4ed_path(Application_Links *app, Arena *out, String_Const_u8 *path_out){return(app->get_4ed_path_(app, out, path_out));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor_(app, show));}
 static b32 set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){return(app->set_edit_finished_hook_repeat_speed_(app, milliseconds));}

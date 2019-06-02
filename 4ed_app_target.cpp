@@ -9,7 +9,7 @@
 
 // TOP
 
-//#define REMOVE_OLD_STRING
+#define REMOVE_OLD_STRING
 
 // TODO(allen): get away from string.h
 #include <string.h>
@@ -21,6 +21,7 @@
 #include "4ed_system.h"
 
 #include "4coder_base_types.cpp"
+#include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
 
 #include "4coder_lib/4coder_arena.cpp"
