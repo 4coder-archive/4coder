@@ -1294,6 +1294,7 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
                     case 'Y':
                     {
                         delete_file_base(app, file_name, buffer);
+                        cancelled = true;
                     }break;
                     
                     case key_shift:
