@@ -96,17 +96,17 @@ buffer_get_char(Application_Links *app, Buffer_Summary *buffer, i32 pos){
 
 static i32
 buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, i32 line){
-    return(buffer==0?0:buffer_get_line_start(app, buffer->buffer_id, line));
+    return(buffer==0?0:get_line_start_pos(app, buffer->buffer_id, line));
 }
 
 static i32
 buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, i32 line){
-    return(buffer==0?0:buffer_get_line_end(app, buffer->buffer_id, line));
+    return(buffer==0?0:get_line_end_pos(app, buffer->buffer_id, line));
 }
 
 static Cpp_Token*
 get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, i32 line){
-    return(buffer==0?0:get_first_token_at_line(app, buffer->buffer_id, tokens, line));
+    return(buffer==0?0:get_first_token_from_line(app, buffer->buffer_id, tokens, line));
 }
 
 static b32
@@ -117,7 +117,7 @@ read_line(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 line
     b32 result = (buffer != 0 && is_valid_line(app, buffer->buffer_id, line));
     if (result){
         out = get_line_range(app, buffer->buffer_id, line);
-        string = scratch_read(app, arena, buffer->buffer_id, make_range_from_cursors(out));
+        string = push_buffer_range(app, arena, buffer->buffer_id, make_range_from_cursors(out));
     }
     *start_out = out.start;
     *one_past_last_out = out.one_past_last;
@@ -131,7 +131,7 @@ read_line(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 line
     b32 result = (buffer != 0 && is_valid_line(app, buffer->buffer_id, line));
     if (result){
         Range_Partial_Cursor range = get_line_range(app, buffer->buffer_id, line);
-        string = scratch_read(app, arena, buffer->buffer_id, make_range_from_cursors(range));
+        string = push_buffer_range(app, arena, buffer->buffer_id, make_range_from_cursors(range));
     }
     *str = string_old_from_new(string);
     return(result);
@@ -152,7 +152,7 @@ static String
 token_get_lexeme(Application_Links *app, Arena *arena, Buffer_Summary *buffer, Cpp_Token *token){
     String result = {};
     if (buffer != 0 && token != 0){
-        result = string_old_from_new(token_get_lexeme(app, arena, buffer->buffer_id, *token));
+        result = string_old_from_new(push_token_lexeme(app, arena, buffer->buffer_id, *token));
     }
     return(result);
 }
@@ -463,7 +463,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_Summary *buff
 
 static i32
 buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_get_line_number(app, buffer->buffer_id, pos));
+    return(buffer==0?0:get_line_number_from_pos(app, buffer->buffer_id, pos));
 }
 
 static void
@@ -691,7 +691,7 @@ view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i3
 
 static i32
 character_pos_to_pos(Application_Links *app, View_Summary *view, i32 character_pos){
-    return(character_pos_to_pos(app, view==0?0:view->view_id, character_pos));
+    return(character_pos_to_pos_view(app, view==0?0:view->view_id, character_pos));
 }
 
 static b32
@@ -735,7 +735,7 @@ refresh_view(Application_Links *app, View_Summary *view){
 
 static String
 get_string_in_view_range(Application_Links *app, Arena *arena, View_Summary *view){
-    return(string_old_from_new(get_string_in_view_range(app, arena, view==0?0:view->view_id)));
+    return(string_old_from_new(push_string_in_view_range(app, arena, view==0?0:view->view_id)));
 }
 
 static b32
@@ -955,6 +955,67 @@ open_all_files_in_directory_pattern_match(Application_Links *app,
                                           Project_File_Pattern_Array blacklist,
                                           u32 flags){
     open_all_files_in_directory_pattern_match(app, string_new_u8_from_old(dir), whitelist, blacklist, flags);
+}
+
+static String_Const_u8
+scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, umem start, umem end){
+    return(push_buffer_range(app, arena, buffer, start, end));
+}
+
+static String_Const_u8
+scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range){
+    return(push_buffer_range(app, arena, buffer, range));
+}
+
+static String_Const_u8
+scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_umem range){
+    return(push_buffer_range(app, arena, buffer, range));
+}
+
+static String_Const_u8
+scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
+    return(push_token_lexeme(app, arena, buffer, token));
+}
+
+static String_Const_u8
+scratch_read_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 line){
+    return(push_buffer_line(app, arena, buffer, line));
+}
+
+static String_Const_u8
+token_get_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
+    return(push_token_lexeme(app, arena, buffer, token));
+}
+
+static String_Const_u8
+get_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
+    return(push_token_lexeme(app, arena, buffer, token));
+}
+
+static String_Const_u8
+read_entire_buffer(Application_Links *app, Buffer_ID buffer_id, Arena *scratch){
+    return(push_entire_buffer(app, scratch, buffer_id));
+}
+
+static String_Const_u8
+buffer_read_string(Application_Links *app, Buffer_ID buffer, Range range, void *dest){
+    Scratch_Block scratch(app);
+    String_Const_u8 result = push_buffer_range(app, scratch, buffer, range);
+    block_copy(dest, result.str, result.size);
+    result.str = (u8*)dest;
+    return(result);
+}
+
+static b32
+token_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String b){
+    return(token_lexeme_string_match(app, buffer, token, string_new_u8_from_old(b)));
+}
+
+static i32
+view_get_line_number(Application_Links *app, View_ID view, i32 pos){
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    return(cursor.line);
 }
 
 #endif

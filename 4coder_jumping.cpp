@@ -197,7 +197,7 @@ parse_jump_location(String_Const_u8 line, Jump_Flag flags){
 static Parsed_Jump
 parse_jump_from_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer_id, i32 line, Jump_Flag flags){
     Parsed_Jump jump = {};
-    String_Const_u8 line_str = scratch_read_line(app, arena, buffer_id, line);
+    String_Const_u8 line_str = push_buffer_line(app, arena, buffer_id, line);
     if (line_str.size > 0){
         jump = parse_jump_location(line_str, flags);
     }
@@ -274,7 +274,7 @@ seek_next_jump_in_buffer(Application_Links *app, Arena *arena,
     i32 line = first_line;
     for (;;){
         if (is_valid_line(app, buffer_id, line)){
-            String_Const_u8 line_str = scratch_read_line(app, arena, buffer_id, line);
+            String_Const_u8 line_str = push_buffer_line(app, arena, buffer_id, line);
             jump = parse_jump_location(line_str, flags);
             if (jump.success){
                 break;

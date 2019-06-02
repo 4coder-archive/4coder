@@ -4,6 +4,7 @@
 
 // TOP
 
+// TODO(allen): This seems suspiciously, overkilling, redundant.
 static i32
 seek_line_end(Application_Links *app, Buffer_ID buffer_id, i32 pos){
     i32 buffer_size = 0;
@@ -31,6 +32,7 @@ seek_line_end(Application_Links *app, Buffer_ID buffer_id, i32 pos){
     return(pos);
 }
 
+// TODO(allen): This seems suspiciously, overkilling, redundant.
 static i32
 seek_line_beginning(Application_Links *app, Buffer_ID buffer_id, i32 pos){
     char chunk[1024];
@@ -921,21 +923,19 @@ buffer_line_is_blank(Application_Links *app, Buffer_ID buffer_id, i32 line){
 
 static String_Const_u8
 read_identifier_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer_id, i32 pos, Range *range_out){
-    String_Const_u8 result = {};
-    
     i32 start = buffer_seek_alphanumeric_or_underscore_left(app, buffer_id, pos);
     i32 end = buffer_seek_alphanumeric_or_underscore_right(app, buffer_id, start);
-    
     if (!(start <= pos && pos < end)){
         end = buffer_seek_alphanumeric_or_underscore_right(app, buffer_id, pos);
         start = buffer_seek_alphanumeric_or_underscore_left(app, buffer_id, end);
     }
     
+    String_Const_u8 result = {};
     if (start <= pos && pos < end){
         if (range_out != 0){
             *range_out = make_range(start, end);
         }
-        result = scratch_read(app, arena, buffer_id, start, end);
+        result = push_buffer_range(app, arena, buffer_id, start, end);
     }
     
     return(result);

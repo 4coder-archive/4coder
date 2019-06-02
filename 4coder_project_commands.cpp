@@ -43,7 +43,7 @@ close_all_files_with_extension(Application_Links *app, String_Const_u8_Array ext
             
             if (extension_array.count > 0){
                 Temp_Memory name_temp = begin_temp(scratch);
-                String_Const_u8 file_name = buffer_push_file_name(app, buffer, scratch);
+                String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
                 is_match = false;
                 if (file_name.size > 0){
                     String_Const_u8 extension = string_file_extension(file_name);

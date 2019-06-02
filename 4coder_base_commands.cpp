@@ -21,7 +21,8 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         
         // NOTE(allen): setup markers to figure out the new position of cursor after the insert
         Marker next_cursor_marker = {};
-        next_cursor_marker.pos = character_pos_to_pos(app, view, cursor.character_pos);
+        // TODO(allen): should be using character_pos_to_pos_buffer here!
+        next_cursor_marker.pos = character_pos_to_pos_view(app, view, cursor.character_pos);
         next_cursor_marker.lean_right = true;
         Managed_Object handle = alloc_buffer_markers_on_buffer(app, buffer, 1, 0);
         managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
@@ -1240,7 +1241,7 @@ save_all_dirty_buffers_with_postfix(Application_Links *app, String_Const_u8 post
         buffer_get_dirty_state(app, buffer, &dirty);
         if (dirty == DirtyState_UnsavedChanges){
             Temp_Memory temp = begin_temp(scratch);
-            String_Const_u8 file_name = buffer_push_file_name(app, buffer, scratch);
+            String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
             if (string_match(string_postfix(file_name, postfix.size), postfix)){
                 buffer_save(app, buffer, file_name, 0);
             }
@@ -1282,7 +1283,7 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
     Buffer_ID buffer = 0;
     view_get_buffer(app, view, AccessAll, &buffer);
     Scratch_Block scratch(app);
-    String_Const_u8 file_name = buffer_push_file_name(app, buffer, scratch);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     if (file_name.size > 0){
         Query_Bar bar = {};
         bar.prompt = string_u8_pushf(scratch, "Delete '%.*s' (Y)es, (n)o", string_expand(file_name));
@@ -1324,7 +1325,7 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
     
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 buffer_name = buffer_push_unique_buffer_name(app, buffer, scratch);
+    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     
     // Query the user
     u8 name_space[4096];
@@ -1363,7 +1364,7 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 file_name = buffer_push_file_name(app, buffer, scratch);;
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     if (file_name.size > 0){
         // Query the user
         String_Const_u8 front = string_front_of_path(file_name);
@@ -1517,9 +1518,9 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
     Scratch_Block scratch(app);
-    String_Const_u8 line_string = scratch_read_line(app, scratch, buffer_id, cursor.line);
+    String_Const_u8 line_string = push_buffer_line(app, scratch, buffer_id, cursor.line);
     String_Const_u8 insertion = string_u8_pushf(scratch, "\n%.*s", string_expand(line_string));
-    i32 pos = buffer_get_line_end(app, buffer_id, cursor.line);
+    i32 pos = get_line_end_pos(app, buffer_id, cursor.line);
     buffer_replace_range(app, buffer_id, make_range(pos), insertion);
 }
 
@@ -1528,29 +1529,25 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
 {
     View_ID view = 0;
     get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer_id);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessOpen, &buffer);
     
     i32 cursor_pos = 0;
     view_get_cursor_pos(app, view, &cursor_pos);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
     
-    i32 start = buffer_get_line_start(app, buffer_id, cursor.line);
-    i32 end = buffer_get_line_end(app, buffer_id, cursor.line) + 1;
+    Range range = get_line_pos_range(app, buffer, cursor.line);
+    range.one_past_last += 1;
     i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    if (end > buffer_size){
-        end = buffer_size;
-    }
-    if (start == end || buffer_get_char(app, buffer_id, end - 1) != '\n'){
-        start -= 1;
-        if (start < 0){
-            start = 0;
-        }
+    buffer_get_size(app, buffer, &buffer_size);
+    range.one_past_last = clamp_top(range.one_past_last, buffer_size);
+    if (range_size(range) == 0 || buffer_get_char(app, buffer, range.end - 1) != '\n'){
+        range.start -= 1;
+        range.first = clamp_bot(0, range.first);
     }
     
-    buffer_replace_range(app, buffer_id, make_range(start, end), string_u8_litexpr(""));
+    buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
 }
 
 ////////////////////////////////
@@ -1559,7 +1556,7 @@ static b32
 get_cpp_matching_file(Application_Links *app, Buffer_ID buffer, Buffer_ID *buffer_out){
     b32 result = false;
     Scratch_Block scratch(app);
-    String_Const_u8 file_name = buffer_push_file_name(app, buffer, scratch);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     if (file_name.size > 0){
         String_Const_u8 extension = string_file_extension(file_name);
         String_Const_u8 new_extensions[2] = {};
@@ -1637,9 +1634,9 @@ CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to op
         buffer_seek_delimiter_backward(app, buffer_id, pos, '"', &range.start);
         range.start += 1;
         
-        String_Const_u8 quoted_name = scratch_read(app, scratch, buffer_id, range);
+        String_Const_u8 quoted_name = push_buffer_range(app, scratch, buffer_id, range);
         
-        String_Const_u8 file_name = buffer_push_file_name(app, buffer_id, scratch);
+        String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
         String_Const_u8 path = string_remove_last_folder(file_name);
         
         if (character_is_slash(string_get_character(path, path.size - 1))){
@@ -1751,7 +1748,7 @@ CUSTOM_DOC("Saves the current buffer.")
     view_get_buffer(app, view, AccessProtected, &buffer);
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 file_name = buffer_push_file_name(app, buffer, scratch);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     buffer_save(app, buffer, file_name, 0);
     end_temp(temp);
 }

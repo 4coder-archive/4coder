@@ -4,22 +4,6 @@
 
 // TOP
 
-static String_Const_u8
-push_hot_directory(Application_Links *app, Arena *arena){
-    String_Const_u8 result = {};
-    get_hot_directory(app, arena, &result);
-    return(result);
-}
-
-static String_Const_u8
-push_4ed_path(Application_Links *app, Arena *arena){
-    String_Const_u8 result = {};
-    get_4ed_path(app, arena, &result);
-    return(result);
-}
-
-////////////////////////////////
-
 static Binding_Unit*
 write_unit(Bind_Helper *helper, Binding_Unit unit){
     Binding_Unit *p = 0;
@@ -295,6 +279,342 @@ get_key_code(char *buffer){
 
 ////////////////////////////////
 
+static String_Const_u8
+push_hot_directory(Application_Links *app, Arena *arena){
+    String_Const_u8 result = {};
+    get_hot_directory(app, arena, &result);
+    return(result);
+}
+
+static String_Const_u8
+push_4ed_path(Application_Links *app, Arena *arena){
+    String_Const_u8 result = {};
+    get_4ed_path(app, arena, &result);
+    return(result);
+}
+
+static String_Const_u8
+push_buffer_base_name(Application_Links *app, Arena *arena, Buffer_ID buffer){
+    String_Const_u8 result = {};
+    buffer_get_base_buffer_name(app, buffer, arena, &result);
+    return(result);
+}
+
+static String_Const_u8
+push_buffer_unique_name(Application_Links *app, Arena *arena, Buffer_ID buffer){
+    String_Const_u8 result = {};
+    buffer_get_unique_buffer_name(app, buffer, arena, &result);
+    return(result);
+}
+
+static String_Const_u8
+push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer){
+    String_Const_u8 result = {};
+    buffer_get_file_name(app, buffer, arena, &result);
+    return(result);
+}
+
+////////////////////////////////
+
+static Range
+get_view_range(Application_Links *app, View_ID view){
+    Range range = {};
+    view_get_cursor_pos(app, view, &range.first);
+    view_get_mark_pos(app, view, &range.one_past_last);
+    return(rectify(range));
+}
+
+static f32
+get_view_y(Application_Links *app, View_ID view){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    return(cursor.wrapped_y);
+}
+
+static f32
+get_view_x(Application_Links *app, View_ID view){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    return(cursor.wrapped_x);
+}
+
+static b32
+is_valid_line(Application_Links *app, Buffer_ID buffer_id, i32 line){
+    i32 max_line = 0;
+    buffer_get_line_count(app, buffer_id, &max_line);
+    return(1 <= line && line <= max_line);
+}
+
+static b32
+is_valid_line_range(Application_Links *app, Buffer_ID buffer_id, Range range){
+    i32 max_line = 0;
+    buffer_get_line_count(app, buffer_id, &max_line);
+    return(1 <= range.first && range.first <= range.end && range.end <= max_line);
+}
+
+static i32
+get_line_number_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
+    Partial_Cursor partial_cursor = {};
+    buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
+    return(partial_cursor.line);
+}
+
+static i32
+character_pos_to_pos_view(Application_Links *app, View_ID view, i32 character_pos){
+    i32 result = 0;
+    Full_Cursor cursor = {};
+    if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
+        result = cursor.pos;
+    }
+    return(result);
+}
+
+static i32
+character_pos_to_pos_buffer(Application_Links *app, Buffer_ID buffer, i32 character_pos){
+    i32 result = 0;
+    Partial_Cursor cursor = {};
+    if (buffer_compute_cursor(app, buffer, seek_character_pos(character_pos), &cursor)){
+        result = cursor.pos;
+    }
+    return(result);
+}
+
+static Partial_Cursor
+get_line__book_end(Application_Links *app, Buffer_ID buffer, i32 line_number, i32 side){
+    Partial_Cursor result = {};
+    if (!buffer_compute_cursor(app, buffer, seek_line_char(line_number, side), &result)){
+        block_zero_struct(&result);
+    }
+    return(result);
+}
+
+static i32
+get_line__book_end_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, i32 side){
+    i32 pos = -1;
+    Partial_Cursor partial_cursor = get_line__book_end(app, buffer, line_number, side);
+    if (partial_cursor.line != 0){
+        pos = partial_cursor.pos;
+    }
+    return(pos);
+}
+
+static Partial_Cursor
+get_line_start(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    return(get_line__book_end(app, buffer, line_number, 1));
+}
+
+// NOTE(allen): The position returned has the index of the terminating newline character,
+// not one past the newline character.
+static Partial_Cursor
+get_line_end(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    return(get_line__book_end(app, buffer, line_number, -1));
+}
+
+static i32
+get_line_start_pos(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    return(get_line__book_end_pos(app, buffer, line_number, 1));
+}
+
+// NOTE(allen): The position returned has the index of the terminating newline character,
+// not one past the newline character.
+static i32
+get_line_end_pos(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    return(get_line__book_end_pos(app, buffer, line_number, -1));
+}
+
+// NOTE(allen): The range returned does not include the terminating newline character
+static Range_Partial_Cursor
+get_line_range(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    b32 success = false;
+    Range_Partial_Cursor result = {};
+    result.begin = get_line_start(app, buffer, line_number);
+    if (result.begin.line != 0){
+        result.end = get_line_end(app, buffer, line_number);
+        if (result.end.line != 0){
+            success = true;
+        }
+    }
+    if (!success){
+        block_zero_struct(&result);
+    }
+    return(result);
+}
+
+// NOTE(allen): The range returned does not include the terminating newline character
+static Range
+get_line_pos_range(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    Range_Partial_Cursor range = get_line_range(app, buffer, line_number);
+    Range result = {};
+    if (range.begin.line != 0 && range.end.line != 0){
+        result = make_range(range.begin.pos, range.end.pos);
+    }
+    return(result);
+}
+
+static Range
+make_range_from_cursors(Range_Partial_Cursor range){
+    return(make_range(range.begin.pos, range.end.pos));
+}
+
+static Cpp_Token*
+get_first_token_from_pos(Cpp_Token_Array tokens, i32 pos){
+    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, pos);
+    if (get_token.in_whitespace_after_token){
+        get_token.token_index += 1;
+    }
+    Cpp_Token *result = 0;
+    if (get_token.token_index < tokens.count){
+        result = tokens.tokens + get_token.token_index;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, i32 line){
+    i32 line_start = get_line_start_pos(app, buffer, line);
+    return(get_first_token_from_pos(tokens, line_start));
+}
+
+////////////////////////////////
+
+static Range
+get_line_range_from_pos_range(Application_Links *app, Buffer_ID buffer, Range pos_range){
+    Range line_range = {};
+    line_range.first = get_line_number_from_pos(app, buffer, pos_range.first);
+    if (line_range.first != 0){
+        line_range.end = get_line_number_from_pos(app, buffer, pos_range.one_past_last);
+        if (line_range.end == 0){
+            line_range.first = 0;
+        }
+    }
+    return(line_range);
+}
+
+// NOTE(allen): The end of the returned range does not include the terminating newline character of
+// the last line.
+static Range
+get_pos_range_from_line_range(Application_Links *app, Buffer_ID buffer, Range line_range){
+    Range pos_range = {};
+    if (is_valid_line_range(app, buffer, line_range)){
+        pos_range.first = get_line_start_pos(app, buffer, line_range.first);
+        pos_range.one_past_last = get_line_end_pos(app, buffer, line_range.end);
+    }
+    return(pos_range);
+}
+
+static Range
+pos_range_enclose_whole_lines(Application_Links *app, Buffer_ID buffer, Range range){
+    Range line_range = get_line_range_from_pos_range(app, buffer, range);
+    return(get_pos_range_from_line_range(app, buffer, line_range));
+}
+
+static Range
+pos_range_enclose_whole_tokens(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, Range range){
+    if (range_size(range) > 0){
+        if (tokens.count > 0){
+            Cpp_Token *first_token = get_first_token_from_pos(tokens, range.first);
+            if (first_token != 0 && first_token->start < range.first){
+                range.first = first_token->start;
+            }
+            Cpp_Token *last_token = get_first_token_from_pos(tokens, range.one_past_last - 1);
+            if (last_token != 0 && last_token->start < range.one_past_last){
+                range.one_past_last = last_token->start + last_token->size;
+            }
+        }
+    }
+    return(range);
+}
+
+
+
+// NOTE(allen): range enclose operators:
+// enclose whole *** ?
+
+////////////////////////////////
+
+static String_Const_u8
+push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, umem first, umem one_past_last){
+    String_Const_u8 result = {};
+    if (first <= one_past_last){
+        umem length = one_past_last - first;
+        Temp_Memory restore_point = begin_temp(arena);
+        u8 *memory = push_array(arena, u8, length);
+        if (buffer_read_range(app, buffer, (i32)first, (i32)one_past_last, (char*)memory)){
+            result = SCu8(memory, length);
+        }
+        else{
+            end_temp(restore_point);
+        }
+    }
+    return(result);
+}
+
+static String_Const_u8
+push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range){
+    return(push_buffer_range(app, arena, buffer, range.first, range.one_past_last));
+}
+
+static String_Const_u8
+push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_umem range){
+    return(push_buffer_range(app, arena, buffer, range.first, range.one_past_last));
+}
+
+static String_Const_u8
+push_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
+    return(push_buffer_range(app, arena, buffer, token.start, token.start + token.size));
+}
+
+static String_Const_u8
+push_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 line_number){
+    return(push_buffer_range(app, arena, buffer, get_line_pos_range(app, buffer, line_number)));
+}
+
+static String_Const_u8
+push_entire_buffer(Application_Links *app, Arena *arena, Buffer_ID buffer){
+    i32 size = 0;
+    buffer_get_size(app, buffer, &size);
+    return(push_buffer_range(app, arena, buffer, 0, size));
+}
+
+static String_Const_u8
+push_string_in_view_range(Application_Links *app, Arena *arena, View_ID view){
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    return(push_buffer_range(app, arena, buffer, get_view_range(app, view)));
+}
+
+////////////////////////////////
+
+static b32
+buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
+    Scratch_Block scratch(app);
+    String_Const_u8 str = push_buffer_unique_name(app, scratch, buffer);
+    return(str.size > 0 && str.str[0] == '*');
+}
+
+static char
+buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i32 pos){
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer_id, &buffer_size);
+    char result = ' ';
+    if (0 <= pos && pos < buffer_size){
+        buffer_read_range(app, buffer_id, pos, pos + 1, &result);
+    }
+    return(result);
+}
+
+static b32
+token_lexeme_string_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String_Const_u8 b){
+    Scratch_Block scratch(app);
+    return(string_match(push_token_lexeme(app, scratch, buffer, token), b));
+}
+
+////////////////////////////////
+
 static i32
 round_down(i32 x, i32 b){
     i32 r = 0;
@@ -436,16 +756,7 @@ query_user_number(Application_Links *app, Query_Bar *bar){
     return(query_user_general(app, bar, true));
 }
 
-static char
-buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    char result = ' ';
-    if (pos < buffer_size){
-        buffer_read_range(app, buffer_id, pos, pos + 1, &result);
-    }
-    return(result);
-}
+////////////////////////////////
 
 static Buffer_Identifier
 buffer_identifier(char *str, i32 len){
@@ -469,6 +780,47 @@ buffer_identifier(Buffer_ID id){
     identifier.id = id;
     return(identifier);
 }
+
+static Buffer_ID
+buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
+    Buffer_ID id = 0;
+    if (identifier.id != 0){
+        id = identifier.id;
+    }
+    else{
+        String_Const_u8 name = SCu8(identifier.name, identifier.name_len);
+        get_buffer_by_name(app, name, AccessAll, &id);
+        if (id == 0){
+            get_buffer_by_file_name(app, name, AccessAll, &id);
+        }
+    }
+    return(id);
+}
+
+static Buffer_ID
+buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identifier buffer_id){
+    Buffer_ID result = 0;
+    if (buffer_id.name != 0 && buffer_id.name_len > 0){
+        String_Const_u8 buffer_name = SCu8(buffer_id.name, buffer_id.name_len);
+        Buffer_ID buffer_attach_id = 0;
+        if (get_buffer_by_name(app, buffer_name, AccessAll, &buffer_attach_id)){
+            result = buffer_attach_id;
+        }
+        else{
+            if (create_buffer(app, buffer_name, BufferCreate_AlwaysNew|BufferCreate_NeverAttachToFile, &buffer_attach_id)){
+                buffer_set_setting(app, buffer_attach_id, BufferSetting_ReadOnly, true);
+                buffer_set_setting(app, buffer_attach_id, BufferSetting_Unimportant, true);
+                result = buffer_attach_id;
+            }
+        }
+    }
+    else{
+        result = buffer_id.id;
+    }
+    return(result);
+}
+
+////////////////////////////////
 
 static void
 adjust_all_buffer_wrap_widths(Application_Links *app, i32 wrap_width, i32 min_base_width){
@@ -548,45 +900,6 @@ open_file(Application_Links *app, Buffer_ID *buffer_out, String_Const_u8 file_na
     return(result);
 }
 
-static Buffer_ID
-buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
-    Buffer_ID id = 0;
-    if (identifier.id != 0){
-        id = identifier.id;
-    }
-    else{
-        String_Const_u8 name = SCu8(identifier.name, identifier.name_len);
-        get_buffer_by_name(app, name, AccessAll, &id);
-        if (id == 0){
-            get_buffer_by_file_name(app, name, AccessAll, &id);
-        }
-    }
-    return(id);
-}
-
-static Buffer_ID
-buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identifier buffer_id){
-    Buffer_ID result = 0;
-    if (buffer_id.name != 0 && buffer_id.name_len > 0){
-        String_Const_u8 buffer_name = SCu8(buffer_id.name, buffer_id.name_len);
-        Buffer_ID buffer_attach_id = 0;
-        if (get_buffer_by_name(app, buffer_name, AccessAll, &buffer_attach_id)){
-            result = buffer_attach_id;
-        }
-        else{
-            if (create_buffer(app, buffer_name, BufferCreate_AlwaysNew|BufferCreate_NeverAttachToFile, &buffer_attach_id)){
-                buffer_set_setting(app, buffer_attach_id, BufferSetting_ReadOnly, true);
-                buffer_set_setting(app, buffer_attach_id, BufferSetting_Unimportant, true);
-                result = buffer_attach_id;
-            }
-        }
-    }
-    else{
-        result = buffer_id.id;
-    }
-    return(result);
-}
-
 static b32
 view_open_file(Application_Links *app, View_ID view, String_Const_u8 file_name, b32 never_new){
     b32 result = false;
@@ -631,195 +944,6 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
     buffer_kill(app, buffer, flags, &result);
     if (result == BufferKillResult_Dirty){
         do_gui_sure_to_kill(app, buffer, gui_view_id);
-    }
-    return(result);
-}
-
-static i32
-character_pos_to_pos(Application_Links *app, View_ID view, i32 character_pos){
-    i32 result = 0;
-    Full_Cursor cursor = {};
-    if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
-        result = cursor.pos;
-    }
-    return(result);
-}
-
-static f32
-get_view_y(Application_Links *app, View_ID view){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
-    return(cursor.wrapped_y);
-}
-
-static f32
-get_view_x(Application_Links *app, View_ID view){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
-    return(cursor.wrapped_x);
-}
-
-static Range
-get_view_range(Application_Links *app, View_ID view){
-    Range range = {};
-    view_get_cursor_pos(app, view, &range.first);
-    view_get_mark_pos(app, view, &range.one_past_last);
-    return(rectify(range));
-}
-
-static String_Const_u8
-buffer_read_string(Application_Links *app, Buffer_ID buffer, Range range, void *dest){
-    String_Const_u8 result = {};
-    if (dest != 0 && buffer_read_range(app, buffer, range.start, range.end, (char*)dest)){
-        result = SCu8((u8*)dest, get_width(range));
-    }
-    return(result);
-}
-
-static b32
-is_valid_line(Application_Links *app, Buffer_ID buffer_id, i32 line){
-    i32 max_line = 0;
-    buffer_get_line_count(app, buffer_id, &max_line);
-    return(1 <= line && line <= max_line);
-}
-
-static Range_Partial_Cursor
-get_line_range(Application_Links *app, Buffer_ID buffer_id, i32 line){
-    Range_Partial_Cursor result = {};
-    b32 success = (buffer_compute_cursor(app, buffer_id, seek_line_char(line, 1), &result.begin) &&
-                   buffer_compute_cursor(app, buffer_id, seek_line_char(line, -1), &result.end) &&
-                   result.begin.line == line);
-    if (!success){
-        block_zero_struct(&result);
-    }
-    return(result);
-}
-
-static Range_umem
-make_range_from_cursors(Range_Partial_Cursor range){
-    return(make_range_umem(range.begin.pos, range.end.pos));
-}
-
-static String_Const_u8
-scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, umem start, umem end){
-    String_Const_u8 result = {};
-    if (start <= end){
-        umem length = end - start;
-        u8 *memory = push_array(arena, u8, length);
-        if (buffer_read_range(app, buffer, (i32)start, (i32)end, (char*)memory)){
-            result = SCu8(memory, length);
-        }
-    }
-    return(result);
-}
-
-static String_Const_u8
-scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range){
-    return(scratch_read(app, arena, buffer, range.first, range.one_past_last));
-}
-
-static String_Const_u8
-scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_umem range){
-    return(scratch_read(app, arena, buffer, range.first, range.one_past_last));
-}
-
-static String_Const_u8
-scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
-    return(scratch_read(app, arena, buffer, token.start, token.start + token.size));
-}
-
-static String_Const_u8
-scratch_read_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 line){
-    Range_umem range = make_range_from_cursors(get_line_range(app, buffer, line));
-    return(scratch_read(app, arena, buffer, range));
-}
-
-static String_Const_u8
-token_get_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
-    return(scratch_read(app, arena, buffer, token.start, token.start + token.size));
-}
-
-static String_Const_u8
-get_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
-    return(scratch_read(app, arena, buffer, token.start, token.start + token.size));
-}
-
-static b32
-token_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String_Const_u8 b){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 a = scratch_read(app, scratch, buffer, token.start, token.start + token.size);
-    b32 result = string_match(a, b);
-    end_temp(temp);
-    return(result);
-}
-
-static String_Const_u8
-read_entire_buffer(Application_Links *app, Buffer_ID buffer_id, Arena *scratch){
-    i32 size = 0;
-    buffer_get_size(app, buffer_id, &size);
-    return(scratch_read(app, scratch, buffer_id, 0, size));
-}
-
-static i32
-buffer_get_line_number(Application_Links *app, Buffer_ID buffer, i32 pos){
-    Partial_Cursor partial_cursor = {};
-    buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
-    return(partial_cursor.line);
-}
-
-static i32
-view_get_line_number(Application_Links *app, View_ID view, i32 pos){
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
-    return(cursor.line);
-}
-
-static i32
-buffer_get_line_start(Application_Links *app, Buffer_ID buffer_id, i32 line){
-    i32 result = 0;
-    buffer_get_size(app, buffer_id, &result);
-    i32 line_count = 0;
-    buffer_get_line_count(app, buffer_id, &line_count);
-    if (line <= line_count){
-        Partial_Cursor partial_cursor = {};
-        buffer_compute_cursor(app, buffer_id, seek_line_char(line, 1), &partial_cursor);
-        result = partial_cursor.pos;
-    }
-    return(result);
-}
-
-static i32
-buffer_get_line_end(Application_Links *app, Buffer_ID buffer_id, i32 line){
-    i32 result = 0;
-    buffer_get_size(app, buffer_id, &result);
-    i32 line_count = 0;
-    buffer_get_line_count(app, buffer_id, &line_count);
-    if (line <= line_count){
-        Partial_Cursor partial_cursor = {};
-        buffer_compute_cursor(app, buffer_id, seek_line_char(line, -1), &partial_cursor);
-        result = partial_cursor.pos;
-    }
-    return(result);
-}
-
-static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_ID buffer_id, Cpp_Token_Array tokens, i32 line, i32 *line_start_out = 0){
-    i32 line_start = buffer_get_line_start(app, buffer_id, line);
-    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
-    if (get_token.in_whitespace_after_token){
-        get_token.token_index += 1;
-    }
-    if (line_start_out){
-        *line_start_out = line_start;
-    }
-    Cpp_Token *result = 0;
-    if (get_token.token_index < tokens.count){
-        result = &tokens.tokens[get_token.token_index];
     }
     return(result);
 }
@@ -1146,21 +1270,6 @@ get_query_string(Application_Links *app, char *query_str, char *string_space, i3
 }
 
 static String_Const_u8
-get_string_in_view_range(Application_Links *app, Arena *arena, View_ID view){
-    String_Const_u8 result = {};
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    if (buffer_exists(app, buffer)){
-        Range range = get_view_range(app, view);
-        umem query_length = range.max - range.min;
-        if (query_length > 0){
-            result = scratch_read(app, arena, buffer, range.first, range.one_past_last);
-        }
-    }
-    return(result);
-}
-
-static String_Const_u8
 get_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, umem pos){
     String_Const_u8 result = {};
     Cpp_Get_Token_Result get_result = {};
@@ -1168,7 +1277,7 @@ get_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buff
     if (success && !get_result.in_whitespace_after_token){
         umem size = get_result.token_one_past_last - get_result.token_start;
         if (0 < size){
-            result = scratch_read(app, arena, buffer, get_result.token_start, get_result.token_one_past_last);
+            result = push_buffer_range(app, arena, buffer, get_result.token_start, get_result.token_one_past_last);
         }
     }
     return(result);
@@ -1515,69 +1624,6 @@ split_rect(f32_Rect rect, View_Split_Kind kind, Coordinate coord, Side from_side
         result = split_rect(rect, ViewSplitKind_FixedPixels, coord, from_side, pixel_count);
     }
     return(result);
-}
-
-
-////////////////////////////////
-
-static String_Const_u8
-buffer_push_base_buffer_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
-    String_Const_u8 result = {};
-    buffer_get_base_buffer_name(app, buffer, arena, &result);
-    return(result);
-}
-
-static String_Const_u8
-buffer_push_unique_buffer_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
-    String_Const_u8 result = {};
-    buffer_get_unique_buffer_name(app, buffer, arena, &result);
-    return(result);
-}
-
-static String_Const_u8
-buffer_push_file_name(Application_Links *app, Buffer_ID buffer, Arena *arena){
-    String_Const_u8 result = {};
-    buffer_get_file_name(app, buffer, arena, &result);
-    return(result);
-}
-
-static String_Const_u8
-buffer_limited_base_buffer_name(Application_Links *app, Buffer_ID buffer, char *memory, i32 max){
-    Scratch_Block scratch(app);
-    String_Const_u8 full = {};
-    buffer_get_base_buffer_name(app, buffer, scratch, &full);
-    i32 length = clamp_top((i32)full.size, max);
-    block_copy(memory, full.str, length);
-    return(SCu8(memory, length));
-}
-
-static String_Const_u8
-buffer_limited_unique_buffer_name(Application_Links *app, Buffer_ID buffer, char *memory, i32 max){
-    Scratch_Block scratch(app);
-    String_Const_u8 full = {};
-    buffer_get_unique_buffer_name(app, buffer, scratch, &full);
-    i32 length = clamp_top((i32)full.size, max);
-    block_copy(memory, full.str, length);
-    return(SCu8(memory, length));
-}
-
-static String_Const_u8
-buffer_limited_file_name(Application_Links *app, Buffer_ID buffer, char *memory, i32 max){
-    Scratch_Block scratch(app);
-    String_Const_u8 full = {};
-    buffer_get_file_name(app, buffer, scratch, &full);
-    i32 length = clamp_top((i32)full.size, max);
-    block_copy(memory, full.str, length);
-    return(SCu8(memory, length));
-}
-
-////////////////////////////////
-
-static b32
-buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
-    char first = 0;
-    String_Const_u8 str = buffer_limited_unique_buffer_name(app, buffer, &first, 1);
-    return(str.size == 0 || first == '*');
 }
 
 ////////////////////////////////

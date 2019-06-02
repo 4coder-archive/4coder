@@ -102,31 +102,11 @@ insertc(Buffer_Insertion *insertion, char C){
 
 static b32
 insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 line, i32 truncate_at){
-    Scratch_Block scratch(insertion->app);
-    
-    Partial_Cursor begin = {};
-    Partial_Cursor end = {};
-    
-    b32 success = false;
-    if (buffer_compute_cursor(insertion->app, buffer_id, seek_line_char(line, 1), &begin)){
-        if (buffer_compute_cursor(insertion->app, buffer_id, seek_line_char(line, -1), &end)){
-            if (begin.line == line){
-                i32 buffer_size = 0;
-                buffer_get_size(insertion->app, buffer_id, &buffer_size);
-                if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer_size){
-                    i32 size = (end.pos - begin.pos);
-                    if (truncate_at && (size > truncate_at)){
-                        size = truncate_at;
-                    }
-                    
-                    String_Const_u8 string = scratch_read(insertion->app, scratch, buffer_id, begin.pos, end.pos);
-                    insert_string(insertion, string);
-                    success = true;
-                }
-            }
-        }
+    b32 success = is_valid_line(insertion->app, buffer_id, line);
+    if (success){
+        Scratch_Block scratch(insertion->app);
+        insert_string(insertion, push_buffer_line(insertion->app, scratch, buffer_id, line));
     }
-    
     return(success);
 }
 

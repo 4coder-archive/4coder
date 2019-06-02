@@ -7,9 +7,9 @@
 static String_Const_u8
 push_build_directory_at_file(Application_Links *app, Arena *arena, Buffer_ID buffer){
     String_Const_u8 result = {};
-    String_Const_u8 file_name = buffer_push_file_name(app, buffer, arena);
+    String_Const_u8 file_name = push_buffer_file_name(app, arena, buffer);
     Temp_Memory restore_point = begin_temp(arena);
-    String_Const_u8 base_name = buffer_push_base_buffer_name(app, buffer, arena);
+    String_Const_u8 base_name = push_buffer_base_name(app, arena, buffer);
     b32 is_match = string_match(file_name, base_name);
     end_temp(restore_point);
     if (!is_match){

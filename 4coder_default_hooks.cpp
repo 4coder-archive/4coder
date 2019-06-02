@@ -419,7 +419,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     view_compute_cursor(app, view_id, seek_pos(cursor_position), &cursor);
                     
                     Fancy_String_List list = {};
-                    String_Const_u8 unique_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
+                    String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer_id);
                     push_fancy_string(scratch, &list, base_color, unique_name);
                     push_fancy_stringf(scratch, &list, base_color, " - Row: %3.d Col: %3.d -", cursor.line, cursor.character);
                     
@@ -535,7 +535,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     // NOTE(allen): Scan for TODOs and NOTEs
     {
         Temp_Memory temp = begin_temp(scratch);
-        String_Const_u8 tail = scratch_read(app, scratch, buffer_id, on_screen_range);
+        String_Const_u8 tail = push_buffer_range(app, scratch, buffer_id, on_screen_range);
         
         Highlight_Record *record_first = 0;
         Highlight_Record *record_last = 0;
@@ -1116,7 +1116,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 file_name = buffer_push_file_name(app, buffer_id, scratch);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
     i32 buffer_size = 0;
     buffer_get_size(app, buffer_id, &buffer_size);
     
@@ -1215,7 +1215,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
         use_lexer = true;
     }
     
-    String_Const_u8 buffer_name = buffer_push_base_buffer_name(app, buffer_id, scratch);
+    String_Const_u8 buffer_name = push_buffer_base_name(app, scratch, buffer_id);
     if (string_match(buffer_name, string_u8_litexpr("*compilation*"))){
         wrap_lines = false;
     }
@@ -1280,7 +1280,7 @@ FILE_EDIT_FINISHED_SIG(default_file_edit_finished){
 
 OPEN_FILE_HOOK_SIG(default_end_file){
     Scratch_Block scratch(app);
-    String_Const_u8 buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
+    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
     String_Const_u8 str = string_u8_pushf(scratch, "Ending file: %.*s\n",
                                           string_expand(buffer_name));
     print_message(app, str);

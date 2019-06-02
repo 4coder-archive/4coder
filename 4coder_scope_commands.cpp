@@ -407,13 +407,12 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
     
     Range lines = {};
     Range range = get_view_range(app, view);
-    lines.min = buffer_get_line_number(app, buffer, range.min);
-    lines.max = buffer_get_line_number(app, buffer, range.max);
-    range.min = buffer_get_line_start(app, buffer, lines.min);
-    range.max = buffer_get_line_end(app, buffer, lines.max);
+    lines.min = get_line_number_from_pos(app, buffer, range.min);
+    lines.max = get_line_number_from_pos(app, buffer, range.max);
+    range.min = get_line_start_pos(app, buffer, lines.min);
+    range.max = get_line_end_pos(app, buffer, lines.max);
     
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     
     b32 min_line_blank = buffer_line_is_blank(app, buffer, lines.min);
     b32 max_line_blank = buffer_line_is_blank(app, buffer, lines.max);
@@ -471,8 +470,6 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
         view_set_cursor(app, view, seek_pos(center_pos), true);
         view_set_mark(app, view, seek_pos(center_pos));
     }
-    
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(place_in_scope)
@@ -741,7 +738,7 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
         Scratch_Block scratch(app);
         Range range = {};
         if (find_whole_statement_down(app, buffer, bottom, &range.start, &range.end)){
-            String_Const_u8 base_string = scratch_read(app, scratch, buffer, range);
+            String_Const_u8 base_string = push_buffer_range(app, scratch, buffer, range);
             String_Const_u8 string = string_skip_chop_whitespace(base_string);
             
             i32 newline_count = 0;

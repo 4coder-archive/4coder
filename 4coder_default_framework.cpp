@@ -27,7 +27,7 @@ static void
 lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 buffer_name = buffer_push_unique_buffer_name(app, buffer_id, scratch);
+    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
     lock_jump_buffer(buffer_name);
     end_temp(temp);
 }

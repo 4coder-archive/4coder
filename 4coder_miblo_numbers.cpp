@@ -81,7 +81,7 @@ get_numeric_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo_N
     Range range = get_numeric_string_at_cursor(app, buffer, pos);
     if (range_size(range) > 0){
         Scratch_Block scratch(app);
-        String_Const_u8 str = scratch_read(app, scratch, buffer, range);
+        String_Const_u8 str = push_buffer_range(app, scratch, buffer, range);
         if (str.size > 0){
             i32 x = (i32)string_to_integer(str, 10);
             info->range = range;
@@ -286,7 +286,7 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo
     
     Range time_stamp_range = get_timestamp_string_at_cursor(app, buffer, pos);
     if (range_size(time_stamp_range) > 0){
-        String_Const_u8 string = scratch_read(app, scratch, buffer, time_stamp_range);
+        String_Const_u8 string = push_buffer_range(app, scratch, buffer, time_stamp_range);
         if (string.size > 0){
             i32 count_colons = 0;
             for (umem i = 0; i < string.size; ++i){

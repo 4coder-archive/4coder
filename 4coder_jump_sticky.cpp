@@ -54,7 +54,7 @@ parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_ID buffe
         {
             Scratch_Block line_auto_closer(arena);
             if (is_valid_line(app, buffer, line)){
-                String_Const_u8 line_str = scratch_read_line(app, arena, buffer, line);
+                String_Const_u8 line_str = push_buffer_line(app, arena, buffer, line);
                 Parsed_Jump parsed_jump = parse_jump_location(line_str);
                 if (parsed_jump.success){
                     Buffer_ID jump_buffer = {};
@@ -109,7 +109,7 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 buffer_name = buffer_push_base_buffer_name(app, buffer, scratch);
+    String_Const_u8 buffer_name = push_buffer_base_name(app, scratch, buffer);
     b32 is_compilation_buffer = string_match(buffer_name, string_u8_litexpr("*compilation*"));
     
     Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);

@@ -447,7 +447,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                 
                 if (token.type == CPP_TOKEN_IDENTIFIER){
                     Cpp_Token original_token = token;
-                    String_Const_u8 old_lexeme = scratch_read(app, scratch, buffer, token);
+                    String_Const_u8 old_lexeme = push_token_lexeme(app, scratch, buffer, token);
                     
                     i32 proc_body_found = 0;
                     b32 still_looping = 0;
@@ -512,7 +512,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                                     case CPP_TOKEN_IDENTIFIER:
                                     {
                                         if (token_ptr->size == old_lexeme.size){
-                                            String_Const_u8 other_lexeme = scratch_read(app, scratch, buffer, *token_ptr);
+                                            String_Const_u8 other_lexeme = push_token_lexeme(app, scratch, buffer, *token_ptr);
                                             if (string_match(old_lexeme, other_lexeme)){
                                                 Buffer_Edit edit = {};
                                                 edit.str_start = 0;

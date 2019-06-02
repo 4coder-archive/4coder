@@ -12,7 +12,7 @@ post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buff
     if (buffer != 0 && 0 <= first && first < one_past_last && one_past_last <= buffer_size){
         Scratch_Block scratch(app);
         Range range = make_range(first, one_past_last);
-        String_Const_u8 string = scratch_read(app, scratch, buffer, range);
+        String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
         if (string.size > 0){
             clipboard_post(app, clipboard_index, string);
             success = true;

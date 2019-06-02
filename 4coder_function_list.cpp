@@ -147,7 +147,7 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Function
     
     Buffer_ID buffer = out->buffer;
     
-    String_Const_u8 buffer_name = buffer_push_unique_buffer_name(app, buffer, scratch);
+    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     
     for (i32 i = 0; i < positions_count; ++i){
         Function_Positions *positions = &positions_array[i];
@@ -155,7 +155,7 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Function
         i32 start_index = positions->sig_start_index;
         i32 end_index = positions->sig_end_index;
         i32 open_paren_pos = positions->open_paren_pos;
-        i32 line_number = buffer_get_line_number(app, buffer, open_paren_pos);
+        i32 line_number = get_line_number_from_pos(app, buffer, open_paren_pos);
         
         Assert(end_index > start_index);
         
@@ -183,7 +183,7 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Function
                     }
                     
                     Temp_Memory token_temp = begin_temp(scratch);
-                    String_Const_u8 lexeme = get_token_lexeme(app, scratch, buffer, *token);
+                    String_Const_u8 lexeme = push_token_lexeme(app, scratch, buffer, *token);
                     insert_string(out, lexeme);
                     end_temp(token_temp);
                     

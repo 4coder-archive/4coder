@@ -11,7 +11,7 @@
 // USE_OLD_STYLE_JUMPS -> use "old style" direct jumps instead of sticky jumps
 // REMOVE_TRANSITION_HELPER_31 -> does not include the transition helpers for the API changes in 4.0.31
 // REMOVE_OLD_STRING -> does not include the old 4coder_string.h library.
-//   NOTE: You may only remove "old string" if you first remove the transition helper.
+//   NOTE: You can only remove "old string" if you first remove the transition helper.
 
 #define REMOVE_TRANSITION_HELPER_31
 #define REMOVE_OLD_STRING
@@ -60,13 +60,13 @@
 
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_helper.cpp"
+#include "4coder_seek.cpp"
 #include "4coder_fancy.cpp"
 #include "4coder_ui_helper.cpp"
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
 #include "4coder_insertion.cpp"
-#include "4coder_seek.cpp"
 #include "4coder_base_commands.cpp"
 #include "4coder_lists.cpp"
 #include "4coder_auto_indent.cpp"

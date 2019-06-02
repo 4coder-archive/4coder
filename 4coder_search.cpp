@@ -610,10 +610,9 @@ list__parameters_buffer(Application_Links *app, Heap *heap,
                 prev_match_id = match.buffer;
             }
             
-            
             Temp_Memory line_temp = begin_temp(scratch);
-            String_Const_u8 file_name = buffer_push_file_name(app, match.buffer, scratch);
-            String_Const_u8 full_line_str = scratch_read_line(app, scratch, match.buffer, word_pos.line);
+            String_Const_u8 file_name = push_buffer_file_name(app, scratch, match.buffer);
+            String_Const_u8 full_line_str = push_buffer_line(app, scratch, match.buffer, word_pos.line);
             if (full_line_str.size > 0){
                 String_Const_u8 line_str = string_skip_chop_whitespace(full_line_str);
                 insertf(&out, "%.*s:%d:%d: %.*s\n", string_expand(file_name), word_pos.line, word_pos.character, string_expand(line_str));
@@ -690,7 +689,7 @@ list_selected_range__parameters(Application_Links *app, Heap *heap, b32 substrin
     get_active_view(app, AccessProtected, &view);
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 str = get_string_in_view_range(app, scratch, view);
+    String_Const_u8 str = push_string_in_view_range(app, scratch, view);
     if (str.size > 0){
         list_single__parameters(app, heap, str, substrings, case_insensitive, default_target_view);
     }

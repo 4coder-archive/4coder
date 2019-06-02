@@ -477,7 +477,7 @@ generate_all_buffers_list__output_buffer(Application_Links *app, Lister *lister,
     }
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 buffer_name = buffer_push_unique_buffer_name(app, buffer, scratch);
+    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     lister_add_item(lister, buffer_name, status, IntAsPtr(buffer), 0);
     end_temp(temp);
 }
@@ -665,7 +665,7 @@ activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_S
         {
             Arena *scratch = context_get_arena(app);
             Temp_Memory temp = begin_temp(scratch);
-            String_Const_u8 file_name = buffer_push_file_name(app, buffer_id, scratch);
+            String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
             if (buffer_save(app, buffer_id, file_name, BufferSave_IgnoreDirtyFlag)){
                 buffer_kill(app, buffer_id, BufferKill_AlwaysKill, 0);
             }

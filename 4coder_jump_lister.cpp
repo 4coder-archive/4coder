@@ -76,7 +76,7 @@ open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID 
         for (i32 i = 0; i < option_count; i += 1){
             Sticky_Jump_Stored stored = {};
             managed_object_load_data(app, stored_jumps, i, 1, &stored);
-            String_Const_u8 line = scratch_read_line(app, scratch, list_buffer_id, stored.list_line);
+            String_Const_u8 line = push_buffer_line(app, scratch, list_buffer_id, stored.list_line);
             options[i].string = line;
             memset(&options[i].status, 0, sizeof(options[i].status));
             options[i].user_data = IntAsPtr(i);
