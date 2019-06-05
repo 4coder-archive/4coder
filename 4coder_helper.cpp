@@ -384,18 +384,18 @@ character_pos_to_pos_buffer(Application_Links *app, Buffer_ID buffer, i32 charac
 }
 
 static Partial_Cursor
-get_line__book_end(Application_Links *app, Buffer_ID buffer, i32 line_number, i32 side){
+get_line_side(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
     Partial_Cursor result = {};
-    if (!buffer_compute_cursor(app, buffer, seek_line_char(line_number, side), &result)){
+    i32 character_index = (side == Side_Min)?(1):(-1);
+    if (!buffer_compute_cursor(app, buffer, seek_line_char(line_number, character_index), &result)){
         block_zero_struct(&result);
     }
     return(result);
 }
-
 static i32
-get_line__book_end_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, i32 side){
+get_line_side_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
     i32 pos = -1;
-    Partial_Cursor partial_cursor = get_line__book_end(app, buffer, line_number, side);
+    Partial_Cursor partial_cursor = get_line_side(app, buffer, line_number, side);
     if (partial_cursor.line != 0){
         pos = partial_cursor.pos;
     }
@@ -404,26 +404,33 @@ get_line__book_end_pos(Application_Links *app, Buffer_ID buffer, i32 line_number
 
 static Partial_Cursor
 get_line_start(Application_Links *app, Buffer_ID buffer, i32 line_number){
-    return(get_line__book_end(app, buffer, line_number, 1));
+    return(get_line_side(app, buffer, line_number, Side_Min));
+}
+static i32
+get_line_start_pos(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    return(get_line_side_pos(app, buffer, line_number, Side_Min));
 }
 
 // NOTE(allen): The position returned has the index of the terminating newline character,
 // not one past the newline character.
 static Partial_Cursor
 get_line_end(Application_Links *app, Buffer_ID buffer, i32 line_number){
-    return(get_line__book_end(app, buffer, line_number, -1));
+    return(get_line_side(app, buffer, line_number, Side_Max));
 }
-
-static i32
-get_line_start_pos(Application_Links *app, Buffer_ID buffer, i32 line_number){
-    return(get_line__book_end_pos(app, buffer, line_number, 1));
-}
-
-// NOTE(allen): The position returned has the index of the terminating newline character,
-// not one past the newline character.
 static i32
 get_line_end_pos(Application_Links *app, Buffer_ID buffer, i32 line_number){
-    return(get_line__book_end_pos(app, buffer, line_number, -1));
+    return(get_line_side_pos(app, buffer, line_number, Side_Max));
+}
+
+static i32
+get_line_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
+    i32 result = 0;
+    if (side == Side_Min){
+        result = get_line_start_pos(app, buffer, line_number);
+    }
+    else{
+        result = get_line_start_pos(app, buffer, line_number);
+    }
 }
 
 // NOTE(allen): The range returned does not include the terminating newline character
@@ -458,6 +465,20 @@ get_line_pos_range(Application_Links *app, Buffer_ID buffer, i32 line_number){
 static Range
 make_range_from_cursors(Range_Partial_Cursor range){
     return(make_range(range.begin.pos, range.end.pos));
+}
+
+static i32
+get_line_side_pos_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos, Side side){
+    i32 line_number = get_line_number_from_pos(app, buffer, pos);
+    return(get_line_side_pos(app, buffer, line_number, side));
+}
+static i32
+get_line_start_pos_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(get_line_side_pos_from_pos(app, buffer, pos, Side_Min));
+}
+static i32
+get_line_end_pos_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(get_line_side_pos_from_pos(app, buffer, pos, Side_Max));
 }
 
 static Cpp_Token*
@@ -611,6 +632,107 @@ static b32
 token_lexeme_string_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String_Const_u8 b){
     Scratch_Block scratch(app);
     return(string_match(push_token_lexeme(app, scratch, buffer, token), b));
+}
+
+static b32
+line_is_valid_and_blank(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    b32 result = false;
+    if (is_valid_line(app, buffer, line_number)){
+        Scratch_Block scratch(app);
+        String_Const_u8 line = push_buffer_line(app, scratch, buffer, line_number);
+        result = true;
+        for (umem i = 0; i < line.size; i += 1){
+            if (!character_is_whitespace(line.str[i])){
+                result = false;
+                break;
+            }
+        }
+    }
+    return(result);
+}
+
+////////////////////////////////
+
+static i32
+get_pos_past_lead_whitespace(Application_Links *app, Buffer_ID buffer, i32 pos){
+    Scratch_Block scratch(app);
+    i32 line_number = get_line_number_from_pos(app, buffer, pos);
+    Range line_range = get_line_pos_range(app, buffer, line_number);
+    String_Const_u8 line = push_buffer_range(app, scratch, buffer, line_range);
+    i32 result = line_range.end;
+    for (umem i = 0; i < line.size; i += 1){
+        if (!character_is_whitespace(line.str[i])){
+            result = line_range.start + (i32)i;
+            break;
+        }
+    }
+    result = clamp_bot(result, pos);
+    return(result);
+}
+
+static void
+move_past_lead_whitespace(Application_Links *app, View_ID view, Buffer_ID buffer){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = get_pos_past_lead_whitespace(app, buffer, pos);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+}
+
+static void
+move_past_lead_whitespace(Application_Links *app, View_ID view){
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    move_past_lead_whitespace(app, view, buffer);
+}
+
+static i32
+get_line_number_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
+    i32 line_count = 0;
+    buffer_get_line_count(app, buffer, &line_count);
+    i32 line_number = line_number_start + direction;
+    for (;1 <= line_number && line_number <= line_count; line_number += direction){
+        Scratch_Block scratch(app);
+        String_Const_u8 line = push_buffer_line(app, scratch, buffer, line_number);
+        b32 is_blank = true;
+        for (umem i = 0; i < line.size; i += 1){
+            if (!character_is_whitespace(line.str[i])){
+                is_blank = false;
+                break;
+            }
+        }
+        if (is_blank){
+            break;
+        }
+    }
+    line_number = clamp(1, line_number, line_count);
+    return(line_number);
+}
+
+static i32
+get_pos_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 pos_start){
+    i32 line_number_start = get_line_number_from_pos(app, buffer, pos_start);
+    i32 blank_line = get_line_number_of_blank_line(app, buffer, direction, line_number_start);
+    i32 pos = get_line_start_pos(app, buffer, blank_line);
+    return(pos);
+}
+
+////////////////////////////////
+
+static Cpp_Token_Array
+buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id){
+    Cpp_Token_Array array = {};
+    if (buffer_exists(app, buffer_id)){
+        b32 is_lexed = false;
+        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
+            if (is_lexed){
+                buffer_token_count(app, buffer_id, &array.count);
+                array.max_count = array.count;
+                array.tokens = push_array(arena, Cpp_Token, array.count);
+                buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
+            }
+        }
+    }
+    return(array);
 }
 
 ////////////////////////////////

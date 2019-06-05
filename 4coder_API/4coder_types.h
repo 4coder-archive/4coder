@@ -612,6 +612,8 @@ DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Partial_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
     i32 pos;
+    /* DOC(This field contains the cursor's position in apparent character index positioning.) */
+    i32 character_pos;
     /* DOC(This field contains the number of the character from the beginninf of the line
     where the cursor is located. This field is one based.) */
     i32 line;

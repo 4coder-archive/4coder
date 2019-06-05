@@ -4,210 +4,6 @@
 
 // TOP
 
-// TODO(allen): This seems suspiciously, overkilling, redundant.
-static i32
-seek_line_end(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    
-    char chunk[1024];
-    i32 chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {};
-    if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, chunk_size)){
-        b32  still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                char at_pos = stream.data[pos];
-                if (at_pos == '\n'){
-                    goto double_break;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break:;
-        if (pos > buffer_size){
-            pos = buffer_size;
-        }
-    }
-    return(pos);
-}
-
-// TODO(allen): This seems suspiciously, overkilling, redundant.
-static i32
-seek_line_beginning(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    char chunk[1024];
-    i32 chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {};
-    --pos;
-    if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, chunk_size)){
-        b32 still_looping = true;
-        do{
-            for (; pos >= stream.start; --pos){
-                char at_pos = stream.data[pos];
-                if (at_pos == '\n'){
-                    goto double_break;
-                }
-            }
-            still_looping = backward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break:;
-        if (pos != 0){
-            ++pos;
-        }
-        if (pos < 0){
-            pos = 0;
-        }
-    }
-    return(pos);
-}
-
-static void
-move_past_lead_whitespace(Application_Links *app, View_ID view, Buffer_ID buffer_id){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    
-    i32 new_pos = seek_line_beginning(app, buffer_id, pos);
-    char space[1024];
-    Stream_Chunk chunk = {};
-    i32 still_looping = false;
-    
-    i32 i = new_pos;
-    if (init_stream_chunk(&chunk, app, buffer_id, i, space, sizeof(space))){
-        do{
-            for (; i < chunk.end; ++i){
-                char at_pos = chunk.data[i];
-                if (at_pos == '\n' || !character_is_whitespace(at_pos)){
-                    goto break2;
-                }
-            }
-            still_looping = forward_stream_chunk(&chunk);
-        }while(still_looping);
-        break2:;
-        
-        if (i > pos){
-            view_set_cursor(app, view, seek_pos(i), true);
-        }
-    }
-}
-
-static i32
-buffer_seek_whitespace_up(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    char chunk[1024];
-    i32 chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {};
-    
-    
-    --pos;
-    if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, chunk_size)){
-        // Step 1: Find the first non-whitespace character
-        // behind the current position.
-        b32 still_looping = true;
-        for (;still_looping;){
-            for (; pos >= stream.start; --pos){
-                char at_pos = stream.data[pos];
-                if (!character_is_whitespace(at_pos)){
-                    goto double_break_1;
-                }
-            }
-            still_looping = backward_stream_chunk(&stream);
-        }
-        double_break_1:;
-        
-        // Step 2: Continue scanning backward, at each '\n'
-        // mark the beginning of another line by setting
-        // no_hard to true, set it back to false if a
-        // non-whitespace character is discovered before
-        // the next '\n'
-        i32 no_hard = false;
-        for (;still_looping;){
-            for (; pos >= stream.start; --pos){
-                char at_pos = stream.data[pos];
-                if (at_pos == '\n'){
-                    if (no_hard){
-                        goto double_break_2;
-                    }
-                    else{
-                        no_hard = true;
-                    }
-                }
-                else if (!character_is_whitespace(at_pos)){
-                    no_hard = false;
-                }
-            }
-            still_looping = backward_stream_chunk(&stream);
-        }
-        double_break_2:;
-        
-        if (pos != 0){
-            ++pos;
-        }
-    }
-    
-    return(pos);
-}
-
-static i32
-buffer_seek_whitespace_down(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    
-    char chunk[1024];
-    i32 chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {};
-    
-    if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, chunk_size)){
-        // step 1: find the first non-whitespace character
-        // ahead of the current position.
-        b32 still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                char at_pos = stream.data[pos];
-                if (!character_is_whitespace(at_pos)){
-                    goto double_break_1;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        } while(still_looping);
-        double_break_1:;
-        
-        // step 2: continue scanning forward, at each '\n'
-        // mark it as the beginning of a new line by updating
-        // the prev_endline value.  if another '\n' is found
-        // with non-whitespace then the previous line was
-        // all whitespace.
-        b32 no_hard = false;
-        i32 prev_endline = -1;
-        while(still_looping){
-            for (; pos < stream.end; ++pos){
-                char at_pos = stream.data[pos];
-                if (at_pos == '\n'){
-                    if (no_hard){
-                        goto double_break_2;
-                    }
-                    else{
-                        no_hard = true;
-                        prev_endline = pos;
-                    }
-                }
-                else if (!character_is_whitespace(at_pos)){
-                    no_hard = false;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }
-        double_break_2:;
-        
-        if (prev_endline == -1 || prev_endline + 1 >= buffer_size){
-            pos = buffer_size;
-        }
-        else{
-            pos = prev_endline + 1;
-        }
-    }
-    
-    return(pos);
-}
-
 static i32
 buffer_seek_whitespace_right(Application_Links *app, Buffer_ID buffer_id, i32 pos){
     i32 buffer_size = 0;
@@ -525,23 +321,6 @@ seek_token_right(Cpp_Token_Array *tokens, i32 pos, i32 buffer_end){
     return(result);
 }
 
-static Cpp_Token_Array
-buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id){
-    Cpp_Token_Array array = {};
-    if (buffer_exists(app, buffer_id)){
-        b32 is_lexed = false;
-        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
-            if (is_lexed){
-                buffer_token_count(app, buffer_id, &array.count);
-                array.max_count = array.count;
-                array.tokens = push_array(arena, Cpp_Token, array.count);
-                buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
-            }
-        }
-    }
-    return(array);
-}
-
 static i32
 buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Arena *scratch, i32 start_pos, b32 seek_forward, Seek_Boundary_Flag flags){
     i32 result = 0;
@@ -554,12 +333,7 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Arena *scratch
         i32 new_pos = 0;
         buffer_get_size(app, buffer_id, &size);
         
-        if (start_pos < 0){
-            start_pos = 0;
-        }
-        else if (start_pos > size){
-            start_pos = size;
-        }
+        start_pos = clamp(0, start_pos, size);
         
         if (seek_forward){
             for (i32 i = 0; i < ArrayCount(pos); ++i){
@@ -885,42 +659,6 @@ buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end
 
 ////////////////////////////////
 
-static b32
-buffer_line_is_blank(Application_Links *app, Buffer_ID buffer_id, i32 line){
-    Partial_Cursor start = {};
-    Partial_Cursor end = {};
-    b32 result = false;
-    i32 line_count = 0;
-    buffer_get_line_count(app, buffer_id, &line_count);
-    if (line <= line_count){
-        buffer_compute_cursor(app, buffer_id, seek_line_char(line,  1), &start);
-        buffer_compute_cursor(app, buffer_id, seek_line_char(line, -1), &end);
-        
-        static const i32 chunk_size = 1024;
-        char chunk[chunk_size];
-        Stream_Chunk stream = {};
-        i32 i = start.pos;
-        stream.max_end = end.pos;
-        
-        result = true;
-        if (init_stream_chunk(&stream, app, buffer_id, i, chunk, chunk_size)){
-            b32 still_looping = false;
-            do{
-                for (;i < stream.end; ++i){
-                    char c = stream.data[i];
-                    if (!character_is_whitespace(c)){
-                        result = false;
-                        goto double_break;
-                    }
-                }
-                still_looping = forward_stream_chunk(&stream);
-            }while(still_looping);
-        }
-        double_break:;
-    }
-    return(result);
-}
-
 static String_Const_u8
 read_identifier_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer_id, i32 pos, Range *range_out){
     i32 start = buffer_seek_alphanumeric_or_underscore_left(app, buffer_id, pos);
@@ -1038,118 +776,106 @@ current_view_snipe_delete(Application_Links *app, i32 dir, u32 flags){
 
 ////////////////////////////////
 
-CUSTOM_COMMAND_SIG(seek_whitespace_up)
-CUSTOM_DOC("Seeks the cursor up to the next blank line.")
-{
+internal void
+seek_blank_line(Application_Links *app, Scan_Direction direction){
     View_ID view = 0;
     get_active_view(app, AccessProtected, &view);
     Buffer_ID buffer_id = 0;
     view_get_buffer(app, view, AccessProtected, &buffer_id);
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = buffer_seek_whitespace_up(app, buffer_id, pos);
+    i32 new_pos = get_pos_of_blank_line(app, buffer_id, direction, pos);
     view_set_cursor(app, view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
+}
+
+internal void
+seek_blank_line_skip_leading_whitespace(Application_Links *app, Scan_Direction direction){
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    Buffer_ID buffer_id = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = get_pos_of_blank_line(app, buffer_id, direction, pos);
+    new_pos = get_pos_past_lead_whitespace(app, buffer_id, new_pos);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
+}
+
+internal void
+seek_pos_of_textual_line(Application_Links *app, Side side){
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    Buffer_ID buffer_id = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = get_line_side_pos_from_pos(app, buffer_id, pos, side);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
+}
+
+internal void
+seek_pos_of_visual_line(Application_Links *app, Side side){
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    f32 y = cursor.wrapped_y;
+    f32 x = (side == Side_Min)?(0.f):(max_f32);
+    view_set_cursor(app, view, seek_wrapped_xy(x, y, true), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_up)
+CUSTOM_DOC("Seeks the cursor up to the next blank line.")
+{
+    seek_blank_line(app, Scan_Backward);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down)
 CUSTOM_DOC("Seeks the cursor down to the next blank line.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = buffer_seek_whitespace_down(app, buffer_id, pos);
-    view_set_cursor(app, view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view);
+    seek_blank_line(app, Scan_Forward);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line)
 CUSTOM_DOC("Seeks the cursor to the beginning of the line across all text.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = seek_line_beginning(app, buffer_id, pos);
-    view_set_cursor(app, view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view);
+    seek_pos_of_textual_line(app, Side_Min);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_textual_line)
 CUSTOM_DOC("Seeks the cursor to the end of the line across all text.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = seek_line_end(app, buffer_id, pos);
-    view_set_cursor(app, view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view);
+    seek_pos_of_textual_line(app, Side_Max);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_line)
 CUSTOM_DOC("Seeks the cursor to the beginning of the visual line.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
-    f32 y = cursor.wrapped_y;
-    view_set_cursor(app, view, seek_wrapped_xy(0.f, y, true), true);
-    no_mark_snap_to_cursor_if_shift(app, view);
+    seek_pos_of_visual_line(app, Side_Min);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_line)
 CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
-    f32 y = cursor.wrapped_y;
-    view_set_cursor(app, view, seek_wrapped_xy(max_f32, y, true), true);
-    no_mark_snap_to_cursor_if_shift(app, view);
+    seek_pos_of_visual_line(app, Side_Max);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line)
 CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = buffer_seek_whitespace_up(app, buffer_id, pos);
-    new_pos = seek_line_end(app, buffer_id, new_pos);
-    view_set_cursor(app, view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view);
+    seek_blank_line_skip_leading_whitespace(app, Scan_Backward);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line)
 CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = buffer_seek_whitespace_down(app, buffer_id, pos);
-    new_pos = seek_line_end(app, buffer_id, new_pos);
-    view_set_cursor(app, view, seek_pos(new_pos), true);
-    no_mark_snap_to_cursor_if_shift(app, view);
+    seek_blank_line_skip_leading_whitespace(app, Scan_Forward);
 }
 
 CUSTOM_COMMAND_SIG(goto_beginning_of_file)
@@ -1263,5 +989,4 @@ CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and po
 }
 
 // BOTTOM
-
 

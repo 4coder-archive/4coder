@@ -1167,16 +1167,11 @@ buffer_partial_from_pos(Gap_Buffer *buffer, i32 pos){
     Partial_Cursor result = {};
     
     i32 size = buffer_size(buffer);
-    if (pos > size){
-        pos = size;
-    }
-    if (pos < 0){
-        pos = 0;
-    }
+    pos = clamp(0, pos, size);
     
     i32 line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result.pos = pos;
-    result.line = line_index+1;
+    result.line = line_index + 1;
     result.character = pos - buffer->line_starts[line_index] + 1;
     
     return(result);
@@ -1187,20 +1182,16 @@ buffer_partial_from_line_character(Gap_Buffer *buffer, i32 line, i32 character){
     Partial_Cursor result = {};
     
     i32 line_index = line - 1;
-    if (line_index >= buffer->line_count){
-        line_index = buffer->line_count - 1;
-    }
-    if (line_index < 0){
-        line_index = 0;
-    }
+    i32 last_line_index = buffer->line_count - 1;
+    line_index = clamp(0, line_index, last_line_index);
     
     i32 size = buffer_size(buffer);
     
     i32 this_start = buffer->line_starts[line_index];
-    i32 max_character = (size-this_start) + 1;
-    if (line_index+1 < buffer->line_count){
-        i32 next_start = buffer->line_starts[line_index+1];
-        max_character = (next_start-this_start);
+    i32 max_character = (size - this_start) + 1;
+    if (line_index < last_line_index){
+        i32 next_start = buffer->line_starts[line_index + 1];
+        max_character = (next_start - this_start);
     }
     
     i32 adjusted_pos = 0;

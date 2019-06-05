@@ -173,12 +173,12 @@ get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 
 
 static i32
 seek_line_end(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:seek_line_end(app, buffer->buffer_id, pos));
+    return(buffer==0?0:get_line_end_pos_from_pos(app, buffer->buffer_id, pos));
 }
 
 static i32
 seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:seek_line_beginning(app, buffer->buffer_id, pos));
+    return(buffer==0?0:get_line_start_pos_from_pos(app, buffer->buffer_id, pos));
 }
 
 static void
@@ -188,12 +188,12 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
 
 static i32
 buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_whitespace_up(app, buffer->buffer_id, pos));
+    return(buffer==0?0:get_pos_of_blank_line(app, buffer->buffer_id, Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_whitespace_down(app, buffer->buffer_id, pos));
+    return(buffer==0?0:get_pos_of_blank_line(app, buffer->buffer_id, Scan_Forward, pos));
 }
 
 static i32
@@ -316,7 +316,7 @@ buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 
 
 static b32
 buffer_line_is_blank(Application_Links *app, Buffer_Summary *buffer, i32 line){
-    return(buffer==0?0:buffer_line_is_blank(app, buffer->buffer_id, line));
+    return(buffer==0?0:line_is_valid_and_blank(app, buffer->buffer_id, line));
 }
 
 static String

@@ -1013,6 +1013,12 @@ enum{
     Side_Max = 1,
 };
 
+typedef i32 Scan_Direction;
+enum{
+    Scan_Backward = -1,
+    Scan_Forward  =  1,
+};
+
 ////////////////////////////////
 
 #define Migrating__Arena

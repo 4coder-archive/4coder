@@ -414,8 +414,8 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
     
     Scratch_Block scratch(app);
     
-    b32 min_line_blank = buffer_line_is_blank(app, buffer, lines.min);
-    b32 max_line_blank = buffer_line_is_blank(app, buffer, lines.max);
+    b32 min_line_blank = line_is_valid_and_blank(app, buffer, lines.min);
+    b32 max_line_blank = line_is_valid_and_blank(app, buffer, lines.max);
     
     if ((lines.min < lines.max) || (!min_line_blank)){
         String_Const_u8 begin_str = {};
