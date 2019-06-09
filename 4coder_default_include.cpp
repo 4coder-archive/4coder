@@ -13,8 +13,10 @@
 // REMOVE_OLD_STRING -> does not include the old 4coder_string.h library.
 //   NOTE: You can only remove "old string" if you first remove the transition helper.
 
+#if 0
 #define REMOVE_TRANSITION_HELPER_31
 #define REMOVE_OLD_STRING
+#endif
 
 #include "4coder_API/4coder_custom.h"
 

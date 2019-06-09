@@ -10,11 +10,6 @@ enum{
     BufferSeekString_CaseInsensitive = 2,
 };
 
-enum{
-    DirLeft = 0,
-    DirRight = 1,
-};
-
 #endif
 
 // BOTTOM

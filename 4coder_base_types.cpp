@@ -1994,6 +1994,23 @@ union_of(f32_Rect a, f32_Rect b){
 
 ////////////////////////////////
 
+internal Scan_Direction
+flip_direction(Scan_Direction direction){
+    switch (direction){
+        case Scan_Forward:
+        {
+            direction = Scan_Backward;
+        }break;
+        case Scan_Backward:
+        {
+            direction = Scan_Forward;
+        }break;
+    }
+    return(direction);
+}
+
+////////////////////////////////
+
 #if defined(Migrating__Arena)
 
 static void*

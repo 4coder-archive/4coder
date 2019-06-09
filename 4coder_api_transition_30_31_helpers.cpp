@@ -198,52 +198,48 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, i32 
 
 static i32
 buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_whitespace_right(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
+                                             Scan_Forward, &character_predicate_non_whitespace));
 }
 
 static i32
 buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_whitespace_left(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
+                                             Scan_Backward, &character_predicate_non_whitespace));
 }
 
 static i32
 buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_alphanumeric_right(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
+                                             Scan_Forward, &character_predicate_alpha_numeric));
 }
 
 static i32
 buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_alphanumeric_left(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
+                                             Scan_Backward, &character_predicate_alpha_numeric));
 }
 
 static i32
 buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_alphanumeric_or_underscore_right(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos, Scan_Forward,
+                                             &character_predicate_alpha_numeric_underscore));
 }
 
 static i32
 buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_alphanumeric_or_underscore_left(app, buffer->buffer_id, pos));
-}
-
-static i32
-buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 an_pos){
-    return(buffer==0?0:buffer_seek_range_camel_right(app, buffer->buffer_id, pos, an_pos));
-}
-
-static i32
-buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 an_pos){
-    return(buffer==0?0:buffer_seek_range_camel_left(app, buffer->buffer_id, pos, an_pos));
+    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos, Scan_Backward,
+                                             &character_predicate_alpha_numeric_underscore));
 }
 
 static i32
 buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_alphanumeric_or_camel_right(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan_to_alpha_numeric_camel_forward(app, buffer->buffer_id, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:buffer_seek_alphanumeric_or_camel_left(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan_to_alpha_numeric_camel_backward(app, buffer->buffer_id, pos));
 }
 
 static i32
@@ -258,11 +254,6 @@ buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_Summary *buff
         result = buffer_get_all_tokens(app, arena, buffer->buffer_id);
     }
     return(result);
-}
-
-static i32
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Arena *arena, i32 start_pos, b32 seek_forward, Seek_Boundary_Flag flags){
-    return(buffer==0?0:buffer_boundary_seek(app, buffer->buffer_id, arena, start_pos, seek_forward, flags));
 }
 
 static void
@@ -324,7 +315,11 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, 
     String result = {};
     if (buffer != 0){
         Scratch_Block scratch(app);
-        String_Const_u8 string = read_identifier_at_pos(app, scratch, buffer->buffer_id, pos, range_out);
+        Range range = pos_range_enclose_alpha_numeric_underscore(app, buffer->buffer_id, make_range(pos));
+        String_Const_u8 string = push_buffer_range(app, scratch, buffer->buffer_id, range);
+        if (range_out != 0){
+            *range_out = range;
+        }
         i32 size = (i32)string.size;
         size = clamp_top(size, max);
         block_copy(space, string.str, size);
@@ -335,27 +330,7 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, 
 
 static i32
 buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 dir, Seek_Boundary_Flag flags){
-    return(buffer==0?0:buffer_boundary_seek(app, buffer->buffer_id, start_pos, dir, flags));
-}
-
-static void
-view_buffer_boundary_seek_set_pos(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
-    view_buffer_boundary_seek_set_pos(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, dir, flags);
-}
-
-static void
-view_boundary_seek_set_pos(Application_Links *app, View_Summary *view, i32 dir, u32 flags){
-    view_boundary_seek_set_pos(app, view==0?0:view->view_id, dir, flags);
-}
-
-static Range
-view_buffer_boundary_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
-    return(view_buffer_boundary_range(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, dir, flags));
-}
-
-static Range
-view_buffer_snipe_range(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, i32 dir, u32 flags){
-    return(view_buffer_snipe_range(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id, dir, flags));
+    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, start_pos, dir, flags));
 }
 
 static void
@@ -1016,6 +991,11 @@ view_get_line_number(Application_Links *app, View_ID view, i32 pos){
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     return(cursor.line);
+}
+
+static void
+current_view_boundary_seek_set_pos(Application_Links *app, Scan_Direction direction, u32 flags){
+    current_view_move_to_word_boundary(app, direction, flags);
 }
 
 #endif

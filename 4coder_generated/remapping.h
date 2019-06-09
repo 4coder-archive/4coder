@@ -75,20 +75,20 @@ bind(context, key_page_up, MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
 bind(context, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
 bind(context, key_page_up, MDFR_SHIFT, page_up);
 bind(context, key_page_down, MDFR_SHIFT, page_down);
-bind(context, key_up, MDFR_CTRL, seek_whitespace_up_end_line);
-bind(context, key_down, MDFR_CTRL, seek_whitespace_down_end_line);
-bind(context, key_left, MDFR_CTRL, seek_whitespace_left);
-bind(context, key_right, MDFR_CTRL, seek_whitespace_right);
-bind(context, key_up, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_up_end_line);
-bind(context, key_down, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_down_end_line);
-bind(context, key_left, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
-bind(context, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
+bind(context, key_up, MDFR_CTRL, move_up_to_blank_line_end);
+bind(context, key_down, MDFR_CTRL, move_down_to_blank_line_end);
+bind(context, key_left, MDFR_CTRL, move_left_whitespace_boundary);
+bind(context, key_right, MDFR_CTRL, move_right_whitespace_boundary);
+bind(context, key_up, MDFR_CTRL|MDFR_SHIFT, move_up_to_blank_line_end);
+bind(context, key_down, MDFR_CTRL|MDFR_SHIFT, move_down_to_blank_line_end);
+bind(context, key_left, MDFR_CTRL|MDFR_SHIFT, move_left_whitespace_boundary);
+bind(context, key_right, MDFR_CTRL|MDFR_SHIFT, move_right_whitespace_boundary);
 bind(context, key_up, MDFR_ALT, move_line_up);
 bind(context, key_down, MDFR_ALT, move_line_down);
-bind(context, key_back, MDFR_CTRL, backspace_word);
-bind(context, key_del, MDFR_CTRL, delete_word);
-bind(context, key_back, MDFR_ALT, snipe_token_or_word);
-bind(context, key_del, MDFR_ALT, snipe_token_or_word_right);
+bind(context, key_back, MDFR_CTRL, backspace_alpha_numeric_boundary);
+bind(context, key_del, MDFR_CTRL, delete_alpha_numeric_boundary);
+bind(context, key_back, MDFR_ALT, snipe_backward_whitespace_or_token_boundary);
+bind(context, key_del, MDFR_ALT, snipe_forward_whitespace_or_token_boundary);
 bind(context, ' ', MDFR_CTRL, set_mark);
 bind(context, 'a', MDFR_CTRL, replace_in_range);
 bind(context, 'c', MDFR_CTRL, copy);
@@ -127,10 +127,10 @@ bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
 inherit_map(context, mapid_file);
-bind(context, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
-bind(context, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
-bind(context, key_left, MDFR_ALT, seek_alphanumeric_left);
-bind(context, key_right, MDFR_ALT, seek_alphanumeric_right);
+bind(context, key_left, MDFR_CTRL, move_left_alpha_numeric_or_camel_boundary);
+bind(context, key_right, MDFR_CTRL, move_right_alpha_numeric_or_camel_boundary);
+bind(context, key_left, MDFR_ALT, move_left_alpha_numeric_boundary);
+bind(context, key_right, MDFR_ALT, move_right_alpha_numeric_boundary);
 bind(context, '\n', MDFR_NONE, write_and_auto_tab);
 bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
 bind(context, '}', MDFR_NONE, write_and_auto_tab);
@@ -261,20 +261,20 @@ bind(context, key_page_up, MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
 bind(context, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
 bind(context, key_page_up, MDFR_SHIFT, page_up);
 bind(context, key_page_down, MDFR_SHIFT, page_down);
-bind(context, key_up, MDFR_CMND, seek_whitespace_up_end_line);
-bind(context, key_down, MDFR_CMND, seek_whitespace_down_end_line);
-bind(context, key_left, MDFR_CMND, seek_whitespace_left);
-bind(context, key_right, MDFR_CMND, seek_whitespace_right);
-bind(context, key_up, MDFR_CMND|MDFR_SHIFT, seek_whitespace_up_end_line);
-bind(context, key_down, MDFR_CMND|MDFR_SHIFT, seek_whitespace_down_end_line);
-bind(context, key_left, MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
-bind(context, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
+bind(context, key_up, MDFR_CMND, move_up_to_blank_line_end);
+bind(context, key_down, MDFR_CMND, move_down_to_blank_line_end);
+bind(context, key_left, MDFR_CMND, move_left_whitespace_boundary);
+bind(context, key_right, MDFR_CMND, move_right_whitespace_boundary);
+bind(context, key_up, MDFR_CMND|MDFR_SHIFT, move_up_to_blank_line_end);
+bind(context, key_down, MDFR_CMND|MDFR_SHIFT, move_down_to_blank_line_end);
+bind(context, key_left, MDFR_CMND|MDFR_SHIFT, move_left_whitespace_boundary);
+bind(context, key_right, MDFR_CMND|MDFR_SHIFT, move_right_whitespace_boundary);
 bind(context, key_up, MDFR_ALT, move_line_up);
 bind(context, key_down, MDFR_ALT, move_line_down);
-bind(context, key_back, MDFR_CMND, backspace_word);
-bind(context, key_del, MDFR_CMND, delete_word);
-bind(context, key_back, MDFR_CTRL, snipe_token_or_word);
-bind(context, key_del, MDFR_CTRL, snipe_token_or_word_right);
+bind(context, key_back, MDFR_CMND, backspace_alpha_numeric_boundary);
+bind(context, key_del, MDFR_CMND, delete_alpha_numeric_boundary);
+bind(context, key_back, MDFR_CTRL, snipe_backward_whitespace_or_token_boundary);
+bind(context, key_del, MDFR_CTRL, snipe_forward_whitespace_or_token_boundary);
 bind(context, '/', MDFR_CMND, set_mark);
 bind(context, 'a', MDFR_CMND, replace_in_range);
 bind(context, 'c', MDFR_CMND, copy);
@@ -311,10 +311,10 @@ bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
 begin_map(context, default_code_map);
 inherit_map(context, mapid_file);
-bind(context, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
-bind(context, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
-bind(context, key_left, MDFR_CTRL, seek_alphanumeric_left);
-bind(context, key_right, MDFR_CTRL, seek_alphanumeric_right);
+bind(context, key_left, MDFR_CMND, move_left_alpha_numeric_or_camel_boundary);
+bind(context, key_right, MDFR_CMND, move_right_alpha_numeric_or_camel_boundary);
+bind(context, key_left, MDFR_CTRL, move_left_alpha_numeric_boundary);
+bind(context, key_right, MDFR_CTRL, move_right_alpha_numeric_boundary);
 bind(context, '\n', MDFR_NONE, write_and_auto_tab);
 bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
 bind(context, '}', MDFR_NONE, write_and_auto_tab);
@@ -477,20 +477,20 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
 {0, 55306, 9, "goto_end_of_file", 16, LINK_PROCS(goto_end_of_file)},
 {0, 55305, 8, "page_up", 7, LINK_PROCS(page_up)},
 {0, 55306, 8, "page_down", 9, LINK_PROCS(page_down)},
-{0, 55297, 1, "seek_whitespace_up_end_line", 27, LINK_PROCS(seek_whitespace_up_end_line)},
-{0, 55298, 1, "seek_whitespace_down_end_line", 29, LINK_PROCS(seek_whitespace_down_end_line)},
-{0, 55299, 1, "seek_whitespace_left", 20, LINK_PROCS(seek_whitespace_left)},
-{0, 55300, 1, "seek_whitespace_right", 21, LINK_PROCS(seek_whitespace_right)},
-{0, 55297, 9, "seek_whitespace_up_end_line", 27, LINK_PROCS(seek_whitespace_up_end_line)},
-{0, 55298, 9, "seek_whitespace_down_end_line", 29, LINK_PROCS(seek_whitespace_down_end_line)},
-{0, 55299, 9, "seek_whitespace_left", 20, LINK_PROCS(seek_whitespace_left)},
-{0, 55300, 9, "seek_whitespace_right", 21, LINK_PROCS(seek_whitespace_right)},
+{0, 55297, 1, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55298, 1, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
+{0, 55299, 1, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
+{0, 55300, 1, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},
+{0, 55297, 9, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55298, 9, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
+{0, 55299, 9, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
+{0, 55300, 9, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},
 {0, 55297, 2, "move_line_up", 12, LINK_PROCS(move_line_up)},
 {0, 55298, 2, "move_line_down", 14, LINK_PROCS(move_line_down)},
-{0, 55296, 1, "backspace_word", 14, LINK_PROCS(backspace_word)},
-{0, 55301, 1, "delete_word", 11, LINK_PROCS(delete_word)},
-{0, 55296, 2, "snipe_token_or_word", 19, LINK_PROCS(snipe_token_or_word)},
-{0, 55301, 2, "snipe_token_or_word_right", 25, LINK_PROCS(snipe_token_or_word_right)},
+{0, 55296, 1, "backspace_alpha_numeric_boundary", 32, LINK_PROCS(backspace_alpha_numeric_boundary)},
+{0, 55301, 1, "delete_alpha_numeric_boundary", 29, LINK_PROCS(delete_alpha_numeric_boundary)},
+{0, 55296, 2, "snipe_backward_whitespace_or_token_boundary", 43, LINK_PROCS(snipe_backward_whitespace_or_token_boundary)},
+{0, 55301, 2, "snipe_forward_whitespace_or_token_boundary", 42, LINK_PROCS(snipe_forward_whitespace_or_token_boundary)},
 {0, 32, 1, "set_mark", 8, LINK_PROCS(set_mark)},
 {0, 97, 1, "replace_in_range", 16, LINK_PROCS(replace_in_range)},
 {0, 99, 1, "copy", 4, LINK_PROCS(copy)},
@@ -528,10 +528,10 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_default_code_map[33] = {
-{0, 55299, 1, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
-{0, 55300, 1, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
-{0, 55299, 2, "seek_alphanumeric_left", 22, LINK_PROCS(seek_alphanumeric_left)},
-{0, 55300, 2, "seek_alphanumeric_right", 23, LINK_PROCS(seek_alphanumeric_right)},
+{0, 55299, 1, "move_left_alpha_numeric_or_camel_boundary", 41, LINK_PROCS(move_left_alpha_numeric_or_camel_boundary)},
+{0, 55300, 1, "move_right_alpha_numeric_or_camel_boundary", 42, LINK_PROCS(move_right_alpha_numeric_or_camel_boundary)},
+{0, 55299, 2, "move_left_alpha_numeric_boundary", 32, LINK_PROCS(move_left_alpha_numeric_boundary)},
+{0, 55300, 2, "move_right_alpha_numeric_boundary", 33, LINK_PROCS(move_right_alpha_numeric_boundary)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 10, 8, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 125, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
@@ -666,20 +666,20 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[77] = {
 {0, 55306, 9, "goto_end_of_file", 16, LINK_PROCS(goto_end_of_file)},
 {0, 55305, 8, "page_up", 7, LINK_PROCS(page_up)},
 {0, 55306, 8, "page_down", 9, LINK_PROCS(page_down)},
-{0, 55297, 4, "seek_whitespace_up_end_line", 27, LINK_PROCS(seek_whitespace_up_end_line)},
-{0, 55298, 4, "seek_whitespace_down_end_line", 29, LINK_PROCS(seek_whitespace_down_end_line)},
-{0, 55299, 4, "seek_whitespace_left", 20, LINK_PROCS(seek_whitespace_left)},
-{0, 55300, 4, "seek_whitespace_right", 21, LINK_PROCS(seek_whitespace_right)},
-{0, 55297, 12, "seek_whitespace_up_end_line", 27, LINK_PROCS(seek_whitespace_up_end_line)},
-{0, 55298, 12, "seek_whitespace_down_end_line", 29, LINK_PROCS(seek_whitespace_down_end_line)},
-{0, 55299, 12, "seek_whitespace_left", 20, LINK_PROCS(seek_whitespace_left)},
-{0, 55300, 12, "seek_whitespace_right", 21, LINK_PROCS(seek_whitespace_right)},
+{0, 55297, 4, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55298, 4, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
+{0, 55299, 4, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
+{0, 55300, 4, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},
+{0, 55297, 12, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55298, 12, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
+{0, 55299, 12, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
+{0, 55300, 12, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},
 {0, 55297, 2, "move_line_up", 12, LINK_PROCS(move_line_up)},
 {0, 55298, 2, "move_line_down", 14, LINK_PROCS(move_line_down)},
-{0, 55296, 4, "backspace_word", 14, LINK_PROCS(backspace_word)},
-{0, 55301, 4, "delete_word", 11, LINK_PROCS(delete_word)},
-{0, 55296, 1, "snipe_token_or_word", 19, LINK_PROCS(snipe_token_or_word)},
-{0, 55301, 1, "snipe_token_or_word_right", 25, LINK_PROCS(snipe_token_or_word_right)},
+{0, 55296, 4, "backspace_alpha_numeric_boundary", 32, LINK_PROCS(backspace_alpha_numeric_boundary)},
+{0, 55301, 4, "delete_alpha_numeric_boundary", 29, LINK_PROCS(delete_alpha_numeric_boundary)},
+{0, 55296, 1, "snipe_backward_whitespace_or_token_boundary", 43, LINK_PROCS(snipe_backward_whitespace_or_token_boundary)},
+{0, 55301, 1, "snipe_forward_whitespace_or_token_boundary", 42, LINK_PROCS(snipe_forward_whitespace_or_token_boundary)},
 {0, 47, 4, "set_mark", 8, LINK_PROCS(set_mark)},
 {0, 97, 4, "replace_in_range", 16, LINK_PROCS(replace_in_range)},
 {0, 99, 4, "copy", 4, LINK_PROCS(copy)},
@@ -715,10 +715,10 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[77] = {
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
 static Meta_Key_Bind fcoder_binds_for_mac_default_default_code_map[33] = {
-{0, 55299, 4, "seek_alphanumeric_or_camel_left", 31, LINK_PROCS(seek_alphanumeric_or_camel_left)},
-{0, 55300, 4, "seek_alphanumeric_or_camel_right", 32, LINK_PROCS(seek_alphanumeric_or_camel_right)},
-{0, 55299, 1, "seek_alphanumeric_left", 22, LINK_PROCS(seek_alphanumeric_left)},
-{0, 55300, 1, "seek_alphanumeric_right", 23, LINK_PROCS(seek_alphanumeric_right)},
+{0, 55299, 4, "move_left_alpha_numeric_or_camel_boundary", 41, LINK_PROCS(move_left_alpha_numeric_or_camel_boundary)},
+{0, 55300, 4, "move_right_alpha_numeric_or_camel_boundary", 42, LINK_PROCS(move_right_alpha_numeric_or_camel_boundary)},
+{0, 55299, 1, "move_left_alpha_numeric_boundary", 32, LINK_PROCS(move_left_alpha_numeric_boundary)},
+{0, 55300, 1, "move_right_alpha_numeric_boundary", 33, LINK_PROCS(move_right_alpha_numeric_boundary)},
 {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 10, 8, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
 {0, 125, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},

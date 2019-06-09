@@ -19,3 +19,12 @@ standard_build_search
 execute_standard_build
 
 open_all_files_in_directory_with_extension
+
+buffer_seek_range_camel_right
+buffer_seek_range_camel_left
+
+view_buffer_boundary_seek_set_pos
+view_boundary_seek_set_pos
+view_buffer_boundary_range
+view_buffer_snipe_range
+

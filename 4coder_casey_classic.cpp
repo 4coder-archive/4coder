@@ -1575,7 +1575,7 @@ CUSTOM_COMMAND_SIG(binding_name) \
 DEFINE_MODAL_KEY(modal_space, set_mark);
 DEFINE_MODAL_KEY(modal_back_slash, casey_clean_and_save);
 DEFINE_MODAL_KEY(modal_single_quote, casey_call_keyboard_macro);
-DEFINE_MODAL_KEY(modal_comma, seek_whitespace_down);
+DEFINE_MODAL_KEY(modal_comma, move_down_to_blank_line);
 DEFINE_MODAL_KEY(modal_period, casey_fill_paragraph);
 DEFINE_MODAL_KEY(modal_forward_slash, change_active_panel);
 DEFINE_MODAL_KEY(modal_semicolon, seek_white_or_token_right);
@@ -1615,7 +1615,7 @@ DEFINE_MODAL_KEY(modal_4, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_5, toggle_bright_mode); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_6, auto_tab_range); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_7, write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_8, seek_whitespace_up); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_8, move_up_to_blank_line); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_9, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_0, kill_buffer);
 DEFINE_MODAL_KEY(modal_minus, write_character); // TODO(casey): Available
@@ -1629,8 +1629,8 @@ DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, move_right);
 DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, delete_char);
 DEFINE_BIMODAL_KEY(modal_home, casey_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
 DEFINE_BIMODAL_KEY(modal_end, seek_end_of_line, seek_end_of_line);
-DEFINE_BIMODAL_KEY(modal_page_up, page_up, seek_whitespace_up);
-DEFINE_BIMODAL_KEY(modal_page_down, page_down, seek_whitespace_down);
+DEFINE_BIMODAL_KEY(modal_page_up, page_up, move_up_to_blank_line);
+DEFINE_BIMODAL_KEY(modal_page_down, page_down, move_down_to_blank_line);
 DEFINE_BIMODAL_KEY(modal_tab, word_complete, word_complete);
 
 OPEN_FILE_HOOK_SIG(casey_file_settings)

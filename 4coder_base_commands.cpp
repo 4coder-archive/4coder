@@ -166,6 +166,61 @@ CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
     buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
 }
 
+static void
+current_view_boundary_delete(Application_Links *app, Scan_Direction direction, Seek_Boundary_Flag flags){
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    Range range = {};
+    view_get_cursor_pos(app, view, &range.first);
+    range.one_past_last = scan_to_word_boundary(app, buffer, range.first, direction, flags);
+    range = rectify(range);
+    buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
+}
+
+CUSTOM_COMMAND_SIG(backspace_alpha_numeric_boundary)
+CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the left.")
+{
+    current_view_boundary_delete(app, Scan_Backward, BoundaryAlphanumeric);
+}
+
+CUSTOM_COMMAND_SIG(delete_alpha_numeric_boundary)
+CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the right.")
+{
+    current_view_boundary_delete(app, Scan_Forward, BoundaryAlphanumeric);
+}
+
+#define backspace_word backspace_alpha_numeric_boundary
+#define delete_word    delete_alpha_numeric_boundary
+
+static void
+current_view_snipe_delete(Application_Links *app, Scan_Direction direction, Seek_Boundary_Flag flags){
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    Range range = get_snipe_range(app, buffer, pos, direction, flags);
+    buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
+}
+
+CUSTOM_COMMAND_SIG(snipe_backward_whitespace_or_token_boundary)
+CUSTOM_DOC("Delete a single, whole token on or to the left of the cursor and post it to the clipboard.")
+{
+    current_view_snipe_delete(app, Scan_Backward, BoundaryToken|BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(snipe_forward_whitespace_or_token_boundary)
+CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and post it to the clipboard.")
+{
+    current_view_snipe_delete(app, Scan_Forward, BoundaryToken|BoundaryWhitespace);
+}
+
+#define snipe_token_or_word       snipe_backward_whitespace_or_token_boundary
+#define snipe_token_or_word_right snipe_forward_whitespace_or_token_boundary
+
 ////////////////////////////////
 
 CUSTOM_COMMAND_SIG(center_view)
@@ -415,7 +470,60 @@ CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one 
     move_vertical(app, page_jump);
 }
 
-////////////////
+internal void
+seek_blank_line__generic(Application_Links *app, Scan_Direction direction, b32 skip_lead_whitespace){
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    Buffer_ID buffer_id = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 new_pos = get_pos_of_blank_line_grouped(app, buffer_id, direction, pos);
+    if (skip_lead_whitespace){
+        new_pos = get_pos_past_lead_whitespace(app, buffer_id, new_pos);
+    }
+    view_set_cursor(app, view, seek_pos(new_pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
+}
+
+internal void
+seek_blank_line(Application_Links *app, Scan_Direction direction){
+    seek_blank_line__generic(app, direction, false);
+}
+
+internal void
+seek_blank_line_skip_leading_whitespace(Application_Links *app, Scan_Direction direction){
+    seek_blank_line__generic(app, direction, true);
+}
+
+CUSTOM_COMMAND_SIG(move_up_to_blank_line)
+CUSTOM_DOC("Seeks the cursor up to the next blank line.")
+{
+    seek_blank_line(app, Scan_Backward);
+}
+
+CUSTOM_COMMAND_SIG(move_down_to_blank_line)
+CUSTOM_DOC("Seeks the cursor down to the next blank line.")
+{
+    seek_blank_line(app, Scan_Forward);
+}
+
+CUSTOM_COMMAND_SIG(move_up_to_blank_line_end)
+CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
+{
+    seek_blank_line_skip_leading_whitespace(app, Scan_Backward);
+}
+
+CUSTOM_COMMAND_SIG(move_down_to_blank_line_end)
+CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
+{
+    seek_blank_line_skip_leading_whitespace(app, Scan_Forward);
+}
+
+#define seek_whitespace_up            move_up_to_blank_line
+#define seek_whitespace_down          move_down_to_blank_line
+#define seek_whitespace_up_end_line   move_up_to_blank_line_end
+#define seek_whitespace_down_end_line move_down_to_blank_line_end
 
 CUSTOM_COMMAND_SIG(move_left)
 CUSTOM_DOC("Moves the cursor one character to the left.")
@@ -444,6 +552,92 @@ CUSTOM_DOC("Moves the cursor one character to the right.")
     view_set_cursor(app, view, seek_character_pos(new_pos), 1);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
+
+static void
+current_view_move_to_word_boundary(Application_Links *app, Scan_Direction direction, u32 flags){
+    View_ID view = 0;
+    get_active_view(app, AccessProtected, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
+    i32 cursor_pos = 0;
+    view_get_cursor_pos(app, view, &cursor_pos);
+    i32 pos = scan_to_word_boundary(app, buffer, cursor_pos, direction, flags);
+    view_set_cursor(app, view, seek_pos(pos), true);
+    no_mark_snap_to_cursor_if_shift(app, view);
+}
+
+CUSTOM_COMMAND_SIG(move_right_whitespace_boundary)
+CUSTOM_DOC("Seek right for the next boundary between whitespace and non-whitespace.")
+{
+    current_view_move_to_word_boundary(app, Scan_Forward, BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(move_left_whitespace_boundary)
+CUSTOM_DOC("Seek left for the next boundary between whitespace and non-whitespace.")
+{
+    current_view_move_to_word_boundary(app, Scan_Backward, BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(move_right_token_boundary)
+CUSTOM_DOC("Seek right for the next end of a token.")
+{
+    current_view_move_to_word_boundary(app, Scan_Forward, BoundaryToken);
+}
+
+CUSTOM_COMMAND_SIG(move_left_token_boundary)
+CUSTOM_DOC("Seek left for the next beginning of a token.")
+{
+    current_view_move_to_word_boundary(app, Scan_Backward, BoundaryToken);
+}
+
+CUSTOM_COMMAND_SIG(move_right_whitespace_or_token_boundary)
+CUSTOM_DOC("Seek right for the next end of a token or boundary between whitespace and non-whitespace.")
+{
+    current_view_move_to_word_boundary(app, Scan_Forward, BoundaryToken|BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(move_left_whitespace_or_token_boundary)
+CUSTOM_DOC("Seek left for the next end of a token or boundary between whitespace and non-whitespace.")
+{
+    current_view_move_to_word_boundary(app, Scan_Backward, BoundaryToken|BoundaryWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(move_right_alpha_numeric_boundary)
+CUSTOM_DOC("Seek right for boundary between alphanumeric characters and non-alphanumeric characters.")
+{
+    current_view_move_to_word_boundary(app, Scan_Forward, BoundaryAlphanumeric);
+}
+
+CUSTOM_COMMAND_SIG(move_left_alpha_numeric_boundary)
+CUSTOM_DOC("Seek left for boundary between alphanumeric characters and non-alphanumeric characters.")
+{
+    current_view_move_to_word_boundary(app, Scan_Backward, BoundaryAlphanumeric);
+}
+
+CUSTOM_COMMAND_SIG(move_right_alpha_numeric_or_camel_boundary)
+CUSTOM_DOC("Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
+{
+    current_view_move_to_word_boundary(app, Scan_Forward, BoundaryAlphanumeric|BoundaryCamelCase);
+}
+
+CUSTOM_COMMAND_SIG(move_left_alpha_numeric_or_camel_boundary)
+CUSTOM_DOC("Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
+{
+    current_view_move_to_word_boundary(app, Scan_Backward, BoundaryAlphanumeric|BoundaryCamelCase);
+}
+
+#define seek_whitespace_right            move_right_whitespace_boundary
+#define seek_whitespace_left             move_left_whitespace_boundary
+#define seek_token_right                 move_right_token_boundary
+#define seek_token_left                  move_left_token_boundary
+#define seek_white_or_token_right        move_right_whitespace_or_token_boundary
+#define seek_white_or_token_left         move_left_whitespace_or_token_boundary
+#define seek_alphanumeric_right          move_right_alpha_numeric_boundary
+#define seek_alphanumeric_left           move_left_alpha_numeric_boundary
+#define seek_alphanumeric_or_camel_right move_right_alpha_numeric_or_camel_boundary 
+#define seek_alphanumeric_or_camel_left  move_left_alpha_numeric_or_camel_boundary
+
+////////////////////////////////
 
 CUSTOM_COMMAND_SIG(select_all)
 CUSTOM_DOC("Puts the cursor at the top of the file, and the mark at the bottom of the file.")
@@ -1025,7 +1219,7 @@ CUSTOM_DOC("Begins an incremental search down through the current buffer for the
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
     Scratch_Block scratch(app);
-    String_Const_u8 query = read_identifier_at_pos(app, scratch, buffer_id, pos, 0);
+    String_Const_u8 query = push_alpha_numeric_underscore_word_at_pos(app, scratch, buffer_id, pos);
     isearch(app, false, query, true);
 }
 
@@ -1039,7 +1233,7 @@ CUSTOM_DOC("Begins an incremental search up through the current buffer for the w
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
     Scratch_Block scratch(app);
-    String_Const_u8 query = read_identifier_at_pos(app, scratch, buffer_id, pos, 0);
+    String_Const_u8 query = push_alpha_numeric_underscore_word_at_pos(app, scratch, buffer_id, pos);
     isearch(app, true, query, true);
 }
 
@@ -1192,14 +1386,14 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 {
     View_ID view = 0;
     get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer_id);
-    if (buffer_id != 0){
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    if (buffer != 0){
         i32 pos = 0;
         view_get_cursor_pos(app, view, &pos);
-        Range range = {};
         Scratch_Block scratch(app);
-        String_Const_u8 replace = read_identifier_at_pos(app, scratch, buffer_id, pos, &range);
+        Range range = pos_range_enclose_alpha_numeric_underscore(app, buffer, make_range(pos));
+        String_Const_u8 replace = push_buffer_range(app, scratch, buffer, range);
         if (replace.size != 0){
             query_replace_parameter(app, replace, range.min, true);
         }

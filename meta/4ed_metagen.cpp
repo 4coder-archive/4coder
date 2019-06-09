@@ -531,22 +531,22 @@ generate_remapping_code_and_data(Arena *arena){
         bind(arena, mappings, key_page_up,   MDFR_SHIFT, page_up);
         bind(arena, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(arena, mappings, key_up,    MDFR_CTRL, seek_whitespace_up_end_line);
-        bind(arena, mappings, key_down,  MDFR_CTRL, seek_whitespace_down_end_line);
-        bind(arena, mappings, key_left,  MDFR_CTRL, seek_whitespace_left);
-        bind(arena, mappings, key_right, MDFR_CTRL, seek_whitespace_right);
-        bind(arena, mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, seek_whitespace_up_end_line);
-        bind(arena, mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_down_end_line);
-        bind(arena, mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, seek_whitespace_left);
-        bind(arena, mappings, key_right, MDFR_CTRL|MDFR_SHIFT, seek_whitespace_right);
+        bind(arena, mappings, key_up,    MDFR_CTRL, move_up_to_blank_line_end);
+        bind(arena, mappings, key_down,  MDFR_CTRL, move_down_to_blank_line_end);
+        bind(arena, mappings, key_left,  MDFR_CTRL, move_left_whitespace_boundary);
+        bind(arena, mappings, key_right, MDFR_CTRL, move_right_whitespace_boundary);
+        bind(arena, mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, move_up_to_blank_line_end);
+        bind(arena, mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, move_down_to_blank_line_end);
+        bind(arena, mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, move_left_whitespace_boundary);
+        bind(arena, mappings, key_right, MDFR_CTRL|MDFR_SHIFT, move_right_whitespace_boundary);
         
         bind(arena, mappings, key_up,   MDFR_ALT, move_line_up);
         bind(arena, mappings, key_down, MDFR_ALT, move_line_down);
         
-        bind(arena, mappings, key_back, MDFR_CTRL, backspace_word);
-        bind(arena, mappings, key_del,  MDFR_CTRL, delete_word);
-        bind(arena, mappings, key_back, MDFR_ALT, snipe_token_or_word);
-        bind(arena, mappings, key_del,  MDFR_ALT, snipe_token_or_word_right);
+        bind(arena, mappings, key_back, MDFR_CTRL, backspace_alpha_numeric_boundary);
+        bind(arena, mappings, key_del,  MDFR_CTRL, delete_alpha_numeric_boundary);
+        bind(arena, mappings, key_back, MDFR_ALT, snipe_backward_whitespace_or_token_boundary);
+        bind(arena, mappings, key_del,  MDFR_ALT, snipe_forward_whitespace_or_token_boundary);
         
         bind(arena, mappings, ' ', MDFR_CTRL, set_mark);
         bind(arena, mappings, 'a', MDFR_CTRL, replace_in_range);
@@ -593,11 +593,11 @@ generate_remapping_code_and_data(Arena *arena){
         
         inherit_map(arena, mappings, mapid_file);
         
-        bind(arena, mappings, key_left , MDFR_CTRL, seek_alphanumeric_or_camel_left);
-        bind(arena, mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
+        bind(arena, mappings, key_left , MDFR_CTRL, move_left_alpha_numeric_or_camel_boundary);
+        bind(arena, mappings, key_right, MDFR_CTRL, move_right_alpha_numeric_or_camel_boundary);
         
-        bind(arena, mappings, key_left , MDFR_ALT, seek_alphanumeric_left);
-        bind(arena, mappings, key_right, MDFR_ALT, seek_alphanumeric_right);
+        bind(arena, mappings, key_left , MDFR_ALT, move_left_alpha_numeric_boundary);
+        bind(arena, mappings, key_right, MDFR_ALT, move_right_alpha_numeric_boundary);
         
         bind(arena, mappings, '\n', MDFR_NONE, write_and_auto_tab);
         bind(arena, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
@@ -760,22 +760,22 @@ generate_remapping_code_and_data(Arena *arena){
         bind(arena, mappings, key_page_up,   MDFR_SHIFT, page_up);
         bind(arena, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(arena, mappings, key_up,    MDFR_CMND, seek_whitespace_up_end_line);
-        bind(arena, mappings, key_down,  MDFR_CMND, seek_whitespace_down_end_line);
-        bind(arena, mappings, key_left,  MDFR_CMND, seek_whitespace_left);
-        bind(arena, mappings, key_right, MDFR_CMND, seek_whitespace_right);
-        bind(arena, mappings, key_up,    MDFR_CMND|MDFR_SHIFT, seek_whitespace_up_end_line);
-        bind(arena, mappings, key_down,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_down_end_line);
-        bind(arena, mappings, key_left,  MDFR_CMND|MDFR_SHIFT, seek_whitespace_left);
-        bind(arena, mappings, key_right, MDFR_CMND|MDFR_SHIFT, seek_whitespace_right);
+        bind(arena, mappings, key_up,    MDFR_CMND, move_up_to_blank_line_end);
+        bind(arena, mappings, key_down,  MDFR_CMND, move_down_to_blank_line_end);
+        bind(arena, mappings, key_left,  MDFR_CMND, move_left_whitespace_boundary);
+        bind(arena, mappings, key_right, MDFR_CMND, move_right_whitespace_boundary);
+        bind(arena, mappings, key_up,    MDFR_CMND|MDFR_SHIFT, move_up_to_blank_line_end);
+        bind(arena, mappings, key_down,  MDFR_CMND|MDFR_SHIFT, move_down_to_blank_line_end);
+        bind(arena, mappings, key_left,  MDFR_CMND|MDFR_SHIFT, move_left_whitespace_boundary);
+        bind(arena, mappings, key_right, MDFR_CMND|MDFR_SHIFT, move_right_whitespace_boundary);
         
         bind(arena, mappings, key_up,   MDFR_ALT, move_line_up);
         bind(arena, mappings, key_down, MDFR_ALT, move_line_down);
         
-        bind(arena, mappings, key_back, MDFR_CMND, backspace_word);
-        bind(arena, mappings, key_del, MDFR_CMND, delete_word);
-        bind(arena, mappings, key_back, MDFR_CTRL, snipe_token_or_word);
-        bind(arena, mappings, key_del, MDFR_CTRL, snipe_token_or_word_right);
+        bind(arena, mappings, key_back, MDFR_CMND, backspace_alpha_numeric_boundary);
+        bind(arena, mappings, key_del, MDFR_CMND, delete_alpha_numeric_boundary);
+        bind(arena, mappings, key_back, MDFR_CTRL, snipe_backward_whitespace_or_token_boundary);
+        bind(arena, mappings, key_del, MDFR_CTRL, snipe_forward_whitespace_or_token_boundary);
         
         bind(arena, mappings, '/', MDFR_CMND, set_mark);
         bind(arena, mappings, 'a', MDFR_CMND, replace_in_range);
@@ -820,11 +820,11 @@ generate_remapping_code_and_data(Arena *arena){
         
         inherit_map(arena, mappings, mapid_file);
         
-        bind(arena, mappings, key_left , MDFR_CMND, seek_alphanumeric_or_camel_left);
-        bind(arena, mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
+        bind(arena, mappings, key_left , MDFR_CMND, move_left_alpha_numeric_or_camel_boundary);
+        bind(arena, mappings, key_right, MDFR_CMND, move_right_alpha_numeric_or_camel_boundary);
         
-        bind(arena, mappings, key_left , MDFR_CTRL, seek_alphanumeric_left);
-        bind(arena, mappings, key_right, MDFR_CTRL, seek_alphanumeric_right);
+        bind(arena, mappings, key_left , MDFR_CTRL, move_left_alpha_numeric_boundary);
+        bind(arena, mappings, key_right, MDFR_CTRL, move_right_alpha_numeric_boundary);
         
         bind(arena, mappings, '\n', MDFR_NONE, write_and_auto_tab);
         bind(arena, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);

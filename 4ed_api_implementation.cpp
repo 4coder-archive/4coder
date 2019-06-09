@@ -440,7 +440,7 @@ Buffer_Seek_Character_Class(Application_Links *app, Buffer_ID buffer_id, Charact
             i32 chunk_index = 0;
             i32 chunk_pos = start_pos;
             if (start_pos != size){
-                for (;(imem)(chunks.vals[chunk_index].size) < chunk_pos;){
+                for (;(imem)(chunks.vals[chunk_index].size) <= chunk_pos;){
                     Assert(chunk_index < chunks.count);
                     chunk_pos -= (i32)chunks.vals[chunk_index].size;
                     chunk_index += 1;

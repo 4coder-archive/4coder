@@ -696,9 +696,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         u32 token_flags = BoundaryToken|BoundaryWhitespace;
         i32 pos0 = cursor_pos;
-        i32 pos1 = buffer_boundary_seek(app, buffer_id, pos0, DirLeft , token_flags);
+        i32 pos1 = scan_to_word_boundary(app, buffer_id, pos0, Scan_Backward , token_flags);
         if (pos1 >= 0){
-            i32 pos2 = buffer_boundary_seek(app, buffer_id, pos1, DirRight, token_flags);
+            i32 pos2 = scan_to_word_boundary(app, buffer_id, pos1, Scan_Forward, token_flags);
             i32 buffer_size = 0;
             buffer_get_size(app, buffer_id, &buffer_size);
             if (pos2 <= buffer_size){

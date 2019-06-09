@@ -91,12 +91,28 @@ global Character_Predicate character_predicate_whitespace = { {
         0,   0,   0,   0,   0,   0,   0,   0, 
     } };
 
+global Character_Predicate character_predicate_non_whitespace = { {
+        255, 193, 255, 255, 254, 255, 255, 255, 
+        255, 255, 255, 255, 255, 255, 255, 255, 
+        255, 255, 255, 255, 255, 255, 255, 255, 
+        255, 255, 255, 255, 255, 255, 255, 255, 
+    } };
+
 global Character_Predicate character_predicate_utf8_byte = { {
         0,   0,   0,   0,   0,   0,   0,   0, 
         0,   0,   0,   0,   0,   0,   0,   0, 
         255, 255, 255, 255, 255, 255, 255, 255, 
         255, 255, 255, 255, 255, 255, 255, 255, 
     } };
+
+/* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the beginning or end of different types of words.) */
+typedef u32 Seek_Boundary_Flag;
+enum{
+    BoundaryWhitespace   = 0x1,
+    BoundaryToken        = 0x2,
+    BoundaryAlphanumeric = 0x4,
+    BoundaryCamelCase    = 0x8
+};
 
 ////////////////////////////////
 

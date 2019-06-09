@@ -270,14 +270,6 @@ the last sync point .) */
     DirtyState_UnsavedChangesAndUnloadedChanges = 3,
 };
 
-/* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the beginning or end of different types of words.) */
-ENUM(u32, Seek_Boundary_Flag){
-    BoundaryWhitespace   = 0x1,
-    BoundaryToken        = 0x2,
-    BoundaryAlphanumeric = 0x4,
-    BoundaryCamelCase    = 0x8
-};
-
 /* DOC(A Command_Line_Interface_Flag field specifies the behavior of a call to a command line interface.) */
 ENUM(u32, Command_Line_Interface_Flag){
     /* DOC(If CLI_OverlapWithConflict is set if output buffer of the new command is already in use by another command which is still executing, the older command relinquishes control of the buffer and both operate simultaneously with only the newer command outputting to the buffer.) */

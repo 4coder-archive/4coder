@@ -602,6 +602,209 @@ get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Cpp_Token_Ar
 
 ////////////////////////////////
 
+static Cpp_Token_Array
+buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id){
+    Cpp_Token_Array array = {};
+    if (buffer_exists(app, buffer_id)){
+        b32 is_lexed = false;
+        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
+            if (is_lexed){
+                buffer_token_count(app, buffer_id, &array.count);
+                array.max_count = array.count;
+                array.tokens = push_array(arena, Cpp_Token, array.count);
+                buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
+            }
+        }
+    }
+    return(array);
+}
+
+////////////////////////////////
+
+static i32
+scan_to_word_boundary(Application_Links *app, Buffer_ID buffer, i32 pos,
+                      Scan_Direction direction, Character_Predicate *predicate){
+    i32 result = 0;
+    switch (direction){
+        case Scan_Backward:
+        {
+            result = buffer_seek_character_class_change_0_1(app, buffer, predicate, Scan_Backward, pos);
+        }break;
+        case Scan_Forward:
+        {
+            result = buffer_seek_character_class_change_1_0(app, buffer, predicate, Scan_Forward, pos);
+        }break;
+    }
+    return(result);
+}
+
+static i32
+scan_to_alpha_numeric_camel_forward(Application_Links *app, Buffer_ID buffer, i32 pos){
+    i32 an_pos = scan_to_word_boundary(app, buffer, pos,
+                                       Scan_Forward, &character_predicate_alpha_numeric);
+    i32 an_left_pos = scan_to_word_boundary(app, buffer, an_pos,
+                                            Scan_Backward, &character_predicate_alpha_numeric);
+    i32 cap_pos = 0;
+    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                Scan_Forward, pos, &cap_pos);
+    if (cap_pos == an_left_pos){
+        buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                    Scan_Forward, cap_pos, &cap_pos);
+    }
+    return(Min(an_pos, cap_pos));
+}
+
+static i32
+scan_to_alpha_numeric_camel_backward(Application_Links *app, Buffer_ID buffer, i32 pos){
+    i32 an_pos = scan_to_word_boundary(app, buffer, pos,
+                                       Scan_Backward, &character_predicate_alpha_numeric);
+    i32 cap_pos = 0;
+    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                Scan_Backward, pos, &cap_pos);
+    return(Max(cap_pos, an_pos));
+}
+
+static i32
+scan_to_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, i32 pos, Scan_Direction direction){
+    i32 result = 0;
+    switch (direction){
+        case Scan_Forward:
+        {
+            result = scan_to_alpha_numeric_camel_forward(app, buffer, pos);
+        }break;
+        case Scan_Backward:
+        {
+            result = scan_to_alpha_numeric_camel_backward(app, buffer, pos);
+        }break;
+    }
+    return(result);
+}
+
+static i32
+scan_to_token_forward(Cpp_Token_Array tokens, i32 pos, i32 buffer_size){
+    if (tokens.count > 0){
+        Cpp_Token *token = get_first_token_from_pos(tokens, pos);
+        if (token != 0){
+            pos = token->start + token->size;
+        }
+        else{
+            pos = buffer_size;
+        }
+    }
+    else{
+        pos = buffer_size;
+    }
+    return(pos);
+}
+
+static i32
+scan_to_token_backward(Cpp_Token_Array tokens, i32 pos){
+    if (tokens.count > 0){
+        Cpp_Token *token = get_first_token_from_pos(tokens, pos);
+        if (token == 0){
+            token = tokens.tokens + tokens.count - 1;
+            pos = token->start;
+        }
+        else{
+            if (token->start < pos){
+                pos = token->start;
+            }
+            else{
+                if (token > tokens.tokens){
+                    pos = (token - 1)->start;
+                }
+                else{
+                    pos = 0;
+                }
+            }
+        }
+    }
+    else{
+        pos = 0;
+    }
+    return(pos);
+}
+
+static i32
+scan_to_token(Cpp_Token_Array tokens, i32 pos, i32 buffer_size, Scan_Direction direction){
+    i32 result = 0;
+    switch (direction){
+        case Scan_Forward:
+        {
+            result = scan_to_token_forward(tokens, pos, buffer_size);
+        }break;
+        case Scan_Backward:
+        {
+            result = scan_to_token_backward(tokens, pos);
+        }break;
+    }
+    return(result);
+}
+
+static i32
+scan_to_word_boundary(Application_Links *app, Buffer_ID buffer, i32 start_pos,
+                      Scan_Direction direction, Seek_Boundary_Flag flags){
+    i32 result = 0;
+    
+    Scratch_Block scratch(app);
+    if (buffer_exists(app, buffer)){
+        i32 size = 0;
+        buffer_get_size(app, buffer, &size);
+        
+        i32 dummy_pos = -1;
+        if (direction == Scan_Forward){
+            dummy_pos = size + 1;
+        }
+        
+        i32 pos[4];
+        for (i32 i = 0; i < ArrayCount(pos); ++i){
+            pos[i] = dummy_pos;
+        }
+        start_pos = clamp(0, start_pos, size);
+        
+        if (flags & BoundaryWhitespace){
+            pos[0] = scan_to_word_boundary(app, buffer, start_pos, direction,
+                                           &character_predicate_non_whitespace);
+        }
+        
+        if (flags & BoundaryToken){
+            if (buffer_tokens_are_ready(app, buffer)){
+                Cpp_Token_Array array = buffer_get_all_tokens(app, scratch, buffer);
+                pos[1] = scan_to_token(array, start_pos, size, direction);
+            }
+            else{
+                pos[1] = scan_to_word_boundary(app, buffer, start_pos, direction,
+                                               &character_predicate_non_whitespace);
+            }
+        }
+        
+        if (flags & BoundaryAlphanumeric){
+            pos[2] = scan_to_word_boundary(app, buffer, start_pos, direction,
+                                           &character_predicate_alpha_numeric);
+        }
+        
+        if (flags & BoundaryCamelCase){
+            pos[3] = scan_to_alpha_numeric_camel(app, buffer, start_pos, direction);
+        }
+        
+        result = dummy_pos;
+        if (direction == Scan_Forward){
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
+                result = Min(result, pos[i]);
+            }
+        }
+        else{
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
+                result = Max(result, pos[i]);
+            }
+        }
+    }
+    
+    return(result);
+}
+
+////////////////////////////////
+
 static Range
 get_line_range_from_pos_range(Application_Links *app, Buffer_ID buffer, Range pos_range){
     Range line_range = {};
@@ -634,7 +837,7 @@ pos_range_enclose_whole_lines(Application_Links *app, Buffer_ID buffer, Range ra
 }
 
 static Range
-pos_range_enclose_whole_tokens(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, Range range){
+pos_range_enclose_whole_tokens(Application_Links *app, Cpp_Token_Array tokens, Range range){
     if (range_size(range) > 0){
         if (tokens.count > 0){
             Cpp_Token *first_token = get_first_token_from_pos(tokens, range.first);
@@ -650,8 +853,57 @@ pos_range_enclose_whole_tokens(Application_Links *app, Buffer_ID buffer, Cpp_Tok
     return(range);
 }
 
-// NOTE(allen): range enclose operators:
-// enclose whole *** ?
+static Range
+pos_range_enclose__within_delimiter_class(Application_Links *app, Buffer_ID buffer, Range range, Character_Predicate *predicate){
+    i32 new_pos = 0;
+    if (buffer_seek_character_class(app, buffer, predicate, Scan_Backward, range.min + 1, &new_pos)){
+        range.first = new_pos + 1;
+    }
+    if (buffer_seek_character_class(app, buffer, predicate, Scan_Forward, range.max - 1, &new_pos)){
+        range.one_past_last = new_pos;
+    }
+    return(range);
+}
+
+static Range
+pos_range_enclose_non_whitespace(Application_Links *app, Buffer_ID buffer, Range range){
+    return(pos_range_enclose__within_delimiter_class(app, buffer, range, 
+                                                     &character_predicate_whitespace));
+}
+
+static Range
+pos_range_enclose_alpha_numeric(Application_Links *app, Buffer_ID buffer, Range range){
+    Character_Predicate negative = character_predicate_not(&character_predicate_alpha_numeric);
+    return(pos_range_enclose__within_delimiter_class(app, buffer, range, &negative));
+}
+
+static Range
+pos_range_enclose_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Range range){
+    Character_Predicate negative = character_predicate_not(&character_predicate_alpha_numeric_underscore);
+    return(pos_range_enclose__within_delimiter_class(app, buffer, range, &negative));
+}
+
+static Range
+get_snipe_range(Application_Links *app, Buffer_ID buffer, i32 pos, Scan_Direction direction, Seek_Boundary_Flag flags){
+    Range result = {};
+    i32 buffer_size = 0;
+    buffer_get_size(app, buffer, &buffer_size);
+    i32 pos0 = pos;
+    i32 pos1 = scan_to_word_boundary(app, buffer, pos0, direction, flags);
+    if (0 <= pos1 && pos1 <= buffer_size){
+        i32 pos2 = scan_to_word_boundary(app, buffer, pos1, flip_direction(direction), flags);
+        if (0 <= pos2 && pos2 <= buffer_size){
+            if (direction == Scan_Backward){
+                pos2 = clamp_bot(pos2, pos0);
+            }
+            else{
+                pos2 = clamp_top(pos2, pos0);
+            }
+            result = make_range(pos1, pos2);
+        }
+    }
+    return(result);
+}
 
 ////////////////////////////////
 
@@ -704,6 +956,30 @@ push_string_in_view_range(Application_Links *app, Arena *arena, View_ID view){
     Buffer_ID buffer = 0;
     view_get_buffer(app, view, AccessProtected, &buffer);
     return(push_buffer_range(app, arena, buffer, get_view_range(app, view)));
+}
+
+static String_Const_u8
+push_non_whitespace_word_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos){
+    Range range = pos_range_enclose_non_whitespace(app, buffer, make_range(pos));
+    return(push_buffer_range(app, arena, buffer, range));
+}
+
+static String_Const_u8
+push_alpha_numeric_word_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos){
+    Range range = pos_range_enclose_alpha_numeric(app, buffer, make_range(pos));
+    return(push_buffer_range(app, arena, buffer, range));
+}
+
+static String_Const_u8
+push_alpha_numeric_underscore_word_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos){
+    Range range = pos_range_enclose_alpha_numeric_underscore(app, buffer, make_range(pos));
+    return(push_buffer_range(app, arena, buffer, range));
+}
+
+static String_Const_u8
+push_token_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token_Array tokens, i32 pos){
+    Range range = pos_range_enclose_whole_tokens(app, tokens, make_range(pos));
+    return(push_buffer_range(app, arena, buffer, range));
 }
 
 ////////////////////////////////
@@ -846,25 +1122,6 @@ get_pos_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Dir
     i32 blank_line = get_line_number_of_blank_line_grouped(app, buffer, direction, line_number_start);
     i32 pos = get_line_start_pos(app, buffer, blank_line);
     return(pos);
-}
-
-////////////////////////////////
-
-static Cpp_Token_Array
-buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id){
-    Cpp_Token_Array array = {};
-    if (buffer_exists(app, buffer_id)){
-        b32 is_lexed = false;
-        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
-            if (is_lexed){
-                buffer_token_count(app, buffer_id, &array.count);
-                array.max_count = array.count;
-                array.tokens = push_array(arena, Cpp_Token, array.count);
-                buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
-            }
-        }
-    }
-    return(array);
 }
 
 ////////////////////////////////

@@ -4,7 +4,7 @@
 
 // TOP
 
-static Hard_Start_Result
+internal Hard_Start_Result
 buffer_find_hard_start(Application_Links *app, Buffer_ID buffer, i32 line_start, i32 tab_width){
     i32 tab_additional_width = tab_width - 1;
     
@@ -49,7 +49,7 @@ buffer_find_hard_start(Application_Links *app, Buffer_ID buffer, i32 line_start,
     return(result);
 }
 
-static Buffer_Batch_Edit
+internal Buffer_Batch_Edit
 make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                              i32 first_line, i32 one_past_last_line, i32 *indent_marks,
                              Indent_Options opts){
@@ -116,7 +116,7 @@ make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buf
     return(result);
 }
 
-static void
+internal void
 set_line_indents(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
     Buffer_Batch_Edit batch = make_batch_from_indent_marks(app, arena, buffer, first_line, one_past_last_line, indent_marks, opts);
     if (batch.edit_count > 0){
@@ -124,7 +124,7 @@ set_line_indents(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 fir
     }
 }
 
-static Cpp_Token*
+internal Cpp_Token*
 seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
                               Cpp_Token_Type open_type, Cpp_Token_Type close_type){
     if (token <= tokens.tokens){
@@ -151,7 +151,7 @@ seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
     return(token);
 }
 
-static Indent_Anchor_Position
+internal Indent_Anchor_Position
 find_anchor_token(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, i32 line_start, i32 tab_width){
     Indent_Anchor_Position anchor = {};
     if (tokens.count > 0){
@@ -228,7 +228,7 @@ find_anchor_token(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array toke
     return(anchor);
 }
 
-static i32*
+internal i32*
 get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                       Cpp_Token_Array tokens, i32 first_line, i32 one_past_last_line,
                       b32 exact_align, i32 tab_width){
@@ -496,7 +496,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
     return(indent_marks);
 }
 
-static void
+internal void
 get_indent_lines_minimum(Application_Links *app, Buffer_ID buffer, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
     i32 line_start = get_line_number_from_pos(app, buffer, start_pos);
     i32 line_end = get_line_number_from_pos(app, buffer, end_pos) + 1;
@@ -504,7 +504,7 @@ get_indent_lines_minimum(Application_Links *app, Buffer_ID buffer, i32 start_pos
     *line_end_out = line_end;
 }
 
-static void
+internal void
 get_indent_lines_whole_tokens(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
     i32 line_start = get_line_number_from_pos(app, buffer, start_pos);
     i32 line_end = get_line_number_from_pos(app, buffer, end_pos);
@@ -541,7 +541,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_ID buffer, Cpp_Toke
     *line_end_out = line_end;
 }
 
-static b32
+internal b32
 buffer_auto_indent(Application_Links *app, Arena *scratch, Buffer_ID buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
     b32 result = false;
     if (buffer_exists(app, buffer) && buffer_tokens_are_ready(app, buffer)){
@@ -585,7 +585,7 @@ buffer_auto_indent(Application_Links *app, Arena *scratch, Buffer_ID buffer, i32
     return(result);
 }
 
-static b32
+internal b32
 buffer_auto_indent(Application_Links *app, Buffer_ID buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
     Arena *scratch = context_get_arena(app);
     return(buffer_auto_indent(app, scratch, buffer, start, end, tab_width, flags));
