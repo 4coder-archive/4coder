@@ -593,8 +593,11 @@ generate_remapping_code_and_data(Arena *arena){
         
         inherit_map(arena, mappings, mapid_file);
         
-        bind(arena, mappings, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
+        bind(arena, mappings, key_left , MDFR_CTRL, seek_alphanumeric_or_camel_left);
         bind(arena, mappings, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
+        
+        bind(arena, mappings, key_left , MDFR_ALT, seek_alphanumeric_left);
+        bind(arena, mappings, key_right, MDFR_ALT, seek_alphanumeric_right);
         
         bind(arena, mappings, '\n', MDFR_NONE, write_and_auto_tab);
         bind(arena, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);
@@ -817,8 +820,11 @@ generate_remapping_code_and_data(Arena *arena){
         
         inherit_map(arena, mappings, mapid_file);
         
-        bind(arena, mappings, key_left, MDFR_CMND, seek_alphanumeric_or_camel_left);
+        bind(arena, mappings, key_left , MDFR_CMND, seek_alphanumeric_or_camel_left);
         bind(arena, mappings, key_right, MDFR_CMND, seek_alphanumeric_or_camel_right);
+        
+        bind(arena, mappings, key_left , MDFR_CTRL, seek_alphanumeric_left);
+        bind(arena, mappings, key_right, MDFR_CTRL, seek_alphanumeric_right);
         
         bind(arena, mappings, '\n', MDFR_NONE, write_and_auto_tab);
         bind(arena, mappings, '\n', MDFR_SHIFT, write_and_auto_tab);

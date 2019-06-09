@@ -4,293 +4,67 @@
 
 // TOP
 
+// TODO(allen): replace everything until the END comment -- START --
+
 static i32
-buffer_seek_whitespace_right(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    i32 result = buffer_size + 1;
-    if (pos < 0){
-        pos = 0;
-    }
-    pos += 1;
-    if (pos < buffer_size){
-        char data_chunk[1024];
-        Stream_Chunk stream = {};
-        stream.add_null = true;
-        if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            b32 still_looping = true;
-            b32 is_whitespace_1 = character_is_whitespace(buffer_get_char(app, buffer_id, pos - 1));
-            do{
-                for (; pos < stream.end; ++pos){
-                    char c2 = stream.data[pos];
-                    b32 is_whitespace_2 = true;
-                    if (c2 != 0){
-                        is_whitespace_2 = character_is_whitespace(c2);
-                    }
-                    if (!is_whitespace_1 && is_whitespace_2){
-                        result = pos;
-                        goto double_break;
-                    }
-                    is_whitespace_1 = is_whitespace_2;
-                }
-                still_looping = forward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break:;
-        }
-    }
-    return(result);
+buffer_seek_whitespace_right(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(buffer_seek_character_class_change_0_1(app, buffer, &character_predicate_whitespace,
+                                                  Scan_Forward, pos));
 }
 
 static i32
-buffer_seek_whitespace_left(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    
-    i32 result = -1;
-    if (pos > buffer_size){
-        pos = buffer_size;
-    }
-    pos -= 2;
-    if (pos >= 0){
-        char data_chunk[1024];
-        Stream_Chunk stream = {};
-        if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            b32 still_looping = true;
-            b32 is_whitespace_2 = character_is_whitespace(buffer_get_char(app, buffer_id, pos + 1));
-            do{
-                for (; pos >= stream.start; --pos){
-                    char c1 = stream.data[pos];
-                    b32 is_whitespace_1 = character_is_whitespace(c1);
-                    if (is_whitespace_1 && !is_whitespace_2){
-                        result = pos + 1;
-                        goto double_break;
-                    }
-                    is_whitespace_2 = is_whitespace_1;
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break:;
-        }
-    }
-    if (pos == -1){
-        if (!character_is_whitespace(buffer_get_char(app, buffer_id, 0))){
-            result = 0;
-        }
-    }
-    return(result);
+buffer_seek_whitespace_left(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(buffer_seek_character_class_change_1_0(app, buffer, &character_predicate_whitespace,
+                                                  Scan_Backward, pos));
 }
 
 static i32
-buffer_seek_alphanumeric_right(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-        b32 still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                u8 c = stream.data[pos];
-                if (c != '_' && character_is_alpha_numeric_unicode(c)){
-                    goto double_break1;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break1:;
-        still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                u8 c = stream.data[pos];
-                if (!(c != '_' && character_is_alpha_numeric_unicode(c))){
-                    goto double_break2;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break2:;
-    }
-    return(pos);
+buffer_seek_alphanumeric_right(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(buffer_seek_character_class_change_1_0(app, buffer, &character_predicate_alpha_numeric,
+                                                  Scan_Forward, pos));
 }
 
 static i32
-buffer_seek_alphanumeric_left(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    --pos;
-    if (pos > 0){
-        if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            b32 still_looping = true;
-            do{
-                for (; pos >= stream.start; --pos){
-                    u8 c = stream.data[pos];
-                    if (c != '_' && character_is_alpha_numeric_unicode(c)){
-                        goto double_break1;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break1:;
-            still_looping = true;
-            do{
-                for (; pos >= stream.start; --pos){
-                    u8 c = stream.data[pos];
-                    if (!(c != '_' && character_is_alpha_numeric_unicode(c))){
-                        ++pos;
-                        goto double_break2;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break2:;
-        }
-    }
-    else{
-        pos = 0;
-    }
-    return(pos);
+buffer_seek_alphanumeric_left(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(buffer_seek_character_class_change_0_1(app, buffer, &character_predicate_alpha_numeric,
+                                                  Scan_Backward, pos));
 }
 
 static i32
-buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-        b32 still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                u8 c = stream.data[pos];
-                if (character_is_alpha_numeric_unicode(c)){
-                    goto double_break1;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break1:;
-        still_looping = true;
-        do{
-            for (; pos < stream.end; ++pos){
-                u8 c = stream.data[pos];
-                if (!character_is_alpha_numeric_unicode(c)){
-                    goto double_break2;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break2:;
-    }
-    return(pos);
+buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(buffer_seek_character_class_change_1_0(app, buffer,
+                                                  &character_predicate_alpha_numeric_underscore,
+                                                  Scan_Forward, pos));
 }
 
 static i32
-buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    --pos;
-    if (pos > 0){
-        if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            b32 still_looping = true;
-            do{
-                for (; pos >= stream.start; --pos){
-                    u8 c = stream.data[pos];
-                    if (character_is_alpha_numeric_unicode(c)){
-                        goto double_break1;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break1:;
-            still_looping = true;
-            do{
-                for (; pos >= stream.start; --pos){
-                    u8 c = stream.data[pos];
-                    if (!character_is_alpha_numeric_unicode(c)){
-                        ++pos;
-                        goto double_break2;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break2:;
-        }
-    }
-    else{
-        pos = 0;
-    }
-    return(pos);
+buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_ID buffer, i32 pos){
+    return(buffer_seek_character_class_change_0_1(app, buffer,
+                                                  &character_predicate_alpha_numeric_underscore,
+                                                  Scan_Backward, pos));
 }
 
 static i32
-buffer_seek_range_camel_right(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 an_pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    ++pos;
-    if (pos < an_pos){
-        stream.max_end = an_pos;
-        if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            u8 c = 0;
-            u8 pc = stream.data[pos];
-            ++pos;
-            b32 still_looping = false;
-            do{
-                for (; pos < stream.end; ++pos){
-                    c = stream.data[pos];
-                    if (character_is_upper(c) && character_is_lower_unicode(pc)){
-                        goto double_break1;
-                    }
-                    pc = c;
-                }
-                still_looping = forward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break1:;
-        }
+buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_ID buffer, i32 pos){
+    i32 an_pos = buffer_seek_alphanumeric_right(app, buffer, pos);
+    i32 an_left_pos = buffer_seek_alphanumeric_left(app, buffer, an_pos);
+    i32 cap_pos = 0;
+    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                Scan_Forward, pos, &cap_pos);
+    if (cap_pos == an_left_pos){
+        buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                    Scan_Forward, cap_pos, &cap_pos);
     }
-    else{
-        pos = an_pos;
-    }
-    return(pos);
+    return(Min(an_pos, cap_pos));
 }
 
 static i32
-buffer_seek_range_camel_left(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 an_pos){
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    --pos;
-    if (pos > 0){
-        stream.min_start = an_pos+1;
-        if (init_stream_chunk(&stream, app, buffer_id, pos, data_chunk, sizeof(data_chunk))){
-            u8 c = 0;
-            u8 pc = stream.data[pos];
-            b32 still_looping = false;
-            do{
-                for (; pos >= stream.start; --pos){
-                    c = stream.data[pos];
-                    if (character_is_upper(c) && character_is_lower_unicode(pc)){
-                        goto double_break1;
-                    }
-                    pc = c;
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while(still_looping);
-            double_break1:;
-        }
-    }
-    else{
-        pos = 0;
-    }
-    return(pos);
-}
-
-static i32
-buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 an_pos = buffer_seek_alphanumeric_right(app, buffer_id, pos);
-    i32 result = buffer_seek_range_camel_right(app, buffer_id, pos, an_pos);
-    return(result);
-}
-
-static i32
-buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 an_pos = buffer_seek_alphanumeric_left(app, buffer_id, pos);
-    i32 result = buffer_seek_range_camel_left(app, buffer_id, pos, an_pos);
-    return(result);
+buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_ID buffer, i32 pos){
+    i32 an_pos = buffer_seek_alphanumeric_left(app, buffer, pos);
+    i32 cap_pos = 0;
+    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                Scan_Backward, pos, &cap_pos);
+    return(Max(cap_pos, an_pos));
 }
 
 static i32
@@ -356,14 +130,9 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Arena *scratch
             
             if (flags & BoundaryAlphanumeric){
                 pos[2] = buffer_seek_alphanumeric_right(app, buffer_id, start_pos);
-                if (flags & BoundaryCamelCase){
-                    pos[3] = buffer_seek_range_camel_right(app, buffer_id, start_pos, pos[2]);
-                }
             }
-            else{
-                if (flags & BoundaryCamelCase){
-                    pos[3] = buffer_seek_alphanumeric_or_camel_right(app, buffer_id, start_pos);
-                }
+            if (flags & BoundaryCamelCase){
+                pos[3] = buffer_seek_alphanumeric_or_camel_right(app, buffer_id, start_pos);
             }
             
             new_pos = size + 1;
@@ -394,14 +163,9 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Arena *scratch
             
             if (flags & BoundaryAlphanumeric){
                 pos[2] = buffer_seek_alphanumeric_left(app, buffer_id, start_pos);
-                if (flags & BoundaryCamelCase){
-                    pos[3] = buffer_seek_range_camel_left(app, buffer_id, start_pos, pos[2]);
-                }
             }
-            else{
-                if (flags & BoundaryCamelCase){
-                    pos[3] = buffer_seek_alphanumeric_or_camel_left(app, buffer_id, start_pos);
-                }
+            if (flags & BoundaryCamelCase){
+                pos[3] = buffer_seek_alphanumeric_or_camel_left(app, buffer_id, start_pos);
             }
             
             new_pos = -1;
@@ -417,6 +181,8 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Arena *scratch
     
     return(result);
 }
+
+// TODO(allen): --END--
 
 ////////////////////////////////
 
@@ -630,8 +396,6 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer
     }
 }
 
-////////////////////////////////
-
 static void
 buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, i32 min, String_Const_u8 str, i32 *result, Buffer_Seek_String_Flags flags){
     switch (flags & 3){
@@ -780,11 +544,11 @@ internal void
 seek_blank_line(Application_Links *app, Scan_Direction direction){
     View_ID view = 0;
     get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = get_pos_of_blank_line(app, buffer_id, direction, pos);
+    i32 new_pos = get_pos_of_blank_line_grouped(app, buffer, direction, pos);
     view_set_cursor(app, view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
@@ -797,7 +561,7 @@ seek_blank_line_skip_leading_whitespace(Application_Links *app, Scan_Direction d
     view_get_buffer(app, view, AccessProtected, &buffer_id);
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = get_pos_of_blank_line(app, buffer_id, direction, pos);
+    i32 new_pos = get_pos_of_blank_line_grouped(app, buffer_id, direction, pos);
     new_pos = get_pos_past_lead_whitespace(app, buffer_id, new_pos);
     view_set_cursor(app, view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);

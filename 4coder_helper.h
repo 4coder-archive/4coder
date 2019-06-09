@@ -33,6 +33,73 @@ struct File_Name_Data{
 
 ////////////////////////////////
 
+typedef b8 Character_Predicate_Function(u8 c);
+
+global Character_Predicate character_predicate_alpha = { {
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        254, 255, 255,   7, 254, 255, 255,   7, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_alpha_numeric = { {
+        0,   0,   0,   0,   0,   0, 255,   3, 
+        254, 255, 255,   7, 254, 255, 255,   7, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_alpha_numeric_underscore = { {
+        0,   0,   0,   0,   0,   0, 255,   3, 
+        254, 255, 255, 135, 254, 255, 255,   7, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_uppercase = { {
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        254, 255, 255,   7,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_lowercase = { {
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0, 254, 255, 255,   7, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_base10 = { {
+        0,   0,   0,   0,   0,   0, 255,   3, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_base16 = { {
+        0,   0,   0,   0,   0,   0, 255,   3, 
+        126,   0,   0,   0, 126,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_whitespace = { {
+        0,  62,   0,   0,   1,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+    } };
+
+global Character_Predicate character_predicate_utf8_byte = { {
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        0,   0,   0,   0,   0,   0,   0,   0, 
+        255, 255, 255, 255, 255, 255, 255, 255, 
+        255, 255, 255, 255, 255, 255, 255, 255, 
+    } };
+
+////////////////////////////////
+
 struct Stream_Chunk{
     Application_Links *app;
     Buffer_ID buffer_id;

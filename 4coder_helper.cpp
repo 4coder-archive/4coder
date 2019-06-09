@@ -279,6 +279,106 @@ get_key_code(char *buffer){
 
 ////////////////////////////////
 
+internal Character_Predicate
+character_predicate_from_function(Character_Predicate_Function *func){
+    Character_Predicate predicate = {};
+    i32 byte_index = 0;
+    for (u32 i = 0; i <= 255;){
+        b8 v[8];
+        for (i32 bit_index = 0; bit_index < 8; i += 1, bit_index += 1){
+            v[bit_index] = func((u8)i);
+        }
+        predicate.b[byte_index] = (
+            (v[0] << 0) |
+            (v[1] << 1) |
+            (v[2] << 2) |
+            (v[3] << 3) |
+            (v[4] << 4) |
+            (v[5] << 5) |
+            (v[6] << 6) |
+            (v[7] << 7)
+            );
+        byte_index += 1;
+    }
+    return(predicate);
+}
+
+internal Character_Predicate
+character_predicate_from_character(u8 character){
+    Character_Predicate predicate = {};
+    predicate.b[character/8] = (1 << (character%8));
+    return(predicate);
+}
+
+#define character_predicate_check_character(p, c) (((p).b[(c)/8] & (1 << ((c)%8))) != 0)
+
+internal Character_Predicate
+character_predicate_or(Character_Predicate *a, Character_Predicate *b){
+    Character_Predicate p = {};
+    for (i32 i = 0; i < ArrayCount(p.b); i += 1){
+        p.b[i] = a->b[i] | b->b[i];
+    }
+    return(p);
+}
+
+internal Character_Predicate
+character_predicate_and(Character_Predicate *a, Character_Predicate *b){
+    Character_Predicate p = {};
+    for (i32 i = 0; i < ArrayCount(p.b); i += 1){
+        p.b[i] = a->b[i] & b->b[i];
+    }
+    return(p);
+}
+
+internal Character_Predicate
+character_predicate_not(Character_Predicate *a){
+    Character_Predicate p = {};
+    for (i32 i = 0; i < ArrayCount(p.b); i += 1){
+        p.b[i] = ~(a->b[i]);
+    }
+    return(p);
+}
+
+internal i32
+buffer_seek_character_class_change__inner(Application_Links *app, Buffer_ID buffer, Character_Predicate *positive, Character_Predicate *negative, Scan_Direction direction, i32 start_pos){
+    i32 pos = start_pos;
+    switch (direction){
+        case Scan_Backward:
+        {
+            b32 s1 = buffer_seek_character_class(app, buffer, negative, direction, pos, &pos);
+            b32 s2 = buffer_seek_character_class(app, buffer, positive, direction, pos, &pos);
+            if (s1 && s2){
+                pos += 1;
+            }
+        }break;
+        case Scan_Forward:
+        {
+            pos -= 1;
+            buffer_seek_character_class(app, buffer, positive, direction, pos, &pos);
+            buffer_seek_character_class(app, buffer, negative, direction, pos, &pos);
+        }break;
+    }
+    return(pos);
+}
+
+internal i32
+buffer_seek_character_class_change_1_0(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos){
+    Character_Predicate negative = character_predicate_not(predicate);
+    return(buffer_seek_character_class_change__inner(app, buffer,
+                                                     predicate, &negative,
+                                                     direction, start_pos));
+}
+
+internal i32
+buffer_seek_character_class_change_0_1(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos){
+    Character_Predicate negative = character_predicate_not(predicate);
+    return(buffer_seek_character_class_change__inner(app, buffer,
+                                                     &negative, predicate,
+                                                     direction, start_pos));
+}
+
+////////////////////////////////
+
 static String_Const_u8
 push_hot_directory(Application_Links *app, Arena *arena){
     String_Const_u8 result = {};
@@ -550,8 +650,6 @@ pos_range_enclose_whole_tokens(Application_Links *app, Buffer_ID buffer, Cpp_Tok
     return(range);
 }
 
-
-
 // NOTE(allen): range enclose operators:
 // enclose whole *** ?
 
@@ -685,22 +783,28 @@ move_past_lead_whitespace(Application_Links *app, View_ID view){
     move_past_lead_whitespace(app, view, buffer);
 }
 
+static b32
+line_is_blank(Application_Links *app, Buffer_ID buffer, i32 line_number){
+    Scratch_Block scratch(app);
+    String_Const_u8 line = push_buffer_line(app, scratch, buffer, line_number);
+    b32 is_blank = true;
+    for (umem i = 0; i < line.size; i += 1){
+        if (!character_is_whitespace(line.str[i])){
+            is_blank = false;
+            break;
+        }
+    }
+    return(is_blank);
+}
+
 static i32
-get_line_number_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
+get_line_number_of__whitespace_status_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start, b32 get_blank_line){
     i32 line_count = 0;
     buffer_get_line_count(app, buffer, &line_count);
     i32 line_number = line_number_start + direction;
     for (;1 <= line_number && line_number <= line_count; line_number += direction){
-        Scratch_Block scratch(app);
-        String_Const_u8 line = push_buffer_line(app, scratch, buffer, line_number);
-        b32 is_blank = true;
-        for (umem i = 0; i < line.size; i += 1){
-            if (!character_is_whitespace(line.str[i])){
-                is_blank = false;
-                break;
-            }
-        }
-        if (is_blank){
+        b32 is_blank = line_is_blank(app, buffer, line_number);
+        if (is_blank == get_blank_line){
             break;
         }
     }
@@ -709,9 +813,37 @@ get_line_number_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Dir
 }
 
 static i32
+get_line_number_of_non_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
+    return(get_line_number_of__whitespace_status_line(app, buffer, direction, line_number_start, false));
+}
+
+static i32
+get_line_number_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
+    return(get_line_number_of__whitespace_status_line(app, buffer, direction, line_number_start, true));
+}
+
+static i32
 get_pos_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 pos_start){
     i32 line_number_start = get_line_number_from_pos(app, buffer, pos_start);
     i32 blank_line = get_line_number_of_blank_line(app, buffer, direction, line_number_start);
+    i32 pos = get_line_start_pos(app, buffer, blank_line);
+    return(pos);
+}
+
+static i32
+get_line_number_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
+    i32 line_number = line_number_start;
+    if (line_is_blank(app, buffer, line_number)){
+        line_number = get_line_number_of_non_blank_line(app, buffer, direction, line_number);
+    }
+    line_number = get_line_number_of_blank_line(app, buffer, direction, line_number);
+    return(line_number);
+}
+
+static i32
+get_pos_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 pos_start){
+    i32 line_number_start = get_line_number_from_pos(app, buffer, pos_start);
+    i32 blank_line = get_line_number_of_blank_line_grouped(app, buffer, direction, line_number_start);
     i32 pos = get_line_start_pos(app, buffer, blank_line);
     return(pos);
 }

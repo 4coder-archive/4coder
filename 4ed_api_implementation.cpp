@@ -420,6 +420,74 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
+#define character_predicate_check_character(p, c) (((p).b[(c)/8] & (1 << ((c)%8))) != 0)
+
+API_EXPORT b32
+Buffer_Seek_Character_Class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (api_check_buffer(file)){
+        String_Const_u8 chunks_space[2];
+        Cursor chunks_cursor = make_cursor(chunks_space, sizeof(chunks_space));
+        Gap_Buffer *gap_buffer = &file->state.buffer;
+        String_Const_u8_Array chunks = buffer_get_chunks(&chunks_cursor, gap_buffer, BufferGetChunk_Basic);
+        
+        i32 size = buffer_size(gap_buffer);
+        start_pos = clamp(-1, start_pos, size);
+        if (chunks.count > 0){
+            i32 real_pos = start_pos;
+            i32 chunk_index = 0;
+            i32 chunk_pos = start_pos;
+            if (start_pos != size){
+                for (;(imem)(chunks.vals[chunk_index].size) < chunk_pos;){
+                    Assert(chunk_index < chunks.count);
+                    chunk_pos -= (i32)chunks.vals[chunk_index].size;
+                    chunk_index += 1;
+                }
+            }
+            else{
+                chunk_index = chunks.count - 1;
+                chunk_pos = (i32)chunks.vals[chunk_index].size;
+            }
+            for (;;){
+                real_pos += direction;
+                chunk_pos += direction;
+                if (chunk_pos < 0){
+                    if (chunk_index == 0){
+                        *pos_out = 0;
+                        break;
+                    }
+                    else{
+                        chunk_index -= 1;
+                        chunk_pos = (i32)chunks.vals[chunk_index].size - 1;
+                    }
+                }
+                else if (chunk_pos >= (imem)(chunks.vals[chunk_index].size)){
+                    chunk_index += 1;
+                    if (chunk_index == chunks.count){
+                        *pos_out = size;
+                        break;
+                    }
+                    else{
+                        chunk_pos = 0;
+                    }
+                }
+                u8 v = chunks.vals[chunk_index].str[chunk_pos];
+                if (character_predicate_check_character(*predicate, v)){
+                    result = true;
+                    *pos_out = real_pos;
+                    break;
+                }
+            }
+        }
+        else{
+            *pos_out = 0;
+        }
+    }
+    return(result);
+}
+
 // TODO(allen): redocument
 API_EXPORT b32
 Buffer_Compute_Cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out)

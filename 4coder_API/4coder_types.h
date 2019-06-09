@@ -152,6 +152,10 @@ ENUM(i32, Buffer_Setting_ID){
     BufferSetting_RecordsHistory,
 };
 
+STRUCT Character_Predicate{
+    u8 b[32];
+};
+
 /* DOC(A View_Setting_ID names an adjustable setting in a view.) */
 ENUM(i32, View_Setting_ID){
     /* DOC(ViewSetting_Null is not a valid setting, it is reserved to detect errors.) */
