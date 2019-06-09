@@ -187,51 +187,15 @@ buffer_boundary_seek(Application_Links *app, Buffer_ID buffer_id, Arena *scratch
 ////////////////////////////////
 
 void
-buffer_seek_delimiter_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos, char delim, i32 *result){
-    if (buffer_exists(app, buffer_id)){
-        char chunk[1024];
-        i32 size = sizeof(chunk);
-        Stream_Chunk stream = {};
-        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, size)){
-            i32 still_looping = 1;
-            do{
-                for(; pos < stream.end; ++pos){
-                    char at_pos = stream.data[pos];
-                    if (at_pos == delim){
-                        *result = pos;
-                        goto finished;
-                    }
-                }
-                still_looping = forward_stream_chunk(&stream);
-            }while (still_looping);
-        }
-    }
-    buffer_get_size(app, buffer_id, result);
-    finished:;
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
+    Character_Predicate predicate = character_predicate_from_character((u8)delim);
+    buffer_seek_character_class(app, buffer, &predicate, Scan_Forward, pos, result);
 }
 
-static void
-buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos, char delim, i32 *result){
-    if (buffer_exists(app, buffer_id)){
-        char chunk[1024];
-        i32 size = sizeof(chunk);
-        Stream_Chunk stream = {};
-        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, size)){
-            i32 still_looping = 1;
-            do{
-                for(; pos >= stream.start; --pos){
-                    char at_pos = stream.data[pos];
-                    if (at_pos == delim){
-                        *result = pos;
-                        goto finished;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while (still_looping);
-        }
-    }
-    *result = 0;
-    finished:;
+void
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
+    Character_Predicate predicate = character_predicate_from_character((u8)delim);
+    buffer_seek_character_class(app, buffer, &predicate, Scan_Backward, pos, result);
 }
 
 static void
