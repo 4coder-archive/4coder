@@ -20,6 +20,7 @@ struct Application_Links;
 #define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string)
 #define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count)
+#define BUFFER_SEEK_STRING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos, i32 *pos_out, b32 *case_sensitive_out)
 #define BUFFER_SEEK_CHARACTER_CLASS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_EXISTS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
@@ -204,6 +205,7 @@ typedef GET_BUFFER_BY_FILE_NAME_SIG(Get_Buffer_By_File_Name_Function);
 typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
 typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
+typedef BUFFER_SEEK_STRING_SIG(Buffer_Seek_String_Function);
 typedef BUFFER_SEEK_CHARACTER_CLASS_SIG(Buffer_Seek_Character_Class_Function);
 typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_EXISTS_SIG(Buffer_Exists_Function);
@@ -390,6 +392,7 @@ Get_Buffer_By_File_Name_Function *get_buffer_by_file_name;
 Buffer_Read_Range_Function *buffer_read_range;
 Buffer_Replace_Range_Function *buffer_replace_range;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
+Buffer_Seek_String_Function *buffer_seek_string;
 Buffer_Seek_Character_Class_Function *buffer_seek_character_class;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Exists_Function *buffer_exists;
@@ -575,6 +578,7 @@ Get_Buffer_By_File_Name_Function *get_buffer_by_file_name_;
 Buffer_Read_Range_Function *buffer_read_range_;
 Buffer_Replace_Range_Function *buffer_replace_range_;
 Buffer_Batch_Edit_Function *buffer_batch_edit_;
+Buffer_Seek_String_Function *buffer_seek_string_;
 Buffer_Seek_Character_Class_Function *buffer_seek_character_class_;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Exists_Function *buffer_exists_;
@@ -768,6 +772,7 @@ app_links->get_buffer_by_file_name_ = Get_Buffer_By_File_Name;\
 app_links->buffer_read_range_ = Buffer_Read_Range;\
 app_links->buffer_replace_range_ = Buffer_Replace_Range;\
 app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
+app_links->buffer_seek_string_ = Buffer_Seek_String;\
 app_links->buffer_seek_character_class_ = Buffer_Seek_Character_Class;\
 app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_exists_ = Buffer_Exists;\
@@ -953,6 +958,7 @@ static b32 get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit(app, buffer_id, str, edits, edit_count));}
+static b32 buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos, i32 *pos_out, b32 *case_sensitive_out){return(app->buffer_seek_string(app, buffer, needle, direction, start_pos, pos_out, case_sensitive_out));}
 static b32 buffer_seek_character_class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){return(app->buffer_seek_character_class(app, buffer_id, predicate, direction, start_pos, pos_out));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer_id, seek, cursor_out));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists(app, buffer_id));}
@@ -1138,6 +1144,7 @@ static b32 get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range_(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range_(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit_(app, buffer_id, str, edits, edit_count));}
+static b32 buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos, i32 *pos_out, b32 *case_sensitive_out){return(app->buffer_seek_string_(app, buffer, needle, direction, start_pos, pos_out, case_sensitive_out));}
 static b32 buffer_seek_character_class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){return(app->buffer_seek_character_class_(app, buffer_id, predicate, direction, start_pos, pos_out));}
 static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer_id, seek, cursor_out));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists_(app, buffer_id));}

@@ -53,6 +53,12 @@ struct Gap_Buffer_Stream{
 };
 global Gap_Buffer_Stream null_buffer_stream = {};
 
+struct Buffer_Chunk_Position{
+    i32 real_pos;
+    i32 chunk_pos;
+    i32 chunk_index;
+};
+
 struct Buffer_Batch_State{
     i32 i;
     i32 shift_total;

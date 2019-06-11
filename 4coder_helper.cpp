@@ -1178,24 +1178,6 @@ get_pos_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Dir
 
 ////////////////////////////////
 
-static i32
-round_down(i32 x, i32 b){
-    i32 r = 0;
-    if (x >= 0){
-        r = x - (x % b);
-    }
-    return(r);
-}
-
-static i32
-round_up(i32 x, i32 b){
-    i32 r = 0;
-    if (x >= 0){
-        r = x + b - (x % b);
-    }
-    return(r);
-}
-
 static void
 exec_command(Application_Links *app, Custom_Command_Function *func){
     func(app);
@@ -1534,8 +1516,8 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_ID buffer_
         chunk->buffer_id = buffer_id;
         chunk->base_data = data;
         chunk->data_size = size;
-        chunk->start = round_down(pos, size);
-        chunk->end = round_up(pos, size);
+        chunk->start = round_down_i32(pos, size);
+        chunk->end = round_up_i32(pos, size);
         
         if (chunk->max_end > buffer_size || chunk->max_end == 0){
             chunk->max_end = buffer_size;
@@ -1643,16 +1625,12 @@ init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_ID 
         stream->buffer_id = buffer_id;
         stream->base_tokens = data;
         stream->count = count;
-        stream->start = round_down(pos, count);
-        stream->end = round_up(pos, count);
+        stream->start = round_down_i32(pos, count);
+        stream->end = round_up_i32(pos, count);
         stream->token_count = token_count;
         
-        if (stream->start < 0){
-            stream->start = 0;
-        }
-        if (stream->end > stream->token_count){
-            stream->end = stream->token_count;
-        }
+        stream->start = clamp_bot(0, stream->start);
+        stream->end = clamp_top(stream->end, stream->token_count);
         
         buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
         stream->tokens = stream->base_tokens - stream->start;

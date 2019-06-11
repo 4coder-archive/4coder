@@ -17,164 +17,68 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer, i32 pos
 }
 
 static void
-buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, String_Const_u8 needle_string, i32 *result){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    if (buffer_size > end){
-        *result = buffer_size;
+buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
+    if (end == 0){
+        buffer_get_size(app, buffer, &end);
+    }
+    b32 case_sensitive = false;
+    b32 finding_matches = false;
+    do{
+        finding_matches = 
+            buffer_seek_string(app, buffer, needle, Scan_Forward, pos, &pos, &case_sensitive);
+    } while(!case_sensitive && pos < end && finding_matches);
+    if (pos < end && finding_matches){
+        *result = pos;
     }
     else{
-        *result = end;
-    }
-    
-    Scratch_Block scratch(app);
-    if (0 < needle_string.size){
-        if (buffer_exists(app, buffer_id)){
-            u8 first_char = string_get_character(needle_string, 0);
-            
-            u8 *read_buffer = push_array(scratch, u8, needle_string.size);
-            String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
-            
-            char chunk[1024];
-            Stream_Chunk stream = {};
-            stream.max_end = end;
-            
-            if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, sizeof(chunk))){
-                b32 still_looping = true;
-                do{
-                    for(; pos < stream.end; ++pos){
-                        u8 at_pos = stream.data[pos];
-                        if (at_pos == first_char){
-                            buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
-                            if (string_match(needle_string, read_str)){
-                                *result = pos;
-                                goto finished;
-                            }
-                        }
-                    }
-                    still_looping = forward_stream_chunk(&stream);
-                }while (still_looping);
-            }
-        }
-        
-        if (end == 0){
-            *result = buffer_size;
-        }
-        else{
-            *result = end;
-        }
-        
-        finished:;
+        buffer_get_size(app, buffer, result);
     }
 }
 
 static void
-buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 min, String_Const_u8 needle_string, i32 *result){
-    Scratch_Block scratch(app);
-    *result = min - 1;
-    if (0 < needle_string.size && buffer_exists(app, buffer_id)){
-        u8 first_char = string_get_character(needle_string, 0);
-        
-        u8 *read_buffer = push_array(scratch, u8, needle_string.size);
-        String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
-        
-        char chunk[1024];
-        Stream_Chunk stream = {};
-        stream.min_start = min;
-        
-        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, sizeof(chunk))){
-            b32 still_looping = true;
-            do{
-                for(; pos >= stream.start; --pos){
-                    u8 at_pos = stream.data[pos];
-                    if (at_pos == first_char){
-                        buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
-                        if (string_match(needle_string, read_str)){
-                            *result = pos;
-                            goto finished;
-                        }
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while (still_looping);
-        }
-        finished:;
-    }
-}
-
-static void
-buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, String_Const_u8 needle_string, i32 *result){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    if (buffer_size > end){
-        *result = buffer_size;
+buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
+    b32 case_sensitive = false;
+    b32 finding_matches = false;
+    do{
+        finding_matches = 
+            buffer_seek_string(app, buffer, needle, Scan_Backward, pos, &pos, &case_sensitive);
+    } while(!case_sensitive && pos >= min && finding_matches);
+    if (pos >= min && finding_matches){
+        *result = pos;
     }
     else{
-        *result = end;
-    }
-    
-    Scratch_Block scratch(app);
-    if (0 < needle_string.size && buffer_exists(app, buffer_id)){
-        u8 first_char = character_to_upper(string_get_character(needle_string, 0));
-        
-        u8 *read_buffer = push_array(scratch, u8, needle_string.size);
-        String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
-        
-        char chunk[1024];
-        Stream_Chunk stream = {};
-        stream.max_end = end;
-        
-        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, sizeof(chunk))){
-            b32 still_looping = true;
-            do{
-                for(; pos < stream.end; ++pos){
-                    u8 at_pos = character_to_upper(stream.data[pos]);
-                    if (at_pos == first_char){
-                        buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
-                        if (string_match_insensitive(needle_string, read_str)){
-                            *result = pos;
-                            goto finished;
-                        }
-                    }
-                }
-                still_looping = forward_stream_chunk(&stream);
-            }while (still_looping);
-        }
-        finished:;
+        *result = -1;
     }
 }
 
 static void
-buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 min, String_Const_u8 needle_string, i32 *result){
-    Scratch_Block scratch(app);
-    *result = min - 1;
-    if (0 < needle_string.size && buffer_exists(app, buffer_id)){
-        u8 first_char = character_to_upper(string_get_character(needle_string, 0));
-        
-        u8 *read_buffer = push_array(scratch, u8, needle_string.size);
-        String_Const_u8 read_str = SCu8(read_buffer, needle_string.size);
-        
-        char chunk[1024];
-        Stream_Chunk stream = {};
-        stream.min_start = min;
-        
-        if (init_stream_chunk(&stream, app, buffer_id, pos, chunk, sizeof(chunk))){
-            b32 still_looping = true;
-            do{
-                for(; pos >= stream.start; --pos){
-                    u8 at_pos = character_to_upper(stream.data[pos]);
-                    if (at_pos == first_char){
-                        buffer_read_range(app, buffer_id, pos, (i32)(pos + needle_string.size), (char*)read_buffer);
-                        if (string_match_insensitive(needle_string, read_str)){
-                            *result = pos;
-                            goto finished;
-                        }
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }while (still_looping);
-        }
-        finished:;
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
+    if (end == 0){
+        buffer_get_size(app, buffer, &end);
+    }
+    b32 finding_matches = false;
+    b32 case_sensitive = false;
+    finding_matches = 
+        buffer_seek_string(app, buffer, needle, Scan_Forward, pos, &pos, &case_sensitive);
+    if (pos < end && finding_matches){
+        *result = pos;
+    }
+    else{
+        buffer_get_size(app, buffer, result);
+    }
+}
+
+static void
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
+    b32 finding_matches = false;
+    b32 case_sensitive = false;
+    finding_matches = 
+        buffer_seek_string(app, buffer, needle, Scan_Backward, pos, &pos, &case_sensitive);
+    if (pos >= min && finding_matches){
+        *result = pos;
+    }
+    else{
+        *result = -1;
     }
 }
 

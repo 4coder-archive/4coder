@@ -420,6 +420,132 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
+internal b32
+chunked_match(String_Const_u8_Array chunks, String_Const_u8 needle,
+              i32 chunk_index, i32 chunk_pos, b32 *case_sensitive_out){
+    b32 result = false;
+    if (chunk_pos + (imem)(needle.size) <= (imem)(chunks.vals[chunk_index].size)){
+        String_Const_u8 s = SCu8(chunks.vals[chunk_index].str + chunk_pos, needle.size);
+        if (string_match(needle, s)){
+            *case_sensitive_out = true;
+            result = true;
+        }
+        else if (string_match_insensitive(needle, s)){
+            *case_sensitive_out = false;
+            result = true;
+        }
+    }
+    else{
+        String_Const_u8 c = chunks.vals[chunk_index];
+        u8 *str = c.str;
+        String_Const_u8 s = SCu8(str + chunk_pos, str + c.size);
+        String_Const_u8 p = string_prefix(needle, s.size);
+        if (string_match(p, s)){
+            result = chunked_match(chunks, string_skip(needle, s.size),
+                                   chunk_index + 1, 0, case_sensitive_out);
+        }
+        else if (string_match_insensitive(p, s)){
+            result = chunked_match(chunks, string_skip(needle, s.size),
+                                   chunk_index + 1, 0, case_sensitive_out);
+            *case_sensitive_out = false;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT b32
+Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos, i32 *pos_out, b32 *case_sensitive_out){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer);
+    b32 result = false;
+    if (api_check_buffer(file)){
+        if (needle.size == 0){
+            *pos_out = start_pos;
+            result = true;
+        }
+        else{
+            Gap_Buffer *gap_buffer = &file->state.buffer;
+            i32 size = buffer_size(gap_buffer);
+            if (size >= (imem)needle.size){
+                u8 first_character = character_to_upper(needle.str[0]);
+                
+                i32 last_point = size - (i32)(needle.size) + 1;
+                String_Const_u8 chunks_space[2];
+                Cursor chunks_cursor = make_cursor(chunks_space, sizeof(chunks_space));
+                String_Const_u8_Array chunks = buffer_get_chunks(&chunks_cursor, gap_buffer, BufferGetChunk_Basic);
+                start_pos = clamp(-1, start_pos, last_point + 1);
+                Buffer_Chunk_Position pos = buffer_get_chunk_position(chunks, size, start_pos);
+                if (direction == Scan_Forward){
+                    for (; pos.chunk_index < chunks.count; pos.chunk_index += 1, pos.chunk_pos = 0){
+                        for (;;){
+                            pos.real_pos += 1;
+                            if (pos.real_pos > last_point){
+                                goto done_forward;
+                            }
+                            pos.chunk_pos += 1;
+                            if (pos.chunk_pos >= chunks.vals[pos.chunk_index].size){
+                                break;
+                            }
+                            
+                            // TODO(allen): "point skip array" for speedup
+                            u8 v = chunks.vals[pos.chunk_index].str[pos.chunk_pos];
+                            if (character_to_upper(v) == first_character){
+                                if (chunked_match(chunks, needle, pos.chunk_index, pos.chunk_pos, case_sensitive_out)){
+                                    *pos_out = pos.real_pos;
+                                    result = true;
+                                    goto done_forward;
+                                }
+                            }
+                        }
+                    }
+                    done_forward:;
+                    if (!result){
+                        *pos_out = size;
+                    }
+                }
+                else{
+                    for (;;){
+                        for (;;){
+                            pos.real_pos -= 1;
+                            if (pos.real_pos < 0){
+                                goto done_backward;
+                            }
+                            pos.chunk_pos -= 1;
+                            if (pos.chunk_pos < 0){
+                                break;
+                            }
+                            // TODO(allen): "point skip array" for speedup
+                            u8 v = chunks.vals[pos.chunk_index].str[pos.chunk_pos];
+                            if (character_to_upper(v) == first_character){
+                                if (chunked_match(chunks, needle, pos.chunk_index, pos.chunk_pos, case_sensitive_out)){
+                                    *pos_out = pos.real_pos;
+                                    result = true;
+                                    goto done_forward;
+                                }
+                            }
+                        }
+                        pos.chunk_index -= 1;
+                        if (pos.chunk_index > 0){
+                            pos.chunk_pos = (i32)chunks.vals[pos.chunk_index].size - 1;
+                        }
+                        else{
+                            break;
+                        }
+                    }
+                    done_backward:;
+                    if (!result){
+                        *pos_out = 0;
+                    }
+                }
+            }
+            else{
+                *pos_out = 0;
+            }
+        }
+    }
+    return(result);
+}
+
 #define character_predicate_check_character(p, c) (((p).b[(c)/8] & (1 << ((c)%8))) != 0)
 
 API_EXPORT b32
@@ -433,50 +559,25 @@ Buffer_Seek_Character_Class(Application_Links *app, Buffer_ID buffer_id, Charact
         Gap_Buffer *gap_buffer = &file->state.buffer;
         String_Const_u8_Array chunks = buffer_get_chunks(&chunks_cursor, gap_buffer, BufferGetChunk_Basic);
         
-        i32 size = buffer_size(gap_buffer);
-        start_pos = clamp(-1, start_pos, size);
         if (chunks.count > 0){
-            i32 real_pos = start_pos;
-            i32 chunk_index = 0;
-            i32 chunk_pos = start_pos;
-            if (start_pos != size){
-                for (;(imem)(chunks.vals[chunk_index].size) <= chunk_pos;){
-                    Assert(chunk_index < chunks.count);
-                    chunk_pos -= (i32)chunks.vals[chunk_index].size;
-                    chunk_index += 1;
-                }
-            }
-            else{
-                chunk_index = chunks.count - 1;
-                chunk_pos = (i32)chunks.vals[chunk_index].size;
-            }
+            i32 size = buffer_size(gap_buffer);
+            start_pos = clamp(-1, start_pos, size);
+            Buffer_Chunk_Position pos = buffer_get_chunk_position(chunks, size, start_pos);
+            // TODO(allen): rewrite as loop-in-loop for better iteration performance
             for (;;){
-                real_pos += direction;
-                chunk_pos += direction;
-                if (chunk_pos < 0){
-                    if (chunk_index == 0){
-                        *pos_out = 0;
-                        break;
-                    }
-                    else{
-                        chunk_index -= 1;
-                        chunk_pos = (i32)chunks.vals[chunk_index].size - 1;
-                    }
+                i32 past_end = buffer_chunk_position_iterate(chunks, &pos, direction);
+                if (past_end == -1){
+                    *pos_out = 0;
+                    break;
                 }
-                else if (chunk_pos >= (imem)(chunks.vals[chunk_index].size)){
-                    chunk_index += 1;
-                    if (chunk_index == chunks.count){
-                        *pos_out = size;
-                        break;
-                    }
-                    else{
-                        chunk_pos = 0;
-                    }
+                else if (past_end == 1){
+                    *pos_out = size;
+                    break;
                 }
-                u8 v = chunks.vals[chunk_index].str[chunk_pos];
+                u8 v = chunks.vals[pos.chunk_index].str[pos.chunk_pos];
                 if (character_predicate_check_character(*predicate, v)){
                     result = true;
-                    *pos_out = real_pos;
+                    *pos_out = pos.real_pos;
                     break;
                 }
             }

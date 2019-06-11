@@ -1496,7 +1496,7 @@ delete_file_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID bu
     string_list_pushf(scratch, &list, "\"%.*s\"", string_expand(file_name));
     String_Const_u8 cmd = string_list_flatten(scratch, list, StringFill_NullTerminate);
     exec_system_command(app, 0, buffer_identifier(0), path, cmd, 0);
-    kill_buffer(app, buffer_identifier(buffer_id), 0, BufferKill_AlwaysKill);
+        kill_buffer(app, buffer_identifier(buffer_id), 0, BufferKill_AlwaysKill);
 }
 
 CUSTOM_COMMAND_SIG(delete_file_query)
@@ -2124,7 +2124,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
                 buffer_history_get_current_state_index(app, buffer, &index);
                 if (index > 0){
                     Record_Info record = {};
-                    buffer_history_get_record_info(app, buffer, index, &record);
+                                        buffer_history_get_record_info(app, buffer, index, &record);
                     if (record.edit_number == highest_edit_number){
                         did_match = true;
                         new_edit_position = record_get_new_cursor_position_undo(app, buffer, index, record);

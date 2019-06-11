@@ -1869,5 +1869,50 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
 #undef DrReturn
 #undef DrCase
 
+internal Buffer_Chunk_Position
+buffer_get_chunk_position(String_Const_u8_Array chunks, i32 buffer_size, i32 real_pos){
+    Buffer_Chunk_Position pos = {};
+    pos.real_pos = real_pos;
+    pos.chunk_pos = real_pos;
+    if (pos.real_pos != buffer_size){
+        for (;(imem)(chunks.vals[pos.chunk_index].size) <= pos.chunk_pos;){
+            Assert(pos.chunk_index < chunks.count);
+            pos.chunk_pos -= (i32)chunks.vals[pos.chunk_index].size;
+            pos.chunk_index += 1;
+        }
+    }
+    else{
+        pos.chunk_index = chunks.count - 1;
+        pos.chunk_pos = (i32)chunks.vals[pos.chunk_index].size;
+    }
+    return(pos);
+}
+
+internal i32
+buffer_chunk_position_iterate(String_Const_u8_Array chunks, Buffer_Chunk_Position *pos, Scan_Direction direction){
+    i32 past_end = 0;
+    pos->real_pos += direction;
+    pos->chunk_pos += direction;
+    if (pos->chunk_pos < 0){
+        if (pos->chunk_index == 0){
+            past_end = -1;
+        }
+        else{
+            pos->chunk_index -= 1;
+            pos->chunk_pos = (i32)chunks.vals[pos->chunk_index].size - 1;
+        }
+    }
+    else if (pos->chunk_pos >= (imem)(chunks.vals[pos->chunk_index].size)){
+        pos->chunk_index += 1;
+        if (pos->chunk_index == chunks.count){
+            past_end = 1;
+        }
+        else{
+            pos->chunk_pos = 0;
+        }
+    }
+    return(past_end);
+}
+
 // BOTTOM
 
