@@ -2009,6 +2009,21 @@ flip_direction(Scan_Direction direction){
     return(direction);
 }
 
+internal Side
+flip_side(Side side){
+    switch (side){
+        case Side_Min:
+        {
+            side = Side_Max;
+        }break;
+        case Side_Max:
+        {
+            side = Side_Min;
+        }break;
+    }
+    return(side);
+}
+
 ////////////////////////////////
 
 #if defined(Migrating__Arena)

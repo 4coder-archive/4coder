@@ -198,48 +198,46 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, i32 
 
 static i32
 buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
-                                             Scan_Forward, &character_predicate_non_whitespace));
+    return(buffer==0?0:scan(app, boundary_non_whitespace, buffer->buffer_id, Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
-                                             Scan_Backward, &character_predicate_non_whitespace));
+    return(buffer==0?0:scan(app, boundary_non_whitespace, buffer->buffer_id, Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
-                                             Scan_Forward, &character_predicate_alpha_numeric));
+    return(buffer==0?0:scan(app, boundary_alpha_numeric, buffer->buffer_id, Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos,
-                                             Scan_Backward, &character_predicate_alpha_numeric));
+    return(buffer==0?0:scan(app, boundary_alpha_numeric, buffer->buffer_id, Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos, Scan_Forward,
-                                             &character_predicate_alpha_numeric_underscore));
+    return(buffer==0?0:scan(app, boundary_alpha_numeric_underscore, buffer->buffer_id,
+                            Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, pos, Scan_Backward,
-                                             &character_predicate_alpha_numeric_underscore));
+    return(buffer==0?0:scan(app, boundary_alpha_numeric_underscore, buffer->buffer_id,
+                            Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_alpha_numeric_camel_forward(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan(app, boundary_alpha_numeric_camel, buffer->buffer_id,
+                            Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan_to_alpha_numeric_camel_backward(app, buffer->buffer_id, pos));
+    return(buffer==0?0:scan(app, boundary_alpha_numeric_camel, buffer->buffer_id,
+                            Scan_Backward, pos));
 }
 
 static i32
@@ -315,7 +313,7 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, 
     String result = {};
     if (buffer != 0){
         Scratch_Block scratch(app);
-        Range range = pos_range_enclose_alpha_numeric_underscore(app, buffer->buffer_id, make_range(pos));
+        Range range = enclose_alpha_numeric_underscore(app, buffer->buffer_id, make_range(pos));
         String_Const_u8 string = push_buffer_range(app, scratch, buffer->buffer_id, range);
         if (range_out != 0){
             *range_out = range;
@@ -328,9 +326,33 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, 
     return(result);
 }
 
+internal Boundary_Function_List
+boundary_list_from_old_flags(Arena *arena, Seek_Boundary_Flag flags){
+    Boundary_Function_List list = {};
+    if (HasFlag(flags, BoundaryWhitespace)){
+        push_boundary(arena, &list, boundary_non_whitespace);
+    }
+    if (HasFlag(flags, BoundaryToken)){
+        push_boundary(arena, &list, boundary_token);
+    }
+    if (HasFlag(flags, BoundaryAlphanumeric)){
+        push_boundary(arena, &list, boundary_alpha_numeric);
+    }
+    if (HasFlag(flags, BoundaryCamelCase)){
+        push_boundary(arena, &list, boundary_alpha_numeric_camel);
+    }
+    return(list);
+}
+
 static i32
 buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 dir, Seek_Boundary_Flag flags){
-    return(buffer==0?0:scan_to_word_boundary(app, buffer->buffer_id, start_pos, dir, flags));
+    i32 result = 0;
+    if (buffer != 0){
+        Scratch_Block scratch(app);
+        result = scan(app, boundary_list_from_old_flags(scratch, flags),
+                      buffer->buffer_id, dir, start_pos);
+    }
+    return(result);
 }
 
 static void
@@ -995,7 +1017,8 @@ view_get_line_number(Application_Links *app, View_ID view, i32 pos){
 
 static void
 current_view_boundary_seek_set_pos(Application_Links *app, Scan_Direction direction, u32 flags){
-    current_view_move_to_word_boundary(app, direction, flags);
+    Scratch_Block scratch(app);
+    current_view_scan_move(app, direction, boundary_list_from_old_flags(scratch, flags));
 }
 
 #endif

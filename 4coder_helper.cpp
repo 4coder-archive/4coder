@@ -622,185 +622,255 @@ buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
 ////////////////////////////////
 
 static i32
-scan_to_word_boundary(Application_Links *app, Buffer_ID buffer, i32 pos,
-                      Scan_Direction direction, Character_Predicate *predicate){
+scan_any_boundary(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, Scan_Direction direction, i32 pos){
+    i32 a = func(app, buffer, Side_Min, direction, pos);
+    i32 b = func(app, buffer, Side_Max, direction, pos);
     i32 result = 0;
-    switch (direction){
-        case Scan_Backward:
-        {
-            result = buffer_seek_character_class_change_0_1(app, buffer, predicate, Scan_Backward, pos);
-        }break;
-        case Scan_Forward:
-        {
-            result = buffer_seek_character_class_change_1_0(app, buffer, predicate, Scan_Forward, pos);
-        }break;
-    }
-    return(result);
-}
-
-static i32
-scan_to_alpha_numeric_camel_forward(Application_Links *app, Buffer_ID buffer, i32 pos){
-    i32 an_pos = scan_to_word_boundary(app, buffer, pos,
-                                       Scan_Forward, &character_predicate_alpha_numeric);
-    i32 an_left_pos = scan_to_word_boundary(app, buffer, an_pos,
-                                            Scan_Backward, &character_predicate_alpha_numeric);
-    i32 cap_pos = 0;
-    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
-                                Scan_Forward, pos, &cap_pos);
-    if (cap_pos == an_left_pos){
-        buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
-                                    Scan_Forward, cap_pos, &cap_pos);
-    }
-    return(Min(an_pos, cap_pos));
-}
-
-static i32
-scan_to_alpha_numeric_camel_backward(Application_Links *app, Buffer_ID buffer, i32 pos){
-    i32 an_pos = scan_to_word_boundary(app, buffer, pos,
-                                       Scan_Backward, &character_predicate_alpha_numeric);
-    i32 cap_pos = 0;
-    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
-                                Scan_Backward, pos, &cap_pos);
-    return(Max(cap_pos, an_pos));
-}
-
-static i32
-scan_to_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, i32 pos, Scan_Direction direction){
-    i32 result = 0;
-    switch (direction){
-        case Scan_Forward:
-        {
-            result = scan_to_alpha_numeric_camel_forward(app, buffer, pos);
-        }break;
-        case Scan_Backward:
-        {
-            result = scan_to_alpha_numeric_camel_backward(app, buffer, pos);
-        }break;
-    }
-    return(result);
-}
-
-static i32
-scan_to_token_forward(Cpp_Token_Array tokens, i32 pos, i32 buffer_size){
-    if (tokens.count > 0){
-        Cpp_Token *token = get_first_token_from_pos(tokens, pos);
-        if (token != 0){
-            pos = token->start + token->size;
-        }
-        else{
-            pos = buffer_size;
-        }
+    if (direction == Scan_Forward){
+        result = Min(a, b);
     }
     else{
-        pos = buffer_size;
-    }
-    return(pos);
-}
-
-static i32
-scan_to_token_backward(Cpp_Token_Array tokens, i32 pos){
-    if (tokens.count > 0){
-        Cpp_Token *token = get_first_token_from_pos(tokens, pos);
-        if (token == 0){
-            token = tokens.tokens + tokens.count - 1;
-            pos = token->start;
-        }
-        else{
-            if (token->start < pos){
-                pos = token->start;
-            }
-            else{
-                if (token > tokens.tokens){
-                    pos = (token - 1)->start;
-                }
-                else{
-                    pos = 0;
-                }
-            }
-        }
-    }
-    else{
-        pos = 0;
-    }
-    return(pos);
-}
-
-static i32
-scan_to_token(Cpp_Token_Array tokens, i32 pos, i32 buffer_size, Scan_Direction direction){
-    i32 result = 0;
-    switch (direction){
-        case Scan_Forward:
-        {
-            result = scan_to_token_forward(tokens, pos, buffer_size);
-        }break;
-        case Scan_Backward:
-        {
-            result = scan_to_token_backward(tokens, pos);
-        }break;
+        result = Max(a, b);
     }
     return(result);
 }
 
 static i32
-scan_to_word_boundary(Application_Links *app, Buffer_ID buffer, i32 start_pos,
-                      Scan_Direction direction, Seek_Boundary_Flag flags){
+scan(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, Scan_Direction direction, i32 pos){
+    Side side = (direction == Scan_Forward)?(Side_Max):(Side_Min);
+    return(func(app, buffer, side, direction, pos));
+}
+
+static i32
+scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Scan_Direction direction, i32 start_pos){
     i32 result = 0;
-    
-    Scratch_Block scratch(app);
-    if (buffer_exists(app, buffer)){
+    if (direction == Scan_Forward){
         i32 size = 0;
         buffer_get_size(app, buffer, &size);
-        
-        i32 dummy_pos = -1;
-        if (direction == Scan_Forward){
-            dummy_pos = size + 1;
+        result = size + 1;
+        for (Boundary_Function_Node *node = funcs.first;
+             node != 0;
+             node = node->next){
+            i32 pos = scan(app, node->func, buffer, direction, start_pos);
+            result = Min(result, pos);
         }
-        
-        i32 pos[4];
-        for (i32 i = 0; i < ArrayCount(pos); ++i){
-            pos[i] = dummy_pos;
+    }
+    else{
+        result = -1;
+        for (Boundary_Function_Node *node = funcs.first;
+             node != 0;
+             node = node->next){
+            i32 pos = scan(app, node->func, buffer, direction, start_pos);
+            result = Max(result, pos);
         }
-        start_pos = clamp(0, start_pos, size);
-        
-        if (flags & BoundaryWhitespace){
-            pos[0] = scan_to_word_boundary(app, buffer, start_pos, direction,
-                                           &character_predicate_non_whitespace);
+    }
+    return(result);
+}
+
+static void
+push_boundary(Arena *arena, Boundary_Function_List *list, Boundary_Function *func){
+    Boundary_Function_Node *node = push_array(arena, Boundary_Function_Node, 1);
+    sll_queue_push(list->first, list->last, node);
+    list->count += 1;
+    node->func = func;
+}
+
+static Boundary_Function_List
+push_boundary_list__innerv(Arena *arena, va_list args){
+    Boundary_Function_List list = {};
+    for (;;){
+        Boundary_Function *func = va_arg(args, Boundary_Function*);
+        if (func == 0){
+            break;
         }
-        
-        if (flags & BoundaryToken){
-            if (buffer_tokens_are_ready(app, buffer)){
-                Cpp_Token_Array array = buffer_get_all_tokens(app, scratch, buffer);
-                pos[1] = scan_to_token(array, start_pos, size, direction);
-            }
-            else{
-                pos[1] = scan_to_word_boundary(app, buffer, start_pos, direction,
-                                               &character_predicate_non_whitespace);
-            }
+        push_boundary(arena, &list, func);
+    }
+    return(list);
+}
+static Boundary_Function_List
+push_boundary_list__inner(Arena *arena, ...){
+    va_list args;
+    va_start(args, arena);
+    Boundary_Function_List result = push_boundary_list__innerv(arena, args);
+    va_end(args);
+    return(result);
+}
+#define push_boundary_list(a,...) push_boundary_list__inner((a), __VA_ARGS__, 0)
+
+static i32
+boundary_predicate(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos, Character_Predicate *predicate){
+    i32 result = 0;
+    switch (side){
+        case Side_Min:
+        {
+            result = buffer_seek_character_class_change_0_1(app, buffer, predicate, direction, pos);
+        }break;
+        case Side_Max:
+        {
+            result = buffer_seek_character_class_change_1_0(app, buffer, predicate, direction, pos);
+        }break;
+    }
+    return(result);
+}
+
+static i32
+boundary_non_whitespace(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_non_whitespace));
+}
+
+static i32
+boundary_alpha_numeric(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric));
+}
+
+static i32
+boundary_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos,
+                              &character_predicate_alpha_numeric_underscore));
+}
+
+static i32
+boundary_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+    i32 an_pos = boundary_alpha_numeric(app, buffer, side, direction, pos);
+    i32 cap_pos = 0;
+    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                direction, pos, &cap_pos);
+    if (side == Side_Max){
+        i32 an_left_pos = boundary_alpha_numeric(app, buffer, flip_side(side),
+                                                 flip_direction(direction), an_pos);
+        if (cap_pos == an_left_pos){
+            buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                        direction, cap_pos, &cap_pos);
         }
-        
-        if (flags & BoundaryAlphanumeric){
-            pos[2] = scan_to_word_boundary(app, buffer, start_pos, direction,
-                                           &character_predicate_alpha_numeric);
-        }
-        
-        if (flags & BoundaryCamelCase){
-            pos[3] = scan_to_alpha_numeric_camel(app, buffer, start_pos, direction);
-        }
-        
-        result = dummy_pos;
-        if (direction == Scan_Forward){
-            for (i32 i = 0; i < ArrayCount(pos); ++i){
-                result = Min(result, pos[i]);
-            }
-        }
-        else{
-            for (i32 i = 0; i < ArrayCount(pos); ++i){
-                result = Max(result, pos[i]);
-            }
+    }
+    i32 result = 0;
+    if (direction == Scan_Backward){
+        result = Max(an_pos, cap_pos);
+    }
+    else{
+        result = Min(an_pos, cap_pos);
+    }
+    return(result);
+}
+
+static i32
+boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+    i32 result = 0;
+    if (!buffer_tokens_are_ready(app, buffer)){
+        result = boundary_non_whitespace(app, buffer, side, direction, pos);
+    }
+    else{
+        Cpp_Token *first_token = 0;
+        Cpp_Token *last_token = 0;
+        buffer_get_token_range(app, buffer, &first_token, &last_token);
+        Cpp_Token_Array tokens = {first_token, (i32)(last_token - first_token)};
+        switch (direction){
+            case Scan_Forward:
+            {
+                i32 buffer_size = 0;
+                buffer_get_size(app, buffer, &buffer_size);
+                if (tokens.count > 0){
+                    Cpp_Token *token = get_first_token_from_pos(tokens, pos);
+                    if (token != 0){
+                        if (side == Side_Max){
+                            result = token->start + token->size;
+                        }
+                        else{
+                            if (token->start > pos){
+                                result = token->start;
+                            }
+                            else{
+                                token += 1;
+                                if (token < tokens.tokens + tokens.count){
+                                    result = token->start;
+                                }
+                                else{
+                                    result = buffer_size;
+                                }
+                            }
+                        }
+                    }
+                    else{
+                        result = buffer_size;
+                    }
+                }
+                else{
+                    result = buffer_size;
+                }
+            }break;
+            
+            case Scan_Backward:
+            {
+                if (tokens.count > 0){
+                    Cpp_Token *token = get_first_token_from_pos(tokens, pos);
+                    if (side == Side_Min){
+                        if (token == 0){
+                            token = tokens.tokens + tokens.count - 1;
+                            result = token->start;
+                        }
+                        else{
+                            if (token->start < pos){
+                                result = token->start;
+                            }
+                            else{
+                                token -= 1;
+                                if (token >= tokens.tokens){
+                                    result = token->start;
+                                }
+                                else{
+                                    result = 0;
+                                }
+                            }
+                        }
+                    }
+                    else{
+                        if (token == 0){
+                            token = tokens.tokens + tokens.count - 1;
+                            result = token->start + token->size;
+                        }
+                        else{
+                            token -= 1;
+                            if (token >= tokens.tokens && token->start + token->size == pos){
+                                token -= 1;
+                            }
+                            if (token >= tokens.tokens){
+                                result = token->start + token->size;
+                            }
+                            else{
+                                result = 0;
+                            }
+                        }
+                    }
+                }
+                else{
+                    result = 0;
+                }
+            }break;
         }
     }
     
     return(result);
+}
+
+static i32
+boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+    i32 line_number = get_line_number_from_pos(app, buffer, pos);
+    i32 new_pos = get_line_side_pos(app, buffer, line_number, side);
+    if (direction == Scan_Backward && new_pos >= pos){
+        if (line_number > 1){
+            new_pos = get_line_side_pos(app, buffer, line_number - 1, side);
+        }
+        else{
+            new_pos = 0;
+        }
+    }
+    else if (direction == Scan_Forward && new_pos <= pos){
+        new_pos = get_line_side_pos(app, buffer, line_number + 1, side);
+        if (new_pos <= pos){
+            buffer_get_size(app, buffer, &new_pos);
+        }
+    }
+    return(new_pos);
 }
 
 ////////////////////////////////
@@ -831,67 +901,61 @@ get_pos_range_from_line_range(Application_Links *app, Buffer_ID buffer, Range li
 }
 
 static Range
+enclose_boundary(Application_Links *app, Buffer_ID buffer, Range range, Boundary_Function *func){
+    i32 new_min       = func(app, buffer, Side_Min, Scan_Backward, range.min + 1);
+    i32 new_min_check = func(app, buffer, Side_Max, Scan_Backward, range.min + 1);
+    if (new_min_check <= new_min && new_min < range.min){
+        range.min = new_min;
+    }
+    i32 new_max       = func(app, buffer, Side_Max, Scan_Forward, range.max - 1);
+    i32 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max - 1);
+    if (new_max_check >= new_max && new_max > range.max){
+        range.max = new_max;
+    }
+    return(range);
+}
+
+static Range
+enclose_non_whitespace(Application_Links *app, Buffer_ID buffer, Range range){
+    return(enclose_boundary(app, buffer, range, boundary_non_whitespace));
+}
+
+static Range
+enclose_tokens(Application_Links *app, Buffer_ID buffer, Range range){
+    return(enclose_boundary(app, buffer, range, boundary_token));
+}
+
+static Range
+enclose_alpha_numeric(Application_Links *app, Buffer_ID buffer, Range range){
+    return(enclose_boundary(app, buffer, range, boundary_alpha_numeric));
+}
+
+static Range
+enclose_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Range range){
+    return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_underscore));
+}
+
+static Range
+enclose_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Range range){
+    return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_camel));
+}
+
+static Range
 pos_range_enclose_whole_lines(Application_Links *app, Buffer_ID buffer, Range range){
-    Range line_range = get_line_range_from_pos_range(app, buffer, range);
-    return(get_pos_range_from_line_range(app, buffer, line_range));
+    return(enclose_boundary(app, buffer, range, boundary_line));
 }
 
-static Range
-pos_range_enclose_whole_tokens(Application_Links *app, Cpp_Token_Array tokens, Range range){
-    if (range_size(range) > 0){
-        if (tokens.count > 0){
-            Cpp_Token *first_token = get_first_token_from_pos(tokens, range.first);
-            if (first_token != 0 && first_token->start < range.first){
-                range.first = first_token->start;
-            }
-            Cpp_Token *last_token = get_first_token_from_pos(tokens, range.one_past_last - 1);
-            if (last_token != 0 && last_token->start < range.one_past_last){
-                range.one_past_last = last_token->start + last_token->size;
-            }
-        }
-    }
-    return(range);
-}
+////////////////////////////////
 
 static Range
-pos_range_enclose__within_delimiter_class(Application_Links *app, Buffer_ID buffer, Range range, Character_Predicate *predicate){
-    i32 new_pos = 0;
-    if (buffer_seek_character_class(app, buffer, predicate, Scan_Backward, range.min + 1, &new_pos)){
-        range.first = new_pos + 1;
-    }
-    if (buffer_seek_character_class(app, buffer, predicate, Scan_Forward, range.max - 1, &new_pos)){
-        range.one_past_last = new_pos;
-    }
-    return(range);
-}
-
-static Range
-pos_range_enclose_non_whitespace(Application_Links *app, Buffer_ID buffer, Range range){
-    return(pos_range_enclose__within_delimiter_class(app, buffer, range, 
-                                                     &character_predicate_whitespace));
-}
-
-static Range
-pos_range_enclose_alpha_numeric(Application_Links *app, Buffer_ID buffer, Range range){
-    Character_Predicate negative = character_predicate_not(&character_predicate_alpha_numeric);
-    return(pos_range_enclose__within_delimiter_class(app, buffer, range, &negative));
-}
-
-static Range
-pos_range_enclose_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Range range){
-    Character_Predicate negative = character_predicate_not(&character_predicate_alpha_numeric_underscore);
-    return(pos_range_enclose__within_delimiter_class(app, buffer, range, &negative));
-}
-
-static Range
-get_snipe_range(Application_Links *app, Buffer_ID buffer, i32 pos, Scan_Direction direction, Seek_Boundary_Flag flags){
+get_snipe_range(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, i32 pos, Scan_Direction direction){
     Range result = {};
     i32 buffer_size = 0;
     buffer_get_size(app, buffer, &buffer_size);
     i32 pos0 = pos;
-    i32 pos1 = scan_to_word_boundary(app, buffer, pos0, direction, flags);
+    i32 pos1 = scan(app, funcs, buffer, direction, pos0);
     if (0 <= pos1 && pos1 <= buffer_size){
-        i32 pos2 = scan_to_word_boundary(app, buffer, pos1, flip_direction(direction), flags);
+        i32 pos2 = scan(app, funcs, buffer, flip_direction(direction), pos1);
         if (0 <= pos2 && pos2 <= buffer_size){
             if (direction == Scan_Backward){
                 pos2 = clamp_bot(pos2, pos0);
@@ -903,6 +967,12 @@ get_snipe_range(Application_Links *app, Buffer_ID buffer, i32 pos, Scan_Directio
         }
     }
     return(result);
+}
+
+static Range
+get_snipe_range(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, i32 pos, Scan_Direction direction){
+    Scratch_Block scratch(app);
+    return(get_snipe_range(app, push_boundary_list(scratch, func), buffer, pos, direction));
 }
 
 ////////////////////////////////
@@ -959,26 +1029,8 @@ push_string_in_view_range(Application_Links *app, Arena *arena, View_ID view){
 }
 
 static String_Const_u8
-push_non_whitespace_word_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos){
-    Range range = pos_range_enclose_non_whitespace(app, buffer, make_range(pos));
-    return(push_buffer_range(app, arena, buffer, range));
-}
-
-static String_Const_u8
-push_alpha_numeric_word_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos){
-    Range range = pos_range_enclose_alpha_numeric(app, buffer, make_range(pos));
-    return(push_buffer_range(app, arena, buffer, range));
-}
-
-static String_Const_u8
-push_alpha_numeric_underscore_word_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos){
-    Range range = pos_range_enclose_alpha_numeric_underscore(app, buffer, make_range(pos));
-    return(push_buffer_range(app, arena, buffer, range));
-}
-
-static String_Const_u8
-push_token_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token_Array tokens, i32 pos){
-    Range range = pos_range_enclose_whole_tokens(app, tokens, make_range(pos));
+push_enclose_range_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos, Enclose_Function *enclose){
+    Range range = enclose(app, buffer, make_range(pos));
     return(push_buffer_range(app, arena, buffer, range));
 }
 

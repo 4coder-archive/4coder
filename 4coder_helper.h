@@ -105,14 +105,19 @@ global Character_Predicate character_predicate_utf8_byte = { {
         255, 255, 255, 255, 255, 255, 255, 255, 
     } };
 
-/* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the beginning or end of different types of words.) */
-typedef u32 Seek_Boundary_Flag;
-enum{
-    BoundaryWhitespace   = 0x1,
-    BoundaryToken        = 0x2,
-    BoundaryAlphanumeric = 0x4,
-    BoundaryCamelCase    = 0x8
+typedef i32 Boundary_Function(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos);
+
+struct Boundary_Function_Node{
+    Boundary_Function_Node *next;
+    Boundary_Function *func;
 };
+struct Boundary_Function_List{
+    Boundary_Function_Node *first;
+    Boundary_Function_Node *last;
+    i32 count;
+};
+
+typedef Range Enclose_Function(Application_Links *app, Buffer_ID buffer, Range range);
 
 ////////////////////////////////
 

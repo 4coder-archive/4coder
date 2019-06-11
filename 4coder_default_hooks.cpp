@@ -383,8 +383,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     get_active_view(app, AccessAll, &active_view);
     b32 is_active_view = (active_view == view_id);
     
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory major_temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     
     static Managed_Scope render_scope = 0;
     if (render_scope == 0){
@@ -694,23 +693,19 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     if (do_token_highlight){
         int_color token_color = 0x5000EE00;
         
-        u32 token_flags = BoundaryToken|BoundaryWhitespace;
-        i32 pos0 = cursor_pos;
-        i32 pos1 = scan_to_word_boundary(app, buffer_id, pos0, Scan_Backward , token_flags);
-        if (pos1 >= 0){
-            i32 pos2 = scan_to_word_boundary(app, buffer_id, pos1, Scan_Forward, token_flags);
-            i32 buffer_size = 0;
-            buffer_get_size(app, buffer_id, &buffer_size);
-            if (pos2 <= buffer_size){
-                Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer_id, 2, &render_scope);
-                Marker range_markers[2] = {};
-                range_markers[0].pos = pos1;
-                range_markers[1].pos = pos2;
-                managed_object_store_data(app, token_highlight, 0, 2, range_markers);
-                Marker_Visual visual = create_marker_visual(app, token_highlight);
-                marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, Stag_At_Highlight, 0);
-            }
+        Temp_Memory temp = begin_temp(scratch);
+        Boundary_Function_List funcs = push_boundary_list(scratch, boundary_token, boundary_non_whitespace);
+        Range snipe_range = get_snipe_range(app, funcs, buffer_id, cursor_pos, Scan_Backward);
+        if (range_size(snipe_range) > 0){
+            Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer_id, 2, &render_scope);
+            Marker range_markers[2] = {};
+            range_markers[0].pos = snipe_range.min;
+            range_markers[1].pos = snipe_range.max;
+            managed_object_store_data(app, token_highlight, 0, 2, range_markers);
+            Marker_Visual visual = create_marker_visual(app, token_highlight);
+            marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, Stag_At_Highlight, 0);
         }
+        end_temp(temp);
     }
     
     // NOTE(allen): Matching enclosure highlight setup
@@ -805,7 +800,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         animate_in_n_milliseconds(app, 1000);
     }
     
-    end_temp(major_temp);
     managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 
