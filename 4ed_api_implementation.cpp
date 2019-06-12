@@ -263,7 +263,7 @@ Buffers should not be killed or created durring a buffer loop.
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_first)
 */{
-    Models *models = (Models*)app->cmd_context;
+        Models *models = (Models*)app->cmd_context;
     Working_Set *working_set = &models->working_set;
     Editing_File *file = working_set_get_active_file(working_set, buffer_id);
     file = file_get_next(working_set, file);
@@ -525,7 +525,7 @@ Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
                             }
                         }
                         pos.chunk_index -= 1;
-                        if (pos.chunk_index > 0){
+                        if (pos.chunk_index >= 0){
                             pos.chunk_pos = (i32)chunks.vals[pos.chunk_index].size - 1;
                         }
                         else{
@@ -1197,7 +1197,7 @@ DOC_SEE(Buffer_Save_Flag)
         b32 skip_save = false;
         if (!(flags & BufferSave_IgnoreDirtyFlag)){
             if (file->state.dirty == DirtyState_UpToDate){
-                skip_save = true;
+                                skip_save = true;
             }
         }
         
@@ -1565,7 +1565,7 @@ View_Get_Preferred_X(Application_Links *app, View_ID view_id, f32 *preferred_x_o
     b32 result = false;
     if (api_check_view(view)){
         *preferred_x_out = view->preferred_x;
-        result = true;
+                result = true;
     }
     return(result);
 }
