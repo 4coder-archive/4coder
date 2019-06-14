@@ -113,11 +113,9 @@ static i32
 get_start_of_line_at_cursor(Application_Links *app, View_ID view, Buffer_ID buffer){
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
-    view_compute_cursor(app, view, seek_line_char(cursor.line, 1), &cursor);
-    Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, cursor.pos, DEF_TAB_WIDTH);
-    return(hard_start.char_pos);
+    i32 line = get_line_number_from_pos(app, buffer, pos);
+    pos = get_line_side_pos(app, buffer, line, Side_Min);
+    return(pos);
 }
 
 static b32

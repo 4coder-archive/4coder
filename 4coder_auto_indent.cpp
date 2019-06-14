@@ -4,51 +4,6 @@
 
 // TOP
 
-internal Hard_Start_Result
-buffer_find_hard_start(Application_Links *app, Buffer_ID buffer, i32 line_start, i32 tab_width){
-    i32 tab_additional_width = tab_width - 1;
-    
-    Hard_Start_Result result = {};
-    result.all_space = true;
-    result.indent_pos = 0;
-    result.char_pos = line_start;
-    
-    char data_chunk[1024];
-    Stream_Chunk stream = {};
-    stream.add_null = true;
-    if (init_stream_chunk(&stream, app, buffer, line_start, data_chunk, sizeof(data_chunk))){
-        b32 still_looping = true;
-        do{
-            for (; result.char_pos < stream.end; ++result.char_pos){
-                char c = stream.data[result.char_pos];
-                
-                if (c == '\n' || c == 0){
-                    result.all_whitespace = 1;
-                    goto double_break;
-                }
-                
-                if (c >= '!' && c <= '~'){
-                    goto double_break;
-                }
-                
-                if (c == '\t'){
-                    result.indent_pos += tab_additional_width;
-                }
-                
-                if (c != ' '){
-                    result.all_space = false;
-                }
-                
-                result.indent_pos += 1;
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-    }
-    
-    double_break:;
-    return(result);
-}
-
 internal Buffer_Batch_Edit
 make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                              i32 first_line, i32 one_past_last_line, i32 *indent_marks,
@@ -65,10 +20,10 @@ make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buf
          line_number < one_past_last_line;
          ++line_number){
         i32 line_start_pos = get_line_start_pos(app, buffer, line_number);
-        Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, line_start_pos, opts.tab_width);
+        Indent_Info hard_start = get_indent_info_line_start(app, buffer, line_start_pos, opts.tab_width);
         
         i32 correct_indentation = shifted_indent_marks[line_number];
-        if (hard_start.all_whitespace && opts.empty_blank_lines){
+        if (hard_start.is_blank && opts.empty_blank_lines){
             correct_indentation = 0;
         }
         if (correct_indentation == -1){
@@ -85,7 +40,7 @@ make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buf
                 str_size = tab_count + space_count;
                 str = push_array(arena, char, str_size);
                 block_fill_u8(str, tab_count, '\t');
-                                                                                                                block_fill_u8(str + tab_count, space_count, ' ');
+                block_fill_u8(str + tab_count, space_count, ' ');
             }
             else{
                 str_size = correct_indentation;
@@ -99,7 +54,7 @@ make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buf
             edits[edit_count].str_start = (i32)str_position;
             edits[edit_count].len = (i32)str_size;
             edits[edit_count].start = line_start_pos;
-            edits[edit_count].end = hard_start.char_pos;
+            edits[edit_count].end = hard_start.first_char_pos;
             edit_count += 1;
         }
         
@@ -302,17 +257,17 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 // NOTE(allen): Check for multi-line tokens
                 if (prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
                     if (prev_token.type == CPP_TOKEN_COMMENT || prev_token.type == CPP_TOKEN_STRING_CONSTANT){
-                        Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, this_line_start, tab_width);
+                        Indent_Info hard_start = get_indent_info_line_start(app, buffer, this_line_start, tab_width);
                         
                         if (exact_align){
                             this_indent = indent.previous_comment_indent;
                         }
                         else{
-                            if (hard_start.all_whitespace){
+                            if (hard_start.is_blank){
                                 this_indent = previous_indent;
                             }
                             else{
-                                i32 line_pos = hard_start.char_pos - this_line_start;
+                                i32 line_pos = hard_start.first_char_pos - this_line_start;
                                 this_indent = line_pos + indent.comment_shift;
                                 if (this_indent < 0){
                                     this_indent = 0;
@@ -320,7 +275,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                             }
                         }
                         
-                        if (!hard_start.all_whitespace){
+                        if (!hard_start.is_blank){
                             if (line_number >= first_line){
                                 indent.previous_comment_indent = this_indent;
                             }
@@ -400,7 +355,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                                         this_indent += tab_width;
                                     }
                                 }
-                            }
+                                                        }
                         }
                     }
                     if (this_indent < 0){
@@ -450,7 +405,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 {
                     i32 line = get_line_number_from_pos(app, buffer, token.start);
                     i32 start = get_line_start_pos(app, buffer, line);
-                    Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, start, tab_width);
+                    Indent_Info hard_start = get_indent_info_line_start(app, buffer, start, tab_width);
                     
                     i32 old_dist_to_token = (token.start - start);
                     i32 old_indent = hard_start.indent_pos;
@@ -469,9 +424,9 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                             i32 start = get_line_start_pos(app, buffer, line);
                             i32 char_pos = token.start - start;
                             
-                            Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, start, tab_width);
+                            Indent_Info hard_start = get_indent_info_line_start(app, buffer, start, tab_width);
                             
-                            i32 line_pos = hard_start.char_pos - start;
+                            i32 line_pos = hard_start.first_char_pos - start;
                             
                             indent.paren_anchor_indent[indent.paren_nesting] = char_pos - line_pos + indent.previous_line_indent + 1;
                         }
@@ -483,7 +438,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 {
                     if (!(token.flags & CPP_TFLAG_PP_BODY)){
                         if (indent.paren_nesting > 0){
-                            --indent.paren_nesting;
+                                                        --indent.paren_nesting;
                         }
                     }
                 }break;

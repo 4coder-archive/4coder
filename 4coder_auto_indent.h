@@ -7,13 +7,6 @@
 #if !defined(FCODER_AUTO_INDENT_H)
 #define FCODER_AUTO_INDENT_H
 
-struct Hard_Start_Result{
-    i32 char_pos;
-    i32 indent_pos;
-    i32 all_whitespace;
-    i32 all_space;
-};
-
 struct Indent_Options{
     b32 empty_blank_lines;
     b32 use_tabs;

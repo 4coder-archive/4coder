@@ -126,6 +126,13 @@ struct Boundary_Function_List{
 
 typedef Range Enclose_Function(Application_Links *app, Buffer_ID buffer, Range range);
 
+struct Indent_Info{
+    i32 first_char_pos;
+    i32 indent_pos;
+    i32 is_blank;
+    i32 all_space;
+};
+
 ////////////////////////////////
 
 struct Stream_Chunk{

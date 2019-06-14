@@ -638,9 +638,9 @@ scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Sca
     }
     else{
         result = -1;
-                                                                                for (Boundary_Function_Node *node = funcs.first;
-                                                                                     node != 0;
-                                                                                     node = node->next){
+                                                                                        for (Boundary_Function_Node *node = funcs.first;
+                                                                                             node != 0;
+                                                                                             node = node->next){
             i32 pos = scan(app, node->func, buffer, direction, start_pos);
             result = Max(result, pos);
         }
@@ -1270,6 +1270,43 @@ get_pos_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Dir
     i32 blank_line = get_line_number_of_blank_line_grouped(app, buffer, direction, line_number_start);
     i32 pos = get_line_start_pos(app, buffer, blank_line);
     return(pos);
+}
+
+internal Indent_Info
+get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range range, i32 tab_width){
+    Scratch_Block scratch(app);
+    String_Const_u8 s = push_buffer_range(app, scratch, buffer, range);
+    
+    i32 tab_additional_width = tab_width - 1;
+    
+    Indent_Info info = {};
+    info.first_char_pos = range.end;
+    info.is_blank = true;
+    info.all_space = true;
+    for (umem i = 0; i < s.size; i += 1){
+        u8 c = s.str[i];
+        if (!character_is_whitespace(c)){
+            info.is_blank = false;
+            info.all_space = false;
+            info.first_char_pos = range.start + (i32)i;
+            break;
+        }
+        if (c != ' '){
+            info.all_space = false;
+        }
+        if (c == '\t'){
+            info.indent_pos += tab_additional_width;
+        }
+        info.indent_pos += 1;
+    }
+    
+    return(info);
+}
+
+internal Indent_Info
+get_indent_info_line_start(Application_Links *app, Buffer_ID buffer, i32 line_start, i32 tab_width){
+    i32 end = get_line_side_pos_from_pos(app, buffer, line_start, Side_Max);
+    return(get_indent_info_range(app, buffer, make_range(line_start, end), tab_width));
 }
 
 ////////////////////////////////

@@ -28,3 +28,5 @@ view_boundary_seek_set_pos
 view_buffer_boundary_range
 view_buffer_snipe_range
 
+Hard_Start_Result -> Line_Indent_Info
+buffer_find_hard_start -> get_line_indent_info

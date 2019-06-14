@@ -436,11 +436,22 @@ mark_enclosures(Application_Links *app, Managed_Scope render_scope, Buffer_Summa
     }
 }
 
+struct Hard_Start_Result{
+    i32 char_pos;
+    i32 indent_pos;
+    i32 all_whitespace;
+    i32 all_space;
+};
+
 static Hard_Start_Result
 buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, i32 line_start, i32 tab_width){
     Hard_Start_Result result = {};
     if (buffer != 0){
-        buffer_find_hard_start(app, buffer->buffer_id, line_start, tab_width);
+        Indent_Info info = get_indent_info_line_start(app, buffer->buffer_id, line_start, tab_width);
+        result.char_pos = info.first_char_pos;
+        result.indent_pos = info.indent_pos;
+        result.all_whitespace = info.is_blank;
+        result.all_space = info.all_space;
     }
     return(result);
 }
@@ -667,7 +678,7 @@ execute_standard_build(Application_Links *app, View_Summary *view, Buffer_ID act
 
 static b32
 post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buffer_Summary *buffer, i32 first, i32 one_past_last){
-    return(post_buffer_range_to_clipboard(app, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
+        return(post_buffer_range_to_clipboard(app, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
 }
 
 static void
