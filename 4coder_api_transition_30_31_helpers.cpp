@@ -1010,7 +1010,7 @@ get_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Tok
 
 static String_Const_u8
 read_entire_buffer(Application_Links *app, Buffer_ID buffer_id, Arena *scratch){
-    return(push_entire_buffer(app, scratch, buffer_id));
+    return(push_whole_buffer(app, scratch, buffer_id));
 }
 
 static String_Const_u8

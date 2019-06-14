@@ -85,7 +85,7 @@ make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buf
                 str_size = tab_count + space_count;
                 str = push_array(arena, char, str_size);
                 block_fill_u8(str, tab_count, '\t');
-                                                                block_fill_u8(str + tab_count, space_count, ' ');
+                                                                                                                block_fill_u8(str + tab_count, space_count, ' ');
             }
             else{
                 str_size = correct_indentation;

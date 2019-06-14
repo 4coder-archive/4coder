@@ -726,69 +726,40 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
 CUSTOM_COMMAND_SIG(clean_all_lines)
 CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
 {
-    // TODO(allen): This command always iterates accross the entire
-    // buffer, so streaming it is actually the wrong call.  Rewrite this
-    // to minimize calls to buffer_read_range.
     View_ID view = 0;
     get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer_id);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessOpen, &buffer);
     
-    i32 buffer_size = 0;
     i32 line_count = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
-    buffer_get_line_count(app, buffer_id, &line_count);
+    buffer_get_line_count(app, buffer, &line_count);
     
-    i32 edit_max = line_count;
+    Scratch_Block scratch(app);
+    Buffer_Edit *edits = push_array(scratch, Buffer_Edit, line_count);
+    Buffer_Edit *edit = edits;
     
-    if (edit_max*(i32)sizeof(Buffer_Edit) < app->memory_size){
-        Buffer_Edit *edits = (Buffer_Edit*)app->memory;
-        
-        char data[1024];
-        Stream_Chunk chunk = {};
-        
-        i32 i = 0;
-        if (init_stream_chunk(&chunk, app, buffer_id, i, data, sizeof(data))){
-            Buffer_Edit *edit = edits;
-            
-            i32 still_looping = true;
-            i32 last_hard = buffer_size;
-            do{
-                for (; i < chunk.end; ++i){
-                    char at_pos = chunk.data[i];
-                    if (at_pos == '\n'){
-                        if (last_hard + 1 < i){
-                            edit->str_start = 0;
-                            edit->len = 0;
-                            edit->start = last_hard + 1;
-                            edit->end = i;
-                            ++edit;
-                        }
-                        last_hard = buffer_size;
-                    }
-                    else if (character_is_whitespace(at_pos)){
-                        // NOTE(allen): do nothing
-                    }
-                    else{
-                        last_hard = i;
-                    }
-                }
-                
-                still_looping = forward_stream_chunk(&chunk);
-            }while(still_looping);
-            
-            if (last_hard + 1 < buffer_size){
+    String_Const_u8 text = push_whole_buffer(app, scratch, buffer);
+    
+    umem whitespace_start = 0;
+    for (umem i = 0; i < text.size; i += 1){
+        u8 v = string_get_character(text, i);
+        if (v == '\n' || i + 1 == text.size){
+            if (whitespace_start < i){
                 edit->str_start = 0;
                 edit->len = 0;
-                edit->start = last_hard + 1;
-                edit->end = buffer_size;
+                edit->start = (i32)whitespace_start;
+                edit->end = (i32)i;
                 ++edit;
             }
-            
-            i32 edit_count = (i32)(edit - edits);
-            buffer_batch_edit(app, buffer_id, 0, edits, edit_count);
+            whitespace_start = i + 1;
+        }
+        else if (!character_is_whitespace(v)){
+            whitespace_start = i + 1;
         }
     }
+    
+    i32 edit_count = (i32)(edit - edits);
+    buffer_batch_edit(app, buffer, 0, edits, edit_count);
 }
 
 ////////////////////////////////
@@ -1634,88 +1605,13 @@ CUSTOM_DOC("Queries the user for a name and creates a new directory with the giv
 CUSTOM_COMMAND_SIG(move_line_up)
 CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves the cursor up with it.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    i32 cursor_pos = 0;
-    view_get_cursor_pos(app, view, &cursor_pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
-    
-    if (cursor.line > 1){
-        Buffer_ID buffer = 0;
-        if (view_get_buffer(app, view, AccessOpen, &buffer)){
-            Full_Cursor prev_line_cursor = {};
-            Full_Cursor this_line_cursor = {};
-            Full_Cursor next_line_cursor = {};
-            
-            i32 this_line = cursor.line;
-            i32 prev_line = this_line - 1;
-            i32 next_line = this_line + 1;
-            
-            if (view_compute_cursor(app, view, seek_line_char(prev_line, 1), &prev_line_cursor) &&
-                view_compute_cursor(app, view, seek_line_char(this_line, 1), &this_line_cursor) &&
-                view_compute_cursor(app, view, seek_line_char(next_line, 1), &next_line_cursor)){
-                
-                i32 prev_line_pos = prev_line_cursor.pos;
-                i32 this_line_pos = this_line_cursor.pos;
-                i32 next_line_pos = next_line_cursor.pos;
-                
-                Arena *scratch = context_get_arena(app);
-                Temp_Memory temp = begin_temp(scratch);
-                
-                i32 length = next_line_pos - prev_line_pos;
-                char *swap = push_array(scratch, char, length + 1);
-                i32 first_len = next_line_pos - this_line_pos;
-                
-                if (buffer_read_range(app, buffer, this_line_pos, next_line_pos, swap)){
-                    b32 second_line_didnt_have_newline = true;
-                    for (i32 i = first_len - 1; i >= 0; --i){
-                        if (swap[i] == '\n'){
-                            second_line_didnt_have_newline = false;
-                            break;
-                        }
-                    }
-                    
-                    if (second_line_didnt_have_newline){
-                        swap[first_len] = '\n';
-                        first_len += 1;
-                        // NOTE(allen): Don't increase "length" because then we will be including
-                        // the original newline and addignt this new one, making the file longer
-                        // which shouldn't be possible for this command!
-                    }
-                    
-                    if (buffer_read_range(app, buffer, prev_line_pos, this_line_pos, swap + first_len)){
-                        buffer_replace_range(app, buffer, make_range(prev_line_pos, next_line_pos), SCu8(swap, length));
-                        view_set_cursor(app, view, seek_line_char(prev_line, 1), true);
-                    }
-                }
-                
-                end_temp(temp);
-            }
-        }
-    }
+    move_line_current_view(app, Scan_Backward);
 }
 
 CUSTOM_COMMAND_SIG(move_line_down)
 CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves the cursor down with it.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    if (view != 0){
-        i32 cursor_pos = 0;
-        view_get_cursor_pos(app, view, &cursor_pos);
-        Full_Cursor cursor = {};
-        view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
-        i32 next_line = cursor.line + 1;
-        Full_Cursor new_cursor = {};
-        if (view_compute_cursor(app, view, seek_line_char(next_line, 1), &new_cursor)){
-            if (new_cursor.line == next_line){
-                view_set_cursor(app, view, seek_pos(new_cursor.pos), true);
-                move_line_up(app);
-                move_down_textual(app);
-            }
-        }
-    }
+    move_line_current_view(app, Scan_Forward);
 }
 
 CUSTOM_COMMAND_SIG(duplicate_line)
@@ -1915,7 +1811,7 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
             view_set_buffer(app, view2, buffer1, 0);
         }
         else{
-            i32 p1 = 0;
+                        i32 p1 = 0;
             i32 m1 = 0;
             i32 p2 = 0;
             i32 m2 = 0;
