@@ -1602,16 +1602,29 @@ CUSTOM_DOC("Queries the user for a name and creates a new directory with the giv
 
 ////////////////////////////////
 
+internal void
+current_view_move_line(Application_Links *app, Scan_Direction direction){
+    View_ID view = 0;
+    get_active_view(app, AccessOpen, &view);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 line_number = get_line_number_from_pos(app, buffer, pos);
+    pos = move_line(app, buffer, line_number, direction);
+    view_set_cursor(app, view, seek_pos(pos), true);
+}
+
 CUSTOM_COMMAND_SIG(move_line_up)
 CUSTOM_DOC("Swaps the line under the cursor with the line above it, and moves the cursor up with it.")
 {
-    move_line_current_view(app, Scan_Backward);
+    current_view_move_line(app, Scan_Backward);
 }
 
 CUSTOM_COMMAND_SIG(move_line_down)
 CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves the cursor down with it.")
 {
-    move_line_current_view(app, Scan_Forward);
+    current_view_move_line(app, Scan_Forward);
 }
 
 CUSTOM_COMMAND_SIG(duplicate_line)
@@ -1619,17 +1632,17 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
 {
     View_ID view = 0;
     get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer_id);
-    i32 cursor_pos = 0;
-    view_get_cursor_pos(app, view, &cursor_pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessOpen, &buffer);
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 line = get_line_number_from_pos(app, buffer, pos);
     Scratch_Block scratch(app);
-    String_Const_u8 line_string = push_buffer_line(app, scratch, buffer_id, cursor.line);
-    String_Const_u8 insertion = string_u8_pushf(scratch, "\n%.*s", string_expand(line_string));
-    i32 pos = get_line_end_pos(app, buffer_id, cursor.line);
-    buffer_replace_range(app, buffer_id, make_range(pos), insertion);
+    String_Const_u8 s = push_buffer_line(app, scratch, buffer, line);
+    s = string_u8_pushf(scratch, "\n%.*s", string_expand(s));
+    pos = get_line_side_pos(app, buffer, line, Side_Max);
+    buffer_replace_range(app, buffer, make_range(pos), s);
+    view_set_cursor(app, view, seek_pos(pos + 1), true);
 }
 
 CUSTOM_COMMAND_SIG(delete_line)
@@ -1639,22 +1652,19 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
     get_active_view(app, AccessOpen, &view);
     Buffer_ID buffer = 0;
     view_get_buffer(app, view, AccessOpen, &buffer);
-    
-    i32 cursor_pos = 0;
-    view_get_cursor_pos(app, view, &cursor_pos);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
-    
-    Range range = get_line_pos_range(app, buffer, cursor.line);
-    range.one_past_last += 1;
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer, &buffer_size);
-    range.one_past_last = clamp_top(range.one_past_last, buffer_size);
-    if (range_size(range) == 0 || buffer_get_char(app, buffer, range.end - 1) != '\n'){
+    i32 pos = 0;
+    view_get_cursor_pos(app, view, &pos);
+    i32 line = get_line_number_from_pos(app, buffer, pos);
+    Range range = get_line_pos_range(app, buffer, line);
+    range.end += 1;
+    i32 size = 0;
+    buffer_get_size(app, buffer, &size);
+    range.end = clamp_top(range.end, size);
+    if (range_size(range) == 0 ||
+        buffer_get_char(app, buffer, range.end - 1) != '\n'){
         range.start -= 1;
         range.first = clamp_bot(0, range.first);
     }
-    
     buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
 }
 
@@ -1692,33 +1702,13 @@ get_cpp_matching_file(Application_Links *app, Buffer_ID buffer, Buffer_ID *buffe
         for (i32 i = 0; i < new_extensions_count; i += 1){
             Temp_Memory temp = begin_temp(scratch);
             String_Const_u8 new_extension = new_extensions[i];
-            String_Const_u8 new_file_name = string_u8_pushf(scratch, "%.*s.%.*s", string_expand(file_without_extension), string_expand(new_extension));
+                                    String_Const_u8 new_file_name = string_u8_pushf(scratch, "%.*s.%.*s", string_expand(file_without_extension), string_expand(new_extension));
             if (open_file(app, buffer_out, new_file_name, false, true)){
                 result = true;
                 break;
             }
             end_temp(temp);
         }
-        
-        
-#if 0
-        char *space = push_array(scratch, char, file_name.size + 16);
-        String file_name_old = make_string_cap(space, 0, (i32)file_name.size + 16);
-        append(&file_name_old, string_old_from_new(file_name));
-        remove_extension(&file_name_old);
-        i32 base_pos = file_name_old.size;
-        for (i32 i = 0; i < new_extensions_count; ++i){
-            
-            String ext = string_old_from_new(new_extensions[i]);
-            file_name.size = base_pos;
-            append(&file_name_old, ext);
-            if (open_file(app, buffer_out, file_name_old.str, file_name_old.size, false, true)){
-                result = true;
-                break;
-            }
-            
-        }
-#endif
     }
     
     return(result);
@@ -1811,7 +1801,7 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
             view_set_buffer(app, view2, buffer1, 0);
         }
         else{
-                        i32 p1 = 0;
+            i32 p1 = 0;
             i32 m1 = 0;
             i32 p2 = 0;
             i32 m2 = 0;

@@ -638,9 +638,9 @@ scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Sca
     }
     else{
         result = -1;
-                                                                        for (Boundary_Function_Node *node = funcs.first;
-                                                                             node != 0;
-                                                                             node = node->next){
+                                                                                for (Boundary_Function_Node *node = funcs.first;
+                                                                                     node != 0;
+                                                                                     node = node->next){
             i32 pos = scan(app, node->func, buffer, direction, start_pos);
             result = Max(result, pos);
         }
@@ -1364,19 +1364,6 @@ move_line(Application_Links *app, Buffer_ID buffer, i32 line_number, Scan_Direct
         result = get_line_side_pos(app, buffer, line_number, Side_Min);
     }
     return(result);
-}
-
-internal void
-move_line_current_view(Application_Links *app, Scan_Direction direction){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
-    i32 line_number = get_line_number_from_pos(app, buffer, pos);
-    pos = move_line(app, buffer, line_number, direction);
-    view_set_cursor(app, view, seek_pos(pos), true);
 }
 
 ////////////////////////////////
