@@ -1800,6 +1800,11 @@ interval_is_valid(Range range){
 }
 
 static i32
+replace_range_compute_shift(i32 replace_length, i32 insert_length){
+    return(insert_length - replace_length);
+}
+
+static i32
 replace_range_compute_shift(i32 replace_start, i32 replace_end, i32 insert_length){
     return(insert_length - (replace_end - replace_start));
 }
@@ -1984,7 +1989,7 @@ intersection_of(f32_Rect a, f32_Rect b){
 
 static f32_Rect
 union_of(f32_Rect a, f32_Rect b){
-    f32_Rect result;
+        f32_Rect result;
     result.x0 = Max(a.x0, b.x0);
     result.y0 = Max(a.y0, b.y0);
     result.x1 = Min(a.x1, b.x1);
@@ -3294,7 +3299,7 @@ static umem
 string_find_first_slash(String_Const_u16 str){
     umem i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
-    return(i);
+        return(i);
 }
 static umem
 string_find_first_slash(String_Const_u32 str){

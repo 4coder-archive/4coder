@@ -442,7 +442,7 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
         max_adjustment += begin_str.size;
         Range new_pos = make_range(range.min + (i32)min_adjustment, range.max + (i32)max_adjustment);
         
-        i32 cursor_pos = 0;
+                i32 cursor_pos = 0;
         i32 mark_pos = 0;
         view_get_cursor_pos(app, view, &cursor_pos);
         
@@ -455,10 +455,10 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
             mark_pos = new_pos.min;
         }
         
-        History_Group group = begin_history_group(app, buffer);
+        History_Group group = history_group_begin(app, buffer);
         buffer_replace_range(app, buffer, make_range(range.min), begin_str);
         buffer_replace_range(app, buffer, make_range(range.max + (i32)begin_str.size), end_str);
-        end_history_group(group);
+        history_group_end(group);
         
         view_set_cursor(app, view, seek_pos(cursor_pos), true);
         view_set_mark(app, view, seek_pos(mark_pos));

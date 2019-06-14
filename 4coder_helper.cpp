@@ -875,6 +875,111 @@ boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directio
 
 ////////////////////////////////
 
+void
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
+    Character_Predicate predicate = character_predicate_from_character((u8)delim);
+    buffer_seek_character_class(app, buffer, &predicate, Scan_Forward, pos, result);
+}
+
+void
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
+    Character_Predicate predicate = character_predicate_from_character((u8)delim);
+    buffer_seek_character_class(app, buffer, &predicate, Scan_Backward, pos, result);
+}
+
+static void
+buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
+    if (end == 0){
+        buffer_get_size(app, buffer, &end);
+    }
+    b32 case_sensitive = false;
+    b32 finding_matches = false;
+    do{
+        finding_matches = 
+            buffer_seek_string(app, buffer, needle, Scan_Forward, pos, &pos, &case_sensitive);
+    } while(!case_sensitive && pos < end && finding_matches);
+    if (pos < end && finding_matches){
+        *result = pos;
+    }
+    else{
+        buffer_get_size(app, buffer, result);
+    }
+}
+
+static void
+buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
+    b32 case_sensitive = false;
+    b32 finding_matches = false;
+    do{
+        finding_matches = 
+            buffer_seek_string(app, buffer, needle, Scan_Backward, pos, &pos, &case_sensitive);
+    } while(!case_sensitive && pos >= min && finding_matches);
+    if (pos >= min && finding_matches){
+        *result = pos;
+    }
+    else{
+        *result = -1;
+    }
+}
+
+static void
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
+    if (end == 0){
+        buffer_get_size(app, buffer, &end);
+    }
+    b32 finding_matches = false;
+    b32 case_sensitive = false;
+    finding_matches = 
+        buffer_seek_string(app, buffer, needle, Scan_Forward, pos, &pos, &case_sensitive);
+    if (pos < end && finding_matches){
+        *result = pos;
+    }
+    else{
+        buffer_get_size(app, buffer, result);
+    }
+}
+
+static void
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
+    b32 finding_matches = false;
+    b32 case_sensitive = false;
+    finding_matches = 
+        buffer_seek_string(app, buffer, needle, Scan_Backward, pos, &pos, &case_sensitive);
+    if (pos >= min && finding_matches){
+        *result = pos;
+    }
+    else{
+        *result = -1;
+    }
+}
+
+static void
+buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, i32 min, String_Const_u8 str, i32 *result, Buffer_Seek_String_Flags flags){
+    switch (flags & 3){
+        case 0:
+        {
+            buffer_seek_string_forward(app, buffer_id, pos, end, str, result);
+        }break;
+        
+        case BufferSeekString_Backward:
+        {
+            buffer_seek_string_backward(app, buffer_id, pos, min, str, result);
+        }break;
+        
+        case BufferSeekString_CaseInsensitive:
+        {
+            buffer_seek_string_insensitive_forward(app, buffer_id, pos, end, str, result);
+        }break;
+        
+        case BufferSeekString_Backward|BufferSeekString_CaseInsensitive:
+        {
+            buffer_seek_string_insensitive_backward(app, buffer_id, pos, min, str, result);
+        }break;
+    }
+}
+
+////////////////////////////////
+
 static Range
 get_line_range_from_pos_range(Application_Links *app, Buffer_ID buffer, Range pos_range){
     Range line_range = {};
@@ -1174,6 +1279,46 @@ get_pos_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Dir
     i32 blank_line = get_line_number_of_blank_line_grouped(app, buffer, direction, line_number_start);
     i32 pos = get_line_start_pos(app, buffer, blank_line);
     return(pos);
+}
+
+////////////////////////////////
+
+static History_Group
+history_group_begin(Application_Links *app, Buffer_ID buffer){
+    History_Group group = {};
+    group.app = app;
+    group.buffer = buffer;
+    buffer_history_get_current_state_index(app, buffer, &group.first);
+    group.first += 1;
+    return(group);
+}
+
+static void
+history_group_end(History_Group group){
+    History_Record_Index last = 0;
+    buffer_history_get_current_state_index(group.app, group.buffer, &last);
+    if (group.first < last){
+        buffer_history_merge_record_range(group.app, group.buffer, group.first, last, RecordMergeFlag_StateInRange_MoveStateForward);
+    }
+}
+
+////////////////////////////////
+
+static void
+replace_in_range(Application_Links *app, Buffer_ID buffer, Range range, String_Const_u8 needle, String_Const_u8 string){
+    History_Group group = history_group_begin(app, buffer);
+    i32 pos = range.min - 1;
+    i32 new_pos = 0;
+    buffer_seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
+    i32 shift = replace_range_compute_shift((i32)needle.size, (i32)string.size);
+    for (; new_pos + (imem)needle.size <= range.end;){
+        Range needle_range = make_range(new_pos, new_pos + (i32)needle.size);
+        buffer_replace_range(app, buffer, needle_range, string);
+        range.end += shift;
+        pos = new_pos + (i32)string.size - 1;
+        buffer_seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
+    }
+    history_group_end(group);
 }
 
 ////////////////////////////////
@@ -2175,27 +2320,6 @@ get_dpi_scaling_value(Application_Links *app){
     // gets tuned to.
     f32 result = 2.0f;
     return(result);
-}
-
-////////////////////////////////
-
-static History_Group
-begin_history_group(Application_Links *app, Buffer_ID buffer){
-    History_Group group = {};
-    group.app = app;
-    group.buffer = buffer;
-    buffer_history_get_current_state_index(app, buffer, &group.first);
-    group.first += 1;
-    return(group);
-}
-
-static void
-end_history_group(History_Group group){
-    History_Record_Index last = 0;
-    buffer_history_get_current_state_index(group.app, group.buffer, &last);
-    if (group.first < last){
-        buffer_history_merge_record_range(group.app, group.buffer, group.first, last, RecordMergeFlag_StateInRange_MoveStateForward);
-    }
 }
 
 ////////////////////////////////

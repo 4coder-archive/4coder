@@ -1292,19 +1292,7 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
         view_get_buffer(app, view, AccessOpen, &buffer_id);
         
         Range range = get_view_range(app, view);
-        
-        i32 pos = range.min;
-        i32 new_pos = 0;
-        buffer_seek_string_forward(app, buffer_id, pos, 0, r, &new_pos);
-        
-        global_history_edit_group_begin(app);
-        for (;new_pos + r.size <= range.end;){
-            buffer_replace_range(app, buffer_id, make_range(new_pos, new_pos + (i32)r.size), w);
-            range = get_view_range(app, view);
-            pos = new_pos + (i32)w.size;
-            buffer_seek_string_forward(app, buffer_id, pos, 0, r, &new_pos);
-        }
-        global_history_edit_group_end(app);
+        replace_in_range(app, buffer_id, range, r, w);
     }
 }
 
@@ -1496,7 +1484,7 @@ delete_file_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID bu
     string_list_pushf(scratch, &list, "\"%.*s\"", string_expand(file_name));
     String_Const_u8 cmd = string_list_flatten(scratch, list, StringFill_NullTerminate);
     exec_system_command(app, 0, buffer_identifier(0), path, cmd, 0);
-        kill_buffer(app, buffer_identifier(buffer_id), 0, BufferKill_AlwaysKill);
+    kill_buffer(app, buffer_identifier(buffer_id), 0, BufferKill_AlwaysKill);
 }
 
 CUSTOM_COMMAND_SIG(delete_file_query)
@@ -2124,7 +2112,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
                 buffer_history_get_current_state_index(app, buffer, &index);
                 if (index > 0){
                     Record_Info record = {};
-                                        buffer_history_get_record_info(app, buffer, index, &record);
+                    buffer_history_get_record_info(app, buffer, index, &record);
                     if (record.edit_number == highest_edit_number){
                         did_match = true;
                         new_edit_position = record_get_new_cursor_position_undo(app, buffer, index, record);
