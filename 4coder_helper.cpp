@@ -602,25 +602,6 @@ get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Cpp_Token_Ar
 
 ////////////////////////////////
 
-static Cpp_Token_Array
-buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id){
-    Cpp_Token_Array array = {};
-    if (buffer_exists(app, buffer_id)){
-        b32 is_lexed = false;
-        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
-            if (is_lexed){
-                buffer_token_count(app, buffer_id, &array.count);
-                array.max_count = array.count;
-                array.tokens = push_array(arena, Cpp_Token, array.count);
-                buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
-            }
-        }
-    }
-    return(array);
-}
-
-////////////////////////////////
-
 static i32
 scan_any_boundary(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, Scan_Direction direction, i32 pos){
     i32 a = func(app, buffer, Side_Min, direction, pos);
@@ -657,9 +638,9 @@ scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Sca
     }
     else{
         result = -1;
-        for (Boundary_Function_Node *node = funcs.first;
-             node != 0;
-             node = node->next){
+                                for (Boundary_Function_Node *node = funcs.first;
+                                     node != 0;
+                                     node = node->next){
             i32 pos = scan(app, node->func, buffer, direction, start_pos);
             result = Max(result, pos);
         }
@@ -721,6 +702,11 @@ boundary_non_whitespace(Application_Links *app, Buffer_ID buffer, Side side, Sca
 static i32
 boundary_alpha_numeric(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
     return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric));
+}
+
+static i32
+boundary_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric_underscore_utf8));
 }
 
 static i32
@@ -1036,6 +1022,11 @@ enclose_alpha_numeric(Application_Links *app, Buffer_ID buffer, Range range){
 }
 
 static Range
+enclose_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, Range range){
+    return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_unicode));
+}
+
+static Range
 enclose_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Range range){
     return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_underscore));
 }
@@ -1190,7 +1181,7 @@ get_pos_past_lead_whitespace(Application_Links *app, Buffer_ID buffer, i32 pos){
     i32 line_number = get_line_number_from_pos(app, buffer, pos);
     Range line_range = get_line_pos_range(app, buffer, line_number);
     String_Const_u8 line = push_buffer_range(app, scratch, buffer, line_range);
-    i32 result = line_range.end;
+        i32 result = line_range.end;
     for (umem i = 0; i < line.size; i += 1){
         if (!character_is_whitespace(line.str[i])){
             result = line_range.start + (i32)i;
@@ -1708,7 +1699,7 @@ forward_stream_chunk(Stream_Chunk *chunk){
             buffer_read_range(app, buffer_id, chunk->start, chunk->end, chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
             result = 1;
-        }
+                }
     }
     
     else if (chunk->add_null && chunk->end + 1 < buffer_size){
@@ -1837,7 +1828,7 @@ backward_stream_tokens(Stream_Tokens_DEP *stream){
             stream->tokens = stream->base_tokens - stream->start;
             result = true;
         }
-    }
+        }
     return(result);
 }
 

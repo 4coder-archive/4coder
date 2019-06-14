@@ -203,24 +203,6 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
 }
 
 static i32
-buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    char space[1024];
-    Stream_Chunk chunk = {};
-    if (init_stream_chunk(&chunk, app, buffer_id, pos, space, sizeof(space))){
-        i32 still_looping = true;
-        do{
-            for (; pos < chunk.end; ++pos){
-                u8 at_pos = (u8)chunk.data[pos];
-                if (!character_is_alpha_numeric_unicode(at_pos)) goto double_break;
-            }
-            still_looping = forward_stream_chunk(&chunk);
-        }while(still_looping);
-    }
-    double_break:;
-    return(pos);
-}
-
-static i32
 match_check(Application_Links *app, Search_Range *range, i32 *pos, Search_Match *result_ptr, Search_Key key){
     i32 result_code = FindResult_None;
     
@@ -265,7 +247,7 @@ match_check(Application_Links *app, Search_Range *range, i32 *pos, Search_Match 
             {
                 u8 prev = buffer_get_char(app, result.buffer, result.start - 1);
                 if (!character_is_alpha_numeric_unicode(prev)){
-                    result.end = buffer_seek_alpha_numeric_end(app, result.buffer, result.start);
+                    result.end = scan(app, boundary_alpha_numeric_unicode, result.buffer, Scan_Forward, result.start);
                     if (result.end <= end_pos){
                         result.found_match = true;
                         found_match = FindResult_FoundMatch;

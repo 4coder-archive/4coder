@@ -242,7 +242,26 @@ buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *b
 
 static i32
 buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    return(buffer!=0?0:buffer_seek_alpha_numeric_end(app, buffer->buffer_id, pos));
+    return(buffer!=0?0:scan(app, boundary_alpha_numeric_unicode,
+                            buffer->buffer_id,
+                            Scan_Forward, pos));
+}
+
+static Cpp_Token_Array
+buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id){
+    Cpp_Token_Array array = {};
+    if (buffer_exists(app, buffer_id)){
+        b32 is_lexed = false;
+        if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
+            if (is_lexed){
+                buffer_token_count(app, buffer_id, &array.count);
+                array.max_count = array.count;
+                array.tokens = push_array(arena, Cpp_Token, array.count);
+                buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
+            }
+        }
+    }
+    return(array);
 }
 
 static Cpp_Token_Array
