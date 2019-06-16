@@ -1139,6 +1139,7 @@ STRUCT color_picker{
     b32 *finished;
 };
 
+// TODO(allen): Remove these vvvvv ?
 enum Found_String_Flag{
     FoundString_Sensitive = 0x1,
     FoundString_Insensitive = 0x2,
@@ -1161,6 +1162,27 @@ STRUCT Found_String{
 STRUCT Found_String_List{
     Found_String *first;
     Found_String *last;
+    i32 count;
+};
+// TODO(allen): Remove these ^^^^^ ?
+
+ENUM(u32, String_Match_Flag){
+    StringMatch_CaseSensitive = 1,
+    StringMatch_LeftSideSloppy = 2,
+    StringMatch_RightSideSloppy = 4,
+    StringMatch_Straddled = 8,
+};
+
+STRUCT String_Match{
+    String_Match *next;
+    Buffer_ID buffer;
+    String_Match_Flag flags;
+    u64 index;
+};
+
+STRUCT String_Match_List{
+    String_Match *first;
+    String_Match *last;
     i32 count;
 };
 

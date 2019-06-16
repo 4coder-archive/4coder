@@ -75,11 +75,11 @@ bind(context, key_page_up, MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
 bind(context, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
 bind(context, key_page_up, MDFR_SHIFT, page_up);
 bind(context, key_page_down, MDFR_SHIFT, page_down);
-bind(context, key_up, MDFR_CTRL, move_up_to_blank_line_end);
+bind(context, key_up, MDFR_CTRL, move_up_to_blank_line_skip_whitespace);
 bind(context, key_down, MDFR_CTRL, move_down_to_blank_line_end);
 bind(context, key_left, MDFR_CTRL, move_left_whitespace_boundary);
 bind(context, key_right, MDFR_CTRL, move_right_whitespace_boundary);
-bind(context, key_up, MDFR_CTRL|MDFR_SHIFT, move_up_to_blank_line_end);
+bind(context, key_up, MDFR_CTRL|MDFR_SHIFT, move_up_to_blank_line_skip_whitespace);
 bind(context, key_down, MDFR_CTRL|MDFR_SHIFT, move_down_to_blank_line_end);
 bind(context, key_left, MDFR_CTRL|MDFR_SHIFT, move_left_whitespace_boundary);
 bind(context, key_right, MDFR_CTRL|MDFR_SHIFT, move_right_whitespace_boundary);
@@ -261,11 +261,11 @@ bind(context, key_page_up, MDFR_CTRL|MDFR_SHIFT, goto_beginning_of_file);
 bind(context, key_page_down, MDFR_CTRL|MDFR_SHIFT, goto_end_of_file);
 bind(context, key_page_up, MDFR_SHIFT, page_up);
 bind(context, key_page_down, MDFR_SHIFT, page_down);
-bind(context, key_up, MDFR_CMND, move_up_to_blank_line_end);
+bind(context, key_up, MDFR_CMND, move_up_to_blank_line_skip_whitespace);
 bind(context, key_down, MDFR_CMND, move_down_to_blank_line_end);
 bind(context, key_left, MDFR_CMND, move_left_whitespace_boundary);
 bind(context, key_right, MDFR_CMND, move_right_whitespace_boundary);
-bind(context, key_up, MDFR_CMND|MDFR_SHIFT, move_up_to_blank_line_end);
+bind(context, key_up, MDFR_CMND|MDFR_SHIFT, move_up_to_blank_line_skip_whitespace);
 bind(context, key_down, MDFR_CMND|MDFR_SHIFT, move_down_to_blank_line_end);
 bind(context, key_left, MDFR_CMND|MDFR_SHIFT, move_left_whitespace_boundary);
 bind(context, key_right, MDFR_CMND|MDFR_SHIFT, move_right_whitespace_boundary);
@@ -477,11 +477,11 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
 {0, 55306, 9, "goto_end_of_file", 16, LINK_PROCS(goto_end_of_file)},
 {0, 55305, 8, "page_up", 7, LINK_PROCS(page_up)},
 {0, 55306, 8, "page_down", 9, LINK_PROCS(page_down)},
-{0, 55297, 1, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55297, 1, "move_up_to_blank_line_skip_whitespace", 37, LINK_PROCS(move_up_to_blank_line_skip_whitespace)},
 {0, 55298, 1, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
 {0, 55299, 1, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
 {0, 55300, 1, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},
-{0, 55297, 9, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55297, 9, "move_up_to_blank_line_skip_whitespace", 37, LINK_PROCS(move_up_to_blank_line_skip_whitespace)},
 {0, 55298, 9, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
 {0, 55299, 9, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
 {0, 55300, 9, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},
@@ -666,11 +666,11 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[77] = {
 {0, 55306, 9, "goto_end_of_file", 16, LINK_PROCS(goto_end_of_file)},
 {0, 55305, 8, "page_up", 7, LINK_PROCS(page_up)},
 {0, 55306, 8, "page_down", 9, LINK_PROCS(page_down)},
-{0, 55297, 4, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55297, 4, "move_up_to_blank_line_skip_whitespace", 37, LINK_PROCS(move_up_to_blank_line_skip_whitespace)},
 {0, 55298, 4, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
 {0, 55299, 4, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
 {0, 55300, 4, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},
-{0, 55297, 12, "move_up_to_blank_line_end", 25, LINK_PROCS(move_up_to_blank_line_end)},
+{0, 55297, 12, "move_up_to_blank_line_skip_whitespace", 37, LINK_PROCS(move_up_to_blank_line_skip_whitespace)},
 {0, 55298, 12, "move_down_to_blank_line_end", 27, LINK_PROCS(move_down_to_blank_line_end)},
 {0, 55299, 12, "move_left_whitespace_boundary", 29, LINK_PROCS(move_left_whitespace_boundary)},
 {0, 55300, 12, "move_right_whitespace_boundary", 30, LINK_PROCS(move_right_whitespace_boundary)},

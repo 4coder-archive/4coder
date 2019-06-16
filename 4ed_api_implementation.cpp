@@ -263,7 +263,7 @@ Buffers should not be killed or created durring a buffer loop.
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_first)
 */{
-        Models *models = (Models*)app->cmd_context;
+    Models *models = (Models*)app->cmd_context;
     Working_Set *working_set = &models->working_set;
     Editing_File *file = working_set_get_active_file(working_set, buffer_id);
     file = file_get_next(working_set, file);
@@ -461,92 +461,37 @@ Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
     if (api_check_buffer(file)){
         if (needle.size == 0){
             *pos_out = start_pos;
-            result = true;
+            *case_sensitive_out = true;
         }
         else{
+            Scratch_Block scratch(app);
             Gap_Buffer *gap_buffer = &file->state.buffer;
             i32 size = buffer_size(gap_buffer);
-            if (size >= (imem)needle.size){
-                u8 first_character = character_to_upper(needle.str[0]);
-                
-                i32 last_point = size - (i32)(needle.size) + 1;
-                String_Const_u8 chunks_space[2];
-                Cursor chunks_cursor = make_cursor(chunks_space, sizeof(chunks_space));
-                String_Const_u8_Array chunks = buffer_get_chunks(&chunks_cursor, gap_buffer, BufferGetChunk_Basic);
-                start_pos = clamp(-1, start_pos, last_point + 1);
-                Buffer_Chunk_Position pos = buffer_get_chunk_position(chunks, size, start_pos);
-                if (direction == Scan_Forward){
-                    for (; pos.chunk_index < chunks.count; pos.chunk_index += 1, pos.chunk_pos = 0){
-                        for (;;){
-                            pos.real_pos += 1;
-                            if (pos.real_pos > last_point){
-                                goto done_forward;
-                            }
-                            pos.chunk_pos += 1;
-                            if (pos.chunk_pos >= chunks.vals[pos.chunk_index].size){
-                                break;
-                            }
-                            
-                            // TODO(allen): "point skip array" for speedup
-                            u8 v = chunks.vals[pos.chunk_index].str[pos.chunk_pos];
-                            if (character_to_upper(v) == first_character){
-                                if (chunked_match(chunks, needle, pos.chunk_index, pos.chunk_pos, case_sensitive_out)){
-                                    *pos_out = pos.real_pos;
-                                    result = true;
-                                    goto done_forward;
-                                }
-                            }
-                        }
-                    }
-                    done_forward:;
-                    if (!result){
-                        *pos_out = size;
-                    }
-                }
-                else{
-                    for (;;){
-                        for (;;){
-                            pos.real_pos -= 1;
-                            if (pos.real_pos < 0){
-                                goto done_backward;
-                            }
-                            pos.chunk_pos -= 1;
-                            if (pos.chunk_pos < 0){
-                                break;
-                            }
-                            // TODO(allen): "point skip array" for speedup
-                            u8 v = chunks.vals[pos.chunk_index].str[pos.chunk_pos];
-                            if (character_to_upper(v) == first_character){
-                                if (chunked_match(chunks, needle, pos.chunk_index, pos.chunk_pos, case_sensitive_out)){
-                                    *pos_out = pos.real_pos;
-                                    result = true;
-                                    goto done_forward;
-                                }
-                            }
-                        }
-                        pos.chunk_index -= 1;
-                        if (pos.chunk_index >= 0){
-                            pos.chunk_pos = (i32)chunks.vals[pos.chunk_index].size - 1;
-                        }
-                        else{
-                            break;
-                        }
-                    }
-                    done_backward:;
-                    if (!result){
-                        *pos_out = 0;
-                    }
-                }
+            String_Const_u8 space[3];
+            Cursor cursor = make_cursor(space, sizeof(space));
+            String_Const_u8_Array chunks = buffer_get_chunks(&cursor, gap_buffer);
+            Range range = {};
+            if (direction == Scan_Forward){
+                range = make_range(start_pos, size);
             }
             else{
-                *pos_out = 0;
+                range = make_range(0, start_pos);
+            }
+            chunks = buffer_chunks_clamp(chunks, range);
+            u64_Array jump_table = string_compute_needle_jump_table(scratch, needle, direction);
+            Character_Predicate dummy = {};
+            String_Match_List list = find_all_matches(scratch, 1,
+                                                      chunks, needle, jump_table, &dummy, direction,
+                                                      range.min, 0);
+            if (list.count == 1){
+                result = true;
+                *pos_out = (i32)list.first->index;
+                *case_sensitive_out = (HasFlag(list.first->flags, StringMatch_CaseSensitive));
             }
         }
     }
     return(result);
 }
-
-#define character_predicate_check_character(p, c) (((p).b[(c)/8] & (1 << ((c)%8))) != 0)
 
 API_EXPORT b32
 Buffer_Seek_Character_Class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){
@@ -1197,7 +1142,7 @@ DOC_SEE(Buffer_Save_Flag)
         b32 skip_save = false;
         if (!(flags & BufferSave_IgnoreDirtyFlag)){
             if (file->state.dirty == DirtyState_UpToDate){
-                                skip_save = true;
+                skip_save = true;
             }
         }
         
@@ -1565,7 +1510,7 @@ View_Get_Preferred_X(Application_Links *app, View_ID view_id, f32 *preferred_x_o
     b32 result = false;
     if (api_check_view(view)){
         *preferred_x_out = view->preferred_x;
-                result = true;
+        result = true;
     }
     return(result);
 }
@@ -4363,208 +4308,31 @@ Animate_In_N_Milliseconds(Application_Links *app, u32 n)
     }
 }
 
-// NOTE(casey): Find_All_In_Range_Insensitive is the only routine supplied, because anyone who would prefer case-sensitive can
-// check afterward.
-// TODO(casey): Allen, this routine is very intricate and needs to be tested thoroughly before mainlining.  I've only done cursory testing on it and have probably missed bugs that only occur in highly segmented buffers.
-// TODO(casey): I think this routine could potentially be simplified by making it into something that always works with a partial match list, where the partial matches have 0 characters matched, and they just get moved forward as they go.  This would solve the duplicate code problem the routine currently has where it does the same thing in its two halves, but slightly differently.
-API_EXPORT Found_String_List
-Find_All_In_Range_Insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String_Const_u8 key, Arena *arena)
+API_EXPORT String_Match_List
+Find_All_Matches_Buffer_Range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
 {
-    Found_String_List result = {};
-    
-    Found_String *first_partial = 0;
-    Found_String *first_free = 0;
-    
     Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    if((file != 0) && key.size)
-    {
-        i32 total_size = buffer_size(&file->state.buffer);
-        u32 clean_edegs = FoundString_CleanEdges;
-        
-        if (0 <= start && start <= end && end <= total_size)
-        {
-            Gap_Buffer *gap = &file->state.buffer;
-            Gap_Buffer_Stream stream = {};
-            i32 i = start;
-            if (buffer_stringify_loop(&stream, gap, i, end))
-            {
-                b32 still_looping = 0;
-                do
-                {
-                    i32 size = stream.end - i;
-                    char *data = stream.data + i;
-                    
-                    // NOTE(casey): Check all partial matches
-                    Found_String **partial = &first_partial;
-                    while(*partial)
-                    {
-                        Found_String *check = *partial;
-                        i32 trailing_char_at = ((check->location.start + (i32)key.size) - check->location.end);
-                        i32 remaining = trailing_char_at;
-                        b32 valid = true;
-                        b32 full = true;
-                        if(remaining > size)
-                        {
-                            full = false;
-                            remaining = size;
-                        }
-                        
-                        for(i32 test = 0;
-                            test < remaining;
-                            ++test)
-                        {
-                            char a = key.str[test];
-                            char b = data[test];
-                            
-                            if(a != b)
-                            {
-                                check->flags &= ~FoundString_Sensitive;
-                            }
-                            
-                            if(character_to_lower(a) != character_to_lower(b))
-                            {
-                                valid = false;
-                                break;
-                            }
-                        }
-                        check->location.end += remaining;
-                        
-                        if(valid)
-                        {
-                            // NOTE(casey): Although technically "full matches" are full, we haven't yet checked the trailing edge for tokenization,
-                            // so we need to shunt to partial in the cases where we _can't_ check the overhanging character.
-                            full = full && (trailing_char_at < size);
-                            if(full)
-                            {
-                                if(character_is_alpha_numeric(data[trailing_char_at]))
-                                {
-                                    check->flags &= ~FoundString_CleanEdges;
-                                }
-                                
-                                // NOTE(casey): This is a full match now, so we can move it to the result list
-                                *partial = check->next;
-                                check->next = 0;
-                                result.last = (result.last ? result.last->next : result.first) = check;
-                                ++result.count;
-                            }
-                            else
-                            {
-                                // NOTE(casey): This is still a partial match, so we just look at the next one
-                                partial = &check->next;
-                            }
-                        }
-                        else
-                        {
-                            // NOTE(casey): This is no longer a potential match, eliminate it.
-                            *partial = check->next;
-                            check->next = first_free;
-                            first_free = check;
-                        }
-                    }
-                    
-                    // NOTE(casey): Check for new matches
-                    // TODO(casey): We could definitely do way more efficient string matching here
-                    for(i32 at = 0;
-                        at < size;
-                        ++at)
-                    {
-                        i32 remaining = size - at;
-                        b32 full = false;
-                        if(remaining >= key.size)
-                        {
-                            full = true;
-                            remaining = (i32)key.size;
-                        }
-                        
-                        u32 exact_matched = FoundString_Sensitive;
-                        b32 lower_matched = true;
-                        for(i32 test = 0;
-                            test < remaining;
-                            ++test)
-                        {
-                            char a = key.str[test];
-                            char b = data[at + test];
-                            
-                            if(a != b)
-                            {
-                                exact_matched = 0;
-                            }
-                            
-                            if(character_to_lower(a) != character_to_lower(b))
-                            {
-                                lower_matched = false;
-                                break;
-                            }
-                        }
-                        
-                        if(lower_matched)
-                        {
-                            Found_String *found = first_free;
-                            if(found)
-                            {
-                                first_free = found->next;
-                            }
-                            else
-                            {
-                                found = push_array(arena, Found_String, 1);
-                            }
-                            
-                            if(found)
-                            {
-                                found->next = 0;
-                                found->buffer_id = buffer_id;
-                                found->flags = FoundString_Insensitive | exact_matched | clean_edegs;
-                                found->string_id = 0;
-                                found->location.start = i + at;
-                                found->location.end = found->location.start + remaining;
-                                
-                                // NOTE(casey): Although technically "full matches" are full, we haven't yet checked the trailing edge for tokenization,
-                                // so we need to shunt to partial in the cases where we _can't_ check the overhanging character.
-                                i32 trailing_char_at = (at + (i32)key.size);
-                                full = full && (trailing_char_at < size);
-                                
-                                if(full)
-                                {
-                                    if(character_is_alpha_numeric(data[trailing_char_at]))
-                                    {
-                                        found->flags &= ~FoundString_CleanEdges;
-                                    }
-                                    result.last = (result.last ? result.last->next : result.first) = found;
-                                    ++result.count;
-                                }
-                                else
-                                {
-                                    found->flags |= FoundString_Straddled;
-                                    *partial = (*partial ? (*partial)->next : first_partial) = found;
-                                }
-                            }
-                            else
-                            {
-                                // TODO(casey): Allen, this is a non-fatal error that produces bad results - eg., there's not enough
-                                // memory to actually store all the locations found.  Hopefully this will never happen once this can
-                                // be fed through a growable arena - right now it happens all the time, because the partition is too f'ing tiny.
-                            }
-                        }
-                        
-                        if(character_is_alpha(data[at]))
-                        {
-                            clean_edegs = 0;
-                        }
-                        else
-                        {
-                            clean_edegs = FoundString_CleanEdges;
-                        }
-                    }
-                    
-                    i = stream.end;
-                    still_looping = buffer_stringify_next(&stream);
-                } while(still_looping);
+    Editing_File *file = imp_get_file(models, buffer);
+    String_Match_List list = {};
+    if (api_check_buffer(file)){
+        if (needle.size > 0){
+            String_Const_u8 space[3];
+            Cursor cursor = make_cursor(space, sizeof(space));
+            String_Const_u8_Array chunks = buffer_get_chunks(&cursor, &file->state.buffer);
+            chunks = buffer_chunks_clamp(chunks, range);
+            if (chunks.count > 0){
+                u64_Array jump_table = string_compute_needle_jump_table(arena, needle, direction);
+                Character_Predicate dummy = {};
+                if (predicate == 0){
+                    predicate = &dummy;
+                }
+                list = find_all_matches(arena, max_i32,
+                                        chunks, needle, jump_table, predicate, direction,
+                                        range.min, buffer);
             }
         }
     }
-    
-    return(result);
+    return(list);
 }
 
 API_EXPORT Range

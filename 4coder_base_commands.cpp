@@ -479,59 +479,69 @@ CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one 
 }
 
 internal void
-seek_blank_line__generic(Application_Links *app, Scan_Direction direction, b32 skip_lead_whitespace){
+seek_blank_line(Application_Links *app, Scan_Direction direction, Position_Within_Line position){
     View_ID view = 0;
     get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    Buffer_ID buffer = 0;
+    view_get_buffer(app, view, AccessProtected, &buffer);
     i32 pos = 0;
     view_get_cursor_pos(app, view, &pos);
-    i32 new_pos = get_pos_of_blank_line_grouped(app, buffer_id, direction, pos);
-    if (skip_lead_whitespace){
-        new_pos = get_pos_past_lead_whitespace(app, buffer_id, new_pos);
+    i32 new_pos = get_pos_of_blank_line_grouped(app, buffer, direction, pos);
+    switch (position){
+        case PositionWithinLine_SkipLeadingWhitespace:
+        {
+            new_pos = get_pos_past_lead_whitespace(app, buffer, new_pos);
+        }break;
+        
+        case PositionWithinLine_End:
+        {
+            new_pos = get_line_side_pos_from_pos(app, buffer, new_pos, Side_Max);
+        }break;
     }
     view_set_cursor(app, view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
-internal void
-seek_blank_line(Application_Links *app, Scan_Direction direction){
-    seek_blank_line__generic(app, direction, false);
-}
-
-internal void
-seek_blank_line_skip_leading_whitespace(Application_Links *app, Scan_Direction direction){
-    seek_blank_line__generic(app, direction, true);
-}
-
 CUSTOM_COMMAND_SIG(move_up_to_blank_line)
 CUSTOM_DOC("Seeks the cursor up to the next blank line.")
 {
-    seek_blank_line(app, Scan_Backward);
+    seek_blank_line(app, Scan_Backward, PositionWithinLine_Start);
 }
 
 CUSTOM_COMMAND_SIG(move_down_to_blank_line)
 CUSTOM_DOC("Seeks the cursor down to the next blank line.")
 {
-    seek_blank_line(app, Scan_Forward);
+    seek_blank_line(app, Scan_Forward, PositionWithinLine_Start);
+}
+
+CUSTOM_COMMAND_SIG(move_up_to_blank_line_skip_whitespace)
+CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
+{
+    seek_blank_line(app, Scan_Backward, PositionWithinLine_SkipLeadingWhitespace);
+}
+
+CUSTOM_COMMAND_SIG(move_down_to_blank_line_skip_whitespace)
+CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
+{
+    seek_blank_line(app, Scan_Forward, PositionWithinLine_SkipLeadingWhitespace);
 }
 
 CUSTOM_COMMAND_SIG(move_up_to_blank_line_end)
 CUSTOM_DOC("Seeks the cursor up to the next blank line and places it at the end of the line.")
 {
-    seek_blank_line_skip_leading_whitespace(app, Scan_Backward);
+    seek_blank_line(app, Scan_Backward, PositionWithinLine_End);
 }
 
 CUSTOM_COMMAND_SIG(move_down_to_blank_line_end)
 CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the end of the line.")
 {
-    seek_blank_line_skip_leading_whitespace(app, Scan_Forward);
+    seek_blank_line(app, Scan_Forward, PositionWithinLine_End);
 }
 
 #define seek_whitespace_up            move_up_to_blank_line
 #define seek_whitespace_down          move_down_to_blank_line
-#define seek_whitespace_up_end_line   move_up_to_blank_line_end
-#define seek_whitespace_down_end_line move_down_to_blank_line_end
+#define seek_whitespace_up_end_line   move_up_to_blank_line_skip_whitespace
+#define seek_whitespace_down_end_line move_down_to_blank_line_skip_whitespace
 
 CUSTOM_COMMAND_SIG(move_left)
 CUSTOM_DOC("Moves the cursor one character to the left.")
@@ -1639,10 +1649,9 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
     i32 line = get_line_number_from_pos(app, buffer, pos);
     Scratch_Block scratch(app);
     String_Const_u8 s = push_buffer_line(app, scratch, buffer, line);
-    s = string_u8_pushf(scratch, "\n%.*s", string_expand(s));
-    pos = get_line_side_pos(app, buffer, line, Side_Max);
+    s = string_u8_pushf(scratch, "%.*s\n", string_expand(s));
+    pos = get_line_side_pos(app, buffer, line, Side_Min);
     buffer_replace_range(app, buffer, make_range(pos), s);
-    view_set_cursor(app, view, seek_pos(pos + 1), true);
 }
 
 CUSTOM_COMMAND_SIG(delete_line)
@@ -1702,7 +1711,7 @@ get_cpp_matching_file(Application_Links *app, Buffer_ID buffer, Buffer_ID *buffe
         for (i32 i = 0; i < new_extensions_count; i += 1){
             Temp_Memory temp = begin_temp(scratch);
             String_Const_u8 new_extension = new_extensions[i];
-                                    String_Const_u8 new_file_name = string_u8_pushf(scratch, "%.*s.%.*s", string_expand(file_without_extension), string_expand(new_extension));
+            String_Const_u8 new_file_name = string_u8_pushf(scratch, "%.*s.%.*s", string_expand(file_without_extension), string_expand(new_extension));
             if (open_file(app, buffer_out, new_file_name, false, true)){
                 result = true;
                 break;

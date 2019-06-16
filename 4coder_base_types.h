@@ -774,6 +774,42 @@ typedef f32_Rect_Pair Rect_f32_Pair;
 
 ////////////////////////////////
 
+struct i8_Array{
+    i8 *vals;
+    i32 coint;
+};
+struct i16_Array{
+    i16 *vals;
+    i32 coint;
+};
+struct i32_Array{
+    i32 *vals;
+    i32 coint;
+};
+struct i64_Array{
+    i64 *vals;
+    i32 coint;
+};
+
+struct u8_Array{
+    u8 *vals;
+    i32 count;
+};
+struct u16_Array{
+    u16 *vals;
+    i32 count;
+};
+struct u32_Array{
+    u32 *vals;
+    i32 count;
+};
+struct u64_Array{
+    u64 *vals;
+    i32 count;
+};
+
+////////////////////////////////
+
 typedef i32 String_Fill_Terminate_Rule;
 enum{
     StringFill_NoTerminate = 0,

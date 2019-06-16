@@ -182,7 +182,7 @@ struct Application_Links;
 #define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, color_picker *picker)
 #define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
-#define FIND_ALL_IN_RANGE_INSENSITIVE_SIG(n) Found_String_List n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String_Const_u8 key, Arena *arena)
+#define FIND_ALL_MATCHES_BUFFER_RANGE_SIG(n) String_Match_List n(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
 #define GET_VIEW_VISIBLE_RANGE_SIG(n) Range n(Application_Links *app, View_ID view_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
@@ -367,7 +367,7 @@ typedef COMPUTE_RENDER_LAYOUT_SIG(Compute_Render_Layout_Function);
 typedef DRAW_RENDER_LAYOUT_SIG(Draw_Render_Layout_Function);
 typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
 typedef ANIMATE_IN_N_MILLISECONDS_SIG(Animate_In_N_Milliseconds_Function);
-typedef FIND_ALL_IN_RANGE_INSENSITIVE_SIG(Find_All_In_Range_Insensitive_Function);
+typedef FIND_ALL_MATCHES_BUFFER_RANGE_SIG(Find_All_Matches_Buffer_Range_Function);
 typedef GET_VIEW_VISIBLE_RANGE_SIG(Get_View_Visible_Range_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
@@ -554,7 +554,7 @@ Compute_Render_Layout_Function *compute_render_layout;
 Draw_Render_Layout_Function *draw_render_layout;
 Open_Color_Picker_Function *open_color_picker;
 Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds;
-Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive;
+Find_All_Matches_Buffer_Range_Function *find_all_matches_buffer_range;
 Get_View_Visible_Range_Function *get_view_visible_range;
 #else
 Global_Set_Setting_Function *global_set_setting_;
@@ -740,7 +740,7 @@ Compute_Render_Layout_Function *compute_render_layout_;
 Draw_Render_Layout_Function *draw_render_layout_;
 Open_Color_Picker_Function *open_color_picker_;
 Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds_;
-Find_All_In_Range_Insensitive_Function *find_all_in_range_insensitive_;
+Find_All_Matches_Buffer_Range_Function *find_all_matches_buffer_range_;
 Get_View_Visible_Range_Function *get_view_visible_range_;
 #endif
 void *memory;
@@ -934,7 +934,7 @@ app_links->compute_render_layout_ = Compute_Render_Layout;\
 app_links->draw_render_layout_ = Draw_Render_Layout;\
 app_links->open_color_picker_ = Open_Color_Picker;\
 app_links->animate_in_n_milliseconds_ = Animate_In_N_Milliseconds;\
-app_links->find_all_in_range_insensitive_ = Find_All_In_Range_Insensitive;\
+app_links->find_all_matches_buffer_range_ = Find_All_Matches_Buffer_Range;\
 app_links->get_view_visible_range_ = Get_View_Visible_Range;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting(app, setting, value));}
@@ -1120,7 +1120,7 @@ static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
-static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String_Const_u8 key, Arena *arena){return(app->find_all_in_range_insensitive(app, buffer_id, start, end, key, arena));}
+static String_Match_List find_all_matches_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction){return(app->find_all_matches_buffer_range(app, arena, buffer, range, needle, predicate, direction));}
 static Range get_view_visible_range(Application_Links *app, View_ID view_id){return(app->get_view_visible_range(app, view_id));}
 #else
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
@@ -1306,6 +1306,6 @@ static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}
 static void open_color_picker(Application_Links *app, color_picker *picker){(app->open_color_picker_(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}
-static Found_String_List find_all_in_range_insensitive(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 end, String_Const_u8 key, Arena *arena){return(app->find_all_in_range_insensitive_(app, buffer_id, start, end, key, arena));}
+static String_Match_List find_all_matches_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction){return(app->find_all_matches_buffer_range_(app, arena, buffer, range, needle, predicate, direction));}
 static Range get_view_visible_range(Application_Links *app, View_ID view_id){return(app->get_view_visible_range_(app, view_id));}
 #endif

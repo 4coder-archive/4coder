@@ -80,6 +80,7 @@ struct Mem_Options{
 #include "4ed_render_format.cpp"
 #include "4ed_command.cpp"
 #include "4ed_buffer.cpp"
+#include "4ed_string_matching.cpp"
 #include "4ed_history.cpp"
 #include "4ed_file_lex.cpp"
 #include "4ed_file.cpp"

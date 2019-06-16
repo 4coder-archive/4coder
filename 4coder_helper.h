@@ -33,6 +33,15 @@ struct File_Name_Data{
 
 ////////////////////////////////
 
+typedef i32 Position_Within_Line;
+enum{
+    PositionWithinLine_Start,
+    PositionWithinLine_SkipLeadingWhitespace,
+    PositionWithinLine_End,
+};
+
+////////////////////////////////
+
 typedef b8 Character_Predicate_Function(u8 c);
 
 global Character_Predicate character_predicate_alpha = { {

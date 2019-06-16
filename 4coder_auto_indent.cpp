@@ -355,7 +355,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                                         this_indent += tab_width;
                                     }
                                 }
-                                                        }
+                            }
                         }
                     }
                     if (this_indent < 0){
@@ -438,7 +438,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 {
                     if (!(token.flags & CPP_TFLAG_PP_BODY)){
                         if (indent.paren_nesting > 0){
-                                                        --indent.paren_nesting;
+                            --indent.paren_nesting;
                         }
                     }
                 }break;

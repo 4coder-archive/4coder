@@ -531,11 +531,11 @@ generate_remapping_code_and_data(Arena *arena){
         bind(arena, mappings, key_page_up,   MDFR_SHIFT, page_up);
         bind(arena, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(arena, mappings, key_up,    MDFR_CTRL, move_up_to_blank_line_end);
+        bind(arena, mappings, key_up,    MDFR_CTRL, move_up_to_blank_line_skip_whitespace);
         bind(arena, mappings, key_down,  MDFR_CTRL, move_down_to_blank_line_end);
         bind(arena, mappings, key_left,  MDFR_CTRL, move_left_whitespace_boundary);
         bind(arena, mappings, key_right, MDFR_CTRL, move_right_whitespace_boundary);
-        bind(arena, mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, move_up_to_blank_line_end);
+        bind(arena, mappings, key_up,    MDFR_CTRL|MDFR_SHIFT, move_up_to_blank_line_skip_whitespace);
         bind(arena, mappings, key_down,  MDFR_CTRL|MDFR_SHIFT, move_down_to_blank_line_end);
         bind(arena, mappings, key_left,  MDFR_CTRL|MDFR_SHIFT, move_left_whitespace_boundary);
         bind(arena, mappings, key_right, MDFR_CTRL|MDFR_SHIFT, move_right_whitespace_boundary);
@@ -760,11 +760,11 @@ generate_remapping_code_and_data(Arena *arena){
         bind(arena, mappings, key_page_up,   MDFR_SHIFT, page_up);
         bind(arena, mappings, key_page_down, MDFR_SHIFT, page_down);
         
-        bind(arena, mappings, key_up,    MDFR_CMND, move_up_to_blank_line_end);
+        bind(arena, mappings, key_up,    MDFR_CMND, move_up_to_blank_line_skip_whitespace);
         bind(arena, mappings, key_down,  MDFR_CMND, move_down_to_blank_line_end);
         bind(arena, mappings, key_left,  MDFR_CMND, move_left_whitespace_boundary);
         bind(arena, mappings, key_right, MDFR_CMND, move_right_whitespace_boundary);
-        bind(arena, mappings, key_up,    MDFR_CMND|MDFR_SHIFT, move_up_to_blank_line_end);
+        bind(arena, mappings, key_up,    MDFR_CMND|MDFR_SHIFT, move_up_to_blank_line_skip_whitespace);
         bind(arena, mappings, key_down,  MDFR_CMND|MDFR_SHIFT, move_down_to_blank_line_end);
         bind(arena, mappings, key_left,  MDFR_CMND|MDFR_SHIFT, move_left_whitespace_boundary);
         bind(arena, mappings, key_right, MDFR_CMND|MDFR_SHIFT, move_right_whitespace_boundary);

@@ -638,9 +638,9 @@ scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Sca
     }
     else{
         result = -1;
-                                                                                        for (Boundary_Function_Node *node = funcs.first;
-                                                                                             node != 0;
-                                                                                             node = node->next){
+        for (Boundary_Function_Node *node = funcs.first;
+             node != 0;
+             node = node->next){
             i32 pos = scan(app, node->func, buffer, direction, start_pos);
             result = Max(result, pos);
         }
