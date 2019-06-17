@@ -472,21 +472,30 @@ Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
             String_Const_u8_Array chunks = buffer_get_chunks(&cursor, gap_buffer);
             Range range = {};
             if (direction == Scan_Forward){
-                range = make_range(start_pos, size);
+                i32 adjusted_pos = start_pos + 1;
+                start_pos = clamp_top(adjusted_pos, size);
+                range = make_range(adjusted_pos, size);
             }
             else{
-                range = make_range(0, start_pos);
+                i32 adjusted_pos = start_pos - 1;
+                start_pos = clamp_bot(0, adjusted_pos);
+                range = make_range(0, adjusted_pos);
             }
             chunks = buffer_chunks_clamp(chunks, range);
-            u64_Array jump_table = string_compute_needle_jump_table(scratch, needle, direction);
-            Character_Predicate dummy = {};
-            String_Match_List list = find_all_matches(scratch, 1,
-                                                      chunks, needle, jump_table, &dummy, direction,
-                                                      range.min, 0);
-            if (list.count == 1){
-                result = true;
-                *pos_out = (i32)list.first->index;
-                *case_sensitive_out = (HasFlag(list.first->flags, StringMatch_CaseSensitive));
+            if (chunks.count > 0){
+                u64_Array jump_table = string_compute_needle_jump_table(scratch, needle, direction);
+                Character_Predicate dummy = {};
+                String_Match_List list = find_all_matches(scratch, 1,
+                                                          chunks, needle, jump_table, &dummy, direction,
+                                                          range.min, 0);
+                if (list.count == 1){
+                    result = true;
+                    *pos_out = (i32)list.first->index;
+                    *case_sensitive_out = (HasFlag(list.first->flags, StringMatch_CaseSensitive));
+                }
+            }
+            else{
+                *pos_out = start_pos;
             }
         }
     }
@@ -3289,45 +3298,9 @@ Buffer_History_Merge_Record_Range(Application_Links *app, Buffer_ID buffer_id, H
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    if (file != 0 && history_is_activated(&file->state.history)){
-        History *history = &file->state.history;
-        i32 max_index = history_get_record_count(history);
-        first_index = clamp_bot(1, first_index);
-        if (first_index <= last_index && last_index <= max_index){
-            i32 current_index = file->state.current_record_index;
-            if (first_index <= current_index && current_index < last_index){
-                System_Functions *system = models->system;
-                u32 in_range_handler = flags & bitmask_2;
-                switch (in_range_handler){
-                    case RecordMergeFlag_StateInRange_MoveStateForward:
-                    {
-                        edit_change_current_history_state(system, models, file, last_index);
-                        current_index = last_index;
-                    }break;
-                    
-                    case RecordMergeFlag_StateInRange_MoveStateBackward:
-                    {
-                        edit_change_current_history_state(system, models, file, first_index);
-                        current_index = first_index;
-                    }break;
-                    
-                    case RecordMergeFlag_StateInRange_ErrorOut:
-                    {
-                        goto done;
-                    }break;
-                }
-            }
-            if (first_index < last_index){
-                history_merge_records(&models->mem.arena, &models->mem.heap, history, first_index, last_index);
-            }
-            if (current_index >= last_index){
-                current_index -= (last_index - first_index);
-            }
-            file->state.current_record_index = current_index;
-            result = true;
-        }
+    if (api_check_buffer(file)){
+        result = edit_merge_history_range(models, file, first_index, last_index, flags);
     }
-    done:;
     return(result);
 }
 

@@ -313,36 +313,6 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     }
 }
 
-internal b32
-edit_batch(System_Functions *system, Models *models, Editing_File *file, char *str, Buffer_Edit *edits, i32 edit_count, Edit_Behaviors behaviors){
-    b32 result = true;
-    if (edit_count > 0){
-        global_history_adjust_edit_grouping_counter(&models->global_history, 1);
-        
-        Buffer_Edit *edit_in = edits;
-        Buffer_Edit *one_past_last = edits + edit_count;
-        i32 shift = 0;
-        for (;edit_in < one_past_last; edit_in += 1){
-            String_Const_u8 insert_string = SCu8(str + edit_in->str_start, edit_in->len);
-            Range edit_range = make_range(edit_in->start, edit_in->end);
-            edit_range.first += shift;
-            edit_range.one_past_last += shift;
-            i32 size = buffer_size(&file->state.buffer);
-            if (0 <= edit_range.first && edit_range.first <= edit_range.one_past_last && edit_range.one_past_last <= size){
-                edit_single(system, models, file, edit_range, insert_string, behaviors);
-                shift += replace_range_compute_shift(edit_range, (i32)insert_string.size);
-            }
-            else{
-                result = false;
-                break;
-            }
-        }
-        
-        global_history_adjust_edit_grouping_counter(&models->global_history, -1);
-    }
-    return(result);
-}
-
 internal void
 file_end_file(Models *models, Editing_File *file){
     if (models->hook_end_file != 0){
@@ -449,6 +419,89 @@ edit_change_current_history_state(System_Functions *system, Models *models, Edit
         
         file->state.current_record_index = current;
     }
+}
+
+internal b32
+edit_merge_history_range(Models *models, Editing_File *file, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){
+    b32 result = false;
+    History *history = &file->state.history;
+    if (history_is_activated(history)){
+        i32 max_index = history_get_record_count(history);
+        first_index = clamp_bot(1, first_index);
+        if (first_index <= last_index && last_index <= max_index){
+            if (first_index < last_index){
+                i32 current_index = file->state.current_record_index;
+                if (first_index <= current_index && current_index < last_index){
+                    System_Functions *system = models->system;
+                    u32 in_range_handler = (flags & bitmask_2);
+                    switch (in_range_handler){
+                        case RecordMergeFlag_StateInRange_MoveStateForward:
+                        {
+                            edit_change_current_history_state(system, models, file, last_index);
+                            current_index = last_index;
+                        }break;
+                        
+                        case RecordMergeFlag_StateInRange_MoveStateBackward:
+                        {
+                            edit_change_current_history_state(system, models, file, first_index);
+                            current_index = first_index;
+                        }break;
+                        
+                        case RecordMergeFlag_StateInRange_ErrorOut:
+                        {
+                            goto done;
+                        }break;
+                    }
+                }
+                history_merge_records(&models->mem.arena, &models->mem.heap, history, first_index, last_index);
+                if (current_index >= last_index){
+                    current_index -= (last_index - first_index);
+                }
+                file->state.current_record_index = current_index;
+            }
+            result = true;
+        }
+    }
+    done:;
+    return(result);
+}
+
+internal b32
+edit_batch(System_Functions *system, Models *models, Editing_File *file, char *str, Buffer_Edit *edits, i32 edit_count, Edit_Behaviors behaviors){
+    b32 result = true;
+    if (edit_count > 0){
+        History_Record_Index start_index = 0;
+        if (history_is_activated(&file->state.history)){
+            start_index = history_get_record_count(&file->state.history);
+        }
+        
+        Buffer_Edit *edit_in = edits;
+        Buffer_Edit *one_past_last = edits + edit_count;
+        i32 shift = 0;
+        for (;edit_in < one_past_last; edit_in += 1){
+            String_Const_u8 insert_string = SCu8(str + edit_in->str_start, edit_in->len);
+            Range edit_range = make_range(edit_in->start, edit_in->end);
+            edit_range.first += shift;
+            edit_range.one_past_last += shift;
+            i32 size = buffer_size(&file->state.buffer);
+            if (0 <= edit_range.first && edit_range.first <= edit_range.one_past_last && edit_range.one_past_last <= size){
+                edit_single(system, models, file, edit_range, insert_string, behaviors);
+                shift += replace_range_compute_shift(edit_range, (i32)insert_string.size);
+            }
+            else{
+                result = false;
+                break;
+            }
+        }
+        
+        if (history_is_activated(&file->state.history)){
+            History_Record_Index last_index = history_get_record_count(&file->state.history);
+            if (start_index + 1 < last_index){
+                edit_merge_history_range(models, file, start_index + 1, last_index, RecordMergeFlag_StateInRange_ErrorOut);
+            }
+        }
+    }
+    return(result);
 }
 
 ////////////////////////////////

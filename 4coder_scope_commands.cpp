@@ -442,7 +442,7 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
         max_adjustment += begin_str.size;
         Range new_pos = make_range(range.min + (i32)min_adjustment, range.max + (i32)max_adjustment);
         
-                i32 cursor_pos = 0;
+        i32 cursor_pos = 0;
         i32 mark_pos = 0;
         view_get_cursor_pos(app, view, &cursor_pos);
         
