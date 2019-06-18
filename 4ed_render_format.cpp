@@ -94,7 +94,7 @@ draw_margin(Render_Target *target, f32_Rect outer, f32_Rect inner, u32 color){
 
 internal void
 draw_margin(Render_Target *target, f32_Rect outer, f32 width, u32 color){
-    f32_Rect inner = get_inner_rect(outer, width);
+    f32_Rect inner = rect_inner(outer, width);
     draw_margin(target, outer, inner, color);
 }
 
@@ -109,7 +109,7 @@ draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
 
 internal void
 draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
-    i32_Rect inner = get_inner_rect(outer, width);
+    i32_Rect inner = rect_inner(outer, width);
     draw_margin(target, outer, inner, color);
 }
 

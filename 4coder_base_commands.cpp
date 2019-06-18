@@ -701,16 +701,11 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     Buffer_ID buffer = 0;
     view_get_buffer(app, view, AccessOpen, &buffer);
     Range range = get_view_range(app, view);
-    i32 size = get_width(range);
-    if (size <= app->memory_size){
-        char *mem = (char*)app->memory;
-        buffer_read_range(app, buffer, range.min, range.max, mem);
-        for (i32 i = 0; i < size; ++i){
-            mem[i] = character_to_upper(mem[i]);
-        }
-        buffer_replace_range(app, buffer, range, SCu8(mem, size));
-        view_set_cursor(app, view, seek_pos(range.max), true);
-    }
+    Scratch_Block scratch(app);
+    String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
+    string = string_mod_upper(string);
+    buffer_replace_range(app, buffer, range, string);
+    view_set_cursor(app, view, seek_pos(range.max), true);
 }
 
 CUSTOM_COMMAND_SIG(to_lowercase)
@@ -721,16 +716,11 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     Buffer_ID buffer = 0;
     view_get_buffer(app, view, AccessOpen, &buffer);
     Range range = get_view_range(app, view);
-    i32 size = get_width(range);
-    if (size <= app->memory_size){
-        char *mem = (char*)app->memory;
-        buffer_read_range(app, buffer, range.min, range.max, mem);
-        for (i32 i = 0; i < size; ++i){
-            mem[i] = character_to_lower(mem[i]);
-        }
-        buffer_replace_range(app, buffer, range, SCu8(mem, size));
-        view_set_cursor(app, view, seek_pos(range.max), true);
-    }
+    Scratch_Block scratch(app);
+    String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
+    string = string_mod_lower(string);
+    buffer_replace_range(app, buffer, range, string);
+    view_set_cursor(app, view, seek_pos(range.max), true);
 }
 
 CUSTOM_COMMAND_SIG(clean_all_lines)

@@ -475,10 +475,11 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
     UINT_PTR result = 0;
     switch(Message)
     {
+        // TODO(allen): review
         case WM_INITDIALOG:
         {
             CHOOSECOLORW *win32_params = (CHOOSECOLORW *)LParam;
-            color_picker *picker = (color_picker *)win32_params->lCustData;
+            Color_Picker *picker = (Color_Picker*)win32_params->lCustData;
             SetWindowLongPtr(Window, GWLP_USERDATA, (LONG_PTR)LParam);
             
             u16 Temp[256];
@@ -509,7 +510,7 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
                 CHOOSECOLORW *win32_params = (CHOOSECOLORW *)GetWindowLongPtr(Window, GWLP_USERDATA);
                 if(win32_params)
                 {
-                    color_picker *picker = (color_picker *)win32_params->lCustData;
+                    Color_Picker *picker = (Color_Picker*)win32_params->lCustData;
                     
                     RECT rect;
                     GetClientRect(swatch_window, &rect);
@@ -540,10 +541,11 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
     return(result);
 }
 
+// TODO(allen): review
 internal DWORD WINAPI
 color_picker_thread(LPVOID Param)
 {
-    color_picker *picker = (color_picker *)Param;
+    Color_Picker *picker = (Color_Picker*)Param;
     
     int_color color = 0;
     if(picker->dest)
@@ -585,11 +587,11 @@ color_picker_thread(LPVOID Param)
 
 internal
 Sys_Open_Color_Picker_Sig(system_open_color_picker){
-    
+    // TODO(allen): review
     // NOTE(casey): Because this is going to be used by a semi-permanent thread, we need to copy
     // it to system memory where it can live as long as it wants, no matter what we do over here
     // on the 4coder threads.
-    color_picker *perm = (color_picker *)system_memory_allocate_extended(0, sizeof(color_picker));
+    Color_Picker *perm = (Color_Picker*)system_memory_allocate_extended(0, sizeof(Color_Picker));
     *perm = *picker;
     
     HANDLE ThreadHandle = CreateThread(0, 0, color_picker_thread, perm, 0, 0);

@@ -1575,25 +1575,7 @@ hsla_to_rgba(Vec4 hsla){
 
 ////////////////////////////////
 
-static Interval_i8
-Ii8(i8 a, i8 b){
-    Interval_i8 interval = {a, b};
-    if (b < a){
-        interval.min = b;
-        interval.max = a;
-    }
-    return(interval);
-}
-static Interval_i16
-Ii16(i16 a, i16 b){
-    Interval_i16 interval = {a, b};
-    if (b < a){
-        interval.min = b;
-        interval.max = a;
-    }
-    return(interval);
-}
-static Interval_i32
+internal Interval_i32
 Ii32(i32 a, i32 b){
     Interval_i32 interval = {a, b};
     if (b < a){
@@ -1602,7 +1584,25 @@ Ii32(i32 a, i32 b){
     }
     return(interval);
 }
-static Interval_f32
+internal Interval_i64
+Ii64(i64 a, i64 b){
+    Interval_i64 interval = {a, b};
+    if (b < a){
+        interval.min = b;
+        interval.max = a;
+    }
+    return(interval);
+}
+internal Interval_u64
+Iu64(u64 a, u64 b){
+    Interval_u64 interval = {a, b};
+    if (b < a){
+        interval.min = b;
+        interval.max = a;
+    }
+    return(interval);
+}
+internal Interval_f32
 If32(f32 a, f32 b){
     Interval_f32 interval = {a, b};
     if (b < a){
@@ -1612,390 +1612,402 @@ If32(f32 a, f32 b){
     return(interval);
 }
 
-static Interval_i8
-range_margin(Interval_i8 range, i8 margin){
-    range.min += margin;
-    range.max -= margin;
-    return(range);
+internal Interval_i32
+Ii32(i32 a){
+    Interval_i32 interval = {a, a};
+    return(interval);
 }
-static Interval_i16
-range_margin(Interval_i16 range, i16 margin){
-    range.min += margin;
-    range.max -= margin;
-    return(range);
+internal Interval_i64
+Ii64(i64 a){
+    Interval_i64 interval = {a, a};
+    return(interval);
 }
-static Interval_i32
+internal Interval_u64
+Iu64(u64 a){
+    Interval_u64 interval = {a, a};
+    return(interval);
+}
+internal Interval_f32
+If32(f32 a){
+    Interval_f32 interval = {a, a};
+    return(interval);
+}
+
+#define make_range     Ii32
+#define make_range_i32 Ii32
+#define make_range_i64 Ii64
+#define make_range_u64 Iu64
+#define make_range_f32 If32
+
+internal Interval_i32
 range_margin(Interval_i32 range, i32 margin){
     range.min += margin;
-    range.max -= margin;
+    range.max += margin;
     return(range);
 }
-static Interval_f32
+internal Interval_i64
+range_margin(Interval_i64 range, i64 margin){
+    range.min += margin;
+    range.max += margin;
+    return(range);
+}
+internal Interval_u64
+range_margin(Interval_u64 range, u64 margin){
+    range.min += margin;
+    range.max += margin;
+    return(range);
+}
+internal Interval_f32
 range_margin(Interval_f32 range, f32 margin){
     range.min += margin;
-    range.max -= margin;
+    range.max += margin;
     return(range);
 }
 
-static i8
-range_size(Interval_i8 range){
-    return(range.max - range.min);
+internal b32
+range_overlap(Interval_i32 a, Interval_i32 b){
+    return(a.min < b.max && b.min < a.max);
 }
-static i16
-range_size(Interval_i16 range){
-    return(range.max - range.min);
+internal b32
+range_overlap(Interval_i64 a, Interval_i64 b){
+    return(a.min < b.max && b.min < a.max);
 }
-static i32
-range_size(Interval_i32 range){
-    return(range.max - range.min);
+internal b32
+range_overlap(Interval_u64 a, Interval_u64 b){
+    return(a.min < b.max && b.min < a.max);
 }
-static f32
-range_size(Interval_f32 range){
-    return(range.max - range.min);
-}
-
-static i32
-get_width(Range range){
-    i32 result = range.end - range.start;
-    if (result < 0){
-        result = 0;
-    }
-    return(result);
+internal b32
+range_overlap(Interval_f32 a, Interval_f32 b){
+    return(a.min < b.max && b.min < a.max);
 }
 
-static Range_i8
-make_range_i8(i8 p1, i8 p2){
-    Range_i8 range;
-    if (p1 < p2){
-        range.min = p1;
-        range.max = p2;
-    }
-    else{
-        range.min = p2;
-        range.max = p1;
-    }
-    return(range);
+internal b32
+range_contains(Interval_i32 a, i32 p){
+    return(a.min <= p && p < a.max);
 }
-static Range_i16
-make_range_i16(i16 p1, i16 p2){
-    Range_i16 range;
-    if (p1 < p2){
-        range.min = p1;
-        range.max = p2;
-    }
-    else{
-        range.min = p2;
-        range.max = p1;
-    }
-    return(range);
+internal b32
+range_contains(Interval_i64 a, i64 p){
+    return(a.min <= p && p < a.max);
 }
-static Range_i32
-make_range_i32(i32 p1, i32 p2){
-    Range_i32 range;
-    if (p1 < p2){
-        range.min = p1;
-        range.max = p2;
-    }
-    else{
-        range.min = p2;
-        range.max = p1;
-    }
-    return(range);
+internal b32
+range_contains(Interval_u64 a, u64 p){
+    return(a.min <= p && p < a.max);
 }
-static Range_f32
-make_range_f32(f32 p1, f32 p2){
-    Range_f32 range;
-    if (p1 < p2){
-        range.min = p1;
-        range.max = p2;
-    }
-    else{
-        range.min = p2;
-        range.max = p1;
-    }
-    return(range);
-}
-static Range_umem
-make_range_umem(umem p1, umem p2){
-    Range_umem range;
-    if (p1 < p2){
-        range.min = p1;
-        range.max = p2;
-    }
-    else{
-        range.min = p2;
-        range.max = p1;
-    }
-    return(range);
+internal b32
+range_contains(Interval_f32 a, f32 p){
+    return(a.min <= p && p < a.max);
 }
 
-static Range_i8
-make_range_i8(i8 p){
-    Range_i8 range = {p, p};
-    return(range);
+internal i32
+range_size(Interval_i32 a){
+    i32 size = a.max - a.min;
+    size = clamp_bot(0, size);
+    return(size);
 }
-static Range_i16
-make_range_i16(i16 p){
-    Range_i16 range = {p, p};
-    return(range);
+internal i64
+range_size(Interval_i64 a){
+    i64 size = a.max - a.min;
+    size = clamp_bot(0, size);
+    return(size);
 }
-static Range_i32
-make_range_i32(i32 p){
-    Range_i32 range = {p, p};
-    return(range);
+internal u64
+range_size(Interval_u64 a){
+    u64 size = a.max - a.min;
+    size = clamp_bot(0, size);
+    return(size);
 }
-static Range_f32
-make_range_f32(f32 p){
-    Range_f32 range = {p, p};
-    return(range);
-}
-static Range_umem
-make_range_umem(umem p){
-    Range_umem range = {p, p};
-    return(range);
-}
-
-#define make_range make_range_i32
-
-static Range
-rectify(Range range) {
-    return(make_range(range.min, range.max));
+internal f32
+range_size(Interval_f32 a){
+    f32 size = a.max - a.min;
+    size = clamp_bot(0, size);
+    return(size);
 }
 
-static b32
-interval_overlap(i32 a0, i32 a1, i32 b0, i32 b1){
-    return(a0 < b1 && b0 < a1);
+internal Interval_i32
+rectify(Interval_i32 a){
+    return(Ii32(a.min, a.max));
+}
+internal Interval_i64
+rectify(Interval_i64 a){
+    return(Ii64(a.min, a.max));
+}
+internal Interval_u64
+rectify(Interval_u64 a){
+    return(Iu64(a.min, a.max));
+}
+internal Interval_f32
+rectify(Interval_f32 a){
+    return(If32(a.min, a.max));
 }
 
-static b32
-interval_overlap(Range a, Range b){
-    return(interval_overlap(a.first, a.one_past_last, b.first, b.one_past_last));
+internal Interval_i32
+range_clamp_size(Interval_i32 a, i32 max_size){
+    i32 max = a.min + max_size;
+    a.max = clamp_top(a.max, max);
+    return(a);
+}
+internal Interval_i64
+range_clamp_size(Interval_i64 a, i64 max_size){
+    i64 max = a.min + max_size;
+    a.max = clamp_top(a.max, max);
+    return(a);
+}
+internal Interval_u64
+range_clamp_size(Interval_u64 a, u64 max_size){
+    u64 max = a.min + max_size;
+    a.max = clamp_top(a.max, max);
+    return(a);
+}
+internal Interval_f32
+range_clamp_size(Interval_f32 a, f32 max_size){
+    f32 max = a.min + max_size;
+    a.max = clamp_top(a.max, max);
+    return(a);
 }
 
-static i32
-interval_overlap(f32 a0, f32 a1, f32 b0, f32 b1){
-    return(a0 < b1 && b0 < a1);
+internal b32
+range_is_valid(Interval_i32 a){
+    return(a.min <= a.max);
 }
-
-static b32
-interval_contains(i32 a0, i32 a1, i32 b){
-    return((a0 <= b) && (b < a1));
+internal b32
+range_is_valid(Interval_i64 a){
+    return(a.min <= a.max);
 }
-
-static b32
-interval_contains(Range range, i32 b){
-    return(interval_contains(range.start, range.one_past_last, b));
+internal b32
+range_is_valid(Interval_u64 a){
+    return(a.min <= a.max);
 }
-
-static Range
-clip_range_to_width(Range range, i32 max_width) {
-    i32 top = range.first + max_width;
-    range.end = clamp_top(range.end, top);
-    return(range);
-}
-
-static b32
-interval_is_valid(Range range){
-    return(range.start <= range.one_past_last);
-}
-
-static i32
-replace_range_compute_shift(i32 replace_length, i32 insert_length){
-    return(insert_length - replace_length);
-}
-
-static i32
-replace_range_compute_shift(i32 replace_start, i32 replace_end, i32 insert_length){
-    return(insert_length - (replace_end - replace_start));
-}
-
-static i32
-replace_range_compute_shift(Range range, i32 insert_length){
-    return(replace_range_compute_shift(range.first, range.one_past_last, insert_length));
+internal b32
+range_is_valid(Interval_f32 a){
+    return(a.min <= a.max);
 }
 
 ////////////////////////////////
 
-static i32_Rect
-i32R(i32 l, i32 t, i32 r, i32 b){
-    i32_Rect rect = {};
-    rect.x0 = l;
-    rect.y0 = t;
-    rect.x1 = r;
-    rect.y1 = b;
+internal i32
+replace_range_compute_shift(i32 replace_length, i32 insert_length){
+    return(insert_length - replace_length);
+}
+internal i32
+replace_range_compute_shift(i32 start, i32 end, i32 insert_length){
+    return(insert_length - (end - start));
+}
+internal i32
+replace_range_compute_shift(Interval_i32 range, i32 insert_length){
+    return(insert_length - (range.end - range.start));
+}
+internal i64
+replace_range_compute_shift(i64 replace_length, i64 insert_length){
+    return(insert_length - replace_length);
+}
+internal i64
+replace_range_compute_shift(i64 start, i64 end, i64 insert_length){
+    return(insert_length - (end - start));
+}
+internal i64
+replace_range_compute_shift(Interval_i64 range, i64 insert_length){
+    return(insert_length - (range.end - range.start));
+}
+
+////////////////////////////////
+
+internal Rect_i32
+Ri32(i32 x0, i32 y0, i32 x1, i32 y1){
+    Rect_i32 rect = {x0, y0, x1, y1};
+    return(rect);
+}
+internal Rect_f32
+Rf32(f32 x0, f32 y0, f32 x1, f32 y1){
+    Rect_f32 rect = {x0, y0, x1, y1};
     return(rect);
 }
 
-static i32_Rect
-i32R_xy_wh(i32 x, i32 y, i32 w, i32 h){
-    return(i32R(x, y, x + w, y + h));
+internal Rect_i32
+Ri32(Vec2_i32 p0, Vec2_i32 p1){
+    Rect_i32 rect = {p0.x, p0.y, p1.x, p1.y};
+    return(rect);
 }
-
-static i32_Rect
-i32R(f32_Rect r){
-    i32_Rect rect = {};
-    rect.x0 = (i32)r.x0;
-    rect.y0 = (i32)r.y0;
-    rect.x1 = (i32)r.x1;
-    rect.y1 = (i32)r.y1;
+internal Rect_f32
+Rf32(Vec2_f32 p0, Vec2_f32 p1){
+    Rect_f32 rect = {p0.x, p0.y, p1.x, p1.y};
     return(rect);
 }
 
-static f32_Rect
-f32R(f32 l, f32 t, f32 r, f32 b){
-    f32_Rect rect = {};
-    rect.x0 = l;
-    rect.y0 = t;
-    rect.x1 = r;
-    rect.y1 = b;
+internal Rect_i32
+Ri32(Rect_f32 o){
+    Rect_i32 rect = {(i32)(o.x0), (i32)(o.y0), (i32)(o.x0), (i32)(o.y1)};
+    return(rect);
+}
+internal Rect_f32
+Rf32(Rect_i32 o){
+    Rect_f32 rect = {(f32)(o.x0), (f32)(o.y0), (f32)(o.x0), (f32)(o.y1)};
     return(rect);
 }
 
-static f32_Rect
-f32R(Vec2 p0, Vec2 p1){
-    f32_Rect rect = {};
-    rect.p0 = p0;
-    rect.p1 = p1;
+#define i32R Ri32
+#define f32R Rf32
+
+internal Rect_i32
+Ri32_xy_wh(i32 x0, i32 y0, i32 w, i32 h){
+    Rect_i32 rect = {x0, y0, x0 + w, y0 + h};
+    return(rect);
+}
+internal Rect_f32
+Rf32_xy_wh(f32 x0, f32 y0, f32 w, f32 h){
+    Rect_f32 rect = {x0, y0, x0 + w, y0 + h};
     return(rect);
 }
 
-static f32_Rect
-f32R(i32_Rect r){
-    f32_Rect rect = {};
-    rect.x0 = (f32)r.x0;
-    rect.y0 = (f32)r.y0;
-    rect.x1 = (f32)r.x1;
-    rect.y1 = (f32)r.y1;
+internal Rect_i32
+Ri32_xy_wh(Vec2_i32 p0, Vec2_i32 d){
+    Rect_i32 rect = {p0.x, p0.y, p0.x + d.x, p0.y + d.y};
+    return(rect);
+}
+internal Rect_f32
+Rf32_xy_wh(Vec2_f32 p0, Vec2_f32 d){
+    Rect_f32 rect = {p0.x, p0.y, p0.x + d.x, p0.y + d.y};
     return(rect);
 }
 
-static i32
-rect_equal(i32_Rect r1, i32_Rect r2){
-    return(r1.x0 == r2.x0 && r1.y0 == r2.y0 && r1.x1 == r2.x1 && r1.y1 == r2.y1);
+#define i32R_xy_wh
+#define f32R_xy_wh
+
+internal b32
+rect_equals(Rect_i32 a, Rect_i32 b){
+    return(a.x0 == b.x0 && a.y0 == b.y0 && a.x1 == b.x1 && a.y1 == b.y1);
+}
+internal b32
+rect_equals(Rect_f32 a, Rect_f32 b){
+    return(a.x0 == b.x0 && a.y0 == b.y0 && a.x1 == b.x1 && a.y1 == b.y1);
 }
 
-static b32
-rect_contains_point(b32 BLAH, f32 x0, f32 y0, f32 x1, f32 y1, f32 x, f32 y){
-    return(x0 <= x && x < x1 && y0 <= y && y < y1);
+internal b32
+rect_contains_point(Rect_i32 a, Vec2_i32 b){
+    return(a.x0 <= b.x && b.x < a.x1 && a.y0 <= b.y && b.y < a.y1);
+}
+internal b32
+rect_contains_point(Rect_f32 a, Vec2_f32 b){
+    return(a.x0 <= b.x && b.x < a.x1 && a.y0 <= b.y && b.y < a.y1);
 }
 
-static b32
-rect_contains_point(b32 BLAH, i32 x0, i32 y0, i32 x1, i32 y1, i32 x, i32 y){
-    return(x0 <= x && x < x1 && y0 <= y && y < y1);
+internal Rect_i32
+rect_inner(Rect_i32 r, i32 m){
+    r.x0 += m;
+    r.y0 += m;
+    r.x1 -= m;
+    r.y1 -= m;
+    return(r);
 }
-
-static b32
-rect_contains_point(Rect_f32 rect, Vec2_f32 p){
-    return(rect_contains_point(false, rect.x0, rect.y0, rect.x1, rect.y1, p.x, p.y));
-}
-
-static b32
-rect_contains_point(Rect_i32 rect, Vec2_i32 p){
-    return(rect_contains_point(false, rect.x0, rect.y0, rect.x1, rect.y1, p.x, p.y));
-}
-
-static i32_Rect
-get_inner_rect(i32_Rect outer, i32 margin){
-    i32_Rect r = {};
-    r.x0 = outer.x0 + margin;
-    r.y0 = outer.y0 + margin;
-    r.x1 = outer.x1 - margin;
-    r.y1 = outer.y1 - margin;
+internal Rect_f32
+rect_inner(Rect_f32 r, f32 m){
+    r.x0 += m;
+    r.y0 += m;
+    r.x1 -= m;
+    r.y1 -= m;
     return(r);
 }
 
-static f32_Rect
-get_inner_rect(f32_Rect outer, f32 margin){
-    f32_Rect r = {};
-    r.x0 = outer.x0 + margin;
-    r.y0 = outer.y0 + margin;
-    r.x1 = outer.x1 - margin;
-    r.y1 = outer.y1 - margin;
-    return(r);
+internal Vec2_i32
+rect_dim(Rect_i32 r){
+    Vec2_i32 v = {r.x1 - r.x0, r.y1 - r.y0};
+    return(v);
+}
+internal i32
+rect_width(Rect_i32 r){
+    return(r.x1 - r.x0);
+}
+internal i32
+rect_height(Rect_i32 r){
+    return(r.y1 - r.y0);
+}
+internal Vec2_f32
+rect_dim(Rect_f32 r){
+    Vec2_f32 v = {r.x1 - r.x0, r.y1 - r.y0};
+    return(v);
+}
+internal f32
+rect_width(Rect_f32 r){
+    return(r.x1 - r.x0);
+}
+internal f32
+rect_height(Rect_f32 r){
+    return(r.y1 - r.y0);
 }
 
-static i32
-rect_height(i32_Rect rect){
-    return(rect.y1 - rect.y0);
+internal Interval_i32
+rect_range_x(Rect_i32 r){
+    return(Ii32(r.x0, r.x1));
+}
+internal Interval_i32
+rect_range_y(Rect_i32 r){
+    return(Ii32(r.y0, r.y1));
+}
+internal Interval_f32
+rect_range_x(Rect_f32 r){
+    return(If32(r.x0, r.x1));
+}
+internal Interval_f32
+rect_range_y(Rect_f32 r){
+    return(If32(r.y0, r.y1));
 }
 
-static i32
-rect_width(i32_Rect rect){
-    return(rect.x1 - rect.x0);
+internal b32
+rect_overlap(Rect_i32 a, Rect_i32 b){
+    return(range_overlap(rect_range_x(a), rect_range_x(b)) &&
+           range_overlap(rect_range_y(a), rect_range_y(b)));
+}
+internal b32
+rect_overlap(Rect_f32 a, Rect_f32 b){
+    return(range_overlap(rect_range_x(a), rect_range_x(b)) &&
+           range_overlap(rect_range_y(a), rect_range_y(b)));
 }
 
-static i32
-fits_inside(i32_Rect rect, i32_Rect outer){
-    return(rect.x0 >= outer.x0 && rect.x1 <= outer.x1 && rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
+internal Vec2_i32
+rect_center(Rect_i32 r){
+    return(rect_dim(r)/2);
 }
-
-static i32
-rect_overlap(f32_Rect a, f32_Rect b){
-    return(interval_overlap(a.x0, a.x1, b.x0, b.x1) &&
-           interval_overlap(a.y0, a.y1, b.y0, b.y1));
-}
-
-static f32
-rect_height(f32_Rect rect){
-    return(rect.y1 - rect.y0);
-}
-
-static f32
-rect_width(f32_Rect rect){
-    return(rect.x1 - rect.x0);
-}
-
-static Vec2
-rect_dim(f32_Rect rect){
-    return(V2(rect.x1 - rect.x0, rect.y1 - rect.y0));
-}
-
-static Vec2
-rect_center(f32_Rect rect){
-    return(V2(0.5f*(rect.x0 + rect.x1), 0.5f*(rect.y0 + rect.y1)));
+internal Vec2_f32
+rect_center(Rect_f32 r){
+    return(rect_dim(r)/2);
 }
 
 #define center_of rect_center
 
-static i32_Rect
-intersection_of(i32_Rect a, i32_Rect b){
-    i32_Rect result;
-    result.x0 = Max(a.x0, b.x0);
-    result.y0 = Max(a.y0, b.y0);
-    result.x1 = Min(a.x1, b.x1);
-    result.y1 = Min(a.y1, b.y1);
-    return(result);
+internal Rect_i32
+rect_intersect(Rect_i32 a, Rect_i32 b){
+    a.x0 = Max(a.x0, b.x0);
+    a.y0 = Max(a.y0, b.y0);
+    a.x1 = Min(a.x1, b.x1);
+    a.y1 = Min(a.y1, b.y1);
+    return(a);
+}
+internal Rect_i32
+rect_union(Rect_i32 a, Rect_i32 b){
+    a.x0 = Min(a.x0, b.x0);
+    a.y0 = Min(a.y0, b.y0);
+    a.x1 = Max(a.x1, b.x1);
+    a.y1 = Max(a.y1, b.y1);
+    return(a);
+}
+internal Rect_f32
+rect_intersect(Rect_f32 a, Rect_f32 b){
+    a.x0 = Max(a.x0, b.x0);
+    a.y0 = Max(a.y0, b.y0);
+    a.x1 = Min(a.x1, b.x1);
+    a.y1 = Min(a.y1, b.y1);
+    return(a);
+}
+internal Rect_f32
+rect_union(Rect_f32 a, Rect_f32 b){
+    a.x0 = Min(a.x0, b.x0);
+    a.y0 = Min(a.y0, b.y0);
+    a.x1 = Max(a.x1, b.x1);
+    a.y1 = Max(a.y1, b.y1);
+    return(a);
 }
 
-static i32_Rect
-union_of(i32_Rect a, i32_Rect b){
-    i32_Rect result;
-    result.x0 = Max(a.x0, b.x0);
-    result.y0 = Max(a.y0, b.y0);
-    result.x1 = Min(a.x1, b.x1);
-    result.y1 = Min(a.y1, b.y1);
-    return(result);
-}
-
-static f32_Rect
-intersection_of(f32_Rect a, f32_Rect b){
-    f32_Rect result;
-    result.x0 = Max(a.x0, b.x0);
-    result.y0 = Max(a.y0, b.y0);
-    result.x1 = Min(a.x1, b.x1);
-    result.y1 = Min(a.y1, b.y1);
-    return(result);
-}
-
-static f32_Rect
-union_of(f32_Rect a, f32_Rect b){
-        f32_Rect result;
-    result.x0 = Max(a.x0, b.x0);
-    result.y0 = Max(a.y0, b.y0);
-    result.x1 = Min(a.x1, b.x1);
-    result.y1 = Min(a.y1, b.y1);
-    return(result);
-}
+#define intersection_of rect_intersect
+#define union_of rect_union
 
 ////////////////////////////////
 
@@ -3299,7 +3311,7 @@ static umem
 string_find_first_slash(String_Const_u16 str){
     umem i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
-        return(i);
+    return(i);
 }
 static umem
 string_find_first_slash(String_Const_u32 str){

@@ -1133,38 +1133,11 @@ STRUCT Binding_Unit{
 typedef i32 _Get_Version_Function(i32 maj, i32 min, i32 patch);
 #define _GET_VERSION_SIG(n) i32 n(i32 maj, i32 min, i32 patch)
 
-STRUCT color_picker{
+STRUCT Color_Picker{
     String_Const_u8 title;
     argb_color *dest;
     b32 *finished;
 };
-
-// TODO(allen): Remove these vvvvv ?
-enum Found_String_Flag{
-    FoundString_Sensitive = 0x1,
-    FoundString_Insensitive = 0x2,
-    FoundString_CleanEdges = 0x4,
-    
-    FoundString_Straddled = 0x10,
-};
-
-STRUCT Found_String{
-    Found_String *next;
-    Buffer_ID buffer_id;
-    
-    u32 flags;
-    i32 string_id;
-    
-    Range location;
-};
-
-// TODO(casey): If this sticks around, there should be a way to export add/remove/merge as inlines that are shared
-STRUCT Found_String_List{
-    Found_String *first;
-    Found_String *last;
-    i32 count;
-};
-// TODO(allen): Remove these ^^^^^ ?
 
 ENUM(u32, String_Match_Flag){
     StringMatch_CaseSensitive = 1,
@@ -1176,8 +1149,9 @@ ENUM(u32, String_Match_Flag){
 STRUCT String_Match{
     String_Match *next;
     Buffer_ID buffer;
+    i32 string_id;
     String_Match_Flag flags;
-    u64 index;
+    Range_u64 range;
 };
 
 STRUCT String_Match_List{

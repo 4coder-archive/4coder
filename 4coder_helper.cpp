@@ -1096,7 +1096,7 @@ push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range 
 }
 
 static String_Const_u8
-push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_umem range){
+push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_u64 range){
     return(push_buffer_range(app, arena, buffer, range.first, range.one_past_last));
 }
 

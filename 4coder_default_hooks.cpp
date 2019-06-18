@@ -849,21 +849,21 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
             }
             
             if (rect_overlap(item_rect, rect_f32)){
-                Rect_f32 inner_rect = get_inner_rect(item_rect, (f32)item->inner_margin);
+                Rect_f32 inner = rect_inner(item_rect, (f32)item->inner_margin);
                 
                 Face_Metrics metrics = {};
                 get_face_metrics(app, face_id, &metrics);
                 f32 line_height = metrics.line_height;
                 f32 info_height = (f32)item->line_count*line_height;
                 
-                draw_rectangle(app, inner_rect, Stag_Back);
-                Vec2 p = V2(inner_rect.x0 + 3.f, (f32)(round32((inner_rect.y0 + inner_rect.y1 - info_height)*0.5f)));
+                draw_rectangle(app, inner, Stag_Back);
+                Vec2 p = V2(inner.x0 + 3.f, (f32)(round32((inner.y0 + inner.y1 - info_height)*0.5f)));
                 for (i32 i = 0; i < item->line_count; i += 1){
                     draw_fancy_string(app, face_id, item->lines[i].first, p, Stag_Default, 0, 0, V2(1.f, 0));
                     p.y += line_height;
                 }
                 if (item->inner_margin > 0){
-                    draw_margin(app, item_rect, inner_rect, get_margin_color(item->activation_level));
+                    draw_margin(app, item_rect, inner, get_margin_color(item->activation_level));
                 }
             }
         }
@@ -902,7 +902,7 @@ static void
 default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view_id, b32 is_active){
     Rect_i32 view_rect = {};
     view_get_region(app, view_id, &view_rect);
-    Rect_i32 inner = get_inner_rect(view_rect, 3);
+    Rect_i32 inner = rect_inner(view_rect, 3);
     draw_rectangle(app, f32R(view_rect), get_margin_color(is_active?UIActivation_Active:UIActivation_None));
     draw_rectangle(app, f32R(inner), Stag_Back);
     draw_clip_push(app, f32R(inner));

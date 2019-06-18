@@ -678,7 +678,7 @@ execute_standard_build(Application_Links *app, View_Summary *view, Buffer_ID act
 
 static b32
 post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buffer_Summary *buffer, i32 first, i32 one_past_last){
-        return(post_buffer_range_to_clipboard(app, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
+    return(post_buffer_range_to_clipboard(app, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
 }
 
 static void
@@ -995,7 +995,7 @@ scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range
 }
 
 static String_Const_u8
-scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_umem range){
+scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_u64 range){
     return(push_buffer_range(app, arena, buffer, range));
 }
 

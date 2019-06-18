@@ -37,6 +37,7 @@
 
 #include "4coder_api_transition_30_31.h"
 
+#include "4coder_string_match.cpp"
 #include "4coder_helper.h"
 #include "4coder_insertion.h"
 #include "4coder_fancy.h"

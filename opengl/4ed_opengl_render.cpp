@@ -140,7 +140,7 @@ interpret_render_buffer(Render_Target *t, Arena *scratch){
             case RenCom_Outline:
             {
                 Render_Command_Rectangle *rectangle = (Render_Command_Rectangle*)header;
-                f32_Rect r = get_inner_rect(rectangle->rect, .5f);
+                f32_Rect r = rect_inner(rectangle->rect, .5f);
                 private_draw_set_color(t, rectangle->color);
                 private_draw_bind_texture(t, 0);
                 glBegin(GL_LINE_STRIP);

@@ -487,10 +487,10 @@ Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
                 Character_Predicate dummy = {};
                 String_Match_List list = find_all_matches(scratch, 1,
                                                           chunks, needle, jump_table, &dummy, direction,
-                                                          range.min, 0);
+                                                          range.min, 0, 0);
                 if (list.count == 1){
                     result = true;
-                    *pos_out = (i32)list.first->index;
+                    *pos_out = (i32)list.first->range.first;
                     *case_sensitive_out = (HasFlag(list.first->flags, StringMatch_CaseSensitive));
                 }
             }
@@ -4257,13 +4257,11 @@ Draw_Render_Layout(Application_Links *app, View_ID view_id){
 }
 
 API_EXPORT void
-Open_Color_Picker(Application_Links *app, color_picker *picker)
+Open_Color_Picker(Application_Links *app, Color_Picker *picker)
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    
-    if(picker->finished)
-    {
+    if (picker->finished){
         *picker->finished = false;
     }
     system->open_color_picker(picker);
@@ -4282,7 +4280,7 @@ Animate_In_N_Milliseconds(Application_Links *app, u32 n)
 }
 
 API_EXPORT String_Match_List
-Find_All_Matches_Buffer_Range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
+Find_All_Matches_Buffer_Range(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
@@ -4301,7 +4299,7 @@ Find_All_Matches_Buffer_Range(Application_Links *app, Arena *arena, Buffer_ID bu
                 }
                 list = find_all_matches(arena, max_i32,
                                         chunks, needle, jump_table, predicate, direction,
-                                        range.min, buffer);
+                                        range.min, buffer, string_id);
             }
         }
     }

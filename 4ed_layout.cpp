@@ -53,7 +53,7 @@ layout__free_panel(Layout *layout, Panel *panel){
 internal void
 layout__set_panel_rectangle(Layout *layout, Panel *panel, i32_Rect rect){
     panel->rect_full = rect;
-    panel->rect_inner = get_inner_rect(rect, layout->margin);
+    panel->rect_inner = rect_inner(rect, layout->margin);
 }
 
 internal i32

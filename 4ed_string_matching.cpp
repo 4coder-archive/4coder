@@ -63,24 +63,13 @@ string_compute_needle_jump_table(Arena *arena, String_Const_u8 needle, Scan_Dire
     return(string_compute_needle_jump_table(arena, prefix_table));
 }
 
-internal void
-string_match_list_push(Arena *arena, String_Match_List *list,
-                       u64 index, String_Match_Flag flags, Buffer_ID buffer){
-    String_Match *match = push_array(arena, String_Match, 1);
-    sll_queue_push(list->first, list->last, match);
-    list->count += 1;
-    match->buffer = buffer;
-    match->flags = flags;
-    match->index = index;
-}
-
 #define character_predicate_check_character(p, c) (((p).b[(c)/8] & (1 << ((c)%8))) != 0)
 
 internal String_Match_List
 find_all_matches_forward(Arena *arena, i32 maximum_output_count,
                          String_Const_u8_Array chunks, String_Const_u8 needle,
                          u64_Array jump_table, Character_Predicate *predicate,
-                         u64 base_index, Buffer_ID buffer){
+                         u64 base_index, Buffer_ID buffer, i32 string_id){
     String_Match_List list = {};
     
     if (chunks.count > 0){
@@ -155,7 +144,8 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
                     if (current_l){
                         AddFlag(flags, StringMatch_LeftSideSloppy);
                     }
-                    string_match_list_push(arena, &list, base_index + j, flags, buffer);
+                    string_match_list_push(arena, &list, buffer, string_id, flags,
+                                           base_index + j, needle.size);
                     if (list.count >= maximum_output_count){
                         break;
                     }
@@ -192,7 +182,7 @@ internal String_Match_List
 find_all_matches_backward(Arena *arena, i32 maximum_output_count,
                           String_Const_u8_Array chunks, String_Const_u8 needle,
                           u64_Array jump_table, Character_Predicate *predicate,
-                          u64 base_index, Buffer_ID buffer){
+                          u64 base_index, Buffer_ID buffer, i32 string_id){
     String_Match_List list = {};
     
     if (chunks.count > 0){
@@ -272,8 +262,8 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
                     if (current_r){
                         AddFlag(flags, StringMatch_RightSideSloppy);
                     }
-                    string_match_list_push(arena, &list,
-                                           base_index + (j - (needle.size - 1)), flags, buffer);
+                    string_match_list_push(arena, &list, buffer, string_id, flags,
+                                           base_index + (j - (needle.size - 1)), needle.size);
                     if (list.count >= maximum_output_count){
                         break;
                     }
@@ -314,21 +304,21 @@ find_all_matches(Arena *arena, i32 maximum_output_count,
                  String_Const_u8_Array chunks, String_Const_u8 needle,
                  u64_Array jump_table, Character_Predicate *predicate,
                  Scan_Direction direction,
-                 u64 base_index, Buffer_ID buffer){
+                 u64 base_index, Buffer_ID buffer, i32 string_id){
     String_Match_List list = {};
     switch (direction){
         case Scan_Forward:
         {
             list = find_all_matches_forward(arena, maximum_output_count,
                                             chunks, needle, jump_table, predicate,
-                                            base_index, buffer);
+                                            base_index, buffer, string_id);
         }break;
         
         case Scan_Backward:
         {
             list = find_all_matches_backward(arena, maximum_output_count,
                                              chunks, needle, jump_table, predicate,
-                                             base_index, buffer);
+                                             base_index, buffer, string_id);
         }break;
     }
     return(list);

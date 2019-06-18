@@ -128,7 +128,7 @@ typedef Sys_Yield_Coroutine_Sig(System_Yield_Coroutine);
 
 //
 
-#define Sys_Open_Color_Picker_Sig(name) void name(color_picker *picker)
+#define Sys_Open_Color_Picker_Sig(name) void name(Color_Picker *picker)
 typedef Sys_Open_Color_Picker_Sig(System_Open_Color_Picker);
 
 // thread

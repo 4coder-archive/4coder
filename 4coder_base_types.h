@@ -628,34 +628,6 @@ union Vec4_f32{
     f32 v[4];
 };
 
-union Range_i8{
-    struct{
-        i8 min;
-        i8 max;
-    };
-    struct{
-        i8 start;
-        i8 end;
-    };
-    struct{
-        i8 first;
-        i8 one_past_last;
-    };
-};
-union Range_i16{
-    struct{
-        i16 min;
-        i16 max;
-    };
-    struct{
-        i16 start;
-        i16 end;
-    };
-    struct{
-        i16 first;
-        i16 one_past_last;
-    };
-};
 union Range_i32{
     struct{
         i32 min;
@@ -668,6 +640,34 @@ union Range_i32{
     struct{
         i32 first;
         i32 one_past_last;
+    };
+};
+union Range_i64{
+    struct{
+        i64 min;
+        i64 max;
+    };
+    struct{
+        i64 start;
+        i64 end;
+    };
+    struct{
+        i64 first;
+        i64 one_past_last;
+    };
+};
+union Range_u64{
+    struct{
+        u64 min;
+        u64 max;
+    };
+    struct{
+        u64 start;
+        u64 end;
+    };
+    struct{
+        u64 first;
+        u64 one_past_last;
     };
 };
 union Range_f32{
@@ -684,54 +684,13 @@ union Range_f32{
         f32 one_past_last;
     };
 };
-union Range_umem{
-    struct{
-        umem min;
-        umem max;
-    };
-    struct{
-        umem start;
-        umem end;
-    };
-    struct{
-        umem first;
-        umem one_past_last;
-    };
-};
 
-typedef Range_i8   Interval_i8;
-typedef Range_i16  Interval_i16;
-typedef Range_i32  Interval_i32;
-typedef Range_f32  Interval_f32;
-typedef Range_umem Interval_umem;
+typedef Range_i32 Interval_i32;
+typedef Range_i64 Interval_i64;
+typedef Range_u64 Interval_u64;
+typedef Range_f32 Interval_f32;
 typedef Range_i32 Range;
 
-union Rect_i8{
-    struct{
-        i8 x0;
-        i8 y0;
-        i8 x1;
-        i8 y1;
-    };
-    struct{
-        Vec2_i8 p0;
-        Vec2_i8 p1;
-    };
-    Vec2_i8 p[2];
-};
-union Rect_i16{
-    struct{
-        i16 x0;
-        i16 y0;
-        i16 x1;
-        i16 y1;
-    };
-    struct{
-        Vec2_i16 p0;
-        Vec2_i16 p1;
-    };
-    Vec2_i16 p[2];
-};
 union Rect_i32{
     struct{
         i32 x0;

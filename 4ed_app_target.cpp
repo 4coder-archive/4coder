@@ -21,6 +21,7 @@
 #include "4ed_system.h"
 
 #include "4coder_base_types.cpp"
+#include "4coder_string_match.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
 
