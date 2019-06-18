@@ -425,17 +425,17 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
         umem max_adjustment = 0;
         
         if (min_line_blank){
-            begin_str = string_u8_pushf(scratch, "\n%s", begin);
+            begin_str = push_u8_stringf(scratch, "\n%s", begin);
             min_adjustment += 1;
         }
         else{
-            begin_str = string_u8_pushf(scratch, "%s\n", begin);
+            begin_str = push_u8_stringf(scratch, "%s\n", begin);
         }
         if (max_line_blank){
-            end_str = string_u8_pushf(scratch, "%s\n", end);
+            end_str = push_u8_stringf(scratch, "%s\n", end);
         }
         else{
-            end_str = string_u8_pushf(scratch, "\n%s", end);
+            end_str = push_u8_stringf(scratch, "\n%s", end);
             max_adjustment += 1;
         }
         
@@ -464,7 +464,7 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
         view_set_mark(app, view, seek_pos(mark_pos));
     }
     else{
-        String_Const_u8 str = string_u8_pushf(scratch, "%s\n\n%s", begin, end);
+        String_Const_u8 str = push_u8_stringf(scratch, "%s\n\n%s", begin, end);
         buffer_replace_range(app, buffer, range, str);
         i32 center_pos = range.min + (i32)cstring_length(begin) + 1;
         view_set_cursor(app, view, seek_pos(center_pos), true);
@@ -755,10 +755,10 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
             
             String_Const_u8 edit_str = {};
             if (extra_newline){
-                edit_str = string_u8_pushf(scratch, "\n%.*s\n", string_expand(string));
+                edit_str = push_u8_stringf(scratch, "\n%.*s\n", string_expand(string));
             }
             else{
-                edit_str = string_u8_pushf(scratch, "%.*s\n", string_expand(string));
+                edit_str = push_u8_stringf(scratch, "%.*s\n", string_expand(string));
             }
             
             Buffer_Edit edits[2];

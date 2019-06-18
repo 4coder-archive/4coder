@@ -612,7 +612,7 @@ directory_cd(Application_Links *app, char *dir, i32 *len, i32 capacity, char *re
             }
         }
         else{
-            new_directory = string_u8_pushf(scratch, "%.*s/%.*s",
+            new_directory = push_u8_stringf(scratch, "%.*s/%.*s",
                                             string_expand(directory),
                                             string_expand(relative_path));
             if (file_exists(app, (char*)new_directory.str, (i32)new_directory.size)){

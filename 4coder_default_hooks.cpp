@@ -1037,12 +1037,12 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                         
                         uniqueifier = SCu8(start, end);
                         if (past_the_end){
-                            uniqueifier = string_u8_pushf(scratch, "%.*s~%d",
+                            uniqueifier = push_u8_stringf(scratch, "%.*s~%d",
                                                           string_expand(uniqueifier), i);
                         }
                     }
                     else{
-                        uniqueifier = string_u8_pushf(scratch, "%d", i);
+                        uniqueifier = push_u8_stringf(scratch, "%d", i);
                     }
                     
                     String_u8 builder = Su8(conflict->unique_name_in_out,
@@ -1275,7 +1275,7 @@ FILE_EDIT_FINISHED_SIG(default_file_edit_finished){
 OPEN_FILE_HOOK_SIG(default_end_file){
     Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
-    String_Const_u8 str = string_u8_pushf(scratch, "Ending file: %.*s\n",
+    String_Const_u8 str = push_u8_stringf(scratch, "Ending file: %.*s\n",
                                           string_expand(buffer_name));
     print_message(app, str);
     // no meaning for return

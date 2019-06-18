@@ -685,15 +685,15 @@ list_type_definition__parameters(Application_Links *app, Heap *heap, String_Cons
     
     String_Const_u8 match_strings[9];
     i32 i = 0;
-    match_strings[i++] = (string_u8_pushf(scratch, "struct %.*s{"  , string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "struct %.*s\n{", string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "struct %.*s {" , string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "union %.*s{"   , string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "union %.*s\n{" , string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "union %.*s {"  , string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "enum %.*s{"    , string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "enum %.*s\n{"  , string_expand(str)));
-    match_strings[i++] = (string_u8_pushf(scratch, "enum %.*s {"   , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "struct %.*s{"  , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "struct %.*s\n{", string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "struct %.*s {" , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "union %.*s{"   , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "union %.*s\n{" , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "union %.*s {"  , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "enum %.*s{"    , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "enum %.*s\n{"  , string_expand(str)));
+    match_strings[i++] = (push_u8_stringf(scratch, "enum %.*s {"   , string_expand(str)));
     
     list__parameters(app, heap, match_strings, ArrayCount(match_strings), 0, default_target_view);
     

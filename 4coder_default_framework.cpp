@@ -411,7 +411,7 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     for (i32 i = 0; i < file_count; i += 1){
         Temp_Memory temp2 = begin_temp(scratch);
         String_Const_u8 input_name = SCu8(command_line_files[i]);
-        String_Const_u8 file_name = string_u8_pushf(scratch, "%.*s/%.*s", string_expand(hot_directory), string_expand(input_name));
+        String_Const_u8 file_name = push_u8_stringf(scratch, "%.*s/%.*s", string_expand(hot_directory), string_expand(input_name));
         Buffer_ID ignore = 0;
         if (!create_buffer(app, file_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile, &ignore)){
             create_buffer(app, input_name, 0, &ignore);

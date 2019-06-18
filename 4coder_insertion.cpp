@@ -88,7 +88,7 @@ insertf(Buffer_Insertion *insertion, char *format, ...){
     Temp_Memory temp = begin_temp(scratch);
     va_list args;
     va_start(args, format);
-    String_Const_u8 string = string_u8_pushfv(scratch, format, args);
+    String_Const_u8 string = push_u8_stringf(scratch, format, args);
     va_end(args);
     insert_string(insertion, string);
     end_temp(temp);

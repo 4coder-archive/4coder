@@ -2116,7 +2116,7 @@ push_file_search_up_path(Application_Links *app, Arena *arena, String_Const_u8 s
         if (character_is_slash(string_get_character(path, path.size - 1))){
             path = string_chop(path, 1);
         }
-        String_Const_u8 full_path = string_u8_pushf(arena, "%.*s/%.*s",
+        String_Const_u8 full_path = push_u8_stringf(arena, "%.*s/%.*s",
                                                     string_expand(path),
                                                     string_expand(file_name));
         if (file_exists(app, full_path)){

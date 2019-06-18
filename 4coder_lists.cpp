@@ -552,7 +552,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     Temp_Memory temp = begin_temp(&lister->arena);
     String_Const_u8 hot = push_hot_directory(app, &lister->arena);
     if (!character_is_slash(string_get_character(hot, hot.size - 1))){
-        hot = string_u8_pushf(&lister->arena, "%.*s/", string_expand(hot));
+        hot = push_u8_stringf(&lister->arena, "%.*s/", string_expand(hot));
     }
     lister_set_text_field(lister, hot);
     lister_set_key(lister, string_front_of_path(hot));
@@ -574,7 +574,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
              info < one_past_last;
              info += 1){
             if (!info->folder) continue;
-            String_Const_u8 file_name = string_u8_pushf(&lister->arena, "%.*s/", info->filename_len, info->filename);
+            String_Const_u8 file_name = push_u8_stringf(&lister->arena, "%.*s/", info->filename_len, info->filename);
             lister_add_item(lister, lister_prealloced(file_name), empty_string_prealloced, file_name.str, 0);
         }
         
@@ -610,7 +610,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                     case DirtyState_UnsavedChangesAndUnloadedChanges: status_flag = " *!"; break;
                 }
             }
-            String_Const_u8 status = string_u8_pushf(&lister->arena, "%s%s", is_loaded, status_flag);
+            String_Const_u8 status = push_u8_stringf(&lister->arena, "%s%s", is_loaded, status_flag);
             lister_add_item(lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
         }
     }
@@ -670,7 +670,7 @@ activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_S
                 buffer_kill(app, buffer_id, BufferKill_AlwaysKill, 0);
             }
             else{
-                String_Const_u8 str = string_u8_pushf(scratch, "Did not close '%.*s' because it did not successfully save.",
+                String_Const_u8 str = push_u8_stringf(scratch, "Did not close '%.*s' because it did not successfully save.",
                                                       string_expand(file_name));
                 print_message(app, str);
             }
@@ -795,7 +795,7 @@ activate_open_or_new__generic(Application_Links *app, View_ID view,
         if (character_is_slash(string_get_character(path, path.size - 1))){
             path = string_chop(path, 1);
         }
-        full_file_name = string_u8_pushf(scratch, "%.*s/%.*s", string_expand(path), string_expand(file_name));
+        full_file_name = push_u8_stringf(scratch, "%.*s/%.*s", string_expand(path), string_expand(file_name));
         if (is_folder){
             set_hot_directory(app, full_file_name);
             result = ListerActivation_ContinueAndRefresh;

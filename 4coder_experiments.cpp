@@ -260,7 +260,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
             String_Const_u8 string = {};
             clipboard_index(app, 0, paste_index, scratch, &string);
             
-            String_Const_u8 insert_string = string_u8_pushf(scratch, "\n%.*s", string_expand(string));
+            String_Const_u8 insert_string = push_u8_stringf(scratch, "\n%.*s", string_expand(string));
             
             Buffer_ID buffer = 0;
             view_get_buffer(app, view, AccessOpen, &buffer);

@@ -104,7 +104,7 @@ CUSTOM_DOC("Increment an integer under the cursor by one.")
     Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, buffer, pos, &number)){
         Scratch_Block scratch(app);
-        String_Const_u8 str = string_u8_pushf(scratch, "%d", number.x + 1);
+        String_Const_u8 str = push_u8_stringf(scratch, "%d", number.x + 1);
         buffer_replace_range(app, buffer, number.range, str);
         view_set_cursor(app, view, seek_pos(number.start + (i32)str.size - 1), true);
     }
@@ -122,7 +122,7 @@ CUSTOM_DOC("Decrement an integer under the cursor by one.")
     Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, buffer, pos, &number)){
         Scratch_Block scratch(app);
-        String_Const_u8 str = string_u8_pushf(scratch, "%d", number.x - 1);
+        String_Const_u8 str = push_u8_stringf(scratch, "%d", number.x - 1);
         buffer_replace_range(app, buffer, number.range, str);
         view_set_cursor(app, view, seek_pos(number.start + (i32)str.size - 1), true);
     }

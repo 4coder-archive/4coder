@@ -1087,8 +1087,7 @@ App_Step_Sig(app_step){
             
             if (system->cli_end_update(cli)){
                 if (file != 0){
-                    String_Const_u8 str = string_u8_pushf(scratch, "exited with code %d",
-                                                          cli->exit);
+                    String_Const_u8 str = push_u8_stringf(scratch, "exited with code %d", cli->exit);
                     output_file_append(models, file, str);
                     edited_file = true;
                 }

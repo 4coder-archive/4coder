@@ -319,7 +319,7 @@ require_key_identifier(Reader *reader, char *str, int32_t *opt_pos_out = 0){
     
     if (!success){
         Temp_Memory temp = begin_temp(reader->error_arena);
-        String_Const_char error_string = string_pushf(reader->error_arena, "expected to find '%s'", str);
+        String_Const_char error_string = push_stringf(reader->error_arena, "expected to find '%s'", str);
         error(reader, token.start, error_string.str);
         end_temp(temp);
     }
