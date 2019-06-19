@@ -279,6 +279,28 @@ get_key_code(char *buffer){
 
 ////////////////////////////////
 
+static Buffer_Seek
+seek_location(ID_Line_Column_Jump_Location location){
+    return(seek_line_char(location.line, location.column));
+}
+
+static Buffer_Seek
+seek_location(ID_Pos_Jump_Location location){
+    return(seek_pos(location.pos));
+}
+
+static Buffer_Seek
+seek_location(Name_Line_Column_Location location){
+    return(seek_line_char(location.line, location.column));
+}
+
+static Buffer_Seek
+seek_jump(Parsed_Jump jump){
+    return(seek_location(jump.location));
+}
+
+////////////////////////////////
+
 internal Character_Predicate
 character_predicate_from_function(Character_Predicate_Function *func){
     Character_Predicate predicate = {};
@@ -393,41 +415,28 @@ push_4ed_path(Application_Links *app, Arena *arena){
     return(result);
 }
 
-static String_Const_u8
-push_buffer_base_name(Application_Links *app, Arena *arena, Buffer_ID buffer){
-    String_Const_u8 result = {};
-    buffer_get_base_buffer_name(app, buffer, arena, &result);
-    return(result);
-}
-
-static String_Const_u8
-push_buffer_unique_name(Application_Links *app, Arena *arena, Buffer_ID buffer){
-    String_Const_u8 result = {};
-    buffer_get_unique_buffer_name(app, buffer, arena, &result);
-    return(result);
-}
-
-static String_Const_u8
-push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer){
-    String_Const_u8 result = {};
-    buffer_get_file_name(app, buffer, arena, &result);
-    return(result);
-}
-
 ////////////////////////////////
+
+static Range_u64
+buffer_range(Application_Links *app, Buffer_ID buffer){
+    Range_u64 range = {};
+    range.end = buffer_get_size(app, buffer);
+    return(range);
+}
+
+static u64
+buffer_side(Application_Links *app, Buffer_ID buffer, Side side){
+    return(range_side(buffer_range(app, buffer), side));
+}
 
 static Range
 get_view_range(Application_Links *app, View_ID view){
-    Range range = {};
-    view_get_cursor_pos(app, view, &range.first);
-    view_get_mark_pos(app, view, &range.one_past_last);
-    return(rectify(range));
+    return(make_range(view_get_cursor_pos(app, view), view_get_mark_pos(app, view)));
 }
 
 static f32
 get_view_y(Application_Links *app, View_ID view){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     return(cursor.wrapped_y);
@@ -435,8 +444,7 @@ get_view_y(Application_Links *app, View_ID view){
 
 static f32
 get_view_x(Application_Links *app, View_ID view){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     return(cursor.wrapped_x);
@@ -444,22 +452,19 @@ get_view_x(Application_Links *app, View_ID view){
 
 static b32
 is_valid_line(Application_Links *app, Buffer_ID buffer_id, i32 line){
-    i32 max_line = 0;
-    buffer_get_line_count(app, buffer_id, &max_line);
+    i32 max_line = (i32)buffer_get_line_count(app, buffer_id);
     return(1 <= line && line <= max_line);
 }
 
 static b32
 is_valid_line_range(Application_Links *app, Buffer_ID buffer_id, Range range){
-    i32 max_line = 0;
-    buffer_get_line_count(app, buffer_id, &max_line);
+    i32 max_line = (i32)buffer_get_line_count(app, buffer_id);
     return(1 <= range.first && range.first <= range.end && range.end <= max_line);
 }
 
 static i32
 get_line_number_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
-    Partial_Cursor partial_cursor = {};
-    buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
+    Partial_Cursor partial_cursor = buffer_compute_cursor(app, buffer, seek_pos(pos));
     return(partial_cursor.line);
 }
 
@@ -475,22 +480,14 @@ character_pos_to_pos_view(Application_Links *app, View_ID view, i32 character_po
 
 static i32
 character_pos_to_pos_buffer(Application_Links *app, Buffer_ID buffer, i32 character_pos){
-    i32 result = 0;
-    Partial_Cursor cursor = {};
-    if (buffer_compute_cursor(app, buffer, seek_character_pos(character_pos), &cursor)){
-        result = cursor.pos;
-    }
-    return(result);
+    Partial_Cursor cursor = buffer_compute_cursor(app, buffer, seek_character_pos(character_pos));
+    return(cursor.pos);
 }
 
 static Partial_Cursor
 get_line_side(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
-    Partial_Cursor result = {};
     i32 character_index = (side == Side_Min)?(1):(-1);
-    if (!buffer_compute_cursor(app, buffer, seek_line_char(line_number, character_index), &result)){
-        block_zero_struct(&result);
-    }
-    return(result);
+    return(buffer_compute_cursor(app, buffer, seek_line_char(line_number, character_index)));
 }
 static i32
 get_line_side_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
@@ -626,8 +623,7 @@ static i32
 scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Scan_Direction direction, i32 start_pos){
     i32 result = 0;
     if (direction == Scan_Forward){
-        i32 size = 0;
-        buffer_get_size(app, buffer, &size);
+        i32 size = (i32)buffer_get_size(app, buffer);
         result = size + 1;
         for (Boundary_Function_Node *node = funcs.first;
              node != 0;
@@ -746,15 +742,11 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
         result = boundary_non_whitespace(app, buffer, side, direction, pos);
     }
     else{
-        Cpp_Token *first_token = 0;
-        Cpp_Token *last_token = 0;
-        buffer_get_token_range(app, buffer, &first_token, &last_token);
-        Cpp_Token_Array tokens = {first_token, (i32)(last_token - first_token)};
+        Cpp_Token_Array tokens = buffer_get_token_array(app, buffer);
         switch (direction){
             case Scan_Forward:
             {
-                i32 buffer_size = 0;
-                buffer_get_size(app, buffer, &buffer_size);
+                i32 buffer_size = (i32)buffer_get_size(app, buffer);
                 if (tokens.count > 0){
                     Cpp_Token *token = get_first_token_from_pos(tokens, pos);
                     if (token != 0){
@@ -853,7 +845,7 @@ boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directio
     else if (direction == Scan_Forward && new_pos <= pos){
         new_pos = get_line_side_pos(app, buffer, line_number + 1, side);
         if (new_pos <= pos){
-            buffer_get_size(app, buffer, &new_pos);
+            new_pos = (i32)buffer_get_size(app, buffer);
         }
     }
     return(new_pos);
@@ -873,35 +865,38 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer, i32 pos
     buffer_seek_character_class(app, buffer, &predicate, Scan_Backward, pos, result);
 }
 
+// TODO(allen): these need a little more rewrite
 static void
 buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
     if (end == 0){
-        buffer_get_size(app, buffer, &end);
+        end = (i32)buffer_get_size(app, buffer);
     }
-    b32 case_sensitive = false;
-    b32 finding_matches = false;
-    do{
-        finding_matches = 
-            buffer_seek_string(app, buffer, needle, Scan_Forward, pos, &pos, &case_sensitive);
-    } while(!case_sensitive && pos < end && finding_matches);
-    if (pos < end && finding_matches){
-        *result = pos;
+    String_Match match = {};
+    match.range.first = pos;
+    for (;;){
+        match = buffer_seek_string(app, buffer, needle, Scan_Forward, (i32)match.range.first);
+        if (HasFlag(match.flags, StringMatch_CaseSensitive) ||
+            match.buffer != buffer || match.range.first >= end) break;
+    }
+    if (match.range.first < end && match.buffer == buffer){
+        *result = (i32)match.range.first;
     }
     else{
-        buffer_get_size(app, buffer, result);
+        *result = (i32)buffer_get_size(app, buffer);
     }
 }
 
 static void
 buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
-    b32 case_sensitive = false;
-    b32 finding_matches = false;
-    do{
-        finding_matches = 
-            buffer_seek_string(app, buffer, needle, Scan_Backward, pos, &pos, &case_sensitive);
-    } while(!case_sensitive && pos >= min && finding_matches);
-    if (pos >= min && finding_matches){
-        *result = pos;
+    String_Match match = {};
+    match.range.first = pos;
+    for (;;){
+        match = buffer_seek_string(app, buffer, needle, Scan_Backward, (i32)match.range.first);
+        if (HasFlag(match.flags, StringMatch_CaseSensitive) ||
+            match.buffer != buffer || match.range.first < min) break;
+    }
+    if (match.range.first >= min && match.buffer != buffer){
+        *result = (i32)match.range.first;
     }
     else{
         *result = -1;
@@ -911,28 +906,22 @@ buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i
 static void
 buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
     if (end == 0){
-        buffer_get_size(app, buffer, &end);
+        end = (i32)buffer_get_size(app, buffer);
     }
-    b32 finding_matches = false;
-    b32 case_sensitive = false;
-    finding_matches = 
-        buffer_seek_string(app, buffer, needle, Scan_Forward, pos, &pos, &case_sensitive);
-    if (pos < end && finding_matches){
-        *result = pos;
+    String_Match match = buffer_seek_string(app, buffer, needle, Scan_Forward, pos);
+    if (match.range.first < end && match.buffer == buffer){
+        *result = (i32)match.range.first;
     }
     else{
-        buffer_get_size(app, buffer, result);
+        *result = (i32)buffer_get_size(app, buffer);
     }
 }
 
 static void
 buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
-    b32 finding_matches = false;
-    b32 case_sensitive = false;
-    finding_matches = 
-        buffer_seek_string(app, buffer, needle, Scan_Backward, pos, &pos, &case_sensitive);
-    if (pos >= min && finding_matches){
-        *result = pos;
+    String_Match match = buffer_seek_string(app, buffer, needle, Scan_Backward, pos);
+    if (match.range.first >= min && match.buffer != buffer){
+        *result = (i32)match.range.first;
     }
     else{
         *result = -1;
@@ -1046,8 +1035,7 @@ pos_range_enclose_whole_lines(Application_Links *app, Buffer_ID buffer, Range ra
 static Range
 get_snipe_range(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, i32 pos, Scan_Direction direction){
     Range result = {};
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer);
     i32 pos0 = pos;
     i32 pos1 = scan(app, funcs, buffer, direction, pos0);
     if (0 <= pos1 && pos1 <= buffer_size){
@@ -1074,7 +1062,7 @@ get_snipe_range(Application_Links *app, Boundary_Function *func, Buffer_ID buffe
 ////////////////////////////////
 
 static String_Const_u8
-push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, umem first, umem one_past_last){
+push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 first, u64 one_past_last){
     String_Const_u8 result = {};
     if (first <= one_past_last){
         umem length = one_past_last - first;
@@ -1112,15 +1100,12 @@ push_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 lin
 
 static String_Const_u8
 push_whole_buffer(Application_Links *app, Arena *arena, Buffer_ID buffer){
-    i32 size = 0;
-    buffer_get_size(app, buffer, &size);
-    return(push_buffer_range(app, arena, buffer, 0, size));
+    return(push_buffer_range(app, arena, buffer, buffer_range(app, buffer)));
 }
 
 static String_Const_u8
 push_string_in_view_range(Application_Links *app, Arena *arena, View_ID view){
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     return(push_buffer_range(app, arena, buffer, get_view_range(app, view)));
 }
 
@@ -1141,8 +1126,7 @@ buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
 
 static char
 buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
     char result = ' ';
     if (0 <= pos && pos < buffer_size){
         buffer_read_range(app, buffer_id, pos, pos + 1, &result);
@@ -1194,16 +1178,14 @@ get_pos_past_lead_whitespace(Application_Links *app, Buffer_ID buffer, i32 pos){
 
 static void
 move_past_lead_whitespace(Application_Links *app, View_ID view, Buffer_ID buffer){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 new_pos = get_pos_past_lead_whitespace(app, buffer, pos);
     view_set_cursor(app, view, seek_pos(new_pos), true);
 }
 
 static void
 move_past_lead_whitespace(Application_Links *app, View_ID view){
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     move_past_lead_whitespace(app, view, buffer);
 }
 
@@ -1223,8 +1205,7 @@ line_is_blank(Application_Links *app, Buffer_ID buffer, i32 line_number){
 
 static i32
 get_line_number_of__whitespace_status_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start, b32 get_blank_line){
-    i32 line_count = 0;
-    buffer_get_line_count(app, buffer, &line_count);
+    i32 line_count = (i32)buffer_get_line_count(app, buffer);
     i32 line_number = line_number_start + direction;
     for (;1 <= line_number && line_number <= line_count; line_number += direction){
         b32 is_blank = line_is_blank(app, buffer, line_number);
@@ -1352,8 +1333,7 @@ replace_in_range(Application_Links *app, Buffer_ID buffer, Range range, String_C
 internal Range
 swap_lines(Application_Links *app, Buffer_ID buffer, i32 line_1, i32 line_2){
     Range result = {};
-    i32 line_count = 0;
-    buffer_get_line_count(app, buffer, &line_count);
+    i32 line_count = (i32)buffer_get_line_count(app, buffer);
     if (1 <= line_1 && line_2 <= line_count){
         Range range_1 = get_line_pos_range(app, buffer, line_1);
         Range range_2 = get_line_pos_range(app, buffer, line_2);
@@ -1561,9 +1541,9 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
     }
     else{
         String_Const_u8 name = SCu8(identifier.name, identifier.name_len);
-        get_buffer_by_name(app, name, AccessAll, &id);
+        id = get_buffer_by_name(app, name, AccessAll);
         if (id == 0){
-            get_buffer_by_file_name(app, name, AccessAll, &id);
+            id = get_buffer_by_file_name(app, name, AccessAll);
         }
     }
     return(id);
@@ -1574,12 +1554,13 @@ buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identif
     Buffer_ID result = 0;
     if (buffer_id.name != 0 && buffer_id.name_len > 0){
         String_Const_u8 buffer_name = SCu8(buffer_id.name, buffer_id.name_len);
-        Buffer_ID buffer_attach_id = 0;
-        if (get_buffer_by_name(app, buffer_name, AccessAll, &buffer_attach_id)){
+        Buffer_ID buffer_attach_id = get_buffer_by_name(app, buffer_name, AccessAll);
+        if (buffer_attach_id != 0){
             result = buffer_attach_id;
         }
         else{
-            if (create_buffer(app, buffer_name, BufferCreate_AlwaysNew|BufferCreate_NeverAttachToFile, &buffer_attach_id)){
+            buffer_attach_id = create_buffer(app, buffer_name, BufferCreate_AlwaysNew|BufferCreate_NeverAttachToFile);
+            if (buffer_attach_id != 0){
                 buffer_set_setting(app, buffer_attach_id, BufferSetting_ReadOnly, true);
                 buffer_set_setting(app, buffer_attach_id, BufferSetting_Unimportant, true);
                 result = buffer_attach_id;
@@ -1596,10 +1577,9 @@ buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identif
 
 static void
 adjust_all_buffer_wrap_widths(Application_Links *app, i32 wrap_width, i32 min_base_width){
-    Buffer_ID buffer = 0;
-    for (get_buffer_next(app, 0, AccessAll, &buffer);
+    for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
          buffer != 0;
-         get_buffer_next(app, buffer, AccessAll, &buffer)){
+         buffer = get_buffer_next(app, buffer, AccessAll)){
         buffer_set_setting(app, buffer, BufferSetting_WrapPosition, wrap_width);
         buffer_set_setting(app, buffer, BufferSetting_MinimumBaseWrapPosition, min_base_width);
     }
@@ -1609,15 +1589,15 @@ static View_ID
 open_view(Application_Links *app, View_ID view_location, View_Split_Position position){
     View_ID result = 0;
     if (view_location != 0 && view_exists(app, view_location)){
-        Panel_ID panel_id = 0;
-        if (view_get_panel(app, view_location, &panel_id)){
+        Panel_ID panel_id = view_get_panel(app, view_location);
+        if (panel_id != 0){
             b32 vertical = (position == ViewSplit_Left || position == ViewSplit_Right);
             if (panel_split(app, panel_id, vertical?PanelSplit_LeftAndRight:PanelSplit_TopAndBottom)){
-                Panel_ID new_panel_id = 0;
                 Panel_Child child = (position == ViewSplit_Left || position == ViewSplit_Top)?PanelChild_Min:PanelChild_Max;
-                if (panel_get_child(app, panel_id, child, &new_panel_id)){
-                    View_ID new_view_id = 0;
-                    if (panel_get_view(app, new_panel_id, &new_view_id)){
+                Panel_ID new_panel_id = panel_get_child(app, panel_id, child);
+                if (new_panel_id != 0){
+                    View_ID new_view_id = panel_get_view(app, new_panel_id);
+                    if (new_view_id != 0){
                         result = new_view_id;
                     }
                 }
@@ -1630,13 +1610,11 @@ open_view(Application_Links *app, View_ID view_location, View_Split_Position pos
 static View_ID
 get_first_view_with_buffer(Application_Links *app, Buffer_ID buffer_id){
     View_ID result = {};
-    View_ID test = {};
     if (buffer_id != 0){
-        for (get_view_next(app, 0, AccessAll, &test);
+        for (View_ID test = get_view_next(app, 0, AccessAll);
              test != 0;
-             get_view_next(app, test, AccessAll, &test)){
-            Buffer_ID test_buffer = 0;
-            view_get_buffer(app, test, AccessAll, &test_buffer);
+             test = get_view_next(app, test, AccessAll)){
+            Buffer_ID test_buffer = view_get_buffer(app, test, AccessAll);
             if (test_buffer == buffer_id){
                 result = test;
                 break;
@@ -1649,8 +1627,7 @@ get_first_view_with_buffer(Application_Links *app, Buffer_ID buffer_id){
 static b32
 open_file(Application_Links *app, Buffer_ID *buffer_out, String_Const_u8 file_name, b32 background, b32 never_new){
     b32 result = false;
-    Buffer_ID buffer = 0;
-    get_buffer_by_name(app, file_name, AccessProtected, &buffer);
+    Buffer_ID buffer = get_buffer_by_name(app, file_name, AccessProtected);
     b32 exists = buffer_exists(app, buffer);
     if (!exists){
         Buffer_Create_Flag flags = 0;
@@ -1660,7 +1637,7 @@ open_file(Application_Links *app, Buffer_ID *buffer_out, String_Const_u8 file_na
         if (never_new){
             flags |= BufferCreate_NeverNew;
         }
-        create_buffer(app, file_name, flags, &buffer);
+        buffer = create_buffer(app, file_name, flags);
         exists = buffer_exists(app, buffer);
     }
     if (exists){
@@ -1689,20 +1666,18 @@ view_open_file(Application_Links *app, View_ID view, String_Const_u8 file_name, 
 
 static View_ID
 get_next_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_Flag access){
-    if (!get_view_next(app, view_id, access, &view_id)){
-        if (!get_view_next(app, 0, access, &view_id)){
-            view_id = 0;
-        }
+    view_id = get_view_next(app, view_id, access);
+    if (view_id == 0){
+        view_id = get_view_next(app, 0, access);
     }
     return(view_id);
 }
 
 static View_ID
 get_prev_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_Flag access){
-    if (!get_view_prev(app, view_id, access, &view_id)){
-        if (!get_view_prev(app, 0, access, &view_id)){
-            view_id = 0;
-        }
+    view_id = get_view_prev(app, view_id, access);
+    if (view_id == 0){
+        view_id = get_view_prev(app, 0, access);
     }
     return(view_id);
 }
@@ -1710,10 +1685,8 @@ get_prev_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_
 ////////////////////////////////
 
 static Buffer_Kill_Result
-kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_view_id, Buffer_Kill_Flag flags){
-    Buffer_ID buffer = buffer_identifier_to_id(app, identifier);
-    Buffer_Kill_Result result = 0;
-    buffer_kill(app, buffer, flags, &result);
+try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, Buffer_Kill_Flag flags){
+    Buffer_Kill_Result result = buffer_kill(app, buffer, flags);
     if (result == BufferKillResult_Dirty){
         do_gui_sure_to_kill(app, buffer, gui_view_id);
     }
@@ -1724,8 +1697,7 @@ kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_vi
 
 static void
 clear_buffer(Application_Links *app, Buffer_ID buffer_id){
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
     buffer_replace_range(app, buffer_id, make_range(0, buffer_size), string_u8_litexpr(""));
 }
 
@@ -1736,8 +1708,7 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_ID buffer_
                   i32 pos, char *data, u32 size){
     b32 result = false;
     
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
     if (0 <= pos && pos < buffer_size && size > 0){
         chunk->app = app;
         chunk->buffer_id = buffer_id;
@@ -1773,8 +1744,7 @@ forward_stream_chunk(Stream_Chunk *chunk){
     Buffer_ID buffer_id = chunk->buffer_id;
     b32 result = 0;
     
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
     if (chunk->end < buffer_size){
         chunk->start = chunk->end;
         chunk->end += chunk->data_size;
@@ -1841,94 +1811,12 @@ backward_stream_chunk(Stream_Chunk *chunk){
 
 ////////////////////////////////
 
-static b32
-init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_ID buffer_id, i32 pos, Cpp_Token *data, i32 count){
-    b32 result = false;
-    
-    i32 token_count = 0;
-    buffer_token_count(app, buffer_id, &token_count);
-    if (buffer_tokens_are_ready(app, buffer_id) && pos >= 0 && pos < token_count && count > 0){
-        stream->app = app;
-        stream->buffer_id = buffer_id;
-        stream->base_tokens = data;
-        stream->count = count;
-        stream->start = round_down_i32(pos, count);
-        stream->end = round_up_i32(pos, count);
-        stream->token_count = token_count;
-        
-        stream->start = clamp_bot(0, stream->start);
-        stream->end = clamp_top(stream->end, stream->token_count);
-        
-        buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
-        stream->tokens = stream->base_tokens - stream->start;
-        result = true;
-    }
-    
-    return(result);
-}
-
-static Stream_Tokens_DEP
-begin_temp_stream_token(Stream_Tokens_DEP *stream){
-    return(*stream);
-}
-
-static void
-end_temp_stream_token(Stream_Tokens_DEP *stream, Stream_Tokens_DEP temp){
-    if (stream->start != temp.start || stream->end != temp.end){
-        Application_Links *app = stream->app;
-        buffer_read_tokens(app, temp.buffer_id, temp.start, temp.end, temp.base_tokens);
-        stream->tokens = stream->base_tokens - temp.start;
-        stream->start = temp.start;
-        stream->end = temp.end;
-    }
-}
-
-static b32
-forward_stream_tokens(Stream_Tokens_DEP *stream){
-    Application_Links *app = stream->app;
-    Buffer_ID buffer_id = stream->buffer_id;
-    b32 result = false;
-    if (stream->end < stream->token_count){
-        stream->start = stream->end;
-        stream->end += stream->count;
-        if (stream->end > stream->token_count){
-            stream->end = stream->token_count;
-        }
-        if (stream->start < stream->end){
-            buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
-            stream->tokens = stream->base_tokens - stream->start;
-            result = true;
-        }
-    }
-    return(result);
-}
-
-static b32
-backward_stream_tokens(Stream_Tokens_DEP *stream){
-    Application_Links *app = stream->app;
-    Buffer_ID buffer_id = stream->buffer_id;
-    b32 result = false;
-    if (stream->start > 0){
-        stream->end = stream->start;
-        stream->start -= stream->count;
-        if (0 > stream->start){
-            stream->start = 0;
-        }
-        if (stream->start < stream->end){
-            buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
-            stream->tokens = stream->base_tokens - stream->start;
-            result = true;
-        }
-    }
-    return(result);
-}
-
-////////////////////////////////
-
 static Token_Range
 buffer_get_token_range(Application_Links *app, Buffer_ID buffer){
+    Cpp_Token_Array array = buffer_get_token_array(app, buffer);
     Token_Range range = {};
-    buffer_get_token_range(app, buffer, &range.first, &range.one_past_last);
+    range.first = array.tokens;
+    range.one_past_last = array.tokens + array.count;
     return(range);
 }
 
@@ -2037,11 +1925,22 @@ get_query_string(Application_Links *app, char *query_str, char *string_space, i3
     return(bar.string);
 }
 
+static b32
+get_token_from_pos(Application_Links *app, Buffer_ID buffer, u64 pos, Cpp_Get_Token_Result *result){
+    b32 success = false;
+    Cpp_Token_Array array = buffer_get_token_array(app, buffer);
+    if (array.count > 0){
+        success = true;
+        *result = cpp_get_token(array, (i32)pos);
+    }
+    return(success);
+}
+
 static String_Const_u8
-get_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, umem pos){
+get_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
     String_Const_u8 result = {};
     Cpp_Get_Token_Result get_result = {};
-    b32 success = buffer_get_token_index(app, buffer, (i32)pos, &get_result);
+    b32 success = get_token_from_pos(app, buffer, (i32)pos, &get_result);
     if (success && !get_result.in_whitespace_after_token){
         umem size = get_result.token_one_past_last - get_result.token_start;
         if (0 < size){
@@ -2256,13 +2155,11 @@ no_mark_snap_to_cursor_if_shift(Application_Links *app, View_ID view_id){
 }
 
 static b32
-view_has_highlighted_range(Application_Links *app, View_ID view_id){
+view_has_highlighted_range(Application_Links *app, View_ID view){
     b32 result = false;
     if (fcoder_mode == FCoderMode_NotepadLike){
-        i32 pos = 0;
-        i32 mark = 0;
-        view_get_cursor_pos(app, view_id, &pos);
-        view_get_mark_pos(app, view_id, &mark);
+        i32 pos = view_get_cursor_pos(app, view);
+        i32 mark = view_get_mark_pos(app, view);
         result = (pos != mark);
     }
     return(result);
@@ -2273,8 +2170,7 @@ if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_
     b32 result = false;
     if (view_has_highlighted_range(app, view_id)){
         Range range = get_view_range(app, view_id);
-        Buffer_ID buffer = 0;
-        view_get_buffer(app, view_id, AccessOpen, &buffer);
+        Buffer_ID buffer = view_get_buffer(app, view_id, AccessOpen);
         buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
         result = true;
     }
@@ -2284,34 +2180,26 @@ if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_
 static void
 begin_notepad_mode(Application_Links *app){
     fcoder_mode = FCoderMode_NotepadLike;
-    View_ID view = 0;
-    for (get_view_next(app, 0, AccessAll, &view);
+    for (View_ID view = get_view_next(app, 0, AccessAll);
          view != 0;
-         get_view_next(app, view, AccessAll, &view)){
-        i32 pos = 0;
-        view_get_cursor_pos(app, view, &pos);
+         view = get_view_next(app, view, AccessAll)){
+        i32 pos = view_get_cursor_pos(app, view);
         view_set_mark(app, view, seek_pos(pos));
     }
 }
 
 ////////////////////////////////
 
-typedef i32 View_Split_Kind;
-enum{
-    ViewSplitKind_Ratio,
-    ViewSplitKind_FixedPixels,
-};
-
 static b32
 view_set_split(Application_Links *app, View_ID view, View_Split_Kind kind, f32 t){
     b32 result = false;
     if (view != 0){
-        Panel_ID panel_id = 0;
-        if (view_get_panel(app, view, &panel_id)){
-            Panel_ID parent_panel_id = 0;
-            if (panel_get_parent(app, panel_id, &parent_panel_id)){
-                Panel_ID min_child_id = 0;
-                if (panel_get_child(app, parent_panel_id, PanelChild_Min, &min_child_id)){
+        Panel_ID panel_id = view_get_panel(app, view);
+        if (panel_id != 0){
+            Panel_ID parent_panel_id = panel_get_parent(app, panel_id);
+            if (parent_panel_id != 0){
+                Panel_ID min_child_id = panel_get_child(app, parent_panel_id, PanelChild_Min);
+                if (min_child_id != 0){
                     b32 panel_is_min = (min_child_id == panel_id);
                     Panel_Split_Kind panel_kind = ((kind == ViewSplitKind_Ratio)?
                                                    (panel_is_min?PanelSplitKind_Ratio_Min:PanelSplitKind_Ratio_Max):
@@ -2425,8 +2313,7 @@ set_buffer_system_command(Application_Links *app, Child_Process_ID process, Buff
     b32 result = false;
     Child_Process_Set_Target_Flags set_buffer_flags = flags_system_command(flags);
     if (child_process_set_target_buffer(app, process, buffer, set_buffer_flags)){
-        i32 buffer_size = 0;
-        buffer_get_size(app, buffer, &buffer_size);
+        i32 buffer_size = (i32)buffer_get_size(app, buffer);
         buffer_replace_range(app, buffer, make_range(0, buffer_size), string_u8_litexpr(""));
         if (HasFlag(flags, CLI_SendEndSignal)){
             buffer_send_end_signal(app, buffer);

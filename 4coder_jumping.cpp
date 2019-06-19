@@ -224,8 +224,7 @@ get_jump_buffer(Application_Links *app, Buffer_ID *buffer, ID_Pos_Jump_Location 
 
 static View_ID
 switch_to_existing_view(Application_Links *app, View_ID view, Buffer_ID buffer){
-    Buffer_ID current_buffer = 0;
-    view_get_buffer(app, view, AccessAll, &current_buffer);
+    Buffer_ID current_buffer = view_get_buffer(app, view, AccessAll);
     if (view != 0 || current_buffer != buffer){
         View_ID existing_view = get_first_view_with_buffer(app, buffer);
         if (existing_view != 0){
@@ -237,8 +236,7 @@ switch_to_existing_view(Application_Links *app, View_ID view, Buffer_ID buffer){
 
 static void
 set_view_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Buffer_Seek seek){
-    Buffer_ID current_buffer = 0;
-    view_get_buffer(app, view, AccessAll, &current_buffer);
+    Buffer_ID current_buffer = view_get_buffer(app, view, AccessAll);
     if (current_buffer != buffer){
         view_set_buffer(app, view, buffer, 0);
     }
@@ -294,8 +292,7 @@ seek_next_jump_in_buffer(Application_Links *app, Arena *arena,
 static ID_Line_Column_Jump_Location
 convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location loc){
     ID_Line_Column_Jump_Location result = {};
-    Buffer_ID buffer = 0;
-    get_buffer_by_name(app, loc.file, AccessAll, &buffer);
+    Buffer_ID buffer = get_buffer_by_name(app, loc.file, AccessAll);
     if (buffer != 0){
         result.buffer_id = buffer;
         result.line = loc.line;
@@ -306,13 +303,11 @@ convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location
 
 static Parsed_Jump
 seek_next_jump_in_view(Application_Links *app, Arena *arena, View_ID view, i32 skip_sub_errors, i32 direction, i32 *line_out){
-    i32 cursor_position = 0;
-    view_get_cursor_pos(app, view, &cursor_position);
+    i32 cursor_position = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(cursor_position), &cursor);
     i32 line = cursor.line;
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Parsed_Jump jump = seek_next_jump_in_buffer(app, arena, buffer, line + direction, skip_sub_errors, direction, &line);
     if (jump.success){
         *line_out = line;
@@ -374,11 +369,10 @@ seek_jump(Application_Links *app, b32 skip_repeats, b32 skip_sub_errors, i32 dir
         if (advance_cursor_in_jump_view(app, view, skip_repeats, skip_sub_errors, direction, &location)){
             Buffer_ID buffer = {};
             if (get_jump_buffer(app, &buffer, &location)){
-                View_ID target_view = 0;
-                get_active_view(app, AccessAll, &target_view);
+                View_ID target_view = get_active_view(app, AccessAll);
                 if (target_view == view){
                     change_active_panel(app);
-                    get_active_view(app, AccessAll, &target_view);
+                    target_view = get_active_view(app, AccessAll);
                 }
                 switch_to_existing_view(app, target_view, buffer);
                 jump_to_location(app, target_view, buffer, location);

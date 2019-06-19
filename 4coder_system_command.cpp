@@ -12,8 +12,7 @@ CUSTOM_DOC("If the command execute_any_cli has already been used, this will exec
     String_Const_u8 hot_directory = SCu8(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
-        View_ID view = 0;
-        get_active_view(app, AccessAll, &view);
+        View_ID view = get_active_view(app, AccessAll);
         Buffer_Identifier id = buffer_identifier(out_buffer);
         exec_system_command(app, view, id, hot_directory, cmd, CLI_OverlapWithConflict|CLI_CursorAtEnd|CLI_SendEndSignal);
         lock_jump_buffer(out_buffer);

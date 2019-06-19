@@ -239,7 +239,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
             }
             else{
                 token.type = CPP_TOKEN_EOF;
-                buffer_get_size(app, buffer, &token.start);
+                token.start = (i32)buffer_get_size(app, buffer);
                 token.flags = 0;
             }
             
@@ -475,8 +475,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_ID buffer, Cpp_Toke
         }
     }
     
-    i32 line_count = 0;
-    buffer_get_line_count(app, buffer, &line_count);
+    i32 line_count = (i32)buffer_get_line_count(app, buffer);
     
     for (;line_end < line_count;){
         i32 next_line_start_pos = get_line_start_pos(app, buffer, line_end + 1);
@@ -505,16 +504,12 @@ buffer_auto_indent(Application_Links *app, Arena *scratch, Buffer_ID buffer, i32
         Temp_Memory temp = begin_temp(scratch);
         
         // Stage 1: Read the tokens to be used for indentation.
-        Cpp_Token_Array tokens = {};
-        buffer_token_count(app, buffer, &tokens.count);
-        tokens.max_count = tokens.count;
-        tokens.tokens = push_array(scratch, Cpp_Token, tokens.count);
-        buffer_read_tokens(app, buffer, 0, tokens.count, tokens.tokens);
+        Cpp_Token_Array tokens = buffer_get_token_array(app, buffer);
         
         // Stage 2: Decide where the first and last lines are.
         //  The lines in the range [line_start,line_end) will be indented.
         i32 line_start = 0, line_end = 0;
-        if (flags & AutoIndent_FullTokens){
+        if (HasFlag(flags, AutoIndent_FullTokens)){
             get_indent_lines_whole_tokens(app, buffer, tokens, start, end, &line_start, &line_end);
         }
         else{
@@ -561,12 +556,9 @@ buffer_auto_indent(Application_Links *app, Buffer_ID buffer, i32 start, i32 end,
 CUSTOM_COMMAND_SIG(auto_tab_whole_file)
 CUSTOM_DOC("Audo-indents the entire current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer, &buffer_size);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer);
     Arena *scratch = context_get_arena(app);
     buffer_auto_indent(app, scratch, buffer, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
 }
@@ -574,12 +566,9 @@ CUSTOM_DOC("Audo-indents the entire current buffer.")
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor)
 CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     Arena *scratch = context_get_arena(app);
     buffer_auto_indent(app, scratch, buffer, pos, pos, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, view, buffer);
@@ -588,10 +577,8 @@ CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 CUSTOM_COMMAND_SIG(auto_tab_range)
 CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     Range range = get_view_range(app, view);
     Arena *scratch = context_get_arena(app);
     buffer_auto_indent(app, scratch, buffer, range.min, range.max, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
@@ -602,17 +589,14 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab)
 CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor sits.")
 {
     write_character(app);
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     u32 flags = DEFAULT_INDENT_FLAGS;
     User_Input in = get_command_input(app);
     if (in.key.character == '\n'){
         flags |= AutoIndent_ExactAlignBlock;
     }
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     Arena *scratch = context_get_arena(app);
     buffer_auto_indent(app, scratch, buffer, pos, pos, DEF_TAB_WIDTH, flags);
     move_past_lead_whitespace(app, view, buffer);

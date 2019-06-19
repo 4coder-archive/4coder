@@ -8,14 +8,11 @@ moving the cursor, which work even without the default 4coder framework.
 static void
 write_character_parameter(Application_Links *app, u8 *character, u32 length){
     if (length != 0){
-        View_ID view = 0;
-        get_active_view(app, AccessOpen, &view);
+        View_ID view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view);
         
-        Buffer_ID buffer = 0;
-        view_get_buffer(app, view, AccessOpen, &buffer);
-        i32 pos = 0;
-        view_get_cursor_pos(app, view, &pos);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+        i32 pos = view_get_cursor_pos(app, view);
         Full_Cursor cursor = {};
         view_compute_cursor(app, view, seek_pos(pos), &cursor);
         
@@ -88,15 +85,11 @@ CUSTOM_DOC("Inserts an underscore.")
 CUSTOM_COMMAND_SIG(delete_char)
 CUSTOM_DOC("Deletes the character to the right of the cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
+    View_ID view = get_active_view(app, AccessOpen);
     if (!if_view_has_highlighted_range_delete_range(app, view)){
-        Buffer_ID buffer = 0;
-        view_get_buffer(app, view, AccessOpen, &buffer);
-        i32 start = 0;
-        view_get_cursor_pos(app, view, &start);
-        i32 buffer_size = 0;
-        buffer_get_size(app, buffer, &buffer_size);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+        i32 start = view_get_cursor_pos(app, view);
+        i32 buffer_size = (i32)buffer_get_size(app, buffer);
         if (0 <= start && start < buffer_size){
             Full_Cursor cursor = {};
             view_compute_cursor(app, view, seek_pos(start), &cursor);
@@ -110,15 +103,11 @@ CUSTOM_DOC("Deletes the character to the right of the cursor.")
 CUSTOM_COMMAND_SIG(backspace_char)
 CUSTOM_DOC("Deletes the character to the left of the cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
+    View_ID view = get_active_view(app, AccessOpen);
     if (!if_view_has_highlighted_range_delete_range(app, view)){
-        Buffer_ID buffer = 0;
-        view_get_buffer(app, view, AccessOpen, &buffer);
-        i32 end = 0;
-        view_get_cursor_pos(app, view, &end);
-        i32 buffer_size = 0;
-        buffer_get_size(app, buffer, &buffer_size);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+        i32 end = view_get_cursor_pos(app, view);
+        i32 buffer_size = (i32)buffer_get_size(app, buffer);
         if (0 < end && end <= buffer_size){
             Full_Cursor cursor = {};
             view_compute_cursor(app, view, seek_pos(end), &cursor);
@@ -134,10 +123,8 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
 CUSTOM_COMMAND_SIG(set_mark)
 CUSTOM_DOC("Sets the mark to the current position of the cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     view_set_mark(app, view, seek_pos(pos));
     view_set_cursor(app, view, seek_pos(pos), true);
 }
@@ -145,12 +132,9 @@ CUSTOM_DOC("Sets the mark to the current position of the cursor.")
 CUSTOM_COMMAND_SIG(cursor_mark_swap)
 CUSTOM_DOC("Swaps the position of the cursor and the mark.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    i32 cursor = 0;
-    view_get_cursor_pos(app, view, &cursor);
-    i32 mark = 0;
-    view_get_mark_pos(app, view, &mark);
+    View_ID view = get_active_view(app, AccessProtected);
+    i32 cursor = view_get_cursor_pos(app, view);
+    i32 mark = view_get_mark_pos(app, view);
     view_set_cursor(app, view, seek_pos(mark), true);
     view_set_mark(app, view, seek_pos(cursor));
 }
@@ -158,22 +142,18 @@ CUSTOM_DOC("Swaps the position of the cursor and the mark.")
 CUSTOM_COMMAND_SIG(delete_range)
 CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     Range range = get_view_range(app, view);
     buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
 }
 
 static void
 current_view_boundary_delete(Application_Links *app, Scan_Direction direction, Boundary_Function_List funcs){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     Range range = {};
-    view_get_cursor_pos(app, view, &range.first);
+    range.first = view_get_cursor_pos(app, view);
     range.one_past_last = scan(app, funcs, buffer, direction, range.first);
     range = rectify(range);
     buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
@@ -200,12 +180,9 @@ CUSTOM_DOC("Delete characters between the cursor position and the first alphanum
 
 static void
 current_view_snipe_delete(Application_Links *app, Scan_Direction direction, Boundary_Function_List funcs){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     Range range = get_snipe_range(app, funcs, buffer, pos, direction);
     buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
 }
@@ -234,11 +211,9 @@ CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and po
 CUSTOM_COMMAND_SIG(center_view)
 CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     
-    Rect_i32 region = {};
-    view_get_buffer_region(app, view, &region);
+    Rect_f32 region = view_get_buffer_region(app, view);
     GUI_Scroll_Vars scroll = {};
     view_get_scroll_vars(app, view, &scroll);
     
@@ -252,8 +227,7 @@ CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
 CUSTOM_COMMAND_SIG(left_adjust_view)
 CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     GUI_Scroll_Vars scroll = {};
     view_get_scroll_vars(app, view, &scroll);
     f32 x = clamp_bot(0.f, get_view_x(app, view) - 30.f);
@@ -262,10 +236,10 @@ CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
 }
 
 static b32
-view_space_from_screen_space_checked(Vec2_i32 p, Rect_i32 file_region, Vec2 scroll_p, Vec2 *p_out){
+view_space_from_screen_space_checked(Vec2_f32 p, Rect_f32 file_region, Vec2 scroll_p, Vec2 *p_out){
     b32 result = false;
     if (rect_contains_point(file_region, p)){
-        *p_out = view_space_from_screen_space(V2(p), V2(file_region.p0), scroll_p);
+        *p_out = view_space_from_screen_space(p, file_region.p0, scroll_p);
         result = true;
     }
     else{
@@ -277,15 +251,13 @@ view_space_from_screen_space_checked(Vec2_i32 p, Rect_i32 file_region, Vec2 scro
 CUSTOM_COMMAND_SIG(click_set_cursor_and_mark)
 CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Rect_i32 region = {};
-    view_get_buffer_region(app, view, &region);
+    View_ID view = get_active_view(app, AccessProtected);
+    Rect_f32 region = view_get_buffer_region(app, view);
     GUI_Scroll_Vars scroll_vars = {};
     view_get_scroll_vars(app, view, &scroll_vars);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
-    if (view_space_from_screen_space_checked(mouse.p, region, scroll_vars.scroll_p, &p)){
+    if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
         Full_Cursor cursor = {};
         view_compute_cursor(app, view, seek_wrapped_xy(p.x, p.y, true), &cursor);
         view_set_cursor(app, view, seek_pos(cursor.pos), true);
@@ -296,15 +268,13 @@ CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
 CUSTOM_COMMAND_SIG(click_set_cursor)
 CUSTOM_DOC("Sets the cursor position to the mouse position.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Rect_i32 region = {};
-    view_get_buffer_region(app, view, &region);
+    View_ID view = get_active_view(app, AccessProtected);
+    Rect_f32 region = view_get_buffer_region(app, view);
     GUI_Scroll_Vars scroll_vars = {};
     view_get_scroll_vars(app, view, &scroll_vars);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
-    if (view_space_from_screen_space_checked(mouse.p, region, scroll_vars.scroll_p, &p)){
+    if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
         view_set_cursor(app, view, seek_wrapped_xy(p.x, p.y, true), true);
     }
     no_mark_snap_to_cursor(app, view);
@@ -313,16 +283,14 @@ CUSTOM_DOC("Sets the cursor position to the mouse position.")
 CUSTOM_COMMAND_SIG(click_set_cursor_if_lbutton)
 CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the mouse position.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.l){
-        Rect_i32 region = {};
-        view_get_buffer_region(app, view, &region);
+        Rect_f32 region = view_get_buffer_region(app, view);
         GUI_Scroll_Vars scroll_vars = {};
         view_get_scroll_vars(app, view, &scroll_vars);
         Vec2 p = {};
-        if (view_space_from_screen_space_checked(mouse.p, region, scroll_vars.scroll_p, &p)){
+        if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
             view_set_cursor(app, view, seek_wrapped_xy(p.x, p.y, true), true);
         }
     }
@@ -332,15 +300,13 @@ CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the
 CUSTOM_COMMAND_SIG(click_set_mark)
 CUSTOM_DOC("Sets the mark position to the mouse position.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Rect_i32 region = {};
-    view_get_buffer_region(app, view, &region);
+    View_ID view = get_active_view(app, AccessProtected);
+    Rect_f32 region = view_get_buffer_region(app, view);
     GUI_Scroll_Vars scroll_vars = {};
     view_get_scroll_vars(app, view, &scroll_vars);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
-    if (view_space_from_screen_space_checked(mouse.p, region, scroll_vars.scroll_p, &p)){
+    if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
         view_set_mark(app, view, seek_wrapped_xy(p.x, p.y, true));
     }
     no_mark_snap_to_cursor(app, view);
@@ -349,8 +315,7 @@ CUSTOM_DOC("Sets the mark position to the mouse position.")
 CUSTOM_COMMAND_SIG(mouse_wheel_scroll)
 CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accordingly.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.wheel != 0){
         GUI_Scroll_Vars scroll = {};
@@ -364,11 +329,9 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
 
 static void
 move_vertical(Application_Links *app, f32 line_multiplier){
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     Face_ID face_id = 0;
     get_face_id(app, buffer, &face_id);
     Face_Metrics metrics = {};
@@ -376,24 +339,20 @@ move_vertical(Application_Links *app, f32 line_multiplier){
     
     f32 delta_y = line_multiplier*metrics.line_height;
     f32 new_y = get_view_y(app, view) + delta_y;
-    f32 x = 0;
-    view_get_preferred_x(app, view, &x);
+    f32 x = view_get_preferred_x(app, view);
     
     view_set_cursor(app, view, seek_wrapped_xy(x, new_y, false), false);
     f32 actual_new_y = get_view_y(app, view);
     if (actual_new_y < new_y){
-        Rect_i32 file_region = {};
-        view_get_buffer_region(app, view, &file_region);
-        i32 height = rect_height(file_region);
-        i32 full_scroll_y = (i32)actual_new_y - height/2;
+        Rect_f32 file_region = view_get_buffer_region(app, view);
+        f32 height = rect_height(file_region);
+        f32 full_scroll_y = actual_new_y - height*0.5f;
         GUI_Scroll_Vars scroll_vars = {};
         view_get_scroll_vars(app, view, &scroll_vars);
         if (scroll_vars.target_y < full_scroll_y){
             GUI_Scroll_Vars new_scroll_vars = scroll_vars;
             new_scroll_vars.target_y += (i32)delta_y;
-            if (new_scroll_vars.target_y > full_scroll_y){
-                new_scroll_vars.target_y = full_scroll_y;
-            }
+            new_scroll_vars.target_y = clamp_top(new_scroll_vars.target_y, (i32)full_scroll_y);
             view_set_scroll(app, view, new_scroll_vars);
         }
     }
@@ -403,18 +362,16 @@ move_vertical(Application_Links *app, f32 line_multiplier){
 
 static f32
 get_page_jump(Application_Links *app, View_ID view){
-    Rect_i32 region = {};
-    view_get_buffer_region(app, view, &region);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    Rect_f32 region = view_get_buffer_region(app, view);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     Face_ID face_id = 0;
     get_face_id(app, buffer, &face_id);
     Face_Metrics metrics = {};
     get_face_metrics(app, face_id, &metrics);
     f32 page_jump = 1.f;
     if (metrics.line_height > 0.f){
-        i32 height = rect_height(region);
-        f32 line_count = (f32)(height)/metrics.line_height;
+        f32 height = rect_height(region);
+        f32 line_count = height/metrics.line_height;
         i32 line_count_rounded = (i32)line_count;
         page_jump = (f32)line_count_rounded - 3.f;
         page_jump = clamp_bot(1.f, page_jump);
@@ -449,22 +406,18 @@ CUSTOM_DOC("Moves the cursor down ten lines.")
 CUSTOM_COMMAND_SIG(move_down_textual)
 CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapping.")
 {
-    View_ID view = 0;
-    if (get_active_view(app, AccessOpen, &view)){
-        i32 pos = 0;
-        view_get_cursor_pos(app, view, &pos);
-        Full_Cursor cursor = {};
-        view_compute_cursor(app, view, seek_pos(pos), &cursor);
-        i32 next_line = cursor.line + 1;
-        view_set_cursor(app, view, seek_line_char(next_line, 1), true);
-    }
+    View_ID view = get_active_view(app, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
+    Full_Cursor cursor = {};
+    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    i32 next_line = cursor.line + 1;
+    view_set_cursor(app, view, seek_line_char(next_line, 1), true);
 }
 
 CUSTOM_COMMAND_SIG(page_up)
 CUSTOM_DOC("Scrolls the view up one view height and moves the cursor up one view height.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     f32 page_jump = get_page_jump(app, view);
     move_vertical(app, -page_jump);
 }
@@ -472,20 +425,16 @@ CUSTOM_DOC("Scrolls the view up one view height and moves the cursor up one view
 CUSTOM_COMMAND_SIG(page_down)
 CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one view height.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     f32 page_jump = get_page_jump(app, view);
     move_vertical(app, page_jump);
 }
 
 internal void
 seek_blank_line(Application_Links *app, Scan_Direction direction, Position_Within_Line position){
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 new_pos = get_pos_of_blank_line_grouped(app, buffer, direction, pos);
     switch (position){
         case PositionWithinLine_SkipLeadingWhitespace:
@@ -546,10 +495,8 @@ CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the en
 CUSTOM_COMMAND_SIG(move_left)
 CUSTOM_DOC("Moves the cursor one character to the left.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     i32 new_pos = clamp_bot(0, cursor.character_pos - 1);
@@ -560,10 +507,8 @@ CUSTOM_DOC("Moves the cursor one character to the left.")
 CUSTOM_COMMAND_SIG(move_right)
 CUSTOM_DOC("Moves the cursor one character to the right.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     i32 new_pos = cursor.character_pos + 1;
@@ -573,12 +518,9 @@ CUSTOM_DOC("Moves the cursor one character to the right.")
 
 static void
 current_view_scan_move(Application_Links *app, Scan_Direction direction, Boundary_Function_List funcs){
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 cursor_pos = 0;
-    view_get_cursor_pos(app, view, &cursor_pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 cursor_pos = view_get_cursor_pos(app, view);
     i32 pos = scan(app, funcs, buffer, direction, cursor_pos);
     view_set_cursor(app, view, seek_pos(pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
@@ -680,12 +622,9 @@ CUSTOM_DOC("Seek left for boundary between alphanumeric characters or camel case
 CUSTOM_COMMAND_SIG(select_all)
 CUSTOM_DOC("Puts the cursor at the top of the file, and the mark at the bottom of the file.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer, &buffer_size);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer);
     view_set_cursor(app, view, seek_pos(0), true);
     view_set_mark(app, view, seek_pos(buffer_size));
     no_mark_snap_to_cursor(app, view);
@@ -696,10 +635,8 @@ CUSTOM_DOC("Puts the cursor at the top of the file, and the mark at the bottom o
 CUSTOM_COMMAND_SIG(to_uppercase)
 CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark to uppercase.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     Range range = get_view_range(app, view);
     Scratch_Block scratch(app);
     String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
@@ -711,10 +648,8 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
 CUSTOM_COMMAND_SIG(to_lowercase)
 CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark to lowercase.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     Range range = get_view_range(app, view);
     Scratch_Block scratch(app);
     String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
@@ -726,13 +661,10 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
 CUSTOM_COMMAND_SIG(clean_all_lines)
 CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
-    i32 line_count = 0;
-    buffer_get_line_count(app, buffer, &line_count);
+    i32 line_count = (i32)buffer_get_line_count(app, buffer);
     
     Scratch_Block scratch(app);
     Buffer_Edit *edits = push_array(scratch, Buffer_Edit, line_count);
@@ -767,8 +699,7 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
 CUSTOM_COMMAND_SIG(basic_change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.  Will not skipe the build panel if it is open.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     get_next_view_looped_all_panels(app, view, AccessAll);
     view_set_active(app, view);
 }
@@ -776,8 +707,7 @@ CUSTOM_DOC("Change the currently active panel, moving to the panel with the next
 CUSTOM_COMMAND_SIG(close_panel)
 CUSTOM_DOC("Closes the currently active panel if it is not the only panel open.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_close(app, view);
 }
 
@@ -786,41 +716,36 @@ CUSTOM_DOC("Closes the currently active panel if it is not the only panel open."
 CUSTOM_COMMAND_SIG(show_scrollbar)
 CUSTOM_DOC("Sets the current view to show it's scrollbar.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_set_setting(app, view, ViewSetting_ShowScrollbar, true);
 }
 
 CUSTOM_COMMAND_SIG(hide_scrollbar)
 CUSTOM_DOC("Sets the current view to hide it's scrollbar.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_set_setting(app, view, ViewSetting_ShowScrollbar, false);
 }
 
 CUSTOM_COMMAND_SIG(show_filebar)
 CUSTOM_DOC("Sets the current view to show it's filebar.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_set_setting(app, view, ViewSetting_ShowFileBar, true);
 }
 
 CUSTOM_COMMAND_SIG(hide_filebar)
 CUSTOM_DOC("Sets the current view to hide it's filebar.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_set_setting(app, view, ViewSetting_ShowFileBar, false);
 }
 
 CUSTOM_COMMAND_SIG(toggle_filebar)
 CUSTOM_DOC("Toggles the visibility status of the current view's filebar.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    b32 value;
+    View_ID view = get_active_view(app, AccessAll);
+    b32 value = false;
     view_get_setting(app, view, ViewSetting_ShowFileBar, &value);
     view_set_setting(app, view, ViewSetting_ShowFileBar, !value);
 }
@@ -828,10 +753,8 @@ CUSTOM_DOC("Toggles the visibility status of the current view's filebar.")
 CUSTOM_COMMAND_SIG(toggle_line_wrap)
 CUSTOM_DOC("Toggles the current buffer's line wrapping status.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     b32 wrapped;
     buffer_get_setting(app, buffer, BufferSetting_WrapLine, &wrapped);
     buffer_set_setting(app, buffer, BufferSetting_WrapLine, !wrapped);
@@ -846,10 +769,8 @@ CUSTOM_DOC("Toggles the visibility of the FPS performance meter")
 CUSTOM_COMMAND_SIG(increase_line_wrap)
 CUSTOM_DOC("Increases the current buffer's width for line wrapping.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 wrap = 0;
     buffer_get_setting(app, buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, buffer, BufferSetting_WrapPosition, wrap + 10);
@@ -858,10 +779,8 @@ CUSTOM_DOC("Increases the current buffer's width for line wrapping.")
 CUSTOM_COMMAND_SIG(decrease_line_wrap)
 CUSTOM_DOC("Decrases the current buffer's width for line wrapping.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 wrap = 0;
     buffer_get_setting(app, buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, buffer, BufferSetting_WrapPosition, wrap - 10);
@@ -870,10 +789,8 @@ CUSTOM_DOC("Decrases the current buffer's width for line wrapping.")
 CUSTOM_COMMAND_SIG(increase_face_size)
 CUSTOM_DOC("Increase the size of the face used by the current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Face_ID face_id = 0;
     get_face_id(app, buffer, &face_id);
     Face_Description description = get_face_description(app, face_id);
@@ -884,10 +801,8 @@ CUSTOM_DOC("Increase the size of the face used by the current buffer.")
 CUSTOM_COMMAND_SIG(decrease_face_size)
 CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Face_ID face_id = 0;
     get_face_id(app, buffer, &face_id);
     Face_Description description = get_face_description(app, face_id);
@@ -915,10 +830,8 @@ CUSTOM_DOC("Reads the state of the mouse wheel and uses it to either increase or
 CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
 CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 vwhite = 0;
     buffer_get_setting(app, buffer, BufferSetting_VirtualWhitespace, &vwhite);
     buffer_set_setting(app, buffer, BufferSetting_VirtualWhitespace, !vwhite);
@@ -927,8 +840,7 @@ CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
 CUSTOM_COMMAND_SIG(toggle_show_whitespace)
 CUSTOM_DOC("Toggles the current buffer's whitespace visibility status.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     b32 show_whitespace;
     view_get_setting(app, view, ViewSetting_ShowWhitespace, &show_whitespace);
     view_set_setting(app, view, ViewSetting_ShowWhitespace, !show_whitespace);
@@ -943,20 +855,16 @@ CUSTOM_DOC("Toggles the left margin line numbers.")
 CUSTOM_COMMAND_SIG(eol_dosify)
 CUSTOM_DOC("Puts the buffer in DOS line ending mode.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     buffer_set_setting(app, buffer, BufferSetting_Eol, 1);
 }
 
 CUSTOM_COMMAND_SIG(eol_nixify)
 CUSTOM_DOC("Puts the buffer in NIX line ending mode.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     buffer_set_setting(app, buffer, BufferSetting_Eol, 0);
 }
 
@@ -978,8 +886,7 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
     bar.string_capacity = sizeof(string_space);
     if (query_user_number(app, &bar)){
         i32 line_number = (i32)string_to_integer(bar.string, 10);
-        View_ID view = 0;
-        get_active_view(app, AccessProtected, &view);
+        View_ID view = get_active_view(app, AccessProtected);
         view_set_cursor(app, view, seek_line_char(line_number, 0), true);
     }
 }
@@ -998,10 +905,8 @@ isearch__update_highlight(Application_Links *app, View_ID view, Managed_Object h
 
 static void
 isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, b32 on_the_query_init_string){
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
     if (!buffer_exists(app, buffer_id)){
         return;
     }
@@ -1012,8 +917,7 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
     }
     
     b32 reverse = start_reversed;
-    i32 first_pos = 0;
-    view_get_cursor_pos(app, view, &first_pos);
+    i32 first_pos = view_get_cursor_pos(app, view);
     
     i32 pos = first_pos;
     if (query_init.size != 0){
@@ -1157,8 +1061,7 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
             else{
                 i32 new_pos = 0;
                 buffer_seek_string_insensitive_forward(app, buffer_id, start_pos + 1, 0, bar.string, &new_pos);
-                i32 buffer_size = 0;
-                buffer_get_size(app, buffer_id, &buffer_size);
+                i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
                 if (new_pos < buffer_size){
                     if (step_forward){
                         pos = new_pos;
@@ -1211,12 +1114,9 @@ CUSTOM_DOC("Begins an incremental search up through the current buffer for a use
 CUSTOM_COMMAND_SIG(search_identifier)
 CUSTOM_DOC("Begins an incremental search down through the current buffer for the word or token under the cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     Scratch_Block scratch(app);
     String_Const_u8 query = push_enclose_range_at_pos(app, scratch, buffer_id, pos,
                                                       enclose_alpha_numeric_underscore);
@@ -1226,12 +1126,9 @@ CUSTOM_DOC("Begins an incremental search down through the current buffer for the
 CUSTOM_COMMAND_SIG(reverse_search_identifier)
 CUSTOM_DOC("Begins an incremental search up through the current buffer for the word or token under the cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     Scratch_Block scratch(app);
     String_Const_u8 query = push_enclose_range_at_pos(app, scratch, buffer_id, pos,
                                                       enclose_alpha_numeric_underscore);
@@ -1256,14 +1153,10 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     if (query_user_string(app, &replace) && replace.string.size != 0 && query_user_string(app, &with)){
         String_Const_u8 r = replace.string;
         String_Const_u8 w = with.string;
-        
-        View_ID view = 0;
-        get_active_view(app, AccessOpen, &view);
-        Buffer_ID buffer_id = 0;
-        view_get_buffer(app, view, AccessOpen, &buffer_id);
-        
+        View_ID view = get_active_view(app, AccessOpen);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         Range range = get_view_range(app, view);
-        replace_in_range(app, buffer_id, range, r, w);
+        replace_in_range(app, buffer, range, r, w);
     }
 }
 
@@ -1280,8 +1173,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i3
     marker_visual_set_view_key(app, visual, view);
     cursor_is_hidden = true;
     
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
     
     User_Input in = {};
     for (;new_pos < buffer_size;){
@@ -1333,27 +1225,23 @@ query_replace_parameter(Application_Links *app, String_Const_u8 replace_str, i32
         String_Const_u8 r = replace.string;
         String_Const_u8 w = with.string;
         
-        View_ID view = 0;
-        get_active_view(app, AccessProtected, &view);
-        Buffer_ID buffer_id = 0;
-        view_get_buffer(app, view, AccessProtected, &buffer_id);
+        View_ID view = get_active_view(app, AccessProtected);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
         i32 pos = start_pos;
         
         Query_Bar bar = {};
         bar.prompt = string_u8_litexpr("Replace? (y)es, (n)ext, (esc)\n");
         start_query_bar(app, &bar, 0);
         
-        query_replace_base(app, view, buffer_id, pos, r, w);
+        query_replace_base(app, view, buffer, pos, r, w);
     }
 }
 
 CUSTOM_COMMAND_SIG(query_replace)
 CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     if (buffer != 0){
         Query_Bar replace = {};
         u8 replace_space[1024];
@@ -1362,8 +1250,7 @@ CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every o
         replace.string_capacity = sizeof(replace_space);
         if (query_user_string(app, &replace)){
             if (replace.string.size > 0){
-                i32 pos = 0;
-                view_get_cursor_pos(app, view, &pos);
+                i32 pos = view_get_cursor_pos(app, view);
                 query_replace_parameter(app, replace.string, pos, false);
             }
         }
@@ -1373,13 +1260,10 @@ CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every o
 CUSTOM_COMMAND_SIG(query_replace_identifier)
 CUSTOM_DOC("Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     if (buffer != 0){
-        i32 pos = 0;
-        view_get_cursor_pos(app, view, &pos);
+        i32 pos = view_get_cursor_pos(app, view);
         Scratch_Block scratch(app);
         Range range = enclose_alpha_numeric_underscore(app, buffer, make_range(pos));
         String_Const_u8 replace = push_buffer_range(app, scratch, buffer, range);
@@ -1392,10 +1276,8 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 CUSTOM_COMMAND_SIG(query_replace_selection)
 CUSTOM_DOC("Queries the user for a string, and incrementally replace every occurence of the string found in the selected range with the specified string.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     if (buffer != 0){
         Arena *scratch = context_get_arena(app);
         Temp_Memory temp = begin_temp(scratch);
@@ -1416,12 +1298,10 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 static void
 save_all_dirty_buffers_with_postfix(Application_Links *app, String_Const_u8 postfix){
     Arena *scratch = context_get_arena(app);
-    Buffer_ID buffer = 0;
-    for (get_buffer_next(app, 0, AccessOpen, &buffer);
+    for (Buffer_ID buffer = get_buffer_next(app, 0, AccessOpen);
          buffer != 0;
-         get_buffer_next(app, buffer, AccessOpen, &buffer)){
-        Dirty_State dirty = 0;
-        buffer_get_dirty_state(app, buffer, &dirty);
+         buffer = get_buffer_next(app, buffer, AccessOpen)){
+        Dirty_State dirty = buffer_get_dirty_state(app, buffer);
         if (dirty == DirtyState_UnsavedChanges){
             Temp_Memory temp = begin_temp(scratch);
             String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
@@ -1455,16 +1335,14 @@ delete_file_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID bu
     string_list_pushf(scratch, &list, "\"%.*s\"", string_expand(file_name));
     String_Const_u8 cmd = string_list_flatten(scratch, list, StringFill_NullTerminate);
     exec_system_command(app, 0, buffer_identifier(0), path, cmd, 0);
-    kill_buffer(app, buffer_identifier(buffer_id), 0, BufferKill_AlwaysKill);
+    buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
 }
 
 CUSTOM_COMMAND_SIG(delete_file_query)
 CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate access rights. Will ask the user for confirmation first.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Scratch_Block scratch(app);
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     if (file_name.size > 0){
@@ -1501,10 +1379,8 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
 CUSTOM_COMMAND_SIG(save_to_query)
 CUSTOM_DOC("Queries the user for a file name and saves the contents of the current buffer, altering the buffer's name too.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
@@ -1523,10 +1399,9 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
             string_list_push(scratch, &new_file_name_list, bar.string);
             String_Const_u8 new_file_name = string_list_flatten(scratch, new_file_name_list);
             if (buffer_save(app, buffer, new_file_name, BufferSave_IgnoreDirtyFlag)){
-                Buffer_ID new_buffer = 0;
-                create_buffer(app, new_file_name, BufferCreate_NeverNew|BufferCreate_JustChangedFile, &new_buffer);
+                Buffer_ID new_buffer = create_buffer(app, new_file_name, BufferCreate_NeverNew|BufferCreate_JustChangedFile);
                 if (new_buffer != 0 && new_buffer != buffer){
-                    kill_buffer(app, buffer_identifier(buffer), 0, BufferKill_AlwaysKill);
+                    buffer_kill(app, buffer, BufferKill_AlwaysKill);
                     view_set_buffer(app, view, new_buffer, 0);
                 }
             }
@@ -1539,10 +1414,8 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
 CUSTOM_COMMAND_SIG(rename_file_query)
 CUSTOM_DOC("Queries the user for a new name and renames the file of the current buffer, altering the buffer's name too.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
@@ -1564,8 +1437,7 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
                 string_list_push(scratch, &new_file_name_list, bar.string);
                 String_Const_u8 new_file_name = string_list_flatten(scratch, new_file_name_list, StringFill_NullTerminate);
                 if (buffer_save(app, buffer, new_file_name, BufferSave_IgnoreDirtyFlag)){
-                    Buffer_ID new_buffer = 0;
-                    create_buffer(app, new_file_name, BufferCreate_NeverNew|BufferCreate_JustChangedFile, &new_buffer);
+                    Buffer_ID new_buffer = create_buffer(app, new_file_name, BufferCreate_NeverNew|BufferCreate_JustChangedFile);
                     if (new_buffer != 0 && new_buffer != buffer){
                         delete_file_base(app, file_name, buffer);
                         view_set_buffer(app, view, new_buffer, 0);
@@ -1604,12 +1476,9 @@ CUSTOM_DOC("Queries the user for a name and creates a new directory with the giv
 
 internal void
 current_view_move_line(Application_Links *app, Scan_Direction direction){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 line_number = get_line_number_from_pos(app, buffer, pos);
     pos = move_line(app, buffer, line_number, direction);
     view_set_cursor(app, view, seek_pos(pos), true);
@@ -1630,12 +1499,9 @@ CUSTOM_DOC("Swaps the line under the cursor with the line below it, and moves th
 CUSTOM_COMMAND_SIG(duplicate_line)
 CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 line = get_line_number_from_pos(app, buffer, pos);
     Scratch_Block scratch(app);
     String_Const_u8 s = push_buffer_line(app, scratch, buffer, line);
@@ -1647,17 +1513,13 @@ CUSTOM_DOC("Create a copy of the line on which the cursor sits.")
 CUSTOM_COMMAND_SIG(delete_line)
 CUSTOM_DOC("Delete the line the on which the cursor sits.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 line = get_line_number_from_pos(app, buffer, pos);
     Range range = get_line_pos_range(app, buffer, line);
     range.end += 1;
-    i32 size = 0;
-    buffer_get_size(app, buffer, &size);
+    i32 size = (i32)buffer_get_size(app, buffer);
     range.end = clamp_top(range.end, size);
     if (range_size(range) == 0 ||
         buffer_get_char(app, buffer, range.end - 1) != '\n'){
@@ -1716,15 +1578,12 @@ get_cpp_matching_file(Application_Links *app, Buffer_ID buffer, Buffer_ID *buffe
 CUSTOM_COMMAND_SIG(open_file_in_quotes)
 CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to open the corresponding file.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer_id);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
     if (buffer_exists(app, buffer_id)){
         Scratch_Block scratch(app);
         
-        i32 pos = 0;
-        view_get_cursor_pos(app, view, &pos);
+        i32 pos = view_get_cursor_pos(app, view);
         
         Range range = {};
         buffer_seek_delimiter_forward(app, buffer_id, pos, '"', &range.end);
@@ -1754,10 +1613,8 @@ CUSTOM_DOC("Reads a filename from surrounding '\"' characters and attempts to op
 CUSTOM_COMMAND_SIG(open_matching_file_cpp)
 CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Buffer_ID new_buffer = 0;
     if (get_cpp_matching_file(app, buffer, &new_buffer)){
         view = get_next_view_looped_primary_panels(app, view, AccessAll);
@@ -1769,14 +1626,11 @@ CUSTOM_DOC("If the current file is a *.cpp or *.h, attempts to open the correspo
 CUSTOM_COMMAND_SIG(view_buffer_other_panel)
 CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    i32 pos = view_get_cursor_pos(app, view);
     change_active_panel(app);
-    get_active_view(app, AccessAll, &view);
+    view = get_active_view(app, AccessAll);
     view_set_buffer(app, view, buffer, 0);
     view_set_cursor(app, view, seek_pos(pos), true);
 }
@@ -1784,34 +1638,26 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
 CUSTOM_COMMAND_SIG(swap_buffers_between_panels)
 CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
 {
-    View_ID view1 = 0;
-    get_active_view(app, AccessAll, &view1);
+    View_ID view1 = get_active_view(app, AccessAll);
     change_active_panel(app);
-    View_ID view2 = 0;
-    get_active_view(app, AccessAll, &view2);
+    View_ID view2 = get_active_view(app, AccessAll);
     
     if (view1 != view2){
-        Buffer_ID buffer1 = 0;
-        Buffer_ID buffer2 = 0;
-        view_get_buffer(app, view1, AccessAll, &buffer1);
-        view_get_buffer(app, view2, AccessAll, &buffer2);
+        Buffer_ID buffer1 = view_get_buffer(app, view1, AccessAll);
+        Buffer_ID buffer2 = view_get_buffer(app, view2, AccessAll);
         if (buffer1 != buffer2){
             view_set_buffer(app, view1, buffer2, 0);
             view_set_buffer(app, view2, buffer1, 0);
         }
         else{
-            i32 p1 = 0;
-            i32 m1 = 0;
-            i32 p2 = 0;
-            i32 m2 = 0;
             GUI_Scroll_Vars sc1 = {};
             GUI_Scroll_Vars sc2 = {};
             
-            view_get_cursor_pos(app, view1, &p1);
-            view_get_mark_pos(app, view1, &m1);
+            i32 p1 = view_get_cursor_pos(app, view1);
+            i32 m1 = view_get_mark_pos(app, view1);
             view_get_scroll_vars(app, view1, &sc1);
-            view_get_cursor_pos(app, view2, &p2);
-            view_get_mark_pos(app, view2, &m2);
+            i32 p2 = view_get_cursor_pos(app, view2);
+            i32 m2 = view_get_mark_pos(app, view2);
             view_get_scroll_vars(app, view2, &sc2);
             
             view_set_cursor(app, view1, seek_pos(p2), true);
@@ -1829,20 +1675,16 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
 CUSTOM_COMMAND_SIG(kill_buffer)
 CUSTOM_DOC("Kills the current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    kill_buffer(app, buffer_identifier(buffer), view, 0);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    try_buffer_kill(app, buffer, view, 0);
 }
 
 CUSTOM_COMMAND_SIG(save)
 CUSTOM_DOC("Saves the current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
@@ -1853,11 +1695,9 @@ CUSTOM_DOC("Saves the current buffer.")
 CUSTOM_COMMAND_SIG(reopen)
 CUSTOM_DOC("Reopen the current buffer from the hard drive.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    buffer_reopen(app, buffer, 0, 0);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    buffer_reopen(app, buffer, 0);
 }
 
 ////////////////////////////////
@@ -1917,10 +1757,8 @@ record_get_new_cursor_position_redo(Application_Links *app, Buffer_ID buffer_id,
 CUSTOM_COMMAND_SIG(undo)
 CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     History_Record_Index current = 0;
     buffer_history_get_current_state_index(app, buffer, &current);
     if (current > 0){
@@ -1933,10 +1771,8 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
 CUSTOM_COMMAND_SIG(redo)
 CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     History_Record_Index current = 0;
     History_Record_Index max_index = 0;
     buffer_history_get_current_state_index(app, buffer, &current);
@@ -1958,10 +1794,9 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
     i32 match_count = 0;
     
     {
-        Buffer_ID buffer = 0;
-        for (get_buffer_next(app, 0, AccessAll, &buffer);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
+             buffer = get_buffer_next(app, buffer, AccessAll)){
             History_Record_Index index = 0;
             buffer_history_get_current_state_index(app, buffer, &index);
             if (index > 0){
@@ -1989,7 +1824,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
     if (highest_edit_number != -1){
         for (Buffer_ID buffer = first_buffer_match;
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
+             buffer = get_buffer_next(app, buffer, AccessAll)){
             b32 did_match = false;
             i32 new_edit_position = 0;
             for (;;){
@@ -2037,10 +1872,9 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
     i32 match_count = 0;
     
     {
-        Buffer_ID buffer = 0;
-        for (get_buffer_next(app, 0, AccessAll, &buffer);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
+             buffer = get_buffer_next(app, buffer, AccessAll)){
             History_Record_Index max_index = 0;
             History_Record_Index index = 0;
             buffer_history_get_max_record_index(app, buffer, &max_index);
@@ -2070,7 +1904,7 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
     if (lowest_edit_number != -1){
         for (Buffer_ID buffer = first_buffer_match;
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
+             buffer = get_buffer_next(app, buffer, AccessAll)){
             b32 did_match = false;
             i32 new_edit_position = 0;
             History_Record_Index max_index = 0;

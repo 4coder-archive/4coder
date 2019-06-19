@@ -138,10 +138,10 @@ ui_control_set_bottom(UI_Data *data, i32 bottom_y){
 }
 
 static UI_Item*
-ui_control_get_mouse_hit(UI_Data *data, Vec2_i32 view_p, Vec2_i32 panel_p){
+ui_control_get_mouse_hit(UI_Data *data, Vec2_f32 view_p, Vec2_f32 panel_p){
     UI_Item *result = 0;
     for (UI_Item *item = data->list.first; item != 0 && result == 0; item = item->next){
-        i32_Rect r = item->rect_outer;
+        Rect_f32 r = Rf32(item->rect_outer);
         switch (item->coordinates){
             case UICoordinates_ViewSpace:
             {
@@ -160,10 +160,12 @@ ui_control_get_mouse_hit(UI_Data *data, Vec2_i32 view_p, Vec2_i32 panel_p){
     return(result);
 }
 
+#if 0
 static UI_Item*
 ui_control_get_mouse_hit(UI_Data *data, i32 mx_scrolled, i32 my_scrolled, i32 mx_unscrolled, i32 my_unscrolled){
     return(ui_control_get_mouse_hit(data, V2i32(mx_scrolled, my_scrolled), V2i32(mx_unscrolled, my_unscrolled)));
 }
+#endif
 
 ////////////////////////////////
 
@@ -174,86 +176,74 @@ view_zero_scroll(Application_Links *app, View_ID view){
 }
 
 static void
-view_set_vertical_focus(Application_Links *app, View_ID view, i32 y_top, i32 y_bot){
-    Rect_i32 buffer_region = {};
-    view_get_buffer_region(app, view, &buffer_region);
+view_set_vertical_focus(Application_Links *app, View_ID view, f32 y_top, f32 y_bot){
+    Rect_f32 buffer_region = view_get_buffer_region(app, view);
     GUI_Scroll_Vars scroll = {};
     view_get_scroll_vars(app, view, &scroll);
-    i32 view_y_top = scroll.target_y;
-    i32 view_y_dim = rect_height(buffer_region);
-    i32 view_y_bot = view_y_top + view_y_dim;
+    f32 view_y_top = (f32)scroll.target_y;
+    f32 view_y_dim = rect_height(buffer_region);
+    f32 view_y_bot = view_y_top + view_y_dim;
     
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Face_ID face_id = 0;
     get_face_id(app, buffer, &face_id);
     Face_Metrics metrics = {};
     get_face_metrics(app, face_id, &metrics);
     
-    i32 line_dim = (i32)metrics.line_height;
-    i32 hot_y_top = view_y_top + line_dim*3;
-    i32 hot_y_bot = view_y_bot - line_dim*3;
+    f32 line_dim = metrics.line_height;
+    f32 hot_y_top = view_y_top + line_dim*3;
+    f32 hot_y_bot = view_y_bot - line_dim*3;
     if (hot_y_bot - hot_y_top < line_dim*6){
-        i32 quarter_view_y_dim = view_y_dim/4;
+        f32 quarter_view_y_dim = view_y_dim*.25f;
         hot_y_top = view_y_top + quarter_view_y_dim;
         hot_y_bot = view_y_bot - quarter_view_y_dim;
     }
-    i32 hot_y_dim = hot_y_bot - hot_y_top;
-    i32 skirt_dim = hot_y_top - view_y_top;
-    i32 y_dim = y_bot - y_top;
+    f32 hot_y_dim = hot_y_bot - hot_y_top;
+    f32 skirt_dim = hot_y_top - view_y_top;
+    f32 y_dim = y_bot - y_top;
     if (y_dim > hot_y_dim){
-        scroll.target_y = y_top - skirt_dim;
+        scroll.target_y = (i32)(y_top - skirt_dim);
         view_set_scroll(app, view, scroll);
     }
     else{
         if (y_top < hot_y_top){
-            scroll.target_y = y_top - skirt_dim;
+            scroll.target_y = (i32)(y_top - skirt_dim);
             view_set_scroll(app, view, scroll);
         }
         else if (y_bot > hot_y_bot){
-            scroll.target_y = y_bot + skirt_dim - view_y_dim;
+            scroll.target_y = (i32)(y_bot + skirt_dim - view_y_dim);
             view_set_scroll(app, view, scroll);
         }
     }
 }
 
-static Vec2
-view_space_from_screen_space(Vec2 p, Vec2 file_region_p0, Vec2 scroll_p){
+static Vec2_f32
+view_space_from_screen_space(Vec2_f32 p, Vec2_f32 file_region_p0, Vec2_f32 scroll_p){
     return(p - file_region_p0 + scroll_p);
 }
 
-static Vec2_i32
-view_space_from_screen_space(Vec2_i32 p, Vec2_i32 file_region_p0, Vec2_i32 scroll_p){
-    return(p - file_region_p0 + scroll_p);
+static Vec2_f32
+get_mouse_position_in_view_space(Mouse_State mouse, Vec2_f32 file_region_p0, Vec2_f32 scroll_p){
+    return(view_space_from_screen_space(V2f32(mouse.p), file_region_p0, scroll_p));
 }
 
-static Vec2_i32
-get_mouse_position_in_view_space(Mouse_State mouse, Vec2_i32 file_region_p0, Vec2_i32 scroll_p){
-    return(view_space_from_screen_space(mouse.p, file_region_p0, scroll_p));
-}
-
-static Vec2_i32
-get_mouse_position_in_view_space(Application_Links *app, Vec2_i32 file_region_p0, Vec2_i32 scroll_p){
+static Vec2_f32
+get_mouse_position_in_view_space(Application_Links *app, Vec2_f32 file_region_p0, Vec2_f32 scroll_p){
     return(get_mouse_position_in_view_space(get_mouse_state(app), file_region_p0, scroll_p));
 }
 
-static Vec2
-panel_space_from_screen_space(Vec2 p, Vec2 file_region_p0){
+static Vec2_f32
+panel_space_from_screen_space(Vec2_f32 p, Vec2_f32 file_region_p0){
     return(p - file_region_p0);
 }
 
-static Vec2_i32
-panel_space_from_screen_space(Vec2_i32 p, Vec2_i32 file_region_p0){
-    return(p - file_region_p0);
+static Vec2_f32
+get_mouse_position_in_panel_space(Mouse_State mouse, Vec2_f32 file_region_p0){
+    return(panel_space_from_screen_space(V2f32(mouse.p), file_region_p0));
 }
 
-static Vec2_i32
-get_mouse_position_in_panel_space(Mouse_State mouse, Vec2_i32 file_region_p0){
-    return(panel_space_from_screen_space(mouse.p, file_region_p0));
-}
-
-static Vec2_i32
-get_mouse_position_in_panel_space(Application_Links *app, Vec2_i32 file_region_p0){
+static Vec2_f32
+get_mouse_position_in_panel_space(Application_Links *app, Vec2_f32 file_region_p0){
     return(get_mouse_position_in_panel_space(get_mouse_state(app), file_region_p0));
 }
 
@@ -314,11 +304,10 @@ lister_get_clicked_item(Application_Links *app, View_ID view_id){
         GUI_Scroll_Vars scroll_vars = {};
         view_get_scroll_vars(app, view_id, &scroll_vars);
         Mouse_State mouse = get_mouse_state(app);
-        Rect_i32 buffer_region = {};
-        view_get_buffer_region(app, view_id, &buffer_region);
-        Vec2_i32 region_p0 = buffer_region.p0;
-        Vec2_i32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, V2i32(scroll_vars.scroll_p));
-        Vec2_i32 m_panel_space = get_mouse_position_in_panel_space(mouse, region_p0);
+        Rect_f32 buffer_region = view_get_buffer_region(app, view_id);
+        Vec2_f32 region_p0 = buffer_region.p0;
+        Vec2_f32 m_view_space = get_mouse_position_in_view_space(mouse, region_p0, scroll_vars.scroll_p);
+        Vec2_f32 m_panel_space = get_mouse_position_in_panel_space(mouse, region_p0);
         UI_Item *clicked = ui_control_get_mouse_hit(ui_data, m_view_space, m_panel_space);
         if (clicked != 0){
             result = *clicked;
@@ -348,8 +337,7 @@ static void
 lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
     b32 is_theme_list = state->lister.data.theme_list;
     
-    Rect_f32 screen_rect = {};
-    view_get_screen_rect(app, view, &screen_rect);
+    Rect_f32 screen_rect = view_get_screen_rect(app, view);
     
     Face_ID face_id = 0;
     get_face_id(app, 0, &face_id);
@@ -369,9 +357,8 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
     Temp_Memory full_temp = begin_temp(scratch);
     
     // TODO(allen): switch to float
-    Rect_i32 buffer_region = {};
-    view_get_buffer_region(app, view, &buffer_region);
-    Vec2_i32 view_m = get_mouse_position_in_view_space(app, buffer_region.p0, V2i32(scroll_vars.scroll_p));
+    Rect_f32 buffer_region = view_get_buffer_region(app, view);
+    Vec2_f32 view_m = get_mouse_position_in_view_space(app, buffer_region.p0, scroll_vars.scroll_p);
     
     f32 y_pos = text_field_height;
     
@@ -434,18 +421,13 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
             for (i32 node_index = 0; node_index < node_ptr_array.count; node_index += 1){
                 Lister_Node *node = node_ptr_array.node_ptrs[node_index];
                 
-                // TODO(allen): switch to float
-                i32_Rect item_rect = {};
-                item_rect.x0 = (i32)x0;
-                item_rect.y0 = (i32)y_pos;
-                item_rect.x1 = (i32)x1;
-                item_rect.y1 = (i32)y_pos + (i32)block_height;
-                y_pos = (f32)item_rect.y1;
+                Rect_f32 item_rect = Rf32(x0, y_pos, x1, y_pos + block_height);
+                y_pos = item_rect.y1;
                 
                 UI_Item item = {};
                 item.activation_level = UIActivation_None;
                 item.coordinates = UICoordinates_ViewSpace;
-                item.rect_outer = item_rect;
+                item.rect_outer = Ri32(item_rect);
                 item.inner_margin = 3;
                 
                 if (!is_theme_list){
@@ -476,7 +458,6 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
                 }
                 
                 item.user_data = node->user_data;
-                
                 
                 UI_Item *item_ptr = ui_list_add_item(ui_arena, &ui_data->list, item);
                 if (rect_contains_point(item_rect, view_m)){
@@ -511,7 +492,9 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
         
         if (state->set_view_vertical_focus_to_item){
             if (highlighted_item != 0){
-                view_set_vertical_focus(app, view, highlighted_item->rect_outer.y0, highlighted_item->rect_outer.y1);
+                view_set_vertical_focus(app, view,
+                                        (f32)highlighted_item->rect_outer.y0,
+                                        (f32)highlighted_item->rect_outer.y1);
             }
             state->set_view_vertical_focus_to_item = false;
         }

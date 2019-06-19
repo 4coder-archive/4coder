@@ -145,7 +145,86 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *b
 
 static b32
 init_stream_tokens(Stream_Tokens_DEP *stream, Application_Links *app, Buffer_Summary *buffer, i32 pos, Cpp_Token *data, i32 count){
-    return(buffer==0?0:init_stream_tokens(stream, app, buffer->buffer_id, pos, data, count));
+    b32 result = false;
+    
+    if (buffer != 0){
+        i32 token_count = buffer_token_count(app, buffer);
+        if (buffer_tokens_are_ready(app, buffer->buffer_id) &&
+            0 <= pos && pos < token_count && count > 0){
+            stream->app = app;
+            stream->buffer_id = buffer->buffer_id;
+            stream->base_tokens = data;
+            stream->count = count;
+            stream->start = round_down_i32(pos, count);
+            stream->end = round_up_i32(pos, count);
+            stream->token_count = token_count;
+            
+            stream->start = clamp_bot(0, stream->start);
+            stream->end = clamp_top(stream->end, stream->token_count);
+            
+            buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
+            stream->tokens = stream->base_tokens - stream->start;
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+static Stream_Tokens_DEP
+begin_temp_stream_token(Stream_Tokens_DEP *stream){
+    return(*stream);
+}
+
+static void
+end_temp_stream_token(Stream_Tokens_DEP *stream, Stream_Tokens_DEP temp){
+    if (stream->start != temp.start || stream->end != temp.end){
+        Application_Links *app = stream->app;
+        buffer_read_tokens(app, temp.buffer_id, temp.start, temp.end, temp.base_tokens);
+        stream->tokens = stream->base_tokens - temp.start;
+        stream->start = temp.start;
+        stream->end = temp.end;
+    }
+}
+
+static b32
+forward_stream_tokens(Stream_Tokens_DEP *stream){
+    Application_Links *app = stream->app;
+    Buffer_ID buffer_id = stream->buffer_id;
+    b32 result = false;
+    if (stream->end < stream->token_count){
+        stream->start = stream->end;
+        stream->end += stream->count;
+        if (stream->end > stream->token_count){
+            stream->end = stream->token_count;
+        }
+        if (stream->start < stream->end){
+            buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
+            stream->tokens = stream->base_tokens - stream->start;
+            result = true;
+        }
+    }
+    return(result);
+}
+
+static b32
+backward_stream_tokens(Stream_Tokens_DEP *stream){
+    Application_Links *app = stream->app;
+    Buffer_ID buffer_id = stream->buffer_id;
+    b32 result = false;
+    if (stream->start > 0){
+        stream->end = stream->start;
+        stream->start -= stream->count;
+        if (0 > stream->start){
+            stream->start = 0;
+        }
+        if (stream->start < stream->end){
+            buffer_read_tokens(app, buffer_id, stream->start, stream->end, stream->base_tokens);
+            stream->tokens = stream->base_tokens - stream->start;
+            result = true;
+        }
+    }
+    return(result);
 }
 
 static String
@@ -254,7 +333,7 @@ buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
         b32 is_lexed = false;
         if (buffer_get_setting(app, buffer_id, BufferSetting_Lex, &is_lexed)){
             if (is_lexed){
-                buffer_token_count(app, buffer_id, &array.count);
+                array.count = buffer_get_token_array(app, buffer_id).count;
                 array.max_count = array.count;
                 array.tokens = push_array(arena, Cpp_Token, array.count);
                 buffer_read_tokens(app, buffer_id, 0, array.count, array.tokens);
@@ -683,7 +762,7 @@ post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buff
 
 static void
 view_set_vertical_focus(Application_Links *app, View_Summary *view, i32 y_top, i32 y_bot){
-    view_set_vertical_focus(app, view==0?0:view->view_id, y_top, y_bot);
+    view_set_vertical_focus(app, view==0?0:view->view_id, (f32)y_top, (f32)y_bot);
 }
 
 static b32
@@ -738,8 +817,7 @@ isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Ob
 
 static void
 get_view_prev(Application_Links *app, View_Summary *view, Access_Flag access){
-    View_ID new_id = 0;
-    get_view_prev(app, view->view_id, access, &new_id);
+    View_ID new_id = get_view_prev(app, view->view_id, access);
     get_view_summary(app, new_id, access, view);
 }
 
@@ -1049,6 +1127,11 @@ static void
 current_view_boundary_seek_set_pos(Application_Links *app, Scan_Direction direction, u32 flags){
     Scratch_Block scratch(app);
     current_view_scan_move(app, direction, boundary_list_from_old_flags(scratch, flags));
+}
+
+static Buffer_Kill_Result
+kill_buffer(Application_Links *app, Buffer_Identifier identifier, View_ID gui_view_id, Buffer_Kill_Flag flags){
+    return(try_buffer_kill(app, buffer_identifier_to_id(app, identifier), gui_view_id, flags));
 }
 
 #endif

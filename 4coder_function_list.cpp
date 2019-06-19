@@ -202,18 +202,16 @@ static void
 list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     // TODO(allen): Use create or switch to buffer and clear here?
     String_Const_u8 decls_name = string_u8_litexpr("*decls*");
-    Buffer_ID decls_buffer = 0;
-    get_buffer_by_name(app, decls_name, AccessAll, &decls_buffer);
+    Buffer_ID decls_buffer = get_buffer_by_name(app, decls_name, AccessAll);
     if (!buffer_exists(app, decls_buffer)){
-        create_buffer(app, decls_name, BufferCreate_AlwaysNew, &decls_buffer);
+        decls_buffer = create_buffer(app, decls_name, BufferCreate_AlwaysNew);
         buffer_set_setting(app, decls_buffer, BufferSetting_Unimportant, true);
         buffer_set_setting(app, decls_buffer, BufferSetting_ReadOnly, true);
         buffer_set_setting(app, decls_buffer, BufferSetting_WrapLine, false);
     }
     else{
         buffer_send_end_signal(app, decls_buffer);
-        i32 size = 0;
-        buffer_get_size(app, decls_buffer, &size);
+        i32 size = (i32)buffer_get_size(app, decls_buffer);
         buffer_replace_range(app, decls_buffer, make_range(0, size), string_u8_litexpr(""));
     }
     
@@ -227,10 +225,9 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     Cursor insertion_cursor = make_cursor(push_array(scratch, u8, KB(256)), KB(256));
     Buffer_Insertion out = begin_buffer_insertion_at_buffered(app, decls_buffer, 0, &insertion_cursor);
     
-    Buffer_ID buffer_it = 0;
-    for (get_buffer_next(app, 0, AccessAll, &buffer_it);
+    for (Buffer_ID buffer_it = get_buffer_next(app, 0, AccessAll);
          buffer_it != 0;
-         get_buffer_next(app, buffer_it, AccessAll, &buffer_it)){
+         buffer_it = get_buffer_next(app, buffer_it, AccessAll)){
         Buffer_ID buffer = buffer_it;
         if (optional_target_buffer != 0){
             buffer = optional_target_buffer;
@@ -260,8 +257,7 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     
     end_buffer_insertion(&out);
     
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_set_buffer(app, view, decls_buffer, 0);
     
     lock_jump_buffer(decls_name);
@@ -273,11 +269,9 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
 CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to define or declare functions.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    if (buffer_exists(app, buffer)){
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    if (buffer != 0){
         list_all_functions(app, buffer);
     }
 }
@@ -285,13 +279,11 @@ CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to de
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations in the buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    if (buffer_exists(app, buffer)){
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    if (buffer != 0){
         list_all_functions(app, buffer);
-        get_active_view(app, AccessAll, &view);
+        view = get_active_view(app, AccessAll);
         open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
     }
 }
@@ -306,10 +298,8 @@ CUSTOM_COMMAND_SIG(list_all_functions_all_buffers_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations all buffers.")
 {
     list_all_functions(app, 0);
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
 }
 

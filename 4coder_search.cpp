@@ -495,10 +495,8 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
     
     Search_Range *ranges = set->ranges;
     
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     
     i32 j = 0;
     if (buffer_exists(app, buffer)){
@@ -515,15 +513,14 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
             ranges[j].flags = match_flags;
             ranges[j].buffer = buffer;
             ranges[j].start = 0;
-            buffer_get_size(app, buffer, &ranges[j].size);
+            ranges[j].size = (i32)buffer_get_size(app, buffer);
             ++j;
         }
     }
     
-    Buffer_ID buffer_it = 0;
-    for (get_buffer_next(app, 0, AccessAll, &buffer_it);
+    for (Buffer_ID buffer_it = get_buffer_next(app, 0, AccessAll);
          buffer_exists(app, buffer_it);
-         get_buffer_next(app, buffer_it, AccessAll, &buffer_it)){
+         buffer_it = get_buffer_next(app, buffer_it, AccessAll)){
         if (buffer_it == buffer){
             continue;
         }
@@ -542,7 +539,7 @@ initialize_generic_search_all_buffers(Application_Links *app, Heap *heap, String
                 ranges[j].flags = match_flags;
                 ranges[j].buffer = buffer_it;
                 ranges[j].start = 0;
-                buffer_get_size(app, buffer_it, &ranges[j].size);
+                ranges[j].size = (i32)buffer_get_size(app, buffer_it);
                 ++j;
             }
         }
@@ -583,8 +580,8 @@ list__parameters_buffer(Application_Links *app, Heap *heap,
     for (Search_Match match = search_next_match(app, &set, &iter);
          match.found_match;
          match = search_next_match(app, &set, &iter)){
-        Partial_Cursor word_pos = {};
-        if (buffer_compute_cursor(app, match.buffer, seek_pos(match.start), &word_pos)){
+        Partial_Cursor word_pos = buffer_compute_cursor(app, match.buffer, seek_pos(match.start));
+        if (word_pos.line > 0){
             if (prev_match_id != match.buffer){
                 if (prev_match_id != 0){
                     insertc(&out, '\n');
@@ -650,13 +647,10 @@ list_query__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 c
 
 static void
 list_identifier__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 case_insensitive, View_ID default_target_view){
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     if (buffer != 0){
-        i32 pos = 0;
-        view_get_cursor_pos(app, view, &pos);
+        i32 pos = view_get_cursor_pos(app, view);
         Scratch_Block scratch(app);
         String_Const_u8 str = get_token_or_word_under_pos(app, scratch, buffer, pos);
         if (str.size > 0){
@@ -667,8 +661,7 @@ list_identifier__parameters(Application_Links *app, Heap *heap, b32 substrings, 
 
 static void
 list_selected_range__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 case_insensitive, View_ID default_target_view){
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
+    View_ID view = get_active_view(app, AccessProtected);
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 str = push_string_in_view_range(app, scratch, view);
@@ -772,12 +765,9 @@ CUSTOM_DOC("Queries user for string, lists all locations of strings that appear 
 CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition_of_identifier)
 CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of strings that appear to define a type whose name matches it.")
 {
-    View_ID target_view = 0;
-    get_active_view(app, AccessProtected, &target_view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, target_view, AccessProtected, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, target_view, &pos);
+    View_ID target_view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, target_view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, target_view);
     Scratch_Block scratch(app);
     String_Const_u8 str = get_token_or_word_under_pos(app, scratch, buffer, pos);
     if (str.size > 0){
@@ -796,10 +786,9 @@ static Word_Complete_State complete_state = {};
 CUSTOM_COMMAND_SIG(word_complete)
 CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    if (view_get_buffer(app, view, AccessOpen, &buffer)){
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    if (buffer != 0){
         i32 do_init = false;
         
         Managed_Scope scope = 0;
@@ -823,8 +812,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         if (do_init){
             // NOTE(allen): Get the range where the
             // partial word is written.
-            word_end = 0;
-            view_get_cursor_pos(app, view, &word_end);
+            word_end = view_get_cursor_pos(app, view);
             word_start = word_end;
             cursor_pos = word_end - 1;
             
@@ -872,22 +860,22 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             ranges[0].flags = SearchFlag_MatchWordPrefix;
             ranges[0].buffer = buffer;
             ranges[0].start = 0;
-            buffer_get_size(app, buffer, &ranges[0].size);
+            ranges[0].size = (i32)buffer_get_size(app, buffer);
             ranges[0].mid_start = word_start;
             ranges[0].mid_size = (i32)size;
             
             Buffer_ID buffer_it = 0;
             
             i32 j = 1;
-            for (get_buffer_next(app, 0, AccessAll, &buffer_it);
+            for (buffer_it = get_buffer_next(app, 0, AccessAll);
                  buffer_it != 0;
-                 get_buffer_next(app, buffer_it, AccessAll, &buffer_it)){
+                 buffer_it = get_buffer_next(app, buffer_it, AccessAll)){
                 if (buffer != buffer_it){
                     ranges[j].type = SearchRange_FrontToBack;
                     ranges[j].flags = SearchFlag_MatchWordPrefix;
                     ranges[j].buffer = buffer_it;
                     ranges[j].start = 0;
-                    buffer_get_size(app, buffer_it, &ranges[j].size);
+                    ranges[j].size = (i32)buffer_get_size(app, buffer_it);
                     ++j;
                 }
             }

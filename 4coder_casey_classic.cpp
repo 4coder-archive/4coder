@@ -457,7 +457,7 @@ internal void
 DeleteAfterMotion(struct Application_Links *app, Custom_Command_Function *motion)
 {
     unsigned int access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view_DEP(app, access);
     
     int pos2 = view.cursor.pos;
     motion(app);
@@ -501,7 +501,7 @@ CUSTOM_COMMAND_SIG(casey_delete_token_right)
 CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 {
     unsigned int access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view_DEP(app, access);
     
     int pos2 = view.cursor.pos;
     exec_command(app, seek_end_of_line);
@@ -567,7 +567,7 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
     SanitizeSlashes(FileName);
     
     unsigned int access = AccessAll;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view_DEP(app, access);
     Buffer_Summary buffer = get_buffer_by_name(app, FileName.str, FileName.size, access);
     
     Result.view = view;
@@ -663,7 +663,7 @@ CUSTOM_COMMAND_SIG(casey_build_search)
 CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
 {
     unsigned int access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view_DEP(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
@@ -719,11 +719,11 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
 CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 {
     unsigned int access = AccessProtected;
-    View_Summary old_view = get_active_view(app, access);
+    View_Summary old_view = get_active_view_DEP(app, access);
     Buffer_Summary buffer = get_buffer(app, old_view.buffer_id, access);
     
     exec_command(app, change_active_panel);
-    View_Summary new_view = get_active_view(app, AccessAll);
+    View_Summary new_view = get_active_view_DEP(app, AccessAll);
     view_set_buffer(app, &new_view, buffer.buffer_id, 0);
     
     //    exec_command(app, casey_find_corresponding_file);
@@ -771,7 +771,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     if(append(&command, "build.bat"))
     {
         unsigned int access = AccessAll;
-        View_Summary view = get_active_view(app, access);
+        View_Summary view = get_active_view_DEP(app, access);
         exec_system_command(app, &view,
                             buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
                             dir.str, dir.size,
@@ -996,7 +996,7 @@ ParseCalc(tokenizer *Tokenizer)
 CUSTOM_COMMAND_SIG(casey_quick_calc)
 {
     unsigned int access = AccessOpen;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view_DEP(app, access);
     
     Range range = get_view_range(&view);
     
@@ -1130,7 +1130,7 @@ IsCodeLegal(int32_t Codepoint)
 
 CUSTOM_COMMAND_SIG(casey_force_codelegal_characters)
 {
-    View_Summary view = get_active_view(app, AccessOpen);
+    View_Summary view = get_active_view_DEP(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
     
     int32_t line_count = buffer.line_count;
@@ -1428,7 +1428,7 @@ casey_list_all_functions(Application_Links *app, Partition *part, Buffer_Summary
         
         buffer_replace_range(app, decls_buffer, size, size, str, part_size);
         
-        View_Summary view = get_active_view(app, AccessAll);
+        View_Summary view = get_active_view_DEP(app, AccessAll);
         view_set_buffer(app, &view, decls_buffer->buffer_id, 0);
         
         lock_jump_buffer(decls_buffer->buffer_name, decls_buffer->buffer_name_len);
@@ -1455,7 +1455,7 @@ ClearDeclsBuffer(Application_Links *app, Buffer_Summary *decls_buffer)
 
 CUSTOM_COMMAND_SIG(casey_list_all_functions_current_buffer){
     uint32_t access = AccessProtected;
-    View_Summary view = get_active_view(app, access);
+    View_Summary view = get_active_view_DEP(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     Buffer_Summary decls_buffer;

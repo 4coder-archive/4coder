@@ -7,8 +7,7 @@
 static b32
 post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buffer_ID buffer, i32 first, i32 one_past_last){
     b32 success = false;
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer);
     if (buffer != 0 && 0 <= first && first < one_past_last && one_past_last <= buffer_size){
         Scratch_Block scratch(app);
         Range range = make_range(first, one_past_last);
@@ -24,10 +23,8 @@ post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buff
 CUSTOM_COMMAND_SIG(copy)
 CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clipboard.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     Range range = get_view_range(app, view);
     post_buffer_range_to_clipboard(app, 0, buffer, range.min, range.max);
 }
@@ -35,10 +32,8 @@ CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clip
 CUSTOM_COMMAND_SIG(cut)
 CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipboard.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     Range range = get_view_range(app, view);
     if (post_buffer_range_to_clipboard(app, 0, buffer, range.min, range.max)){
         buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
@@ -48,11 +43,9 @@ CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipb
 CUSTOM_COMMAND_SIG(paste)
 CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
 {
-    i32 count = 0;
-    clipboard_count(app, 0, &count);
+    i32 count = clipboard_count(app, 0);
     if (count > 0){
-        View_ID view = 0;
-        get_active_view(app, AccessOpen, &view);
+        View_ID view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view);
         
         Managed_Scope scope = 0;
@@ -63,14 +56,11 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         
         Scratch_Block scratch(app);
         
-        String_Const_u8 string = {};
-        clipboard_index(app, 0, paste_index, scratch, &string);
+        String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
         if (string.size > 0){
-            Buffer_ID buffer = 0;
-            view_get_buffer(app, view, AccessOpen, &buffer);
+            Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
             
-            i32 pos = 0;
-            view_get_cursor_pos(app, view, &pos);
+            i32 pos = view_get_cursor_pos(app, view);
             buffer_replace_range(app, buffer, make_range(pos), string);
             view_set_mark(app, view, seek_pos(pos));
             view_set_cursor(app, view, seek_pos(pos + (i32)string.size), true);
@@ -89,11 +79,9 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
 {
     Scratch_Block scratch(app);
     
-    i32 count = 0;
-    clipboard_count(app, 0, &count);
+    i32 count = clipboard_count(app, 0);
     if (count > 0){
-        View_ID view = 0;
-        get_active_view(app, AccessOpen, &view);
+        View_ID view = get_active_view(app, AccessOpen);
         Managed_Scope scope = 0;
         view_get_managed_scope(app, view, &scope);
         no_mark_snap_to_cursor(app, scope);
@@ -107,11 +95,9 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
             i32 paste_index = (i32)prev_paste_index + 1;
             managed_variable_set(app, scope, view_paste_index_loc, paste_index);
             
-            String_Const_u8 string = {};
-            clipboard_index(app, 0, paste_index, scratch, &string);
+            String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
             
-            Buffer_ID buffer = 0;
-            view_get_buffer(app, view, AccessOpen, &buffer);
+            Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
             
             Range range = get_view_range(app, view);
             i32 pos = range.min;

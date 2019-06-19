@@ -60,8 +60,8 @@ parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_ID buffe
                     Buffer_ID jump_buffer = {};
                     if (open_file(app, &jump_buffer, parsed_jump.location.file, false, true)){
                         if (buffer_exists(app, jump_buffer)){
-                            Partial_Cursor cursor = {};
-                            if (buffer_compute_cursor(app, jump_buffer, seek_line_char(parsed_jump.location.line, parsed_jump.location.column), &cursor)){
+                            Partial_Cursor cursor = buffer_compute_cursor(app, jump_buffer, seek_jump(parsed_jump));
+                            if (cursor.line > 0){
                                 out_buffer_id = jump_buffer;
                                 out_pos = cursor.pos;
                                 output_jump = true;
@@ -128,7 +128,7 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     Sticky_Jump_Stored *stored = push_array(scratch, Sticky_Jump_Stored, jumps.count);
     
     Managed_Scope scope_array[2] = {};
-    buffer_get_managed_scope(app, buffer, &scope_array[0]);
+    scope_array[0] = buffer_get_managed_scope(app, buffer);
     
     for (i32 i = 0; i < scoped_buffer_ranges.count; i += 1){
         Range buffer_range_indices = scoped_buffer_ranges.ranges[i];
@@ -166,7 +166,7 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
             }
         }
         
-        buffer_get_managed_scope(app, target_buffer_id, &scope_array[1]);
+        scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
         Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         Managed_Object marker_handle = alloc_buffer_markers_on_buffer(app, target_buffer_id, total_jump_count, &scope);
         managed_object_store_data(app, marker_handle, 0, total_jump_count, markers);
@@ -191,7 +191,7 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     
     list->jump_array = stored_jump_array;
     list->jump_count = jumps.count;
-    buffer_get_size(app, buffer, &list->previous_size);
+    list->previous_size = (i32)buffer_get_size(app, buffer);
     list->buffer_id = buffer;
     
     end_temp(temp);
@@ -233,8 +233,7 @@ static Marker_List*
 get_or_make_list_for_buffer(Application_Links *app, Heap *heap, Buffer_ID buffer_id){
     Marker_List *result = get_marker_list_for_buffer(buffer_id);
     if (result != 0){
-        i32 buffer_size = 0;
-        buffer_get_size(app, buffer_id, &buffer_size);
+        i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
         // TODO(allen):  // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): When buffers get an "edit sequence number" use that instead.
         if (result->previous_size != buffer_size){
             delete_marker_list(result);
@@ -289,8 +288,8 @@ get_jump_from_list(Application_Links *app, Marker_List *list, i32 index, ID_Pos_
         Buffer_ID target_buffer_id = stored.jump_buffer_id;
         
         Managed_Scope scope_array[2] = {};
-        buffer_get_managed_scope(app, list->buffer_id, &scope_array[0]);
-        buffer_get_managed_scope(app, target_buffer_id, &scope_array[1]);
+        scope_array[0] = buffer_get_managed_scope(app, list->buffer_id);
+        scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
         Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         
         sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
@@ -368,14 +367,11 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 {
     Heap *heap = &global_heap;
     
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     
@@ -386,8 +382,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
         if (get_jump_from_list(app, list, list_index, &location)){
             if (get_jump_buffer(app, &buffer, &location)){
                 change_active_panel(app);
-                View_ID target_view = 0;
-                get_active_view(app, AccessAll, &target_view);
+                View_ID target_view = get_active_view(app, AccessAll);
                 switch_to_existing_view(app, target_view, buffer);
                 jump_to_location(app, target_view, buffer, location);
             }
@@ -400,15 +395,12 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 {
     Heap *heap = &global_heap;
     
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     
@@ -428,11 +420,10 @@ static void
 goto_jump_in_order(Application_Links *app, Marker_List *list, View_ID jump_view, ID_Pos_Jump_Location location){
     Buffer_ID buffer = {};
     if (get_jump_buffer(app, &buffer, &location)){
-        View_ID target_view = 0;
-        get_active_view(app, AccessAll, &target_view);
+        View_ID target_view = get_active_view(app, AccessAll);
         if (target_view == jump_view){
             change_active_panel(app);
-            get_active_view(app, AccessAll, &target_view);
+            target_view = get_active_view(app, AccessAll);
         }
         switch_to_existing_view(app, target_view, buffer);
         jump_to_location(app, target_view, buffer, location);
@@ -489,12 +480,10 @@ get_locked_jump_state(Application_Links *app, Heap *heap){
     Locked_Jump_State result = {};
     result.view = get_view_for_locked_jump_buffer(app);
     if (result.view != 0){
-        Buffer_ID buffer = 0;
-        view_get_buffer(app, result.view, AccessAll, &buffer);
+        Buffer_ID buffer = view_get_buffer(app, result.view, AccessAll);
         result.list = get_or_make_list_for_buffer(app, heap, buffer);
         
-        i32 cursor_position = 0;
-        view_get_cursor_pos(app, result.view, &cursor_position);
+        i32 cursor_position = view_get_cursor_pos(app, result.view);
         Full_Cursor cursor = {};
         view_compute_cursor(app, result.view, seek_pos(cursor_position), &cursor);
         result.list_index = get_index_nearest_from_list(app, result.list, cursor.line);
@@ -509,8 +498,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     
     Locked_Jump_State jump_state = get_locked_jump_state(app, heap);
     if (jump_state.view != 0){
-        i32 cursor_position = 0;
-        view_get_cursor_pos(app, jump_state.view, &cursor_position);
+        i32 cursor_position = view_get_cursor_pos(app, jump_state.view);
         Full_Cursor cursor = {};
         view_compute_cursor(app, jump_state.view, seek_pos(cursor_position), &cursor);
         i32 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
@@ -541,8 +529,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     
     Locked_Jump_State jump_state = get_locked_jump_state(app, heap);
     if (jump_state.view != 0){
-        i32 cursor_position = 0;
-        view_get_cursor_pos(app, jump_state.view, &cursor_position);
+        i32 cursor_position = view_get_cursor_pos(app, jump_state.view);
         Full_Cursor cursor = {};
         view_compute_cursor(app, jump_state.view, seek_pos(cursor_position), &cursor);
         i32 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
@@ -609,30 +596,34 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(newline_or_goto_position_sticky)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    if (view_get_buffer(app, view, AccessOpen, &buffer)){
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    if (buffer != 0){
         write_character(app);
     }
-    else if (view_get_buffer(app, view, AccessProtected, &buffer)){
-        goto_jump_at_cursor_sticky(app);
-        lock_jump_buffer(app, buffer);
+    else{
+        buffer = view_get_buffer(app, view, AccessProtected);
+        if (buffer != 0){
+            goto_jump_at_cursor_sticky(app);
+            lock_jump_buffer(app, buffer);
+        }
     }
 }
 
 CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel_sticky)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    if (view_get_buffer(app, view, AccessOpen, &buffer)){
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    if (buffer != 0){
         write_character(app);
     }
-    else if (view_get_buffer(app, view, AccessProtected, &buffer)){
-        goto_jump_at_cursor_same_panel_sticky(app);
-        lock_jump_buffer(app, buffer);
+    else{
+        buffer = view_get_buffer(app, view, AccessProtected);
+        if (buffer != 0){
+            goto_jump_at_cursor_same_panel_sticky(app);
+            lock_jump_buffer(app, buffer);
+        }
     }
 }
 

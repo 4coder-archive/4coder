@@ -8,8 +8,7 @@ such as open file, switch buffer, or kill buffer.
 CUSTOM_COMMAND_SIG(lister__quit)
 CUSTOM_DOC("A lister mode command that quits the list without executing any actions.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
 }
 
@@ -17,8 +16,7 @@ CUSTOM_COMMAND_SIG(lister__activate)
 CUSTOM_DOC("A lister mode command that activates the list's action on the highlighted item.")
 {
     Heap *heap = &global_heap;
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         void *user_data = 0;
@@ -32,8 +30,7 @@ CUSTOM_DOC("A lister mode command that activates the list's action on the highli
 CUSTOM_COMMAND_SIG(lister__write_character)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's write character handler.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.write_character != 0){
         state->lister.data.handlers.write_character(app);
@@ -43,8 +40,7 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's write characte
 CUSTOM_COMMAND_SIG(lister__backspace_text_field)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's backspace text field handler.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.backspace != 0){
         state->lister.data.handlers.backspace(app);
@@ -54,8 +50,7 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's backspace text
 CUSTOM_COMMAND_SIG(lister__move_up)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate up handler.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.navigate_up != 0){
         state->lister.data.handlers.navigate_up(app);
@@ -65,8 +60,7 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate up ha
 CUSTOM_COMMAND_SIG(lister__move_down)
 CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate down handler.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->lister.data.handlers.navigate_down != 0){
         state->lister.data.handlers.navigate_down(app);
@@ -76,8 +70,7 @@ CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate down 
 CUSTOM_COMMAND_SIG(lister__wheel_scroll)
 CUSTOM_DOC("A lister mode command that scrolls the list in response to the mouse wheel.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     GUI_Scroll_Vars scroll = {};
     view_get_scroll_vars(app, view, &scroll);
     Mouse_State mouse = get_mouse_state(app);
@@ -92,8 +85,7 @@ CUSTOM_DOC("A lister mode command that scrolls the list in response to the mouse
 CUSTOM_COMMAND_SIG(lister__mouse_press)
 CUSTOM_DOC("A lister mode command that beings a click interaction with a list item under the mouse.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         UI_Item clicked = lister_get_clicked_item(app, view);
@@ -105,8 +97,7 @@ CUSTOM_COMMAND_SIG(lister__mouse_release)
 CUSTOM_DOC("A lister mode command that ends a click interaction with a list item under the mouse, possibly activating it.")
 {
     Heap *heap = &global_heap;
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized && state->hot_user_data != 0){
         UI_Item clicked = lister_get_clicked_item(app, view);
@@ -120,8 +111,7 @@ CUSTOM_DOC("A lister mode command that ends a click interaction with a list item
 CUSTOM_COMMAND_SIG(lister__repaint)
 CUSTOM_DOC("A lister mode command that updates the lists UI data.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         lister_update_ui(app, view, state);
@@ -131,8 +121,7 @@ CUSTOM_DOC("A lister mode command that updates the lists UI data.")
 CUSTOM_COMMAND_SIG(lister__write_character__default)
 CUSTOM_DOC("A lister mode command that inserts a new character to the text field.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         User_Input in = get_command_input(app);
@@ -151,8 +140,7 @@ CUSTOM_DOC("A lister mode command that inserts a new character to the text field
 CUSTOM_COMMAND_SIG(lister__backspace_text_field__default)
 CUSTOM_DOC("A lister mode command that backspaces one character from the text field.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         state->lister.data.text_field.string = backspace_utf8(state->lister.data.text_field.string);
@@ -166,8 +154,7 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
 CUSTOM_COMMAND_SIG(lister__move_up__default)
 CUSTOM_DOC("A lister mode command that moves the highlighted item one up in the list.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         state->item_index = state->item_index - 1;
@@ -182,8 +169,7 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one up in the 
 CUSTOM_COMMAND_SIG(lister__move_down__default)
 CUSTOM_DOC("A lister mode command that moves the highlighted item one down in the list.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         state->item_index = state->item_index + 1;
@@ -198,8 +184,7 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one down in th
 CUSTOM_COMMAND_SIG(lister__write_character__file_path)
 CUSTOM_DOC("A lister mode command that inserts a character into the text field of a file system list.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         User_Input in = get_command_input(app);
@@ -224,8 +209,7 @@ CUSTOM_DOC("A lister mode command that inserts a character into the text field o
 CUSTOM_COMMAND_SIG(lister__backspace_text_field__file_path)
 CUSTOM_DOC("A lister mode command that backspaces one character from the text field of a file system list.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         if (state->lister.data.text_field.size > 0){
@@ -267,8 +251,7 @@ CUSTOM_COMMAND_SIG(lister__write_character__fixed_list)
 CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill list.")
 {
     Heap *heap = &global_heap;
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         User_Input in = get_command_input(app);
@@ -467,8 +450,7 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
 
 static void
 generate_all_buffers_list__output_buffer(Application_Links *app, Lister *lister, Buffer_ID buffer){
-    Dirty_State dirty = 0;
-    buffer_get_dirty_state(app, buffer, &dirty);
+    Dirty_State dirty = buffer_get_dirty_state(app, buffer);
     String_Const_u8 status = {};
     switch (dirty){
         case DirtyState_UnsavedChanges:  status = string_u8_litexpr("*"); break;
@@ -491,12 +473,10 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     
     // List currently viewed buffers
     {
-        View_ID view = 0;
-        for (get_view_next(app, 0, AccessAll, &view);
+        for (View_ID view = get_view_next(app, 0, AccessAll);
              view != 0;
-             get_view_next(app, view, AccessAll, &view)){
-            Buffer_ID new_buffer_id = 0;
-            view_get_buffer(app, view, AccessAll, &new_buffer_id);
+             view = get_view_next(app, view, AccessAll)){
+            Buffer_ID new_buffer_id = view_get_buffer(app, view, AccessAll);
             for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
                 if (new_buffer_id == buffers_currently_being_viewed[i]){
                     goto skip0;
@@ -509,10 +489,9 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     
     // Regular Buffers
     {
-        Buffer_ID buffer = 0;
-        for (get_buffer_next(app, 0, AccessAll, &buffer);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
+             buffer = get_buffer_next(app, buffer, AccessAll)){
             for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
                 if (buffer == buffers_currently_being_viewed[i]){
                     goto skip1;
@@ -526,10 +505,9 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     }
     // Buffers Starting with *
     {
-        Buffer_ID buffer = 0;
-        for (get_buffer_next(app, 0, AccessAll, &buffer);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
+             buffer = get_buffer_next(app, buffer, AccessAll)){
             for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
                 if (buffer == buffers_currently_being_viewed[i]){
                     goto skip2;
@@ -596,14 +574,13 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                 string_list_push_overlap(&lister->arena, &list, '/',
                                          SCu8(info->filename, info->filename_len));
                 String_Const_u8 full_file_path = string_list_flatten(&lister->arena, list);
-                get_buffer_by_file_name(app, full_file_path, AccessAll, &buffer);
+                buffer = get_buffer_by_file_name(app, full_file_path, AccessAll);
                 end_temp(path_temp);
             }
             
             if (buffer != 0){
                 is_loaded = "LOADED";
-                Dirty_State dirty = 0;
-                buffer_get_dirty_state(app, buffer, &dirty);
+                Dirty_State dirty = buffer_get_dirty_state(app, buffer);
                 switch (dirty){
                     case DirtyState_UnsavedChanges:  status_flag = " *"; break;
                     case DirtyState_UnloadedChanges: status_flag = " !"; break;
@@ -657,8 +634,7 @@ activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_S
         
         case SureToKill_Yes:
         {
-            Buffer_Kill_Result ignore = 0;
-            buffer_kill(app, buffer_id, BufferKill_AlwaysKill, &ignore);
+            buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
         }break;
         
         case SureToKill_Save:
@@ -667,7 +643,7 @@ activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_S
             Temp_Memory temp = begin_temp(scratch);
             String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
             if (buffer_save(app, buffer_id, file_name, BufferSave_IgnoreDirtyFlag)){
-                buffer_kill(app, buffer_id, BufferKill_AlwaysKill, 0);
+                buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
             }
             else{
                 String_Const_u8 str = push_u8_stringf(scratch, "Did not close '%.*s' because it did not successfully save.",
@@ -750,8 +726,7 @@ activate_switch_buffer(Application_Links *app, Heap *heap,
 CUSTOM_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     begin_integrated_lister__buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, view);
 }
@@ -762,16 +737,15 @@ activate_kill_buffer(Application_Links *app, Heap *heap,
                      String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     lister_default(app, heap, view, state, ListerActivation_Finished);
     if (user_data != 0){
-        Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
-        kill_buffer(app, buffer_identifier(buffer_id), view, 0);
+        Buffer_ID buffer = (Buffer_ID)(PtrAsInt(user_data));
+        try_buffer_kill(app, buffer, view, 0);
     }
 }
 
 CUSTOM_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     begin_integrated_lister__buffer_list(app, "Kill:", activate_kill_buffer, 0, 0, view);
 }
@@ -801,8 +775,7 @@ activate_open_or_new__generic(Application_Links *app, View_ID view,
             result = ListerActivation_ContinueAndRefresh;
         }
         else{
-            Buffer_ID buffer = 0;
-            create_buffer(app, full_file_name, flags, &buffer);
+            Buffer_ID buffer = create_buffer(app, full_file_name, flags);
             if (buffer != 0){
                 view_set_buffer(app, view, buffer, SetBuffer_KeepOriginalGUI);
             }
@@ -845,8 +818,7 @@ activate_open_or_new(Application_Links *app, Heap *heap,
 CUSTOM_COMMAND_SIG(interactive_open_or_new)
 CUSTOM_DOC("Interactively open a file out of the file system.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     begin_integrated_lister__file_system_list(app, "Open:", activate_open_or_new, 0, 0, view);
 }
@@ -885,8 +857,7 @@ activate_new(Application_Links *app, Heap *heap,
 CUSTOM_COMMAND_SIG(interactive_new)
 CUSTOM_DOC("Interactively creates a new file.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     begin_integrated_lister__file_system_list(app, "New:", activate_new, 0, 0, view);
 }
@@ -919,8 +890,7 @@ activate_open(Application_Links *app, Heap *heap,
 CUSTOM_COMMAND_SIG(interactive_open)
 CUSTOM_DOC("Interactively opens a file.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     begin_integrated_lister__file_system_list(app, "Open:", activate_open, 0, 0, view);
 }
@@ -940,8 +910,7 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
     Partition *scratch = &global_part;
     Temp_Memory temp = begin_temp_memory(scratch);
     
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     i32 theme_count = get_theme_count(app);
     Lister_UI_Option *options = push_array(scratch, Lister_UI_Option, theme_count);
@@ -982,8 +951,7 @@ launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 comma
     }
     
     Arena *scratch = context_get_arena(app);
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     Temp_Memory temp = begin_temp(scratch);
     Lister_Option *options = push_array(scratch, Lister_Option, command_id_count);

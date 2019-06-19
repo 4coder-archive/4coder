@@ -24,12 +24,9 @@ begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, 
 
 static Buffer_Insertion
 begin_buffer_insertion(Application_Links *app){
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
-    i32 cursor_pos = 0;
-    view_get_cursor_pos(app, view, &cursor_pos);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    i32 cursor_pos = view_get_cursor_pos(app, view);
     Buffer_Insertion result = begin_buffer_insertion_at(app, buffer, cursor_pos);
     return(result);
 }

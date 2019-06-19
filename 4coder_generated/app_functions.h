@@ -1,76 +1,72 @@
 struct Application_Links;
 #define GLOBAL_SET_SETTING_SIG(n) b32 n(Application_Links *app, Global_Setting_ID setting, i32 value)
 #define GLOBAL_SET_MAPPING_SIG(n) b32 n(Application_Links *app, void *data, i32 size)
-#define GLOBAL_GET_SCREEN_RECTANGLE_SIG(n) b32 n(Application_Links *app, Rect_f32 *rect_out)
+#define GLOBAL_GET_SCREEN_RECTANGLE_SIG(n) Rect_f32 n(Application_Links *app)
 #define CONTEXT_GET_ARENA_SIG(n) Arena* n(Application_Links *app)
 #define CONTEXT_GET_BASE_ALLOCATOR_SIG(n) Base_Allocator* n(Application_Links *app)
 #define CREATE_CHILD_PROCESS_SIG(n) b32 n(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out)
 #define CHILD_PROCESS_SET_TARGET_BUFFER_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags)
-#define BUFFER_GET_ATTACHED_CHILD_PROCESS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Child_Process_ID *child_process_id_out)
-#define CHILD_PROCESS_GET_ATTACHED_BUFFER_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID *buffer_id_out)
-#define CHILD_PROCESS_GET_STATE_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Process_State *process_state_out)
+#define BUFFER_GET_ATTACHED_CHILD_PROCESS_SIG(n) Child_Process_ID n(Application_Links *app, Buffer_ID buffer_id)
+#define CHILD_PROCESS_GET_ATTACHED_BUFFER_SIG(n) Buffer_ID n(Application_Links *app, Child_Process_ID child_process_id)
+#define CHILD_PROCESS_GET_STATE_SIG(n) Process_State n(Application_Links *app, Child_Process_ID child_process_id)
 #define CLIPBOARD_POST_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
-#define CLIPBOARD_COUNT_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, i32 *count_out)
-#define CLIPBOARD_INDEX_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, i32 item_index, Arena *out, String_Const_u8 *string_out)
+#define CLIPBOARD_COUNT_SIG(n) i32 n(Application_Links *app, i32 clipboard_id)
+#define PUSH_CLIPBOARD_INDEX_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index)
 #define CREATE_PARSE_CONTEXT_SIG(n) Parse_Context_ID n(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count)
 #define GET_BUFFER_COUNT_SIG(n) i32 n(Application_Links *app)
-#define GET_BUFFER_NEXT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out)
-#define GET_BUFFER_BY_NAME_SIG(n) b32 n(Application_Links *app, String_Const_u8 name, Access_Flag access, Buffer_ID *buffer_id_out)
-#define GET_BUFFER_BY_FILE_NAME_SIG(n) b32 n(Application_Links *app, String_Const_u8 file_name, Access_Flag access, Buffer_ID *buffer_id_out)
+#define GET_BUFFER_NEXT_SIG(n) Buffer_ID n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
+#define GET_BUFFER_BY_NAME_SIG(n) Buffer_ID n(Application_Links *app, String_Const_u8 name, Access_Flag access)
+#define GET_BUFFER_BY_FILE_NAME_SIG(n) Buffer_ID n(Application_Links *app, String_Const_u8 file_name, Access_Flag access)
 #define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string)
 #define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count)
-#define BUFFER_SEEK_STRING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos, i32 *pos_out, b32 *case_sensitive_out)
+#define BUFFER_SEEK_STRING_SIG(n) String_Match n(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos)
 #define BUFFER_SEEK_CHARACTER_CLASS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out)
-#define BUFFER_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out)
+#define BUFFER_COMPUTE_CURSOR_SIG(n) Partial_Cursor n(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek)
 #define BUFFER_EXISTS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
-#define BUFFER_GET_ACCESS_FLAGS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out)
-#define BUFFER_GET_SIZE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 *size_out)
-#define BUFFER_GET_LINE_COUNT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 *line_count_out)
-#define BUFFER_GET_BASE_BUFFER_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out)
-#define BUFFER_GET_UNIQUE_BUFFER_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out)
-#define BUFFER_GET_FILE_NAME_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out)
-#define BUFFER_GET_DIRTY_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out)
-#define BUFFER_DIRECTLY_SET_DIRTY_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state)
+#define BUFFER_GET_ACCESS_FLAGS_SIG(n) Access_Flag n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_GET_SIZE_SIG(n) u64 n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_GET_LINE_COUNT_SIG(n) u64 n(Application_Links *app, Buffer_ID buffer_id)
+#define PUSH_BUFFER_BASE_NAME_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
+#define PUSH_BUFFER_UNIQUE_NAME_SIG(n) String_Const_u8 n(Application_Links *app, Arena *out, Buffer_ID buffer_id)
+#define PUSH_BUFFER_FILE_NAME_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
+#define BUFFER_GET_DIRTY_STATE_SIG(n) Dirty_State n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_SET_DIRTY_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state)
 #define BUFFER_TOKENS_ARE_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_GET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)
 #define BUFFER_SET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
-#define BUFFER_GET_MANAGED_SCOPE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out)
-#define BUFFER_TOKEN_COUNT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 *count_out)
-#define BUFFER_READ_TOKENS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start_token, i32 end_token, Cpp_Token *tokens_out)
-#define BUFFER_GET_TOKEN_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out)
-#define BUFFER_GET_TOKEN_INDEX_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 pos, Cpp_Get_Token_Result *get_result)
+#define BUFFER_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_GET_TOKEN_ARRAY_SIG(n) Cpp_Token_Array n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_SEND_END_SIGNAL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
-#define CREATE_BUFFER_SIG(n) b32 n(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out)
-#define BUFFER_SAVE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, u32 flags)
-#define BUFFER_KILL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result_out)
-#define BUFFER_REOPEN_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out)
-#define BUFFER_GET_FILE_ATTRIBUTES_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out)
-#define GET_VIEW_NEXT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
-#define GET_VIEW_PREV_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out)
-#define GET_ACTIVE_VIEW_SIG(n) b32 n(Application_Links *app, Access_Flag access, View_ID *view_id_out)
-#define GET_ACTIVE_PANEL_SIG(n) b32 n(Application_Links *app, Panel_ID *panel_id_out)
+#define CREATE_BUFFER_SIG(n) Buffer_ID n(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags)
+#define BUFFER_SAVE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, Buffer_Save_Flag flags)
+#define BUFFER_KILL_SIG(n) Buffer_Kill_Result n(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
+#define BUFFER_REOPEN_SIG(n) Buffer_Reopen_Result n(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags)
+#define BUFFER_GET_FILE_ATTRIBUTES_SIG(n) File_Attributes n(Application_Links *app, Buffer_ID buffer_id)
+#define GET_VIEW_NEXT_SIG(n) View_ID n(Application_Links *app, View_ID view_id, Access_Flag access)
+#define GET_VIEW_PREV_SIG(n) View_ID n(Application_Links *app, View_ID view_id, Access_Flag access)
+#define GET_ACTIVE_VIEW_SIG(n) View_ID n(Application_Links *app, Access_Flag access)
+#define GET_ACTIVE_PANEL_SIG(n) Panel_ID n(Application_Links *app)
 #define VIEW_EXISTS_SIG(n) b32 n(Application_Links *app, View_ID view_id)
-#define VIEW_GET_BUFFER_SIG(n) b32 n(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out)
-#define VIEW_GET_CURSOR_POS_SIG(n) b32 n(Application_Links *app, View_ID view_id, i32 *pos_out)
-#define VIEW_GET_MARK_POS_SIG(n) b32 n(Application_Links *app, View_ID view_id, i32 *pos_out)
-#define VIEW_GET_PREFERRED_X_SIG(n) b32 n(Application_Links *app, View_ID view_id, f32 *preferred_x_out)
-#define VIEW_GET_SCREEN_RECT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_f32 *rect_out)
-#define VIEW_GET_PANEL_SIG(n) b32 n(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out)
-#define PANEL_GET_VIEW_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out)
+#define VIEW_GET_BUFFER_SIG(n) Buffer_ID n(Application_Links *app, View_ID view_id, Access_Flag access)
+#define VIEW_GET_CURSOR_POS_SIG(n) i32 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_MARK_POS_SIG(n) i32 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_PREFERRED_X_SIG(n) f32 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_SCREEN_RECT_SIG(n) Rect_f32 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_PANEL_SIG(n) Panel_ID n(Application_Links *app, View_ID view_id)
+#define PANEL_GET_VIEW_SIG(n) View_ID n(Application_Links *app, Panel_ID panel_id)
 #define PANEL_IS_SPLIT_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id)
 #define PANEL_IS_LEAF_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id)
 #define PANEL_SPLIT_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation)
 #define PANEL_SET_SPLIT_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t)
 #define PANEL_SWAP_CHILDREN_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t)
-#define PANEL_GET_PARENT_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
-#define PANEL_GET_CHILD_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out)
-#define PANEL_GET_MAX_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out)
-#define PANEL_GET_MARGIN_SIG(n) b32 n(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out)
+#define PANEL_GET_PARENT_SIG(n) Panel_ID n(Application_Links *app, Panel_ID panel_id)
+#define PANEL_GET_CHILD_SIG(n) Panel_ID n(Application_Links *app, Panel_ID panel_id, Panel_Child which_child)
+#define PANEL_GET_MAX_SIG(n) Panel_ID n(Application_Links *app, Panel_ID panel_id)
+#define PANEL_GET_MARGIN_SIG(n) Rect_i32 n(Application_Links *app, Panel_ID panel_id)
 #define VIEW_CLOSE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
-#define VIEW_GET_REGION_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_i32 *region_out)
-#define VIEW_GET_BUFFER_REGION_SIG(n) b32 n(Application_Links *app, View_ID view_id, Rect_i32 *region_out)
+#define VIEW_GET_BUFFER_REGION_SIG(n) Rect_f32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SCROLL_VARS_SIG(n) b32 n(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out)
 #define VIEW_SET_ACTIVE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out)
@@ -196,7 +192,7 @@ typedef CHILD_PROCESS_GET_ATTACHED_BUFFER_SIG(Child_Process_Get_Attached_Buffer_
 typedef CHILD_PROCESS_GET_STATE_SIG(Child_Process_Get_State_Function);
 typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
 typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
-typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
+typedef PUSH_CLIPBOARD_INDEX_SIG(Push_Clipboard_Index_Function);
 typedef CREATE_PARSE_CONTEXT_SIG(Create_Parse_Context_Function);
 typedef GET_BUFFER_COUNT_SIG(Get_Buffer_Count_Function);
 typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
@@ -213,19 +209,16 @@ typedef BUFFER_READY_SIG(Buffer_Ready_Function);
 typedef BUFFER_GET_ACCESS_FLAGS_SIG(Buffer_Get_Access_Flags_Function);
 typedef BUFFER_GET_SIZE_SIG(Buffer_Get_Size_Function);
 typedef BUFFER_GET_LINE_COUNT_SIG(Buffer_Get_Line_Count_Function);
-typedef BUFFER_GET_BASE_BUFFER_NAME_SIG(Buffer_Get_Base_Buffer_Name_Function);
-typedef BUFFER_GET_UNIQUE_BUFFER_NAME_SIG(Buffer_Get_Unique_Buffer_Name_Function);
-typedef BUFFER_GET_FILE_NAME_SIG(Buffer_Get_File_Name_Function);
+typedef PUSH_BUFFER_BASE_NAME_SIG(Push_Buffer_Base_Name_Function);
+typedef PUSH_BUFFER_UNIQUE_NAME_SIG(Push_Buffer_Unique_Name_Function);
+typedef PUSH_BUFFER_FILE_NAME_SIG(Push_Buffer_File_Name_Function);
 typedef BUFFER_GET_DIRTY_STATE_SIG(Buffer_Get_Dirty_State_Function);
-typedef BUFFER_DIRECTLY_SET_DIRTY_STATE_SIG(Buffer_Directly_Set_Dirty_State_Function);
+typedef BUFFER_SET_DIRTY_STATE_SIG(Buffer_Set_Dirty_State_Function);
 typedef BUFFER_TOKENS_ARE_READY_SIG(Buffer_Tokens_Are_Ready_Function);
 typedef BUFFER_GET_SETTING_SIG(Buffer_Get_Setting_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
 typedef BUFFER_GET_MANAGED_SCOPE_SIG(Buffer_Get_Managed_Scope_Function);
-typedef BUFFER_TOKEN_COUNT_SIG(Buffer_Token_Count_Function);
-typedef BUFFER_READ_TOKENS_SIG(Buffer_Read_Tokens_Function);
-typedef BUFFER_GET_TOKEN_RANGE_SIG(Buffer_Get_Token_Range_Function);
-typedef BUFFER_GET_TOKEN_INDEX_SIG(Buffer_Get_Token_Index_Function);
+typedef BUFFER_GET_TOKEN_ARRAY_SIG(Buffer_Get_Token_Array_Function);
 typedef BUFFER_SEND_END_SIGNAL_SIG(Buffer_Send_End_Signal_Function);
 typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
 typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
@@ -254,7 +247,6 @@ typedef PANEL_GET_CHILD_SIG(Panel_Get_Child_Function);
 typedef PANEL_GET_MAX_SIG(Panel_Get_Max_Function);
 typedef PANEL_GET_MARGIN_SIG(Panel_Get_Margin_Function);
 typedef VIEW_CLOSE_SIG(View_Close_Function);
-typedef VIEW_GET_REGION_SIG(View_Get_Region_Function);
 typedef VIEW_GET_BUFFER_REGION_SIG(View_Get_Buffer_Region_Function);
 typedef VIEW_GET_SCROLL_VARS_SIG(View_Get_Scroll_Vars_Function);
 typedef VIEW_SET_ACTIVE_SIG(View_Set_Active_Function);
@@ -383,7 +375,7 @@ Child_Process_Get_Attached_Buffer_Function *child_process_get_attached_buffer;
 Child_Process_Get_State_Function *child_process_get_state;
 Clipboard_Post_Function *clipboard_post;
 Clipboard_Count_Function *clipboard_count;
-Clipboard_Index_Function *clipboard_index;
+Push_Clipboard_Index_Function *push_clipboard_index;
 Create_Parse_Context_Function *create_parse_context;
 Get_Buffer_Count_Function *get_buffer_count;
 Get_Buffer_Next_Function *get_buffer_next;
@@ -400,19 +392,16 @@ Buffer_Ready_Function *buffer_ready;
 Buffer_Get_Access_Flags_Function *buffer_get_access_flags;
 Buffer_Get_Size_Function *buffer_get_size;
 Buffer_Get_Line_Count_Function *buffer_get_line_count;
-Buffer_Get_Base_Buffer_Name_Function *buffer_get_base_buffer_name;
-Buffer_Get_Unique_Buffer_Name_Function *buffer_get_unique_buffer_name;
-Buffer_Get_File_Name_Function *buffer_get_file_name;
+Push_Buffer_Base_Name_Function *push_buffer_base_name;
+Push_Buffer_Unique_Name_Function *push_buffer_unique_name;
+Push_Buffer_File_Name_Function *push_buffer_file_name;
 Buffer_Get_Dirty_State_Function *buffer_get_dirty_state;
-Buffer_Directly_Set_Dirty_State_Function *buffer_directly_set_dirty_state;
+Buffer_Set_Dirty_State_Function *buffer_set_dirty_state;
 Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready;
 Buffer_Get_Setting_Function *buffer_get_setting;
 Buffer_Set_Setting_Function *buffer_set_setting;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope;
-Buffer_Token_Count_Function *buffer_token_count;
-Buffer_Read_Tokens_Function *buffer_read_tokens;
-Buffer_Get_Token_Range_Function *buffer_get_token_range;
-Buffer_Get_Token_Index_Function *buffer_get_token_index;
+Buffer_Get_Token_Array_Function *buffer_get_token_array;
 Buffer_Send_End_Signal_Function *buffer_send_end_signal;
 Create_Buffer_Function *create_buffer;
 Buffer_Save_Function *buffer_save;
@@ -441,7 +430,6 @@ Panel_Get_Child_Function *panel_get_child;
 Panel_Get_Max_Function *panel_get_max;
 Panel_Get_Margin_Function *panel_get_margin;
 View_Close_Function *view_close;
-View_Get_Region_Function *view_get_region;
 View_Get_Buffer_Region_Function *view_get_buffer_region;
 View_Get_Scroll_Vars_Function *view_get_scroll_vars;
 View_Set_Active_Function *view_set_active;
@@ -569,7 +557,7 @@ Child_Process_Get_Attached_Buffer_Function *child_process_get_attached_buffer_;
 Child_Process_Get_State_Function *child_process_get_state_;
 Clipboard_Post_Function *clipboard_post_;
 Clipboard_Count_Function *clipboard_count_;
-Clipboard_Index_Function *clipboard_index_;
+Push_Clipboard_Index_Function *push_clipboard_index_;
 Create_Parse_Context_Function *create_parse_context_;
 Get_Buffer_Count_Function *get_buffer_count_;
 Get_Buffer_Next_Function *get_buffer_next_;
@@ -586,19 +574,16 @@ Buffer_Ready_Function *buffer_ready_;
 Buffer_Get_Access_Flags_Function *buffer_get_access_flags_;
 Buffer_Get_Size_Function *buffer_get_size_;
 Buffer_Get_Line_Count_Function *buffer_get_line_count_;
-Buffer_Get_Base_Buffer_Name_Function *buffer_get_base_buffer_name_;
-Buffer_Get_Unique_Buffer_Name_Function *buffer_get_unique_buffer_name_;
-Buffer_Get_File_Name_Function *buffer_get_file_name_;
+Push_Buffer_Base_Name_Function *push_buffer_base_name_;
+Push_Buffer_Unique_Name_Function *push_buffer_unique_name_;
+Push_Buffer_File_Name_Function *push_buffer_file_name_;
 Buffer_Get_Dirty_State_Function *buffer_get_dirty_state_;
-Buffer_Directly_Set_Dirty_State_Function *buffer_directly_set_dirty_state_;
+Buffer_Set_Dirty_State_Function *buffer_set_dirty_state_;
 Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready_;
 Buffer_Get_Setting_Function *buffer_get_setting_;
 Buffer_Set_Setting_Function *buffer_set_setting_;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope_;
-Buffer_Token_Count_Function *buffer_token_count_;
-Buffer_Read_Tokens_Function *buffer_read_tokens_;
-Buffer_Get_Token_Range_Function *buffer_get_token_range_;
-Buffer_Get_Token_Index_Function *buffer_get_token_index_;
+Buffer_Get_Token_Array_Function *buffer_get_token_array_;
 Buffer_Send_End_Signal_Function *buffer_send_end_signal_;
 Create_Buffer_Function *create_buffer_;
 Buffer_Save_Function *buffer_save_;
@@ -627,7 +612,6 @@ Panel_Get_Child_Function *panel_get_child_;
 Panel_Get_Max_Function *panel_get_max_;
 Panel_Get_Margin_Function *panel_get_margin_;
 View_Close_Function *view_close_;
-View_Get_Region_Function *view_get_region_;
 View_Get_Buffer_Region_Function *view_get_buffer_region_;
 View_Get_Scroll_Vars_Function *view_get_scroll_vars_;
 View_Set_Active_Function *view_set_active_;
@@ -763,7 +747,7 @@ app_links->child_process_get_attached_buffer_ = Child_Process_Get_Attached_Buffe
 app_links->child_process_get_state_ = Child_Process_Get_State;\
 app_links->clipboard_post_ = Clipboard_Post;\
 app_links->clipboard_count_ = Clipboard_Count;\
-app_links->clipboard_index_ = Clipboard_Index;\
+app_links->push_clipboard_index_ = Push_Clipboard_Index;\
 app_links->create_parse_context_ = Create_Parse_Context;\
 app_links->get_buffer_count_ = Get_Buffer_Count;\
 app_links->get_buffer_next_ = Get_Buffer_Next;\
@@ -780,19 +764,16 @@ app_links->buffer_ready_ = Buffer_Ready;\
 app_links->buffer_get_access_flags_ = Buffer_Get_Access_Flags;\
 app_links->buffer_get_size_ = Buffer_Get_Size;\
 app_links->buffer_get_line_count_ = Buffer_Get_Line_Count;\
-app_links->buffer_get_base_buffer_name_ = Buffer_Get_Base_Buffer_Name;\
-app_links->buffer_get_unique_buffer_name_ = Buffer_Get_Unique_Buffer_Name;\
-app_links->buffer_get_file_name_ = Buffer_Get_File_Name;\
+app_links->push_buffer_base_name_ = Push_Buffer_Base_Name;\
+app_links->push_buffer_unique_name_ = Push_Buffer_Unique_Name;\
+app_links->push_buffer_file_name_ = Push_Buffer_File_Name;\
 app_links->buffer_get_dirty_state_ = Buffer_Get_Dirty_State;\
-app_links->buffer_directly_set_dirty_state_ = Buffer_Directly_Set_Dirty_State;\
+app_links->buffer_set_dirty_state_ = Buffer_Set_Dirty_State;\
 app_links->buffer_tokens_are_ready_ = Buffer_Tokens_Are_Ready;\
 app_links->buffer_get_setting_ = Buffer_Get_Setting;\
 app_links->buffer_set_setting_ = Buffer_Set_Setting;\
 app_links->buffer_get_managed_scope_ = Buffer_Get_Managed_Scope;\
-app_links->buffer_token_count_ = Buffer_Token_Count;\
-app_links->buffer_read_tokens_ = Buffer_Read_Tokens;\
-app_links->buffer_get_token_range_ = Buffer_Get_Token_Range;\
-app_links->buffer_get_token_index_ = Buffer_Get_Token_Index;\
+app_links->buffer_get_token_array_ = Buffer_Get_Token_Array;\
 app_links->buffer_send_end_signal_ = Buffer_Send_End_Signal;\
 app_links->create_buffer_ = Create_Buffer;\
 app_links->buffer_save_ = Buffer_Save;\
@@ -821,7 +802,6 @@ app_links->panel_get_child_ = Panel_Get_Child;\
 app_links->panel_get_max_ = Panel_Get_Max;\
 app_links->panel_get_margin_ = Panel_Get_Margin;\
 app_links->view_close_ = View_Close;\
-app_links->view_get_region_ = View_Get_Region;\
 app_links->view_get_buffer_region_ = View_Get_Buffer_Region;\
 app_links->view_get_scroll_vars_ = View_Get_Scroll_Vars;\
 app_links->view_set_active_ = View_Set_Active;\
@@ -939,76 +919,72 @@ app_links->get_view_visible_range_ = Get_View_Visible_Range;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping(app, data, size));}
-static b32 global_get_screen_rectangle(Application_Links *app, Rect_f32 *rect_out){return(app->global_get_screen_rectangle(app, rect_out));}
+static Rect_f32 global_get_screen_rectangle(Application_Links *app){return(app->global_get_screen_rectangle(app));}
 static Arena* context_get_arena(Application_Links *app){return(app->context_get_arena(app));}
 static Base_Allocator* context_get_base_allocator(Application_Links *app){return(app->context_get_base_allocator(app));}
 static b32 create_child_process(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out){return(app->create_child_process(app, path, command, child_process_id_out));}
 static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer(app, child_process_id, buffer_id, flags));}
-static b32 buffer_get_attached_child_process(Application_Links *app, Buffer_ID buffer_id, Child_Process_ID *child_process_id_out){return(app->buffer_get_attached_child_process(app, buffer_id, child_process_id_out));}
-static b32 child_process_get_attached_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID *buffer_id_out){return(app->child_process_get_attached_buffer(app, child_process_id, buffer_id_out));}
-static b32 child_process_get_state(Application_Links *app, Child_Process_ID child_process_id, Process_State *process_state_out){return(app->child_process_get_state(app, child_process_id, process_state_out));}
+static Child_Process_ID buffer_get_attached_child_process(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_attached_child_process(app, buffer_id));}
+static Buffer_ID child_process_get_attached_buffer(Application_Links *app, Child_Process_ID child_process_id){return(app->child_process_get_attached_buffer(app, child_process_id));}
+static Process_State child_process_get_state(Application_Links *app, Child_Process_ID child_process_id){return(app->child_process_get_state(app, child_process_id));}
 static b32 clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string){return(app->clipboard_post(app, clipboard_id, string));}
-static b32 clipboard_count(Application_Links *app, i32 clipboard_id, i32 *count_out){return(app->clipboard_count(app, clipboard_id, count_out));}
-static b32 clipboard_index(Application_Links *app, i32 clipboard_id, i32 item_index, Arena *out, String_Const_u8 *string_out){return(app->clipboard_index(app, clipboard_id, item_index, out, string_out));}
+static i32 clipboard_count(Application_Links *app, i32 clipboard_id){return(app->clipboard_count(app, clipboard_id));}
+static String_Const_u8 push_clipboard_index(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index){return(app->push_clipboard_index(app, arena, clipboard_id, item_index));}
 static Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count){return(app->create_parse_context(app, kw, kw_count, pp, pp_count));}
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
-static b32 get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_next(app, buffer_id, access, buffer_id_out));}
-static b32 get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_name(app, name, access, buffer_id_out));}
-static b32 get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name(app, file_name, access, buffer_id_out));}
+static Buffer_ID get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_next(app, buffer_id, access));}
+static Buffer_ID get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access){return(app->get_buffer_by_name(app, name, access));}
+static Buffer_ID get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_name, Access_Flag access){return(app->get_buffer_by_file_name(app, file_name, access));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit(app, buffer_id, str, edits, edit_count));}
-static b32 buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos, i32 *pos_out, b32 *case_sensitive_out){return(app->buffer_seek_string(app, buffer, needle, direction, start_pos, pos_out, case_sensitive_out));}
+static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos){return(app->buffer_seek_string(app, buffer, needle, direction, start_pos));}
 static b32 buffer_seek_character_class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){return(app->buffer_seek_character_class(app, buffer_id, predicate, direction, start_pos, pos_out));}
-static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer_id, seek, cursor_out));}
+static Partial_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek){return(app->buffer_compute_cursor(app, buffer_id, seek));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready(app, buffer_id));}
-static b32 buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out){return(app->buffer_get_access_flags(app, buffer_id, access_flags_out));}
-static b32 buffer_get_size(Application_Links *app, Buffer_ID buffer_id, i32 *size_out){return(app->buffer_get_size(app, buffer_id, size_out));}
-static b32 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id, i32 *line_count_out){return(app->buffer_get_line_count(app, buffer_id, line_count_out));}
-static b32 buffer_get_base_buffer_name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){return(app->buffer_get_base_buffer_name(app, buffer_id, out, name_out));}
-static b32 buffer_get_unique_buffer_name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){return(app->buffer_get_unique_buffer_name(app, buffer_id, out, name_out));}
-static b32 buffer_get_file_name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){return(app->buffer_get_file_name(app, buffer_id, out, name_out));}
-static b32 buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out){return(app->buffer_get_dirty_state(app, buffer_id, dirty_state_out));}
-static b32 buffer_directly_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_directly_set_dirty_state(app, buffer_id, dirty_state));}
+static Access_Flag buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_access_flags(app, buffer_id));}
+static u64 buffer_get_size(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_size(app, buffer_id));}
+static u64 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_line_count(app, buffer_id));}
+static String_Const_u8 push_buffer_base_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_base_name(app, arena, buffer_id));}
+static String_Const_u8 push_buffer_unique_name(Application_Links *app, Arena *out, Buffer_ID buffer_id){return(app->push_buffer_unique_name(app, out, buffer_id));}
+static String_Const_u8 push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_file_name(app, arena, buffer_id));}
+static Dirty_State buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_dirty_state(app, buffer_id));}
+static b32 buffer_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_set_dirty_state(app, buffer_id, dirty_state));}
 static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting(app, buffer_id, setting, value));}
-static b32 buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out){return(app->buffer_get_managed_scope(app, buffer_id, scope_out));}
-static b32 buffer_token_count(Application_Links *app, Buffer_ID buffer_id, i32 *count_out){return(app->buffer_token_count(app, buffer_id, count_out));}
-static b32 buffer_read_tokens(Application_Links *app, Buffer_ID buffer_id, i32 start_token, i32 end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer_id, start_token, end_token, tokens_out));}
-static b32 buffer_get_token_range(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out){return(app->buffer_get_token_range(app, buffer_id, first_token_out, one_past_last_token_out));}
-static b32 buffer_get_token_index(Application_Links *app, Buffer_ID buffer_id, i32 pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer_id, pos, get_result));}
+static Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope(app, buffer_id));}
+static Cpp_Token_Array buffer_get_token_array(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_token_array(app, buffer_id));}
 static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_send_end_signal(app, buffer_id));}
-static b32 create_buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out){return(app->create_buffer(app, file_name, flags, new_buffer_id_out));}
-static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, u32 flags){return(app->buffer_save(app, buffer_id, file_name, flags));}
-static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result_out){return(app->buffer_kill(app, buffer_id, flags, result_out));}
-static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out){return(app->buffer_reopen(app, buffer_id, flags, result_out));}
-static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes(app, buffer_id, attributes_out));}
-static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next(app, view_id, access, view_id_out));}
-static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev(app, view_id, access, view_id_out));}
-static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view(app, access, view_id_out));}
-static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel(app, panel_id_out));}
+static Buffer_ID create_buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags){return(app->create_buffer(app, file_name, flags));}
+static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, Buffer_Save_Flag flags){return(app->buffer_save(app, buffer_id, file_name, flags));}
+static Buffer_Kill_Result buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags){return(app->buffer_kill(app, buffer_id, flags));}
+static Buffer_Reopen_Result buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags){return(app->buffer_reopen(app, buffer_id, flags));}
+static File_Attributes buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_file_attributes(app, buffer_id));}
+static View_ID get_view_next(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_next(app, view_id, access));}
+static View_ID get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_prev(app, view_id, access));}
+static View_ID get_active_view(Application_Links *app, Access_Flag access){return(app->get_active_view(app, access));}
+static Panel_ID get_active_panel(Application_Links *app){return(app->get_active_panel(app));}
 static b32 view_exists(Application_Links *app, View_ID view_id){return(app->view_exists(app, view_id));}
-static b32 view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->view_get_buffer(app, view_id, access, buffer_id_out));}
-static b32 view_get_cursor_pos(Application_Links *app, View_ID view_id, i32 *pos_out){return(app->view_get_cursor_pos(app, view_id, pos_out));}
-static b32 view_get_mark_pos(Application_Links *app, View_ID view_id, i32 *pos_out){return(app->view_get_mark_pos(app, view_id, pos_out));}
-static b32 view_get_preferred_x(Application_Links *app, View_ID view_id, f32 *preferred_x_out){return(app->view_get_preferred_x(app, view_id, preferred_x_out));}
-static b32 view_get_screen_rect(Application_Links *app, View_ID view_id, Rect_f32 *rect_out){return(app->view_get_screen_rect(app, view_id, rect_out));}
-static b32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel(app, view_id, panel_id_out));}
-static b32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view(app, panel_id, view_id_out));}
+static Buffer_ID view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access){return(app->view_get_buffer(app, view_id, access));}
+static i32 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos(app, view_id));}
+static i32 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos(app, view_id));}
+static f32 view_get_preferred_x(Application_Links *app, View_ID view_id){return(app->view_get_preferred_x(app, view_id));}
+static Rect_f32 view_get_screen_rect(Application_Links *app, View_ID view_id){return(app->view_get_screen_rect(app, view_id));}
+static Panel_ID view_get_panel(Application_Links *app, View_ID view_id){return(app->view_get_panel(app, view_id));}
+static View_ID panel_get_view(Application_Links *app, Panel_ID panel_id){return(app->panel_get_view(app, panel_id));}
 static b32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split(app, panel_id));}
 static b32 panel_is_leaf(Application_Links *app, Panel_ID panel_id){return(app->panel_is_leaf(app, panel_id));}
 static b32 panel_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation){return(app->panel_split(app, panel_id, orientation));}
 static b32 panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_set_split(app, panel_id, kind, t));}
 static b32 panel_swap_children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_swap_children(app, panel_id, kind, t));}
-static b32 panel_get_parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_parent(app, panel_id, panel_id_out));}
-static b32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out){return(app->panel_get_child(app, panel_id, which_child, panel_id_out));}
-static b32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max(app, panel_id, panel_id_out));}
-static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin(app, panel_id, margins_out));}
+static Panel_ID panel_get_parent(Application_Links *app, Panel_ID panel_id){return(app->panel_get_parent(app, panel_id));}
+static Panel_ID panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child){return(app->panel_get_child(app, panel_id, which_child));}
+static Panel_ID panel_get_max(Application_Links *app, Panel_ID panel_id){return(app->panel_get_max(app, panel_id));}
+static Rect_i32 panel_get_margin(Application_Links *app, Panel_ID panel_id){return(app->panel_get_margin(app, panel_id));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close(app, view_id));}
-static b32 view_get_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_region(app, view_id, region_out));}
-static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region(app, view_id, region_out));}
+static Rect_f32 view_get_buffer_region(Application_Links *app, View_ID view_id){return(app->view_get_buffer_region(app, view_id));}
 static b32 view_get_scroll_vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){return(app->view_get_scroll_vars(app, view_id, scroll_vars_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting(app, view_id, setting, value_out));}
@@ -1125,76 +1101,72 @@ static Range get_view_visible_range(Application_Links *app, View_ID view_id){ret
 #else
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping_(app, data, size));}
-static b32 global_get_screen_rectangle(Application_Links *app, Rect_f32 *rect_out){return(app->global_get_screen_rectangle_(app, rect_out));}
+static Rect_f32 global_get_screen_rectangle(Application_Links *app){return(app->global_get_screen_rectangle_(app));}
 static Arena* context_get_arena(Application_Links *app){return(app->context_get_arena_(app));}
 static Base_Allocator* context_get_base_allocator(Application_Links *app){return(app->context_get_base_allocator_(app));}
 static b32 create_child_process(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out){return(app->create_child_process_(app, path, command, child_process_id_out));}
 static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer_(app, child_process_id, buffer_id, flags));}
-static b32 buffer_get_attached_child_process(Application_Links *app, Buffer_ID buffer_id, Child_Process_ID *child_process_id_out){return(app->buffer_get_attached_child_process_(app, buffer_id, child_process_id_out));}
-static b32 child_process_get_attached_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID *buffer_id_out){return(app->child_process_get_attached_buffer_(app, child_process_id, buffer_id_out));}
-static b32 child_process_get_state(Application_Links *app, Child_Process_ID child_process_id, Process_State *process_state_out){return(app->child_process_get_state_(app, child_process_id, process_state_out));}
+static Child_Process_ID buffer_get_attached_child_process(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_attached_child_process_(app, buffer_id));}
+static Buffer_ID child_process_get_attached_buffer(Application_Links *app, Child_Process_ID child_process_id){return(app->child_process_get_attached_buffer_(app, child_process_id));}
+static Process_State child_process_get_state(Application_Links *app, Child_Process_ID child_process_id){return(app->child_process_get_state_(app, child_process_id));}
 static b32 clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string){return(app->clipboard_post_(app, clipboard_id, string));}
-static b32 clipboard_count(Application_Links *app, i32 clipboard_id, i32 *count_out){return(app->clipboard_count_(app, clipboard_id, count_out));}
-static b32 clipboard_index(Application_Links *app, i32 clipboard_id, i32 item_index, Arena *out, String_Const_u8 *string_out){return(app->clipboard_index_(app, clipboard_id, item_index, out, string_out));}
+static i32 clipboard_count(Application_Links *app, i32 clipboard_id){return(app->clipboard_count_(app, clipboard_id));}
+static String_Const_u8 push_clipboard_index(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index){return(app->push_clipboard_index_(app, arena, clipboard_id, item_index));}
 static Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count){return(app->create_parse_context_(app, kw, kw_count, pp, pp_count));}
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
-static b32 get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_next_(app, buffer_id, access, buffer_id_out));}
-static b32 get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_name_(app, name, access, buffer_id_out));}
-static b32 get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_name, Access_Flag access, Buffer_ID *buffer_id_out){return(app->get_buffer_by_file_name_(app, file_name, access, buffer_id_out));}
+static Buffer_ID get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_next_(app, buffer_id, access));}
+static Buffer_ID get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access){return(app->get_buffer_by_name_(app, name, access));}
+static Buffer_ID get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_name, Access_Flag access){return(app->get_buffer_by_file_name_(app, file_name, access));}
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range_(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range_(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit_(app, buffer_id, str, edits, edit_count));}
-static b32 buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos, i32 *pos_out, b32 *case_sensitive_out){return(app->buffer_seek_string_(app, buffer, needle, direction, start_pos, pos_out, case_sensitive_out));}
+static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos){return(app->buffer_seek_string_(app, buffer, needle, direction, start_pos));}
 static b32 buffer_seek_character_class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){return(app->buffer_seek_character_class_(app, buffer_id, predicate, direction, start_pos, pos_out));}
-static b32 buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer_id, seek, cursor_out));}
+static Partial_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek){return(app->buffer_compute_cursor_(app, buffer_id, seek));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists_(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready_(app, buffer_id));}
-static b32 buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id, Access_Flag *access_flags_out){return(app->buffer_get_access_flags_(app, buffer_id, access_flags_out));}
-static b32 buffer_get_size(Application_Links *app, Buffer_ID buffer_id, i32 *size_out){return(app->buffer_get_size_(app, buffer_id, size_out));}
-static b32 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id, i32 *line_count_out){return(app->buffer_get_line_count_(app, buffer_id, line_count_out));}
-static b32 buffer_get_base_buffer_name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){return(app->buffer_get_base_buffer_name_(app, buffer_id, out, name_out));}
-static b32 buffer_get_unique_buffer_name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){return(app->buffer_get_unique_buffer_name_(app, buffer_id, out, name_out));}
-static b32 buffer_get_file_name(Application_Links *app, Buffer_ID buffer_id, Arena *out, String_Const_u8 *name_out){return(app->buffer_get_file_name_(app, buffer_id, out, name_out));}
-static b32 buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State *dirty_state_out){return(app->buffer_get_dirty_state_(app, buffer_id, dirty_state_out));}
-static b32 buffer_directly_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_directly_set_dirty_state_(app, buffer_id, dirty_state));}
+static Access_Flag buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_access_flags_(app, buffer_id));}
+static u64 buffer_get_size(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_size_(app, buffer_id));}
+static u64 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_line_count_(app, buffer_id));}
+static String_Const_u8 push_buffer_base_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_base_name_(app, arena, buffer_id));}
+static String_Const_u8 push_buffer_unique_name(Application_Links *app, Arena *out, Buffer_ID buffer_id){return(app->push_buffer_unique_name_(app, out, buffer_id));}
+static String_Const_u8 push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_file_name_(app, arena, buffer_id));}
+static Dirty_State buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_dirty_state_(app, buffer_id));}
+static b32 buffer_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_set_dirty_state_(app, buffer_id, dirty_state));}
 static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready_(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting_(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting_(app, buffer_id, setting, value));}
-static b32 buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id, Managed_Scope *scope_out){return(app->buffer_get_managed_scope_(app, buffer_id, scope_out));}
-static b32 buffer_token_count(Application_Links *app, Buffer_ID buffer_id, i32 *count_out){return(app->buffer_token_count_(app, buffer_id, count_out));}
-static b32 buffer_read_tokens(Application_Links *app, Buffer_ID buffer_id, i32 start_token, i32 end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer_id, start_token, end_token, tokens_out));}
-static b32 buffer_get_token_range(Application_Links *app, Buffer_ID buffer_id, Cpp_Token **first_token_out, Cpp_Token **one_past_last_token_out){return(app->buffer_get_token_range_(app, buffer_id, first_token_out, one_past_last_token_out));}
-static b32 buffer_get_token_index(Application_Links *app, Buffer_ID buffer_id, i32 pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer_id, pos, get_result));}
+static Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope_(app, buffer_id));}
+static Cpp_Token_Array buffer_get_token_array(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_token_array_(app, buffer_id));}
 static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_send_end_signal_(app, buffer_id));}
-static b32 create_buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags, Buffer_ID *new_buffer_id_out){return(app->create_buffer_(app, file_name, flags, new_buffer_id_out));}
-static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, u32 flags){return(app->buffer_save_(app, buffer_id, file_name, flags));}
-static b32 buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags, Buffer_Kill_Result *result_out){return(app->buffer_kill_(app, buffer_id, flags, result_out));}
-static b32 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags, Buffer_Reopen_Result *result_out){return(app->buffer_reopen_(app, buffer_id, flags, result_out));}
-static b32 buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id, File_Attributes *attributes_out){return(app->buffer_get_file_attributes_(app, buffer_id, attributes_out));}
-static b32 get_view_next(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_next_(app, view_id, access, view_id_out));}
-static b32 get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access, View_ID *view_id_out){return(app->get_view_prev_(app, view_id, access, view_id_out));}
-static b32 get_active_view(Application_Links *app, Access_Flag access, View_ID *view_id_out){return(app->get_active_view_(app, access, view_id_out));}
-static b32 get_active_panel(Application_Links *app, Panel_ID *panel_id_out){return(app->get_active_panel_(app, panel_id_out));}
+static Buffer_ID create_buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags){return(app->create_buffer_(app, file_name, flags));}
+static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, Buffer_Save_Flag flags){return(app->buffer_save_(app, buffer_id, file_name, flags));}
+static Buffer_Kill_Result buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags){return(app->buffer_kill_(app, buffer_id, flags));}
+static Buffer_Reopen_Result buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags){return(app->buffer_reopen_(app, buffer_id, flags));}
+static File_Attributes buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_file_attributes_(app, buffer_id));}
+static View_ID get_view_next(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_next_(app, view_id, access));}
+static View_ID get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_prev_(app, view_id, access));}
+static View_ID get_active_view(Application_Links *app, Access_Flag access){return(app->get_active_view_(app, access));}
+static Panel_ID get_active_panel(Application_Links *app){return(app->get_active_panel_(app));}
 static b32 view_exists(Application_Links *app, View_ID view_id){return(app->view_exists_(app, view_id));}
-static b32 view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access, Buffer_ID *buffer_id_out){return(app->view_get_buffer_(app, view_id, access, buffer_id_out));}
-static b32 view_get_cursor_pos(Application_Links *app, View_ID view_id, i32 *pos_out){return(app->view_get_cursor_pos_(app, view_id, pos_out));}
-static b32 view_get_mark_pos(Application_Links *app, View_ID view_id, i32 *pos_out){return(app->view_get_mark_pos_(app, view_id, pos_out));}
-static b32 view_get_preferred_x(Application_Links *app, View_ID view_id, f32 *preferred_x_out){return(app->view_get_preferred_x_(app, view_id, preferred_x_out));}
-static b32 view_get_screen_rect(Application_Links *app, View_ID view_id, Rect_f32 *rect_out){return(app->view_get_screen_rect_(app, view_id, rect_out));}
-static b32 view_get_panel(Application_Links *app, View_ID view_id, Panel_ID *panel_id_out){return(app->view_get_panel_(app, view_id, panel_id_out));}
-static b32 panel_get_view(Application_Links *app, Panel_ID panel_id, View_ID *view_id_out){return(app->panel_get_view_(app, panel_id, view_id_out));}
+static Buffer_ID view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access){return(app->view_get_buffer_(app, view_id, access));}
+static i32 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos_(app, view_id));}
+static i32 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos_(app, view_id));}
+static f32 view_get_preferred_x(Application_Links *app, View_ID view_id){return(app->view_get_preferred_x_(app, view_id));}
+static Rect_f32 view_get_screen_rect(Application_Links *app, View_ID view_id){return(app->view_get_screen_rect_(app, view_id));}
+static Panel_ID view_get_panel(Application_Links *app, View_ID view_id){return(app->view_get_panel_(app, view_id));}
+static View_ID panel_get_view(Application_Links *app, Panel_ID panel_id){return(app->panel_get_view_(app, panel_id));}
 static b32 panel_is_split(Application_Links *app, Panel_ID panel_id){return(app->panel_is_split_(app, panel_id));}
 static b32 panel_is_leaf(Application_Links *app, Panel_ID panel_id){return(app->panel_is_leaf_(app, panel_id));}
 static b32 panel_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation){return(app->panel_split_(app, panel_id, orientation));}
 static b32 panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_set_split_(app, panel_id, kind, t));}
 static b32 panel_swap_children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){return(app->panel_swap_children_(app, panel_id, kind, t));}
-static b32 panel_get_parent(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_parent_(app, panel_id, panel_id_out));}
-static b32 panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child, Panel_ID *panel_id_out){return(app->panel_get_child_(app, panel_id, which_child, panel_id_out));}
-static b32 panel_get_max(Application_Links *app, Panel_ID panel_id, Panel_ID *panel_id_out){return(app->panel_get_max_(app, panel_id, panel_id_out));}
-static b32 panel_get_margin(Application_Links *app, Panel_ID panel_id, i32_Rect *margins_out){return(app->panel_get_margin_(app, panel_id, margins_out));}
+static Panel_ID panel_get_parent(Application_Links *app, Panel_ID panel_id){return(app->panel_get_parent_(app, panel_id));}
+static Panel_ID panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child){return(app->panel_get_child_(app, panel_id, which_child));}
+static Panel_ID panel_get_max(Application_Links *app, Panel_ID panel_id){return(app->panel_get_max_(app, panel_id));}
+static Rect_i32 panel_get_margin(Application_Links *app, Panel_ID panel_id){return(app->panel_get_margin_(app, panel_id));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close_(app, view_id));}
-static b32 view_get_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_region_(app, view_id, region_out));}
-static b32 view_get_buffer_region(Application_Links *app, View_ID view_id, Rect_i32 *region_out){return(app->view_get_buffer_region_(app, view_id, region_out));}
+static Rect_f32 view_get_buffer_region(Application_Links *app, View_ID view_id){return(app->view_get_buffer_region_(app, view_id));}
 static b32 view_get_scroll_vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){return(app->view_get_scroll_vars_(app, view_id, scroll_vars_out));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active_(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting_(app, view_id, setting, value_out));}

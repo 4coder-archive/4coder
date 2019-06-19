@@ -36,8 +36,7 @@ static View_ID
 get_view_for_locked_jump_buffer(Application_Links *app){
     View_ID view = 0;
     if (locked_buffer.size > 0){
-        Buffer_ID buffer = 0;
-        get_buffer_by_name(app, locked_buffer, AccessAll, &buffer);
+        Buffer_ID buffer = get_buffer_by_name(app, locked_buffer, AccessAll);
         if (buffer != 0){
             view = get_first_view_with_buffer(app, buffer);
         }
@@ -82,8 +81,7 @@ static View_ID
 open_footer_panel(Application_Links *app, View_ID view){
     View_ID special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, special_view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, special_view, AccessAll, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, special_view, AccessAll);
     Face_ID face_id = 0;
     get_face_id(app, buffer, &face_id);
     Face_Metrics metrics = {};
@@ -104,8 +102,7 @@ close_build_footer_panel(Application_Links *app){
 static View_ID
 open_build_footer_panel(Application_Links *app){
     if (build_footer_panel_view_id == 0){
-        View_ID view = 0;
-        get_active_view(app, AccessAll, &view);
+        View_ID view = get_active_view(app, AccessAll);
         build_footer_panel_view_id = open_footer_panel(app, view);
         view_set_active(app, view);
     }
@@ -138,8 +135,7 @@ get_prev_view_looped_primary_panels(Application_Links *app, View_ID start_view_i
 
 static View_ID
 get_next_view_after_active(Application_Links *app, Access_Flag access){
-    View_ID view = 0;
-    get_active_view(app, access, &view);
+    View_ID view = get_active_view(app, access);
     if (view != 0){
         view = get_next_view_looped_primary_panels(app, view, access);
     }
@@ -159,8 +155,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
             View_ID view_id;
         };
         
-        View_ID active_view_id = 0;
-        get_active_view(app, AccessAll, &active_view_id);
+        View_ID active_view_id = get_active_view(app, AccessAll);
         View_ID first_view_id = active_view_id;
         if (view_get_is_passive(app, active_view_id)){
             first_view_id = get_next_view_looped_primary_panels(app, active_view_id, AccessAll);
@@ -206,8 +201,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
 CUSTOM_COMMAND_SIG(change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view = get_next_view_looped_primary_panels(app, view, AccessAll);
     if (view != 0){
         view_set_active(app, view);
@@ -217,8 +211,7 @@ CUSTOM_DOC("Change the currently active panel, moving to the panel with the next
 CUSTOM_COMMAND_SIG(change_active_panel_backwards)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next lowest view_id.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view = get_prev_view_looped_primary_panels(app, view, AccessAll);
     if (view != 0){
         view_set_active(app, view);
@@ -228,24 +221,20 @@ CUSTOM_DOC("Change the currently active panel, moving to the panel with the next
 CUSTOM_COMMAND_SIG(open_panel_vsplit)
 CUSTOM_DOC("Create a new panel by vertically splitting the active panel.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     View_ID new_view = open_view(app, view, ViewSplit_Right);
     new_view_settings(app, new_view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     view_set_buffer(app, new_view, buffer, 0);
 }
 
 CUSTOM_COMMAND_SIG(open_panel_hsplit)
 CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     View_ID new_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, new_view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     view_set_buffer(app, new_view, buffer, 0);
 }
 
@@ -255,8 +244,7 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 
 static Buffer_ID
 create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Const_u8 name_string, View_ID default_target_view){
-    Buffer_ID search_buffer = 0;
-    get_buffer_by_name(app, name_string, AccessAll, &search_buffer);
+    Buffer_ID search_buffer = get_buffer_by_name(app, name_string, AccessAll);
     if (search_buffer != 0){
         buffer_set_setting(app, search_buffer, BufferSetting_ReadOnly, true);
         
@@ -272,14 +260,13 @@ create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Cons
         }
         view_set_active(app, target_view);
         
-        i32 buffer_size = 0;
-        buffer_get_size(app, search_buffer, &buffer_size);
+        i32 buffer_size = (i32)buffer_get_size(app, search_buffer);
         
         buffer_send_end_signal(app, search_buffer);
         buffer_replace_range(app, search_buffer, make_range(0, buffer_size), string_u8_litexpr(""));
     }
     else{
-        create_buffer(app, name_string, BufferCreate_AlwaysNew, &search_buffer);
+        search_buffer = create_buffer(app, name_string, BufferCreate_AlwaysNew);
         buffer_set_setting(app, search_buffer, BufferSetting_Unimportant, true);
         buffer_set_setting(app, search_buffer, BufferSetting_ReadOnly, true);
         buffer_set_setting(app, search_buffer, BufferSetting_WrapLine, false);
@@ -412,9 +399,9 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
         Temp_Memory temp2 = begin_temp(scratch);
         String_Const_u8 input_name = SCu8(command_line_files[i]);
         String_Const_u8 file_name = push_u8_stringf(scratch, "%.*s/%.*s", string_expand(hot_directory), string_expand(input_name));
-        Buffer_ID ignore = 0;
-        if (!create_buffer(app, file_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile, &ignore)){
-            create_buffer(app, input_name, 0, &ignore);
+        Buffer_ID new_buffer = create_buffer(app, file_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile);
+        if (new_buffer == 0){
+            create_buffer(app, input_name, 0);
         }
         end_temp(temp2);
     }
@@ -444,15 +431,13 @@ default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier lef
     Buffer_ID right_id = buffer_identifier_to_id(app, right_buffer);
     
     // Left Panel
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     new_view_settings(app, view);
     view_set_buffer(app, view, left_id, 0);
     
     // Right Panel
     open_panel_vsplit(app);
-    View_ID right_view = 0;
-    get_active_view(app, AccessAll, &right_view);
+    View_ID right_view = get_active_view(app, AccessAll);
     view_set_buffer(app, right_view, right_id, 0);
     
     // Restore Active to Left
@@ -485,8 +470,7 @@ default_4coder_side_by_side_panels(Application_Links *app){
 static void
 default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
     Buffer_ID id = buffer_identifier_to_id(app, buffer);
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     new_view_settings(app, view);
     view_set_buffer(app, view, id, 0);
 }

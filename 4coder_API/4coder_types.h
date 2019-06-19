@@ -1070,8 +1070,8 @@ ENUM(u32, Clipboard_Change_Flag){
 TYPEDEF_FUNC void Clipboard_Change_Hook_Function(struct Application_Links *app, String_Const_u8 contents, Clipboard_Change_Flag  flags);
 #define CLIPBOARD_CHANGE_HOOK_SIG(name) void name(struct Application_Links *app, String_Const_u8 contents, Clipboard_Change_Flag flags)
 
-TYPEDEF_FUNC Rect_i32 Get_View_Buffer_Region_Function(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region);
-#define GET_VIEW_BUFFER_REGION_SIG(name) Rect_i32 name(struct Application_Links *app, View_ID view_id, Rect_i32 sub_region)
+TYPEDEF_FUNC Rect_f32 Get_View_Buffer_Region_Function(struct Application_Links *app, View_ID view_id, Rect_f32 sub_region);
+#define GET_VIEW_BUFFER_REGION_SIG(name) Rect_f32 name(struct Application_Links *app, View_ID view_id, Rect_f32 sub_region)
 
 STRUCT Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;
@@ -1160,7 +1160,8 @@ STRUCT String_Match_List{
     i32 count;
 };
 
-STRUCT Process_State {
+STRUCT Process_State{
+    b32 valid;
     b32 is_updating;
     i64 return_code;
 };

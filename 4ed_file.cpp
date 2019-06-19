@@ -219,26 +219,19 @@ save_file(System_Functions *system, Models *models, Editing_File *file){
 
 ////////////////////////////////
 
-internal b32
-file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor){
-    b32 result = true;
+internal Partial_Cursor
+file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek){
+    Partial_Cursor result = {};
     switch (seek.type){
         case buffer_seek_pos:
         {
-            *cursor = buffer_partial_from_pos(&file->state.buffer, seek.pos);
+            result = buffer_partial_from_pos(&file->state.buffer, seek.pos);
         }break;
-        
         case buffer_seek_line_char:
         {
-            *cursor = buffer_partial_from_line_character(&file->state.buffer, seek.line, seek.character);
+            result = buffer_partial_from_line_character(&file->state.buffer, seek.line, seek.character);
         }break;
-        
         // TODO(allen): do(support buffer_seek_character_pos and character_pos coordiantes in partial cursor system)
-        
-        default:
-        {
-            result = false;
-        }break;
     }
     return(result);
 }

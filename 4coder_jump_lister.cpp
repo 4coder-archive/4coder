@@ -104,10 +104,8 @@ open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID 
 CUSTOM_COMMAND_SIG(view_jump_list_with_lister)
 CUSTOM_DOC("When executed on a buffer with jumps, creates a persistent lister for all the jumps")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessAll, &buffer);
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInNextViewKeepUI, 0);
 }
 

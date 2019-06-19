@@ -95,12 +95,9 @@ get_numeric_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo_N
 CUSTOM_COMMAND_SIG(miblo_increment_basic)
 CUSTOM_DOC("Increment an integer under the cursor by one.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, buffer, pos, &number)){
         Scratch_Block scratch(app);
@@ -113,12 +110,9 @@ CUSTOM_DOC("Increment an integer under the cursor by one.")
 CUSTOM_COMMAND_SIG(miblo_decrement_basic)
 CUSTOM_DOC("Decrement an integer under the cursor by one.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, buffer, pos, &number)){
         Scratch_Block scratch(app);
@@ -363,12 +357,9 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo
 
 static void
 miblo_time_stamp_alter(Application_Links *app, i32 unit_type, i32 amt){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     
     Miblo_Timestamp_Info timestamp = {};
     if (get_timestamp_at_cursor(app, buffer, pos, &timestamp)){

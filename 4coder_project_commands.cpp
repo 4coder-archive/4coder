@@ -35,10 +35,9 @@ close_all_files_with_extension(Application_Links *app, String_Const_u8_Array ext
         i32 buffers_to_close_count = 0;
         do_repeat = false;
         
-        Buffer_ID buffer = 0;
-        for (buffer = get_buffer_next(app, 0, AccessAll, &buffer);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
+             buffer = get_buffer_next(app, buffer, AccessAll)){
             b32 is_match = true;
             
             if (extension_array.count > 0){
@@ -67,7 +66,7 @@ close_all_files_with_extension(Application_Links *app, String_Const_u8_Array ext
         }
         
         for (i32 i = 0; i < buffers_to_close_count; ++i){
-            kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
+            buffer_kill(app, buffers_to_close[i], BufferKill_AlwaysKill);
         }
     }while(do_repeat);
 }
@@ -124,8 +123,7 @@ open_all_files_in_directory_pattern_match__recursive(Application_Links *app,
             String_Const_u8 full_path = push_u8_stringf(scratch, "%.*s%.*s",
                                                         string_expand(path),
                                                         string_expand(file_name));
-            Buffer_ID ignore = 0;
-            create_buffer(app, full_path, 0, &ignore);
+            create_buffer(app, full_path, 0);
         }
     }
     
@@ -861,7 +859,7 @@ exec_project_command(Application_Links *app, Project_Command *command){
                 Buffer_ID buffer = buffer_identifier_to_id(app, buffer_id);
                 view = get_first_view_with_buffer(app, buffer);
                 if (view == 0){
-                    get_active_view(app, AccessAll, &view);
+                    view = get_active_view(app, AccessAll);
                 }
             }
             
@@ -1353,8 +1351,7 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     if (current_project.loaded){
         Arena *scratch = context_get_arena(app);
         
-        View_ID view = 0;
-        get_active_view(app, AccessAll, &view);
+        View_ID view = get_active_view(app, AccessAll);
         view_end_ui_mode(app, view);
         Temp_Memory temp = begin_temp(scratch);
         i32 option_count = current_project.command_array.count;

@@ -44,9 +44,9 @@ find_scope_top(Application_Links *app, Buffer_ID buffer, i32 start_pos, u32 flag
     Cpp_Get_Token_Result get_result = {};
     b32 success = false;
     i32 position = 0;
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
+    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
         i32 token_index = get_result.token_index;
-        if (flags & FindScope_Parent){
+        if (HasFlag(flags, FindScope_Parent)){
             --token_index;
             if (get_result.in_whitespace_after_token){
                 ++token_index;
@@ -95,9 +95,9 @@ find_scope_bottom(Application_Links *app, Buffer_ID buffer, i32 start_pos, u32 f
     Cpp_Get_Token_Result get_result = {};
     b32 success = false;
     i32 position = 0;
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
+    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
         i32 token_index = get_result.token_index + 1;
-        if (flags & FindScope_Parent){
+        if (HasFlag(flags, FindScope_Parent)){
             --token_index;
             if (get_result.in_whitespace_after_token){
                 ++token_index;
@@ -146,13 +146,13 @@ find_next_scope(Application_Links *app, Buffer_ID buffer, i32 start_pos, u32 fla
     Cpp_Get_Token_Result get_result = {};
     b32 success = 0;
     i32 position = 0;
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
+    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
         i32 token_index = get_result.token_index + 1;
         if (token_index >= 0){
             Token_Range token_range = buffer_get_token_range(app, buffer);
             if (token_range.first != 0){
                 Token_Iterator token_it = make_token_iterator(token_range, token_index);
-                if ((flags & FindScope_NextSibling) != 0){
+                if (HasFlag(flags, FindScope_NextSibling)){
                     i32 nest_level = 1;
                     for (Cpp_Token *token = token_iterator_current(&token_it);
                          token != 0;
@@ -212,8 +212,8 @@ find_prev_scope(Application_Links *app, Buffer_ID buffer, i32 start_pos, u32 fla
     Cpp_Get_Token_Result get_result = {};
     b32 success = false;
     i32 position = 0;
-    if (buffer_get_token_index(app, buffer, start_pos, &get_result)){
-        i32 token_index = get_result.token_index-1;
+    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
+        i32 token_index = get_result.token_index - 1;
         if (token_index >= 0){
             Token_Range token_range = buffer_get_token_range(app, buffer);
             if (token_range.first != 0){
@@ -301,8 +301,7 @@ view_set_to_region(Application_Links *app, View_ID view, i32 major_pos, i32 mino
             f32 top_y = top.wrapped_y;
             f32 bottom_y = bottom.wrapped_y;
             
-            Rect_i32 region = {};
-            view_get_buffer_region(app, view, &region);
+            Rect_f32 region = view_get_buffer_region(app, view);
             
             GUI_Scroll_Vars scroll = {};
             view_get_scroll_vars(app, view, &scroll);
@@ -339,12 +338,9 @@ view_set_to_region(Application_Links *app, View_ID view, i32 major_pos, i32 mino
 CUSTOM_COMMAND_SIG(select_surrounding_scope)
 CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     Range range = {};
     if (find_scope_range(app, buffer, pos, &range, FindScope_Brace)){
         view_set_cursor(app, view, seek_pos(range.first), true);
@@ -357,12 +353,9 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
 CUSTOM_COMMAND_SIG(select_next_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 start_pos = pos;
     i32 top = 0;
     i32 bottom = 0;
@@ -379,12 +372,9 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
 CUSTOM_COMMAND_SIG(select_prev_scope_absolute)
 CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the cursor and mark on the '{' and '}'.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 start_pos = pos;
     i32 top = 0;
     i32 bottom = 0;
@@ -400,10 +390,8 @@ CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the 
 
 static void
 place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
     Range lines = {};
     Range range = get_view_range(app, view);
@@ -442,9 +430,8 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
         max_adjustment += begin_str.size;
         Range new_pos = make_range(range.min + (i32)min_adjustment, range.max + (i32)max_adjustment);
         
-        i32 cursor_pos = 0;
+        i32 cursor_pos = view_get_cursor_pos(app, view);
         i32 mark_pos = 0;
-        view_get_cursor_pos(app, view, &cursor_pos);
         
         if (cursor_pos == range.min){
             cursor_pos = new_pos.min;
@@ -481,45 +468,35 @@ CUSTOM_DOC("Wraps the code contained in the range between cursor and mark with a
 CUSTOM_COMMAND_SIG(delete_current_scope)
 CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves the contents within the scope.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
-    i32 view_cursor_pos = 0;
-    view_get_cursor_pos(app, view, &view_cursor_pos);
-    i32 view_mark_pos = 0;
-    view_get_mark_pos(app, view, &view_mark_pos);
+    i32 view_cursor_pos = view_get_cursor_pos(app, view);
+    i32 view_mark_pos = view_get_mark_pos(app, view);
     
-    i32 top = view_cursor_pos;
-    i32 bottom = view_mark_pos;
+    Range range = make_range(view_cursor_pos, view_mark_pos);
     
-    if (top > bottom){
-        i32 x = top;
-        top = bottom;
-        bottom = x;
-    }
-    
-    if (buffer_get_char(app, buffer, top) == '{' && buffer_get_char(app, buffer, bottom - 1) == '}'){
+    if (buffer_get_char(app, buffer, range.min) == '{' &&
+        buffer_get_char(app, buffer, range.max - 1) == '}'){
         i32 top_len = 1;
-        i32 bottom_len = 1;
-        if (buffer_get_char(app, buffer, top - 1) == '\n'){
+        i32 bot_len = 1;
+        if (buffer_get_char(app, buffer, range.min - 1) == '\n'){
             top_len = 2;
         }
-        if (buffer_get_char(app, buffer, bottom + 1) == '\n'){
-            bottom_len = 2;
+        if (buffer_get_char(app, buffer, range.max + 1) == '\n'){
+            bot_len = 2;
         }
         
         Buffer_Edit edits[2];
         edits[0].str_start = 0;
         edits[0].len = 0;
-        edits[0].start = top + 1 - top_len;
-        edits[0].end = top + 1;
+        edits[0].start = range.min + 1 - top_len;
+        edits[0].end = range.min + 1;
         
         edits[1].str_start = 0;
         edits[1].len = 0;
-        edits[1].start = bottom - 1;
-        edits[1].end = bottom - 1 + bottom_len;
+        edits[1].start = range.max - 1;
+        edits[1].end = range.max - 1 + bot_len;
         
         buffer_batch_edit(app, buffer, 0, edits, 2);
     }
@@ -691,8 +668,7 @@ find_whole_statement_down(Application_Links *app, Buffer_ID buffer, i32 pos, i32
     i32 end = start;
     
     Cpp_Get_Token_Result get_result = {};
-    
-    if (buffer_get_token_index(app, buffer, pos, &get_result)){
+    if (get_token_from_pos(app, buffer, pos, &get_result)){
         Statement_Parser parser = make_statement_parser(app, buffer, get_result.token_index);
         if (parser.buffer != 0){
             if (get_result.in_whitespace_after_token){
@@ -715,29 +691,19 @@ find_whole_statement_down(Application_Links *app, Buffer_ID buffer, i32 pos, i32
 CUSTOM_COMMAND_SIG(scope_absorb_down)
 CUSTOM_DOC("If a scope is currently selected, and a statement or block statement is present below the current scope, the statement is moved into the scope.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
-    i32 view_cursor_pos = 0;
-    view_get_cursor_pos(app, view, &view_cursor_pos);
-    i32 view_mark_pos = 0;
-    view_get_mark_pos(app, view, &view_mark_pos);
+    i32 view_cursor_pos = view_get_cursor_pos(app, view);
+    i32 view_mark_pos = view_get_mark_pos(app, view);
     
-    i32 top = view_cursor_pos;
-    i32 bottom = view_mark_pos;
+    Range range = make_range(view_cursor_pos, view_mark_pos);
     
-    if (top > bottom){
-        i32 x = top;
-        top = bottom;
-        bottom = x;
-    }
-    
-    if (buffer_get_char(app, buffer, top) == '{' && buffer_get_char(app, buffer, bottom - 1) == '}'){
+    if (buffer_get_char(app, buffer, range.min) == '{' &&
+        buffer_get_char(app, buffer, range.max - 1) == '}'){
         Scratch_Block scratch(app);
         Range range = {};
-        if (find_whole_statement_down(app, buffer, bottom, &range.start, &range.end)){
+        if (find_whole_statement_down(app, buffer, range.max, &range.start, &range.end)){
             String_Const_u8 base_string = push_buffer_range(app, scratch, buffer, range);
             String_Const_u8 string = string_skip_chop_whitespace(base_string);
             
@@ -764,8 +730,8 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
             Buffer_Edit edits[2];
             edits[0].str_start = 0;
             edits[0].len = (i32)edit_str.size;
-            edits[0].start = bottom - 1;
-            edits[0].end = bottom - 1;
+            edits[0].start = range.max - 1;
+            edits[0].end = range.max - 1;
             edits[1].str_start = 0;
             edits[1].len = 0;
             edits[1].start = range.start;

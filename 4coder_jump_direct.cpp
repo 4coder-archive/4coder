@@ -10,20 +10,16 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 {
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     
     Parsed_Jump jump = parse_jump_from_buffer_line(app, scratch, buffer, cursor.line, false);
     if (jump.success){
         change_active_panel(app);
-        View_ID target_view = 0;
-        get_active_view(app, AccessAll, &target_view);
+        View_ID target_view = get_active_view(app, AccessAll);
         if (get_jump_buffer(app, &buffer, &jump.location)){
             switch_to_existing_view(app, target_view, buffer);
             jump_to_location(app, target_view, buffer, jump.location);
@@ -38,12 +34,9 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 {
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessProtected, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i32 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = {};
     view_compute_cursor(app, view, seek_pos(pos), &cursor);
     
@@ -112,30 +105,34 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(newline_or_goto_position_direct)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    if (view_get_buffer(app, view, AccessOpen, &buffer)){
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    if (buffer != 0){
         write_character(app);
     }
-    else if (view_get_buffer(app, view, AccessProtected, &buffer)){
-        goto_jump_at_cursor_direct(app);
-        lock_jump_buffer(app, buffer);
+    else{
+        buffer = view_get_buffer(app, view, AccessProtected);
+        if (buffer != 0){
+            goto_jump_at_cursor_direct(app);
+            lock_jump_buffer(app, buffer);
+        }
     }
 }
 
 CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel_direct)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessProtected, &view);
-    Buffer_ID buffer = 0;
-    if (view_get_buffer(app, view, AccessOpen, &buffer)){
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    if (buffer != 0){
         write_character(app);
     }
-    else if (view_get_buffer(app, view, AccessProtected, &buffer)){
-        goto_jump_at_cursor_same_panel_direct(app);
-        lock_jump_buffer(app, buffer);
+    else{
+        buffer = view_get_buffer(app, view, AccessProtected);
+        if (buffer != 0){
+            goto_jump_at_cursor_same_panel_direct(app);
+            lock_jump_buffer(app, buffer);
+        }
     }
 }
 

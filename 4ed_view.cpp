@@ -86,12 +86,12 @@ view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
 
 ////////////////////////////////
 
-internal Rect_i32
+internal Rect_f32
 view_get_buffer_rect(Models *models, View *view){
-    Rect_i32 region = {};
+    Rect_f32 region = {};
     if (models->get_view_buffer_region != 0){
-        Rect_i32 rect = view->panel->rect_inner;
-        Rect_i32 sub_region = i32R(0, 0, rect_width(rect), rect_height(rect));
+        Rect_f32 rect = Rf32(view->panel->rect_inner);
+        Rect_f32 sub_region = Rf32(V2(0, 0), rect_dim(rect));
         sub_region = models->get_view_buffer_region(&models->app_links, view_get_id(&models->live_set, view), sub_region);
         region.p0 = rect.p0 + sub_region.p0;
         region.p1 = rect.p0 + sub_region.p1;
@@ -101,17 +101,17 @@ view_get_buffer_rect(Models *models, View *view){
         region.y0 = clamp_top(region.y0, region.y1);
     }
     else{
-        region = view->panel->rect_inner;
+        region = Rf32(view->panel->rect_inner);
     }
     return(region);
 }
 
-internal i32
+internal f32
 view_width(Models *models, View *view){
     return(rect_width(view_get_buffer_rect(models, view)));
 }
 
-internal i32
+internal f32
 view_height(Models *models, View *view){
     return(rect_height(view_get_buffer_rect(models, view)));
 }
@@ -133,7 +133,7 @@ view_get_cursor_xy(System_Functions *system, View *view){
 internal Cursor_Limits
 view_cursor_limits(Models *models, View *view){
     i32 line_height = view->line_height;
-    i32 visible_height = view_height(models, view);
+    i32 visible_height = (i32)view_height(models, view);
     Cursor_Limits limits = {};
     limits.max = visible_height - line_height*3;
     limits.min = line_height*2;
@@ -177,7 +177,7 @@ view_compute_max_target_y(Models *models, View *view){
 internal b32
 view_move_view_to_cursor(System_Functions *system, Models *models, View *view, GUI_Scroll_Vars *scroll){
     b32 result = false;
-    i32 max_x = view_width(models, view);
+    i32 max_x = (i32)view_width(models, view);
     i32 max_y = view_compute_max_target_y(models, view);
     
     Vec2_i32 cursor = view_get_cursor_xy(system, view);

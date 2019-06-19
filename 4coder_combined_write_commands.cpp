@@ -6,18 +6,15 @@
 
 static void
 write_string(Application_Links *app, View_ID view, Buffer_ID buffer, String_Const_u8 string){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     buffer_replace_range(app, buffer, make_range(pos), string);
     view_set_cursor(app, view, seek_pos(pos + (i32)string.size), 1);
 }
 
 static void
 write_string(Application_Links *app, String_Const_u8 string){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     write_string(app, view, buffer, string);
 }
 
@@ -37,12 +34,9 @@ write_named_comment_string(Application_Links *app, char *type_string){
 
 static void
 long_braces(Application_Links *app, char *text, i32 size){
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    i32 pos = view_get_cursor_pos(app, view);
     buffer_replace_range(app, buffer, make_range(pos), SCu8(text, size));
     view_set_cursor(app, view, seek_pos(pos + 2), true);
     buffer_auto_indent(app, buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
@@ -111,8 +105,7 @@ CUSTOM_DOC("At the cursor, insert a ' = {};'.")
 
 static i32
 get_start_of_line_at_cursor(Application_Links *app, View_ID view, Buffer_ID buffer){
-    i32 pos = 0;
-    view_get_cursor_pos(app, view, &pos);
+    i32 pos = view_get_cursor_pos(app, view);
     i32 line = get_line_number_from_pos(app, buffer, pos);
     pos = get_line_side_pos(app, buffer, line, Side_Min);
     return(pos);
@@ -133,10 +126,8 @@ c_line_comment_starts_at_position(Application_Links *app, Buffer_ID buffer, i32 
 CUSTOM_COMMAND_SIG(comment_line)
 CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (!alread_has_comment){
@@ -147,10 +138,8 @@ CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
 CUSTOM_COMMAND_SIG(uncomment_line)
 CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading whitespace.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
@@ -161,10 +150,8 @@ CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading w
 CUSTOM_COMMAND_SIG(comment_line_toggle)
 CUSTOM_DOC("Turns uncommented lines into commented lines and vice versa for comments starting with '//'.")
 {
-    View_ID view = 0;
-    get_active_view(app, AccessOpen, &view);
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view, AccessOpen, &buffer);
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     i32 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
@@ -214,10 +201,8 @@ activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
         lister_default(app, heap, view, state, ListerActivation_Finished);
-        Buffer_ID buffer = 0;
-        view_get_buffer(app, view, AccessOpen, &buffer);
-        i32 pos = 0;
-        view_get_cursor_pos(app, view, &pos);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+        i32 pos = view_get_cursor_pos(app, view);
         buffer_replace_range(app, buffer, make_range(pos), SCu8(snippet.text));
         view_set_cursor(app, view, seek_pos(pos + snippet.cursor_offset), true);
         view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
@@ -231,8 +216,7 @@ activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister
 static void
 snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_array){
     
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);

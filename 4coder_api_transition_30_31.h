@@ -112,6 +112,22 @@ enum{
     BoundaryCamelCase    = 0x8
 };
 
+// NOTE(allen|4.0.31): Stream_Tokens has been deprecated in favor of the Token_Iterator.
+// For examples of usage: 4coder_function_list.cpp 4coder_scope_commands.cpp
+// If you want to keep your code working easily uncomment the typedef for Stream_Tokens.
+struct Stream_Tokens_DEP{
+    Application_Links *app;
+    Buffer_ID buffer_id;
+    
+    Cpp_Token *base_tokens;
+    Cpp_Token *tokens;
+    i32 start;
+    i32 end;
+    i32 count;
+    i32 token_count;
+};
+//typedef Stream_Tokens_DEP Stream_Tokens;
+
 #endif
 
 // BOTTOM

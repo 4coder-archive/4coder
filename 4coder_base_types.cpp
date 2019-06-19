@@ -1782,6 +1782,23 @@ range_is_valid(Interval_f32 a){
     return(a.min <= a.max);
 }
 
+internal i32
+range_side(Interval_i32 a, Side side){
+    return(side == Side_Min?a.min:a.max);
+}
+internal i64
+range_side(Interval_i64 a, Side side){
+    return(side == Side_Min?a.min:a.max);
+}
+internal u64
+range_side(Interval_u64 a, Side side){
+    return(side == Side_Min?a.min:a.max);
+}
+internal f32
+range_side(Interval_f32 a, Side side){
+    return(side == Side_Min?a.min:a.max);
+}
+
 ////////////////////////////////
 
 internal i32
@@ -1835,12 +1852,12 @@ Rf32(Vec2_f32 p0, Vec2_f32 p1){
 
 internal Rect_i32
 Ri32(Rect_f32 o){
-    Rect_i32 rect = {(i32)(o.x0), (i32)(o.y0), (i32)(o.x0), (i32)(o.y1)};
+    Rect_i32 rect = {(i32)(o.x0), (i32)(o.y0), (i32)(o.x1), (i32)(o.y1)};
     return(rect);
 }
 internal Rect_f32
 Rf32(Rect_i32 o){
-    Rect_f32 rect = {(f32)(o.x0), (f32)(o.y0), (f32)(o.x0), (f32)(o.y1)};
+    Rect_f32 rect = {(f32)(o.x0), (f32)(o.y0), (f32)(o.x1), (f32)(o.y1)};
     return(rect);
 }
 

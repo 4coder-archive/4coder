@@ -133,5 +133,19 @@ child_process_set_target_buffer(Models *models, Child_Process *child_process, Ed
     return(result);
 }
 
+internal Process_State
+child_process_get_state(Child_Process_Container *child_processes, Child_Process_ID child_process_id){
+    Child_Process *child_process = child_process_from_id(child_processes, child_process_id);
+    Process_State result = {};
+    if (child_processes != 0){
+        result.valid = true;
+        result.is_updating = true;
+    }
+    else if (child_process_lookup_return_code(child_processes, child_process_id, &result.return_code)){
+        result.valid = true;
+    }
+    return(result);
+}
+
 // BOTTOM
 

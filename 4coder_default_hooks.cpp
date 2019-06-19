@@ -29,14 +29,12 @@ START_HOOK_SIG(default_start){
 #if 0
     default_4coder_one_panel(app, files, file_count);
     
-    View_ID left_view = 0;
-    
     Panel_ID left = 0;
     Panel_ID right = 0;
     Panel_ID bottom = 0;
     Panel_ID header = 0;
     
-    get_active_view(app, AccessAll, &left_view);
+    View_ID left_view = get_active_view(app, AccessAll);
     
     view_get_panel(app, left_view, &left);
     
@@ -80,16 +78,14 @@ START_HOOK_SIG(default_start){
 // NOTE(allen|a4.0.10): As of this version the word_complete command
 // also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
-    View_ID view = 0;
-    get_active_view(app, AccessAll, &view);
+    View_ID view = get_active_view(app, AccessAll);
     Managed_Scope scope = 0;
     view_get_managed_scope(app, view, &scope);
     managed_variable_set(app, scope, view_next_rewrite_loc, 0);
     if (fcoder_mode == FCoderMode_NotepadLike){
-        View_ID view_it = 0;
-        for (get_view_next(app, 0, AccessAll, &view_it);
+        for (View_ID view_it = get_view_next(app, 0, AccessAll);
              view_it != 0;
-             get_view_next(app, view_it, AccessAll, &view_it)){
+             view_it = get_view_next(app, view_it, AccessAll)){
             Managed_Scope scope_it = 0;
             view_get_managed_scope(app, view_it, &scope_it);
             managed_variable_set(app, scope_it, view_snap_mark_to_cursor, true);
@@ -102,17 +98,15 @@ COMMAND_CALLER_HOOK(default_command_caller){
     managed_variable_get(app, scope, view_next_rewrite_loc, &next_rewrite);
     managed_variable_set(app, scope, view_rewrite_loc, next_rewrite);
     if (fcoder_mode == FCoderMode_NotepadLike){
-        View_ID view_it = 0;
-        for (get_view_next(app, 0, AccessAll, &view_it);
+        for (View_ID view_it = get_view_next(app, 0, AccessAll);
              view_it != 0;
-             get_view_next(app, view_it, AccessAll, &view_it)){
+             view_it = get_view_next(app, view_it, AccessAll)){
             Managed_Scope scope_it = 0;
             view_get_managed_scope(app, view_it, &scope_it);
             u64 val = 0;
             if (managed_variable_get(app, scope_it, view_snap_mark_to_cursor, &val)){
                 if (val != 0){
-                    i32 pos = 0;
-                    view_get_cursor_pos(app, view_it, &pos);
+                    i32 pos = view_get_cursor_pos(app, view_it);
                     view_set_mark(app, view_it, seek_pos(pos));
                 }
             }
@@ -285,8 +279,7 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 }
 
 GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
-    Buffer_ID buffer = 0;
-    view_get_buffer(app, view_id, AccessAll, &buffer);
+    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     Face_ID face_id = 0;
     get_face_id(app, buffer, &face_id);
     Face_Metrics metrics = {};
@@ -316,8 +309,7 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     
     // line number margins
     if (global_config.show_line_number_margins){
-        i32 line_count = 0;
-        buffer_get_line_count(app, buffer, &line_count);
+        i32 line_count = (i32)buffer_get_line_count(app, buffer);
         i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
         i32 margin_width = ceil32((f32)line_count_digit_count*metrics.typical_character_width);
         sub_region.x0 += margin_width + 2;
@@ -349,23 +341,21 @@ abs_position_from_buffer_point(Application_Links *app, View_ID view_id, Buffer_P
 }
 
 static void
-default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id, Rect_i32 view_inner_rect){
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view_id, AccessAll, &buffer_id);
+default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id, Rect_f32 view_inner_rect){
+    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     
     Face_ID face_id = 0;
-    get_face_id(app, buffer_id, &face_id);
+    get_face_id(app, buffer, &face_id);
     Face_Metrics face_metrics = {};
     get_face_metrics(app, face_id, &face_metrics);
     
     f32 line_height = face_metrics.line_height;
     
-    Rect_i32 sub_region = i32R(0, 0, rect_width(view_inner_rect), rect_height(view_inner_rect));
+    Rect_f32 sub_region = Rf32(V2(0, 0), rect_dim(view_inner_rect));
     sub_region = default_view_buffer_region(app, view_id, sub_region);
-    Rect_f32 buffer_rect = {};
-    buffer_rect.p0 = V2(view_inner_rect.p0 + sub_region.p0);
-    buffer_rect.p1 = V2(view_inner_rect.p0 + sub_region.p1);
-    buffer_rect = intersection_of(buffer_rect, f32R(view_inner_rect));
+    Rect_f32 buffer_rect = Rf32(V2(view_inner_rect.p0 + sub_region.p0),
+                                V2(view_inner_rect.p0 + sub_region.p1));
+    buffer_rect = rect_intersect(buffer_rect, view_inner_rect);
     
     GUI_Scroll_Vars scroll = {};
     view_get_scroll_vars(app, view_id, &scroll);
@@ -373,14 +363,13 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     Buffer_Point buffer_point = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
     Text_Layout_ID text_layout_id = 0;
     
-    compute_render_layout(app, view_id, buffer_id, buffer_rect.p0, rect_dim(buffer_rect), buffer_point,
+    compute_render_layout(app, view_id, buffer, buffer_rect.p0, rect_dim(buffer_rect), buffer_point,
                           max_i32, &text_layout_id);
     Range on_screen_range = {};
     text_layout_get_on_screen_range(app, text_layout_id, &on_screen_range);
     text_layout_free(app, text_layout_id);
     
-    View_ID active_view = 0;
-    get_active_view(app, AccessAll, &active_view);
+    View_ID active_view = get_active_view(app, AccessAll);
     b32 is_active_view = (active_view == view_id);
     
     Scratch_Block scratch(app);
@@ -391,8 +380,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     {
-        Rect_f32 r_cursor = {};
-        view_get_screen_rect(app, view_id, &r_cursor);
+        Rect_f32 r_cursor = view_get_screen_rect(app, view_id);
         r_cursor.p1 -= r_cursor.p0;
         r_cursor.p0 = V2(0.f,0.f);
         
@@ -412,18 +400,17 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     
                     Temp_Memory temp = begin_temp(scratch);
                     
-                    i32 cursor_position = 0;
-                    view_get_cursor_pos(app, view_id, &cursor_position);
+                    i32 cursor_position = view_get_cursor_pos(app, view_id);
                     Full_Cursor cursor = {};
                     view_compute_cursor(app, view_id, seek_pos(cursor_position), &cursor);
                     
                     Fancy_String_List list = {};
-                    String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer_id);
+                    String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
                     push_fancy_string(scratch, &list, base_color, unique_name);
                     push_fancy_stringf(scratch, &list, base_color, " - Row: %3.d Col: %3.d -", cursor.line, cursor.character);
                     
                     b32 is_dos_mode = false;
-                    if (buffer_get_setting(app, buffer_id, BufferSetting_Eol, &is_dos_mode)){
+                    if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
                         if (is_dos_mode){
                             push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
                         }
@@ -436,8 +423,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     }
                     
                     {
-                        Dirty_State dirty = 0;
-                        buffer_get_dirty_state(app, buffer_id, &dirty);
+                        Dirty_State dirty = buffer_get_dirty_state(app, buffer);
                         u8 space[3];
                         String_u8 str = Su8(space, 0, 3);
                         if (dirty != 0){
@@ -492,8 +478,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         // NOTE(allen): Line Numbers
         if (global_config.show_line_number_margins){
-            i32 line_count = 0;
-            buffer_get_line_count(app, buffer_id, &line_count);
+            i32 line_count = (i32)buffer_get_line_count(app, buffer);
             i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
             // TODO(allen): I need a "digit width"
             f32 zero = get_string_advance(app, face_id, string_u8_litexpr("0"));
@@ -534,7 +519,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     // NOTE(allen): Scan for TODOs and NOTEs
     {
         Temp_Memory temp = begin_temp(scratch);
-        String_Const_u8 tail = push_buffer_range(app, scratch, buffer_id, on_screen_range);
+        String_Const_u8 tail = push_buffer_range(app, scratch, buffer, on_screen_range);
         
         Highlight_Record *record_first = 0;
         Highlight_Record *record_last = 0;
@@ -589,7 +574,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 b32 do_emit = (i == record_count || records[i].color != current_color);
                 if (do_emit){
                     i32 marker_count = marker_index - marker_index_first;
-                    Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer_id, marker_count, &render_scope);
+                    Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer, marker_count, &render_scope);
                     managed_object_store_data(app, o, 0, marker_count, markers + marker_index_first);
                     Marker_Visual v = create_marker_visual(app, o);
                     marker_visual_set_effect(app, v, VisualType_CharacterHighlightRanges, SymbolicColor_Default, current_color, 0);
@@ -610,12 +595,10 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     // NOTE(allen): Cursor and mark
-    i32 cursor_pos = 0;
-    i32 mark_pos = 0;
-    view_get_cursor_pos(app, view_id, &cursor_pos);
-    view_get_mark_pos(app, view_id, &mark_pos);
+    i32 cursor_pos = view_get_cursor_pos(app, view_id);
+    i32 mark_pos = view_get_mark_pos(app, view_id);
     
-    Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer_id, 2, &render_scope);
+    Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
     Marker cm_markers[2] = {};
     cm_markers[0].pos = cursor_pos;
     cm_markers[1].pos = mark_pos;
@@ -695,9 +678,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         Temp_Memory temp = begin_temp(scratch);
         Boundary_Function_List funcs = push_boundary_list(scratch, boundary_token, boundary_non_whitespace);
-        Range snipe_range = get_snipe_range(app, funcs, buffer_id, cursor_pos, Scan_Backward);
+        Range snipe_range = get_snipe_range(app, funcs, buffer, cursor_pos, Scan_Backward);
         if (range_size(snipe_range) > 0){
-            Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer_id, 2, &render_scope);
+            Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
             Marker range_markers[2] = {};
             range_markers[0].pos = snipe_range.min;
             range_markers[1].pos = snipe_range.max;
@@ -715,15 +698,15 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         for (u16 i = 0; i < color_count; i += 1){
             colors[i] = Stag_Back_Cycle_1 + i;
         }
-        mark_enclosures(app, render_scope, buffer_id, cursor_pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
+        mark_enclosures(app, render_scope, buffer, cursor_pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
         i32 pos = cursor_pos;
-        if (buffer_get_char(app, buffer_id, pos) == '('){
+        if (buffer_get_char(app, buffer, pos) == '('){
             pos += 1;
         }
         else if (pos > 0){
-            if (buffer_get_char(app, buffer_id, pos - 1) == ')'){
+            if (buffer_get_char(app, buffer, pos - 1) == ')'){
                 pos -= 1;
             }
         }
@@ -731,7 +714,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         for (u16 i = 0; i < color_count; i += 1){
             colors[i] = Stag_Text_Cycle_1 + i;
         }
-        mark_enclosures(app, render_scope, buffer_id, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
+        mark_enclosures(app, render_scope, buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
     }
     
     draw_clip_push(app, buffer_rect);
@@ -750,8 +733,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         history_animation_dt[wrapped_index] = frame_info.animation_dt;
         history_frame_index[wrapped_index]  = frame_info.index;
         
-        Rect_f32 hud_rect = {};
-        view_get_screen_rect(app, view_id, &hud_rect);
+        Rect_f32 hud_rect = view_get_screen_rect(app, view_id);
         hud_rect.p1 -= hud_rect.p0;
         hud_rect.p0 = V2(0.f, 0.f);
         hud_rect.y0 = hud_rect.y1 - line_height*(f32)(history_depth);
@@ -871,83 +853,74 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
 }
 static void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32){
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view_id, AccessAll, &buffer_id);
+    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     Face_ID face_id = 0;
-    get_face_id(app, buffer_id, &face_id);
+    get_face_id(app, buffer, &face_id);
     default_ui_render_caller(app, view_id, rect_f32, face_id);
 }
 static void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Face_ID face_id){
-    Rect_f32 rect = {};
-    view_get_screen_rect(app, view_id, &rect);
+    Rect_f32 rect = view_get_screen_rect(app, view_id);
     rect.p1 -= rect.p0;
     rect.p0 = V2(0.f,0.f);
     default_ui_render_caller(app, view_id, rect, face_id);
 }
 static void
-default_ui_render_caller(Application_Links *app, View_ID view_id){
-    Rect_f32 rect = {};
-    view_get_screen_rect(app, view_id, &rect);
+default_ui_render_caller(Application_Links *app, View_ID view){
+    Rect_f32 rect = view_get_screen_rect(app, view);
     rect.p1 -= rect.p0;
     rect.p0 = V2(0.f,0.f);
-    Buffer_ID buffer_id = 0;
-    view_get_buffer(app, view_id, AccessAll, &buffer_id);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Face_ID face_id = 0;
-    get_face_id(app, buffer_id, &face_id);
-    default_ui_render_caller(app, view_id, rect, face_id);
+    get_face_id(app, buffer, &face_id);
+    default_ui_render_caller(app, view, rect, face_id);
 }
 
 static void
-default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view_id, b32 is_active){
-    Rect_i32 view_rect = {};
-    view_get_region(app, view_id, &view_rect);
-    Rect_i32 inner = rect_inner(view_rect, 3);
-    draw_rectangle(app, f32R(view_rect), get_margin_color(is_active?UIActivation_Active:UIActivation_None));
-    draw_rectangle(app, f32R(inner), Stag_Back);
-    draw_clip_push(app, f32R(inner));
-    draw_coordinate_center_push(app, V2(inner.p0));
-    if (view_is_in_ui_mode(app, view_id)){
-        default_ui_render_caller(app, view_id);
+default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view, b32 is_active){
+    Rect_f32 view_rect = view_get_screen_rect(app, view);
+    Rect_f32 inner = rect_inner(view_rect, 3);
+    draw_rectangle(app, view_rect, get_margin_color(is_active?UIActivation_Active:UIActivation_None));
+    draw_rectangle(app, inner, Stag_Back);
+    draw_clip_push(app, inner);
+    draw_coordinate_center_push(app, inner.p0);
+    if (view_is_in_ui_mode(app, view)){
+        default_ui_render_caller(app, view);
     }
     else{
-        default_buffer_render_caller(app, frame_info, view_id, inner);
+        default_buffer_render_caller(app, frame_info, view, inner);
     }
     draw_clip_pop(app);
     draw_coordinate_center_pop(app);
 }
 
 RENDER_CALLER_SIG(default_render_caller){
-    View_ID active_view_id = 0;
-    get_active_view(app, AccessAll, &active_view_id);
-    View_ID view_id = 0;
-    for (get_view_next(app, 0, AccessAll, &view_id);
+    View_ID active_view_id = get_active_view(app, AccessAll);
+    for (View_ID view_id = get_view_next(app, 0, AccessAll);
          view_id != 0;
-         get_view_next(app, view_id, AccessAll, &view_id)){
+         view_id = get_view_next(app, view_id, AccessAll)){
         default_render_view(app, frame_info, view_id, (active_view_id == view_id));
     }
 }
 
 HOOK_SIG(default_exit){
+    // If this returns zero it cancels the exit.
+    
     i32 result = 1;
     
-    // If this returns zero it cancels the exit.
     if (!allow_immediate_close_without_checking_for_changes){
         b32 has_unsaved_changes = false;
-        Buffer_ID buffer = 0;
-        for (get_buffer_next(app, 0, AccessAll, &buffer);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
-             get_buffer_next(app, buffer, AccessAll, &buffer)){
-            Dirty_State dirty = 0;
-            buffer_get_dirty_state(app, buffer, &dirty);
+             buffer = get_buffer_next(app, buffer, AccessAll)){
+            Dirty_State dirty = buffer_get_dirty_state(app, buffer);
             if (HasFlag(dirty, DirtyState_UnsavedChanges)){
                 has_unsaved_changes = true;
                 break;
             }
         }
         if (has_unsaved_changes){
-            View_ID view = 0;
-            get_active_view(app, AccessAll, &view);
+            View_ID view = get_active_view(app, AccessAll);
             do_gui_sure_to_close_4coder(app, view);
             result = 0;
         }
@@ -959,15 +932,12 @@ HOOK_SIG(default_exit){
 // TODO(allen): how to deal with multiple sizes on a single view
 // TODO(allen): expected character advance.
 HOOK_SIG(default_view_adjust){
-    View_ID view = 0;
-    for (get_view_next(app, 0, AccessAll, &view);
+    for (View_ID view = get_view_next(app, 0, AccessAll);
          view != 0;
-         get_view_next(app, view, AccessAll, &view)){
-        Buffer_ID buffer = 0;
-        view_get_buffer(app, view, AccessAll, &buffer);
+         view = get_view_next(app, view, AccessAll)){
+        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
         
-        Rect_f32 screen_rect = {};
-        view_get_screen_rect(app, view, &screen_rect);
+        Rect_f32 screen_rect = view_get_screen_rect(app, view);
         f32 view_width = rect_width(screen_rect);
         
         Face_ID face_id = 0;
@@ -1111,8 +1081,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     Temp_Memory temp = begin_temp(scratch);
     
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
-    i32 buffer_size = 0;
-    buffer_get_size(app, buffer_id, &buffer_size);
+    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
     
     if (file_name.size > 0 && buffer_size < MB(32)){
         String_Const_u8 ext = string_file_extension(file_name);
@@ -1242,12 +1211,11 @@ OPEN_FILE_HOOK_SIG(default_new_file){
 }
 
 OPEN_FILE_HOOK_SIG(default_file_save){
-    i32 is_virtual = 0;
+    b32 is_virtual = false;
     if (global_config.automatically_indent_text_on_save &&
         buffer_get_setting(app, buffer_id, BufferSetting_VirtualWhitespace, &is_virtual)){ 
         if (is_virtual){
-            i32 buffer_size = 0;
-            buffer_get_size(app, buffer_id, &buffer_size);
+            i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
             buffer_auto_indent(app, buffer_id, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         }
     }
