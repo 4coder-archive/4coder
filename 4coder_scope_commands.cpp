@@ -701,7 +701,6 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
     if (buffer_get_char(app, buffer, range.min) == '{' &&
         buffer_get_char(app, buffer, range.max - 1) == '}'){
         Scratch_Block scratch(app);
-        Range range = {};
         if (find_whole_statement_down(app, buffer, range.max, &range.start, &range.end)){
             String_Const_u8 base_string = push_buffer_range(app, scratch, buffer, range);
             String_Const_u8 string = string_skip_chop_whitespace(base_string);
