@@ -372,8 +372,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     
     i32 list_index = get_index_exact_from_list(app, list, cursor.line);
     
@@ -401,8 +400,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     
     i32 list_index = get_index_exact_from_list(app, list, cursor.line);
     
@@ -484,8 +482,7 @@ get_locked_jump_state(Application_Links *app, Heap *heap){
         result.list = get_or_make_list_for_buffer(app, heap, buffer);
         
         i32 cursor_position = view_get_cursor_pos(app, result.view);
-        Full_Cursor cursor = {};
-        view_compute_cursor(app, result.view, seek_pos(cursor_position), &cursor);
+        Full_Cursor cursor = view_compute_cursor(app, result.view, seek_pos(cursor_position));
         result.list_index = get_index_nearest_from_list(app, result.list, cursor.line);
     }
     return(result);
@@ -499,8 +496,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     Locked_Jump_State jump_state = get_locked_jump_state(app, heap);
     if (jump_state.view != 0){
         i32 cursor_position = view_get_cursor_pos(app, jump_state.view);
-        Full_Cursor cursor = {};
-        view_compute_cursor(app, jump_state.view, seek_pos(cursor_position), &cursor);
+        Full_Cursor cursor = view_compute_cursor(app, jump_state.view, seek_pos(cursor_position));
         i32 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
         if (line <= cursor.line){
             ++jump_state.list_index;
@@ -530,8 +526,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     Locked_Jump_State jump_state = get_locked_jump_state(app, heap);
     if (jump_state.view != 0){
         i32 cursor_position = view_get_cursor_pos(app, jump_state.view);
-        Full_Cursor cursor = {};
-        view_compute_cursor(app, jump_state.view, seek_pos(cursor_position), &cursor);
+        Full_Cursor cursor = view_compute_cursor(app, jump_state.view, seek_pos(cursor_position));
         i32 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
         if (line <= cursor.line){
             ++jump_state.list_index;

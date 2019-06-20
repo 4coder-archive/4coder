@@ -1118,8 +1118,7 @@ token_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String b)
 
 static i32
 view_get_line_number(Application_Links *app, View_ID view, i32 pos){
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     return(cursor.line);
 }
 

@@ -71,8 +71,7 @@ CUSTOM_COMMAND_SIG(lister__wheel_scroll)
 CUSTOM_DOC("A lister mode command that scrolls the list in response to the mouse wheel.")
 {
     View_ID view = get_active_view(app, AccessAll);
-    GUI_Scroll_Vars scroll = {};
-    view_get_scroll_vars(app, view, &scroll);
+    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
     Mouse_State mouse = get_mouse_state(app);
     scroll.target_y += mouse.wheel;
     view_set_scroll(app, view, scroll);

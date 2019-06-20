@@ -7,8 +7,7 @@
 // TODO(allen): transition wrappers
 static Face_Description
 get_buffer_face_description(Application_Links *app, Buffer_ID buffer){
-    Face_ID current_id = 0;
-    get_face_id(app, buffer, &current_id);
+    Face_ID current_id = get_face_id(app, buffer);
     Face_Description description = {};
     if (current_id != 0){
         description = get_face_description(app, current_id);
@@ -18,8 +17,7 @@ get_buffer_face_description(Application_Links *app, Buffer_ID buffer){
 
 static Face_Description
 get_global_face_description(Application_Links *app){
-    Face_ID current_id = 0;
-    get_face_id(app, 0, &current_id);
+    Face_ID current_id = get_face_id(app, 0);
     Face_Description description = get_face_description(app, current_id);
     return(description);
 }
@@ -98,8 +96,7 @@ get_face_id_by_description(Application_Links *app, Face_Description *description
 
 static void
 set_global_face_by_name(Application_Links *app, String_Const_u8 name, b32 apply_to_all_buffers){
-    Face_ID global_face_id = 0;
-    get_face_id(app, 0, &global_face_id);
+    Face_ID global_face_id = get_face_id(app, 0);
     Face_Description description = get_face_description(app, global_face_id);
     Face_ID new_id = get_face_id_by_name(app, name, &description);
     if (new_id != 0){
@@ -109,8 +106,7 @@ set_global_face_by_name(Application_Links *app, String_Const_u8 name, b32 apply_
 
 static void
 change_global_face_by_description(Application_Links *app, Face_Description description, b32 apply_to_all_buffers){
-    Face_ID face_id = 0;
-    get_face_id(app, 0, &face_id);
+    Face_ID face_id = get_face_id(app, 0);
     if (!try_modify_face(app, face_id, &description)){
         description.font.in_local_font_folder = !description.font.in_local_font_folder;
         try_modify_face(app, face_id, &description);
@@ -119,8 +115,7 @@ change_global_face_by_description(Application_Links *app, Face_Description descr
 
 static void
 set_buffer_face_by_name(Application_Links *app, Buffer_ID buffer, String_Const_u8 name){
-    Face_ID current_id = 0;
-    get_face_id(app, buffer, &current_id);
+    Face_ID current_id = get_face_id(app, buffer);
     if (current_id != 0){
         Face_Description description = get_face_description(app, current_id);
         Face_ID new_id = get_face_id_by_name(app, name, &description);

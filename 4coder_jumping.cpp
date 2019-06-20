@@ -304,8 +304,7 @@ convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location
 static Parsed_Jump
 seek_next_jump_in_view(Application_Links *app, Arena *arena, View_ID view, i32 skip_sub_errors, i32 direction, i32 *line_out){
     i32 cursor_position = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(cursor_position), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_position));
     i32 line = cursor.line;
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Parsed_Jump jump = seek_next_jump_in_buffer(app, arena, buffer, line + direction, skip_sub_errors, direction, &line);

@@ -63,15 +63,13 @@ new_view_settings(Application_Links *app, View_ID view){
 
 static void
 view_set_passive(Application_Links *app, View_ID view_id, b32 value){
-    Managed_Scope scope = 0;
-    view_get_managed_scope(app, view_id, &scope);
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
     managed_variable_set(app, scope, view_is_passive_loc, (u64)value);
 }
 
 static b32
 view_get_is_passive(Application_Links *app, View_ID view_id){
-    Managed_Scope scope = 0;
-    view_get_managed_scope(app, view_id, &scope);
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
     u64 is_passive = 0;
     managed_variable_get(app, scope, view_is_passive_loc, &is_passive);
     return(is_passive != 0);
@@ -82,10 +80,8 @@ open_footer_panel(Application_Links *app, View_ID view){
     View_ID special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, special_view);
     Buffer_ID buffer = view_get_buffer(app, special_view, AccessAll);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
-    Face_Metrics metrics = {};
-    get_face_metrics(app, face_id, &metrics);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Metrics metrics = get_face_metrics(app, face_id);
     view_set_split_pixel_size(app, special_view, (i32)(metrics.line_height*20.f));
     view_set_passive(app, special_view, true);
     return(special_view);

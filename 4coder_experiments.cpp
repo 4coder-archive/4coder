@@ -14,19 +14,16 @@
 
 static float
 get_line_y(Application_Links *app, View_ID view, i32 line){
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_line_char(line, 1), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_line_char(line, 1));
     return(cursor.wrapped_y);
 }
 
 static Rect_i32
 get_line_x_rect(Application_Links *app, View_ID view){
     i32 cursor_pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_pos));
     i32 mark_pos = view_get_mark_pos(app, view);
-    Full_Cursor mark = {};
-    view_compute_cursor(app, view, seek_pos(mark_pos), &mark);
+    Full_Cursor mark = view_compute_cursor(app, view, seek_pos(mark_pos));
     
     Rect_i32 rect = {};
     rect.x0 = (i32)mark.wrapped_x;
@@ -53,11 +50,12 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
     i32_Rect rect = get_line_x_rect(app, view);
     
     for (i32 line = rect.y1; line >= rect.y0; --line){
-        Full_Cursor cursor = {};
         f32 y = get_line_y(app, view, line);
-        if (view_compute_cursor(app, view, seek_wrapped_xy((float)rect.x0, y, 0), &cursor)){
+        Full_Cursor cursor = view_compute_cursor(app, view, seek_wrapped_xy((f32)rect.x0, y, 0));
+        if (cursor.line > 0){
             i32 start = cursor.pos;
-            if (view_compute_cursor(app, view, seek_wrapped_xy((float)rect.x1, y, 0), &cursor)){
+            cursor = view_compute_cursor(app, view, seek_wrapped_xy((f32)rect.x1, y, 0));
+            if (cursor.line > 0){
                 i32 end = cursor.pos;
                 buffer_replace_range(app, buffer, make_range(start, end), string_u8_litexpr(""));
             }
@@ -131,11 +129,9 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
     i32 cursor_pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(cursor_pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_pos));
     i32 mark_pos = view_get_mark_pos(app, view);
-    Full_Cursor mark = {};
-    view_compute_cursor(app, view, seek_pos(mark_pos), &mark);
+    Full_Cursor mark = view_compute_cursor(app, view, seek_pos(mark_pos));
     Buffer_Rect rect = {};
     rect.char0 = mark.character;
     rect.line0 = mark.line;
@@ -223,8 +219,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
     i32 count = clipboard_count(app, 0);
     if (count > 0){
         View_ID view = get_active_view(app, AccessOpen);
-        Managed_Scope scope = 0;
-        view_get_managed_scope(app, view, &scope);
+        Managed_Scope scope = view_get_managed_scope(app, view);
         
         u64 rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);

@@ -48,8 +48,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         View_ID view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view);
         
-        Managed_Scope scope = 0;
-        view_get_managed_scope(app, view, &scope);
+        Managed_Scope scope = view_get_managed_scope(app, view);
         managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
         i32 paste_index = 0;
         managed_variable_set(app, scope, view_paste_index_loc, paste_index);
@@ -82,8 +81,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
     i32 count = clipboard_count(app, 0);
     if (count > 0){
         View_ID view = get_active_view(app, AccessOpen);
-        Managed_Scope scope = 0;
-        view_get_managed_scope(app, view, &scope);
+        Managed_Scope scope = view_get_managed_scope(app, view);
         no_mark_snap_to_cursor(app, scope);
         
         u64 rewrite = 0;

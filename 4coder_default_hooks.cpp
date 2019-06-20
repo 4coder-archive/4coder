@@ -79,15 +79,13 @@ START_HOOK_SIG(default_start){
 // also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
     View_ID view = get_active_view(app, AccessAll);
-    Managed_Scope scope = 0;
-    view_get_managed_scope(app, view, &scope);
+    Managed_Scope scope = view_get_managed_scope(app, view);
     managed_variable_set(app, scope, view_next_rewrite_loc, 0);
     if (fcoder_mode == FCoderMode_NotepadLike){
         for (View_ID view_it = get_view_next(app, 0, AccessAll);
              view_it != 0;
              view_it = get_view_next(app, view_it, AccessAll)){
-            Managed_Scope scope_it = 0;
-            view_get_managed_scope(app, view_it, &scope_it);
+            Managed_Scope scope_it = view_get_managed_scope(app, view_it);
             managed_variable_set(app, scope_it, view_snap_mark_to_cursor, true);
         }
     }
@@ -101,8 +99,7 @@ COMMAND_CALLER_HOOK(default_command_caller){
         for (View_ID view_it = get_view_next(app, 0, AccessAll);
              view_it != 0;
              view_it = get_view_next(app, view_it, AccessAll)){
-            Managed_Scope scope_it = 0;
-            view_get_managed_scope(app, view_it, &scope_it);
+            Managed_Scope scope_it = view_get_managed_scope(app, view_it);
             u64 val = 0;
             if (managed_variable_get(app, scope_it, view_snap_mark_to_cursor, &val)){
                 if (val != 0){
@@ -280,10 +277,8 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 
 GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
-    Face_Metrics metrics = {};
-    get_face_metrics(app, face_id, &metrics);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Metrics metrics = get_face_metrics(app, face_id);
     i32 line_height = ceil32(metrics.line_height);
     
     // file bar
@@ -320,9 +315,8 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
 
 static Buffer_Point
 buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Vec2 scroll){
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view_id, seek_wrapped_xy(0.f, scroll.y, false), &cursor);
-    view_compute_cursor(app, view_id, seek_line_char(cursor.line, 1), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view_id, seek_wrapped_xy(0.f, scroll.y, false));
+    cursor = view_compute_cursor(app, view_id, seek_line_char(cursor.line, 1));
     Buffer_Point result = {};
     result.line_number = cursor.line;
     result.pixel_shift.x = scroll.x;
@@ -332,11 +326,10 @@ buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Ve
 
 static i32
 abs_position_from_buffer_point(Application_Links *app, View_ID view_id, Buffer_Point buffer_point){
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view_id, seek_line_char(buffer_point.line_number, 0), &cursor);
-    view_compute_cursor(app, view_id, seek_wrapped_xy(buffer_point.pixel_shift.x,
-                                                      buffer_point.pixel_shift.y + cursor.wrapped_y, false),
-                        &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view_id, seek_line_char(buffer_point.line_number, 0));
+    Buffer_Seek seek = seek_wrapped_xy(buffer_point.pixel_shift.x,
+                                       buffer_point.pixel_shift.y + cursor.wrapped_y, false);
+    cursor = view_compute_cursor(app, view_id, seek);
     return(cursor.pos);
 }
 
@@ -344,10 +337,8 @@ static void
 default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id, Rect_f32 view_inner_rect){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
-    Face_Metrics face_metrics = {};
-    get_face_metrics(app, face_id, &face_metrics);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Metrics face_metrics = get_face_metrics(app, face_id);
     
     f32 line_height = face_metrics.line_height;
     
@@ -357,14 +348,10 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                                 V2(view_inner_rect.p0 + sub_region.p1));
     buffer_rect = rect_intersect(buffer_rect, view_inner_rect);
     
-    GUI_Scroll_Vars scroll = {};
-    view_get_scroll_vars(app, view_id, &scroll);
+    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view_id);
     
     Buffer_Point buffer_point = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
-    Text_Layout_ID text_layout_id = 0;
-    
-    compute_render_layout(app, view_id, buffer, buffer_rect.p0, rect_dim(buffer_rect), buffer_point,
-                          max_i32, &text_layout_id);
+    Text_Layout_ID text_layout_id = compute_render_layout(app, view_id, buffer, buffer_rect.p0, rect_dim(buffer_rect), buffer_point, max_i32);
     Range on_screen_range = {};
     text_layout_get_on_screen_range(app, text_layout_id, &on_screen_range);
     text_layout_free(app, text_layout_id);
@@ -401,8 +388,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     Temp_Memory temp = begin_temp(scratch);
                     
                     i32 cursor_position = view_get_cursor_pos(app, view_id);
-                    Full_Cursor cursor = {};
-                    view_compute_cursor(app, view_id, seek_pos(cursor_position), &cursor);
+                    Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
                     
                     Fancy_String_List list = {};
                     String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
@@ -493,10 +479,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             
             Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
             
-            Full_Cursor cursor = {};
-            view_compute_cursor(app, view_id, seek_pos(on_screen_range.first), &cursor);
-            GUI_Scroll_Vars scroll_vars = {};
-            view_get_scroll_vars(app, view_id, &scroll_vars);
+            Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(on_screen_range.first));
+            GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view_id);
             for (;cursor.pos <= on_screen_range.one_past_last;){
                 Vec2 p = panel_space_from_view_space(cursor.wrapped_p, scroll_vars.scroll_p);
                 p += V2(buffer_rect.p0);
@@ -506,7 +490,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
                 end_temp(temp);
                 i32 next_line = cursor.line + 1;
-                view_compute_cursor(app, view_id, seek_line_char(next_line, 1), &cursor);
+                cursor = view_compute_cursor(app, view_id, seek_line_char(next_line, 1));
                 if (cursor.line < next_line){
                     break;
                 }
@@ -811,14 +795,12 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
-        GUI_Scroll_Vars ui_scroll = {};
-        view_get_scroll_vars(app, view_id, &ui_scroll);
+        GUI_Scroll_Vars ui_scroll = view_get_scroll_vars(app, view_id);
         
         for (UI_Item *item = ui_data->list.first;
              item != 0;
              item = item->next){
-            Rect_i32 item_rect_i32 = item->rect_outer;
-            Rect_f32 item_rect = f32R(item_rect_i32);
+            Rect_f32 item_rect = f32R(item->rect_outer);
             
             switch (item->coordinates){
                 case UICoordinates_ViewSpace:
@@ -833,8 +815,7 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
             if (rect_overlap(item_rect, rect_f32)){
                 Rect_f32 inner = rect_inner(item_rect, (f32)item->inner_margin);
                 
-                Face_Metrics metrics = {};
-                get_face_metrics(app, face_id, &metrics);
+                Face_Metrics metrics = get_face_metrics(app, face_id);
                 f32 line_height = metrics.line_height;
                 f32 info_height = (f32)item->line_count*line_height;
                 
@@ -854,8 +835,7 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
 static void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
+    Face_ID face_id = get_face_id(app, buffer);
     default_ui_render_caller(app, view_id, rect_f32, face_id);
 }
 static void
@@ -871,8 +851,7 @@ default_ui_render_caller(Application_Links *app, View_ID view){
     rect.p1 -= rect.p0;
     rect.p0 = V2(0.f,0.f);
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
+    Face_ID face_id = get_face_id(app, buffer);
     default_ui_render_caller(app, view, rect, face_id);
 }
 
@@ -940,8 +919,7 @@ HOOK_SIG(default_view_adjust){
         Rect_f32 screen_rect = view_get_screen_rect(app, view);
         f32 view_width = rect_width(screen_rect);
         
-        Face_ID face_id = 0;
-        get_face_id(app, buffer, &face_id);
+        Face_ID face_id = get_face_id(app, buffer);
         f32 em = get_string_advance(app, face_id, string_u8_litexpr("m"));
         
         f32 wrap_width = view_width - 2.0f*em;

@@ -44,6 +44,7 @@ struct Application_Links;
 #define BUFFER_KILL_SIG(n) Buffer_Kill_Result n(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
 #define BUFFER_REOPEN_SIG(n) Buffer_Reopen_Result n(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags)
 #define BUFFER_GET_FILE_ATTRIBUTES_SIG(n) File_Attributes n(Application_Links *app, Buffer_ID buffer_id)
+#define GET_FILE_ATTRIBUTES_SIG(n) File_Attributes n(Application_Links *app, String_Const_u8 file_name)
 #define GET_VIEW_NEXT_SIG(n) View_ID n(Application_Links *app, View_ID view_id, Access_Flag access)
 #define GET_VIEW_PREV_SIG(n) View_ID n(Application_Links *app, View_ID view_id, Access_Flag access)
 #define GET_ACTIVE_VIEW_SIG(n) View_ID n(Application_Links *app, Access_Flag access)
@@ -67,12 +68,12 @@ struct Application_Links;
 #define PANEL_GET_MARGIN_SIG(n) Rect_i32 n(Application_Links *app, Panel_ID panel_id)
 #define VIEW_CLOSE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_BUFFER_REGION_SIG(n) Rect_f32 n(Application_Links *app, View_ID view_id)
-#define VIEW_GET_SCROLL_VARS_SIG(n) b32 n(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out)
+#define VIEW_GET_SCROLL_VARS_SIG(n) GUI_Scroll_Vars n(Application_Links *app, View_ID view_id)
 #define VIEW_SET_ACTIVE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out)
 #define VIEW_SET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value)
-#define VIEW_GET_MANAGED_SCOPE_SIG(n) b32 n(Application_Links *app, View_ID view_id, Managed_Scope *scope)
-#define VIEW_COMPUTE_CURSOR_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out)
+#define VIEW_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, View_ID view_id)
+#define VIEW_COMPUTE_CURSOR_SIG(n) Full_Cursor n(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 #define VIEW_SET_CURSOR_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x)
 #define VIEW_SET_SCROLL_SIG(n) b32 n(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll)
 #define VIEW_SET_MARK_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek)
@@ -122,10 +123,10 @@ struct Application_Links;
 #define PRINT_MESSAGE_SIG(n) b32 n(Application_Links *app, String_Const_u8 message)
 #define GET_LARGEST_FACE_ID_SIG(n) Face_ID n(Application_Links *app)
 #define SET_GLOBAL_FACE_SIG(n) b32 n(Application_Links *app, Face_ID id, b32 apply_to_all_buffers)
-#define BUFFER_HISTORY_GET_MAX_RECORD_INDEX_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out)
-#define BUFFER_HISTORY_GET_RECORD_INFO_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info *record_out)
-#define BUFFER_HISTORY_GET_GROUP_SUB_RECORD_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index, Record_Info *record_out)
-#define BUFFER_HISTORY_GET_CURRENT_STATE_INDEX_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out)
+#define BUFFER_HISTORY_GET_MAX_RECORD_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_HISTORY_GET_RECORD_INFO_SIG(n) Record_Info n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index)
+#define BUFFER_HISTORY_GET_GROUP_SUB_RECORD_SIG(n) Record_Info n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index)
+#define BUFFER_HISTORY_GET_CURRENT_STATE_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_HISTORY_SET_CURRENT_STATE_INDEX_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index)
 #define BUFFER_HISTORY_MERGE_RECORD_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags)
 #define BUFFER_HISTORY_CLEAR_AFTER_CURRENT_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
@@ -133,8 +134,8 @@ struct Application_Links;
 #define GLOBAL_HISTORY_EDIT_GROUP_END_SIG(n) void n(Application_Links *app)
 #define BUFFER_SET_FACE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Face_ID id)
 #define GET_FACE_DESCRIPTION_SIG(n) Face_Description n(Application_Links *app, Face_ID id)
-#define GET_FACE_METRICS_SIG(n) b32 n(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out)
-#define GET_FACE_ID_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out)
+#define GET_FACE_METRICS_SIG(n) Face_Metrics n(Application_Links *app, Face_ID face_id)
+#define GET_FACE_ID_SIG(n) Face_ID n(Application_Links *app, Buffer_ID buffer_id)
 #define TRY_CREATE_NEW_FACE_SIG(n) Face_ID n(Application_Links *app, Face_Description *description)
 #define TRY_MODIFY_FACE_SIG(n) b32 n(Application_Links *app, Face_ID id, Face_Description *description)
 #define TRY_RELEASE_FACE_SIG(n) b32 n(Application_Links *app, Face_ID id, Face_ID replacement_id)
@@ -143,7 +144,7 @@ struct Application_Links;
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, i32 count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, i32 count)
 #define FINALIZE_COLOR_SIG(n) argb_color n(Application_Links *app, int_color color)
-#define GET_HOT_DIRECTORY_SIG(n) b32 n(Application_Links *app, Arena *out, String_Const_u8 *out_directory)
+#define PUSH_HOT_DIRECTORY_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena)
 #define SET_HOT_DIRECTORY_SIG(n) b32 n(Application_Links *app, String_Const_u8 string)
 #define GET_FILE_LIST_SIG(n) b32 n(Application_Links *app, String_Const_u8 directory, File_List *list_out)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
@@ -151,8 +152,7 @@ struct Application_Links;
 #define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, i32 size)
 #define MEMORY_SET_PROTECTION_SIG(n) b32 n(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags)
 #define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, i32 size)
-#define FILE_GET_ATTRIBUTES_SIG(n) b32 n(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out)
-#define GET_4ED_PATH_SIG(n) b32 n(Application_Links *app, Arena *out, String_Const_u8 *path_out)
+#define PUSH_4ED_PATH_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
 #define SET_EDIT_FINISHED_HOOK_REPEAT_SPEED_SIG(n) b32 n(Application_Links *app, u32 milliseconds)
 #define SET_FULLSCREEN_SIG(n) b32 n(Application_Links *app, b32 full_screen)
@@ -174,7 +174,7 @@ struct Application_Links;
 #define TEXT_LAYOUT_GET_ON_SCREEN_RANGE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out)
 #define TEXT_LAYOUT_GET_HEIGHT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out)
 #define TEXT_LAYOUT_FREE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id)
-#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out)
+#define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last)
 #define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, Color_Picker *picker)
 #define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
@@ -225,6 +225,7 @@ typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
 typedef BUFFER_KILL_SIG(Buffer_Kill_Function);
 typedef BUFFER_REOPEN_SIG(Buffer_Reopen_Function);
 typedef BUFFER_GET_FILE_ATTRIBUTES_SIG(Buffer_Get_File_Attributes_Function);
+typedef GET_FILE_ATTRIBUTES_SIG(Get_File_Attributes_Function);
 typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
 typedef GET_VIEW_PREV_SIG(Get_View_Prev_Function);
 typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
@@ -324,7 +325,7 @@ typedef GET_AVAILABLE_FONT_SIG(Get_Available_Font_Function);
 typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
 typedef FINALIZE_COLOR_SIG(Finalize_Color_Function);
-typedef GET_HOT_DIRECTORY_SIG(Get_Hot_Directory_Function);
+typedef PUSH_HOT_DIRECTORY_SIG(Push_Hot_Directory_Function);
 typedef SET_HOT_DIRECTORY_SIG(Set_Hot_Directory_Function);
 typedef GET_FILE_LIST_SIG(Get_File_List_Function);
 typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
@@ -332,8 +333,7 @@ typedef SET_GUI_UP_DOWN_KEYS_SIG(Set_GUI_Up_Down_Keys_Function);
 typedef MEMORY_ALLOCATE_SIG(Memory_Allocate_Function);
 typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
 typedef MEMORY_FREE_SIG(Memory_Free_Function);
-typedef FILE_GET_ATTRIBUTES_SIG(File_Get_Attributes_Function);
-typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
+typedef PUSH_4ED_PATH_SIG(Push_4ed_Path_Function);
 typedef SHOW_MOUSE_CURSOR_SIG(Show_Mouse_Cursor_Function);
 typedef SET_EDIT_FINISHED_HOOK_REPEAT_SPEED_SIG(Set_Edit_Finished_Hook_Repeat_Speed_Function);
 typedef SET_FULLSCREEN_SIG(Set_Fullscreen_Function);
@@ -408,6 +408,7 @@ Buffer_Save_Function *buffer_save;
 Buffer_Kill_Function *buffer_kill;
 Buffer_Reopen_Function *buffer_reopen;
 Buffer_Get_File_Attributes_Function *buffer_get_file_attributes;
+Get_File_Attributes_Function *get_file_attributes;
 Get_View_Next_Function *get_view_next;
 Get_View_Prev_Function *get_view_prev;
 Get_Active_View_Function *get_active_view;
@@ -507,7 +508,7 @@ Get_Available_Font_Function *get_available_font;
 Set_Theme_Colors_Function *set_theme_colors;
 Get_Theme_Colors_Function *get_theme_colors;
 Finalize_Color_Function *finalize_color;
-Get_Hot_Directory_Function *get_hot_directory;
+Push_Hot_Directory_Function *push_hot_directory;
 Set_Hot_Directory_Function *set_hot_directory;
 Get_File_List_Function *get_file_list;
 Free_File_List_Function *free_file_list;
@@ -515,8 +516,7 @@ Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys;
 Memory_Allocate_Function *memory_allocate;
 Memory_Set_Protection_Function *memory_set_protection;
 Memory_Free_Function *memory_free;
-File_Get_Attributes_Function *file_get_attributes;
-Get_4ed_Path_Function *get_4ed_path;
+Push_4ed_Path_Function *push_4ed_path;
 Show_Mouse_Cursor_Function *show_mouse_cursor;
 Set_Edit_Finished_Hook_Repeat_Speed_Function *set_edit_finished_hook_repeat_speed;
 Set_Fullscreen_Function *set_fullscreen;
@@ -590,6 +590,7 @@ Buffer_Save_Function *buffer_save_;
 Buffer_Kill_Function *buffer_kill_;
 Buffer_Reopen_Function *buffer_reopen_;
 Buffer_Get_File_Attributes_Function *buffer_get_file_attributes_;
+Get_File_Attributes_Function *get_file_attributes_;
 Get_View_Next_Function *get_view_next_;
 Get_View_Prev_Function *get_view_prev_;
 Get_Active_View_Function *get_active_view_;
@@ -689,7 +690,7 @@ Get_Available_Font_Function *get_available_font_;
 Set_Theme_Colors_Function *set_theme_colors_;
 Get_Theme_Colors_Function *get_theme_colors_;
 Finalize_Color_Function *finalize_color_;
-Get_Hot_Directory_Function *get_hot_directory_;
+Push_Hot_Directory_Function *push_hot_directory_;
 Set_Hot_Directory_Function *set_hot_directory_;
 Get_File_List_Function *get_file_list_;
 Free_File_List_Function *free_file_list_;
@@ -697,8 +698,7 @@ Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys_;
 Memory_Allocate_Function *memory_allocate_;
 Memory_Set_Protection_Function *memory_set_protection_;
 Memory_Free_Function *memory_free_;
-File_Get_Attributes_Function *file_get_attributes_;
-Get_4ed_Path_Function *get_4ed_path_;
+Push_4ed_Path_Function *push_4ed_path_;
 Show_Mouse_Cursor_Function *show_mouse_cursor_;
 Set_Edit_Finished_Hook_Repeat_Speed_Function *set_edit_finished_hook_repeat_speed_;
 Set_Fullscreen_Function *set_fullscreen_;
@@ -780,6 +780,7 @@ app_links->buffer_save_ = Buffer_Save;\
 app_links->buffer_kill_ = Buffer_Kill;\
 app_links->buffer_reopen_ = Buffer_Reopen;\
 app_links->buffer_get_file_attributes_ = Buffer_Get_File_Attributes;\
+app_links->get_file_attributes_ = Get_File_Attributes;\
 app_links->get_view_next_ = Get_View_Next;\
 app_links->get_view_prev_ = Get_View_Prev;\
 app_links->get_active_view_ = Get_Active_View;\
@@ -879,7 +880,7 @@ app_links->get_available_font_ = Get_Available_Font;\
 app_links->set_theme_colors_ = Set_Theme_Colors;\
 app_links->get_theme_colors_ = Get_Theme_Colors;\
 app_links->finalize_color_ = Finalize_Color;\
-app_links->get_hot_directory_ = Get_Hot_Directory;\
+app_links->push_hot_directory_ = Push_Hot_Directory;\
 app_links->set_hot_directory_ = Set_Hot_Directory;\
 app_links->get_file_list_ = Get_File_List;\
 app_links->free_file_list_ = Free_File_List;\
@@ -887,8 +888,7 @@ app_links->set_gui_up_down_keys_ = Set_GUI_Up_Down_Keys;\
 app_links->memory_allocate_ = Memory_Allocate;\
 app_links->memory_set_protection_ = Memory_Set_Protection;\
 app_links->memory_free_ = Memory_Free;\
-app_links->file_get_attributes_ = File_Get_Attributes;\
-app_links->get_4ed_path_ = Get_4ed_Path;\
+app_links->push_4ed_path_ = Push_4ed_Path;\
 app_links->show_mouse_cursor_ = Show_Mouse_Cursor;\
 app_links->set_edit_finished_hook_repeat_speed_ = Set_Edit_Finished_Hook_Repeat_Speed;\
 app_links->set_fullscreen_ = Set_Fullscreen;\
@@ -962,6 +962,7 @@ static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const
 static Buffer_Kill_Result buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags){return(app->buffer_kill(app, buffer_id, flags));}
 static Buffer_Reopen_Result buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags){return(app->buffer_reopen(app, buffer_id, flags));}
 static File_Attributes buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_file_attributes(app, buffer_id));}
+static File_Attributes get_file_attributes(Application_Links *app, String_Const_u8 file_name){return(app->get_file_attributes(app, file_name));}
 static View_ID get_view_next(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_next(app, view_id, access));}
 static View_ID get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_prev(app, view_id, access));}
 static View_ID get_active_view(Application_Links *app, Access_Flag access){return(app->get_active_view(app, access));}
@@ -985,12 +986,12 @@ static Panel_ID panel_get_max(Application_Links *app, Panel_ID panel_id){return(
 static Rect_i32 panel_get_margin(Application_Links *app, Panel_ID panel_id){return(app->panel_get_margin(app, panel_id));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close(app, view_id));}
 static Rect_f32 view_get_buffer_region(Application_Links *app, View_ID view_id){return(app->view_get_buffer_region(app, view_id));}
-static b32 view_get_scroll_vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){return(app->view_get_scroll_vars(app, view_id, scroll_vars_out));}
+static GUI_Scroll_Vars view_get_scroll_vars(Application_Links *app, View_ID view_id){return(app->view_get_scroll_vars(app, view_id));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting(app, view_id, setting, value_out));}
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting(app, view_id, setting, value));}
-static b32 view_get_managed_scope(Application_Links *app, View_ID view_id, Managed_Scope *scope){return(app->view_get_managed_scope(app, view_id, scope));}
-static b32 view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view_id, seek, cursor_out));}
+static Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope(app, view_id));}
+static Full_Cursor view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_compute_cursor(app, view_id, seek));}
 static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x){return(app->view_set_cursor(app, view_id, seek, set_preferred_x));}
 static b32 view_set_scroll(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll){return(app->view_set_scroll(app, view_id, scroll));}
 static b32 view_set_mark(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_mark(app, view_id, seek));}
@@ -1040,10 +1041,10 @@ static void end_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){(ap
 static b32 print_message(Application_Links *app, String_Const_u8 message){return(app->print_message(app, message));}
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id(app));}
 static b32 set_global_face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers){return(app->set_global_face(app, id, apply_to_all_buffers));}
-static b32 buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){return(app->buffer_history_get_max_record_index(app, buffer_id, index_out));}
-static b32 buffer_history_get_record_info(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info *record_out){return(app->buffer_history_get_record_info(app, buffer_id, index, record_out));}
-static b32 buffer_history_get_group_sub_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index, Record_Info *record_out){return(app->buffer_history_get_group_sub_record(app, buffer_id, index, sub_index, record_out));}
-static b32 buffer_history_get_current_state_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){return(app->buffer_history_get_current_state_index(app, buffer_id, index_out));}
+static History_Record_Index buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_get_max_record_index(app, buffer_id));}
+static Record_Info buffer_history_get_record_info(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){return(app->buffer_history_get_record_info(app, buffer_id, index));}
+static Record_Info buffer_history_get_group_sub_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index){return(app->buffer_history_get_group_sub_record(app, buffer_id, index, sub_index));}
+static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_get_current_state_index(app, buffer_id));}
 static b32 buffer_history_set_current_state_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){return(app->buffer_history_set_current_state_index(app, buffer_id, index));}
 static b32 buffer_history_merge_record_range(Application_Links *app, Buffer_ID buffer_id, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){return(app->buffer_history_merge_record_range(app, buffer_id, first_index, last_index, flags));}
 static b32 buffer_history_clear_after_current_state(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_clear_after_current_state(app, buffer_id));}
@@ -1051,8 +1052,8 @@ static void global_history_edit_group_begin(Application_Links *app){(app->global
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end(app));}
 static b32 buffer_set_face(Application_Links *app, Buffer_ID buffer_id, Face_ID id){return(app->buffer_set_face(app, buffer_id, id));}
 static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description(app, id));}
-static b32 get_face_metrics(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out){return(app->get_face_metrics(app, face_id, metrics_out));}
-static b32 get_face_id(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out){return(app->get_face_id(app, buffer_id, face_id_out));}
+static Face_Metrics get_face_metrics(Application_Links *app, Face_ID face_id){return(app->get_face_metrics(app, face_id));}
+static Face_ID get_face_id(Application_Links *app, Buffer_ID buffer_id){return(app->get_face_id(app, buffer_id));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face(app, description));}
 static b32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face(app, id, description));}
 static b32 try_release_face(Application_Links *app, Face_ID id, Face_ID replacement_id){return(app->try_release_face(app, id, replacement_id));}
@@ -1061,7 +1062,7 @@ static Available_Font get_available_font(Application_Links *app, i32 index){retu
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->set_theme_colors(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->get_theme_colors(app, colors, count));}
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color(app, color));}
-static b32 get_hot_directory(Application_Links *app, Arena *out, String_Const_u8 *out_directory){return(app->get_hot_directory(app, out, out_directory));}
+static String_Const_u8 push_hot_directory(Application_Links *app, Arena *arena){return(app->push_hot_directory(app, arena));}
 static b32 set_hot_directory(Application_Links *app, String_Const_u8 string){return(app->set_hot_directory(app, string));}
 static b32 get_file_list(Application_Links *app, String_Const_u8 directory, File_List *list_out){return(app->get_file_list(app, directory, list_out));}
 static void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
@@ -1069,8 +1070,7 @@ static void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Mo
 static void* memory_allocate(Application_Links *app, i32 size){return(app->memory_allocate(app, size));}
 static b32 memory_set_protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
 static void memory_free(Application_Links *app, void *ptr, i32 size){(app->memory_free(app, ptr, size));}
-static b32 file_get_attributes(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out){return(app->file_get_attributes(app, file_name, attributes_out));}
-static b32 get_4ed_path(Application_Links *app, Arena *out, String_Const_u8 *path_out){return(app->get_4ed_path(app, out, path_out));}
+static String_Const_u8 push_4ed_path(Application_Links *app, Arena *arena){return(app->push_4ed_path(app, arena));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor(app, show));}
 static b32 set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){return(app->set_edit_finished_hook_repeat_speed(app, milliseconds));}
 static b32 set_fullscreen(Application_Links *app, b32 full_screen){return(app->set_fullscreen(app, full_screen));}
@@ -1092,7 +1092,7 @@ static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text
 static b32 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){return(app->text_layout_get_on_screen_range(app, text_layout_id, on_screen_range_out));}
 static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height(app, text_layout_id, height_out));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free(app, text_layout_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last, text_layout_id_out));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){return(app->compute_render_layout(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
 static void open_color_picker(Application_Links *app, Color_Picker *picker){(app->open_color_picker(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
@@ -1144,6 +1144,7 @@ static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const
 static Buffer_Kill_Result buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags){return(app->buffer_kill_(app, buffer_id, flags));}
 static Buffer_Reopen_Result buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags){return(app->buffer_reopen_(app, buffer_id, flags));}
 static File_Attributes buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_file_attributes_(app, buffer_id));}
+static File_Attributes get_file_attributes(Application_Links *app, String_Const_u8 file_name){return(app->get_file_attributes_(app, file_name));}
 static View_ID get_view_next(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_next_(app, view_id, access));}
 static View_ID get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_prev_(app, view_id, access));}
 static View_ID get_active_view(Application_Links *app, Access_Flag access){return(app->get_active_view_(app, access));}
@@ -1167,12 +1168,12 @@ static Panel_ID panel_get_max(Application_Links *app, Panel_ID panel_id){return(
 static Rect_i32 panel_get_margin(Application_Links *app, Panel_ID panel_id){return(app->panel_get_margin_(app, panel_id));}
 static b32 view_close(Application_Links *app, View_ID view_id){return(app->view_close_(app, view_id));}
 static Rect_f32 view_get_buffer_region(Application_Links *app, View_ID view_id){return(app->view_get_buffer_region_(app, view_id));}
-static b32 view_get_scroll_vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){return(app->view_get_scroll_vars_(app, view_id, scroll_vars_out));}
+static GUI_Scroll_Vars view_get_scroll_vars(Application_Links *app, View_ID view_id){return(app->view_get_scroll_vars_(app, view_id));}
 static b32 view_set_active(Application_Links *app, View_ID view_id){return(app->view_set_active_(app, view_id));}
 static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out){return(app->view_get_setting_(app, view_id, setting, value_out));}
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting_(app, view_id, setting, value));}
-static b32 view_get_managed_scope(Application_Links *app, View_ID view_id, Managed_Scope *scope){return(app->view_get_managed_scope_(app, view_id, scope));}
-static b32 view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view_id, seek, cursor_out));}
+static Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope_(app, view_id));}
+static Full_Cursor view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_compute_cursor_(app, view_id, seek));}
 static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x){return(app->view_set_cursor_(app, view_id, seek, set_preferred_x));}
 static b32 view_set_scroll(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll){return(app->view_set_scroll_(app, view_id, scroll));}
 static b32 view_set_mark(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_mark_(app, view_id, seek));}
@@ -1222,10 +1223,10 @@ static void end_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){(ap
 static b32 print_message(Application_Links *app, String_Const_u8 message){return(app->print_message_(app, message));}
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id_(app));}
 static b32 set_global_face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers){return(app->set_global_face_(app, id, apply_to_all_buffers));}
-static b32 buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){return(app->buffer_history_get_max_record_index_(app, buffer_id, index_out));}
-static b32 buffer_history_get_record_info(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info *record_out){return(app->buffer_history_get_record_info_(app, buffer_id, index, record_out));}
-static b32 buffer_history_get_group_sub_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index, Record_Info *record_out){return(app->buffer_history_get_group_sub_record_(app, buffer_id, index, sub_index, record_out));}
-static b32 buffer_history_get_current_state_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){return(app->buffer_history_get_current_state_index_(app, buffer_id, index_out));}
+static History_Record_Index buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_get_max_record_index_(app, buffer_id));}
+static Record_Info buffer_history_get_record_info(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){return(app->buffer_history_get_record_info_(app, buffer_id, index));}
+static Record_Info buffer_history_get_group_sub_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index){return(app->buffer_history_get_group_sub_record_(app, buffer_id, index, sub_index));}
+static History_Record_Index buffer_history_get_current_state_index(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_get_current_state_index_(app, buffer_id));}
 static b32 buffer_history_set_current_state_index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){return(app->buffer_history_set_current_state_index_(app, buffer_id, index));}
 static b32 buffer_history_merge_record_range(Application_Links *app, Buffer_ID buffer_id, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){return(app->buffer_history_merge_record_range_(app, buffer_id, first_index, last_index, flags));}
 static b32 buffer_history_clear_after_current_state(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_clear_after_current_state_(app, buffer_id));}
@@ -1233,8 +1234,8 @@ static void global_history_edit_group_begin(Application_Links *app){(app->global
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end_(app));}
 static b32 buffer_set_face(Application_Links *app, Buffer_ID buffer_id, Face_ID id){return(app->buffer_set_face_(app, buffer_id, id));}
 static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description_(app, id));}
-static b32 get_face_metrics(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out){return(app->get_face_metrics_(app, face_id, metrics_out));}
-static b32 get_face_id(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out){return(app->get_face_id_(app, buffer_id, face_id_out));}
+static Face_Metrics get_face_metrics(Application_Links *app, Face_ID face_id){return(app->get_face_metrics_(app, face_id));}
+static Face_ID get_face_id(Application_Links *app, Buffer_ID buffer_id){return(app->get_face_id_(app, buffer_id));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face_(app, description));}
 static b32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face_(app, id, description));}
 static b32 try_release_face(Application_Links *app, Face_ID id, Face_ID replacement_id){return(app->try_release_face_(app, id, replacement_id));}
@@ -1243,7 +1244,7 @@ static Available_Font get_available_font(Application_Links *app, i32 index){retu
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->set_theme_colors_(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->get_theme_colors_(app, colors, count));}
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color_(app, color));}
-static b32 get_hot_directory(Application_Links *app, Arena *out, String_Const_u8 *out_directory){return(app->get_hot_directory_(app, out, out_directory));}
+static String_Const_u8 push_hot_directory(Application_Links *app, Arena *arena){return(app->push_hot_directory_(app, arena));}
 static b32 set_hot_directory(Application_Links *app, String_Const_u8 string){return(app->set_hot_directory_(app, string));}
 static b32 get_file_list(Application_Links *app, String_Const_u8 directory, File_List *list_out){return(app->get_file_list_(app, directory, list_out));}
 static void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}
@@ -1251,8 +1252,7 @@ static void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Mo
 static void* memory_allocate(Application_Links *app, i32 size){return(app->memory_allocate_(app, size));}
 static b32 memory_set_protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
 static void memory_free(Application_Links *app, void *ptr, i32 size){(app->memory_free_(app, ptr, size));}
-static b32 file_get_attributes(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out){return(app->file_get_attributes_(app, file_name, attributes_out));}
-static b32 get_4ed_path(Application_Links *app, Arena *out, String_Const_u8 *path_out){return(app->get_4ed_path_(app, out, path_out));}
+static String_Const_u8 push_4ed_path(Application_Links *app, Arena *arena){return(app->push_4ed_path_(app, arena));}
 static void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor_(app, show));}
 static b32 set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){return(app->set_edit_finished_hook_repeat_speed_(app, milliseconds));}
 static b32 set_fullscreen(Application_Links *app, b32 full_screen){return(app->set_fullscreen_(app, full_screen));}
@@ -1274,7 +1274,7 @@ static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text
 static b32 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){return(app->text_layout_get_on_screen_range_(app, text_layout_id, on_screen_range_out));}
 static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height_(app, text_layout_id, height_out));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free_(app, text_layout_id));}
-static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out){return(app->compute_render_layout_(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last, text_layout_id_out));}
+static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){return(app->compute_render_layout_(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}
 static void open_color_picker(Application_Links *app, Color_Picker *picker){(app->open_color_picker_(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}

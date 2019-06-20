@@ -13,8 +13,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     
     Parsed_Jump jump = parse_jump_from_buffer_line(app, scratch, buffer, cursor.line, false);
     if (jump.success){
@@ -37,8 +36,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     
     Parsed_Jump jump = parse_jump_from_buffer_line(app, scratch, buffer, cursor.line, false);
     if (jump.success){

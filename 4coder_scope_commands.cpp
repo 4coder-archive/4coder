@@ -294,17 +294,16 @@ view_set_to_region(Application_Links *app, View_ID view, i32 major_pos, i32 mino
         bottom_major = true;
     }
     
-    Full_Cursor top = {};
-    Full_Cursor bottom = {};
-    if (view_compute_cursor(app, view, seek_pos(range.min), &top)){
-        if (view_compute_cursor(app, view, seek_pos(range.max), &bottom)){
+    Full_Cursor top = view_compute_cursor(app, view, seek_pos(range.min));
+    if (top.line > 0){
+        Full_Cursor bottom = view_compute_cursor(app, view, seek_pos(range.max));
+        if (bottom.line > 0){
             f32 top_y = top.wrapped_y;
             f32 bottom_y = bottom.wrapped_y;
             
             Rect_f32 region = view_get_buffer_region(app, view);
             
-            GUI_Scroll_Vars scroll = {};
-            view_get_scroll_vars(app, view, &scroll);
+            GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
             f32 half_view_height = .5f*(f32)(rect_height(region));
             f32 threshold = normalized_threshold * half_view_height;
             f32 current_center_y = ((f32)scroll.target_y) + half_view_height;

@@ -17,8 +17,8 @@ enum{
 static b32
 view_get_ui_data(Application_Links *app, View_ID view_id, View_Get_UI_Flags flags, UI_Data **ui_data_out, Arena **ui_arena_out){
     b32 result = false;
-    Managed_Scope scope = 0;
-    if (view_get_managed_scope(app, view_id, &scope)){
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
+    if (scope != 0){
         Managed_Object ui_data_object = 0;
         if (managed_variable_get(app, scope, view_ui_data, &ui_data_object)){
             if (ui_data_object == 0){
@@ -58,8 +58,8 @@ view_get_ui_data(Application_Links *app, View_ID view_id, View_Get_UI_Flags flag
 static b32
 view_clear_ui_data(Application_Links *app, View_ID view_id){
     b32 result = false;
-    Managed_Scope scope = 0;
-    if (view_get_managed_scope(app, view_id, &scope)){
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
+    if (scope != 0){
         Managed_Object ui_data_object = 0;
         if (managed_variable_get(app, scope, view_ui_data, &ui_data_object)){
             if (ui_data_object != 0){
@@ -178,17 +178,14 @@ view_zero_scroll(Application_Links *app, View_ID view){
 static void
 view_set_vertical_focus(Application_Links *app, View_ID view, f32 y_top, f32 y_bot){
     Rect_f32 buffer_region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll = {};
-    view_get_scroll_vars(app, view, &scroll);
+    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
     f32 view_y_top = (f32)scroll.target_y;
     f32 view_y_dim = rect_height(buffer_region);
     f32 view_y_bot = view_y_top + view_y_dim;
     
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
-    Face_Metrics metrics = {};
-    get_face_metrics(app, face_id, &metrics);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Metrics metrics = get_face_metrics(app, face_id);
     
     f32 line_dim = metrics.line_height;
     f32 hot_y_top = view_y_top + line_dim*3;
@@ -301,8 +298,7 @@ lister_get_clicked_item(Application_Links *app, View_ID view_id){
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
-        GUI_Scroll_Vars scroll_vars = {};
-        view_get_scroll_vars(app, view_id, &scroll_vars);
+        GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view_id);
         Mouse_State mouse = get_mouse_state(app);
         Rect_f32 buffer_region = view_get_buffer_region(app, view_id);
         Vec2_f32 region_p0 = buffer_region.p0;
@@ -339,13 +335,10 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
     
     Rect_f32 screen_rect = view_get_screen_rect(app, view);
     
-    Face_ID face_id = 0;
-    get_face_id(app, 0, &face_id);
-    Face_Metrics metrics = {};
-    get_face_metrics(app, face_id, &metrics);
+    Face_ID face_id = get_face_id(app, 0);
+    Face_Metrics metrics = get_face_metrics(app, face_id);
     
-    GUI_Scroll_Vars scroll_vars = {};
-    view_get_scroll_vars(app, view, &scroll_vars);
+    GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
     
     f32 x0 = 0;
     f32 x1 = (rect_width(screen_rect));

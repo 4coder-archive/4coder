@@ -13,8 +13,7 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         
         Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         i32 pos = view_get_cursor_pos(app, view);
-        Full_Cursor cursor = {};
-        view_compute_cursor(app, view, seek_pos(pos), &cursor);
+        Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
         
         // NOTE(allen): setup markers to figure out the new position of cursor after the insert
         Marker next_cursor_marker = {};
@@ -25,14 +24,13 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
         
         // NOTE(allen): consecutive inserts merge logic
-        History_Record_Index first_index = 0;
-        buffer_history_get_current_state_index(app, buffer, &first_index);
+        History_Record_Index first_index = buffer_history_get_current_state_index(app, buffer);
         b32 do_merge = false;
         if (character[0] != '\n'){
             Record_Info record = get_single_record(app, buffer, first_index);
             if (record.error == RecordError_NoError && record.kind == RecordKind_Single){
                 String_Const_u8 string = record.single.string_forward;
-                i32 last_end = record.single.first + (i32)string.size;
+                i32 last_end = (i32)(record.single.first + string.size);
                 if (last_end == pos && string.size > 0){
                     char c = string.str[string.size - 1];
                     if (c != '\n'){
@@ -52,8 +50,7 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         
         // NOTE(allen): finish merging records if necessary
         if (do_merge){
-            History_Record_Index last_index = 0;
-            buffer_history_get_current_state_index(app, buffer, &last_index);
+            History_Record_Index last_index = buffer_history_get_current_state_index(app, buffer);
             buffer_history_merge_record_range(app, buffer, first_index, last_index, RecordMergeFlag_StateInRange_MoveStateForward);
         }
         
@@ -91,9 +88,8 @@ CUSTOM_DOC("Deletes the character to the right of the cursor.")
         i32 start = view_get_cursor_pos(app, view);
         i32 buffer_size = (i32)buffer_get_size(app, buffer);
         if (0 <= start && start < buffer_size){
-            Full_Cursor cursor = {};
-            view_compute_cursor(app, view, seek_pos(start), &cursor);
-            view_compute_cursor(app, view, seek_character_pos(cursor.character_pos + 1), &cursor);
+            Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(start));
+            cursor = view_compute_cursor(app, view, seek_character_pos(cursor.character_pos + 1));
             i32 end = cursor.pos;
             buffer_replace_range(app, buffer, make_range(start, end), string_u8_litexpr(""));
         }
@@ -109,9 +105,8 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
         i32 end = view_get_cursor_pos(app, view);
         i32 buffer_size = (i32)buffer_get_size(app, buffer);
         if (0 < end && end <= buffer_size){
-            Full_Cursor cursor = {};
-            view_compute_cursor(app, view, seek_pos(end), &cursor);
-            view_compute_cursor(app, view, seek_character_pos(cursor.character_pos - 1), &cursor);
+            Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(end));
+            cursor = view_compute_cursor(app, view, seek_character_pos(cursor.character_pos - 1));
             i32 start = cursor.pos;
             if (buffer_replace_range(app, buffer, make_range(start, end), string_u8_litexpr(""))){
                 view_set_cursor(app, view, seek_pos(start), true);
@@ -214,8 +209,7 @@ CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
     View_ID view = get_active_view(app, AccessProtected);
     
     Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll = {};
-    view_get_scroll_vars(app, view, &scroll);
+    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
     
     f32 h = (f32)(rect_height(region));
     f32 y = get_view_y(app, view);
@@ -228,8 +222,7 @@ CUSTOM_COMMAND_SIG(left_adjust_view)
 CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    GUI_Scroll_Vars scroll = {};
-    view_get_scroll_vars(app, view, &scroll);
+    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
     f32 x = clamp_bot(0.f, get_view_x(app, view) - 30.f);
     scroll.target_x = (i32)(x + .5f);
     view_set_scroll(app, view, scroll);
@@ -253,13 +246,11 @@ CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll_vars = {};
-    view_get_scroll_vars(app, view, &scroll_vars);
+    GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
     if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
-        Full_Cursor cursor = {};
-        view_compute_cursor(app, view, seek_wrapped_xy(p.x, p.y, true), &cursor);
+        Full_Cursor cursor = view_compute_cursor(app, view, seek_wrapped_xy(p.x, p.y, true));
         view_set_cursor(app, view, seek_pos(cursor.pos), true);
         view_set_mark(app, view, seek_pos(cursor.pos));
     }
@@ -270,8 +261,7 @@ CUSTOM_DOC("Sets the cursor position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll_vars = {};
-    view_get_scroll_vars(app, view, &scroll_vars);
+    GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
     if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
@@ -287,8 +277,7 @@ CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.l){
         Rect_f32 region = view_get_buffer_region(app, view);
-        GUI_Scroll_Vars scroll_vars = {};
-        view_get_scroll_vars(app, view, &scroll_vars);
+        GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
         Vec2 p = {};
         if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
             view_set_cursor(app, view, seek_wrapped_xy(p.x, p.y, true), true);
@@ -302,8 +291,7 @@ CUSTOM_DOC("Sets the mark position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll_vars = {};
-    view_get_scroll_vars(app, view, &scroll_vars);
+    GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
     Mouse_State mouse = get_mouse_state(app);
     Vec2 p = {};
     if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
@@ -318,8 +306,7 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
     View_ID view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.wheel != 0){
-        GUI_Scroll_Vars scroll = {};
-        view_get_scroll_vars(app, view, &scroll);
+        GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
         scroll.target_y += mouse.wheel;
         view_set_scroll(app, view, scroll);
     }
@@ -332,10 +319,8 @@ move_vertical(Application_Links *app, f32 line_multiplier){
     View_ID view = get_active_view(app, AccessProtected);
     
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
-    Face_Metrics metrics = {};
-    get_face_metrics(app, face_id, &metrics);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Metrics metrics = get_face_metrics(app, face_id);
     
     f32 delta_y = line_multiplier*metrics.line_height;
     f32 new_y = get_view_y(app, view) + delta_y;
@@ -347,8 +332,7 @@ move_vertical(Application_Links *app, f32 line_multiplier){
         Rect_f32 file_region = view_get_buffer_region(app, view);
         f32 height = rect_height(file_region);
         f32 full_scroll_y = actual_new_y - height*0.5f;
-        GUI_Scroll_Vars scroll_vars = {};
-        view_get_scroll_vars(app, view, &scroll_vars);
+        GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
         if (scroll_vars.target_y < full_scroll_y){
             GUI_Scroll_Vars new_scroll_vars = scroll_vars;
             new_scroll_vars.target_y += (i32)delta_y;
@@ -364,10 +348,8 @@ static f32
 get_page_jump(Application_Links *app, View_ID view){
     Rect_f32 region = view_get_buffer_region(app, view);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
-    Face_Metrics metrics = {};
-    get_face_metrics(app, face_id, &metrics);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Metrics metrics = get_face_metrics(app, face_id);
     f32 page_jump = 1.f;
     if (metrics.line_height > 0.f){
         f32 height = rect_height(region);
@@ -408,8 +390,7 @@ CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapp
 {
     View_ID view = get_active_view(app, AccessOpen);
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     i32 next_line = cursor.line + 1;
     view_set_cursor(app, view, seek_line_char(next_line, 1), true);
 }
@@ -497,8 +478,7 @@ CUSTOM_DOC("Moves the cursor one character to the left.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     i32 new_pos = clamp_bot(0, cursor.character_pos - 1);
     view_set_cursor(app, view, seek_character_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
@@ -509,8 +489,7 @@ CUSTOM_DOC("Moves the cursor one character to the right.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     i32 new_pos = cursor.character_pos + 1;
     view_set_cursor(app, view, seek_character_pos(new_pos), 1);
     no_mark_snap_to_cursor_if_shift(app, view);
@@ -791,8 +770,7 @@ CUSTOM_DOC("Increase the size of the face used by the current buffer.")
 {
     View_ID view = get_active_view(app, AccessAll);
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
+    Face_ID face_id = get_face_id(app, buffer);
     Face_Description description = get_face_description(app, face_id);
     ++description.pt_size;
     try_modify_face(app, face_id, &description);
@@ -803,8 +781,7 @@ CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
 {
     View_ID view = get_active_view(app, AccessAll);
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-    Face_ID face_id = 0;
-    get_face_id(app, buffer, &face_id);
+    Face_ID face_id = get_face_id(app, buffer);
     Face_Description description = get_face_description(app, face_id);
     --description.pt_size;
     try_modify_face(app, face_id, &description);
@@ -906,8 +883,8 @@ isearch__update_highlight(Application_Links *app, View_ID view, Managed_Object h
 static void
 isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, b32 on_the_query_init_string){
     View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
-    if (!buffer_exists(app, buffer_id)){
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    if (!buffer_exists(app, buffer)){
         return;
     }
     
@@ -936,9 +913,8 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
     
     b32 first_step = true;
     
-    Managed_Scope view_scope = 0;
-    view_get_managed_scope(app, view, &view_scope);
-    Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer_id, 2, &view_scope);
+    Managed_Scope view_scope = view_get_managed_scope(app, view);
+    Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &view_scope);
     Marker_Visual visual = create_marker_visual(app, highlight);
     marker_visual_set_effect(app, visual,
                              VisualType_CharacterHighlightRanges,
@@ -1044,12 +1020,12 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
         if (!backspace){
             if (reverse){
                 i32 new_pos = 0;
-                buffer_seek_string_insensitive_backward(app, buffer_id, start_pos - 1, 0, bar.string, &new_pos);
+                buffer_seek_string_insensitive_backward(app, buffer, start_pos - 1, 0, bar.string, &new_pos);
                 if (new_pos >= 0){
                     if (step_backward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_backward(app, buffer_id, start_pos - 1, 0, bar.string, &new_pos);
+                        buffer_seek_string_insensitive_backward(app, buffer, start_pos - 1, 0, bar.string, &new_pos);
                         if (new_pos < 0){
                             new_pos = start_pos;
                         }
@@ -1060,13 +1036,13 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
             }
             else{
                 i32 new_pos = 0;
-                buffer_seek_string_insensitive_forward(app, buffer_id, start_pos + 1, 0, bar.string, &new_pos);
-                i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
+                buffer_seek_string_insensitive_forward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
+                i32 buffer_size = (i32)buffer_get_size(app, buffer);
                 if (new_pos < buffer_size){
                     if (step_forward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_forward(app, buffer_id, start_pos + 1, 0, bar.string, &new_pos);
+                        buffer_seek_string_insensitive_forward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
                         if (new_pos >= buffer_size){
                             new_pos = start_pos;
                         }
@@ -1165,8 +1141,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i3
     i32 new_pos = 0;
     buffer_seek_string_forward(app, buffer_id, pos - 1, 0, r, &new_pos);
     
-    Managed_Scope view_scope = 0;
-    view_get_managed_scope(app, view, &view_scope);
+    Managed_Scope view_scope = view_get_managed_scope(app, view);
     Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer_id, 2, &view_scope);
     Marker_Visual visual = create_marker_visual(app, highlight);
     marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, Stag_Highlight, Stag_At_Highlight, 0);
@@ -1650,15 +1625,12 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
             view_set_buffer(app, view2, buffer1, 0);
         }
         else{
-            GUI_Scroll_Vars sc1 = {};
-            GUI_Scroll_Vars sc2 = {};
-            
             i32 p1 = view_get_cursor_pos(app, view1);
             i32 m1 = view_get_mark_pos(app, view1);
-            view_get_scroll_vars(app, view1, &sc1);
+            GUI_Scroll_Vars sc1 = view_get_scroll_vars(app, view1);
             i32 p2 = view_get_cursor_pos(app, view2);
             i32 m2 = view_get_mark_pos(app, view2);
-            view_get_scroll_vars(app, view2, &sc2);
+            GUI_Scroll_Vars sc2 = view_get_scroll_vars(app, view2);
             
             view_set_cursor(app, view1, seek_pos(p2), true);
             view_set_mark  (app, view1, seek_pos(m2));
@@ -1709,13 +1681,12 @@ record_get_new_cursor_position_undo(Application_Links *app, Buffer_ID buffer_id,
         default:
         case RecordKind_Single:
         {
-            new_edit_position = record.single.first + (i32)record.single.string_backward.size;
+            new_edit_position = (i32)(record.single.first + record.single.string_backward.size);
         }break;
         case RecordKind_Group:
         {
-            Record_Info sub_record = {};
-            buffer_history_get_group_sub_record(app, buffer_id, index, 0, &sub_record);
-            new_edit_position = sub_record.single.first + (i32)sub_record.single.string_backward.size;
+            Record_Info sub_record = buffer_history_get_group_sub_record(app, buffer_id, index, 0);
+            new_edit_position = (i32)(sub_record.single.first + sub_record.single.string_backward.size);
         }break;
     }
     return(new_edit_position);
@@ -1723,34 +1694,31 @@ record_get_new_cursor_position_undo(Application_Links *app, Buffer_ID buffer_id,
 
 static i32
 record_get_new_cursor_position_undo(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
-    Record_Info record = {};
-    buffer_history_get_record_info(app, buffer_id, index, &record);
+    Record_Info record = buffer_history_get_record_info(app, buffer_id, index);
     return(record_get_new_cursor_position_undo(app, buffer_id, index, record));
 }
 
 static i32
 record_get_new_cursor_position_redo(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info record){
-    i32 new_edit_position = 0;
+    i64 new_edit_position = 0;
     switch (record.kind){
         default:
         case RecordKind_Single:
         {
-            new_edit_position = record.single.first + (i32)record.single.string_forward.size;
+            new_edit_position = record.single.first + record.single.string_forward.size;
         }break;
         case RecordKind_Group:
         {
-            Record_Info sub_record = {};
-            buffer_history_get_group_sub_record(app, buffer_id, index, record.group.count - 1, &sub_record);
-            new_edit_position = sub_record.single.first + (i32)sub_record.single.string_forward.size;
+            Record_Info sub_record = buffer_history_get_group_sub_record(app, buffer_id, index, record.group.count - 1);
+            new_edit_position = sub_record.single.first + sub_record.single.string_forward.size;
         }break;
     }
-    return(new_edit_position);
+    return((i32)(new_edit_position));
 }
 
 static i32
 record_get_new_cursor_position_redo(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
-    Record_Info record = {};
-    buffer_history_get_record_info(app, buffer_id, index, &record);
+    Record_Info record = buffer_history_get_record_info(app, buffer_id, index);
     return(record_get_new_cursor_position_redo(app, buffer_id, index, record));
 }
 
@@ -1759,8 +1727,7 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
 {
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    History_Record_Index current = 0;
-    buffer_history_get_current_state_index(app, buffer, &current);
+    History_Record_Index current = buffer_history_get_current_state_index(app, buffer);
     if (current > 0){
         i32 new_position = record_get_new_cursor_position_undo(app, buffer, current);
         buffer_history_set_current_state_index(app, buffer, current - 1);
@@ -1773,10 +1740,8 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 {
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    History_Record_Index current = 0;
-    History_Record_Index max_index = 0;
-    buffer_history_get_current_state_index(app, buffer, &current);
-    buffer_history_get_max_record_index(app, buffer, &max_index);
+    History_Record_Index current = buffer_history_get_current_state_index(app, buffer);
+    History_Record_Index max_index = buffer_history_get_max_record_index(app, buffer);
     if (current < max_index){
         i32 new_position = record_get_new_cursor_position_redo(app, buffer, current + 1);
         buffer_history_set_current_state_index(app, buffer, current + 1);
@@ -1797,11 +1762,9 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
         for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
              buffer = get_buffer_next(app, buffer, AccessAll)){
-            History_Record_Index index = 0;
-            buffer_history_get_current_state_index(app, buffer, &index);
+            History_Record_Index index = buffer_history_get_current_state_index(app, buffer);
             if (index > 0){
-                Record_Info record = {};
-                buffer_history_get_record_info(app, buffer, index, &record);
+                Record_Info record = buffer_history_get_record_info(app, buffer, index);
                 if (record.edit_number > highest_edit_number){
                     highest_edit_number = record.edit_number;
                     first_buffer_match = buffer;
@@ -1828,11 +1791,9 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
             b32 did_match = false;
             i32 new_edit_position = 0;
             for (;;){
-                History_Record_Index index = 0;
-                buffer_history_get_current_state_index(app, buffer, &index);
+                History_Record_Index index = buffer_history_get_current_state_index(app, buffer);
                 if (index > 0){
-                    Record_Info record = {};
-                    buffer_history_get_record_info(app, buffer, index, &record);
+                    Record_Info record = buffer_history_get_record_info(app, buffer, index);
                     if (record.edit_number == highest_edit_number){
                         did_match = true;
                         new_edit_position = record_get_new_cursor_position_undo(app, buffer, index, record);
@@ -1875,13 +1836,10 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
         for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
              buffer != 0;
              buffer = get_buffer_next(app, buffer, AccessAll)){
-            History_Record_Index max_index = 0;
-            History_Record_Index index = 0;
-            buffer_history_get_max_record_index(app, buffer, &max_index);
-            buffer_history_get_current_state_index(app, buffer, &index);
+            History_Record_Index max_index = buffer_history_get_max_record_index(app, buffer);
+            History_Record_Index index = buffer_history_get_current_state_index(app, buffer);
             if (index < max_index){
-                Record_Info record = {};
-                buffer_history_get_record_info(app, buffer, index + 1, &record);
+                Record_Info record = buffer_history_get_record_info(app, buffer, index + 1);
                 if (record.edit_number < lowest_edit_number){
                     lowest_edit_number = record.edit_number;
                     first_buffer_match = buffer;
@@ -1907,14 +1865,11 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
              buffer = get_buffer_next(app, buffer, AccessAll)){
             b32 did_match = false;
             i32 new_edit_position = 0;
-            History_Record_Index max_index = 0;
-            buffer_history_get_max_record_index(app, buffer, &max_index);
+            History_Record_Index max_index = buffer_history_get_max_record_index(app, buffer);
             for (;;){
-                History_Record_Index index = 0;
-                buffer_history_get_current_state_index(app, buffer, &index);
+                History_Record_Index index = buffer_history_get_current_state_index(app, buffer);
                 if (index < max_index){
-                    Record_Info record = {};
-                    buffer_history_get_record_info(app, buffer, index + 1, &record);
+                    Record_Info record = buffer_history_get_record_info(app, buffer, index + 1);
                     if (record.edit_number == lowest_edit_number){
                         did_match = true;
                         new_edit_position = record_get_new_cursor_position_redo(app, buffer, index + 1, record);

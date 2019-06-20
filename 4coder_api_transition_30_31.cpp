@@ -68,10 +68,8 @@ get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, Vi
         if (buffer != 0){
             result = true;
             
-            Face_ID face_id = 0;
-            get_face_id(app, buffer, &face_id);
-            Face_Metrics metrics = {};
-            get_face_metrics(app, face_id, &metrics);
+            Face_ID face_id = get_face_id(app, buffer);
+            Face_Metrics metrics = get_face_metrics(app, face_id);
             
             view->exists = true;
             view->view_id = view_id;
@@ -81,14 +79,14 @@ get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, Vi
             view_get_setting(app, view_id, ViewSetting_ShowWhitespace, &view->show_whitespace);
             view->buffer_id = buffer;
             i32 pos = view_get_mark_pos(app, view_id);
-            view_compute_cursor(app, view_id, seek_pos(pos), &view->mark);
+            view->mark = view_compute_cursor(app, view_id, seek_pos(pos));
             pos = view_get_cursor_pos(app, view_id);
-            view_compute_cursor(app, view_id, seek_pos(pos), &view->cursor);
+            view->cursor = view_compute_cursor(app, view_id, seek_pos(pos));
             view->preferred_x = view_get_preferred_x(app, view_id);
             Rect_f32 screen_rect = view_get_screen_rect(app, view_id);
             view->view_region = screen_rect;
-            view->render_region = f32R(0.f, 0.f, rect_width(screen_rect), rect_height(screen_rect));
-            view_get_scroll_vars(app, view_id, &view->scroll_vars);
+            view->render_region = Rf32(0.f, 0.f, rect_width(screen_rect), rect_height(screen_rect));
+            view->scroll_vars = view_get_scroll_vars(app, view_id);
         }
     }
     return(result);
@@ -432,18 +430,12 @@ view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID set
     return(result);
 }
 
-static Managed_Scope
-view_get_managed_scope(Application_Links *app, View_ID view_id){
-    Managed_Scope scope = 0;
-    view_get_managed_scope(app, view_id, &scope);
-    return(scope);
-}
-
 static b32
-view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){
+view_compute_cursor_DEP(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){
     b32 result = false;
     if (view != 0 && view->exists){
-        result = view_compute_cursor(app, view->view_id, seek, cursor_out);
+        *cursor_out = view_compute_cursor(app, view->view_id, seek);
+        result = (cursor_out->line > 0);
         get_view_summary(app, view->view_id, AccessAll, view);
     }
     return(result);
@@ -539,10 +531,10 @@ static Face_ID
 get_face_id(Application_Links *app, Buffer_Summary *buffer){
     Face_ID result = 0;
     if (buffer != 0 && buffer->exists){
-        get_face_id(app, buffer->buffer_id, &result);
+        result = get_face_id(app, buffer->buffer_id);
     }
     else{
-        get_face_id(app, 0, &result);
+        result = get_face_id(app, 0);
     }
     return(result);
 }
@@ -567,8 +559,7 @@ change_theme(Application_Links *app, char *name, i32 len){
 static i32
 directory_get_hot(Application_Links *app, char *out, i32 capacity){
     Scratch_Block scratch(app);
-    String_Const_u8 string = {};
-    get_hot_directory(app, scratch, &string);
+    String_Const_u8 string = push_hot_directory(app, scratch);
     block_copy(out, string.str, clamp_top((i32)string.size, capacity));
     return((i32)string.size);
 }
@@ -587,8 +578,7 @@ get_file_list(Application_Links *app, char *dir, i32 len){
 
 static b32
 file_exists(Application_Links *app, char *file_name, i32 len){
-    File_Attributes attributes = {};
-    file_get_attributes(app, SCu8(file_name, len), &attributes);
+    File_Attributes attributes = get_file_attributes(app, SCu8(file_name, len));
     return(attributes.last_write_time > 0);
 }
 
@@ -634,8 +624,7 @@ directory_cd(Application_Links *app, char *dir, i32 *len, i32 capacity, char *re
 static i32
 get_4ed_path(Application_Links *app, char *out, i32 capacity){
     Scratch_Block scratch(app);
-    String_Const_u8 string = {};
-    get_4ed_path(app, scratch, &string);
+    String_Const_u8 string = push_4ed_path(app, scratch);
     block_copy(out, string.str, clamp_top((i32)string.size, capacity));
     return((i32)string.size);
 }

@@ -545,8 +545,7 @@ parse_project__nearest_file(Application_Links *app, Arena *arena){
     Project_Parse_Result result = {};
     
     Temp_Memory restore_point = begin_temp(arena);
-    String_Const_u8 project_path = {};
-    get_hot_directory(app, arena, &project_path);
+    String_Const_u8 project_path = push_hot_directory(app, arena);
     if (project_path.size == 0){
         print_message(app, string_u8_litexpr("The hot directory is empty, cannot search for a project.\n"));
     }

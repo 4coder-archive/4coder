@@ -927,7 +927,7 @@ STRUCT Record_Info{
         struct{
             String_Const_u8 string_forward;
             String_Const_u8 string_backward;
-            i32 first;
+            i64 first;
         } single;
         struct{
             i32 count;

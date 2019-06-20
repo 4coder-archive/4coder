@@ -993,11 +993,11 @@ DOC_SEE(Buffer_Save_Flag)
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
     
+    b32 result = false;
     if (api_check_buffer(file)){
         b32 skip_save = false;
-        if (!(flags & BufferSave_IgnoreDirtyFlag)){
+        if (!HasFlag(flags, BufferSave_IgnoreDirtyFlag)){
             if (file->state.dirty == DirtyState_UpToDate){
                 skip_save = true;
             }
@@ -1172,6 +1172,14 @@ Buffer_Get_File_Attributes(Application_Links *app, Buffer_ID buffer_id)
         block_copy_struct(&result, &file->attributes);
     }
     return(result);
+}
+
+API_EXPORT File_Attributes
+Get_File_Attributes(Application_Links *app, String_Const_u8 file_name)
+{
+    Models *models = (Models*)app->cmd_context;
+    File_Attributes attributes = models->system->quick_file_attributes(file_name);
+    return(attributes);
 }
 
 internal View*
@@ -1592,20 +1600,19 @@ View_Get_Buffer_Region(Application_Links *app, View_ID view_id){
     return(result);
 }
 
-API_EXPORT b32
-View_Get_Scroll_Vars(Application_Links *app, View_ID view_id, GUI_Scroll_Vars *scroll_vars_out){
+API_EXPORT GUI_Scroll_Vars
+View_Get_Scroll_Vars(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    b32 result = false;
+    GUI_Scroll_Vars result = {};
     if (api_check_view(view)){
         if (view->ui_mode){
-            *scroll_vars_out = view->ui_scroll;
+            result = view->ui_scroll;
         }
         else{
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            *scroll_vars_out = edit_pos.scroll;
+            result = edit_pos.scroll;
         }
-        result = true;
     }
     return(result);
 }
@@ -1723,8 +1730,8 @@ DOC_SEE(View_Setting_ID)
 }
 
 // TODO(allen): redocument
-API_EXPORT b32
-View_Get_Managed_Scope(Application_Links *app, View_ID view_id, Managed_Scope *scope)
+API_EXPORT Managed_Scope
+View_Get_Managed_Scope(Application_Links *app, View_ID view_id)
 /*
 DOC_PARAM(view_id, The id of the view from which to get a managed scope.)
 DOC_RETURN(If the view_id specifies a valid view, the scope returned is the scope tied to the
@@ -1734,18 +1741,17 @@ If the view_id does not specify a valid view, the returned scope is null.)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    b32 result = false;
+    Managed_Scope result = 0;
     if (api_check_view(view)){
         Assert(view->lifetime_object != 0);
-        *scope = (Managed_Scope)(view->lifetime_object->workspace.scope_id);
-        result = true;
+        result = (Managed_Scope)(view->lifetime_object->workspace.scope_id);
     }
     return(result);
 }
 
 // TODO(allen): redocument
-API_EXPORT b32
-View_Compute_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, Full_Cursor *cursor_out)
+API_EXPORT Full_Cursor
+View_Compute_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 /*
 DOC_PARAM(view, The view parameter specifies the view on which to run the cursor computation.)
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
@@ -1757,19 +1763,18 @@ DOC_SEE(Full_Cursor)
 */{
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    b32 result = false;
+    Full_Cursor result = {};
     if (api_check_view(view)){
         Editing_File *file = view->file;
         if (api_check_buffer(file)){
             if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
                 seek.type = buffer_seek_unwrapped_xy;
             }
-            *cursor_out = file_compute_cursor(models->system, file, seek);
+            result = file_compute_cursor(models->system, file, seek);
             if (file->settings.unwrapped_lines){
-                cursor_out->wrapped_x = cursor_out->unwrapped_x;
-                cursor_out->wrapped_y = cursor_out->unwrapped_y;
+                result.wrapped_x = result.unwrapped_x;
+                result.wrapped_y = result.unwrapped_y;
             }
-            result = true;
         }
     }
     return(result);
@@ -2957,14 +2962,13 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     return(did_change);
 }
 
-API_EXPORT b32
-Buffer_History_Get_Max_Record_Index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){
+API_EXPORT History_Record_Index
+Buffer_History_Get_Max_Record_Index(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
+    History_Record_Index result = 0;
     if (api_check_buffer(file) && history_is_activated(&file->state.history)){
-        *index_out  = history_get_record_count(&file->state.history);
-        result = true;
+        result = history_get_record_count(&file->state.history);
     }
     return(result);
 }
@@ -2991,12 +2995,11 @@ buffer_history__fill_record_info(Record *record, Record_Info *out){
     }
 }
 
-API_EXPORT b32
-Buffer_History_Get_Record_Info(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, Record_Info *record_out){
+API_EXPORT Record_Info
+Buffer_History_Get_Record_Info(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    block_zero_struct(record_out);
-    b32 result = false;
+    Record_Info result = {};
     if (api_check_buffer(file)){
         History *history = &file->state.history;
         if (history_is_activated(history)){
@@ -3004,33 +3007,31 @@ Buffer_History_Get_Record_Info(Application_Links *app, Buffer_ID buffer_id, Hist
             if (0 <= index && index <= max_index){
                 if (0 < index){
                     Record *record = history_get_record(history, index);
-                    buffer_history__fill_record_info(record, record_out);
-                    result = true;
+                    buffer_history__fill_record_info(record, &result);
                 }
                 else{
-                    record_out->error = RecordError_InitialStateDummyRecord;
+                    result.error = RecordError_InitialStateDummyRecord;
                 }
             }
             else{
-                record_out->error = RecordError_IndexOutOfBounds;
+                result.error = RecordError_IndexOutOfBounds;
             }
         }
         else{
-            record_out->error = RecordError_NoHistoryAttached;
+            result.error = RecordError_NoHistoryAttached;
         }
     }
     else{
-        record_out->error = RecordError_InvalidBuffer;
+        result.error = RecordError_InvalidBuffer;
     }
     return(result);
 }
 
-API_EXPORT b32
-Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index, Record_Info *record_out){
+API_EXPORT Record_Info
+Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    block_zero_struct(record_out);
-    b32 result = false;
+    Record_Info result = {};
     if (api_check_buffer(file)){
         History *history = &file->state.history;
         if (history_is_activated(history)){
@@ -3041,43 +3042,41 @@ Buffer_History_Get_Group_Sub_Record(Application_Links *app, Buffer_ID buffer_id,
                     if (record->kind == RecordKind_Group){
                         record = history_get_sub_record(record, sub_index + 1);
                         if (record != 0){
-                            buffer_history__fill_record_info(record, record_out);
-                            result = true;
+                            buffer_history__fill_record_info(record, &result);
                         }
                         else{
-                            record_out->error = RecordError_SubIndexOutOfBounds;
+                            result.error = RecordError_SubIndexOutOfBounds;
                         }
                     }
                     else{
-                        record_out->error = RecordError_WrongRecordTypeAtIndex;
+                        result.error = RecordError_WrongRecordTypeAtIndex;
                     }
                 }
                 else{
-                    record_out->error = RecordError_InitialStateDummyRecord;
+                    result.error = RecordError_InitialStateDummyRecord;
                 }
             }
             else{
-                record_out->error = RecordError_IndexOutOfBounds;
+                result.error = RecordError_IndexOutOfBounds;
             }
         }
         else{
-            record_out->error = RecordError_NoHistoryAttached;
+            result.error = RecordError_NoHistoryAttached;
         }
     }
     else{
-        record_out->error = RecordError_InvalidBuffer;
+        result.error = RecordError_InvalidBuffer;
     }
     return(result);
 }
 
-API_EXPORT b32
-Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_ID buffer_id, History_Record_Index *index_out){
+API_EXPORT History_Record_Index
+Buffer_History_Get_Current_State_Index(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
+    History_Record_Index result = 0;
     if (api_check_buffer(file) && history_is_activated(&file->state.history)){
-        *index_out  = file_get_current_record_index(file);
-        result = true;
+        result = file_get_current_record_index(file);
     }
     return(result);
 }
@@ -3247,25 +3246,24 @@ DOC_SEE(Face_Description)
     return(description);
 }
 
-API_EXPORT b32
-Get_Face_Metrics(Application_Links *app, Face_ID face_id, Face_Metrics *metrics_out){
+API_EXPORT Face_Metrics
+Get_Face_Metrics(Application_Links *app, Face_ID face_id){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    b32 result = false;
+    Face_Metrics result = {};
     if (face_id != 0){
         Font_Pointers font = system->font.get_pointers_by_id(face_id);
         if (font.valid){
-            metrics_out->line_height = (f32)font.metrics->height;
-            metrics_out->typical_character_width = font.metrics->sub_advances[1];
-            result = true;
+            result.line_height = (f32)font.metrics->height;
+            result.typical_character_width = font.metrics->sub_advances[1];
         }
     }
     return(result);
 }
 
 // TODO(allen): redocument
-API_EXPORT b32
-Get_Face_ID(Application_Links *app, Buffer_ID buffer_id, Face_ID *face_id_out)
+API_EXPORT Face_ID
+Get_Face_ID(Application_Links *app, Buffer_ID buffer_id)
 /*
 DOC_PARAM(buffer, The buffer from which to get a face id.  If NULL gets global face id.)
 DOC(Retrieves a face id if buffer is a valid   If buffer is set to NULL, the parameter is ignored and the global default face is returned.)
@@ -3273,17 +3271,15 @@ DOC_RETURN(On success a valid Face_ID, otherwise returns zero.)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    b32 result = false;
+    Face_ID result = 0;
     if (buffer_id != 0){
         Editing_File *file = imp_get_file(models, buffer_id);
         if (api_check_buffer(file)){
-            *face_id_out = file->settings.font_id;
-            result = true;
+            result = file->settings.font_id;
         }
     }
     else{
-        *face_id_out = models->global_font_id;
-        result = true;
+        result = models->global_font_id;
     }
     return(result);
 }
@@ -3436,8 +3432,8 @@ Finalize_Color(Application_Links *app, int_color color){
 }
 
 // TODO(allen): redocument
-API_EXPORT b32
-Get_Hot_Directory(Application_Links *app, Arena *out, String_Const_u8 *out_directory)
+API_EXPORT String_Const_u8
+Push_Hot_Directory(Application_Links *app, Arena *arena)
 /*
 DOC_PARAM(out, On success this character buffer is filled with the 4coder 'hot directory'.)
 DOC_PARAM(capacity, Specifies the capacity in bytes of the of the out buffer.)
@@ -3448,8 +3444,8 @@ DOC_SEE(directory_set_hot)
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
-    *out_directory = string_copy(out, SCu8(hot->string_space, hot->string_size));
-    return(true);
+    String_Const_u8 result = string_copy(arena, SCu8(hot->string_space, hot->string_size));
+    return(result);
 }
 
 // TODO(allen): redocument
@@ -3571,17 +3567,9 @@ DOC_SEE(memory_allocate)
     models->system->memory_free(ptr, size);
 }
 
-API_EXPORT b32
-File_Get_Attributes(Application_Links *app, String_Const_u8 file_name, File_Attributes *attributes_out)
-{
-    Models *models = (Models*)app->cmd_context;
-    *attributes_out = models->system->quick_file_attributes(file_name);
-    return(attributes_out->last_write_time > 0);
-}
-
 // TODO(allen): redocument
-API_EXPORT b32
-Get_4ed_Path(Application_Links *app, Arena *out, String_Const_u8 *path_out)
+API_EXPORT String_Const_u8
+Push_4ed_Path(Application_Links *app, Arena *arena)
 /*
 DOC_PARAM(out, This parameter provides a character buffer that receives the path to the 4ed executable file.)
 DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buffer.)
@@ -3591,10 +3579,9 @@ DOC_RETURN(This call returns non-zero on success.)
     System_Functions *system = models->system;
     // TODO(allen): rewrite this with a better OS layer API
     i32 required_size = system->get_4ed_path(0, 0);
-    char *memory = push_array(out, char, required_size + 1);
+    char *memory = push_array(arena, char, required_size + 1);
     required_size = system->get_4ed_path(memory, required_size);
-    *path_out = SCu8(memory, required_size);
-    return(true);
+    return(SCu8(memory, required_size));
 }
 
 // TODO(allen): do(add a "shown but auto-hides on timer" setting for cursor show type)
@@ -3922,12 +3909,12 @@ Text_Layout_Free(Application_Links *app, Text_Layout_ID text_layout_id){
 }
 
 API_EXPORT b32
-Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last, Text_Layout_ID *text_layout_id_out){
+Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     View *view = imp_get_view(models, view_id);
     Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
+    Text_Layout_ID result = 0;
     if (api_check_view(view) && api_check_buffer(file)){
         f32 line_height = (f32)view->line_height;
         f32 max_x = (f32)file->settings.display_width;
@@ -4040,15 +4027,13 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         view->render.items = items;
         view->render.item_count = item_count;
         
-        if (text_layout_id_out != 0){
-            f32 height = 0.f;
-            if (item_count > 0){
-                Buffer_Render_Item *render_item_first = items;
-                Buffer_Render_Item *render_item_last = items + item_count - 1;
-                height = render_item_last->y1 - render_item_first->y0;
-            }
-            *text_layout_id_out = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point, range, height);
+        f32 height = 0.f;
+        if (item_count > 0){
+            Buffer_Render_Item *render_item_first = items;
+            Buffer_Render_Item *render_item_last = items + item_count - 1;
+            height = render_item_last->y1 - render_item_first->y0;
         }
+        result = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point, range, height);
     }
     return(result);
 }
@@ -4124,8 +4109,8 @@ Get_View_Visible_Range(Application_Links *app, View_ID view_id){
         i32 view_height = rect_height(view->panel->rect_inner);
         i32 line_height = view->line_height;
         Full_Cursor min_cursor = view_get_render_cursor(models->system, view);
-        Full_Cursor max_cursor;
-        view_compute_cursor(app, view_id, seek_unwrapped_xy(0.f, min_cursor.wrapped_y + view_height + line_height, false), &max_cursor);
+        Buffer_Seek seek = seek_unwrapped_xy(0.f, min_cursor.wrapped_y + view_height + line_height, false);
+        Full_Cursor max_cursor = view_compute_cursor(app, view_id, seek);
         result.min = min_cursor.pos;
         result.max = max_cursor.pos;
     }

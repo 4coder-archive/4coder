@@ -210,8 +210,7 @@ draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
         // TODO(casey): need to fill the background here, but I don't know the line height,
         // and I can't actually render filled shapes, so, like, I can't properly do dP :(
         
-        Face_Metrics metrics = {};
-        get_face_metrics(app, font_id, &metrics);
+        Face_Metrics metrics = get_face_metrics(app, font_id);
         
         P += (string->pre_margin*metrics.typical_character_width)*dP;
         draw_string(app, use_font_id, string->value, P, use_fore, flags, dP);

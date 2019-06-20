@@ -403,22 +403,6 @@ buffer_seek_character_class_change_0_1(Application_Links *app, Buffer_ID buffer,
 
 ////////////////////////////////
 
-static String_Const_u8
-push_hot_directory(Application_Links *app, Arena *arena){
-    String_Const_u8 result = {};
-    get_hot_directory(app, arena, &result);
-    return(result);
-}
-
-static String_Const_u8
-push_4ed_path(Application_Links *app, Arena *arena){
-    String_Const_u8 result = {};
-    get_4ed_path(app, arena, &result);
-    return(result);
-}
-
-////////////////////////////////
-
 static Range_u64
 buffer_range(Application_Links *app, Buffer_ID buffer){
     Range_u64 range = {};
@@ -439,16 +423,14 @@ get_view_range(Application_Links *app, View_ID view){
 static f32
 get_view_y(Application_Links *app, View_ID view){
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     return(cursor.wrapped_y);
 }
 
 static f32
 get_view_x(Application_Links *app, View_ID view){
     i32 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = {};
-    view_compute_cursor(app, view, seek_pos(pos), &cursor);
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     return(cursor.wrapped_x);
 }
 
@@ -473,8 +455,8 @@ get_line_number_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
 static i32
 character_pos_to_pos_view(Application_Links *app, View_ID view, i32 character_pos){
     i32 result = 0;
-    Full_Cursor cursor = {};
-    if (view_compute_cursor(app, view, seek_character_pos(character_pos), &cursor)){
+    Full_Cursor cursor = view_compute_cursor(app, view, seek_character_pos(character_pos));
+    if (cursor.line > 0){
         result = cursor.pos;
     }
     return(result);
@@ -1302,15 +1284,14 @@ history_group_begin(Application_Links *app, Buffer_ID buffer){
     History_Group group = {};
     group.app = app;
     group.buffer = buffer;
-    buffer_history_get_current_state_index(app, buffer, &group.first);
+    group.first = buffer_history_get_current_state_index(app, buffer);
     group.first += 1;
     return(group);
 }
 
 static void
 history_group_end(History_Group group){
-    History_Record_Index last = 0;
-    buffer_history_get_current_state_index(group.app, group.buffer, &last);
+    History_Record_Index last = buffer_history_get_current_state_index(group.app, group.buffer);
     if (group.first < last){
         buffer_history_merge_record_range(group.app, group.buffer, group.first, last, RecordMergeFlag_StateInRange_MoveStateForward);
     }
@@ -1974,25 +1955,20 @@ lexer_keywords_default_init(Arena *arena, Cpp_Keyword_Table *kw_out, Cpp_Keyword
 
 static b32
 file_exists(Application_Links *app, String_Const_u8 file_name){
-    File_Attributes attributes = {};
-    file_get_attributes(app, file_name, &attributes);
+    File_Attributes attributes = get_file_attributes(app, file_name);
     return(attributes.last_write_time > 0);
 }
 
 static b32
 file_exists_and_is_file(Application_Links *app, String_Const_u8 file_name){
-    File_Attributes attributes = {};
-    file_get_attributes(app, file_name, &attributes);
-    return(attributes.last_write_time > 0 &&
-           !HasFlag(attributes.flags, FileAttribute_IsDirectory));
+    File_Attributes attributes = get_file_attributes(app, file_name);
+    return(attributes.last_write_time > 0 && !HasFlag(attributes.flags, FileAttribute_IsDirectory));
 }
 
 static b32
 file_exists_and_is_folder(Application_Links *app, String_Const_u8 file_name){
-    File_Attributes attributes = {};
-    file_get_attributes(app, file_name, &attributes);
-    return(attributes.last_write_time > 0 &&
-           HasFlag(attributes.flags, FileAttribute_IsDirectory));
+    File_Attributes attributes = get_file_attributes(app, file_name);
+    return(attributes.last_write_time > 0 && HasFlag(attributes.flags, FileAttribute_IsDirectory));
 }
 
 static Data
@@ -2146,8 +2122,7 @@ no_mark_snap_to_cursor(Application_Links *app, Managed_Scope view_scope){
 
 static void
 no_mark_snap_to_cursor(Application_Links *app, View_ID view_id){
-    Managed_Scope scope = 0;
-    view_get_managed_scope(app, view_id, &scope);
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
     no_mark_snap_to_cursor(app, scope);
 }
 
@@ -2231,10 +2206,9 @@ view_set_split_pixel_size(Application_Links *app, View_ID view, i32 t){
 
 static Record_Info
 get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
-    Record_Info record = {};
-    buffer_history_get_record_info(app, buffer_id, index, &record);
+    Record_Info record = buffer_history_get_record_info(app, buffer_id, index);
     if (record.error == RecordError_NoError && record.kind == RecordKind_Group){
-        buffer_history_get_group_sub_record(app, buffer_id, index, record.group.count - 1, &record);
+        record = buffer_history_get_group_sub_record(app, buffer_id, index, record.group.count - 1);
     }
     return(record);
 }

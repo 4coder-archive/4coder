@@ -791,8 +791,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     if (buffer != 0){
         i32 do_init = false;
         
-        Managed_Scope scope = 0;
-        view_get_managed_scope(app, view, &scope);
+        Managed_Scope scope = view_get_managed_scope(app, view);
         
         u64 rewrite = 0;
         managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
