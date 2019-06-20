@@ -367,17 +367,19 @@ buffer_seek_character_class_change__inner(Application_Links *app, Buffer_ID buff
     switch (direction){
         case Scan_Backward:
         {
-            b32 s1 = buffer_seek_character_class(app, buffer, negative, direction, pos, &pos);
-            b32 s2 = buffer_seek_character_class(app, buffer, positive, direction, pos, &pos);
-            if (s1 && s2){
+            String_Match m1 = buffer_seek_character_class(app, buffer, negative, direction, pos);
+            String_Match m2 = buffer_seek_character_class(app, buffer, positive, direction, m1.range.min);
+            pos = (i32)m2.range.min;
+            if (m1.buffer == buffer && m2.buffer == buffer){
                 pos += 1;
             }
         }break;
         case Scan_Forward:
         {
             pos -= 1;
-            buffer_seek_character_class(app, buffer, positive, direction, pos, &pos);
-            buffer_seek_character_class(app, buffer, negative, direction, pos, &pos);
+            String_Match m1 = buffer_seek_character_class(app, buffer, positive, direction, pos);
+            String_Match m2 = buffer_seek_character_class(app, buffer, negative, direction, m1.range.min);
+            pos = (i32)m2.range.min;
         }break;
     }
     return(pos);
@@ -714,23 +716,24 @@ boundary_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Side
 static i32
 boundary_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
     i32 an_pos = boundary_alpha_numeric(app, buffer, side, direction, pos);
-    i32 cap_pos = 0;
-    buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
-                                direction, pos, &cap_pos);
+    String_Match m = buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                                 direction, pos);
+    u64 cap_pos = m.range.min;
     if (side == Side_Max){
         i32 an_left_pos = boundary_alpha_numeric(app, buffer, flip_side(side),
                                                  flip_direction(direction), an_pos);
         if (cap_pos == an_left_pos){
-            buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
-                                        direction, cap_pos, &cap_pos);
+            m = buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
+                                            direction, cap_pos);
+            cap_pos = m.range.min;
         }
     }
     i32 result = 0;
     if (direction == Scan_Backward){
-        result = Max(an_pos, cap_pos);
+        result = Max(an_pos, (i32)cap_pos);
     }
     else{
-        result = Min(an_pos, cap_pos);
+        result = Min(an_pos, (i32)cap_pos);
     }
     return(result);
 }
@@ -856,13 +859,15 @@ boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directio
 void
 buffer_seek_delimiter_forward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
     Character_Predicate predicate = character_predicate_from_character((u8)delim);
-    buffer_seek_character_class(app, buffer, &predicate, Scan_Forward, pos, result);
+    String_Match m = buffer_seek_character_class(app, buffer, &predicate, Scan_Forward, pos);
+    *result = (i32)m.range.min;
 }
 
 void
 buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
     Character_Predicate predicate = character_predicate_from_character((u8)delim);
-    buffer_seek_character_class(app, buffer, &predicate, Scan_Backward, pos, result);
+    String_Match m = buffer_seek_character_class(app, buffer, &predicate, Scan_Backward, pos);
+    *result = (i32)m.range.min;
 }
 
 // TODO(allen): these need a little more rewrite
@@ -895,7 +900,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i
         if (HasFlag(match.flags, StringMatch_CaseSensitive) ||
             match.buffer != buffer || match.range.first < min) break;
     }
-    if (match.range.first >= min && match.buffer != buffer){
+    if (match.range.first >= min && match.buffer == buffer){
         *result = (i32)match.range.first;
     }
     else{
@@ -920,7 +925,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer,
 static void
 buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
     String_Match match = buffer_seek_string(app, buffer, needle, Scan_Backward, pos);
-    if (match.range.first >= min && match.buffer != buffer){
+    if (match.range.first >= min && match.buffer == buffer){
         *result = (i32)match.range.first;
     }
     else{

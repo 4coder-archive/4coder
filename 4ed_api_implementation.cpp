@@ -394,14 +394,14 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 }
 
 API_EXPORT String_Match
-Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos){
+Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
     String_Match result = {};
     if (api_check_buffer(file)){
         if (needle.size == 0){
             result.flags = StringMatch_CaseSensitive;
-            result.range = make_range_u64(start_pos);
+            result.range = make_range_i64(start_pos);
         }
         else{
             Scratch_Block scratch(app);
@@ -410,16 +410,16 @@ Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
             String_Const_u8 space[3];
             Cursor cursor = make_cursor(space, sizeof(space));
             String_Const_u8_Array chunks = buffer_get_chunks(&cursor, gap_buffer);
-            Range range = {};
+            Range_i64 range = {};
             if (direction == Scan_Forward){
-                i32 adjusted_pos = start_pos + 1;
+                i64 adjusted_pos = start_pos + 1;
                 start_pos = clamp_top(adjusted_pos, size);
-                range = make_range(adjusted_pos, size);
+                range = make_range_i64(adjusted_pos, size);
             }
             else{
-                i32 adjusted_pos = start_pos - 1;
+                i64 adjusted_pos = start_pos - 1;
                 start_pos = clamp_bot(0, adjusted_pos);
-                range = make_range(0, adjusted_pos);
+                range = make_range_i64(0, adjusted_pos);
             }
             chunks = buffer_chunks_clamp(chunks, range);
             if (chunks.count > 0){
@@ -427,24 +427,24 @@ Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
                 Character_Predicate dummy = {};
                 String_Match_List list = find_all_matches(scratch, 1,
                                                           chunks, needle, jump_table, &dummy, direction,
-                                                          range.min, 0, 0);
+                                                          range.min, buffer, 0);
                 if (list.count == 1){
                     result = *list.first;
                 }
             }
             else{
-                result.range = make_range_u64(start_pos);
+                result.range = Ii64(start_pos);
             }
         }
     }
     return(result);
 }
 
-API_EXPORT b32
-Buffer_Seek_Character_Class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){
+API_EXPORT String_Match
+Buffer_Seek_Character_Class(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos){
     Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
+    Editing_File *file = imp_get_file(models, buffer);
+    String_Match result = {};
     if (api_check_buffer(file)){
         String_Const_u8 chunks_space[2];
         Cursor chunks_cursor = make_cursor(chunks_space, sizeof(chunks_space));
@@ -452,30 +452,26 @@ Buffer_Seek_Character_Class(Application_Links *app, Buffer_ID buffer_id, Charact
         String_Const_u8_Array chunks = buffer_get_chunks(&chunks_cursor, gap_buffer, BufferGetChunk_Basic);
         
         if (chunks.count > 0){
+            // TODO(allen): rewrite as loop-in-loop for better iteration performance
             i32 size = buffer_size(gap_buffer);
             start_pos = clamp(-1, start_pos, size);
-            Buffer_Chunk_Position pos = buffer_get_chunk_position(chunks, size, start_pos);
-            // TODO(allen): rewrite as loop-in-loop for better iteration performance
+            Buffer_Chunk_Position pos = buffer_get_chunk_position(chunks, size, (i32)start_pos);
             for (;;){
                 i32 past_end = buffer_chunk_position_iterate(chunks, &pos, direction);
                 if (past_end == -1){
-                    *pos_out = 0;
                     break;
                 }
                 else if (past_end == 1){
-                    *pos_out = size;
+                    result.range = make_range_i64(size);
                     break;
                 }
                 u8 v = chunks.vals[pos.chunk_index].str[pos.chunk_pos];
                 if (character_predicate_check_character(*predicate, v)){
-                    result = true;
-                    *pos_out = pos.real_pos;
+                    result.buffer = buffer;
+                    result.range = make_range_i64(pos.real_pos, pos.real_pos + 1);
                     break;
                 }
             }
-        }
-        else{
-            *pos_out = 0;
         }
     }
     return(result);
@@ -4093,7 +4089,7 @@ Animate_In_N_Milliseconds(Application_Links *app, u32 n)
 }
 
 API_EXPORT String_Match_List
-Find_All_Matches_Buffer_Range(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
+Buffer_Find_All_Matches(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);

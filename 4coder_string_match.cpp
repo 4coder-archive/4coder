@@ -11,7 +11,7 @@
 
 internal void
 string_match_list_push(Arena *arena, String_Match_List *list,
-                       Buffer_ID buffer, i32 string_id, String_Match_Flag flags, Range_u64 range){
+                       Buffer_ID buffer, i32 string_id, String_Match_Flag flags, Range_i64 range){
     String_Match *match = push_array(arena, String_Match, 1);
     sll_queue_push(list->first, list->last, match);
     list->count += 1;
@@ -23,9 +23,9 @@ string_match_list_push(Arena *arena, String_Match_List *list,
 
 internal void
 string_match_list_push(Arena *arena, String_Match_List *list,
-                       Buffer_ID buffer, i32 string_id, String_Match_Flag flags, u64 start, u64 length){
+                       Buffer_ID buffer, i32 string_id, String_Match_Flag flags, i64 start, i64 length){
     string_match_list_push(arena, list, buffer, string_id, flags,
-                           make_range_u64(start, start + length));
+                           make_range_i64(start, start + length));
 }
 
 internal void

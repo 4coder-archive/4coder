@@ -536,12 +536,12 @@ buffer_get_chunks(Cursor *cursor, Gap_Buffer *buffer){
 }
 
 internal String_Const_u8_Array
-buffer_chunks_clamp(String_Const_u8_Array chunks, Range range){
-    i32 real_position = 0;
+buffer_chunks_clamp(String_Const_u8_Array chunks, Range_i64 range){
+    i64 real_position = 0;
     for (i32 i = 0; i < chunks.count; i += 1){
-        Range chunk_range = make_range(real_position, real_position + (i32)chunks.strings[i].size);
-        Range clamped_range = make_range(clamp(range.min, chunk_range.min, range.max),
-                                         clamp(range.min, chunk_range.max, range.max));
+        Range_i64 chunk_range = Ii64(real_position, real_position + chunks.strings[i].size);
+        Range_i64 clamped_range = Ii64(clamp(range.min, chunk_range.min, range.max),
+                                       clamp(range.min, chunk_range.max, range.max));
         chunks.strings[i].str += clamped_range.min - chunk_range.min;
         chunks.strings[i].size = range_size(clamped_range);
         real_position += range_size(chunk_range);

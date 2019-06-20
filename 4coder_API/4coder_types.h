@@ -1151,7 +1151,7 @@ STRUCT String_Match{
     Buffer_ID buffer;
     i32 string_id;
     String_Match_Flag flags;
-    Range_u64 range;
+    Range_i64 range;
 };
 
 STRUCT String_Match_List{

@@ -20,8 +20,8 @@ struct Application_Links;
 #define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string)
 #define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count)
-#define BUFFER_SEEK_STRING_SIG(n) String_Match n(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos)
-#define BUFFER_SEEK_CHARACTER_CLASS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out)
+#define BUFFER_SEEK_STRING_SIG(n) String_Match n(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos)
+#define BUFFER_SEEK_CHARACTER_CLASS_SIG(n) String_Match n(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) Partial_Cursor n(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek)
 #define BUFFER_EXISTS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
@@ -178,7 +178,7 @@ struct Application_Links;
 #define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
 #define OPEN_COLOR_PICKER_SIG(n) void n(Application_Links *app, Color_Picker *picker)
 #define ANIMATE_IN_N_MILLISECONDS_SIG(n) void n(Application_Links *app, u32 n)
-#define FIND_ALL_MATCHES_BUFFER_RANGE_SIG(n) String_Match_List n(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
+#define BUFFER_FIND_ALL_MATCHES_SIG(n) String_Match_List n(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
 #define GET_VIEW_VISIBLE_RANGE_SIG(n) Range n(Application_Links *app, View_ID view_id)
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
@@ -359,7 +359,7 @@ typedef COMPUTE_RENDER_LAYOUT_SIG(Compute_Render_Layout_Function);
 typedef DRAW_RENDER_LAYOUT_SIG(Draw_Render_Layout_Function);
 typedef OPEN_COLOR_PICKER_SIG(Open_Color_Picker_Function);
 typedef ANIMATE_IN_N_MILLISECONDS_SIG(Animate_In_N_Milliseconds_Function);
-typedef FIND_ALL_MATCHES_BUFFER_RANGE_SIG(Find_All_Matches_Buffer_Range_Function);
+typedef BUFFER_FIND_ALL_MATCHES_SIG(Buffer_Find_All_Matches_Function);
 typedef GET_VIEW_VISIBLE_RANGE_SIG(Get_View_Visible_Range_Function);
 struct Application_Links{
 #if defined(ALLOW_DEP_4CODER)
@@ -542,7 +542,7 @@ Compute_Render_Layout_Function *compute_render_layout;
 Draw_Render_Layout_Function *draw_render_layout;
 Open_Color_Picker_Function *open_color_picker;
 Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds;
-Find_All_Matches_Buffer_Range_Function *find_all_matches_buffer_range;
+Buffer_Find_All_Matches_Function *buffer_find_all_matches;
 Get_View_Visible_Range_Function *get_view_visible_range;
 #else
 Global_Set_Setting_Function *global_set_setting_;
@@ -724,7 +724,7 @@ Compute_Render_Layout_Function *compute_render_layout_;
 Draw_Render_Layout_Function *draw_render_layout_;
 Open_Color_Picker_Function *open_color_picker_;
 Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds_;
-Find_All_Matches_Buffer_Range_Function *find_all_matches_buffer_range_;
+Buffer_Find_All_Matches_Function *buffer_find_all_matches_;
 Get_View_Visible_Range_Function *get_view_visible_range_;
 #endif
 void *memory;
@@ -914,7 +914,7 @@ app_links->compute_render_layout_ = Compute_Render_Layout;\
 app_links->draw_render_layout_ = Draw_Render_Layout;\
 app_links->open_color_picker_ = Open_Color_Picker;\
 app_links->animate_in_n_milliseconds_ = Animate_In_N_Milliseconds;\
-app_links->find_all_matches_buffer_range_ = Find_All_Matches_Buffer_Range;\
+app_links->buffer_find_all_matches_ = Buffer_Find_All_Matches;\
 app_links->get_view_visible_range_ = Get_View_Visible_Range;} while(false)
 #if defined(ALLOW_DEP_4CODER)
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting(app, setting, value));}
@@ -938,8 +938,8 @@ static Buffer_ID get_buffer_by_file_name(Application_Links *app, String_Const_u8
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit(app, buffer_id, str, edits, edit_count));}
-static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos){return(app->buffer_seek_string(app, buffer, needle, direction, start_pos));}
-static b32 buffer_seek_character_class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){return(app->buffer_seek_character_class(app, buffer_id, predicate, direction, start_pos, pos_out));}
+static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_string(app, buffer, needle, direction, start_pos));}
+static String_Match buffer_seek_character_class(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_character_class(app, buffer, predicate, direction, start_pos));}
 static Partial_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek){return(app->buffer_compute_cursor(app, buffer_id, seek));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready(app, buffer_id));}
@@ -1096,7 +1096,7 @@ static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
 static void open_color_picker(Application_Links *app, Color_Picker *picker){(app->open_color_picker(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds(app, n));}
-static String_Match_List find_all_matches_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction){return(app->find_all_matches_buffer_range(app, arena, buffer, string_id, range, needle, predicate, direction));}
+static String_Match_List buffer_find_all_matches(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction){return(app->buffer_find_all_matches(app, arena, buffer, string_id, range, needle, predicate, direction));}
 static Range get_view_visible_range(Application_Links *app, View_ID view_id){return(app->get_view_visible_range(app, view_id));}
 #else
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
@@ -1120,8 +1120,8 @@ static Buffer_ID get_buffer_by_file_name(Application_Links *app, String_Const_u8
 static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range_(app, buffer_id, start, one_past_last, out));}
 static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range_(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit_(app, buffer_id, str, edits, edit_count));}
-static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i32 start_pos){return(app->buffer_seek_string_(app, buffer, needle, direction, start_pos));}
-static b32 buffer_seek_character_class(Application_Links *app, Buffer_ID buffer_id, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos, i32 *pos_out){return(app->buffer_seek_character_class_(app, buffer_id, predicate, direction, start_pos, pos_out));}
+static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_string_(app, buffer, needle, direction, start_pos));}
+static String_Match buffer_seek_character_class(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_character_class_(app, buffer, predicate, direction, start_pos));}
 static Partial_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID buffer_id, Buffer_Seek seek){return(app->buffer_compute_cursor_(app, buffer_id, seek));}
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists_(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready_(app, buffer_id));}
@@ -1278,6 +1278,6 @@ static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}
 static void open_color_picker(Application_Links *app, Color_Picker *picker){(app->open_color_picker_(app, picker));}
 static void animate_in_n_milliseconds(Application_Links *app, u32 n){(app->animate_in_n_milliseconds_(app, n));}
-static String_Match_List find_all_matches_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction){return(app->find_all_matches_buffer_range_(app, arena, buffer, string_id, range, needle, predicate, direction));}
+static String_Match_List buffer_find_all_matches(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction){return(app->buffer_find_all_matches_(app, arena, buffer, string_id, range, needle, predicate, direction));}
 static Range get_view_visible_range(Application_Links *app, View_ID view_id){return(app->get_view_visible_range_(app, view_id));}
 #endif
