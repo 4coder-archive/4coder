@@ -361,15 +361,15 @@ character_predicate_not(Character_Predicate *a){
     return(p);
 }
 
-internal i32
-buffer_seek_character_class_change__inner(Application_Links *app, Buffer_ID buffer, Character_Predicate *positive, Character_Predicate *negative, Scan_Direction direction, i32 start_pos){
-    i32 pos = start_pos;
+internal i64
+buffer_seek_character_class_change__inner(Application_Links *app, Buffer_ID buffer, Character_Predicate *positive, Character_Predicate *negative, Scan_Direction direction, i64 start_pos){
+    i64 pos = start_pos;
     switch (direction){
         case Scan_Backward:
         {
             String_Match m1 = buffer_seek_character_class(app, buffer, negative, direction, pos);
             String_Match m2 = buffer_seek_character_class(app, buffer, positive, direction, m1.range.min);
-            pos = (i32)m2.range.min;
+            pos = m2.range.min;
             if (m1.buffer == buffer && m2.buffer == buffer){
                 pos += 1;
             }
@@ -379,82 +379,92 @@ buffer_seek_character_class_change__inner(Application_Links *app, Buffer_ID buff
             pos -= 1;
             String_Match m1 = buffer_seek_character_class(app, buffer, positive, direction, pos);
             String_Match m2 = buffer_seek_character_class(app, buffer, negative, direction, m1.range.min);
-            pos = (i32)m2.range.min;
+            pos = m2.range.min;
         }break;
     }
     return(pos);
 }
 
-internal i32
-buffer_seek_character_class_change_1_0(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos){
+internal i64
+buffer_seek_character_class_change_1_0(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos){
     Character_Predicate negative = character_predicate_not(predicate);
-    return(buffer_seek_character_class_change__inner(app, buffer,
-                                                     predicate, &negative,
-                                                     direction, start_pos));
+    return(buffer_seek_character_class_change__inner(app, buffer, predicate, &negative, direction, start_pos));
 }
 
-internal i32
-buffer_seek_character_class_change_0_1(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i32 start_pos){
+internal i64
+buffer_seek_character_class_change_0_1(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos){
     Character_Predicate negative = character_predicate_not(predicate);
-    return(buffer_seek_character_class_change__inner(app, buffer,
-                                                     &negative, predicate,
-                                                     direction, start_pos));
+    return(buffer_seek_character_class_change__inner(app, buffer, &negative, predicate, direction, start_pos));
 }
 
 ////////////////////////////////
 
-static Range_u64
+static Range_i64
 buffer_range(Application_Links *app, Buffer_ID buffer){
-    Range_u64 range = {};
+    Range_i64 range = {};
     range.end = buffer_get_size(app, buffer);
     return(range);
 }
 
-static u64
+static i64
 buffer_side(Application_Links *app, Buffer_ID buffer, Side side){
     return(range_side(buffer_range(app, buffer), side));
 }
 
-static Range
+static Range_i64
 get_view_range(Application_Links *app, View_ID view){
-    return(make_range(view_get_cursor_pos(app, view), view_get_mark_pos(app, view)));
+    return(Ii64(view_get_cursor_pos(app, view), view_get_mark_pos(app, view)));
+}
+
+static void
+set_view_range(Application_Links *app, View_ID view, Range_i64 range){
+    i64 c = view_get_cursor_pos(app, view);
+    i64 m = view_get_mark_pos(app, view);
+    if (c < m){
+        view_set_cursor(app, view, seek_pos(range.min), true);
+        view_set_mark(app, view, seek_pos(range.max));
+    }
+    else{
+        view_set_mark(app, view, seek_pos(range.min));
+        view_set_cursor(app, view, seek_pos(range.max), true);
+    }
 }
 
 static f32
 get_view_y(Application_Links *app, View_ID view){
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     return(cursor.wrapped_y);
 }
 
 static f32
 get_view_x(Application_Links *app, View_ID view){
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     return(cursor.wrapped_x);
 }
 
 static b32
-is_valid_line(Application_Links *app, Buffer_ID buffer_id, i32 line){
-    i32 max_line = (i32)buffer_get_line_count(app, buffer_id);
+is_valid_line(Application_Links *app, Buffer_ID buffer_id, i64 line){
+    i64 max_line = buffer_get_line_count(app, buffer_id);
     return(1 <= line && line <= max_line);
 }
 
 static b32
-is_valid_line_range(Application_Links *app, Buffer_ID buffer_id, Range range){
-    i32 max_line = (i32)buffer_get_line_count(app, buffer_id);
+is_valid_line_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range){
+    i64 max_line = buffer_get_line_count(app, buffer_id);
     return(1 <= range.first && range.first <= range.end && range.end <= max_line);
 }
 
-static i32
-get_line_number_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
+static i64
+get_line_number_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
     Partial_Cursor partial_cursor = buffer_compute_cursor(app, buffer, seek_pos(pos));
     return(partial_cursor.line);
 }
 
-static i32
-character_pos_to_pos_view(Application_Links *app, View_ID view, i32 character_pos){
-    i32 result = 0;
+static i64
+character_pos_to_pos_view(Application_Links *app, View_ID view, i64 character_pos){
+    i64 result = 0;
     Full_Cursor cursor = view_compute_cursor(app, view, seek_character_pos(character_pos));
     if (cursor.line > 0){
         result = cursor.pos;
@@ -462,20 +472,20 @@ character_pos_to_pos_view(Application_Links *app, View_ID view, i32 character_po
     return(result);
 }
 
-static i32
-character_pos_to_pos_buffer(Application_Links *app, Buffer_ID buffer, i32 character_pos){
+static i64
+character_pos_to_pos_buffer(Application_Links *app, Buffer_ID buffer, i64 character_pos){
     Partial_Cursor cursor = buffer_compute_cursor(app, buffer, seek_character_pos(character_pos));
     return(cursor.pos);
 }
 
 static Partial_Cursor
-get_line_side(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
-    i32 character_index = (side == Side_Min)?(1):(-1);
+get_line_side(Application_Links *app, Buffer_ID buffer, i64 line_number, Side side){
+    i64 character_index = (side == Side_Min)?(1):(-1);
     return(buffer_compute_cursor(app, buffer, seek_line_char(line_number, character_index)));
 }
-static i32
-get_line_side_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
-    i32 pos = -1;
+static i64
+get_line_side_pos(Application_Links *app, Buffer_ID buffer, i64 line_number, Side side){
+    i64 pos = -1;
     Partial_Cursor partial_cursor = get_line_side(app, buffer, line_number, side);
     if (partial_cursor.line != 0){
         pos = partial_cursor.pos;
@@ -484,39 +494,28 @@ get_line_side_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, Sid
 }
 
 static Partial_Cursor
-get_line_start(Application_Links *app, Buffer_ID buffer, i32 line_number){
+get_line_start(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side(app, buffer, line_number, Side_Min));
 }
-static i32
-get_line_start_pos(Application_Links *app, Buffer_ID buffer, i32 line_number){
+static i64
+get_line_start_pos(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side_pos(app, buffer, line_number, Side_Min));
 }
 
 // NOTE(allen): The position returned has the index of the terminating newline character,
 // not one past the newline character.
 static Partial_Cursor
-get_line_end(Application_Links *app, Buffer_ID buffer, i32 line_number){
+get_line_end(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side(app, buffer, line_number, Side_Max));
 }
-static i32
-get_line_end_pos(Application_Links *app, Buffer_ID buffer, i32 line_number){
+static i64
+get_line_end_pos(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side_pos(app, buffer, line_number, Side_Max));
-}
-
-static i32
-get_line_pos(Application_Links *app, Buffer_ID buffer, i32 line_number, Side side){
-    i32 result = 0;
-    if (side == Side_Min){
-        result = get_line_start_pos(app, buffer, line_number);
-    }
-    else{
-        result = get_line_start_pos(app, buffer, line_number);
-    }
 }
 
 // NOTE(allen): The range returned does not include the terminating newline character
 static Range_Partial_Cursor
-get_line_range(Application_Links *app, Buffer_ID buffer, i32 line_number){
+get_line_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     b32 success = false;
     Range_Partial_Cursor result = {};
     result.begin = get_line_start(app, buffer, line_number);
@@ -533,38 +532,38 @@ get_line_range(Application_Links *app, Buffer_ID buffer, i32 line_number){
 }
 
 // NOTE(allen): The range returned does not include the terminating newline character
-static Range
-get_line_pos_range(Application_Links *app, Buffer_ID buffer, i32 line_number){
+static Range_i64
+get_line_pos_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     Range_Partial_Cursor range = get_line_range(app, buffer, line_number);
-    Range result = {};
+    Range_i64 result = {};
     if (range.begin.line != 0 && range.end.line != 0){
-        result = make_range(range.begin.pos, range.end.pos);
+        result = Ii64(range.begin.pos, range.end.pos);
     }
     return(result);
 }
 
-static Range
+static Range_i64
 make_range_from_cursors(Range_Partial_Cursor range){
-    return(make_range(range.begin.pos, range.end.pos));
+    return(Ii64(range.begin.pos, range.end.pos));
 }
 
-static i32
-get_line_side_pos_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos, Side side){
-    i32 line_number = get_line_number_from_pos(app, buffer, pos);
+static i64
+get_line_side_pos_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos, Side side){
+    i64 line_number = get_line_number_from_pos(app, buffer, pos);
     return(get_line_side_pos(app, buffer, line_number, side));
 }
-static i32
-get_line_start_pos_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
+static i64
+get_line_start_pos_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
     return(get_line_side_pos_from_pos(app, buffer, pos, Side_Min));
 }
-static i32
-get_line_end_pos_from_pos(Application_Links *app, Buffer_ID buffer, i32 pos){
+static i64
+get_line_end_pos_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
     return(get_line_side_pos_from_pos(app, buffer, pos, Side_Max));
 }
 
 static Cpp_Token*
-get_first_token_from_pos(Cpp_Token_Array tokens, i32 pos){
-    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, pos);
+get_first_token_from_pos(Cpp_Token_Array tokens, i64 pos){
+    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, (i32)pos);
     if (get_token.in_whitespace_after_token){
         get_token.token_index += 1;
     }
@@ -576,18 +575,18 @@ get_first_token_from_pos(Cpp_Token_Array tokens, i32 pos){
 }
 
 static Cpp_Token*
-get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, i32 line){
-    i32 line_start = get_line_start_pos(app, buffer, line);
+get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, i64 line){
+    i64 line_start = get_line_start_pos(app, buffer, line);
     return(get_first_token_from_pos(tokens, line_start));
 }
 
 ////////////////////////////////
 
-static i32
-scan_any_boundary(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, Scan_Direction direction, i32 pos){
-    i32 a = func(app, buffer, Side_Min, direction, pos);
-    i32 b = func(app, buffer, Side_Max, direction, pos);
-    i32 result = 0;
+static i64
+scan_any_boundary(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, Scan_Direction direction, i64 pos){
+    i64 a = func(app, buffer, Side_Min, direction, pos);
+    i64 b = func(app, buffer, Side_Max, direction, pos);
+    i64 result = 0;
     if (direction == Scan_Forward){
         result = Min(a, b);
     }
@@ -597,22 +596,22 @@ scan_any_boundary(Application_Links *app, Boundary_Function *func, Buffer_ID buf
     return(result);
 }
 
-static i32
-scan(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, Scan_Direction direction, i32 pos){
+static i64
+scan(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, Scan_Direction direction, i64 pos){
     Side side = (direction == Scan_Forward)?(Side_Max):(Side_Min);
     return(func(app, buffer, side, direction, pos));
 }
 
-static i32
-scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Scan_Direction direction, i32 start_pos){
-    i32 result = 0;
+static i64
+scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Scan_Direction direction, i64 start_pos){
+    i64 result = 0;
     if (direction == Scan_Forward){
-        i32 size = (i32)buffer_get_size(app, buffer);
+        i64 size = buffer_get_size(app, buffer);
         result = size + 1;
         for (Boundary_Function_Node *node = funcs.first;
              node != 0;
              node = node->next){
-            i32 pos = scan(app, node->func, buffer, direction, start_pos);
+            i64 pos = scan(app, node->func, buffer, direction, start_pos);
             result = Min(result, pos);
         }
     }
@@ -621,7 +620,7 @@ scan(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, Sca
         for (Boundary_Function_Node *node = funcs.first;
              node != 0;
              node = node->next){
-            i32 pos = scan(app, node->func, buffer, direction, start_pos);
+            i64 pos = scan(app, node->func, buffer, direction, start_pos);
             result = Max(result, pos);
         }
     }
@@ -658,9 +657,9 @@ push_boundary_list__inner(Arena *arena, ...){
 }
 #define push_boundary_list(a,...) push_boundary_list__inner((a), __VA_ARGS__, 0)
 
-static i32
-boundary_predicate(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos, Character_Predicate *predicate){
-    i32 result = 0;
+static i64
+boundary_predicate(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos, Character_Predicate *predicate){
+    i64 result = 0;
     switch (side){
         case Side_Min:
         {
@@ -674,55 +673,85 @@ boundary_predicate(Application_Links *app, Buffer_ID buffer, Side side, Scan_Dir
     return(result);
 }
 
-static i32
-boundary_non_whitespace(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+static i64
+boundary_non_whitespace(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
     return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_non_whitespace));
 }
 
-static i32
-boundary_alpha_numeric(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+static i64
+boundary_base10(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_base10));
+}
+
+static i64
+boundary_base10_colon(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    static Character_Predicate predicate = {};
+    static b32 first_call = true;
+    if (first_call){
+        first_call = false;
+        Character_Predicate colon = character_predicate_from_character((u8)':');
+        predicate = character_predicate_or(&character_predicate_base10, &colon);
+    }
+    return(boundary_predicate(app, buffer, side, direction, pos, &predicate));
+}
+
+static i64
+boundary_base16(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_base16));
+}
+
+static i64
+boundary_alpha_numeric(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
     return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric));
 }
 
-static i32
-boundary_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
+static i64
+boundary_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
     return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric_underscore_utf8));
 }
 
-static i32
-boundary_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
-    return(boundary_predicate(app, buffer, side, direction, pos,
-                              &character_predicate_alpha_numeric_underscore));
+static i64
+boundary_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric_underscore));
 }
 
-static i32
-boundary_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
-    i32 an_pos = boundary_alpha_numeric(app, buffer, side, direction, pos);
-    String_Match m = buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
-                                                 direction, pos);
-    u64 cap_pos = m.range.min;
+static i64
+boundary_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    i64 an_pos = boundary_alpha_numeric(app, buffer, side, direction, pos);
+    String_Match m = buffer_seek_character_class(app, buffer, &character_predicate_uppercase, direction, pos);
+    i64 cap_pos = m.range.min;
     if (side == Side_Max){
-        i32 an_left_pos = boundary_alpha_numeric(app, buffer, flip_side(side),
-                                                 flip_direction(direction), an_pos);
+        i64 an_left_pos = boundary_alpha_numeric(app, buffer, flip_side(side), flip_direction(direction), an_pos);
         if (cap_pos == an_left_pos){
-            m = buffer_seek_character_class(app, buffer, &character_predicate_uppercase,
-                                            direction, cap_pos);
+            m = buffer_seek_character_class(app, buffer, &character_predicate_uppercase, direction, cap_pos);
             cap_pos = m.range.min;
         }
     }
-    i32 result = 0;
+    i64 result = 0;
     if (direction == Scan_Backward){
-        result = Max(an_pos, (i32)cap_pos);
+        result = Max(an_pos, cap_pos);
     }
     else{
-        result = Min(an_pos, (i32)cap_pos);
+        result = Min(an_pos, cap_pos);
     }
     return(result);
 }
 
-static i32
-boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
-    i32 result = 0;
+static i64
+boundary_inside_quotes(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    static Character_Predicate predicate = {};
+    static b32 first_call = true;
+    if (first_call){
+        first_call = false;
+        predicate = character_predicate_from_character((u8)'"');
+        predicate = character_predicate_not(&predicate);
+    }
+    return(boundary_predicate(app, buffer, side, direction, pos, &predicate));
+}
+
+static i64
+boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    i64 result = 0;
     if (!buffer_tokens_are_ready(app, buffer)){
         result = boundary_non_whitespace(app, buffer, side, direction, pos);
     }
@@ -815,10 +844,10 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
     return(result);
 }
 
-static i32
-boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos){
-    i32 line_number = get_line_number_from_pos(app, buffer, pos);
-    i32 new_pos = get_line_side_pos(app, buffer, line_number, side);
+static i64
+boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    i64 line_number = get_line_number_from_pos(app, buffer, pos);
+    i64 new_pos = get_line_side_pos(app, buffer, line_number, side);
     if (direction == Scan_Backward && new_pos >= pos){
         if (line_number > 1){
             new_pos = get_line_side_pos(app, buffer, line_number - 1, side);
@@ -838,23 +867,9 @@ boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directio
 
 ////////////////////////////////
 
-void
-buffer_seek_delimiter_forward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
-    Character_Predicate predicate = character_predicate_from_character((u8)delim);
-    String_Match m = buffer_seek_character_class(app, buffer, &predicate, Scan_Forward, pos);
-    *result = (i32)m.range.min;
-}
-
-void
-buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
-    Character_Predicate predicate = character_predicate_from_character((u8)delim);
-    String_Match m = buffer_seek_character_class(app, buffer, &predicate, Scan_Backward, pos);
-    *result = (i32)m.range.min;
-}
-
 // TODO(allen): these need a little more rewrite
 static void
-buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
+buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 end, String_Const_u8 needle, i64 *result){
     if (end == 0){
         end = (i32)buffer_get_size(app, buffer);
     }
@@ -866,24 +881,24 @@ buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i3
             match.buffer != buffer || match.range.first >= end) break;
     }
     if (match.range.first < end && match.buffer == buffer){
-        *result = (i32)match.range.first;
+        *result = match.range.first;
     }
     else{
-        *result = (i32)buffer_get_size(app, buffer);
+        *result = buffer_get_size(app, buffer);
     }
 }
 
 static void
-buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
+buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 min, String_Const_u8 needle, i64 *result){
     String_Match match = {};
     match.range.first = pos;
     for (;;){
-        match = buffer_seek_string(app, buffer, needle, Scan_Backward, (i32)match.range.first);
+        match = buffer_seek_string(app, buffer, needle, Scan_Backward, match.range.first);
         if (HasFlag(match.flags, StringMatch_CaseSensitive) ||
             match.buffer != buffer || match.range.first < min) break;
     }
     if (match.range.first >= min && match.buffer == buffer){
-        *result = (i32)match.range.first;
+        *result = match.range.first;
     }
     else{
         *result = -1;
@@ -891,24 +906,24 @@ buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i
 }
 
 static void
-buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 end, String_Const_u8 needle, i32 *result){
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 end, String_Const_u8 needle, i64 *result){
     if (end == 0){
         end = (i32)buffer_get_size(app, buffer);
     }
     String_Match match = buffer_seek_string(app, buffer, needle, Scan_Forward, pos);
     if (match.range.first < end && match.buffer == buffer){
-        *result = (i32)match.range.first;
+        *result = match.range.first;
     }
     else{
-        *result = (i32)buffer_get_size(app, buffer);
+        *result = buffer_get_size(app, buffer);
     }
 }
 
 static void
-buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i32 pos, i32 min, String_Const_u8 needle, i32 *result){
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 min, String_Const_u8 needle, i64 *result){
     String_Match match = buffer_seek_string(app, buffer, needle, Scan_Backward, pos);
     if (match.range.first >= min && match.buffer == buffer){
-        *result = (i32)match.range.first;
+        *result = match.range.first;
     }
     else{
         *result = -1;
@@ -916,7 +931,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer
 }
 
 static void
-buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end, i32 min, String_Const_u8 str, i32 *result, Buffer_Seek_String_Flags flags){
+buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i64 pos, i64 end, i64 min, String_Const_u8 str, i64 *result, Buffer_Seek_String_Flags flags){
     switch (flags & 3){
         case 0:
         {
@@ -942,9 +957,9 @@ buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i32 pos, i32 end
 
 ////////////////////////////////
 
-static Range
-get_line_range_from_pos_range(Application_Links *app, Buffer_ID buffer, Range pos_range){
-    Range line_range = {};
+static Range_i64
+get_line_range_from_pos_range(Application_Links *app, Buffer_ID buffer, Range_i64 pos_range){
+    Range_i64 line_range = {};
     line_range.first = get_line_number_from_pos(app, buffer, pos_range.first);
     if (line_range.first != 0){
         line_range.end = get_line_number_from_pos(app, buffer, pos_range.one_past_last);
@@ -957,9 +972,9 @@ get_line_range_from_pos_range(Application_Links *app, Buffer_ID buffer, Range po
 
 // NOTE(allen): The end of the returned range does not include the terminating newline character of
 // the last line.
-static Range
-get_pos_range_from_line_range(Application_Links *app, Buffer_ID buffer, Range line_range){
-    Range pos_range = {};
+static Range_i64
+get_pos_range_from_line_range(Application_Links *app, Buffer_ID buffer, Range_i64 line_range){
+    Range_i64 pos_range = {};
     if (is_valid_line_range(app, buffer, line_range)){
         pos_range.first = get_line_start_pos(app, buffer, line_range.first);
         pos_range.one_past_last = get_line_end_pos(app, buffer, line_range.end);
@@ -967,66 +982,126 @@ get_pos_range_from_line_range(Application_Links *app, Buffer_ID buffer, Range li
     return(pos_range);
 }
 
-static Range
-enclose_boundary(Application_Links *app, Buffer_ID buffer, Range range, Boundary_Function *func){
-    i32 new_min       = func(app, buffer, Side_Min, Scan_Backward, range.min + 1);
-    i32 new_min_check = func(app, buffer, Side_Max, Scan_Backward, range.min + 1);
+static Range_i64
+enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range, Boundary_Function *func){
+    i64 new_min       = func(app, buffer, Side_Min, Scan_Backward, range.min + 1);
+    i64 new_min_check = func(app, buffer, Side_Max, Scan_Backward, range.min + 1);
     if (new_min_check <= new_min && new_min < range.min){
         range.min = new_min;
     }
-    i32 new_max       = func(app, buffer, Side_Max, Scan_Forward, range.max - 1);
-    i32 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max - 1);
+    i64 new_max       = func(app, buffer, Side_Max, Scan_Forward, range.max - 1);
+    i64 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max - 1);
     if (new_max_check >= new_max && new_max > range.max){
         range.max = new_max;
     }
     return(range);
 }
 
-static Range
-enclose_non_whitespace(Application_Links *app, Buffer_ID buffer, Range range){
+static Range_i64
+enclose_non_whitespace(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     return(enclose_boundary(app, buffer, range, boundary_non_whitespace));
 }
+static Range_i64
+enclose_pos_non_whitespace(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_non_whitespace));
+}
 
-static Range
-enclose_tokens(Application_Links *app, Buffer_ID buffer, Range range){
+static Range_i64
+enclose_tokens(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     return(enclose_boundary(app, buffer, range, boundary_token));
 }
+static Range_i64
+enclose_pos_tokens(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_token));
+}
 
-static Range
-enclose_alpha_numeric(Application_Links *app, Buffer_ID buffer, Range range){
+static Range_i64
+enclose_base10(Application_Links *app, Buffer_ID buffer, Range_i64 range){
+    return(enclose_boundary(app, buffer, range, boundary_base10));
+}
+static Range_i64
+enclose_pos_base10(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_base10));
+}
+
+static Range_i64
+enclose_base16(Application_Links *app, Buffer_ID buffer, Range_i64 range){
+    return(enclose_boundary(app, buffer, range, boundary_base16));
+}
+static Range_i64
+enclose_pos_base16(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_base16));
+}
+
+static Range_i64
+enclose_base10_colon(Application_Links *app, Buffer_ID buffer, Range_i64 range){
+    return(enclose_boundary(app, buffer, range, boundary_base10_colon));
+}
+static Range_i64
+enclose_pos_base10_colon(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_base10_colon));
+}
+
+static Range_i64
+enclose_alpha_numeric(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     return(enclose_boundary(app, buffer, range, boundary_alpha_numeric));
 }
+static Range_i64
+enclose_pos_alpha_numeric(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_alpha_numeric));
+}
 
-static Range
-enclose_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, Range range){
+static Range_i64
+enclose_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_unicode));
 }
+static Range_i64
+enclose_pos_alpha_numeric_unicode(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_alpha_numeric_unicode));
+}
 
-static Range
-enclose_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Range range){
+static Range_i64
+enclose_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_underscore));
 }
-
-static Range
-enclose_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Range range){
-    return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_camel));
+static Range_i64
+enclose_pos_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_alpha_numeric_underscore));
 }
 
-static Range
-pos_range_enclose_whole_lines(Application_Links *app, Buffer_ID buffer, Range range){
+static Range_i64
+enclose_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Range_i64 range){
+    return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_camel));
+}
+static Range_i64
+enclose_pos_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_alpha_numeric_camel));
+}
+
+static Range_i64
+enclose_pos_inside_quotes(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_inside_quotes));
+}
+
+static Range_i64
+enclose_whole_lines(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     return(enclose_boundary(app, buffer, range, boundary_line));
+}
+static Range_i64
+enclose_pos_whole_lines(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_line));
 }
 
 ////////////////////////////////
 
-static Range
-get_snipe_range(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, i32 pos, Scan_Direction direction){
-    Range result = {};
-    i32 buffer_size = (i32)buffer_get_size(app, buffer);
-    i32 pos0 = pos;
-    i32 pos1 = scan(app, funcs, buffer, direction, pos0);
+static Range_i64
+get_snipe_range(Application_Links *app, Boundary_Function_List funcs, Buffer_ID buffer, i64 pos, Scan_Direction direction){
+    Range_i64 result = {};
+    i64 buffer_size = buffer_get_size(app, buffer);
+    i64 pos0 = pos;
+    i64 pos1 = scan(app, funcs, buffer, direction, pos0);
     if (0 <= pos1 && pos1 <= buffer_size){
-        i32 pos2 = scan(app, funcs, buffer, flip_direction(direction), pos1);
+        i64 pos2 = scan(app, funcs, buffer, flip_direction(direction), pos1);
         if (0 <= pos2 && pos2 <= buffer_size){
             if (direction == Scan_Backward){
                 pos2 = clamp_bot(pos2, pos0);
@@ -1034,14 +1109,14 @@ get_snipe_range(Application_Links *app, Boundary_Function_List funcs, Buffer_ID 
             else{
                 pos2 = clamp_top(pos2, pos0);
             }
-            result = make_range(pos1, pos2);
+            result = Ii64(pos1, pos2);
         }
     }
     return(result);
 }
 
-static Range
-get_snipe_range(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, i32 pos, Scan_Direction direction){
+static Range_i64
+get_snipe_range(Application_Links *app, Boundary_Function *func, Buffer_ID buffer, i64 pos, Scan_Direction direction){
     Scratch_Block scratch(app);
     return(get_snipe_range(app, push_boundary_list(scratch, func), buffer, pos, direction));
 }
@@ -1049,13 +1124,13 @@ get_snipe_range(Application_Links *app, Boundary_Function *func, Buffer_ID buffe
 ////////////////////////////////
 
 static String_Const_u8
-push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 first, u64 one_past_last){
+push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range){
     String_Const_u8 result = {};
-    if (first <= one_past_last){
-        umem length = one_past_last - first;
+    i64 length = range_size(range);
+    if (length > 0){
         Temp_Memory restore_point = begin_temp(arena);
         u8 *memory = push_array(arena, u8, length);
-        if (buffer_read_range(app, buffer, (i32)first, (i32)one_past_last, (char*)memory)){
+        if (buffer_read_range(app, buffer, range, (char*)memory)){
             result = SCu8(memory, length);
         }
         else{
@@ -1066,22 +1141,12 @@ push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 fi
 }
 
 static String_Const_u8
-push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range){
-    return(push_buffer_range(app, arena, buffer, range.first, range.one_past_last));
-}
-
-static String_Const_u8
-push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_u64 range){
-    return(push_buffer_range(app, arena, buffer, range.first, range.one_past_last));
-}
-
-static String_Const_u8
 push_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
-    return(push_buffer_range(app, arena, buffer, token.start, token.start + token.size));
+    return(push_buffer_range(app, arena, buffer, Ii64(token.start, token.start + token.size)));
 }
 
 static String_Const_u8
-push_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 line_number){
+push_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 line_number){
     return(push_buffer_range(app, arena, buffer, get_line_pos_range(app, buffer, line_number)));
 }
 
@@ -1091,14 +1156,14 @@ push_whole_buffer(Application_Links *app, Arena *arena, Buffer_ID buffer){
 }
 
 static String_Const_u8
-push_string_in_view_range(Application_Links *app, Arena *arena, View_ID view){
+push_view_range_string(Application_Links *app, Arena *arena, View_ID view){
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     return(push_buffer_range(app, arena, buffer, get_view_range(app, view)));
 }
 
 static String_Const_u8
-push_enclose_range_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos, Enclose_Function *enclose){
-    Range range = enclose(app, buffer, make_range(pos));
+push_enclose_range_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, Enclose_Function *enclose){
+    Range_i64 range = enclose(app, buffer, Ii64(pos));
     return(push_buffer_range(app, arena, buffer, range));
 }
 
@@ -1112,11 +1177,11 @@ buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
 }
 
 static char
-buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i32 pos){
-    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
+buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i64 pos){
+    i64 buffer_size = buffer_get_size(app, buffer_id);
     char result = ' ';
     if (0 <= pos && pos < buffer_size){
-        buffer_read_range(app, buffer_id, pos, pos + 1, &result);
+        buffer_read_range(app, buffer_id, Ii64(pos, pos + 1), &result);
     }
     return(result);
 }
@@ -1128,13 +1193,13 @@ token_lexeme_string_match(Application_Links *app, Buffer_ID buffer, Cpp_Token to
 }
 
 static b32
-line_is_valid_and_blank(Application_Links *app, Buffer_ID buffer, i32 line_number){
+line_is_valid_and_blank(Application_Links *app, Buffer_ID buffer, i64 line_number){
     b32 result = false;
     if (is_valid_line(app, buffer, line_number)){
         Scratch_Block scratch(app);
         String_Const_u8 line = push_buffer_line(app, scratch, buffer, line_number);
         result = true;
-        for (umem i = 0; i < line.size; i += 1){
+        for (u64 i = 0; i < line.size; i += 1){
             if (!character_is_whitespace(line.str[i])){
                 result = false;
                 break;
@@ -1146,27 +1211,33 @@ line_is_valid_and_blank(Application_Links *app, Buffer_ID buffer, i32 line_numbe
 
 ////////////////////////////////
 
-static i32
-get_pos_past_lead_whitespace(Application_Links *app, Buffer_ID buffer, i32 pos){
+static i64
+get_pos_past_lead_whitespace_from_line_number(Application_Links *app, Buffer_ID buffer, i64 line_number){
     Scratch_Block scratch(app);
-    i32 line_number = get_line_number_from_pos(app, buffer, pos);
-    Range line_range = get_line_pos_range(app, buffer, line_number);
+    Range_i64 line_range = get_line_pos_range(app, buffer, line_number);
     String_Const_u8 line = push_buffer_range(app, scratch, buffer, line_range);
-    i32 result = line_range.end;
-    for (umem i = 0; i < line.size; i += 1){
+    i64 result = line_range.end;
+    for (u64 i = 0; i < line.size; i += 1){
         if (!character_is_whitespace(line.str[i])){
-            result = line_range.start + (i32)i;
+            result = line_range.start + i;
             break;
         }
     }
-    result = clamp_bot(result, pos);
+    return(result);
+}
+
+static i64
+get_pos_past_lead_whitespace(Application_Links *app, Buffer_ID buffer, i64 pos){
+    i64 line_number = get_line_number_from_pos(app, buffer, pos);
+    i64 result = get_pos_past_lead_whitespace_from_line_number(app, buffer, line_number);
+    result = clamp_bot(pos, result);
     return(result);
 }
 
 static void
 move_past_lead_whitespace(Application_Links *app, View_ID view, Buffer_ID buffer){
-    i32 pos = view_get_cursor_pos(app, view);
-    i32 new_pos = get_pos_past_lead_whitespace(app, buffer, pos);
+    i64 pos = view_get_cursor_pos(app, view);
+    i64 new_pos = get_pos_past_lead_whitespace(app, buffer, pos);
     view_set_cursor(app, view, seek_pos(new_pos), true);
 }
 
@@ -1177,7 +1248,7 @@ move_past_lead_whitespace(Application_Links *app, View_ID view){
 }
 
 static b32
-line_is_blank(Application_Links *app, Buffer_ID buffer, i32 line_number){
+line_is_blank(Application_Links *app, Buffer_ID buffer, i64 line_number){
     Scratch_Block scratch(app);
     String_Const_u8 line = push_buffer_line(app, scratch, buffer, line_number);
     b32 is_blank = true;
@@ -1190,10 +1261,10 @@ line_is_blank(Application_Links *app, Buffer_ID buffer, i32 line_number){
     return(is_blank);
 }
 
-static i32
-get_line_number_of__whitespace_status_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start, b32 get_blank_line){
-    i32 line_count = (i32)buffer_get_line_count(app, buffer);
-    i32 line_number = line_number_start + direction;
+static i64
+get_line_number_of__whitespace_status_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i64 line_number_start, b32 get_blank_line){
+    i64 line_count = buffer_get_line_count(app, buffer);
+    i64 line_number = line_number_start + direction;
     for (;1 <= line_number && line_number <= line_count; line_number += direction){
         b32 is_blank = line_is_blank(app, buffer, line_number);
         if (is_blank == get_blank_line){
@@ -1204,27 +1275,27 @@ get_line_number_of__whitespace_status_line(Application_Links *app, Buffer_ID buf
     return(line_number);
 }
 
-static i32
-get_line_number_of_non_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
+static i64
+get_line_number_of_non_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i64 line_number_start){
     return(get_line_number_of__whitespace_status_line(app, buffer, direction, line_number_start, false));
 }
 
-static i32
-get_line_number_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
+static i64
+get_line_number_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i64 line_number_start){
     return(get_line_number_of__whitespace_status_line(app, buffer, direction, line_number_start, true));
 }
 
-static i32
-get_pos_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 pos_start){
-    i32 line_number_start = get_line_number_from_pos(app, buffer, pos_start);
-    i32 blank_line = get_line_number_of_blank_line(app, buffer, direction, line_number_start);
-    i32 pos = get_line_start_pos(app, buffer, blank_line);
+static i64
+get_pos_of_blank_line(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i64 pos_start){
+    i64 line_number_start = get_line_number_from_pos(app, buffer, pos_start);
+    i64 blank_line = get_line_number_of_blank_line(app, buffer, direction, line_number_start);
+    i64 pos = get_line_start_pos(app, buffer, blank_line);
     return(pos);
 }
 
-static i32
-get_line_number_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 line_number_start){
-    i32 line_number = line_number_start;
+static i64
+get_line_number_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i64 line_number_start){
+    i64 line_number = line_number_start;
     if (line_is_blank(app, buffer, line_number)){
         line_number = get_line_number_of_non_blank_line(app, buffer, direction, line_number);
     }
@@ -1232,16 +1303,16 @@ get_line_number_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, 
     return(line_number);
 }
 
-static i32
-get_pos_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i32 pos_start){
-    i32 line_number_start = get_line_number_from_pos(app, buffer, pos_start);
-    i32 blank_line = get_line_number_of_blank_line_grouped(app, buffer, direction, line_number_start);
-    i32 pos = get_line_start_pos(app, buffer, blank_line);
+static i64
+get_pos_of_blank_line_grouped(Application_Links *app, Buffer_ID buffer, Scan_Direction direction, i64 pos_start){
+    i64 line_number_start = get_line_number_from_pos(app, buffer, pos_start);
+    i64 blank_line = get_line_number_of_blank_line_grouped(app, buffer, direction, line_number_start);
+    i64 pos = get_line_start_pos(app, buffer, blank_line);
     return(pos);
 }
 
 internal Indent_Info
-get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range range, i32 tab_width){
+get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range, i32 tab_width){
     Scratch_Block scratch(app);
     String_Const_u8 s = push_buffer_range(app, scratch, buffer, range);
     
@@ -1272,9 +1343,9 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range range, i32
 }
 
 internal Indent_Info
-get_indent_info_line_start(Application_Links *app, Buffer_ID buffer, i32 line_start, i32 tab_width){
-    i32 end = get_line_side_pos_from_pos(app, buffer, line_start, Side_Max);
-    return(get_indent_info_range(app, buffer, make_range(line_start, end), tab_width));
+get_indent_info_line_start(Application_Links *app, Buffer_ID buffer, i64 line_start, i32 tab_width){
+    i64 end = get_line_side_pos_from_pos(app, buffer, line_start, Side_Max);
+    return(get_indent_info_range(app, buffer, Ii64(line_start, end), tab_width));
 }
 
 ////////////////////////////////
@@ -1300,14 +1371,15 @@ history_group_end(History_Group group){
 ////////////////////////////////
 
 static void
-replace_in_range(Application_Links *app, Buffer_ID buffer, Range range, String_Const_u8 needle, String_Const_u8 string){
+replace_in_range(Application_Links *app, Buffer_ID buffer, Range_i64 range, String_Const_u8 needle, String_Const_u8 string){
+    // TODO(allen): rewrite
     History_Group group = history_group_begin(app, buffer);
-    i32 pos = range.min - 1;
-    i32 new_pos = 0;
+    i64 pos = range.min - 1;
+    i64 new_pos = 0;
     buffer_seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
-    i32 shift = replace_range_compute_shift((i32)needle.size, (i32)string.size);
+    i64 shift = replace_range_compute_shift(needle.size, string.size);
     for (; new_pos + (imem)needle.size <= range.end;){
-        Range needle_range = make_range(new_pos, new_pos + (i32)needle.size);
+        Range_i64 needle_range = Ii64(new_pos, new_pos + (i32)needle.size);
         buffer_replace_range(app, buffer, needle_range, string);
         range.end += shift;
         pos = new_pos + (i32)string.size - 1;
@@ -1316,13 +1388,13 @@ replace_in_range(Application_Links *app, Buffer_ID buffer, Range range, String_C
     history_group_end(group);
 }
 
-internal Range
-swap_lines(Application_Links *app, Buffer_ID buffer, i32 line_1, i32 line_2){
-    Range result = {};
-    i32 line_count = (i32)buffer_get_line_count(app, buffer);
+internal Range_i64
+swap_lines(Application_Links *app, Buffer_ID buffer, i64 line_1, i64 line_2){
+    Range_i64 result = {};
+    i64 line_count = buffer_get_line_count(app, buffer);
     if (1 <= line_1 && line_2 <= line_count){
-        Range range_1 = get_line_pos_range(app, buffer, line_1);
-        Range range_2 = get_line_pos_range(app, buffer, line_2);
+        Range_i64 range_1 = get_line_pos_range(app, buffer, line_1);
+        Range_i64 range_2 = get_line_pos_range(app, buffer, line_2);
         
         Scratch_Block scratch(app);
         
@@ -1334,17 +1406,17 @@ swap_lines(Application_Links *app, Buffer_ID buffer, i32 line_1, i32 line_2){
         buffer_replace_range(app, buffer, range_1, text_2);
         history_group_end(group);
         
-        i32 shift = replace_range_compute_shift(range_1, (i32)text_2.size);
+        i64 shift = replace_range_compute_shift(range_1, text_2.size);
         result.min = range_1.min;
         result.max = range_2.min + shift;
     }
     return(result);
 }
 
-internal i32
-move_line(Application_Links *app, Buffer_ID buffer, i32 line_number, Scan_Direction direction){
-    i32 line_1 = 0;
-    i32 line_2 = 0;
+internal i64
+move_line(Application_Links *app, Buffer_ID buffer, i64 line_number, Scan_Direction direction){
+    i64 line_1 = 0;
+    i64 line_2 = 0;
     if (direction == Scan_Forward){
         line_1 = line_number;
         line_2 = line_number + 1;
@@ -1353,8 +1425,8 @@ move_line(Application_Links *app, Buffer_ID buffer, i32 line_number, Scan_Direct
         line_1 = line_number - 1;
         line_2 = line_number;
     }
-    Range line_starts = swap_lines(app, buffer, line_1, line_2);
-    i32 result = 0;
+    Range_i64 line_starts = swap_lines(app, buffer, line_1, line_2);
+    i64 result = 0;
     if (line_starts.min < line_starts.max){
         if (direction == Scan_Forward){
             result = line_starts.max;
@@ -1682,9 +1754,8 @@ try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, B
 ////////////////////////////////
 
 static void
-clear_buffer(Application_Links *app, Buffer_ID buffer_id){
-    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
-    buffer_replace_range(app, buffer_id, make_range(0, buffer_size), string_u8_litexpr(""));
+clear_buffer(Application_Links *app, Buffer_ID buffer){
+    buffer_replace_range(app, buffer, buffer_range(app, buffer), string_u8_litexpr(""));
 }
 
 ////////////////////////////////
@@ -1715,7 +1786,7 @@ init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_ID buffer_
         }
         
         if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer_id, chunk->start, chunk->end, chunk->base_data);
+            buffer_read_range(app, buffer_id, Ii64(chunk->start, chunk->end), chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
             result = true;
         }
@@ -1743,7 +1814,7 @@ forward_stream_chunk(Stream_Chunk *chunk){
         }
         
         if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer_id, chunk->start, chunk->end, chunk->base_data);
+            buffer_read_range(app, buffer_id, Ii64(chunk->start, chunk->end), chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
             result = 1;
         }
@@ -1778,7 +1849,7 @@ backward_stream_chunk(Stream_Chunk *chunk){
         }
         
         if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer_id, chunk->start, chunk->end, chunk->base_data);
+            buffer_read_range(app, buffer_id, Ii64(chunk->start, chunk->end), chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
             result = true;
         }
@@ -1930,7 +2001,7 @@ get_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buff
     if (success && !get_result.in_whitespace_after_token){
         umem size = get_result.token_one_past_last - get_result.token_start;
         if (0 < size){
-            result = push_buffer_range(app, arena, buffer, get_result.token_start, get_result.token_one_past_last);
+            result = push_buffer_range(app, arena, buffer, Ii64(get_result.token_start, get_result.token_one_past_last));
         }
     }
     return(result);
@@ -2138,8 +2209,8 @@ static b32
 view_has_highlighted_range(Application_Links *app, View_ID view){
     b32 result = false;
     if (fcoder_mode == FCoderMode_NotepadLike){
-        i32 pos = view_get_cursor_pos(app, view);
-        i32 mark = view_get_mark_pos(app, view);
+        i64 pos = view_get_cursor_pos(app, view);
+        i64 mark = view_get_mark_pos(app, view);
         result = (pos != mark);
     }
     return(result);
@@ -2149,7 +2220,7 @@ static b32
 if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_id){
     b32 result = false;
     if (view_has_highlighted_range(app, view_id)){
-        Range range = get_view_range(app, view_id);
+        Range_i64 range = get_view_range(app, view_id);
         Buffer_ID buffer = view_get_buffer(app, view_id, AccessOpen);
         buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
         result = true;
@@ -2163,7 +2234,7 @@ begin_notepad_mode(Application_Links *app){
     for (View_ID view = get_view_next(app, 0, AccessAll);
          view != 0;
          view = get_view_next(app, view, AccessAll)){
-        i32 pos = view_get_cursor_pos(app, view);
+        i64 pos = view_get_cursor_pos(app, view);
         view_set_mark(app, view, seek_pos(pos));
     }
 }
@@ -2292,8 +2363,7 @@ set_buffer_system_command(Application_Links *app, Child_Process_ID process, Buff
     b32 result = false;
     Child_Process_Set_Target_Flags set_buffer_flags = flags_system_command(flags);
     if (child_process_set_target_buffer(app, process, buffer, set_buffer_flags)){
-        i32 buffer_size = (i32)buffer_get_size(app, buffer);
-        buffer_replace_range(app, buffer, make_range(0, buffer_size), string_u8_litexpr(""));
+        clear_buffer(app, buffer);
         if (HasFlag(flags, CLI_SendEndSignal)){
             buffer_send_end_signal(app, buffer);
         }

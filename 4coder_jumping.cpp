@@ -195,9 +195,9 @@ parse_jump_location(String_Const_u8 line, Jump_Flag flags){
 }
 
 static Parsed_Jump
-parse_jump_from_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer_id, i32 line, Jump_Flag flags){
+parse_jump_from_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 line, Jump_Flag flags){
     Parsed_Jump jump = {};
-    String_Const_u8 line_str = push_buffer_line(app, arena, buffer_id, line);
+    String_Const_u8 line_str = push_buffer_line(app, arena, buffer, line);
     if (line_str.size > 0){
         jump = parse_jump_location(line_str, flags);
     }
@@ -263,16 +263,17 @@ jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, ID_Pos_
 
 ////////////////////////////////
 
+// TODO(allen): rewrite
 static Parsed_Jump
 seek_next_jump_in_buffer(Application_Links *app, Arena *arena,
-                         i32 buffer_id, i32 first_line, Jump_Flag flags, i32 direction,
-                         i32 *line_out){
+                         Buffer_ID buffer, i64 first_line, Jump_Flag flags, Scan_Direction direction,
+                         i64 *line_out){
     Assert(direction == 1 || direction == -1);
     Parsed_Jump jump = {};
-    i32 line = first_line;
+    i64 line = first_line;
     for (;;){
-        if (is_valid_line(app, buffer_id, line)){
-            String_Const_u8 line_str = push_buffer_line(app, arena, buffer_id, line);
+        if (is_valid_line(app, buffer, line)){
+            String_Const_u8 line_str = push_buffer_line(app, arena, buffer, line);
             jump = parse_jump_location(line_str, flags);
             if (jump.success){
                 break;
@@ -302,10 +303,10 @@ convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location
 }
 
 static Parsed_Jump
-seek_next_jump_in_view(Application_Links *app, Arena *arena, View_ID view, i32 skip_sub_errors, i32 direction, i32 *line_out){
-    i32 cursor_position = view_get_cursor_pos(app, view);
+seek_next_jump_in_view(Application_Links *app, Arena *arena, View_ID view, i32 skip_sub_errors, Scan_Direction direction, i64 *line_out){
+    i64 cursor_position = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_position));
-    i32 line = cursor.line;
+    i64 line = cursor.line;
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Parsed_Jump jump = seek_next_jump_in_buffer(app, arena, buffer, line + direction, skip_sub_errors, direction, &line);
     if (jump.success){
@@ -324,13 +325,13 @@ skip_this_jump(ID_Line_Column_Jump_Location prev, ID_Line_Column_Jump_Location j
 }
 
 static b32
-advance_cursor_in_jump_view(Application_Links *app, View_ID view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
+advance_cursor_in_jump_view(Application_Links *app, View_ID view, b32 skip_repeats, b32 skip_sub_error, Scan_Direction direction, Name_Line_Column_Location *location_out){
     b32 result = true;
     
     Name_Line_Column_Location location = {};
     ID_Line_Column_Jump_Location jump = {};
-    i32 line = 0;
-    i32 colon_index = 0;
+    i64 line = 0;
+    i64 colon_index = 0;
     
     do{
         Arena *scratch = context_get_arena(app);

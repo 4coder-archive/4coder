@@ -121,7 +121,7 @@ global Character_Predicate character_predicate_alpha_numeric_underscore_utf8 = {
         255, 255, 255, 255, 255, 255, 255, 255, 
     } };
 
-typedef i32 Boundary_Function(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i32 pos);
+typedef i64 Boundary_Function(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos);
 
 struct Boundary_Function_Node{
     Boundary_Function_Node *next;
@@ -133,13 +133,13 @@ struct Boundary_Function_List{
     i32 count;
 };
 
-typedef Range Enclose_Function(Application_Links *app, Buffer_ID buffer, Range range);
+typedef Range_i64 Enclose_Function(Application_Links *app, Buffer_ID buffer, Range_i64 range);
 
 struct Indent_Info{
-    i32 first_char_pos;
+    i64 first_char_pos;
     i32 indent_pos;
-    i32 is_blank;
-    i32 all_space;
+    b32 is_blank;
+    b32 all_space;
 };
 
 ////////////////////////////////

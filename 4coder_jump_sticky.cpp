@@ -10,16 +10,16 @@ static Marker_List_Node *marker_list_last = 0;
 
 ////////////////////////////////
 
-static u32
-binary_search(u32 *array, i32 stride, i32 count, u32 x){
+static i32
+binary_search(i64 *array, i32 stride, i32 count, i64 x){
     u8 *raw = (u8*)array;
-    u32 i = 0;
-    u32 first = 0;
-    u32 last = count;
+    i32 i = 0;
+    i32 first = 0;
+    i32 last = count;
     if (first < last){
         for (;;){
             i = (first + last)/2;
-            u32 k = *(u32*)(raw + stride*i);
+            i64 k = *(i64*)(raw + stride*i);
             if (k < x){
                 first = i;
             }
@@ -305,9 +305,9 @@ get_jump_from_list(Application_Links *app, Marker_List *list, i32 index, ID_Pos_
     return(result);
 }
 
-static i32
+static i64
 get_line_from_list(Application_Links *app, Marker_List *list, i32 index){
-    i32 result = 0;
+    i64 result = 0;
     if (list != 0){
         Sticky_Jump_Stored stored = {};
         if (get_stored_jump_from_list(app, list, index, &stored)){
@@ -330,14 +330,14 @@ get_is_sub_error_from_list(Application_Links *app, Marker_List *list, i32 index)
 }
 
 static i32
-get_index_nearest_from_list(Application_Links *app, Marker_List *list, i32 line){
+get_index_nearest_from_list(Application_Links *app, Marker_List *list, i64 line){
     i32 result = -1;
     if (list != 0){
         Arena *scratch = context_get_arena(app);
         Temp_Memory temp = begin_temp(scratch);
         Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
         if (stored != 0){
-            result = binary_search((u32*)&stored->list_line, sizeof(*stored), list->jump_count, line);
+            result = binary_search((i64*)&stored->list_line, sizeof(*stored), list->jump_count, line);
         }
         end_temp(temp);
     }
@@ -345,14 +345,14 @@ get_index_nearest_from_list(Application_Links *app, Marker_List *list, i32 line)
 }
 
 static i32
-get_index_exact_from_list(Application_Links *app, Marker_List *list, i32 line){
+get_index_exact_from_list(Application_Links *app, Marker_List *list, i64 line){
     i32 result = -1;
     if (list != 0){
         Arena *scratch = context_get_arena(app);
         Temp_Memory temp = begin_temp(scratch);
         Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
         if (stored != 0){
-            i32 index = binary_search((u32*)&stored->list_line, sizeof(*stored), list->jump_count, line);
+            i32 index = binary_search((i64*)&stored->list_line, sizeof(*stored), list->jump_count, line);
             if (stored[index].list_line == line){
                 result = index;
             }
@@ -371,7 +371,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     
     i32 list_index = get_index_exact_from_list(app, list, cursor.line);
@@ -399,7 +399,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     
     i32 list_index = get_index_exact_from_list(app, list, cursor.line);
@@ -462,7 +462,7 @@ goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_ID jump_
                 
                 if (!skip_this){
                     goto_jump_in_order(app, list, jump_view, location);
-                    i32 updated_line = get_line_from_list(app, list, list_index);
+                    i64 updated_line = get_line_from_list(app, list, list_index);
                     view_set_cursor(app, jump_view, seek_line_char(updated_line, 1), true);
                     break;
                 }
@@ -481,7 +481,7 @@ get_locked_jump_state(Application_Links *app, Heap *heap){
         Buffer_ID buffer = view_get_buffer(app, result.view, AccessAll);
         result.list = get_or_make_list_for_buffer(app, heap, buffer);
         
-        i32 cursor_position = view_get_cursor_pos(app, result.view);
+        i64 cursor_position = view_get_cursor_pos(app, result.view);
         Full_Cursor cursor = view_compute_cursor(app, result.view, seek_pos(cursor_position));
         result.list_index = get_index_nearest_from_list(app, result.list, cursor.line);
     }
@@ -495,9 +495,9 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     
     Locked_Jump_State jump_state = get_locked_jump_state(app, heap);
     if (jump_state.view != 0){
-        i32 cursor_position = view_get_cursor_pos(app, jump_state.view);
+        i64 cursor_position = view_get_cursor_pos(app, jump_state.view);
         Full_Cursor cursor = view_compute_cursor(app, jump_state.view, seek_pos(cursor_position));
-        i32 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
+        i64 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
         if (line <= cursor.line){
             ++jump_state.list_index;
         }
@@ -525,9 +525,9 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     
     Locked_Jump_State jump_state = get_locked_jump_state(app, heap);
     if (jump_state.view != 0){
-        i32 cursor_position = view_get_cursor_pos(app, jump_state.view);
+        i64 cursor_position = view_get_cursor_pos(app, jump_state.view);
         Full_Cursor cursor = view_compute_cursor(app, jump_state.view, seek_pos(cursor_position));
-        i32 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
+        i64 line = get_line_from_list(app, jump_state.list, jump_state.list_index);
         if (line <= cursor.line){
             ++jump_state.list_index;
         }
@@ -560,7 +560,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
         ID_Pos_Jump_Location location = {};
         if (get_jump_from_list(app, jump_state.list, list_index, &location)){
             goto_jump_in_order(app, jump_state.list, jump_state.view, location);
-            i32 updated_line = get_line_from_list(app, jump_state.list, list_index);
+            i64 updated_line = get_line_from_list(app, jump_state.list, list_index);
             view_set_cursor(app, jump_state.view, seek_line_char(updated_line, 1), true);
         }
     }

@@ -5,87 +5,21 @@ and decrementing various forms of number as numerical objects despite being enco
 
 // TOP
 
-static Range
-get_numeric_string_at_cursor(Application_Links *app, Buffer_ID buffer, i32 start_pos){
-    Range result = {};
-    
-    char current = buffer_get_char(app, buffer, start_pos);
-    if (character_is_base10(current)){
-        char chunk[1024];
-        i32 chunk_size = sizeof(chunk);
-        Stream_Chunk stream = {};
-        
-        i32 pos = start_pos;
-        if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
-            b32 still_looping = true;
-            for (;still_looping;){
-                for (; pos >= stream.start; --pos){
-                    char at_pos = stream.data[pos];
-                    if (!character_is_base10(at_pos)){
-                        ++pos;
-                        goto double_break_1;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }
-            double_break_1:;
-            i32 pos1 = pos;
-            
-            if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
-                still_looping = true;
-                while (still_looping){
-                    for (; pos < stream.end; ++pos){
-                        char at_pos = stream.data[pos];
-                        if (!character_is_base10(at_pos)){
-                            goto double_break_2;
-                        }
-                    }
-                    still_looping = forward_stream_chunk(&stream);
-                }
-                double_break_2:;
-                i32 pos2 = pos;
-                
-                result = make_range(pos1, pos2);
-            }
-        }
-    }
-    
-    return(result);
-}
-
-#if 0
-static b32
-get_numeric_string_at_cursor(Application_Links *app, Buffer_ID buffer, i32 start_pos, i32 *numeric_start, i32 *numeric_end){
-    Range range = get_numeric_string_at_cursor(app, buffer, start_pos);
-    b32 result = (range_size(range) > 0);
-    if (result){
-        *numeric_start = range.start;
-        *numeric_end = range.end;
-    }
-    return(result);
-}
-#endif
-
 struct Miblo_Number_Info{
-    union{
-        Range range;
-        i32 start;
-        i32 end;
-    };
-    i32 x;
+    Range_i64 range;
+    i64 x;
 };
 
 static b32
-get_numeric_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo_Number_Info *info){
+get_numeric_at_cursor(Application_Links *app, Buffer_ID buffer, i64 pos, Miblo_Number_Info *info){
     b32 result = false;
-    Range range = get_numeric_string_at_cursor(app, buffer, pos);
+    Range_i64 range = enclose_pos_base10(app, buffer, pos);
     if (range_size(range) > 0){
         Scratch_Block scratch(app);
         String_Const_u8 str = push_buffer_range(app, scratch, buffer, range);
         if (str.size > 0){
-            i32 x = (i32)string_to_integer(str, 10);
             info->range = range;
-            info->x = x;
+            info->x = string_to_integer(str, 10);
             result = true;
         }
     }
@@ -97,13 +31,13 @@ CUSTOM_DOC("Increment an integer under the cursor by one.")
 {
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, buffer, pos, &number)){
         Scratch_Block scratch(app);
         String_Const_u8 str = push_u8_stringf(scratch, "%d", number.x + 1);
         buffer_replace_range(app, buffer, number.range, str);
-        view_set_cursor(app, view, seek_pos(number.start + (i32)str.size - 1), true);
+        view_set_cursor(app, view, seek_pos(number.range.start + str.size - 1), true);
     }
 }
 
@@ -112,81 +46,18 @@ CUSTOM_DOC("Decrement an integer under the cursor by one.")
 {
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     Miblo_Number_Info number = {};
     if (get_numeric_at_cursor(app, buffer, pos, &number)){
         Scratch_Block scratch(app);
         String_Const_u8 str = push_u8_stringf(scratch, "%d", number.x - 1);
         buffer_replace_range(app, buffer, number.range, str);
-        view_set_cursor(app, view, seek_pos(number.start + (i32)str.size - 1), true);
+        view_set_cursor(app, view, seek_pos(number.range.start + str.size - 1), true);
     }
 }
 
 // NOTE(allen): miblo time stamp format
 // (h+:)?m?m:ss
-
-static Range
-get_timestamp_string_at_cursor(Application_Links *app, Buffer_ID buffer, i32 start_pos){
-    Range result = {};
-    
-    char current = buffer_get_char(app, buffer, start_pos);
-    
-    if (character_is_base10(current) || current == ':'){
-        char chunk[1024];
-        i32 chunk_size = sizeof(chunk);
-        Stream_Chunk stream = {};
-        
-        i32 pos = start_pos;
-        
-        i32 pos1 = 0;
-        i32 pos2 = 0;
-        
-        if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
-            b32 still_looping = true;
-            while (still_looping){
-                for (; pos >= stream.start; --pos){
-                    char at_pos = stream.data[pos];
-                    if (!(character_is_base10(at_pos) || at_pos == ':')){
-                        ++pos;
-                        goto double_break_1;
-                    }
-                }
-                still_looping = backward_stream_chunk(&stream);
-            }
-            double_break_1:;
-            pos1 = pos;
-            
-            if (init_stream_chunk(&stream, app, buffer, start_pos, chunk, chunk_size)){
-                still_looping = true;
-                while (still_looping){
-                    for (; pos < stream.end; ++pos){
-                        char at_pos = stream.data[pos];
-                        if (!(character_is_base10(at_pos) || at_pos == ':')){
-                            goto double_break_2;
-                        }
-                    }
-                    still_looping = forward_stream_chunk(&stream);
-                }
-                double_break_2:;
-                pos2 = pos;
-                
-                result = make_range(pos1, pos2);
-            }
-        }
-    }
-    
-    return(result);
-}
-
-#if 0
-static b32
-get_timestamp_string_at_cursor(Application_Links *app, Buffer_ID buffer, i32 start_pos, i32 *timestamp_start, i32 *timestamp_end){
-    Range range = get_timestamp_string_at_cursor(app, buffer, start_pos);
-    *timestamp_start = range.start;
-    *timestamp_end = range.end;
-    return(range_size(range) > 0);
-}
-#endif
 
 struct Miblo_Timestamp{
     i32 second;
@@ -264,21 +135,17 @@ timestamp_to_string(Arena *arena, Miblo_Timestamp t){
 }
 
 struct Miblo_Timestamp_Info{
-    union{
-        Range range;
-        i32 start;
-        i32 end;
-    };
+    Range_i64 range;
     Miblo_Timestamp time;
 };
 
 static b32
-get_timestamp_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo_Timestamp_Info *info){
+get_timestamp_at_cursor(Application_Links *app, Buffer_ID buffer, i64 pos, Miblo_Timestamp_Info *info){
     b32 result = false;
     
     Scratch_Block scratch(app);
     
-    Range time_stamp_range = get_timestamp_string_at_cursor(app, buffer, pos);
+    Range_i64 time_stamp_range = enclose_pos_base10_colon(app, buffer, pos);
     if (range_size(time_stamp_range) > 0){
         String_Const_u8 string = push_buffer_range(app, scratch, buffer, time_stamp_range);
         if (string.size > 0){
@@ -294,49 +161,39 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_ID buffer, i32 pos, Miblo
                 
                 b32 success = false;
                 
-                umem i = 0;
-                umem number_start[3];
-                umem number_end[3];
-                for (i32 k = 0; k < 3; ++k){
-                    number_start[k] = i;
-                    for (; i <= string.size; ++i){
-                        if (i == string.size || string.str[i] == ':'){
-                            number_end[k] = i;
-                            break;
-                        }
-                    }
-                    ++i;
-                    if (i >= time_stamp_range.one_past_last){
-                        break;
+                Range_i64 number[3];
+                i32 k = 0;
+                number[0].min = 0;
+                for (i64 i = 0; i < (i64)string.size; i += 1){
+                    if (string.str[i] == ':'){
+                        number[k].max = i;
+                        k += 1;
+                        number[k].min = i + 1;
                     }
                 }
+                number[k].max = (i64)string.size;
                 
                 if (count_colons == 2){
-                    String_Const_u8 hour_str = SCu8(string.str + number_start[0],
-                                                    string.str + number_end[0]);
+                    String_Const_u8 hour_str = string_substring(string, number[0]);
                     t.hour = (i32)string_to_integer(hour_str, 10);
                     
-                    if (number_end[1] - number_start[1] == 2){
-                        String_Const_u8 minute_str = SCu8(string.str + number_start[1],
-                                                          string.str + number_end[1]);
+                    if (range_size(number[1]) == 2){
+                        String_Const_u8 minute_str = string_substring(string, number[1]);
                         t.minute = (i32)string_to_integer(minute_str, 10);
-                        if (number_end[2] - number_start[2] == 2){
-                            String_Const_u8 second_str = SCu8(string.str + number_start[2],
-                                                              string.str + number_end[2]);
+                        if (range_size(number[2]) == 2){
+                            String_Const_u8 second_str = string_substring(string, number[2]);
                             t.second = (i32)string_to_integer(second_str, 10);
                             success = true;
                         }
                     }
                 }
                 else{
-                    if (number_end[0] - number_start[0] == 2 || number_end[0] - number_start[0] == 1){
-                        String_Const_u8 minute_str = SCu8(string.str + number_start[0],
-                                                          string.str + number_end[0]);
+                    if (range_size(number[0]) == 2 || range_size(number[0]) == 1){
+                        String_Const_u8 minute_str = string_substring(string, number[0]);
                         t.minute = (i32)string_to_integer(minute_str, 10);
                         
-                        if (number_end[1] - number_start[1] == 2){
-                            String_Const_u8 second_str = SCu8(string.str + number_start[2],
-                                                              string.str + number_end[2]);
+                        if (range_size(number[1]) == 2){
+                            String_Const_u8 second_str = string_substring(string, number[1]);
                             t.second = (i32)string_to_integer(second_str, 10);
                             success = true;
                         }
@@ -359,7 +216,7 @@ static void
 miblo_time_stamp_alter(Application_Links *app, i32 unit_type, i32 amt){
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     
     Miblo_Timestamp_Info timestamp = {};
     if (get_timestamp_at_cursor(app, buffer, pos, &timestamp)){
@@ -367,7 +224,7 @@ miblo_time_stamp_alter(Application_Links *app, i32 unit_type, i32 amt){
         Miblo_Timestamp inc_timestamp = increment_timestamp(timestamp.time, unit_type, amt);
         String_Const_u8 str = timestamp_to_string(scratch, inc_timestamp);
         buffer_replace_range(app, buffer, timestamp.range, str);
-        view_set_cursor(app, view, seek_pos(timestamp.start + (i32)str.size - 1), true);
+        view_set_cursor(app, view, seek_pos(timestamp.range.start + str.size - 1), true);
     }
 }
 

@@ -311,7 +311,7 @@ DOC_SEE(Access_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Read_Range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
+Buffer_Read_Range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, char *out)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to read.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the read range.)
@@ -327,9 +327,9 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        i32 size = buffer_size(&file->state.buffer);
-        if (0 <= start && start <= one_past_last && one_past_last <= size){
-            buffer_stringify(&file->state.buffer, start, one_past_last, out);
+        i64 size = buffer_size(&file->state.buffer);
+        if (0 <= range.min && range.min <= range.max && range.max <= size){
+            buffer_stringify(&file->state.buffer, (i32)range.min, (i32)range.max, out);
             result = true;
         }
     }
@@ -338,7 +338,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 
 // TODO(allen): redocument
 API_EXPORT b32
-Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string)
+Buffer_Replace_Range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string)
 /*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
@@ -356,12 +356,11 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
-    i32 size = 0;
     if (api_check_buffer(file)){
-        size = buffer_size(&file->state.buffer);
+        i64 size = buffer_size(&file->state.buffer);
         if (0 <= range.first && range.first <= range.one_past_last && range.one_past_last <= size){
             Edit_Behaviors behaviors = {};
-            edit_single(models->system, models, file, range, string, behaviors);
+            edit_single(models->system, models, file, Ii32((i32)range.min, (i32)range.max), string, behaviors);
             result = true;
         }
     }
@@ -531,18 +530,18 @@ Buffer_Get_Access_Flags(Application_Links *app, Buffer_ID buffer_id){
     return(result);
 }
 
-API_EXPORT u64
+API_EXPORT i64
 Buffer_Get_Size(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    u64 result = 0;
+    i64 result = 0;
     if (api_check_buffer(file)){
         result = buffer_size(&file->state.buffer);
     }
     return(result);
 }
 
-API_EXPORT u64
+API_EXPORT i64
 Buffer_Get_Line_Count(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -1125,8 +1124,8 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                                 vptrs[vptr_count] = view_it;
                                 File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
                                 Full_Cursor cursor = file_compute_cursor(system, view_it->file, seek_pos(edit_pos.cursor_pos));
-                                line_numbers[vptr_count]   = cursor.line;
-                                column_numbers[vptr_count] = cursor.character;
+                                line_numbers[vptr_count]   = (i32)cursor.line;
+                                column_numbers[vptr_count] = (i32)cursor.character;
                                 view_it->file = models->scratch_buffer;
                                 ++vptr_count;
                             }
@@ -1325,11 +1324,11 @@ View_Get_Buffer(Application_Links *app, View_ID view_id, Access_Flag access){
     return(result);
 }
 
-API_EXPORT i32
+API_EXPORT i64
 View_Get_Cursor_Pos(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    i32 result = 0;
+    i64 result = 0;
     if (api_check_view(view)){
         File_Edit_Positions edit_pos = view_get_edit_pos(view);
         result = edit_pos.cursor_pos;
@@ -1337,11 +1336,11 @@ View_Get_Cursor_Pos(Application_Links *app, View_ID view_id){
     return(result);
 }
 
-API_EXPORT i32
+API_EXPORT i64
 View_Get_Mark_Pos(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    i32 result = 0;;
+    i64 result = 0;;
     if (api_check_view(view)){
         result = view->mark;
     }
@@ -1900,7 +1899,7 @@ DOC_SEE(Set_Buffer_Flag)
 
 // TODO(allen): redocument
 API_EXPORT b32
-View_Post_Fade(Application_Links *app, View_ID view_id, float seconds, i32 start, i32 end, int_color color)
+View_Post_Fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, int_color color)
 /*
 DOC_PARAM(view, The view parameter specifies the view onto which the fade effect shall be posted.)
 DOC_PARAM(seconds, This parameter specifies the number of seconds the fade effect should last.)
@@ -1914,9 +1913,9 @@ DOC_SEE(int_color)
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view)){
-        i32 size = end - start;
+        i64 size = range_size(range);
         if (size > 0){
-            view_post_paste_effect(view, seconds, start, size, color|0xFF000000);
+            view_post_paste_effect(view, seconds, (i32)range.start, (i32)size, color|0xFF000000);
             result = true;
         }
     }
@@ -3878,14 +3877,13 @@ Text_Layout_Layout_Point_To_Buffer_Point(Application_Links *app, Text_Layout_ID 
     return(result);
 }
 
-API_EXPORT b32
-Text_Layout_Get_On_Screen_Range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){
+API_EXPORT Range_i64
+Text_Layout_Get_On_Screen_Range(Application_Links *app, Text_Layout_ID text_layout_id){
     Models *models = (Models*)app->cmd_context;
     Text_Layout layout = {};
-    b32 result = false;
+    Range_i64 result = {};
     if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
-        *on_screen_range_out = layout.on_screen_range;
-        result = true;
+        result = Ii64(layout.on_screen_range.min, layout.on_screen_range.max);
     }
     return(result);
 }
@@ -4016,7 +4014,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             end_pos = state.i;
         }
         
-        Range range = {render_cursor.pos, end_pos};
+        Range range = Ii32((i32)render_cursor.pos, (i32)end_pos);
         
         // TODO(allen): 
         view->render.view_rect = view->panel->rect_inner;
@@ -4111,8 +4109,7 @@ Get_View_Visible_Range(Application_Links *app, View_ID view_id){
         Full_Cursor min_cursor = view_get_render_cursor(models->system, view);
         Buffer_Seek seek = seek_unwrapped_xy(0.f, min_cursor.wrapped_y + view_height + line_height, false);
         Full_Cursor max_cursor = view_compute_cursor(app, view_id, seek);
-        result.min = min_cursor.pos;
-        result.max = max_cursor.pos;
+        result = Ii32((i32)min_cursor.pos, (i32)max_cursor.pos);
     }
     return(result);
 }

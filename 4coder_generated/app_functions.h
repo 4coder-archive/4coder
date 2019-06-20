@@ -17,8 +17,8 @@ struct Application_Links;
 #define GET_BUFFER_NEXT_SIG(n) Buffer_ID n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
 #define GET_BUFFER_BY_NAME_SIG(n) Buffer_ID n(Application_Links *app, String_Const_u8 name, Access_Flag access)
 #define GET_BUFFER_BY_FILE_NAME_SIG(n) Buffer_ID n(Application_Links *app, String_Const_u8 file_name, Access_Flag access)
-#define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string)
+#define BUFFER_READ_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, char *out)
+#define BUFFER_REPLACE_RANGE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string)
 #define BUFFER_BATCH_EDIT_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count)
 #define BUFFER_SEEK_STRING_SIG(n) String_Match n(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos)
 #define BUFFER_SEEK_CHARACTER_CLASS_SIG(n) String_Match n(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos)
@@ -26,8 +26,8 @@ struct Application_Links;
 #define BUFFER_EXISTS_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_GET_ACCESS_FLAGS_SIG(n) Access_Flag n(Application_Links *app, Buffer_ID buffer_id)
-#define BUFFER_GET_SIZE_SIG(n) u64 n(Application_Links *app, Buffer_ID buffer_id)
-#define BUFFER_GET_LINE_COUNT_SIG(n) u64 n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_GET_SIZE_SIG(n) i64 n(Application_Links *app, Buffer_ID buffer_id)
+#define BUFFER_GET_LINE_COUNT_SIG(n) i64 n(Application_Links *app, Buffer_ID buffer_id)
 #define PUSH_BUFFER_BASE_NAME_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
 #define PUSH_BUFFER_UNIQUE_NAME_SIG(n) String_Const_u8 n(Application_Links *app, Arena *out, Buffer_ID buffer_id)
 #define PUSH_BUFFER_FILE_NAME_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
@@ -51,8 +51,8 @@ struct Application_Links;
 #define GET_ACTIVE_PANEL_SIG(n) Panel_ID n(Application_Links *app)
 #define VIEW_EXISTS_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_BUFFER_SIG(n) Buffer_ID n(Application_Links *app, View_ID view_id, Access_Flag access)
-#define VIEW_GET_CURSOR_POS_SIG(n) i32 n(Application_Links *app, View_ID view_id)
-#define VIEW_GET_MARK_POS_SIG(n) i32 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_CURSOR_POS_SIG(n) i64 n(Application_Links *app, View_ID view_id)
+#define VIEW_GET_MARK_POS_SIG(n) i64 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_PREFERRED_X_SIG(n) f32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_SCREEN_RECT_SIG(n) Rect_f32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_PANEL_SIG(n) Panel_ID n(Application_Links *app, View_ID view_id)
@@ -78,7 +78,7 @@ struct Application_Links;
 #define VIEW_SET_SCROLL_SIG(n) b32 n(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll)
 #define VIEW_SET_MARK_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 #define VIEW_SET_BUFFER_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags)
-#define VIEW_POST_FADE_SIG(n) b32 n(Application_Links *app, View_ID view_id, float seconds, i32 start, i32 end, int_color color)
+#define VIEW_POST_FADE_SIG(n) b32 n(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, int_color color)
 #define VIEW_BEGIN_UI_MODE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_END_UI_MODE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
 #define VIEW_IS_IN_UI_MODE_SIG(n) b32 n(Application_Links *app, View_ID view_id)
@@ -171,7 +171,7 @@ struct Application_Links;
 #define TEXT_LAYOUT_GET_BUFFER_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out)
 #define TEXT_LAYOUT_BUFFER_POINT_TO_LAYOUT_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out)
 #define TEXT_LAYOUT_LAYOUT_POINT_TO_BUFFER_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out)
-#define TEXT_LAYOUT_GET_ON_SCREEN_RANGE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out)
+#define TEXT_LAYOUT_GET_ON_SCREEN_RANGE_SIG(n) Range_i64 n(Application_Links *app, Text_Layout_ID text_layout_id)
 #define TEXT_LAYOUT_GET_HEIGHT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out)
 #define TEXT_LAYOUT_FREE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id)
 #define COMPUTE_RENDER_LAYOUT_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last)
@@ -935,8 +935,8 @@ static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count
 static Buffer_ID get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_next(app, buffer_id, access));}
 static Buffer_ID get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access){return(app->get_buffer_by_name(app, name, access));}
 static Buffer_ID get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_name, Access_Flag access){return(app->get_buffer_by_file_name(app, file_name, access));}
-static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range(app, buffer_id, start, one_past_last, out));}
-static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range(app, buffer_id, range, string));}
+static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, char *out){return(app->buffer_read_range(app, buffer_id, range, out));}
+static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string){return(app->buffer_replace_range(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit(app, buffer_id, str, edits, edit_count));}
 static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_string(app, buffer, needle, direction, start_pos));}
 static String_Match buffer_seek_character_class(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_character_class(app, buffer, predicate, direction, start_pos));}
@@ -944,8 +944,8 @@ static Partial_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID bu
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready(app, buffer_id));}
 static Access_Flag buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_access_flags(app, buffer_id));}
-static u64 buffer_get_size(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_size(app, buffer_id));}
-static u64 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_line_count(app, buffer_id));}
+static i64 buffer_get_size(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_size(app, buffer_id));}
+static i64 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_line_count(app, buffer_id));}
 static String_Const_u8 push_buffer_base_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_base_name(app, arena, buffer_id));}
 static String_Const_u8 push_buffer_unique_name(Application_Links *app, Arena *out, Buffer_ID buffer_id){return(app->push_buffer_unique_name(app, out, buffer_id));}
 static String_Const_u8 push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_file_name(app, arena, buffer_id));}
@@ -969,8 +969,8 @@ static View_ID get_active_view(Application_Links *app, Access_Flag access){retur
 static Panel_ID get_active_panel(Application_Links *app){return(app->get_active_panel(app));}
 static b32 view_exists(Application_Links *app, View_ID view_id){return(app->view_exists(app, view_id));}
 static Buffer_ID view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access){return(app->view_get_buffer(app, view_id, access));}
-static i32 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos(app, view_id));}
-static i32 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos(app, view_id));}
+static i64 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos(app, view_id));}
+static i64 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos(app, view_id));}
 static f32 view_get_preferred_x(Application_Links *app, View_ID view_id){return(app->view_get_preferred_x(app, view_id));}
 static Rect_f32 view_get_screen_rect(Application_Links *app, View_ID view_id){return(app->view_get_screen_rect(app, view_id));}
 static Panel_ID view_get_panel(Application_Links *app, View_ID view_id){return(app->view_get_panel(app, view_id));}
@@ -996,7 +996,7 @@ static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek 
 static b32 view_set_scroll(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll){return(app->view_set_scroll(app, view_id, scroll));}
 static b32 view_set_mark(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_mark(app, view_id, seek));}
 static b32 view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer(app, view_id, buffer_id, flags));}
-static b32 view_post_fade(Application_Links *app, View_ID view_id, float seconds, i32 start, i32 end, int_color color){return(app->view_post_fade(app, view_id, seconds, start, end, color));}
+static b32 view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, int_color color){return(app->view_post_fade(app, view_id, seconds, range, color));}
 static b32 view_begin_ui_mode(Application_Links *app, View_ID view_id){return(app->view_begin_ui_mode(app, view_id));}
 static b32 view_end_ui_mode(Application_Links *app, View_ID view_id){return(app->view_end_ui_mode(app, view_id));}
 static b32 view_is_in_ui_mode(Application_Links *app, View_ID view_id){return(app->view_is_in_ui_mode(app, view_id));}
@@ -1089,7 +1089,7 @@ static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_
 static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer(app, text_layout_id, buffer_id_out));}
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point(app, text_layout_id, layout_relative_p, p_out));}
-static b32 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){return(app->text_layout_get_on_screen_range(app, text_layout_id, on_screen_range_out));}
+static Range_i64 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_get_on_screen_range(app, text_layout_id));}
 static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height(app, text_layout_id, height_out));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free(app, text_layout_id));}
 static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){return(app->compute_render_layout(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last));}
@@ -1117,8 +1117,8 @@ static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count
 static Buffer_ID get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_next_(app, buffer_id, access));}
 static Buffer_ID get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access){return(app->get_buffer_by_name_(app, name, access));}
 static Buffer_ID get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_name, Access_Flag access){return(app->get_buffer_by_file_name_(app, file_name, access));}
-static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, i32 start, i32 one_past_last, char *out){return(app->buffer_read_range_(app, buffer_id, start, one_past_last, out));}
-static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 string){return(app->buffer_replace_range_(app, buffer_id, range, string));}
+static b32 buffer_read_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, char *out){return(app->buffer_read_range_(app, buffer_id, range, out));}
+static b32 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string){return(app->buffer_replace_range_(app, buffer_id, range, string));}
 static b32 buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, char *str, Buffer_Edit *edits, i32 edit_count){return(app->buffer_batch_edit_(app, buffer_id, str, edits, edit_count));}
 static String_Match buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_string_(app, buffer, needle, direction, start_pos));}
 static String_Match buffer_seek_character_class(Application_Links *app, Buffer_ID buffer, Character_Predicate *predicate, Scan_Direction direction, i64 start_pos){return(app->buffer_seek_character_class_(app, buffer, predicate, direction, start_pos));}
@@ -1126,8 +1126,8 @@ static Partial_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID bu
 static b32 buffer_exists(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_exists_(app, buffer_id));}
 static b32 buffer_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_ready_(app, buffer_id));}
 static Access_Flag buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_access_flags_(app, buffer_id));}
-static u64 buffer_get_size(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_size_(app, buffer_id));}
-static u64 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_line_count_(app, buffer_id));}
+static i64 buffer_get_size(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_size_(app, buffer_id));}
+static i64 buffer_get_line_count(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_line_count_(app, buffer_id));}
 static String_Const_u8 push_buffer_base_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_base_name_(app, arena, buffer_id));}
 static String_Const_u8 push_buffer_unique_name(Application_Links *app, Arena *out, Buffer_ID buffer_id){return(app->push_buffer_unique_name_(app, out, buffer_id));}
 static String_Const_u8 push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_file_name_(app, arena, buffer_id));}
@@ -1151,8 +1151,8 @@ static View_ID get_active_view(Application_Links *app, Access_Flag access){retur
 static Panel_ID get_active_panel(Application_Links *app){return(app->get_active_panel_(app));}
 static b32 view_exists(Application_Links *app, View_ID view_id){return(app->view_exists_(app, view_id));}
 static Buffer_ID view_get_buffer(Application_Links *app, View_ID view_id, Access_Flag access){return(app->view_get_buffer_(app, view_id, access));}
-static i32 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos_(app, view_id));}
-static i32 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos_(app, view_id));}
+static i64 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos_(app, view_id));}
+static i64 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos_(app, view_id));}
 static f32 view_get_preferred_x(Application_Links *app, View_ID view_id){return(app->view_get_preferred_x_(app, view_id));}
 static Rect_f32 view_get_screen_rect(Application_Links *app, View_ID view_id){return(app->view_get_screen_rect_(app, view_id));}
 static Panel_ID view_get_panel(Application_Links *app, View_ID view_id){return(app->view_get_panel_(app, view_id));}
@@ -1178,7 +1178,7 @@ static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek 
 static b32 view_set_scroll(Application_Links *app, View_ID view_id, GUI_Scroll_Vars scroll){return(app->view_set_scroll_(app, view_id, scroll));}
 static b32 view_set_mark(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_mark_(app, view_id, seek));}
 static b32 view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer_(app, view_id, buffer_id, flags));}
-static b32 view_post_fade(Application_Links *app, View_ID view_id, float seconds, i32 start, i32 end, int_color color){return(app->view_post_fade_(app, view_id, seconds, start, end, color));}
+static b32 view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, int_color color){return(app->view_post_fade_(app, view_id, seconds, range, color));}
 static b32 view_begin_ui_mode(Application_Links *app, View_ID view_id){return(app->view_begin_ui_mode_(app, view_id));}
 static b32 view_end_ui_mode(Application_Links *app, View_ID view_id){return(app->view_end_ui_mode_(app, view_id));}
 static b32 view_is_in_ui_mode(Application_Links *app, View_ID view_id){return(app->view_is_in_ui_mode_(app, view_id));}
@@ -1271,7 +1271,7 @@ static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_
 static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){return(app->text_layout_get_buffer_(app, text_layout_id, buffer_id_out));}
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point_(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point_(app, text_layout_id, layout_relative_p, p_out));}
-static b32 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id, Range *on_screen_range_out){return(app->text_layout_get_on_screen_range_(app, text_layout_id, on_screen_range_out));}
+static Range_i64 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_get_on_screen_range_(app, text_layout_id));}
 static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height_(app, text_layout_id, height_out));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free_(app, text_layout_id));}
 static b32 compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){return(app->compute_render_layout_(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last));}

@@ -7,9 +7,9 @@
 internal void
 seek_pos_of_textual_line(Application_Links *app, Side side){
     View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
-    i32 pos = view_get_cursor_pos(app, view);
-    i32 new_pos = get_line_side_pos_from_pos(app, buffer_id, pos, side);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i64 pos = view_get_cursor_pos(app, view);
+    i64 new_pos = get_line_side_pos_from_pos(app, buffer, pos, side);
     view_set_cursor(app, view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
@@ -17,7 +17,7 @@ seek_pos_of_textual_line(Application_Links *app, Side side){
 internal void
 seek_pos_of_visual_line(Application_Links *app, Side side){
     View_ID view = get_active_view(app, AccessProtected);
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     f32 y = cursor.wrapped_y;
     f32 x = (side == Side_Min)?(0.f):(max_f32);

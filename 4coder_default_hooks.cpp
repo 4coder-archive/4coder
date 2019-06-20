@@ -103,7 +103,7 @@ COMMAND_CALLER_HOOK(default_command_caller){
             u64 val = 0;
             if (managed_variable_get(app, scope_it, view_snap_mark_to_cursor, &val)){
                 if (val != 0){
-                    i32 pos = view_get_cursor_pos(app, view_it);
+                    i64 pos = view_get_cursor_pos(app, view_it);
                     view_set_mark(app, view_it, seek_pos(pos));
                 }
             }
@@ -115,7 +115,7 @@ COMMAND_CALLER_HOOK(default_command_caller){
 
 struct Highlight_Record{
     Highlight_Record *next;
-    Range range;
+    Range_i64 range;
     int_color color;
 };
 
@@ -140,13 +140,13 @@ sort_highlight_record(Highlight_Record *records, i32 first, i32 one_past_last){
     }
 }
 
-static Range_Array
-get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 pos, u32 flags){
-    Range_Array array = {};
+static Range_i64_Array
+get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, u32 flags){
+    Range_i64_Array array = {};
     i32 max = 100;
-    array.ranges = push_array(arena, Range, max);
+    array.ranges = push_array(arena, Range_i64, max);
     for (;;){
-        Range range = {};
+        Range_i64 range = {};
         if (find_scope_range(app, buffer, pos, &range, flags)){
             array.ranges[array.count] = range;
             array.count += 1;
@@ -163,22 +163,22 @@ get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i32
 }
 
 static void
-mark_enclosures(Application_Links *app, Managed_Scope render_scope, Buffer_ID buffer, i32 pos, u32 flags,
+mark_enclosures(Application_Links *app, Managed_Scope render_scope, Buffer_ID buffer, i64 pos, u32 flags,
                 Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    Range_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
+    Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
     if (ranges.count > 0){
         i32 marker_count = ranges.count*2;
         Marker *markers = push_array(scratch, Marker, marker_count);
         Marker *marker = markers;
-        Range *range = ranges.ranges;
+        Range_i64 *range = ranges.ranges;
         for (i32 i = 0;
              i < ranges.count;
              i += 1, range += 1, marker += 2){
-            marker[0].pos = range->first;
-            marker[1].pos = range->one_past_last - 1;
+            marker[0].pos = (i32)range->first;
+            marker[1].pos = (i32)range->one_past_last - 1;
         }
         Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer, marker_count, &render_scope);
         managed_object_store_data(app, o, 0, marker_count, markers);
@@ -324,7 +324,7 @@ buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Ve
     return(result);
 }
 
-static i32
+static i64
 abs_position_from_buffer_point(Application_Links *app, View_ID view_id, Buffer_Point buffer_point){
     Full_Cursor cursor = view_compute_cursor(app, view_id, seek_line_char(buffer_point.line_number, 0));
     Buffer_Seek seek = seek_wrapped_xy(buffer_point.pixel_shift.x,
@@ -352,8 +352,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     
     Buffer_Point buffer_point = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
     Text_Layout_ID text_layout_id = compute_render_layout(app, view_id, buffer, buffer_rect.p0, rect_dim(buffer_rect), buffer_point, max_i32);
-    Range on_screen_range = {};
-    text_layout_get_on_screen_range(app, text_layout_id, &on_screen_range);
+    Range_i64 on_screen_range = text_layout_get_on_screen_range(app, text_layout_id);
     text_layout_free(app, text_layout_id);
     
     View_ID active_view = get_active_view(app, AccessAll);
@@ -387,13 +386,13 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                     
                     Temp_Memory temp = begin_temp(scratch);
                     
-                    i32 cursor_position = view_get_cursor_pos(app, view_id);
+                    i64 cursor_position = view_get_cursor_pos(app, view_id);
                     Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
                     
                     Fancy_String_List list = {};
                     String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
                     push_fancy_string(scratch, &list, base_color, unique_name);
-                    push_fancy_stringf(scratch, &list, base_color, " - Row: %3.d Col: %3.d -", cursor.line, cursor.character);
+                    push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.character);
                     
                     b32 is_dos_mode = false;
                     if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
@@ -475,7 +474,11 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             r_cursor.x0 = left_margin.x1;
             
             draw_rectangle(app, left_margin, Stag_Line_Numbers_Back);
-            draw_clip_push(app, left_margin);
+            
+            Rect_f32 clip_region = left_margin;
+            clip_region.p0 += view_inner_rect.p0;
+            clip_region.p1 += view_inner_rect.p0;
+            draw_clip_push(app, clip_region);
             
             Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
             
@@ -483,13 +486,12 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view_id);
             for (;cursor.pos <= on_screen_range.one_past_last;){
                 Vec2 p = panel_space_from_view_space(cursor.wrapped_p, scroll_vars.scroll_p);
-                p += V2(buffer_rect.p0);
                 p.x = left_margin.x0;
                 Temp_Memory temp = begin_temp(scratch);
-                Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*d", line_count_digit_count, cursor.line);
+                Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, cursor.line);
                 draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
                 end_temp(temp);
-                i32 next_line = cursor.line + 1;
+                i64 next_line = cursor.line + 1;
                 cursor = view_compute_cursor(app, view_id, seek_line_char(next_line, 1));
                 if (cursor.line < next_line){
                     break;
@@ -550,8 +552,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             int_color current_color = records[0].color;
             {
                 Marker *marker = &markers[marker_index];
-                marker[0].pos = records[0].range.first;
-                marker[1].pos = records[0].range.one_past_last;
+                marker[0].pos = (i32)records[0].range.first;
+                marker[1].pos = (i32)records[0].range.one_past_last;
                 marker_index += 2;
             }
             for (i32 i = 1; i <= record_count; i += 1){
@@ -568,8 +570,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 }
                 if (i < record_count){
                     Marker *marker = &markers[marker_index];
-                    marker[0].pos = records[i].range.first;
-                    marker[1].pos = records[i].range.one_past_last;
+                    marker[0].pos = (i32)records[i].range.first;
+                    marker[1].pos = (i32)records[i].range.one_past_last;
                     marker_index += 2;
                 }
             }
@@ -579,13 +581,13 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     // NOTE(allen): Cursor and mark
-    i32 cursor_pos = view_get_cursor_pos(app, view_id);
-    i32 mark_pos = view_get_mark_pos(app, view_id);
+    i64 cursor_pos = view_get_cursor_pos(app, view_id);
+    i64 mark_pos = view_get_mark_pos(app, view_id);
     
     Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
     Marker cm_markers[2] = {};
-    cm_markers[0].pos = cursor_pos;
-    cm_markers[1].pos = mark_pos;
+    cm_markers[0].pos = (i32)cursor_pos;
+    cm_markers[1].pos = (i32)mark_pos;
     managed_object_store_data(app, cursor_and_mark, 0, 2, cm_markers);
     
     b32 cursor_is_hidden_in_this_view = (cursor_is_hidden && is_active_view);
@@ -662,12 +664,12 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         Temp_Memory temp = begin_temp(scratch);
         Boundary_Function_List funcs = push_boundary_list(scratch, boundary_token, boundary_non_whitespace);
-        Range snipe_range = get_snipe_range(app, funcs, buffer, cursor_pos, Scan_Backward);
+        Range_i64 snipe_range = get_snipe_range(app, funcs, buffer, cursor_pos, Scan_Backward);
         if (range_size(snipe_range) > 0){
             Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
             Marker range_markers[2] = {};
-            range_markers[0].pos = snipe_range.min;
-            range_markers[1].pos = snipe_range.max;
+            range_markers[0].pos = (i32)snipe_range.min;
+            range_markers[1].pos = (i32)snipe_range.max;
             managed_object_store_data(app, token_highlight, 0, 2, range_markers);
             Marker_Visual visual = create_marker_visual(app, token_highlight);
             marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, Stag_At_Highlight, 0);
@@ -685,7 +687,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         mark_enclosures(app, render_scope, buffer, cursor_pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
     }
     if (do_matching_paren_highlight){
-        i32 pos = cursor_pos;
+        i64 pos = cursor_pos;
         if (buffer_get_char(app, buffer, pos) == '('){
             pos += 1;
         }

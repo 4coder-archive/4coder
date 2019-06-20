@@ -8,16 +8,16 @@
 #define FCODER_JUMP_STICKY_H
 
 struct Sticky_Jump{
-    i32 list_line;
-    i32 list_colon_index;
+    i64 list_line;
+    i64 list_colon_index;
     b32 is_sub_error;
     Buffer_ID jump_buffer_id;
     i32 jump_pos;
 };
 
 struct Sticky_Jump_Stored{
-    i32 list_line;
-    i32 list_colon_index;
+    i64 list_line;
+    i64 list_colon_index;
     b32 is_sub_error;
     Buffer_ID jump_buffer_id;
     i32 index_into_marker_array;

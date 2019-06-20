@@ -225,11 +225,11 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek){
     switch (seek.type){
         case buffer_seek_pos:
         {
-            result = buffer_partial_from_pos(&file->state.buffer, seek.pos);
+            result = buffer_partial_from_pos(&file->state.buffer, (i32)seek.pos);
         }break;
         case buffer_seek_line_char:
         {
-            result = buffer_partial_from_line_character(&file->state.buffer, seek.line, seek.character);
+            result = buffer_partial_from_line_character(&file->state.buffer, (i32)seek.line, (i32)seek.character);
         }break;
         // TODO(allen): do(support buffer_seek_character_pos and character_pos coordiantes in partial cursor system)
     }

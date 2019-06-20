@@ -22,7 +22,7 @@ struct View{
     Lifetime_Object *lifetime_object;
     
     File_Edit_Positions edit_pos_;
-    i32 mark;
+    i64 mark;
     f32 preferred_x;
     
     i32 temp_view_top_left_pos;

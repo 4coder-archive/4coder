@@ -29,8 +29,8 @@ edit_pre_state_change(System_Functions *system, Heap *heap, Models *models, Edit
         if (view->file == file){
             Full_Cursor render_cursor = view_get_render_cursor(system, view);
             Full_Cursor target_cursor = view_get_render_cursor_target(system, view);
-            view->temp_view_top_left_pos        = render_cursor.pos;
-            view->temp_view_top_left_target_pos = target_cursor.pos;
+            view->temp_view_top_left_pos        = (i32)render_cursor.pos;
+            view->temp_view_top_left_target_pos = (i32)target_cursor.pos;
         }
     }
 }
@@ -132,8 +132,8 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
         View *view = panel->view;
         if (view->file == file){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            write_cursor_with_index(cursors, &cursor_count, edit_pos.cursor_pos);
-            write_cursor_with_index(cursors, &cursor_count, view->mark);
+            write_cursor_with_index(cursors, &cursor_count, (i32)edit_pos.cursor_pos);
+            write_cursor_with_index(cursors, &cursor_count, (i32)view->mark);
             write_cursor_with_index(cursors, &cursor_count, view->temp_view_top_left_pos);
             write_cursor_with_index(cursors, &cursor_count, view->temp_view_top_left_target_pos);
         }

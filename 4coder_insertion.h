@@ -10,7 +10,7 @@
 struct Buffer_Insertion{
     Application_Links *app;
     Buffer_ID buffer;
-    umem at;
+    i64 at;
     b32 buffering;
     Cursor *cursor;
     Temp_Memory temp;

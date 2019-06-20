@@ -166,7 +166,7 @@ search_hit_add(Heap *heap, Table *hits, String_Space *space, String_Const_u8 str
 //
 
 static void
-seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key, Search_Match *result, Seek_Potential_Match_Direction direction, i32 start_pos, i32 end_pos){
+seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key, Search_Match *result, Seek_Potential_Match_Direction direction, i64 start_pos, i64 end_pos){
     b32 case_insensitive = ((range->flags & SearchFlag_CaseInsensitive) != 0);
     b32 forward = (direction == SeekPotentialMatch_Forward);
 #define OptFlag(b,f) ((b)?(f):(0))
@@ -175,14 +175,14 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
         | OptFlag(!forward, BufferSeekString_Backward);
     result->buffer = range->buffer;
     
-    i32 best_pos = -1;
+    i64 best_pos = -1;
     if (forward){
         best_pos = end_pos;
     }
     
     for (i32 i = 0; i < key.count; ++i){
         String_Const_u8 word = key.words[i];
-        i32 new_pos = -1;
+        i64 new_pos = -1;
         buffer_seek_string(app, result->buffer, start_pos, end_pos, range->start, word, &new_pos, flags);
         
         if (new_pos >= 0){
@@ -199,7 +199,7 @@ seek_potential_match(Application_Links *app, Search_Range *range, Search_Key key
         }
     }
     
-    result->start = best_pos;
+    result->start = (i32)best_pos;
 }
 
 static i32
@@ -247,7 +247,7 @@ match_check(Application_Links *app, Search_Range *range, i32 *pos, Search_Match 
             {
                 u8 prev = buffer_get_char(app, result.buffer, result.start - 1);
                 if (!character_is_alpha_numeric_unicode(prev)){
-                    result.end = scan(app, boundary_alpha_numeric_unicode, result.buffer, Scan_Forward, result.start);
+                    result.end = (i32)scan(app, boundary_alpha_numeric_unicode, result.buffer, Scan_Forward, result.start);
                     if (result.end <= end_pos){
                         result.found_match = true;
                         found_match = FindResult_FoundMatch;
@@ -650,7 +650,7 @@ list_identifier__parameters(Application_Links *app, Heap *heap, b32 substrings, 
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     if (buffer != 0){
-        i32 pos = view_get_cursor_pos(app, view);
+        i64 pos = view_get_cursor_pos(app, view);
         Scratch_Block scratch(app);
         String_Const_u8 str = get_token_or_word_under_pos(app, scratch, buffer, pos);
         if (str.size > 0){
@@ -662,13 +662,11 @@ list_identifier__parameters(Application_Links *app, Heap *heap, b32 substrings, 
 static void
 list_selected_range__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 case_insensitive, View_ID default_target_view){
     View_ID view = get_active_view(app, AccessProtected);
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 str = push_string_in_view_range(app, scratch, view);
+    Scratch_Block scratch(app);
+    String_Const_u8 str = push_view_range_string(app, scratch, view);
     if (str.size > 0){
         list_single__parameters(app, heap, str, substrings, case_insensitive, default_target_view);
     }
-    end_temp(temp);
 }
 
 static void
@@ -767,7 +765,7 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of st
 {
     View_ID target_view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, target_view, AccessProtected);
-    i32 pos = view_get_cursor_pos(app, target_view);
+    i64 pos = view_get_cursor_pos(app, target_view);
     Scratch_Block scratch(app);
     String_Const_u8 str = get_token_or_word_under_pos(app, scratch, buffer, pos);
     if (str.size > 0){
@@ -803,9 +801,9 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             do_init = true;
         }
         
-        i32 word_end = 0;
-        i32 word_start = 0;
-        i32 cursor_pos = 0;
+        i64 word_end = 0;
+        i64 word_start = 0;
+        i64 cursor_pos = 0;
         umem size = 0;
         
         if (do_init){
@@ -817,7 +815,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             
             char space[1024];
             Stream_Chunk chunk = {};
-            if (init_stream_chunk(&chunk, app, buffer, cursor_pos, space, sizeof(space))){
+            if (init_stream_chunk(&chunk, app, buffer, (i32)cursor_pos, space, sizeof(space))){
                 i32 still_looping = true;
                 do{
                     for (; cursor_pos >= chunk.start; --cursor_pos){
@@ -845,7 +843,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             complete_state.initialized = true;
             Search_Key key = {};
             search_key_alloc(&global_heap, &key, &size, 1);
-            buffer_read_range(app, buffer, word_start, word_end, (char*)key.words[0].str);
+            buffer_read_range(app, buffer, Ii64(word_start, word_end), (char*)key.words[0].str);
             key.words[0].size = size;
             
             search_iter_init(&complete_state.iter, key);
@@ -860,7 +858,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             ranges[0].buffer = buffer;
             ranges[0].start = 0;
             ranges[0].size = (i32)buffer_get_size(app, buffer);
-            ranges[0].mid_start = word_start;
+            ranges[0].mid_start = (i32)word_start;
             ranges[0].mid_size = (i32)size;
             
             Buffer_ID buffer_it = 0;
@@ -885,8 +883,8 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             String_Const_u8 word = complete_state.iter.key.words[0];
             search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, word);
             
-            complete_state.word_start = word_start;
-            complete_state.word_end = word_end;
+            complete_state.word_start = (i32)word_start;
+            complete_state.word_end = (i32)word_end;
         }
         else{
             word_start = complete_state.word_start;
@@ -897,22 +895,18 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         // NOTE(allen): Iterate through matches.
         if (size > 0){
             for (;;){
-                i32 match_size = 0;
                 Search_Match match = search_next_match(app, &complete_state.set, &complete_state.iter);
                 
                 if (match.found_match){
-                    match_size = match.end - match.start;
+                    i32 match_size = match.end - match.start;
                     Arena *scratch = context_get_arena(app);
                     Scratch_Block temp_auto_closer(scratch);
-                    char *spare = push_array(scratch, char, match_size);
-                    
-                    buffer_read_range(app, match.buffer, match.start, match.end, spare);
-                    
-                    if (search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, spare, match_size)){
-                        buffer_replace_range(app, buffer, make_range(word_start, word_end), SCu8(spare, match_size));
+                    String_Const_u8 spare = push_buffer_range(app, scratch, match.buffer, Ii64(match.start, match.end));
+                    if (search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, (char*)spare.str, (i32)spare.size)){
+                        buffer_replace_range(app, buffer, Ii64(word_start, word_end), spare);
                         view_set_cursor(app, view, seek_pos(word_start + match_size), true);
                         
-                        complete_state.word_end = word_start + match_size;
+                        complete_state.word_end = (i32)(word_start + match_size);
                         complete_state.set.ranges[0].mid_size = match_size;
                         break;
                     }
@@ -925,11 +919,11 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
                     String_Const_u8 word = complete_state.iter.key.words[0];
                     search_hit_add(&global_heap, &complete_state.hits, &complete_state.str, word);
                     
-                    match_size = (i32)word.size;
-                    buffer_replace_range(app, buffer, make_range(word_start, word_end), word);
+                    i32 match_size = (i32)word.size;
+                    buffer_replace_range(app, buffer, Ii64(word_start, word_end), word);
                     view_set_cursor(app, view, seek_pos(word_start + match_size), true);
                     
-                    complete_state.word_end = word_start + match_size;
+                    complete_state.word_end = (i32)(word_start + match_size);
                     complete_state.set.ranges[0].mid_size = match_size;
                     break;
                 }

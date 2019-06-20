@@ -247,7 +247,7 @@ view_move_cursor_to_view(System_Functions *system, Models *models, View *view, G
         }
         Buffer_Seek seek = seek_xy(preferred_x, cursor_y, false, file->settings.unwrapped_lines);
         cursor = file_compute_cursor(system, file, seek);
-        *pos_in_out = cursor.pos;
+        *pos_in_out = (i32)cursor.pos;
         result = true;
     }
     
@@ -279,7 +279,7 @@ view_set_preferred_x_to_current_position(System_Functions *system, View *view){
 internal void
 view_set_cursor(System_Functions *system, Models *models, View *view, Full_Cursor cursor, b32 set_preferred_x){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    file_edit_positions_set_cursor(&edit_pos, cursor.pos);
+    file_edit_positions_set_cursor(&edit_pos, (i32)cursor.pos);
     if (set_preferred_x){
         view_set_preferred_x(view, cursor);
     }
@@ -296,7 +296,7 @@ view_set_scroll(System_Functions *system, Models *models, View *view, GUI_Scroll
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     file_edit_positions_set_scroll(&edit_pos, scroll, view_compute_max_target_y(models, view));
     view_set_edit_pos(view, edit_pos);
-    i32 pos = edit_pos.cursor_pos;
+    i32 pos = (i32)edit_pos.cursor_pos;
     if (view_move_cursor_to_view(system, models, view, edit_pos.scroll, &pos, view->preferred_x)){
         Full_Cursor cursor = file_compute_cursor(system, view->file, seek_pos(pos));
         edit_pos.cursor_pos = cursor.pos;
@@ -307,7 +307,7 @@ view_set_scroll(System_Functions *system, Models *models, View *view, GUI_Scroll
 internal void
 view_set_cursor_and_scroll(Models *models, View *view, Full_Cursor cursor, b32 set_preferred_x, GUI_Scroll_Vars scroll){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    file_edit_positions_set_cursor(&edit_pos, cursor.pos);
+    file_edit_positions_set_cursor(&edit_pos, (i32)cursor.pos);
     if (set_preferred_x){
         view_set_preferred_x(view, cursor);
     }
@@ -887,7 +887,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     
     i32 *line_starts = file->state.buffer.line_starts;
     i32 line_count = file->state.buffer.line_count;
-    i32 line_scan_index = render_cursor.line - 1;
+    i32 line_scan_index = (i32)render_cursor.line - 1;
     i32 first_byte_index_of_next_line = 0;
     if (line_scan_index + 1 < line_count){
         first_byte_index_of_next_line = line_starts[line_scan_index + 1];
@@ -901,7 +901,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     if (wrap_count > 0 && wrap_starts[wrap_count - 1] == buffer_size(&file->state.buffer)){
         wrap_count -= 1;
     }
-    i32 wrap_scan_index = render_cursor.wrap_line - render_cursor.line;
+    i32 wrap_scan_index = (i32)render_cursor.wrap_line - (i32)render_cursor.line;
     i32 first_byte_index_of_next_wrap = 0;
     if (wrap_scan_index + 1 < wrap_count){
         first_byte_index_of_next_wrap = wrap_starts[wrap_scan_index + 1];

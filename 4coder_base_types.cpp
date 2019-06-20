@@ -1825,6 +1825,18 @@ internal i64
 replace_range_compute_shift(Interval_i64 range, i64 insert_length){
     return(insert_length - (range.end - range.start));
 }
+internal i64
+replace_range_compute_shift(u64 replace_length, u64 insert_length){
+    return((i64)insert_length - replace_length);
+}
+internal i64
+replace_range_compute_shift(i64 start, i64 end, u64 insert_length){
+    return((i64)insert_length - (end - start));
+}
+internal i64
+replace_range_compute_shift(Interval_i64 range, u64 insert_length){
+    return((i64)insert_length - (range.end - range.start));
+}
 
 ////////////////////////////////
 
@@ -3020,6 +3032,9 @@ SCany(String_Const_u32 str){
 
 #define string_expand(s) (i32)(s).size, (char*)(s).str
 
+static String_Const_char string_empty = {"", 0};
+static String_Const_u8 string_u8_empty = {"", 0};
+
 static char
 string_get_character(String_Const_char str, umem i){
     char r = 0;
@@ -3203,6 +3218,23 @@ string_chop(String_Const_Any str, umem n){
         case StringEncoding_UTF32: str.s_u32  = string_chop(str.s_u32 , n); break;
     }
     return(str);
+}
+
+static String_Const_char
+string_substring(String_Const_char str, Range_i64 range){
+    return(SCchar(str.str + range.min, str.str + range.max));
+}
+static String_Const_u8
+string_substring(String_Const_u8 str, Range_i64 range){
+    return(SCu8(str.str + range.min, str.str + range.max));
+}
+static String_Const_u16
+string_substring(String_Const_u16 str, Range_i64 range){
+    return(SCu16(str.str + range.min, str.str + range.max));
+}
+static String_Const_u32
+string_substring(String_Const_u32 str, Range_i64 range){
+    return(SCu32(str.str + range.min, str.str + range.max));
 }
 
 static umem

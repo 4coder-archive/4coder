@@ -5,17 +5,13 @@
 // TOP
 
 static b32
-post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buffer_ID buffer, i32 first, i32 one_past_last){
+clipboard_post_buffer_range(Application_Links *app, i32 clipboard_index, Buffer_ID buffer, Range_i64 range){
     b32 success = false;
-    i32 buffer_size = (i32)buffer_get_size(app, buffer);
-    if (buffer != 0 && 0 <= first && first < one_past_last && one_past_last <= buffer_size){
-        Scratch_Block scratch(app);
-        Range range = make_range(first, one_past_last);
-        String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
-        if (string.size > 0){
-            clipboard_post(app, clipboard_index, string);
-            success = true;
-        }
+    Scratch_Block scratch(app);
+    String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
+    if (string.size > 0){
+        clipboard_post(app, clipboard_index, string);
+        success = true;
     }
     return(success);
 }
@@ -25,8 +21,8 @@ CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clip
 {
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
-    Range range = get_view_range(app, view);
-    post_buffer_range_to_clipboard(app, 0, buffer, range.min, range.max);
+    Range_i64 range = get_view_range(app, view);
+    clipboard_post_buffer_range(app, 0, buffer, range);
 }
 
 CUSTOM_COMMAND_SIG(cut)
@@ -34,9 +30,9 @@ CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipb
 {
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    Range range = get_view_range(app, view);
-    if (post_buffer_range_to_clipboard(app, 0, buffer, range.min, range.max)){
-        buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
+    Range_i64 range = get_view_range(app, view);
+    if (clipboard_post_buffer_range(app, 0, buffer, range)){
+        buffer_replace_range(app, buffer, range, string_u8_empty);
     }
 }
 
@@ -59,8 +55,8 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         if (string.size > 0){
             Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
             
-            i32 pos = view_get_cursor_pos(app, view);
-            buffer_replace_range(app, buffer, make_range(pos), string);
+            i64 pos = view_get_cursor_pos(app, view);
+            buffer_replace_range(app, buffer, Ii64(pos), string);
             view_set_mark(app, view, seek_pos(pos));
             view_set_cursor(app, view, seek_pos(pos + (i32)string.size), true);
             
@@ -68,7 +64,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             Theme_Color paste = {};
             paste.tag = Stag_Paste;
             get_theme_colors(app, &paste, 1);
-            view_post_fade(app, view, 0.667f, pos, pos + (i32)string.size, paste.color);
+            view_post_fade(app, view, 0.667f, Ii64(pos, pos + string.size), paste.color);
         }
     }
 }
@@ -97,18 +93,17 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
             
             Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
             
-            Range range = get_view_range(app, view);
-            i32 pos = range.min;
+            Range_i64 range = get_view_range(app, view);
+            i64 pos = range.min;
             
             buffer_replace_range(app, buffer, range, string);
-            view_set_cursor(app, view, seek_pos(pos + (i32)string.size), true);
+            view_set_cursor(app, view, seek_pos(pos + string.size), true);
             
             // TODO(allen): Send this to all views.
             Theme_Color paste = {};
             paste.tag = Stag_Paste;
             get_theme_colors(app, &paste, 1);
-            view_post_fade(app, view, 0.667f, pos, pos + (i32)string.size, paste.color);
-            
+            view_post_fade(app, view, 0.667f, Ii64(pos, pos + string.size), paste.color);
         }
         else{
             exec_command(app, paste);

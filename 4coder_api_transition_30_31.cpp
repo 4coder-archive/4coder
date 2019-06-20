@@ -78,7 +78,7 @@ get_view_summary(Application_Links *app, View_ID view_id, Access_Flag access, Vi
             view->unwrapped_lines = !view->unwrapped_lines;
             view_get_setting(app, view_id, ViewSetting_ShowWhitespace, &view->show_whitespace);
             view->buffer_id = buffer;
-            i32 pos = view_get_mark_pos(app, view_id);
+            i64 pos = view_get_mark_pos(app, view_id);
             view->mark = view_compute_cursor(app, view_id, seek_pos(pos));
             pos = view_get_cursor_pos(app, view_id);
             view->cursor = view_compute_cursor(app, view_id, seek_pos(pos));
@@ -159,7 +159,7 @@ static b32
 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, i32 start, i32 one_past_last, char *out){
     b32 result = false;
     if (buffer != 0 && buffer->exists){
-        result = buffer_read_range(app, buffer->buffer_id, start, one_past_last, out);
+        result = buffer_read_range(app, buffer->buffer_id, Ii64(start, one_past_last), out);
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
     }
     return(result);
@@ -169,7 +169,7 @@ static b32
 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, i32 start, i32 one_past_last, char *str, i32 len){
     b32 result = false;
     if (buffer != 0 && buffer->exists){
-        result = buffer_replace_range(app, buffer->buffer_id, make_range(start, one_past_last), SCu8(str, len));
+        result = buffer_replace_range(app, buffer->buffer_id, Ii64(start, one_past_last), SCu8(str, len));
         get_buffer_summary(app, buffer->buffer_id, AccessAll, buffer);
     }
     return(result);
@@ -485,7 +485,7 @@ static b32
 view_post_fade(Application_Links *app, View_Summary *view, float seconds, i32 start, i32 end, int_color color){
     b32 result = false;
     if (view != 0 && view->exists){
-        result = view_post_fade(app, view->view_id, seconds, start, end, color);
+        result = view_post_fade(app, view->view_id, seconds, Ii64(start, end), color);
         get_view_summary(app, view->view_id, AccessAll, view);
     }
     return(result);

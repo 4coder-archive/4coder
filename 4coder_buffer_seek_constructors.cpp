@@ -5,7 +5,7 @@
 // TOP
 
 static Buffer_Seek
-seek_pos(i32 pos){
+seek_pos(i64 pos){
     Buffer_Seek result;
     result.type = buffer_seek_pos;
     result.pos = pos;
@@ -13,7 +13,7 @@ seek_pos(i32 pos){
 }
 
 static Buffer_Seek
-seek_character_pos(i32 pos){
+seek_character_pos(i64 pos){
     Buffer_Seek result;
     result.type = buffer_seek_character_pos;
     result.pos = pos;
@@ -51,7 +51,7 @@ seek_xy(f32 x, f32 y, b32 round_down, b32 unwrapped){
 }
 
 static Buffer_Seek
-seek_line_char(i32 line, i32 character){
+seek_line_char(i64 line, i64 character){
     Buffer_Seek result;
     result.type = buffer_seek_line_char;
     result.line = line;

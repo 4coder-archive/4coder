@@ -37,7 +37,7 @@ TYPEDEF i32 Panel_ID;
 TYPEDEF u32 Text_Layout_ID;
 
 STRUCT Buffer_Point{
-    i32 line_number;
+    i64 line_number;
     Vec2 pixel_shift;
 };
 
@@ -425,14 +425,6 @@ STRUCT Mouse_State{
     };
 };
 
-/* DOC(An array of ranges.  This is just a plain pointer bundled with a count, no additional special structure.) */
-STRUCT Range_Array{
-    /* DOC(A pointer to the array of ranges.) */
-    Range *ranges;
-    /* DOC(The number of ranges in the array.) */
-    i32 count;
-};
-
 /* DOC(Parser_String_And_Type contains a string and type integer used to specify information about keywords to the parser.) */
 STRUCT Parser_String_And_Type{
     /* DOC(The string specified by the pair, it need not be null terminated.) */
@@ -549,21 +541,21 @@ STRUCT Buffer_Seek{
     UNION{
         STRUCT {
             /* DOC(The pos field specified the pos when the seek is in absolute position.) */
-            i32 pos;
+            i64 pos;
         };
         STRUCT {
             /* DOC(For xy coordinate seeks, rounding down means that any x in the box of the character lands on that character. For instance when clicking rounding down is the user's expected behavior.  Not rounding down means that the right hand portion of the character's box, which is closer to the next character, will land on that next character.  The unrounded behavior is the expected behavior when moving vertically and keeping the preferred x.) */
             b32 round_down;
             /* DOC(The x coordinate for xy type seeks.) */
-            float x;
+            f32 x;
             /* DOC(The y coordinate for xy type seeks.) */
-            float y;
+            f32 y;
         };
         STRUCT {
             /* DOC(The line number of a line-character type seek.) */
-            i32 line;
+            i64 line;
             /* DOC(The character number of a line-character type seek.) */
-            i32 character;
+            i64 character;
         };
     };
 };
@@ -572,15 +564,15 @@ STRUCT Buffer_Seek{
 DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Full_Cursor{
     /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
-    i32 pos;
+    i64 pos;
     /* DOC(This field contains the cursor's position in apparent character index positioning.) */
-    i32 character_pos;
+    i64 character_pos;
     /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
-    i32 line;
+    i64 line;
     /* DOC(This field contains the number of the character from the beginninf of the line where the cursor is located. This field is one based.) */
-    i32 character;
+    i64 character;
     /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping into account.  This field is one based.) */
-    i32 wrap_line;
+    i64 wrap_line;
     union{
         struct{
             /* DOC(This field contains the x position measured with unwrapped lines.) */

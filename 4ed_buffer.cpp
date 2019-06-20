@@ -1273,7 +1273,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             {
                 params.seek.pos = clamp(0, params.seek.pos, S.size);
                 
-                line_index = buffer_get_line_number(params.buffer, params.seek.pos);
+                line_index = buffer_get_line_number(params.buffer, (i32)params.seek.pos);
             }break;
             
             case buffer_seek_character_pos:
@@ -1282,12 +1282,12 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                 i32 max_character = params.character_starts[line_count] - 1;
                 params.seek.pos = clamp(0, params.seek.pos, max_character);
                 
-                line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos, 0, params.buffer->line_count);
+                line_index = buffer_get_line_index_from_character_pos(params.character_starts, (i32)params.seek.pos, 0, params.buffer->line_count);
             }break;
             
             case buffer_seek_line_char:
             {
-                line_index = params.seek.line - 1;
+                line_index = (i32)params.seek.line - 1;
                 line_index = clamp_bot(0, line_index);
             }break;
             
@@ -1327,8 +1327,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     // non-virtual character of the line.
     if (params.virtual_white){
         S_stop.status          = BLStatus_NeedLineShift;
-        S_stop.line_index      = S.next_cursor.line-1;
-        S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+        S_stop.line_index      = (i32)S.next_cursor.line - 1;
+        S_stop.wrap_line_index = (i32)S.next_cursor.wrap_line - 1;
         DrYield(1, S_stop);
         
         S.next_cursor.unwrapped_x += line_shift;
@@ -1336,7 +1336,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         
         S.stream.use_termination_character = 1;
         S.stream.terminator = '\n';
-        if (buffer_stringify_loop(&S.stream, params.buffer, S.next_cursor.pos, S.size)){
+        if (buffer_stringify_loop(&S.stream, params.buffer, (i32)S.next_cursor.pos, S.size)){
             do{
                 for (; S.next_cursor.pos < S.stream.end; ++S.next_cursor.pos){
                     u8 ch = (u8)S.stream.data[S.next_cursor.pos];
@@ -1404,7 +1404,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     }
     
     // Main seek loop
-    S.i = S.next_cursor.pos;
+    S.i = (i32)S.next_cursor.pos;
     
     S.stream = null_buffer_stream;
     S.stream.use_termination_character = 1;
@@ -1437,8 +1437,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         
                         if (params.virtual_white){
                             S_stop.status          = BLStatus_NeedLineShift;
-                            S_stop.line_index      = S.next_cursor.line-1;
-                            S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+                            S_stop.line_index      = (i32)S.next_cursor.line - 1;
+                            S_stop.wrap_line_index = (i32)S.next_cursor.wrap_line - 1;
                             DrYield(2, S_stop);
                         }
                         
@@ -1456,8 +1456,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         
                         if (S.step.i >= S.wrap_unit_end){
                             S_stop.status          = BLStatus_NeedWrapDetermination;
-                            S_stop.line_index      = S.next_cursor.line-1;
-                            S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+                            S_stop.line_index      = (i32)S.next_cursor.line - 1;
+                            S_stop.wrap_line_index = (i32)S.next_cursor.wrap_line - 1;
                             S_stop.pos             = S.step.i;
                             S_stop.x               = S.next_cursor.wrapped_x;
                             DrYield(4, S_stop);
@@ -1470,8 +1470,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                                 ++S.next_cursor.wrap_line;
                                 if (params.virtual_white){
                                     S_stop.status          = BLStatus_NeedWrapLineShift;
-                                    S_stop.line_index      = S.next_cursor.line-1;
-                                    S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+                                    S_stop.line_index      = (i32)S.next_cursor.line - 1;
+                                    S_stop.wrap_line_index = (i32)S.next_cursor.wrap_line - 1;
                                     DrYield(3, S_stop);
                                 }
                                 
@@ -1681,8 +1681,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
         S.shift_y += params.start_cursor.unwrapped_y;
     }
     
-    S.line = params.start_cursor.line - 1;
-    S.wrap_line = params.start_cursor.wrap_line - 1;
+    S.line = (i32)params.start_cursor.line - 1;
+    S.wrap_line = (i32)params.start_cursor.wrap_line - 1;
     
     if (params.virtual_white){
         S_stop.status          = BLStatus_NeedLineShift;
@@ -1708,7 +1708,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     
     S.first_of_the_line = true;
     S.first_of_the_wrap = true;
-    S.i = params.start_cursor.pos;
+    S.i = (i32)params.start_cursor.pos;
     if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
         do{
             for (; S.i < S.stream.end; ++S.i){

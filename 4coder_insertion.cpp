@@ -5,7 +5,7 @@
 // TOP
 
 static Buffer_Insertion
-begin_buffer_insertion_at(Application_Links *app, Buffer_ID buffer_id, i32 at){
+begin_buffer_insertion_at(Application_Links *app, Buffer_ID buffer_id, i64 at){
     Buffer_Insertion result = {};
     result.app = app;
     result.buffer = buffer_id;
@@ -14,7 +14,7 @@ begin_buffer_insertion_at(Application_Links *app, Buffer_ID buffer_id, i32 at){
 }
 
 static Buffer_Insertion
-begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, i32 at, Cursor *cursor){
+begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, i64 at, Cursor *cursor){
     Buffer_Insertion result = begin_buffer_insertion_at(app, buffer_id, at);
     result.buffering = true;
     result.cursor = cursor;
@@ -26,14 +26,14 @@ static Buffer_Insertion
 begin_buffer_insertion(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-    i32 cursor_pos = view_get_cursor_pos(app, view);
+    i64 cursor_pos = view_get_cursor_pos(app, view);
     Buffer_Insertion result = begin_buffer_insertion_at(app, buffer, cursor_pos);
     return(result);
 }
 
 static void
 insert_string__no_buffering(Buffer_Insertion *insertion, String_Const_u8 string){
-    buffer_replace_range(insertion->app, insertion->buffer, make_range((i32)insertion->at), string);
+    buffer_replace_range(insertion->app, insertion->buffer, Ii64(insertion->at), string);
     insertion->at += string.size;
 }
 

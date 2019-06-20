@@ -128,7 +128,7 @@ push_fancy_string(Arena *arena, String_Const_u8 value){
 
 static Fancy_String*
 push_fancy_stringfv(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, va_list args){
-    String_Const_u8 str = push_u8_stringf(arena, format, args);
+    String_Const_u8 str = push_u8_stringfv(arena, format, args);
     Fancy_String *result = 0;
     if (str.size > 0){
         result = push_fancy_string(arena, list, fore, back, str);

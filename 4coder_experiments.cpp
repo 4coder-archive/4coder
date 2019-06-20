@@ -20,16 +20,16 @@ get_line_y(Application_Links *app, View_ID view, i32 line){
 
 static Rect_i32
 get_line_x_rect(Application_Links *app, View_ID view){
-    i32 cursor_pos = view_get_cursor_pos(app, view);
+    i64 cursor_pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_pos));
-    i32 mark_pos = view_get_mark_pos(app, view);
+    i64 mark_pos = view_get_mark_pos(app, view);
     Full_Cursor mark = view_compute_cursor(app, view, seek_pos(mark_pos));
     
     Rect_i32 rect = {};
     rect.x0 = (i32)mark.wrapped_x;
     rect.x1 = (i32)cursor.wrapped_x;
-    rect.y0 = mark.line;
-    rect.y1 = cursor.line;
+    rect.y0 = (i32)mark.line;
+    rect.y1 = (i32)cursor.line;
     
     if (rect.y0 > rect.y1){
         Swap(i32, rect.y0, rect.y1);
@@ -53,28 +53,28 @@ CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by 
         f32 y = get_line_y(app, view, line);
         Full_Cursor cursor = view_compute_cursor(app, view, seek_wrapped_xy((f32)rect.x0, y, 0));
         if (cursor.line > 0){
-            i32 start = cursor.pos;
+            i64 start = cursor.pos;
             cursor = view_compute_cursor(app, view, seek_wrapped_xy((f32)rect.x1, y, 0));
             if (cursor.line > 0){
-                i32 end = cursor.pos;
-                buffer_replace_range(app, buffer, make_range(start, end), string_u8_litexpr(""));
+                i64 end = cursor.pos;
+                buffer_replace_range(app, buffer, Ii64(start, end), string_u8_empty);
             }
         }
     }
 }
 
 static void
-pad_buffer_line(Application_Links *app, Buffer_ID buffer, i32 line, char padchar, i32 target){
+pad_buffer_line(Application_Links *app, Buffer_ID buffer, i64 line, char padchar, i64 target){
     Partial_Cursor start = buffer_compute_cursor(app, buffer, seek_line_char(line, 1));
     if (start.line == line){
         Partial_Cursor end = buffer_compute_cursor(app, buffer, seek_line_char(line, 65536));
         if (end.line == line){
             if (end.character - 1 < target){
                 Scratch_Block scratch(app);
-                i32 size = target - (end.character - 1);
+                i64 size = target - (end.character - 1);
                 char *str = push_array(scratch, char, size);
                 block_fill_u8(str, size, ' ');
-                buffer_replace_range(app, buffer, make_range(end.pos), SCu8(str, size));
+                buffer_replace_range(app, buffer, Ii64(end.pos), SCu8(str, size));
             }
         }
     }
@@ -116,10 +116,10 @@ doing multi-cursor for now.
 */
 
 struct Buffer_Rect{
-    i32 char0;
-    i32 line0;
-    i32 char1;
-    i32 line1;
+    i64 char0;
+    i64 line0;
+    i64 char1;
+    i64 line1;
 };
 
 CUSTOM_COMMAND_SIG(multi_line_edit)
@@ -128,9 +128,9 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
-    i32 cursor_pos = view_get_cursor_pos(app, view);
+    i64 cursor_pos = view_get_cursor_pos(app, view);
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_pos));
-    i32 mark_pos = view_get_mark_pos(app, view);
+    i64 mark_pos = view_get_mark_pos(app, view);
     Full_Cursor mark = view_compute_cursor(app, view, seek_pos(mark_pos));
     Buffer_Rect rect = {};
     rect.char0 = mark.character;
@@ -138,20 +138,20 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
     rect.char1 = cursor.character;
     rect.line1 = cursor.line;
     if (rect.line0 > rect.line1){
-        Swap(i32, rect.line0, rect.line1);
+        Swap(i64, rect.line0, rect.line1);
     }
     if (rect.char0 > rect.char1){
-        Swap(i32, rect.char0, rect.char1);
+        Swap(i64, rect.char0, rect.char1);
     }
     
-    i32 start_line = cursor.line;
-    i32 pos = cursor.character - 1;
+    i64 start_line = cursor.line;
+    i64 pos = cursor.character - 1;
     
-    for (i32 i = rect.line0; i <= rect.line1; ++i){
+    for (i64 i = rect.line0; i <= rect.line1; ++i){
         pad_buffer_line(app, buffer, i, ' ', pos);
     }
     
-    i32 line_count = rect.line1 - rect.line0 + 1;
+    i64 line_count = rect.line1 - rect.line0 + 1;
     
     for (;;){
         User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc|EventOnMouseLeftButton|EventOnMouseRightButton);
@@ -164,7 +164,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
             Buffer_Edit *edits = push_array(scratch, Buffer_Edit, line_count);
             Buffer_Edit *edit = edits;
             
-            for (i32 i = rect.line0; i <= rect.line1; ++i){
+            for (i64 i = rect.line0; i <= rect.line1; ++i){
                 Partial_Cursor partial_cursor = buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1));
                 if (partial_cursor.line > 0){
                     edit->str_start = 0;
@@ -188,7 +188,7 @@ CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted a
                 Buffer_Edit *edits = push_array(scratch, Buffer_Edit, line_count);
                 Buffer_Edit *edit = edits;
                 
-                for (i32 i = rect.line0; i <= rect.line1; ++i){
+                for (i64 i = rect.line0; i <= rect.line1; ++i){
                     Partial_Cursor partial_cursor = buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1));
                     if (partial_cursor.line > 0){
                         edit->str_start = 0;
@@ -235,16 +235,16 @@ CUSTOM_COMMAND_SIG(multi_paste){
             String_Const_u8 insert_string = push_u8_stringf(scratch, "\n%.*s", string_expand(string));
             
             Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-            Range range = get_view_range(app, view);
-            buffer_replace_range(app, buffer, make_range(range.max), insert_string);
+            Range_i64 range = get_view_range(app, view);
+            buffer_replace_range(app, buffer, Ii64(range.max), insert_string);
             view_set_mark(app, view, seek_pos(range.max + 1));
-            view_set_cursor(app, view, seek_pos((i32)(range.max + insert_string.size)), true);
+            view_set_cursor(app, view, seek_pos(range.max + insert_string.size), true);
             
             // TODO(allen): Send this to all views.
             Theme_Color paste = {};
             paste.tag = Stag_Paste;
             get_theme_colors(app, &paste, 1);
-            view_post_fade(app, view, 0.667f, range.max + 1, (i32)(range.max + insert_string.size), paste.color);
+            view_post_fade(app, view, 0.667f, Ii64(range.max + 1, range.max + insert_string.size), paste.color);
         }
         else{
             paste(app);
@@ -252,11 +252,11 @@ CUSTOM_COMMAND_SIG(multi_paste){
     }
 }
 
-static Range
-multi_paste_range(Application_Links *app, View_ID view, Range range, i32 paste_count, b32 old_to_new){
+static Range_i64
+multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 paste_count, b32 old_to_new){
     Scratch_Block scratch(app);
     
-    Range finish_range = range;
+    Range_i64 finish_range = range;
     if (paste_count >= 1){
         Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         if (buffer != 0){
@@ -290,8 +290,8 @@ multi_paste_range(Application_Links *app, View_ID view, Range range, i32 paste_c
                 
                 String_Const_u8 flattened = string_list_flatten(scratch, list);
                 
-                i32 pos = range.min;
                 buffer_replace_range(app, buffer, range, flattened);
+                i64 pos = range.min;
                 finish_range.min = pos;
                 finish_range.max = pos + total_size;
                 view_set_mark(app, view, seek_pos(finish_range.min));
@@ -301,7 +301,7 @@ multi_paste_range(Application_Links *app, View_ID view, Range range, i32 paste_c
                 Theme_Color paste;
                 paste.tag = Stag_Paste;
                 get_theme_colors(app, &paste, 1);
-                view_post_fade(app, view, 0.667f, finish_range.min, finish_range.max, paste.color);
+                view_post_fade(app, view, 0.667f, finish_range, paste.color);
             }
         }
     }
@@ -311,13 +311,9 @@ multi_paste_range(Application_Links *app, View_ID view, Range range, i32 paste_c
 static void
 multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 clip_count){
     View_ID view = get_active_view(app, AccessOpen);
-    i32 pos = view_get_cursor_pos(app, view);
-    
-    Range range = make_range(pos);;
-    
+    i64 pos = view_get_cursor_pos(app, view);
     b32 old_to_new = true;
-    
-    range = multi_paste_range(app, view, range, paste_count, old_to_new);
+    Range_i64 range = multi_paste_range(app, view, Ii64(pos), paste_count, old_to_new);
     
     Query_Bar bar = {};
     bar.prompt = string_u8_litexpr("Up and Down to condense and expand paste stages; R to reverse order; Return to finish; Escape to abort.");
@@ -392,7 +388,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
 {
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    i32 cursor_pos = view_get_cursor_pos(app, view);
+    i64 cursor_pos = view_get_cursor_pos(app, view);
     
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
@@ -539,7 +535,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
-    i32 pos = view_get_cursor_pos(app, view);
+    i64 pos = view_get_cursor_pos(app, view);
     
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
@@ -746,8 +742,8 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, String_Co
         }
         
         // Use replacement list to do replacements
-        imem shift_per_replacement = new_string.size - target_string.size;
-        imem current_offset = 0;
+        i64 shift_per_replacement = new_string.size - target_string.size;
+        i64 current_offset = 0;
         Buffer_ID current_buffer_id = 0;
         for (Replace_Target *target = target_first;
              target != 0;
@@ -756,8 +752,8 @@ replace_all_occurrences_parameters(Application_Links *app, Heap *heap, String_Co
                 current_buffer_id = target->buffer_id;
                 current_offset = 0;
             }
-            i32 pos = target->start_pos + (i32)current_offset;
-            buffer_replace_range(app, target->buffer_id, make_range(pos, pos + (i32)target_string.size), new_string);
+            i64 pos = target->start_pos + current_offset;
+            buffer_replace_range(app, target->buffer_id, Ii64(pos, pos + target_string.size), new_string);
             current_offset += shift_per_replacement;
         }
         

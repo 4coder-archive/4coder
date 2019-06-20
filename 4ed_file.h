@@ -21,7 +21,7 @@ enum{
 struct File_Edit_Positions{
     Edit_Pos_Set_Type last_set_type;
     GUI_Scroll_Vars scroll;
-    i32 cursor_pos;
+    i64 cursor_pos;
 };
 
 // TODO(allen): do(replace Text_Effect with markers over time)

@@ -256,10 +256,8 @@ create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Cons
         }
         view_set_active(app, target_view);
         
-        i32 buffer_size = (i32)buffer_get_size(app, search_buffer);
-        
+        clear_buffer(app, search_buffer);
         buffer_send_end_signal(app, search_buffer);
-        buffer_replace_range(app, search_buffer, make_range(0, buffer_size), string_u8_litexpr(""));
     }
     else{
         search_buffer = create_buffer(app, name_string, BufferCreate_AlwaysNew);

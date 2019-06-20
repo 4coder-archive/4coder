@@ -691,6 +691,24 @@ typedef Range_u64 Interval_u64;
 typedef Range_f32 Interval_f32;
 typedef Range_i32 Range;
 
+struct Range_i32_Array{
+    Range_i32 *ranges;
+    i32 count;
+};
+struct Range_i64_Array{
+    Range_i64 *ranges;
+    i32 count;
+};
+struct Range_u64_Array{
+    Range_u64 *ranges;
+    i32 count;
+};
+struct Range_f32_Array{
+    Range_f32 *ranges;
+    i32 count;
+};
+typedef Range_i32_Array Range_Array;
+
 union Rect_i32{
     struct{
         i32 x0;
@@ -790,22 +808,22 @@ enum{
 
 struct String_Const_char{
     char *str;
-    umem size;
+    u64 size;
 };
 struct String_Const_u8{
     union{
         void *data;
         u8 *str;
     };
-    umem size;
+    u64 size;
 };
 struct String_Const_u16{
     u16 *str;
-    umem size;
+    u64 size;
 };
 struct String_Const_u32{
     u32 *str;
-    umem size;
+    u64 size;
 };
 
 struct String_Const_char_Array{
@@ -850,7 +868,7 @@ struct String_Const_Any{
     union{
         struct{
             void *str;
-            umem size;
+            u64 size;
         };
         String_Const_char s_char;
         String_Const_u8 s_u8;
@@ -878,26 +896,26 @@ struct Node_String_Const_u32{
 struct List_String_Const_char{
     Node_String_Const_char *first;
     Node_String_Const_char *last;
+    u64 total_size;
     i32 node_count;
-    umem total_size;
 };
 struct List_String_Const_u8{
     Node_String_Const_u8 *first;
     Node_String_Const_u8 *last;
+    u64 total_size;
     i32 node_count;
-    umem total_size;
 };
 struct List_String_Const_u16{
     Node_String_Const_u16 *first;
     Node_String_Const_u16 *last;
+    u64 total_size;
     i32 node_count;
-    umem total_size;
 };
 struct List_String_Const_u32{
     Node_String_Const_u32 *first;
     Node_String_Const_u32 *last;
+    u64 total_size;
     i32 node_count;
-    umem total_size;
 };
 
 struct Node_String_Const_Any{
@@ -907,8 +925,8 @@ struct Node_String_Const_Any{
 struct List_String_Const_Any{
     Node_String_Const_Any *first;
     Node_String_Const_Any *last;
+    u64 total_size;
     i32 node_count;
-    umem total_size;
 };
 
 struct String_char{

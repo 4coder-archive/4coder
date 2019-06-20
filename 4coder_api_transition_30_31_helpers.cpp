@@ -96,12 +96,12 @@ buffer_get_char(Application_Links *app, Buffer_Summary *buffer, i32 pos){
 
 static i32
 buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, i32 line){
-    return(buffer==0?0:get_line_start_pos(app, buffer->buffer_id, line));
+    return(buffer==0?0:(i32)get_line_start_pos(app, buffer->buffer_id, line));
 }
 
 static i32
 buffer_get_line_end(Application_Links *app, Buffer_Summary *buffer, i32 line){
-    return(buffer==0?0:get_line_end_pos(app, buffer->buffer_id, line));
+    return(buffer==0?0:(i32)get_line_end_pos(app, buffer->buffer_id, line));
 }
 
 static Cpp_Token*
@@ -252,12 +252,12 @@ get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 
 
 static i32
 seek_line_end(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:get_line_end_pos_from_pos(app, buffer->buffer_id, pos));
+    return(buffer==0?0:(i32)get_line_end_pos_from_pos(app, buffer->buffer_id, pos));
 }
 
 static i32
 seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:get_line_start_pos_from_pos(app, buffer->buffer_id, pos));
+    return(buffer==0?0:(i32)get_line_start_pos_from_pos(app, buffer->buffer_id, pos));
 }
 
 static void
@@ -267,63 +267,63 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
 
 static i32
 buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:get_pos_of_blank_line(app, buffer->buffer_id, Scan_Backward, pos));
+    return(buffer==0?0:(i32)get_pos_of_blank_line(app, buffer->buffer_id, Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:get_pos_of_blank_line(app, buffer->buffer_id, Scan_Forward, pos));
+    return(buffer==0?0:(i32)get_pos_of_blank_line(app, buffer->buffer_id, Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_non_whitespace, buffer->buffer_id, Scan_Forward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_non_whitespace, buffer->buffer_id, Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_non_whitespace, buffer->buffer_id, Scan_Backward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_non_whitespace, buffer->buffer_id, Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_alpha_numeric, buffer->buffer_id, Scan_Forward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_alpha_numeric, buffer->buffer_id, Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_alpha_numeric, buffer->buffer_id, Scan_Backward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_alpha_numeric, buffer->buffer_id, Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_underscore_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_alpha_numeric_underscore, buffer->buffer_id,
-                            Scan_Forward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_alpha_numeric_underscore, buffer->buffer_id,
+                                 Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_underscore_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_alpha_numeric_underscore, buffer->buffer_id,
-                            Scan_Backward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_alpha_numeric_underscore, buffer->buffer_id,
+                                 Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_alpha_numeric_camel, buffer->buffer_id,
-                            Scan_Forward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_alpha_numeric_camel, buffer->buffer_id,
+                                 Scan_Forward, pos));
 }
 
 static i32
 buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:scan(app, boundary_alpha_numeric_camel, buffer->buffer_id,
-                            Scan_Backward, pos));
+    return(buffer==0?0:(i32)scan(app, boundary_alpha_numeric_camel, buffer->buffer_id,
+                                 Scan_Backward, pos));
 }
 
 static i32
 buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
-    return(buffer!=0?0:scan(app, boundary_alpha_numeric_unicode,
-                            buffer->buffer_id,
-                            Scan_Forward, pos));
+    return(buffer!=0?0:(i32)scan(app, boundary_alpha_numeric_unicode,
+                                 buffer->buffer_id,
+                                 Scan_Forward, pos));
 }
 
 static Cpp_Token_Array
@@ -352,6 +352,20 @@ buffer_get_all_tokens(Application_Links *app, Arena *arena, Buffer_Summary *buff
     return(result);
 }
 
+void
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
+    Character_Predicate predicate = character_predicate_from_character((u8)delim);
+    String_Match m = buffer_seek_character_class(app, buffer, &predicate, Scan_Forward, pos);
+    *result = (i32)m.range.min;
+}
+
+void
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_ID buffer, i32 pos, char delim, i32 *result){
+    Character_Predicate predicate = character_predicate_from_character((u8)delim);
+    String_Match m = buffer_seek_character_class(app, buffer, &predicate, Scan_Backward, pos);
+    *result = (i32)m.range.min;
+}
+
 static void
 buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, char delim, i32 *result){
     if (buffer != 0){
@@ -369,35 +383,45 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer, i
 static void
 buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_forward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
+        i64 result_i64 = 0;
+        buffer_seek_string_forward(app, buffer->buffer_id, pos, end, SCu8(str, size), &result_i64);
+        *result = (i32)result_i64;
     }
 }
 
 static void
 buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_backward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
+        i64 result_i64 = 0;
+        buffer_seek_string_backward(app, buffer->buffer_id, pos, end, SCu8(str, size), &result_i64);
+        *result = (i32)result_i64;
     }
 }
 
 static void
 buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_insensitive_forward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
+        i64 result_i64 = 0;
+        buffer_seek_string_insensitive_forward(app, buffer->buffer_id, pos, end, SCu8(str, size), &result_i64);
+        *result = (i32)result_i64;
     }
 }
 
 static void
 buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, char *str, i32 size, i32 *result){
     if (buffer != 0){
-        buffer_seek_string_insensitive_backward(app, buffer->buffer_id, pos, end, SCu8(str, size), result);
+        i64 result_i64 = 0;
+        buffer_seek_string_insensitive_backward(app, buffer->buffer_id, pos, end, SCu8(str, size), &result_i64);
+        *result = (i32)result_i64;
     }
 }
 
 static void
 buffer_seek_string(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 end, i32 min, char *str, i32 size, i32 *result, Buffer_Seek_String_Flags flags){
     if (buffer != 0){
-        buffer_seek_string(app, buffer->buffer_id, pos, end, min, SCu8(str, size), result, flags);
+        i64 result_i64 = 0;
+        buffer_seek_string(app, buffer->buffer_id, pos, end, min, SCu8(str, size), &result_i64, flags);
+        *result = (i32)result_i64;
     }
 }
 
@@ -411,10 +435,10 @@ read_identifier_at_pos(Application_Links *app, Buffer_Summary *buffer, i32 pos, 
     String result = {};
     if (buffer != 0){
         Scratch_Block scratch(app);
-        Range range = enclose_alpha_numeric_underscore(app, buffer->buffer_id, make_range(pos));
+        Range_i64 range = enclose_pos_alpha_numeric_underscore(app, buffer->buffer_id, pos);
         String_Const_u8 string = push_buffer_range(app, scratch, buffer->buffer_id, range);
         if (range_out != 0){
-            *range_out = range;
+            *range_out = Ii32((i32)range.min, (i32)range.max);;
         }
         i32 size = (i32)string.size;
         size = clamp_top(size, max);
@@ -447,8 +471,7 @@ buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, i32 start_p
     i32 result = 0;
     if (buffer != 0){
         Scratch_Block scratch(app);
-        result = scan(app, boundary_list_from_old_flags(scratch, flags),
-                      buffer->buffer_id, dir, start_pos);
+        result = (i32)scan(app, boundary_list_from_old_flags(scratch, flags), buffer->buffer_id, dir, start_pos);
     }
     return(result);
 }
@@ -471,40 +494,50 @@ make_statement_parser(Application_Links *app, Buffer_Summary *buffer, i32 token_
 
 static b32
 find_whole_statement_down(Application_Links *app, Buffer_Summary *buffer, i32 pos, i32 *start_out, i32 *end_out){
-    return(buffer==0?false:find_whole_statement_down(app, buffer->buffer_id, pos, start_out, end_out));
+    Range_i64 r = {};
+    b32 result = (buffer==0?false:find_whole_statement_down(app, buffer->buffer_id, pos, &r.min, &r.max));
+    *start_out = (i32)r.min;
+    *end_out = (i32)r.max;
+    return(result);
 }
 
 static b32
 find_scope_top(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
-    return(buffer==0?false:find_scope_top(app, buffer->buffer_id, start_pos, flags, end_pos_out));
+    i64 r = 0;
+    b32 result = (buffer==0?false:find_scope_top(app, buffer->buffer_id, start_pos, flags, &r));
+    *end_pos_out = (i32)r;
+    return(result);
 }
 
 static b32
 find_scope_bottom(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
-    return(buffer==0?false:find_scope_bottom(app, buffer->buffer_id, start_pos, flags, end_pos_out));
+    i64 r = 0;
+    b32 result = (buffer==0?false:find_scope_bottom(app, buffer->buffer_id, start_pos, flags, &r));
+    *end_pos_out = (i32)r;
+    return(result);
 }
 
 static b32
 find_scope_range(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, Range *range_out, u32 flags){
-    return(buffer==0?false:find_scope_range(app, buffer->buffer_id, start_pos, range_out, flags));
+    Range_i64 r = {};
+    b32 result = (buffer==0?false:find_scope_range(app, buffer->buffer_id, start_pos, &r, flags));
+    *range_out = Ii32((i32)r.min, (i32)r.max);
+    return(result);
 }
 
 static b32
 find_next_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
-    return(buffer==0?false:find_next_scope(app, buffer->buffer_id, start_pos, flags, end_pos_out));
+    i64 r = 0;
+    b32 result = (buffer==0?false:find_next_scope(app, buffer->buffer_id, start_pos, flags, &r));
+    *end_pos_out = (i32)r;
+    return(result);
 }
 
 static b32
 find_prev_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u32 flags, i32 *end_pos_out){
-    return(buffer==0?false:find_prev_scope(app, buffer->buffer_id, start_pos, flags, end_pos_out));
-}
-
-static Range_Array
-get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 pos, u32 flags){
-    Range_Array result = {};
-    if (buffer != 0){
-        result = get_enclosure_ranges(app, arena, buffer->buffer_id, pos, flags);
-    }
+    i64 r = 0;
+    b32 result = (buffer==0?false:find_prev_scope(app, buffer->buffer_id, start_pos, flags, &r));
+    *end_pos_out = (i32)r;
     return(result);
 }
 
@@ -527,28 +560,12 @@ buffer_find_hard_start(Application_Links *app, Buffer_Summary *buffer, i32 line_
     Hard_Start_Result result = {};
     if (buffer != 0){
         Indent_Info info = get_indent_info_line_start(app, buffer->buffer_id, line_start, tab_width);
-        result.char_pos = info.first_char_pos;
+        result.char_pos = (i32)info.first_char_pos;
         result.indent_pos = info.indent_pos;
         result.all_whitespace = info.is_blank;
         result.all_space = info.all_space;
     }
     return(result);
-}
-
-static Buffer_Batch_Edit
-make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
-    Buffer_Batch_Edit result = {};
-    if (buffer != 0){
-        make_batch_from_indent_marks(app, arena, buffer->buffer_id, first_line, one_past_last_line, indent_marks, opts);
-    }
-    return(result);
-}
-
-static void
-set_line_indents(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 first_line, i32 one_past_last_line, i32 *indent_marks, Indent_Options opts){
-    if (buffer != 0){
-        set_line_indents(app, arena, buffer->buffer_id, first_line, one_past_last_line, indent_marks, opts);
-    }
 }
 
 static Indent_Anchor_Position
@@ -560,35 +577,34 @@ find_anchor_token(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Arra
     return(result);
 }
 
-static i32*
-get_indentation_marks(Application_Links *app, Arena *arena, Buffer_Summary *buffer,
-                      Cpp_Token_Array tokens, i32 first_line, i32 one_past_last_line,
-                      b32 exact_align, i32 tab_width){
-    return(buffer==0?0:get_indentation_marks(app, arena, buffer->buffer_id, tokens, first_line, one_past_last_line, exact_align, tab_width));
-}
-
 static i32
 buffer_get_line_number(Application_Links *app, Buffer_Summary *buffer, i32 pos){
-    return(buffer==0?0:get_line_number_from_pos(app, buffer->buffer_id, pos));
+    return(buffer==0?0:(i32)get_line_number_from_pos(app, buffer->buffer_id, pos));
 }
 
 static void
 get_indent_lines_minimum(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
     if (buffer != 0){
-        get_indent_lines_minimum(app, buffer->buffer_id, start_pos, end_pos, line_start_out, line_end_out);
+        Range_i64 r = {};
+        get_indent_lines_minimum(app, buffer->buffer_id, start_pos, end_pos, &r.min, &r.max);
+        *line_start_out = (i32)r.min;
+        *line_end_out = (i32)r.max;
     }
 }
 
 static void
 get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, i32 start_pos, i32 end_pos, i32 *line_start_out, i32 *line_end_out){
     if (buffer != 0){
-        get_indent_lines_whole_tokens(app, buffer->buffer_id, tokens, start_pos, end_pos, line_start_out, line_end_out);
+        Range_i64 r = {};
+        get_indent_lines_whole_tokens(app, buffer->buffer_id, tokens, start_pos, end_pos, &r.min, &r.max);
+        *line_start_out = (i32)r.min;
+        *line_end_out = (i32)r.max;
     }
 }
 
 static b32
 buffer_auto_indent(Application_Links *app, Arena *arena, Buffer_Summary *buffer, i32 start, i32 end, i32 tab_width, Auto_Indent_Flag flags){
-    return(buffer==0?0:buffer_auto_indent(app, arena, buffer->buffer_id, start, end, tab_width, flags));
+    return(buffer==0?0:buffer_auto_indent(app, buffer->buffer_id, start, end, tab_width, flags));
 }
 
 static b32
@@ -614,7 +630,7 @@ list_all_functions(Application_Links *app, Buffer_Summary *optional_target_buffe
 
 static i32
 get_start_of_line_at_cursor(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
-    return(get_start_of_line_at_cursor(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id));
+    return((i32)get_start_of_line_at_cursor(app, view==0?0:view->view_id, buffer==0?0:buffer->buffer_id));
 }
 
 static b32
@@ -757,7 +773,7 @@ execute_standard_build(Application_Links *app, View_Summary *view, Buffer_ID act
 
 static b32
 post_buffer_range_to_clipboard(Application_Links *app, i32 clipboard_index, Buffer_Summary *buffer, i32 first, i32 one_past_last){
-    return(post_buffer_range_to_clipboard(app, clipboard_index, buffer==0?0:buffer->buffer_id, first, one_past_last));
+    return(clipboard_post_buffer_range(app, clipboard_index, buffer==0?0:buffer->buffer_id, Ii64(first, one_past_last)));
 }
 
 static void
@@ -772,7 +788,10 @@ advance_cursor_in_jump_view(Application_Links *app, View_Summary *view, i32 skip
 
 static Parsed_Jump
 seek_next_jump_in_view(Application_Links *app, Arena *arena, View_Summary *view, i32 skip_sub_errors, i32 direction, i32 *line_out){
-    return(seek_next_jump_in_view(app, arena, view==0?0:view->view_id, skip_sub_errors, direction, line_out));
+    i64 r = 0;
+    Parsed_Jump result = (seek_next_jump_in_view(app, arena, view==0?0:view->view_id, skip_sub_errors, direction, &r));
+    *line_out = (i32)r;
+    return(result);
 }
 
 static void
@@ -797,7 +816,7 @@ view_set_to_region(Application_Links *app, View_Summary *view, i32 major_pos, i3
 
 static i32
 character_pos_to_pos(Application_Links *app, View_Summary *view, i32 character_pos){
-    return(character_pos_to_pos_view(app, view==0?0:view->view_id, character_pos));
+    return((i32)character_pos_to_pos_view(app, view==0?0:view->view_id, character_pos));
 }
 
 static b32
@@ -812,7 +831,7 @@ get_page_jump(Application_Links *app, View_Summary *view){
 
 static void
 isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Object highlight, i32 start, i32 end){
-    isearch__update_highlight(app, view==0?0:view->view_id, highlight, start, end);
+    isearch__update_highlight(app, view==0?0:view->view_id, highlight, Ii64(start, end));
 }
 
 static void
@@ -840,7 +859,7 @@ refresh_view(Application_Links *app, View_Summary *view){
 
 static String
 get_string_in_view_range(Application_Links *app, Arena *arena, View_Summary *view){
-    return(string_old_from_new(push_string_in_view_range(app, arena, view==0?0:view->view_id)));
+    return(string_old_from_new(push_view_range_string(app, arena, view==0?0:view->view_id)));
 }
 
 static b32
@@ -1064,17 +1083,17 @@ open_all_files_in_directory_pattern_match(Application_Links *app,
 
 static String_Const_u8
 scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, umem start, umem end){
-    return(push_buffer_range(app, arena, buffer, start, end));
+    return(push_buffer_range(app, arena, buffer, Ii64(start, end)));
 }
 
 static String_Const_u8
 scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range range){
-    return(push_buffer_range(app, arena, buffer, range));
+    return(push_buffer_range(app, arena, buffer, Ii64(range.min, range.max)));
 }
 
 static String_Const_u8
 scratch_read(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_u64 range){
-    return(push_buffer_range(app, arena, buffer, range));
+    return(push_buffer_range(app, arena, buffer, Ii64(range.min, range.max)));
 }
 
 static String_Const_u8
@@ -1105,7 +1124,7 @@ read_entire_buffer(Application_Links *app, Buffer_ID buffer_id, Arena *scratch){
 static String_Const_u8
 buffer_read_string(Application_Links *app, Buffer_ID buffer, Range range, void *dest){
     Scratch_Block scratch(app);
-    String_Const_u8 result = push_buffer_range(app, scratch, buffer, range);
+    String_Const_u8 result = push_buffer_range(app, scratch, buffer, Ii64(range.min, range.max));
     block_copy(dest, result.str, result.size);
     result.str = (u8*)dest;
     return(result);
@@ -1119,7 +1138,7 @@ token_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String b)
 static i32
 view_get_line_number(Application_Links *app, View_ID view, i32 pos){
     Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    return(cursor.line);
+    return((i32)cursor.line);
 }
 
 static void

@@ -42,15 +42,11 @@ app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine
 
 internal Coroutine_Head*
 app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, void *out){
-    Coroutine_Head *result = 0;
-    
     App_Coroutine_State prev_state = get_state(app);
-    
     app->current_coroutine = co;
     app->type_coroutine = type;
-    result = system->resume_coroutine(co, in, out);
+    Coroutine_Head *result = system->resume_coroutine(co, in, out);
     restore_state(app, prev_state);
-    
     return(result);
 }
 

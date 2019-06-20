@@ -154,14 +154,14 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Function
         
         i32 start_index = positions->sig_start_index;
         i32 end_index = positions->sig_end_index;
-        i32 open_paren_pos = positions->open_paren_pos;
-        i32 line_number = get_line_number_from_pos(app, buffer, open_paren_pos);
+        i64 open_paren_pos = positions->open_paren_pos;
+        i64 line_number = get_line_number_from_pos(app, buffer, open_paren_pos);
         
         Assert(end_index > start_index);
         
         Token_Range token_range = buffer_get_token_range(app, buffer);
         if (token_range.first != 0){
-            insertf(out, "%.*s:%d: ", string_expand(buffer_name), line_number);
+            insertf(out, "%.*s:%lld: ", string_expand(buffer_name), line_number);
             
             Cpp_Token prev_token = {};
             Token_Iterator token_it = make_token_iterator(token_range, start_index);
@@ -210,9 +210,8 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
         buffer_set_setting(app, decls_buffer, BufferSetting_WrapLine, false);
     }
     else{
+        clear_buffer(app, decls_buffer);
         buffer_send_end_signal(app, decls_buffer);
-        i32 size = (i32)buffer_get_size(app, decls_buffer);
-        buffer_replace_range(app, decls_buffer, make_range(0, size), string_u8_litexpr(""));
     }
     
     Arena *scratch = context_get_arena(app);

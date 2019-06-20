@@ -14,12 +14,12 @@ struct Indent_Options{
 };
 
 struct Indent_Parse_State{
-    i32 current_indent;
-    i32 previous_line_indent;
-    i32 paren_nesting;
-    i32 paren_anchor_indent[16];
-    i32 comment_shift;
-    i32 previous_comment_indent;
+    i64 current_indent;
+    i64 previous_line_indent;
+    i64 paren_nesting;
+    i64 paren_anchor_indent[16];
+    i64 comment_shift;
+    i64 previous_comment_indent;
 };
 
 struct Indent_Anchor_Position{
