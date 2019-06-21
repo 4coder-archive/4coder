@@ -472,7 +472,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, char *s
     if (edit_count > 0){
         History_Record_Index start_index = 0;
         if (history_is_activated(&file->state.history)){
-            start_index = history_get_record_count(&file->state.history);
+            start_index = file->state.current_record_index;
         }
         
         Buffer_Edit *edit_in = edits;
@@ -495,7 +495,7 @@ edit_batch(System_Functions *system, Models *models, Editing_File *file, char *s
         }
         
         if (history_is_activated(&file->state.history)){
-            History_Record_Index last_index = history_get_record_count(&file->state.history);
+            History_Record_Index last_index = file->state.current_record_index;
             if (start_index + 1 < last_index){
                 edit_merge_history_range(models, file, start_index + 1, last_index, RecordMergeFlag_StateInRange_ErrorOut);
             }

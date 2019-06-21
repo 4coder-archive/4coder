@@ -1799,6 +1799,59 @@ range_side(Interval_f32 a, Side side){
     return(side == Side_Min?a.min:a.max);
 }
 
+internal i32
+range_distance(Interval_i32 a, Interval_i32 b){
+    i32 result = 0;
+    if (!range_overlap(a, b)){
+        if (a.max < b.min){
+            result = b.min - a.max;
+        }
+        else{
+            result = a.min - b.max;
+        }
+    }
+    return(result);
+}
+internal i64
+range_distance(Interval_i64 a, Interval_i64 b){
+    i64 result = 0;
+    if (!range_overlap(a, b)){
+        if (a.max < b.min){
+            result = b.min - a.max;
+        }
+        else{
+            result = a.min - b.max;
+        }
+    }
+    return(result);
+}
+internal u64
+range_distance(Interval_u64 a, Interval_u64 b){
+    u64 result = 0;
+    if (!range_overlap(a, b)){
+        if (a.max < b.min){
+            result = b.min - a.max;
+        }
+        else{
+            result = a.min - b.max;
+        }
+    }
+    return(result);
+}
+internal f32
+range_distance(Interval_f32 a, Interval_f32 b){
+    f32 result = 0;
+    if (!range_overlap(a, b)){
+        if (a.max < b.min){
+            result = b.min - a.max;
+        }
+        else{
+            result = a.min - b.max;
+        }
+    }
+    return(result);
+}
+
 ////////////////////////////////
 
 internal i32

@@ -716,6 +716,11 @@ boundary_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, Side
 }
 
 static i64
+boundary_alpha_numeric_underscore_utf8(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
+    return(boundary_predicate(app, buffer, side, direction, pos, &character_predicate_alpha_numeric_underscore_utf8));
+}
+
+static i64
 boundary_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
     i64 an_pos = boundary_alpha_numeric(app, buffer, side, direction, pos);
     String_Match m = buffer_seek_character_class(app, buffer, &character_predicate_uppercase, direction, pos);

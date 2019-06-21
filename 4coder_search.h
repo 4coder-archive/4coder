@@ -10,16 +10,23 @@
 /* TODO(allen): 
 
 Time to rewrite _ALL_ of this s***f.
-1. String matching optimization study
-2. Redesign and reimplement find_all_in_range
-3. Filtering and reversing string lists
-4. Clean prefix match iterator
-5. Reimplement commands in 4coder_search.cpp
-6. Ditch all the old s***f we don't want anymore
-7. Reorganize, rename, etc.
+[x] 1. String matching optimization study
+[x] 2. Redesign and reimplement find_all_in_range
+[x] 3. Filtering and reversing string lists
+[ ] 4. Clean prefix match iterator
+[ ] 5. Reimplement commands in 4coder_search.cpp
+[ ] 6. Ditch all the old s***f we don't want anymore
+[ ] 7. Reorganize, rename, etc.
 
 */
 
+////////////////////////////////
+
+
+
+////////////////////////////////
+
+// TODO(allen): deprecate all this
 typedef i32 Seek_Potential_Match_Direction;
 enum{
     SeekPotentialMatch_Forward = 0,

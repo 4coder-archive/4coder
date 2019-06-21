@@ -704,8 +704,8 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
             Buffer_Edit edits[2];
             edits[0].str_start = 0;
             edits[0].len = (i32)edit_str.size;
-            edits[0].start = (i32)(range.max - 1);
-            edits[0].end = (i32)(range.max - 1);
+            edits[0].start = (i32)(range.min - 1);
+            edits[0].end = (i32)(range.min - 1);
             edits[1].str_start = 0;
             edits[1].len = 0;
             edits[1].start = (i32)(range.start);
