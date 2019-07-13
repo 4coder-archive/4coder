@@ -902,7 +902,7 @@ App_Init_Sig(app_init){
     dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
-    working_set_init(system, &models->working_set, arena, &vars->models.mem.heap);
+    working_set_init(system, &models->working_set, arena);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     

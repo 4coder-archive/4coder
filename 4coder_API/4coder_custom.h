@@ -12,7 +12,6 @@
 #include <stdio.h>
 
 #include "4coder_base_types.h"
-#include "4coder_lib/4coder_arena.h"
 #include "4coder_lib/4coder_heap.h"
 #include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4cpp_lexer_types.h"

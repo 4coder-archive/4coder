@@ -924,29 +924,9 @@ get_prev_view_looped_primary_panels(Application_Links *app, View_Summary *view_s
     get_view_summary(app, new_id, AccessAll, view_start);
 }
 
-static void
-list__parameters(Application_Links *app, Heap *heap, String_Const_u8 *strings, i32 count, Search_Range_Flag match_flags, View_Summary default_target_view){
-    list__parameters(app, heap, strings, count, match_flags, default_target_view.view_id);
-}
-
-static void
-list_query__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
-    list_query__parameters(app, heap, substrings, case_insensitive, default_target_view.view_id);
-}
-
 static Buffer_ID
 create_or_switch_to_buffer_by_name(Application_Links *app, char *name, i32 name_length, View_Summary default_target_view){
     return(create_or_switch_to_buffer_and_clear_by_name(app, SCu8(name, name_length), default_target_view.view_id));
-}
-
-static void
-list_identifier__parameters(Application_Links *app, Heap *heap, b32 substrings, b32 case_insensitive, View_Summary default_target_view){
-    list_identifier__parameters(app, heap, substrings, case_insensitive, default_target_view.view_id);
-}
-
-static void
-list_type_definition__parameters(Application_Links *app, Heap *heap, String str, View_Summary default_target_view){
-    list_type_definition__parameters(app, heap, string_new_u8_from_old(str), default_target_view.view_id);
 }
 
 static b32

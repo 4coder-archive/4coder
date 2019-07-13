@@ -190,7 +190,7 @@ parse_project__config_data__version_0(Arena *arena, String_Const_u8 file_dir, Co
     
     // Set new project directory
     {
-        project->dir = string_copy(arena, file_dir);
+        project->dir = push_string_copy(arena, file_dir);
         
         project->load_path_array.paths = push_array(arena, Project_File_Load_Path, 1);
         project->load_path_array.count = 1;
@@ -231,12 +231,12 @@ parse_project__config_data__version_0(Arena *arena, String_Const_u8 file_dir, Co
         if (config_compound_var(parsed, fkey_command_name, j, &compound)){
             String_Const_u8 cmd = {};
             if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
-                command->cmd = string_copy(arena, cmd);
+                command->cmd = push_string_copy(arena, cmd);
             }
             
             String_Const_u8 out = {};
             if (config_compound_string_member(parsed, compound, "out", 1, &out)){
-                command->out = string_copy(arena, out);
+                command->out = push_string_copy(arena, out);
             }
             
             b32 footer_panel = false;
@@ -268,7 +268,7 @@ parse_project__extract_pattern_array(Arena *arena, Config *parsed, char *root_va
         for (Config_Get_Result_Node *node = list.first;
              node != 0;
              node = node->next, i += 1){
-            String_Const_u8 str = string_copy(arena, node->result.string);
+            String_Const_u8 str = push_string_copy(arena, node->result.string);
             array_out->patterns[i].absolutes = string_split_wildcards(arena, str);
         }
     }
@@ -293,13 +293,13 @@ parse_project__config_data__version_1(Arena *arena, String_Const_u8 root_dir, Co
     Project *project = push_array_zero(arena, Project, 1);
     
     // Set new project directory
-    project->dir = string_copy(arena, root_dir);
+    project->dir = push_string_copy(arena, root_dir);
     
     // project_name
     {
         String_Const_u8 str = {};
         if (config_string_var(parsed, "project_name", 0, &str)){
-            project->name = string_copy(arena, str);
+            project->name = push_string_copy(arena, str);
         }
         else{
             project->name = SCu8("");
@@ -366,7 +366,7 @@ parse_project__config_data__version_1(Arena *arena, String_Const_u8 root_dir, Co
                     
                     String_Const_u8 str = {};
                     if (config_compound_string_member(parsed, src, "path", 0, &str)){
-                        dst->path = string_copy(arena, str);
+                        dst->path = push_string_copy(arena, str);
                     }
                     
                     config_compound_bool_member(parsed, src, "recursive", 1, &dst->recursive);
@@ -466,9 +466,9 @@ parse_project__config_data__version_1(Arena *arena, String_Const_u8 root_dir, Co
                 config_compound_bool_member(parsed, src, "cursor_at_end", 5,
                                             &cursor_at_end);
                 
-                dst->name = string_copy(arena, name);
-                dst->cmd = string_copy(arena, cmd_str);
-                dst->out = string_copy(arena, out);
+                dst->name = push_string_copy(arena, name);
+                dst->cmd = push_string_copy(arena, cmd_str);
+                dst->out = push_string_copy(arena, out);
                 dst->footer_panel = footer_panel;
                 dst->save_dirty_files = save_dirty_files;
                 dst->cursor_at_end = cursor_at_end;
@@ -599,8 +599,8 @@ project_deep_copy__pattern_array(Arena *arena, Project_File_Pattern_Array *src_a
 static Project
 project_deep_copy__inner(Arena *arena, Project *project){
     Project result = {};
-    result.dir = string_copy(arena, project->dir);
-    result.name = string_copy(arena, project->name);
+    result.dir = push_string_copy(arena, project->dir);
+    result.name = push_string_copy(arena, project->name);
     project_deep_copy__pattern_array(arena, &project->pattern_array, &result.pattern_array);
     project_deep_copy__pattern_array(arena, &project->blacklist_pattern_array, &result.blacklist_pattern_array);
     
@@ -612,7 +612,7 @@ project_deep_copy__inner(Arena *arena, Project *project){
         Project_File_Load_Path *dst = result.load_path_array.paths;
         Project_File_Load_Path *src = project->load_path_array.paths;
         for (i32 i = 0; i < path_count; ++i, ++dst, ++src){
-            dst->path = string_copy(arena, src->path);
+            dst->path = push_string_copy(arena, src->path);
             dst->recursive = src->recursive;
             dst->relative = src->relative;
         }
@@ -627,13 +627,13 @@ project_deep_copy__inner(Arena *arena, Project *project){
         Project_Command *src = project->command_array.commands;
         for (i32 i = 0; i < command_count; ++i, ++dst, ++src){
             if (src->name.str != 0){
-                dst->name = string_copy(arena, src->name);
+                dst->name = push_string_copy(arena, src->name);
             }
             if (src->cmd.str != 0){
-                dst->cmd = string_copy(arena, src->cmd);
+                dst->cmd = push_string_copy(arena, src->cmd);
             }
             if (src->out.str != 0){
-                dst->out = string_copy(arena, src->out);
+                dst->out = push_string_copy(arena, src->out);
             }
             dst->footer_panel = src->footer_panel;
             dst->save_dirty_files = src->save_dirty_files;
@@ -1074,9 +1074,9 @@ project_generate_bat_script(Arena *scratch, String_Const_u8 opts, String_Const_u
     
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 cf = string_copy(scratch, code_file);
-    String_Const_u8 od = string_copy(scratch, output_dir);
-    String_Const_u8 bf = string_copy(scratch, binary_file);
+    String_Const_u8 cf = push_string_copy(scratch, code_file);
+    String_Const_u8 od = push_string_copy(scratch, output_dir);
+    String_Const_u8 bf = push_string_copy(scratch, binary_file);
     
     cf = string_mod_replace_character(cf, '/', '\\');
     od = string_mod_replace_character(od, '/', '\\');
@@ -1358,8 +1358,8 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
         for (i32 i = 0;
              i < current_project.command_array.count;
              i += 1){
-            options[i].string = string_copy(scratch, current_project.command_array.commands[i].name);
-            options[i].status = string_copy(scratch, current_project.command_array.commands[i].cmd);
+            options[i].string = push_string_copy(scratch, current_project.command_array.commands[i].name);
+            options[i].status = push_string_copy(scratch, current_project.command_array.commands[i].cmd);
             options[i].user_data = IntAsPtr(i);
         }
         begin_integrated_lister__basic_list(app, "Command:", activate_project_command, 0, 0, options, option_count, 0, view);

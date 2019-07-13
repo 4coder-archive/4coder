@@ -712,82 +712,6 @@ struct Replace_Target{
     i32 start_pos;
 };
 
-static void
-replace_all_occurrences_parameters(Application_Links *app, Heap *heap, String_Const_u8 target_string, String_Const_u8 new_string){
-    if (target_string.size > 0){
-        global_history_edit_group_begin(app);
-        
-        // Initialize a generic search all buffers
-        Search_Set set = {};
-        Search_Iter iter = {};
-        initialize_generic_search_all_buffers(app, heap, &target_string, 1, SearchFlag_MatchSubstring, 0, 0, &set, &iter);
-        
-        // Visit all locations and create replacement list
-        Arena *scratch = context_get_arena(app);
-        Temp_Memory temp = begin_temp(scratch);
-        
-        Replace_Target *target_first = 0;
-        Replace_Target *target_last = 0;
-        i32 target_count = 0;
-        
-        for (Search_Match match = search_next_match(app, &set, &iter);
-             match.found_match;
-             match = search_next_match(app, &set, &iter)){
-            
-            Replace_Target *new_target = push_array(scratch, Replace_Target, 1);
-            sll_queue_push(target_first, target_last, new_target);
-            ++target_count;
-            new_target->buffer_id = match.buffer;
-            new_target->start_pos = match.start;
-        }
-        
-        // Use replacement list to do replacements
-        i64 shift_per_replacement = new_string.size - target_string.size;
-        i64 current_offset = 0;
-        Buffer_ID current_buffer_id = 0;
-        for (Replace_Target *target = target_first;
-             target != 0;
-             target = target->next){
-            if (target->buffer_id != current_buffer_id){
-                current_buffer_id = target->buffer_id;
-                current_offset = 0;
-            }
-            i64 pos = target->start_pos + current_offset;
-            buffer_replace_range(app, target->buffer_id, Ii64(pos, pos + target_string.size), new_string);
-            current_offset += shift_per_replacement;
-        }
-        
-        end_temp(temp);
-        
-        global_history_edit_group_end(app);
-    }
-}
-
-CUSTOM_COMMAND_SIG(replace_all_occurrences)
-CUSTOM_DOC("Queries the user for two strings, and replaces all occurrences of the first string with the second string in all open buffers.")
-{
-    u8 replace_space[1024];
-    Query_Bar replace = {};
-    replace.prompt = string_u8_litexpr("Replace (In All Buffers): ");
-    replace.string = SCu8(replace_space, (umem)0);
-    replace.string_capacity = sizeof(replace_space);
-    
-    u8 with_space[1024];
-    Query_Bar with = {};
-    with.prompt = string_u8_litexpr("With: ");
-    with.string = SCu8(with_space, (umem)0);
-    with.string_capacity = sizeof(with_space);
-    
-    if (!query_user_string(app, &replace)) return;
-    if (replace.string.size == 0) return;
-    
-    if (!query_user_string(app, &with)) return;
-    
-    String_Const_u8 r = replace.string;
-    String_Const_u8 w = with.string;
-    replace_all_occurrences_parameters(app, &global_heap, r, w);
-}
-
 extern "C" i32
 get_bindings(void *data, i32 size){
     Bind_Helper context_ = begin_bind_helper(data, size);
@@ -828,7 +752,7 @@ get_bindings(void *data, i32 size){
     bind(context, key_end, MDFR_ALT, miblo_decrement_time_stamp_minute);
     
     bind(context, 'b', MDFR_CTRL, multi_paste_interactive_quick);
-    bind(context, 'A', MDFR_CTRL, replace_all_occurrences);
+    bind(context, 'A', MDFR_CTRL, replace_in_all_buffers);
     end_map(context);
     
     begin_map(context, default_code_map);

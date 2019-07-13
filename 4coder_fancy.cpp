@@ -92,7 +92,7 @@ fancy_string_list_push(Fancy_String_List *list, Fancy_String *string){
 static Fancy_String *
 push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, String_Const_u8 value){
     Fancy_String *result = push_array_zero(arena, Fancy_String, 1);
-    result->value = string_copy(arena, value);
+    result->value = push_string_copy(arena, value);
     result->fore = fore;
     result->back = back;
     if (list != 0){

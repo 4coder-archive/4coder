@@ -20,12 +20,15 @@ Time to rewrite _ALL_ of this s***f.
 
 */
 
-////////////////////////////////
-
-
+#define Migrate__Match_Iterator 1
 
 ////////////////////////////////
 
+
+
+////////////////////////////////
+
+#if !Migrate__Match_Iterator
 // TODO(allen): deprecate all this
 typedef i32 Seek_Potential_Match_Direction;
 enum{
@@ -104,6 +107,7 @@ struct Word_Complete_State{
     i32 word_end;
     i32 initialized;
 };
+#endif
 
 #endif
 

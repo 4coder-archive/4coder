@@ -2125,8 +2125,6 @@ flip_side(Side side){
 
 ////////////////////////////////
 
-#if defined(Migrating__Arena)
-
 static void*
 base_reserve__noop(void *user_data, umem size, umem *size_out){
     *size_out = 0;
@@ -4374,7 +4372,7 @@ string_const_any_push(Arena *arena, umem size, String_Encoding encoding){
 }
 
 static String_Const_char
-string_copy(Arena *arena, String_Const_char src){
+push_string_copy(Arena *arena, String_Const_char src){
     String_Const_char string = {};
     string.str = push_array(arena, char, src.size + 1);
     string.size = src.size;
@@ -4383,7 +4381,7 @@ string_copy(Arena *arena, String_Const_char src){
     return(string);
 }
 static String_Const_u8
-string_copy(Arena *arena, String_Const_u8 src){
+push_string_copy(Arena *arena, String_Const_u8 src){
     String_Const_u8 string = {};
     string.str = push_array(arena, u8, src.size + 1);
     string.size = src.size;
@@ -4392,7 +4390,7 @@ string_copy(Arena *arena, String_Const_u8 src){
     return(string);
 }
 static String_Const_u16
-string_copy(Arena *arena, String_Const_u16 src){
+push_string_copy(Arena *arena, String_Const_u16 src){
     String_Const_u16 string = {};
     string.str = push_array(arena, u16, src.size + 1);
     string.size = src.size;
@@ -4401,7 +4399,7 @@ string_copy(Arena *arena, String_Const_u16 src){
     return(string);
 }
 static String_Const_u32
-string_copy(Arena *arena, String_Const_u32 src){
+push_string_copy(Arena *arena, String_Const_u32 src){
     String_Const_u32 string = {};
     string.str = push_array(arena, u32, src.size + 1);
     string.size = src.size;
@@ -4411,13 +4409,13 @@ string_copy(Arena *arena, String_Const_u32 src){
 }
 
 static String_Const_Any
-string_copy(Arena *arena, umem size, String_Const_Any src){
+push_string_copy(Arena *arena, umem size, String_Const_Any src){
     String_Const_Any string = {};
     switch (src.encoding){
-        case StringEncoding_ASCII: string.s_char = string_copy(arena, src.s_char); break;
-        case StringEncoding_UTF8:  string.s_u8   = string_copy(arena, src.s_u8  ); break;
-        case StringEncoding_UTF16: string.s_u16  = string_copy(arena, src.s_u16 ); break;
-        case StringEncoding_UTF32: string.s_u32  = string_copy(arena, src.s_u32 ); break;
+        case StringEncoding_ASCII: string.s_char = push_string_copy(arena, src.s_char); break;
+        case StringEncoding_UTF8:  string.s_u8   = push_string_copy(arena, src.s_u8  ); break;
+        case StringEncoding_UTF16: string.s_u16  = push_string_copy(arena, src.s_u16 ); break;
+        case StringEncoding_UTF32: string.s_u32  = push_string_copy(arena, src.s_u32 ); break;
     }
     return(string);
 }
@@ -4519,7 +4517,7 @@ string_list_push_overlap(Arena *arena, List_String_Const_char *list, char overla
     }
     if (tail_has_overlap == string_has_overlap){
         if (!tail_has_overlap){
-            string_list_push(arena, list, string_copy(arena, SCchar(&overlap, 1)));
+            string_list_push(arena, list, push_string_copy(arena, SCchar(&overlap, 1)));
         }
         else{
             string = string_skip(string, 1);
@@ -4544,7 +4542,7 @@ string_list_push_overlap(Arena *arena, List_String_Const_u8 *list, u8 overlap, S
     }
     if (tail_has_overlap == string_has_overlap){
         if (!tail_has_overlap){
-            string_list_push(arena, list, string_copy(arena, SCu8(&overlap, 1)));
+            string_list_push(arena, list, push_string_copy(arena, SCu8(&overlap, 1)));
         }
         else{
             string = string_skip(string, 1);
@@ -4569,7 +4567,7 @@ string_list_push_overlap(Arena *arena, List_String_Const_u16 *list, u16 overlap,
     }
     if (tail_has_overlap == string_has_overlap){
         if (!tail_has_overlap){
-            string_list_push(arena, list, string_copy(arena, SCu16(&overlap, 1)));
+            string_list_push(arena, list, push_string_copy(arena, SCu16(&overlap, 1)));
         }
         else{
             string = string_skip(string, 1);
@@ -4594,7 +4592,7 @@ string_list_push_overlap(Arena *arena, List_String_Const_u32 *list, u32 overlap,
     }
     if (tail_has_overlap == string_has_overlap){
         if (!tail_has_overlap){
-            string_list_push(arena, list, string_copy(arena, SCu32(&overlap, 1)));
+            string_list_push(arena, list, push_string_copy(arena, SCu32(&overlap, 1)));
         }
         else{
             string = string_skip(string, 1);
@@ -5959,7 +5957,7 @@ string_from_integer(Arena *arena, u64 x, u32 radix){
     String_Const_u8 result = {};
     if (radix >= 2 && radix <= 16){
         if (x == 0){
-            result = string_copy(arena, string_u8_litexpr("0"));
+            result = push_string_copy(arena, string_u8_litexpr("0"));
         }
         else{
             u8 string_space[64];
@@ -5974,7 +5972,7 @@ string_from_integer(Arena *arena, u64 x, u32 radix){
                  j += 1, i -= 1){
                 Swap(u8, string_space[i], string_space[j]);
             }
-            result = string_copy(arena, SCu8(string_space, length));
+            result = push_string_copy(arena, SCu8(string_space, length));
         }
     }
     return(result);
@@ -6107,8 +6105,6 @@ data_decode_from_base64(Arena *arena, u8 *str, umem size){
     }
     return(data);
 }
-
-#endif
 
 ////////////////////////////////
 

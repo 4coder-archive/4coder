@@ -7,6 +7,8 @@
 #if !defined(FCODER_BASE_TYPES)
 #define FCODER_BASE_TYPES
 
+////////////////////////////////
+
 #if defined(_MSC_VER)
 
 # define COMPILER_CL 1
@@ -1034,9 +1036,6 @@ enum{
 
 ////////////////////////////////
 
-#define Migrating__Arena
-#if defined(Migrating__Arena)
-
 typedef void *Base_Allocator_Reserve_Signature(void *user_data, umem size, umem *size_out);
 typedef void  Base_Allocator_Commit_Signature(void *user_data, void *ptr, umem size);
 typedef void  Base_Allocator_Uncommit_Signature(void *user_data, void *ptr, umem size);
@@ -1101,7 +1100,7 @@ struct Scratch_Block{
     Temp_Memory temp;
 };
 
-#endif
+////////////////////////////////
 
 #endif
 

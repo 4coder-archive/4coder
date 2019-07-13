@@ -13,7 +13,7 @@ push_build_directory_at_file(Application_Links *app, Arena *arena, Buffer_ID buf
     b32 is_match = string_match(file_name, base_name);
     end_temp(restore_point);
     if (!is_match){
-        result = string_copy(arena, string_remove_last_folder(file_name));
+        result = push_string_copy(arena, string_remove_last_folder(file_name));
     }
     return(result);
 }

@@ -9,6 +9,77 @@ and list all locations.
 // Search Iteration Systems
 //
 
+#if Migrate__Match_Iterator
+
+
+CUSTOM_COMMAND_SIG(list_all_locations)
+CUSTOM_DOC("Queries the user for a string and lists all exact case-sensitive matches found in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_substring_locations)
+CUSTOM_DOC("Queries the user for a string and lists all case-sensitive substring matches found in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive)
+CUSTOM_DOC("Queries the user for a string and lists all exact case-insensitive matches found in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive)
+CUSTOM_DOC("Queries the user for a string and lists all case-insensitive substring matches found in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_identifier)
+CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-sensitive mathces in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_identifier_case_insensitive)
+CUSTOM_DOC("Reads a token or word under the cursor and lists all exact case-insensitive mathces in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_selection)
+CUSTOM_DOC("Reads the string in the selected range and lists all exact case-sensitive mathces in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_selection_case_insensitive)
+CUSTOM_DOC("Reads the string in the selected range and lists all exact case-insensitive mathces in all open buffers.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition)
+CUSTOM_DOC("Queries user for string, lists all locations of strings that appear to define a type whose name matches the input string.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_type_definition_of_identifier)
+CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of strings that appear to define a type whose name matches it.")
+{
+    NotImplemented;
+}
+
+CUSTOM_COMMAND_SIG(word_complete)
+CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
+{
+    NotImplemented;
+}
+
+#else
+
 static void
 search_key_alloc(Heap *heap, Search_Key *key, umem *size, i32 count){
     count = clamp_top(count, ArrayCount(key->words));
@@ -38,11 +109,6 @@ search_key_alloc(Heap *heap, Search_Key *key, umem *size, i32 count){
     for (i32 i = 0; i < count; ++i){
         key->words[i].str = char_ptr;
         key->words[i].size = 0;
-#if 0
-        key->words[i].str = char_ptr;
-        key->words[i].size = 0;
-        key->words[i].memory_size = size[i];
-#endif
         char_ptr += size[i];
     }
     
@@ -774,73 +840,9 @@ CUSTOM_DOC("Reads a token or word under the cursor and lists all locations of st
     }
 }
 
-
 //
 // Word Complete Command
 //
-
-#if 0
-
-CUSTOM_COMMAND_SIG(word_complete)
-CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
-{
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    if (buffer != 0){
-        Managed_Scope scope = view_get_managed_scope(app, view);
-        
-        local_persist b32 completion_state_initialized = false;
-        local_persist Data_Table completion_table = {};
-        
-        b32 reset_completion_state = false;
-        u64 rewrite = 0;
-        managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
-        if (rewrite != RewriteWordComplete){
-            reset_completion_state = true;
-        }
-        managed_variable_set(app, scope, view_next_rewrite_loc, RewriteWordComplete);
-        
-        if (!completion_state_initialized || reset_completion_state){
-            table_clear(&completion_table);
-            completion_table = make_Data_table_app_links(app);
-            
-            Scratch_Block scratch(app);
-            
-            i64 pos = view_get_cursor_pos(app, view);
-            i64 start_pos = scan(app, boundary_alpha_numeric_underscore_utf8, buffer, Scan_Backward, pos);
-            if (start_pos < pos){
-                i64 check = scan(app, boundary_alpha_numeric_underscore_utf8, buffer, Scan_Forward, start_pos);
-                if (pos <= check){
-                    Range_i64 range = Ii64(start_pos, pos);
-                    String_Const_u8 match_prefix = push_buffer_range(app, scratch, buffer, range);
-                    
-                    String_Match_Flag has_flags = StringMatch_CaseSensitive|StringMatch_RightSideSloppy;
-                    String_Match_List not_flags = StringMatch_LeftSideSloppy;
-                    
-                    i64 size = buffer_get_size(app, buffer);
-                    String_Match_List forward = buffer_find_all_matches(app, scratch, buffer, 0, Ii64(pos, size), match_prefix,
-                                                                        &character_predicate_alpha_numeric_underscore_utf8, Scan_Forward);
-                    String_Match_List backward = buffer_find_all_matches(app, scratch, buffer, 0, Ii64(0, start_pos), match_prefix,
-                                                                         &character_predicate_alpha_numeric_underscore_utf8, Scan_Backward);
-                    
-                    string_match_list_filter_flags(&forward , has_flags, not_flags);
-                    string_match_list_filter_flags(&backward, has_flags, not_flags);
-                    
-                    String_Match_List list = string_match_list_merge_nearest(&forward, &backward, range);
-                    
-                    for (String_Match *node = list.first;
-                         node != 0;
-                         node = node->next){
-                        node->range.end = scan(app, boundary_alpha_numeric_underscore_utf8, node->buffer, Scan_Forward, node->range.end);
-                    }
-                    
-                }
-            }
-        }
-    }
-}
-
-#else
 
 static Word_Complete_State complete_state = {};
 
@@ -993,6 +995,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         }
     }
 }
+
 #endif
 
 // BOTTOM

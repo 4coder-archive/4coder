@@ -11,7 +11,7 @@
 
 internal Buffer_Slot_ID
 to_file_id(i32 id){
-    Buffer_Slot_ID result;
+    Buffer_Slot_ID result = {};
     result.id = id;
     return(result);
 }

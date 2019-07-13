@@ -19,17 +19,18 @@
 #include "4coder_base_types.h"
 #include "4ed_font.h"
 #include "4ed_system.h"
+#include "4coder_table.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_string_match.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
+#include "4coder_hash_functions.cpp"
+#include "4coder_table.cpp"
 
-#include "4coder_lib/4coder_arena.cpp"
 #include "4coder_lib/4coder_heap.cpp"
 #define FSTRING_IMPLEMENTATION
 #include "4coder_lib/4coder_string.h"
-#include "4coder_lib/4coder_table.h"
 #include "4coder_lib/4coder_utf8.h"
 
 // TODO(allen): stop this nonsense

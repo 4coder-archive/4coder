@@ -581,22 +581,22 @@ lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloc
 static void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, String_Const_u8 status,
                 void *user_data, umem  extra_space){
-    return(lister_add_item(lister, string, lister_prealloced(string_copy(&lister->arena, status)),
+    return(lister_add_item(lister, string, lister_prealloced(push_string_copy(&lister->arena, status)),
                            user_data, extra_space));
 }
 
 static void*
 lister_add_item(Lister *lister, String_Const_u8 string, Lister_Prealloced_String status,
                 void *user_data, umem extra_space){
-    return(lister_add_item(lister, lister_prealloced(string_copy(&lister->arena, string)), status,
+    return(lister_add_item(lister, lister_prealloced(push_string_copy(&lister->arena, string)), status,
                            user_data, extra_space));
 }
 
 static void*
 lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, void *user_data, umem extra_space){
     return(lister_add_item(lister,
-                           lister_prealloced(string_copy(&lister->arena, string)),
-                           lister_prealloced(string_copy(&lister->arena, status)),
+                           lister_prealloced(push_string_copy(&lister->arena, string)),
+                           lister_prealloced(push_string_copy(&lister->arena, status)),
                            user_data, extra_space));
 }
 
@@ -619,7 +619,7 @@ lister_add_theme_item(Lister *lister,
 static void*
 lister_add_theme_item(Lister *lister, String_Const_u8 string, i32 index,
                       void *user_data, i32 extra_space){
-    return(lister_add_theme_item(lister, lister_prealloced(string_copy(&lister->arena, string)), index,
+    return(lister_add_theme_item(lister, lister_prealloced(push_string_copy(&lister->arena, string)), index,
                                  user_data, extra_space));
 }
 

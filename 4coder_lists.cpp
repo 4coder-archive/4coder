@@ -559,7 +559,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
              info < one_past_last;
              info += 1){
             if (info->folder) continue;
-            String_Const_u8 file_name = string_copy(&lister->arena, SCu8(info->filename, info->filename_len));
+            String_Const_u8 file_name = push_string_copy(&lister->arena, SCu8(info->filename, info->filename_len));
             char *is_loaded = "";
             char *status_flag = "";
             

@@ -23,7 +23,7 @@ parse_extension_line_to_extension_list(Arena *arena, String_Const_u8 str){
         umem next_period = string_find_first(str, '.');
         String_Const_u8 extension = string_prefix(str, next_period);
         str = string_skip(str, next_period + 1);
-        array.strings[i] = string_copy(arena, extension);
+        array.strings[i] = push_string_copy(arena, extension);
     }
     push_align(arena, 8);
     
@@ -205,7 +205,7 @@ config_error_push(Arena *arena, Config_Error_List *list, String_Const_u8 file_na
     list->count += 1;
     error->file_name = file_name;
     error->pos = pos;
-    error->text = string_copy(arena, SCu8(error_text));
+    error->text = push_string_copy(arena, SCu8(error_text));
     return(error);
 }
 

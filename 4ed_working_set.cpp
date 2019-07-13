@@ -116,7 +116,7 @@ working_set_get_active_file(Working_Set *working_set, Buffer_ID id){
 
 // TODO(allen): REWRITE all of working set
 internal void
-working_set_init(System_Functions *system, Working_Set *working_set, Arena *arena, Heap *heap){
+working_set_init(System_Functions *system, Working_Set *working_set, Arena *arena){
     i16 init_count = 16;
     i16 array_init_count = 256;
     
@@ -150,102 +150,58 @@ working_set_init(System_Functions *system, Working_Set *working_set, Arena *aren
     }
 #endif
     
-    // NOTE(allen): init canon table
-    {
-        i32 item_size = sizeof(File_Name_Entry);
-        i32 table_size = working_set->file_max;
-        i32 mem_size = table_required_mem_size(table_size, item_size);
-        void *mem = heap_allocate(heap, mem_size);
-        memset(mem, 0, mem_size);
-        table_init_memory(&working_set->canon_table, mem, table_size, item_size);
-    }
-    
-    // NOTE(allen): init name table
-    {
-        i32 item_size = sizeof(File_Name_Entry);
-        i32 table_size = working_set->file_max;
-        i32 mem_size = table_required_mem_size(table_size, item_size);
-        void *mem = heap_allocate(heap, mem_size);
-        memset(mem, 0, mem_size);
-        table_init_memory(&working_set->name_table, mem, table_size, item_size);
-    }
-}
-
-internal void
-working_set__grow_if_needed(Table *table, Heap *heap, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
-    if (table_at_capacity(table)){
-        Table btable = {};
-        i32 new_max = table->max * 2;
-        i32 mem_size = table_required_mem_size(new_max, table->item_size);
-        void *mem = heap_allocate(heap, mem_size);
-        table_init_memory(&btable, mem, new_max, table->item_size);
-        table_clear(&btable);
-        table_rehash(table, &btable, 0, hash_func, comp_func);
-        heap_free(heap, table->hash_array);
-        *table = btable;
-    }
+    working_set->canon_table = make_table_Data_u64(arena->base_allocator, 128);
+    working_set->name_table = make_table_Data_u64(arena->base_allocator, 128);
 }
 
 internal Editing_File*
-working_set_contains_basic(Working_Set *working_set, Table *table, String_Const_u8 name){
+working_set_contains__generic(Working_Set *working_set, Table_Data_u64 *table, String_Const_u8 name){
     Editing_File *result = 0;
-    
-    File_Name_Entry *entry = (File_Name_Entry*)
-        table_find_item(table, &name, 0, tbl_string_hash, tbl_string_compare);
-    if (entry){
-        result = working_set_index(working_set, entry->id);
+    u64 val = 0;
+    if (table_read(table, make_data(name.str, name.size), &val)){
+        result = working_set_index(working_set, to_file_id((Buffer_ID)val));
     }
-    
     return(result);
 }
 
 internal b32
-working_set_add_basic(Heap *heap, Working_Set *working_set, Table *table, Editing_File *file, String_Const_u8 name){
-    working_set__grow_if_needed(table, heap, 0, tbl_string_hash, tbl_string_compare);
-    
-    File_Name_Entry entry;
-    entry.name = name;
-    entry.id = file->id;
-    b32 result = (table_add(table, &entry, 0, tbl_string_hash, tbl_string_compare) == 0);
-    return(result);
+working_set_add__generic(Table_Data_u64 *table, Buffer_ID id, String_Const_u8 name){
+    return(table_insert(table, make_data(name.str, name.size), id));
 }
 
 internal void
-working_set_remove_basic(Working_Set *working_set, Table *table, String_Const_u8 name){
-    table_remove_match(table, &name, 0, tbl_string_hash, tbl_string_compare);
+working_set_remove__generic(Table_Data_u64 *table, String_Const_u8 name){
+    table_erase(table, make_data(name.str, name.size));
 }
 
 internal Editing_File*
 working_set_contains_canon(Working_Set *working_set, String_Const_u8 name){
-    Editing_File *result = working_set_contains_basic(working_set, &working_set->canon_table, name);
-    return(result);
+    return(working_set_contains__generic(working_set, &working_set->canon_table, name));
 }
 
 internal b32
-working_set_canon_add(Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 name){
-    b32 result = working_set_add_basic(heap,working_set, &working_set->canon_table, file, name);
-    return(result);
+working_set_canon_add(Working_Set *working_set, Editing_File *file, String_Const_u8 name){
+    return(working_set_add__generic(&working_set->canon_table, file->id.id, name));
 }
 
 internal void
 working_set_canon_remove(Working_Set *working_set, String_Const_u8 name){
-    working_set_remove_basic(working_set, &working_set->canon_table, name);
+    working_set_remove__generic(&working_set->canon_table, name);
 }
 
 internal Editing_File*
 working_set_contains_name(Working_Set *working_set, String_Const_u8 name){
-    return(working_set_contains_basic(working_set, &working_set->name_table, name));
+    return(working_set_contains__generic(working_set, &working_set->name_table, name));
 }
 
 internal b32
 working_set_add_name(Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 name){
-    b32 result = working_set_add_basic(heap, working_set, &working_set->name_table, file, name);
-    return(result);
+    return(working_set_add__generic(&working_set->name_table, file->id.id, name));
 }
 
 internal void
 working_set_remove_name(Working_Set *working_set, String_Const_u8 name){
-    working_set_remove_basic(working_set, &working_set->name_table, name);
+    working_set_remove__generic(&working_set->name_table, name);
 }
 
 internal Editing_File*
@@ -347,7 +303,7 @@ file_bind_file_name(System_Functions *system, Heap *heap, Working_Set *working_s
     block_copy(file->canon.name_space, canon_file_name.str, size);
     file_name_terminate(&file->canon);
     system->add_listener((char*)file->canon.name_space);
-    b32 result = working_set_canon_add(heap, working_set, file, string_from_file_name(&file->canon));
+    b32 result = working_set_canon_add(working_set, file, string_from_file_name(&file->canon));
     Assert(result);
 }
 
@@ -477,8 +433,8 @@ buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *workin
             Buffer_Name_Conflict_Entry *entry = &conflicts[i];
             entry->buffer_id = file_ptr->id.id;
             
-            entry->file_name = string_copy(scratch, string_from_file_name(&file_ptr->canon));
-            entry->base_name = string_copy(scratch, base_name);
+            entry->file_name = push_string_copy(scratch, string_from_file_name(&file_ptr->canon));
+            entry->base_name = push_string_copy(scratch, base_name);
             
             String_Const_u8 b = base_name;
             if (i > 0){

@@ -2102,7 +2102,7 @@ open_file_try_current_path_then_binary_path(Application_Links *app, char *file_n
 static FILE*
 open_file(Arena *scratch, String_Const_u8 name){
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 name_copy = string_copy(scratch, name);
+    String_Const_u8 name_copy = push_string_copy(scratch, name);
     FILE *file = fopen((char*)name_copy.str, "rb");
     end_temp(temp);
     return(file);

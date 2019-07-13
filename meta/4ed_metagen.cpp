@@ -17,10 +17,8 @@
 #include "4coder_API/4coder_version.h"
 #include "4coder_API/4coder_keycodes.h"
 
-# include "4coder_lib/4coder_arena.h"
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
-# include "4coder_lib/4coder_arena.cpp"
 # define FSTRING_IMPLEMENTATION
 # include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4cpp_lexer.h"
@@ -73,11 +71,11 @@ generate_custom_headers(Arena *arena){
         String_Const_char name_string = unit_custom.set.items[i].name;
         
         List_String_Const_char macro_list = {};
-        string_list_push(arena, &macro_list, string_mod_upper(string_copy(arena, name_string)));
+        string_list_push(arena, &macro_list, string_mod_upper(push_string_copy(arena, name_string)));
         string_list_push_lit(arena, &macro_list, "_SIG");
         func_4ed_names.names[i].macro = string_list_flatten(arena, macro_list);
         
-        func_4ed_names.names[i].public_name = string_mod_lower(string_copy(arena, name_string));
+        func_4ed_names.names[i].public_name = string_mod_lower(push_string_copy(arena, name_string));
     }
     
     // NOTE(allen): Output

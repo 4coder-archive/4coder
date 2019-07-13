@@ -35,8 +35,8 @@ struct Working_Set{
     Plat_Handle edit_finished_timer;
     b32 do_not_mark_edits;
     
-    Table canon_table;
-    Table name_table;
+    Table_Data_u64 canon_table;
+    Table_Data_u64 name_table;
     
     // TODO(allen): do(update clipboard system to exist fully in the custom layer)
     String_Const_u8 clipboards[64];
@@ -49,11 +49,6 @@ struct Working_Set{
     
     i32 default_display_width;
     i32 default_minimum_base_display_width;
-};
-
-struct File_Name_Entry{
-    String_Const_u8 name;
-    Buffer_Slot_ID id;
 };
 
 internal void

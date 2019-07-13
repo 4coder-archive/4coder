@@ -196,7 +196,7 @@ DOC_SEE(The_4coder_Clipboard)
     String_Const_u8 *str = working_set_clipboard_index(&models->working_set, item_index);
     String_Const_u8 result = {};
     if (str != 0){
-        result = string_copy(arena, *str);
+        result = push_string_copy(arena, *str);
     }
     return(result);
 }
@@ -558,7 +558,7 @@ Push_Buffer_Base_Name(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
     Editing_File *file = imp_get_file(models, buffer_id);
     String_Const_u8 result = {};
     if (api_check_buffer(file)){
-        result = string_copy(arena, string_from_file_name(&file->base_name));
+        result = push_string_copy(arena, string_from_file_name(&file->base_name));
     }
     return(result);
 }
@@ -569,7 +569,7 @@ Push_Buffer_Unique_Name(Application_Links *app, Arena *out, Buffer_ID buffer_id)
     Editing_File *file = imp_get_file(models, buffer_id);
     String_Const_u8 result = {};
     if (api_check_buffer(file)){
-        result = string_copy(out, string_from_file_name(&file->unique_name));
+        result = push_string_copy(out, string_from_file_name(&file->unique_name));
     }
     return(result);
 }
@@ -580,7 +580,7 @@ Push_Buffer_File_Name(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
     Editing_File *file = imp_get_file(models, buffer_id);
     String_Const_u8 result = {};
     if (api_check_buffer(file)){
-        result = string_copy(arena, string_from_file_name(&file->canon));
+        result = push_string_copy(arena, string_from_file_name(&file->canon));
     }
     return(result);
 }
@@ -1005,7 +1005,7 @@ DOC_SEE(Buffer_Save_Flag)
         if (!skip_save){
             Arena *scratch = &models->mem.arena;
             Temp_Memory temp = begin_temp(scratch);
-            String_Const_u8 name = string_copy(scratch, file_name);
+            String_Const_u8 name = push_string_copy(scratch, file_name);
             save_file_to_name(system, models, file, name.str);
             end_temp(temp);
             result = true;
@@ -3443,7 +3443,7 @@ DOC_SEE(directory_set_hot)
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
-    String_Const_u8 result = string_copy(arena, SCu8(hot->string_space, hot->string_size));
+    String_Const_u8 result = push_string_copy(arena, SCu8(hot->string_space, hot->string_size));
     return(result);
 }
 
@@ -3490,7 +3490,7 @@ DOC_SEE(File_List)
             str = (char*)canon.name_space;
         }
         else{
-            String_Const_u8 s = string_copy(scratch, string_from_file_name(&canon));
+            String_Const_u8 s = push_string_copy(scratch, string_from_file_name(&canon));
             str = (char*)s.str;
         }
         system->set_file_list(list_out, str, 0, 0, 0);

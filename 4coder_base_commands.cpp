@@ -1109,9 +1109,14 @@ CUSTOM_DOC("Begins an incremental search up through the current buffer for the w
     isearch(app, true, query, true);
 }
 
-CUSTOM_COMMAND_SIG(replace_in_range)
-CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the first string in the range between the cursor and the mark with the second string.")
-{
+struct String_Pair{
+    b32 valid;
+    String_Const_u8 a;
+    String_Const_u8 b;
+};
+
+internal String_Pair
+query_user_replace_pair(Application_Links *app, Arena *arena){
     Query_Bar replace = {};
     u8 replace_space[1024];
     replace.prompt = string_u8_litexpr("Replace: ");
@@ -1124,14 +1129,57 @@ CUSTOM_DOC("Queries the user for two strings, and replaces all occurences of the
     with.string = SCu8(with_space, (umem)0);
     with.string_capacity = sizeof(with_space);
     
+    String_Pair result = {};
     if (query_user_string(app, &replace) && replace.string.size != 0 && query_user_string(app, &with)){
-        String_Const_u8 r = replace.string;
-        String_Const_u8 w = with.string;
-        View_ID view = get_active_view(app, AccessOpen);
-        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-        Range_i64 range = get_view_range(app, view);
-        replace_in_range(app, buffer, range, r, w);
+        result.valid = true;
+        result.a = push_string_copy(arena, replace.string);
+        result.b = push_string_copy(arena, with.string);
     }
+    return(result);
+}
+
+internal void
+replace_in_range_query_user(Application_Links *app, Buffer_ID buffer, Range_i64 range){
+    Scratch_Block scratch(app);
+    String_Pair pair = query_user_replace_pair(app, scratch);
+    if (pair.valid){
+        replace_in_range(app, buffer, range, pair.a, pair.b);
+    }
+}
+
+CUSTOM_COMMAND_SIG(replace_in_range)
+CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of needle with string in the range between cursor and the mark in the active buffer.")
+{
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    Range_i64 range = get_view_range(app, view);
+    replace_in_range_query_user(app, buffer, range);
+}
+
+CUSTOM_COMMAND_SIG(replace_in_buffer)
+CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of needle with string in the active buffer.")
+{
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    Range_i64 range = buffer_range(app, buffer);
+    replace_in_range_query_user(app, buffer, range);
+}
+
+CUSTOM_COMMAND_SIG(replace_in_all_buffers)
+CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of needle with string in all editable buffers.")
+{
+    global_history_edit_group_begin(app);
+    
+    Scratch_Block scratch(app);
+    String_Pair pair = query_user_replace_pair(app, scratch);
+    for (Buffer_ID buffer = get_buffer_next(app, 0, AccessOpen);
+         buffer != 0;
+         buffer = get_buffer_next(app, buffer, AccessOpen)){
+        Range_i64 range = buffer_range(app, buffer);
+        replace_in_range(app, buffer, range, pair.a, pair.b);
+    }
+    
+    global_history_edit_group_end(app);
 }
 
 static void

@@ -34,3 +34,8 @@ buffer_find_hard_start -> get_line_indent_info
 
 get_active_view -> get_active_view_DEP
 view_compute_cursor -> view_compute_cursor_DEP
+
+list__parameters
+list_query__parameters
+list_identifier__parameters
+list_type_definition__parameters

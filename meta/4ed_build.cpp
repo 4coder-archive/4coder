@@ -12,8 +12,6 @@
 //#define FM_PRINT_COMMANDS
 
 #include "../4coder_base_types.h"
-# include "../4coder_lib/4coder_arena.h"
-# include "../4coder_lib/4coder_arena.cpp"
 
 #if 0
 # define FSTRING_IMPLEMENTATION
