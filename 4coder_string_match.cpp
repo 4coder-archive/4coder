@@ -28,16 +28,23 @@ string_match_list_push(Arena *arena, String_Match_List *list,
                            make_range_i64(start, start + length));
 }
 
-internal void
-string_match_list_join(String_Match_List *dst, String_Match_List *src){
-    if (dst->last != 0){
-        dst->last->next = src->first;
+internal String_Match_List
+string_match_list_join(String_Match_List *a, String_Match_List *b){
+    String_Match_List list = *a;
+    block_zero_struct(a);
+    if (list.last != 0){
+        list.last->next = b->first;
+        if (b->last != 0){
+            list.last = b->last;
+        }
     }
-    if (src->last != 0){
-        dst->last = src->last;
+    else{
+        list.first = b->first;
+        list.last = b->last;
     }
-    dst->count += src->count;
-    block_zero_struct(src);
+    list.count += b->count;
+    block_zero_struct(b);
+    return(list);
 }
 
 internal void
@@ -52,6 +59,21 @@ string_match_list_filter_flags(String_Match_List *list, String_Match_Flag must_h
                 sll_queue_push(new_list.first, new_list.last, node);
                 new_list.count += 1;
             }
+        }
+    }
+    *list = new_list;
+}
+
+internal void
+string_match_list_filter_remove_buffer(String_Match_List *list, Buffer_ID buffer){
+    String_Match_List new_list = {};
+    for (String_Match *node = list->first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        if (node->buffer != buffer){
+            sll_queue_push(new_list.first, new_list.last, node);
+            new_list.count += 1;
         }
     }
     *list = new_list;
@@ -79,6 +101,7 @@ string_match_list_merge_nearest(String_Match_List *a, String_Match_List *b, Rang
         }
     }
     Assert(node_a == 0 || node_b == 0);
+    // TODO(allen): this is dumb O(n) work that could be O(1)
     String_Match *node = 0;
     if (node_a != 0){
         node = node_a;
@@ -96,6 +119,11 @@ string_match_list_merge_nearest(String_Match_List *a, String_Match_List *b, Rang
     block_zero_struct(a);
     block_zero_struct(b);
     return(list);
+}
+
+internal String_Match_List
+string_match_list_merge_front_to_back(String_Match_List *a, String_Match_List *b){
+    return(string_match_list_merge_nearest(a, b, make_range_i64(0)));
 }
 
 // BOTTOM

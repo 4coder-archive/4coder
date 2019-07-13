@@ -241,7 +241,7 @@ get_token_or_word_under_pos(Application_Links *app, Buffer_Summary *buffer, i32 
     String result = {};
     if (buffer != 0){
         Scratch_Block scratch(app);
-        String_Const_u8 string = get_token_or_word_under_pos(app, scratch, buffer->buffer_id, pos);
+        String_Const_u8 string = push_token_or_word_under_pos(app, scratch, buffer->buffer_id, pos);
         i32 size = (i32)string.size;
         size = clamp_top(size, capacity);
         block_copy(space, string.str, size);

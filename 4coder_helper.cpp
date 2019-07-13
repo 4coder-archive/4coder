@@ -1166,6 +1166,12 @@ push_view_range_string(Application_Links *app, Arena *arena, View_ID view){
     return(push_buffer_range(app, arena, buffer, get_view_range(app, view)));
 }
 
+internal String_Const_u8
+push_view_range_string(Application_Links *app, Arena *arena){
+    View_ID view = get_active_view(app, AccessAll);
+    return(push_view_range_string(app, arena, view));
+}
+
 static String_Const_u8
 push_enclose_range_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, Enclose_Function *enclose){
     Range_i64 range = enclose(app, buffer, Ii64(pos));
@@ -1444,6 +1450,39 @@ move_line(Application_Links *app, Buffer_ID buffer, i64 line_number, Scan_Direct
         result = get_line_side_pos(app, buffer, line_number, Side_Min);
     }
     return(result);
+}
+
+static void
+clear_buffer(Application_Links *app, Buffer_ID buffer){
+    buffer_replace_range(app, buffer, buffer_range(app, buffer), string_u8_litexpr(""));
+}
+
+////////////////////////////////
+
+internal String_Match_List
+find_all_matches_all_buffers(Application_Links *app, Arena *arena, String_Const_u8_Array match_patterns, String_Match_Flag must_have_flags, String_Match_Flag must_not_have_flags){
+    String_Match_List all_matches = {};
+    for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
+         buffer != 0;
+         buffer = get_buffer_next(app, buffer, AccessAll)){
+        String_Match_List buffer_matches = {};
+        for (i32 i = 0; i < match_patterns.count; i += 1){
+            Range_i64 range = buffer_range(app, buffer);
+            String_Match_List pattern_matches = buffer_find_all_matches(app, arena, buffer, i, range, match_patterns.vals[i],
+                                                                        &character_predicate_alpha_numeric_underscore_utf8, Scan_Forward);
+            string_match_list_filter_flags(&pattern_matches, must_have_flags, must_not_have_flags);
+            if (pattern_matches.count > 0){
+                if (buffer_matches.count == 0){
+                    buffer_matches = pattern_matches;
+                }
+                else{
+                    buffer_matches = string_match_list_merge_front_to_back(&buffer_matches, &pattern_matches);
+                }
+            }
+        }
+        all_matches = string_match_list_join(&all_matches, &buffer_matches);
+    }
+    return(all_matches);
 }
 
 ////////////////////////////////
@@ -1758,13 +1797,6 @@ try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, B
 
 ////////////////////////////////
 
-static void
-clear_buffer(Application_Links *app, Buffer_ID buffer){
-    buffer_replace_range(app, buffer, buffer_range(app, buffer), string_u8_litexpr(""));
-}
-
-////////////////////////////////
-
 static b32
 init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_ID buffer_id,
                   i32 pos, char *data, u32 size){
@@ -1976,10 +2008,10 @@ token_iterator_goto_prev_raw(Token_Iterator *iterator){
 ////////////////////////////////
 
 static String_Const_u8
-get_query_string(Application_Links *app, char *query_str, char *string_space, i32 space_size){
+get_query_string(Application_Links *app, char *query_str, u8 *string_space, i32 space_size){
     Query_Bar bar;
     bar.prompt = SCu8((u8*)query_str);
-    bar.string = SCu8((u8*)string_space, (umem)0);
+    bar.string = SCu8(string_space, (umem)0);
     bar.string_capacity = space_size;
     if (!query_user_string(app, &bar)){
         bar.string.size = 0;
@@ -1999,7 +2031,7 @@ get_token_from_pos(Application_Links *app, Buffer_ID buffer, u64 pos, Cpp_Get_To
 }
 
 static String_Const_u8
-get_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
+push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
     String_Const_u8 result = {};
     Cpp_Get_Token_Result get_result = {};
     b32 success = get_token_from_pos(app, buffer, (i32)pos, &get_result);
@@ -2010,6 +2042,14 @@ get_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buff
         }
     }
     return(result);
+}
+
+internal String_Const_u8
+push_token_or_word_under_active_cursor(Application_Links *app, Arena *arena){
+    View_ID view = get_active_view(app, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    i64 pos = view_get_cursor_pos(app, view);
+    return(push_token_or_word_under_pos(app, arena, buffer, pos));
 }
 
 static b32

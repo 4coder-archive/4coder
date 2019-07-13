@@ -24,7 +24,11 @@ Time to rewrite _ALL_ of this s***f.
 
 ////////////////////////////////
 
-
+typedef u32 List_All_Locations_Flag;
+enum{
+    ListAllLocationsFlag_CaseSensitive = 1,
+    ListAllLocationsFlag_MatchSubstring = 2,
+};
 
 ////////////////////////////////
 

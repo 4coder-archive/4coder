@@ -1117,27 +1117,29 @@ struct String_Pair{
 
 internal String_Pair
 query_user_replace_pair(Application_Links *app, Arena *arena){
-    Query_Bar replace = {};
-    u8 replace_space[1024];
-    replace.prompt = string_u8_litexpr("Replace: ");
-    replace.string = SCu8(replace_space, (umem)0);
-    replace.string_capacity = sizeof(replace_space);
+    Query_Bar *replace = push_array(arena, Query_Bar, 1);
+    u8 *replace_space = push_array(arena, u8, KB(1));
+    replace->prompt = string_u8_litexpr("Replace: ");
+    replace->string = SCu8(replace_space, (umem)0);
+    replace->string_capacity = KB(1);
     
-    Query_Bar with = {};
-    u8 with_space[1024];
-    with.prompt = string_u8_litexpr("With: ");
-    with.string = SCu8(with_space, (umem)0);
-    with.string_capacity = sizeof(with_space);
+    Query_Bar *with = push_array(arena, Query_Bar, 1);
+    u8 *with_space = push_array(arena, u8, KB(1));
+    with->prompt = string_u8_litexpr("With: ");
+    with->string = SCu8(with_space, (umem)0);
+    with->string_capacity = KB(1);
     
     String_Pair result = {};
-    if (query_user_string(app, &replace) && replace.string.size != 0 && query_user_string(app, &with)){
+    if (query_user_string(app, replace) && replace->string.size != 0 && query_user_string(app, with)){
         result.valid = true;
-        result.a = push_string_copy(arena, replace.string);
-        result.b = push_string_copy(arena, with.string);
+        result.a = replace->string;
+        result.b = with->string;
     }
     return(result);
 }
 
+// NOTE(allen): This is a bit of a hacky setup because of Query_Bar lifetimes.  This must be
+// called as the last operation of a command.
 internal void
 replace_in_range_query_user(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     Scratch_Block scratch(app);
