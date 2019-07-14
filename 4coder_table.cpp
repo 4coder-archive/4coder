@@ -33,6 +33,12 @@ make_table_u64_u64(Base_Allocator *allocator, u32 slot_count){
     return(table);
 }
 
+internal void
+table_free(Table_u64_u64 *table){
+    base_free(table->allocator, table->memory);
+    block_zero_struct(table);
+}
+
 internal Table_Lookup
 table_lookup(Table_u64_u64 *table, u64 key){
     Table_Lookup result = {};
@@ -128,7 +134,7 @@ table_insert(Table_u64_u64 *table, u64 key, u64 val){
             }
             Table_u64_u64 new_table = make_table_u64_u64(table->allocator, new_slot_count);
             table_rehash(&new_table, table);
-            base_free(table->allocator, table->memory);
+            table_free(table);
             *table = new_table;
             lookup = table_lookup(table, key);
             Assert(lookup.found_empty_slot);
@@ -169,6 +175,12 @@ make_table_Data_u64(Base_Allocator *allocator, u32 slot_count){
     table.used_count = 0;
     table.dirty_count = 0;
     return(table);
+}
+
+internal void
+table_free(Table_Data_u64 *table){
+    base_free(table->allocator, table->memory);
+    block_zero_struct(table);
 }
 
 internal Table_Lookup
@@ -266,7 +278,7 @@ table_insert(Table_Data_u64 *table, Data key, u64 val){
             }
             Table_Data_u64 new_table = make_table_Data_u64(table->allocator, new_slot_count);
             table_rehash(&new_table, table);
-            base_free(table->allocator, table->memory);
+            table_free(table);
             *table = new_table;
             lookup = table_lookup(table, key);
             Assert(lookup.found_empty_slot);
@@ -307,6 +319,12 @@ make_table_u64_Data(Base_Allocator *allocator, u32 slot_count){
     table.used_count = 0;
     table.dirty_count = 0;
     return(table);
+}
+
+internal void
+table_free(Table_u64_Data *table){
+    base_free(table->allocator, table->memory);
+    block_zero_struct(table);
 }
 
 internal Table_Lookup
@@ -404,7 +422,7 @@ table_insert(Table_u64_Data *table, u64 key, Data val){
             }
             Table_u64_Data new_table = make_table_u64_Data(table->allocator, new_slot_count);
             table_rehash(&new_table, table);
-            base_free(table->allocator, table->memory);
+            table_free(table);
             *table = new_table;
             lookup = table_lookup(table, key);
             Assert(lookup.found_empty_slot);
@@ -445,6 +463,12 @@ make_table_Data_Data(Base_Allocator *allocator, u32 slot_count){
     table.used_count = 0;
     table.dirty_count = 0;
     return(table);
+}
+
+internal void
+table_free(Table_Data_Data *table){
+    base_free(table->allocator, table->memory);
+    block_zero_struct(table);
 }
 
 internal Table_Lookup
@@ -542,7 +566,7 @@ table_insert(Table_Data_Data *table, Data key, Data val){
             }
             Table_Data_Data new_table = make_table_Data_Data(table->allocator, new_slot_count);
             table_rehash(&new_table, table);
-            base_free(table->allocator, table->memory);
+            table_free(table);
             *table = new_table;
             lookup = table_lookup(table, key);
             Assert(lookup.found_empty_slot);

@@ -32,10 +32,10 @@
 #include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4coder_utf8.h"
 #include "4coder_lib/4cpp_lexer.h"
+#include "4coder_table.h"
 
 #include "4coder_api_transition_30_31.h"
 
-#include "4coder_string_match.cpp"
 #include "4coder_helper.h"
 #include "4coder_insertion.h"
 #include "4coder_fancy.h"
@@ -54,8 +54,10 @@
 #include "4coder_scope_commands.h"
 #include "4coder_combined_write_commands.h"
 
-#include "4coder_buffer_seek_constructors.cpp"
 #include "4coder_hash_functions.cpp"
+#include "4coder_table.cpp"
+#include "4coder_string_match.cpp"
+#include "4coder_buffer_seek_constructors.cpp"
 
 #include "4coder_api_transition_30_31.cpp"
 

@@ -1075,6 +1075,15 @@ enclose_pos_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, i
 }
 
 static Range_i64
+enclose_alpha_numeric_underscore_utf8(Application_Links *app, Buffer_ID buffer, Range_i64 range){
+    return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_underscore_utf8));
+}
+static Range_i64
+enclose_pos_alpha_numeric_underscore_utf8(Application_Links *app, Buffer_ID buffer, i64 pos){
+    return(enclose_boundary(app, buffer, Ii64(pos), boundary_alpha_numeric_underscore_utf8));
+}
+
+static Range_i64
 enclose_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     return(enclose_boundary(app, buffer, range, boundary_alpha_numeric_camel));
 }
@@ -1483,6 +1492,12 @@ find_all_matches_all_buffers(Application_Links *app, Arena *arena, String_Const_
         all_matches = string_match_list_join(&all_matches, &buffer_matches);
     }
     return(all_matches);
+}
+
+internal String_Match_List
+find_all_matches_all_buffers(Application_Links *app, Arena *arena, String_Const_u8 pattern, String_Match_Flag must_have_flags, String_Match_Flag must_not_have_flags){
+    String_Const_u8_Array array = {&pattern, 1};
+    return(find_all_matches_all_buffers(app, arena, array, must_have_flags, must_not_have_flags));
 }
 
 ////////////////////////////////
