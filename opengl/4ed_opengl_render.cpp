@@ -31,7 +31,7 @@ gl__texture_initialize(GLint tex_width, GLint tex_height, u32 *pixels){
 
 internal u32
 gl__get_gpu_texture(Vec3_i32 dim, Texture_Kind texture_kind){
-    u32 tex;
+    u32 tex = 0;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -41,6 +41,13 @@ gl__get_gpu_texture(Vec3_i32 dim, Texture_Kind texture_kind){
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
     glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, GL_R8, dim.x, dim.y, 0, GL_RED, GL_UNSIGNED_INT, 0);
     return(tex);
+}
+
+internal b32
+gl__fill_gpu_texture(Texture_Kind texture_kind, u32 gpu_texture, Vec3_i32 p, Vec3_i32 dim, void *data){
+    b32 result = false;
+    glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, p.x, p.y, p.z, dim.x, dim.y, dim.z, GL_RED, GL_UNSIGNED_INT, data);
+    return(result);
 }
 
 internal void
