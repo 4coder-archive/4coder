@@ -282,14 +282,11 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     i32 new_line_count = buffer_count_newlines(buffer, edit.range.first, edit.range.first + edit.length);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-    Assert(font.valid);
-    
     file_grow_starts_as_needed(heap, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
     file_allocate_character_starts_as_needed(heap, file);
-    buffer_remeasure_character_starts(system, font, buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_remeasure_character_starts(system, buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
     
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
@@ -297,7 +294,14 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     }
     
     // NOTE(allen): wrap meta data
-    file_measure_wraps(system, &models->mem, file, font);
+#if 0
+    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
+    Assert(font.valid);
+#endif
+    Face *face = 0;
+    Assert(face != 0);
+    
+    file_measure_wraps(system, &models->mem, file, face);
     
     // NOTE(allen): cursor fixing
     edit_fix_markers(system, models, file, edit);

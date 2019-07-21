@@ -11,7 +11,7 @@
 
 internal void
 system_error_box(char *msg, b32 shutdown = true){
-    LOGF("error box: %s\n", msg);
+    //LOGF("error box: %s\n", msg);
     osx_error_dialogue(msg);
     if (shutdown){
         exit(1);

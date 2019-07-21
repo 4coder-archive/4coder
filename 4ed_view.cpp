@@ -345,8 +345,13 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     view->mark = edit_pos.cursor_pos;
     view_set_preferred_x_to_current_position(system, view);
     
+#if 0
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-    view->line_height = font.metrics->height;
+#endif
+    Face *face = 0;
+    Assert(face != 0);
+    
+    view->line_height = (i32)face->height;
     
     models->layout.panel_state_dirty = true;
 }
@@ -386,8 +391,11 @@ adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *mod
 internal void
 file_full_remeasure(System_Functions *system, Models *models, Editing_File *file){
     Face_ID font_id = file->settings.font_id;
+#if 0
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
-    file_measure_wraps(system, &models->mem, file, font);
+#endif
+    Face *face = 0;
+    file_measure_wraps(system, &models->mem, file, face);
     adjust_views_looking_at_file_to_new_cursor(system, models, file);
     
     Layout *layout = &models->layout;
@@ -396,7 +404,7 @@ file_full_remeasure(System_Functions *system, Models *models, Editing_File *file
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->file == file){
-            view->line_height = font.metrics->height;
+            view->line_height = (i32)face->height;
         }
     }
 }
@@ -419,8 +427,10 @@ global_set_font_and_update_files(System_Functions *system, Models *models, Face_
 }
 
 internal b32
-alter_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Font_Settings *new_settings){
+alter_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Face_Settings *new_settings){
     b32 success = false;
+    NotImplemented;
+#if 0
     if (system->font.face_change_settings(font_id, new_settings)){
         success = true;
         for (Node *node = models->working_set.used_sentinel.next;
@@ -432,12 +442,15 @@ alter_font_and_update_files(System_Functions *system, Models *models, Face_ID fo
             }
         }
     }
+#endif
     return(success);
 }
 
 internal b32
 release_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Face_ID replacement_id){
     b32 success = false;
+    NotImplemented;
+#if 0
     if (system->font.face_release(font_id)){
         Font_Pointers font = system->font.get_pointers_by_id(replacement_id);
         if (!font.valid){
@@ -460,6 +473,7 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
             }
         }
     }
+#endif
     return(success);
 }
 

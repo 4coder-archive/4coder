@@ -24,6 +24,21 @@ round32(f32 v){
     return(floor32(v + 0.5f));
 }
 
+static f32
+f32_ceil32(f32 v){
+    return((f32)ceil32(v));
+}
+
+static f32
+f32_floor32(f32 v){
+    return((f32)floor32(v));
+}
+
+static f32
+f32_round32(f32 v){
+    return((f32)round32(v));
+}
+
 static i8
 round_up_i8(i8 x, i8 b){
     x += b - 1;
@@ -3339,6 +3354,59 @@ string_find_last(String_Const_u32 str, u32 c){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
+    return(i);
+}
+
+static umem
+string_find_first_whitespace(String_Const_char str){
+    umem i = 0;
+    for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
+    return(i);
+}
+static umem
+string_find_first_whitespace(String_Const_u8 str){
+    umem i = 0;
+    for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
+    return(i);
+}
+static umem
+string_find_first_whitespace(String_Const_u16 str){
+    umem i = 0;
+    for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
+    return(i);
+}
+static umem
+string_find_first_whitespace(String_Const_u32 str){
+    umem i = 0;
+    for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
+    return(i);
+}
+static imem
+string_find_last_whitespace(String_Const_char str){
+    imem size = (imem)str.size;
+    imem i = size - 1;
+    for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
+    return(i);
+}
+static imem
+string_find_last_whitespace(String_Const_u8 str){
+    imem size = (imem)str.size;
+    imem i = size - 1;
+    for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
+    return(i);
+}
+static imem
+string_find_last_whitespace(String_Const_u16 str){
+    imem size = (imem)str.size;
+    imem i = size - 1;
+    for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
+    return(i);
+}
+static imem
+string_find_last_whitespace(String_Const_u32 str){
+    imem size = (imem)str.size;
+    imem i = size - 1;
+    for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
 

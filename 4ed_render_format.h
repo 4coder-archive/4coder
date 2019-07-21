@@ -14,7 +14,6 @@
 
 enum Render_Command_Type{
     RenCom_Rectangle,
-    RenCom_Outline,
     RenCom_Glyph,
     RenCom_ChangeClip,
 };
@@ -31,8 +30,14 @@ struct Render_Command_Header{
 
 struct Render_Command_Rectangle{
     Render_Command_Header header;
-    f32_Rect rect;
     u32 color;
+    Vec2 vertices[4];
+};
+
+struct Render_Command_Rectangle_Outline{
+    Render_Command_Header header;
+    u32 color;
+    Vec2 vertices[5];
 };
 
 struct Render_Command_Gradient{

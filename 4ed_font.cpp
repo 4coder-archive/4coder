@@ -9,6 +9,9 @@
 
 // TOP
 
+// TODO(allen): This is really "renderer font helpers or something like that"
+
+#if 0
 internal Face_ID
 font_get_id_by_name(System_Functions *system, String_Const_u8 name){
     Face_ID id = 0;
@@ -155,12 +158,6 @@ font_make_page(System_Functions *system, Font_Settings *settings, Font_Metrics *
     return(new_page);
 }
 
-internal b32
-font_can_render(System_Functions *system, Font_Settings *settings, Font_Metrics *metrics, Font_Page_Storage *pages, u32 codepoint){
-    b32 result = (codepoint <= 0x10FFFF);
-    return(result);
-}
-
 ///////
 // HACK(allen): Hack optimizations
 struct Font_Cached_Lookup_Result{
@@ -218,6 +215,14 @@ font_get_glyph_advance(System_Functions *system, Font_Settings *settings, Font_M
     if (page != 0 && page->advance[glyph_index] > 0.f){
         result = page->advance[glyph_index];
     }
+    return(result);
+}
+#endif
+
+internal f32
+font_get_glyph_advance(System_Functions *system, Face *face, u32 codepoint){
+    f32 result = 0.f;
+    NotImplemented;
     return(result);
 }
 

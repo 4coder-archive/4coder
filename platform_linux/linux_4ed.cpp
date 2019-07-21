@@ -37,7 +37,6 @@
 
 #include "4ed_font.h"
 #include "4ed_system.h"
-#include "4ed_log.h"
 #include "4ed_render_target.h"
 #include "4ed_render_format.h"
 #include "4ed.h"
@@ -86,7 +85,7 @@
 #define frame_useconds (1000000UL / FPS)
 
 #define LINUX_FN_DEBUG(fmt, ...) do { \
-    LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__); \
+    /*LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__);*/ \
 } while (0)
 
 // TODO(allen): Make an intrinsics header that uses the cracked OS to define a single set of intrinsic names.
@@ -678,7 +677,7 @@ linux_get_loadable_fonts(Partition *part, Font_Setup_List *list){
     FcObjectSet* os = FcObjectSetBuild(FC_FAMILY, FC_FILE, (char*)0);
     FcFontSet* fs = FcFontList(fc_config, pat, os);
     if (fs != 0){
-        LOGF("Total matching fonts: %d\n", fs->nfont);
+        //LOGF("Total matching fonts: %d\n", fs->nfont);
         for (int i=0; fs && i < fs->nfont; ++i) {
             FcPattern* font = fs->fonts[i];
             FcChar8 *file = 0;
@@ -776,7 +775,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_con
     int (*oldHandler)(Display*, XErrorEvent*) = XSetErrorHandler(&ctxErrorHandler);
     
     if (glXCreateContextAttribsARB == 0){
-        LOG("glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
+        //LOG("glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
         ctx = glXCreateNewContext( XDisplay, *best_config, GLX_RGBA_TYPE, 0, True );
     } 
     else{
@@ -790,15 +789,15 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_con
             None
         };
         
-        LOG("Creating GL 2.1 context... ");
+        //LOG("Creating GL 2.1 context... ");
         ctx = glXCreateContextAttribsARB(XDisplay, *best_config, 0, True, context_attribs);
         
         XSync( XDisplay, False );
         if (!ctxErrorOccurred && ctx){
-            LOG("Created GL 2.1 context.\n");
+            //LOG("Created GL 2.1 context.\n");
         }
         else{
-            LOG("Could not create a context.\n");
+            //LOG("Could not create a context.\n");
             exit(1);
         }
     }
@@ -807,21 +806,21 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_con
     XSetErrorHandler(oldHandler);
     
     if (ctxErrorOccurred || !ctx){
-        LOG("Failed to create an OpenGL context\n");
+        //LOG("Failed to create an OpenGL context\n");
         exit(1);
     }
     
     b32 Direct;
     if (!glXIsDirect(XDisplay, ctx)){
-        LOG("Indirect GLX rendering context obtained\n");
+        //LOG("Indirect GLX rendering context obtained\n");
         Direct = false;
     }
     else{
-        LOG("Direct GLX rendering context obtained\n");
+        //LOG("Direct GLX rendering context obtained\n");
         Direct = true;
     }
     
-    LOG("Making context current\n");
+    //LOG("Making context current\n");
     glXMakeCurrent( XDisplay, XWindow, ctx );
     
     //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
@@ -838,7 +837,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_con
             glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
             
             linuxvars.vsync = (swap_val == true);
-            LOGF("VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
+            //LOGF("VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
         }
         
     }
@@ -852,12 +851,12 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_con
             
             if (glXGetSwapIntervalMESA != 0){
                 linuxvars.vsync = glXGetSwapIntervalMESA();
-                LOGF("VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
+                //LOGF("VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
             }
             else{
                 // NOTE(inso): assume it worked?
                 linuxvars.vsync = true;
-                LOG("VSync enabled? possibly (MESA)\n");
+                //LOG("VSync enabled? possibly (MESA)\n");
             }
         }
         
@@ -870,12 +869,12 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_con
             
             // NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
             linuxvars.vsync = true;
-            LOG("VSync enabled? hopefully (SGI)\n");
+            //LOG("VSync enabled? hopefully (SGI)\n");
         }
         
     }
     else{
-        LOG("VSync enabled? nope, no suitable extension\n");
+        //LOG("VSync enabled? nope, no suitable extension\n");
     }
     
     return(ctx);
@@ -889,10 +888,10 @@ GLXCanUseFBConfig(Display *XDisplay)
     int GLXMajor, GLXMinor;
     
     char *XVendor = ServerVendor(XDisplay);
-    LOGF("XWindows vendor: %s\n", XVendor);
+    //LOGF("XWindows vendor: %s\n", XVendor);
     if (glXQueryVersion(XDisplay, &GLXMajor, &GLXMinor))
     {
-        LOGF("GLX version %d.%d\n", GLXMajor, GLXMinor);
+        //LOGF("GLX version %d.%d\n", GLXMajor, GLXMinor);
         if (((GLXMajor == 1 ) && (GLXMinor >= 3)) || (GLXMajor > 1))
         {
             Result = true;
@@ -939,7 +938,7 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
             
             int id = 0;
             glXGetFBConfigAttrib(XDisplay, Result.BestConfig, GLX_FBCONFIG_ID, &id);
-            LOGF("Using FBConfig: %d (0x%x)\n", id, id);
+            //LOGF("Using FBConfig: %d (0x%x)\n", id, id);
             
             XFree(VI);
         }
@@ -971,12 +970,12 @@ LinuxInputInit(Display *dpy, Window XWindow){
     setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
     b32 locale_supported = XSupportsLocale();
-    LOGF("Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
+    //LOGF("Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
     if (!locale_supported){
-        LOG("Reverting to 'C' ... ");
+        //LOG("Reverting to 'C' ... ");
         setlocale(LC_ALL, "C");
         locale_supported = XSupportsLocale();
-        LOGF("C is supported? %s.\n", locale_supported ? "Yes" : "No");
+        //LOGF("C is supported? %s.\n", locale_supported ? "Yes" : "No");
     }
     
     result.input_method = XOpenIM(dpy, 0, 0, 0);
@@ -1010,13 +1009,13 @@ LinuxInputInit(Display *dpy, Window XWindow){
         }
         else{
             result = null_init_input_result;
-            LOG("Could not get minimum required input style.\n");
+            //LOG("Could not get minimum required input style.\n");
             exit(1);
         }
     }
     else{
         result = null_init_input_result;
-        LOG("Could not open X Input Method.\n");
+        //LOG("Could not open X Input Method.\n");
         exit(1);
     }
     
@@ -1189,7 +1188,7 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
     Atom XSET_SET = XInternAtom(dpy, "_XSETTINGS_SETTINGS", True);
     
     if (XSET_SEL == None || XSET_SET == None){
-        LOG("XSETTINGS unavailable.\n");
+        //LOG("XSETTINGS unavailable.\n");
         return(dpi);
     }
     
@@ -1206,12 +1205,12 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
         unsigned long pad, num;
         
         if (XGetWindowProperty(dpy, xset_win, XSET_SET, 0, 1024, False, XSET_SET, &type, &fmt, &num, &pad, &prop) != Success){
-            LOG("XSETTINGS: GetWindowProperty failed.\n");
+            //LOG("XSETTINGS: GetWindowProperty failed.\n");
             goto out;
         }
         
         if (fmt != 8){
-            LOG("XSETTINGS: Wrong format.\n");
+            //LOG("XSETTINGS: Wrong format.\n");
             goto out;
         }
     }
@@ -1220,7 +1219,7 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
     p  = (char*)(xs + 1);
     
     if (xs->byte_order != 0){
-        LOG("FIXME: XSETTINGS not host byte order?\n");
+        //LOG("FIXME: XSETTINGS not host byte order?\n");
         goto out;
     }
     
@@ -1253,7 +1252,7 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
             } break;
             
             default: {
-                LOG("XSETTINGS: Got invalid type...\n");
+                //LOG("XSETTINGS: Got invalid type...\n");
                 goto out;
             } break;
         }
@@ -1457,7 +1456,7 @@ linux_handle_x11_events(void)
                     //TODO(inso): handle properly
                     Xutf8ResetIC(linuxvars.input_context);
                     XSetICFocus(linuxvars.input_context);
-                    LOG("FIXME: XBufferOverflow from LookupString.\n");
+                    //LOG("FIXME: XBufferOverflow from LookupString.\n");
                 }
                 
                 // don't push modifiers
@@ -1478,7 +1477,7 @@ linux_handle_x11_events(void)
                         //TODO(inso): handle properly
                         Xutf8ResetIC(linuxvars.input_context);
                         XSetICFocus(linuxvars.input_context);
-                        LOG("FIXME: XBufferOverflow from LookupString.\n");
+                        //LOG("FIXME: XBufferOverflow from LookupString.\n");
                     }
                     
                     if (*buff_no_caps){
@@ -1973,7 +1972,7 @@ main(int argc, char **argv){
     linuxvars.XDisplay = XOpenDisplay(0);
     if (!linuxvars.XDisplay){
         // NOTE(inso): probably not worth trying the popup in this case...
-        LOG("Can't open display!\n");
+        //LOG("Can't open display!\n");
         exit(1);
     }
     
@@ -2009,10 +2008,10 @@ main(int argc, char **argv){
         linuxvars.dpi_x = dw_mm ? dw / (dw_mm / 25.4) : 96;
         linuxvars.dpi_y = dh_mm ? dh / (dh_mm / 25.4) : 96;
         
-        LOGF("%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
+        //LOGF("%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
     }
     else{
-        LOGF("DPI from XSETTINGS: %d\n", linuxvars.dpi_x);
+        //LOGF("DPI from XSETTINGS: %d\n", linuxvars.dpi_x);
     }
     
     int window_width, window_height;
@@ -2028,7 +2027,7 @@ main(int argc, char **argv){
         XFixesSelectSelectionInput(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD, XFixesSetSelectionOwnerNotifyMask);
     }
     else{
-        LOG("Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n");
+        //LOG("Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n");
     }
     
     Init_Input_Result input_result = LinuxInputInit(linuxvars.XDisplay, linuxvars.XWindow);
@@ -2109,7 +2108,7 @@ main(int argc, char **argv){
     terminate_with_null(&curdir);
     replace_char(&curdir, '\\', '/');
     
-    LOG("Initializing application variables\n");
+    //LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, linuxvars.clipboard_contents, curdir, custom_api);
     
     LinuxResizeTarget(window_width, window_height);
@@ -2140,7 +2139,7 @@ main(int argc, char **argv){
         
         if (num_events == -1){
             if (errno != EINTR){
-                LOG("epoll_wait\n");
+                //LOG("epoll_wait\n");
             }
             continue;
         }
@@ -2215,7 +2214,7 @@ main(int argc, char **argv){
                 result = app.step(&sysfunc, &target, &memory_vars, &frame_input);
             }
             else{
-                LOG("app.step == 0 -- skipping\n");
+                //LOG("app.step == 0 -- skipping\n");
             }
             
             
@@ -2242,7 +2241,7 @@ main(int argc, char **argv){
             }
             
             // NOTE(allen): Render
-            interpret_render_buffer(&target, &shared_vars.pixel_scratch);
+            gl_render(&target, &shared_vars.pixel_scratch);
             glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
             
             // NOTE(allen): Toggle Full Screen

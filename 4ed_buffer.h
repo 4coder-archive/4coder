@@ -90,7 +90,7 @@ struct Buffer_Measure_Wrap_Params{
     Gap_Buffer *buffer;
     i32 *wrap_line_index;
     System_Functions *system;
-    Font_Pointers font;
+    Face *face;
     b32 virtual_white;
 };
 
@@ -124,7 +124,7 @@ struct Buffer_Cursor_Seek_Params{
     Gap_Buffer *buffer;
     Buffer_Seek seek;
     System_Functions *system;
-    Font_Pointers font;
+    Face *face;
     i32 *wrap_line_index;
     i32 *character_starts;
     b32 virtual_white;
@@ -186,7 +186,7 @@ struct Render_Item_Write{
     f32 x;
     f32 y;
     System_Functions *system;
-    Font_Pointers font;
+    Face *face;
     i32 font_height;
     f32 x_min;
     f32 x_max;
@@ -207,7 +207,7 @@ struct Buffer_Render_Params{
     Full_Cursor start_cursor;
     i32 wrapped;
     System_Functions *system;
-    Font_Pointers font;
+    Face *face;
     b32 virtual_white;
     i32 wrap_slashes;
     i32 one_past_last_abs_pos;

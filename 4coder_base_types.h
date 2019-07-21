@@ -102,6 +102,10 @@
 #define OS_MAC 0
 #endif
 
+#if !defined(SHIP_MODE)
+#define SHIP_MODE 0
+#endif
+
 ////////////////////////////////
 
 #if COMPILER_CL
@@ -160,6 +164,8 @@ typedef i64 imem;
 typedef float f32;
 typedef double f64;
 
+typedef void Void_Func(void);
+
 #define glue_(a,b) a##b
 #define glue(a,b) glue_(a,b)
 
@@ -183,6 +189,7 @@ typedef double f64;
 #define Member(S,m) (((S*)0)->m)
 #define NullMember(S,m) (&Member(S,m))
 #define OffsetOfMember(S,m) PtrAsInt(&Member(S,m))
+#define OffsetOfMemberStruct(s,m) PtrDif(&(s)->m, (s))
 #define SizeAfterMember(S,m) (sizeof(S) - OffsetOfMember(S,m))
 #define CastFromMember(S,m,ptr) (S*)( (u8*)(ptr) - OffsetOfMember(S,m) )
 #define IntAsPtr(a) (void*)(((u8*)0) + a)

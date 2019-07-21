@@ -13,7 +13,7 @@
 // HACK(allen): // NOTE(inso): this was a quick hack, might need some cleanup.
 internal void
 system_error_box(char *msg, b32 shutdown = true){
-    LOGF("Fatal Error: %s\n", msg);
+    //LOGF("Fatal Error: %s\n", msg);
     
     Display *dpy = XOpenDisplay(0);
     if (!dpy){

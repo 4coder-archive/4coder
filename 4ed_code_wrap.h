@@ -42,7 +42,7 @@ struct Code_Wrap_State{
     i32 size;
     i32 i;
     
-    Font_Pointers font;
+    Face *face;
     f32 tab_indent_amount;
     f32 byte_advance;
     
@@ -69,7 +69,7 @@ struct Wrap_Current_Shift{
 };
 
 internal void
-file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *file, Font_Pointers font);
+file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *file, Face *face);
 
 #endif
 

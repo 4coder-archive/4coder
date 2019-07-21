@@ -9,101 +9,210 @@
 
 // TOP
 
-// TODO(allen): If we don't actually need this then burn down 4ed_opengl_funcs.h
-// Declare function types and function pointers
 //#define GL_FUNC(N,R,P) typedef R (N##_Function) P; N##_Function *P = 0;
 //#include "4ed_opengl_funcs.h"
 #include "4ed_opengl_defines.h"
 
-// OpenGL 2.1 implementation
-
+#if 0
 internal GLuint
-private_texture_initialize(GLint tex_width, GLint tex_height, u32 *pixels){
+gl__texture_initialize(GLint tex_width, GLint tex_height, u32 *pixels){
     GLuint tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_INT, pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, tex_width, tex_height, 0, GL_RED, GL_UNSIGNED_INT, pixels);
+    return(tex);
+}
+#endif
+
+internal u32
+gl__get_gpu_texture(Vec3_i32 dim, Texture_Kind texture_kind){
+    u32 tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, GL_R8, dim.x, dim.y, 0, GL_RED, GL_UNSIGNED_INT, 0);
     return(tex);
 }
 
 internal void
-private_draw_bind_texture(Render_Target *t, i32 texid){
+gl__draw_bind_texture(Render_Target *t, i32 texid){
     if (t->bound_texture != texid){
         glBindTexture(GL_TEXTURE_2D, texid);
         t->bound_texture = texid;
     }
 }
 
-internal void
-private_draw_set_color(Render_Target *t, u32 color){
-    if (t->color != color){
-        t->color = color;
-        Vec4 c = unpack_color4(color);
-        glColor4f(c.r, c.g, c.b, c.a);
-    }
+internal void CALL_CONVENTION
+gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char *message, void *userParam){
+    InvalidPath;
 }
 
+char *gl__header = R"foo(#version 150
+)foo";
+
+char *gl__vertex = R"foo(
+uniform vec2 view_t;
+uniform mat2x2 view_m;
+ uniform vec4 color;
+in vec2 vertex_p;
+in vec2 vertex_t;
+smooth out vec4 fragment_color;
+smooth out vec2 uv;
+void main(void)
+{
+gl_Position = vec4(view_m*(vertex_p - view_t), 0.f, 1.f);
+fragment_color = color;
+uv = vertex_t;
+}
+)foo";
+
+char *gl__fragment = R"foo(
+smooth in vec4 fragment_color;
+smooth in vec2 uv;
+uniform sampler2D sampler;
+uniform float texture_override;
+out vec4 out_color;
+void main(void)
+{
+out_color = fragment_color*(texture(sampler, uv).r + texture_override);
+}
+)foo";
+
+#define AttributeList(X) \
+X(vertex_p) \
+X(vertex_t)
+
+#define UniformList(X) \
+X(view_t) \
+X(view_m) \
+X(color) \
+X(sampler) \
+X(texture_override)
+
+struct GL_Program{
+    u32 program;
+#define GetAttributeLocation(N) i32 N;
+    AttributeList(GetAttributeLocation)
+#undef GetAttributeLocation
+#define GetUniformLocation(N) i32 N;
+        UniformList(GetUniformLocation)
+#undef GetUniformLocation
+};
+
+internal GL_Program
+gl__make_program(char *header, char *vertex, char *fragment){
+    if (header == 0){
+        header = "";
+    }
+    
+    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+    GLchar *vertex_source_array[] = { header, vertex };
+    glShaderSource(vertex_shader, ArrayCount(vertex_source_array), vertex_source_array, 0);
+    glCompileShader(vertex_shader);
+    
+    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    GLchar *fragment_source_array[] = { header, fragment };
+    glShaderSource(fragment_shader, ArrayCount(fragment_source_array), fragment_source_array, 0);
+    glCompileShader(fragment_shader);
+    
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
+    glLinkProgram(program);
+    glValidateProgram(program);
+    
+    GLint success = false;
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success){
+        GLsizei ignore = 0;
+        char vertex_errors[KB(4)];
+        char fragment_errors[KB(4)];
+        char program_errors[KB(4)];
+        glGetShaderInfoLog(vertex_shader, sizeof(vertex_errors), &ignore, vertex_errors);
+        glGetShaderInfoLog(fragment_shader, sizeof(fragment_errors), &ignore, fragment_errors);
+        glGetProgramInfoLog(program, sizeof(program_errors), &ignore, program_errors);
+#if SHIP_MODE
+        os_popup_window(string_u8_litexpr("Error"), string_u8_litexpr("Shader compilation failed."));
+#endif
+        InvalidPath;
+    }
+    
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+    
+    GL_Program result = {};
+    result.program = program;
+#define GetAttributeLocation(N) result.N = glGetAttribLocation(program, #N);
+    AttributeList(GetAttributeLocation)
+#undef GetAttributeLocation
+#define GetUniformLocation(N) result.N = glGetUniformLocation(program, #N);
+        UniformList(GetUniformLocation)
+#undef GetUniformLocation
+        return(result);
+}
+
+#define GLOffset(p,m) ((void*)(OffsetOfMemberStruct(p,m)))
+
 internal void
-interpret_render_buffer(Render_Target *t, Arena *scratch){
+gl_render(Render_Target *t, Arena *scratch){
     local_persist b32 first_opengl_call = true;
+    local_persist u32 attribute_buffer = 0;
+    local_persist GL_Program gpu_program = {};
+    
     if (first_opengl_call){
         first_opengl_call = false;
         
-        char *vendor   = (char *)glGetString(GL_VENDOR);
-        char *renderer = (char *)glGetString(GL_RENDERER);
-        char *version  = (char *)glGetString(GL_VERSION);
-        
-        LOGF("GL_VENDOR: %s\n", vendor);
-        LOGF("GL_RENDERER: %s\n", renderer);
-        LOGF("GL_VERSION: %s\n", version);
-        
-        // TODO(allen): Get this up and running for dev mode again.
-#if (defined(BUILD_X64) && 0) || (defined(BUILD_X86) && 0)
-        // NOTE(casey): This slows down GL but puts error messages to
-        // the debug console immediately whenever you do something wrong
-        
-        void CALL_CONVENTION gl_dbg(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam);
-        
-        glDebugMessageCallback_type *glDebugMessageCallback =
-            (glDebugMessageCallback_type *)win32_load_gl_always("glDebugMessageCallback", module);
-        glDebugMessageControl_type *glDebugMessageControl =
-            (glDebugMessageControl_type *)win32_load_gl_always("glDebugMessageControl", module);
-        if(glDebugMessageCallback != 0 && glDebugMessageControl != 0)
-        {
-            glDebugMessageCallback(opengl_debug_callback, 0);
-            glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
-            glEnable(GL_DEBUG_OUTPUT);
-            glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        }
+#if !SHIP_MODE
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, 0, true);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_LOW, 0, 0, true);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_MEDIUM, 0, 0, true);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0, 0, true);
+        glDebugMessageCallback(gl__error_callback, 0);
 #endif
         
-        glEnable(GL_TEXTURE_2D);
+        ////////////////////////////////
+        
+        GLuint dummy_vao = 0;
+        glGenVertexArrays(1, &dummy_vao);
+        glBindVertexArray(dummy_vao);
+        
+        ////////////////////////////////
+        
+        glGenBuffers(1, &attribute_buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, attribute_buffer);
+        
+        ////////////////////////////////
+        
         glEnable(GL_SCISSOR_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        
+        ////////////////////////////////
+        
+        gpu_program = gl__make_program(gl__header, gl__vertex, gl__fragment);
+        glUseProgram(gpu_program.program);
     }
     
     i32 width = t->width;
     i32 height = t->height;
     
     glViewport(0, 0, width, height);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, width, height, 0, -1, 1);
     glScissor(0, 0, width, height);
     glClearColor(1.f, 0.f, 1.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);
     
     glBindTexture(GL_TEXTURE_2D, 0);
     t->bound_texture = 0;
-    
-    glColor4f(0.f, 0.f, 0.f, 0.f);
-    t->color = 0;
     
     for (Render_Free_Texture *free_texture = t->free_texture_first;
          free_texture != 0;
@@ -124,45 +233,45 @@ interpret_render_buffer(Render_Target *t, Arena *scratch){
             case RenCom_Rectangle:
             {
                 Render_Command_Rectangle *rectangle = (Render_Command_Rectangle*)header;
-                f32_Rect r = rectangle->rect;
-                private_draw_set_color(t, rectangle->color);
-                private_draw_bind_texture(t, 0);
-                glBegin(GL_QUADS);
-                {
-                    glVertex2f(r.x0, r.y0);
-                    glVertex2f(r.x0, r.y1);
-                    glVertex2f(r.x1, r.y1);
-                    glVertex2f(r.x1, r.y0);
-                }
-                glEnd();
-            }break;
-            
-            case RenCom_Outline:
-            {
-                Render_Command_Rectangle *rectangle = (Render_Command_Rectangle*)header;
-                f32_Rect r = rect_inner(rectangle->rect, .5f);
-                private_draw_set_color(t, rectangle->color);
-                private_draw_bind_texture(t, 0);
-                glBegin(GL_LINE_STRIP);
-                {
-                    glVertex2f(r.x0, r.y0);
-                    glVertex2f(r.x1, r.y0);
-                    glVertex2f(r.x1, r.y1);
-                    glVertex2f(r.x0, r.y1);
-                    glVertex2f(r.x0, r.y0);
-                }
-                glEnd();
+                gl__draw_bind_texture(t, 0);
+                
+                Vec4 c = unpack_color4(rectangle->color);
+                
+                i32 vertex_count = ArrayCount(rectangle->vertices);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(rectangle->vertices), rectangle->vertices, GL_STREAM_DRAW);
+                glEnableVertexAttribArray(gpu_program.vertex_p);
+                glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(rectangle->vertices[0]), 0);
+                
+                glUniform2f(gpu_program.view_t, width/2.f, height/2.f);
+                f32 m[4] = {
+                    2.f/width, 0.f,
+                    0.f, -2.f/height,
+                };
+                glUniformMatrix2fv(gpu_program.view_m, 1, GL_FALSE, m);
+                glUniform4f(gpu_program.color, c.r, c.g, c.b, c.a);
+                glUniform1f(gpu_program.texture_override, 1.f);
+                
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, vertex_count);
+                glDisableVertexAttribArray(gpu_program.vertex_p);
             }break;
             
             case RenCom_Glyph:
             {
                 Render_Command_Glyph *glyph = (Render_Command_Glyph*)header;
+#if 0
                 Font_Pointers font = system_font_get_pointers_by_id(glyph->font_id);
                 if (!font.valid){
                     break;
                 }
+#endif
+                Face *face = 0;
+                if (face == 0){
+                    break;
+                }
                 
                 u32 codepoint = glyph->codepoint;
+                
+#if 0                
                 u32 page_number = codepoint/GLYPHS_PER_PAGE;
                 Glyph_Page *page = font_cached_get_page(font.pages, page_number);
                 if (page == 0){
@@ -175,10 +284,9 @@ interpret_render_buffer(Render_Target *t, Arena *scratch){
                     i32 tex_height = 0;
                     u32 *pixels = font_load_page_pixels(scratch, font.settings, page, page_number, &tex_width, &tex_height);
                     page->has_gpu_setup = true;
-                    page->gpu_tex = private_texture_initialize(tex_width, tex_height, pixels);
+                    page->gpu_tex = gl__texture_initialize(tex_width, tex_height, pixels);
                     end_temp(temp);
                 }
-                
                 if (page->gpu_tex == 0){
                     break;
                 }
@@ -189,38 +297,76 @@ interpret_render_buffer(Render_Target *t, Arena *scratch){
                 i32 tex_width = page->tex_width;
                 i32 tex_height = page->tex_height;
                 
-                f32 x = glyph->pos.x;
-                f32 y = glyph->pos.y;
-                
-                f32_Rect uv = {};
-                
                 // TODO(allen): do(think about baking unit_u/unit_v into font data)
                 f32 unit_u = 1.f/tex_width;
                 f32 unit_v = 1.f/tex_height;
+#else
                 
-                uv.x0 = bounds.x0*unit_u;
-                uv.y0 = bounds.y0*unit_v;
-                uv.x1 = bounds.x1*unit_u;
-                uv.y1 = bounds.y1*unit_v;
+                u16 glyph_index = 0;
+                if (!table_read(&face->codepoint_to_index_table, codepoint, &glyph_index)){
+                    glyph_index = 0;
+                }
+                Glyph_Bounds bounds = face->bounds[glyph_index];
+                GLuint tex = face->gpu_texture;
+                Vec3_f32 gpu_texture_dim = face->gpu_texture_dim;
+#endif
                 
-                private_draw_set_color(t, glyph->color);
-                private_draw_bind_texture(t, tex);
-                glBegin(GL_QUADS);
-                if ((glyph->flags & GlyphFlag_Rotate90) == 0){
-                    glTexCoord2f(uv.x0, uv.y1); glVertex2f(x + bounds.xoff , y + bounds.yoff2);
-                    glTexCoord2f(uv.x1, uv.y1); glVertex2f(x + bounds.xoff2, y + bounds.yoff2);
-                    glTexCoord2f(uv.x1, uv.y0); glVertex2f(x + bounds.xoff2, y + bounds.yoff );
-                    glTexCoord2f(uv.x0, uv.y0); glVertex2f(x + bounds.xoff , y + bounds.yoff );
+                f32 x = glyph->pos.x;
+                f32 y = glyph->pos.y;
+                
+                f32_Rect uv = Rf32(bounds.uv.x0, bounds.uv.y0,
+                                   bounds.uv.x1, bounds.uv.y1);
+                f32_Rect xy = Rf32(x + bounds.xy_off.x0, y + bounds.xy_off.y0,
+                                   x + bounds.xy_off.x1, y + bounds.xy_off.y1);
+                
+                struct Textutred_Vertex{
+                    Vec2 xy;
+                    Vec2 uv;
+                };
+                
+                Textutred_Vertex vertices[4];
+                if (!HasFlag(glyph->flags, GlyphFlag_Rotate90)){
+                    vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uv = V2(uv.x0, uv.y1);
+                    vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uv = V2(uv.x1, uv.y1);
+                    vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uv = V2(uv.x0, uv.y0);
+                    vertices[3].xy = V2(xy.x1, xy.y0); vertices[3].uv = V2(uv.x1, uv.y0);
                 }
                 else{
-                    glTexCoord2f(uv.x0, uv.y1); glVertex2f(x + bounds.yoff2, y + bounds.xoff2);
-                    glTexCoord2f(uv.x1, uv.y1); glVertex2f(x + bounds.yoff2, y + bounds.xoff );
-                    glTexCoord2f(uv.x1, uv.y0); glVertex2f(x + bounds.yoff , y + bounds.xoff );
-                    glTexCoord2f(uv.x0, uv.y0); glVertex2f(x + bounds.yoff , y + bounds.xoff2);
+                    vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uv = V2(uv.x1, uv.y1);
+                    vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uv = V2(uv.x1, uv.y0);
+                    vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uv = V2(uv.x0, uv.y1);
+                    vertices[3].xy = V2(xy.x1, xy.y0); vertices[3].uv = V2(uv.x0, uv.y0);
                 }
-                glEnd();
                 
+                gl__draw_bind_texture(t, tex);
+                
+                Vec4 c = unpack_color4(glyph->color);
+                
+                i32 vertex_count = ArrayCount(vertices);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+                glEnableVertexAttribArray(gpu_program.vertex_p);
+                glEnableVertexAttribArray(gpu_program.vertex_t);
+                glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(vertices[0]), GLOffset(&vertices[0], xy));
+                glVertexAttribPointer(gpu_program.vertex_t, 2, GL_FLOAT, true, sizeof(vertices[0]), GLOffset(&vertices[0], uv));
+                
+                glUniform2f(gpu_program.view_t, width/2.f, height/2.f);
+                f32 m[4] = {
+                    2.f/width, 0.f,
+                    0.f, -2.f/height,
+                };
+                glUniformMatrix2fv(gpu_program.view_m, 1, GL_FALSE, m);
+                glUniform4f(gpu_program.color, c.r, c.g, c.b, c.a);
+                
+                glUniform1i(gpu_program.sampler, 0);
+                glUniform1f(gpu_program.texture_override, 0.f);
+                
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, vertex_count);
+                glDisableVertexAttribArray(gpu_program.vertex_p);
+                glDisableVertexAttribArray(gpu_program.vertex_t);
+                
+#if 0
                 if (codepoint != ' ' && font.settings->parameters.underline){
+                    // TODO(allen): recover this feature
                     glDisable(GL_TEXTURE_2D);
                     
                     f32 x0 = x;
@@ -239,6 +385,7 @@ interpret_render_buffer(Render_Target *t, Arena *scratch){
                     
                     glEnable(GL_TEXTURE_2D);
                 }
+#endif
             }break;
             
             case RenCom_ChangeClip:

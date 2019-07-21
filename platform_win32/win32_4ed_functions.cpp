@@ -84,54 +84,34 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
         u8 *memory = (u8*)system_memory_allocate(binary_path_capacity);
         i32 size = GetModuleFileName_utf8(&shared_vars.scratch, 0, memory, binary_path_capacity);
         Assert(size <= binary_path_capacity - 1);
-        win32vars.binary_path = make_string(memory, size);
-        remove_last_folder(&win32vars.binary_path);
-        terminate_with_null(&win32vars.binary_path);
+        win32vars.binary_path = SCu8(memory, size);
+        win32vars.binary_path = string_remove_last_folder(win32vars.binary_path);
+        win32vars.binary_path.str[win32vars.binary_path.size] = 0;
     }
-    i32 copy_size = Min(win32vars.binary_path.size, capacity);
+    i32 copy_size = Min((i32)(win32vars.binary_path.size), capacity);
     block_copy(out, win32vars.binary_path.str, copy_size);
-    return(win32vars.binary_path.size);
-}
-
-//
-// Logging
-//
-
-internal
-Sys_Log_Sig(system_log){
-    if (plat_settings.use_log){
-        u8 space[4096];
-        String str = make_fixed_width_string(space);
-        str.size = system_get_4ed_path(str.str, str.memory_size);
-        append_sc(&str, "4coder_log.txt");
-        terminate_with_null(&str);
-        HANDLE file = CreateFile_utf8(&shared_vars.scratch, space, GENERIC_WRITE, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-        if (file != INVALID_HANDLE_VALUE){
-            SetFilePointer(file, win32vars.log_position, 0, FILE_BEGIN);
-            win32vars.log_position += length;
-            DWORD written = 0;
-            DWORD total_written = 0;
-            do{
-                WriteFile(file, message + total_written, length - total_written, &written, 0);
-                total_written += written;
-            }while (total_written < length);
-            CloseHandle(file);
-        }
-    }
+    return((i32)(win32vars.binary_path.size));
 }
 
 //
 // Files
 //
 
-internal String
-win32_remove_unc_prefix_characters(String path){
-    if (match_part(path, make_lit_string("\\\\?\\UNC"))){
+internal String_Const_u8
+win32_remove_unc_prefix_characters(String_Const_u8 path){
+    if (string_match(string_prefix(path, 7), string_u8_litexpr("\\\\?\\UNC"))){
+#if 0
+        // TODO(allen): Why no just do
+        path = string_skip(path, 7);
+        path.str[0] = '\\';
+        // ?
+#endif
         path.size -= 7;
         memmove(path.str, path.str + 7, path.size);
         path.str[0] = '\\';
     }
-    else if (match_part(path, make_lit_string("\\\\?\\"))){
+    else if (string_match(string_prefix(path, 4), string_u8_litexpr("\\\\?\\"))){
+        // TODO(allen): Same questions essentially.
         path.size -= 4;
         memmove(path.str, path.str + 4, path.size);
     }
@@ -142,27 +122,27 @@ internal
 Sys_Set_File_List_Sig(system_set_file_list){
     b32 clear_list = true;
     if (directory != 0){
-        char dir_space[MAX_PATH + 32];
-        String dir = make_string_cap(dir_space, 0, MAX_PATH + 32);
-        append_sc(&dir, directory);
-        terminate_with_null(&dir);
+        u8 dir_space[MAX_PATH + 32];
+        umem directory_original_length = cstring_length(directory);
+        block_copy(dir_space, directory, directory_original_length);
+        String_Const_u8 dir = SCu8(dir_space, directory_original_length);
         
-        HANDLE dir_handle = CreateFile_utf8(&shared_vars.scratch, (u8*)dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+        HANDLE dir_handle = CreateFile_utf8(&shared_vars.scratch, dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
         
         if (dir_handle != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, dir_handle, (u8*)dir_space, sizeof(dir_space), 0);
+            DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, dir_handle, dir_space, sizeof(dir_space), 0);
             CloseHandle(dir_handle);
             
             if (final_length + 3 < sizeof(dir_space)){
-                u8 *c_str_dir = (u8*)dir_space;
+                u8 *c_str_dir = dir_space;
                 if (c_str_dir[final_length - 1] == 0){
                     --final_length;
                 }
-                String str_dir = make_string(c_str_dir, final_length);
-                String adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
+                String_Const_u8 str_dir = SCu8(c_str_dir, final_length);
+                String_Const_u8 adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
                 
-                c_str_dir = (u8*)adjusted_str_dir.str;
-                final_length = adjusted_str_dir.size;
+                c_str_dir = adjusted_str_dir.str;
+                final_length = (DWORD)(adjusted_str_dir.size);
                 c_str_dir[final_length] = '\\';
                 c_str_dir[final_length + 1] = '*';
                 c_str_dir[final_length + 2] = 0;
@@ -177,9 +157,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
                         *canon_directory_size_out = final_length;
                     }
                     else{
-                        u32 length = copy_fast_unsafe_cc(canon_directory_out, directory);
-                        canon_directory_out[length] = 0;
-                        *canon_directory_size_out = length;
+                        block_copy(canon_directory_out, directory, directory_original_length);
+                        canon_directory_out[directory_original_length] = 0;
+                        *canon_directory_size_out = (i32)directory_original_length;
                     }
                 }
                 
@@ -244,8 +224,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
                                         
                                         info->filename_len = length;
                                         *name++ = 0;
-                                        String fname = make_string_cap(info->filename, length, length+1);
-                                        replace_char(&fname, '\\', '/');
+                                        String_Const_u8 fname = SCu8(info->filename, length);
+                                        fname = string_mod_replace_character(fname, '\\', '/');
                                         ++info;
                                         ++corrected_file_count;
                                     }
@@ -293,10 +273,10 @@ Sys_Get_Canonical_Sig(system_get_canonical){
                 if (buffer[final_length - 1] == 0){
                     --final_length;
                 }
-                String str_dir = make_string(buffer, final_length);
-                String adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
-                buffer = adjusted_str_dir.str;
-                final_length = adjusted_str_dir.size;
+                String_Const_u8 str_dir = SCu8(buffer, final_length);
+                String_Const_u8 adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
+                buffer = (char*)adjusted_str_dir.str;
+                final_length = (i32)adjusted_str_dir.size;
                 buffer[final_length] = 0;
                 result = final_length;
             }
@@ -304,9 +284,9 @@ Sys_Get_Canonical_Sig(system_get_canonical){
             CloseHandle(file);
         }
         else{
-            String src_str = make_string(filename, len);
-            String path_str = path_of_directory(src_str);
-            String front_str = front_of_directory(src_str);
+            String_Const_u8 src_str = SCu8(filename, len);
+            String_Const_u8 path_str = string_remove_last_folder(src_str);
+            String_Const_u8 front_str = string_front_of_path(src_str);
             
             memcpy(src_space, path_str.str, path_str.size);
             src_space[path_str.size] = 0;
@@ -320,13 +300,13 @@ Sys_Get_Canonical_Sig(system_get_canonical){
                     if (buffer[final_length-1] == 0){
                         --final_length;
                     }
-                    String str_dir = make_string(buffer, final_length);
-                    String adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
-                    buffer = adjusted_str_dir.str;
-                    final_length = adjusted_str_dir.size;
+                    String_Const_u8 str_dir = SCu8(buffer, final_length);
+                    String_Const_u8 adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
+                    buffer = (char*)adjusted_str_dir.str;
+                    final_length = (i32)adjusted_str_dir.size;
                     buffer[final_length++] = '\\';
                     memcpy(buffer + final_length, front_str.str, front_str.size);
-                    final_length += front_str.size;
+                    final_length += (i32)(front_str.size);
                     buffer[final_length] = 0;
                     result = final_length;
                 }

@@ -39,8 +39,8 @@ input_8_to_16(Arena *scratch, u8 *in){
 }
 
 internal Win32_UTF16
-input_8_to_16(Arena *scratch, String in){
-    return(input_8_to_16(scratch, (u8*)in.str, in.size));
+input_8_to_16(Arena *scratch, String_Const_u8 in){
+    return(input_8_to_16(scratch, in.str, (u32)in.size));
 }
 
 internal HANDLE
@@ -217,7 +217,7 @@ internal BOOL
 GetFileAttributesEx_utf8String(Arena *scratch, String_Const_u8 file_name, GET_FILEEX_INFO_LEVELS info_level_id, LPVOID file_info){
     BOOL result = FALSE;
     Temp_Memory temp = begin_temp(scratch);
-    Win32_UTF16 string_16 = input_8_to_16(scratch, string_old_from_new(file_name));
+    Win32_UTF16 string_16 = input_8_to_16(scratch, file_name);
     if (string_16.success){
         result = GetFileAttributesExW((LPWSTR)string_16.utf16, info_level_id, file_info);
     }

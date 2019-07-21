@@ -52,31 +52,50 @@ end_render_section(Render_Target *target, System_Functions *system){
     Assert(target->clip_top == 0);
 }
 
+////////////////////////////////
+
 #define CmdHeader(t) cmd.header.size = sizeof(cmd), cmd.header.type = t
 
 internal void
 draw_rectangle(Render_Target *target, f32_Rect rect, u32 color){
     Render_Command_Rectangle cmd = {};
     CmdHeader(RenCom_Rectangle);
-    cmd.rect = rect;
     cmd.color = color;
+    cmd.vertices[0] = V2(rect.x0, rect.y0);
+    cmd.vertices[1] = V2(rect.x1, rect.y0);
+    cmd.vertices[2] = V2(rect.x0, rect.y1);
+    cmd.vertices[3] = V2(rect.x1, rect.y1);
     void *h = render_begin_push(target, &cmd, cmd.header.size);
     render_end_push(target, h);
-}
-
-internal void
-draw_rectangle(Render_Target *target, i32_Rect rect, u32 color){
-    draw_rectangle(target, f32R(rect), color);
 }
 
 internal void
 draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
-    Render_Command_Rectangle cmd = {};
-    CmdHeader(RenCom_Outline);
-    cmd.rect = rect;
+    draw_rectangle(target, Rf32(rect.x0, rect.y0, rect.x1, rect.y0 + 1), color);
+    draw_rectangle(target, Rf32(rect.x1 - 1, rect.y0, rect.x1, rect.y1), color);
+    draw_rectangle(target, Rf32(rect.x0, rect.y1 - 1, rect.x1, rect.y1), color);
+    draw_rectangle(target, Rf32(rect.x0, rect.y0, rect.x0 + 1, rect.y1), color);
+}
+
+internal void
+draw_font_glyph(Render_Target *target, Face_ID font_id, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
+    Render_Command_Glyph cmd = {};
+    CmdHeader(RenCom_Glyph);
+    cmd.pos.x = x;
+    cmd.pos.y = y;
     cmd.color = color;
+    cmd.font_id = font_id;
+    cmd.codepoint = codepoint;
+    cmd.flags = flags;
     void *h = render_begin_push(target, &cmd, cmd.header.size);
     render_end_push(target, h);
+}
+
+////////////////////////////////
+
+internal void
+draw_rectangle(Render_Target *target, i32_Rect rect, u32 color){
+    draw_rectangle(target, f32R(rect), color);
 }
 
 internal void
@@ -102,7 +121,6 @@ internal void
 draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
     draw_rectangle(target, i32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
     draw_rectangle(target, i32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    
     draw_rectangle(target, i32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
     draw_rectangle(target, i32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
 }
@@ -111,20 +129,6 @@ internal void
 draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
     i32_Rect inner = rect_inner(outer, width);
     draw_margin(target, outer, inner, color);
-}
-
-internal void
-draw_font_glyph(Render_Target *target, Face_ID font_id, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
-    Render_Command_Glyph cmd;
-    CmdHeader(RenCom_Glyph);
-    cmd.pos.x = x;
-    cmd.pos.y = y;
-    cmd.color = color;
-    cmd.font_id = font_id;
-    cmd.codepoint = codepoint;
-    cmd.flags = flags;
-    void *h = render_begin_push(target, &cmd, cmd.header.size);
-    render_end_push(target, h);
 }
 
 internal Vec2
@@ -138,12 +142,16 @@ internal f32
 draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
     f32 total_delta = 0.f;
     
+#if 0
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
-    if (font.valid != 0){
+#endif
+    Face *face = 0;
+    
+    if (face != 0){
         point = snap_point_to_boundary(point);
         
-        f32 byte_advance = font.metrics->byte_advance;
-        f32 *sub_advances = font.metrics->sub_advances;
+        f32 byte_advance = face->byte_advance;
+        f32 *sub_advances = face->sub_advances;
         
         u8 *str = (u8*)string.str;
         u8 *str_end = str + string.size;
@@ -152,7 +160,7 @@ draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, St
         Translation_Emits emits = {};
         
         for (u32 i = 0; str < str_end; ++str, ++i){
-            translating_fully_process_byte(system, font, &tran, *str, i, (i32)string.size, &emits);
+            translating_fully_process_byte(system, &tran, *str, i, (i32)string.size, &emits);
             
             for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                 TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
@@ -162,7 +170,7 @@ draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, St
                     if (color != 0){
                         draw_font_glyph(target, font_id, codepoint, point.x, point.y, color, flags);
                     }
-                    f32 d = font_get_glyph_advance(system, font.settings, font.metrics, font.pages, codepoint);
+                    f32 d = font_get_glyph_advance(system, face, codepoint);
                     point += d*delta;
                     total_delta += d;
                 }

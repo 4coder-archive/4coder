@@ -10,7 +10,7 @@
 // TOP
 
 internal void
-wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *file, Font_Pointers font){
+wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *file, Face *face){
     state->token_array = file->state.token_array;
     state->token_ptr = state->token_array.tokens;
     state->end_token = state->token_ptr + state->token_array.count;
@@ -25,10 +25,10 @@ wrap_state_init(System_Functions *system, Code_Wrap_State *state, Editing_File *
     state->size = size;
     state->i = 0;
     
-    state->font = font;
+    state->face = face;
     
-    state->tab_indent_amount = font_get_glyph_advance(system, font.settings, font.metrics, font.pages, '\t');
-    state->byte_advance = font.metrics->byte_advance;
+    state->tab_indent_amount = font_get_glyph_advance(system, face, '\t');
+    state->byte_advance = face->byte_advance;
     
     state->tran = null_buffer_translating_state;
 }
@@ -41,7 +41,7 @@ wrap_state_set_top(Code_Wrap_State *state, f32 line_shift){
 }
 
 internal Code_Wrap_Step
-wrap_state_consume_token(System_Functions *system, Font_Pointers font, Code_Wrap_State *state, i32 fixed_end_point){
+wrap_state_consume_token(System_Functions *system, Face *face, Code_Wrap_State *state, i32 fixed_end_point){
     Code_Wrap_Step result = {};
     i32 i = state->i;
     
@@ -123,7 +123,7 @@ wrap_state_consume_token(System_Functions *system, Font_Pointers font, Code_Wrap
             }
             
             u8 ch = (u8)state->stream.data[i];
-            translating_fully_process_byte(system, font, &state->tran, ch, i, state->size, &state->emits);
+            translating_fully_process_byte(system, &state->tran, ch, i, state->size, &state->emits);
             
             for (TRANSLATION_EMIT_LOOP(state->J, state->emits)){
                 TRANSLATION_GET_STEP(state->step, state->behavior, state->J, state->emits);
@@ -136,7 +136,7 @@ wrap_state_consume_token(System_Functions *system, Font_Pointers font, Code_Wrap
                     u32 n = state->step.value;
                     f32 adv = 0;
                     if (state->behavior.do_codepoint_advance){
-                        adv = font_get_glyph_advance(system, state->font.settings, state->font.metrics, state->font.pages, n);
+                        adv = font_get_glyph_advance(system, state->face, n);
                         
                         if (n != ' ' && n != '\t'){
                             skipping_whitespace = false;
@@ -439,7 +439,7 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
 }
 
 internal void
-file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *file, Font_Pointers font){
+file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *file, Face *face){
     Heap *heap = &mem->heap;
     Arena *scratch = &mem->arena;
     
@@ -453,7 +453,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
     params.system          = system;
-    params.font            = font;
+    params.face            = face;
     params.virtual_white   = file->settings.virtual_white;
     
     f32 width = (f32)file->settings.display_width;
@@ -484,7 +484,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     i32 max_wrap_indent_mark = Million(1);
     
     if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
-        wrap_state_init(system, &wrap_state, file, font);
+        wrap_state_init(system, &wrap_state, file, face);
         use_tokens = true;
         
         potential_marks = push_array(scratch, Potential_Wrap_Indent_Pair, floor32(width));
@@ -531,7 +531,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                             for (; i < stream.end; ++i){
                                 {
                                     u8 ch = stream.data[i];
-                                    translating_fully_process_byte(system, font, &tran, ch, i, size, &emits);
+                                    translating_fully_process_byte(system, &tran, ch, i, size, &emits);
                                 }
                                 
                                 for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
@@ -545,7 +545,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                                 word_stage = 1;
                                             }
                                             else{
-                                                f32 adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, codepoint);
+                                                f32 adv = font_get_glyph_advance(params.system, params.face, codepoint);
                                                 
                                                 x += adv;
                                                 self_x += adv;
@@ -659,7 +659,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                         for (; i < stream.end; ++i){
                                             {
                                                 u8 ch = stream.data[i];
-                                                translating_fully_process_byte(system, font, &tran, ch, i, end_i, &emits);
+                                                translating_fully_process_byte(system, &tran, ch, i, end_i, &emits);
                                             }
                                             
                                             for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
@@ -680,7 +680,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                             for (; i < stream.end; ++i){
                                                 {
                                                     u8 ch = stream.data[i];
-                                                    translating_fully_process_byte(system, font, &tran, ch, i, end_i, &emits);
+                                                    translating_fully_process_byte(system, &tran, ch, i, end_i, &emits);
                                                 }
                                                 
                                                 for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
@@ -690,7 +690,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                                         goto doublebreak_stage1;
                                                     }
                                                     
-                                                    f32 adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, buffer_step.value);
+                                                    f32 adv = font_get_glyph_advance(params.system, params.face, buffer_step.value);
                                                     x += adv;
                                                     
                                                     if (!first_word && x > current_width){
@@ -715,7 +715,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                             for (; i < stream.end; ++i){
                                                 {
                                                     u8 ch = stream.data[i];
-                                                    translating_fully_process_byte(system, font, &tran, ch, i, end_i, &emits);
+                                                    translating_fully_process_byte(system, &tran, ch, i, end_i, &emits);
                                                 }
                                                 
                                                 for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
@@ -726,7 +726,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                                         goto doublebreak_stage2;
                                                     }
                                                     
-                                                    f32 adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, buffer_step.value);
+                                                    f32 adv = font_get_glyph_advance(params.system, params.face, buffer_step.value);
                                                     x += adv;
                                                 }
                                             }
@@ -747,7 +747,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                             }
                             
                             if (!emit_comment_position){
-                                step = wrap_state_consume_token(system, font, &wrap_state, next_line_start);
+                                step = wrap_state_consume_token(system, face, &wrap_state, next_line_start);
                             }
                             
                             b32 need_to_choose_a_wrap = false;
@@ -874,7 +874,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                                     
                                     wrap_state = original_wrap_state;
                                     for (;;){
-                                        step = wrap_state_consume_token(system, font, &wrap_state, wrap_position);
+                                        step = wrap_state_consume_token(system, face, &wrap_state, wrap_position);
                                         if (step.position_end >= wrap_position){
                                             break;
                                         }
@@ -900,7 +900,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
                         ++real_count;
                         
                         for (i32 l = 0; wrap_state.i < next_line_start && l < 3; ++l){
-                            wrap_state_consume_token(system, font, &wrap_state, next_line_start);
+                            wrap_state_consume_token(system, face, &wrap_state, next_line_start);
                         }
                     }
                     

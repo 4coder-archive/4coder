@@ -17,9 +17,9 @@
 #include "4coder_API/4coder_custom.h"
 
 #include "4coder_base_types.h"
+#include "4coder_table.h"
 #include "4ed_font.h"
 #include "4ed_system.h"
-#include "4coder_table.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_string_match.cpp"
@@ -47,7 +47,6 @@ struct Mem_Options{
 #define FCPP_FORBID_MALLOC
 #include "4coder_lib/4cpp_lexer.h"
 
-#include "4ed_log.h"
 #include "4ed_ptr_check.h"
 #include "4ed_memory_bank.h"
 #include "4ed_dynamic_variables.h"

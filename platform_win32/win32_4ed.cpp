@@ -21,6 +21,7 @@
 #define frame_useconds (1000000 / FPS)
 
 #include "4coder_base_types.h"
+#include "4coder_table.h"
 #include "4coder_API/4coder_version.h"
 
 #include <string.h>
@@ -28,14 +29,11 @@
 
 #if defined(FRED_SUPER)
 # include "4coder_lib/4coder_heap.h"
-
-# include "4coder_lib/4coder_string.h"
-
-#include "4coder_base_types.cpp"
-
 # include "4coder_lib/4coder_heap.cpp"
-# define FSTRING_IMPLEMENTATION
-# include "4coder_lib/4coder_string.h"
+
+# include "4coder_base_types.cpp"
+# include "4coder_hash_functions.cpp"
+# include "4coder_table.cpp"
 
 # include "4coder_API/4coder_keycodes.h"
 # include "4coder_API/4coder_default_colors.h"
@@ -44,18 +42,16 @@
 # include "4coder_default_bindings.cpp"
 #endif
 
-#include "4coder_base_types.cpp"
-//#include "4ed_math.h"
-
 #include "4ed_font.h"
 #include "4ed_system.h"
-#include "4ed_log.h"
 #include "4ed_render_target.h"
 #include "4ed_render_format.h"
 #include "4ed.h"
 
 #include <Windows.h>
 #include "win32_gl.h"
+
+# include "4coder_stringf.cpp"
 
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
@@ -115,58 +111,6 @@ struct Win32_Input_Chunk{
 
 ////////////////////////////////
 
-// TODO(allen): MERGE WITH 4ed.exe version!!!!!!!
-
-internal void*
-base_reserve__system(void *user_data, umem size, umem *size_out){
-    System_Functions *system = (System_Functions*)user_data;
-    umem extra_size = 128;
-    umem increased_size = size + extra_size;
-    size = round_up_umem(increased_size, KB(4));
-    *size_out = size - extra_size;
-    void *ptr = system->memory_allocate(size);
-    *(umem*)ptr = size;
-    ptr = (u8*)ptr + extra_size;
-    return(ptr);
-}
-
-internal void
-base_free__system(void *user_data, void *ptr){
-    System_Functions *system = (System_Functions*)user_data;
-    umem extra_size = 128;
-    ptr = (u8*)ptr - extra_size;
-    umem size = *(umem*)ptr;
-    system->memory_free(ptr, size);
-}
-
-internal Base_Allocator
-make_base_allocator_system(System_Functions *system){
-    return(make_base_allocator(base_reserve__system, 0, 0,
-                               base_free__system, 0, system));
-}
-
-global Base_Allocator base_allocator_system = {};
-
-internal Arena
-make_arena_system(System_Functions *system, umem chunk_size, umem align){
-    if (base_allocator_system.reserve == 0){
-        base_allocator_system = make_base_allocator_system(system);
-    }
-    return(make_arena(&base_allocator_system, chunk_size, align));
-}
-
-internal Arena
-make_arena_system(System_Functions *system, umem chunk_size){
-    return(make_arena_system(system, chunk_size, 8));
-}
-
-internal Arena
-make_arena_system(System_Functions *system){
-    return(make_arena_system(system, KB(16), 8));
-}
-
-////////////////////////////////
-
 #define SLASH '\\'
 #define DLL "dll"
 
@@ -180,6 +124,8 @@ global System_Functions sysfunc;
 
 #include "4ed_mem.cpp"
 #include "4coder_hash_functions.cpp"
+
+#include "4ed_system_allocator.cpp"
 
 ////////////////////////////////
 
@@ -217,11 +163,11 @@ struct Win32_Vars{
     i32 cursor_show;
     i32 prev_cursor_show;
     
-    String binary_path;
+    String_Const_u8 binary_path;
     
     u8 *clip_buffer;
     u32 clip_max;
-    String clipboard_contents;
+    String_Const_u8 clipboard_contents;
     b32 next_clipboard_is_self;
     DWORD clipboard_sequence;
     
@@ -269,13 +215,13 @@ win32_output_error_string(b32 use_error_box){
     char *str = 0;
     char *str_ptr = (char*)&str;
     if (FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 0, error, 0, str_ptr, 0, 0)){
-        LOGF("win32 error:\n%s\n", str);
+        //LOGF("win32 error:\n%s\n", str);
         if (use_error_box){
             system_error_box(str, false);
         }
     }
     else{
-        LOGF("win32 error raw: %d\n", error);
+        //LOGF("win32 error raw: %d\n", error);
     }
 }
 
@@ -394,7 +340,7 @@ union Directory_Track_Node{
         OVERLAPPED overlapped;
         HANDLE dir_handle;
         char buffer[(32 << 10) + 12];
-        String dir_name;
+        String_Const_u8 dir_name;
         i32 ref_count;
     };
 };
@@ -405,7 +351,7 @@ union File_Track_Node{
         File_Track_Node *prev;
     };
     struct{
-        String file_name;
+        String_Const_u8 file_name;
         i32 ref_count;
         Directory_Track_Node *parent_dir;
     };
@@ -452,7 +398,7 @@ union File_Track_Instruction_Node{
 struct File_Track_Note_Node{
     File_Track_Note_Node *next;
     File_Track_Note_Node *prev;
-    String file_name;
+    String_Const_u8 file_name;
 };
 
 Heap file_track_heap = {};
@@ -656,9 +602,9 @@ alloc_insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size,
 
 ////////////////////////////////
 
-internal String
-file_track_store_string_copy(String string){
-    i32 alloc_size = string.size + 1;
+internal String_Const_u8
+file_track_store_string_copy(String_Const_u8 string){
+    i32 alloc_size = (i32)string.size + 1;
     alloc_size = round_up_i32(alloc_size, 16);
     char *buffer = (char*)heap_allocate(&file_track_heap, alloc_size);
     if (buffer == 0){
@@ -670,17 +616,17 @@ file_track_store_string_copy(String string){
     Assert(buffer != 0);
     memcpy(buffer, string.str, string.size);
     buffer[string.size] = 0;
-    return(make_string(buffer, string.size, alloc_size));
+    return(SCu8(buffer, string.size));
 }
 
 internal void
-file_track_free_string(String string){
+file_track_free_string(String_Const_u8 string){
     Assert(string.str != 0);
     heap_free(&file_track_heap, string.str);
 }
 
 internal Directory_Track_Node*
-file_track_store_new_dir_node(String dir_name_string, HANDLE dir_handle){
+file_track_store_new_dir_node(String_Const_u8 dir_name_string, HANDLE dir_handle){
     if (file_track_dir_free_first == 0){
         u32 size = MB(1);
         void *new_block = system_memory_allocate(size);
@@ -701,7 +647,7 @@ file_track_store_new_dir_node(String dir_name_string, HANDLE dir_handle){
     }
     Directory_Track_Node *new_node = file_track_dir_free_first;
     zdll_remove(file_track_dir_free_first, file_track_dir_free_last, new_node);
-    alloc_insert_CString_Ptr_table(&file_track_dir_table, dir_name_string.str, dir_name_string.size, new_node);
+    alloc_insert_CString_Ptr_table(&file_track_dir_table, (char*)dir_name_string.str, (i32)dir_name_string.size, new_node);
     memset(&new_node->overlapped, 0, sizeof(new_node->overlapped));
     new_node->dir_handle = dir_handle;
     new_node->dir_name = file_track_store_string_copy(dir_name_string);
@@ -711,14 +657,14 @@ file_track_store_new_dir_node(String dir_name_string, HANDLE dir_handle){
 
 internal void
 file_track_free_dir_node(Directory_Track_Node *node){
-    erase_CString_Ptr_table(&file_track_dir_table, node->dir_name.str, node->dir_name.size);
+    erase_CString_Ptr_table(&file_track_dir_table, (char*)node->dir_name.str, (i32)node->dir_name.size);
     file_track_free_string(node->dir_name);
     memset(&node->dir_name, 0, sizeof(node->dir_name));
     zdll_push_back(file_track_dir_free_first, file_track_dir_free_last, node);
 }
 
 internal File_Track_Node*
-file_track_store_new_file_node(String file_name_string, Directory_Track_Node *existing_dir_node){
+file_track_store_new_file_node(String_Const_u8 file_name_string, Directory_Track_Node *existing_dir_node){
     if (file_track_free_first == 0){
         u32 size = KB(16);
         void *new_block = system_memory_allocate(size);
@@ -739,7 +685,7 @@ file_track_store_new_file_node(String file_name_string, Directory_Track_Node *ex
     }
     File_Track_Node *new_node = file_track_free_first;
     zdll_remove(file_track_free_first, file_track_free_last, new_node);
-    alloc_insert_CString_Ptr_table(&file_track_table, file_name_string.str, file_name_string.size, new_node);
+    alloc_insert_CString_Ptr_table(&file_track_table, (char*)file_name_string.str, (i32)file_name_string.size, new_node);
     new_node->file_name = file_track_store_string_copy(file_name_string);
     new_node->ref_count = 1;
     new_node->parent_dir = existing_dir_node;
@@ -749,14 +695,14 @@ file_track_store_new_file_node(String file_name_string, Directory_Track_Node *ex
 
 internal void
 file_track_free_file_node(File_Track_Node *node){
-    erase_CString_Ptr_table(&file_track_table, node->file_name.str, node->file_name.size);
+    erase_CString_Ptr_table(&file_track_table, (char*)node->file_name.str, (i32)node->file_name.size);
     file_track_free_string(node->file_name);
     memset(&node->file_name, 0, sizeof(node->file_name));
     zdll_push_back(file_track_free_first, file_track_free_last, node);
 }
 
 internal File_Track_Note_Node*
-file_track_store_new_note_node(String file_name){
+file_track_store_new_note_node(String_Const_u8 file_name){
     if (file_track_note_free_first == 0){
         u32 size = KB(16);
         void *new_block = system_memory_allocate(size);
@@ -821,16 +767,16 @@ file_track_free_instruction_node(File_Track_Instruction_Node *node){
 }
 
 internal Directory_Track_Node*
-file_track_dir_lookup(String dir_name_string){
+file_track_dir_lookup(String_Const_u8 dir_name_string){
     void *ptr = 0;
-    lookup_CString_Ptr_table(&file_track_dir_table, dir_name_string.str, dir_name_string.size, &ptr);
+    lookup_CString_Ptr_table(&file_track_dir_table, (char*)dir_name_string.str, (i32)dir_name_string.size, &ptr);
     return((Directory_Track_Node*)ptr);
 }
 
 internal File_Track_Node*
-file_track_file_lookup(String file_name_string){
+file_track_file_lookup(String_Const_u8 file_name_string){
     void *ptr = 0;
-    lookup_CString_Ptr_table(&file_track_table, file_name_string.str, file_name_string.size, &ptr);
+    lookup_CString_Ptr_table(&file_track_table, (char*)file_name_string.str, (i32)file_name_string.size, &ptr);
     return((File_Track_Node*)ptr);
 }
 
@@ -899,7 +845,7 @@ file_track_worker(void*){
                             }
                             pos -= 4;
                         }
-                        String file_name = make_string((char*)buffer, pos);
+                        String_Const_u8 file_name = SCu8(buffer, pos);
                         file_track_store_new_note_node(file_name);
                         
                         system_schedule_step();
@@ -928,7 +874,7 @@ Sys_Add_Listener_Sig(system_add_listener){
     
     EnterCriticalSection(&file_track_critical_section);
     
-    String file_name_string = make_string_slowly(filename);
+    String_Const_u8 file_name_string = SCu8(filename);
     File_Track_Node *existing_file_node = file_track_file_lookup(file_name_string);
     
     if (existing_file_node != 0){
@@ -936,12 +882,12 @@ Sys_Add_Listener_Sig(system_add_listener){
         added_new_listener = true;
     }
     else{
-        String dir_name_string = path_of_directory(file_name_string);
+        String_Const_u8 dir_name_string = string_remove_last_folder(file_name_string);
         Directory_Track_Node *existing_dir_node = file_track_dir_lookup(dir_name_string);
         
         if (existing_dir_node == 0){
             Temp_Memory temp = begin_temp(&file_track_scratch);
-            String dir_name_string_terminated = string_push_copy(&file_track_scratch, dir_name_string);
+            String_Const_u8 dir_name_string_terminated = push_string_copy(&file_track_scratch, dir_name_string);
             HANDLE dir_handle = CreateFile_utf8(&file_track_scratch, (u8*)dir_name_string_terminated.str,
                                                 FILE_LIST_DIRECTORY,
                                                 FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, 0,
@@ -977,7 +923,7 @@ Sys_Remove_Listener_Sig(system_remove_listener){
     
     EnterCriticalSection(&file_track_critical_section);
     
-    String file_name_string = make_string_slowly(filename);
+    String_Const_u8 file_name_string = SCu8(filename);
     File_Track_Node *existing_file_node = file_track_file_lookup(file_name_string);
     
     if (existing_file_node != 0){
@@ -1010,7 +956,7 @@ Sys_Get_File_Change_Sig(system_get_file_change){
     if (file_track_note_first != 0){
         has_or_got_a_change = true;
         File_Track_Note_Node *node = file_track_note_first;
-        *required_size = node->file_name.size + 1;
+        *required_size = (i32)node->file_name.size + 1;
         if (node->file_name.size < max){
             memcpy(buffer, node->file_name.str, node->file_name.size);
             buffer[node->file_name.size] = 0;
@@ -1065,7 +1011,7 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
         win32vars.clip_post.size = str.size;
     }
     else{
-        LOGF("Failed to allocate buffer for clipboard post (%d)\n", (i32)str.size + 1);
+        //LOGF("Failed to allocate buffer for clipboard post (%d)\n", (i32)str.size + 1);
     }
 }
 
@@ -1133,7 +1079,7 @@ win32_read_clipboard_contents(void){
             }
             
             if (contents_length > 0){
-                win32vars.clipboard_contents = make_string_cap(win32vars.clip_buffer, contents_length - 1, win32vars.clip_max);
+                win32vars.clipboard_contents = SCu8(win32vars.clip_buffer, contents_length - 1);
             }
             
             GlobalUnlock(clip_data);
@@ -1160,67 +1106,67 @@ Sys_CLI_Call_Sig(system_cli_call, path, script_name, cli_out){
     char *env_variables = 0;
     char command_line[2048];
     
-    String s = make_fixed_width_string(command_line);
-    copy_ss(&s, make_lit_string("/C "));
-    append_partial_sc(&s, script_name);
-    b32 success = terminate_with_null(&s);
+    Arena *scratch = &shared_vars.scratch;
     
-    if (success){
-        success = false;
-        
-        *(HANDLE*)&cli_out->proc = INVALID_HANDLE_VALUE;
-        *(HANDLE*)&cli_out->out_read = INVALID_HANDLE_VALUE;
-        *(HANDLE*)&cli_out->out_write = INVALID_HANDLE_VALUE;
-        *(HANDLE*)&cli_out->in_read = INVALID_HANDLE_VALUE;
-        *(HANDLE*)&cli_out->in_write = INVALID_HANDLE_VALUE;
-        
-        SECURITY_ATTRIBUTES security_atrb = {};
-        security_atrb.nLength = sizeof(SECURITY_ATTRIBUTES);
-        security_atrb.bInheritHandle = TRUE;
-        
-        HANDLE out_read = INVALID_HANDLE_VALUE;
-        HANDLE out_write = INVALID_HANDLE_VALUE;
-        if (CreatePipe(&out_read, &out_write, &security_atrb, 0)){
-            if (SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0)){
-                STARTUPINFO startup = {};
-                startup.cb = sizeof(STARTUPINFO);
-                startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+    Temp_Memory temp = begin_temp(scratch);
+    String_Const_u8 s = push_u8_stringf(scratch, "/C %s", script_name);
+    
+    b32 success = false;
+    
+    *(HANDLE*)&cli_out->proc = INVALID_HANDLE_VALUE;
+    *(HANDLE*)&cli_out->out_read = INVALID_HANDLE_VALUE;
+    *(HANDLE*)&cli_out->out_write = INVALID_HANDLE_VALUE;
+    *(HANDLE*)&cli_out->in_read = INVALID_HANDLE_VALUE;
+    *(HANDLE*)&cli_out->in_write = INVALID_HANDLE_VALUE;
+    
+    SECURITY_ATTRIBUTES security_atrb = {};
+    security_atrb.nLength = sizeof(SECURITY_ATTRIBUTES);
+    security_atrb.bInheritHandle = TRUE;
+    
+    HANDLE out_read = INVALID_HANDLE_VALUE;
+    HANDLE out_write = INVALID_HANDLE_VALUE;
+    if (CreatePipe(&out_read, &out_write, &security_atrb, 0)){
+        if (SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0)){
+            STARTUPINFO startup = {};
+            startup.cb = sizeof(STARTUPINFO);
+            startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+            
+            HANDLE in_read = CreateFileA("nul", GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, &security_atrb, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+            
+            startup.hStdInput = in_read;
+            startup.hStdOutput = out_write;
+            startup.hStdError = out_write;
+            startup.wShowWindow = SW_HIDE;
+            
+            PROCESS_INFORMATION info = {};
+            if (CreateProcess_utf8(&shared_vars.scratch, (u8*)cmd, (u8*)command_line, 0, 0, TRUE, 0, env_variables, (u8*)path, &startup, &info)){
+                success = true;
+                CloseHandle(info.hThread);
+                *(HANDLE*)&cli_out->proc = info.hProcess;
+                *(HANDLE*)&cli_out->out_read = out_read;
+                *(HANDLE*)&cli_out->out_write = out_write;
                 
-                HANDLE in_read = CreateFileA("nul", GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, &security_atrb, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-                
-                startup.hStdInput = in_read;
-                startup.hStdOutput = out_write;
-                startup.hStdError = out_write;
-                startup.wShowWindow = SW_HIDE;
-                
-                PROCESS_INFORMATION info = {};
-                if (CreateProcess_utf8(&shared_vars.scratch, (u8*)cmd, (u8*)command_line, 0, 0, TRUE, 0, env_variables, (u8*)path, &startup, &info)){
-                    success = 1;
-                    CloseHandle(info.hThread);
-                    *(HANDLE*)&cli_out->proc = info.hProcess;
-                    *(HANDLE*)&cli_out->out_read = out_read;
-                    *(HANDLE*)&cli_out->out_write = out_write;
-                    
-                    ++win32vars.running_cli;
-                }
-                else{
-                    CloseHandle(out_read);
-                    CloseHandle(out_write);
-                    CloseHandle(in_read);
-                }
+                ++win32vars.running_cli;
             }
             else{
-                // TODO(allen): failed SetHandleInformation
                 CloseHandle(out_read);
                 CloseHandle(out_write);
+                CloseHandle(in_read);
             }
         }
         else{
-            // TODO(allen): failed CreatePipe
+            // TODO(allen): failed SetHandleInformation
+            CloseHandle(out_read);
+            CloseHandle(out_write);
         }
     }
+    else{
+        // TODO(allen): failed CreatePipe
+    }
     
-    return success;
+    end_temp(temp);
+    
+    return(success);
 }
 
 struct CLI_Loop_Control{
@@ -1302,121 +1248,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 }
 
 #include "4ed_font_provider_freetype.h"
-global u32 system_font_method = SystemFontMethod_RawData;
 #include "4ed_font_provider_freetype.cpp"
-
-Sys_Font_Path_Not_Used;
-
-internal
-Sys_Font_Data(name, parameters){
-    Font_Raw_Data data = {};
-    
-    int weight = FW_REGULAR;
-    if (parameters->bold){
-        weight = FW_BOLD;
-    }
-    
-    HFONT hfont = CreateFontA(
-        0,
-        0,
-        0,
-        0,
-        weight, // Weight
-        parameters->italics, // Italic
-        FALSE, // Underline
-        FALSE, // Strikeout
-        ANSI_CHARSET,
-        OUT_DEVICE_PRECIS,
-        CLIP_DEFAULT_PRECIS,
-        DEFAULT_QUALITY,
-        DEFAULT_PITCH | FF_DONTCARE,
-        name
-        );
-    
-    if (hfont != 0){
-        HDC hdc = CreateCompatibleDC(NULL);
-        if (hdc != 0){
-            SelectObject(hdc, hfont);
-            DWORD size = GetFontData(hdc, 0, 0, NULL, 0);
-            if (size > 0){
-                Arena *arena = &shared_vars.font_scratch;
-                u8 *buffer = push_array(arena, u8, size);
-                if (GetFontData(hdc, 0, 0, buffer, size) == size){
-                    data.data = buffer;
-                    data.size = size;
-                }
-            }
-            DeleteDC(hdc);
-        }
-    }
-    
-    return(data);
-}
-
-struct Win32_Font_Enum{
-    Arena *arena;
-    Font_Setup_List *list;
-};
-
-int CALL_CONVENTION
-win32_font_enum_callback(
-const LOGFONT    *lpelfe,
-const TEXTMETRIC *lpntme,
-DWORD      FontType,
-LPARAM     lParam
-){
-    
-    if ((FontType & TRUETYPE_FONTTYPE) != 0){
-        ENUMLOGFONTEXDV *log_font = (ENUMLOGFONTEXDV*)lpelfe;
-        TCHAR *name = ((log_font)->elfEnumLogfontEx).elfLogFont.lfFaceName;
-        
-        if ((char)name[0] != '@'){
-            i32 len = 0;
-            for (;name[len]!=0;++len);
-            
-            if (len < sizeof(Member(Font_Loadable_Stub, name))){
-                Win32_Font_Enum p = *(Win32_Font_Enum*)lParam;
-                Temp_Memory reset = begin_temp(p.arena);
-                Font_Setup *setup = push_array_zero(p.arena, Font_Setup, 1);
-                b32 good = true;
-                for (i32 i = 0; i < len; ++i){
-                    if (name[i] >= 128){
-                        good = false;
-                        break;
-                    }
-                    setup->stub.name[i] = (char)name[i];
-                }
-                if (good){
-                    setup->stub.load_from_path = false;
-                    setup->stub.len = len;
-                    sll_queue_push(p.list->first, p.list->last, setup);
-                }
-                else{
-                    end_temp(reset);
-                }
-            }
-        }
-    }
-    
-    return(1);
-}
-
-internal void
-win32_get_loadable_fonts(Arena *arena, Font_Setup_List *list){
-    HDC hdc= GetDC(0);
-    
-    LOGFONT log_font = {};
-    log_font.lfCharSet = ANSI_CHARSET;
-    log_font.lfFaceName[0] = 0;
-    
-    Win32_Font_Enum p = {};
-    p.arena = arena;
-    p.list = list;
-    
-    EnumFontFamiliesEx(hdc, &log_font, win32_font_enum_callback, (LPARAM)&p,0);
-    
-    ReleaseDC(0, hdc);
-}
 
 #include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
@@ -1428,7 +1260,7 @@ win32_get_loadable_fonts(Arena *arena, Font_Setup_List *list){
 global Key_Code keycode_lookup_table[255];
 
 internal void
-Win32KeycodeInit(void){
+win32_keycode_init(void){
     keycode_lookup_table[VK_BACK] = key_back;
     keycode_lookup_table[VK_DELETE] = key_del;
     keycode_lookup_table[VK_UP] = key_up;
@@ -1480,28 +1312,17 @@ Win32KeycodeInit(void){
 }
 
 internal void
-Win32Resize(i32 width, i32 height){
+win32_resize(i32 width, i32 height){
     if (width > 0 && height > 0){
         target.width = width;
         target.height = height;
     }
 }
 
-#define GLFuncGood(f) (((f)!=0)&&((f)!=(void*)1)&&((f)!=(void*)2)&&((f)!=(void*)3)&&((f)!=(void*)-11))
-
-typedef HGLRC (CALL_CONVENTION wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
-typedef BOOL  (CALL_CONVENTION wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
-typedef char* (CALL_CONVENTION wglGetExtensionsStringEXT_Function)();
-typedef VOID  (CALL_CONVENTION wglSwapIntervalEXT_Function)(i32);
-
-global wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
-global wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
-global wglGetExtensionsStringEXT_Function *wglGetExtensionsStringEXT = 0;
-global wglSwapIntervalEXT_Function *wglSwapIntervalEXT = 0;
-
+#if 0
 internal void
 win32_init_gl(HDC hdc){
-    LOG("trying to load wgl extensions...\n");
+    //LOG("trying to load wgl extensions...\n");
     
 #define GLInitFail(s) system_error_box(FNLN "\nOpenGL init fail - " s )
     
@@ -1561,14 +1382,14 @@ win32_init_gl(HDC hdc){
     LoadWGL(wglChoosePixelFormatARB, true);
     LoadWGL(wglGetExtensionsStringEXT, true);
     
-    LOG("got wgl functions\n");
+    //LOG("got wgl functions\n");
     
     char *extensions_c = wglGetExtensionsStringEXT();
     String extensions = make_string_slowly(extensions_c);
     if (has_substr(extensions, make_lit_string("WGL_EXT_swap_interval"))){
         LoadWGL(wglSwapIntervalEXT, false);
         if (wglSwapIntervalEXT != 0){
-            LOG("got wglSwapIntervalEXT\n");
+            //LOG("got wglSwapIntervalEXT\n");
         }
     }
     
@@ -1609,7 +1430,7 @@ win32_init_gl(HDC hdc){
     wglMakeCurrent(hdc, context);
     
     if (wglSwapIntervalEXT != 0){
-        LOGF("setting swap interval %d\n", 1);
+        //LOGF("setting swap interval %d\n", 1);
         wglSwapIntervalEXT(1);
     }
     
@@ -1617,8 +1438,9 @@ win32_init_gl(HDC hdc){
     DestroyWindow(hwglwnd);
     wglDeleteContext(wglcontext);
     
-    LOG("successfully enabled opengl\n");
+    //LOG("successfully enabled opengl\n");
 }
+#endif
 
 internal void
 Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
@@ -1907,7 +1729,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             i32 new_width = LOWORD(lParam);
             i32 new_height = HIWORD(lParam);
             
-            Win32Resize(new_width, new_height);
+            win32_resize(new_width, new_height);
         }break;
         
         case WM_DISPLAYCHANGE:
@@ -1969,6 +1791,241 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     
     return(result);
 }
+
+////////////////////////////////
+
+internal b32
+win32_wgl_good(Void_Func *f){
+    return(f != 0 &&
+           f != (Void_Func*)1 &&
+           f != (Void_Func*)2 &&
+           f != (Void_Func*)3 &&
+           f != (Void_Func*)-1);
+}
+
+typedef HGLRC (wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
+typedef BOOL (wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
+typedef char* (wglGetExtensionsStringEXT_Function)();
+typedef VOID (wglSwapIntervalEXT_Function)(i32);
+
+global wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
+global wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
+global wglGetExtensionsStringEXT_Function *wglGetExtensionsStringEXT = 0;
+global wglSwapIntervalEXT_Function *wglSwapIntervalEXT = 0;
+
+// TODO(allen): This requires all windows to be handled on a single thread.
+// We would need a platform side thread context to get around this which would
+// probably mean thread local storage would have to get involved.
+global HWND win32_current_gl_window = 0;
+
+internal b32
+win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect){
+    HINSTANCE this_instance = GetModuleHandle(0);
+    
+    local_persist b32 srgb_support = false;
+    local_persist b32 register_success = true;
+    local_persist b32 first_call = true;
+    if (first_call){
+        first_call = false;
+        
+        // NOTE(allen): Create the GL bootstrap window
+        WNDCLASSW wglclass = {};
+        wglclass.lpfnWndProc = DefWindowProcW;
+        wglclass.hInstance = this_instance;
+        wglclass.lpszClassName = L"wgl-loader";
+        if (RegisterClassW(&wglclass) == 0){
+            register_success = false;
+            goto fail_register;
+        }
+        
+        HWND wglwindow = CreateWindowW(wglclass.lpszClassName, L"", 0, 0, 0, 0, 0,
+                                       0, 0, this_instance, 0);
+        if (wglwindow == 0){
+            register_success = false;
+            goto fail_register;
+        }
+        
+        // NOTE(allen): Create the GL bootstrap context
+        HDC wgldc = GetDC(wglwindow);
+        
+        PIXELFORMATDESCRIPTOR format = {};
+        format.nSize = sizeof(format);
+        format.nVersion = 1;
+        format.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+        format.iPixelType = PFD_TYPE_RGBA;
+        format.cColorBits = 32;
+        format.cAlphaBits = 8;
+        format.cDepthBits = 24;
+        format.iLayerType = PFD_MAIN_PLANE;
+        i32 suggested_format_index = ChoosePixelFormat(wgldc, &format);
+        if (!SetPixelFormat(wgldc, suggested_format_index, &format)){
+            register_success = false;
+            goto fail_register;
+        }
+        
+        HGLRC wglcontext = wglCreateContext(wgldc);
+        if (wglcontext == 0){
+            register_success = false;
+            goto fail_register;
+        }
+        
+        if (!wglMakeCurrent(wgldc, wglcontext)){
+            register_success = false;
+            goto fail_register;
+        }
+        
+        // NOTE(allen): Load wgl extensions
+#define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
+        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
+        
+        b32 load_success = true;
+        LoadWGL(wglCreateContextAttribsARB, load_success);
+        LoadWGL(wglChoosePixelFormatARB, load_success);
+        LoadWGL(wglGetExtensionsStringEXT, load_success);
+        
+        if (!load_success){
+            register_success = false;
+            goto fail_register;
+        }
+        
+        char *extensions_c = wglGetExtensionsStringEXT();
+        String_Const_u8 extensions = SCu8((u8*)extensions_c);
+        
+        {
+            String_Const_u8 s = string_skip_whitespace(extensions);
+            for (;s.size > 0;){
+                umem end = string_find_first_whitespace(s);
+                String_Const_u8 m = string_prefix(s, end);
+                if (string_match(m, string_u8_litexpr("WGL_EXT_framebuffer_sRGB")) ||
+                    string_match(m, string_u8_litexpr("WGL_ARB_framebuffer_sRGB"))){
+                    srgb_support = true;
+                }
+                else if (string_match(m, string_u8_litexpr("WGL_EXT_swap_interval"))){
+                    b32 wgl_swap_interval_ext = true;
+                    LoadWGL(wglSwapIntervalEXT, wgl_swap_interval_ext);
+                    if (!wgl_swap_interval_ext){
+                        wglSwapIntervalEXT = 0;
+                    }
+                }
+                s = string_skip_whitespace(string_skip(s, end));
+            }
+        }
+        
+        // NOTE(allen): Load gl functions
+#define GL_FUNC(f,R,P) LoadWGL(f,load_success);
+#include "opengl/4ed_opengl_funcs.h"
+        
+        if (!load_success){
+            register_success = false;
+            goto fail_register;
+        }
+        
+        // NOTE(allen): Cleanup the GL bootstrap resources
+        ReleaseDC(wglwindow, wgldc);
+        DestroyWindow(wglwindow);
+        wglDeleteContext(wglcontext);
+        
+        // NOTE(allen): Register the graphics window class
+        WNDCLASSW wndclass = {};
+        wndclass.style = CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS;
+        wndclass.lpfnWndProc = win32_proc;
+        wndclass.hInstance = this_instance;
+        wndclass.lpszClassName = L"GRAPHICS-WINDOW-NAME";
+        if (RegisterClassW(&wndclass) == 0){
+            register_success = false;
+            goto fail_register;
+        }
+    }
+    fail_register:;
+    
+    b32 result = false;
+    if (register_success){
+        // NOTE(allen): Create the graphics window
+        HWND wnd = CreateWindowExW(0, L"GRAPHICS-WINDOW-NAME", L"GRAPHICS", style,
+                                   CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top,
+                                   0, 0, this_instance, 0);
+        
+        *wnd_out = 0;
+        *context_out = 0;
+        if (wnd != 0){
+            HDC dc = GetDC(wnd);
+            
+            PIXELFORMATDESCRIPTOR format = {};
+            
+            i32 pixel_attrib_list[] = {
+                /* 0*/WGL_DRAW_TO_WINDOW_ARB, TRUE,
+                /* 2*/WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
+                /* 4*/WGL_SUPPORT_OPENGL_ARB, TRUE,
+                /* 6*/WGL_DOUBLE_BUFFER_ARB, false,
+                /* 8*/WGL_PIXEL_TYPE_ARB, WGL_TYPE_RGBA_ARB,
+                /*10*/WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB, GL_TRUE,
+                /*12*/0,
+            };
+            if (!srgb_support){
+                pixel_attrib_list[10] = 0;
+            }
+            
+            i32 suggested_format_index = 0;
+            u32 ignore = 0;
+            if (!wglChoosePixelFormatARB(dc, pixel_attrib_list, 0, 1, &suggested_format_index, &ignore)){
+                goto fail_window_init;
+            }
+            
+            DescribePixelFormat(dc, suggested_format_index, sizeof(format), &format);
+            if (!SetPixelFormat(dc, suggested_format_index, &format)){
+                goto fail_window_init;
+            }
+            
+#if 1
+            i32 context_attrib_list[] = {
+                /*0*/WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+                /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+                /*4*/WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+#if GL_DEBUG_MODE
+                    |WGL_CONTEXT_DEBUG_BIT_ARB
+#endif
+                    ,
+                /*6*/WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+                /*8*/0
+            };
+#else
+            i32 context_attrib_list[] = {
+                WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
+                WGL_CONTEXT_MINOR_VERSION_ARB, 1,
+                WGL_CONTEXT_FLAGS_ARB, 0,
+                WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+                0
+            };
+#endif
+            
+            HGLRC context = wglCreateContextAttribsARB(dc, 0, context_attrib_list);
+            if (context == 0){
+                goto fail_window_init;
+            }
+            
+            wglMakeCurrent(dc, context);
+            win32_current_gl_window = wnd;
+            if (wglSwapIntervalEXT != 0){
+                wglSwapIntervalEXT(1);
+            }
+            *wnd_out = wnd;
+            *context_out = context;
+            result = true;
+            
+            if (false){
+                fail_window_init:;
+                DWORD error = GetLastError();
+                ReleaseDC(wnd, dc);
+                DestroyWindow(wnd);
+                SetLastError(error);
+            }
+        }
+    }
+    
+    return(result);
+}
+
+////////////////////////////////
 
 #include "4ed_link_system_functions.cpp"
 #include "4ed_shared_init_logic.cpp"
@@ -2053,17 +2110,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Window and GL Initialization
     //
     
-    WNDCLASS window_class = {};
-    window_class.style = CS_HREDRAW|CS_VREDRAW;
-    window_class.lpfnWndProc = (WNDPROC)(win32_proc);
-    window_class.hInstance = hInstance;
-    window_class.lpszClassName = L"4coder-win32-wndclass";
-    window_class.hIcon = LoadIcon(hInstance, L"main");
-    
-    if (!RegisterClass(&window_class)){
-        exit(1);
-    }
-    
     RECT window_rect = {};
     if (plat_settings.set_window_size){
         window_rect.right = plat_settings.window_w;
@@ -2075,7 +2121,24 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     if (!AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)){
-        LOG("Could not get adjusted window.\n");
+        //LOG("Could not get adjusted window.\n");
+    }
+    
+    i32 window_style = WS_OVERLAPPEDWINDOW;
+    if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
+        window_style |= WS_MAXIMIZE;
+    }
+    
+#if 0    
+    WNDCLASS window_class = {};
+    window_class.style = CS_HREDRAW|CS_VREDRAW;
+    window_class.lpfnWndProc = (WNDPROC)(win32_proc);
+    window_class.hInstance = hInstance;
+    window_class.lpszClassName = L"4coder-win32-wndclass";
+    window_class.hIcon = LoadIcon(hInstance, L"main");
+    
+    if (!RegisterClass(&window_class)){
+        exit(1);
     }
     
     i32 window_x = CW_USEDEFAULT;
@@ -2084,22 +2147,18 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (plat_settings.set_window_pos){
         window_x = plat_settings.window_x;
         window_y = plat_settings.window_y;
-        LOGF("Setting window position (%d, %d)\n", window_x, window_y);
+        //LOGF("Setting window position (%d, %d)\n", window_x, window_y);
     }
     
-    LOG("Creating window... ");
-    i32 window_style = WS_OVERLAPPEDWINDOW;
-    if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
-        window_style |= WS_MAXIMIZE;
-    }
+    //LOG("Creating window... ");
     win32vars.window_handle = CreateWindowEx(0, window_class.lpszClassName, L_WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
     
     if (win32vars.window_handle == 0){
-        LOG("Failed\n");
+        //LOG("Failed\n");
         exit(1);
     }
     else{
-        LOG("Success\n");
+        //LOG("Success\n");
     }
     
     {
@@ -2116,26 +2175,22 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         ReleaseDC(win32vars.window_handle, hdc);
     }
+#endif
     
-    Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
+    HGLRC window_opengl_context = 0;
+    if (!win32_gl_create_window(&win32vars.window_handle, &window_opengl_context, window_style, window_rect)){
+        //LOG("Window creation failed\n");
+        exit(1);
+    }
     
-    //
-    // Font System Init
-    //
-    
-    LOG("Initializing fonts\n");
-    Arena *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp(scratch);
-    Font_Setup_List font_setup = system_font_get_local_stubs(scratch);
-    win32_get_loadable_fonts(scratch, &font_setup);
-    system_font_init(&sysfunc.font, plat_settings.font_size, plat_settings.use_hinting, font_setup);
-    end_temp(temp);
+    GetClientRect(win32vars.window_handle, &window_rect);
+    win32_resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
     //
     // Misc System Initializations
     //
     
-    LOG("Initializing clipboard\n");
+    //LOG("Initializing clipboard\n");
     if (!AddClipboardFormatListener(win32vars.window_handle)){
         win32_output_error_string(ErrorString_UseLog);
     }
@@ -2158,7 +2213,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32_read_clipboard_contents();
     }
     
-    Win32KeycodeInit();
+    win32_keycode_init();
     
     win32vars.cursor_ibeam = LoadCursor(NULL, IDC_IBEAM);
     win32vars.cursor_arrow = LoadCursor(NULL, IDC_ARROW);
@@ -2168,12 +2223,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     LARGE_INTEGER f;
     if (QueryPerformanceFrequency(&f)){
         win32vars.count_per_usecond = (f32)f.QuadPart / 1000000.f;
-        LOGF("Got performance frequency %f\n", win32vars.count_per_usecond);
+        //LOGF("Got performance frequency %f\n", win32vars.count_per_usecond);
     }
     else{
         // NOTE(allen): Just guess.
         win32vars.count_per_usecond = 1.f;
-        LOG("Did not get performance frequency, just guessing with 1.\n");
+        //LOG("Did not get performance frequency, just guessing with 1.\n");
     }
     Assert(win32vars.count_per_usecond > 0.f);
     
@@ -2189,8 +2244,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     String_Const_u8 curdir = SCu8(cwd, size);
     curdir = string_mod_replace_character(curdir, '\\', '/');
     
-    LOG("Initializing application variables\n");
-    app.init(&sysfunc, &target, &memory_vars, string_new_u8_from_old(win32vars.clipboard_contents), curdir, custom_api);
+    //LOG("Initializing application variables\n");
+    app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
     
     //
     // Main loop
@@ -2208,7 +2263,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     SetActiveWindow(win32vars.window_handle);
     ShowWindow(win32vars.window_handle, SW_SHOW);
     
-    LOG("Beginning main loop\n");
+    //LOG("Beginning main loop\n");
     u64 timer_start = system_now_time();
     system_acquire_lock(FRAME_LOCK);
     MSG msg;
@@ -2389,7 +2444,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 win32vars.clipboard_sequence = new_number;
             }
         }
-        input.clipboard = string_new_u8_from_old(win32vars.clipboard_contents);
+        input.clipboard = win32vars.clipboard_contents;
         
         win32vars.clip_post.size = 0;
         
@@ -2400,7 +2455,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             result = app.step(&sysfunc, &target, &memory_vars, &input);
         }
         else{
-            LOG("app.step == 0 -- skipping\n");
+            //LOG("app.step == 0 -- skipping\n");
         }
         
         // NOTE(allen): Finish the Loop
@@ -2448,7 +2503,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): render
         HDC hdc = GetDC(win32vars.window_handle);
-        interpret_render_buffer(&target, &shared_vars.pixel_scratch);
+        gl_render(&target, &shared_vars.pixel_scratch);
         SwapBuffers(hdc);
         ReleaseDC(win32vars.window_handle, hdc);
         

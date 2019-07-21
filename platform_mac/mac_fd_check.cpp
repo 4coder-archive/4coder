@@ -39,11 +39,11 @@ print_open_file_descriptors(void){
         if (descriptor_open(fd)){
             char b[MAXPATHLEN + 1];
             fcntl(fd, F_GETPATH, b);
-            LOGF("FD(%d) = \"%s\"\n", fd, b);
+            //LOGF("FD(%d) = \"%s\"\n", fd, b);
         }
     }
 }
 
-#define FD_CHECK() LOG("FD_CHECK\n"); print_open_file_descriptors()
+//#define FD_CHECK() LOG("FD_CHECK\n"); print_open_file_descriptors()
 
 // BOTTOM

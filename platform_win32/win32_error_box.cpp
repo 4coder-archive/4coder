@@ -11,7 +11,7 @@
 
 internal void
 system_error_box(char *msg, b32 shutdown = true){
-    LOGF("error box: %s\n", msg);
+    //LOGF("error box: %s\n", msg);
     MessageBox_utf8(&shared_vars.scratch, 0, (u8*)msg, (u8*)"Error", 0);
     if (shutdown){
         exit(1);

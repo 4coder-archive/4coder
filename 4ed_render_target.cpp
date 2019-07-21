@@ -37,7 +37,6 @@ Render_End_Push_Sig(render_internal_end_push, t, h){
         Render_Command_Header *header = (Render_Command_Header*)h;
         header->size = (i32)(end_ptr - (u8*)h);
     }
-    // TODO(allen): else { LOG }
 }
 
 internal void

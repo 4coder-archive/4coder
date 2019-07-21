@@ -36,59 +36,57 @@ enum{
 };
 
 internal b32
-system_load_library(Library *library, char *name, Load_Library_Location location, char *full_file_out, u32 full_file_max){
-    char space[4096];
-    String extension = file_extension(make_string_slowly(name));
-    if (!match(extension, DLL)){
-        String full_name = make_fixed_width_string(space);
-        append(&full_name, name);
-        append(&full_name, "." DLL);
-        if (terminate_with_null(&full_name)){
-            name = space;
-        }
-        else{
-            name = 0;
-        }
+system_load_library(Arena *scratch, Library *library, char *name_cstr, Load_Library_Location location, char *full_file_out, u32 full_file_max){
+    Temp_Memory temp = begin_temp(scratch);
+    
+    String_Const_char name = SCchar(name_cstr);
+    String_Const_char extension = string_file_extension(name);
+    if (!string_match(extension, string_litexpr( DLL ))){
+        String_Const_char full_name = push_stringf(scratch, "%.*s." DLL, string_expand(name));
+        name_cstr = full_name.str;
     }
     
-    char path_space[4096];
-    String path = make_fixed_width_string(path_space);
+    umem memory_size = KB(4);
+    String_Const_char path = {};
+    path.str = push_array(scratch, char, memory_size);
     switch (location){
         case LoadLibrary_CurrentDirectory:
         {
-            path.size = sysfunc.get_current_path(path.str, path.memory_size);
+            path.size = (umem)sysfunc.get_current_path(path.str, (i32)memory_size);
         }break;
         
         case LoadLibrary_BinaryDirectory:
         {
-            path.size = sysfunc.get_4ed_path(path.str, path.memory_size);
+            path.size = (umem)sysfunc.get_4ed_path(path.str, (i32)memory_size);
         }break;
         
-        default: LOG("Invalid library location passed.\n"); break;
+        //default: LOG("Invalid library location passed.\n"); break;
     }
     
     b32 success = false;
     if (path.size > 0){
         if (path.str[path.size - 1] != SLASH){
-            append(&path, SLASH);
+            path = push_stringf(scratch, "%.*s%c%.*s", string_expand(path), SLASH, string_expand(name));
         }
-        append(&path, name);
-        terminate_with_null(&path);
+        else{
+            path = push_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(name));
+        }
         success = system_load_library_direct(library, path.str);
-        if (success && full_file_out != 0){
-            String out = make_string_cap(full_file_out, 0, full_file_max);
-            copy(&out, path);
-            terminate_with_null(&out);
+        if (success && full_file_out != 0 && full_file_out > 0){
+            u32 fill_size = clamp_top((u32)(path.size), (u32)(full_file_max - 1));
+            block_copy(full_file_out, path.str, fill_size);
+            full_file_out[fill_size] = 0;
         }
     }
+    
+    end_temp(temp);
     
     return(success);
 }
 
 internal b32
-system_load_library(Library *library, char *name, Load_Library_Location location){
-    b32 result = system_load_library(library, name, location, 0, 0);
-    return(result);
+system_load_library(Arena *scratch, Library *library, char *name, Load_Library_Location location){
+    return(system_load_library(scratch, library, name, location, 0, 0));
 }
 
 #endif

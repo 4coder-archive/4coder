@@ -33,51 +33,13 @@ Sys_Get_Current_Path_Sig(system_get_current_path){
 }
 
 //
-// Logging
-//
-
-internal
-Sys_Log_Sig(system_log){
-    if (plat_settings.use_log == LogTo_LogFile){
-        char file_path_space[1024];
-        String file_path = make_fixed_width_string(file_path_space);
-        file_path.size = system_get_4ed_path(file_path.str, file_path.memory_size);
-        append_sc(&file_path, "4coder_log.txt");
-        terminate_with_null(&file_path);
-        
-        i32 fd = -1;
-        if (unixvars.did_first_log){
-            fd = open(file_path.str, O_WRONLY | O_CREAT | O_APPEND, 00640);
-        }
-        else{
-            fd = open(file_path.str, O_WRONLY | O_CREAT | O_TRUNC, 00640);
-            unixvars.did_first_log = true;
-        }
-        
-        if (fd >= 0){
-            do{
-                ssize_t written = write(fd, message, length);
-                if (written != -1){
-                    length -= written;
-                    message += written;
-                }
-            } while(length > 0);
-            close(fd);
-        }
-    }
-    else if (plat_settings.use_log == LogTo_Stdout){
-        fwrite(message, 1, length, stdout);
-    }
-}
-
-//
 // Shared system functions (system_shared.h)
 //
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     b32 result = access((char*)filename, W_OK) == 0;
-    LOGF("%s = %d\n", filename, result);
+    //LOGF("%s = %d\n", filename, result);
     return(result);
 }
 
@@ -91,7 +53,6 @@ system_memory_allocate_extended(void *base, umem size){
     // We will count on the user to keep track of size themselves.
     void *result = mmap(base, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (result == MAP_FAILED){
-        LOG("error: mmap failed\n");
         result = 0;
     }
     return(result);
@@ -132,7 +93,6 @@ Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
     
     if(mprotect(ptr, size, protect) == -1){
         result = 0;
-        LOG("error: mprotect\n");
     }
     
     return(result);
@@ -159,7 +119,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
         return;
     }
     
-    LOGF("%s\n", directory);
+    //LOGF("%s\n", directory);
     
     DIR *d = opendir(directory);
     if (d != 0){
@@ -296,7 +256,7 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     
 #if defined(FRED_INTERNAL)
     if (len != (write_p - path) || memcmp(filename, path, len) != 0){
-        LOGF("[%.*s] -> [%.*s]\n", len, filename, (int)(write_p - path), path);
+        //LOGF("[%.*s] -> [%.*s]\n", len, filename, (int)(write_p - path), path);
     }
 #endif
     
@@ -313,10 +273,10 @@ Sys_Load_Handle_Sig(system_load_handle){
     
     i32 fd = open(filename, O_RDONLY);
     if (fd == -1 || fd == 0){
-        LOGF("upable to open file descriptor for %s\n", filename);
+        //LOGF("upable to open file descriptor for %s\n", filename);
     }
     else{
-        LOGF("file descriptor (%d) == file %s\n", fd, filename);
+        //LOGF("file descriptor (%d) == file %s\n", fd, filename);
         *(i32*)handle_out = fd;
         result = true;
     }
@@ -332,10 +292,10 @@ Sys_Load_Size_Sig(system_load_size){
     struct stat st = {};
     
     if (fstat(fd, &st) == -1){
-        LOGF("unable to stat a file\n");
+        //LOGF("unable to stat a file\n");
     }
     else{
-        LOGF("file descriptor (%d) has size %d\n", fd, (i32)st.st_size);
+        //LOGF("file descriptor (%d) has size %d\n", fd, (i32)st.st_size);
         result = st.st_size;
     }
     
@@ -350,7 +310,7 @@ Sys_Load_File_Sig(system_load_file){
         ssize_t n = read(fd, buffer, size);
         if (n == -1){
             if (errno != EINTR){
-                LOGF("error reading from file descriptor (%d)\n", fd);
+                //LOGF("error reading from file descriptor (%d)\n", fd);
                 break;
             }
         }
@@ -369,11 +329,11 @@ Sys_Load_Close_Sig(system_load_close){
     
     i32 fd = *(i32*)&handle;
     if (close(fd) == -1){
-        LOGF("error closing file descriptor (%d)\n", fd);
+        //LOGF("error closing file descriptor (%d)\n", fd);
         result = false;
     }
     else{
-        LOGF("file descriptor (%d) closed\n", fd);
+        //LOGF("file descriptor (%d) closed\n", fd);
     }
     
     FD_CHECK();
@@ -385,16 +345,15 @@ internal
 Sys_Save_File_Sig(system_save_file){
     i32 fd = open(filename, O_WRONLY|O_TRUNC|O_CREAT, 00640);
     
-    LOGF("%s %d\n", filename, size);
+    //LOGF("%s %d\n", filename, size);
     if (fd < 0){
-        LOGF("error: open '%s': %s\n", filename, strerror(errno));
+        //LOGF("error: open '%s': %s\n", filename, strerror(errno));
     }
     else{
         do{
             ssize_t written = write(fd, buffer, size);
             if (written == -1){
                 if (errno != EINTR){
-                    LOG("error: write\n");
                     break;
                 }
             }
@@ -419,7 +378,7 @@ Sys_File_Exists_Sig(system_file_exists){
     char buff[PATH_MAX] = {};
     
     if (len + 1 > PATH_MAX){
-        LOG("system_directory_has_file: path too long\n");
+        //LOG("system_directory_has_file: path too long\n");
     }
     else{
         memcpy(buff, filename, len);
@@ -428,7 +387,7 @@ Sys_File_Exists_Sig(system_file_exists){
         result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
     }
     
-    LOGF("%s: %d\n", buff, result);
+    //LOGF("%s: %d\n", buff, result);
     
     return(result);
 }

@@ -12,11 +12,25 @@
 #if !defined(FCODER_FONT_PROVIDER_FREETYPE_H)
 #define FCODER_FONT_PROVIDER_FREETYPE_H
 
+struct FT_Codepoint_Index_Pair{
+    u32 codepoint;
+    u16 index;
+};
+
+struct FT_Codepoint_Index_Pair_Array{
+    FT_Codepoint_Index_Pair *vals;
+    i32 count;
+};
+
+#if 0
 struct Font_Slot{
     b32 is_active;
     Font_Settings settings;
     Font_Metrics metrics;
+    Font_Data data;
+#if 0
     Font_Page_Storage pages;
+#endif
 };
 
 struct Font_Slot_Page{
@@ -70,7 +84,7 @@ struct Font_Setup{
     char name[64];
 };
 
-struct Font_Setup_List{
+struct _Setup_List{
     Font_Setup *first;
     Font_Setup *last;
 };
@@ -106,6 +120,8 @@ internal Sys_Font_Data(name, parameters);
 #define Sys_Font_Data_Not_Used \
 internal Sys_Font_Data(n,p){ \
     Font_Raw_Data data = {}; LOG("there is no font data retrieval procedure available\n"); return(data);}
+#endif
+
 
 #endif
 

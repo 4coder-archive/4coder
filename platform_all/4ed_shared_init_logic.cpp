@@ -46,11 +46,11 @@ memory_init(){
 
 internal void
 load_app_code(void){
-    LOG("Loading 4coder core...");
+    //LOG("Loading 4coder core...");
     
     App_Get_Functions *get_funcs = 0;
     
-    if (system_load_library(&libraries.app_code, "4ed_app", LoadLibrary_BinaryDirectory)){
+    if (system_load_library(&shared_vars.scratch, &libraries.app_code, "4ed_app", LoadLibrary_BinaryDirectory)){
         get_funcs = (App_Get_Functions*)system_get_proc(&libraries.app_code, "app_get_functions");
     }
     else{
@@ -95,7 +95,7 @@ load_custom_code(){
     for (u32 i = 0; custom_files[i] != 0 && !has_library; ++i){
         char *file = custom_files[i];
         for (u32 j = 0; j < ArrayCount(locations) && !has_library; ++j){
-            if (system_load_library(&libraries.custom, file, locations[j], success_file, sizeof(success_file))){
+            if (system_load_library(&shared_vars.scratch, &libraries.custom, file, locations[j], success_file, sizeof(success_file))){
                 has_library = true;
                 success_file[sizeof(success_file) - 1] = 0;
             }
@@ -120,12 +120,12 @@ load_custom_code(){
         system_error_box(custom_fail_missing_get_bindings_msg);
     }
     
-    LOGF("Loaded custom file: %s\n", success_file);
+    //LOGF("Loaded custom file: %s\n", success_file);
 }
 
 internal void
 read_command_line(i32 argc, char **argv){
-    LOG("Reading command line\n");
+    //LOG("Reading command line\n");
     char cwd[4096];
     u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
     if (size == 0 || size >= sizeof(cwd)){
@@ -139,7 +139,7 @@ read_command_line(i32 argc, char **argv){
     i32 *file_count = 0;
     app.read_command_line(&sysfunc, &memory_vars, curdir, &plat_settings, &files, &file_count, argc, argv);
     sysshared_filter_real_files(files, file_count);
-    LOG("Read command line.\n");
+    //LOG("Read command line.\n");
 }
 
 internal void

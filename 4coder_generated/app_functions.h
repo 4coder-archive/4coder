@@ -139,8 +139,6 @@ struct Application_Links;
 #define TRY_CREATE_NEW_FACE_SIG(n) Face_ID n(Application_Links *app, Face_Description *description)
 #define TRY_MODIFY_FACE_SIG(n) b32 n(Application_Links *app, Face_ID id, Face_Description *description)
 #define TRY_RELEASE_FACE_SIG(n) b32 n(Application_Links *app, Face_ID id, Face_ID replacement_id)
-#define GET_AVAILABLE_FONT_COUNT_SIG(n) i32 n(Application_Links *app)
-#define GET_AVAILABLE_FONT_SIG(n) Available_Font n(Application_Links *app, i32 index)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, i32 count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, i32 count)
 #define FINALIZE_COLOR_SIG(n) argb_color n(Application_Links *app, int_color color)
@@ -320,8 +318,6 @@ typedef GET_FACE_ID_SIG(Get_Face_ID_Function);
 typedef TRY_CREATE_NEW_FACE_SIG(Try_Create_New_Face_Function);
 typedef TRY_MODIFY_FACE_SIG(Try_Modify_Face_Function);
 typedef TRY_RELEASE_FACE_SIG(Try_Release_Face_Function);
-typedef GET_AVAILABLE_FONT_COUNT_SIG(Get_Available_Font_Count_Function);
-typedef GET_AVAILABLE_FONT_SIG(Get_Available_Font_Function);
 typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
 typedef FINALIZE_COLOR_SIG(Finalize_Color_Function);
@@ -503,8 +499,6 @@ Get_Face_ID_Function *get_face_id;
 Try_Create_New_Face_Function *try_create_new_face;
 Try_Modify_Face_Function *try_modify_face;
 Try_Release_Face_Function *try_release_face;
-Get_Available_Font_Count_Function *get_available_font_count;
-Get_Available_Font_Function *get_available_font;
 Set_Theme_Colors_Function *set_theme_colors;
 Get_Theme_Colors_Function *get_theme_colors;
 Finalize_Color_Function *finalize_color;
@@ -685,8 +679,6 @@ Get_Face_ID_Function *get_face_id_;
 Try_Create_New_Face_Function *try_create_new_face_;
 Try_Modify_Face_Function *try_modify_face_;
 Try_Release_Face_Function *try_release_face_;
-Get_Available_Font_Count_Function *get_available_font_count_;
-Get_Available_Font_Function *get_available_font_;
 Set_Theme_Colors_Function *set_theme_colors_;
 Get_Theme_Colors_Function *get_theme_colors_;
 Finalize_Color_Function *finalize_color_;
@@ -875,8 +867,6 @@ app_links->get_face_id_ = Get_Face_ID;\
 app_links->try_create_new_face_ = Try_Create_New_Face;\
 app_links->try_modify_face_ = Try_Modify_Face;\
 app_links->try_release_face_ = Try_Release_Face;\
-app_links->get_available_font_count_ = Get_Available_Font_Count;\
-app_links->get_available_font_ = Get_Available_Font;\
 app_links->set_theme_colors_ = Set_Theme_Colors;\
 app_links->get_theme_colors_ = Get_Theme_Colors;\
 app_links->finalize_color_ = Finalize_Color;\
@@ -1057,8 +1047,6 @@ static Face_ID get_face_id(Application_Links *app, Buffer_ID buffer_id){return(a
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face(app, description));}
 static b32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face(app, id, description));}
 static b32 try_release_face(Application_Links *app, Face_ID id, Face_ID replacement_id){return(app->try_release_face(app, id, replacement_id));}
-static i32 get_available_font_count(Application_Links *app){return(app->get_available_font_count(app));}
-static Available_Font get_available_font(Application_Links *app, i32 index){return(app->get_available_font(app, index));}
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->set_theme_colors(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->get_theme_colors(app, colors, count));}
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color(app, color));}
@@ -1239,8 +1227,6 @@ static Face_ID get_face_id(Application_Links *app, Buffer_ID buffer_id){return(a
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face_(app, description));}
 static b32 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description){return(app->try_modify_face_(app, id, description));}
 static b32 try_release_face(Application_Links *app, Face_ID id, Face_ID replacement_id){return(app->try_release_face_(app, id, replacement_id));}
-static i32 get_available_font_count(Application_Links *app){return(app->get_available_font_count_(app));}
-static Available_Font get_available_font(Application_Links *app, i32 index){return(app->get_available_font_(app, index));}
 static void set_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->set_theme_colors_(app, colors, count));}
 static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 count){(app->get_theme_colors_(app, colors, count));}
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color_(app, color));}

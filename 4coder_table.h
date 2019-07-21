@@ -25,6 +25,16 @@ struct Table_u64_u64{
     u32 dirty_count;
 };
 
+struct Table_u32_u16{
+    Base_Allocator *allocator;
+    void *memory;
+    u32 *keys;
+    u16 *vals;
+    u32 slot_count;
+    u32 used_count;
+    u32 dirty_count;
+};
+
 struct Table_Data_u64{
     Base_Allocator *allocator;
     void *memory;

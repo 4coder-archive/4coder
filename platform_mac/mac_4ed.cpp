@@ -38,7 +38,6 @@
 
 #include "4ed_font.h"
 #include "4ed_system.h"
-#include "4ed_log.h"
 #include "4ed_render_target.h"
 #include "4ed_render_format.h"
 #include "4ed.h"
@@ -722,7 +721,7 @@ osx_step(void){
         result = app.step(&sysfunc, &target, &memory_vars, &frame_input);
     }
     else{
-        LOG("app.step == 0 -- skipping\n");
+        //LOG("app.step == 0 -- skipping\n");
     }
     
     // NOTE(allen): Finish the Loop
@@ -743,7 +742,7 @@ osx_step(void){
     
     // NOTE(allen): Render
     osx_begin_render();
-    interpret_render_buffer(&target, &shared_vars.pixel_scratch);
+    gl_render(&target, &shared_vars.pixel_scratch);
     osx_end_render();
     
     // NOTE(allen): Toggle Full Screen
@@ -865,7 +864,7 @@ osx_init(){
         clipboard_string = make_string(osx_objc.clipboard_data, osx_objc.clipboard_size);
     }
     
-    LOG("Initializing application variables\n");
+    //LOG("Initializing application variables\n");
     app.init(&sysfunc, &target, &memory_vars, clipboard_string, curdir, custom_api);
 }
 

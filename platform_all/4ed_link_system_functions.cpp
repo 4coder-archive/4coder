@@ -63,8 +63,6 @@ link_system_code(){
     SYSLINK(set_fullscreen);
     SYSLINK(is_fullscreen);
     SYSLINK(show_mouse_cursor);
-    
-    SYSLINK(log);
 }
 
 // BOTTOM

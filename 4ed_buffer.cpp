@@ -676,7 +676,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Gap_Buffer *buffer){
 }
 
 internal void
-buffer_measure_character_starts(System_Functions *system, Font_Pointers font, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
+buffer_measure_character_starts(System_Functions *system, Gap_Buffer *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
     Assert(mode == 0);
     
     Gap_Buffer_Stream stream = {};
@@ -705,7 +705,7 @@ buffer_measure_character_starts(System_Functions *system, Font_Pointers font, Ga
             for (; i < stream.end; ++i){
                 u8 ch = (u8)stream.data[i];
                 
-                translating_fully_process_byte(system, font, &tran, ch, i, size, &emits);
+                translating_fully_process_byte(system, &tran, ch, i, size, &emits);
                 
                 for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                     TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
@@ -781,7 +781,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                         S.skipping_whitespace = false;
                     }
                     
-                    translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
+                    translating_fully_process_byte(params.system, &S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
                 for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
@@ -809,10 +809,10 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         if (!S.skipping_whitespace){
                             if (S.behavior.do_codepoint_advance){
-                                S.current_adv = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, S.step.value);
+                                S.current_adv = font_get_glyph_advance(params.system, params.face, S.step.value);
                             }
                             else{
-                                S.current_adv = params.font.metrics->byte_advance;
+                                S.current_adv = params.face->byte_advance;
                             }
                             
                             S.did_wrap = false;
@@ -942,7 +942,7 @@ buffer_remeasure_starts(Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 li
 }
 
 internal void
-buffer_remeasure_character_starts(System_Functions *system, Font_Pointers font, Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 *character_starts, i32 mode, i32 virtual_whitespace){
+buffer_remeasure_character_starts(System_Functions *system, Gap_Buffer *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 *character_starts, i32 mode, i32 virtual_whitespace){
     Assert(mode == 0);
     
     i32 new_line_count = buffer->line_count;
@@ -990,7 +990,7 @@ buffer_remeasure_character_starts(System_Functions *system, Font_Pointers font, 
         do{
             for (; char_i < stream.end; ++char_i){
                 u8 ch = (u8)stream.data[char_i];
-                translating_fully_process_byte(system, font, &tran, ch, char_i, size, &emits);
+                translating_fully_process_byte(system, &tran, ch, char_i, size, &emits);
                 
                 for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                     TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
@@ -1260,7 +1260,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         DrCase(4);
     }
     
-    S.font_height = params.font.metrics->height;
+    S.font_height = (i32)(params.face->height);
     
     S.xy_seek = (params.seek.type == buffer_seek_wrapped_xy || params.seek.type == buffer_seek_unwrapped_xy);
     S.size = buffer_size(params.buffer);
@@ -1417,7 +1417,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             for (; S.i < S.stream.end; ++S.i){
                 {
                     u8 ch = (u8)S.stream.data[S.i];
-                    translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
+                    translating_fully_process_byte(params.system, &S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
                 for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
@@ -1448,10 +1448,10 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         
                         if (S.behavior.do_codepoint_advance){
-                            S.ch_width = font_get_glyph_advance(params.system, params.font.settings, params.font.metrics, params.font.pages, S.step.value);
+                            S.ch_width = font_get_glyph_advance(params.system, params.face, S.step.value);
                         }
                         else{
-                            S.ch_width = params.font.metrics->byte_advance;
+                            S.ch_width = params.face->byte_advance;
                         }
                         
                         if (S.step.i >= S.wrap_unit_end){
@@ -1628,7 +1628,7 @@ internal Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags,
                   Render_Item_Flag render_flags){
     if (write.item < write.item_end){
-        f32 ch_width = font_get_glyph_advance(write.system, write.font.settings, write.font.metrics, write.font.pages, codepoint);
+        f32 ch_width = font_get_glyph_advance(write.system, write.face, codepoint);
         
         b32 visible_on_layout = (write.x_min <= write.x + ch_width && write.x <= write.x_max);
         
@@ -1695,12 +1695,12 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     S.write.x           = S.shift_x + line_shift;
     S.write.y           = S.shift_y;
     S.write.system      = params.system;
-    S.write.font        = params.font;
-    S.write.font_height = params.font.metrics->height;
+    S.write.face        = params.face;
+    S.write.font_height = (i32)params.face->height;
     S.write.x_min       = params.port_x;
     S.write.x_max       = params.port_x + params.clip_w;
     
-    S.byte_advance = params.font.metrics->byte_advance;
+    S.byte_advance = params.face->byte_advance;
     
     if (params.virtual_white){
         S.skipping_whitespace = true;
@@ -1714,7 +1714,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
             for (; S.i < S.stream.end; ++S.i){
                 {
                     u8 ch = (u8)S.stream.data[S.i];
-                    translating_fully_process_byte(params.system, params.font, &S.tran, ch, S.i, S.size, &S.emits);
+                    translating_fully_process_byte(params.system, &S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
                 for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
@@ -1814,9 +1814,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 
                                 case '\t':
                                 {
-                                    S.ch_width = font_get_glyph_advance(params.system, params.font.settings,
-                                                                        params.font.metrics, params.font.pages,
-                                                                        '\t');
+                                    S.ch_width = font_get_glyph_advance(params.system, params.face, '\t');
                                     
                                     f32 new_x = S.write.x + S.ch_width;
                                     S.write = write_render_item(S.write, I, ' ', 0, flags);

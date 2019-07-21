@@ -238,8 +238,12 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek){
 
 internal Full_Cursor
 file_compute_cursor__inner(System_Functions *system, Editing_File *file, Buffer_Seek seek, b32 return_hint){
+#if 0
     Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
     Assert(font.valid);
+#endif
+    Face *face = 0;
+    Assert(face != 0);
     
     Full_Cursor result = {};
     
@@ -247,7 +251,7 @@ file_compute_cursor__inner(System_Functions *system, Editing_File *file, Buffer_
     params.buffer           = &file->state.buffer;
     params.seek             = seek;
     params.system           = system;
-    params.font             = font;
+    params.face             = face;
     params.wrap_line_index  = file->state.wrap_line_index;
     params.character_starts = file->state.character_starts;
     params.virtual_white    = file->settings.virtual_white;
@@ -446,15 +450,19 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     
     Face_ID font_id = models->global_font_id;
     file->settings.font_id = font_id;
+#if 0
     Font_Pointers font = system->font.get_pointers_by_id(font_id);
     Assert(font.valid);
+#endif
+    Face *face = 0;
+    Assert(face != 0);
     
     file_measure_starts(heap, &file->state.buffer);
     
     file_allocate_character_starts_as_needed(heap, file);
-    buffer_measure_character_starts(system, font, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_measure_character_starts(system, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
-    file_measure_wraps(system, &models->mem, file, font);
+    file_measure_wraps(system, &models->mem, file, face);
     //adjust_views_looking_at_files_to_new_cursor(system, models, file);
     
     file->lifetime_object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Buffer, file);

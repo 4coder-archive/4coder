@@ -161,7 +161,6 @@ enum{
     SUPER = 0x40,
     INTERNAL = 0x80,
     KEEP_ASSERT = 0x100,
-    LOG = 0x200,
 };
 
 internal char**
@@ -175,10 +174,6 @@ get_defines_from_flags(Arena *arena, u32 flags){
     }
     if (HasFlag(flags, SUPER)){
         result = fm_list(arena, fm_list_one_item(arena, "FRED_SUPER"), result);
-    }
-    if (HasFlag(flags, LOG)){
-        char *log_defines[] = { "USE_LOG", "USE_LOGF", 0};
-        result = fm_list(arena, log_defines, result);
     }
     return(result);
 }
@@ -633,7 +628,7 @@ package(Arena *arena, char *cdir){
     };
     
     char *tiers[] = { "alpha", "super" };
-    u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | LOG;
+    u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO;
     u32 tier_flags[] = { 0, SUPER, };
     
     for (u32 tier_index = 0; tier_index < Tier_COUNT; ++tier_index){
@@ -704,7 +699,7 @@ int main(int argc, char **argv){
     END_TIME_SECTION("current directory");
     
 #if defined(DEV_BUILD) || defined(OPT_BUILD) || defined(DEV_BUILD_X86)
-    u32 flags = DEBUG_INFO | SUPER | INTERNAL | LOG;
+    u32 flags = DEBUG_INFO | SUPER | INTERNAL;
     u32 arch = Arch_X64;
 #if defined(OPT_BUILD)
     flags |= OPTIMIZATION;
