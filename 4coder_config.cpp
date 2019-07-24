@@ -1525,19 +1525,19 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         highlight_line_at_cursor = config->highlight_line_at_cursor;
         
         Face_Description description = {};
-        umem len = config->default_font_name.size;
-        len = clamp_top(len, sizeof(description.font.name) - 1);
-        u8 *name_ptr = config->default_font_name.str;
-        memcpy(description.font.name, name_ptr, len);
-        description.font.name[len] = 0;
+        description.font.file_name = config->default_font_name;
+        description.font.in_4coder_font_folder = true;
         if (override_font_size != 0){
-            description.pt_size = override_font_size;
+            description.parameters.pt_size = override_font_size;
         }
         else{
-            description.pt_size = config->default_font_size;
+            description.parameters.pt_size = config->default_font_size;
         }
-        description.hinting = config->default_font_hinting || override_hinting;
-        change_global_face_by_description(app, description, true);
+        description.parameters.hinting = config->default_font_hinting || override_hinting;
+        if (!modify_global_face_by_description(app, description)){
+            description.font.in_4coder_font_folder = !description.font.in_4coder_font_folder;
+            modify_global_face_by_description(app, description);
+        }
     }
     
     end_temp(temp);

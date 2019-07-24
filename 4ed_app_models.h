@@ -28,7 +28,7 @@ struct App_Settings{
 };
 
 struct Models{
-    Base_Allocator allocator;
+    Base_Allocator *base_allocator;
     Mem_Options mem;
     
     App_Settings settings;
@@ -72,6 +72,7 @@ struct Models{
     Parse_Context_Memory parse_context_memory;
     Global_History global_history;
     Text_Layout_Container text_layouts;
+    Font_Set font_set;
     
     Dynamic_Variable_Layout variable_layout;
     Dynamic_Workspace dynamic_workspace;

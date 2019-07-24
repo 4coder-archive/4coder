@@ -705,7 +705,7 @@ buffer_measure_character_starts(System_Functions *system, Gap_Buffer *buffer, i3
             for (; i < stream.end; ++i){
                 u8 ch = (u8)stream.data[i];
                 
-                translating_fully_process_byte(system, &tran, ch, i, size, &emits);
+                translating_fully_process_byte(&tran, ch, i, size, &emits);
                 
                 for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                     TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
@@ -781,7 +781,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                         S.skipping_whitespace = false;
                     }
                     
-                    translating_fully_process_byte(params.system, &S.tran, ch, S.i, S.size, &S.emits);
+                    translating_fully_process_byte(&S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
                 for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
@@ -809,7 +809,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         if (!S.skipping_whitespace){
                             if (S.behavior.do_codepoint_advance){
-                                S.current_adv = font_get_glyph_advance(params.system, params.face, S.step.value);
+                                S.current_adv = font_get_glyph_advance(params.face, S.step.value);
                             }
                             else{
                                 S.current_adv = params.face->byte_advance;
@@ -990,7 +990,7 @@ buffer_remeasure_character_starts(System_Functions *system, Gap_Buffer *buffer, 
         do{
             for (; char_i < stream.end; ++char_i){
                 u8 ch = (u8)stream.data[char_i];
-                translating_fully_process_byte(system, &tran, ch, char_i, size, &emits);
+                translating_fully_process_byte(&tran, ch, char_i, size, &emits);
                 
                 for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                     TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
@@ -1417,7 +1417,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             for (; S.i < S.stream.end; ++S.i){
                 {
                     u8 ch = (u8)S.stream.data[S.i];
-                    translating_fully_process_byte(params.system, &S.tran, ch, S.i, S.size, &S.emits);
+                    translating_fully_process_byte(&S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
                 for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
@@ -1448,7 +1448,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     else if (S.behavior.do_number_advance || S.behavior.do_codepoint_advance){
                         
                         if (S.behavior.do_codepoint_advance){
-                            S.ch_width = font_get_glyph_advance(params.system, params.face, S.step.value);
+                            S.ch_width = font_get_glyph_advance(params.face, S.step.value);
                         }
                         else{
                             S.ch_width = params.face->byte_advance;
@@ -1628,7 +1628,7 @@ internal Render_Item_Write
 write_render_item(Render_Item_Write write, i32 index, u32 codepoint, u32 flags,
                   Render_Item_Flag render_flags){
     if (write.item < write.item_end){
-        f32 ch_width = font_get_glyph_advance(write.system, write.face, codepoint);
+        f32 ch_width = font_get_glyph_advance(write.face, codepoint);
         
         b32 visible_on_layout = (write.x_min <= write.x + ch_width && write.x <= write.x_max);
         
@@ -1714,7 +1714,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
             for (; S.i < S.stream.end; ++S.i){
                 {
                     u8 ch = (u8)S.stream.data[S.i];
-                    translating_fully_process_byte(params.system, &S.tran, ch, S.i, S.size, &S.emits);
+                    translating_fully_process_byte(&S.tran, ch, S.i, S.size, &S.emits);
                 }
                 
                 for (TRANSLATION_EMIT_LOOP(S.J, S.emits)){
@@ -1814,7 +1814,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 
                                 case '\t':
                                 {
-                                    S.ch_width = font_get_glyph_advance(params.system, params.face, '\t');
+                                    S.ch_width = font_get_glyph_advance(params.face, '\t');
                                     
                                     f32 new_x = S.write.x + S.ch_width;
                                     S.write = write_render_item(S.write, I, ' ', 0, flags);

@@ -42,7 +42,8 @@
 # include "4coder_default_bindings.cpp"
 #endif
 
-#include "4ed_font.h"
+#include "4ed_font_interface.h"
+#include "4ed_font_set.h"
 #include "4ed_system.h"
 #include "4ed_render_target.h"
 #include "4ed_render_format.h"
@@ -120,12 +121,13 @@ global System_Functions sysfunc;
 
 #include "4ed_standard_libraries.cpp"
 #include "4ed_coroutine.cpp"
-#include "4ed_font.cpp"
+#include "4ed_font_face.cpp"
 
 #include "4ed_mem.cpp"
 #include "4coder_hash_functions.cpp"
 
 #include "4ed_system_allocator.cpp"
+#include "4ed_font_set.cpp"
 
 ////////////////////////////////
 
@@ -2039,6 +2041,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // System Linkage
     //
     
+    sysfunc.font_make_face = ft__font_make_face;
+    sysfunc.get_texture = gl__get_texture;
+    sysfunc.fill_texture = gl__fill_texture;
     link_system_code();
     
     //
@@ -2082,7 +2087,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     // Read Command Line
     //
-    read_command_line(argc, argv);
+    read_command_line(&shared_vars.scratch, argc, argv);
     
     //
     // Load Custom Code
@@ -2236,16 +2241,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // App init
     //
     
-    char cwd[4096];
-    u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
-    if (size == 0 || size >= sizeof(cwd)){
-        system_error_box("Could not get current directory at launch.");
-    }
-    String_Const_u8 curdir = SCu8(cwd, size);
-    curdir = string_mod_replace_character(curdir, '\\', '/');
-    
     //LOG("Initializing application variables\n");
-    app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
+    {
+        Temp_Memory temp = begin_temp(&shared_vars.scratch);
+        String_Const_u8 curdir = sysfunc.get_current_path(&shared_vars.scratch);
+        curdir = string_mod_replace_character(curdir, '\\', '/');
+        app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
+        end_temp(temp);
+    }
     
     //
     // Main loop

@@ -156,7 +156,8 @@ get_or_open_build_panel(Application_Links *app){
 static void
 set_fancy_compilation_buffer_font(Application_Links *app){
     Buffer_ID buffer = get_comp_buffer(app);
-    set_buffer_face_by_name(app, buffer, string_u8_litexpr("Inconsolata"));
+    Font_Load_Location font = { string_u8_litexpr("Inconsolata-Regular.ttf"), true, };
+    set_buffer_face_by_font_load_location(app, buffer, &font);
 }
 
 CUSTOM_COMMAND_SIG(build_in_build_panel)

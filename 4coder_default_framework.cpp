@@ -410,13 +410,13 @@ default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 ov
 static void
 default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count){
     Face_Description command_line_description = get_face_description(app, 0);
-    default_4coder_initialize(app, command_line_files, file_count, command_line_description.pt_size, command_line_description.hinting);
+    default_4coder_initialize(app, command_line_files, file_count, command_line_description.parameters.pt_size, command_line_description.parameters.hinting);
 }
 
 static void
 default_4coder_initialize(Application_Links *app){
     Face_Description command_line_description = get_face_description(app, 0);
-    default_4coder_initialize(app, 0, 0, command_line_description.pt_size, command_line_description.hinting);
+    default_4coder_initialize(app, 0, 0, command_line_description.parameters.pt_size, command_line_description.parameters.hinting);
 }
 
 static void

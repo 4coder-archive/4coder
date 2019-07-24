@@ -46,18 +46,16 @@ system_load_library(Arena *scratch, Library *library, char *name_cstr, Load_Libr
         name_cstr = full_name.str;
     }
     
-    umem memory_size = KB(4);
-    String_Const_char path = {};
-    path.str = push_array(scratch, char, memory_size);
+    String_Const_u8 path = {};
     switch (location){
         case LoadLibrary_CurrentDirectory:
         {
-            path.size = (umem)sysfunc.get_current_path(path.str, (i32)memory_size);
+            path = sysfunc.get_current_path(scratch);
         }break;
         
         case LoadLibrary_BinaryDirectory:
         {
-            path.size = (umem)sysfunc.get_4ed_path(path.str, (i32)memory_size);
+            path = sysfunc.get_4ed_path(scratch);
         }break;
         
         //default: LOG("Invalid library location passed.\n"); break;
@@ -66,12 +64,12 @@ system_load_library(Arena *scratch, Library *library, char *name_cstr, Load_Libr
     b32 success = false;
     if (path.size > 0){
         if (path.str[path.size - 1] != SLASH){
-            path = push_stringf(scratch, "%.*s%c%.*s", string_expand(path), SLASH, string_expand(name));
+            path = push_u8_stringf(scratch, "%.*s%c%.*s", string_expand(path), SLASH, string_expand(name));
         }
         else{
-            path = push_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(name));
+            path = push_u8_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(name));
         }
-        success = system_load_library_direct(library, path.str);
+        success = system_load_library_direct(library, (char*)path.str);
         if (success && full_file_out != 0 && full_file_out > 0){
             u32 fill_size = clamp_top((u32)(path.size), (u32)(full_file_max - 1));
             block_copy(full_file_out, path.str, fill_size);

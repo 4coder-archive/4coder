@@ -133,7 +133,7 @@ struct Application_Links;
 #define GLOBAL_HISTORY_EDIT_GROUP_BEGIN_SIG(n) void n(Application_Links *app)
 #define GLOBAL_HISTORY_EDIT_GROUP_END_SIG(n) void n(Application_Links *app)
 #define BUFFER_SET_FACE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Face_ID id)
-#define GET_FACE_DESCRIPTION_SIG(n) Face_Description n(Application_Links *app, Face_ID id)
+#define GET_FACE_DESCRIPTION_SIG(n) Face_Description n(Application_Links *app, Face_ID face_id)
 #define GET_FACE_METRICS_SIG(n) Face_Metrics n(Application_Links *app, Face_ID face_id)
 #define GET_FACE_ID_SIG(n) Face_ID n(Application_Links *app, Buffer_ID buffer_id)
 #define TRY_CREATE_NEW_FACE_SIG(n) Face_ID n(Application_Links *app, Face_Description *description)
@@ -1041,7 +1041,7 @@ static b32 buffer_history_clear_after_current_state(Application_Links *app, Buff
 static void global_history_edit_group_begin(Application_Links *app){(app->global_history_edit_group_begin(app));}
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end(app));}
 static b32 buffer_set_face(Application_Links *app, Buffer_ID buffer_id, Face_ID id){return(app->buffer_set_face(app, buffer_id, id));}
-static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description(app, id));}
+static Face_Description get_face_description(Application_Links *app, Face_ID face_id){return(app->get_face_description(app, face_id));}
 static Face_Metrics get_face_metrics(Application_Links *app, Face_ID face_id){return(app->get_face_metrics(app, face_id));}
 static Face_ID get_face_id(Application_Links *app, Buffer_ID buffer_id){return(app->get_face_id(app, buffer_id));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face(app, description));}
@@ -1221,7 +1221,7 @@ static b32 buffer_history_clear_after_current_state(Application_Links *app, Buff
 static void global_history_edit_group_begin(Application_Links *app){(app->global_history_edit_group_begin_(app));}
 static void global_history_edit_group_end(Application_Links *app){(app->global_history_edit_group_end_(app));}
 static b32 buffer_set_face(Application_Links *app, Buffer_ID buffer_id, Face_ID id){return(app->buffer_set_face_(app, buffer_id, id));}
-static Face_Description get_face_description(Application_Links *app, Face_ID id){return(app->get_face_description_(app, id));}
+static Face_Description get_face_description(Application_Links *app, Face_ID face_id){return(app->get_face_description_(app, face_id));}
 static Face_Metrics get_face_metrics(Application_Links *app, Face_ID face_id){return(app->get_face_metrics_(app, face_id));}
 static Face_ID get_face_id(Application_Links *app, Buffer_ID buffer_id){return(app->get_face_id_(app, buffer_id));}
 static Face_ID try_create_new_face(Application_Links *app, Face_Description *description){return(app->try_create_new_face_(app, description));}

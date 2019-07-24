@@ -71,7 +71,7 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
         if (view->file != file){
             continue;
         }
-        Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(pos));
+        Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(pos));
         view_set_cursor(system, models, view, cursor, true);
         view->mark = cursor.pos;
     }
@@ -702,47 +702,19 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
 
 ////////////////////////////////
 
-internal void*
-base_reserve__system(void *user_data, umem size, umem *size_out){
-    System_Functions *system = (System_Functions*)user_data;
-    umem extra_size = 128;
-    umem increased_size = size + extra_size;
-    size = round_up_umem(increased_size, KB(4));
-    *size_out = size - extra_size;
-    void *ptr = system->memory_allocate(size);
-    *(umem*)ptr = size;
-    ptr = (u8*)ptr + extra_size;
-    return(ptr);
-}
-
-internal void
-base_free__system(void *user_data, void *ptr){
-    System_Functions *system = (System_Functions*)user_data;
-    umem extra_size = 128;
-    ptr = (u8*)ptr - extra_size;
-    umem size = *(umem*)ptr;
-    system->memory_free(ptr, size);
-}
-
-internal Base_Allocator
-make_base_allocator_system(System_Functions *system){
-    return(make_base_allocator(base_reserve__system, 0, 0,
-                               base_free__system, 0, system));
-}
-
 internal Arena
 make_arena_models(Models *models, umem chunk_size, umem align){
-    return(make_arena(&models->allocator, chunk_size, align));
+    return(make_arena(models->base_allocator, chunk_size, align));
 }
 
 internal Arena
 make_arena_models(Models *models, umem chunk_size){
-    return(make_arena(&models->allocator, chunk_size, 8));
+    return(make_arena(models->base_allocator, chunk_size, 8));
 }
 
 internal Arena
 make_arena_models(Models *models){
-    return(make_arena(&models->allocator, KB(16), 8));
+    return(make_arena(models->base_allocator, KB(16), 8));
 }
 
 ////////////////////////////////
@@ -751,8 +723,8 @@ internal App_Vars*
 app_setup_memory(System_Functions *system, Application_Memory *memory){
     Cursor cursor = make_cursor(memory->vars_memory, memory->vars_memory_size);
     App_Vars *vars = push_array_zero(&cursor, App_Vars, 1);
-    vars->models.allocator = make_base_allocator_system(system);
-    vars->models.mem.arena = make_arena(&vars->models.allocator);
+    vars->models.mem.arena = make_arena_system(system);
+    vars->models.base_allocator = vars->models.mem.arena.base_allocator;
     heap_init(&vars->models.mem.heap);
     heap_extend(&vars->models.mem.heap, memory->target_memory, memory->target_memory_size);
     return(vars);
@@ -862,6 +834,9 @@ App_Init_Sig(app_init){
     
     Arena *arena = &models->mem.arena;
     
+    // NOTE(allen): font set
+    font_set_init(system, &models->font_set);
+    
     // NOTE(allen): live set
     {
         models->live_set.count = 0;
@@ -923,7 +898,13 @@ App_Init_Sig(app_init){
     }
     
     // NOTE(allen): style setup
-    models->global_font_id = 1;
+    {
+        Face_Description description = {};
+        description.font.file_name = string_u8_litexpr("liberation-mono.ttf");
+        description.font.in_4coder_font_folder = true;
+        description.parameters.pt_size = 12;
+        models->global_font_id = font_set_new_face(&models->font_set, &description);
+    }
     app_hardcode_default_style(models);
     
     // NOTE(allen): title space
@@ -986,7 +967,7 @@ App_Step_Sig(app_step){
     models->animate_next_frame = false;
     
     // NOTE(allen): per-frame update of models state
-    begin_frame(target);
+    begin_frame(target, &models->font_set);
     models->target = target;
     models->input = input;
     
@@ -1190,30 +1171,6 @@ App_Step_Sig(app_step){
             
             models->hook_start(&models->app_links, files, files_count, flags, flags_count);
         }
-        
-#if 0
-        // Open command line files.
-        char space[512];
-        String cl_file_name = make_fixed_width_string(space);
-        copy_ss(&cl_file_name, models->hot_directory.string);
-        i32 cl_file_name_len = cl_file_name.size;
-        for (i32 i = 0; i < models->settings.init_files_count; ++i){
-            cl_file_name.size = cl_file_name_len;
-            
-            String file_name = {};
-            Editing_File_Name canon_name = {};
-            if (get_canon_name(system, make_string_slowly(models->settings.init_files[i]), &canon_name)){
-                file_name = canon_name.name;
-            }
-            else{
-                append_sc(&cl_file_name, models->settings.init_files[i]);
-                file_name = cl_file_name;
-            }
-            
-            Buffer_ID id = 0;
-            create_buffer(&models->app_links, file_name, 0, &id);
-        }
-#endif
     }
     
     // NOTE(allen): consume event stream
@@ -1506,48 +1463,6 @@ App_Step_Sig(app_step){
         if (models->render_caller != 0){
             models->render_caller(&models->app_links, frame);
         }
-        
-#if 0        
-        Panel *active_panel = layout_get_active_panel(layout);
-        View *active_view = active_panel->view;
-        
-        // NOTE(allen): render the panels
-        for (Panel *panel = layout_get_first_open_panel(layout);
-             panel != 0;
-             panel = layout_get_next_open_panel(layout, panel)){
-            i32_Rect full = panel->rect_full;
-            i32_Rect inner = panel->rect_inner;
-            
-            View *view = panel->view;
-            //Style *style = &models->styles.styles[0];
-            Color_Table color_table = models->color_table;
-            
-            draw_rectangle(target, full, color_table.vals[Stag_Back]);
-            
-            File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            GUI_Scroll_Vars *scroll_vars = &edit_pos.scroll;
-            
-            b32 active = (panel == active_panel);
-            do_render_file_view(system, view, models, scroll_vars, active_view, inner, active, target);
-            
-            view_set_edit_pos(view, edit_pos);
-            
-            u32 margin_color = 0;
-            if (active){
-                margin_color = color_table.vals[Stag_Margin_Active];
-            }
-            else if (panel == mouse_panel){
-                margin_color = color_table.vals[Stag_Margin_Hover];
-            }
-            else{
-                margin_color = color_table.vals[Stag_Margin];
-            }
-            draw_rectangle(target, i32R( full.x0,  full.y0,  full.x1, inner.y0), margin_color);
-            draw_rectangle(target, i32R( full.x0, inner.y1,  full.x1,  full.y1), margin_color);
-            draw_rectangle(target, i32R( full.x0, inner.y0, inner.x0, inner.y1), margin_color);
-            draw_rectangle(target, i32R(inner.x1, inner.y0,  full.x1, inner.y1), margin_color);
-        }
-#endif
         
         models->in_render_mode = false;
         end_render_section(target, system);

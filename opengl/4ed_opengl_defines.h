@@ -190,6 +190,8 @@
 
 #define GL_DEPTH_STENCIL_ATTACHMENT       0x821A
 
+#define GL_DEBUG_OUTPUT                   0x92E0
+
 ////////////////////////////////
 
 #define GL_FRAMEBUFFER_UNDEFINED          0x8219

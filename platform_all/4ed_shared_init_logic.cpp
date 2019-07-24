@@ -124,22 +124,16 @@ load_custom_code(){
 }
 
 internal void
-read_command_line(i32 argc, char **argv){
-    //LOG("Reading command line\n");
-    char cwd[4096];
-    u32 size = sysfunc.get_current_path(cwd, sizeof(cwd));
-    if (size == 0 || size >= sizeof(cwd)){
-        system_error_box("Could not get current directory at launch.");
-    }
-    
-    String_Const_u8 curdir = SCu8(cwd, size);
+read_command_line(Arena *scratch, i32 argc, char **argv){
+    Temp_Memory temp = begin_temp(scratch);
+    String_Const_u8 curdir = sysfunc.get_current_path(scratch);
     curdir = string_mod_replace_character(curdir, '\\', '/');
     
     char **files = 0;
     i32 *file_count = 0;
     app.read_command_line(&sysfunc, &memory_vars, curdir, &plat_settings, &files, &file_count, argc, argv);
     sysshared_filter_real_files(files, file_count);
-    //LOG("Read command line.\n");
+    end_temp(temp);
 }
 
 internal void

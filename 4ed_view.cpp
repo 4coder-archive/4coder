@@ -117,9 +117,9 @@ view_height(Models *models, View *view){
 }
 
 internal Vec2_i32
-view_get_cursor_xy(System_Functions *system, View *view){
+view_get_cursor_xy(Models *models, View *view){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Full_Cursor cursor = file_compute_cursor(system, view->file, seek_pos(edit_pos.cursor_pos));
+    Full_Cursor cursor = file_compute_cursor(models, view->file, seek_pos(edit_pos.cursor_pos));
     Vec2_i32 result = {};
     if (view->file->settings.unwrapped_lines){
         result = V2i32((i32)cursor.unwrapped_x, (i32)cursor.unwrapped_y);
@@ -175,12 +175,13 @@ view_compute_max_target_y(Models *models, View *view){
 ////////////////////////////////
 
 internal b32
-view_move_view_to_cursor(System_Functions *system, Models *models, View *view, GUI_Scroll_Vars *scroll){
+view_move_view_to_cursor(Models *models, View *view, GUI_Scroll_Vars *scroll){
+    System_Functions *system = models->system;
     b32 result = false;
     i32 max_x = (i32)view_width(models, view);
     i32 max_y = view_compute_max_target_y(models, view);
     
-    Vec2_i32 cursor = view_get_cursor_xy(system, view);
+    Vec2_i32 cursor = view_get_cursor_xy(models, view);
     
     GUI_Scroll_Vars scroll_vars = *scroll;
     i32 target_x = scroll_vars.target_x;
@@ -213,9 +214,10 @@ view_move_view_to_cursor(System_Functions *system, Models *models, View *view, G
 }
 
 internal b32
-view_move_cursor_to_view(System_Functions *system, Models *models, View *view, GUI_Scroll_Vars scroll, i32 *pos_in_out, f32 preferred_x){
+view_move_cursor_to_view(Models *models, View *view, GUI_Scroll_Vars scroll, i32 *pos_in_out, f32 preferred_x){
+    System_Functions *system = models->system;
     Editing_File *file = view->file;
-    Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(*pos_in_out));
+    Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(*pos_in_out));
     
     i32 line_height = view->line_height;
     f32 old_cursor_y = 0.f;
@@ -246,7 +248,7 @@ view_move_cursor_to_view(System_Functions *system, Models *models, View *view, G
             cursor_y -= line_height;
         }
         Buffer_Seek seek = seek_xy(preferred_x, cursor_y, false, file->settings.unwrapped_lines);
-        cursor = file_compute_cursor(system, file, seek);
+        cursor = file_compute_cursor(models, file, seek);
         *pos_in_out = (i32)cursor.pos;
         result = true;
     }
@@ -270,9 +272,9 @@ view_set_preferred_x(View *view, Full_Cursor cursor){
 }
 
 internal void
-view_set_preferred_x_to_current_position(System_Functions *system, View *view){
+view_set_preferred_x_to_current_position(Models *models, View *view){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Full_Cursor cursor = file_compute_cursor(system, view->file, seek_pos(edit_pos.cursor_pos));
+    Full_Cursor cursor = file_compute_cursor(models, view->file, seek_pos(edit_pos.cursor_pos));
     view_set_preferred_x(view, cursor);
 }
 
@@ -285,7 +287,7 @@ view_set_cursor(System_Functions *system, Models *models, View *view, Full_Curso
     }
     view_set_edit_pos(view, edit_pos);
     GUI_Scroll_Vars scroll = edit_pos.scroll;
-    if (view_move_view_to_cursor(system, models, view, &scroll)){
+    if (view_move_view_to_cursor(models, view, &scroll)){
         edit_pos.scroll = scroll;
         view_set_edit_pos(view, edit_pos);
     }
@@ -297,8 +299,8 @@ view_set_scroll(System_Functions *system, Models *models, View *view, GUI_Scroll
     file_edit_positions_set_scroll(&edit_pos, scroll, view_compute_max_target_y(models, view));
     view_set_edit_pos(view, edit_pos);
     i32 pos = (i32)edit_pos.cursor_pos;
-    if (view_move_cursor_to_view(system, models, view, edit_pos.scroll, &pos, view->preferred_x)){
-        Full_Cursor cursor = file_compute_cursor(system, view->file, seek_pos(pos));
+    if (view_move_cursor_to_view(models, view, edit_pos.scroll, &pos, view->preferred_x)){
+        Full_Cursor cursor = file_compute_cursor(models, view->file, seek_pos(pos));
         edit_pos.cursor_pos = cursor.pos;
         view_set_edit_pos(view, edit_pos);
     }
@@ -343,12 +345,9 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     File_Edit_Positions edit_pos = file_edit_positions_pop(file);
     view_set_edit_pos(view, edit_pos);
     view->mark = edit_pos.cursor_pos;
-    view_set_preferred_x_to_current_position(system, view);
+    view_set_preferred_x_to_current_position(models, view);
     
-#if 0
-    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-#endif
-    Face *face = 0;
+    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
     Assert(face != 0);
     
     view->line_height = (i32)face->height;
@@ -382,7 +381,7 @@ adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *mod
         View *view = panel->view;
         if (view->file == file){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            Full_Cursor cursor = file_compute_cursor(system, file, seek_pos(edit_pos.cursor_pos));
+            Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(edit_pos.cursor_pos));
             view_set_cursor(system, models, view, cursor, true);
         }
     }
@@ -391,10 +390,7 @@ adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *mod
 internal void
 file_full_remeasure(System_Functions *system, Models *models, Editing_File *file){
     Face_ID font_id = file->settings.font_id;
-#if 0
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
-#endif
-    Face *face = 0;
+    Face *face = font_set_face_from_id(&models->font_set, font_id);
     file_measure_wraps(system, &models->mem, file, face);
     adjust_views_looking_at_file_to_new_cursor(system, models, file);
     
@@ -427,43 +423,31 @@ global_set_font_and_update_files(System_Functions *system, Models *models, Face_
 }
 
 internal b32
-alter_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Face_Settings *new_settings){
+alter_font_and_update_files(System_Functions *system, Models *models, Face_ID face_id, Face_Description *new_description){
     b32 success = false;
-    NotImplemented;
-#if 0
-    if (system->font.face_change_settings(font_id, new_settings)){
+    if (font_set_modify_face(&models->font_set, face_id, new_description)){
         success = true;
         for (Node *node = models->working_set.used_sentinel.next;
              node != &models->working_set.used_sentinel;
              node = node->next){
             Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
-            if (file->settings.font_id == font_id){
+            if (file->settings.font_id == face_id){
                 file_full_remeasure(system, models, file);
             }
         }
     }
-#endif
     return(success);
 }
 
 internal b32
 release_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Face_ID replacement_id){
     b32 success = false;
-    NotImplemented;
-#if 0
-    if (system->font.face_release(font_id)){
-        Font_Pointers font = system->font.get_pointers_by_id(replacement_id);
-        if (!font.valid){
-            Face_ID largest_id = system->font.get_largest_id();
-            for (replacement_id = 1; replacement_id <= largest_id && replacement_id > 0; ++replacement_id){
-                font = system->font.get_pointers_by_id(replacement_id);
-                if (font.valid){
-                    break;
-                }
-            }
-            Assert(replacement_id <= largest_id && replacement_id > 0);
+    if (font_set_release_face(&models->font_set, font_id)){
+        Face *face = font_set_face_from_id(&models->font_set, replacement_id);
+        if (face == 0){
+            replacement_id = font_set_get_fallback_face(&models->font_set);
+            Assert(font_set_face_from_id(&models->font_set, replacement_id) != 0);
         }
-        success = true;
         for (Node *node = models->working_set.used_sentinel.next;
              node != &models->working_set.used_sentinel;
              node = node->next){
@@ -472,8 +456,8 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
                 file_set_font(system, models, file, replacement_id);
             }
         }
+        success = true;
     }
-#endif
     return(success);
 }
 
@@ -1230,36 +1214,36 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
 }
 
 internal Full_Cursor
-file_get_render_cursor(System_Functions *system, Editing_File *file, f32 scroll_y){
+file_get_render_cursor(Models *models, Editing_File *file, f32 scroll_y){
     Full_Cursor result = {};
     if (file->settings.unwrapped_lines){
-        result = file_compute_cursor_hint(system, file, seek_unwrapped_xy(0, scroll_y, false));
+        result = file_compute_cursor_hint(models, file, seek_unwrapped_xy(0, scroll_y, false));
     }
     else{
-        result = file_compute_cursor(system, file, seek_wrapped_xy(0, scroll_y, false));
+        result = file_compute_cursor(models, file, seek_wrapped_xy(0, scroll_y, false));
     }
     return(result);
 }
 
 internal Full_Cursor
-view_get_render_cursor(System_Functions *system, View *view, f32 scroll_y){
-    return(file_get_render_cursor(system, view->file, scroll_y));
+view_get_render_cursor(Models *models, View *view, f32 scroll_y){
+    return(file_get_render_cursor(models, view->file, scroll_y));
 }
 
 internal Full_Cursor
-view_get_render_cursor(System_Functions *system, View *view){
+view_get_render_cursor(Models *models, View *view){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     f32 scroll_y = edit_pos.scroll.scroll_y;
     //scroll_y += view->widget_height;
-    return(view_get_render_cursor(system, view, scroll_y));
+    return(view_get_render_cursor(models, view, scroll_y));
 }
 
 internal Full_Cursor
-view_get_render_cursor_target(System_Functions *system, View *view){
+view_get_render_cursor_target(Models *models, View *view){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     f32 scroll_y = (f32)edit_pos.scroll.target_y;
     //scroll_y += view->widget_height;
-    return(view_get_render_cursor(system, view, scroll_y));
+    return(view_get_render_cursor(models, view, scroll_y));
 }
 
 internal void

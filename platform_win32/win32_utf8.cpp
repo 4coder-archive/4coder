@@ -166,22 +166,22 @@ internal DWORD
 GetCurrentDirectory_utf8(Arena *scratch, DWORD max, u8 *buffer){
     DWORD result = 0;
     
-    Temp_Memory temp = begin_temp(scratch);
-    
-    u32 buffer_16_max = KB(40);
-    u16 *buffer_16 = push_array(scratch, u16, buffer_16_max);
-    
-    DWORD buffer_16_len = GetCurrentDirectoryW(buffer_16_max, (LPWSTR)buffer_16);
-    
-    b32 error = false;
-    u32 buffer_8_len = (u32)utf16_to_utf8_minimal_checking(buffer, max-1, buffer_16, buffer_16_len, &error);
-    
-    if (buffer_8_len < max && !error){
-        buffer[buffer_8_len] = 0;
-        result = buffer_8_len;
+    if (buffer != 0){
+        Temp_Memory temp = begin_temp(scratch);
+        u32 buffer_16_max = KB(40);
+        u16 *buffer_16 = push_array(scratch, u16, buffer_16_max);
+        DWORD buffer_16_len = GetCurrentDirectoryW(buffer_16_max, (LPWSTR)buffer_16);
+        b32 error = false;
+        u32 buffer_8_len = (u32)utf16_to_utf8_minimal_checking(buffer, max-1, buffer_16, buffer_16_len, &error);
+        if (buffer_8_len < max && !error){
+            buffer[buffer_8_len] = 0;
+            result = buffer_8_len;
+        }
+        end_temp(temp);
     }
-    
-    end_temp(temp);
+    else{
+        result = GetCurrentDirectoryW(0, 0);
+    }
     
     return(result);
 }

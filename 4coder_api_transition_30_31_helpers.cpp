@@ -760,13 +760,6 @@ get_buffer_face_description(Application_Links *app, Buffer_Summary *buffer){
 }
 
 static void
-set_buffer_face_by_name(Application_Links *app, Buffer_Summary *buffer, char *name, i32 len){
-    if (buffer != 0){
-        set_buffer_face_by_name(app, buffer->buffer_id, SCu8(name, len));
-    }
-}
-
-static void
 execute_standard_build(Application_Links *app, View_Summary *view, Buffer_ID active_buffer){
     standard_search_and_build(app, view==0?0:view->view_id, active_buffer);
 }
@@ -988,21 +981,6 @@ condense_whitespace(String *a){
             a->str[a->size++] = a->str[i++];
         }
     }
-}
-
-static Face_ID
-get_existing_face_id_matching_name(Application_Links *app, char *name, i32 len){
-    return(get_existing_face_id_matching_name(app, SCu8(name, len)));
-}
-
-static Face_ID
-get_face_id_by_name(Application_Links *app, char *name, i32 len, Face_Description *base_description){
-    return(get_face_id_by_name(app, SCu8(name, len), base_description));
-}
-
-static void
-set_global_face_by_name(Application_Links *app, char *name, i32 len, b32 apply_to_all_buffers){
-    set_global_face_by_name(app, SCu8(name, len), apply_to_all_buffers);
 }
 
 static void

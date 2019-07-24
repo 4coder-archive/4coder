@@ -98,7 +98,7 @@ Context_Get_Arena(Application_Links *app){
 API_EXPORT Base_Allocator*
 Context_Get_Base_Allocator(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
-    return(&models->allocator);
+    return(models->base_allocator);
 }
 
 API_EXPORT b32
@@ -775,10 +775,7 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 48;
                 }
                 if (new_value != file->settings.display_width){
-#if 0
-                    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-#endif
-                    Face *face = 0;
+                    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
                     file->settings.display_width = new_value;
                     file_measure_wraps(system, &models->mem, file, face);
                     adjust_views_looking_at_file_to_new_cursor(system, models, file);
@@ -792,10 +789,7 @@ DOC_SEE(Buffer_Setting_ID)
                     new_value = 0;
                 }
                 if (new_value != file->settings.minimum_base_display_width){
-#if 0
-                    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-#endif
-                    Face *face = 0;
+                    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
                     file->settings.minimum_base_display_width = new_value;
                     file_measure_wraps(system, &models->mem, file, face);
                     adjust_views_looking_at_file_to_new_cursor(system, models, file);
@@ -873,11 +867,7 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 
                 if (full_remeasure){
-#if 0
-                    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-#endif
-                    Face *face = 0;
-                    
+                    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
                     file_allocate_character_starts_as_needed(&models->mem.heap, file);
                     buffer_measure_character_starts(system, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
                     file_measure_wraps(system, &models->mem, file, face);
@@ -1132,7 +1122,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                             if (view_it->file == file){
                                 vptrs[vptr_count] = view_it;
                                 File_Edit_Positions edit_pos = view_get_edit_pos(view_it);
-                                Full_Cursor cursor = file_compute_cursor(system, view_it->file, seek_pos(edit_pos.cursor_pos));
+                                Full_Cursor cursor = file_compute_cursor(models, view_it->file, seek_pos(edit_pos.cursor_pos));
                                 line_numbers[vptr_count]   = (i32)cursor.line;
                                 column_numbers[vptr_count] = (i32)cursor.character;
                                 view_it->file = models->scratch_buffer;
@@ -1149,7 +1139,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                             view_set_file(system, models, vptrs[i], file);
                             
                             vptrs[i]->file = file;
-                            Full_Cursor cursor = file_compute_cursor(system, file, seek_line_char(line_numbers[i], column_numbers[i]));
+                            Full_Cursor cursor = file_compute_cursor(models, file, seek_line_char(line_numbers[i], column_numbers[i]));
                             
                             view_set_cursor(system, models, vptrs[i], cursor, true);
                         }
@@ -1778,7 +1768,7 @@ DOC_SEE(Full_Cursor)
             if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
                 seek.type = buffer_seek_unwrapped_xy;
             }
-            result = file_compute_cursor(models->system, file, seek);
+            result = file_compute_cursor(models, file, seek);
             if (file->settings.unwrapped_lines){
                 result.wrapped_x = result.unwrapped_x;
                 result.wrapped_y = result.unwrapped_y;
@@ -1809,7 +1799,7 @@ DOC_SEE(Buffer_Seek)
             if (file->settings.unwrapped_lines && seek.type == buffer_seek_wrapped_xy){
                 seek.type = buffer_seek_unwrapped_xy;
             }
-            Full_Cursor cursor = file_compute_cursor(models->system, file, seek);
+            Full_Cursor cursor = file_compute_cursor(models, file, seek);
             view_set_cursor(models->system, models, view, cursor, set_preferred_x);
             result = true;
         }
@@ -1864,7 +1854,7 @@ DOC_SEE(Buffer_Seek)
         Assert(file != 0);
         if (api_check_buffer(file)){
             if (seek.type != buffer_seek_pos){
-                Full_Cursor cursor = file_compute_cursor(models->system, file, seek);
+                Full_Cursor cursor = file_compute_cursor(models, file, seek);
                 view->mark = cursor.pos;
             }
             else{
@@ -2937,12 +2927,7 @@ DOC_RETURN(Returns the largest face ID that could be valid.  There is no guarant
 */
 {
     Models *models = (Models*)app->cmd_context;
-    Face_ID result = 0;
-#if 0
-    Face_ID result = models->system->font.get_largest_id();
-#endif
-    NotImplemented;
-    return(result);
+    return(font_set_get_largest_id(&models->font_set));
 }
 
 API_EXPORT b32
@@ -2958,21 +2943,16 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     System_Functions *system = models->system;
     
     b32 did_change = false;
-    
-    NotImplemented;
-#if 0    
-    Font_Pointers font = system->font.get_pointers_by_id(id);
-    if (font.valid){
-        did_change = true;
-        
+    Face *face = font_set_face_from_id(&models->font_set, id);
+    if (face != 0){
         if (apply_to_all_buffers){
             global_set_font_and_update_files(system, models, id);
         }
         else{
             models->global_font_id = id;
         }
+        did_change = true;
     }
-#endif
     
     return(did_change);
 }
@@ -3147,67 +3127,6 @@ Global_History_Edit_Group_End(Application_Links *app){
     global_history_adjust_edit_grouping_counter(&models->global_history, -1);
 }
 
-internal void
-face_to_face_description(Face *face, Face_Description *description){
-    umem size = clamp_top(face->name.size, sizeof(description->font.name) - 1);
-    block_copy(description->font.name, face->name.str, size);
-    description->font.name[size] = 0;
-    description->font.in_local_font_folder = face->settings.stub.in_font_folder;
-    
-    description->pt_size   = face->settings.parameters.pt_size;
-    description->bold      = face->settings.parameters.bold;
-    description->italic    = face->settings.parameters.italics;
-    description->underline = face->settings.parameters.underline;
-    description->hinting   = face->settings.parameters.use_hinting;
-}
-
-internal b32
-face_description_to_settings(System_Functions *system, Face_Description description, Face_Settings *settings){
-    b32 success = false;
-    
-    String_Const_u8 desc_name = SCu8(description.font.name);
-    if (description.font.in_local_font_folder){
-#if 0
-        i32 count = system->font.get_loadable_count();
-        for (i32 i = 0; i < count; ++i){
-            Font_Loadable_Description loadable = {};
-            system->font.get_loadable(i, &loadable);
-            
-            if (loadable.valid){
-                if (!loadable.stub.in_font_folder){
-                    break;
-                }
-                
-                String_Const_u8 loadable_name = SCu8(loadable.display_name, loadable.display_len);
-                if (string_match(loadable_name, desc_name)){
-                    success = true;
-                    block_copy_struct(&settings->stub, &loadable.stub);
-                    break;
-                }
-            }
-        }
-#endif
-    }
-    else{
-        success = true;
-        
-        settings->stub.load_from_path = false;
-        settings->stub.in_font_folder = false;
-        settings->stub.len = (i32)cstring_length(description.font.name);
-        memcpy(settings->stub.name, description.font.name, settings->stub.len + 1);
-    }
-    
-    if (success){
-        settings->parameters.pt_size = description.pt_size;
-        settings->parameters.italics = description.italic;
-        settings->parameters.bold = description.bold;
-        settings->parameters.underline = description.underline;
-        settings->parameters.use_hinting = description.hinting;
-    }
-    
-    return(success);
-}
-
 API_EXPORT b32
 Buffer_Set_Face(Application_Links *app, Buffer_ID buffer_id, Face_ID id)
 /*
@@ -3222,25 +3141,16 @@ DOC_RETURN(Returns true if the given id was a valid face and the change was made
     
     b32 did_change = false;
     if (api_check_buffer(file)){
-        System_Functions *system = models->system;
-#if 0
-        Font_Pointers font = system->font.get_pointers_by_id(id);
-        if (font.valid){
+        if (font_set_face_from_id(&models->font_set, id) != 0){
             did_change = true;
-            file_set_font(system, models, file, id);
-        }
-#endif
-        Face *face = 0;
-        if (face != 0){
-            did_change = true;
-            file_set_font(system, models, file, id);
+            file_set_font(models->system, models, file, id);
         }
     }
     return(did_change);
 }
 
 API_EXPORT Face_Description
-Get_Face_Description(Application_Links *app, Face_ID id)
+Get_Face_Description(Application_Links *app, Face_ID face_id)
 /*
 DOC_PARAM(id, The face slot from which to read a description.  If zero gets default values.)
 DOC(Fills out the values of a Face_Description struct, which includes all the information that determines the appearance of the face.  If the id does not specify a valid face the description will be invalid.  An invalid description has a zero length string in it's font.name field (i.e. description.font.name[0] == 0), and a valid description always contains a non-zero length string in the font.name field (i.e. description.font.name[0] != 0)
@@ -3253,25 +3163,16 @@ DOC_SEE(Face_Description)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     Face_Description description = {};
-    if (id != 0){
-#if 0
-        Font_Pointers font = system->font.get_pointers_by_id(id);
-        if (font.valid){
-            font_pointers_to_face_description(font, &description);
-            Assert(description.font.name[0] != 0);
-        }
-#endif
-        Face *face = 0;
+    if (face_id != 0){
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            face_to_face_description(face, &description);
-            Assert(description.font.name[0] != 0);
+            description = face->description;
         }
     }
     else{
-        description.pt_size = models->settings.font_size;
-        description.hinting = models->settings.use_hinting;
+        description.parameters.pt_size = models->settings.font_size;
+        description.parameters.hinting = models->settings.use_hinting;
     }
     return(description);
 }
@@ -3282,17 +3183,10 @@ Get_Face_Metrics(Application_Links *app, Face_ID face_id){
     System_Functions *system = models->system;
     Face_Metrics result = {};
     if (face_id != 0){
-#if 0
-        Font_Pointers font = system->font.get_pointers_by_id(face_id);
-        if (font.valid){
-            result.line_height = (f32)font.metrics->height;
-            result.typical_character_width = font.metrics->sub_advances[1];
-        }
-#endif
-        Face *face = 0;
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
             result.line_height = (f32)face->height;
-            result.typical_character_width = face->sub_advances[1];
+            result.typical_character_width = face->byte_sub_advances[1];
         }
     }
     return(result);
@@ -3339,16 +3233,7 @@ DOC_SEE(Face_Description)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    Face_ID id = 0;
-    Face_Settings settings = {};
-    if (face_description_to_settings(system, *description, &settings)){
-#if 0
-        id = system->font.face_allocate_and_init(&settings);
-#endif
-        NotImplemented;
-    }
-    return(id);
+    return(font_set_new_face(&models->font_set, description));
 }
 
 API_EXPORT b32
@@ -3366,15 +3251,7 @@ DOC_SEE(try_create_new_face)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    b32 success = false;
-    Face_Settings settings = {};
-    if (face_description_to_settings(system, *description, &settings)){
-        if (alter_font_and_update_files(system, models, id, &settings)){
-            success = true;
-        }
-    }
-    return(success);
+    return(alter_font_and_update_files(models->system, models, id, description));
 }
 
 API_EXPORT b32
@@ -3586,11 +3463,7 @@ DOC_RETURN(This call returns non-zero on success.)
 */{
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    // TODO(allen): rewrite this with a better OS layer API
-    i32 required_size = system->get_4ed_path(0, 0);
-    char *memory = push_array(arena, char, required_size + 1);
-    required_size = system->get_4ed_path(memory, required_size);
-    return(SCu8(memory, required_size));
+    return(system->get_4ed_path(arena));
 }
 
 // TODO(allen): do(add a "shown but auto-hides on timer" setting for cursor show type)
@@ -3749,14 +3622,14 @@ Draw_String(Application_Links *app, Face_ID font_id, String_Const_u8 str, Vec2 p
     Vec2 result = point;
     Models *models = (Models*)app->cmd_context;
     if (models->target == 0){
-        f32 width = font_string_width(models->system, models->target, font_id, str);
+        f32 width = font_string_width(models->target, font_id, str);
         result += delta*width;
     }
     else{
         Color_Table color_table = models->color_table;
         point = draw_helper__models_space_to_screen_space(models, point);
         u32 actual_color = finalize_color(color_table, color);
-        f32 width = draw_string(models->system, models->target, font_id, str, point, actual_color, flags, delta);
+        f32 width = draw_string(models->target, font_id, str, point, actual_color, flags, delta);
         result += delta*width;
     }
     return(result);
@@ -3766,7 +3639,7 @@ API_EXPORT f32
 Get_String_Advance(Application_Links *app, Face_ID font_id, String_Const_u8 str)
 {
     Models *models = (Models*)app->cmd_context;
-    return(font_string_width(models->system, models->target, font_id, str));
+    return(font_string_width(models->target, font_id, str));
 }
 
 API_EXPORT void
@@ -3849,7 +3722,7 @@ Text_Layout_Buffer_Point_To_Layout_Point(Application_Links *app, Text_Layout_ID 
         if (api_check_buffer(file)){
             System_Functions *system = models->system;
             // TODO(allen): this could be computed and stored _once_ right?
-            Full_Cursor top = file_compute_cursor(system, file, seek_line_char(layout.point.line_number, 1));
+            Full_Cursor top = file_compute_cursor(models, file, seek_line_char(layout.point.line_number, 1));
             f32 top_y = top.wrapped_y;
             if (file->settings.unwrapped_lines){
                 top_y = top.unwrapped_y;
@@ -3873,7 +3746,7 @@ Text_Layout_Layout_Point_To_Buffer_Point(Application_Links *app, Text_Layout_ID 
         if (api_check_buffer(file)){
             System_Functions *system = models->system;
             // TODO(allen): this could be computed and stored _once_ right?
-            Full_Cursor top = file_compute_cursor(system, file, seek_line_char(layout.point.line_number, 1));
+            Full_Cursor top = file_compute_cursor(models, file, seek_line_char(layout.point.line_number, 1));
             f32 top_y = top.wrapped_y;
             if (file->settings.unwrapped_lines){
                 top_y = top.unwrapped_y;
@@ -3943,19 +3816,16 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         
         b32 wrapped = !file->settings.unwrapped_lines;
         Face_ID font_id = file->settings.font_id;
-#if 0
-        Font_Pointers font = system->font.get_pointers_by_id(font_id);
-#endif
-        Face *face = 0;
+        Face *face = font_set_face_from_id(&models->font_set, font_id);
         
-        Full_Cursor intermediate_cursor = file_compute_cursor(system, file, seek_line_char(buffer_point.line_number, 1));
+        Full_Cursor intermediate_cursor = file_compute_cursor(models, file, seek_line_char(buffer_point.line_number, 1));
         f32 scroll_x = buffer_point.pixel_shift.x;
         f32 scroll_y = intermediate_cursor.wrapped_y;
         if (file->settings.unwrapped_lines){
             scroll_y = intermediate_cursor.unwrapped_y;
         }
         scroll_y += buffer_point.pixel_shift.y;
-        Full_Cursor render_cursor = file_get_render_cursor(system, file, scroll_y);
+        Full_Cursor render_cursor = file_get_render_cursor(models, file, scroll_y);
         
         i32 item_count = 0;
         i32 end_pos = 0;
@@ -4119,7 +3989,7 @@ Get_View_Visible_Range(Application_Links *app, View_ID view_id){
     if (api_check_view(view)){
         i32 view_height = rect_height(view->panel->rect_inner);
         i32 line_height = view->line_height;
-        Full_Cursor min_cursor = view_get_render_cursor(models->system, view);
+        Full_Cursor min_cursor = view_get_render_cursor(models, view);
         Buffer_Seek seek = seek_unwrapped_xy(0.f, min_cursor.wrapped_y + view_height + line_height, false);
         Full_Cursor max_cursor = view_compute_cursor(app, view_id, seek);
         result = Ii32((i32)min_cursor.pos, (i32)max_cursor.pos);

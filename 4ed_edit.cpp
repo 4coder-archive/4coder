@@ -10,7 +10,8 @@
 // TOP
 
 internal void
-edit_pre_state_change(System_Functions *system, Heap *heap, Models *models, Editing_File *file){
+edit_pre_state_change(Models *models, Heap *heap, Editing_File *file){
+    System_Functions *system = models->system;
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_array.tokens){
@@ -27,8 +28,8 @@ edit_pre_state_change(System_Functions *system, Heap *heap, Models *models, Edit
          panel = layout_get_next_open_panel(layout, panel)){
         View *view = panel->view;
         if (view->file == file){
-            Full_Cursor render_cursor = view_get_render_cursor(system, view);
-            Full_Cursor target_cursor = view_get_render_cursor_target(system, view);
+            Full_Cursor render_cursor = view_get_render_cursor(models, view);
+            Full_Cursor target_cursor = view_get_render_cursor_target(models, view);
             view->temp_view_top_left_pos        = (i32)render_cursor.pos;
             view->temp_view_top_left_target_pos = (i32)target_cursor.pos;
         }
@@ -172,7 +173,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             View *view = panel->view;
             if (view->file == file){
                 i32 cursor_pos = cursors[cursor_count++].pos;
-                Full_Cursor new_cursor = file_compute_cursor(system, file, seek_pos(cursor_pos));
+                Full_Cursor new_cursor = file_compute_cursor(models, file, seek_pos(cursor_pos));
                 
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
                 GUI_Scroll_Vars scroll = edit_pos.scroll;
@@ -183,7 +184,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                 i32 top_left_target_pos = cursors[cursor_count++].pos;
                 f32 new_y_val_aligned = 0;
                 if (view->temp_view_top_left_pos != top_left_pos){
-                    Full_Cursor new_position_cursor = file_compute_cursor(system, file, seek_pos(top_left_pos));
+                    Full_Cursor new_position_cursor = file_compute_cursor(models, file, seek_pos(top_left_pos));
                     if (file->settings.unwrapped_lines){
                         new_y_val_aligned = new_position_cursor.unwrapped_y;
                     }
@@ -194,7 +195,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                 }
                 if (view->temp_view_top_left_target_pos != top_left_target_pos){
                     if (top_left_target_pos != top_left_pos){
-                        Full_Cursor new_position_cursor = file_compute_cursor(system, file, seek_pos(top_left_target_pos));
+                        Full_Cursor new_position_cursor = file_compute_cursor(models, file, seek_pos(top_left_target_pos));
                         if (file->settings.unwrapped_lines){
                             new_y_val_aligned = new_position_cursor.unwrapped_y;
                         }
@@ -252,7 +253,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     }
     
     // NOTE(allen): fixing stuff beforewards????
-    edit_pre_state_change(system, heap, models, file);
+    edit_pre_state_change(models, heap, file);
     
     // NOTE(allen): edit range hook
     if (models->hook_file_edit_range != 0){
@@ -294,11 +295,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     }
     
     // NOTE(allen): wrap meta data
-#if 0
-    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-    Assert(font.valid);
-#endif
-    Face *face = 0;
+    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
     Assert(face != 0);
     
     file_measure_wraps(system, &models->mem, file, face);

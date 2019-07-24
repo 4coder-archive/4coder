@@ -18,13 +18,14 @@
 
 #include "4coder_base_types.h"
 #include "4coder_table.h"
-#include "4ed_font.h"
+#include "4ed_font_interface.h"
 #include "4ed_system.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_string_match.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
+#include "4ed_system_allocator.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 
@@ -68,6 +69,7 @@ struct Mem_Options{
 #include "4ed_view.h"
 #include "4ed_edit.h"
 #include "4ed_text_layout.h"
+#include "4ed_font_set.h"
 #include "4ed_app_models.h"
 
 #include "4ed_mem.cpp"
@@ -75,7 +77,8 @@ struct Mem_Options{
 #include "4ed_memory_bank.cpp"
 #include "4ed_dynamic_variables.cpp"
 #include "4ed_parse_context.cpp"
-#include "4ed_font.cpp"
+#include "4ed_font_face.cpp"
+#include "4ed_font_set.cpp"
 #include "4ed_translation.cpp"
 #include "4ed_render_target.cpp"
 #include "4ed_render_format.cpp"

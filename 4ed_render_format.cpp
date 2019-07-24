@@ -26,8 +26,9 @@ draw_change_clip(Render_Target *target, i32_Rect clip_box){
 }
 
 internal void
-begin_frame(Render_Target *target){
+begin_frame(Render_Target *target, void *font_set){
     target->buffer.pos = 0;
+    target->font_set = font_set;
 }
 
 internal void
@@ -139,19 +140,16 @@ snap_point_to_boundary(Vec2 point){
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
+draw_string(Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
     f32 total_delta = 0.f;
     
-#if 0
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
-#endif
     Face *face = 0;
     
     if (face != 0){
         point = snap_point_to_boundary(point);
         
         f32 byte_advance = face->byte_advance;
-        f32 *sub_advances = face->sub_advances;
+        f32 *byte_sub_advances = face->byte_sub_advances;
         
         u8 *str = (u8*)string.str;
         u8 *str_end = str + string.size;
@@ -160,7 +158,7 @@ draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, St
         Translation_Emits emits = {};
         
         for (u32 i = 0; str < str_end; ++str, ++i){
-            translating_fully_process_byte(system, &tran, *str, i, (i32)string.size, &emits);
+            translating_fully_process_byte(&tran, *str, i, (i32)string.size, &emits);
             
             for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
                 TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
@@ -170,7 +168,7 @@ draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, St
                     if (color != 0){
                         draw_font_glyph(target, font_id, codepoint, point.x, point.y, color, flags);
                     }
-                    f32 d = font_get_glyph_advance(system, face, codepoint);
+                    f32 d = font_get_glyph_advance(face, codepoint);
                     point += d*delta;
                     total_delta += d;
                 }
@@ -183,7 +181,7 @@ draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, St
                         Vec2 pp = point;
                         for (u32 j = 0; j < 3; ++j){
                             draw_font_glyph(target, font_id, cs[j], pp.x, pp.y, color, flags);
-                            pp += delta*sub_advances[j];
+                            pp += delta*byte_sub_advances[j];
                         }
                     }
                     point += byte_advance*delta;
@@ -197,30 +195,30 @@ draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, St
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color){
-    return(draw_string(system, target, font_id, string, point, color, 0, V2(1.f, 0.f)));
+draw_string(Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color){
+    return(draw_string(target, font_id, string, point, color, 0, V2(1.f, 0.f)));
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
+draw_string(Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
             u32 color, u32 flags, Vec2 delta){
-    return(draw_string(system, target, font_id, SCu8(str), point, color, flags, delta));
+    return(draw_string(target, font_id, SCu8(str), point, color, flags, delta));
 }
 
 internal f32
-draw_string(System_Functions *system, Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
+draw_string(Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
             u32 color){
-    return(draw_string(system, target, font_id, SCu8(str), point, color, 0, V2(1.f, 0.f)));
+    return(draw_string(target, font_id, SCu8(str), point, color, 0, V2(1.f, 0.f)));
 }
 
 internal f32
-font_string_width(System_Functions *system, Render_Target *target, Face_ID font_id, String_Const_u8 str){
-    return(draw_string(system, target, font_id, str, V2(0, 0), 0, 0, V2(0, 0)));
+font_string_width(Render_Target *target, Face_ID font_id, String_Const_u8 str){
+    return(draw_string(target, font_id, str, V2(0, 0), 0, 0, V2(0, 0)));
 }
 
 internal f32
-font_string_width(System_Functions *system, Render_Target *target, Face_ID font_id, u8 *str){
-    return(draw_string(system, target, font_id, SCu8(str), V2(0, 0), 0, 0, V2(0, 0)));
+font_string_width(Render_Target *target, Face_ID font_id, u8 *str){
+    return(draw_string(target, font_id, SCu8(str), V2(0, 0), 0, 0, V2(0, 0)));
 }
 
 // BOTTOM

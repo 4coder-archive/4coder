@@ -36,6 +36,8 @@ struct Render_Target{
     
     // TODO(allen): rewrite render system to work on an arena
     Cursor buffer;
+    
+    void *font_set;
 };
 
 #endif

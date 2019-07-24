@@ -237,12 +237,9 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek){
 }
 
 internal Full_Cursor
-file_compute_cursor__inner(System_Functions *system, Editing_File *file, Buffer_Seek seek, b32 return_hint){
-#if 0
-    Font_Pointers font = system->font.get_pointers_by_id(file->settings.font_id);
-    Assert(font.valid);
-#endif
-    Face *face = 0;
+file_compute_cursor__inner(Models *models, Editing_File *file, Buffer_Seek seek, b32 return_hint){
+    System_Functions *system = models->system;
+    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
     Assert(face != 0);
     
     Full_Cursor result = {};
@@ -314,13 +311,13 @@ file_compute_cursor__inner(System_Functions *system, Editing_File *file, Buffer_
 }
 
 internal Full_Cursor
-file_compute_cursor(System_Functions *system, Editing_File *file, Buffer_Seek seek){
-    return(file_compute_cursor__inner(system, file, seek, false));
+file_compute_cursor(Models *models, Editing_File *file, Buffer_Seek seek){
+    return(file_compute_cursor__inner(models, file, seek, false));
 }
 
 internal Full_Cursor
-file_compute_cursor_hint(System_Functions *system, Editing_File *file, Buffer_Seek seek){
-    return(file_compute_cursor__inner(system, file, seek, true));
+file_compute_cursor_hint(Models *models, Editing_File *file, Buffer_Seek seek){
+    return(file_compute_cursor__inner(models, file, seek, true));
 }
 
 ////////////////////////////////
@@ -450,11 +447,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     
     Face_ID font_id = models->global_font_id;
     file->settings.font_id = font_id;
-#if 0
-    Font_Pointers font = system->font.get_pointers_by_id(font_id);
-    Assert(font.valid);
-#endif
-    Face *face = 0;
+    Face *face = font_set_face_from_id(&models->font_set, font_id);
     Assert(face != 0);
     
     file_measure_starts(heap, &file->state.buffer);

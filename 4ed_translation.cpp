@@ -98,7 +98,7 @@ translating_select_emit_rule_ASCII(Translation_State *tran, Translation_Byte_Des
 }
 
 internal void
-translating_select_emit_rule_UTF8(System_Functions *system, Translation_State *tran, Translation_Byte_Description desc, Translation_Emit_Rule *type_out){
+translating_select_emit_rule_UTF8(Translation_State *tran, Translation_Byte_Description desc, Translation_Emit_Rule *type_out){
     type_out->byte_class = desc.byte_class;
     type_out->last_byte_handler = desc.last_byte_handler;
     type_out->emit_type = desc.prelim_emit_type;
@@ -178,11 +178,11 @@ translating_generate_emits(Translation_State *tran, Translation_Emit_Rule emit_r
 }
 
 internal void
-translating_fully_process_byte(System_Functions *system, Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
+translating_fully_process_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Translation_Emits *emits_out){
     Translation_Byte_Description description = {};
     translating_consume_byte(tran, ch, i, size, &description);
     Translation_Emit_Rule emit_rule = {};
-    translating_select_emit_rule_UTF8(system, tran, description, &emit_rule);
+    translating_select_emit_rule_UTF8(tran, description, &emit_rule);
     translating_generate_emits(tran, emit_rule, ch, i, emits_out);
 }
 

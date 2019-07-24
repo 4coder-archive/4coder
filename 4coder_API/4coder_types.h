@@ -816,29 +816,21 @@ DOC_SEE(int_color)
 //};
 
 /*
-DOC(Available_Font contains a name for a font was detected at startup either in the local 4coder font folder, or by the system.  An available font is not necessarily loaded yet, and may fail to load for various reasons even though it appearsin the available font list.)
-DOC_SEE(get_available_font)
-*/
-STRUCT Available_Font{
-    char name[64];
-    b32 in_local_font_folder;
-};
-
-/*
 DOC(Every face is assigned a unique and consistent Face_ID for it's life time.  This represents a slot in which a face can exist.  The face in the slot is always valid once it exists, but the face might be changed or released durring it's lifetime.  A Face_ID value of zero is reserved for the meaning "not a valid face".)
 */
 TYPEDEF u32 Face_ID;
 
-/*
-DOC(Face_Description contains all the information unique to a single font face, including the font name, the size, and style of the face.)
-DOC_SEE(get_available_font)
-*/
-STRUCT Face_Description{
-    /* DOC(Indicates a face's association with an available font.  This should be an exact copy of an Available_Font returned by get_available_fonts.) DOC_SEE(get_available_font) */
-    Available_Font font;
-    
+// TODO(allen): redocument
+STRUCT Font_Load_Location{
+    String_Const_u8 file_name;
+    b32 in_4coder_font_folder;
+};
+
+
+// TODO(allen): redocument
+STRUCT Face_Load_Parameters{
     /* DOC(Indicates the size for the face.  Valid values must be greater than 0.  Different fonts with the same pt_size do not necessarily have the same line height.) */
-    i32 pt_size;
+    u32 pt_size;
     
     /* DOC(Indicates whether the face tries to use a bold style.) */
     b32 bold;
@@ -851,6 +843,12 @@ STRUCT Face_Description{
     
     /* DOC(Indicates whether the face tries to apply hinting.) */
     b32 hinting;
+};
+
+// TODO(allen): redocument
+STRUCT Face_Description{
+    Font_Load_Location font;
+    Face_Load_Parameters parameters;
 };
 
 STRUCT Face_Metrics{

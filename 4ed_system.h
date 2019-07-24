@@ -208,10 +208,10 @@ typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
 typedef Sys_Memory_Free_Sig(System_Memory_Free);
 
 // file system
-#define Sys_Get_Current_Path_Sig(name) i32 name(char *out, i32 capacity)
+#define Sys_Get_Current_Path_Sig(name) String_Const_u8 name(Arena *arena)
 typedef Sys_Get_Current_Path_Sig(System_Get_Current_Path);
 
-#define Sys_Get_4ed_Path_Sig(name) i32 name(char *out, i32 capacity)
+#define Sys_Get_4ed_Path_Sig(name) String_Const_u8 name(Arena *arena)
 typedef Sys_Get_4ed_Path_Sig(System_Get_4ed_Path);
 
 // behavior and appearance options
@@ -226,6 +226,8 @@ typedef Sys_Is_Fullscreen_Sig(System_Is_Fullscreen);
 
 struct System_Functions{
     Font_Make_Face_Function *font_make_face;
+    Graphics_Get_Texture_Function *get_texture;
+    Graphics_Fill_Texture_Function *fill_texture;
     
     // files (tracked api): 11
     System_Set_File_List         *set_file_list;

@@ -71,8 +71,10 @@ Sys_Memory_Free_Sig(system_memory_free){
 
 internal
 Sys_Get_Current_Path_Sig(system_get_current_path){
-    i32 result = GetCurrentDirectory_utf8(&shared_vars.scratch, capacity, (u8*)out);
-    return(result);
+    DWORD size = GetCurrentDirectory_utf8(&shared_vars.scratch, 0, 0);
+    u8 *out = push_array(arena, u8, size);
+    GetCurrentDirectory_utf8(&shared_vars.scratch, size, out);
+    return(SCu8(out, size - 1));
 }
 
 internal
@@ -88,9 +90,7 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
         win32vars.binary_path = string_remove_last_folder(win32vars.binary_path);
         win32vars.binary_path.str[win32vars.binary_path.size] = 0;
     }
-    i32 copy_size = Min((i32)(win32vars.binary_path.size), capacity);
-    block_copy(out, win32vars.binary_path.str, copy_size);
-    return((i32)(win32vars.binary_path.size));
+    return(push_string_copy(arena, win32vars.binary_path));
 }
 
 //

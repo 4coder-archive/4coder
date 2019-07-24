@@ -772,7 +772,7 @@ CUSTOM_DOC("Increase the size of the face used by the current buffer.")
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Description description = get_face_description(app, face_id);
-    ++description.pt_size;
+    ++description.parameters.pt_size;
     try_modify_face(app, face_id, &description);
 }
 
@@ -783,7 +783,7 @@ CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Description description = get_face_description(app, face_id);
-    --description.pt_size;
+    --description.parameters.pt_size;
     try_modify_face(app, face_id, &description);
 }
 
