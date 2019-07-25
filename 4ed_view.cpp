@@ -805,6 +805,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     Editing_File *file = view->file;
     Arena *scratch = &models->mem.arena;
     Color_Table color_table = models->color_table;
+    Font_Set *font_set = &models->font_set;
     
     Assert(file != 0);
     Assert(!file->is_dummy);
@@ -1197,7 +1198,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             }
             char_color = color_blend(char_color, fade_amount, fade_color);
             if (item->codepoint != 0){
-                draw_font_glyph(target, font_id, item->codepoint, item->x0, item->y0, char_color, GlyphFlag_None);
+                draw_font_glyph(target, font_set, font_id, item->codepoint, item->x0, item->y0, char_color, GlyphFlag_None);
             }
             
             if (color_wireframe != 0){

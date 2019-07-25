@@ -26,6 +26,7 @@ GL_FUNC(glDeleteVertexArrays, void, (GLsizei n, const GLuint *arrays))
 GL_FUNC(glGenBuffers, void, (GLsizei n, GLuint *buffers))
 GL_FUNC(glBindBuffer, void, (GLenum target, GLuint buffer))
 GL_FUNC(glBufferData, void, (GLenum target, GLsizeiptr size, const void *data, GLenum usage))
+GL_FUNC(glBufferSubData, void, (GLenum target, GLsizeiptr offset, GLsizeiptr size, const void *data))
 
 GL_FUNC(glCreateShader, GLuint, (GLenum type))
 GL_FUNC(glShaderSource, void, (GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length))

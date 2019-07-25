@@ -1426,6 +1426,26 @@ operator!=(Vec4_f32 a, Vec4_f32 b){
 
 ////////////////////////////////
 
+static b32
+operator==(Rect_i32 a, Rect_i32 b){
+    return(a.p0 == b.p0 && a.p0 == b.p0);
+}
+static b32
+operator==(Rect_f32 a, Rect_f32 b){
+    return(a.p0 == b.p0 && a.p0 == b.p0);
+}
+
+static b32
+operator!=(Rect_i32 a, Rect_i32 b){
+    return(!(a == b));
+}
+static b32
+operator!=(Rect_f32 a, Rect_f32 b){
+    return(!(a == b));
+}
+
+////////////////////////////////
+
 static f32
 lerp(f32 a, f32 t, f32 b){
     return(a + (b-a)*t);

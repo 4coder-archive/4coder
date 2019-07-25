@@ -46,7 +46,6 @@
 #include "4ed_font_set.h"
 #include "4ed_system.h"
 #include "4ed_render_target.h"
-#include "4ed_render_format.h"
 #include "4ed.h"
 
 #include <Windows.h>

@@ -17,11 +17,37 @@ struct Render_Free_Texture{
     u32 tex_id;
 };
 
+struct Render_Vertex{
+    Vec2 xy;
+    Vec3 uvw;
+    Vec4 color;
+};
+
+struct Render_Vertex_Array_Node{
+    Render_Vertex_Array_Node *next;
+    Render_Vertex *vertices;
+    i32 vertex_count;
+    i32 vertex_max;
+};
+
+struct Render_Vertex_List{
+    Render_Vertex_Array_Node *first;
+    Render_Vertex_Array_Node *last;
+    i32 vertex_count;
+};
+
+struct Render_Group{
+    Render_Group *next;
+    Render_Vertex_List vertex_list;
+    // parameters
+    Face_ID face_id;
+    i32_Rect clip_box;
+};
+
 struct Render_Target{
     i32_Rect clip_boxes[5];
     i32 clip_top;
     b8 clip_all;
-    b8 out_of_memory;
     i32 width;
     i32 height;
     i32 bound_texture;
@@ -34,10 +60,15 @@ struct Render_Target{
     Render_Free_Texture *free_texture_first;
     Render_Free_Texture *free_texture_last;
     
-    // TODO(allen): rewrite render system to work on an arena
-    Cursor buffer;
+    Arena arena;
+    Render_Group *group_first;
+    Render_Group *group_last;
+    i32 group_count;
     
+    Face_ID current_face_id;
+    Rect_i32 current_clip_box;
     void *font_set;
+    u32 fallback_texture_id;
 };
 
 #endif

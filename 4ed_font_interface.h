@@ -39,9 +39,9 @@ struct Codepoint_Index_Map{
 
 struct Face{
     Face_Description description;
+    Face_ID id;
     
     // NOTE(allen): Metrics
-    
     f32 height;
     f32 ascent;
     f32 descent;

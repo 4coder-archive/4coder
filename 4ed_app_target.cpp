@@ -41,7 +41,6 @@ struct Mem_Options{
 };
 
 #include "4ed_render_target.h"
-#include "4ed_render_format.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"
 
@@ -81,7 +80,6 @@ struct Mem_Options{
 #include "4ed_font_set.cpp"
 #include "4ed_translation.cpp"
 #include "4ed_render_target.cpp"
-#include "4ed_render_format.cpp"
 #include "4ed_command.cpp"
 #include "4ed_buffer.cpp"
 #include "4ed_string_matching.cpp"

@@ -85,6 +85,7 @@ font_set_new_face(Font_Set *set, Face_Description *description){
         slot->arena = arena;
         slot->face = face;
         result = font_set__alloc_face_id(set);
+        face->id = result;
         table_insert(&set->id_to_slot_table, result, (u64)slot);
     }
     else{

@@ -21,6 +21,15 @@ gl__bind_texture(Render_Target *t, i32 texid){
     }
 }
 
+internal void
+gl__bind_any_texture(Render_Target *t){
+    if (t->bound_texture == 0){
+        Assert(t->fallback_texture_id != 0);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, t->fallback_texture_id);
+        t->bound_texture = t->fallback_texture_id;
+    }
+}
+
 internal u32
 gl__get_texture(Vec3_i32 dim, Texture_Kind texture_kind){
     u32 tex = 0;
@@ -59,15 +68,15 @@ char *gl__header = R"foo(#version 150
 char *gl__vertex = R"foo(
 uniform vec2 view_t;
 uniform mat2x2 view_m;
- uniform vec4 color;
 in vec2 vertex_p;
 in vec3 vertex_t;
+in vec4 vertex_c;
 smooth out vec4 fragment_color;
 smooth out vec3 uvw;
 void main(void)
 {
 gl_Position = vec4(view_m*(vertex_p - view_t), 0.f, 1.f);
-fragment_color = color;
+fragment_color = vertex_c;
 uvw = vertex_t;
 }
 )foo";
@@ -76,24 +85,22 @@ char *gl__fragment = R"foo(
 smooth in vec4 fragment_color;
 smooth in vec3 uvw;
 uniform sampler2DArray sampler;
-uniform float texture_override;
 out vec4 out_color;
 void main(void)
 {
-out_color = fragment_color*(texture(sampler, uvw).r + texture_override);
+out_color = fragment_color*texture(sampler, uvw).r;
 }
 )foo";
 
 #define AttributeList(X) \
 X(vertex_p) \
-X(vertex_t)
+X(vertex_t) \
+X(vertex_c)
 
 #define UniformList(X) \
 X(view_t) \
 X(view_m) \
-X(color) \
-X(sampler) \
-X(texture_override)
+X(sampler)
 
 struct GL_Program{
     u32 program;
@@ -157,7 +164,8 @@ gl__make_program(char *header, char *vertex, char *fragment){
         return(result);
 }
 
-#define GLOffset(p,m) ((void*)(OffsetOfMemberStruct(p,m)))
+#define GLOffsetStruct(p,m) ((void*)(OffsetOfMemberStruct(p,m)))
+#define GLOffset(S,m) ((void*)(OffsetOfMember(S,m)))
 
 internal void
 gl_render(Render_Target *t, Arena *scratch){
@@ -201,6 +209,14 @@ gl_render(Render_Target *t, Arena *scratch){
         
         gpu_program = gl__make_program(gl__header, gl__vertex, gl__fragment);
         glUseProgram(gpu_program.program);
+        
+        ////////////////////////////////
+        
+        {        
+            t->fallback_texture_id = gl__get_texture(V3i32(2, 2, 1), TextureKind_Mono);
+            u8 white_block[] = { 0xFF, 0xFF, 0xFF, 0xFF, };
+            gl__fill_texture(TextureKind_Mono, 0, V3i32(0, 0, 0), V3i32(2, 2, 1), white_block);
+        }
     }
     
     i32 width = t->width;
@@ -222,6 +238,7 @@ gl_render(Render_Target *t, Arena *scratch){
     t->free_texture_first = 0;
     t->free_texture_last = 0;
     
+#if 0
     i32 glyph_counter = 0;
     
     u8 *start = (u8*)t->buffer.base;
@@ -235,14 +252,18 @@ gl_render(Render_Target *t, Arena *scratch){
             case RenCom_Rectangle:
             {
                 Render_Command_Rectangle *rectangle = (Render_Command_Rectangle*)header;
-                gl__bind_texture(t, 0);
-                
-                Vec4 c = unpack_color4(rectangle->color);
+                gl__bind_any_texture(t);
                 
                 i32 vertex_count = ArrayCount(rectangle->vertices);
                 glBufferData(GL_ARRAY_BUFFER, sizeof(rectangle->vertices), rectangle->vertices, GL_STREAM_DRAW);
                 glEnableVertexAttribArray(gpu_program.vertex_p);
-                glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(rectangle->vertices[0]), 0);
+                glEnableVertexAttribArray(gpu_program.vertex_t);
+                glEnableVertexAttribArray(gpu_program.vertex_c);
+                //glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(rectangle->vertices[0]), 0);
+                Render_Vertex *vertices = rectangle->vertices;
+                glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(*vertices), GLOffset(vertices, xy));
+                glVertexAttribPointer(gpu_program.vertex_t, 3, GL_FLOAT, true, sizeof(*vertices), GLOffset(vertices, uvw));
+                glVertexAttribPointer(gpu_program.vertex_c, 4, GL_FLOAT, true, sizeof(*vertices), GLOffset(vertices, color));
                 
                 glUniform2f(gpu_program.view_t, width/2.f, height/2.f);
                 f32 m[4] = {
@@ -250,11 +271,12 @@ gl_render(Render_Target *t, Arena *scratch){
                     0.f, -2.f/height,
                 };
                 glUniformMatrix2fv(gpu_program.view_m, 1, GL_FALSE, m);
-                glUniform4f(gpu_program.color, c.r*c.a, c.g*c.a, c.b*c.a, c.a);
-                glUniform1f(gpu_program.texture_override, 1.f);
+                glUniform1i(gpu_program.sampler, 0);
                 
-                glDrawArrays(GL_TRIANGLE_STRIP, 0, vertex_count);
+                glDrawArrays(GL_TRIANGLES, 0, vertex_count);
                 glDisableVertexAttribArray(gpu_program.vertex_p);
+                glDisableVertexAttribArray(gpu_program.vertex_t);
+                glDisableVertexAttribArray(gpu_program.vertex_c);
             }break;
             
             case RenCom_Glyph:
@@ -289,35 +311,35 @@ gl_render(Render_Target *t, Arena *scratch){
                 f32_Rect xy = Rf32(x + bounds.xy_off.x0, y + bounds.xy_off.y0,
                                    x + bounds.xy_off.x1, y + bounds.xy_off.y1);
                 
-                struct Textutred_Vertex{
-                    Vec2 xy;
-                    Vec2 uv;
-                };
-                
-                Textutred_Vertex vertices[4];
+                Render_Vertex vertices[4];
                 if (!HasFlag(glyph->flags, GlyphFlag_Rotate90)){
-                    vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uv = V2(uv.x0, uv.y1);
-                    vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uv = V2(uv.x1, uv.y1);
-                    vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uv = V2(uv.x0, uv.y0);
-                    vertices[3].xy = V2(xy.x1, xy.y0); vertices[3].uv = V2(uv.x1, uv.y0);
+                    vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x0, uv.y1, bounds.w);
+                    vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y1, bounds.w);
+                    vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uvw = V3(uv.x0, uv.y0, bounds.w);
+                    vertices[3].xy = V2(xy.x1, xy.y0); vertices[3].uvw = V3(uv.x1, uv.y0, bounds.w);
                 }
                 else{
-                    vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uv = V2(uv.x1, uv.y1);
-                    vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uv = V2(uv.x1, uv.y0);
-                    vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uv = V2(uv.x0, uv.y1);
-                    vertices[3].xy = V2(xy.x1, xy.y0); vertices[3].uv = V2(uv.x0, uv.y0);
+                    vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x1, uv.y1, bounds.w);
+                    vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y0, bounds.w);
+                    vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uvw = V3(uv.x0, uv.y1, bounds.w);
+                    vertices[3].xy = V2(xy.x1, xy.y0); vertices[3].uvw = V3(uv.x0, uv.y0, bounds.w);
+                }
+                
+                Vec4 c = unpack_color4(glyph->color);
+                for (i32 i = 0; i < 4; i += 1){
+                    vertices[i].color = c;
                 }
                 
                 gl__bind_texture(t, tex);
-                
-                Vec4 c = unpack_color4(glyph->color);
                 
                 i32 vertex_count = ArrayCount(vertices);
                 glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
                 glEnableVertexAttribArray(gpu_program.vertex_p);
                 glEnableVertexAttribArray(gpu_program.vertex_t);
+                glEnableVertexAttribArray(gpu_program.vertex_c);
                 glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(vertices[0]), GLOffset(&vertices[0], xy));
-                glVertexAttribPointer(gpu_program.vertex_t, 2, GL_FLOAT, true, sizeof(vertices[0]), GLOffset(&vertices[0], uv));
+                glVertexAttribPointer(gpu_program.vertex_t, 3, GL_FLOAT, true, sizeof(vertices[0]), GLOffset(&vertices[0], uvw));
+                glVertexAttribPointer(gpu_program.vertex_c, 4, GL_FLOAT, true, sizeof(vertices[0]), GLOffset(&vertices[0], color));
                 
                 glUniform2f(gpu_program.view_t, width/2.f, height/2.f);
                 f32 m[4] = {
@@ -325,14 +347,12 @@ gl_render(Render_Target *t, Arena *scratch){
                     0.f, -2.f/height,
                 };
                 glUniformMatrix2fv(gpu_program.view_m, 1, GL_FALSE, m);
-                glUniform4f(gpu_program.color, c.r*c.a, c.g*c.a, c.b*c.a, c.a);
-                
                 glUniform1i(gpu_program.sampler, 0);
-                glUniform1f(gpu_program.texture_override, 0.f);
                 
                 glDrawArrays(GL_TRIANGLE_STRIP, 0, vertex_count);
                 glDisableVertexAttribArray(gpu_program.vertex_p);
                 glDisableVertexAttribArray(gpu_program.vertex_t);
+                glDisableVertexAttribArray(gpu_program.vertex_c);
                 
 #if 0
                 if (codepoint != ' ' && font.settings->parameters.underline){
@@ -355,8 +375,8 @@ gl_render(Render_Target *t, Arena *scratch){
                     
                     glEnable(GL_TEXTURE_2D);
                 }
-#endif
             }break;
+#endif
             
             case RenCom_ChangeClip:
             {
@@ -364,15 +384,66 @@ gl_render(Render_Target *t, Arena *scratch){
                 i32_Rect box = clip->box;
                 glScissor(box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0);
             }break;
+            
+            case RenCom_Group:
+            {
+                Render_Command_Group *group = (Render_Command_Group*)header;
+                Rect_i32 box = group->clip_box;
+                glScissor(box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0);
+                
+                
+            }break;
         }
     }
-    
-    if (target.out_of_memory){
-        glScissor(0, 0, width, height);
-        glClearColor(0.f, 1.f, 0.f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        target.out_of_memory = false;
+#else
+    for (Render_Group *group = t->group_first;
+         group != 0;
+         group = group->next){
+        Rect_i32 box = group->clip_box;
+        glScissor(box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0);
+        
+        i32 vertex_count = group->vertex_list.vertex_count;
+        if (vertex_count > 0){
+            Face *face = font_set_face_from_id(font_set, group->face_id);
+            if (face != 0){
+                gl__bind_texture(t, face->texture);
+            }
+            else{
+                gl__bind_any_texture(t);
+            }
+            
+            glBufferData(GL_ARRAY_BUFFER, vertex_count*sizeof(Render_Vertex), 0, GL_STREAM_DRAW);
+            i32 cursor = 0;
+            for (Render_Vertex_Array_Node *node = group->vertex_list.first;
+                 node != 0;
+                 node = node->next){
+                i32 size = node->vertex_count*sizeof(*node->vertices);
+                glBufferSubData(GL_ARRAY_BUFFER, cursor, size, node->vertices);
+                cursor += size;
+            }
+            
+            glEnableVertexAttribArray(gpu_program.vertex_p);
+            glEnableVertexAttribArray(gpu_program.vertex_t);
+            glEnableVertexAttribArray(gpu_program.vertex_c);
+            glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(Render_Vertex), GLOffset(Render_Vertex, xy));
+            glVertexAttribPointer(gpu_program.vertex_t, 3, GL_FLOAT, true, sizeof(Render_Vertex), GLOffset(Render_Vertex, uvw));
+            glVertexAttribPointer(gpu_program.vertex_c, 4, GL_FLOAT, true, sizeof(Render_Vertex), GLOffset(Render_Vertex, color));
+            
+            glUniform2f(gpu_program.view_t, width/2.f, height/2.f);
+            f32 m[4] = {
+                2.f/width, 0.f,
+                0.f, -2.f/height,
+            };
+            glUniformMatrix2fv(gpu_program.view_m, 1, GL_FALSE, m);
+            glUniform1i(gpu_program.sampler, 0);
+            
+            glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+            glDisableVertexAttribArray(gpu_program.vertex_p);
+            glDisableVertexAttribArray(gpu_program.vertex_t);
+            glDisableVertexAttribArray(gpu_program.vertex_c);
+        }
     }
+#endif
     
     glFlush();
 }

@@ -31,10 +31,10 @@ memory_init(){
     memory_vars.debug_memory = system_memory_allocate_extended(0, memory_vars.debug_memory_size);
     
     i32 render_memsize = MB(1);
-    target.buffer = make_cursor(system_memory_allocate(render_memsize), render_memsize);
+    target.arena = make_arena_system(&sysfunc);
     
     b32 alloc_success = true;
-    if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0 || target.buffer.base == 0){
+    if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0){
         alloc_success = false;
     }
     

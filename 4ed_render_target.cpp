@@ -9,94 +9,369 @@
 
 // TOP
 
-#define Render_Begin_Push_Sig(n,t,p,s) void*    (n)(Render_Target *t, void *p, i32 s)
-#define Render_End_Push_Sig(n,t,h)     void     (n)(Render_Target *t, void *h)
-#define Render_Change_Clip_Sig(n,t,c)  void     (n)(Render_Target *t, i32_Rect c)
-#define Render_Push_Clip_Sig(n,t,c)    void     (n)(Render_Target *t, i32_Rect c)
-#define Render_Pop_Clip_Sig(n,t)       i32_Rect (n)(Render_Target *t)
-
-////////////////////////////////
-
-internal
-Render_Begin_Push_Sig(render_internal_begin_push, t, ptr, size){
-    void *out = push_array(&t->buffer, u8, size);
-    if (out != 0){
-        memcpy(out, ptr, size);
+internal void
+draw__begin_new_group(Render_Target *target){
+    Render_Group *group = 0;
+    if (target->group_last != 0){
+        if (target->group_last->vertex_list.vertex_count == 0){
+            group = target->group_last;
+        }
     }
-    else{
-        t->out_of_memory = true;
+    if (group == 0){
+        group = push_array_zero(&target->arena, Render_Group, 1);
+        sll_queue_push(target->group_first, target->group_last, group);
     }
-    return(out);
+    group->face_id = target->current_face_id;
+    group->clip_box = target->current_clip_box;
 }
 
-internal
-Render_End_Push_Sig(render_internal_end_push, t, h){
-    if (h != 0){
-        push_align(&t->buffer, 8);
-        u8 *end_ptr = push_array(&t->buffer, u8, 0);
-        Render_Command_Header *header = (Render_Command_Header*)h;
-        header->size = (i32)(end_ptr - (u8*)h);
+internal Render_Vertex_Array_Node*
+draw__extend_group_vertex_memory(Arena *arena, Render_Vertex_List *list, i32 size){
+    Render_Vertex_Array_Node *node = push_array_zero(arena, Render_Vertex_Array_Node, 1);
+    sll_queue_push(list->first, list->last, node);
+    node->vertices = push_array(arena, Render_Vertex, size);
+    node->vertex_max = size;
+    return(node);
+}
+
+internal void
+draw__write_vertices_in_current_group(Render_Target *target, Render_Vertex *vertices, i32 count){
+    if (count > 0){
+        Render_Group *group = target->group_last;
+        if (group != 0){
+            Render_Vertex_List *list = &group->vertex_list;
+            
+            Render_Vertex_Array_Node *last = list->last;
+            
+            Render_Vertex *tail_vertex = 0;
+            i32 tail_count = 0;
+            if (last != 0){
+                tail_vertex = last->vertices + last->vertex_count;
+                tail_count = last->vertex_max - last->vertex_count;
+            }
+            
+            i32 base_vertex_max = 64;
+            i32 transfer_count = clamp_top(count, tail_count);
+            if (transfer_count > 0){
+                block_copy_dynamic_array(tail_vertex, vertices, transfer_count);
+                last->vertex_count += transfer_count;
+                list->vertex_count += transfer_count;
+                base_vertex_max = last->vertex_max;
+            }
+            
+            i32 count_left_over = count - transfer_count;
+            if (count_left_over > 0){
+                Render_Vertex *vertices_left_over = vertices + transfer_count;
+                
+                i32 next_node_size = (base_vertex_max + count_left_over)*2;
+                Render_Vertex_Array_Node *memory = draw__extend_group_vertex_memory(&target->arena, list, next_node_size);
+                block_copy_dynamic_array(memory->vertices, vertices_left_over, count_left_over);
+                memory->vertex_count += count_left_over;
+                list->vertex_count += count_left_over;
+            }
+        }
     }
 }
 
 internal void
-render_internal_push_clip(Render_Target *t, i32_Rect clip_box){
-    t->clip_all = (clip_box.x0 >= clip_box.x1 || clip_box.y0 >= clip_box.y1);
-    if (t->clip_all){
-        return;
+draw__set_clip_box(Render_Target *target, Rect_i32 clip_box){
+    if (target->current_clip_box != clip_box){
+        target->current_clip_box = clip_box;
+        draw__begin_new_group(target);
     }
-    
-    // TODO(allen): If the previous command was also a push clip should
-    // undo that one and just do this one. (OPTIMIZATION).
-    Render_Command_Change_Clip cmd = {};
-    cmd.header.size = sizeof(cmd);
-    cmd.header.type = RenCom_ChangeClip;
-    cmd.box = clip_box;
-    void *h = render_internal_begin_push(t, &cmd, cmd.header.size);
-    render_internal_end_push(t, h);
+}
+
+internal void
+draw__set_face_id(Render_Target *target, Face_ID face_id){
+    if (target->current_face_id != face_id){
+        target->current_face_id = face_id;
+        draw__begin_new_group(target);
+    }
 }
 
 ////////////////////////////////
 
-internal
-Render_Begin_Push_Sig(render_begin_push, t, ptr, size){
-    void *out = 0;
-    if (!t->clip_all){
-        out = render_internal_begin_push(t, ptr, size);
+internal void
+draw_push_clip(Render_Target *target, Rect_i32 clip_box){
+    if (target->clip_top != -1){
+        clip_box = intersection_of(clip_box, target->clip_boxes[target->clip_top]);
     }
-    return(out);
+    Assert(target->clip_top + 1 < ArrayCount(target->clip_boxes));
+    target->clip_boxes[++target->clip_top] = clip_box;
+    draw__set_clip_box(target, clip_box);
 }
 
-internal
-Render_End_Push_Sig(render_end_push, t, h){
-    render_internal_end_push(t, h);
-}
-
-internal
-Render_Change_Clip_Sig(render_change_clip, t, clip_box){
-    Assert(t->clip_top > -1);
-    t->clip_boxes[t->clip_top] = clip_box;
-    render_internal_push_clip(t, clip_box);
-}
-
-internal
-Render_Push_Clip_Sig(render_push_clip, t, clip_box){
-    if (t->clip_top != -1){
-        clip_box = intersection_of(clip_box, t->clip_boxes[t->clip_top]);
-    }
-    Assert(t->clip_top + 1 < ArrayCount(t->clip_boxes));
-    t->clip_boxes[++t->clip_top] = clip_box;
-    render_internal_push_clip(t, clip_box);
-}
-
-internal
-Render_Pop_Clip_Sig(render_pop_clip, t){
-    Assert(t->clip_top > 0);
-    i32_Rect result = t->clip_boxes[t->clip_top];
-    --t->clip_top;
-    i32_Rect clip_box = t->clip_boxes[t->clip_top];
-    render_internal_push_clip(t, clip_box);
+internal Rect_i32
+draw_pop_clip(Render_Target *target){
+    Assert(target->clip_top > 0);
+    i32_Rect result = target->clip_boxes[target->clip_top];
+    --target->clip_top;
+    i32_Rect clip_box = target->clip_boxes[target->clip_top];
+    draw__set_clip_box(target, clip_box);
     return(result);
+}
+
+internal void
+draw_change_clip(Render_Target *target, Rect_i32 clip_box){
+    Assert(target->clip_top > -1);
+    target->clip_boxes[target->clip_top] = clip_box;
+    draw__set_clip_box(target, clip_box);
+}
+
+internal void
+begin_frame(Render_Target *target, void *font_set){
+    linalloc_clear(&target->arena);
+    target->group_first = 0;
+    target->group_last = 0;
+    target->current_face_id = 0;
+    target->current_clip_box = Ri32(0, 0, target->width, target->height);
+    target->font_set = font_set;
+}
+
+internal void
+begin_render_section(Render_Target *target, System_Functions *system,
+                     i32 frame_index, f32 literal_dt, f32 animation_dt){
+    target->clip_top = -1;
+    
+    i32_Rect clip;
+    clip.x0 = 0;
+    clip.y0 = 0;
+    clip.x1 = target->width;
+    clip.y1 = target->height;
+    draw_push_clip(target, clip);
+    
+    target->frame_index = frame_index;
+    target->literal_dt = literal_dt;
+    target->animation_dt = animation_dt;
+}
+
+internal void
+end_render_section(Render_Target *target, System_Functions *system){
+    Assert(target->clip_top == 0);
+}
+
+////////////////////////////////
+
+#if 0
+internal void
+draw_font_glyph(Render_Target *target, Face_ID font_id, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
+    Render_Command_Glyph cmd = {};
+    CmdHeader(RenCom_Glyph);
+    cmd.pos.x = x;
+    cmd.pos.y = y;
+    cmd.color = color;
+    cmd.font_id = font_id;
+    cmd.codepoint = codepoint;
+    cmd.flags = flags;
+    void *h = render_begin_push(target, &cmd, cmd.header.size);
+    render_end_push(target, h);
+}
+#endif
+
+internal void
+draw_rectangle(Render_Target *target, Rect_f32 rect, u32 color){
+    Render_Vertex vertices[6] = {};
+    vertices[0].xy = V2(rect.x0, rect.y0);
+    vertices[1].xy = V2(rect.x1, rect.y0);
+    vertices[2].xy = V2(rect.x0, rect.y1);
+    vertices[3].xy = V2(rect.x1, rect.y0);
+    vertices[4].xy = V2(rect.x0, rect.y1);
+    vertices[5].xy = V2(rect.x1, rect.y1);
+    Vec4 c = unpack_color4(color);
+    for (i32 i = 0; i < 6; i += 1){
+        vertices[i].color = c;
+    }
+    draw__write_vertices_in_current_group(target, vertices, 6);
+}
+
+internal void
+draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
+    draw__set_face_id(target, face->id);
+    
+    u16 glyph_index = 0;
+    if (!codepoint_index_map_read(&face->codepoint_to_index_map, codepoint, &glyph_index)){
+        glyph_index = 0;
+    }
+    Glyph_Bounds bounds = face->bounds[glyph_index];
+    Vec3_f32 texture_dim = face->texture_dim;
+    
+    f32_Rect uv = Rf32(bounds.uv.x0, bounds.uv.y0,
+                       bounds.uv.x1, bounds.uv.y1);
+    
+    Render_Vertex vertices[6] = {};
+    if (!HasFlag(flags, GlyphFlag_Rotate90)){
+        f32_Rect xy = Rf32(x + bounds.xy_off.x0, y + bounds.xy_off.y0,
+                           x + bounds.xy_off.x1, y + bounds.xy_off.y1);
+        
+        vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x0, uv.y1, bounds.w);
+        vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y1, bounds.w);
+        vertices[3].xy = V2(xy.x0, xy.y0); vertices[3].uvw = V3(uv.x0, uv.y0, bounds.w);
+        vertices[5].xy = V2(xy.x1, xy.y0); vertices[5].uvw = V3(uv.x1, uv.y0, bounds.w);
+    }
+    else{
+        f32_Rect xy = Rf32(x - bounds.xy_off.y1, y + bounds.xy_off.x0,
+                           x - bounds.xy_off.y0, y + bounds.xy_off.x1);
+        
+        vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x1, uv.y1, bounds.w);
+        vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y0, bounds.w);
+        vertices[3].xy = V2(xy.x0, xy.y0); vertices[3].uvw = V3(uv.x0, uv.y1, bounds.w);
+        vertices[5].xy = V2(xy.x1, xy.y0); vertices[5].uvw = V3(uv.x0, uv.y0, bounds.w);
+    }
+    
+    vertices[2] = vertices[1];
+    vertices[3] = vertices[4];
+    
+    Vec4 c = unpack_color4(color);
+    for (i32 i = 0; i < 6; i += 1){
+        vertices[0].color = c;
+    }
+}
+
+internal void
+draw_font_glyph(Render_Target *target, Font_Set *font_set, Face_ID face_id, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
+    Face *face = font_set_face_from_id(font_set, face_id);
+    if (face != 0){
+        draw_font_glyph(target, face, codepoint, x, y, color, flags);
+    }
+}
+
+////////////////////////////////
+
+internal void
+draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
+    draw_rectangle(target, Rf32(rect.x0, rect.y0, rect.x1, rect.y0 + 1), color);
+    draw_rectangle(target, Rf32(rect.x1 - 1, rect.y0, rect.x1, rect.y1), color);
+    draw_rectangle(target, Rf32(rect.x0, rect.y1 - 1, rect.x1, rect.y1), color);
+    draw_rectangle(target, Rf32(rect.x0, rect.y0, rect.x0 + 1, rect.y1), color);
+}
+
+////////////////////////////////
+
+internal void
+draw_rectangle(Render_Target *target, i32_Rect rect, u32 color){
+    draw_rectangle(target, f32R(rect), color);
+}
+
+internal void
+draw_rectangle_outline(Render_Target *target, i32_Rect rect, u32 color){
+    draw_rectangle_outline(target, f32R(rect), color);
+}
+
+internal void
+draw_margin(Render_Target *target, f32_Rect outer, f32_Rect inner, u32 color){
+    draw_rectangle(target, f32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
+    draw_rectangle(target, f32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    draw_rectangle(target, f32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
+    draw_rectangle(target, f32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+}
+
+internal void
+draw_margin(Render_Target *target, f32_Rect outer, f32 width, u32 color){
+    f32_Rect inner = rect_inner(outer, width);
+    draw_margin(target, outer, inner, color);
+}
+
+internal void
+draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
+    draw_rectangle(target, i32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
+    draw_rectangle(target, i32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    draw_rectangle(target, i32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
+    draw_rectangle(target, i32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+}
+
+internal void
+draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
+    i32_Rect inner = rect_inner(outer, width);
+    draw_margin(target, outer, inner, color);
+}
+
+internal Vec2
+snap_point_to_boundary(Vec2 point){
+    point.x = (f32)(floor32(point.x));
+    point.y = (f32)(floor32(point.y));
+    return(point);
+}
+
+internal f32
+draw_string(Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
+    f32 total_delta = 0.f;
+    
+    Face *face = 0;
+    
+    if (face != 0){
+        point = snap_point_to_boundary(point);
+        
+        f32 byte_advance = face->byte_advance;
+        f32 *byte_sub_advances = face->byte_sub_advances;
+        
+        u8 *str = (u8*)string.str;
+        u8 *str_end = str + string.size;
+        
+        Translation_State tran = {};
+        Translation_Emits emits = {};
+        
+        for (u32 i = 0; str < str_end; ++str, ++i){
+            translating_fully_process_byte(&tran, *str, i, (i32)string.size, &emits);
+            
+            for (TRANSLATION_DECL_EMIT_LOOP(J, emits)){
+                TRANSLATION_DECL_GET_STEP(step, behavior, J, emits);
+                
+                if (behavior.do_codepoint_advance){
+                    u32 codepoint = step.value;
+                    if (color != 0){
+                        draw_font_glyph(target, face, codepoint, point.x, point.y, color, flags);
+                    }
+                    f32 d = font_get_glyph_advance(face, codepoint);
+                    point += d*delta;
+                    total_delta += d;
+                }
+                else if (behavior.do_number_advance){
+                    u8 n = (u8)(step.value);
+                    if (color != 0){
+                        u8 cs[3];
+                        cs[0] = '\\';
+                        byte_to_ascii(n, cs+1);
+                        Vec2 pp = point;
+                        for (u32 j = 0; j < 3; ++j){
+                            draw_font_glyph(target, face, cs[j], pp.x, pp.y, color, flags);
+                            pp += delta*byte_sub_advances[j];
+                        }
+                    }
+                    point += byte_advance*delta;
+                    total_delta += byte_advance;
+                }
+            }
+        }
+    }
+    
+    return(total_delta);
+}
+
+internal f32
+draw_string(Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color){
+    return(draw_string(target, font_id, string, point, color, 0, V2(1.f, 0.f)));
+}
+
+internal f32
+draw_string(Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
+            u32 color, u32 flags, Vec2 delta){
+    return(draw_string(target, font_id, SCu8(str), point, color, flags, delta));
+}
+
+internal f32
+draw_string(Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
+            u32 color){
+    return(draw_string(target, font_id, SCu8(str), point, color, 0, V2(1.f, 0.f)));
+}
+
+internal f32
+font_string_width(Render_Target *target, Face_ID font_id, String_Const_u8 str){
+    return(draw_string(target, font_id, str, V2(0, 0), 0, 0, V2(0, 0)));
+}
+
+internal f32
+font_string_width(Render_Target *target, Face_ID font_id, u8 *str){
+    return(draw_string(target, font_id, SCu8(str), V2(0, 0), 0, 0, V2(0, 0)));
 }
 
 // BOTTOM

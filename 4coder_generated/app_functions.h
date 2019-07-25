@@ -162,7 +162,7 @@ struct Application_Links;
 #define GET_STRING_ADVANCE_SIG(n) f32 n(Application_Links *app, Face_ID font_id, String_Const_u8 str)
 #define DRAW_RECTANGLE_SIG(n) void n(Application_Links *app, Rect_f32 rect, int_color color)
 #define DRAW_RECTANGLE_OUTLINE_SIG(n) void n(Application_Links *app, f32_Rect rect, int_color color)
-#define DRAW_CLIP_PUSH_SIG(n) void n(Application_Links *app, f32_Rect clip_box)
+#define DRAW_CLIP_PUSH_SIG(n) void n(Application_Links *app, Rect_f32 clip_box)
 #define DRAW_CLIP_POP_SIG(n) f32_Rect n(Application_Links *app)
 #define DRAW_COORDINATE_CENTER_PUSH_SIG(n) void n(Application_Links *app, Vec2 point)
 #define DRAW_COORDINATE_CENTER_POP_SIG(n) Vec2 n(Application_Links *app)
@@ -1070,7 +1070,7 @@ static Vec2 draw_string(Application_Links *app, Face_ID font_id, String_Const_u8
 static f32 get_string_advance(Application_Links *app, Face_ID font_id, String_Const_u8 str){return(app->get_string_advance(app, font_id, str));}
 static void draw_rectangle(Application_Links *app, Rect_f32 rect, int_color color){(app->draw_rectangle(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline(app, rect, color));}
-static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw_clip_push(app, clip_box));}
+static void draw_clip_push(Application_Links *app, Rect_f32 clip_box){(app->draw_clip_push(app, clip_box));}
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop(app));}
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop(app));}
@@ -1250,7 +1250,7 @@ static Vec2 draw_string(Application_Links *app, Face_ID font_id, String_Const_u8
 static f32 get_string_advance(Application_Links *app, Face_ID font_id, String_Const_u8 str){return(app->get_string_advance_(app, font_id, str));}
 static void draw_rectangle(Application_Links *app, Rect_f32 rect, int_color color){(app->draw_rectangle_(app, rect, color));}
 static void draw_rectangle_outline(Application_Links *app, f32_Rect rect, int_color color){(app->draw_rectangle_outline_(app, rect, color));}
-static void draw_clip_push(Application_Links *app, f32_Rect clip_box){(app->draw_clip_push_(app, clip_box));}
+static void draw_clip_push(Application_Links *app, Rect_f32 clip_box){(app->draw_clip_push_(app, clip_box));}
 static f32_Rect draw_clip_pop(Application_Links *app){return(app->draw_clip_pop_(app));}
 static void draw_coordinate_center_push(Application_Links *app, Vec2 point){(app->draw_coordinate_center_push_(app, point));}
 static Vec2 draw_coordinate_center_pop(Application_Links *app){return(app->draw_coordinate_center_pop_(app));}

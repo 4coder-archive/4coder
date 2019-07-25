@@ -3666,17 +3666,16 @@ Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
 }
 
 API_EXPORT void
-Draw_Clip_Push(Application_Links *app, f32_Rect clip_box){
+Draw_Clip_Push(Application_Links *app, Rect_f32 clip_box){
     Models *models = (Models*)app->cmd_context;
     //clip_box = draw_helper__models_space_to_screen_space(models, clip_box);
-    render_push_clip(models->target, i32R(clip_box));
+    draw_push_clip(models->target, Ri32(clip_box));
 }
 
 API_EXPORT f32_Rect
 Draw_Clip_Pop(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
-    f32_Rect result = f32R(render_pop_clip(models->target));
-    return(result);
+    return(Rf32(draw_pop_clip(models->target)));
 }
 
 API_EXPORT void
