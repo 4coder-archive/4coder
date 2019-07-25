@@ -3621,15 +3621,16 @@ Draw_String(Application_Links *app, Face_ID font_id, String_Const_u8 str, Vec2 p
 {
     Vec2 result = point;
     Models *models = (Models*)app->cmd_context;
+    Face *face = font_set_face_from_id(&models->font_set, font_id);
     if (models->target == 0){
-        f32 width = font_string_width(models->target, font_id, str);
+        f32 width = font_string_width(models->target, face, str);
         result += delta*width;
     }
     else{
         Color_Table color_table = models->color_table;
         point = draw_helper__models_space_to_screen_space(models, point);
         u32 actual_color = finalize_color(color_table, color);
-        f32 width = draw_string(models->target, font_id, str, point, actual_color, flags, delta);
+        f32 width = draw_string(models->target, face, str, point, actual_color, flags, delta);
         result += delta*width;
     }
     return(result);
@@ -3639,7 +3640,8 @@ API_EXPORT f32
 Get_String_Advance(Application_Links *app, Face_ID font_id, String_Const_u8 str)
 {
     Models *models = (Models*)app->cmd_context;
-    return(font_string_width(models->target, font_id, str));
+    Face *face = font_set_face_from_id(&models->font_set, font_id);
+    return(font_string_width(models->target, face, str));
 }
 
 API_EXPORT void
@@ -3654,7 +3656,7 @@ Draw_Rectangle(Application_Links *app, Rect_f32 rect, int_color color){
 }
 
 API_EXPORT void
-Draw_Rectangle_Outline(Application_Links *app, f32_Rect rect, int_color color)
+Draw_Rectangle_Outline(Application_Links *app, Rect_f32 rect, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
     if (models->in_render_mode){

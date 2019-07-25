@@ -38,38 +38,42 @@ internal void
 draw__write_vertices_in_current_group(Render_Target *target, Render_Vertex *vertices, i32 count){
     if (count > 0){
         Render_Group *group = target->group_last;
-        if (group != 0){
-            Render_Vertex_List *list = &group->vertex_list;
-            
-            Render_Vertex_Array_Node *last = list->last;
-            
-            Render_Vertex *tail_vertex = 0;
-            i32 tail_count = 0;
-            if (last != 0){
-                tail_vertex = last->vertices + last->vertex_count;
-                tail_count = last->vertex_max - last->vertex_count;
-            }
-            
-            i32 base_vertex_max = 64;
-            i32 transfer_count = clamp_top(count, tail_count);
-            if (transfer_count > 0){
-                block_copy_dynamic_array(tail_vertex, vertices, transfer_count);
-                last->vertex_count += transfer_count;
-                list->vertex_count += transfer_count;
-                base_vertex_max = last->vertex_max;
-            }
-            
-            i32 count_left_over = count - transfer_count;
-            if (count_left_over > 0){
-                Render_Vertex *vertices_left_over = vertices + transfer_count;
-                
-                i32 next_node_size = (base_vertex_max + count_left_over)*2;
-                Render_Vertex_Array_Node *memory = draw__extend_group_vertex_memory(&target->arena, list, next_node_size);
-                block_copy_dynamic_array(memory->vertices, vertices_left_over, count_left_over);
-                memory->vertex_count += count_left_over;
-                list->vertex_count += count_left_over;
-            }
+        if (group == 0){
+            draw__begin_new_group(target);
+            group = target->group_last;
         }
+        
+        Render_Vertex_List *list = &group->vertex_list;
+        
+        Render_Vertex_Array_Node *last = list->last;
+        
+        Render_Vertex *tail_vertex = 0;
+        i32 tail_count = 0;
+        if (last != 0){
+            tail_vertex = last->vertices + last->vertex_count;
+            tail_count = last->vertex_max - last->vertex_count;
+        }
+        
+        i32 base_vertex_max = 64;
+        i32 transfer_count = clamp_top(count, tail_count);
+        if (transfer_count > 0){
+            block_copy_dynamic_array(tail_vertex, vertices, transfer_count);
+            last->vertex_count += transfer_count;
+            list->vertex_count += transfer_count;
+            base_vertex_max = last->vertex_max;
+        }
+        
+        i32 count_left_over = count - transfer_count;
+        if (count_left_over > 0){
+            Render_Vertex *vertices_left_over = vertices + transfer_count;
+            
+            i32 next_node_size = (base_vertex_max + count_left_over)*2;
+            Render_Vertex_Array_Node *memory = draw__extend_group_vertex_memory(&target->arena, list, next_node_size);
+            block_copy_dynamic_array(memory->vertices, vertices_left_over, count_left_over);
+            memory->vertex_count += count_left_over;
+            list->vertex_count += count_left_over;
+        }
+        
     }
 }
 
@@ -84,8 +88,18 @@ draw__set_clip_box(Render_Target *target, Rect_i32 clip_box){
 internal void
 draw__set_face_id(Render_Target *target, Face_ID face_id){
     if (target->current_face_id != face_id){
-        target->current_face_id = face_id;
-        draw__begin_new_group(target);
+        if (target->current_face_id != 0){
+            target->current_face_id = face_id;
+            draw__begin_new_group(target);
+        }
+        else{
+            target->current_face_id = face_id;
+            for (Render_Group *group = target->group_first;
+                 group != 0;
+                 group = group->next){
+                group->face_id = face_id;
+            }
+        }
     }
 }
 
@@ -152,22 +166,6 @@ end_render_section(Render_Target *target, System_Functions *system){
 
 ////////////////////////////////
 
-#if 0
-internal void
-draw_font_glyph(Render_Target *target, Face_ID font_id, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
-    Render_Command_Glyph cmd = {};
-    CmdHeader(RenCom_Glyph);
-    cmd.pos.x = x;
-    cmd.pos.y = y;
-    cmd.color = color;
-    cmd.font_id = font_id;
-    cmd.codepoint = codepoint;
-    cmd.flags = flags;
-    void *h = render_begin_push(target, &cmd, cmd.header.size);
-    render_end_push(target, h);
-}
-#endif
-
 internal void
 draw_rectangle(Render_Target *target, Rect_f32 rect, u32 color){
     Render_Vertex vertices[6] = {};
@@ -205,7 +203,7 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
         
         vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x0, uv.y1, bounds.w);
         vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y1, bounds.w);
-        vertices[3].xy = V2(xy.x0, xy.y0); vertices[3].uvw = V3(uv.x0, uv.y0, bounds.w);
+        vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uvw = V3(uv.x0, uv.y0, bounds.w);
         vertices[5].xy = V2(xy.x1, xy.y0); vertices[5].uvw = V3(uv.x1, uv.y0, bounds.w);
     }
     else{
@@ -214,17 +212,19 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
         
         vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x1, uv.y1, bounds.w);
         vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y0, bounds.w);
-        vertices[3].xy = V2(xy.x0, xy.y0); vertices[3].uvw = V3(uv.x0, uv.y1, bounds.w);
+        vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uvw = V3(uv.x0, uv.y1, bounds.w);
         vertices[5].xy = V2(xy.x1, xy.y0); vertices[5].uvw = V3(uv.x0, uv.y0, bounds.w);
     }
     
-    vertices[2] = vertices[1];
-    vertices[3] = vertices[4];
+    vertices[3] = vertices[1];
+    vertices[4] = vertices[2];
     
     Vec4 c = unpack_color4(color);
     for (i32 i = 0; i < 6; i += 1){
-        vertices[0].color = c;
+        vertices[i].color = c;
     }
+    
+    draw__write_vertices_in_current_group(target, vertices, 6);
 }
 
 internal void
@@ -293,11 +293,8 @@ snap_point_to_boundary(Vec2 point){
 }
 
 internal f32
-draw_string(Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
+draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
     f32 total_delta = 0.f;
-    
-    Face *face = 0;
-    
     if (face != 0){
         point = snap_point_to_boundary(point);
         
@@ -348,30 +345,30 @@ draw_string(Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2
 }
 
 internal f32
-draw_string(Render_Target *target, Face_ID font_id, String_Const_u8 string, Vec2 point, u32 color){
-    return(draw_string(target, font_id, string, point, color, 0, V2(1.f, 0.f)));
+draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 point, u32 color){
+    return(draw_string(target, face, string, point, color, 0, V2(1.f, 0.f)));
 }
 
 internal f32
-draw_string(Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
+draw_string(Render_Target *target, Face *face, u8 *str, Vec2 point,
             u32 color, u32 flags, Vec2 delta){
-    return(draw_string(target, font_id, SCu8(str), point, color, flags, delta));
+    return(draw_string(target, face, SCu8(str), point, color, flags, delta));
 }
 
 internal f32
-draw_string(Render_Target *target, Face_ID font_id, u8 *str, Vec2 point,
+draw_string(Render_Target *target, Face *face, u8 *str, Vec2 point,
             u32 color){
-    return(draw_string(target, font_id, SCu8(str), point, color, 0, V2(1.f, 0.f)));
+    return(draw_string(target, face, SCu8(str), point, color, 0, V2(1.f, 0.f)));
 }
 
 internal f32
-font_string_width(Render_Target *target, Face_ID font_id, String_Const_u8 str){
-    return(draw_string(target, font_id, str, V2(0, 0), 0, 0, V2(0, 0)));
+font_string_width(Render_Target *target, Face *face, String_Const_u8 str){
+    return(draw_string(target, face, str, V2(0, 0), 0, 0, V2(0, 0)));
 }
 
 internal f32
-font_string_width(Render_Target *target, Face_ID font_id, u8 *str){
-    return(draw_string(target, font_id, SCu8(str), V2(0, 0), 0, 0, V2(0, 0)));
+font_string_width(Render_Target *target, Face *face, u8 *str){
+    return(draw_string(target, face, SCu8(str), V2(0, 0), 0, 0, V2(0, 0)));
 }
 
 // BOTTOM
