@@ -88,7 +88,7 @@ uniform sampler2DArray sampler;
 out vec4 out_color;
 void main(void)
 {
-out_color = fragment_color*texture(sampler, uvw).r;
+out_color = vec4(fragment_color.xyz, fragment_color.a*texture(sampler, uvw).r);
 }
 )foo";
 
@@ -203,7 +203,7 @@ gl_render(Render_Target *t, Arena *scratch){
         
         glEnable(GL_SCISSOR_TEST);
         glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         
         ////////////////////////////////
         
