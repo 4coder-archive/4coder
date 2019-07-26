@@ -27,25 +27,54 @@ restore_state(Application_Links *app, App_Coroutine_State state){
 }
 
 internal Coroutine_Head*
-app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, void *out){
+app_coroutine_handle_request(Models *models, Coroutine_Head *co, u32 *vals){
     Coroutine_Head *result = 0;
-    
-    App_Coroutine_State prev_state = get_state(app);
-    
-    app->current_coroutine = co;
-    app->type_coroutine = type;
-    result = system->launch_coroutine(co, in, out);
-    restore_state(app, prev_state);
-    
+    System_Functions *system = models->system;
+    switch (vals[2]){
+        case AppCoroutineRequest_NewFontFace:
+        {
+            Face_Description *description = ((Face_Description**)vals)[0];
+            Face_ID face_id = font_set_new_face(&models->font_set, description);
+            result = system->resume_coroutine(co, &face_id, vals);
+        }break;
+        
+        case AppCoroutineRequest_ModifyFace:
+        {
+            Face_Description *description = ((Face_Description**)vals)[0];
+            Face_ID face_id = ((Face_ID*)vals)[3];
+            b32 success = alter_font_and_update_files(system, models, face_id, description);
+            result = system->resume_coroutine(co, &success, vals);
+        }break;
+    }
     return(result);
 }
 
 internal Coroutine_Head*
-app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, void *out){
+app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, u32 *out){
     App_Coroutine_State prev_state = get_state(app);
     app->current_coroutine = co;
     app->type_coroutine = type;
-    Coroutine_Head *result = system->resume_coroutine(co, in, out);
+    u32 coroutine_out[4] = {};
+    Coroutine_Head *result = system->launch_coroutine(co, in, coroutine_out);
+    for (;result != 0 && coroutine_out[2] != 0;){
+        result = app_coroutine_handle_request((Models*)app->cmd_context, result, coroutine_out);
+    }
+    block_copy(out, coroutine_out, sizeof(*out)*2);
+    restore_state(app, prev_state);
+    return(result);
+}
+
+internal Coroutine_Head*
+app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, u32 *out){
+    App_Coroutine_State prev_state = get_state(app);
+    app->current_coroutine = co;
+    app->type_coroutine = type;
+    u32 coroutine_out[4] = {};
+    Coroutine_Head *result = system->resume_coroutine(co, in, coroutine_out);
+    for (;result != 0 && coroutine_out[2] != 0;){
+        result = app_coroutine_handle_request((Models*)app->cmd_context, co, coroutine_out);
+    }
+    block_copy(out, coroutine_out, sizeof(*out)*2);
     restore_state(app, prev_state);
     return(result);
 }

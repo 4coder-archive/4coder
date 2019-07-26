@@ -178,7 +178,7 @@ struct App_Vars{
 
 enum Coroutine_Type{
     Co_View,
-    Co_Command
+    Co_Command,
 };
 struct App_Coroutine_State{
     void *co;
@@ -217,6 +217,12 @@ enum Command_Line_Action{
 enum Command_Line_Mode{
     CLMode_App,
     CLMode_Custom
+};
+
+enum{
+    AppCoroutineRequest_None = 0,
+    AppCoroutineRequest_NewFontFace = 1,
+    AppCoroutineRequest_ModifyFace = 2,
 };
 
 #endif

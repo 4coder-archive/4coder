@@ -48,6 +48,11 @@ api_check_view(View *view, Access_Flag access){
     return(api_check_view(view) && access_test(view_get_access_flags(view), access));
 }
 
+internal b32
+is_running_coroutine(Application_Links *app){
+    return(app->current_coroutine != 0);
+}
+
 API_EXPORT b32
 Global_Set_Setting(Application_Links *app, Global_Setting_ID setting, i32 value)
 /*
@@ -2790,12 +2795,12 @@ DOC_SEE(User_Input)
 */{
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
     User_Input result = {};
     if (app->type_coroutine == Co_Command){
+        Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
         Assert(coroutine != 0);
-        *((u32*)coroutine->out + 0) = get_type;
-        *((u32*)coroutine->out + 1) = abort_type;
+        ((u32*)coroutine->out)[0] = get_type;
+        ((u32*)coroutine->out)[1] = abort_type;
         system->yield_coroutine(coroutine);
         result = *(User_Input*)coroutine->in;
     }
@@ -3233,7 +3238,20 @@ DOC_SEE(Face_Description)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    return(font_set_new_face(&models->font_set, description));
+    Face_ID result = 0;
+    if (is_running_coroutine(app)){
+        System_Functions *system = models->system;
+        Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
+        Assert(coroutine != 0);
+        ((Face_Description**)coroutine->out)[0] = description;
+        ((u32*)coroutine->out)[2] = AppCoroutineRequest_NewFontFace;
+        system->yield_coroutine(coroutine);
+        result = *(Face_ID*)(coroutine->in);
+    }
+    else{
+        result = font_set_new_face(&models->font_set, description);
+    }
+    return(result);
 }
 
 API_EXPORT b32
@@ -3251,7 +3269,21 @@ DOC_SEE(try_create_new_face)
 */
 {
     Models *models = (Models*)app->cmd_context;
-    return(alter_font_and_update_files(models->system, models, id, description));
+    b32 result = false;
+    if (is_running_coroutine(app)){
+        System_Functions *system = models->system;
+        Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
+        Assert(coroutine != 0);
+        ((Face_Description**)coroutine->out)[0] = description;
+        ((u32*)coroutine->out)[2] = AppCoroutineRequest_ModifyFace;
+        ((u32*)coroutine->out)[3] = id;
+        system->yield_coroutine(coroutine);
+        result = *(b32*)(coroutine->in);
+    }
+    else{
+        result = alter_font_and_update_files(models->system, models, id, description);
+    }
+    return(result);
 }
 
 API_EXPORT b32
