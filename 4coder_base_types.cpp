@@ -3594,6 +3594,51 @@ string_remove_last_folder(String_Const_u32 str){
 }
 
 static String_Const_char
+string_remove_front_of_path(String_Const_char str){
+    imem slash_pos = string_find_last_slash(str);
+    if (slash_pos < 0){
+        str.size = 0;
+    }
+    else{
+        str.size = slash_pos + 1;
+    }
+    return(str);
+}
+static String_Const_u8
+string_remove_front_of_path(String_Const_u8 str){
+    imem slash_pos = string_find_last_slash(str);
+    if (slash_pos < 0){
+        str.size = 0;
+    }
+    else{
+        str.size = slash_pos + 1;
+    }
+    return(str);
+}
+static String_Const_u16
+string_remove_front_of_path(String_Const_u16 str){
+    imem slash_pos = string_find_last_slash(str);
+    if (slash_pos < 0){
+        str.size = 0;
+    }
+    else{
+        str.size = slash_pos + 1;
+    }
+    return(str);
+}
+static String_Const_u32
+string_remove_front_of_path(String_Const_u32 str){
+    imem slash_pos = string_find_last_slash(str);
+    if (slash_pos < 0){
+        str.size = 0;
+    }
+    else{
+        str.size = slash_pos + 1;
+    }
+    return(str);
+}
+
+static String_Const_char
 string_front_of_path(String_Const_char str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){

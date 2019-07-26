@@ -125,6 +125,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
         u8 dir_space[MAX_PATH + 32];
         umem directory_original_length = cstring_length(directory);
         block_copy(dir_space, directory, directory_original_length);
+        dir_space[directory_original_length] = 0;
         String_Const_u8 dir = SCu8(dir_space, directory_original_length);
         
         HANDLE dir_handle = CreateFile_utf8(&shared_vars.scratch, dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
@@ -285,7 +286,7 @@ Sys_Get_Canonical_Sig(system_get_canonical){
         }
         else{
             String_Const_u8 src_str = SCu8(filename, len);
-            String_Const_u8 path_str = string_remove_last_folder(src_str);
+            String_Const_u8 path_str = string_remove_front_of_path(src_str);
             String_Const_u8 front_str = string_front_of_path(src_str);
             
             memcpy(src_space, path_str.str, path_str.size);

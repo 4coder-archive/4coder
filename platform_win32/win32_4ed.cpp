@@ -1105,7 +1105,6 @@ Sys_CLI_Call_Sig(system_cli_call, path, script_name, cli_out){
     
     char cmd[] = "c:\\windows\\system32\\cmd.exe";
     char *env_variables = 0;
-    char command_line[2048];
     
     Arena *scratch = &shared_vars.scratch;
     
@@ -1140,7 +1139,7 @@ Sys_CLI_Call_Sig(system_cli_call, path, script_name, cli_out){
             startup.wShowWindow = SW_HIDE;
             
             PROCESS_INFORMATION info = {};
-            if (CreateProcess_utf8(&shared_vars.scratch, (u8*)cmd, (u8*)command_line, 0, 0, TRUE, 0, env_variables, (u8*)path, &startup, &info)){
+            if (CreateProcess_utf8(&shared_vars.scratch, (u8*)cmd, s.str, 0, 0, TRUE, 0, env_variables, (u8*)path, &startup, &info)){
                 success = true;
                 CloseHandle(info.hThread);
                 *(HANDLE*)&cli_out->proc = info.hProcess;

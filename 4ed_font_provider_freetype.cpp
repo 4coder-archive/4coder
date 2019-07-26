@@ -150,6 +150,11 @@ ft__bad_rect_pack_next(FT_Bad_Rect_Pack *pack, Vec2_i32 dim){
 }
 
 internal void
+ft__bad_rect_store_finish(FT_Bad_Rect_Pack *pack){
+    ft__bad_rect_pack_end_line(pack);
+}
+
+internal void
 ft__glyph_bounds_store_uv_raw(Vec3_i32 p, Vec2_i32 dim, Glyph_Bounds *bounds){
     bounds->uv = Rf32((f32)p.x, (f32)p.y, (f32)dim.x, (f32)dim.y);
     bounds->w = (f32)p.z;
@@ -288,6 +293,7 @@ ft__font_make_face(Arena *arena, Face_Description *description){
             Vec2_i32 dim = glyph_bitmaps[i].dim;
             ft__glyph_bounds_store_uv_raw(ft__bad_rect_pack_next(&pack, dim), dim, &face->bounds[i]);
         }
+        ft__bad_rect_store_finish(&pack);
         
         Texture_Kind texture_kind = TextureKind_Mono;
         u32 texture = sysfunc.get_texture(pack.dim, texture_kind);
