@@ -155,6 +155,7 @@ font_set_modify_face(Font_Set *set, Face_ID id, Face_Description *description){
             linalloc_clear(&slot->arena);
             slot->arena = arena;
             slot->face = face;
+            face->id = id;
             result = true;
         }
         else{
