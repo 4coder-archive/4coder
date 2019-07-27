@@ -107,8 +107,7 @@ static i64
 get_start_of_line_at_cursor(Application_Links *app, View_ID view, Buffer_ID buffer){
     i64 pos = view_get_cursor_pos(app, view);
     i64 line = get_line_number_from_pos(app, buffer, pos);
-    pos = get_pos_past_lead_whitespace_from_line_number(app, buffer, line);
-    return(pos);
+    return(get_pos_past_lead_whitespace_from_line_number(app, buffer, line));
 }
 
 static b32

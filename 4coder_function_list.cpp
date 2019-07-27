@@ -141,11 +141,9 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
 }
 
 static void
-print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Function_Positions *positions_array, i32 positions_count){
+print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_ID buffer, Function_Positions *positions_array, i32 positions_count){
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
-    
-    Buffer_ID buffer = out->buffer;
     
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     
@@ -242,7 +240,7 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
                 token_index = get_positions_results.next_token_index;
                 still_looping = get_positions_results.still_looping;
                 
-                print_positions_buffered(app, &out, positions_array, positions_count);
+                print_positions_buffered(app, &out, buffer, positions_array, positions_count);
             }while(still_looping);
             
             if (optional_target_buffer != 0){

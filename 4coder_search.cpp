@@ -23,29 +23,34 @@ print_string_match_list_to_buffer(Application_Links *app, Buffer_ID out_buffer_i
     String_Const_u8 current_file_name = {};
     Buffer_ID current_buffer = 0;
     
-    for (String_Match *node = matches.first;
-         node != 0;
-         node = node->next){
-        if (node->buffer != out_buffer_id){
-            if (current_buffer != 0 && current_buffer != node->buffer){
-                insertc(&out, '\n');
-            }
-            if (current_buffer != node->buffer){
-                end_temp(buffer_name_restore_point);
-                current_buffer = node->buffer;
-                current_file_name = push_buffer_file_name(app, scratch, current_buffer);
-                if (current_file_name.size == 0){
-                    current_file_name = push_buffer_unique_name(app, scratch, current_buffer);
+    if (matches.first != 0){
+        for (String_Match *node = matches.first;
+             node != 0;
+             node = node->next){
+            if (node->buffer != out_buffer_id){
+                if (current_buffer != 0 && current_buffer != node->buffer){
+                    insertc(&out, '\n');
                 }
+                if (current_buffer != node->buffer){
+                    end_temp(buffer_name_restore_point);
+                    current_buffer = node->buffer;
+                    current_file_name = push_buffer_file_name(app, scratch, current_buffer);
+                    if (current_file_name.size == 0){
+                        current_file_name = push_buffer_unique_name(app, scratch, current_buffer);
+                    }
+                }
+                
+                Partial_Cursor partial_cursor = buffer_compute_cursor(app, current_buffer, seek_pos(node->range.first));
+                Temp_Memory line_temp = begin_temp(scratch);
+                String_Const_u8 full_line_str = push_buffer_line(app, scratch, current_buffer, partial_cursor.line);
+                String_Const_u8 line_str = string_skip_chop_whitespace(full_line_str);
+                insertf(&out, "%.*s:%d:%d: %.*s\n", string_expand(current_file_name), partial_cursor.line, partial_cursor.character, string_expand(line_str));
+                end_temp(line_temp);
             }
-            
-            Partial_Cursor partial_cursor = buffer_compute_cursor(app, current_buffer, seek_pos(node->range.first));
-            Temp_Memory line_temp = begin_temp(scratch);
-            String_Const_u8 full_line_str = push_buffer_line(app, scratch, current_buffer, partial_cursor.line);
-            String_Const_u8 line_str = string_skip_chop_whitespace(full_line_str);
-            insertf(&out, "%.*s:%d:%d: %.*s\n", string_expand(current_file_name), partial_cursor.line, partial_cursor.character, string_expand(line_str));
-            end_temp(line_temp);
         }
+    }
+    else{
+        insertf(&out, "no matches");
     }
     
     end_buffer_insertion(&out);
@@ -420,7 +425,6 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             
             buffer_replace_range(app, buffer, state.range, str);
             state.range.max = state.range.min + str.size;
-            view_set_mark(app, view, seek_pos(state.range.min));
             view_set_cursor(app, view, seek_pos(state.range.max), true);
         }
     }
