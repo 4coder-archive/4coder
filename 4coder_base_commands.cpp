@@ -1020,12 +1020,12 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
         if (!backspace){
             if (reverse){
                 i64 new_pos = 0;
-                buffer_seek_string_insensitive_backward(app, buffer, start_pos - 1, 0, bar.string, &new_pos);
+                buffer_seek_string_insensitive_backward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
                 if (new_pos >= 0){
                     if (step_backward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_backward(app, buffer, start_pos - 1, 0, bar.string, &new_pos);
+                        buffer_seek_string_insensitive_backward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
                         if (new_pos < 0){
                             new_pos = start_pos;
                         }
@@ -1036,13 +1036,13 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
             }
             else{
                 i64 new_pos = 0;
-                buffer_seek_string_insensitive_forward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
+                buffer_seek_string_insensitive_forward(app, buffer, start_pos, 0, bar.string, &new_pos);
                 i64 buffer_size = buffer_get_size(app, buffer);
                 if (new_pos < buffer_size){
                     if (step_forward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_forward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
+                        buffer_seek_string_insensitive_forward(app, buffer, start_pos, 0, bar.string, &new_pos);
                         if (new_pos >= buffer_size){
                             new_pos = start_pos;
                         }
