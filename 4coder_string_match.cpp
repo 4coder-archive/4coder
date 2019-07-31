@@ -79,6 +79,21 @@ string_match_list_filter_remove_buffer(String_Match_List *list, Buffer_ID buffer
     *list = new_list;
 }
 
+internal void
+string_match_list_filter_remove_buffer_predicate(Application_Links *app, String_Match_List *list, Buffer_Predicate *predicate){
+    String_Match_List new_list = {};
+    for (String_Match *node = list->first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        if (!predicate(app, node->buffer)){
+            sll_queue_push(new_list.first, new_list.last, node);
+            new_list.count += 1;
+        }
+    }
+    *list = new_list;
+}
+
 internal String_Match_List
 string_match_list_merge_nearest(String_Match_List *a, String_Match_List *b, Range_i64 range){
     String_Match_List list = {};

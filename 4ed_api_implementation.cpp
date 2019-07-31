@@ -3822,7 +3822,7 @@ Text_Layout_Free(Application_Links *app, Text_Layout_ID text_layout_id){
     return(text_layout_erase(&models->text_layouts, text_layout_id));
 }
 
-API_EXPORT b32
+API_EXPORT Text_Layout_ID
 Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
@@ -3830,7 +3830,10 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
     Editing_File *file = imp_get_file(models, buffer_id);
     Text_Layout_ID result = 0;
     if (api_check_view(view) && api_check_buffer(file)){
-        f32 line_height = (f32)view->line_height;
+        Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
+        Assert(face != 0);
+        
+        f32 line_height = (f32)face->height;
         f32 max_x = (f32)file->settings.display_width;
         f32 max_y = layout_dim.y + line_height;
         
@@ -3847,9 +3850,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         }
         Buffer_Render_Item *items = push_array(&view->layout_arena, Buffer_Render_Item, max);
         
-        b32 wrapped = !file->settings.unwrapped_lines;
-        Face_ID font_id = file->settings.font_id;
-        Face *face = font_set_face_from_id(&models->font_set, font_id);
+        b32 wrapped = (!file->settings.unwrapped_lines);
         
         Full_Cursor intermediate_cursor = file_compute_cursor(models, file, seek_line_char(buffer_point.line_number, 1));
         f32 scroll_x = buffer_point.pixel_shift.x;
@@ -4020,8 +4021,10 @@ Get_View_Visible_Range(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     if (api_check_view(view)){
+        Editing_File *file = view->file;
+        Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
         i32 view_height = rect_height(view->panel->rect_inner);
-        i32 line_height = view->line_height;
+        i32 line_height = (i32)face->height;
         Full_Cursor min_cursor = view_get_render_cursor(models, view);
         Buffer_Seek seek = seek_unwrapped_xy(0.f, min_cursor.wrapped_y + view_height + line_height, false);
         Full_Cursor max_cursor = view_compute_cursor(app, view_id, seek);

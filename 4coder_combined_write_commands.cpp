@@ -167,8 +167,10 @@ static Snippet default_snippets[] = {
     // general (for Allen's style)
     {"if",     "if (){\n\n}\n", 4, 7},
     {"ifelse", "if (){\n\n}\nelse{\n\n}", 4, 7},
-    {"forn",   "for (;\nnode != 0;\nnode = node->next){\n\n}\n", 5, 38},
+    {"forn",   "for (node = ;\nnode != 0;\nnode = node->next){\n\n}\n", 5, 38},
     {"fori",   "for (i = 0; i < ; i += 1){\n\n}\n", 5, 16},
+    {"forj",   "for (j = 0; j < ; j += 1){\n\n}\n", 5, 16},
+    {"fork",   "for (k = 0; k < ; k += 1){\n\n}\n", 5, 16},
     {"for",    "for (;;){\n\n}\n", 5, 10},
     {"case",   "case :\n{\n\n}break;\n", 5, 9},
     {"///",    "////////////////////////////////", 32, 32},

@@ -33,6 +33,7 @@
 #include "4coder_lib/4coder_utf8.h"
 #include "4coder_lib/4cpp_lexer.h"
 #include "4coder_table.h"
+#include "4coder_string_match.h"
 
 #include "4coder_api_transition_30_31.h"
 

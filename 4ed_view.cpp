@@ -132,7 +132,9 @@ view_get_cursor_xy(Models *models, View *view){
 
 internal Cursor_Limits
 view_cursor_limits(Models *models, View *view){
-    i32 line_height = view->line_height;
+    Editing_File *file = view->file;
+    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
+    i32 line_height = (i32)face->height;
     i32 visible_height = (i32)view_height(models, view);
     Cursor_Limits limits = {};
     limits.max = visible_height - line_height*3;
@@ -153,23 +155,23 @@ view_cursor_limits(Models *models, View *view){
 }
 
 internal i32
-view_compute_max_target_y_from_bottom_y(Models *models, View *view, f32 max_item_y){
-    i32 line_height = view->line_height;
-    f32 height = clamp_bot((f32)line_height, view_height(models, view));
+view_compute_max_target_y_from_bottom_y(Models *models, View *view, f32 max_item_y, f32 line_height){
+    f32 height = clamp_bot(line_height, view_height(models, view));
     f32 max_target_y = clamp_bot(0.f, max_item_y - height*0.5f);
     return(ceil32(max_target_y));
 }
 
 internal i32
 view_compute_max_target_y(Models *models, View *view){
-    i32 line_height = view->line_height;
     Editing_File *file = view->file;
+    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
+    f32 line_height = face->height;
     Gap_Buffer *buffer = &file->state.buffer;
     i32 lowest_line = buffer->line_count;
     if (!file->settings.unwrapped_lines){
         lowest_line = file->state.wrap_line_index[buffer->line_count];
     }
-    return(view_compute_max_target_y_from_bottom_y(models,view, (lowest_line + 0.5f)*(f32)line_height));
+    return(view_compute_max_target_y_from_bottom_y(models, view, (lowest_line + 0.5f)*line_height, line_height));
 }
 
 ////////////////////////////////
@@ -188,11 +190,11 @@ view_move_view_to_cursor(Models *models, View *view, GUI_Scroll_Vars *scroll){
     i32 target_y = scroll_vars.target_y;
     
     Cursor_Limits limits = view_cursor_limits(models, view);
-    if (cursor.y > target_y + limits.max){
+    if (target_y < cursor.y - limits.max){
         target_y = cursor.y - limits.max + limits.delta;
     }
-    if (cursor.y < target_y + limits.min){
-        target_y = cursor.y - limits.delta - limits.min;
+    if (target_y > cursor.y - limits.min){
+        target_y = cursor.y - limits.min - limits.delta;
     }
     
     target_y = clamp(0, target_y, max_y);
@@ -218,8 +220,8 @@ view_move_cursor_to_view(Models *models, View *view, GUI_Scroll_Vars scroll, i32
     System_Functions *system = models->system;
     Editing_File *file = view->file;
     Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(*pos_in_out));
-    
-    i32 line_height = view->line_height;
+    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
+    f32 line_height = face->height;
     f32 old_cursor_y = 0.f;
     if (file->settings.unwrapped_lines){
         old_cursor_y = cursor.unwrapped_y;
@@ -350,8 +352,6 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
     Assert(face != 0);
     
-    view->line_height = (i32)face->height;
-    
     models->layout.panel_state_dirty = true;
 }
 
@@ -393,16 +393,6 @@ file_full_remeasure(System_Functions *system, Models *models, Editing_File *file
     Face *face = font_set_face_from_id(&models->font_set, font_id);
     file_measure_wraps(system, &models->mem, file, face);
     adjust_views_looking_at_file_to_new_cursor(system, models, file);
-    
-    Layout *layout = &models->layout;
-    for (Panel *panel = layout_get_first_open_panel(layout);
-         panel != 0;
-         panel = layout_get_next_open_panel(layout, panel)){
-        View *view = panel->view;
-        if (view->file == file){
-            view->line_height = (i32)face->height;
-        }
-    }
 }
 
 internal void

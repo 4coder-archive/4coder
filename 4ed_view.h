@@ -41,10 +41,6 @@ struct View{
     
     // misc
     
-    // TODO(allen): Can we burn line_height to the ground now?
-    // It's what I've always wanted!!!! :D
-    i32 line_height;
-    
     Query_Set query_set;
     
     // Render Context
@@ -58,10 +54,6 @@ struct View{
         Buffer_Render_Item *items;
         i32 item_count;
     } render;
-    
-#if 0
-    f32 widget_height;
-#endif
 };
 
 struct Live_Views{

@@ -60,11 +60,8 @@ internal void
 print_all_matches_all_buffers(Application_Links *app, String_Const_u8_Array match_patterns, String_Match_Flag must_have_flags, String_Match_Flag must_not_have_flags, Buffer_ID out_buffer_id){
     Scratch_Block scratch(app);
     String_Match_List matches = find_all_matches_all_buffers(app, scratch, match_patterns, must_have_flags, must_not_have_flags);
-    Buffer_ID messages_buffer = get_buffer_by_name(app, string_u8_litexpr("*messages*"), AccessAll);
     string_match_list_filter_remove_buffer(&matches, out_buffer_id);
-    if (out_buffer_id != messages_buffer){
-        string_match_list_filter_remove_buffer(&matches, messages_buffer);
-    }
+    string_match_list_filter_remove_buffer_predicate(app, &matches, buffer_has_name_with_star);
     print_string_match_list_to_buffer(app, out_buffer_id, matches);
 }
 

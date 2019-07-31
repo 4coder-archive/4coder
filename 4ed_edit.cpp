@@ -165,6 +165,9 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
         buffer_unsort_cursors(  cursors,   cursor_count);
         buffer_unsort_cursors(r_cursors, r_cursor_count);
         
+        Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
+        Assert(face != 0);
+        
         cursor_count = 0;
         r_cursor_count = 0;
         for (Panel *panel = layout_get_first_open_panel(layout);
@@ -179,7 +182,8 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                 GUI_Scroll_Vars scroll = edit_pos.scroll;
                 
                 view->mark = cursors[cursor_count++].pos;
-                i32 line_height = view->line_height;
+                
+                i32 line_height = (i32)face->height;
                 i32 top_left_pos = cursors[cursor_count++].pos;
                 i32 top_left_target_pos = cursors[cursor_count++].pos;
                 f32 new_y_val_aligned = 0;
