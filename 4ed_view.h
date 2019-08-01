@@ -52,6 +52,7 @@ struct View{
         Full_Cursor cursor;
         Range range;
         Buffer_Render_Item *items;
+        int_color *item_colors;
         i32 item_count;
     } render;
 };

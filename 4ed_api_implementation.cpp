@@ -3908,7 +3908,18 @@ Text_Layout_Character_On_Screen(Application_Links *app, Text_Layout_ID layout_id
 
 API_EXPORT void
 Paint_Text_Color(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range, int_color color){
-    //NotImplemented;
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    Rect_f32 result = {};
+    if (text_layout_get(&models->text_layouts, layout_id, &layout)){
+        range.min = clamp_bot(layout.on_screen_range.min, range.min);
+        range.max = clamp_top(range.max, layout.on_screen_range.max);
+        range.min -= layout.on_screen_range.min;
+        range.max -= layout.on_screen_range.min;
+        for (i64 i = range.min; i < range.max; i += 1){
+            layout.item_colors[i] = color;
+        }
+    }
 }
 
 API_EXPORT b32
@@ -3944,7 +3955,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             linalloc_clear(&view->layout_arena);
         }
         Buffer_Render_Item *items = push_array(&view->layout_arena, Buffer_Render_Item, max);
-        
+                
         b32 wrapped = (!file->settings.unwrapped_lines);
         
         Full_Cursor intermediate_cursor = file_compute_cursor(models, file, seek_line_char(buffer_point.line_number, 1));
@@ -4030,12 +4041,14 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         Range range = Ii32((i32)render_cursor.pos, (i32)end_pos);
         
         // TODO(allen): 
+        int_color *item_colors = push_array_zero(&view->layout_arena, int_color, range.max - range.min);
         view->render.view_rect = view->panel->rect_inner;
         view->render.buffer_rect = i32R(f32R(screen_p.x, screen_p.y,
                                              screen_p.x + layout_dim.x, screen_p.y + layout_dim.y));
         view->render.cursor = render_cursor;
         view->render.range = range;
         view->render.items = items;
+        view->render.item_colors = item_colors;
         view->render.item_count = item_count;
         
         f32 height = 0.f;
@@ -4048,7 +4061,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
         coordinates.on_screen_p0 = screen_p;
         coordinates.in_buffer_p0 = in_buffer_p;
         coordinates.dim = layout_dim;
-        result = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point, range, height, coordinates);
+        result = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point, range, height, coordinates, item_colors);
     }
     return(result);
 }
@@ -4060,7 +4073,9 @@ Draw_Render_Layout(Application_Links *app, View_ID view_id){
     if (api_check_view(view) && models->target != 0){
         render_loaded_file_in_view__inner(models, models->target, view, view->render.buffer_rect,
                                           view->render.cursor, view->render.range,
-                                          view->render.items, view->render.item_count);
+                                          view->render.items,
+                                          view->render.item_colors,
+                                          view->render.item_count);
         linalloc_clear(&view->layout_arena);
     }
 }

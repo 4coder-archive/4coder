@@ -26,6 +26,7 @@ struct Text_Layout{
     f32 height;
     
     Text_Layout_Coordinates coordinates;
+    int_color *item_colors;
 };
 
 union Text_Layout_Node{

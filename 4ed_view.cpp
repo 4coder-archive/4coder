@@ -790,8 +790,8 @@ render__get_brush_from_range_stack(Render_Range_Record *stack, i32 stack_top){
 
 internal void
 render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *view,
-                                  i32_Rect rect, Full_Cursor render_cursor, Range on_screen_range,
-                                  Buffer_Render_Item *items, i32 item_count){
+                                  Rect_i32 rect, Full_Cursor render_cursor, Range on_screen_range,
+                                  Buffer_Render_Item *items, int_color *item_colors, i32 item_count){
     Editing_File *file = view->file;
     Arena *scratch = &models->mem.arena;
     Color_Table color_table = models->color_table;
@@ -929,7 +929,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     i32 prev_ind = -1;
     u32 highlight_color = 0;
     
-    for (; item < item_end; ++item){
+    for (i32 i = 0; item < item_end; item += 1, i += 1){
         i32 ind = item->index;
         
         // NOTE(allen): Line scanning
@@ -998,10 +998,16 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             Rect_f32 char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
             
             u32 char_color = main_color;
-            if (item->flags & BRFlag_Special_Character){
+            if (on_screen_range.min <= ind && ind < on_screen_range.max){
+                i32 index_shifted = ind - on_screen_range.min;
+                if (item_colors[index_shifted] != 0){
+                    char_color = finalize_color(color_table, item_colors[index_shifted]);
+                }
+            }
+            if (HasFlag(item->flags, BRFlag_Special_Character)){
                 char_color = special_color;
             }
-            else if (item->flags & BRFlag_Ghost_Character){
+            else if (HasFlag(item->flags, BRFlag_Ghost_Character)){
                 char_color = ghost_color;
             }
             
