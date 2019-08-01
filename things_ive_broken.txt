@@ -49,3 +49,4 @@ mark_enclosures -> draw_enclosures
 
 isearch__update_highlight
 
+all *marker_visuals* -> immediate mode rendering
