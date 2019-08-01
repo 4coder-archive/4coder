@@ -170,7 +170,10 @@ struct Application_Links;
 #define TEXT_LAYOUT_BUFFER_POINT_TO_LAYOUT_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out)
 #define TEXT_LAYOUT_LAYOUT_POINT_TO_BUFFER_POINT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out)
 #define TEXT_LAYOUT_GET_ON_SCREEN_RANGE_SIG(n) Range_i64 n(Application_Links *app, Text_Layout_ID text_layout_id)
-#define TEXT_LAYOUT_GET_HEIGHT_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out)
+#define TEXT_LAYOUT_ON_SCREEN_SIG(n) Rect_f32 n(Application_Links *app, Text_Layout_ID text_layout_id)
+#define TEXT_LAYOUT_LINE_ON_SCREEN_SIG(n) Rect_f32 n(Application_Links *app, Text_Layout_ID layout_id, i64 line_number)
+#define TEXT_LAYOUT_CHARACTER_ON_SCREEN_SIG(n) Rect_f32 n(Application_Links *app, Text_Layout_ID layout_id, i64 pos)
+#define PAINT_TEXT_COLOR_SIG(n) void n(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range, int_color color)
 #define TEXT_LAYOUT_FREE_SIG(n) b32 n(Application_Links *app, Text_Layout_ID text_layout_id)
 #define COMPUTE_RENDER_LAYOUT_SIG(n) Text_Layout_ID n(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last)
 #define DRAW_RENDER_LAYOUT_SIG(n) void n(Application_Links *app, View_ID view_id)
@@ -349,7 +352,10 @@ typedef TEXT_LAYOUT_GET_BUFFER_SIG(Text_Layout_Get_Buffer_Function);
 typedef TEXT_LAYOUT_BUFFER_POINT_TO_LAYOUT_POINT_SIG(Text_Layout_Buffer_Point_To_Layout_Point_Function);
 typedef TEXT_LAYOUT_LAYOUT_POINT_TO_BUFFER_POINT_SIG(Text_Layout_Layout_Point_To_Buffer_Point_Function);
 typedef TEXT_LAYOUT_GET_ON_SCREEN_RANGE_SIG(Text_Layout_Get_On_Screen_Range_Function);
-typedef TEXT_LAYOUT_GET_HEIGHT_SIG(Text_Layout_Get_Height_Function);
+typedef TEXT_LAYOUT_ON_SCREEN_SIG(Text_Layout_On_Screen_Function);
+typedef TEXT_LAYOUT_LINE_ON_SCREEN_SIG(Text_Layout_Line_On_Screen_Function);
+typedef TEXT_LAYOUT_CHARACTER_ON_SCREEN_SIG(Text_Layout_Character_On_Screen_Function);
+typedef PAINT_TEXT_COLOR_SIG(Paint_Text_Color_Function);
 typedef TEXT_LAYOUT_FREE_SIG(Text_Layout_Free_Function);
 typedef COMPUTE_RENDER_LAYOUT_SIG(Compute_Render_Layout_Function);
 typedef DRAW_RENDER_LAYOUT_SIG(Draw_Render_Layout_Function);
@@ -530,7 +536,10 @@ Text_Layout_Get_Buffer_Function *text_layout_get_buffer;
 Text_Layout_Buffer_Point_To_Layout_Point_Function *text_layout_buffer_point_to_layout_point;
 Text_Layout_Layout_Point_To_Buffer_Point_Function *text_layout_layout_point_to_buffer_point;
 Text_Layout_Get_On_Screen_Range_Function *text_layout_get_on_screen_range;
-Text_Layout_Get_Height_Function *text_layout_get_height;
+Text_Layout_On_Screen_Function *text_layout_on_screen;
+Text_Layout_Line_On_Screen_Function *text_layout_line_on_screen;
+Text_Layout_Character_On_Screen_Function *text_layout_character_on_screen;
+Paint_Text_Color_Function *paint_text_color;
 Text_Layout_Free_Function *text_layout_free;
 Compute_Render_Layout_Function *compute_render_layout;
 Draw_Render_Layout_Function *draw_render_layout;
@@ -710,7 +719,10 @@ Text_Layout_Get_Buffer_Function *text_layout_get_buffer_;
 Text_Layout_Buffer_Point_To_Layout_Point_Function *text_layout_buffer_point_to_layout_point_;
 Text_Layout_Layout_Point_To_Buffer_Point_Function *text_layout_layout_point_to_buffer_point_;
 Text_Layout_Get_On_Screen_Range_Function *text_layout_get_on_screen_range_;
-Text_Layout_Get_Height_Function *text_layout_get_height_;
+Text_Layout_On_Screen_Function *text_layout_on_screen_;
+Text_Layout_Line_On_Screen_Function *text_layout_line_on_screen_;
+Text_Layout_Character_On_Screen_Function *text_layout_character_on_screen_;
+Paint_Text_Color_Function *paint_text_color_;
 Text_Layout_Free_Function *text_layout_free_;
 Compute_Render_Layout_Function *compute_render_layout_;
 Draw_Render_Layout_Function *draw_render_layout_;
@@ -898,7 +910,10 @@ app_links->text_layout_get_buffer_ = Text_Layout_Get_Buffer;\
 app_links->text_layout_buffer_point_to_layout_point_ = Text_Layout_Buffer_Point_To_Layout_Point;\
 app_links->text_layout_layout_point_to_buffer_point_ = Text_Layout_Layout_Point_To_Buffer_Point;\
 app_links->text_layout_get_on_screen_range_ = Text_Layout_Get_On_Screen_Range;\
-app_links->text_layout_get_height_ = Text_Layout_Get_Height;\
+app_links->text_layout_on_screen_ = Text_Layout_On_Screen;\
+app_links->text_layout_line_on_screen_ = Text_Layout_Line_On_Screen;\
+app_links->text_layout_character_on_screen_ = Text_Layout_Character_On_Screen;\
+app_links->paint_text_color_ = Paint_Text_Color;\
 app_links->text_layout_free_ = Text_Layout_Free;\
 app_links->compute_render_layout_ = Compute_Render_Layout;\
 app_links->draw_render_layout_ = Draw_Render_Layout;\
@@ -1078,7 +1093,10 @@ static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_la
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point(app, text_layout_id, layout_relative_p, p_out));}
 static Range_i64 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_get_on_screen_range(app, text_layout_id));}
-static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height(app, text_layout_id, height_out));}
+static Rect_f32 text_layout_on_screen(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_on_screen(app, text_layout_id));}
+static Rect_f32 text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64 line_number){return(app->text_layout_line_on_screen(app, layout_id, line_number));}
+static Rect_f32 text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64 pos){return(app->text_layout_character_on_screen(app, layout_id, pos));}
+static void paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range, int_color color){(app->paint_text_color(app, layout_id, range, color));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free(app, text_layout_id));}
 static Text_Layout_ID compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){return(app->compute_render_layout(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout(app, view_id));}
@@ -1258,7 +1276,10 @@ static b32 text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_la
 static b32 text_layout_buffer_point_to_layout_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 buffer_relative_p, Vec2 *p_out){return(app->text_layout_buffer_point_to_layout_point_(app, text_layout_id, buffer_relative_p, p_out));}
 static b32 text_layout_layout_point_to_buffer_point(Application_Links *app, Text_Layout_ID text_layout_id, Vec2 layout_relative_p, Vec2 *p_out){return(app->text_layout_layout_point_to_buffer_point_(app, text_layout_id, layout_relative_p, p_out));}
 static Range_i64 text_layout_get_on_screen_range(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_get_on_screen_range_(app, text_layout_id));}
-static b32 text_layout_get_height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){return(app->text_layout_get_height_(app, text_layout_id, height_out));}
+static Rect_f32 text_layout_on_screen(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_on_screen_(app, text_layout_id));}
+static Rect_f32 text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64 line_number){return(app->text_layout_line_on_screen_(app, layout_id, line_number));}
+static Rect_f32 text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64 pos){return(app->text_layout_character_on_screen_(app, layout_id, pos));}
+static void paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range, int_color color){(app->paint_text_color_(app, layout_id, range, color));}
 static b32 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){return(app->text_layout_free_(app, text_layout_id));}
 static Text_Layout_ID compute_render_layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Vec2 screen_p, Vec2 layout_dim, Buffer_Point buffer_point, i32 one_past_last){return(app->compute_render_layout_(app, view_id, buffer_id, screen_p, layout_dim, buffer_point, one_past_last));}
 static void draw_render_layout(Application_Links *app, View_ID view_id){(app->draw_render_layout_(app, view_id));}

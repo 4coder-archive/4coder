@@ -193,8 +193,7 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
     Glyph_Bounds bounds = face->bounds[glyph_index];
     Vec3_f32 texture_dim = face->texture_dim;
     
-    f32_Rect uv = Rf32(bounds.uv.x0, bounds.uv.y0,
-                       bounds.uv.x1, bounds.uv.y1);
+    Rect_f32 uv = bounds.uv;
     
     Render_Vertex vertices[6] = {};
     if (!HasFlag(flags, GlyphFlag_Rotate90)){

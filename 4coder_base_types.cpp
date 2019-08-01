@@ -2096,6 +2096,8 @@ rect_intersect(Rect_i32 a, Rect_i32 b){
     a.y0 = Max(a.y0, b.y0);
     a.x1 = Min(a.x1, b.x1);
     a.y1 = Min(a.y1, b.y1);
+    a.x0 = Min(a.x0, a.x1);
+    a.y0 = Min(a.y0, a.y1);
     return(a);
 }
 internal Rect_i32
@@ -2112,6 +2114,8 @@ rect_intersect(Rect_f32 a, Rect_f32 b){
     a.y0 = Max(a.y0, b.y0);
     a.x1 = Min(a.x1, b.x1);
     a.y1 = Min(a.y1, b.y1);
+    a.x0 = Min(a.x0, a.x1);
+    a.y0 = Min(a.y0, a.y1);
     return(a);
 }
 internal Rect_f32

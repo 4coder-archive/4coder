@@ -137,8 +137,8 @@ view_cursor_limits(Models *models, View *view){
     i32 line_height = (i32)face->height;
     i32 visible_height = (i32)view_height(models, view);
     Cursor_Limits limits = {};
-    limits.max = visible_height - line_height*3;
     limits.min = line_height*2;
+    limits.max = visible_height - line_height*3;
     if (limits.max - limits.min <= line_height){
         if (visible_height >= line_height){
             limits.max = visible_height - line_height;
@@ -148,8 +148,8 @@ view_cursor_limits(Models *models, View *view){
         }
         limits.min = 0;
     }
-    limits.max = clamp_bot(0, limits.max);
     limits.min = clamp(0, limits.min, limits.max);
+    limits.max = clamp_bot(0, limits.max);
     limits.delta = clamp_top(line_height*5, (limits.max - limits.min + 1)/2);
     return(limits);
 }
@@ -806,6 +806,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     b32 wrapped = !file->settings.unwrapped_lines;
     Face_ID font_id = file->settings.font_id;
     
+#if 0    
     // NOTE(allen): Get visual markers
     Render_Marker_List markers_list = {};
     {
@@ -873,6 +874,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     
     Render_Range_Record *line_range_stack = push_array(scratch, Render_Range_Record, line_range_markers.count);
     i32 line_range_stack_top = -1;
+#endif
     
     i32 *line_starts = file->state.buffer.line_starts;
     i32 line_count = file->state.buffer.line_count;
@@ -899,8 +901,10 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         first_byte_index_of_next_wrap = max_i32;
     }
     
+#if 0    
     visual_markers_replace_pos_with_first_byte_of_line(line_markers, line_starts, line_count, line_scan_index);
     visual_markers_replace_pos_with_first_byte_of_line(line_range_markers, line_starts, line_count, line_scan_index);
+#endif
     
     i32 visual_markers_scan_index = 0;
     
@@ -991,7 +995,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         }
         
         if (item->y1 > 0){
-            f32_Rect char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
+            Rect_f32 char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
             
             u32 char_color = main_color;
             if (item->flags & BRFlag_Special_Character){
@@ -1008,6 +1012,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                 highlight_this_color = highlight_color;
             }
             
+#if 0
             // NOTE(allen): Line marker color
             if (is_new_line){
                 visual_line_markers_color = 0;
@@ -1138,12 +1143,14 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                     }break;
                 }
             }
+#endif
             
             // NOTE(allen): Perform highlight, wireframe, and ibar renders
             u32 color_highlight = 0;
             u32 color_wireframe = 0;
             u32 color_ibar = 0;
             
+#if 0
             if (marker_highlight != 0){
                 if (color_highlight == 0){
                     color_highlight = marker_highlight;
@@ -1159,23 +1166,28 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
                     color_ibar = marker_ibar;
                 }
             }
+#endif
             if (highlight_this_color != 0){
                 if (color_highlight == 0){
                     color_highlight = highlight_this_color;
                 }
             }
             
+#if 0
             if (marker_line_highlight != 0){
                 f32_Rect line_rect = f32R((f32)rect.x0, char_rect.y0, (f32)rect.x1, char_rect.y1);
                 draw_rectangle(target, line_rect, marker_line_highlight);
             }
+#endif
             if (color_highlight != 0){
                 draw_rectangle(target, char_rect, color_highlight);
             }
             
+#if 0
             if (marker_highlight_text != SymbolicColor_Default){
                 char_color = marker_highlight_text;
             }
+#endif
             
             u32 fade_color = 0xFFFF00FF;
             f32 fade_amount = 0.f;
@@ -1194,10 +1206,12 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             if (color_wireframe != 0){
                 draw_rectangle_outline(target, char_rect, color_wireframe);
             }
+#if 0
             if (color_ibar != 0){
                 f32_Rect ibar_rect = f32R(char_rect.x0, char_rect.y0, char_rect.x0 + 1, char_rect.y1);
                 draw_rectangle_outline(target, ibar_rect, color_ibar);
             }
+#endif
         }
         
         prev_ind = ind;

@@ -670,6 +670,12 @@ static Managed_Scope ManagedScope_NULL = 0;
 static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
 static Managed_Object ManagedObject_NULL = 0;
 
+STRUCT Text_Layout_Coordinates{
+    Vec2_f32 on_screen_p0;
+    Vec2_f32 in_buffer_p0;
+    Vec2_f32 dim;
+};
+
 /* DOC(A multi-member identifier for a marker visual.  A marker visual is attached to a marker object (Marker_Object), it is freed when the marker object is freed or when it is specifically destroyed.  Multiple marker visuals can be placed on a single marker object.)
 DOC_SEE(Marker_Visual_Type)
 DOC_SEE(Marker_Visual_Symbolic_Color)

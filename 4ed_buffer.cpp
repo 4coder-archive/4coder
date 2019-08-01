@@ -38,8 +38,12 @@ buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
     }
     CursorSwap__(positions[mid], positions[pivot]);
     
-    if (start < mid - 1) buffer_quick_sort_cursors(positions, start, mid - 1);
-    if (mid + 1 < pivot) buffer_quick_sort_cursors(positions, mid + 1, pivot);
+    if (start < mid - 1){
+        buffer_quick_sort_cursors(positions, start, mid - 1);
+    }
+    if (mid + 1 < pivot){
+        buffer_quick_sort_cursors(positions, mid + 1, pivot);
+    }
 }
 
 // TODO(allen): Rewrite this without being a dumbass.
@@ -1744,7 +1748,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                 switch (params.wrap_slashes){
                                     case WrapIndicator_Show_After_Line:
                                     {
-                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character, 0);
+                                        S.write = write_render_item(S.write, S.step.i - 1, '\\', BRFlag_Ghost_Character, 0);
                                     }break;
                                     
                                     case WrapIndicator_Show_At_Wrap_Edge:
@@ -1752,7 +1756,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                                         if (S.write.x < S.shift_x + params.width){
                                             S.write.x = S.shift_x + params.width;
                                         }
-                                        S.write = write_render_item(S.write, S.step.i-1, '\\', BRFlag_Ghost_Character, 0);
+                                        S.write = write_render_item(S.write, S.step.i - 1, '\\', BRFlag_Ghost_Character, 0);
                                     }break;
                                 }
                                 

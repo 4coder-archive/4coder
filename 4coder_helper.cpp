@@ -2353,10 +2353,63 @@ draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec
 
 internal void
 draw_margin(Application_Links *app, f32_Rect outer, f32_Rect inner, int_color color){
-    draw_rectangle(app, f32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
-    draw_rectangle(app, f32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    draw_rectangle(app, f32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
-    draw_rectangle(app, f32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+    draw_rectangle(app, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), color);
+    draw_rectangle(app, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    draw_rectangle(app, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), color);
+    draw_rectangle(app, Rf32(inner.x1, inner.y0, outer.x1, inner.y1), color);
+}
+
+internal void
+draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
+    Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
+    draw_rectangle(app, rect, color);
+}
+
+internal void
+draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, int_color color){
+    for (i64 i = range.first; i < range.one_past_last; i += 1){
+        draw_character_block(app, layout, i, color);
+    }
+}
+
+internal void
+draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
+    Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
+    draw_rectangle_outline(app, rect, color);
+}
+
+internal void
+draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, Range_i64 range, int_color color){
+    for (i64 i = range.first; i < range.one_past_last; i += 1){
+        draw_character_wire_frame(app, layout, i, color);
+    }
+}
+
+internal void
+draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
+    Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
+    rect.x1 = rect.x0 + 1.f;
+    draw_rectangle(app, rect, color);
+}
+
+internal void
+draw_line_highlight(Application_Links *app, Text_Layout_ID layout, Range_i64 line_range, int_color color){
+    Rect_f32 rect = text_layout_line_on_screen(app, layout, line_range.min);
+    for (i64 i = line_range.min + 1; i <= line_range.max; i += 1){
+        Rect_f32 r = text_layout_line_on_screen(app, layout, i);
+        rect = rect_union(rect, r);
+    }
+    draw_rectangle(app, rect, color);
+}
+
+internal void
+draw_line_highlight(Application_Links *app, Text_Layout_ID layout, i64 line, int_color color){
+    draw_line_highlight(app, layout, Ii64(line), color);
+}
+
+internal void
+paint_text_color(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
+    paint_text_color(app, layout, Ii64(pos, pos + 1), color);
 }
 
 ////////////////////////////////

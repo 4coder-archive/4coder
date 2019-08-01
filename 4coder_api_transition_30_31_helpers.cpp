@@ -541,13 +541,6 @@ find_prev_scope(Application_Links *app, Buffer_Summary *buffer, i32 start_pos, u
     return(result);
 }
 
-static void
-mark_enclosures(Application_Links *app, Managed_Scope render_scope, Buffer_Summary *buffer, i32 pos, u32 flags, Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
-    if (buffer != 0){
-        mark_enclosures(app, render_scope, buffer->buffer_id, pos, flags, type, back_colors, fore_colors, color_count);
-    }
-}
-
 struct Hard_Start_Result{
     i32 char_pos;
     i32 indent_pos;

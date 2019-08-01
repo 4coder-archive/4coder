@@ -162,55 +162,45 @@ get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64
     return(array);
 }
 
+typedef i32 Range_Highlight_Kind;
+enum{
+    RangeHighlightKind_LineHighlight,
+    RangeHighlightKind_CharacterHighlight,
+};
+
 static void
-mark_enclosures(Application_Links *app, Managed_Scope render_scope, Buffer_ID buffer, i64 pos, u32 flags,
-                Marker_Visual_Type type, int_color *back_colors, int_color *fore_colors, i32 color_count){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer,
+                i64 pos, u32 flags, Range_Highlight_Kind kind,
+                int_color *back_colors, int_color *fore_colors, i32 color_count){
+    Scratch_Block scratch(app);
     Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
-    if (ranges.count > 0){
-        i32 marker_count = ranges.count*2;
-        Marker *markers = push_array(scratch, Marker, marker_count);
-        Marker *marker = markers;
-        Range_i64 *range = ranges.ranges;
-        for (i32 i = 0;
-             i < ranges.count;
-             i += 1, range += 1, marker += 2){
-            marker[0].pos = (i32)range->first;
-            marker[1].pos = (i32)range->one_past_last - 1;
-        }
-        Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer, marker_count, &render_scope);
-        managed_object_store_data(app, o, 0, marker_count, markers);
-        
-        Marker_Visual_Take_Rule take_rule = {};
-        take_rule.take_count_per_step = 2;
-        take_rule.step_stride_in_marker_count = 8;
-        
-        i32 first_color_index = (ranges.count - 1)%color_count;
-        for (i32 i = 0, color_index = first_color_index;
-             i < color_count;
-             i += 1){
-            Marker_Visual visual = create_marker_visual(app, o);
-            int_color back = 0;
-            int_color fore = 0;
+    i32 color_index = 0;
+    for (i32 i = 0; i < ranges.count; i += 1){
+        Range_i64 range = ranges.ranges[i];
+        if (kind == RangeHighlightKind_LineHighlight){
+            Range_i64 line_range = get_line_range_from_pos_range(app, buffer, range);
             if (back_colors != 0){
-                back = back_colors[color_index];
+                draw_line_highlight(app, text_layout_id, line_range, back_colors[color_index]);
             }
             if (fore_colors != 0){
-                fore = fore_colors[color_index];
-            }
-            marker_visual_set_effect(app, visual, type, back, fore, 0);
-            take_rule.first_index = i*2;
-            marker_visual_set_take_rule(app, visual, take_rule);
-            color_index = color_index - 1;
-            if (color_index < 0){
-                color_index += color_count;
+                Range_i64 pos_range = get_pos_range_from_line_range(app, buffer, line_range);
+                paint_text_color(app, text_layout_id, pos_range, fore_colors[color_index]);
             }
         }
+        else{
+            if (back_colors != 0){
+                draw_character_block(app, text_layout_id, range.min, back_colors[color_index]);
+                draw_character_block(app, text_layout_id, range.max - 1, back_colors[color_index]);
+            }
+            if (fore_colors != 0){
+                paint_text_color(app, text_layout_id, range.min, fore_colors[color_index]);
+                paint_text_color(app, text_layout_id, range.max - 1, fore_colors[color_index]);
+            }
+        }
+        color_index += 1;
+        color_index = (color_index%color_count);
     }
-    
-    end_temp(temp);
 }
 
 static argb_color default_colors[Stag_COUNT] = {};
@@ -353,17 +343,11 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     Buffer_Point buffer_point = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
     Text_Layout_ID text_layout_id = compute_render_layout(app, view_id, buffer, buffer_rect.p0, rect_dim(buffer_rect), buffer_point, max_i32);
     Range_i64 on_screen_range = text_layout_get_on_screen_range(app, text_layout_id);
-    text_layout_free(app, text_layout_id);
     
     View_ID active_view = get_active_view(app, AccessAll);
     b32 is_active_view = (active_view == view_id);
     
     Scratch_Block scratch(app);
-    
-    static Managed_Scope render_scope = 0;
-    if (render_scope == 0){
-        render_scope = create_user_managed_scope(app);
-    }
     
     {
         Rect_f32 r_cursor = view_get_screen_rect(app, view_id);
@@ -535,157 +519,66 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             }
         }
         
-        Highlight_Record *records = push_array(scratch, Highlight_Record, record_count);
-        i32 record_index = 0;
         for (Highlight_Record *node = record_first;
              node != 0;
              node = node->next){
-            records[record_index] = *node;
-            record_index += 1;
-        }
-        
-        if (record_count > 0){
-            sort_highlight_record(records, 0, record_count);
-            Marker *markers = push_array_zero(scratch, Marker, 2*record_count);
-            i32 marker_index_first = 0;
-            i32 marker_index = 0;
-            int_color current_color = records[0].color;
-            {
-                Marker *marker = &markers[marker_index];
-                marker[0].pos = (i32)records[0].range.first;
-                marker[1].pos = (i32)records[0].range.one_past_last;
-                marker_index += 2;
-            }
-            for (i32 i = 1; i <= record_count; i += 1){
-                b32 do_emit = (i == record_count || records[i].color != current_color);
-                if (do_emit){
-                    i32 marker_count = marker_index - marker_index_first;
-                    Managed_Object o = alloc_buffer_markers_on_buffer(app, buffer, marker_count, &render_scope);
-                    managed_object_store_data(app, o, 0, marker_count, markers + marker_index_first);
-                    Marker_Visual v = create_marker_visual(app, o);
-                    marker_visual_set_effect(app, v, VisualType_CharacterHighlightRanges, SymbolicColor_Default, current_color, 0);
-                    marker_visual_set_priority(app, v, VisualPriority_Lowest);
-                    current_color = records[i].color;
-                    marker_index_first = marker_index;
-                }
-                if (i < record_count){
-                    Marker *marker = &markers[marker_index];
-                    marker[0].pos = (i32)records[i].range.first;
-                    marker[1].pos = (i32)records[i].range.one_past_last;
-                    marker_index += 2;
-                }
-            }
+            paint_text_color(app, text_layout_id, node->range, node->color);
         }
         
         end_temp(temp);
     }
     
-    // NOTE(allen): Cursor and mark
     i64 cursor_pos = view_get_cursor_pos(app, view_id);
     i64 mark_pos = view_get_mark_pos(app, view_id);
     
-    Managed_Object cursor_and_mark = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
-    Marker cm_markers[2] = {};
-    cm_markers[0].pos = (i32)cursor_pos;
-    cm_markers[1].pos = (i32)mark_pos;
-    managed_object_store_data(app, cursor_and_mark, 0, 2, cm_markers);
+    // NOTE(allen): Scope highlight
+    if (do_matching_enclosure_highlight){
+        static const i32 color_count = 4;
+        int_color colors[color_count];
+        for (u16 i = 0; i < color_count; i += 1){
+            colors[i] = Stag_Back_Cycle_1 + i;
+        }
+        draw_enclosures(app, text_layout_id, buffer,
+                        cursor_pos, FindScope_Brace, RangeHighlightKind_LineHighlight,
+                        colors, 0, color_count);
+    }
     
+    // NOTE(allen): Line highlight
+    if (highlight_line_at_cursor && is_active_view){
+        i64 line_number = get_line_number_from_pos(app, buffer, cursor_pos);
+        draw_line_highlight(app, text_layout_id, line_number, Stag_Highlight_Cursor_Line);
+    }
+    
+    // NOTE(allen): Cursor and mark
     b32 cursor_is_hidden_in_this_view = (cursor_is_hidden && is_active_view);
     if (!cursor_is_hidden_in_this_view){
         switch (fcoder_mode){
             case FCoderMode_Original:
             {
-                Marker_Visual_Take_Rule take_rule = {};
-                take_rule.first_index = 0;
-                take_rule.take_count_per_step = 1;
-                take_rule.step_stride_in_marker_count = 1;
-                take_rule.maximum_number_of_markers = 1;
-                
-                Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
-                Marker_Visual_Type type = is_active_view?VisualType_CharacterBlocks:VisualType_CharacterWireFrames;
-                int_color cursor_color = Stag_Cursor;
-                int_color text_color = is_active_view?Stag_At_Cursor:Stag_Default;
-                marker_visual_set_effect(app, visual, type, cursor_color, text_color, 0);
-                marker_visual_set_take_rule(app, visual, take_rule);
-                marker_visual_set_priority(app, visual, VisualPriority_Highest);
-                
-                visual = create_marker_visual(app, cursor_and_mark);
-                marker_visual_set_effect(app, visual, VisualType_CharacterWireFrames, Stag_Mark, 0, 0);
-                take_rule.first_index = 1;
-                marker_visual_set_take_rule(app, visual, take_rule);
-                marker_visual_set_priority(app, visual, VisualPriority_Highest);
+                if (is_active_view){
+                    draw_character_block(app, text_layout_id, cursor_pos, Stag_Cursor);
+                    paint_text_color(app, text_layout_id, make_range_i64(cursor_pos), Stag_At_Cursor);
+                    draw_character_wire_frame(app, text_layout_id, mark_pos, Stag_Mark);
+                }
+                else{
+                    draw_character_wire_frame(app, text_layout_id, mark_pos, Stag_Mark);
+                    draw_character_wire_frame(app, text_layout_id, cursor_pos, Stag_Cursor);
+                }
             }break;
             
             case FCoderMode_NotepadLike:
             {
-                int_color cursor_color    = Stag_Cursor;
-                int_color highlight_color = Stag_Highlight;
-                
-                Marker_Visual_Take_Rule take_rule = {};
-                take_rule.first_index = 0;
-                take_rule.take_count_per_step = 1;
-                take_rule.step_stride_in_marker_count = 1;
-                take_rule.maximum_number_of_markers = 1;
-                
-                Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
-                marker_visual_set_effect(app, visual, VisualType_CharacterIBars, cursor_color, 0, 0);
-                marker_visual_set_take_rule(app, visual, take_rule);
-                marker_visual_set_priority(app, visual, VisualPriority_Highest);
-                
                 if (cursor_pos != mark_pos){
-                    visual = create_marker_visual(app, cursor_and_mark);
-                    marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, highlight_color, Stag_At_Highlight, 0);
-                    take_rule.maximum_number_of_markers = 2;
-                    marker_visual_set_take_rule(app, visual, take_rule);
-                    marker_visual_set_priority(app, visual, VisualPriority_Highest);
+                    Range_i64 range = Ii64(cursor_pos, mark_pos);
+                    draw_character_block(app, text_layout_id, range, Stag_Highlight);
+                    paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
                 }
+                draw_character_i_bar(app, text_layout_id, cursor_pos, Stag_Cursor);
             }break;
         }
     }
     
-    // NOTE(allen): Line highlight setup
-    if (highlight_line_at_cursor && is_active_view){
-        u32 line_color = Stag_Highlight_Cursor_Line;
-        Marker_Visual visual = create_marker_visual(app, cursor_and_mark);
-        marker_visual_set_effect(app, visual, VisualType_LineHighlights, line_color, 0, 0);
-        Marker_Visual_Take_Rule take_rule = {};
-        take_rule.first_index = 0;
-        take_rule.take_count_per_step = 1;
-        take_rule.step_stride_in_marker_count = 1;
-        take_rule.maximum_number_of_markers = 1;
-        marker_visual_set_take_rule(app, visual, take_rule);
-        marker_visual_set_priority(app, visual, VisualPriority_Highest);
-    }
-    
-    // NOTE(allen): Token highlight setup
-    b32 do_token_highlight = false;
-    if (do_token_highlight){
-        int_color token_color = 0x5000EE00;
-        
-        Temp_Memory temp = begin_temp(scratch);
-        Boundary_Function_List funcs = push_boundary_list(scratch, boundary_token, boundary_non_whitespace);
-        Range_i64 snipe_range = get_snipe_range(app, funcs, buffer, cursor_pos, Scan_Backward);
-        if (range_size(snipe_range) > 0){
-            Managed_Object token_highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &render_scope);
-            Marker range_markers[2] = {};
-            range_markers[0].pos = (i32)snipe_range.min;
-            range_markers[1].pos = (i32)snipe_range.max;
-            managed_object_store_data(app, token_highlight, 0, 2, range_markers);
-            Marker_Visual visual = create_marker_visual(app, token_highlight);
-            marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, token_color, Stag_At_Highlight, 0);
-        }
-        end_temp(temp);
-    }
-    
     // NOTE(allen): Matching enclosure highlight setup
-    static const i32 color_count = 4;
-    if (do_matching_enclosure_highlight){
-        int_color colors[color_count];
-        for (u16 i = 0; i < color_count; i += 1){
-            colors[i] = Stag_Back_Cycle_1 + i;
-        }
-        mark_enclosures(app, render_scope, buffer, cursor_pos, FindScope_Brace, VisualType_LineHighlightRanges, colors, 0, color_count);
-    }
     if (do_matching_paren_highlight){
         i64 pos = cursor_pos;
         if (buffer_get_char(app, buffer, pos) == '('){
@@ -696,15 +589,19 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 pos -= 1;
             }
         }
+        static const i32 color_count = 4;
         int_color colors[color_count];
         for (u16 i = 0; i < color_count; i += 1){
             colors[i] = Stag_Text_Cycle_1 + i;
         }
-        mark_enclosures(app, render_scope, buffer, pos, FindScope_Paren, VisualType_CharacterBlocks, 0, colors, color_count);
+        draw_enclosures(app, text_layout_id, buffer,
+                        cursor_pos, FindScope_Paren, RangeHighlightKind_CharacterHighlight,
+                        colors, 0, color_count);
     }
     
     draw_clip_push(app, buffer_rect);
     draw_render_layout(app, view_id);
+    text_layout_free(app, text_layout_id);
     draw_clip_pop(app);
     
     // NOTE(allen): FPS HUD
@@ -768,7 +665,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         animate_in_n_milliseconds(app, 1000);
     }
     
-    managed_scope_clear_self_all_dependent_scopes(app, render_scope);
+    //managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 
 static int_color

@@ -3804,16 +3804,111 @@ Text_Layout_Get_On_Screen_Range(Application_Links *app, Text_Layout_ID text_layo
     return(result);
 }
 
-API_EXPORT b32
-Text_Layout_Get_Height(Application_Links *app, Text_Layout_ID text_layout_id, f32 *height_out){
+API_EXPORT Rect_f32
+Text_Layout_On_Screen(Application_Links *app, Text_Layout_ID text_layout_id){
     Models *models = (Models*)app->cmd_context;
     Text_Layout layout = {};
-    b32 result = false;
+    Rect_f32 result = {};
     if (text_layout_get(&models->text_layouts, text_layout_id, &layout)){
-        *height_out = layout.height;
-        result = true;
+        result = Rf32_xy_wh(layout.coordinates.on_screen_p0, layout.coordinates.dim);
+        Vec2_f32 coordinate_center = models_get_coordinate_center(models);
+        result.p0 -= coordinate_center;
+        result.p1 -= coordinate_center;
     }
     return(result);
+}
+
+API_EXPORT Rect_f32
+Text_Layout_Line_On_Screen(Application_Links *app, Text_Layout_ID layout_id, i64 line_number){
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    Rect_f32 result = {};
+    if (text_layout_get(&models->text_layouts, layout_id, &layout)){
+        Editing_File *file = imp_get_file(models, layout.buffer_id);
+        if (api_check_buffer(file)){
+            Partial_Cursor first_partial = file_compute_partial_cursor(file, seek_line_char(line_number, 1));
+            Partial_Cursor last_partial = file_compute_partial_cursor(file, seek_line_char(line_number, -1));
+            Full_Cursor first = file_compute_cursor(models, file, seek_pos(first_partial.pos));
+            Full_Cursor last = file_compute_cursor(models, file, seek_pos(last_partial.pos));
+            
+            f32 top = first.wrapped_y;
+            f32 bot = last.wrapped_y;
+            if (file->settings.unwrapped_lines){
+                top = first.unwrapped_y;
+                bot = last.unwrapped_y;
+            }
+            
+            Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
+            f32 line_height = face->height;
+            bot += line_height;
+
+            result = Rf32(layout.coordinates.on_screen_p0.x, top,
+                          layout.coordinates.on_screen_p0.x + layout.coordinates.dim.x, bot);
+            
+            f32 shift_y = layout.coordinates.on_screen_p0.y - layout.coordinates.in_buffer_p0.y;
+            result.y0 += shift_y;
+            result.y1 += shift_y;
+            
+            Rect_f32 whole_layout = Rf32_xy_wh(layout.coordinates.on_screen_p0, layout.coordinates.dim);
+            result = rect_intersect(result, whole_layout);
+            
+            Vec2_f32 coordinate_center = models_get_coordinate_center(models);
+            result.p0 -= coordinate_center;
+            result.p1 -= coordinate_center;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT Rect_f32
+Text_Layout_Character_On_Screen(Application_Links *app, Text_Layout_ID layout_id, i64 pos){
+    Models *models = (Models*)app->cmd_context;
+    Text_Layout layout = {};
+    Rect_f32 result = {};
+    if (text_layout_get(&models->text_layouts, layout_id, &layout)){
+        Editing_File *file = imp_get_file(models, layout.buffer_id);
+        if (api_check_buffer(file)){
+            Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(pos));
+            
+            f32 top = cursor.wrapped_y;
+            f32 left = cursor.wrapped_x;
+            if (file->settings.unwrapped_lines){
+                top = cursor.unwrapped_y;
+                left = cursor.unwrapped_x;
+            }
+            
+            Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
+            f32 line_height = face->height;
+            f32 bot = top + line_height;
+            
+            i64 size = buffer_size(&file->state.buffer);
+            Range_i64 range = Ii64(pos, pos + 4);
+            range.max = clamp_top(range.max, size);
+            u8 space[4];
+            buffer_read_range(app, layout.buffer_id, range, (char*)space);
+            u32 codepoint = utf8_to_u32_unchecked(space);
+            f32 advance = font_get_glyph_advance(face, codepoint);
+            
+            result = Rf32(left, top, left + advance, bot);
+            
+            Vec2_f32 shift = layout.coordinates.on_screen_p0 - layout.coordinates.in_buffer_p0;
+            result.p0 += shift;
+            result.p1 += shift;
+            
+            Rect_f32 whole_layout = Rf32_xy_wh(layout.coordinates.on_screen_p0, layout.coordinates.dim);
+            result = rect_intersect(result, whole_layout);
+            
+            Vec2_f32 coordinate_center = models_get_coordinate_center(models);
+            result.p0 -= coordinate_center;
+            result.p1 -= coordinate_center;
+        }
+    }
+    return(result);
+}
+
+API_EXPORT void
+Paint_Text_Color(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range, int_color color){
+    //NotImplemented;
 }
 
 API_EXPORT b32
@@ -3859,6 +3954,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             scroll_y = intermediate_cursor.unwrapped_y;
         }
         scroll_y += buffer_point.pixel_shift.y;
+        Vec2_f32 in_buffer_p = V2f32(scroll_x, scroll_y);
         Full_Cursor render_cursor = file_get_render_cursor(models, file, scroll_y);
         
         i32 item_count = 0;
@@ -3948,7 +4044,11 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             Buffer_Render_Item *render_item_last = items + item_count - 1;
             height = render_item_last->y1 - render_item_first->y0;
         }
-        result = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point, range, height);
+        Text_Layout_Coordinates coordinates = {};
+        coordinates.on_screen_p0 = screen_p;
+        coordinates.in_buffer_p0 = in_buffer_p;
+        coordinates.dim = layout_dim;
+        result = text_layout_new(&models->mem.heap, &models->text_layouts, buffer_id, buffer_point, range, height, coordinates);
     }
     return(result);
 }

@@ -44,3 +44,5 @@ set_buffer_face_by_name -> set_buffer_face_by_font_load_location
 get_existing_face_id_matching_name -> face_id_from_font_load_target
 get_face_id_by_name
 set_global_face_by_name -> set_buffer_face_by_font_load_location (with id = 0)
+
+mark_enclosures -> draw_enclosures

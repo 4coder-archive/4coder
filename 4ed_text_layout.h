@@ -19,10 +19,13 @@ struct Text_Layout{
     // For now, since the engine cannot be easily consolidated,
     // this just stores the parameters that should be handed to any
     // system that attempts to query the layout for hit testing.
+    View_ID view_id;
     Buffer_ID buffer_id;
     Buffer_Point point;
     Range on_screen_range;
     f32 height;
+    
+    Text_Layout_Coordinates coordinates;
 };
 
 union Text_Layout_Node{

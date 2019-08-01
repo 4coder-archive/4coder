@@ -47,8 +47,8 @@ struct View{
     Arena layout_arena;
     
     struct{    
-        i32_Rect view_rect;
-        i32_Rect buffer_rect;
+        Rect_i32 view_rect;
+        Rect_i32 buffer_rect;
         Full_Cursor cursor;
         Range range;
         Buffer_Render_Item *items;

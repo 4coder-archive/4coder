@@ -36,6 +36,9 @@ font_get_glyph_advance(Face *face, u32 codepoint){
         result = face->space_advance*4.f;
     }
     else{
+        if (character_is_whitespace(codepoint)){
+            codepoint = ' ';
+        }
         u16 index = 0;
         if (codepoint_index_map_read(&face->codepoint_to_index_map, codepoint, &index)){
             if (index < face->index_count){
