@@ -816,11 +816,6 @@ get_page_jump(Application_Links *app, View_Summary *view){
 }
 
 static void
-isearch__update_highlight(Application_Links *app, View_Summary *view, Managed_Object highlight, i32 start, i32 end){
-    isearch__update_highlight(app, view==0?0:view->view_id, highlight, Ii64(start, end));
-}
-
-static void
 get_view_prev(Application_Links *app, View_Summary *view, Access_Flag access){
     View_ID new_id = get_view_prev(app, view->view_id, access);
     get_view_summary(app, new_id, access, view);

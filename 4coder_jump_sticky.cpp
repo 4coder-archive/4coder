@@ -172,8 +172,11 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
         managed_object_store_data(app, marker_handle, 0, total_jump_count, markers);
         
         if (is_compilation_buffer){
+            // TODO(allen): replace
+#if 0
             Marker_Visual visual = create_marker_visual(app, marker_handle);
             marker_visual_set_effect(app, visual, VisualType_LineHighlights, Stag_Highlight_Junk, 0, 0);
+#endif
         }
         
         end_temp(marker_temp);

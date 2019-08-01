@@ -142,43 +142,6 @@ struct View_Step_Result{
     b32 consume_esc;
 };
 
-struct Render_Marker_Brush{
-    b8 color_noop;
-    b8 text_color_noop;
-    argb_color color;
-    argb_color text_color;
-};
-
-struct Render_Marker{
-    Marker_Visual_Type type;
-    Render_Marker_Brush brush;
-    i32 pos;
-    i32 one_past_last;
-    i32 priority;
-};
-
-struct Render_Marker_Node{
-    Render_Marker_Node *next;
-    Render_Marker render_marker;
-};
-
-struct Render_Marker_List{
-    Render_Marker_Node *first;
-    Render_Marker_Node *last;
-    i32 count;
-};
-
-struct Render_Range_Record{
-    Render_Marker_Brush brush;
-    i32 one_past_last;
-    i32 priority;
-};
-
-struct Render_Marker_Array{
-    Render_Marker *markers;
-    i32 count;
-};
-
 #endif
 
 // BOTTOM
