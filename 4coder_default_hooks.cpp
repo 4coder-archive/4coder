@@ -176,16 +176,40 @@ draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID
     Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
     i32 color_index = 0;
-    for (i32 i = 0; i < ranges.count; i += 1){
+    for (i32 i = ranges.count - 1; i >= 0; i -= 1){
         Range_i64 range = ranges.ranges[i];
         if (kind == RangeHighlightKind_LineHighlight){
-            Range_i64 line_range = get_line_range_from_pos_range(app, buffer, range);
-            if (back_colors != 0){
-                draw_line_highlight(app, text_layout_id, line_range, back_colors[color_index]);
+            Range_i64 r[2] = {};
+            if (i > 0){
+                Range_i64 inner_range = ranges.ranges[i - 1];
+                Range_i64 lines = get_line_range_from_pos_range(app, buffer, range);
+                Range_i64 inner_lines = get_line_range_from_pos_range(app, buffer, inner_range);
+                inner_lines.min = clamp_bot(lines.min, inner_lines.min);
+                inner_lines.max = clamp_top(inner_lines.max, lines.max);
+                inner_lines.min -= 1;
+                inner_lines.max += 1;
+                if (lines.min <= inner_lines.min){
+                    r[0] = Ii64(lines.min, inner_lines.min);
+                }
+                if (inner_lines.max <= lines.max){
+                    r[1] = Ii64(inner_lines.max, lines.max);
+                }
             }
-            if (fore_colors != 0){
-                Range_i64 pos_range = get_pos_range_from_line_range(app, buffer, line_range);
-                paint_text_color(app, text_layout_id, pos_range, fore_colors[color_index]);
+            else{
+                r[0] = get_line_range_from_pos_range(app, buffer, range);
+            }
+            for (i32 j = 0; j < 2; j += 1){
+                if (r[j].min == 0){
+                    continue;
+                }
+                Range_i64 line_range = r[j];
+                if (back_colors != 0){
+                    draw_line_highlight(app, text_layout_id, line_range, back_colors[color_index]);
+                }
+                if (fore_colors != 0){
+                    Range_i64 pos_range = get_pos_range_from_line_range(app, buffer, line_range);
+                    paint_text_color(app, text_layout_id, pos_range, fore_colors[color_index]);
+                }
             }
         }
         else{
@@ -543,10 +567,56 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                         colors, 0, color_count);
     }
     
+    // NOTE(allen): Color parens
+    if (do_matching_paren_highlight){
+        i64 pos = cursor_pos;
+        if (buffer_get_char(app, buffer, pos) == '('){
+            pos += 1;
+        }
+        else if (pos > 0){
+            if (buffer_get_char(app, buffer, pos - 1) == ')'){
+                pos -= 1;
+            }
+        }
+        static const i32 color_count = 4;
+        int_color colors[color_count];
+        for (u16 i = 0; i < color_count; i += 1){
+            colors[i] = Stag_Text_Cycle_1 + i;
+        }
+        draw_enclosures(app, text_layout_id, buffer,
+                        cursor_pos, FindScope_Paren, RangeHighlightKind_CharacterHighlight,
+                        0, colors, color_count);
+    }
+    
     // NOTE(allen): Line highlight
     if (highlight_line_at_cursor && is_active_view){
         i64 line_number = get_line_number_from_pos(app, buffer, cursor_pos);
         draw_line_highlight(app, text_layout_id, line_number, Stag_Highlight_Cursor_Line);
+    }
+    
+    // NOTE(allen): Highlight range
+    b32 has_highlight_range = false;
+    {
+        Managed_Scope scope = view_get_managed_scope(app, view_id);
+        u64 highlight_buffer = 0;
+        managed_variable_get(app, scope, view_highlight_buffer, &highlight_buffer);
+        if (highlight_buffer != 0){
+            if ((Buffer_ID)highlight_buffer != buffer){
+                view_disable_highlight_range(app, view_id);
+            }
+            else{
+                has_highlight_range = true;
+                Managed_Object highlight = 0;
+                managed_variable_get(app, scope, view_highlight_range, &highlight);
+                Marker marker_range[2];
+                if (managed_object_load_data(app, highlight, 0, 2, marker_range)){
+                    Range_i64 range = Ii64(marker_range[0].pos,
+                                           marker_range[1].pos);
+                    draw_character_block(app, text_layout_id, range, Stag_Highlight);
+                    paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
+                }
+            }
+        }
     }
     
     // NOTE(allen): Cursor and mark
@@ -576,27 +646,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 draw_character_i_bar(app, text_layout_id, cursor_pos, Stag_Cursor);
             }break;
         }
-    }
-    
-    // NOTE(allen): Matching enclosure highlight setup
-    if (do_matching_paren_highlight){
-        i64 pos = cursor_pos;
-        if (buffer_get_char(app, buffer, pos) == '('){
-            pos += 1;
-        }
-        else if (pos > 0){
-            if (buffer_get_char(app, buffer, pos - 1) == ')'){
-                pos -= 1;
-            }
-        }
-        static const i32 color_count = 4;
-        int_color colors[color_count];
-        for (u16 i = 0; i < color_count; i += 1){
-            colors[i] = Stag_Text_Cycle_1 + i;
-        }
-        draw_enclosures(app, text_layout_id, buffer,
-                        cursor_pos, FindScope_Paren, RangeHighlightKind_CharacterHighlight,
-                        0, colors, color_count);
     }
     
     draw_clip_push(app, buffer_rect);

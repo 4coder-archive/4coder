@@ -40,6 +40,8 @@ static Managed_Variable_ID view_paste_index_loc = 0;
 static Managed_Variable_ID view_is_passive_loc = 0;
 static Managed_Variable_ID view_snap_mark_to_cursor = 0;
 static Managed_Variable_ID view_ui_data = 0;
+static Managed_Variable_ID view_highlight_range = 0;
+static Managed_Variable_ID view_highlight_buffer = 0;
 
 static u8 out_buffer_space[1024];
 static u8 command_space[1024];

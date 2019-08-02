@@ -384,6 +384,8 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     view_is_passive_loc      = managed_variable_create_or_get_id(app, "DEFAULT.is_passive"    , 0);
     view_snap_mark_to_cursor = managed_variable_create_or_get_id(app, "DEFAULT.mark_to_cursor", 0);
     view_ui_data             = managed_variable_create_or_get_id(app, "DEFAULT.ui_data"       , 0);
+    view_highlight_range     = managed_variable_create_or_get_id(app, "DEFAULT.highlight"     , 0);
+    view_highlight_buffer    = managed_variable_create_or_get_id(app, "DEFAULT.highlight_buf" , 0);
     
     // open command line files
     Arena *scratch = context_get_arena(app);

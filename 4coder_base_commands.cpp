@@ -871,16 +871,11 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
 CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
-#if 0
 static void
-isearch__update_highlight(Application_Links *app, View_ID view, Managed_Object highlight, Range_i64 range){
-    Marker markers[4] = {};
-    markers[0].pos = (i32)range.start;
-    markers[1].pos = (i32)range.end;
-    managed_object_store_data(app, highlight, 0, 2, markers);
+isearch__update_highlight(Application_Links *app, View_ID view, Range_i64 range){
+    view_set_highlight_range(app, view, range);
     view_set_cursor(app, view, seek_pos(range.start), true);
 }
-#endif
 
 static void
 isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, b32 on_the_query_init_string){
@@ -916,18 +911,7 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
     b32 first_step = true;
     
     // TODO(allen): rewrite
-#if 0
-    Managed_Scope view_scope = view_get_managed_scope(app, view);
-    Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &view_scope);
-    Marker_Visual visual = create_marker_visual(app, highlight);
-    marker_visual_set_effect(app, visual,
-                             VisualType_CharacterHighlightRanges,
-                             Stag_Highlight,
-                             Stag_At_Highlight, 0);
-    marker_visual_set_view_key(app, visual, view);
-    marker_visual_set_priority(app, visual, VisualPriority_Default + 1);
-    isearch__update_highlight(app, view, highlight, match);
-#endif
+    isearch__update_highlight(app, view, match);
     cursor_is_hidden = true;
     
     User_Input in = {};
@@ -1064,15 +1048,11 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
         }
         
         if (!suppress_highligh_update){
-#if 0
-            isearch__update_highlight(app, view, highlight, match);
-#endif
+            isearch__update_highlight(app, view, match);
         }
     }
     
-#if 0
-    managed_object_free(app, highlight);
-#endif
+    view_disable_highlight_range(app, view);
     cursor_is_hidden = false;
     
     if (in.abort){
@@ -1198,13 +1178,6 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
     i64 new_pos = 0;
     buffer_seek_string_forward(app, buffer_id, pos - 1, 0, r, &new_pos);
     
-#if 0    
-    Managed_Scope view_scope = view_get_managed_scope(app, view);
-    Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer_id, 2, &view_scope);
-    Marker_Visual visual = create_marker_visual(app, highlight);
-    marker_visual_set_effect(app, visual, VisualType_CharacterHighlightRanges, Stag_Highlight, Stag_At_Highlight, 0);
-    marker_visual_set_view_key(app, visual, view);
-#endif
     cursor_is_hidden = true;
     
     i64 buffer_size = buffer_get_size(app, buffer_id);
@@ -1212,9 +1185,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
     User_Input in = {};
     for (;new_pos < buffer_size;){
         Range_i64 match = Ii64(new_pos, new_pos + r.size);
-#if 0
-        isearch__update_highlight(app, view, highlight, match);
-#endif
+        isearch__update_highlight(app, view, match);
         
         in = get_user_input(app, EventOnAnyKey, EventOnMouseLeftButton|EventOnMouseRightButton);
         if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key)) break;
@@ -1231,9 +1202,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
         buffer_seek_string_forward(app, buffer_id, pos, 0, r, &new_pos);
     }
     
-#if 0
-    managed_object_free(app, highlight);
-#endif
+    view_disable_highlight_range(app, view);
     cursor_is_hidden = false;
     
     if (in.abort){

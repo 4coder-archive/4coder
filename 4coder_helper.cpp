@@ -1779,6 +1779,32 @@ view_open_file(Application_Links *app, View_ID view, String_Const_u8 file_name, 
     return(result);
 }
 
+internal void
+view_disable_highlight_range(Application_Links *app, View_ID view){
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    Managed_Object highlight = 0;
+    if (managed_variable_get(app, scope, view_highlight_range, &highlight)){
+        managed_object_free(app, highlight);
+    }
+    managed_variable_set(app, scope, view_highlight_range, 0);
+    managed_variable_set(app, scope, view_highlight_buffer, 0);
+}
+
+internal void
+view_set_highlight_range(Application_Links *app, View_ID view, Range_i64 range){
+    view_disable_highlight_range(app, view);
+    
+    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &scope);
+    managed_variable_set(app, scope, view_highlight_range, highlight);
+    Marker markers[2] = {};
+    markers[0].pos = (i32)range.min;
+    markers[1].pos = (i32)range.max;
+    managed_object_store_data(app, highlight, 0, 2, markers);
+    managed_variable_set(app, scope, view_highlight_buffer, buffer);
+}
+
 ////////////////////////////////
 
 internal View_ID
