@@ -387,6 +387,8 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     view_highlight_range     = managed_variable_create_or_get_id(app, "DEFAULT.highlight"     , 0);
     view_highlight_buffer    = managed_variable_create_or_get_id(app, "DEFAULT.highlight_buf" , 0);
     
+    sticky_jump_marker_handle = managed_variable_create_or_get_id(app, "DEFAULT.sticky_jump_marker_handle", 0);
+    
     // open command line files
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);

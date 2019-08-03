@@ -43,6 +43,8 @@ static Managed_Variable_ID view_ui_data = 0;
 static Managed_Variable_ID view_highlight_range = 0;
 static Managed_Variable_ID view_highlight_buffer = 0;
 
+static Managed_Variable_ID sticky_jump_marker_handle = 0;
+
 static u8 out_buffer_space[1024];
 static u8 command_space[1024];
 static char hot_directory_space[1024];

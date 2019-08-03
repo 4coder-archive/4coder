@@ -101,16 +101,12 @@ parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_ID buffe
     return(result);
 }
 
-static char    sticky_jump_marker_handle_var[] = "DEFAULT.sticky_jump_marker_handle";
-static i32 sticky_jump_marker_handle_loc;
-
 static void
 init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_List *list){
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     
     String_Const_u8 buffer_name = push_buffer_base_name(app, scratch, buffer);
-    b32 is_compilation_buffer = string_match(buffer_name, string_u8_litexpr("*compilation*"));
     
     Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);
     Range_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch, &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps), jumps.count);
@@ -171,22 +167,13 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
         Managed_Object marker_handle = alloc_buffer_markers_on_buffer(app, target_buffer_id, total_jump_count, &scope);
         managed_object_store_data(app, marker_handle, 0, total_jump_count, markers);
         
-        if (is_compilation_buffer){
-            // TODO(allen): replace
-#if 0
-            Marker_Visual visual = create_marker_visual(app, marker_handle);
-            marker_visual_set_effect(app, visual, VisualType_LineHighlights, Stag_Highlight_Junk, 0, 0);
-#endif
-        }
-        
         end_temp(marker_temp);
         
         Assert(managed_object_get_item_size(app, marker_handle) == sizeof(Marker));
         Assert(managed_object_get_item_count(app, marker_handle) == total_jump_count);
         Assert(managed_object_get_type(app, marker_handle) == ManagedObjectType_Markers);
         
-        sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
-        managed_variable_set(app, scope, sticky_jump_marker_handle_loc, marker_handle);
+        managed_variable_set(app, scope, sticky_jump_marker_handle, marker_handle);
     }
     
     Managed_Object stored_jump_array = alloc_managed_memory_in_scope(app, scope_array[0], sizeof(Sticky_Jump_Stored), jumps.count);
@@ -295,9 +282,8 @@ get_jump_from_list(Application_Links *app, Marker_List *list, i32 index, ID_Pos_
         scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
         Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         
-        sticky_jump_marker_handle_loc = managed_variable_create_or_get_id(app, sticky_jump_marker_handle_var, 0);
         Managed_Object marker_array = 0;
-        if (managed_variable_get(app, scope, sticky_jump_marker_handle_loc, &marker_array)){
+        if (managed_variable_get(app, scope, sticky_jump_marker_handle, &marker_array)){
             Marker marker = {};
             managed_object_load_data(app, marker_array, stored.index_into_marker_array, 1, &marker);
             location->buffer_id = target_buffer_id;

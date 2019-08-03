@@ -567,6 +567,31 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                         colors, 0, color_count);
     }
     
+    // NOTE(allen): Error highlight
+    {
+        String_Const_u8 name = string_u8_litexpr("*compilation*");
+        Buffer_ID compilation_buffer = get_buffer_by_name(app, name, AccessAll);
+        if (compilation_buffer != 0){
+            Managed_Scope scopes[2];
+            scopes[0] = buffer_get_managed_scope(app, compilation_buffer);
+            scopes[1] = buffer_get_managed_scope(app, buffer);
+            Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scopes, ArrayCount(scopes));
+            Managed_Object markers_object = 0;
+            if (managed_variable_get(app, scope, sticky_jump_marker_handle, &markers_object)){
+                Temp_Memory temp = begin_temp(scratch);
+                i32 count = managed_object_get_item_count(app, markers_object);
+                Marker *markers = push_array(scratch, Marker, count);
+                managed_object_load_data(app, markers_object, 0, count, markers);
+                for (i32 i = 0; i < count; i += 1){
+                    i64 line_number = get_line_number_from_pos(app, buffer, markers[i].pos);
+                    draw_line_highlight(app, text_layout_id, line_number,
+                                        Stag_Highlight_Junk);
+                }
+                end_temp(temp);
+            }
+        }
+    }
+    
     // NOTE(allen): Color parens
     if (do_matching_paren_highlight){
         i64 pos = cursor_pos;
