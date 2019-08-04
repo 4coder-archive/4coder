@@ -30,7 +30,7 @@ api_check_buffer(Editing_File *file){
 
 internal b32
 api_check_buffer_and_tokens(Editing_File *file){
-    return(api_check_buffer(file) && file->state.token_array.tokens != 0 && file->state.tokens_complete);
+    return(api_check_buffer(file) && file->state.token_array.tokens != 0);
 }
 
 internal b32
@@ -856,13 +856,8 @@ DOC_SEE(Buffer_Setting_ID)
                         if (!file->settings.tokens_exist){
                             file_first_lex_serial(system, models, file);
                         }
-                        if (!file->state.still_lexing){
-                            file->settings.virtual_white = true;
-                            full_remeasure = true;
-                        }
-                        else{
-                            result = false;
-                        }
+                        file->settings.virtual_white = true;
+                        full_remeasure = true;
                     }
                 }
                 else{
@@ -2583,11 +2578,11 @@ DOC_SEE(User_Input)
     System_Functions *system = models->system;
     User_Input result = {};
     if (app->type_coroutine == Co_Command){
-        Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
+        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
         ((u32*)coroutine->out)[0] = get_type;
         ((u32*)coroutine->out)[1] = abort_type;
-        system->yield_coroutine(coroutine);
+        coroutine_yield(coroutine);
         result = *(User_Input*)coroutine->in;
     }
     return(result);
@@ -3027,11 +3022,11 @@ DOC_SEE(Face_Description)
     Face_ID result = 0;
     if (is_running_coroutine(app)){
         System_Functions *system = models->system;
-        Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
+        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
         ((Face_Description**)coroutine->out)[0] = description;
         ((u32*)coroutine->out)[2] = AppCoroutineRequest_NewFontFace;
-        system->yield_coroutine(coroutine);
+        coroutine_yield(coroutine);
         result = *(Face_ID*)(coroutine->in);
     }
     else{
@@ -3058,12 +3053,12 @@ DOC_SEE(try_create_new_face)
     b32 result = false;
     if (is_running_coroutine(app)){
         System_Functions *system = models->system;
-        Coroutine_Head *coroutine = (Coroutine_Head*)app->current_coroutine;
+        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
         ((Face_Description**)coroutine->out)[0] = description;
         ((u32*)coroutine->out)[2] = AppCoroutineRequest_ModifyFace;
         ((u32*)coroutine->out)[3] = id;
-        system->yield_coroutine(coroutine);
+        coroutine_yield(coroutine);
         result = *(b32*)(coroutine->in);
     }
     else{

@@ -485,13 +485,6 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
 
 internal void
 file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_allocator, Working_Set *working_set, Editing_File *file){
-    if (file->state.still_lexing){
-        system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
-        if (file->state.swap_array.tokens){
-            heap_free(heap, file->state.swap_array.tokens);
-            file->state.swap_array.tokens = 0;
-        }
-    }
     if (file->state.token_array.tokens){
         heap_free(heap, file->state.token_array.tokens);
     }
@@ -522,7 +515,7 @@ file_get_current_record_index(Editing_File *file){
 
 internal b32
 file_tokens_are_ready(Editing_File *file){
-    return(file->state.token_array.tokens != 0 && file->state.tokens_complete && !file->state.still_lexing);
+    return(file->state.token_array.tokens != 0);
 }
 
 internal Managed_Scope

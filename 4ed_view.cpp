@@ -524,9 +524,9 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     Assert(!file->is_dummy);
     Assert(buffer_good(&file->state.buffer));
     
-    b32 tokens_use = file->state.tokens_complete && (file->state.token_array.count > 0);
     Cpp_Token_Array token_array = file->state.token_array;
-    b32 wrapped = !file->settings.unwrapped_lines;
+    b32 tokens_use = (token_array.tokens != 0);
+    b32 wrapped = (!file->settings.unwrapped_lines);
     Face_ID font_id = file->settings.font_id;
     
     i32 *line_starts = file->state.buffer.line_starts;

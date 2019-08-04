@@ -45,16 +45,6 @@ typedef Sys_Load_Close_Sig(System_Load_Close);
 #define Sys_Save_File_Sig(name) File_Attributes name(char *filename, char *buffer, u32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
-// file changes
-#define Sys_Add_Listener_Sig(name) b32 name(char *filename)
-typedef Sys_Add_Listener_Sig(System_Add_Listener);
-
-#define Sys_Remove_Listener_Sig(name) b32 name(char *filename)
-typedef Sys_Remove_Listener_Sig(System_Remove_Listener);
-
-#define Sys_Get_File_Change_Sig(name) b32 name(char *buffer, i32 max, b32 *mem_too_small, i32 *required_size)
-typedef Sys_Get_File_Change_Sig(System_Get_File_Change);
-
 // time
 #define Sys_Now_Time_Sig(name) u64 name()
 typedef Sys_Now_Time_Sig(System_Now_Time);
@@ -98,98 +88,49 @@ typedef Sys_CLI_Update_Step_Sig(System_CLI_Update_Step);
 #define Sys_CLI_End_Update_Sig(name) b32 name(CLI_Handles *cli)
 typedef Sys_CLI_End_Update_Sig(System_CLI_End_Update);
 
-// coroutine
-
-struct Coroutine_Head{
-    void *in;
-    void *out;
-};
-
-#define COROUTINE_SIG(n) void n(Coroutine_Head *coroutine)
-typedef COROUTINE_SIG(Coroutine_Function);
-
-#define Sys_Create_Coroutine_Sig(name) Coroutine_Head *name(Coroutine_Function *func)
-typedef Sys_Create_Coroutine_Sig(System_Create_Coroutine);
-
-#define Sys_Launch_Coroutine_Sig(name) Coroutine_Head *name(Coroutine_Head *head, void *in, void *out)
-typedef Sys_Launch_Coroutine_Sig(System_Launch_Coroutine);
-
-#define Sys_Resume_Coroutine_Sig(name) Coroutine_Head *name(Coroutine_Head *head, void *in, void *out)
-typedef Sys_Resume_Coroutine_Sig(System_Resume_Coroutine);
-
-#define Sys_Yield_Coroutine_Sig(name) void name(Coroutine_Head *head)
-typedef Sys_Yield_Coroutine_Sig(System_Yield_Coroutine);
-
 //
 
 #define Sys_Open_Color_Picker_Sig(name) void name(Color_Picker *picker)
 typedef Sys_Open_Color_Picker_Sig(System_Open_Color_Picker);
 
 // thread
-struct Thread_Context;
+typedef Plat_Handle System_Thread;
+typedef Plat_Handle System_Mutex;
+typedef Plat_Handle System_Condition_Variable;
+typedef void Thread_Function(void *ptr);
 
-enum Lock_ID{
-    FRAME_LOCK,
-    CANCEL_LOCK0,
-    CANCEL_LOCK1,
-    CANCEL_LOCK2,
-    CANCEL_LOCK3,
-    CANCEL_LOCK4,
-    CANCEL_LOCK5,
-    CANCEL_LOCK6,
-    CANCEL_LOCK7,
-    LOCK_COUNT
-};
+#define Sys_Thread_Launch_Sig(name) System_Thread name(Thread_Function *proc, void *ptr)
+typedef Sys_Thread_Launch_Sig(System_Thread_Launch);
 
-enum Thread_Group_ID{
-    BACKGROUND_THREADS,
-    THREAD_GROUP_COUNT
-};
+#define Sys_Thread_Join_Sig(name) void name(System_Thread thread)
+typedef Sys_Thread_Join_Sig(System_Thread_Join);
 
-struct Thread_Memory{
-    void *data;
-    u32 size;
-    u32 id;
-};
-global Thread_Memory null_thread_memory = {};
+#define Sys_Thread_Free_Sig(name) void name(System_Thread thread)
+typedef Sys_Thread_Free_Sig(System_Thread_Free);
 
-struct Thread_Exchange;
-struct System_Functions;
+#define Sys_Mutex_Make_Sig(name) System_Mutex name(void)
+typedef Sys_Mutex_Make_Sig(System_Mutex_Make);
 
-#define Job_Callback_Sig(name) void name(        \
-System_Functions *system,                \
-Thread_Context *thread,                  \
-Thread_Memory *memory,                   \
-void *data[4])
+#define Sys_Mutex_Acquire_Sig(name) void name(System_Mutex mutex)
+typedef Sys_Mutex_Acquire_Sig(System_Mutex_Acquire);
 
-typedef void Job_Callback(System_Functions *system, Thread_Context *thread, Thread_Memory *memory, void *data[4]);
+#define Sys_Mutex_Release_Sig(name) void name(System_Mutex mutex)
+typedef Sys_Mutex_Release_Sig(System_Mutex_Release);
 
-struct Job_Data{
-    Job_Callback *callback;
-    void *data[4];
-};
+#define Sys_Mutex_Free_Sig(name) void name(System_Mutex mutex)
+typedef Sys_Mutex_Free_Sig(System_Mutex_Free);
 
-#define QUEUE_WRAP 256
+#define Sys_Condition_Variable_Make_Sig(name) System_Condition_Variable name(void)
+typedef Sys_Condition_Variable_Make_Sig(System_Condition_Variable_Make);
 
-#define THREAD_NOT_ASSIGNED 0xFFFFFFFF
+#define Sys_Condition_Variable_Wait_Sig(name) void name(System_Condition_Variable cv, System_Mutex mutex)
+typedef Sys_Condition_Variable_Wait_Sig(System_Condition_Variable_Wait);
 
-#define Sys_Post_Job_Sig(name) u32 name(Thread_Group_ID group_id, Job_Data job)
-typedef Sys_Post_Job_Sig(System_Post_Job);
+#define Sys_Condition_Variable_Signal_Sig(name) void name(System_Condition_Variable cv)
+typedef Sys_Condition_Variable_Signal_Sig(System_Condition_Variable_Signal);
 
-#define Sys_Cancel_Job_Sig(name) void name(Thread_Group_ID group_id, u32 job_id)
-typedef Sys_Cancel_Job_Sig(System_Cancel_Job);
-
-#define Sys_Check_Cancel_Sig(name) b32 name(Thread_Context *thread)
-typedef Sys_Check_Cancel_Sig(System_Check_Cancel);
-
-#define Sys_Grow_Thread_Memory_Sig(name) void name(Thread_Memory *memory)
-typedef Sys_Grow_Thread_Memory_Sig(System_Grow_Thread_Memory);
-
-#define Sys_Acquire_Lock_Sig(name) void name(i32 id)
-typedef Sys_Acquire_Lock_Sig(System_Acquire_Lock);
-
-#define Sys_Release_Lock_Sig(name) void name(i32 id)
-typedef Sys_Release_Lock_Sig(System_Release_Lock);
+#define Sys_Condition_Variable_Free_Sig(name) void name(System_Condition_Variable cv)
+typedef Sys_Condition_Variable_Free_Sig(System_Condition_Variable_Free);
 
 // memory
 #define Sys_Memory_Allocate_Sig(name) void* name(umem size)
@@ -223,12 +164,9 @@ struct System_Functions{
     Graphics_Get_Texture_Function *get_texture;
     Graphics_Fill_Texture_Function *fill_texture;
     
-    // files (tracked api): 11
+    // files
     System_Get_Canonical         *get_canonical;
     System_Get_File_List         *get_file_list;
-    System_Add_Listener          *add_listener;  
-    System_Remove_Listener       *remove_listener;
-    System_Get_File_Change       *get_file_change;
     System_Quick_File_Attributes *quick_file_attributes;
     System_Load_Handle           *load_handle;
     System_Load_Attributes       *load_attributes;
@@ -236,39 +174,38 @@ struct System_Functions{
     System_Load_Close            *load_close;
     System_Save_File             *save_file;
     
-    // time: 4
+    // time
     System_Now_Time *now_time;
     System_Wake_Up_Timer_Create *wake_up_timer_create;
     System_Wake_Up_Timer_Release *wake_up_timer_release;
     System_Wake_Up_Timer_Set *wake_up_timer_set;
     
-    // clipboard: 1
+    // clipboard
     System_Post_Clipboard *post_clipboard;
     
-    // coroutine: 4
-    System_Create_Coroutine *create_coroutine;
-    System_Launch_Coroutine *launch_coroutine;
-    System_Resume_Coroutine *resume_coroutine;
-    System_Yield_Coroutine  *yield_coroutine;
-    
-    // cli: 4
+    // cli
     System_CLI_Call         *cli_call;
     System_CLI_Begin_Update *cli_begin_update;
     System_CLI_Update_Step  *cli_update_step;
     System_CLI_End_Update   *cli_end_update;
     
     // TODO(allen): 
-    System_Open_Color_Picker      *open_color_picker;
+    System_Open_Color_Picker *open_color_picker;
     
-    // threads: 6
-    System_Post_Job           *post_job;
-    System_Cancel_Job         *cancel_job;
-    System_Check_Cancel       *check_cancel;
-    System_Grow_Thread_Memory *grow_thread_memory;
-    System_Acquire_Lock       *acquire_lock;
-    System_Release_Lock       *release_lock;
+    // threads
+    System_Thread_Launch *thread_launch;
+    System_Thread_Join *thread_join;
+    System_Thread_Free *thread_free;
+    System_Mutex_Make *mutex_make;
+    System_Mutex_Acquire *mutex_acquire;
+    System_Mutex_Release *mutex_release;
+    System_Mutex_Free *mutex_free;
+    System_Condition_Variable_Make *condition_variable_make;
+    System_Condition_Variable_Wait *condition_variable_wait;
+    System_Condition_Variable_Signal *condition_variable_signal;
+    System_Condition_Variable_Free *condition_variable_free;
     
-    // custom: 9
+    // custom
     System_Memory_Allocate        *memory_allocate;
     System_Memory_Set_Protection  *memory_set_protection;
     System_Memory_Free            *memory_free;

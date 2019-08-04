@@ -71,9 +71,6 @@ win32_output_error_string(i32 error_string_type);
 
 #include "4ed_system_shared.h"
 
-#include "4ed_shared_thread_constants.h"
-#include "win32_threading_wrapper.h"
-
 #define WM_4coder_ANIMATE (WM_USER + 0)
 
 struct Control_Keys{
@@ -119,7 +116,6 @@ global System_Functions sysfunc;
 #include "win32_library_wrapper.h"
 
 #include "4ed_standard_libraries.cpp"
-#include "4ed_coroutine.cpp"
 #include "4ed_font_face.cpp"
 
 #include "4ed_mem.cpp"
@@ -134,16 +130,25 @@ typedef i32 Win32_Object_Kind;
 enum{
     Win32ObjectKind_ERROR = 0,
     Win32ObjectKind_Timer = 1,
+    Win32ObjectKind_Thread = 2,
+    Win32ObjectKind_Mutex = 3,
+    Win32ObjectKind_CV = 4,
 };
 
 struct Win32_Object{
     Node node;
     Win32_Object_Kind kind;
     union{
-        // NOTE(allen): Timer object
         struct{
             UINT_PTR id;
         } timer;
+        struct{
+            HANDLE thread;
+            Thread_Function *proc;
+            void *ptr;
+        } thread;
+        CRITICAL_SECTION mutex;
+        CONDITION_VARIABLE cv;
     };
 };
 
@@ -187,6 +192,10 @@ struct Win32_Vars{
     Node timer_objects;
     UINT_PTR timer_counter;
     
+    CRITICAL_SECTION thread_launch_mutex;
+    CONDITION_VARIABLE thread_launch_cv;
+    b32 waiting_for_launch;
+    
     u32 log_position;
 };
 
@@ -200,8 +209,6 @@ global Plat_Settings plat_settings;
 global Libraries libraries;
 global App_Functions app;
 global Custom_API custom_api;
-
-global Coroutine_System_Auto_Alloc coroutines;
 
 ////////////////////////////////
 
@@ -269,10 +276,6 @@ system_schedule_step(){
 
 ////////////////////////////////
 
-#include "4ed_work_queues.cpp"
-
-////////////////////////////////
-
 internal void
 win32_toggle_fullscreen(){
     HWND win = win32vars.window_handle;
@@ -324,654 +327,7 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
     return(result);
 }
 
-#include "4ed_coroutine_functions.cpp"
-
 #include "4ed_system_shared.cpp"
-
-//
-// File Change Listener
-//
-
-union Directory_Track_Node{
-    struct{
-        Directory_Track_Node *next;
-        Directory_Track_Node *prev;
-    };
-    struct{
-        OVERLAPPED overlapped;
-        HANDLE dir_handle;
-        char buffer[(32 << 10) + 12];
-        String_Const_u8 dir_name;
-        i32 ref_count;
-    };
-};
-
-union File_Track_Node{
-    struct{
-        File_Track_Node *next;
-        File_Track_Node *prev;
-    };
-    struct{
-        String_Const_u8 file_name;
-        i32 ref_count;
-        Directory_Track_Node *parent_dir;
-    };
-};
-#if !defined(CString_Key_Reference_GAURD)
-#define CString_Key_Reference_GAURD
-struct CString_Key_Reference{
-    char*key;
-    i32 size;
-};
-#endif
-struct CString_Ptr_Lookup_Result{
-    b32 success;
-    void **val;
-};
-struct CString_Ptr_Table{
-    void *mem;
-    u64 *hashes;
-    CString_Key_Reference*keys;
-    void **vals;
-    i32 count;
-    i32 dirty_slot_count;
-    i32 max;
-};
-
-typedef i32 File_Track_Instruction;
-enum{
-    FileTrackInstruction_None,
-    FileTrackInstruction_BeginTracking,
-    FileTrackInstruction_Cancel,
-};
-
-union File_Track_Instruction_Node{
-    struct{
-        File_Track_Instruction instruction;
-        Directory_Track_Node *dir_node;
-    };
-    struct{
-        File_Track_Instruction_Node *next;
-        File_Track_Instruction_Node *prev;
-    };
-};
-
-struct File_Track_Note_Node{
-    File_Track_Note_Node *next;
-    File_Track_Note_Node *prev;
-    String_Const_u8 file_name;
-};
-
-Heap file_track_heap = {};
-Arena file_track_scratch = {};
-
-CString_Ptr_Table file_track_dir_table = {};
-Directory_Track_Node *file_track_dir_free_first = 0;
-Directory_Track_Node *file_track_dir_free_last = 0;
-CString_Ptr_Table file_track_table = {};
-File_Track_Node *file_track_free_first = 0;
-File_Track_Node *file_track_free_last = 0;
-File_Track_Instruction_Node *file_track_ins_free_first = 0;
-File_Track_Instruction_Node *file_track_ins_free_last = 0;
-File_Track_Note_Node *file_track_note_first = 0;
-File_Track_Note_Node *file_track_note_last = 0;
-File_Track_Note_Node *file_track_note_free_first = 0;
-File_Track_Note_Node *file_track_note_free_last = 0;
-
-CRITICAL_SECTION file_track_critical_section;
-HANDLE file_track_iocp;
-HANDLE file_track_thread;
-
-global_const u32 file_track_flags = 0
-|FILE_NOTIFY_CHANGE_FILE_NAME
-|FILE_NOTIFY_CHANGE_DIR_NAME
-|FILE_NOTIFY_CHANGE_ATTRIBUTES
-|FILE_NOTIFY_CHANGE_SIZE
-|FILE_NOTIFY_CHANGE_LAST_WRITE
-|FILE_NOTIFY_CHANGE_CREATION
-|FILE_NOTIFY_CHANGE_SECURITY
-;
-
-////////////////////////////////
-
-internal CString_Ptr_Table
-make_CString_Ptr_table(void *mem, umem size){
-    CString_Ptr_Table table = {};
-    i32 max = (i32)(size/32ULL);
-    if (max > 0){
-        table.mem = mem;
-        u8 *cursor = (u8*)mem;
-        table.hashes = (u64*)cursor;
-        cursor += 8*max;
-        table.keys = (CString_Key_Reference*)cursor;
-        cursor += 16*max;
-        table.vals = (void **)cursor;
-        table.count = 0;
-        table.max = max;
-        block_fill_ones(table.hashes, sizeof(*table.hashes)*max);
-    }
-    return(table);
-}
-
-internal i32
-max_to_memsize_CString_Ptr_table(i32 max){
-    return(max*32ULL);
-}
-
-internal b32
-at_max_CString_Ptr_table(CString_Ptr_Table *table){
-    if (table->max > 0 && (table->count + 1)*8 <= table->max*7){
-        return(false);
-    }
-    return(true);
-}
-
-internal b32
-insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size, void **val){
-    i32 max = table->max;
-    if (max > 0){
-        i32 count = table->count;
-        if ((count + 1)*8 <= max*7){
-            u64 hash = table_hash_u8((u8*)key, key_size);
-            if (hash >= 18446744073709551614ULL){ hash += 2; }
-            i32 first_index = hash%max;
-            i32 index = first_index;
-            u64 *hashes = table->hashes;
-            for (;;){
-                if (hashes[index] == 18446744073709551615ULL){
-                    table->dirty_slot_count += 1;
-                }
-                if (hashes[index] == 18446744073709551615ULL || hashes[index] == 18446744073709551614ULL){
-                    hashes[index] = hash;
-                    CString_Key_Reference new_key = {key, key_size};
-                    table->keys[index] = new_key;
-                    table->vals[index] = *val;
-                    table->count += 1;
-                    return(true);
-                }
-                if (hashes[index] == hash) return(false);
-                index = (index + 1)%max;
-                if (index == first_index) return(false);
-            }
-        }
-    }
-    return(false);
-}
-
-internal CString_Ptr_Lookup_Result
-lookup_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size){
-    CString_Ptr_Lookup_Result result = {};
-    i32 max = table->max;
-    if (max > 0){
-        u64 hash = table_hash_u8((u8*)key, key_size);
-        if (hash >= 18446744073709551614ULL){ hash += 2; }
-        i32 first_index = hash%max;
-        i32 index = first_index;
-        u64 *hashes = table->hashes;
-        for (;;){
-            if (hashes[index] == 18446744073709551615ULL) break;
-            if (hashes[index] == hash){
-                CString_Key_Reference *key_check = &table->keys[index];
-                b32 key_match = (key_size == key_check->size && block_compare(key, key_check->key, key_size*sizeof(*key)) == 0);
-                if (key_match){
-                    result.success = true;
-                    result.val = &table->vals[index];
-                    return(result);
-                }
-            }
-            index = (index + 1)%max;
-            if (index == first_index) break;
-        }
-    }
-    return(result);
-}
-
-internal b32
-erase_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size){
-    i32 max = table->max;
-    if (max > 0 && table->count > 0){
-        u64 hash = table_hash_u8((u8*)key, key_size);
-        if (hash >= 18446744073709551614ULL){ hash += 2; }
-        i32 first_index = hash%max;
-        i32 index = first_index;
-        u64 *hashes = table->hashes;
-        for (;;){
-            if (hashes[index] == 18446744073709551615ULL) break;
-            if (hashes[index] == hash){
-                CString_Key_Reference *key_check = &table->keys[index];
-                b32 key_match = (key_size == key_check->size && block_compare(key, key_check->key, key_size*sizeof(*key)) == 0);
-                if (key_match){
-                    hashes[index] = 18446744073709551614ULL;
-                    table->count -= 1;
-                    return(true);
-                }
-            }
-            index = (index + 1)%max;
-            if (index == first_index) break;
-        }
-    }
-    return(false);
-}
-
-internal b32
-move_CString_Ptr_table(CString_Ptr_Table *dst_table, CString_Ptr_Table *src_table){
-    if ((src_table->count + dst_table->count)*8 <= dst_table->max*7){
-        i32 max = src_table->max;
-        u64 *hashes = src_table->hashes;
-        for (i32 index = 0; index < max; index += 1){
-            if (hashes[index] != 18446744073709551615ULL && hashes[index] != 18446744073709551614ULL){
-                char*key = src_table->keys[index].key;
-                i32 key_size = src_table->keys[index].size;
-                void **val = &src_table->vals[index];
-                insert_CString_Ptr_table(dst_table, key, key_size, val);
-            }
-        }
-        return(true);
-    }
-    return(false);
-}
-
-internal b32
-lookup_CString_Ptr_table(CString_Ptr_Table *table, char *key, i32 key_size, void * *val_out){
-    CString_Ptr_Lookup_Result result = lookup_CString_Ptr_table(table, key, key_size);
-    if (result.success){
-        *val_out = *result.val;
-    }
-    return(result.success);
-}
-
-internal b32
-insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size, void * val){
-    return(insert_CString_Ptr_table(table, key, key_size, &val));
-}
-
-internal b32
-alloc_insert_CString_Ptr_table(CString_Ptr_Table *table, char*key, i32 key_size, void *val){
-    if (at_max_CString_Ptr_table(table)){
-        i32 new_max = (table->max + 1)*2;
-        i32 new_size = max_to_memsize_CString_Ptr_table(new_max);
-        void *new_mem = system_memory_allocate(new_size);
-        CString_Ptr_Table new_table = make_CString_Ptr_table(new_mem, new_size);
-        if (table->mem != 0){
-            i32 old_size = max_to_memsize_CString_Ptr_table(table->max);
-            system_memory_free(table->mem, old_size);
-        }
-        *table = new_table;
-    }
-    return(insert_CString_Ptr_table(table, key, key_size, val));
-}
-
-////////////////////////////////
-
-internal String_Const_u8
-file_track_store_string_copy(String_Const_u8 string){
-    i32 alloc_size = (i32)string.size + 1;
-    alloc_size = round_up_i32(alloc_size, 16);
-    char *buffer = (char*)heap_allocate(&file_track_heap, alloc_size);
-    if (buffer == 0){
-        i32 size = MB(1);
-        void *new_block = system_memory_allocate(size);
-        heap_extend(&file_track_heap, new_block, size);
-        buffer = (char*)heap_allocate(&file_track_heap, alloc_size);
-    }
-    Assert(buffer != 0);
-    memcpy(buffer, string.str, string.size);
-    buffer[string.size] = 0;
-    return(SCu8(buffer, string.size));
-}
-
-internal void
-file_track_free_string(String_Const_u8 string){
-    Assert(string.str != 0);
-    heap_free(&file_track_heap, string.str);
-}
-
-internal Directory_Track_Node*
-file_track_store_new_dir_node(String_Const_u8 dir_name_string, HANDLE dir_handle){
-    if (file_track_dir_free_first == 0){
-        u32 size = MB(1);
-        void *new_block = system_memory_allocate(size);
-        u32 count = size/sizeof(Directory_Track_Node);
-        Directory_Track_Node *nodes = (Directory_Track_Node*)new_block;
-        Directory_Track_Node *node = nodes;
-        node->next = node + 1;
-        node->prev = 0;
-        node += 1;
-        for (u32 i = 1; i < count - 1; i += 1, node += 1){
-            node->next = node + 1;
-            node->prev = node - 1;
-        }
-        node->next = 0;
-        node->prev = node - 1;
-        file_track_dir_free_first = nodes;
-        file_track_dir_free_last = node;
-    }
-    Directory_Track_Node *new_node = file_track_dir_free_first;
-    zdll_remove(file_track_dir_free_first, file_track_dir_free_last, new_node);
-    alloc_insert_CString_Ptr_table(&file_track_dir_table, (char*)dir_name_string.str, (i32)dir_name_string.size, new_node);
-    memset(&new_node->overlapped, 0, sizeof(new_node->overlapped));
-    new_node->dir_handle = dir_handle;
-    new_node->dir_name = file_track_store_string_copy(dir_name_string);
-    new_node->ref_count = 0;
-    return(new_node);
-}
-
-internal void
-file_track_free_dir_node(Directory_Track_Node *node){
-    erase_CString_Ptr_table(&file_track_dir_table, (char*)node->dir_name.str, (i32)node->dir_name.size);
-    file_track_free_string(node->dir_name);
-    memset(&node->dir_name, 0, sizeof(node->dir_name));
-    zdll_push_back(file_track_dir_free_first, file_track_dir_free_last, node);
-}
-
-internal File_Track_Node*
-file_track_store_new_file_node(String_Const_u8 file_name_string, Directory_Track_Node *existing_dir_node){
-    if (file_track_free_first == 0){
-        u32 size = KB(16);
-        void *new_block = system_memory_allocate(size);
-        u32 count = size/sizeof(File_Track_Node);
-        File_Track_Node *nodes = (File_Track_Node*)new_block;
-        File_Track_Node *node = nodes;
-        node->next = node + 1;
-        node->prev = 0;
-        node += 1;
-        for (u32 i = 1; i < count - 1; i += 1, node += 1){
-            node->next = node + 1;
-            node->prev = node - 1;
-        }
-        node->next = 0;
-        node->prev = node - 1;
-        file_track_free_first = nodes;
-        file_track_free_last = node;
-    }
-    File_Track_Node *new_node = file_track_free_first;
-    zdll_remove(file_track_free_first, file_track_free_last, new_node);
-    alloc_insert_CString_Ptr_table(&file_track_table, (char*)file_name_string.str, (i32)file_name_string.size, new_node);
-    new_node->file_name = file_track_store_string_copy(file_name_string);
-    new_node->ref_count = 1;
-    new_node->parent_dir = existing_dir_node;
-    existing_dir_node->ref_count += 1;
-    return(new_node);
-}
-
-internal void
-file_track_free_file_node(File_Track_Node *node){
-    erase_CString_Ptr_table(&file_track_table, (char*)node->file_name.str, (i32)node->file_name.size);
-    file_track_free_string(node->file_name);
-    memset(&node->file_name, 0, sizeof(node->file_name));
-    zdll_push_back(file_track_free_first, file_track_free_last, node);
-}
-
-internal File_Track_Note_Node*
-file_track_store_new_note_node(String_Const_u8 file_name){
-    if (file_track_note_free_first == 0){
-        u32 size = KB(16);
-        void *new_block = system_memory_allocate(size);
-        u32 count = size/sizeof(File_Track_Note_Node);
-        File_Track_Note_Node *nodes = (File_Track_Note_Node*)new_block;
-        File_Track_Note_Node *node = nodes;
-        node->next = node + 1;
-        node->prev = 0;
-        node += 1;
-        for (u32 i = 1; i < count - 1; i += 1, node += 1){
-            node->next = node + 1;
-            node->prev = node - 1;
-        }
-        node->next = 0;
-        node->prev = node - 1;
-        file_track_note_free_first = nodes;
-        file_track_note_free_last = node;
-    }
-    File_Track_Note_Node *new_node = file_track_note_free_first;
-    zdll_remove(file_track_note_free_first, file_track_note_free_last, new_node);
-    zdll_push_back(file_track_note_first, file_track_note_last, new_node);
-    new_node->file_name = file_track_store_string_copy(file_name);
-    return(new_node);
-}
-
-internal void
-file_track_free_note_node(File_Track_Note_Node *node){
-    file_track_free_string(node->file_name);
-    memset(&node->file_name, 0, sizeof(node->file_name));
-    zdll_remove(file_track_note_first, file_track_note_last, node);
-    zdll_push_back(file_track_note_free_first, file_track_note_free_last, node);
-}
-
-internal File_Track_Instruction_Node*
-file_track_new_instruction_node(){
-    if (file_track_ins_free_first == 0){
-        u32 size = KB(16);
-        void *new_block = system_memory_allocate(size);
-        u32 count = size/sizeof(File_Track_Instruction_Node);
-        File_Track_Instruction_Node *nodes = (File_Track_Instruction_Node*)new_block;
-        File_Track_Instruction_Node *node = nodes;
-        node->next = node + 1;
-        node->prev = 0;
-        node += 1;
-        for (u32 i = 1; i < count - 1; i += 1, node += 1){
-            node->next = node + 1;
-            node->prev = node - 1;
-        }
-        node->next = 0;
-        node->prev = node - 1;
-        file_track_ins_free_first = nodes;
-        file_track_ins_free_last = node;
-    }
-    File_Track_Instruction_Node *new_node = file_track_ins_free_first;
-    zdll_remove(file_track_ins_free_first, file_track_ins_free_last, new_node);
-    return(new_node);
-}
-
-internal void
-file_track_free_instruction_node(File_Track_Instruction_Node *node){
-    zdll_push_back(file_track_ins_free_first, file_track_ins_free_last, node);
-}
-
-internal Directory_Track_Node*
-file_track_dir_lookup(String_Const_u8 dir_name_string){
-    void *ptr = 0;
-    lookup_CString_Ptr_table(&file_track_dir_table, (char*)dir_name_string.str, (i32)dir_name_string.size, &ptr);
-    return((Directory_Track_Node*)ptr);
-}
-
-internal File_Track_Node*
-file_track_file_lookup(String_Const_u8 file_name_string){
-    void *ptr = 0;
-    lookup_CString_Ptr_table(&file_track_table, (char*)file_name_string.str, (i32)file_name_string.size, &ptr);
-    return((File_Track_Node*)ptr);
-}
-
-internal DWORD CALL_CONVENTION
-file_track_worker(void*){
-    for (;;){
-        DWORD number_of_bytes = 0;
-        ULONG_PTR key = 0;
-        OVERLAPPED *overlapped = 0;
-        if (GetQueuedCompletionStatus(file_track_iocp, &number_of_bytes, &key, &overlapped, INFINITE)){
-            EnterCriticalSection(&file_track_critical_section);
-            if (number_of_bytes == 0 && key == 0){
-                File_Track_Instruction_Node *instruction = (File_Track_Instruction_Node*)overlapped;
-                switch (instruction->instruction){
-                    case FileTrackInstruction_None:
-                    {}break;
-                    case FileTrackInstruction_BeginTracking:
-                    {
-                        Directory_Track_Node *dir_node = instruction->dir_node;
-                        CreateIoCompletionPort(dir_node->dir_handle, file_track_iocp, (ULONG_PTR)&dir_node->overlapped, 1);
-                        ReadDirectoryChangesW(dir_node->dir_handle, dir_node->buffer, sizeof(dir_node->buffer), FALSE,
-                                              file_track_flags, 0, &dir_node->overlapped, 0);
-                    }break;
-                    case FileTrackInstruction_Cancel:
-                    {
-                        Directory_Track_Node *dir_node = instruction->dir_node;
-                        CancelIo(dir_node->dir_handle);
-                        CloseHandle(dir_node->dir_handle);
-                        file_track_free_dir_node(dir_node);
-                    }break;
-                }
-                file_track_free_instruction_node(instruction);
-            }
-            else if (number_of_bytes != 0 && key != 0){
-                Directory_Track_Node *dir_node = (Directory_Track_Node*)overlapped;
-                Directory_Track_Node node_copy = *dir_node;
-                memset(&dir_node->overlapped, 0, sizeof(dir_node->overlapped));
-                ReadDirectoryChangesW(dir_node->dir_handle, dir_node->buffer, sizeof(dir_node->buffer), FALSE,
-                                      file_track_flags, 0, &dir_node->overlapped, 0);
-                
-                FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)node_copy.buffer;
-                
-                i32 len = info->FileNameLength/2;
-                i32 dir_len = GetFinalPathNameByHandle_utf8(&file_track_scratch, dir_node->dir_handle, 0, 0, FILE_NAME_NORMALIZED);
-                
-                i32 req_size = dir_len + (len + 1)*2 + 4;
-                
-                Temp_Memory temp = begin_temp(&file_track_scratch);
-                u8 *buffer = push_array(&file_track_scratch, u8, req_size);
-                
-                if (buffer != 0){
-                    u32 path_pos = GetFinalPathNameByHandle_utf8(&file_track_scratch, dir_node->dir_handle, buffer, req_size, FILE_NAME_NORMALIZED);
-                    buffer[path_pos] = '\\';
-                    path_pos += 1;
-                    
-                    u32 name_max = req_size - path_pos;
-                    u8 *name_buffer = buffer + path_pos;
-                    
-                    b32 convert_error = false;
-                    u32 name_pos = (u32)utf16_to_utf8_minimal_checking(name_buffer, name_max, (u16*)info->FileName, len, &convert_error);
-                    if (name_pos < name_max && !convert_error){
-                        u32 pos = path_pos + name_pos;
-                        if (buffer[0] == '\\'){
-                            for (u32 i = 0; i + 4 < pos; i += 1){
-                                buffer[i] = buffer[i + 4];
-                            }
-                            pos -= 4;
-                        }
-                        String_Const_u8 file_name = SCu8(buffer, pos);
-                        file_track_store_new_note_node(file_name);
-                        
-                        system_schedule_step();
-                    }
-                }
-                
-                end_temp(temp);
-            }
-            LeaveCriticalSection(&file_track_critical_section);
-        }
-    }
-}
-
-internal void
-file_track_init(){
-    heap_init(&file_track_heap);
-    file_track_scratch = make_arena_system(&sysfunc);
-    InitializeCriticalSection(&file_track_critical_section);
-    file_track_iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
-    file_track_thread = CreateThread(0, 0, file_track_worker, 0, 0, 0);
-}
-
-internal
-Sys_Add_Listener_Sig(system_add_listener){
-    b32 added_new_listener = false;
-    
-    EnterCriticalSection(&file_track_critical_section);
-    
-    String_Const_u8 file_name_string = SCu8(filename);
-    File_Track_Node *existing_file_node = file_track_file_lookup(file_name_string);
-    
-    if (existing_file_node != 0){
-        existing_file_node->ref_count += 1;
-        added_new_listener = true;
-    }
-    else{
-        String_Const_u8 dir_name_string = string_remove_last_folder(file_name_string);
-        Directory_Track_Node *existing_dir_node = file_track_dir_lookup(dir_name_string);
-        
-        if (existing_dir_node == 0){
-            Temp_Memory temp = begin_temp(&file_track_scratch);
-            String_Const_u8 dir_name_string_terminated = push_string_copy(&file_track_scratch, dir_name_string);
-            HANDLE dir_handle = CreateFile_utf8(&file_track_scratch, (u8*)dir_name_string_terminated.str,
-                                                FILE_LIST_DIRECTORY,
-                                                FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE, 0,
-                                                OPEN_EXISTING,
-                                                FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED, 0);
-            
-            if (dir_handle != 0 && dir_handle != INVALID_HANDLE_VALUE){
-                Directory_Track_Node *new_node = file_track_store_new_dir_node(dir_name_string, dir_handle);
-                File_Track_Instruction_Node *instruction_node = file_track_new_instruction_node();
-                instruction_node->instruction = FileTrackInstruction_BeginTracking;
-                instruction_node->dir_node = new_node;
-                PostQueuedCompletionStatus(file_track_iocp, 0, 0, (LPOVERLAPPED)instruction_node);
-                existing_dir_node = new_node;
-            }
-            
-            end_temp(temp);
-        }
-        
-        if (existing_dir_node != 0){
-            file_track_store_new_file_node(file_name_string, existing_dir_node);
-            added_new_listener = true;
-        }
-    }
-    
-    LeaveCriticalSection(&file_track_critical_section);
-    
-    return(added_new_listener);
-}
-
-internal
-Sys_Remove_Listener_Sig(system_remove_listener){
-    b32 removed_listener = false;
-    
-    EnterCriticalSection(&file_track_critical_section);
-    
-    String_Const_u8 file_name_string = SCu8(filename);
-    File_Track_Node *existing_file_node = file_track_file_lookup(file_name_string);
-    
-    if (existing_file_node != 0){
-        existing_file_node->ref_count -= 1;
-        if (existing_file_node->ref_count == 0){
-            Directory_Track_Node *existing_dir_node = existing_file_node->parent_dir;
-            existing_dir_node->ref_count -= 1;
-            if (existing_dir_node->ref_count == 0){
-                File_Track_Instruction_Node *instruction_node = file_track_new_instruction_node();
-                instruction_node->instruction = FileTrackInstruction_Cancel;
-                instruction_node->dir_node = existing_dir_node;
-                PostQueuedCompletionStatus(file_track_iocp, 0, 0, (LPOVERLAPPED)instruction_node);
-            }
-            file_track_free_file_node(existing_file_node);
-        }
-        removed_listener = true;
-    }
-    
-    LeaveCriticalSection(&file_track_critical_section);
-    
-    return(removed_listener);
-}
-
-internal
-Sys_Get_File_Change_Sig(system_get_file_change){
-    b32 has_or_got_a_change = false;
-    
-    EnterCriticalSection(&file_track_critical_section);
-    
-    if (file_track_note_first != 0){
-        has_or_got_a_change = true;
-        File_Track_Note_Node *node = file_track_note_first;
-        *required_size = (i32)node->file_name.size + 1;
-        if (node->file_name.size < max){
-            memcpy(buffer, node->file_name.str, node->file_name.size);
-            buffer[node->file_name.size] = 0;
-            file_track_free_note_node(node);
-        }
-        else{
-            *mem_too_small = true;
-        }
-    }
-    
-    LeaveCriticalSection(&file_track_critical_section);
-    
-    return(has_or_got_a_change);
-}
 
 //
 // Clipboard
@@ -1468,7 +824,7 @@ Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
 }
 
 internal Win32_Object*
-win32_alloc_object(void){
+win32_alloc_object(Win32_Object_Kind kind){
     Win32_Object *result = 0;
     if (win32vars.free_win32_objects.next != &win32vars.free_win32_objects){
         result = CastFromMember(Win32_Object, node, win32vars.free_win32_objects.next);
@@ -1488,6 +844,8 @@ win32_alloc_object(void){
     }
     Assert(result != 0);
     dll_remove(&result->node);
+    block_zero_struct(result);
+    result->kind = kind;
     return(result);
 }
 
@@ -1498,6 +856,8 @@ win32_free_object(Win32_Object *object){
     }
     dll_insert(&win32vars.free_win32_objects, &object->node);
 }
+
+////////////////////////////////
 
 internal
 Sys_Now_Time_Sig(system_now_time){
@@ -1511,10 +871,8 @@ Sys_Now_Time_Sig(system_now_time){
 
 internal
 Sys_Wake_Up_Timer_Create_Sig(system_wake_up_timer_create){
-    Win32_Object *object = win32_alloc_object();
-    block_zero_struct(object);
+    Win32_Object *object = win32_alloc_object(Win32ObjectKind_Timer);
     dll_insert(&win32vars.timer_objects, &object->node);
-    object->kind = Win32ObjectKind_Timer;
     object->timer.id = ++win32vars.timer_counter;
     return(handle_type(object));
 }
@@ -1535,6 +893,118 @@ Sys_Wake_Up_Timer_Set_Sig(system_wake_up_timer_set){
         object->timer.id = SetTimer(win32vars.window_handle, object->timer.id, time_milliseconds, 0);
     }
 }
+
+////////////////////////////////
+
+internal DWORD
+win32_thread_wrapper(void *ptr){
+    Win32_Object *object = (Win32_Object*)ptr;
+    Thread_Function *proc = object->thread.proc;
+    void *object_ptr = object->thread.ptr;
+    win32vars.waiting_for_launch = false;
+    WakeConditionVariable(&win32vars.thread_launch_cv);
+    proc(object_ptr);
+    return(0);
+}
+
+internal
+Sys_Thread_Launch_Sig(system_thread_launch){
+    Win32_Object *object = win32_alloc_object(Win32ObjectKind_Thread);
+    object->thread.proc = proc;
+    object->thread.ptr = ptr;
+    EnterCriticalSection(&win32vars.thread_launch_mutex);
+    win32vars.waiting_for_launch = true;
+    object->thread.thread = CreateThread(0, 0, win32_thread_wrapper, object, 0, 0);
+    for (;win32vars.waiting_for_launch;){
+        SleepConditionVariableCS(&win32vars.thread_launch_cv, &win32vars.thread_launch_mutex, INFINITE);
+    }
+    LeaveCriticalSection(&win32vars.thread_launch_mutex);
+    return(handle_type(object));
+}
+
+internal
+Sys_Thread_Join_Sig(system_thread_join){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(thread);
+    if (object->kind == Win32ObjectKind_Thread){
+        WaitForSingleObject(object->thread.thread, INFINITE);
+    }
+}
+
+internal
+Sys_Thread_Free_Sig(system_thread_free){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(thread);
+    if (object->kind == Win32ObjectKind_Thread){
+        CloseHandle(object->thread.thread);
+        win32_free_object(object);
+    }
+}
+
+internal
+Sys_Mutex_Make_Sig(system_mutex_make){
+    Win32_Object *object = win32_alloc_object(Win32ObjectKind_Mutex);
+    InitializeCriticalSection(&object->mutex);
+    return(handle_type(object));
+}
+
+internal
+Sys_Mutex_Acquire_Sig(system_mutex_acquire){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(mutex);
+    if (object->kind == Win32ObjectKind_Mutex){
+        EnterCriticalSection(&object->mutex);
+    }
+}
+
+internal
+Sys_Mutex_Release_Sig(system_mutex_release){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(mutex);
+    if (object->kind == Win32ObjectKind_Mutex){
+        LeaveCriticalSection(&object->mutex);
+    }
+}
+
+internal
+Sys_Mutex_Free_Sig(system_mutex_free){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(mutex);
+    if (object->kind == Win32ObjectKind_Mutex){
+        DeleteCriticalSection(&object->mutex);
+        win32_free_object(object);
+    }
+}
+
+internal
+Sys_Condition_Variable_Make_Sig(system_condition_variable_make){
+    Win32_Object *object = win32_alloc_object(Win32ObjectKind_CV);
+    InitializeConditionVariable(&object->cv);
+    return(handle_type(object));
+}
+
+internal
+Sys_Condition_Variable_Wait_Sig(system_condition_variable_wait){
+    Win32_Object *object_cv = (Win32_Object*)handle_type_ptr(cv);
+    Win32_Object *object_mutex = (Win32_Object*)handle_type_ptr(mutex);
+    if (object_cv->kind == Win32ObjectKind_CV &&
+        object_mutex->kind == Win32ObjectKind_Mutex){
+        SleepConditionVariableCS(&object_cv->cv, &object_mutex->mutex, INFINITE);
+    }
+}
+
+internal
+Sys_Condition_Variable_Signal_Sig(system_condition_variable_signal){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(cv);
+    if (object->kind == Win32ObjectKind_CV){
+        WakeConditionVariable(&object->cv);
+    }
+}
+
+internal
+Sys_Condition_Variable_Free_Sig(system_condition_variable_free){
+    Win32_Object *object = (Win32_Object*)handle_type_ptr(cv);
+    if (object->kind == Win32ObjectKind_CV){
+        win32_free_object(object);
+    }
+}
+
+////////////////////////////////
 
 internal LRESULT
 win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
@@ -2065,17 +1535,15 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     dll_init_sentinel(&win32vars.free_win32_objects);
     dll_init_sentinel(&win32vars.timer_objects);
     
+    InitializeCriticalSection(&win32vars.thread_launch_mutex);
+    InitializeConditionVariable(&win32vars.thread_launch_cv);
+    
     //
     // HACK(allen):
     // Previously zipped stuff is here, it should be zipped in the new pattern now.
     //
     
     init_shared_vars();
-    
-    //
-    // Init Filetrack
-    //
-    file_track_init();
     
     //
     // Load Core Code
@@ -2096,18 +1564,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 #else
     custom_api.get_bindings = get_bindings;
 #endif
-    
-    //
-    // Threads
-    //
-    
-    work_system_init();
-    
-    //
-    // Coroutines
-    //
-    
-    coroutines_init();
     
     //
     // Window and GL Initialization
@@ -2131,54 +1587,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
-    
-#if 0    
-    WNDCLASS window_class = {};
-    window_class.style = CS_HREDRAW|CS_VREDRAW;
-    window_class.lpfnWndProc = (WNDPROC)(win32_proc);
-    window_class.hInstance = hInstance;
-    window_class.lpszClassName = L"4coder-win32-wndclass";
-    window_class.hIcon = LoadIcon(hInstance, L"main");
-    
-    if (!RegisterClass(&window_class)){
-        exit(1);
-    }
-    
-    i32 window_x = CW_USEDEFAULT;
-    i32 window_y = CW_USEDEFAULT;
-    
-    if (plat_settings.set_window_pos){
-        window_x = plat_settings.window_x;
-        window_y = plat_settings.window_y;
-        //LOGF("Setting window position (%d, %d)\n", window_x, window_y);
-    }
-    
-    //LOG("Creating window... ");
-    win32vars.window_handle = CreateWindowEx(0, window_class.lpszClassName, L_WINDOW_NAME, window_style, window_x, window_y, window_rect.right - window_rect.left, window_rect.bottom - window_rect.top, 0, 0, hInstance, 0);
-    
-    if (win32vars.window_handle == 0){
-        //LOG("Failed\n");
-        exit(1);
-    }
-    else{
-        //LOG("Success\n");
-    }
-    
-    {
-        HDC hdc = GetDC(win32vars.window_handle);
-        
-        // TODO(allen): not Windows XP compatible, how do I handle that?
-        SetProcessDPIAware();
-        win32vars.dpi_x = GetDeviceCaps(hdc, LOGPIXELSX);
-        win32vars.dpi_y = GetDeviceCaps(hdc, LOGPIXELSY);
-        
-        GetClientRect(win32vars.window_handle, &window_rect);
-        
-        win32_init_gl(hdc);
-        
-        ReleaseDC(win32vars.window_handle, hdc);
-    }
-#endif
     
     HGLRC window_opengl_context = 0;
     if (!win32_gl_create_window(&win32vars.window_handle, &window_opengl_context, window_style, window_rect)){
@@ -2266,7 +1674,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     //LOG("Beginning main loop\n");
     u64 timer_start = system_now_time();
-    system_acquire_lock(FRAME_LOCK);
     MSG msg;
     for (;keep_running;){
         // TODO(allen): Find a good way to wait on a pipe
@@ -2274,8 +1681,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Looks like we can ReadFile with a
         // size of zero in an IOCP for this effect.
         if (!win32vars.first){
-            system_release_lock(FRAME_LOCK);
-            
             if (win32vars.running_cli == 0){
                 win32vars.got_useful_event = false;
             }
@@ -2354,8 +1759,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                     }
                 }
             }while (get_more_messages);
-            
-            system_acquire_lock(FRAME_LOCK);
         }
         
         // NOTE(allen): Mouse Out of Window Detection
@@ -2520,12 +1923,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         // NOTE(allen): sleep a bit to cool off :)
-        flush_thread_group(BACKGROUND_THREADS);
-        
         u64 timer_end = system_now_time();
         u64 end_target = timer_start + frame_useconds;
         
-        system_release_lock(FRAME_LOCK);
         for (;timer_end < end_target;){
             DWORD samount = (DWORD)((end_target - timer_end)/1000);
             if (samount > 0){
@@ -2533,7 +1933,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             }
             timer_end = system_now_time();
         }
-        system_acquire_lock(FRAME_LOCK);
         timer_start = system_now_time();
         
         win32vars.first = false;

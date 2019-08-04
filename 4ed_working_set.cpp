@@ -307,7 +307,6 @@ file_bind_file_name(System_Functions *system, Heap *heap, Working_Set *working_s
     file->canon.name_size = size;
     block_copy(file->canon.name_space, canon_file_name.str, size);
     file_name_terminate(&file->canon);
-    system->add_listener((char*)file->canon.name_space);
     b32 result = working_set_canon_add(working_set, file, string_from_file_name(&file->canon));
     Assert(result);
 }
@@ -316,7 +315,6 @@ internal void
 buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
     Assert(file->unique_name.name_size == 0);
     Assert(file->canon.name_size != 0);
-    system->remove_listener((char*)file->canon.name_space);
     working_set_canon_remove(working_set, string_from_file_name(&file->canon));
     file->canon.name_size = 0;
 }

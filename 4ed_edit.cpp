@@ -12,14 +12,6 @@
 internal void
 edit_pre_state_change(Models *models, Heap *heap, Editing_File *file){
     System_Functions *system = models->system;
-    if (file->state.still_lexing){
-        system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
-        if (file->state.swap_array.tokens){
-            heap_free(heap, file->state.swap_array.tokens);
-            file->state.swap_array.tokens = 0;
-        }
-        file->state.still_lexing = 0;
-    }
     file_add_dirty_flag(file, DirtyState_UnsavedChanges);
     file_unmark_edit_finished(&models->working_set, file);
     Layout *layout = &models->layout;

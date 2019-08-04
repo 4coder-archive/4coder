@@ -26,16 +26,16 @@ restore_state(Application_Links *app, App_Coroutine_State state){
     app->type_coroutine = state.type;
 }
 
-internal Coroutine_Head*
-app_coroutine_handle_request(Models *models, Coroutine_Head *co, u32 *vals){
-    Coroutine_Head *result = 0;
+internal Coroutine*
+app_coroutine_handle_request(Models *models, Coroutine *co, u32 *vals){
+    Coroutine *result = 0;
     System_Functions *system = models->system;
     switch (vals[2]){
         case AppCoroutineRequest_NewFontFace:
         {
             Face_Description *description = ((Face_Description**)vals)[0];
             Face_ID face_id = font_set_new_face(&models->font_set, description);
-            result = system->resume_coroutine(co, &face_id, vals);
+            result = coroutine_run(&models->coroutines, co, &face_id, vals);
         }break;
         
         case AppCoroutineRequest_ModifyFace:
@@ -43,36 +43,22 @@ app_coroutine_handle_request(Models *models, Coroutine_Head *co, u32 *vals){
             Face_Description *description = ((Face_Description**)vals)[0];
             Face_ID face_id = ((Face_ID*)vals)[3];
             b32 success = alter_font_and_update_files(system, models, face_id, description);
-            result = system->resume_coroutine(co, &success, vals);
+            result = coroutine_run(&models->coroutines, co, &success, vals);
         }break;
     }
     return(result);
 }
 
-internal Coroutine_Head*
-app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, u32 *out){
+internal Coroutine*
+app_coroutine_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co, void *in, u32 *out){
+    Application_Links *app = &models->app_links;
     App_Coroutine_State prev_state = get_state(app);
     app->current_coroutine = co;
-    app->type_coroutine = type;
+    app->type_coroutine = purpose;
     u32 coroutine_out[4] = {};
-    Coroutine_Head *result = system->launch_coroutine(co, in, coroutine_out);
+    Coroutine *result = coroutine_run(&models->coroutines, co, in, coroutine_out);
     for (;result != 0 && coroutine_out[2] != 0;){
-        result = app_coroutine_handle_request((Models*)app->cmd_context, result, coroutine_out);
-    }
-    block_copy(out, coroutine_out, sizeof(*out)*2);
-    restore_state(app, prev_state);
-    return(result);
-}
-
-internal Coroutine_Head*
-app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type, Coroutine_Head *co, void *in, u32 *out){
-    App_Coroutine_State prev_state = get_state(app);
-    app->current_coroutine = co;
-    app->type_coroutine = type;
-    u32 coroutine_out[4] = {};
-    Coroutine_Head *result = system->resume_coroutine(co, in, coroutine_out);
-    for (;result != 0 && coroutine_out[2] != 0;){
-        result = app_coroutine_handle_request((Models*)app->cmd_context, co, coroutine_out);
+        result = app_coroutine_handle_request(models, result, coroutine_out);
     }
     block_copy(out, coroutine_out, sizeof(*out)*2);
     restore_state(app, prev_state);
@@ -475,7 +461,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
 #include "4ed_api_implementation.cpp"
 
 internal void
-command_caller(Coroutine_Head *coroutine){
+command_caller(Coroutine *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Models *models = cmd_in->models;
     if (models->command_caller != 0){
@@ -795,7 +781,7 @@ force_abort_coroutine(System_Functions *system, Models *models, View *view){
     User_Input user_in = {};
     user_in.abort = true;
     for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
-        models->command_coroutine = app_resume_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
+        models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
     }
     if (models->command_coroutine != 0){
         // TODO(allen): post grave warning
@@ -813,14 +799,14 @@ launch_command_via_event(System_Functions *system, Models *models, View *view, K
     
     if (cmd_bind.custom != 0){
         Assert(models->command_coroutine == 0);
-        Coroutine_Head *command_coroutine = system->create_coroutine(command_caller);
+        Coroutine *command_coroutine = coroutine_create(&models->coroutines, command_caller);
         models->command_coroutine = command_coroutine;
         
         Command_In cmd_in = {};
         cmd_in.models = models;
         cmd_in.bind = cmd_bind;
         
-        models->command_coroutine = app_launch_coroutine(system, &models->app_links, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
+        models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
         
         models->prev_command = cmd_bind;
         if (event.keycode != key_animate){
@@ -862,6 +848,9 @@ App_Init_Sig(app_init){
     models->app_links.cmd_context = models;
     
     Arena *arena = &models->mem.arena;
+    
+    // NOTE(allen): coroutines
+    coroutine_system_init(system, &models->coroutines);
     
     // NOTE(allen): font set
     font_set_init(system, &models->font_set);
@@ -1010,6 +999,7 @@ App_Step_Sig(app_step){
         }
     }
     
+#if 0    
     // NOTE(allen): check files are up to date
     {
         b32 mem_too_small = 0;
@@ -1051,6 +1041,7 @@ App_Step_Sig(app_step){
         
         end_temp(temp);
     }
+#endif
     
     // NOTE(allen): reorganizing panels on screen
     Vec2_i32 prev_dim = layout_get_root_size(&models->layout);
@@ -1262,12 +1253,11 @@ App_Step_Sig(app_step){
                     
                     case EventConsume_Command:
                     {
-                        
                         // NOTE(allen): update command coroutine
                         if (models->command_coroutine != 0){
                             models->key = *key_ptr;
                             
-                            Coroutine_Head *command_coroutine = models->command_coroutine;
+                            Coroutine *command_coroutine = models->command_coroutine;
                             u32 abort_flags = models->command_coroutine_flags[1];
                             u32 get_flags = models->command_coroutine_flags[0] | abort_flags;
                             
@@ -1280,7 +1270,7 @@ App_Step_Sig(app_step){
                                 user_in.key = *key_ptr;
                                 user_in.command.command = cmd_bind.custom;
                                 user_in.abort = ((abort_flags & event_flags) != 0);
-                                models->command_coroutine =  app_resume_coroutine(system, &models->app_links, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
+                                models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                                 
                                 if (user_in.key.keycode != key_animate){
                                     models->animate_next_frame = true;

@@ -78,11 +78,7 @@ struct Editing_File_State{
     i32 current_record_index;
     
     Cpp_Token_Array token_array;
-    Cpp_Token_Array swap_array;
-    u32 lex_job;
-    b8 tokens_complete;
-    b8 still_lexing;
-    b8 in_edit_handler;
+    b32 in_edit_handler;
     
     Text_Effect paste_effect;
     

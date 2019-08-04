@@ -14,12 +14,9 @@
 #define SYSLINK(name) sysfunc.name = system_##name
 
 internal void
-link_system_code(){
+link_system_code(void){
     SYSLINK(get_canonical);
     SYSLINK(get_file_list);
-    SYSLINK(add_listener);
-    SYSLINK(remove_listener);
-    SYSLINK(get_file_change);
     SYSLINK(quick_file_attributes);
     SYSLINK(load_handle);
     SYSLINK(load_attributes);
@@ -34,11 +31,6 @@ link_system_code(){
     
     SYSLINK(post_clipboard);
     
-    SYSLINK(create_coroutine);
-    SYSLINK(launch_coroutine);
-    SYSLINK(resume_coroutine);
-    SYSLINK(yield_coroutine);
-    
     SYSLINK(cli_call);
     SYSLINK(cli_begin_update);
     SYSLINK(cli_update_step);
@@ -46,12 +38,17 @@ link_system_code(){
     
     SYSLINK(open_color_picker);
     
-    SYSLINK(post_job);
-    SYSLINK(cancel_job);
-    SYSLINK(check_cancel);
-    SYSLINK(grow_thread_memory);
-    SYSLINK(acquire_lock);
-    SYSLINK(release_lock);
+    SYSLINK(thread_launch);
+    SYSLINK(thread_join);
+    SYSLINK(thread_free);
+    SYSLINK(mutex_make);
+    SYSLINK(mutex_acquire);
+    SYSLINK(mutex_release);
+    SYSLINK(mutex_free);
+    SYSLINK(condition_variable_make);
+    SYSLINK(condition_variable_wait);
+    SYSLINK(condition_variable_signal);
+    SYSLINK(condition_variable_free);
     
     SYSLINK(memory_allocate);
     SYSLINK(memory_set_protection);

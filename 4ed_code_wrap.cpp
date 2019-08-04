@@ -483,7 +483,7 @@ file_measure_wraps(System_Functions *system, Mem_Options *mem, Editing_File *fil
     Potential_Wrap_Indent_Pair *potential_marks = 0;
     i32 max_wrap_indent_mark = Million(1);
     
-    if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
+    if (params.virtual_white && file->state.token_array.tokens != 0){
         wrap_state_init(&wrap_state, file, face);
         use_tokens = true;
         

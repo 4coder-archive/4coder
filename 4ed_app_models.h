@@ -38,7 +38,8 @@ struct Models{
     Mapping mapping;
     Command_Binding prev_command;
     
-    Coroutine_Head *command_coroutine;
+    Coroutine_Group coroutines;
+    Coroutine *command_coroutine;
     u32 command_coroutine_flags[2];
     
     Child_Process_Container child_processes;
@@ -176,7 +177,8 @@ struct App_Vars{
     App_State state;
 };
 
-enum Coroutine_Type{
+typedef i32 App_Coroutine_Purpose;
+enum{
     Co_View,
     Co_Command,
 };

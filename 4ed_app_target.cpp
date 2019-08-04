@@ -44,6 +44,7 @@ struct Mem_Options{
 #include "4ed_render_target.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"
+#include "4ed_coroutine.h"
 
 #define FCPP_FORBID_MALLOC
 #include "4coder_lib/4cpp_lexer.h"
@@ -72,6 +73,7 @@ struct Mem_Options{
 #include "4ed_font_set.h"
 #include "4ed_app_models.h"
 
+#include "4ed_coroutine.cpp"
 #include "4ed_mem.cpp"
 #include "4ed_ptr_check.cpp"
 #include "4ed_memory_bank.cpp"

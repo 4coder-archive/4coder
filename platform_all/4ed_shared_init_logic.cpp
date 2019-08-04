@@ -136,15 +136,5 @@ read_command_line(Arena *scratch, i32 argc, char **argv){
     end_temp(temp);
 }
 
-internal void
-coroutines_init(){
-    init_coroutine_system(&coroutines);
-    
-    umem size = COROUTINE_SLOT_SIZE*18;
-    void *mem = system_memory_allocate(size);
-    coroutine_system_provide_memory(&coroutines, mem, size);
-    coroutine_system_force_init(&coroutines, 4);
-}
-
 // BOTTOM
 
