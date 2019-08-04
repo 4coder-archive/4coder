@@ -304,7 +304,8 @@ DOC_SEE(Access_Flag)
     System_Functions *system = models->system;
     Editing_File_Name canon = {};
     Buffer_ID result = false;
-    if (get_canon_name(system, file_name, &canon)){
+    Scratch_Block scratch(app);
+    if (get_canon_name(system, scratch, file_name, &canon)){
         Working_Set *working_set = &models->working_set;
         Editing_File *file = working_set_contains_canon(working_set, string_from_file_name(&canon));
         if (api_check_buffer(file, access)){
@@ -3147,8 +3148,7 @@ DOC_SEE(directory_set_hot)
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_clean_end(hot);
-    String_Const_u8 result = push_string_copy(arena, SCu8(hot->string_space, hot->string_size));
-    return(result);
+    return(push_string_copy(arena, hot->string));
 }
 
 // TODO(allen): redocument
@@ -3163,56 +3163,16 @@ DOC_SEE(directory_get_hot)
 */{
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
-    b32 success = false;
-    if (string.size < sizeof(hot->string_space)){
-        hot_directory_set(models->system, hot, string);
-        success = true;
-    }
-    return(success);
+    hot_directory_set(models->system, hot, string);
+    return(true);
 }
 
-// TODO(allen): redocument
-API_EXPORT b32
-Get_File_List(Application_Links *app, String_Const_u8 directory, File_List *list_out)
-/*
-DOC_PARAM(dir, This parameter specifies the directory whose files will be enumerated in the returned list; it need not be null terminated.)
-DOC_PARAM(len, This parameter the length of the dir string.)
-DOC_RETURN(This call returns a File_List struct containing pointers to the names of the files in the specified directory.  The File_List returned should be passed to free_file_list when it is no longer in use.)
-DOC_SEE(File_List)
-*/{
+API_EXPORT File_List
+Get_File_List(Application_Links *app, Arena *arena, String_Const_u8 directory){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    block_zero_struct(list_out);
-    Editing_File_Name canon = {};
-    b32 result = false;
-    if (get_canon_name(system, directory, &canon)){
-        Arena *scratch = &models->mem.arena;
-        Temp_Memory temp = begin_temp(scratch);
-        char *str = 0;
-        if (canon.name_size < sizeof(canon.name_space)){
-            canon.name_space[canon.name_size] = 0;
-            str = (char*)canon.name_space;
-        }
-        else{
-            String_Const_u8 s = push_string_copy(scratch, string_from_file_name(&canon));
-            str = (char*)s.str;
-        }
-        system->set_file_list(list_out, str, 0, 0, 0);
-        end_temp(temp);
-        result = true;
-    }
-    return(result);
-}
-
-API_EXPORT void
-Free_File_List(Application_Links *app, File_List list)
-/*
-DOC_PARAM(list, This parameter provides the file list to be freed.)
-DOC(After this call the file list passed in should not be read or written to.)
-DOC_SEE(File_List)
-*/{
-    Models *models = (Models*)app->cmd_context;
-    models->system->set_file_list(&list, 0, 0, 0, 0);
+    String_Const_u8 canonical_directory = system->get_canonical(arena, directory);
+    return(system->get_file_list(arena, canonical_directory));
 }
 
 API_EXPORT void
@@ -3626,7 +3586,7 @@ Text_Layout_Line_On_Screen(Application_Links *app, Text_Layout_ID layout_id, i64
             Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
             f32 line_height = face->height;
             bot += line_height;
-
+            
             result = Rf32(layout.coordinates.on_screen_p0.x, top,
                           layout.coordinates.on_screen_p0.x + layout.coordinates.dim.x, bot);
             
@@ -3740,7 +3700,7 @@ Compute_Render_Layout(Application_Links *app, View_ID view_id, Buffer_ID buffer_
             linalloc_clear(&view->layout_arena);
         }
         Buffer_Render_Item *items = push_array(&view->layout_arena, Buffer_Render_Item, max);
-                
+        
         b32 wrapped = (!file->settings.unwrapped_lines);
         
         Full_Cursor intermediate_cursor = file_compute_cursor(models, file, seek_line_char(buffer_point.line_number, 1));

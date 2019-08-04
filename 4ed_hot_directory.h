@@ -13,10 +13,9 @@
 #define FRED_HOT_DIRECTORY_H
 
 struct Hot_Directory{
-    u8 string_space[256];
-    umem string_size;
-    u8 canon_dir_space[256];
-    umem canon_dir_size;
+    Arena arena;
+    String_Const_u8 string;
+    String_Const_u8 canonical;
     File_List file_list;
 };
 

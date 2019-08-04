@@ -285,10 +285,15 @@ working_set_clipboard_roll_down(Working_Set *working){
 
 ////////////////////////////////
 
+// TODO(allen): get rid of this???
 internal b32
-get_canon_name(System_Functions *system, String_Const_u8 file_name, Editing_File_Name *canon_name){
-    canon_name->name_size = system->get_canonical((char*)file_name.str, (u32)file_name.size,
-                                                  (char*)canon_name->name_space, sizeof(canon_name->name_space));
+get_canon_name(System_Functions *system, Arena *scratch, String_Const_u8 file_name, Editing_File_Name *canon_name){
+    Temp_Memory temp = begin_temp(scratch);
+    String_Const_u8 canonical = system->get_canonical(scratch, file_name);
+    umem size = Min(sizeof(canon_name->name_space), canonical.size);
+    block_copy(canon_name->name_space, canonical.str, size);
+    canon_name->name_size = size;
+    end_temp(temp);
     file_name_terminate(canon_name);
     return(canon_name->name_size > 0);
 }

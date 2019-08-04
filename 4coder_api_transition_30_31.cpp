@@ -569,13 +569,6 @@ directory_set_hot(Application_Links *app, char *str, i32 len){
     return(set_hot_directory(app, SCu8(str, len)));
 }
 
-static File_List
-get_file_list(Application_Links *app, char *dir, i32 len){
-    File_List list = {};
-    get_file_list(app, SCu8(dir, len), &list);
-    return(list);
-}
-
 static b32
 file_exists(Application_Links *app, char *file_name, i32 len){
     File_Attributes attributes = get_file_attributes(app, SCu8(file_name, len));

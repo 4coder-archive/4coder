@@ -106,8 +106,6 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     
-    String_Const_u8 buffer_name = push_buffer_base_name(app, scratch, buffer);
-    
     Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);
     Range_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch, &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps), jumps.count);
     Sort_Pair_i32 *range_index_buffer_id_pairs = push_array(scratch, Sort_Pair_i32, buffer_ranges.count);

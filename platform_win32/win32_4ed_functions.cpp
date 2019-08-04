@@ -119,204 +119,62 @@ win32_remove_unc_prefix_characters(String_Const_u8 path){
 }
 
 internal
-Sys_Set_File_List_Sig(system_set_file_list){
-    b32 clear_list = true;
-    if (directory != 0){
-        u8 dir_space[MAX_PATH + 32];
-        umem directory_original_length = cstring_length(directory);
-        block_copy(dir_space, directory, directory_original_length);
-        dir_space[directory_original_length] = 0;
-        String_Const_u8 dir = SCu8(dir_space, directory_original_length);
-        
-        HANDLE dir_handle = CreateFile_utf8(&shared_vars.scratch, dir.str, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
-        
-        if (dir_handle != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, dir_handle, dir_space, sizeof(dir_space), 0);
-            CloseHandle(dir_handle);
-            
-            if (final_length + 3 < sizeof(dir_space)){
-                u8 *c_str_dir = dir_space;
-                if (c_str_dir[final_length - 1] == 0){
-                    --final_length;
-                }
-                String_Const_u8 str_dir = SCu8(c_str_dir, final_length);
-                String_Const_u8 adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
-                
-                c_str_dir = adjusted_str_dir.str;
-                final_length = (DWORD)(adjusted_str_dir.size);
-                c_str_dir[final_length] = '\\';
-                c_str_dir[final_length + 1] = '*';
-                c_str_dir[final_length + 2] = 0;
-                
-                if (canon_directory_out != 0){
-                    if (final_length + 1 < canon_directory_max){
-                        memcpy(canon_directory_out, c_str_dir, final_length);
-                        if (canon_directory_out[final_length-1] != '\\'){
-                            canon_directory_out[final_length++] = '\\';
-                        }
-                        canon_directory_out[final_length] = 0;
-                        *canon_directory_size_out = final_length;
-                    }
-                    else{
-                        block_copy(canon_directory_out, directory, directory_original_length);
-                        canon_directory_out[directory_original_length] = 0;
-                        *canon_directory_size_out = (i32)directory_original_length;
-                    }
-                }
-                
-                WIN32_FIND_DATA find_data;
-                HANDLE search = FindFirstFile_utf8(&shared_vars.scratch, c_str_dir, &find_data);
-                
-                if (search != INVALID_HANDLE_VALUE){            
-                    u32 character_count = 0;
-                    u32 file_count = 0;
-                    BOOL more_files = true;
-                    do{
-                        b32 nav_dir =
-                            (find_data.cFileName[0] == '.' && find_data.cFileName[1] == 0) ||(find_data.cFileName[0] == '.' && find_data.cFileName[1] == '.' && find_data.cFileName[2] == 0);
-                        if (!nav_dir){
-                            ++file_count;
-                            u32 size = 0;
-                            for(;find_data.cFileName[size];++size);
-                            character_count += size + 1;
-                        }
-                        more_files = FindNextFile(search, &find_data);
-                    }while(more_files);
-                    FindClose(search);
-                    
-                    u32 remaining_size = character_count*2;
-                    u32 required_size = remaining_size + file_count*sizeof(File_Info);
-                    if (file_list->block_size < required_size){
-                        system_memory_free(file_list->block, 0);
-                        file_list->block = system_memory_allocate(required_size);
-                        file_list->block_size = required_size;
-                    }
-                    
-                    file_list->infos = (File_Info*)file_list->block;
-                    u8 *name = (u8*)(file_list->infos + file_count);
-                    u32 corrected_file_count = 0;
-                    if (file_list->block != 0){
-                        search = FindFirstFile_utf8(&shared_vars.scratch, c_str_dir, &find_data);
-                        
-                        if (search != INVALID_HANDLE_VALUE){
-                            File_Info *info = file_list->infos;
-                            more_files = true;
-                            do{
-                                b32 nav_dir =
-                                    (find_data.cFileName[0] == '.' && find_data.cFileName[1] == 0) ||(find_data.cFileName[0] == '.' && find_data.cFileName[1] == '.' && find_data.cFileName[2] == 0);
-                                
-                                if (!nav_dir){
-                                    u32 attribs = find_data.dwFileAttributes;
-                                    info->folder = (attribs & FILE_ATTRIBUTE_DIRECTORY) != 0;
-                                    info->filename = (char*)name;
-                                    
-                                    u16 *src = (u16*)find_data.cFileName;
-                                    u32 src_len = 0;
-                                    for (;src[src_len];++src_len);
-                                    
-                                    u8 *dst = name;
-                                    u32 max = remaining_size-1;
-                                    
-                                    b32 error = false;
-                                    u32 length = (u32)utf16_to_utf8_minimal_checking(dst, max, src, src_len, &error);
-                                    
-                                    if (length <= max && !error){
-                                        name += length;
-                                        
-                                        info->filename_len = length;
-                                        *name++ = 0;
-                                        String_Const_u8 fname = SCu8(info->filename, length);
-                                        fname = string_mod_replace_character(fname, '\\', '/');
-                                        ++info;
-                                        ++corrected_file_count;
-                                    }
-                                }
-                                more_files = FindNextFile(search, &find_data);
-                            }while(more_files);
-                            FindClose(search);
-                            
-                            file_list->count = corrected_file_count;
-                            clear_list = false;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    if (clear_list){
-        system_memory_free(file_list->block, 0);
-        file_list->block = 0;
-        file_list->block_size = 0;
-        file_list->infos = 0;
-        file_list->count = 0;
-    }
-}
-
-internal
 Sys_Get_Canonical_Sig(system_get_canonical){
-    u32 result = 0;
-    
-    String_Const_char file_name = SCchar(filename, len);
-    char src_space[MAX_PATH + 32];
-    if (len < sizeof(src_space) &&
-        ((character_is_alpha(string_get_character(file_name, 0)) && string_get_character(file_name, 1) == ':') ||
-         string_match(string_prefix(file_name, 2), string_litexpr("\\\\")))){
-        memcpy(src_space, filename, len);
-        src_space[len] = 0;
+    String_Const_u8 result = {};
+    Arena *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp(scratch);
+    if ((character_is_alpha(string_get_character(name, 0)) &&
+         string_get_character(name, 1) == ':') ||
+        string_match(string_prefix(name, 2), string_u8_litexpr("\\\\"))){
         
-        HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)src_space, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        u8 *c_name = push_array(scratch, u8, name.size + 1);
+        block_copy(c_name, name.str, name.size);
+        c_name[name.size] = 0;
+        HANDLE file = CreateFile_utf8(scratch, c_name, GENERIC_READ, 0, 0, OPEN_EXISTING,
+                                      FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
-            DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, file, (u8*)buffer, max, 0);
-            
-            if (final_length + 3 < max){
-                if (buffer[final_length - 1] == 0){
-                    --final_length;
-                }
-                String_Const_u8 str_dir = SCu8(buffer, final_length);
-                String_Const_u8 adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
-                buffer = (char*)adjusted_str_dir.str;
-                final_length = (i32)adjusted_str_dir.size;
-                buffer[final_length] = 0;
-                result = final_length;
+            DWORD capacity = GetFinalPathNameByHandle_utf8(scratch, file, 0, 0, 0);
+            u8 *buffer = push_array(arena, u8, capacity);
+            DWORD length = GetFinalPathNameByHandle_utf8(scratch, file, buffer, capacity, 0);
+            if (length > 0 && buffer[length - 1] == 0){
+                length -= 1;
             }
-            
+            result = SCu8(buffer, length);
+            result = win32_remove_unc_prefix_characters(result);
             CloseHandle(file);
         }
         else{
-            String_Const_u8 src_str = SCu8(filename, len);
-            String_Const_u8 path_str = string_remove_front_of_path(src_str);
-            String_Const_u8 front_str = string_front_of_path(src_str);
+            String_Const_u8 path = string_remove_front_of_path(name);
+            String_Const_u8 front = string_front_of_path(name);
             
-            memcpy(src_space, path_str.str, path_str.size);
-            src_space[path_str.size] = 0;
+            u8 *c_path = push_array(scratch, u8, path.size + 1);
+            block_copy(c_path, path.str, path.size);
+            c_path[path.size] = 0;
             
-            HANDLE dir = CreateFile_utf8(&shared_vars.scratch, (u8*)src_space, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
+            HANDLE dir = CreateFile_utf8(scratch, c_path, FILE_LIST_DIRECTORY,
+                                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0,
+                                         OPEN_EXISTING,
+                                         FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
             
             if (dir != INVALID_HANDLE_VALUE){
-                DWORD final_length = GetFinalPathNameByHandle_utf8(&shared_vars.scratch, dir, (u8*)buffer, max, 0);
-                
-                if (final_length + 3 < max){
-                    if (buffer[final_length-1] == 0){
-                        --final_length;
-                    }
-                    String_Const_u8 str_dir = SCu8(buffer, final_length);
-                    String_Const_u8 adjusted_str_dir = win32_remove_unc_prefix_characters(str_dir);
-                    buffer = (char*)adjusted_str_dir.str;
-                    final_length = (i32)adjusted_str_dir.size;
-                    buffer[final_length++] = '\\';
-                    memcpy(buffer + final_length, front_str.str, front_str.size);
-                    final_length += (i32)(front_str.size);
-                    buffer[final_length] = 0;
-                    result = final_length;
+                DWORD capacity = GetFinalPathNameByHandle_utf8(scratch, dir, 0, 0, 0);
+                u8 *buffer = push_array(arena, u8, capacity + front.size + 1);
+                DWORD length = GetFinalPathNameByHandle_utf8(scratch, dir, buffer, capacity, 0);
+                if (length > 0 && buffer[length - 1] == 0){
+                    length -= 1;
                 }
-                
+                buffer[length] = '\\';
+                length += 1;
+                block_copy(buffer + length, front.str, front.size);
+                length += (DWORD)front.size;
+                result = SCu8(buffer, length);
+                result = win32_remove_unc_prefix_characters(result);
                 CloseHandle(dir);
             }
         }
     }
-    
+    end_temp(temp);
     return(result);
 }
 
@@ -327,14 +185,82 @@ win32_convert_file_attribute_flags(DWORD dwFileAttributes){
     return(result);
 }
 
+internal u64
+win32_u64_from_u32_u32(u32 hi, u32 lo){
+    return( (((u64)hi) << 32) | ((u64)lo) );
+}
+
+internal u64
+win32_u64_from_filetime(FILETIME time){
+    return(win32_u64_from_u32_u32(time.dwHighDateTime, time.dwLowDateTime));
+}
+
 internal File_Attributes
 win32_file_attributes_from_HANDLE(HANDLE file){
     BY_HANDLE_FILE_INFORMATION info = {};
     GetFileInformationByHandle(file, &info);
     File_Attributes result = {};
-    result.size = ((u64)info.nFileSizeHigh << 32LL) | ((u64)info.nFileSizeLow);
-    result.last_write_time = ((u64)info.ftLastWriteTime.dwHighDateTime << 32LL) | ((u64)info.ftLastWriteTime.dwLowDateTime);
+    result.size = win32_u64_from_u32_u32(info.nFileSizeHigh, info.nFileSizeLow);
+    result.last_write_time = win32_u64_from_filetime(info.ftLastWriteTime);
     result.flags = win32_convert_file_attribute_flags(info.dwFileAttributes);
+    return(result);
+}
+
+internal
+Sys_Get_File_List_Sig(system_get_file_list){
+    File_List result = {};
+    Arena *scratch = &shared_vars.scratch;
+    Temp_Memory temp = begin_temp(scratch);
+    String_Const_u8 search_pattern = {};
+    if (character_is_slash(string_get_character(directory, directory.size - 1))){
+        search_pattern = push_u8_stringf(scratch, "%.*s*", string_expand(directory));
+    }
+    else{
+        search_pattern = push_u8_stringf(scratch, "%.*s\\*", string_expand(directory));
+    }
+    
+    WIN32_FIND_DATA find_data = {};
+    HANDLE search = FindFirstFile_utf8(&shared_vars.scratch, search_pattern.str, &find_data);
+    if (search != INVALID_HANDLE_VALUE){
+        File_Info *first = 0;
+        File_Info *last = 0;
+        i32 count = 0;
+        
+        for (;;){
+            String_Const_u16 file_name_utf16 = SCu16(find_data.cFileName);
+            if (!(string_match(file_name_utf16, string_u16_litexpr(L".")) ||
+                  string_match(file_name_utf16, string_u16_litexpr(L"..")))){
+                String_Const_u8 file_name = string_u8_from_string_u16(arena, file_name_utf16,
+                                                                      StringFill_NullTerminate).string;
+                
+                File_Info *info = push_array(arena, File_Info, 1);
+                sll_queue_push(first, last, info);
+                count += 1;
+                
+                info->file_name = file_name;
+                info->attributes.size = win32_u64_from_u32_u32(find_data.nFileSizeHigh,
+                                                               find_data.nFileSizeLow);
+                info->attributes.last_write_time = win32_u64_from_filetime(find_data.ftLastWriteTime);
+                info->attributes.flags = win32_convert_file_attribute_flags(find_data.dwFileAttributes);
+            }
+            if (!FindNextFile(search, &find_data)){
+                break;
+            }
+        }
+        
+        result.infos = push_array(arena, File_Info*, count);
+        result.count = count;
+        
+        i32 counter = 0;
+        for (File_Info *node = first;
+             node != 0;
+             node = node->next){
+            result.infos[counter] = node;
+            counter += 1;
+        }
+    }
+    
+    end_temp(temp);
     return(result);
 }
 

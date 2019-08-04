@@ -138,6 +138,7 @@ file_name_terminate(Editing_File_Name *name){
 
 ////////////////////////////////
 
+// TODO(allen): file_name should be String_Const_u8
 internal b32
 save_file_to_name(System_Functions *system, Models *models, Editing_File *file, u8 *file_name){
     b32 result = false;
@@ -188,10 +189,9 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         }
         
         if (!using_actual_file_name){
-            char space[512];
-            umem length = cstring_length(file_name);
-            system->get_canonical((char*)file_name, (u32)length, space, sizeof(space));
-            if (string_match(SCu8(space), string_from_file_name(&file->canon))){
+            String_Const_u8 s_file_name = SCu8(file_name);
+            String_Const_u8 canonical_file_name = system->get_canonical(scratch, s_file_name);
+            if (string_match(canonical_file_name, string_from_file_name(&file->canon))){
                 using_actual_file_name = true;
             }
         }

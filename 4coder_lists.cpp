@@ -526,6 +526,8 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
 
 static void
 generate_hot_directory_file_list(Application_Links *app, Lister *lister){
+    Scratch_Block scratch(app);
+    
     Temp_Memory temp = begin_temp(&lister->arena);
     String_Const_u8 hot = push_hot_directory(app, &lister->arena);
     if (!character_is_slash(string_get_character(hot, hot.size - 1))){
@@ -534,11 +536,10 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     lister_set_text_field(lister, hot);
     lister_set_key(lister, string_front_of_path(hot));
     
-    File_List file_list = {};
-    get_file_list(app, hot, &file_list);
+    File_List file_list = get_file_list(app, scratch, hot);
     end_temp(temp);
     
-    File_Info *one_past_last = file_list.infos + file_list.count;
+    File_Info **one_past_last = file_list.infos + file_list.count;
     
     lister_begin_new_item_set(app, lister);
     
@@ -547,22 +548,22 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     if (hot.str != 0){
         String_Const_u8 empty_string = string_u8_litexpr("");
         Lister_Prealloced_String empty_string_prealloced = lister_prealloced(empty_string);
-        for (File_Info *info = file_list.infos;
+        for (File_Info **info = file_list.infos;
              info < one_past_last;
              info += 1){
-            if (!info->folder) continue;
-            String_Const_u8 file_name = push_u8_stringf(&lister->arena, "%.*s/", info->filename_len, info->filename);
+            if (!HasFlag((**info).attributes.flags, FileAttribute_IsDirectory)) continue;
+            String_Const_u8 file_name = push_u8_stringf(&lister->arena, "%.*s/",
+                                                        string_expand((**info).file_name));
             lister_add_item(lister, lister_prealloced(file_name), empty_string_prealloced, file_name.str, 0);
         }
         
-        for (File_Info *info = file_list.infos;
+        for (File_Info **info = file_list.infos;
              info < one_past_last;
              info += 1){
-            if (info->folder) continue;
-            String_Const_u8 file_name = push_string_copy(&lister->arena, SCu8(info->filename, info->filename_len));
+            if (HasFlag((**info).attributes.flags, FileAttribute_IsDirectory)) continue;
+            String_Const_u8 file_name = push_string_copy(&lister->arena, (**info).file_name);
             char *is_loaded = "";
             char *status_flag = "";
-            
             
             Buffer_ID buffer = {};
             
@@ -570,8 +571,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                 Temp_Memory path_temp = begin_temp(&lister->arena);
                 List_String_Const_u8 list = {};
                 string_list_push(&lister->arena, &list, hot);
-                string_list_push_overlap(&lister->arena, &list, '/',
-                                         SCu8(info->filename, info->filename_len));
+                string_list_push_overlap(&lister->arena, &list, '/', (**info).file_name);
                 String_Const_u8 full_file_path = string_list_flatten(&lister->arena, list);
                 buffer = get_buffer_by_file_name(app, full_file_path, AccessAll);
                 end_temp(path_temp);
@@ -590,8 +590,6 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
             lister_add_item(lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
         }
     }
-    
-    free_file_list(app, file_list);
 }
 
 static void

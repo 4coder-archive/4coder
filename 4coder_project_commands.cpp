@@ -91,20 +91,15 @@ open_all_files_in_directory_pattern_match__recursive(Application_Links *app,
                                                      Project_File_Pattern_Array blacklist,
                                                      u32 flags){
     Scratch_Block scratch(app);
-    File_List list = {};
-    get_file_list(app, path, &list);
+    File_List list = get_file_list(app, scratch, path);
     
-    File_Info *info = list.infos;
+    File_Info **info = list.infos;
     for (u32 i = 0; i < list.count; ++i, ++info){
-        String_Const_u8 file_name = SCu8(info->filename, info->filename_len);
+        String_Const_u8 file_name = (**info).file_name;
         
-        if (info->folder){
-            if ((flags & OpenAllFilesFlag_Recursive) == 0){
-                continue;
-            }
-            if (match_in_pattern_array(file_name, blacklist)){
-                continue;
-            }
+        if (HasFlag((**info).attributes.flags, FileAttribute_IsDirectory)){
+            if ((flags & OpenAllFilesFlag_Recursive) == 0) continue;
+            if (match_in_pattern_array(file_name, blacklist)) continue;
             
             String_Const_u8 new_path = push_u8_stringf(scratch, "%.*s%.*s/",
                                                        string_expand(path),
@@ -126,8 +121,6 @@ open_all_files_in_directory_pattern_match__recursive(Application_Links *app,
             create_buffer(app, full_path, 0);
         }
     }
-    
-    free_file_list(app, list);
 }
 
 static Project_File_Pattern_Array

@@ -448,34 +448,15 @@ STRUCT File_Attributes{
     File_Attribute_Flag flags;
 };
 
-/*
-DOC(File_Info describes the name and type of a file.)
-DOC_SEE(File_List)
-*/
 STRUCT File_Info{
-    // TODO(allen): Can we replace file_name this with the updated string type?
-    // This will be API breaking in a way I can't easily wrap, but it's probably the
-    // right long term thing to do...  Think more later.
-    /* DOC(This field is a null terminated string specifying the name of the file.) */
-    char *filename;
-    /* DOC(This field specifies the length of the filename string not counting the null terminator.) */
-    i32 filename_len;
-    /* DOC(This field indicates that the description is for a folder not a file.) */
-    b32 folder;
-    // TODO(allen): Can we just stick File_Attributes in here?  Or at least File_Attribute_Flag?
+    File_Info *next;
+    String_Const_u8 file_name;
+    File_Attributes attributes;
 };
 
-/* DOC(File_List is a list of File_Info structs.)
-DOC_SEE(File_Info) */
 STRUCT File_List{
-    /* DOC(This field is for inernal use.) */
-    void *block;
-    /* DOC(This field is an array of File_Info structs.) */
-    File_Info *infos;
-    /* DOC(This field specifies the number of struts in the info array.) */
+    File_Info **infos;
     u32 count;
-    /* DOC(This field is for internal use.) */
-    u32 block_size;
 };
 
 /* DOC(Buffer_Identifier acts as a loosely typed description of a buffer that can either be a name or an id.) */

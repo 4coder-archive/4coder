@@ -136,8 +136,7 @@ struct Application_Links;
 #define FINALIZE_COLOR_SIG(n) argb_color n(Application_Links *app, int_color color)
 #define PUSH_HOT_DIRECTORY_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena)
 #define SET_HOT_DIRECTORY_SIG(n) b32 n(Application_Links *app, String_Const_u8 string)
-#define GET_FILE_LIST_SIG(n) b32 n(Application_Links *app, String_Const_u8 directory, File_List *list_out)
-#define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
+#define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, Arena *arena, String_Const_u8 directory)
 #define SET_GUI_UP_DOWN_KEYS_SIG(n) void n(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
 #define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, i32 size)
 #define MEMORY_SET_PROTECTION_SIG(n) b32 n(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags)
@@ -311,7 +310,6 @@ typedef FINALIZE_COLOR_SIG(Finalize_Color_Function);
 typedef PUSH_HOT_DIRECTORY_SIG(Push_Hot_Directory_Function);
 typedef SET_HOT_DIRECTORY_SIG(Set_Hot_Directory_Function);
 typedef GET_FILE_LIST_SIG(Get_File_List_Function);
-typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
 typedef SET_GUI_UP_DOWN_KEYS_SIG(Set_GUI_Up_Down_Keys_Function);
 typedef MEMORY_ALLOCATE_SIG(Memory_Allocate_Function);
 typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
@@ -487,7 +485,6 @@ Finalize_Color_Function *finalize_color;
 Push_Hot_Directory_Function *push_hot_directory;
 Set_Hot_Directory_Function *set_hot_directory;
 Get_File_List_Function *get_file_list;
-Free_File_List_Function *free_file_list;
 Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys;
 Memory_Allocate_Function *memory_allocate;
 Memory_Set_Protection_Function *memory_set_protection;
@@ -662,7 +659,6 @@ Finalize_Color_Function *finalize_color_;
 Push_Hot_Directory_Function *push_hot_directory_;
 Set_Hot_Directory_Function *set_hot_directory_;
 Get_File_List_Function *get_file_list_;
-Free_File_List_Function *free_file_list_;
 Set_GUI_Up_Down_Keys_Function *set_gui_up_down_keys_;
 Memory_Allocate_Function *memory_allocate_;
 Memory_Set_Protection_Function *memory_set_protection_;
@@ -845,7 +841,6 @@ app_links->finalize_color_ = Finalize_Color;\
 app_links->push_hot_directory_ = Push_Hot_Directory;\
 app_links->set_hot_directory_ = Set_Hot_Directory;\
 app_links->get_file_list_ = Get_File_List;\
-app_links->free_file_list_ = Free_File_List;\
 app_links->set_gui_up_down_keys_ = Set_GUI_Up_Down_Keys;\
 app_links->memory_allocate_ = Memory_Allocate;\
 app_links->memory_set_protection_ = Memory_Set_Protection;\
@@ -1019,8 +1014,7 @@ static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 co
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color(app, color));}
 static String_Const_u8 push_hot_directory(Application_Links *app, Arena *arena){return(app->push_hot_directory(app, arena));}
 static b32 set_hot_directory(Application_Links *app, String_Const_u8 string){return(app->set_hot_directory(app, string));}
-static b32 get_file_list(Application_Links *app, String_Const_u8 directory, File_List *list_out){return(app->get_file_list(app, directory, list_out));}
-static void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
+static File_List get_file_list(Application_Links *app, Arena *arena, String_Const_u8 directory){return(app->get_file_list(app, arena, directory));}
 static void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier){(app->set_gui_up_down_keys(app, up_key, up_key_modifier, down_key, down_key_modifier));}
 static void* memory_allocate(Application_Links *app, i32 size){return(app->memory_allocate(app, size));}
 static b32 memory_set_protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
@@ -1194,8 +1188,7 @@ static void get_theme_colors(Application_Links *app, Theme_Color *colors, i32 co
 static argb_color finalize_color(Application_Links *app, int_color color){return(app->finalize_color_(app, color));}
 static String_Const_u8 push_hot_directory(Application_Links *app, Arena *arena){return(app->push_hot_directory_(app, arena));}
 static b32 set_hot_directory(Application_Links *app, String_Const_u8 string){return(app->set_hot_directory_(app, string));}
-static b32 get_file_list(Application_Links *app, String_Const_u8 directory, File_List *list_out){return(app->get_file_list_(app, directory, list_out));}
-static void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}
+static File_List get_file_list(Application_Links *app, Arena *arena, String_Const_u8 directory){return(app->get_file_list_(app, arena, directory));}
 static void set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier){(app->set_gui_up_down_keys_(app, up_key, up_key_modifier, down_key, down_key_modifier));}
 static void* memory_allocate(Application_Links *app, i32 size){return(app->memory_allocate_(app, size));}
 static b32 memory_set_protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}

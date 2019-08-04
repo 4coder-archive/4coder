@@ -15,8 +15,8 @@
 
 internal void
 link_system_code(){
-    SYSLINK(set_file_list);
     SYSLINK(get_canonical);
+    SYSLINK(get_file_list);
     SYSLINK(add_listener);
     SYSLINK(remove_listener);
     SYSLINK(get_file_change);

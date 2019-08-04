@@ -531,7 +531,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
         
         // NOTE(allen): Try to get the file by canon name.
         if (HasFlag(flags, BufferCreate_NeverAttachToFile) == 0){
-            if (get_canon_name(system, file_name, &canon)){
+            if (get_canon_name(system, scratch, file_name, &canon)){
                 has_canon_name = true;
                 file = working_set_contains_canon(working_set, string_from_file_name(&canon));
             }

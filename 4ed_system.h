@@ -19,18 +19,12 @@ struct Plat_Handle{
     u32 d[4];
 };
 
-internal b32
-handle_equal(Plat_Handle a, Plat_Handle b){
-    b32 result = (memcmp(&a, &b, sizeof(a)) == 0);
-    return(result);
-}
-
 // files
-#define Sys_Set_File_List_Sig(name) void name(File_List *file_list, char *directory, char *canon_directory_out, u32 *canon_directory_size_out, u32 canon_directory_max)
-typedef Sys_Set_File_List_Sig(System_Set_File_List);
-
-#define Sys_Get_Canonical_Sig(name) u32 name(char *filename, u32 len, char *buffer, u32 max)
+#define Sys_Get_Canonical_Sig(n) String_Const_u8 n(Arena *arena, String_Const_u8 name)
 typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
+
+#define Sys_Get_File_List_Sig(name) File_List name(Arena *arena, String_Const_u8 directory)
+typedef Sys_Get_File_List_Sig(System_Get_File_List);
 
 // file load/save
 #define Sys_Quick_File_Attributes_Sig(name) File_Attributes name(String_Const_u8 file_name)
@@ -230,8 +224,8 @@ struct System_Functions{
     Graphics_Fill_Texture_Function *fill_texture;
     
     // files (tracked api): 11
-    System_Set_File_List         *set_file_list;
     System_Get_Canonical         *get_canonical;
+    System_Get_File_List         *get_file_list;
     System_Add_Listener          *add_listener;  
     System_Remove_Listener       *remove_listener;
     System_Get_File_Change       *get_file_change;
