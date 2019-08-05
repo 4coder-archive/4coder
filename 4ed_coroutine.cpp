@@ -129,7 +129,7 @@ coroutine_create(Coroutine_Group *coroutines, Coroutine_Function *func){
 }
 
 internal Coroutine*
-coroutine_run(Coroutine_Group *sys, Coroutine *other, void *in, void *out_arena){
+coroutine_run(Coroutine_Group *sys, Coroutine *other, void *in, void *out){
     other->in = in;
     other->out = out;
     
