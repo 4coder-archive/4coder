@@ -33,11 +33,6 @@ struct Text_Effect{
     f32 seconds_max;
 };
 
-union Buffer_Slot_ID{
-    Buffer_ID id;
-    i16 part[2];
-};
-
 struct Editing_File_Settings{
     i32 base_map_id;
     i32 display_width;
@@ -98,17 +93,19 @@ struct Editing_File_Name{
 };
 
 struct Editing_File{
-    Buffer_Slot_ID id;
+    union{
+        Editing_File *next;
+        Node main_chain_node;
+    };
+    Buffer_ID id;
     Editing_File_Settings settings;
     b32 is_loading;
-    b32 is_dummy;
     Editing_File_State state;
     File_Attributes attributes;
     Lifetime_Object *lifetime_object;
     Editing_File_Name base_name;
     Editing_File_Name unique_name;
     Editing_File_Name canon;
-    Node main_chain_node;
     b32 edit_finished_marked;
     Node edit_finished_mark_node;
 };

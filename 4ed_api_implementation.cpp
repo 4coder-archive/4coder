@@ -25,7 +25,7 @@ api_check_panel(Panel *panel){
 
 internal b32
 api_check_buffer(Editing_File *file){
-    return(file != 0 && !file->is_dummy);
+    return(file != 0);
 }
 
 internal b32
@@ -142,7 +142,7 @@ Child_Process_Get_Attached_Buffer(Application_Links *app, Child_Process_ID child
     Child_Process *child_process = child_process_from_id(&models->child_processes, child_process_id);
     Buffer_ID result = 0;
     if (child_process != 0 && child_process->out_file != 0){
-        result = child_process->out_file->id.id;
+        result = child_process->out_file->id;
     }
     return(result);
 }
@@ -227,8 +227,7 @@ DOC(Gives the total number of buffers in the application.)
 */{
     Models *models = (Models*)app->cmd_context;
     Working_Set *working_set = &models->working_set;
-    i32 result = working_set->file_count;
-    return(result);
+    return(working_set->active_file_count);
 }
 
 // TODO(allen): redocument
@@ -249,14 +248,14 @@ DOC_SEE(get_buffer_first)
 */{
     Models *models = (Models*)app->cmd_context;
     Working_Set *working_set = &models->working_set;
-    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
+    Editing_File *file = working_set_get_file(working_set, buffer_id);
     file = file_get_next(working_set, file);
     for (;file != 0 && !access_test(file_get_access_flags(file), access);){
         file = file_get_next(working_set, file);
     }
     Buffer_ID result = 0;
     if (file != 0){
-        result = file->id.id;
+        result = file->id;
     }
     return(result);
 }
@@ -280,7 +279,7 @@ DOC_SEE(Access_Flag)
     Editing_File *file = working_set_contains_name(working_set, name);
     Buffer_ID result = 0;
     if (api_check_buffer(file, access)){
-        result = file->id.id;
+        result = file->id;
     }
     return(result);
 }
@@ -309,7 +308,7 @@ DOC_SEE(Access_Flag)
         Working_Set *working_set = &models->working_set;
         Editing_File *file = working_set_contains_canon(working_set, string_from_file_name(&canon));
         if (api_check_buffer(file, access)){
-            result = file->id.id;
+            result = file->id;
         }
     }
     return(result);
@@ -972,7 +971,7 @@ DOC_SEE(Buffer_Create_Flag)
     Editing_File *new_file = create_file(models, file_name, flags);
     Buffer_ID result = 0;
     if (new_file != 0){
-        result = new_file->id.id;
+        result = new_file->id;
     }
     return(result);
 }
@@ -1041,7 +1040,7 @@ DOC_SEE(Buffer_Identifier)
             b32 needs_to_save = file_needs_save(file);
             if (!needs_to_save || (flags & BufferKill_AlwaysKill) != 0){
                 if (models->hook_end_file != 0){
-                    models->hook_end_file(&models->app_links, file->id.id);
+                    models->hook_end_file(&models->app_links, file->id);
                 }
                 
                 buffer_unbind_name_low_level(working_set, file);
@@ -1053,7 +1052,7 @@ DOC_SEE(Buffer_Identifier)
                 
                 Layout *layout = &models->layout;
                 
-                Node *used = &working_set->used_sentinel;
+                Node *used = &working_set->active_file_sentinel;
                 Node *file_node = used->next;
                 for (Panel *panel = layout_get_first_open_panel(layout);
                      panel != 0;
@@ -1318,7 +1317,7 @@ View_Get_Buffer(Application_Links *app, View_ID view_id, Access_Flag access){
     if (api_check_view(view)){
         Editing_File *file = view->file;
         if (api_check_buffer(file, access)){
-            result = file->id.id;
+            result = file->id;
         }
     }
     return(result);
@@ -1880,10 +1879,9 @@ DOC_SEE(Set_Buffer_Flag)
 */{
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    
     b32 result = false;
     if (api_check_view(view)){
-        Editing_File *file = working_set_get_active_file(&models->working_set, buffer_id);
+        Editing_File *file = working_set_get_file(&models->working_set, buffer_id);
         if (api_check_buffer(file)){
             if (file != view->file){
                 view_set_file(models->system, models, view, file);

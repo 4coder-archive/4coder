@@ -87,7 +87,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     Layout *layout = &models->layout;
     
     Lifetime_Object *file_lifetime_object = file->lifetime_object;
-    Buffer_ID file_id = file->id.id;
+    Buffer_ID file_id = file->id;
     Assert(file_lifetime_object != 0);
     
     i32 cursor_max = layout_get_open_panel_count(layout)*4;
@@ -253,7 +253,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     
     // NOTE(allen): edit range hook
     if (models->hook_file_edit_range != 0){
-        models->hook_file_edit_range(&models->app_links, file->id.id, edit.range, SCu8(edit.str, edit.length));
+        models->hook_file_edit_range(&models->app_links, file->id, edit.range, SCu8(edit.str, edit.length));
     }
     
     // NOTE(allen): expand spec, compute shift
@@ -313,7 +313,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
 internal void
 file_end_file(Models *models, Editing_File *file){
     if (models->hook_end_file != 0){
-        models->hook_end_file(&models->app_links, file->id.id);
+        models->hook_end_file(&models->app_links, file->id);
     }
     Heap *heap = &models->mem.heap;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
@@ -560,7 +560,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     buffer_is_for_new_file = true;
                 }
                 if (!HasFlag(flags, BufferCreate_NeverNew)){
-                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
+                    file = working_set_allocate_file(working_set, &models->lifetime_allocator);
                     if (file != 0){
                         if (has_canon_name){
                             file_bind_file_name(system, heap, working_set, file, string_from_file_name(&canon));
@@ -586,7 +586,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                 
                 if (system->load_file(handle, buffer, (i32)attributes.size)){
                     system->load_close(handle);
-                    file = working_set_alloc_always(working_set, heap, &models->lifetime_allocator);
+                    file = working_set_allocate_file(working_set, &models->lifetime_allocator);
                     if (file != 0){
                         file_bind_file_name(system, heap, working_set, file, string_from_file_name(&canon));
                         String_Const_u8 front = string_front_of_path(file_name);
@@ -623,8 +623,10 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
             }
         }
         
-        if (file != 0 && buffer_is_for_new_file && !HasFlag(flags, BufferCreate_SuppressNewFileHook) && models->hook_new_file != 0){
-            models->hook_new_file(&models->app_links, file->id.id);
+        if (file != 0 && buffer_is_for_new_file &&
+            !HasFlag(flags, BufferCreate_SuppressNewFileHook) &&
+            models->hook_new_file != 0){
+            models->hook_new_file(&models->app_links, file->id);
         }
         
         end_temp(temp);

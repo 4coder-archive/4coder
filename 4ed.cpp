@@ -67,11 +67,9 @@ app_coroutine_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co, 
 
 internal void
 output_file_append(Models *models, Editing_File *file, String_Const_u8 value){
-    if (!file->is_dummy){
-        i32 end = buffer_size(&file->state.buffer);
-        Edit_Behaviors behaviors = {};
-        edit_single(models->system, models, file, make_range(end), value, behaviors);
-    }
+    i32 end = buffer_size(&file->state.buffer);
+    Edit_Behaviors behaviors = {};
+    edit_single(models->system, models, file, make_range(end), value, behaviors);
 }
 
 internal void
@@ -895,7 +893,7 @@ App_Init_Sig(app_init){
     dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
-    working_set_init(system, &models->working_set, arena);
+    working_set_init(system, &models->working_set);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
@@ -943,7 +941,7 @@ App_Init_Sig(app_init){
     
     Heap *heap = &models->mem.heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
-        Editing_File *file = working_set_alloc_always(&models->working_set, heap, &models->lifetime_allocator);
+        Editing_File *file = working_set_allocate_file(&models->working_set, &models->lifetime_allocator);
         buffer_bind_name(models, heap, arena, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].ptr != 0){
@@ -1373,8 +1371,7 @@ App_Step_Sig(app_step){
         if (hook_file_edit_finished != 0){
             Working_Set *working_set = &models->working_set;
             if (working_set->edit_finished_count > 0){
-                Assert(working_set->edit_finished_list_first != 0);
-                Assert(working_set->edit_finished_list_last != 0);
+                Assert(working_set->edit_finished_sentinel.next != 0);
                 b32 trigger_hook = false;
                 
                 u32 elapse_time = models->edit_finished_hook_repeat_speed;
@@ -1396,18 +1393,19 @@ App_Step_Sig(app_step){
                 if (trigger_hook){
                     Arena *scratch = &models->mem.arena;
                     Temp_Memory temp = begin_temp(scratch);
-                    Node *first = working_set->edit_finished_list_first;
+                    Node *first = working_set->edit_finished_sentinel.next;
+                    Node *one_past_last = &working_set->edit_finished_sentinel;
                     
                     i32 max_id_count = working_set->edit_finished_count;
                     Editing_File **file_ptrs = push_array(scratch, Editing_File*, max_id_count);
                     Buffer_ID *ids = push_array(scratch, Buffer_ID, max_id_count);
                     i32 id_count = 0;
                     for (Node *node = first;
-                         node != 0;
+                         node != one_past_last;
                          node = node->next){
                         Editing_File *file_ptr = CastFromMember(Editing_File, edit_finished_mark_node, node);
                         file_ptrs[id_count] = file_ptr;
-                        ids[id_count] = file_ptr->id.id;
+                        ids[id_count] = file_ptr->id;
                         id_count += 1;
                     }
                     
@@ -1419,8 +1417,7 @@ App_Step_Sig(app_step){
                         file_ptrs[i]->edit_finished_marked = false;
                     }
                     
-                    working_set->edit_finished_list_first = 0;
-                    working_set->edit_finished_list_last = 0;
+                    block_zero_struct(&working_set->edit_finished_sentinel);
                     working_set->edit_finished_count = 0;
                     working_set->time_of_next_edit_finished_signal = 0;
                     

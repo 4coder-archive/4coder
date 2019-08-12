@@ -403,8 +403,8 @@ file_set_font(System_Functions *system, Models *models, Editing_File *file, Face
 
 internal void
 global_set_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id){
-    for (Node *node = models->working_set.used_sentinel.next;
-         node != &models->working_set.used_sentinel;
+    for (Node *node = models->working_set.active_file_sentinel.next;
+         node != &models->working_set.active_file_sentinel;
          node = node->next){
         Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
         file_set_font(system, models, file, font_id);
@@ -417,8 +417,8 @@ alter_font_and_update_files(System_Functions *system, Models *models, Face_ID fa
     b32 success = false;
     if (font_set_modify_face(&models->font_set, face_id, new_description)){
         success = true;
-        for (Node *node = models->working_set.used_sentinel.next;
-             node != &models->working_set.used_sentinel;
+        for (Node *node = models->working_set.active_file_sentinel.next;
+             node != &models->working_set.active_file_sentinel;
              node = node->next){
             Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
             if (file->settings.font_id == face_id){
@@ -438,8 +438,8 @@ release_font_and_update_files(System_Functions *system, Models *models, Face_ID 
             replacement_id = font_set_get_fallback_face(&models->font_set);
             Assert(font_set_face_from_id(&models->font_set, replacement_id) != 0);
         }
-        for (Node *node = models->working_set.used_sentinel.next;
-             node != &models->working_set.used_sentinel;
+        for (Node *node = models->working_set.active_file_sentinel.next;
+             node != &models->working_set.active_file_sentinel;
              node = node->next){
             Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
             if (file->settings.font_id == font_id){
@@ -521,7 +521,6 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
     Font_Set *font_set = &models->font_set;
     
     Assert(file != 0);
-    Assert(!file->is_dummy);
     Assert(buffer_good(&file->state.buffer));
     
     Cpp_Token_Array token_array = file->state.token_array;

@@ -10,148 +10,73 @@
 // TOP
 
 internal void
-working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
-    Assert(working_set->array_count < working_set->array_max);
-    
-    i16 high_part = working_set->array_count++;
-    working_set->file_arrays[high_part].files = new_space;
-    working_set->file_arrays[high_part].size = number_of_files;
-    
-    working_set->file_max += number_of_files;
-    
-    Buffer_Slot_ID id = {};
-    id.part[1] = high_part;
-    
-    Editing_File *file_ptr = new_space;
-    Node *free_sentinel = &working_set->free_sentinel;
-    for (i16 i = 0; i < number_of_files; ++i, ++file_ptr){
-        id.part[0] = i;
-        file_ptr->id = id;
-        dll_insert(free_sentinel, &file_ptr->main_chain_node);
-    }
-}
-
-internal void
 working_set_file_default_settings(Working_Set *working_set, Editing_File *file){
-    memset(&file->settings, 0, sizeof(file->settings));
+    block_zero_struct(&file->settings);
     file->settings.display_width = working_set->default_display_width;
     file->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
     file->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
 }
 
-// TODO(allen): do(restructure so that editing file is returned cleared to zero)
+////////////////////////////////
+
 internal Editing_File*
-working_set_alloc_always(Working_Set *working_set, Heap *heap, Lifetime_Allocator *lifetime_allocator){
-    Editing_File *result = 0;
-    if (working_set->file_count == working_set->file_max && working_set->array_count < working_set->array_max){
-        i16 new_count = (i16)clamp_top(working_set->file_max, max_i16);
-        Editing_File *new_chunk = heap_array(heap, Editing_File, new_count);
-        working_set_extend_memory(working_set, new_chunk, new_count);
+working_set_allocate_file(Working_Set *working_set, Lifetime_Allocator *lifetime_allocator){
+    Editing_File *file = working_set->free_files;
+    if (file == 0){
+        file = push_array(&working_set->arena, Editing_File, 1);
     }
-    
-    if (working_set->file_count < working_set->file_max){
-        Node *node = working_set->free_sentinel.next;
-        Assert(node != &working_set->free_sentinel);
-        result = CastFromMember(Editing_File, main_chain_node, node);
-        
-        ++working_set->file_count;
-        
-        dll_remove(node);
-        dll_insert(&working_set->used_sentinel, node);
-        
-        Node node_val = result->main_chain_node;
-        Buffer_Slot_ID id_val = result->id;
-        memset(result, 0, sizeof(*result));
-        result->main_chain_node  = node_val;
-        result->id = id_val;
-        
-        working_set_file_default_settings(working_set, result);
+    else{
+        sll_stack_pop(working_set->free_files);
     }
+    block_zero_struct(file);
     
-    return(result);
+    dll_insert_back(&working_set->active_file_sentinel, &file->main_chain_node);
+    working_set->active_file_count += 1;
+    
+    file->id = working_set->id_counter;
+    working_set->id_counter += 1;
+    
+    working_set_file_default_settings(working_set, file);
+    
+    table_insert(&working_set->id_to_ptr_table,
+                 (u64)file->id, (u64)(PtrAsInt(file)));
+    
+    return(file);
 }
 
 internal void
 working_set_free_file(Heap *heap, Working_Set  *working_set, Editing_File *file){
-    if (working_set->sync_check_iter == &file->main_chain_node){
-        working_set->sync_check_iter = working_set->sync_check_iter->next;
-    }
-    file->is_dummy = true;
     dll_remove(&file->main_chain_node);
-    dll_insert(&working_set->free_sentinel, &file->main_chain_node);
-    --working_set->file_count;
+    working_set->active_file_count -= 1;
+    table_erase(&working_set->id_to_ptr_table, file->id);
+    sll_stack_push(working_set->free_files, file);
 }
 
 internal Editing_File*
-working_set_index(Working_Set *working_set, Buffer_Slot_ID id){
+working_set_get_file(Working_Set *working_set, Buffer_ID id){
     Editing_File *result = 0;
-    File_Array *array = 0;
-    if (id.part[1] >= 0 && id.part[1] < working_set->array_count){
-        array = working_set->file_arrays + id.part[1];
-        if (id.part[0] >= 0 && id.part[0] < array->size){
-            result = array->files + id.part[0];
-        }
+    u64 val = 0;
+    if (table_read(&working_set->id_to_ptr_table, id, &val)){
+        result = (Editing_File*)(IntAsPtr(val));
     }
     return(result);
 }
 
-internal Editing_File*
-working_set_index(Working_Set *working_set, i32 id){
-    return(working_set_index(working_set, to_file_id(id)));
-}
-
-internal Editing_File*
-working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
-    Editing_File *result = working_set_index(working_set, id);
-    if (result != 0 && result->is_dummy){
-        result = 0;
-    }
-    return(result);
-}
-
-internal Editing_File*
-working_set_get_active_file(Working_Set *working_set, Buffer_ID id){
-    return(working_set_get_active_file(working_set, to_file_id(id)));
-}
-
-// TODO(allen): REWRITE all of working set
 internal void
-working_set_init(System_Functions *system, Working_Set *working_set, Arena *arena){
-    i16 init_count = 16;
-    i16 array_init_count = 256;
+working_set_init(System_Functions *system, Working_Set *working_set){
+    block_zero_struct(working_set);
+    working_set->arena = make_arena_system(system);
     
-    dll_init_sentinel(&working_set->free_sentinel);
-    dll_init_sentinel(&working_set->used_sentinel);
+    working_set->id_counter = 1;
     
-    working_set->edit_finished_list_first = 0;
-    working_set->edit_finished_list_last = 0;
-    working_set->edit_finished_count = 0;
+    dll_init_sentinel(&working_set->active_file_sentinel);
+    dll_init_sentinel(&working_set->edit_finished_sentinel);
     
-    working_set->time_of_next_edit_finished_signal = 0;
-    working_set->edit_finished_timer = system->wake_up_timer_create();
-    working_set->do_not_mark_edits = false;
-    
-    working_set->array_max = array_init_count;
-    working_set->file_arrays = push_array(arena, File_Array, array_init_count);
-    
-    Editing_File *files = push_array(arena, Editing_File, init_count);
-    working_set_extend_memory(working_set, files, init_count);
-    
-    // TODO(NAME): do(clean up the rest of the null_file)
-    // Unclear that this is still needed.  But double check that the buffer id 0 does not start getting used by the next real buffer when this 
-    // is removed before actually removing it.  Buffer id cannot be allowed to be zero on real buffers.
-#if 1
-    // NOTE(allen): init null file
-    {
-        Editing_File *null_file = working_set_index(working_set, 0);
-        dll_remove(&null_file->main_chain_node);
-        null_file->is_dummy = true;
-        ++working_set->file_count;
-    }
-#endif
-    
-    working_set->canon_table = make_table_Data_u64(arena->base_allocator, 128);
-    working_set->name_table = make_table_Data_u64(arena->base_allocator, 128);
+    local_const i32 slot_count = 128;
+    Base_Allocator *allocator = get_base_allocator_system(system);
+    working_set->id_to_ptr_table = make_table_u64_u64(allocator, slot_count);
+    working_set->canon_table = make_table_Data_u64(allocator, slot_count);
+    working_set->name_table = make_table_Data_u64(allocator, slot_count);
 }
 
 internal Editing_File*
@@ -159,7 +84,7 @@ working_set_contains__generic(Working_Set *working_set, Table_Data_u64 *table, S
     Editing_File *result = 0;
     u64 val = 0;
     if (table_read(table, make_data(name.str, name.size), &val)){
-        result = working_set_index(working_set, to_file_id((Buffer_ID)val));
+        result = working_set_get_file(working_set, (Buffer_ID)val);
     }
     return(result);
 }
@@ -181,7 +106,7 @@ working_set_contains_canon(Working_Set *working_set, String_Const_u8 name){
 
 internal b32
 working_set_canon_add(Working_Set *working_set, Editing_File *file, String_Const_u8 name){
-    return(working_set_add__generic(&working_set->canon_table, file->id.id, name));
+    return(working_set_add__generic(&working_set->canon_table, file->id, name));
 }
 
 internal void
@@ -196,7 +121,7 @@ working_set_contains_name(Working_Set *working_set, String_Const_u8 name){
 
 internal b32
 working_set_add_name(Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 name){
-    return(working_set_add__generic(&working_set->name_table, file->id.id, name));
+    return(working_set_add__generic(&working_set->name_table, file->id, name));
 }
 
 internal void
@@ -208,7 +133,7 @@ internal Editing_File*
 get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
     Editing_File *file = 0;
     if (buffer.id != 0){
-        file = working_set_get_active_file(working_set, buffer.id);
+        file = working_set_get_file(working_set, buffer.id);
     }
     else if (buffer.name != 0){
         String_Const_u8 name = SCu8(buffer.name, buffer.name_len);
@@ -322,10 +247,13 @@ buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_F
 internal b32
 buffer_name_has_conflict(Working_Set *working_set, String_Const_u8 base_name){
     b32 hit_conflict = false;
-    Node *used_nodes = &working_set->used_sentinel;
-    for (Node *node = used_nodes->next; node != used_nodes; node = node->next){
+    Node *used_nodes = &working_set->active_file_sentinel;
+    for (Node *node = used_nodes->next;
+         node != used_nodes;
+         node = node->next){
         Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
-        if (file_is_ready(file_ptr) && string_match(base_name, string_from_file_name(&file_ptr->unique_name))){
+        if (file_is_ready(file_ptr) &&
+            string_match(base_name, string_from_file_name(&file_ptr->unique_name))){
             hit_conflict = true;
             break;
         }
@@ -411,12 +339,13 @@ buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *workin
         conflict_count += 1;
     }
     
-    Node *used_nodes = &working_set->used_sentinel;
+    Node *used_nodes = &working_set->active_file_sentinel;
     for (Node *node = used_nodes->next;
          node != used_nodes;
          node = node->next){
         Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
-        if (file_is_ready(file_ptr) && string_match(base_name, string_from_file_name(&file_ptr->base_name))){
+        if (file_is_ready(file_ptr) &&
+            string_match(base_name, string_from_file_name(&file_ptr->base_name))){
             Node_Ptr *new_node = push_array(scratch, Node_Ptr, 1);
             sll_queue_push(conflict_first, conflict_last, new_node);
             new_node->file_ptr = file_ptr;
@@ -434,7 +363,7 @@ buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *workin
              node = node->next, i += 1){
             Editing_File *file_ptr = node->file_ptr;
             Buffer_Name_Conflict_Entry *entry = &conflicts[i];
-            entry->buffer_id = file_ptr->id.id;
+            entry->buffer_id = file_ptr->id;
             
             entry->file_name = push_string_copy(scratch, string_from_file_name(&file_ptr->canon));
             entry->base_name = push_string_copy(scratch, base_name);
@@ -491,22 +420,23 @@ buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *workin
 internal void
 file_touch(Working_Set *working_set, Editing_File *file){
     Assert(file != 0);
-    Assert(!file->is_dummy);
-    dll_remove(&file->main_chain_node);
-    dll_insert(&working_set->used_sentinel, &file->main_chain_node);
+    // TODO(allen): create a reorderable list of files in working
+    // set used to keep track of "most recently touched"
+    //NotImplemented;
 }
 
 internal Editing_File*
 file_get_next(Working_Set *working_set, Editing_File *file){
     if (file != 0){
-        file = CastFromMember(Editing_File, main_chain_node, file->main_chain_node.next);
-        if (file == CastFromMember(Editing_File, main_chain_node, &working_set->used_sentinel)){
+        Node *node = file->main_chain_node.next;
+        file = CastFromMember(Editing_File, main_chain_node, node);
+        if (node == &working_set->active_file_sentinel){
             file = 0;
         }
     }
     else{
-        if (working_set->file_count > 0){
-            Node *node = working_set->used_sentinel.next;
+        if (working_set->active_file_count > 0){
+            Node *node = working_set->active_file_sentinel.next;
             file = CastFromMember(Editing_File, main_chain_node, node);
         }
     }
@@ -516,14 +446,13 @@ file_get_next(Working_Set *working_set, Editing_File *file){
 internal void
 file_mark_edit_finished(Working_Set *working_set, Editing_File *file){
     // TODO(allen): do(propogate do_not_mark_edits down the edit pipeline to here)
-    // This current method only works for synchronous calls, asynchronous calls will get the
-    // wrong do_not_mark_edits value.
+    // This current method only works for synchronous calls, asynchronous calls
+    // will get the wrong do_not_mark_edits value.
     if (!working_set->do_not_mark_edits){
-        if (!file->edit_finished_marked == 0){
-            zdll_push_back(working_set->edit_finished_list_first,
-                           working_set->edit_finished_list_last,
-                           &file->edit_finished_mark_node);
+        if (!file->edit_finished_marked){
             file->edit_finished_marked = true;
+            dll_insert_back(&working_set->edit_finished_sentinel,
+                            &file->edit_finished_mark_node);
             working_set->edit_finished_count += 1;
         }
     }
@@ -534,14 +463,10 @@ file_unmark_edit_finished(Working_Set *working_set, Editing_File *file){
     b32 result = false;
     if (!working_set->do_not_mark_edits){
         if (file->edit_finished_marked){
-            zdll_remove(working_set->edit_finished_list_first,
-                        working_set->edit_finished_list_last,
-                        &file->edit_finished_mark_node);
-            file->edit_finished_mark_node.next = 0;
-            file->edit_finished_mark_node.prev = 0;
             file->edit_finished_marked = false;
+            dll_remove(&file->edit_finished_mark_node);
             working_set->edit_finished_count -= 1;
-            
+            block_zero_struct(&file->edit_finished_mark_node);
             result = true;
         }
     }
@@ -553,7 +478,7 @@ file_unmark_edit_finished(Working_Set *working_set, Editing_File *file){
 internal Editing_File*
 imp_get_file(Models *models, Buffer_ID buffer_id){
     Working_Set *working_set = &models->working_set;
-    Editing_File *file = working_set_get_active_file(working_set, buffer_id);
+    Editing_File *file = working_set_get_file(working_set, buffer_id);
     if (file != 0 && !file_is_ready(file)){
         file = 0;
     }
@@ -561,4 +486,6 @@ imp_get_file(Models *models, Buffer_ID buffer_id){
 }
 
 // BOTTOM
+
+
 

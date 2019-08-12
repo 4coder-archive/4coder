@@ -9,13 +9,6 @@
 
 // TOP
 
-internal Buffer_Slot_ID
-to_file_id(i32 id){
-    Buffer_Slot_ID result = {};
-    result.id = id;
-    return(result);
-}
-
 internal String_Const_u8
 string_from_file_name(Editing_File_Name *name){
     return(SCu8(name->name_space, name->name_size));
@@ -153,7 +146,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
     if (file_name != 0){
         Mem_Options *mem = &models->mem;
         if (models->hook_save_file != 0){
-            models->hook_save_file(&models->app_links, file->id.id);
+            models->hook_save_file(&models->app_links, file->id);
         }
         
         Gap_Buffer *buffer = &file->state.buffer;
@@ -468,7 +461,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     // be to make sure it always happens in one way.
     Open_File_Hook_Function *hook_open_file = models->hook_open_file;
     if (hook_open_file != 0){
-        hook_open_file(app_links, file->id.id);
+        hook_open_file(app_links, file->id);
     }
     
     if (file->settings.tokens_exist){

@@ -34,12 +34,17 @@ make_base_allocator_system(System_Functions *system){
 
 global Base_Allocator base_allocator_system = {};
 
-internal Arena
-make_arena_system(System_Functions *system, umem chunk_size, umem align){
+internal Base_Allocator*
+get_base_allocator_system(System_Functions *system){
     if (base_allocator_system.reserve == 0){
         base_allocator_system = make_base_allocator_system(system);
     }
-    return(make_arena(&base_allocator_system, chunk_size, align));
+    return(&base_allocator_system);
+}
+
+internal Arena
+make_arena_system(System_Functions *system, umem chunk_size, umem align){
+    return(make_arena(get_base_allocator_system(system), chunk_size, align));
 }
 
 internal Arena
