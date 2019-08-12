@@ -1417,7 +1417,7 @@ App_Step_Sig(app_step){
                         file_ptrs[i]->edit_finished_marked = false;
                     }
                     
-                    block_zero_struct(&working_set->edit_finished_sentinel);
+                    dll_init_sentinel(&working_set->edit_finished_sentinel);
                     working_set->edit_finished_count = 0;
                     working_set->time_of_next_edit_finished_signal = 0;
                     

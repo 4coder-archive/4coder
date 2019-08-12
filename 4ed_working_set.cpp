@@ -70,7 +70,9 @@ working_set_init(System_Functions *system, Working_Set *working_set){
     working_set->id_counter = 1;
     
     dll_init_sentinel(&working_set->active_file_sentinel);
+    
     dll_init_sentinel(&working_set->edit_finished_sentinel);
+    working_set->edit_finished_timer = system->wake_up_timer_create();
     
     local_const i32 slot_count = 128;
     Base_Allocator *allocator = get_base_allocator_system(system);
