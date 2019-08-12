@@ -3167,7 +3167,11 @@ Get_File_List(Application_Links *app, Arena *arena, String_Const_u8 directory){
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
     String_Const_u8 canonical_directory = system->get_canonical(arena, directory);
-    return(system->get_file_list(arena, canonical_directory));
+    File_List list = {};
+    if (canonical_directory.str != 0){
+        list = system->get_file_list(arena, canonical_directory);
+    }
+    return(list);
 }
 
 API_EXPORT void
