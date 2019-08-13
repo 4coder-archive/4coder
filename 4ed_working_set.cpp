@@ -31,6 +31,7 @@ working_set_allocate_file(Working_Set *working_set, Lifetime_Allocator *lifetime
     block_zero_struct(file);
     
     dll_insert_back(&working_set->active_file_sentinel, &file->main_chain_node);
+    dll_insert_back(&working_set->touch_order_sentinel, &file->touch_node);
     working_set->active_file_count += 1;
     
     file->id = working_set->id_counter;
@@ -47,6 +48,7 @@ working_set_allocate_file(Working_Set *working_set, Lifetime_Allocator *lifetime
 internal void
 working_set_free_file(Heap *heap, Working_Set  *working_set, Editing_File *file){
     dll_remove(&file->main_chain_node);
+    dll_remove(&file->touch_node);
     working_set->active_file_count -= 1;
     table_erase(&working_set->id_to_ptr_table, file->id);
     sll_stack_push(working_set->free_files, file);
@@ -70,6 +72,7 @@ working_set_init(System_Functions *system, Working_Set *working_set){
     working_set->id_counter = 1;
     
     dll_init_sentinel(&working_set->active_file_sentinel);
+    dll_init_sentinel(&working_set->touch_order_sentinel);
     
     dll_init_sentinel(&working_set->edit_finished_sentinel);
     working_set->edit_finished_timer = system->wake_up_timer_create();
@@ -422,24 +425,23 @@ buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *workin
 internal void
 file_touch(Working_Set *working_set, Editing_File *file){
     Assert(file != 0);
-    // TODO(allen): create a reorderable list of files in working
-    // set used to keep track of "most recently touched"
-    //NotImplemented;
+    dll_remove(&file->touch_node);
+    dll_insert(&working_set->touch_order_sentinel, &file->touch_node);
 }
 
 internal Editing_File*
 file_get_next(Working_Set *working_set, Editing_File *file){
     if (file != 0){
-        Node *node = file->main_chain_node.next;
-        file = CastFromMember(Editing_File, main_chain_node, node);
-        if (node == &working_set->active_file_sentinel){
+        Node *node = file->touch_node.next;
+        file = CastFromMember(Editing_File, touch_node, node);
+        if (node == &working_set->touch_order_sentinel){
             file = 0;
         }
     }
     else{
         if (working_set->active_file_count > 0){
-            Node *node = working_set->active_file_sentinel.next;
-            file = CastFromMember(Editing_File, main_chain_node, node);
+            Node *node = working_set->touch_order_sentinel.next;
+            file = CastFromMember(Editing_File, touch_node, node);
         }
     }
     return(file);

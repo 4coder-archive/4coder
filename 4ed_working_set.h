@@ -19,6 +19,7 @@ struct Working_Set{
     Buffer_ID id_counter;
     
     Node active_file_sentinel;
+    Node touch_order_sentinel;
     i32 active_file_count;
     
     Node edit_finished_sentinel;
@@ -41,40 +42,6 @@ struct Working_Set{
     i32 default_display_width;
     i32 default_minimum_base_display_width;
 };
-
-#if 0
-struct Working_Set{
-    File_Array *file_arrays;
-    i32 file_count;
-    i32 file_max;
-    i16 array_count;
-    i16 array_max;
-    
-    Node free_sentinel;
-    Node used_sentinel;
-    
-    Node *edit_finished_list_first;
-    Node *edit_finished_list_last;
-    i32 edit_finished_count;
-    
-    u64 time_of_next_edit_finished_signal;
-    Plat_Handle edit_finished_timer;
-    b32 do_not_mark_edits;
-    
-    Table_Data_u64 canon_table;
-    Table_Data_u64 name_table;
-    
-    // TODO(allen): do(update clipboard system to exist fully in the custom layer)
-    String_Const_u8 clipboards[64];
-    i32 clipboard_size;
-    i32 clipboard_max_size;
-    i32 clipboard_current;
-    i32 clipboard_rolling;
-    
-    i32 default_display_width;
-    i32 default_minimum_base_display_width;
-};
-#endif
 
 internal void
 file_mark_edit_finished(Working_Set *working_set, Editing_File *file);

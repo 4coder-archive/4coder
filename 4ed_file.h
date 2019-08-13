@@ -97,6 +97,7 @@ struct Editing_File{
         Editing_File *next;
         Node main_chain_node;
     };
+    Node touch_node;
     Buffer_ID id;
     Editing_File_Settings settings;
     b32 is_loading;
