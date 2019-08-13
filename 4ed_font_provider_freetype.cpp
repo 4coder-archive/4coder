@@ -333,6 +333,10 @@ ft__font_make_face(Arena *arena, Face_Description *description){
             face->byte_sub_advances[0] = font_get_glyph_advance(face, '\\');
             face->byte_sub_advances[1] = face->hex_advance;
             face->byte_sub_advances[2] = face->hex_advance;
+            face->byte_advance =
+                face->byte_sub_advances[0] +
+                face->byte_sub_advances[1] +
+                face->byte_sub_advances[2];
             face->typical_lowercase_advance = font_get_average_glyph_advance_range(face, 'a', 'z');
             face->typical_uppercase_advance = font_get_average_glyph_advance_range(face, 'A', 'Z');
             face->typical_advance = (26*face->typical_lowercase_advance +
