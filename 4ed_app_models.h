@@ -27,11 +27,19 @@ struct App_Settings{
     b32 use_hinting;
 };
 
+enum App_State{
+    APP_STATE_EDIT,
+    APP_STATE_RESIZING,
+    // never below this
+    APP_STATE_COUNT
+};
+
 struct Models{
     Base_Allocator *base_allocator;
     Mem_Options mem;
     
     App_Settings settings;
+    App_State state;
     
     Face_ID global_font_id;
     
@@ -126,16 +134,6 @@ struct Models{
     // TODO(allen): endless stack?
     Vec2 coordinate_center_stack[32];
     i32 coordinate_center_stack_top;
-    
-#if 0
-    View *render_view;
-    i32_Rect render_view_rect;
-    i32_Rect render_buffer_rect;
-    Full_Cursor render_cursor;
-    Range render_range;
-    Buffer_Render_Item *render_items;
-    i32 render_item_count;
-#endif
 };
 
 ////////////////////////////////
@@ -147,13 +145,6 @@ enum{
     DynamicWorkspace_Buffer = 2,
     DynamicWorkspace_View = 3,
     DynamicWorkspace_Intersected = 4,
-};
-
-enum App_State{
-    APP_STATE_EDIT,
-    APP_STATE_RESIZING,
-    // never below this
-    APP_STATE_COUNT
 };
 
 enum Input_Types{
@@ -174,7 +165,6 @@ struct Consumption_Record{
 // TODO(allen): GET RID OF IT!
 struct App_Vars{
     Models models;
-    App_State state;
 };
 
 typedef i32 App_Coroutine_Purpose;

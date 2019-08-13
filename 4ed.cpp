@@ -976,8 +976,7 @@ App_Init_Sig(app_init){
 }
 
 App_Step_Sig(app_step){
-    App_Vars *vars = (App_Vars*)memory->vars_memory;
-    Models *models = &vars->models;
+    Models *models = (Models*)memory->vars_memory;
     
     models->next_animate_delay = max_u32;
     models->animate_next_frame = false;
@@ -1199,7 +1198,7 @@ App_Step_Sig(app_step){
         View *view = active_panel->view;
         Assert(view != 0);
         
-        switch (vars->state){
+        switch (models->state){
             case APP_STATE_EDIT:
             {
                 Key_Code keycode = key_ptr->keycode;
@@ -1221,7 +1220,7 @@ App_Step_Sig(app_step){
                 switch (event_consume_mode){
                     case EventConsume_BeginResize:
                     {
-                        vars->state = APP_STATE_RESIZING;
+                        models->state = APP_STATE_RESIZING;
                         models->resizing_intermediate_panel = divider_panel;
                     }break;
                     
@@ -1293,7 +1292,7 @@ App_Step_Sig(app_step){
                 Key_Code keycode = key_ptr->keycode;
                 u32 event_flags = get_event_flags(keycode);
                 if (event_flags & EventOnAnyKey || keycode == key_mouse_left_release){
-                    vars->state = APP_STATE_EDIT;
+                    models->state = APP_STATE_EDIT;
                 }
                 else if (keycode == key_mouse_move){
                     if (input->mouse.l){
@@ -1304,7 +1303,7 @@ App_Step_Sig(app_step){
                         layout_set_split_absolute_position(layout, split, mouse_position);
                     }
                     else{
-                        vars->state = APP_STATE_EDIT;
+                        models->state = APP_STATE_EDIT;
                     }
                 }
             }break;
