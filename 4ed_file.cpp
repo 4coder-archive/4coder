@@ -94,13 +94,13 @@ file_set_unimportant(Editing_File *file, b32 val){
     if (val){
         file->state.dirty = DirtyState_UpToDate;
     }
-    file->settings.unimportant = (b8)(val != false);
+    file->settings.unimportant = (b8)(val);
 }
 
 internal void
 file_set_to_loading(Editing_File *file){
-    memset(&file->state, 0, sizeof(file->state));
-    memset(&file->settings, 0, sizeof(file->settings));
+    block_zero_struct(&file->state);
+    block_zero_struct(&file->settings);
     file->is_loading = true;
 }
 

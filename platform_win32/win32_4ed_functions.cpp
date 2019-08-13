@@ -375,7 +375,7 @@ int_color_from_colorref(COLORREF ref, int_color alpha_from){
 }
 
 internal void
-system_schedule_step();
+system_schedule_step(u32 code);
 
 internal UINT_PTR CALLBACK
 color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
@@ -428,7 +428,7 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
                     if(*picker->dest != new_color)
                     {
                         *picker->dest = new_color;
-                        system_schedule_step();
+                        system_schedule_step(0);
                     }
                 }
             }

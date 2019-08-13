@@ -98,17 +98,18 @@ struct Editing_File{
         Node main_chain_node;
     };
     Node touch_node;
+    Node reloaded_node;
+    Node edit_finished_mark_node;
+    b32 edit_finished_marked;
+    b32 is_loading;
     Buffer_ID id;
     Editing_File_Settings settings;
-    b32 is_loading;
     Editing_File_State state;
     File_Attributes attributes;
     Lifetime_Object *lifetime_object;
     Editing_File_Name base_name;
     Editing_File_Name unique_name;
     Editing_File_Name canon;
-    b32 edit_finished_marked;
-    Node edit_finished_mark_node;
 };
 
 #endif

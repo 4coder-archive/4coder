@@ -35,6 +35,7 @@ enum App_State{
 };
 
 struct Models{
+    System_Functions *system;
     Base_Allocator *base_allocator;
     Mem_Options mem;
     
@@ -121,10 +122,6 @@ struct Models{
     b32 animated_last_frame;
     u64 last_render_usecond_stamp;
     
-    // System Context
-    System_Functions *system;
-    struct App_Vars *vars;
-    
     // Event Context
     Application_Step_Input *input;
     Key_Event_Data key;
@@ -160,11 +157,6 @@ enum Input_Types{
 struct Consumption_Record{
     b32 consumed;
     char consumer[32];
-};
-
-// TODO(allen): GET RID OF IT!
-struct App_Vars{
-    Models models;
 };
 
 typedef i32 App_Coroutine_Purpose;
@@ -215,6 +207,16 @@ enum{
     AppCoroutineRequest_None = 0,
     AppCoroutineRequest_NewFontFace = 1,
     AppCoroutineRequest_ModifyFace = 2,
+};
+
+////////////////////////////////
+
+struct Mutex_Lock{
+    Mutex_Lock(System_Functions *system, System_Mutex mutex);
+    ~Mutex_Lock();
+    operator System_Mutex();
+    System_Functions *system;
+    System_Mutex mutex;
 };
 
 #endif

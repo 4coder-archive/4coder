@@ -19,6 +19,54 @@ working_set_file_default_settings(Working_Set *working_set, Editing_File *file){
 
 ////////////////////////////////
 
+internal void
+file_change_notification_check(System_Functions *system, Working_Set *working_set, Editing_File *file){
+    if (file->canon.name_size > 0 && !file->settings.unimportant){
+        String_Const_u8 name = SCu8(file->canon.name_space, file->canon.name_size);
+        File_Attributes attributes = system->quick_file_attributes(name);
+        if (attributes.last_write_time > file->attributes.last_write_time){
+            if (!HasFlag(file->state.dirty, DirtyState_UnloadedChanges)){
+                file_add_dirty_flag(file, DirtyState_UnloadedChanges);
+                dll_insert_back(&working_set->has_reloaded_sentinel,
+                                &file->reloaded_node);
+                system->signal_step(0);
+            }
+        }
+        file->attributes = attributes;
+    }
+}
+
+internal void
+file_change_notification_thread_main(void *ptr){
+    Models *models = (Models*)ptr;
+    System_Functions *system = models->system;
+    Working_Set *working_set = &models->working_set;
+    for (;;){
+        system->sleep(Thousand(250));
+        Mutex_Lock lock(system, working_set->mutex);
+        if (working_set->active_file_count > 0){
+            i32 check_count = working_set->active_file_count/16;
+            check_count = clamp(1, check_count, 100);
+            Node *used = &working_set->active_file_sentinel;
+            Node *node = working_set->sync_check_iterator;
+            if (node == 0 || node == used){
+                node = used->next;
+            }
+            for (i32 i = 0; i < check_count; i += 1){
+                Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
+                node = node->next;
+                if (node == used){
+                    node = node->next;
+                }
+                file_change_notification_check(system, working_set, file);
+            }
+            working_set->sync_check_iterator = node;
+        }
+    }
+}
+
+////////////////////////////////
+
 internal Editing_File*
 working_set_allocate_file(Working_Set *working_set, Lifetime_Allocator *lifetime_allocator){
     Editing_File *file = working_set->free_files;
@@ -46,7 +94,10 @@ working_set_allocate_file(Working_Set *working_set, Lifetime_Allocator *lifetime
 }
 
 internal void
-working_set_free_file(Heap *heap, Working_Set  *working_set, Editing_File *file){
+working_set_free_file(Heap *heap, Working_Set *working_set, Editing_File *file){
+    if (working_set->sync_check_iterator == &file->main_chain_node){
+        working_set->sync_check_iterator = working_set->sync_check_iterator->next;
+    }
     dll_remove(&file->main_chain_node);
     dll_remove(&file->touch_node);
     working_set->active_file_count -= 1;
@@ -65,8 +116,9 @@ working_set_get_file(Working_Set *working_set, Buffer_ID id){
 }
 
 internal void
-working_set_init(System_Functions *system, Working_Set *working_set){
+working_set_init(Models *models, Working_Set *working_set){
     block_zero_struct(working_set);
+    System_Functions *system = models->system;
     working_set->arena = make_arena_system(system);
     
     working_set->id_counter = 1;
@@ -82,6 +134,10 @@ working_set_init(System_Functions *system, Working_Set *working_set){
     working_set->id_to_ptr_table = make_table_u64_u64(allocator, slot_count);
     working_set->canon_table = make_table_Data_u64(allocator, slot_count);
     working_set->name_table = make_table_Data_u64(allocator, slot_count);
+    
+    dll_init_sentinel(&working_set->has_reloaded_sentinel);
+    working_set->mutex = system->mutex_make();
+    working_set->file_change_thread = system->thread_launch(file_change_notification_thread_main, models);
 }
 
 internal Editing_File*

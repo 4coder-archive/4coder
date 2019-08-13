@@ -12,6 +12,24 @@
 #define DEFAULT_DISPLAY_WIDTH 672
 #define DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH 550
 
+////////////////////////////////
+
+Mutex_Lock::Mutex_Lock(System_Functions *s, System_Mutex m){
+    s->mutex_acquire(m);
+    this->system = s;
+    this->mutex = m;
+}
+
+Mutex_Lock::~Mutex_Lock(){
+    this->system->mutex_release(this->mutex);
+}
+
+Mutex_Lock::operator System_Mutex(){
+    return(this->mutex);
+}
+
+////////////////////////////////
+
 internal App_Coroutine_State
 get_state(Application_Links *app){
     App_Coroutine_State state = {};
@@ -732,15 +750,15 @@ make_arena_models(Models *models){
 
 ////////////////////////////////
 
-internal App_Vars*
+internal Models*
 app_setup_memory(System_Functions *system, Application_Memory *memory){
     Cursor cursor = make_cursor(memory->vars_memory, memory->vars_memory_size);
-    App_Vars *vars = push_array_zero(&cursor, App_Vars, 1);
-    vars->models.mem.arena = make_arena_system(system);
-    vars->models.base_allocator = vars->models.mem.arena.base_allocator;
-    heap_init(&vars->models.mem.heap);
-    heap_extend(&vars->models.mem.heap, memory->target_memory, memory->target_memory_size);
-    return(vars);
+    Models *models = push_array_zero(&cursor, Models, 1);
+    models->mem.arena = make_arena_system(system);
+    models->base_allocator = models->mem.arena.base_allocator;
+    heap_init(&models->mem.heap);
+    heap_extend(&models->mem.heap, memory->target_memory, memory->target_memory_size);
+    return(models);
 }
 
 internal u32
@@ -822,21 +840,21 @@ launch_command_via_keycode(System_Functions *system, Models *models, View *view,
 
 App_Read_Command_Line_Sig(app_read_command_line){
     i32 out_size = 0;
-    App_Vars *vars = app_setup_memory(system, memory);
-    App_Settings *settings = &vars->models.settings;
+    Models *models = app_setup_memory(system, memory);
+    App_Settings *settings = &models->settings;
     memset(settings, 0, sizeof(*settings));
     plat_settings->font_size = 16;
     if (argc > 1){
-        init_command_line_settings(&vars->models.settings, plat_settings, argc, argv);
+        init_command_line_settings(&models->settings, plat_settings, argc, argv);
     }
-    *files = vars->models.settings.init_files;
-    *file_count = &vars->models.settings.init_files_count;
+    *files = models->settings.init_files;
+    *file_count = &models->settings.init_files_count;
     return(out_size);
 }
 
 App_Init_Sig(app_init){
-    App_Vars *vars = (App_Vars*)memory->vars_memory;
-    Models *models = &vars->models;
+    Models *models = (Models*)memory->vars_memory;
+    models->system = system;
     models->keep_playing = true;
     
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
@@ -893,7 +911,10 @@ App_Init_Sig(app_init){
     dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
-    working_set_init(system, &models->working_set);
+    working_set_init(models, &models->working_set);
+    
+    Mutex_Lock file_order_lock(system, models->working_set.mutex);
+    
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
@@ -928,10 +949,6 @@ App_Init_Sig(app_init){
     models->title_capacity = KB(4);
     models->title_space = push_array(arena, char, models->title_capacity);
     block_copy(models->title_space, WINDOW_NAME, sizeof(WINDOW_NAME));
-    
-    // NOTE(allen): init system context
-    models->system = system;
-    models->vars = vars;
     
     // NOTE(allen): init baked in buffers
     File_Init init_files[] = {
@@ -978,6 +995,8 @@ App_Init_Sig(app_init){
 App_Step_Sig(app_step){
     Models *models = (Models*)memory->vars_memory;
     
+    Mutex_Lock file_order_lock(system, models->working_set.mutex);
+    
     models->next_animate_delay = max_u32;
     models->animate_next_frame = false;
     
@@ -995,50 +1014,6 @@ App_Step_Sig(app_step){
             models->clipboard_change(&models->app_links, *dest, ClipboardFlag_FromOS);
         }
     }
-    
-#if 0    
-    // NOTE(allen): check files are up to date
-    {
-        b32 mem_too_small = 0;
-        i32 size = 0;
-        i32 buffer_size = KB(32);
-        
-        Arena *scratch = &models->mem.arena;
-        Temp_Memory temp = begin_temp(scratch);
-        char *buffer = push_array(scratch, char, buffer_size);
-        u32 unmark_top = 0;
-        u32 unmark_max = Thousand(8);
-        Editing_File **unmark = (Editing_File**)push_array(scratch, Editing_File*, unmark_max);
-        
-        Working_Set *working_set = &models->working_set;
-        
-        for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
-            Assert(!mem_too_small);
-            Editing_File_Name canon = {};
-            if (get_canon_name(system, scratch, SCu8(buffer, size), &canon)){
-                Editing_File *file = working_set_contains_canon(working_set, string_from_file_name(&canon));
-                if (file != 0){
-                    if (file->state.ignore_behind_os == 0){
-                        file_add_dirty_flag(file, DirtyState_UnloadedChanges);
-                    }
-                    else if (file->state.ignore_behind_os == 1){
-                        file->state.ignore_behind_os = 2;
-                        unmark[unmark_top++] = file;
-                        if (unmark_top == unmark_max){
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        
-        for (u32 i = 0; i < unmark_top; ++i){
-            unmark[i]->state.ignore_behind_os = 0;
-        }
-        
-        end_temp(temp);
-    }
-#endif
     
     // NOTE(allen): reorganizing panels on screen
     Vec2_i32 prev_dim = layout_get_root_size(&models->layout);

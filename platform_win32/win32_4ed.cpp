@@ -270,8 +270,8 @@ handle_type_ptr(void *ptr){
 ////////////////////////////////
 
 internal void
-system_schedule_step(){
-    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+system_schedule_step(u32 code){
+    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, code, 0);
 }
 
 ////////////////////////////////
@@ -892,6 +892,17 @@ Sys_Wake_Up_Timer_Set_Sig(system_wake_up_timer_set){
     if (object->kind == Win32ObjectKind_Timer){
         object->timer.id = SetTimer(win32vars.window_handle, object->timer.id, time_milliseconds, 0);
     }
+}
+
+internal
+Sys_Signal_Step_Sig(system_signal_step){
+    system_schedule_step(code);
+}
+
+internal
+Sys_Sleep_Sig(system_sleep){
+    u32 milliseconds = (u32)(microseconds/Thousand(1));
+    Sleep(milliseconds);
 }
 
 ////////////////////////////////
@@ -1919,7 +1930,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): schedule another step if needed
         if (result.animating){
-            system_schedule_step();
+            system_schedule_step(0);
         }
         
         // NOTE(allen): sleep a bit to cool off :)

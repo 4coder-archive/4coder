@@ -28,6 +28,8 @@ link_system_code(void){
     SYSLINK(wake_up_timer_create);
     SYSLINK(wake_up_timer_release);
     SYSLINK(wake_up_timer_set);
+    SYSLINK(signal_step);
+    SYSLINK(sleep);
     
     SYSLINK(post_clipboard);
     
