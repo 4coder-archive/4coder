@@ -1203,7 +1203,7 @@ FILE_EXTERNALLY_MODIFIED_SIG(default_file_externally_modified){
 OPEN_FILE_HOOK_SIG(default_end_file){
     Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
-    String_Const_u8 str = push_u8_stringf(scratch, "Ending file: %s\n", buffer_name);
+    String_Const_u8 str = push_u8_stringf(scratch, "Ending file: %s\n", buffer_name.str);
     print_message(app, str);
     // no meaning for return
     return(0);
