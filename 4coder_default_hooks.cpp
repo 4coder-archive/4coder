@@ -1191,11 +1191,19 @@ FILE_EDIT_FINISHED_SIG(default_file_edit_finished){
     return(0);
 }
 
+FILE_EXTERNALLY_MODIFIED_SIG(default_file_externally_modified){
+    Scratch_Block scratch(app);
+    String_Const_u8 name = push_buffer_unique_name(app, scratch, buffer_id);
+    String_Const_u8 str = push_u8_stringf(scratch, "Modified externally: %s\n", name.str);
+    print_message(app, str);
+    // no meaning for return
+    return(0);
+}
+
 OPEN_FILE_HOOK_SIG(default_end_file){
     Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
-    String_Const_u8 str = push_u8_stringf(scratch, "Ending file: %.*s\n",
-                                          string_expand(buffer_name));
+    String_Const_u8 str = push_u8_stringf(scratch, "Ending file: %s\n", buffer_name);
     print_message(app, str);
     // no meaning for return
     return(0);
@@ -1307,7 +1315,7 @@ set_all_default_hooks(Bind_Helper *context){
     set_save_file_hook(context, default_file_save);
     set_file_edit_range_hook(context, default_file_edit_range);
     set_file_edit_finished_hook(context, default_file_edit_finished);
-    set_file_edit_range_hook(context, default_file_edit_range);
+    set_file_externally_modified_hook(context, default_file_externally_modified);
     
     set_end_file_hook(context, end_file_close_jump_list);
     

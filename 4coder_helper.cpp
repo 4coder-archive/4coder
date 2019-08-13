@@ -225,6 +225,15 @@ set_file_edit_finished_hook(Bind_Helper *helper, File_Edit_Finished_Function *fu
 }
 
 internal void
+set_file_externally_modified_hook(Bind_Helper *helper, File_Externally_Modified_Function *func){
+    Binding_Unit unit = {};
+    unit.type = unit_hook;
+    unit.hook.hook_id = special_hook_file_externally_modified;
+    unit.hook.func = (void*)func;
+    write_unit(helper, unit);
+}
+
+internal void
 set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;

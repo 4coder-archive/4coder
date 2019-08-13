@@ -37,7 +37,7 @@ struct Working_Set{
     Table_Data_u64 name_table;
     
     Node *sync_check_iterator;
-    Node has_reloaded_sentinel;
+    Node has_external_mod_sentinel;
     System_Mutex mutex;
     System_Thread file_change_thread;
     

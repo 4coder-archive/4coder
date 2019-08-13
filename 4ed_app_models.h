@@ -64,6 +64,7 @@ struct Models{
     Open_File_Hook_Function *hook_end_file;
     File_Edit_Range_Function *hook_file_edit_range;
     File_Edit_Finished_Function *hook_file_edit_finished;
+    File_Externally_Modified_Function *hook_file_externally_modified;
     Command_Caller_Hook_Function *command_caller;
     Render_Caller_Function *render_caller;
     Input_Filter_Function *input_filter;

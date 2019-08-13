@@ -398,6 +398,11 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                     models->hook_file_edit_finished = (File_Edit_Finished_Function*)unit->hook.func;
                                 }break;
                                 
+                                case special_hook_file_externally_modified:
+                                {
+                                    models->hook_file_externally_modified = (File_Externally_Modified_Function*)unit->hook.func;
+                                }break;
+                                
                                 case special_hook_command_caller:
                                 {
                                     models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
@@ -1336,6 +1341,26 @@ App_Step_Sig(app_step){
             edit_pos.scroll.scroll_x = (f32)edit_pos.scroll.target_x;
             edit_pos.scroll.scroll_y = (f32)edit_pos.scroll.target_y;
             view_set_edit_pos(view, edit_pos);
+        }
+    }
+    
+    // NOTE(allen): hook for files reloaded
+    {
+        File_Externally_Modified_Function *hook_file_externally_modified = models->hook_file_externally_modified;
+        if (hook_file_externally_modified != 0){
+            Working_Set *working_set = &models->working_set;
+            Assert(working_set->has_external_mod_sentinel.next != 0);
+            if (working_set->has_external_mod_sentinel.next != &working_set->has_external_mod_sentinel){
+                for (Node *node = working_set->has_external_mod_sentinel.next, *next = 0;
+                     node != &working_set->has_external_mod_sentinel;
+                     node = next){
+                    next = node->next;
+                    Editing_File *file = CastFromMember(Editing_File, external_mod_node, node);
+                    dll_remove(node);
+                    block_zero_struct(node);
+                    hook_file_externally_modified(&models->app_links, file->id);
+                }
+            }
         }
     }
     

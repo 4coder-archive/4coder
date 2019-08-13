@@ -98,7 +98,7 @@ struct Editing_File{
         Node main_chain_node;
     };
     Node touch_node;
-    Node reloaded_node;
+    Node external_mod_node;
     Node edit_finished_mark_node;
     b32 edit_finished_marked;
     b32 is_loading;

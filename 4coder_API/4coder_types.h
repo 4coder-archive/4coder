@@ -991,6 +991,8 @@ ENUM(i32, Special_Hook_ID){
     /* DOC(TODO) */
     special_hook_file_edit_finished,
     /* DOC(TODO) */
+    special_hook_file_externally_modified,
+    /* DOC(TODO) */
     special_hook_command_caller,
     /* DOC(TODO) */
     special_hook_render_caller,
@@ -1025,6 +1027,9 @@ TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_
 
 TYPEDEF_FUNC i32 File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count);
 #define FILE_EDIT_FINISHED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count)
+
+TYPEDEF_FUNC i32 File_Externally_Modified_Function(struct Application_Links *app, Buffer_ID buffer_id);
+#define FILE_EXTERNALLY_MODIFIED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
 
 TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)

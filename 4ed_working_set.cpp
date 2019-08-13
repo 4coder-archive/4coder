@@ -25,10 +25,9 @@ file_change_notification_check(System_Functions *system, Working_Set *working_se
         String_Const_u8 name = SCu8(file->canon.name_space, file->canon.name_size);
         File_Attributes attributes = system->quick_file_attributes(name);
         if (attributes.last_write_time > file->attributes.last_write_time){
-            if (!HasFlag(file->state.dirty, DirtyState_UnloadedChanges)){
-                file_add_dirty_flag(file, DirtyState_UnloadedChanges);
-                dll_insert_back(&working_set->has_reloaded_sentinel,
-                                &file->reloaded_node);
+            file_add_dirty_flag(file, DirtyState_UnloadedChanges);
+            if (file->external_mod_node.next == 0){
+                dll_insert_back(&working_set->has_external_mod_sentinel, &file->external_mod_node);
                 system->signal_step(0);
             }
         }
@@ -135,7 +134,7 @@ working_set_init(Models *models, Working_Set *working_set){
     working_set->canon_table = make_table_Data_u64(allocator, slot_count);
     working_set->name_table = make_table_Data_u64(allocator, slot_count);
     
-    dll_init_sentinel(&working_set->has_reloaded_sentinel);
+    dll_init_sentinel(&working_set->has_external_mod_sentinel);
     working_set->mutex = system->mutex_make();
     working_set->file_change_thread = system->thread_launch(file_change_notification_thread_main, models);
 }
