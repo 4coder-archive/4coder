@@ -42,6 +42,7 @@ static Managed_Variable_ID view_snap_mark_to_cursor = 0;
 static Managed_Variable_ID view_ui_data = 0;
 static Managed_Variable_ID view_highlight_range = 0;
 static Managed_Variable_ID view_highlight_buffer = 0;
+static Managed_Variable_ID view_render_hook = 0;
 
 static Managed_Variable_ID sticky_jump_marker_handle = 0;
 

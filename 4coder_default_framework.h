@@ -66,6 +66,10 @@ struct Named_Mapping{
 
 ////////////////////////////////
 
+typedef void View_Render_Hook(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_f32 inner);
+
+////////////////////////////////
+
 static void
 do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view);
 

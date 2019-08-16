@@ -386,6 +386,7 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     view_ui_data             = managed_variable_create_or_get_id(app, "DEFAULT.ui_data"       , 0);
     view_highlight_range     = managed_variable_create_or_get_id(app, "DEFAULT.highlight"     , 0);
     view_highlight_buffer    = managed_variable_create_or_get_id(app, "DEFAULT.highlight_buf" , 0);
+    view_render_hook         = managed_variable_create_or_get_id(app, "DEFAULT.render" , 0);
     
     sticky_jump_marker_handle = managed_variable_create_or_get_id(app, "DEFAULT.sticky_jump_marker_handle", 0);
     

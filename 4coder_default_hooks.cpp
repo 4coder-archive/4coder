@@ -836,12 +836,27 @@ default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view,
     draw_rectangle(app, inner, Stag_Back);
     draw_clip_push(app, inner);
     draw_coordinate_center_push(app, inner.p0);
-    if (view_is_in_ui_mode(app, view)){
-        default_ui_render_caller(app, view);
+    
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    u64 render_hook_value = 0;
+    if (managed_variable_get(app, scope, view_render_hook, &render_hook_value)){
+        if (render_hook_value == 0){
+            if (view_is_in_ui_mode(app, view)){
+                default_ui_render_caller(app, view);
+            }
+            else{
+                default_buffer_render_caller(app, frame_info, view, inner);
+            }
+        }
+        else{
+            // TODO(allen): this doesn't actually work we aren't supposed to
+            // assume that a function pointer is 64-bits I don't think.  How
+            // should we attach a user named hook to a scope easily?
+            View_Render_Hook *hook = (View_Render_Hook*)render_hook_value;
+            hook(app, view, frame_info, inner);
+        }
     }
-    else{
-        default_buffer_render_caller(app, frame_info, view, inner);
-    }
+    
     draw_clip_pop(app);
     draw_coordinate_center_pop(app);
 }
