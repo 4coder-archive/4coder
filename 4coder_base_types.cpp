@@ -176,6 +176,8 @@ make_data(void *memory, umem size){
     return(data);
 }
 
+#define make_data_struct(s) make_data((s), sizeof(*(s)))
+
 global_const Data zero_data = {};
 
 #define data_initr(m,s) {(m), (s)}
@@ -3329,28 +3331,45 @@ string_substring(String_Const_u32 str, Range_i64 range){
 }
 
 static umem
-string_find_first(String_Const_char str, char c){
-    umem i = 0;
+string_find_first(String_Const_char str, umem start_pos, char c){
+    umem i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
+}
+static umem
+string_find_first(String_Const_u8 str, umem start_pos, u8 c){
+    umem i = start_pos;
+    for (;i < str.size && c != str.str[i]; i += 1);
+    return(i);
+}
+static umem
+string_find_first(String_Const_u16 str, umem start_pos, u16 c){
+    umem i = start_pos;
+    for (;i < str.size && c != str.str[i]; i += 1);
+    return(i);
+}
+static umem
+string_find_first(String_Const_u32 str, umem start_pos, u32 c){
+    umem i = start_pos;
+    for (;i < str.size && c != str.str[i]; i += 1);
+    return(i);
+}
+
+static umem
+string_find_first(String_Const_char str, char c){
+    return(string_find_first(str, 0, c));
 }
 static umem
 string_find_first(String_Const_u8 str, u8 c){
-    umem i = 0;
-    for (;i < str.size && c != str.str[i]; i += 1);
-    return(i);
+    return(string_find_first(str, 0, c));
 }
 static umem
 string_find_first(String_Const_u16 str, u16 c){
-    umem i = 0;
-    for (;i < str.size && c != str.str[i]; i += 1);
-    return(i);
+    return(string_find_first(str, 0, c));
 }
 static umem
 string_find_first(String_Const_u32 str, u32 c){
-    umem i = 0;
-    for (;i < str.size && c != str.str[i]; i += 1);
-    return(i);
+    return(string_find_first(str, 0, c));
 }
 
 static imem
@@ -5981,6 +6000,30 @@ data_is_ascii(Data data){
 }
 
 ////////////////////////////////
+
+static String_Const_u8
+string_escape(Arena *arena, String_Const_u8 string){
+    List_String_Const_u8 list = string_replace_list(arena, string, string_u8_litexpr("\\"),
+                                                    string_u8_litexpr("\\\\"));
+    Node_String_Const_u8 **fixup_ptr = &list.first;
+    for (Node_String_Const_u8 *node = list.first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        List_String_Const_u8 relist = string_replace_list(arena, node->string, string_u8_litexpr("\""),
+                                                          string_u8_litexpr("\\\""));
+        if (relist.first != 0){
+            *fixup_ptr = relist.first;
+            relist.last->next = next;
+            fixup_ptr = &relist.last->next;
+            list.last = relist.last;
+        }
+        else{
+            *fixup_ptr = next;
+        }
+    }
+    return(string_list_flatten(arena, list, StringFill_NullTerminate));
+}
 
 static String_Const_char
 string_interpret_escapes(Arena *arena, String_Const_char string){

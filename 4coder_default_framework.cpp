@@ -11,16 +11,20 @@ unlock_jump_buffer(void){
 }
 
 static void
-lock_jump_buffer(String_Const_u8 name){
+lock_jump_buffer(Application_Links *app, String_Const_u8 name){
     if (name.size < sizeof(locked_buffer_space)){
         block_copy(locked_buffer_space, name.str, name.size);
         locked_buffer = SCu8(locked_buffer_space, name.size);
+        Scratch_Block scratch(app);
+        String_Const_u8 escaped = string_escape(scratch, name);
+        LogEventF(log_string(app, M), scratch, 0, 0, thread_get_id(app),
+                  "lock jump buffer [name=\"%.*s\"]", string_expand(escaped));
     }
 }
 
 static void
-lock_jump_buffer(char *name, i32 size){
-    lock_jump_buffer(SCu8(name, size));
+lock_jump_buffer(Application_Links *app, char *name, i32 size){
+    lock_jump_buffer(app, SCu8(name, size));
 }
 
 static void
@@ -28,7 +32,7 @@ lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
-    lock_jump_buffer(buffer_name);
+    lock_jump_buffer(app, buffer_name);
     end_temp(temp);
 }
 

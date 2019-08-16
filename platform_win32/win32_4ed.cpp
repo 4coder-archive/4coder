@@ -32,8 +32,10 @@
 # include "4coder_lib/4coder_heap.cpp"
 
 # include "4coder_base_types.cpp"
+# include "4coder_stringf.cpp"
 # include "4coder_hash_functions.cpp"
 # include "4coder_table.cpp"
+# include "4coder_log.cpp"
 
 # include "4coder_API/4coder_keycodes.h"
 # include "4coder_API/4coder_default_colors.h"
@@ -50,8 +52,6 @@
 
 #include <Windows.h>
 #include "win32_gl.h"
-
-# include "4coder_stringf.cpp"
 
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
@@ -196,7 +196,7 @@ struct Win32_Vars{
     CONDITION_VARIABLE thread_launch_cv;
     b32 waiting_for_launch;
     
-    u32 log_position;
+    Log_Function *log_string;
 };
 
 ////////////////////////////////
@@ -951,6 +951,12 @@ Sys_Thread_Free_Sig(system_thread_free){
 }
 
 internal
+Sys_Thread_Get_ID_Sig(system_thread_get_id){
+    DWORD result = GetCurrentThreadId();
+    return((i32)result);
+}
+
+internal
 Sys_Mutex_Make_Sig(system_mutex_make){
     Win32_Object *object = win32_alloc_object(Win32ObjectKind_Mutex);
     InitializeCriticalSection(&object->mutex);
@@ -1243,6 +1249,8 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_CLIPBOARDUPDATE:
         {
             win32vars.got_useful_event = true;
+            LogEventLit(win32vars.log_string(M), &shared_vars.scratch, 0, 0, system_thread_get_id(),
+                        "new clipboard contents");
         }break;
         
         case WM_CLOSE:
@@ -1556,14 +1564,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     init_shared_vars();
     
-    //
-    // Load Core Code
-    //
     load_app_code();
-    
-    //
-    // Read Command Line
-    //
+    win32vars.log_string = app.get_logger(&sysfunc);
     read_command_line(&shared_vars.scratch, argc, argv);
     
     //
@@ -1601,7 +1603,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     HGLRC window_opengl_context = 0;
     if (!win32_gl_create_window(&win32vars.window_handle, &window_opengl_context, window_style, window_rect)){
-        //LOG("Window creation failed\n");
         exit(1);
     }
     
@@ -1612,7 +1613,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Misc System Initializations
     //
     
-    //LOG("Initializing clipboard\n");
     if (!AddClipboardFormatListener(win32vars.window_handle)){
         win32_output_error_string(ErrorString_UseLog);
     }
@@ -1645,12 +1645,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     LARGE_INTEGER f;
     if (QueryPerformanceFrequency(&f)){
         win32vars.count_per_usecond = (f32)f.QuadPart / 1000000.f;
-        //LOGF("Got performance frequency %f\n", win32vars.count_per_usecond);
     }
     else{
         // NOTE(allen): Just guess.
         win32vars.count_per_usecond = 1.f;
-        //LOG("Did not get performance frequency, just guessing with 1.\n");
     }
     Assert(win32vars.count_per_usecond > 0.f);
     
@@ -1658,7 +1656,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // App init
     //
     
-    //LOG("Initializing application variables\n");
     {
         Temp_Memory temp = begin_temp(&shared_vars.scratch);
         String_Const_u8 curdir = sysfunc.get_current_path(&shared_vars.scratch);

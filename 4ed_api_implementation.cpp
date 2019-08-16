@@ -2704,6 +2704,17 @@ DOC(This call posts a string to the *messages* buffer.)
     return(result);
 }
 
+API_EXPORT b32
+Log_String(Application_Links *app, String_Const_u8 str){
+    return(log_string(str));
+}
+
+API_EXPORT i32
+Thread_Get_ID(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    return(models->system->thread_get_id());
+}
+
 API_EXPORT Face_ID
 Get_Largest_Face_ID(Application_Links *app)
 /*

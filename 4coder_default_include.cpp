@@ -54,7 +54,9 @@
 #include "4coder_function_list.h"
 #include "4coder_scope_commands.h"
 #include "4coder_combined_write_commands.h"
+#include "4coder_log_parser.h"
 
+#include "4coder_log.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 #include "4coder_string_match.cpp"
@@ -64,6 +66,7 @@
 
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_helper.cpp"
+#include "4coder_log_parser.cpp"
 #include "4coder_seek.cpp"
 #include "4coder_fancy.cpp"
 #include "4coder_ui_helper.cpp"

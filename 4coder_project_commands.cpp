@@ -856,7 +856,7 @@ exec_project_command(Application_Links *app, Project_Command *command){
             }
             
             block_zero_struct(&prev_location);
-            lock_jump_buffer(command->out);
+            lock_jump_buffer(app, command->out);
         }
         else{
             // TODO(allen): fix the exec_system_command call so it can take a null buffer_id.

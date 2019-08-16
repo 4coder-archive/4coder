@@ -1107,8 +1107,6 @@ struct Scratch_Block{
     Temp_Memory temp;
 };
 
-////////////////////////////////
-
 #endif
 
 // BOTTOM

@@ -843,6 +843,12 @@ launch_command_via_keycode(System_Functions *system, Models *models, View *view,
     launch_command_via_event(system, models, view, event);
 }
 
+internal Log_Function*
+app_get_logger(System_Functions *system){
+    log_init(system);
+    return(log_string);
+}
+
 App_Read_Command_Line_Sig(app_read_command_line){
     i32 out_size = 0;
     Models *models = app_setup_memory(system, memory);
@@ -958,7 +964,8 @@ App_Init_Sig(app_init){
     // NOTE(allen): init baked in buffers
     File_Init init_files[] = {
         { string_u8_litinit("*messages*"), &models->message_buffer, true , },
-        { string_u8_litinit("*scratch*"),  &models->scratch_buffer, false, },
+        { string_u8_litinit("*scratch*") , &models->scratch_buffer, false, },
+        { string_u8_litinit("*log*")     , &models->log_buffer    , true , },
     };
     
     Heap *heap = &models->mem.heap;
@@ -1483,6 +1490,9 @@ App_Step_Sig(app_step){
         end_render_section(target, system);
     }
     
+    // NOTE(allen): flush the log
+    log_flush(models);
+    
     // NOTE(allen): set the app_result
     Application_Step_Result app_result = {};
     app_result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
@@ -1536,6 +1546,7 @@ App_Step_Sig(app_step){
 extern "C" App_Get_Functions_Sig(app_get_functions){
     App_Functions result = {};
     
+    result.get_logger = app_get_logger;
     result.read_command_line = app_read_command_line;
     result.init = app_init;
     result.step = app_step;

@@ -113,6 +113,8 @@ struct Application_Links;
 #define START_QUERY_BAR_SIG(n) b32 n(Application_Links *app, Query_Bar *bar, u32 flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, u32 flags)
 #define PRINT_MESSAGE_SIG(n) b32 n(Application_Links *app, String_Const_u8 message)
+#define LOG_STRING_SIG(n) b32 n(Application_Links *app, String_Const_u8 str)
+#define THREAD_GET_ID_SIG(n) i32 n(Application_Links *app)
 #define GET_LARGEST_FACE_ID_SIG(n) Face_ID n(Application_Links *app)
 #define SET_GLOBAL_FACE_SIG(n) b32 n(Application_Links *app, Face_ID id, b32 apply_to_all_buffers)
 #define BUFFER_HISTORY_GET_MAX_RECORD_INDEX_SIG(n) History_Record_Index n(Application_Links *app, Buffer_ID buffer_id)
@@ -286,6 +288,8 @@ typedef GET_ACTIVE_QUERY_BARS_SIG(Get_Active_Query_Bars_Function);
 typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
 typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
 typedef PRINT_MESSAGE_SIG(Print_Message_Function);
+typedef LOG_STRING_SIG(Log_String_Function);
+typedef THREAD_GET_ID_SIG(Thread_Get_ID_Function);
 typedef GET_LARGEST_FACE_ID_SIG(Get_Largest_Face_ID_Function);
 typedef SET_GLOBAL_FACE_SIG(Set_Global_Face_Function);
 typedef BUFFER_HISTORY_GET_MAX_RECORD_INDEX_SIG(Buffer_History_Get_Max_Record_Index_Function);
@@ -461,6 +465,8 @@ Get_Active_Query_Bars_Function *get_active_query_bars;
 Start_Query_Bar_Function *start_query_bar;
 End_Query_Bar_Function *end_query_bar;
 Print_Message_Function *print_message;
+Log_String_Function *log_string;
+Thread_Get_ID_Function *thread_get_id;
 Get_Largest_Face_ID_Function *get_largest_face_id;
 Set_Global_Face_Function *set_global_face;
 Buffer_History_Get_Max_Record_Index_Function *buffer_history_get_max_record_index;
@@ -635,6 +641,8 @@ Get_Active_Query_Bars_Function *get_active_query_bars_;
 Start_Query_Bar_Function *start_query_bar_;
 End_Query_Bar_Function *end_query_bar_;
 Print_Message_Function *print_message_;
+Log_String_Function *log_string_;
+Thread_Get_ID_Function *thread_get_id_;
 Get_Largest_Face_ID_Function *get_largest_face_id_;
 Set_Global_Face_Function *set_global_face_;
 Buffer_History_Get_Max_Record_Index_Function *buffer_history_get_max_record_index_;
@@ -817,6 +825,8 @@ app_links->get_active_query_bars_ = Get_Active_Query_Bars;\
 app_links->start_query_bar_ = Start_Query_Bar;\
 app_links->end_query_bar_ = End_Query_Bar;\
 app_links->print_message_ = Print_Message;\
+app_links->log_string_ = Log_String;\
+app_links->thread_get_id_ = Thread_Get_ID;\
 app_links->get_largest_face_id_ = Get_Largest_Face_ID;\
 app_links->set_global_face_ = Set_Global_Face;\
 app_links->buffer_history_get_max_record_index_ = Buffer_History_Get_Max_Record_Index;\
@@ -991,6 +1001,8 @@ static b32 get_active_query_bars(Application_Links *app, View_ID view_id, i32 ma
 static b32 start_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){return(app->start_query_bar(app, bar, flags));}
 static void end_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){(app->end_query_bar(app, bar, flags));}
 static b32 print_message(Application_Links *app, String_Const_u8 message){return(app->print_message(app, message));}
+static b32 log_string(Application_Links *app, String_Const_u8 str){return(app->log_string(app, str));}
+static i32 thread_get_id(Application_Links *app){return(app->thread_get_id(app));}
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id(app));}
 static b32 set_global_face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers){return(app->set_global_face(app, id, apply_to_all_buffers));}
 static History_Record_Index buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_get_max_record_index(app, buffer_id));}
@@ -1165,6 +1177,8 @@ static b32 get_active_query_bars(Application_Links *app, View_ID view_id, i32 ma
 static b32 start_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){return(app->start_query_bar_(app, bar, flags));}
 static void end_query_bar(Application_Links *app, Query_Bar *bar, u32 flags){(app->end_query_bar_(app, bar, flags));}
 static b32 print_message(Application_Links *app, String_Const_u8 message){return(app->print_message_(app, message));}
+static b32 log_string(Application_Links *app, String_Const_u8 str){return(app->log_string_(app, str));}
+static i32 thread_get_id(Application_Links *app){return(app->thread_get_id_(app));}
 static Face_ID get_largest_face_id(Application_Links *app){return(app->get_largest_face_id_(app));}
 static b32 set_global_face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers){return(app->set_global_face_(app, id, apply_to_all_buffers));}
 static History_Record_Index buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_history_get_max_record_index_(app, buffer_id));}

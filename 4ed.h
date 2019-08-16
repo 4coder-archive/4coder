@@ -111,8 +111,11 @@ Application_Step_Input *input)
 
 typedef App_Step_Sig(App_Step);
 
+typedef b32 Log_Function(String_Const_u8 str);
+typedef Log_Function *App_Get_Logger(System_Functions *system);
 
 struct App_Functions{
+    App_Get_Logger *get_logger;
     App_Read_Command_Line *read_command_line;
     App_Init *init;
     App_Step *step;

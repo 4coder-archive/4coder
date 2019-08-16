@@ -91,6 +91,7 @@ struct Models{
     
     Editing_File *message_buffer;
     Editing_File *scratch_buffer;
+    Editing_File *log_buffer;
     
     Hot_Directory hot_directory;
     
