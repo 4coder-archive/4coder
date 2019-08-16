@@ -132,7 +132,7 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     standard_search_and_build(app, view, buffer);
     memset(&prev_location, 0, sizeof(prev_location));
-    lock_jump_buffer(string_u8_litexpr("*compilation*"));
+    lock_jump_buffer(app, string_u8_litexpr("*compilation*"));
 }
 
 static Buffer_ID
@@ -172,7 +172,7 @@ CUSTOM_DOC("Looks for a build.bat, build.sh, or makefile in the current and pare
     set_fancy_compilation_buffer_font(app);
     
     memset(&prev_location, 0, sizeof(prev_location));
-    lock_jump_buffer(string_u8_litexpr("*compilation*"));
+    lock_jump_buffer(app, string_u8_litexpr("*compilation*"));
 }
 
 CUSTOM_COMMAND_SIG(close_build_panel)

@@ -71,8 +71,11 @@ struct Mem_Options{
 #include "4ed_edit.h"
 #include "4ed_text_layout.h"
 #include "4ed_font_set.h"
+#include "4ed_log.h"
 #include "4ed_app_models.h"
 
+#include "4ed_log.cpp"
+#include "4coder_log.cpp"
 #include "4ed_coroutine.cpp"
 #include "4ed_mem.cpp"
 #include "4ed_ptr_check.cpp"

@@ -43,6 +43,7 @@ link_system_code(void){
     SYSLINK(thread_launch);
     SYSLINK(thread_join);
     SYSLINK(thread_free);
+    SYSLINK(thread_get_id);
     SYSLINK(mutex_make);
     SYSLINK(mutex_acquire);
     SYSLINK(mutex_release);

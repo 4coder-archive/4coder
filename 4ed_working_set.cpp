@@ -27,6 +27,8 @@ file_change_notification_check(System_Functions *system, Working_Set *working_se
         if (attributes.last_write_time > file->attributes.last_write_time){
             file_add_dirty_flag(file, DirtyState_UnloadedChanges);
             if (file->external_mod_node.next == 0){
+                LogEventF(log_string(M), &working_set->arena, file->id, 0, system->thread_get_id(),
+                          "external modification [last_write_time=0x%llx]", attributes.last_write_time);
                 dll_insert_back(&working_set->has_external_mod_sentinel, &file->external_mod_node);
                 system->signal_step(0);
             }

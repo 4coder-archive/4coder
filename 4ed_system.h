@@ -114,6 +114,9 @@ typedef Sys_Thread_Join_Sig(System_Thread_Join);
 #define Sys_Thread_Free_Sig(name) void name(System_Thread thread)
 typedef Sys_Thread_Free_Sig(System_Thread_Free);
 
+#define Sys_Thread_Get_ID_Sig(name) i32 name(void)
+typedef Sys_Thread_Get_ID_Sig(System_Thread_Get_ID);
+
 #define Sys_Mutex_Make_Sig(name) System_Mutex name(void)
 typedef Sys_Mutex_Make_Sig(System_Mutex_Make);
 
@@ -204,6 +207,7 @@ struct System_Functions{
     System_Thread_Launch *thread_launch;
     System_Thread_Join *thread_join;
     System_Thread_Free *thread_free;
+    System_Thread_Get_ID *thread_get_id;
     System_Mutex_Make *mutex_make;
     System_Mutex_Acquire *mutex_acquire;
     System_Mutex_Release *mutex_release;

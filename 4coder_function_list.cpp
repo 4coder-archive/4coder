@@ -257,7 +257,7 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     View_ID view = get_active_view(app, AccessAll);
     view_set_buffer(app, view, decls_buffer, 0);
     
-    lock_jump_buffer(decls_name);
+    lock_jump_buffer(app, decls_name);
     
     end_temp(temp);
     

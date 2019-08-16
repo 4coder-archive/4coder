@@ -738,11 +738,6 @@ parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_Summary 
     return(parse_buffer_to_jump_array(app, arena, buffer.buffer_id));
 }
 
-static void
-lock_jump_buffer(Buffer_Summary buffer){
-    lock_jump_buffer(buffer.buffer_name, buffer.buffer_name_len);
-}
-
 static Face_Description
 get_buffer_face_description(Application_Links *app, Buffer_Summary *buffer){
     Face_Description result = {};

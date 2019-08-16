@@ -15,7 +15,7 @@ CUSTOM_DOC("If the command execute_any_cli has already been used, this will exec
         View_ID view = get_active_view(app, AccessAll);
         Buffer_Identifier id = buffer_identifier(out_buffer);
         exec_system_command(app, view, id, hot_directory, cmd, CLI_OverlapWithConflict|CLI_CursorAtEnd|CLI_SendEndSignal);
-        lock_jump_buffer(out_buffer);
+        lock_jump_buffer(app, out_buffer);
     }
 }
 

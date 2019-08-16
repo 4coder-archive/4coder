@@ -196,6 +196,8 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             }
             file->attributes = new_attributes;
         }
+        LogEventF(log_string(M), scratch, file->id, 0, system->thread_get_id(),
+                  "save file [last_write_time=0x%llx]", new_attributes.last_write_time);
         
         file_clear_dirty_flags(file);
         end_temp(temp);
@@ -474,6 +476,16 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     }
     
     file->settings.is_initialized = true;
+    
+    {
+        Temp_Memory temp = begin_temp(scratch);
+        String_Const_u8 name = SCu8(file->unique_name.name_space, file->unique_name.name_size);
+        name = string_escape(scratch, name);
+        LogEventF(log_string(M), scratch, file->id, 0, system->thread_get_id(),
+                  "init file [last_write_time=0x%llx] [name=\"%.*s\"]",
+                  attributes.last_write_time, string_expand(name));
+        end_temp(temp);
+    }
 }
 
 internal void
