@@ -1540,12 +1540,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Memory init
     //
     
-    win32vars.arena = make_arena_system(&sysfunc);
     
     memset(&win32vars, 0, sizeof(win32vars));
     memset(&target, 0, sizeof(target));
     memset(&memory_vars, 0, sizeof(memory_vars));
     memset(&plat_settings, 0, sizeof(plat_settings));
+    
+	win32vars.arena = make_arena_system(&sysfunc);
     
     memset(&libraries, 0, sizeof(libraries));
     memset(&app, 0, sizeof(app));
