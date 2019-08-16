@@ -16,7 +16,7 @@
 union Library;
 
 internal b32
-system_load_library_direct(Library *library, char *name);
+system_load_library_direct(Arena *scratch, Library *library, char *name);
 
 internal void*
 system_get_proc(Library *library, char *name);
@@ -69,12 +69,12 @@ system_load_library(Arena *scratch, Library *library, char *name_cstr, Load_Libr
         else{
             path = push_u8_stringf(scratch, "%.*s%.*s", string_expand(path), string_expand(name));
         }
-        success = system_load_library_direct(library, (char*)path.str);
-        if (success && full_file_out != 0 && full_file_out > 0){
-            u32 fill_size = clamp_top((u32)(path.size), (u32)(full_file_max - 1));
-            block_copy(full_file_out, path.str, fill_size);
-            full_file_out[fill_size] = 0;
-        }
+        success = system_load_library_direct(scratch, library, (char*)path.str);
+    }
+    if (success && full_file_out != 0 && full_file_out > 0){
+        u32 fill_size = clamp_top((u32)(path.size), (u32)(full_file_max - 1));
+        block_copy(full_file_out, path.str, fill_size);
+        full_file_out[fill_size] = 0;
     }
     
     end_temp(temp);

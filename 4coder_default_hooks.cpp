@@ -849,9 +849,11 @@ default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view,
             }
         }
         else{
-            // TODO(allen): this doesn't actually work we aren't supposed to
-            // assume that a function pointer is 64-bits I don't think.  How
-            // should we attach a user named hook to a scope easily?
+            // TODO(allen): This doesn't actually work.
+            // We aren't supposed to assume that a function
+            // pointer is 64-bits I don't think.  How
+            // should we attach a user named hook to a scope
+            // easily?
             View_Render_Hook *hook = (View_Render_Hook*)render_hook_value;
             hook(app, view, frame_info, inner);
         }

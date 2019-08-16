@@ -20,10 +20,10 @@ working_set_file_default_settings(Working_Set *working_set, Editing_File *file){
 ////////////////////////////////
 
 internal void
-file_change_notification_check(System_Functions *system, Working_Set *working_set, Editing_File *file){
+file_change_notification_check(System_Functions *system, Arena *scratch, Working_Set *working_set, Editing_File *file){
     if (file->canon.name_size > 0 && !file->settings.unimportant){
         String_Const_u8 name = SCu8(file->canon.name_space, file->canon.name_size);
-        File_Attributes attributes = system->quick_file_attributes(name);
+        File_Attributes attributes = system->quick_file_attributes(scratch, name);
         if (attributes.last_write_time > file->attributes.last_write_time){
             file_add_dirty_flag(file, DirtyState_UnloadedChanges);
             if (file->external_mod_node.next == 0){
@@ -41,6 +41,7 @@ internal void
 file_change_notification_thread_main(void *ptr){
     Models *models = (Models*)ptr;
     System_Functions *system = models->system;
+    Arena arena = make_arena_system(system);
     Working_Set *working_set = &models->working_set;
     for (;;){
         system->sleep(Thousand(250));
@@ -59,7 +60,7 @@ file_change_notification_thread_main(void *ptr){
                 if (node == used){
                     node = node->next;
                 }
-                file_change_notification_check(system, working_set, file);
+                file_change_notification_check(system, &arena, working_set, file);
             }
             working_set->sync_check_iterator = node;
         }

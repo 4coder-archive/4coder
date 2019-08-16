@@ -18,7 +18,6 @@
 
 internal void
 init_shared_vars(){
-    shared_vars.scratch = make_arena_system(&sysfunc);
     shared_vars.font_scratch = make_arena_system(&sysfunc);
     shared_vars.pixel_scratch = make_arena_system(&sysfunc);
 }
@@ -28,11 +27,11 @@ init_shared_vars(){
 //
 
 internal void
-sysshared_filter_real_files(char **files, i32 *file_count){
+sysshared_filter_real_files(Arena *scratch, char **files, i32 *file_count){
     i32 end = *file_count;
     i32 i = 0, j = 0;
     for (; i < end; ++i){
-        if (system_file_can_be_made((u8*)files[i])){
+        if (system_file_can_be_made(scratch, (u8*)files[i])){
             files[j] = files[i];
             ++j;
         }

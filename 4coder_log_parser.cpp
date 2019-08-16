@@ -399,9 +399,9 @@ CUSTOM_DOC("Tests the log parser")
                 
                 case LogTagKind_String:
                 {
-                    String_Const_u8 value = log_parse__get_string(&parse, node->value.value);
+                    String_Const_u8 string_value = log_parse__get_string(&parse, node->value.value);
                     string_list_pushf(scratch, &line, " [%.*s:%.*s]",
-                                      string_expand(tag_name), string_expand(value));
+                                      string_expand(tag_name), string_expand(string_value));
                 }break;
             }
         }
@@ -412,6 +412,7 @@ CUSTOM_DOC("Tests the log parser")
         print_message(app, line_string);
     }
 }
+
 
 // BOTTOM
 

@@ -27,10 +27,10 @@ typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 typedef Sys_Get_File_List_Sig(System_Get_File_List);
 
 // file load/save
-#define Sys_Quick_File_Attributes_Sig(name) File_Attributes name(String_Const_u8 file_name)
+#define Sys_Quick_File_Attributes_Sig(name) File_Attributes name(Arena *scratch, String_Const_u8 file_name)
 typedef Sys_Quick_File_Attributes_Sig(System_Quick_File_Attributes);
 
-#define Sys_Load_Handle_Sig(name) b32 name(char *filename, Plat_Handle *handle_out)
+#define Sys_Load_Handle_Sig(name) b32 name(Arena *scratch, char *filename, Plat_Handle *handle_out)
 typedef Sys_Load_Handle_Sig(System_Load_Handle);
 
 #define Sys_Load_Attributes_Sig(name) File_Attributes name(Plat_Handle handle)
@@ -42,7 +42,7 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
 typedef Sys_Load_Close_Sig(System_Load_Close);
 
-#define Sys_Save_File_Sig(name) File_Attributes name(char *filename, char *buffer, u32 size)
+#define Sys_Save_File_Sig(name) File_Attributes name(Arena *scratch, char *filename, char *buffer, u32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
 // time
@@ -82,8 +82,8 @@ struct CLI_Handles{
     i32 exit;
 };
 
-#define Sys_CLI_Call_Sig(n, path, script, cli_out) b32 n(char *path, char *script, CLI_Handles *cli_out)
-typedef Sys_CLI_Call_Sig(System_CLI_Call, path, script, cli_out);
+#define Sys_CLI_Call_Sig(n, scratch, path, script, cli_out) b32 n(Arena *scratch, char *path, char *script, CLI_Handles *cli_out)
+typedef Sys_CLI_Call_Sig(System_CLI_Call, scratch, path, script, cli_out);
 
 #define Sys_CLI_Begin_Update_Sig(name) void name(CLI_Handles *cli)
 typedef Sys_CLI_Begin_Update_Sig(System_CLI_Begin_Update);

@@ -15,7 +15,7 @@
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
-    HANDLE file = CreateFile_utf8(&shared_vars.scratch, filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile_utf8(scratch, filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     b32 result = false;
     if (file != INVALID_HANDLE_VALUE){
         CloseHandle(file);
@@ -71,9 +71,9 @@ Sys_Memory_Free_Sig(system_memory_free){
 
 internal
 Sys_Get_Current_Path_Sig(system_get_current_path){
-    DWORD size = GetCurrentDirectory_utf8(&shared_vars.scratch, 0, 0);
+    DWORD size = GetCurrentDirectory_utf8(arena, 0, 0);
     u8 *out = push_array(arena, u8, size);
-    GetCurrentDirectory_utf8(&shared_vars.scratch, size, out);
+    GetCurrentDirectory_utf8(arena, size, out);
     return(SCu8(out, size - 1));
 }
 
@@ -84,7 +84,7 @@ Sys_Get_4ed_Path_Sig(system_get_4ed_path){
         has_stashed_4ed_path = true;
         local_const i32 binary_path_capacity = KB(32);
         u8 *memory = (u8*)system_memory_allocate(binary_path_capacity);
-        i32 size = GetModuleFileName_utf8(&shared_vars.scratch, 0, memory, binary_path_capacity);
+        i32 size = GetModuleFileName_utf8(arena, 0, memory, binary_path_capacity);
         Assert(size <= binary_path_capacity - 1);
         win32vars.binary_path = SCu8(memory, size);
         win32vars.binary_path = string_remove_last_folder(win32vars.binary_path);
@@ -121,22 +121,20 @@ win32_remove_unc_prefix_characters(String_Const_u8 path){
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
     String_Const_u8 result = {};
-    Arena *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp(scratch);
     if ((character_is_alpha(string_get_character(name, 0)) &&
          string_get_character(name, 1) == ':') ||
         string_match(string_prefix(name, 2), string_u8_litexpr("\\\\"))){
         
-        u8 *c_name = push_array(scratch, u8, name.size + 1);
+        u8 *c_name = push_array(arena, u8, name.size + 1);
         block_copy(c_name, name.str, name.size);
         c_name[name.size] = 0;
-        HANDLE file = CreateFile_utf8(scratch, c_name, GENERIC_READ, 0, 0, OPEN_EXISTING,
+        HANDLE file = CreateFile_utf8(arena, c_name, GENERIC_READ, 0, 0, OPEN_EXISTING,
                                       FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
-            DWORD capacity = GetFinalPathNameByHandle_utf8(scratch, file, 0, 0, 0);
+            DWORD capacity = GetFinalPathNameByHandle_utf8(arena, file, 0, 0, 0);
             u8 *buffer = push_array(arena, u8, capacity);
-            DWORD length = GetFinalPathNameByHandle_utf8(scratch, file, buffer, capacity, 0);
+            DWORD length = GetFinalPathNameByHandle_utf8(arena, file, buffer, capacity, 0);
             if (length > 0 && buffer[length - 1] == 0){
                 length -= 1;
             }
@@ -148,19 +146,19 @@ Sys_Get_Canonical_Sig(system_get_canonical){
             String_Const_u8 path = string_remove_front_of_path(name);
             String_Const_u8 front = string_front_of_path(name);
             
-            u8 *c_path = push_array(scratch, u8, path.size + 1);
+            u8 *c_path = push_array(arena, u8, path.size + 1);
             block_copy(c_path, path.str, path.size);
             c_path[path.size] = 0;
             
-            HANDLE dir = CreateFile_utf8(scratch, c_path, FILE_LIST_DIRECTORY,
+            HANDLE dir = CreateFile_utf8(arena, c_path, FILE_LIST_DIRECTORY,
                                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0,
                                          OPEN_EXISTING,
                                          FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, 0);
             
             if (dir != INVALID_HANDLE_VALUE){
-                DWORD capacity = GetFinalPathNameByHandle_utf8(scratch, dir, 0, 0, 0);
+                DWORD capacity = GetFinalPathNameByHandle_utf8(arena, dir, 0, 0, 0);
                 u8 *buffer = push_array(arena, u8, capacity + front.size + 1);
-                DWORD length = GetFinalPathNameByHandle_utf8(scratch, dir, buffer, capacity, 0);
+                DWORD length = GetFinalPathNameByHandle_utf8(arena, dir, buffer, capacity, 0);
                 if (length > 0 && buffer[length - 1] == 0){
                     length -= 1;
                 }
@@ -174,7 +172,6 @@ Sys_Get_Canonical_Sig(system_get_canonical){
             }
         }
     }
-    end_temp(temp);
     return(result);
 }
 
@@ -209,18 +206,16 @@ win32_file_attributes_from_HANDLE(HANDLE file){
 internal
 Sys_Get_File_List_Sig(system_get_file_list){
     File_List result = {};
-    Arena *scratch = &shared_vars.scratch;
-    Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 search_pattern = {};
     if (character_is_slash(string_get_character(directory, directory.size - 1))){
-        search_pattern = push_u8_stringf(scratch, "%.*s*", string_expand(directory));
+        search_pattern = push_u8_stringf(arena, "%.*s*", string_expand(directory));
     }
     else{
-        search_pattern = push_u8_stringf(scratch, "%.*s\\*", string_expand(directory));
+        search_pattern = push_u8_stringf(arena, "%.*s\\*", string_expand(directory));
     }
     
     WIN32_FIND_DATA find_data = {};
-    HANDLE search = FindFirstFile_utf8(&shared_vars.scratch, search_pattern.str, &find_data);
+    HANDLE search = FindFirstFile_utf8(arena, search_pattern.str, &find_data);
     if (search != INVALID_HANDLE_VALUE){
         File_Info *first = 0;
         File_Info *last = 0;
@@ -260,7 +255,6 @@ Sys_Get_File_List_Sig(system_get_file_list){
         }
     }
     
-    end_temp(temp);
     return(result);
 }
 
@@ -268,7 +262,7 @@ internal
 Sys_Quick_File_Attributes_Sig(system_quick_file_attributes){
     WIN32_FILE_ATTRIBUTE_DATA info = {};
     File_Attributes result = {};
-    if (GetFileAttributesEx_utf8String(&shared_vars.scratch, file_name, GetFileExInfoStandard, &info)){
+    if (GetFileAttributesEx_utf8String(scratch, file_name, GetFileExInfoStandard, &info)){
         result.size = ((u64)info.nFileSizeHigh << 32LL) | ((u64)info.nFileSizeLow);
         result.last_write_time = ((u64)info.ftLastWriteTime.dwHighDateTime << 32LL) | ((u64)info.ftLastWriteTime.dwLowDateTime);
         result.flags = win32_convert_file_attribute_flags(info.dwFileAttributes);
@@ -279,7 +273,7 @@ Sys_Quick_File_Attributes_Sig(system_quick_file_attributes){
 internal
 Sys_Load_Handle_Sig(system_load_handle){
     b32 result = false;
-    HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile_utf8(scratch, (u8*)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (file != INVALID_HANDLE_VALUE){
         *(HANDLE*)handle_out = file;
         result = true;
@@ -319,7 +313,8 @@ Sys_Load_Close_Sig(system_load_close){
 internal
 Sys_Save_File_Sig(system_save_file){
     File_Attributes result = {};
-    HANDLE file = CreateFile_utf8(&shared_vars.scratch, (u8*)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    
+    HANDLE file = CreateFile_utf8(scratch, (u8*)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
         DWORD written_total = 0;
@@ -342,16 +337,6 @@ Sys_Save_File_Sig(system_save_file){
     }
     
     return(result);
-}
-
-//
-// File System
-//
-
-internal b32
-system_directory_exists(char *path){
-    DWORD attrib = GetFileAttributes_utf8(&shared_vars.scratch, (u8*)path);
-    return(attrib != INVALID_FILE_ATTRIBUTES && (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
 //

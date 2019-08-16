@@ -549,7 +549,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     do_empty_buffer = true;
                 }
                 else{
-                    if (!system->load_handle((char*)canon.name_space, &handle)){
+                    if (!system->load_handle(scratch, (char*)canon.name_space, &handle)){
                         do_empty_buffer = true;
                     }
                 }

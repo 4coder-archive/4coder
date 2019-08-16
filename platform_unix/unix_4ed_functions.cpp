@@ -392,12 +392,5 @@ Sys_File_Exists_Sig(system_file_exists){
     return(result);
 }
 
-internal b32
-system_directory_exists(char *path){
-    struct stat st;
-    b32 result = (stat(path, &st) == 0 && S_ISDIR(st.st_mode));
-    return(result);
-}
-
 // BOTTOM
 

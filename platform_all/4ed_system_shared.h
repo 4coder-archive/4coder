@@ -24,11 +24,10 @@ struct File_Data{
 };
 global File_Data null_file_data = {};
 
-#define Sys_File_Can_Be_Made_Sig(name) b32 name(u8 *filename)
+#define Sys_File_Can_Be_Made_Sig(name) b32 name(Arena *scratch, u8 *filename)
 internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
 
 struct Shared_Vars{
-    Arena scratch;
     Arena font_scratch;
     Arena pixel_scratch;
 };

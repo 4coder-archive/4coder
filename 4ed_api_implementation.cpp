@@ -1091,15 +1091,15 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
+    Arena *arena = &models->mem.arena;
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Reopen_Result result = BufferReopenResult_Failed;
     if (api_check_buffer(file)){
         if (file->canon.name_size > 0){
             Plat_Handle handle = {};
-            if (system->load_handle((char*)file->canon.name_space, &handle)){
+            if (system->load_handle(arena, (char*)file->canon.name_space, &handle)){
                 File_Attributes attributes = system->load_attributes(handle);
                 
-                Arena *arena = &models->mem.arena;
                 Temp_Memory temp = begin_temp(arena);
                 char *file_memory = push_array(arena, char, (i32)attributes.size);
                 
@@ -1176,8 +1176,8 @@ API_EXPORT File_Attributes
 Get_File_Attributes(Application_Links *app, String_Const_u8 file_name)
 {
     Models *models = (Models*)app->cmd_context;
-    File_Attributes attributes = models->system->quick_file_attributes(file_name);
-    return(attributes);
+    Arena *arena = &models->mem.arena;
+    return(models->system->quick_file_attributes(arena, file_name));
 }
 
 internal View*

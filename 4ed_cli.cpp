@@ -98,7 +98,7 @@ child_process_call(Models *models, System_Functions *system, String_Const_u8 pat
     String_Const_u8 path_n = push_string_copy(scratch, path);
     String_Const_u8 command_n = push_string_copy(scratch, command);
     CLI_Handles cli_handles = {};
-    if (system->cli_call((char*)path_n.str, (char*)command_n.str, &cli_handles)){
+    if (system->cli_call(scratch, (char*)path_n.str, (char*)command_n.str, &cli_handles)){
         Child_Process_And_ID new_process = child_process_alloc_new(models, &models->child_processes);
         *id_out = new_process.id;
         new_process.process->cli = cli_handles;

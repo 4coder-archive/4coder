@@ -189,7 +189,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             }
         }
         
-        File_Attributes new_attributes = system->save_file((char*)file_name, data, size);
+        File_Attributes new_attributes = system->save_file(scratch, (char*)file_name, data, size);
         if (new_attributes.last_write_time > 0){
             if (using_actual_file_name){
                 file->state.ignore_behind_os = 1;
