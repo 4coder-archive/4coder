@@ -137,6 +137,18 @@ log_parse__get_or_make_list_tag_value(Log_Parse *parse, Log_Tag *tag){
 }
 
 internal Log_Event_List*
+log_parse_get_list_tag_name(Log_Parse *parse, u64 name){
+    Log_Event_List *result = 0;
+    Table_Lookup lookup = table_lookup(&parse->tag_name_to_event_list_table, name);
+    if (lookup.found_match){
+        u64 val = 0;
+        table_read(&parse->tag_name_to_event_list_table, lookup, &val);
+        result = (Log_Event_List*)IntAsPtr(val);
+    }
+    return(result);
+}
+
+internal Log_Event_List*
 log_parse__get_or_make_list_tag_name(Log_Parse *parse, Log_Tag *tag){
     Log_Event_List *result = 0;
     Table_Lookup lookup = table_lookup(&parse->tag_name_to_event_list_table, tag->name);
@@ -354,65 +366,690 @@ log_event_array_from_list(Arena *arena, Log_Event_List list){
 
 ////////////////////////////////
 
-CUSTOM_COMMAND_SIG(parse_the_log)
-CUSTOM_DOC("Tests the log parser")
-{
-    Buffer_ID log_buffer = get_buffer_by_name(app, string_u8_litexpr("*log*"), AccessAll);
-    Scratch_Block scratch(app);
-    String_Const_u8 log_text = push_whole_buffer(app, scratch, log_buffer);
-    Log_Parse parse = make_log_parse(scratch, log_text);
-    
-    u64 buffer_code = log_parse__string_code(&parse, string_u8_litexpr("buffer"),
-                                             LogParse_ExternalString);
-    u64 thread_code = log_parse__string_code(&parse, string_u8_litexpr("thread"),
-                                             LogParse_ExternalString);
-    
-    Log_Tag_Value value = {};
-    value.kind = LogTagKind_Integer;
-    value.value_s = 10;
-    Log_Event_List *list = log_parse_get_list_tag_value(&parse, buffer_code, value);
-    
-    Log_Event_Ptr_Array array = log_event_array_from_list(scratch, *list);
-    log_events_sort_by_tag(scratch, array, thread_code);
-    
-    for (i32 i = 0; i < array.count; i += 1){
-        Log_Event *event = array.events[i];
-        String_Const_u8 src_name = log_parse__get_string(&parse, event->src_file_name);
-        String_Const_u8 event_name = log_parse__get_string(&parse, event->event_name);
-        u64 line_number = event->line_number;
-        
-        List_String_Const_u8 line = {};
-        string_list_pushf(scratch, &line, "%.*s:%llu: %.*s",
-                          string_expand(src_name), line_number, string_expand(event_name));
-        
-        for (Log_Tag *node = event->first_tag;
-             node != 0;
-             node = node->next){
-            String_Const_u8 tag_name = log_parse__get_string(&parse, node->name);
-            
-            switch (node->value.kind){
-                case LogTagKind_Integer:
-                {
-                    string_list_pushf(scratch, &line, " [%.*s:%lld]",
-                                      string_expand(tag_name), node->value.value_s);
-                }break;
-                
-                case LogTagKind_String:
-                {
-                    String_Const_u8 string_value = log_parse__get_string(&parse, node->value.value);
-                    string_list_pushf(scratch, &line, " [%.*s:%.*s]",
-                                      string_expand(tag_name), string_expand(string_value));
-                }break;
-            }
-        }
-        
-        string_list_push(scratch, &line, string_u8_litexpr("\n"));
-        
-        String_Const_u8 line_string = string_list_flatten(scratch, line);
-        print_message(app, line_string);
+global View_ID log_view = 0;
+global Arena log_arena = {};
+global Log_Parse log_parse = {};
+global Log_Graph log_graph = {};
+global Log_Filter_Set log_filter_set = {};
+global Log_Filter_Set log_preview_set = {};
+
+internal void
+log_filter_set_init(Log_Filter_Set *set){
+    block_zero_struct(set);
+    for (i32 i = ArrayCount(set->filters_memory) - 1; i >= 0; i -= 1){
+        sll_stack_push(set->free_filters, &set->filters_memory[i]);
     }
 }
 
+internal Log_Filter_Set*
+log_filter_set_from_tab(Log_Graph_List_Tab tab){
+    Log_Filter_Set *result = 0;
+    switch (tab){
+        case LogTab_Filters:
+        {
+            result = &log_filter_set;
+        }break;
+        case LogTab_Previews:
+        {
+            result = &log_preview_set;
+        }break;
+    }
+    return(result);
+}
+
+internal Log_Filter*
+log_filter_set__new_filter(Log_Filter_Set *set, Log_Filter *prototype){
+    Log_Filter *result = set->free_filters;
+    if (result != 0){
+        for (Log_Filter *filter = set->first;
+             filter != 0;
+             filter = filter->next){
+            if (filter->kind == prototype->kind &&
+                filter->tag_name_code == prototype->tag_name_code &&
+                block_match_struct(&filter->tag_value, &prototype->tag_value)){
+                result = 0;
+                break;
+            }
+        }
+        if (result != 0){
+            sll_stack_pop(set->free_filters);
+            block_copy_struct(result, prototype);
+            zdll_push_back(set->first, set->last, result);
+            set->count += 1;
+            set->alter_counter += 1;
+        }
+    }
+    return(result);
+}
+
+internal void
+log_filter_set__free_filter(Log_Filter_Set *set, Log_Filter *filter){
+    zdll_remove(set->first, set->last, filter);
+    set->count -= 1;
+    set->alter_counter += 1;
+    sll_stack_push(set->free_filters, filter);
+}
+
+internal void
+log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
+    if (log_parse.arena != 0){
+        if (log_graph.holding_temp){
+            end_temp(log_graph.temp);
+        }
+        block_zero_struct(&log_graph);
+        log_graph.holding_temp = true;
+        log_graph.temp = begin_temp(&log_arena);
+        log_graph.layout_region = layout_region;
+        log_graph.face_id = face_id;
+        log_graph.filter_alter_counter = log_filter_set.alter_counter;
+        log_graph.preview_alter_counter = log_preview_set.alter_counter;
+        log_graph.tab = LogTab_Filters;
+        
+        f32 details_h = rect_height(layout_region)*.22f;
+        details_h = clamp_top(details_h, 250.f);
+        
+        Rect_f32 details_region = Rf32(layout_region.x0, layout_region.y0,
+                                       layout_region.x1, layout_region.y0 + details_h);
+        Rect_f32 event_list_region = Rf32(layout_region.x0, layout_region.y0 + details_h,
+                                          layout_region.x1, layout_region.y1);
+        
+        log_graph.details_region = details_region;
+        log_graph.details_region.p0 -= layout_region.p0;
+        log_graph.details_region.p1 -= layout_region.p0;
+        
+        u64 thread_code = log_parse__string_code(&log_parse, string_u8_litexpr("thread"),
+                                                 LogParse_ExternalString);
+        
+        if (log_filter_set.count == 0){
+            // NOTE(allen): everything goes into the filtered list
+            for (Log_Event *event = log_parse.first_event;
+                 event != 0;
+                 event = event->next){
+                Log_Event_Ptr_Node *node = push_array(&log_arena, Log_Event_Ptr_Node, 1);
+                node->event = event;
+                sll_queue_push(log_graph.filtered_list.first, log_graph.filtered_list.last, node);
+                log_graph.filtered_list.count += 1;
+            }
+        }
+        else{
+            for (Log_Filter *filter = log_filter_set.first;
+                 filter != 0;
+                 filter = filter->next){
+                Log_Event_List *filter_list = 0;
+                if (filter->kind == LogFilter_TagValue){
+                    filter_list = log_parse_get_list_tag_value(&log_parse, filter->tag_name_code,
+                                                               filter->tag_value);
+                }
+                else if (filter->kind == LogFilter_Tag){
+                    filter_list = log_parse_get_list_tag_name(&log_parse, filter->tag_name_code);
+                }
+                
+                // NOTE(allen): combine with existing result
+                if (filter == log_filter_set.first){
+                    for (Log_Event_Ptr_Node *node = filter_list->first;
+                         node != 0;
+                         node = node->next){
+                        Log_Event_Ptr_Node *new_node = push_array(&log_arena, Log_Event_Ptr_Node, 1);
+                        new_node->event = node->event;
+                        sll_queue_push(log_graph.filtered_list.first, log_graph.filtered_list.last, new_node);
+                        log_graph.filtered_list.count += 1;
+                    }
+                }
+                else{
+                    Log_Event_Ptr_Node **fixup_ptr = &log_graph.filtered_list.first;
+                    log_graph.filtered_list.last = 0;
+                    for (Log_Event_Ptr_Node *node_a = log_graph.filtered_list.first, *next = 0;
+                         node_a != 0;
+                         node_a = next){
+                        next = node_a->next;
+                        
+                        b32 remove_node_a = true;
+                        for (Log_Event_Ptr_Node *node_b = filter_list->first;
+                             node_b != 0;
+                             node_b = node_b->next){
+                            if (node_a->event == node_b->event){
+                                remove_node_a = false;
+                                break;
+                            }
+                        }
+                        
+                        if (remove_node_a){
+                            *fixup_ptr = next;
+                        }
+                        else{
+                            fixup_ptr = &node_a->next;
+                            log_graph.filtered_list.last = node_a;
+                        }
+                    }
+                }
+            }
+        }
+        
+        log_graph.event_array = log_event_array_from_list(&log_arena,
+                                                          log_graph.filtered_list);
+        log_events_sort_by_tag(&log_arena, log_graph.event_array, thread_code);
+        
+        b32 had_a_tag = true;
+        u64 thread_id_value = 0;
+        Log_Graph_Thread_Bucket *prev_bucket = 0;
+        
+        for (i32 i = 0; i < log_graph.event_array.count; i += 1){
+            Table_u64_u64 *tag_table = &log_graph.event_array.events[i]->tag_name_to_tag_ptr_table;
+            Table_Lookup lookup = table_lookup(tag_table, thread_code);
+            
+            b32 emit_next_bucket = false;
+            if (!lookup.found_match){
+                if (had_a_tag){
+                    had_a_tag = false;
+                    thread_id_value = 0;
+                    emit_next_bucket = true;
+                }
+            }
+            else{
+                u64 read_val = 0;
+                table_read(tag_table, lookup, &read_val);
+                Log_Tag *tag = (Log_Tag*)IntAsPtr(read_val);
+                if (!had_a_tag){
+                    had_a_tag = true;
+                    thread_id_value = tag->value.value;
+                    emit_next_bucket = true;
+                }
+                else if (thread_id_value != tag->value.value){
+                    thread_id_value = tag->value.value;
+                    emit_next_bucket = true;
+                }
+            }
+            
+            if (emit_next_bucket){
+                Log_Graph_Thread_Bucket *bucket = push_array(&log_arena, Log_Graph_Thread_Bucket, 1);
+                sll_queue_push(log_graph.first_bucket, log_graph.last_bucket, bucket);
+                log_graph.bucket_count += 1;
+                bucket->range.first = i;
+                bucket->had_a_tag = had_a_tag;
+                bucket->thread_id_value = thread_id_value;
+                if (prev_bucket != 0){
+                    prev_bucket->range.one_past_last = i;
+                }
+                prev_bucket = bucket;
+            }
+        }
+        if (prev_bucket != 0){
+            prev_bucket->range.one_past_last = log_graph.event_array.count;
+        }
+        
+        Face_Metrics metrics = get_face_metrics(app, face_id);
+        f32 line_height = metrics.line_height;
+        f32 box_h = f32_floor32(line_height*1.5f);
+        f32 box_w = f32_floor32(rect_width(event_list_region)/log_graph.bucket_count);
+        f32 y_cursor = event_list_region.y0 - layout_region.y0;
+        
+        if (log_graph.bucket_count > 0){
+            f32 y_bottom = 0.f;
+            
+            for (;;){
+                i32 smallest_event_number = max_i32;
+                i32 bucket_with_next_event_index = -1;
+                Log_Graph_Thread_Bucket *bucket_with_next_event = 0;
+                Log_Event *next_event = 0;
+                i32 iteration_counter = 0;
+                for (Log_Graph_Thread_Bucket *bucket = log_graph.first_bucket;
+                     bucket != 0;
+                     bucket = bucket->next, iteration_counter += 1){
+                    if (bucket->range.first < bucket->range.one_past_last){
+                        Log_Event *event = log_graph.event_array.events[bucket->range.first];
+                        if (event->event_number < smallest_event_number){
+                            smallest_event_number = event->event_number;
+                            bucket_with_next_event_index = iteration_counter;
+                            bucket_with_next_event = bucket;
+                            next_event = event;
+                        }
+                    }
+                }
+                
+                if (bucket_with_next_event == 0){
+                    break;
+                }
+                
+                bucket_with_next_event->range.first += 1;
+                
+                Log_Graph_Box *box_node = push_array(&log_arena, Log_Graph_Box, 1);
+                sll_queue_push(log_graph.first_box, log_graph.last_box, box_node);
+                log_graph.box_count += 1;
+                Rect_f32 rect = Rf32(box_w*bucket_with_next_event_index      , y_cursor,
+                                     box_w*(bucket_with_next_event_index + 1), y_cursor + box_h);
+                box_node->rect = rect;
+                box_node->event = next_event;
+                
+                y_bottom = Max(y_bottom, rect.y1);
+                
+                y_cursor += box_h;
+            }
+            
+            log_graph.max_y_scroll = clamp_bot(line_height, y_bottom - rect_height(event_list_region)*0.5f);
+        }
+    }
+}
+
+internal void
+log_parse_fill(Application_Links *app, Buffer_ID buffer){
+    if (log_arena.base_allocator == 0){
+        log_arena = make_arena_app_links(app);
+    }
+    
+    linalloc_clear(&log_arena);
+    block_zero_struct(&log_graph);
+    log_filter_set_init(&log_filter_set);
+    log_filter_set_init(&log_preview_set);
+    
+    String_Const_u8 log_text = push_whole_buffer(app, &log_arena, buffer);
+    log_parse = make_log_parse(&log_arena, log_text);
+}
+
+internal void
+log_graph_render__tag(Arena *arena, Fancy_String_List *line, Log_Parse *log_parse, Log_Tag *tag){
+    String_Const_u8 tag_name = log_parse__get_string(log_parse, tag->name);
+    push_fancy_stringf(arena, line, white, "[");
+    push_fancy_string(arena, line, green, tag_name);
+    push_fancy_stringf(arena, line, white, "=");
+    if (tag->value.kind == LogTagKind_Integer){
+        push_fancy_stringf(arena, line, pink, "0x%llx", tag->value.value_s);
+    }
+    else if (tag->value.kind == LogTagKind_String){
+        String_Const_u8 value = log_parse__get_string(log_parse, tag->value.value);
+        push_fancy_string(arena, line, pink, value);
+    }
+    push_fancy_stringf(arena, line, white, "]");
+}
+
+internal void
+log_graph_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_f32 inner){
+    if (log_parse.arena != 0){
+        Face_ID face_id = get_face_id(app, 0);
+        f32 y_scroll = log_graph.y_scroll;
+        Log_Event *selected_event = log_graph.selected_event;
+        if (!log_graph.holding_temp ||
+            inner != log_graph.layout_region ||
+            face_id != log_graph.face_id ||
+            log_filter_set.alter_counter != log_graph.filter_alter_counter){
+            log_graph_fill(app, inner, face_id);
+        }
+        log_graph.y_scroll = clamp(0.f, y_scroll, log_graph.max_y_scroll);
+        log_graph.selected_event = selected_event;
+        
+        Mouse_State mouse = get_mouse_state(app);
+        Vec2_f32 m_p = V2f32(mouse.p) - inner.p0;
+        
+        Face_Metrics metrics = get_face_metrics(app, log_graph.face_id);
+        f32 line_height = metrics.line_height;
+        
+        Log_Event *hover_event = 0;
+        
+        b32 in_details_region = (rect_contains_point(log_graph.details_region, m_p));
+        
+        for (Log_Graph_Box *box_node = log_graph.first_box;
+             box_node != 0;
+             box_node = box_node->next){
+            Scratch_Block scratch(app);
+            
+            Rect_f32 box = box_node->rect;
+            box.y0 -= log_graph.y_scroll;
+            box.y1 -= log_graph.y_scroll;
+            
+            Rect_f32 box_inner = rect_inner(box, 3.f);
+            
+            Fancy_Color margin_color = dark_gray;
+            if (!in_details_region && hover_event == 0 && rect_contains_point(box, m_p)){
+                margin_color = gray;
+                hover_event = box_node->event;
+            }
+            if (box_node->event == log_graph.selected_event){
+                margin_color = light_gray;
+            }
+            
+            draw_rectangle(app, box      , margin_color);
+            draw_rectangle(app, box_inner, black       );
+            
+            Log_Event *event = box_node->event;
+            
+            String_Const_u8 event_name = log_parse__get_string(&log_parse, event->event_name);
+            Fancy_String_List line = {};
+            push_fancy_string(scratch, &line, white, event_name);
+            
+            for (Log_Filter *filter = log_preview_set.first;
+                 filter != 0;
+                 filter = filter->next){
+                Table_u64_u64 *table = &event->tag_name_to_tag_ptr_table;
+                Table_Lookup lookup = table_lookup(table, filter->tag_name_code);
+                if (lookup.found_match){
+                    u64 val = 0;
+                    table_read(table, lookup, &val);
+                    Log_Tag *tag = (Log_Tag*)IntAsPtr(val);
+                    push_fancy_string(scratch, &line, string_u8_litexpr(" "));
+                    log_graph_render__tag(scratch, &line, &log_parse, tag);
+                }
+            }
+            
+            
+            Vec2_f32 p = V2f32(box_inner.x0 + 3.f,
+                               (f32_round32((box_inner.y0 + box_inner.y1 - line_height)*0.5f)));
+            draw_fancy_string(app, log_graph.face_id, line.first, p, 0, 0, 0, V2f32(1.f, 0.f));
+        }
+        
+        {
+            Scratch_Block scratch(app);
+            
+            Rect_f32 box = log_graph.details_region;
+            Rect_f32 box_inner = rect_inner(box, 3.f);
+            
+            Log_Graph_List_Tab current_tab = log_graph.tab;
+            Log_Filter_Set *viewing_filter_set = log_filter_set_from_tab(current_tab);
+            
+            draw_rectangle(app, box      , dark_gray);
+            draw_rectangle(app, box_inner, black    );
+            
+            {
+                f32 y_cursor = box_inner.y0 + 3.f;
+                if (y_cursor + line_height > box_inner.y1) goto finish_list_display;
+                
+                {
+                    f32 x_cursor = box_inner.x0 + 3.f;
+                    for (i32 i = LogTab_ERROR + 1; i < LogTab_COUNT; i += 1){
+                        Fancy_Color color = (i == current_tab)?white:gray;
+                        Fancy_String_List line = {};
+                        switch (i){
+                            case LogTab_Filters:
+                            {
+                                push_fancy_stringf(scratch, &line, color, "filters");
+                            }break;
+                            case LogTab_Previews:
+                            {
+                                push_fancy_stringf(scratch, &line, color, "previews");
+                            }break;
+                        }
+                        
+                        Vec2_f32 p = V2f32(x_cursor, y_cursor);
+                        f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
+                        draw_fancy_string(app, log_graph.face_id, line.first, p,
+                                          Stag_Default, Stag_Back, 0, V2f32(1.f, 0.f));
+                        x_cursor += advance + metrics.typical_character_width;
+                        
+                        if (log_graph.has_unused_click){
+                            Rect_f32 click_rect = Rf32(p.x, p.y, p.x + advance, p.y + line_height);
+                            if (rect_contains_point(click_rect, log_graph.unused_click)){
+                                log_graph.has_unused_click = false;
+                                log_graph.tab = i;
+                            }
+                        }
+                    }
+                }
+                
+                if (viewing_filter_set != 0){
+                    for (Log_Filter *filter = viewing_filter_set->first, *next = 0;
+                         filter != 0;
+                         filter = next){
+                        next = filter->next;
+                        
+                        y_cursor += line_height;
+                        if (y_cursor + line_height > box_inner.y1) goto finish_list_display;
+                        
+                        Fancy_String_List line = {};
+                        
+                        if (filter->kind == LogFilter_TagValue){
+                            push_fancy_stringf(scratch, &line, white, "val  [");
+                            String_Const_u8 tag_name = log_parse__get_string(&log_parse, filter->tag_name_code);
+                            push_fancy_stringf(scratch, &line, green, "%.*s", string_expand(tag_name));
+                            push_fancy_stringf(scratch, &line, white, "=");
+                            if (filter->tag_value.kind == LogTagKind_Integer){
+                                push_fancy_stringf(scratch, &line, pink, "0x%llx", filter->tag_value.value_s);
+                            }
+                            else if (filter->tag_value.kind == LogTagKind_String){
+                                String_Const_u8 value = log_parse__get_string(&log_parse, filter->tag_value.value);
+                                push_fancy_stringf(scratch, &line, pink, "%.*s", string_expand(value));
+                            }
+                            push_fancy_stringf(scratch, &line, white, "]");
+                        }
+                        else{
+                            push_fancy_stringf(scratch, &line, white, "name [");
+                            String_Const_u8 tag_name = log_parse__get_string(&log_parse, filter->tag_name_code);
+                            push_fancy_stringf(scratch, &line, green, "%.*s", string_expand(tag_name));
+                            push_fancy_stringf(scratch, &line, white, "]");
+                        }
+                        
+                        Vec2_f32 p = V2f32(box_inner.x0 + 3.f, y_cursor);
+                        f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
+                        draw_fancy_string(app, log_graph.face_id, line.first, p, Stag_Default, Stag_Back,
+                                          0, V2f32(1.f, 0.f));
+                        
+                        if (log_graph.has_unused_click){
+                            Rect_f32 click_rect = Rf32(p.x, p.y, p.x + advance, p.y + line_height);
+                            if (rect_contains_point(click_rect, log_graph.unused_click)){
+                                log_graph.has_unused_click = false;
+                                log_filter_set__free_filter(viewing_filter_set, filter);
+                            }
+                        }
+                    }
+                }
+                
+                finish_list_display:;
+            }
+            
+            Log_Event *view_event = (hover_event!=0)?hover_event:log_graph.selected_event;
+            if (view_event != 0){
+                f32 y_cursor = box_inner.y0 + 3.f;
+                if (y_cursor + line_height > box_inner.y1) goto finish_event_display;
+                
+                {
+                    Fancy_String_List line = {};
+                    String_Const_u8 file_name = log_parse__get_string(&log_parse, view_event->src_file_name);
+                    push_fancy_stringf(scratch, &line, green, "[%d]  ", view_event->event_number);
+                    push_fancy_stringf(scratch, &line, white, "%.*s:", string_expand(file_name));
+                    push_fancy_stringf(scratch, &line, pink, "%llu", view_event->line_number);
+                    
+                    Vec2_f32 right_p = V2f32(box_inner.x1 - 3.f, y_cursor);
+                    f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
+                    Vec2 p = V2f32(right_p.x - advance, right_p.y);
+                    draw_fancy_string(app, log_graph.face_id, line.first, p, Stag_Default, Stag_Back,
+                                      0, V2(1.f, 0.f));
+                }
+                
+                for (Log_Tag *tag = view_event->first_tag;
+                     tag != 0;
+                     tag = tag->next){
+                    y_cursor += line_height;
+                    if (y_cursor + line_height > box_inner.y1) goto finish_event_display;
+                    
+                    {
+                        Fancy_String_List line = {};
+                        log_graph_render__tag(scratch, &line, &log_parse, tag);
+                        
+                        Vec2_f32 right_p = V2f32(box_inner.x1 - 3.f, y_cursor);
+                        f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
+                        Vec2 p = V2f32(right_p.x - advance, right_p.y);
+                        draw_fancy_string(app, log_graph.face_id, line.first, p,
+                                          Stag_Default, Stag_Back, 0, V2(1.f, 0.f));
+                        
+                        if (log_graph.has_unused_click){
+                            Rect_f32 click_rect = Rf32(p.x, p.y, right_p.x, p.y + line_height);
+                            if (rect_contains_point(click_rect, log_graph.unused_click)){
+                                log_graph.has_unused_click = false;
+                                Log_Filter filter = {};
+                                switch (log_graph.tab){
+                                    case LogTab_Filters:
+                                    {
+                                        filter.kind = LogFilter_TagValue;
+                                        filter.tag_name_code = tag->name;
+                                        filter.tag_value = tag->value;
+                                    }break;
+                                    case LogTab_Previews:
+                                    {
+                                        filter.kind = LogFilter_Tag;
+                                        filter.tag_name_code = tag->name;
+                                    }break;
+                                }
+                                if (filter.kind != LogTab_ERROR){
+                                    log_filter_set__new_filter(viewing_filter_set, &filter);
+                                    animate_in_n_milliseconds(app, 0);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                finish_event_display:;
+            }
+        }
+        
+        log_graph.has_unused_click = false;
+    }
+}
+
+CUSTOM_COMMAND_SIG(log_graph__escape)
+CUSTOM_DOC("Ends the log grapher")
+{
+    if (log_view != 0){
+        Managed_Scope scope = view_get_managed_scope(app, log_view);
+        managed_variable_set(app, scope, view_render_hook, 0);
+        view_end_ui_mode(app, log_view);
+        log_view = 0;
+    }
+}
+
+CUSTOM_COMMAND_SIG(log_graph__scroll_wheel)
+CUSTOM_DOC("Scrolls the log graph")
+{
+    if (log_view != 0){
+        Mouse_State mouse = get_mouse_state(app);
+        if (mouse.wheel != 0){
+            log_graph.y_scroll += mouse.wheel;
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(log_graph__page_up)
+CUSTOM_DOC("Scroll the log graph up one whole page")
+{
+    if (log_view != 0){
+        log_graph.y_scroll -= get_page_jump(app, log_view);
+    }
+}
+
+CUSTOM_COMMAND_SIG(log_graph__page_down)
+CUSTOM_DOC("Scroll the log graph down one whole page")
+{
+    if (log_view != 0){
+        log_graph.y_scroll += get_page_jump(app, log_view);
+    }
+}
+
+internal Log_Graph_Box*
+log_graph__get_box_at_point(Log_Graph *log_graph, Vec2_f32 p){
+    Log_Graph_Box *result = 0;
+    if (!rect_contains_point(log_graph->details_region, p)){
+        for (Log_Graph_Box *box_node = log_graph->first_box;
+             box_node != 0;
+             box_node = box_node->next){
+            Rect_f32 box = box_node->rect;
+            box.y0 -= log_graph->y_scroll;
+            box.y1 -= log_graph->y_scroll;
+            if (rect_contains_point(box, p)){
+                result = box_node;
+                break;
+            }
+        }
+    }
+    return(result);
+}
+
+internal Log_Graph_Box*
+log_graph__get_box_at_mouse_point(Application_Links *app, Log_Graph *log_graph){
+    Mouse_State mouse = get_mouse_state(app);
+    Vec2_f32 m_p = V2f32(mouse.p) - log_graph->layout_region.p0;
+    return(log_graph__get_box_at_point(log_graph, m_p));
+}
+
+CUSTOM_COMMAND_SIG(log_graph__click_select_event)
+CUSTOM_DOC("Select the event record at the mouse point in the log graph")
+{
+    if (log_view != 0){
+        if (log_graph.holding_temp){
+            Mouse_State mouse = get_mouse_state(app);
+            Vec2_f32 m_p = V2f32(mouse.p) - log_graph.layout_region.p0;
+            Log_Graph_Box *box_node = log_graph__get_box_at_point(&log_graph, m_p);
+            if (box_node != 0){
+                log_graph.selected_event = box_node->event;
+            }
+            else{
+                log_graph.has_unused_click = true;
+                log_graph.unused_click = m_p;
+            }
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(log_graph__click_jump_to_event_source)
+CUSTOM_DOC("Jump to the code that logged the event record at the mouse point in the log graph")
+{
+    if (log_view != 0){
+        if (log_graph.holding_temp){
+            Mouse_State mouse = get_mouse_state(app);
+            Vec2_f32 m_p = V2f32(mouse.p) - log_graph.layout_region.p0;
+            Log_Graph_Box *box_node = log_graph__get_box_at_point(&log_graph, m_p);
+            if (box_node != 0){
+                Log_Event *event = box_node->event;
+                log_graph.selected_event = event;
+                
+                View_ID target_view = get_next_view_looped_primary_panels(app, log_view, AccessProtected);
+                if (target_view != 0){
+                    String_Const_u8 file_name = log_parse__get_string(&log_parse, event->src_file_name);
+                    Buffer_ID target_buffer = get_buffer_by_file_name(app, file_name, AccessAll);
+                    if (target_buffer == 0){
+                        target_buffer = get_buffer_by_name(app, file_name, AccessAll);
+                    }
+                    if (target_buffer != 0){
+                        if (target_view == log_view){
+                            view_end_ui_mode(app, target_view);
+                        }
+                        set_view_to_location(app, target_view, target_buffer,
+                                             seek_line_char(event->line_number, 1));
+                    }
+                }
+            }
+            else{
+                log_graph.has_unused_click = true;
+                log_graph.unused_click = m_p;
+            }
+        }
+    }
+}
+
+internal void
+fill_log_graph_command_map(Bind_Helper *context){
+    begin_map(context, default_log_graph_map);
+    bind(context, key_esc, MDFR_NONE, log_graph__escape);
+    bind(context, key_mouse_wheel, MDFR_NONE, log_graph__scroll_wheel);
+    bind(context, key_mouse_left, MDFR_NONE, log_graph__click_jump_to_event_source);
+    bind(context, key_mouse_right, MDFR_NONE, log_graph__click_select_event);
+    bind(context, key_page_up, MDFR_NONE, log_graph__page_up);
+    bind(context, key_page_down, MDFR_NONE, log_graph__page_down);
+    end_map(context);
+}
+
+CUSTOM_COMMAND_SIG(show_the_log_graph)
+CUSTOM_DOC("Parser *log* and displays the 'log graph' UI")
+{
+    Buffer_ID log_buffer = get_buffer_by_name(app, string_u8_litexpr("*log*"), AccessAll);
+    log_parse_fill(app, log_buffer);
+    
+    if (log_view == 0){
+        log_view = get_active_view(app, AccessAll);
+    }
+    Managed_Scope scope = view_get_managed_scope(app, log_view);
+    u64 render_hook_value = (u64)PtrAsInt(log_graph_render);
+    managed_variable_set(app, scope, view_render_hook, render_hook_value);
+    view_set_setting(app, log_view, ViewSetting_UICommandMap, default_log_graph_map);
+    view_begin_ui_mode(app, log_view);
+    view_set_quit_ui_handler(app, log_view, ui_quit_clear_render_hook);
+}
 
 // BOTTOM
 

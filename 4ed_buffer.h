@@ -19,7 +19,7 @@ enum{
 };
 
 struct Cursor_With_Index{
-    i32 pos;
+    i64 pos;
     i32 index;
 };
 

@@ -8,7 +8,6 @@
 #define FCODER_DEFAULT_INCLUDE_CPP
 
 // NOTE(allen): Defines before 4coder_default_include.cpp:
-// USE_OLD_STYLE_JUMPS -> use "old style" direct jumps instead of sticky jumps
 // REMOVE_TRANSITION_HELPER_31 -> does not include the transition helpers for the API changes in 4.0.31
 // REMOVE_OLD_STRING -> does not include the old 4coder_string.h library.
 //   NOTE: You can only remove "old string" if you first remove the transition helper.
@@ -66,7 +65,6 @@
 
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_helper.cpp"
-#include "4coder_log_parser.cpp"
 #include "4coder_seek.cpp"
 #include "4coder_fancy.cpp"
 #include "4coder_ui_helper.cpp"
@@ -79,9 +77,9 @@
 #include "4coder_auto_indent.cpp"
 #include "4coder_search.cpp"
 #include "4coder_jumping.cpp"
-#include "4coder_jump_direct.cpp"
 #include "4coder_jump_sticky.cpp"
 #include "4coder_jump_lister.cpp"
+#include "4coder_log_parser.cpp"
 #include "4coder_clipboard.cpp"
 #include "4coder_system_command.cpp"
 #include "4coder_build_commands.cpp"

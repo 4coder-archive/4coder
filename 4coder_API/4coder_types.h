@@ -615,7 +615,7 @@ DOC_SEE(buffer_add_markers)
 */
 STRUCT Marker{
     /* DOC(The current position of the marker measure in absolute byte positioning coordinates.) */
-    i32 pos;
+    i64 pos;
     /* DOC(When a marker is inside a range that gets edited, by default the marker 'leans_left' which means it goes to the beginning of the edited range.  If the field lean_right is set to true, the marker will lean right with edits and will go to the end of edited range.) */
     b32 lean_right;
 };

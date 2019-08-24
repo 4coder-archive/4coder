@@ -742,27 +742,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     //managed_scope_clear_self_all_dependent_scopes(app, render_scope);
 }
 
-static int_color
-get_margin_color(i32 level){
-    int_color margin = 0;
-    switch (level){
-        default:
-        case UIActivation_None:
-        {
-            margin = Stag_List_Item;
-        }break;
-        case UIActivation_Hover:
-        {
-            margin = Stag_List_Item_Hover;
-        }break;
-        case UIActivation_Active:
-        {
-            margin = Stag_List_Item_Active;
-        }break;
-    }
-    return(margin);
-}
-
 static void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32, Face_ID face_id){
     UI_Data *ui_data = 0;

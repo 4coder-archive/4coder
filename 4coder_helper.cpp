@@ -2482,12 +2482,42 @@ split_rect(f32_Rect rect, View_Split_Kind kind, Coordinate coord, Side from_side
 
 ////////////////////////////////
 
+static int_color
+get_margin_color(i32 level){
+    int_color margin = 0;
+    switch (level){
+        default:
+        case UIActivation_None:
+        {
+            margin = Stag_List_Item;
+        }break;
+        case UIActivation_Hover:
+        {
+            margin = Stag_List_Item_Hover;
+        }break;
+        case UIActivation_Active:
+        {
+            margin = Stag_List_Item_Active;
+        }break;
+    }
+    return(margin);
+}
+
+////////////////////////////////
+
 internal f32
 get_dpi_scaling_value(Application_Links *app){
     // TODO(casey): Allen, this should return the multiplier for the display relative to whatever 4coder
     // gets tuned to.
     f32 result = 2.0f;
     return(result);
+}
+
+////////////////////////////////
+
+UI_QUIT_FUNCTION(ui_quit_clear_render_hook){
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    managed_variable_set(app, scope, view_render_hook, 0);
 }
 
 ////////////////////////////////

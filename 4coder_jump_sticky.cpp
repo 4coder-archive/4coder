@@ -5,12 +5,12 @@ compiler errors, sticking markers on jump locations, and jumping to them.
 
 // TOP
 
-static Marker_List_Node *marker_list_first = 0;
-static Marker_List_Node *marker_list_last = 0;
+global Marker_List_Node *marker_list_first = 0;
+global Marker_List_Node *marker_list_last = 0;
 
 ////////////////////////////////
 
-static i32
+internal i32
 binary_search(i64 *array, i32 stride, i32 count, i64 x){
     u8 *raw = (u8*)array;
     i32 i = 0;
@@ -38,7 +38,7 @@ binary_search(i64 *array, i32 stride, i32 count, i64 x){
     return(i);
 }
 
-static Sticky_Jump_Array
+internal Sticky_Jump_Array
 parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_ID buffer){
     Sticky_Jump_Node *jump_first = 0;;
     Sticky_Jump_Node *jump_last = 0;
@@ -101,7 +101,7 @@ parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_ID buffe
     return(result);
 }
 
-static void
+internal void
 init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_List *list){
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
@@ -185,17 +185,17 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     end_temp(temp);
 }
 
-static void
+internal void
 delete_marker_list(Marker_List_Node *node){
     zdll_remove(marker_list_first, marker_list_last, node);
 }
 
-static void
+internal void
 delete_marker_list(Marker_List *list){
     delete_marker_list(CastFromMember(Marker_List_Node, list, list));
 }
 
-static Marker_List*
+internal Marker_List*
 make_new_marker_list_for_buffer(Heap *heap, i32 buffer_id){
     Marker_List_Node *new_node = heap_array(heap, Marker_List_Node, 1);
     zdll_push_back(marker_list_first, marker_list_last, new_node);
@@ -205,7 +205,7 @@ make_new_marker_list_for_buffer(Heap *heap, i32 buffer_id){
     return(result);
 }
 
-static Marker_List*
+internal Marker_List*
 get_marker_list_for_buffer(Buffer_ID buffer_id){
     for (Marker_List_Node *node = marker_list_first;
          node != 0;
@@ -217,7 +217,7 @@ get_marker_list_for_buffer(Buffer_ID buffer_id){
     return(0);
 }
 
-static Marker_List*
+internal Marker_List*
 get_or_make_list_for_buffer(Application_Links *app, Heap *heap, Buffer_ID buffer_id){
     Marker_List *result = get_marker_list_for_buffer(buffer_id);
     if (result != 0){
@@ -239,7 +239,7 @@ get_or_make_list_for_buffer(Application_Links *app, Heap *heap, Buffer_ID buffer
     return(result);
 }
 
-static b32
+internal b32
 get_stored_jump_from_list(Application_Links *app, Marker_List *list, i32 index,
                           Sticky_Jump_Stored *stored_out){
     Sticky_Jump_Stored stored = {};
@@ -252,7 +252,7 @@ get_stored_jump_from_list(Application_Links *app, Marker_List *list, i32 index,
     return(false);
 }
 
-static Sticky_Jump_Stored*
+internal Sticky_Jump_Stored*
 get_all_stored_jumps_from_list(Application_Links *app, Arena *arena, Marker_List *list){
     Sticky_Jump_Stored *stored = 0;
     if (list != 0){
@@ -268,7 +268,7 @@ get_all_stored_jumps_from_list(Application_Links *app, Arena *arena, Marker_List
     return(stored);
 }
 
-static b32
+internal b32
 get_jump_from_list(Application_Links *app, Marker_List *list, i32 index, ID_Pos_Jump_Location *location){
     b32 result = false;
     Sticky_Jump_Stored stored = {};
@@ -292,7 +292,7 @@ get_jump_from_list(Application_Links *app, Marker_List *list, i32 index, ID_Pos_
     return(result);
 }
 
-static i64
+internal i64
 get_line_from_list(Application_Links *app, Marker_List *list, i32 index){
     i64 result = 0;
     if (list != 0){
@@ -304,7 +304,7 @@ get_line_from_list(Application_Links *app, Marker_List *list, i32 index){
     return(result);
 }
 
-static b32
+internal b32
 get_is_sub_error_from_list(Application_Links *app, Marker_List *list, i32 index){
     b32 result = false;
     if (list != 0){
@@ -316,7 +316,7 @@ get_is_sub_error_from_list(Application_Links *app, Marker_List *list, i32 index)
     return(result);
 }
 
-static i32
+internal i32
 get_index_nearest_from_list(Application_Links *app, Marker_List *list, i64 line){
     i32 result = -1;
     if (list != 0){
@@ -331,7 +331,7 @@ get_index_nearest_from_list(Application_Links *app, Marker_List *list, i64 line)
     return(result);
 }
 
-static i32
+internal i32
 get_index_exact_from_list(Application_Links *app, Marker_List *list, i64 line){
     i32 result = -1;
     if (list != 0){
@@ -349,7 +349,7 @@ get_index_exact_from_list(Application_Links *app, Marker_List *list, i64 line){
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(goto_jump_at_cursor_sticky)
+CUSTOM_COMMAND_SIG(goto_jump_at_cursor)
 CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump location and brings up the file and position in another view and changes the active panel to the view containing the jump.")
 {
     Heap *heap = &global_heap;
@@ -376,7 +376,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_jump_at_cursor_same_panel_sticky)
+CUSTOM_COMMAND_SIG(goto_jump_at_cursor_same_panel)
 CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump location and brings up the file and position in this view, losing the compilation output or jump list.")
 {
     Heap *heap = &global_heap;
@@ -401,7 +401,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
     }
 }
 
-static void
+internal void
 goto_jump_in_order(Application_Links *app, Marker_List *list, View_ID jump_view, ID_Pos_Jump_Location location){
     Buffer_ID buffer = {};
     if (get_jump_buffer(app, &buffer, &location)){
@@ -412,26 +412,16 @@ goto_jump_in_order(Application_Links *app, Marker_List *list, View_ID jump_view,
         }
         switch_to_existing_view(app, target_view, buffer);
         jump_to_location(app, target_view, buffer, location);
-        prev_location.buffer_id = location.buffer_id;
-        prev_location.line = location.pos;
-        prev_location.column = 0;
+        prev_location = location;
     }
 }
 
-static b32
-jump_is_repeat(ID_Line_Column_Jump_Location prev, ID_Pos_Jump_Location location){
-    b32 skip = false;
-    // NOTE(allen): This looks wrong, but it is correct.  The prev_location is a line column type
-    // because that is how the old-style direct jumps worked, and they are still supported.  All code paths
-    // in the sticky jump system treat line as the field for pos and ignore column.  When the time has
-    // passed and the direct jump legacy system is gone then this can be corrected.
-    if (prev.buffer_id == location.buffer_id && prev.line == location.pos){
-        skip = true;
-    }
-    return(skip);
+internal b32
+jump_is_repeat(ID_Pos_Jump_Location prev, ID_Pos_Jump_Location location){
+    return(prev.buffer_id == location.buffer_id && prev.pos == location.pos);
 }
 
-static void
+internal void
 goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_ID jump_view, i32 list_index, i32 direction, b32 skip_repeats, b32 skip_sub_errors){
     Assert(direction == 1 || direction == -1);
     
@@ -460,7 +450,7 @@ goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_ID jump_
     }
 }
 
-static Locked_Jump_State
+internal Locked_Jump_State
 get_locked_jump_state(Application_Links *app, Heap *heap){
     Locked_Jump_State result = {};
     result.view = get_view_for_locked_jump_buffer(app);
@@ -475,7 +465,7 @@ get_locked_jump_state(Application_Links *app, Heap *heap){
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(goto_next_jump_sticky)
+CUSTOM_COMMAND_SIG(goto_next_jump)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, skipping sub jump locations.")
 {
     Heap *heap = &global_heap;
@@ -492,7 +482,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_prev_jump_sticky)
+CUSTOM_COMMAND_SIG(goto_prev_jump)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, skipping sub jump locations."){
     Heap *heap = &global_heap;
     
@@ -505,7 +495,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_next_jump_no_skips_sticky)
+CUSTOM_COMMAND_SIG(goto_next_jump_no_skips)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the next jump in the buffer, and does not skip sub jump locations.")
 {
     Heap *heap = &global_heap;
@@ -522,7 +512,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips_sticky)
+CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the previous jump in the buffer, and does not skip sub jump locations.")
 {
     Heap *heap = &global_heap;
@@ -536,7 +526,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
     }
 }
 
-CUSTOM_COMMAND_SIG(goto_first_jump_sticky)
+CUSTOM_COMMAND_SIG(goto_first_jump)
 CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to the first jump in the buffer.")
 {
     Heap *heap = &global_heap;
@@ -575,7 +565,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 // Insert Newline or Tigger Jump on Read Only Buffer
 //
 
-CUSTOM_COMMAND_SIG(newline_or_goto_position_sticky)
+CUSTOM_COMMAND_SIG(newline_or_goto_position)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
     View_ID view = get_active_view(app, AccessProtected);
@@ -586,13 +576,13 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
     else{
         buffer = view_get_buffer(app, view, AccessProtected);
         if (buffer != 0){
-            goto_jump_at_cursor_sticky(app);
+            goto_jump_at_cursor(app);
             lock_jump_buffer(app, buffer);
         }
     }
 }
 
-CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel_sticky)
+CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
     View_ID view = get_active_view(app, AccessProtected);
@@ -603,7 +593,7 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
     else{
         buffer = view_get_buffer(app, view, AccessProtected);
         if (buffer != 0){
-            goto_jump_at_cursor_same_panel_sticky(app);
+            goto_jump_at_cursor_same_panel(app);
             lock_jump_buffer(app, buffer);
         }
     }

@@ -914,8 +914,10 @@ win32_thread_wrapper(void *ptr){
     Win32_Object *object = (Win32_Object*)ptr;
     Thread_Function *proc = object->thread.proc;
     void *object_ptr = object->thread.ptr;
+    EnterCriticalSection(&win32vars.thread_launch_mutex);
     win32vars.waiting_for_launch = false;
     WakeConditionVariable(&win32vars.thread_launch_cv);
+    LeaveCriticalSection(&win32vars.thread_launch_mutex);
     proc(object_ptr);
     return(0);
 }

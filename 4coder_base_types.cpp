@@ -1430,11 +1430,11 @@ operator!=(Vec4_f32 a, Vec4_f32 b){
 
 static b32
 operator==(Rect_i32 a, Rect_i32 b){
-    return(a.p0 == b.p0 && a.p0 == b.p0);
+    return(a.p0 == b.p0 && a.p1 == b.p1);
 }
 static b32
 operator==(Rect_f32 a, Rect_f32 b){
-    return(a.p0 == b.p0 && a.p0 == b.p0);
+    return(a.p0 == b.p0 && a.p1 == b.p1);
 }
 
 static b32

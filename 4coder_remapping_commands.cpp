@@ -17,11 +17,13 @@ in the set of default maps.
 void
 default_keys(Bind_Helper *context){
     fill_keys_default(context);
+    fill_log_graph_command_map(context);
 }
 
 void
 mac_default_keys(Bind_Helper *context){
     fill_keys_mac_default(context);
+    fill_log_graph_command_map(context);
 }
 
 

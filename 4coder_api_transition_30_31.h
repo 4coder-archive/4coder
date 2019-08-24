@@ -8,9 +8,9 @@
  * This transition helper will be removed in a future version so it is recommended to get off sooner or laster.
  *
  * Tips on transitioning:
-*
-* Wrather than just try to inline this code everywhere, you can simplify things quite a lot by storing references
-* to buffers and views and Buffer_ID and View_ID instead of Buffer_Summary and View_Summary.
+ *
+ * Wrather than just try to inline this code everywhere, you can simplify things quite a lot by storing references
+ * to buffers and views and Buffer_ID and View_ID instead of Buffer_Summary and View_Summary.
  * Just get the summaries when you need information in those structures.
  *
  * You will make your code simpler if you stick to String as much as possible, but whenever you want to you can switch

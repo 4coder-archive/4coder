@@ -742,6 +742,7 @@ view_quit_ui(System_Functions *system, Models *models, View *view){
     view->ui_mode = false;
     if (view->ui_quit != 0){
         view->ui_quit(&models->app_links, view_get_id(&models->live_set, view));
+        view->ui_quit = 0;
     }
 }
 

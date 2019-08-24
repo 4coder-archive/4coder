@@ -10,6 +10,7 @@
 enum Default_Maps{
     default_code_map,
     default_lister_ui_map,
+    default_log_graph_map,
     default_maps_count,
 };
 
@@ -32,7 +33,7 @@ typedef ID_Line_Column_Jump_Location ID_Based_Jump_Location;
 
 struct ID_Pos_Jump_Location{
     Buffer_ID buffer_id;
-    i32 pos;
+    i64 pos;
 };
 
 struct Name_Line_Column_Location{

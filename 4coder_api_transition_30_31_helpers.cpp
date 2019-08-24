@@ -762,10 +762,12 @@ view_set_vertical_focus(Application_Links *app, View_Summary *view, i32 y_top, i
     view_set_vertical_focus(app, view==0?0:view->view_id, (f32)y_top, (f32)y_bot);
 }
 
+#if 0
 static b32
 advance_cursor_in_jump_view(Application_Links *app, View_Summary *view, i32 skip_repeats, i32 skip_sub_error, i32 direction, Name_Line_Column_Location *location_out){
     return(advance_cursor_in_jump_view(app, view==0?0:view->view_id, skip_repeats, skip_sub_error, direction, location_out));
 }
+#endif
 
 static Parsed_Jump
 seek_next_jump_in_view(Application_Links *app, Arena *arena, View_Summary *view, i32 skip_sub_errors, i32 direction, i32 *line_out){

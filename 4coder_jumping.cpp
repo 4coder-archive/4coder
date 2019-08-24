@@ -324,6 +324,7 @@ skip_this_jump(ID_Line_Column_Jump_Location prev, ID_Line_Column_Jump_Location j
     return(result);
 }
 
+#if 0
 static b32
 advance_cursor_in_jump_view(Application_Links *app, View_ID view, b32 skip_repeats, b32 skip_sub_error, Scan_Direction direction, Name_Line_Column_Location *location_out){
     b32 result = true;
@@ -360,7 +361,7 @@ advance_cursor_in_jump_view(Application_Links *app, View_ID view, b32 skip_repea
 }
 
 static b32
-seek_jump(Application_Links *app, b32 skip_repeats, b32 skip_sub_errors, i32 direction){
+seek_jump_(Application_Links *app, b32 skip_repeats, b32 skip_sub_errors, i32 direction){
     b32 result = false;
     
     View_ID view = get_view_for_locked_jump_buffer(app);
@@ -383,41 +384,7 @@ seek_jump(Application_Links *app, b32 skip_repeats, b32 skip_sub_errors, i32 dir
     
     return(result);
 }
-
-////////////////////////////////
-
-#if defined(USE_OLD_STYLE_JUMPS)
-
-#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_direct)
-#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_direct)
-#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_direct)
-#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_direct)
-#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_direct)
-#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_direct)
-#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_direct)
-#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_direct)
-#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_direct)
-
-#else
-
-#define goto_jump_at_cursor                 CUSTOM_ALIAS(goto_jump_at_cursor_sticky)
-#define goto_jump_at_cursor_same_panel      CUSTOM_ALIAS(goto_jump_at_cursor_same_panel_sticky)
-#define goto_next_jump                      CUSTOM_ALIAS(goto_next_jump_sticky)
-#define goto_prev_jump                      CUSTOM_ALIAS(goto_prev_jump_sticky)
-#define goto_next_jump_no_skips             CUSTOM_ALIAS(goto_next_jump_no_skips_sticky)
-#define goto_prev_jump_no_skips             CUSTOM_ALIAS(goto_prev_jump_no_skips_sticky)
-#define goto_first_jump                     CUSTOM_ALIAS(goto_first_jump_sticky)
-#define newline_or_goto_position            CUSTOM_ALIAS(newline_or_goto_position_sticky)
-#define newline_or_goto_position_same_panel CUSTOM_ALIAS(newline_or_goto_position_same_panel_sticky)
-
 #endif
-
-#define seek_error               CUSTOM_ALIAS(seek_jump)
-#define goto_next_error          CUSTOM_ALIAS(goto_next_jump)
-#define goto_prev_error          CUSTOM_ALIAS(goto_prev_jump)
-#define goto_next_error_no_skips CUSTOM_ALIAS(goto_next_jump_no_skips)
-#define goto_prev_error_no_skips CUSTOM_ALIAS(goto_prev_jump_no_skips)
-#define goto_first_error         CUSTOM_ALIAS(goto_first_jump)
 
 // BOTTOM
 

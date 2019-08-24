@@ -482,7 +482,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
         String_Const_u8 name = SCu8(file->unique_name.name_space, file->unique_name.name_size);
         name = string_escape(scratch, name);
         LogEventF(log_string(M), scratch, file->id, 0, system->thread_get_id(),
-                  "init file [last_write_time=0x%llx] [name=\"%.*s\"]",
+                  "init file [lwt=0x%llx] [name=\"%.*s\"]",
                   attributes.last_write_time, string_expand(name));
         end_temp(temp);
     }

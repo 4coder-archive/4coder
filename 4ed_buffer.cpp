@@ -14,9 +14,9 @@
 //
 
 internal void
-write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
-    positions[(*count)].index = *count;
-    positions[(*count)].pos = pos;
+write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i64 pos){
+    positions[*count].index = *count;
+    positions[*count].pos = pos;
     ++(*count);
 }
 
@@ -29,7 +29,7 @@ write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
 internal void
 buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
     i32 mid = start;
-    i32 pivot_pos = positions[pivot].pos;
+    i64 pivot_pos = positions[pivot].pos;
     for (i32 i = mid; i < pivot; ++i){
         if (positions[i].pos < pivot_pos){
             CursorSwap__(positions[mid], positions[i]);

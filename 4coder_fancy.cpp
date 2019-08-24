@@ -198,8 +198,9 @@ fancy_string_list_single(Fancy_String *fancy_string){
     return(list);
 }
 
-static Vec2
-draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string, Vec2 P, int_color fore, int_color back, u32 flags, Vec2 dP){
+static Vec2_f32
+draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string, Vec2 P,
+                  int_color fore, int_color back, u32 flags, Vec2 dP){
     for (;string != 0;
          string = string->next){
         Face_ID use_font_id = (string->font_id) ? string->font_id : font_id;
@@ -219,10 +220,40 @@ draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
     return(P);
 }
 
-static Vec2
-draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string, Vec2 P, int_color fore, int_color back){
+static Vec2_f32
+draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string, Vec2 P,
+                  int_color fore, int_color back){
     return(draw_fancy_string(app, font_id, string, P, fore, back, 0, V2(1.f, 0.f)));
 }
+
+static f32
+get_fancy_string_advance(Application_Links *app, Face_ID font_id, Fancy_String *string){
+    f32 advance = 0.f;
+    for (;string != 0;
+         string = string->next){
+        Face_ID use_font_id = (string->font_id) ? string->font_id : font_id;
+        f32 adv = get_string_advance(app, use_font_id, string->value);
+        Face_Metrics metrics = get_face_metrics(app, font_id);
+        advance += (string->pre_margin + string->post_margin)*metrics.typical_character_width + adv;
+    }
+    return(advance);
+}
+
+static void
+draw_rectangle(Application_Links *app, Rect_f32 rect, Fancy_Color fancy_color){
+    int_color color = int_color_from(app, fancy_color);
+    draw_rectangle(app, rect, color);
+}
+
+////////////////////////////////
+
+global Fancy_Color white      = fancy_rgba(1.0f, 1.0f, 1.0f, 1.0f);
+global Fancy_Color light_gray = fancy_rgba(0.7f, 0.7f, 0.7f, 1.0f);
+global Fancy_Color gray       = fancy_rgba(0.5f, 0.5f, 0.5f, 1.0f);
+global Fancy_Color dark_gray  = fancy_rgba(0.3f, 0.3f, 0.3f, 1.0f);
+global Fancy_Color black      = fancy_rgba(0.0f, 0.0f, 0.0f, 1.0f);
+global Fancy_Color pink       = fancy_rgba(1.0f, 0.0f, 1.0f, 1.0f);
+global Fancy_Color green      = fancy_rgba(0.0f, 1.0f, 0.0f, 1.0f);
 
 // BOTTOM
 

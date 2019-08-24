@@ -452,9 +452,9 @@ generate_remapping_code_and_data(Arena *arena){
         
         bind(arena, mappings, '.', MDFR_ALT, change_to_build_panel);
         bind(arena, mappings, ',', MDFR_ALT, close_build_panel);
-        bind(arena, mappings, 'n', MDFR_ALT, goto_next_jump_sticky);
-        bind(arena, mappings, 'N', MDFR_ALT, goto_prev_jump_sticky);
-        bind(arena, mappings, 'M', MDFR_ALT, goto_first_jump_sticky);
+        bind(arena, mappings, 'n', MDFR_ALT, goto_next_jump);
+        bind(arena, mappings, 'N', MDFR_ALT, goto_prev_jump);
+        bind(arena, mappings, 'M', MDFR_ALT, goto_first_jump);
         bind(arena, mappings, 'm', MDFR_ALT, build_in_build_panel);
         bind(arena, mappings, 'b', MDFR_ALT, toggle_filebar);
         
@@ -579,8 +579,8 @@ generate_remapping_code_and_data(Arena *arena){
         bind(arena, mappings, '1', MDFR_CTRL, view_buffer_other_panel);
         bind(arena, mappings, '2', MDFR_CTRL, swap_buffers_between_panels);
         
-        bind(arena, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-        bind(arena, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(arena, mappings, '\n', MDFR_NONE, newline_or_goto_position);
+        bind(arena, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
         bind(arena, mappings, '>', MDFR_CTRL, view_jump_list_with_lister);
         bind(arena, mappings, ' ', MDFR_SHIFT, write_character);
         
@@ -680,9 +680,9 @@ generate_remapping_code_and_data(Arena *arena){
         
         bind(arena, mappings, '.', MDFR_CTRL, change_to_build_panel);
         bind(arena, mappings, ',', MDFR_CTRL, close_build_panel);
-        bind(arena, mappings, 'n', MDFR_CTRL, goto_next_jump_sticky);
-        bind(arena, mappings, 'N', MDFR_CTRL, goto_prev_jump_sticky);
-        bind(arena, mappings, 'M', MDFR_CTRL, goto_first_jump_sticky);
+        bind(arena, mappings, 'n', MDFR_CTRL, goto_next_jump);
+        bind(arena, mappings, 'N', MDFR_CTRL, goto_prev_jump);
+        bind(arena, mappings, 'M', MDFR_CTRL, goto_first_jump);
         bind(arena, mappings, 'm', MDFR_CTRL, build_in_build_panel);
         bind(arena, mappings, 'b', MDFR_CTRL, toggle_filebar);
         
@@ -806,8 +806,8 @@ generate_remapping_code_and_data(Arena *arena){
         bind(arena, mappings, '1', MDFR_CMND, view_buffer_other_panel);
         bind(arena, mappings, '2', MDFR_CMND, swap_buffers_between_panels);
         
-        bind(arena, mappings, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-        bind(arena, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+        bind(arena, mappings, '\n', MDFR_NONE, newline_or_goto_position);
+        bind(arena, mappings, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
         bind(arena, mappings, '>', MDFR_CMND, view_jump_list_with_lister);
         bind(arena, mappings, ' ', MDFR_SHIFT, write_character);
         

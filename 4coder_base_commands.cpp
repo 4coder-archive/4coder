@@ -314,16 +314,9 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
 
 ////////////////////////////////
 
-static void
-move_vertical(Application_Links *app, f32 line_multiplier){
-    View_ID view = get_active_view(app, AccessProtected);
-    
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
-    Face_ID face_id = get_face_id(app, buffer);
-    Face_Metrics metrics = get_face_metrics(app, face_id);
-    
-    f32 delta_y = line_multiplier*metrics.line_height;
-    f32 new_y = get_view_y(app, view) + delta_y;
+internal void
+move_vertical_pixels(Application_Links *app, View_ID view, f32 pixels){
+    f32 new_y = get_view_y(app, view) + pixels;
     f32 x = view_get_preferred_x(app, view);
     
     view_set_cursor(app, view, seek_wrapped_xy(x, new_y, false), false);
@@ -335,7 +328,7 @@ move_vertical(Application_Links *app, f32 line_multiplier){
         GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
         if (scroll_vars.target_y < full_scroll_y){
             GUI_Scroll_Vars new_scroll_vars = scroll_vars;
-            new_scroll_vars.target_y += (i32)delta_y;
+            new_scroll_vars.target_y += (i32)pixels;
             new_scroll_vars.target_y = clamp_top(new_scroll_vars.target_y, (i32)full_scroll_y);
             view_set_scroll(app, view, new_scroll_vars);
         }
@@ -344,21 +337,34 @@ move_vertical(Application_Links *app, f32 line_multiplier){
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
-static f32
-get_page_jump(Application_Links *app, View_ID view){
-    Rect_f32 region = view_get_buffer_region(app, view);
+internal void
+move_vertical_pixels(Application_Links *app, f32 pixels){
+    View_ID view = get_active_view(app, AccessProtected);
+    move_vertical_pixels(app, view, pixels);
+}
+
+internal void
+move_vertical_lines(Application_Links *app, View_ID view, f32 lines){
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics metrics = get_face_metrics(app, face_id);
-    f32 page_jump = 1.f;
-    if (metrics.line_height > 0.f){
-        f32 height = rect_height(region);
-        f32 line_count = height/metrics.line_height;
-        i32 line_count_rounded = (i32)line_count;
-        page_jump = (f32)line_count_rounded - 3.f;
-        page_jump = clamp_bot(1.f, page_jump);
-    }
-    return(page_jump);
+    
+    f32 delta_y = lines*metrics.line_height;
+    move_vertical_pixels(app, delta_y);
+}
+
+internal void
+move_vertical_lines(Application_Links *app, f32 lines){
+    View_ID view = get_active_view(app, AccessProtected);
+    move_vertical_lines(app, view, lines);
+}
+
+#define move_vertical move_vertical_lines
+
+internal f32
+get_page_jump(Application_Links *app, View_ID view){
+    Rect_f32 region = view_get_buffer_region(app, view);
+    return(rect_height(region)*.9f);
 }
 
 CUSTOM_COMMAND_SIG(move_up)
@@ -400,7 +406,7 @@ CUSTOM_DOC("Scrolls the view up one view height and moves the cursor up one view
 {
     View_ID view = get_active_view(app, AccessProtected);
     f32 page_jump = get_page_jump(app, view);
-    move_vertical(app, -page_jump);
+    move_vertical_pixels(app, -page_jump);
 }
 
 CUSTOM_COMMAND_SIG(page_down)
@@ -408,7 +414,7 @@ CUSTOM_DOC("Scrolls the view down one view height and moves the cursor down one 
 {
     View_ID view = get_active_view(app, AccessProtected);
     f32 page_jump = get_page_jump(app, view);
-    move_vertical(app, page_jump);
+    move_vertical_pixels(app, page_jump);
 }
 
 internal void

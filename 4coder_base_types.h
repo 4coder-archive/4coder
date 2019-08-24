@@ -464,7 +464,7 @@ union SNode{
 #define dll_remove_multiple(n1,n2) (dll_remove_multiple_((n1),(n2)))
 
 #define sll_stack_push_(h,n) n->next=h,h=n
-#define sll_stack_pop_(h) h->next=0,h=h->next
+#define sll_stack_pop_(h) h=h=h->next
 #define sll_queue_push_multiple_(f,l,ff,ll) if(ll){if(f){l->next=ff;}else{f=ff;}l=ll;l->next=0;}
 #define sll_queue_push_(f,l,n) sll_queue_push_multiple_(f,l,n,n)
 #define sll_queue_pop_(f,l) if (f==l) { f=l=0; } else { f->next=0;f=f->next; }

@@ -20,6 +20,12 @@
 #define VERSION_TYPE
 #endif
 
+// string
+#define VN__(a,b,c) #a "." #b "." #c
+#define VN_(a,b,c) VN__(a,b,c)
+#define VERSION_NUMBER VN_(MAJOR,MINOR,PATCH)
+#define VERSION_STRING "alpha " VERSION_NUMBER
+
 #define VERSION VERSION_STRING VERSION_TYPE
 
 #define WINDOW_NAME "4coder: " VERSION

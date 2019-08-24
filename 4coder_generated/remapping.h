@@ -15,9 +15,9 @@ bind(context, key_pause, MDFR_NONE, toggle_filebar);
 bind(context, key_caps, MDFR_NONE, toggle_filebar);
 bind(context, '.', MDFR_ALT, change_to_build_panel);
 bind(context, ',', MDFR_ALT, close_build_panel);
-bind(context, 'n', MDFR_ALT, goto_next_jump_sticky);
-bind(context, 'N', MDFR_ALT, goto_prev_jump_sticky);
-bind(context, 'M', MDFR_ALT, goto_first_jump_sticky);
+bind(context, 'n', MDFR_ALT, goto_next_jump);
+bind(context, 'N', MDFR_ALT, goto_prev_jump);
+bind(context, 'M', MDFR_ALT, goto_first_jump);
 bind(context, 'm', MDFR_ALT, build_in_build_panel);
 bind(context, 'b', MDFR_ALT, toggle_filebar);
 bind(context, 'z', MDFR_ALT, execute_any_cli);
@@ -120,8 +120,8 @@ bind(context, 'y', MDFR_CTRL, redo);
 bind(context, 'z', MDFR_CTRL, undo);
 bind(context, '1', MDFR_CTRL, view_buffer_other_panel);
 bind(context, '2', MDFR_CTRL, swap_buffers_between_panels);
-bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+bind(context, '\n', MDFR_NONE, newline_or_goto_position);
+bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
 bind(context, '>', MDFR_CTRL, view_jump_list_with_lister);
 bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
@@ -200,9 +200,9 @@ bind(context, 'h', MDFR_CMND, project_go_to_root_directory);
 bind(context, 'S', MDFR_CMND, save_all_dirty_buffers);
 bind(context, '.', MDFR_CTRL, change_to_build_panel);
 bind(context, ',', MDFR_CTRL, close_build_panel);
-bind(context, 'n', MDFR_CTRL, goto_next_jump_sticky);
-bind(context, 'N', MDFR_CTRL, goto_prev_jump_sticky);
-bind(context, 'M', MDFR_CTRL, goto_first_jump_sticky);
+bind(context, 'n', MDFR_CTRL, goto_next_jump);
+bind(context, 'N', MDFR_CTRL, goto_prev_jump);
+bind(context, 'M', MDFR_CTRL, goto_first_jump);
 bind(context, 'm', MDFR_CTRL, build_in_build_panel);
 bind(context, 'b', MDFR_CTRL, toggle_filebar);
 bind(context, 'z', MDFR_CTRL, execute_any_cli);
@@ -304,8 +304,8 @@ bind(context, 'y', MDFR_CMND, redo);
 bind(context, 'z', MDFR_CMND, undo);
 bind(context, '1', MDFR_CMND, view_buffer_other_panel);
 bind(context, '2', MDFR_CMND, swap_buffers_between_panels);
-bind(context, '\n', MDFR_NONE, newline_or_goto_position_sticky);
-bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel_sticky);
+bind(context, '\n', MDFR_NONE, newline_or_goto_position);
+bind(context, '\n', MDFR_SHIFT, newline_or_goto_position_same_panel);
 bind(context, '>', MDFR_CMND, view_jump_list_with_lister);
 bind(context, ' ', MDFR_SHIFT, write_character);
 end_map(context);
@@ -417,9 +417,9 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[43] = {
 {0, 55313, 0, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 46, 2, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
 {0, 44, 2, "close_build_panel", 17, LINK_PROCS(close_build_panel)},
-{0, 110, 2, "goto_next_jump_sticky", 21, LINK_PROCS(goto_next_jump_sticky)},
-{0, 78, 2, "goto_prev_jump_sticky", 21, LINK_PROCS(goto_prev_jump_sticky)},
-{0, 77, 2, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
+{0, 110, 2, "goto_next_jump", 14, LINK_PROCS(goto_next_jump)},
+{0, 78, 2, "goto_prev_jump", 14, LINK_PROCS(goto_prev_jump)},
+{0, 77, 2, "goto_first_jump", 15, LINK_PROCS(goto_first_jump)},
 {0, 109, 2, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
 {0, 98, 2, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 122, 2, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
@@ -522,8 +522,8 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
 {0, 122, 1, "undo", 4, LINK_PROCS(undo)},
 {0, 49, 1, "view_buffer_other_panel", 23, LINK_PROCS(view_buffer_other_panel)},
 {0, 50, 1, "swap_buffers_between_panels", 27, LINK_PROCS(swap_buffers_between_panels)},
-{0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
-{0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
+{0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(newline_or_goto_position)},
+{0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(newline_or_goto_position_same_panel)},
 {0, 62, 1, "view_jump_list_with_lister", 26, LINK_PROCS(view_jump_list_with_lister)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };
@@ -605,9 +605,9 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_global[40] = {
 {0, 83, 4, "save_all_dirty_buffers", 22, LINK_PROCS(save_all_dirty_buffers)},
 {0, 46, 1, "change_to_build_panel", 21, LINK_PROCS(change_to_build_panel)},
 {0, 44, 1, "close_build_panel", 17, LINK_PROCS(close_build_panel)},
-{0, 110, 1, "goto_next_jump_sticky", 21, LINK_PROCS(goto_next_jump_sticky)},
-{0, 78, 1, "goto_prev_jump_sticky", 21, LINK_PROCS(goto_prev_jump_sticky)},
-{0, 77, 1, "goto_first_jump_sticky", 22, LINK_PROCS(goto_first_jump_sticky)},
+{0, 110, 1, "goto_next_jump", 14, LINK_PROCS(goto_next_jump)},
+{0, 78, 1, "goto_prev_jump", 14, LINK_PROCS(goto_prev_jump)},
+{0, 77, 1, "goto_first_jump", 15, LINK_PROCS(goto_first_jump)},
 {0, 109, 1, "build_in_build_panel", 20, LINK_PROCS(build_in_build_panel)},
 {0, 98, 1, "toggle_filebar", 14, LINK_PROCS(toggle_filebar)},
 {0, 122, 1, "execute_any_cli", 15, LINK_PROCS(execute_any_cli)},
@@ -709,8 +709,8 @@ static Meta_Key_Bind fcoder_binds_for_mac_default_mapid_file[77] = {
 {0, 122, 4, "undo", 4, LINK_PROCS(undo)},
 {0, 49, 4, "view_buffer_other_panel", 23, LINK_PROCS(view_buffer_other_panel)},
 {0, 50, 4, "swap_buffers_between_panels", 27, LINK_PROCS(swap_buffers_between_panels)},
-{0, 10, 0, "newline_or_goto_position_sticky", 31, LINK_PROCS(newline_or_goto_position_sticky)},
-{0, 10, 8, "newline_or_goto_position_same_panel_sticky", 42, LINK_PROCS(newline_or_goto_position_same_panel_sticky)},
+{0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(newline_or_goto_position)},
+{0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(newline_or_goto_position_same_panel)},
 {0, 62, 4, "view_jump_list_with_lister", 26, LINK_PROCS(view_jump_list_with_lister)},
 {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
 };

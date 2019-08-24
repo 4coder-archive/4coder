@@ -167,7 +167,7 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
              panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
             if (view->file == file){
-                i32 cursor_pos = cursors[cursor_count++].pos;
+                i64 cursor_pos = cursors[cursor_count++].pos;
                 Full_Cursor new_cursor = file_compute_cursor(models, file, seek_pos(cursor_pos));
                 
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
@@ -176,8 +176,8 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
                 view->mark = cursors[cursor_count++].pos;
                 
                 i32 line_height = (i32)face->height;
-                i32 top_left_pos = cursors[cursor_count++].pos;
-                i32 top_left_target_pos = cursors[cursor_count++].pos;
+                i64 top_left_pos = cursors[cursor_count++].pos;
+                i64 top_left_target_pos = cursors[cursor_count++].pos;
                 f32 new_y_val_aligned = 0;
                 if (view->temp_view_top_left_pos != top_left_pos){
                     Full_Cursor new_position_cursor = file_compute_cursor(models, file, seek_pos(top_left_pos));

@@ -365,33 +365,42 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
     Lister_Node_Ptr_Array substring_matches = {};
     substring_matches.node_ptrs = push_array(scratch, Lister_Node*, node_count);
     
-    String_Const_u8 key = state->lister.data.key_string.string;
-    List_String_Const_u8 absolutes = {};
-    string_list_push(scratch, &absolutes, string_u8_litexpr(""));
-    List_String_Const_u8 splits = string_split(scratch, key, (u8*)"*", 1);
-    b32 has_wildcard = (splits.node_count > 1);
-    string_list_push(&absolutes, &splits);
-    string_list_push(scratch, &absolutes, string_u8_litexpr(""));
-    
-    for (Lister_Node *node = state->lister.data.options.first;
-         node != 0;
-         node = node->next){
-        if (key.size == 0 ||
-            string_wildcard_match_insensitive(absolutes, node->string)){
+    {
+        Temp_Memory temp = begin_temp(scratch);
+        String_Const_u8 key = state->lister.data.key_string.string;
+        key = push_string_copy(scratch, key);
+        string_mod_replace_character(key, '_', '*');
+        string_mod_replace_character(key, ' ', '*');
+        
+        List_String_Const_u8 absolutes = {};
+        string_list_push(scratch, &absolutes, string_u8_litexpr(""));
+        List_String_Const_u8 splits = string_split(scratch, key, (u8*)"*", 1);
+        b32 has_wildcard = (splits.node_count > 1);
+        string_list_push(&absolutes, &splits);
+        string_list_push(scratch, &absolutes, string_u8_litexpr(""));
+        
+        for (Lister_Node *node = state->lister.data.options.first;
+             node != 0;
+             node = node->next){
             String_Const_u8 node_string = node->string;
-            if (string_match_insensitive(node_string, key) && exact_matches.count == 0){
-                exact_matches.node_ptrs[exact_matches.count++] = node;
-            }
-            else if (!has_wildcard &&
-                     string_match_insensitive(string_prefix(node_string, key.size), key) &&
-                     node->string.size > key.size &&
-                     node->string.str[key.size] == '.'){
-                before_extension_matches.node_ptrs[before_extension_matches.count++] = node;
-            }
-            else{
-                substring_matches.node_ptrs[substring_matches.count++] = node;
+            
+            if (key.size == 0 || string_wildcard_match_insensitive(absolutes, node_string)){
+                if (string_match_insensitive(node_string, key) && exact_matches.count == 0){
+                    exact_matches.node_ptrs[exact_matches.count++] = node;
+                }
+                else if (!has_wildcard &&
+                         string_match_insensitive(string_prefix(node_string, key.size), key) &&
+                         node->string.size > key.size &&
+                         node->string.str[key.size] == '.'){
+                    before_extension_matches.node_ptrs[before_extension_matches.count++] = node;
+                }
+                else{
+                    substring_matches.node_ptrs[substring_matches.count++] = node;
+                }
             }
         }
+        
+        end_temp(temp);
     }
     
     Lister_Node_Ptr_Array node_ptr_arrays[] = {
