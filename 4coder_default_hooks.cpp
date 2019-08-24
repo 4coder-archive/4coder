@@ -373,143 +373,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     
     Scratch_Block scratch(app);
     
-    {
-        Rect_f32 r_cursor = view_get_screen_rect(app, view_id);
-        r_cursor.p1 -= r_cursor.p0;
-        r_cursor.p0 = V2(0.f,0.f);
-        
-        // NOTE(allen): Filebar
-        {
-            b32 showing_file_bar = false;
-            if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
-                if (showing_file_bar){
-                    Rect_f32 bar = r_cursor;
-                    bar.y1 = bar.y0 + line_height + 2.f;
-                    r_cursor.y0 = bar.y1;
-                    
-                    draw_rectangle(app, bar, Stag_Bar);
-                    
-                    Fancy_Color base_color = fancy_id(Stag_Base);
-                    Fancy_Color pop2_color = fancy_id(Stag_Pop2);
-                    
-                    Temp_Memory temp = begin_temp(scratch);
-                    
-                    i64 cursor_position = view_get_cursor_pos(app, view_id);
-                    Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
-                    
-                    Fancy_String_List list = {};
-                    String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
-                    push_fancy_string(scratch, &list, base_color, unique_name);
-                    push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.character);
-                    
-                    b32 is_dos_mode = false;
-                    if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
-                        if (is_dos_mode){
-                            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
-                        }
-                        else{
-                            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" nix"));
-                        }
-                    }
-                    else{
-                        push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" ???"));
-                    }
-                    
-                    {
-                        Dirty_State dirty = buffer_get_dirty_state(app, buffer);
-                        u8 space[3];
-                        String_u8 str = Su8(space, 0, 3);
-                        if (dirty != 0){
-                            string_append(&str, string_u8_litexpr(" "));
-                        }
-                        if (HasFlag(dirty, DirtyState_UnsavedChanges)){
-                            string_append(&str, string_u8_litexpr("*"));
-                        }
-                        if (HasFlag(dirty, DirtyState_UnloadedChanges)){
-                            string_append(&str, string_u8_litexpr("!"));
-                        }
-                        push_fancy_string(scratch, &list, pop2_color, str.string);
-                    }
-                    
-                    Vec2 p = bar.p0 + V2(0.f, 2.f);
-                    draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
-                    
-                    end_temp(temp);
-                }
-            }
-        }
-        
-        // NOTE(allen): Query Bars
-        {
-            Query_Bar *space[32];
-            Query_Bar_Ptr_Array query_bars = {};
-            query_bars.ptrs = space;
-            if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
-                for (i32 i = 0; i < query_bars.count; i += 1){
-                    Query_Bar *query_bar = query_bars.ptrs[i];
-                    
-                    Rect_f32 bar = r_cursor;
-                    bar.y1 = bar.y0 + line_height + 2.f;
-                    r_cursor.y0 = bar.y1;
-                    
-                    Temp_Memory temp = begin_temp(scratch);
-                    Fancy_String_List list = {};
-                    
-                    Fancy_Color default_color = fancy_id(Stag_Default);
-                    Fancy_Color pop1_color = fancy_id(Stag_Pop1);
-                    
-                    push_fancy_string(scratch, &list, pop1_color   , query_bar->prompt);
-                    push_fancy_string(scratch, &list, default_color, query_bar->string);
-                    
-                    Vec2 p = bar.p0 + V2(0.f, 2.f);
-                    draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
-                    
-                    end_temp(temp);
-                }
-            }
-        }
-        
-        // NOTE(allen): Line Numbers
-        if (global_config.show_line_number_margins){
-            i32 line_count = (i32)buffer_get_line_count(app, buffer);
-            i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
-            // TODO(allen): I need a "digit width"
-            f32 zero = get_string_advance(app, face_id, string_u8_litexpr("0"));
-            f32 margin_width = (f32)line_count_digit_count*zero;
-            
-            Rect_f32 left_margin = r_cursor;
-            left_margin.x1 = left_margin.x0 + margin_width + 2;
-            r_cursor.x0 = left_margin.x1;
-            
-            draw_rectangle(app, left_margin, Stag_Line_Numbers_Back);
-            
-            Rect_f32 clip_region = left_margin;
-            clip_region.p0 += view_inner_rect.p0;
-            clip_region.p1 += view_inner_rect.p0;
-            draw_clip_push(app, clip_region);
-            
-            Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
-            
-            Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(on_screen_range.first));
-            GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view_id);
-            for (;cursor.pos <= on_screen_range.one_past_last;){
-                Vec2 p = panel_space_from_view_space(cursor.wrapped_p, scroll_vars.scroll_p);
-                p.x = left_margin.x0;
-                Temp_Memory temp = begin_temp(scratch);
-                Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, cursor.line);
-                draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
-                end_temp(temp);
-                i64 next_line = cursor.line + 1;
-                cursor = view_compute_cursor(app, view_id, seek_line_char(next_line, 1));
-                if (cursor.line < next_line){
-                    break;
-                }
-            }
-            
-            draw_clip_pop(app);
-        }
-    }
-    
     // NOTE(allen): Scan for TODOs and NOTEs
     {
         Temp_Memory temp = begin_temp(scratch);
@@ -739,7 +602,138 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         animate_in_n_milliseconds(app, 1000);
     }
     
-    //managed_scope_clear_self_all_dependent_scopes(app, render_scope);
+    // NOTE(allen): Frame
+    Rect_f32 r_cursor = view_get_screen_rect(app, view_id);
+    r_cursor.p1 -= r_cursor.p0;
+    r_cursor.p0 = V2(0.f,0.f);
+    
+    // NOTE(allen): Filebar
+    b32 showing_file_bar = false;
+    if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) && showing_file_bar){
+        Rect_f32 bar = r_cursor;
+        bar.y1 = bar.y0 + line_height + 2.f;
+        r_cursor.y0 = bar.y1;
+        
+        draw_rectangle(app, bar, Stag_Bar);
+        
+        Fancy_Color base_color = fancy_id(Stag_Base);
+        Fancy_Color pop2_color = fancy_id(Stag_Pop2);
+        
+        Temp_Memory temp = begin_temp(scratch);
+        
+        i64 cursor_position = view_get_cursor_pos(app, view_id);
+        Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
+        
+        Fancy_String_List list = {};
+        String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
+        push_fancy_string(scratch, &list, base_color, unique_name);
+        push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.character);
+        
+        b32 is_dos_mode = false;
+        if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
+            if (is_dos_mode){
+                push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
+            }
+            else{
+                push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" nix"));
+            }
+        }
+        else{
+            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" ???"));
+        }
+        
+        {
+            Dirty_State dirty = buffer_get_dirty_state(app, buffer);
+            u8 space[3];
+            String_u8 str = Su8(space, 0, 3);
+            if (dirty != 0){
+                string_append(&str, string_u8_litexpr(" "));
+            }
+            if (HasFlag(dirty, DirtyState_UnsavedChanges)){
+                string_append(&str, string_u8_litexpr("*"));
+            }
+            if (HasFlag(dirty, DirtyState_UnloadedChanges)){
+                string_append(&str, string_u8_litexpr("!"));
+            }
+            push_fancy_string(scratch, &list, pop2_color, str.string);
+        }
+        
+        Vec2 p = bar.p0 + V2(0.f, 2.f);
+        draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
+        
+        end_temp(temp);
+    }
+    
+    // NOTE(allen): Query Bars
+    {
+        Query_Bar *space[32];
+        Query_Bar_Ptr_Array query_bars = {};
+        query_bars.ptrs = space;
+        if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
+            for (i32 i = 0; i < query_bars.count; i += 1){
+                Query_Bar *query_bar = query_bars.ptrs[i];
+                
+                Rect_f32 bar = r_cursor;
+                bar.y1 = bar.y0 + line_height + 2.f;
+                r_cursor.y0 = bar.y1;
+                
+                Temp_Memory temp = begin_temp(scratch);
+                Fancy_String_List list = {};
+                
+                Fancy_Color default_color = fancy_id(Stag_Default);
+                Fancy_Color pop1_color = fancy_id(Stag_Pop1);
+                
+                push_fancy_string(scratch, &list, pop1_color   , query_bar->prompt);
+                push_fancy_string(scratch, &list, default_color, query_bar->string);
+                
+                Vec2 p = bar.p0 + V2(0.f, 2.f);
+                draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
+                
+                end_temp(temp);
+            }
+        }
+    }
+    
+    // NOTE(allen): Line Numbers
+    if (global_config.show_line_number_margins){
+        i32 line_count = (i32)buffer_get_line_count(app, buffer);
+        i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
+        // TODO(allen): I need a "digit width"
+        f32 zero = get_string_advance(app, face_id, string_u8_litexpr("0"));
+        f32 margin_width = (f32)line_count_digit_count*zero;
+        
+        Rect_f32 left_margin = r_cursor;
+        left_margin.x1 = left_margin.x0 + margin_width + 2;
+        r_cursor.x0 = left_margin.x1;
+        
+        draw_rectangle(app, left_margin, Stag_Line_Numbers_Back);
+        
+        Rect_f32 clip_region = left_margin;
+        clip_region.p0 += view_inner_rect.p0;
+        clip_region.p1 += view_inner_rect.p0;
+        draw_clip_push(app, clip_region);
+        
+        Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
+        
+        Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(on_screen_range.first));
+        GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view_id);
+        for (;cursor.pos <= on_screen_range.one_past_last;){
+            Vec2 p = panel_space_from_view_space(cursor.wrapped_p, scroll_vars.scroll_p);
+            p.y += left_margin.y0;
+            p.x = left_margin.x0;
+            Temp_Memory temp = begin_temp(scratch);
+            Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, cursor.line);
+            draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
+            end_temp(temp);
+            i64 next_line = cursor.line + 1;
+            cursor = view_compute_cursor(app, view_id, seek_line_char(next_line, 1));
+            if (cursor.line < next_line){
+                break;
+            }
+        }
+        
+        draw_clip_pop(app);
+    }
 }
 
 static void
