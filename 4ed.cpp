@@ -60,7 +60,7 @@ app_coroutine_handle_request(Models *models, Coroutine *co, u32 *vals){
         {
             Face_Description *description = ((Face_Description**)vals)[0];
             Face_ID face_id = ((Face_ID*)vals)[3];
-            b32 success = alter_font_and_update_files(system, models, face_id, description);
+            b32 success = font_set_modify_face(&models->font_set, face_id, description);
             result = coroutine_run(&models->coroutines, co, &success, vals);
         }break;
     }
@@ -85,15 +85,15 @@ app_coroutine_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co, 
 
 internal void
 output_file_append(Models *models, Editing_File *file, String_Const_u8 value){
-    i32 end = buffer_size(&file->state.buffer);
+    i64 end = buffer_size(&file->state.buffer);
     Edit_Behaviors behaviors = {};
-    edit_single(models->system, models, file, make_range(end), value, behaviors);
+    edit_single(models, file, Ii64(end), value, behaviors);
 }
 
 internal void
 file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file){
     Assert(file != 0);
-    i32 pos = buffer_size(&file->state.buffer);
+    i64 pos = buffer_size(&file->state.buffer);
     Layout *layout = &models->layout;
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
@@ -102,9 +102,8 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
         if (view->file != file){
             continue;
         }
-        Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(pos));
-        view_set_cursor(system, models, view, cursor, true);
-        view->mark = cursor.pos;
+        view_set_cursor(models, view, pos);
+        view->mark = pos;
     }
 }
 
@@ -129,17 +128,9 @@ file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file)
 #define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (n == 0) return
 #define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
 
-SCROLL_RULE_SIG(fallback_scroll_rule){
-    b32 result = false;
-    if (target_x != *scroll_x){
-        *scroll_x = target_x;
-        result = true;
-    }
-    if (target_y != *scroll_y){
-        *scroll_y = target_y;
-        result = true;
-    }
-    return(result);
+
+DELTA_RULE_SIG(fallback_scroll_rule){
+    return(pending_delta);
 }
 
 #define DEFAULT_MAP_SIZE 10
@@ -415,7 +406,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                 
                                 case special_hook_scroll_rule:
                                 {
-                                    models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
+                                    models->scroll_rule = (Delta_Rule_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_buffer_name_resolver:
@@ -738,23 +729,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
 
 ////////////////////////////////
 
-internal Arena
-make_arena_models(Models *models, umem chunk_size, umem align){
-    return(make_arena(models->base_allocator, chunk_size, align));
-}
-
-internal Arena
-make_arena_models(Models *models, umem chunk_size){
-    return(make_arena(models->base_allocator, chunk_size, 8));
-}
-
-internal Arena
-make_arena_models(Models *models){
-    return(make_arena(models->base_allocator, KB(16), 8));
-}
-
-////////////////////////////////
-
 internal Models*
 app_setup_memory(System_Functions *system, Application_Memory *memory){
     Cursor cursor = make_cursor(memory->vars_memory, memory->vars_memory_size);
@@ -931,7 +905,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): 
     global_history_init(&models->global_history);
-    text_layout_init(&models->app_links, &models->text_layouts);
+    text_layout_init(models, &models->text_layouts);
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
@@ -978,7 +952,7 @@ App_Init_Sig(app_init){
         }
         
         File_Attributes attributes = {};
-        file_create_from_string(system, models, file, SCu8(), attributes);
+        file_create_from_string(models, file, SCu8(), attributes);
         if (init_files[i].read_only){
             file->settings.read_only = true;
             history_free(&models->mem.heap, &file->state.history);
@@ -986,7 +960,6 @@ App_Init_Sig(app_init){
         
         file->settings.never_kill = true;
         file_set_unimportant(file, true);
-        file->settings.unwrapped_lines = true;
     }
     
     // NOTE(allen): setup first panel
@@ -1104,7 +1077,6 @@ App_Step_Sig(app_step){
         mouse_event.keycode = key_mouse_left_release;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
-    
     if (input->mouse.press_r){
         mouse_event.keycode = key_mouse_right;
         input->keys.keys[input->keys.count++] = mouse_event;
@@ -1113,12 +1085,10 @@ App_Step_Sig(app_step){
         mouse_event.keycode = key_mouse_right_release;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
-    
     if (input->mouse.wheel != 0){
         mouse_event.keycode = key_mouse_wheel;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
-    
     if (input->mouse.p != models->prev_p){
         b32 was_in_window = rect_contains_point(i32R(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
         b32 is_in_window  = rect_contains_point(i32R(0, 0, current_dim.x, current_dim.y), input->mouse.p);
@@ -1127,7 +1097,6 @@ App_Step_Sig(app_step){
             input->keys.keys[input->keys.count++] = mouse_event;
         }
     }
-    
     if (models->animated_last_frame){
         mouse_event.keycode = key_animate;
         input->keys.keys[input->keys.count++] = mouse_event;
@@ -1169,10 +1138,8 @@ App_Step_Sig(app_step){
         if (models->hook_start != 0){
             char **files = models->settings.init_files;
             i32 files_count = models->settings.init_files_count;
-            
             char **flags = models->settings.custom_flags;
             i32 flags_count = models->settings.custom_flags_count;
-            
             models->hook_start(&models->app_links, files, files_count, flags, flags_count);
         }
     }
@@ -1303,39 +1270,17 @@ App_Step_Sig(app_step){
         models->hooks[hook_buffer_viewer_update](&models->app_links);
     }
     
-    // NOTE(allen): step panels
-    {
-        Panel *active_panel = layout_get_active_panel(layout);
-        
-        for (Panel *panel = layout_get_first_open_panel(layout);
-             panel != 0;
-             panel = layout_get_next_open_panel(layout, panel)){
-            View *view = panel->view;
-            
-            GUI_Scroll_Vars *scroll_vars = 0;
-            b32 file_scroll = false;
-            File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            if (!view->ui_mode){
-                scroll_vars = &edit_pos.scroll;
-                file_scroll = true;
-            }
-            else{
-                scroll_vars = &view->ui_scroll;
-                file_scroll = false;
-            }
-            
-            b32 active = (panel == active_panel);
-            GUI_Scroll_Vars new_scroll = do_step_file_view(system, models, view, panel->rect_inner, active, dt, *scroll_vars);
-            
-            if (memcmp(scroll_vars, &new_scroll, sizeof(*scroll_vars)) != 0){
-                if (file_scroll){
-                    view_set_scroll(system, models, view, new_scroll);
-                }
-                else{
-                    *scroll_vars = new_scroll;
-                }
-            }
-        }
+    // NOTE(allen): dt
+    f32 literal_dt = 0.f;
+    u64 now_usecond_stamp = system->now_time();
+    if (!input->first_step){
+        u64 elapsed_useconds = now_usecond_stamp - models->last_render_usecond_stamp;
+        literal_dt = (f32)((f64)(elapsed_useconds)/1000000.f);
+    }
+    models->last_render_usecond_stamp = now_usecond_stamp;
+    f32 animation_dt = 0.f;
+    if (models->animated_last_frame){
+        animation_dt = literal_dt;
     }
     
     // NOTE(allen): on the first frame there should be no scrolling
@@ -1344,10 +1289,56 @@ App_Step_Sig(app_step){
              panel != 0;
              panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
-            File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            edit_pos.scroll.scroll_x = (f32)edit_pos.scroll.target_x;
-            edit_pos.scroll.scroll_y = (f32)edit_pos.scroll.target_y;
-            view_set_edit_pos(view, edit_pos);
+            if (!view->ui_mode){
+                File_Edit_Positions edit_pos = view_get_edit_pos(view);
+                edit_pos.scroll.position = view_normalize_buffer_point(models, view, edit_pos.scroll.target);
+                block_zero_struct(&edit_pos.scroll.target);
+                view_set_edit_pos(view, edit_pos);
+            }
+            else{
+                view->ui_scroll.position = view->ui_scroll.target;
+                block_zero_struct(&view->ui_scroll.target);
+            }
+        }
+    }
+    
+    // NOTE(allen): apply pending smooth deltas
+    {
+        Delta_Rule_Function *scroll_rule = models->scroll_rule;
+        for (Panel *panel = layout_get_first_open_panel(layout);
+             panel != 0;
+             panel = layout_get_next_open_panel(layout, panel)){
+            View *view = panel->view;
+            
+            View_ID view_id = view_get_id(&models->live_set, view);
+            b32 new_target = (b32)view->new_scroll_target;
+            if (view->ui_mode){
+                Vec2_f32 pending = view->ui_scroll.target - view->ui_scroll.position;
+                if (!near_zero(pending, 0.5f)){
+                    Vec2_f32 partial = scroll_rule(pending, view_id, new_target, animation_dt);
+                    view->ui_scroll.position += partial;
+                    models->animate_next_frame = true;
+                }
+                else{
+                    view->ui_scroll.position = view->ui_scroll.target;
+                }
+            }
+            else{
+                File_Edit_Positions edit_pos = view_get_edit_pos(view);
+                Vec2_f32 pending = view_buffer_point_difference(models, view,
+                                                                edit_pos.scroll.target, edit_pos.scroll.position);
+                if (!near_zero(pending, 0.5f)){
+                    Vec2_f32 partial = scroll_rule(pending, view_id, new_target, animation_dt);
+                    edit_pos.scroll.position = view_move_buffer_point(models, view,
+                                                                      edit_pos.scroll.position, partial);
+                    view_set_edit_pos(view, edit_pos);
+                    models->animate_next_frame = true;
+                }
+                else{
+                    edit_pos.scroll.position = edit_pos.scroll.target;
+                    view_set_edit_pos(view, edit_pos);
+                }
+            }
         }
     }
     
@@ -1449,19 +1440,6 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): rendering
     {
-        f32 literal_dt = 0.f;
-        u64 now_usecond_stamp = system->now_time();
-        if (!input->first_step){
-            u64 elapsed_useconds = now_usecond_stamp - models->last_render_usecond_stamp;
-            literal_dt = (f32)((f64)(elapsed_useconds)/1000000.f);
-        }
-        models->last_render_usecond_stamp = now_usecond_stamp;
-        
-        f32 animation_dt = 0.f;
-        if (models->animated_last_frame){
-            animation_dt = literal_dt;
-        }
-        
         Frame_Info frame = {};
         frame.index = models->frame_counter;
         frame.literal_dt = literal_dt;

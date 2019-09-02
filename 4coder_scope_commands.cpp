@@ -5,7 +5,6 @@
 // TOP
 
 static b32 parse_statement_down(Application_Links *app, Statement_Parser *parser, Cpp_Token *token_out);
-static f32 scope_center_threshold = 0.75f;
 
 ////////////////////////////////
 
@@ -287,48 +286,53 @@ find_scope_range(Application_Links *app, Buffer_ID buffer, i64 start_pos, Range_
 }
 
 static void
-view_set_to_region(Application_Links *app, View_ID view, i64 major_pos, i64 minor_pos, f32 normalized_threshold){
+view_set_to_region(Application_Links *app, View_ID view, i64 major_pos, i64 minor_pos){
     Range_i64 range = Ii64(major_pos, minor_pos);
     b32 bottom_major = false;
     if (major_pos == range.max){
         bottom_major = true;
     }
     
-    Full_Cursor top = view_compute_cursor(app, view, seek_pos(range.min));
+    Buffer_Cursor top = view_compute_cursor(app, view, seek_pos(range.min));
     if (top.line > 0){
-        Full_Cursor bottom = view_compute_cursor(app, view, seek_pos(range.max));
+        Buffer_Cursor bottom = view_compute_cursor(app, view, seek_pos(range.max));
         if (bottom.line > 0){
-            f32 top_y = top.wrapped_y;
-            f32 bottom_y = bottom.wrapped_y;
-            
             Rect_f32 region = view_get_buffer_region(app, view);
+            f32 view_height = rect_height(region);
+            f32 skirt_height = view_height*.1f;
+            Interval_f32 acceptable_y = If32(skirt_height, view_height*.9f);
             
-            GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
-            f32 half_view_height = .5f*(f32)(rect_height(region));
-            f32 threshold = normalized_threshold * half_view_height;
-            f32 current_center_y = ((f32)scroll.target_y) + half_view_height;
+            f32 target_height = view_line_y_difference(app, view, bottom.line, top.line);
             
-            if (top_y < current_center_y - threshold || bottom_y > current_center_y + threshold){
-                f32 center_target_y = .5f*(top_y + bottom_y);
+            if (target_height > view_height){
+                i64 major_line = bottom.line;
+                if (range.min == major_pos){
+                    major_line = top.line;
+                }
                 
-                if (bottom_major){
-                    if (center_target_y < bottom_y - half_view_height * .9f){
-                        center_target_y = bottom_y - half_view_height * .9f;
-                    }
+                Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+                scroll.target.line_number = major_line;
+                scroll.target.pixel_shift.y = -skirt_height;
+                view_set_buffer_scroll(app, view, scroll);
+            }
+            else{
+                Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+                Vec2_f32 top_p = view_relative_xy_of_pos(app, view, scroll.position.line_number, range.min);
+                top_p -= scroll.position.pixel_shift;
+                if (top_p.y < acceptable_y.min){
+                    scroll.target.line_number = top.line;
+                    scroll.target.pixel_shift.y = -skirt_height;
+                    view_set_buffer_scroll(app, view, scroll);
                 }
                 else{
-                    if (center_target_y > top_y + half_view_height * .9f){
-                        center_target_y = top_y + half_view_height * .9f;
+                    Vec2_f32 bot_p = view_relative_xy_of_pos(app, view, scroll.position.line_number, range.max);
+                    bot_p -= scroll.position.pixel_shift;
+                    if (bot_p.y > acceptable_y.max){
+                        scroll.target.line_number = bottom.line;
+                        scroll.target.pixel_shift.y = skirt_height - view_height;
+                        view_set_buffer_scroll(app, view, scroll);
                     }
                 }
-                
-                f32 target_y = center_target_y - half_view_height;
-                if (target_y < 0){
-                    target_y = 0;
-                }
-                
-                scroll.target_y = (i32)(target_y);
-                view_set_scroll(app, view, scroll);
             }
         }
     }
@@ -344,7 +348,7 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
     if (find_scope_range(app, buffer, pos, &range, FindScope_Brace)){
         view_set_cursor(app, view, seek_pos(range.first), true);
         view_set_mark(app, view, seek_pos(range.end));
-        view_set_to_region(app, view, range.first, range.end, scope_center_threshold);
+        view_set_to_region(app, view, range.first, range.end);
         no_mark_snap_to_cursor(app, view);
     }
 }
@@ -362,7 +366,7 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
         if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
             view_set_cursor(app, view, seek_pos(top), true);
             view_set_mark(app, view, seek_pos(bottom));
-            view_set_to_region(app, view, top, bottom, scope_center_threshold);
+            view_set_to_region(app, view, top, bottom);
             no_mark_snap_to_cursor(app, view);
         }
     }
@@ -381,7 +385,7 @@ CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the 
         if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
             view_set_cursor(app, view, seek_pos(top), true);
             view_set_mark(app, view, seek_pos(bottom));
-            view_set_to_region(app, view, top, bottom, scope_center_threshold);
+            view_set_to_region(app, view, top, bottom);
             no_mark_snap_to_cursor(app, view);
         }
     }
@@ -466,18 +470,16 @@ CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves
             bot_len = 2;
         }
         
-        Buffer_Edit edits[2];
-        edits[0].str_start = 0;
-        edits[0].len = 0;
-        edits[0].start = (i32)(range.min + 1 - top_len);
-        edits[0].end = (i32)(range.min + 1);
+        Batch_Edit batch_first = {};
+        Batch_Edit batch_last = {};
         
-        edits[1].str_start = 0;
-        edits[1].len = 0;
-        edits[1].start = (i32)(range.max - 1);
-        edits[1].end = (i32)(range.max - 1 + bot_len);
+        batch_first.edit.text = SCu8();
+        batch_first.edit.range = Ii64(range.min + 1 - top_len, range.min + 1);
+        batch_first.next = &batch_last;
+        batch_last.edit.text = SCu8();
+        batch_last.edit.range = Ii64((i32)(range.max - 1), (i32)(range.max - 1 + bot_len));
         
-        buffer_batch_edit(app, buffer, 0, edits, 2);
+        buffer_batch_edit(app, buffer, &batch_first);
     }
 }
 
@@ -701,16 +703,16 @@ CUSTOM_DOC("If a scope is currently selected, and a statement or block statement
                 edit_str = push_u8_stringf(scratch, "%.*s\n", string_expand(string));
             }
             
-            Buffer_Edit edits[2];
-            edits[0].str_start = 0;
-            edits[0].len = (i32)edit_str.size;
-            edits[0].start = (i32)(range.min - 1);
-            edits[0].end = (i32)(range.min - 1);
-            edits[1].str_start = 0;
-            edits[1].len = 0;
-            edits[1].start = (i32)(range.start);
-            edits[1].end = (i32)(range.end);
-            buffer_batch_edit(app, buffer, (char*)edit_str.str, edits, 2);
+            Batch_Edit batch_first = {};
+            Batch_Edit batch_last = {};
+            
+            batch_first.edit.text = edit_str;
+            batch_first.edit.range = Ii64(range.min - 1, range.min - 1);
+            batch_first.next = &batch_last;
+            batch_last.edit.text = SCu8();
+            batch_last.edit.range = range;
+            
+            buffer_batch_edit(app, buffer, &batch_first);
         }
     }
     

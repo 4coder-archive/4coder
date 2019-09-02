@@ -59,7 +59,6 @@ struct Mem_Options{
 #include "4ed_buffer.h"
 #include "4ed_history.h"
 #include "4ed_file.h"
-#include "4ed_code_wrap.h"
 
 #include "4ed_working_set.h"
 #include "4ed_hot_directory.h"
@@ -74,6 +73,7 @@ struct Mem_Options{
 #include "4ed_log.h"
 #include "4ed_app_models.h"
 
+#include "4ed_allocator_models.cpp"
 #include "4ed_log.cpp"
 #include "4coder_log.cpp"
 #include "4ed_coroutine.cpp"
@@ -92,7 +92,6 @@ struct Mem_Options{
 #include "4ed_history.cpp"
 #include "4ed_file_lex.cpp"
 #include "4ed_file.cpp"
-#include "4ed_code_wrap.cpp"
 #include "4ed_working_set.cpp"
 #include "4ed_hot_directory.cpp"
 #include "4ed_cli.cpp"
@@ -101,7 +100,6 @@ struct Mem_Options{
 #include "4coder_buffer_seek_constructors.cpp"
 #include "4ed_view.cpp"
 #include "4ed_edit.cpp"
-#include "4ed_view_ui.cpp"
 #include "4ed_text_layout.cpp"
 #include "4ed.cpp"
 

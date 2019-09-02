@@ -67,21 +67,20 @@ string_compute_needle_jump_table(Arena *arena, String_Const_u8 needle, Scan_Dire
 
 internal String_Match_List
 find_all_matches_forward(Arena *arena, i32 maximum_output_count,
-                         String_Const_u8_Array chunks, String_Const_u8 needle,
+                         List_String_Const_u8 chunks, String_Const_u8 needle,
                          u64_Array jump_table, Character_Predicate *predicate,
                          u64 base_index, Buffer_ID buffer, i32 string_id){
     String_Match_List list = {};
     
-    if (chunks.count > 0){
+    if (chunks.node_count > 0){
         u64 i = 0;
         u64 j = 0;
         b8 current_l = false;
         i64 last_insensitive = -1;
         i64 last_boundary = -1;
         
-        i32 chunk_index = 0;
+        Node_String_Const_u8 *node = chunks.first;
         i64 chunk_pos = 0;
-        String_Const_u8 chunk = chunks.strings[chunk_index];
         
         i32 jump_back_code = 0;
         
@@ -89,13 +88,10 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
             iterate_forward:
             i += 1;
             chunk_pos += 1;
-            if (chunk_pos >= (i64)chunk.size){
+            if (chunk_pos >= (i64)node->string.size){
                 last_boundary = i;
                 chunk_pos = 0;
-                chunk_index += 1;
-                if (chunk_index < chunks.count){
-                    chunk = chunks.strings[chunk_index];
-                }
+                node = node->next;
             }
             
             switch (jump_back_code){
@@ -110,8 +106,8 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
             }
         }
         
-        for (;chunk_index < chunks.count;){
-            u8 c = chunk.str[chunk_pos];
+        for (;node != 0;){
+            u8 c = node->string.str[chunk_pos];
             u64 n = i - j;
             u8 needle_c = needle.str[n];
             if (character_to_upper(c) == character_to_upper(needle_c)){
@@ -135,8 +131,8 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
                           (u64)last_boundary < j + needle.size)){
                         AddFlag(flags, StringMatch_Straddled);
                     }
-                    if (chunk_index < chunks.count){
-                        u8 next_c = chunk.str[chunk_pos];
+                    if (node != 0){
+                        u8 next_c = node->string.str[chunk_pos];
                         if (character_predicate_check_character(*predicate, next_c)){
                             AddFlag(flags, StringMatch_RightSideSloppy);
                         }
@@ -180,16 +176,15 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
 
 internal String_Match_List
 find_all_matches_backward(Arena *arena, i32 maximum_output_count,
-                          String_Const_u8_Array chunks, String_Const_u8 needle,
+                          List_String_Const_u8 chunks, String_Const_u8 needle,
                           u64_Array jump_table, Character_Predicate *predicate,
                           u64 base_index, Buffer_ID buffer, i32 string_id){
     String_Match_List list = {};
     
-    if (chunks.count > 0){
-        i64 size = 0;
-        for (i32 i = 0; i < chunks.count; i += 1){
-            size += chunks.strings[i].size;
-        }
+    string_list_reverse(&chunks);
+    
+    if (chunks.node_count > 0){
+        i64 size = (i64)chunks.total_size;
         
         i64 i = size - 1;
         i64 j = size - 1;
@@ -197,9 +192,8 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
         i64 last_insensitive = size;
         i64 last_boundary = size;
         
-        i32 chunk_index = chunks.count - 1;
-        String_Const_u8 chunk = chunks.strings[chunk_index];
-        i64 chunk_pos = chunk.size - 1;
+        Node_String_Const_u8 *node = chunks.first;
+        i64 chunk_pos = node->string.size - 1;
         
         i32 jump_back_code = 0;
         
@@ -209,11 +203,7 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
             chunk_pos -= 1;
             if (chunk_pos < 0){
                 last_boundary = i;
-                chunk_index -= 1;
-                if (chunk_index >= 0){
-                    chunk = chunks.strings[chunk_index];
-                    chunk_pos = chunk.size - 1;
-                }
+                node = node->next;
             }
             
             switch (jump_back_code){
@@ -228,8 +218,8 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
             }
         }
         
-        for (;chunk_index >= 0;){
-            u8 c = chunk.str[chunk_pos];
+        for (;node != 0;){
+            u8 c = node->string.str[chunk_pos];
             u64 n = j - i;
             u8 needle_c = needle.str[needle.size - 1 - n];
             if (character_to_upper(c) == character_to_upper(needle_c)){
@@ -253,8 +243,8 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
                           last_boundary > j - (i64)needle.size)){
                         AddFlag(flags, StringMatch_Straddled);
                     }
-                    if (chunk_index >= 0){
-                        u8 next_c = chunk.str[chunk_pos];
+                    if (node != 0){
+                        u8 next_c = node->string.str[chunk_pos];
                         if (character_predicate_check_character(*predicate, next_c)){
                             AddFlag(flags, StringMatch_LeftSideSloppy);
                         }
@@ -296,12 +286,14 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
         }
     }
     
+    string_list_reverse(&chunks);
+    
     return(list);
 }
 
 internal String_Match_List
 find_all_matches(Arena *arena, i32 maximum_output_count,
-                 String_Const_u8_Array chunks, String_Const_u8 needle,
+                 List_String_Const_u8 chunks, String_Const_u8 needle,
                  u64_Array jump_table, Character_Predicate *predicate,
                  Scan_Direction direction,
                  u64 base_index, Buffer_ID buffer, i32 string_id){

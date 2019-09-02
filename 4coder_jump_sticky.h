@@ -12,7 +12,7 @@ struct Sticky_Jump{
     i64 list_colon_index;
     b32 is_sub_error;
     Buffer_ID jump_buffer_id;
-    i32 jump_pos;
+    i64 jump_pos;
 };
 
 struct Sticky_Jump_Stored{

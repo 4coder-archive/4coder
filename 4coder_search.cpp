@@ -40,11 +40,13 @@ print_string_match_list_to_buffer(Application_Links *app, Buffer_ID out_buffer_i
                     }
                 }
                 
-                Partial_Cursor partial_cursor = buffer_compute_cursor(app, current_buffer, seek_pos(node->range.first));
+                Buffer_Cursor cursor = buffer_compute_cursor(app, current_buffer, seek_pos(node->range.first));
                 Temp_Memory line_temp = begin_temp(scratch);
-                String_Const_u8 full_line_str = push_buffer_line(app, scratch, current_buffer, partial_cursor.line);
+                String_Const_u8 full_line_str = push_buffer_line(app, scratch, current_buffer, cursor.line);
                 String_Const_u8 line_str = string_skip_chop_whitespace(full_line_str);
-                insertf(&out, "%.*s:%d:%d: %.*s\n", string_expand(current_file_name), partial_cursor.line, partial_cursor.character, string_expand(line_str));
+                insertf(&out, "%.*s:%d:%d: %.*s\n",
+                        string_expand(current_file_name), cursor.line, cursor.col,
+                        string_expand(line_str));
                 end_temp(line_temp);
             }
         }

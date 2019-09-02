@@ -317,16 +317,20 @@ Sys_Save_File_Sig(system_save_file){
     HANDLE file = CreateFile_utf8(scratch, (u8*)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
-        DWORD written_total = 0;
-        DWORD written_size = 0;
+        u64 written_total = 0;
         
         b32 success = true;
-        for (;written_total < size;){
-            if (!WriteFile(file, buffer + written_total, size - written_total, &written_size, 0)){
+        for (;written_total < data.size;){
+            DWORD read_size = max_u32;
+            DWORD write_size = 0;
+            if ((data.size - written_total) < max_u32){
+                read_size = (DWORD)data.size;
+            }
+            if (!WriteFile(file, data.str + written_total, read_size, &write_size, 0)){
                 success = false;
                 break;
             }
-            written_total += written_size;
+            written_total += write_size;
         }
         
         if (success){

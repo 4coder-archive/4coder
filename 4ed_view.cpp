@@ -34,9 +34,9 @@ view_get_index(Live_Views *live_set, View *view){
     return((i32)(view - live_set->views));
 }
 
-internal i32
+internal View_ID
 view_get_id(Live_Views *live_set, View *view){
-    return((i32)(view - live_set->views) + 1);
+    return((View_ID)(view - live_set->views) + 1);
 }
 
 internal View*
@@ -80,6 +80,8 @@ view_get_edit_pos(View *view){
 
 internal void
 view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
+    edit_pos.scroll.position.line_number = clamp_bot(1, edit_pos.scroll.position.line_number);
+    edit_pos.scroll.target.line_number = clamp_bot(1, edit_pos.scroll.target.line_number);
     view->edit_pos_ = edit_pos;
     view->file->state.edit_pos_most_recent = edit_pos;
 }
@@ -116,179 +118,225 @@ view_height(Models *models, View *view){
     return(rect_height(view_get_buffer_rect(models, view)));
 }
 
-internal Vec2_i32
-view_get_cursor_xy(Models *models, View *view){
-    File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Full_Cursor cursor = file_compute_cursor(models, view->file, seek_pos(edit_pos.cursor_pos));
-    Vec2_i32 result = {};
-    if (view->file->settings.unwrapped_lines){
-        result = V2i32((i32)cursor.unwrapped_x, (i32)cursor.unwrapped_y);
-    }
-    else{
-        result = V2i32((i32)cursor.wrapped_x, (i32)cursor.wrapped_y);
-    }
-    return(result);
-}
+////////////////////////////////
 
-internal Cursor_Limits
-view_cursor_limits(Models *models, View *view){
+internal Buffer_Layout_Item_List
+view_get_line_layout(Models *models, View *view, i64 line_number){
     Editing_File *file = view->file;
-    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-    i32 line_height = (i32)face->height;
-    i32 visible_height = (i32)view_height(models, view);
-    Cursor_Limits limits = {};
-    limits.min = line_height*2;
-    limits.max = visible_height - line_height*3;
-    if (limits.max - limits.min <= line_height){
-        if (visible_height >= line_height){
-            limits.max = visible_height - line_height;
-        }
-        else{
-            limits.max = visible_height;
-        }
-        limits.min = 0;
-    }
-    limits.min = clamp(0, limits.min, limits.max);
-    limits.max = clamp_bot(0, limits.max);
-    limits.delta = clamp_top(line_height*5, (limits.max - limits.min + 1)/2);
-    return(limits);
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_get_line_layout(models, file, width, face, line_number));
 }
 
-internal i32
-view_compute_max_target_y_from_bottom_y(Models *models, View *view, f32 max_item_y, f32 line_height){
-    f32 height = clamp_bot(line_height, view_height(models, view));
-    f32 max_target_y = clamp_bot(0.f, max_item_y - height*0.5f);
-    return(ceil32(max_target_y));
-}
-
-internal i32
-view_compute_max_target_y(Models *models, View *view){
+internal Line_Shift_Vertical
+view_line_shift_y(Models *models, View *view, i64 line_number, f32 y_delta){
     Editing_File *file = view->file;
-    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-    f32 line_height = face->height;
-    Gap_Buffer *buffer = &file->state.buffer;
-    i32 lowest_line = buffer->line_count;
-    if (!file->settings.unwrapped_lines){
-        lowest_line = file->state.wrap_line_index[buffer->line_count];
-    }
-    return(view_compute_max_target_y_from_bottom_y(models, view, (lowest_line + 0.5f)*line_height, line_height));
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_line_shift_y(models, file, width, face, line_number, y_delta));
+}
+
+internal f32
+view_line_y_difference(Models *models, View *view, i64 line_a, i64 line_b){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_line_y_difference(models, file, width, face, line_a, line_b));
+}
+
+internal i64
+view_pos_at_relative_xy(Models *models, View *view, i64 base_line, Vec2_f32 relative_xy){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_pos_at_relative_xy(models, file, width, face, base_line, relative_xy));
+}
+
+internal Vec2_f32
+view_relative_xy_of_pos(Models *models, View *view, i64 base_line, i64 pos){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_relative_xy_of_pos(models, file, width, face, base_line, pos));
+}
+
+internal Buffer_Point
+view_normalize_buffer_point(Models *models, View *view, Buffer_Point point){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_normalize_buffer_point(models, file, width, face, point));
+}
+
+internal Vec2_f32
+view_buffer_point_difference(Models *models, View *view, Buffer_Point a, Buffer_Point b){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_buffer_point_difference(models, file, width, face, a, b));
+}
+
+internal Buffer_Point
+view_move_buffer_point(Models *models, View *view, Buffer_Point buffer_point, Vec2_f32 delta){
+    delta += buffer_point.pixel_shift;
+    Line_Shift_Vertical shift = view_line_shift_y(models, view, buffer_point.line_number, delta.y);
+    buffer_point.line_number = shift.line;
+    buffer_point.pixel_shift = V2f32(delta.x, delta.y - shift.y_delta);
+    return(buffer_point);
+}
+
+internal Line_Shift_Character
+view_line_shift_characters(Models *models, View *view, i64 line_number, i64 character_delta){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_line_shift_characters(models, file, width, face, line_number, character_delta));
+}
+
+internal i64
+view_line_character_difference(Models *models, View *view, i64 line_a, i64 line_b){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_line_character_difference(models, file, width, face, line_a, line_b));
+}
+
+internal i64
+view_pos_from_relative_character(Models *models, View *view, i64 base_line, i64 relative_character){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_pos_from_relative_character(models, file, width, face, base_line, relative_character));
+}
+
+internal i64
+view_relative_character_from_pos(Models *models, View *view, i64 base_line, i64 pos){
+    Editing_File *file = view->file;
+    Face_ID face = file->settings.font_id;
+    f32 width = view_width(models, view);
+    return(file_relative_character_from_pos(models, file, width, face, base_line, pos));
 }
 
 ////////////////////////////////
 
-internal b32
-view_move_view_to_cursor(Models *models, View *view, GUI_Scroll_Vars *scroll){
-    System_Functions *system = models->system;
-    b32 result = false;
-    i32 max_x = (i32)view_width(models, view);
-    i32 max_y = view_compute_max_target_y(models, view);
-    
-    Vec2_i32 cursor = view_get_cursor_xy(models, view);
-    
-    GUI_Scroll_Vars scroll_vars = *scroll;
-    i32 target_x = scroll_vars.target_x;
-    i32 target_y = scroll_vars.target_y;
-    
-    Cursor_Limits limits = view_cursor_limits(models, view);
-    if (target_y < cursor.y - limits.max){
-        target_y = cursor.y - limits.max + limits.delta;
-    }
-    if (target_y > cursor.y - limits.min){
-        target_y = cursor.y - limits.min - limits.delta;
-    }
-    
-    target_y = clamp(0, target_y, max_y);
-    
-    if (cursor.x >= target_x + max_x){
-        target_x = cursor.x - max_x/2;
-    }
-    else if (cursor.x < target_x){
-        target_x = clamp_bot(0, cursor.x - max_x/2);
-    }
-    
-    if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
-        scroll->target_x = target_x;
-        scroll->target_y = target_y;
-        result = true;
-    }
-    
-    return(result);
-}
-
-internal b32
-view_move_cursor_to_view(Models *models, View *view, GUI_Scroll_Vars scroll, i32 *pos_in_out, f32 preferred_x){
-    System_Functions *system = models->system;
-    Editing_File *file = view->file;
-    Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(*pos_in_out));
-    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-    f32 line_height = face->height;
-    f32 old_cursor_y = 0.f;
-    if (file->settings.unwrapped_lines){
-        old_cursor_y = cursor.unwrapped_y;
-    }
-    else{
-        old_cursor_y = cursor.wrapped_y;
-    }
-    f32 cursor_y = old_cursor_y;
-    f32 target_y = (f32)scroll.target_y;
-    
-    Cursor_Limits limits = view_cursor_limits(models, view);
-    
-    if (cursor_y > target_y + limits.max){
-        cursor_y = target_y + limits.max;
-    }
-    if (target_y != 0 && cursor_y < target_y + limits.min){
-        cursor_y = target_y + limits.min;
-    }
-    
-    b32 result = false;
-    if (cursor_y != old_cursor_y){
-        if (cursor_y > old_cursor_y){
-            cursor_y += line_height;
+internal Interval_f32
+view_acceptable_y(f32 view_height, f32 line_height){
+    Interval_f32 acceptable_y = {};
+    if (view_height <= line_height*5.f){
+        if (view_height < line_height){
+            acceptable_y.max = view_height;
         }
         else{
-            cursor_y -= line_height;
+            acceptable_y.max = view_height - line_height;
         }
-        Buffer_Seek seek = seek_xy(preferred_x, cursor_y, false, file->settings.unwrapped_lines);
-        cursor = file_compute_cursor(models, file, seek);
-        *pos_in_out = (i32)cursor.pos;
+    }
+    else{
+        acceptable_y = If32(line_height*2.f, view_height - line_height*2.f);
+    }
+    return(acceptable_y);
+}
+
+internal Vec2_f32
+view_safety_margin(f32 view_width, f32 acceptable_y_height, f32 line_height, f32 typical_advance){
+    Vec2_f32 safety = {};
+    safety.y = min(line_height*5.f, (acceptable_y_height + 1.f)*0.5f);
+    safety.x = min(view_width*0.5f, typical_advance*8.f);
+    return(safety);
+}
+
+internal b32
+view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
+    Editing_File *file = view->file;
+    Face_ID face_id = file->settings.font_id;
+    Rect_f32 rect = view_get_buffer_rect(models, view);
+    Vec2_f32 view_dim = rect_dim(rect);
+    
+    File_Edit_Positions edit_pos = view_get_edit_pos(view);
+    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face_id, scroll->target.line_number, 
+                                         edit_pos.cursor_pos);
+    p -= scroll->target.pixel_shift;
+    
+    Face *face = font_set_face_from_id(&models->font_set, face_id);
+    f32 line_height = face->height;
+    f32 typical_advance = face->typical_advance;
+    Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
+    Vec2_f32 safety = view_safety_margin(view_dim.x, range_size(acceptable_y), line_height, typical_advance);
+    
+    Vec2_f32 target_p_relative = {};
+    if (p.y < acceptable_y.min){
+        target_p_relative.y = p.y - safety.y;
+    }
+    else if (p.y > acceptable_y.max){
+        target_p_relative.y = (p.y + safety.y) - view_dim.y;
+    }
+    if (p.x < 0.f){
+        target_p_relative.x = p.x - safety.x;
+    }
+    else if (p.x > view_dim.x){
+        target_p_relative.x = (p.x + safety.x) - view_dim.x;
+    }
+    scroll->target.pixel_shift = target_p_relative;
+    scroll->target = view_normalize_buffer_point(models, view, scroll->target);
+    scroll->target.pixel_shift.x = f32_round32(scroll->target.pixel_shift.x);
+    scroll->target.pixel_shift.y = f32_round32(scroll->target.pixel_shift.y);
+    
+    return(target_p_relative != V2f32(0.f, 0.f));
+}
+
+internal b32
+view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *pos_in_out, f32 preferred_x){
+    Editing_File *file = view->file;
+    Face_ID face_id = file->settings.font_id;
+    Rect_f32 rect = view_get_buffer_rect(models, view);
+    Vec2_f32 view_dim = rect_dim(rect);
+    
+    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face_id, scroll.target.line_number, *pos_in_out);
+    p -= scroll.target.pixel_shift;
+    
+    Face *face = font_set_face_from_id(&models->font_set, face_id);
+    f32 line_height = face->height;
+    Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
+    Vec2_f32 safety = view_safety_margin(view_dim.x, range_size(acceptable_y),
+                                         line_height, face->typical_advance);
+    
+    b32 adjusted_y = true;
+    if (p.y < acceptable_y.min){
+        p.y = acceptable_y.min + safety.y;
+    }
+    else if (p.y > acceptable_y.max){
+        p.y = acceptable_y.max - safety.y;
+    }
+    else{
+        adjusted_y = false;
+    }
+    
+    b32 result = false;
+    if (adjusted_y){
+        p += scroll.target.pixel_shift;
+        *pos_in_out = file_pos_at_relative_xy(models, file, view_dim.x, face_id, scroll.target.line_number, p);
         result = true;
     }
     
     return(result);
-}
-
-internal b32
-view_has_unwrapped_lines(View *view){
-    return(view->file->settings.unwrapped_lines);
-}
-
-internal void
-view_set_preferred_x(View *view, Full_Cursor cursor){
-    if (view_has_unwrapped_lines(view)){
-        view->preferred_x = cursor.unwrapped_x;
-    }
-    else{
-        view->preferred_x = cursor.wrapped_x;
-    }
 }
 
 internal void
 view_set_preferred_x_to_current_position(Models *models, View *view){
+    view->preferred_x = 0.f;
+#if 0
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     Full_Cursor cursor = file_compute_cursor(models, view->file, seek_pos(edit_pos.cursor_pos));
     view_set_preferred_x(view, cursor);
+#endif
 }
 
 internal void
-view_set_cursor(System_Functions *system, Models *models, View *view, Full_Cursor cursor, b32 set_preferred_x){
+view_set_cursor(Models *models, View *view, i64 pos){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    file_edit_positions_set_cursor(&edit_pos, (i32)cursor.pos);
-    if (set_preferred_x){
-        view_set_preferred_x(view, cursor);
-    }
+    file_edit_positions_set_cursor(&edit_pos, pos);
+    view->preferred_x = 0.f;
     view_set_edit_pos(view, edit_pos);
-    GUI_Scroll_Vars scroll = edit_pos.scroll;
+    Buffer_Scroll scroll = edit_pos.scroll;
     if (view_move_view_to_cursor(models, view, &scroll)){
         edit_pos.scroll = scroll;
         view_set_edit_pos(view, edit_pos);
@@ -296,32 +344,27 @@ view_set_cursor(System_Functions *system, Models *models, View *view, Full_Curso
 }
 
 internal void
-view_set_scroll(System_Functions *system, Models *models, View *view, GUI_Scroll_Vars scroll){
+view_set_scroll(Models *models, View *view, Buffer_Scroll scroll){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    file_edit_positions_set_scroll(&edit_pos, scroll, view_compute_max_target_y(models, view));
+    file_edit_positions_set_scroll(&edit_pos, scroll);
     view_set_edit_pos(view, edit_pos);
-    i32 pos = (i32)edit_pos.cursor_pos;
-    if (view_move_cursor_to_view(models, view, edit_pos.scroll, &pos, view->preferred_x)){
-        Full_Cursor cursor = file_compute_cursor(models, view->file, seek_pos(pos));
-        edit_pos.cursor_pos = cursor.pos;
+    if (view_move_cursor_to_view(models, view, edit_pos.scroll, &edit_pos.cursor_pos, view->preferred_x)){
         view_set_edit_pos(view, edit_pos);
     }
 }
 
 internal void
-view_set_cursor_and_scroll(Models *models, View *view, Full_Cursor cursor, b32 set_preferred_x, GUI_Scroll_Vars scroll){
+view_set_cursor_and_scroll(Models *models, View *view, i64 pos, b32 set_preferred_x, Buffer_Scroll scroll){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    file_edit_positions_set_cursor(&edit_pos, (i32)cursor.pos);
-    if (set_preferred_x){
-        view_set_preferred_x(view, cursor);
-    }
-    file_edit_positions_set_scroll(&edit_pos, scroll, view_compute_max_target_y(models, view));
+    file_edit_positions_set_cursor(&edit_pos, pos);
+    view->preferred_x = 0.f;
+    file_edit_positions_set_scroll(&edit_pos, scroll);
     edit_pos.last_set_type = EditPos_None;
     view_set_edit_pos(view, edit_pos);
 }
 
 internal void
-view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
+view_post_paste_effect(View *view, f32 seconds, i64 start, i64 size, u32 color){
     Editing_File *file = view->file;
     file->state.paste_effect.start = start;
     file->state.paste_effect.end = start + size;
@@ -381,24 +424,14 @@ adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *mod
         View *view = panel->view;
         if (view->file == file){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            Full_Cursor cursor = file_compute_cursor(models, file, seek_pos(edit_pos.cursor_pos));
-            view_set_cursor(system, models, view, cursor, true);
+            view_set_cursor(models, view, edit_pos.cursor_pos);
         }
     }
 }
 
 internal void
-file_full_remeasure(System_Functions *system, Models *models, Editing_File *file){
-    Face_ID font_id = file->settings.font_id;
-    Face *face = font_set_face_from_id(&models->font_set, font_id);
-    file_measure_wraps(system, &models->mem, file, face);
-    adjust_views_looking_at_file_to_new_cursor(system, models, file);
-}
-
-internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, Face_ID font_id){
     file->settings.font_id = font_id;
-    file_full_remeasure(system, models, file);
 }
 
 internal void
@@ -410,23 +443,6 @@ global_set_font_and_update_files(System_Functions *system, Models *models, Face_
         file_set_font(system, models, file, font_id);
     }
     models->global_font_id = font_id;
-}
-
-internal b32
-alter_font_and_update_files(System_Functions *system, Models *models, Face_ID face_id, Face_Description *new_description){
-    b32 success = false;
-    if (font_set_modify_face(&models->font_set, face_id, new_description)){
-        success = true;
-        for (Node *node = models->working_set.active_file_sentinel.next;
-             node != &models->working_set.active_file_sentinel;
-             node = node->next){
-            Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
-            if (file->settings.font_id == face_id){
-                file_full_remeasure(system, models, file);
-            }
-        }
-    }
-    return(success);
 }
 
 internal b32
@@ -512,109 +528,56 @@ get_token_color(Color_Table color_table, Cpp_Token token){
 }
 
 internal void
+view_quit_ui(System_Functions *system, Models *models, View *view){
+    Assert(view != 0);
+    view->ui_mode = false;
+    if (view->ui_quit != 0){
+        view->ui_quit(&models->app_links, view_get_id(&models->live_set, view));
+        view->ui_quit = 0;
+    }
+}
+
+////////////////////////////////
+
+internal View*
+imp_get_view(Models *models, View_ID view_id){
+    Live_Views *live_set = &models->live_set;
+    View *view = 0;
+    view_id -= 1;
+    if (0 <= view_id && view_id < live_set->max){
+        view = live_set->views + view_id;
+        if (!view->in_use){
+            view = 0;
+        }
+    }
+    return(view);
+}
+
+////////////////////////////////
+
+#if 0
+internal void
 render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *view,
-                                  Rect_i32 rect, Full_Cursor render_cursor, Range on_screen_range,
-                                  Buffer_Render_Item *items, int_color *item_colors, i32 item_count){
-    Editing_File *file = view->file;
-    Arena *scratch = &models->mem.arena;
-    Color_Table color_table = models->color_table;
-    Font_Set *font_set = &models->font_set;
-    
-    Assert(file != 0);
-    Assert(buffer_good(&file->state.buffer));
-    
+                                  Rect_i32 rect,
+                                  Full_Cursor render_cursor,
+                                  Interval_i64 on_screen_range,
+                                  Buffer_Layout_Item_List list,
+                                  int_color *item_colors){
     Cpp_Token_Array token_array = file->state.token_array;
     b32 tokens_use = (token_array.tokens != 0);
-    b32 wrapped = (!file->settings.unwrapped_lines);
-    Face_ID font_id = file->settings.font_id;
+    i64 token_i = 0;
     
-    i32 *line_starts = file->state.buffer.line_starts;
-    i32 line_count = file->state.buffer.line_count;
-    i32 line_scan_index = (i32)render_cursor.line - 1;
-    i32 first_byte_index_of_next_line = 0;
-    if (line_scan_index + 1 < line_count){
-        first_byte_index_of_next_line = line_starts[line_scan_index + 1];
-    }
-    else{
-        first_byte_index_of_next_line = max_i32;
-    }
-    
-    i32 *wrap_starts = file->state.wrap_positions;
-    i32 wrap_count = file->state.wrap_position_count;
-    if (wrap_count > 0 && wrap_starts[wrap_count - 1] == buffer_size(&file->state.buffer)){
-        wrap_count -= 1;
-    }
-    i32 wrap_scan_index = (i32)render_cursor.wrap_line - (i32)render_cursor.line;
-    i32 first_byte_index_of_next_wrap = 0;
-    if (wrap_scan_index + 1 < wrap_count){
-        first_byte_index_of_next_wrap = wrap_starts[wrap_scan_index + 1];
-    }
-    else{
-        first_byte_index_of_next_wrap = max_i32;
-    }
-    
-    i32 visual_markers_scan_index = 0;
-    
-    i32 visual_line_markers_scan_index = 0;
-    u32 visual_line_markers_color = 0;
-    
-    i32 visual_range_markers_scan_index = 0;
-    i32 visual_line_range_markers_scan_index = 0;
-    
-    i32 token_i = 0;
     u32 main_color    = color_table.vals[Stag_Default];
     u32 special_color = color_table.vals[Stag_Special_Character];
     u32 ghost_color   = color_table.vals[Stag_Ghost_Character];
     if (tokens_use){
-        Cpp_Get_Token_Result result = cpp_get_token(token_array, items->index);
+        Cpp_Get_Token_Result result = cpp_get_token(token_array, (i32)items->index);
         main_color = get_token_color(color_table, token_array.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
     
-    Buffer_Render_Item *item = items;
-    Buffer_Render_Item *item_end = item + item_count;
-    i32 prev_ind = -1;
-    u32 highlight_color = 0;
-    
-    for (i32 i = 0; item < item_end; item += 1, i += 1){
-        i32 ind = item->index;
-        
-        // NOTE(allen): Line scanning
-        b32 is_new_line = false;
-        for (; line_scan_index < line_count;){
-            if (ind < first_byte_index_of_next_line){
-                break;
-            }
-            line_scan_index += 1;
-            is_new_line = true;
-            if (line_scan_index + 1 < line_count){
-                first_byte_index_of_next_line = line_starts[line_scan_index + 1];
-            }
-            else{
-                first_byte_index_of_next_line = max_i32;
-            }
-        }
-        if (item == items){
-            is_new_line = true;
-        }
-        
-        // NOTE(allen): Wrap scanning
-        b32 is_new_wrap = false;
-        if (wrapped){
-            for (; wrap_scan_index < wrap_count;){
-                if (ind < first_byte_index_of_next_wrap){
-                    break;
-                }
-                wrap_scan_index += 1;
-                is_new_wrap = true;
-                if (wrap_scan_index + 1 < wrap_count){
-                    first_byte_index_of_next_wrap = wrap_starts[wrap_scan_index + 1];
-                }
-                else{
-                    first_byte_index_of_next_wrap = max_i32;
-                }
-            }
-        }
+    {
+        i64 ind = item->index;
         
         // NOTE(allen): Token scanning
         u32 highlight_this_color = 0;
@@ -641,126 +604,61 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
             }
         }
         
-        if (item->y1 > 0){
-            Rect_f32 char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
-            
-            u32 char_color = main_color;
-            if (on_screen_range.min <= ind && ind < on_screen_range.max){
-                i32 index_shifted = ind - on_screen_range.min;
-                if (item_colors[index_shifted] != 0){
-                    char_color = finalize_color(color_table, item_colors[index_shifted]);
-                }
+        u32 char_color = main_color;
+        if (on_screen_range.min <= ind && ind < on_screen_range.max){
+            i64 index_shifted = ind - on_screen_range.min;
+            if (item_colors[index_shifted] != 0){
+                char_color = finalize_color(color_table, item_colors[index_shifted]);
             }
-            if (HasFlag(item->flags, BRFlag_Special_Character)){
-                char_color = special_color;
-            }
-            else if (HasFlag(item->flags, BRFlag_Ghost_Character)){
-                char_color = ghost_color;
-            }
-            
-            if (view->show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
-                highlight_this_color = color_table.vals[Stag_Highlight_White];
-            }
-            else{
-                highlight_this_color = highlight_color;
-            }
-            
-            // NOTE(allen): Perform highlight, wireframe, and ibar renders
-            u32 color_highlight = 0;
-            u32 color_wireframe = 0;
-            u32 color_ibar = 0;
-            
-            if (highlight_this_color != 0){
-                if (color_highlight == 0){
-                    color_highlight = highlight_this_color;
-                }
-            }
-            
-            if (color_highlight != 0){
-                draw_rectangle(target, char_rect, color_highlight);
-            }
-            
-            u32 fade_color = 0xFFFF00FF;
-            f32 fade_amount = 0.f;
-            if (file->state.paste_effect.seconds_down > 0.f &&
-                file->state.paste_effect.start <= ind &&
-                ind < file->state.paste_effect.end){
-                fade_color = file->state.paste_effect.color;
-                fade_amount = file->state.paste_effect.seconds_down;
-                fade_amount /= file->state.paste_effect.seconds_max;
-            }
-            char_color = color_blend(char_color, fade_amount, fade_color);
-            if (item->codepoint != 0){
-                draw_font_glyph(target, font_set, font_id, item->codepoint, item->x0, item->y0, char_color, GlyphFlag_None);
-            }
-            
-            if (color_wireframe != 0){
-                draw_rectangle_outline(target, char_rect, color_wireframe);
+        }
+        if (HasFlag(item->flags, BRFlag_Special_Character)){
+            char_color = special_color;
+        }
+        else if (HasFlag(item->flags, BRFlag_Ghost_Character)){
+            char_color = ghost_color;
+        }
+        
+        if (view->show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
+            highlight_this_color = color_table.vals[Stag_Highlight_White];
+        }
+        else{
+            highlight_this_color = highlight_color;
+        }
+        
+        // NOTE(allen): Perform highlight, wireframe, and ibar renders
+        u32 color_highlight = 0;
+        u32 color_wireframe = 0;
+        u32 color_ibar = 0;
+        
+        if (highlight_this_color != 0){
+            if (color_highlight == 0){
+                color_highlight = highlight_this_color;
             }
         }
         
-        prev_ind = ind;
-    }
-}
-
-internal Full_Cursor
-file_get_render_cursor(Models *models, Editing_File *file, f32 scroll_y){
-    Full_Cursor result = {};
-    if (file->settings.unwrapped_lines){
-        result = file_compute_cursor_hint(models, file, seek_unwrapped_xy(0, scroll_y, false));
-    }
-    else{
-        result = file_compute_cursor(models, file, seek_wrapped_xy(0, scroll_y, false));
-    }
-    return(result);
-}
-
-internal Full_Cursor
-view_get_render_cursor(Models *models, View *view, f32 scroll_y){
-    return(file_get_render_cursor(models, view->file, scroll_y));
-}
-
-internal Full_Cursor
-view_get_render_cursor(Models *models, View *view){
-    File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    f32 scroll_y = edit_pos.scroll.scroll_y;
-    //scroll_y += view->widget_height;
-    return(view_get_render_cursor(models, view, scroll_y));
-}
-
-internal Full_Cursor
-view_get_render_cursor_target(Models *models, View *view){
-    File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    f32 scroll_y = (f32)edit_pos.scroll.target_y;
-    //scroll_y += view->widget_height;
-    return(view_get_render_cursor(models, view, scroll_y));
-}
-
-internal void
-view_quit_ui(System_Functions *system, Models *models, View *view){
-    Assert(view != 0);
-    view->ui_mode = false;
-    if (view->ui_quit != 0){
-        view->ui_quit(&models->app_links, view_get_id(&models->live_set, view));
-        view->ui_quit = 0;
-    }
-}
-
-////////////////////////////////
-
-internal View*
-imp_get_view(Models *models, View_ID view_id){
-    Live_Views *live_set = &models->live_set;
-    View *view = 0;
-    view_id -= 1;
-    if (0 <= view_id && view_id < live_set->max){
-        view = live_set->views + view_id;
-        if (!view->in_use){
-            view = 0;
+        if (color_highlight != 0){
+            draw_rectangle(target, char_rect, color_highlight);
+        }
+        
+        u32 fade_color = 0xFFFF00FF;
+        f32 fade_amount = 0.f;
+        if (file->state.paste_effect.seconds_down > 0.f &&
+            file->state.paste_effect.start <= ind &&
+            ind < file->state.paste_effect.end){
+            fade_color = file->state.paste_effect.color;
+            fade_amount = file->state.paste_effect.seconds_down;
+            fade_amount /= file->state.paste_effect.seconds_max;
+        }
+        char_color = color_blend(char_color, fade_amount, fade_color);
+        
+        if (color_wireframe != 0){
+            draw_rectangle_outline(target, char_rect, color_wireframe);
         }
     }
-    return(view);
+    
 }
+
+#endif
 
 // BOTTOM
 

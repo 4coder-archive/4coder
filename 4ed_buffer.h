@@ -12,235 +12,63 @@
 #if !defined(FRED_BUFFER_H)
 #define FRED_BUFFER_H
 
-typedef i32 Buffer_Get_Chunk_Mode;
-enum{
-    BufferGetChunk_Basic,
-    BufferGetChunk_ZeroTerminated,
-};
-
 struct Cursor_With_Index{
     i64 pos;
     i32 index;
 };
 
 struct Gap_Buffer{
-    char *data;
-    i32 size1;
-    i32 gap_size;
-    i32 size2;
-    i32 max;
+    Base_Allocator *allocator;
     
-    i32 *line_starts;
-    i32 line_count;
-    i32 line_max;
-};
-
-struct Gap_Buffer_Init{
-    Gap_Buffer *buffer;
-    char *data;
-    i32 size;
-};
-
-struct Gap_Buffer_Stream{
-    Gap_Buffer *buffer;
-    char *data;
-    i32 end;
-    i32 separated;
-    i32 absolute_end;
+    u8 *data;
+    i64 size1;
+    i64 gap_size;
+    i64 size2;
+    i64 max;
     
-    b32 use_termination_character;
-    char terminator;
+    // NOTE(allen): If there are N lines I store N + 1 slots in this array with
+    // line_starts[N] = size of the buffer.
+    //    The variable line_start_count stores N + 1; call buffer_line_count(buffer)
+    // to get "N" the actual number of lines.
+    i64 *line_starts;
+    i64 line_start_count;
+    i64 line_start_max;
 };
-global Gap_Buffer_Stream null_buffer_stream = {};
 
 struct Buffer_Chunk_Position{
-    i32 real_pos;
-    i32 chunk_pos;
-    i32 chunk_index;
+    i64 real_pos;
+    i64 chunk_pos;
+    i64 chunk_index;
 };
 
-struct Buffer_Batch_State{
-    i32 i;
-    i32 shift_total;
-};
-
-struct Buffer_Measure_Starts{
-    i32 i;
-    i32 count;
-    i32 start;
-};
-
+typedef u32 Buffer_Layout_Flag;
 enum{
-    BLStatus_Finished,
-    BLStatus_NeedWrapLineShift,
-    BLStatus_NeedLineShift,
-    BLStatus_NeedWrapDetermination,
-};
-
-struct Buffer_Layout_Stop{
-    u32 status;
-    i32 line_index;
-    i32 wrap_line_index;
-    i32 pos;
-    i32 next_line_pos;
-    f32 x;
-};
-
-struct Buffer_Measure_Wrap_Params{
-    Gap_Buffer *buffer;
-    i32 *wrap_line_index;
-    System_Functions *system;
-    Face *face;
-    b32 virtual_white;
-};
-
-struct Buffer_Measure_Wrap_State{
-    Gap_Buffer_Stream stream;
-    i32 i;
-    i32 size;
-    b32 still_looping;
-    
-    i32 line_index;
-    
-    i32 current_wrap_index;
-    f32 current_adv;
-    f32 x;
-    
-    b32 skipping_whitespace;
-    i32 wrap_unit_end;
-    b32 did_wrap;
-    b32 first_of_the_line;
-    
-    Translation_State tran;
-    Translation_Emits emits;
-    u32 J;
-    Buffer_Model_Step step;
-    Buffer_Model_Behavior behavior;
-    
-    i32 __pc__;
-};
-
-struct Buffer_Cursor_Seek_Params{
-    Gap_Buffer *buffer;
-    Buffer_Seek seek;
-    System_Functions *system;
-    Face *face;
-    i32 *wrap_line_index;
-    i32 *character_starts;
-    b32 virtual_white;
-    b32 return_hint;
-    Full_Cursor *cursor_out;
-};
-
-struct Buffer_Cursor_Seek_State{
-    Full_Cursor next_cursor;
-    Full_Cursor this_cursor;
-    Full_Cursor prev_cursor;
-    
-    Gap_Buffer_Stream stream;
-    b32 still_looping;
-    i32 i;
-    i32 size;
-    i32 wrap_unit_end;
-    
-    b32 first_of_the_line;
-    b32 xy_seek;
-    f32 ch_width;
-    
-    i32 font_height;
-    
-    Translation_State tran;
-    Translation_Emits emits;
-    u32 J;
-    Buffer_Model_Step step;
-    Buffer_Model_Behavior behavior;
-    
-    
-    i32 __pc__;
-};
-
-struct Buffer_Invert_Batch{
-    i32 i;
-    i32 shift_amount;
-    i32 len;
-};
-
-enum Buffer_Render_Flag{
     BRFlag_Special_Character = (1 << 0),
     BRFlag_Ghost_Character = (1 << 1)
 };
 
-struct Buffer_Render_Item{
-    i32 index;
+struct Buffer_Layout_Item{
+    i64 index;
     u32 codepoint;
-    u32 flags;
-    f32 x0;
-    f32 y0;
-    f32 x1;
-    f32 y1;
+    Buffer_Layout_Flag flags;
+    Rect_f32 rect;
 };
 
-struct Render_Item_Write{
-    Buffer_Render_Item *item;
-    Buffer_Render_Item *item_end;
-    f32 x;
-    f32 y;
-    System_Functions *system;
-    Face *face;
-    i32 font_height;
-    f32 x_min;
-    f32 x_max;
+struct Buffer_Layout_Item_Block{
+    Buffer_Layout_Item_Block *next;
+    Buffer_Layout_Item *items;
+    i64 count;
+    i64 character_count;
 };
 
-struct Buffer_Render_Params{
-    Gap_Buffer *buffer;
-    Buffer_Render_Item *items;
-    i32 max;
-    i32 *count;
-    f32 port_x;
-    f32 port_y;
-    f32 clip_w;
-    f32 scroll_x;
-    f32 scroll_y;
-    f32 width;
+struct Buffer_Layout_Item_List{
+    Buffer_Layout_Item_Block *first;
+    Buffer_Layout_Item_Block *last;
+    i32 node_count;
+    i32 total_count;
     f32 height;
-    Full_Cursor start_cursor;
-    i32 wrapped;
-    System_Functions *system;
-    Face *face;
-    b32 virtual_white;
-    i32 wrap_slashes;
-    i32 one_past_last_abs_pos;
-};
-
-struct Buffer_Render_State{
-    Gap_Buffer_Stream stream;
-    b32 still_looping;
-    i32 i;
-    i32 size;
-    
-    f32 shift_x;
-    f32 shift_y;
-    
-    f32 ch_width;
-    
-    Render_Item_Write write;
-    f32 byte_advance;
-    
-    i32 line;
-    i32 wrap_line;
-    b8 skipping_whitespace;
-    b8 first_of_the_line;
-    b8 first_of_the_wrap;
-    i32 wrap_unit_end;
-    
-    Translation_State tran;
-    Translation_Emits emits;
-    u32 J;
-    Buffer_Model_Step step;
-    Buffer_Model_Behavior behavior;
-    
-    i32 __pc__;
+    i64 character_count;
+    Interval_i64 index_range;
 };
 
 #endif

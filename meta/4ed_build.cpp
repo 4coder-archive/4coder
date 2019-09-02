@@ -13,11 +13,6 @@
 
 #include "../4coder_base_types.h"
 
-#if 0
-# define FSTRING_IMPLEMENTATION
-# include "../4coder_lib/4coder_string.h"
-#endif
-
 #define FTECH_FILE_MOVING_IMPLEMENTATION
 #include "4ed_file_moving.h"
 
@@ -584,12 +579,14 @@ build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch
 
 internal void
 standard_build(Arena *arena, char *cdir, u32 flags, u32 arch){
-    fsm_generator(arena, cdir);
+    //fsm_generator(arena, cdir);
     metagen(arena, cdir);
+    
     //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
     do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Experiments]), arch);
     //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Casey]), arch);
     //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_ChronalVim]), arch);
+    
     build_main(arena, cdir, true, flags, arch);
 }
 

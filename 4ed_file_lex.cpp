@@ -34,7 +34,7 @@ file_first_lex_serial(System_Functions *system, Models *models, Editing_File *fi
         Assert(parse_context.valid);
         
         Gap_Buffer *buffer = &file->state.buffer;
-        i32 text_size = buffer_size(buffer);
+        i64 text_size = buffer_size(buffer);
         
         // TODO(allen): REWRITE REWRITE REWRITE
         Cpp_Token_Array new_tokens = {};
@@ -46,25 +46,23 @@ file_first_lex_serial(System_Functions *system, Models *models, Editing_File *fi
         
         Cpp_Lex_Data lex = cpp_lex_data_init(file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
         
-        String_Const_u8_Array chunk_space[3];
-        Cursor chunk_cursor = make_cursor(chunk_space, sizeof(chunk_space));
-        String_Const_u8_Array chunks = buffer_get_chunks(&chunk_cursor, buffer, BufferGetChunk_ZeroTerminated);
-        
-        i32 chunk_index = 0;
+        List_String_Const_u8 chunks = buffer_get_chunks(scratch, buffer);
+        u8 null_terminator = 0;
+        string_list_push(scratch, &chunks, SCu8(&null_terminator, 1));
         
         Cpp_Token_Array new_array = {};
         
-        do{
-            u8 *chunk = chunks.vals[chunk_index].str;
-            umem chunk_size = chunks.vals[chunk_index].size;
+        for (Node_String_Const_u8 *node = chunks.first;
+             node != 0;){
+            u8 *chunk = node->string.str;
+            umem chunk_size = node->string.size;
             
-            i32 result = cpp_lex_step(&lex, (char*)chunk, (i32)chunk_size, text_size, &new_tokens, NO_OUT_LIMIT);
+            i32 result = cpp_lex_step(&lex, (char*)chunk, (i32)chunk_size, (i32)text_size, &new_tokens, NO_OUT_LIMIT);
             
             switch (result){
                 case LexResult_NeedChunk:
                 {
-                    ++chunk_index;
-                    Assert(chunk_index < chunks.count);
+                    node = node->next;
                 }break;
                 
                 case LexResult_Finished:
@@ -95,7 +93,11 @@ file_first_lex_serial(System_Functions *system, Models *models, Editing_File *fi
                 
                 case LexResult_HitTokenLimit: InvalidPath;
             }
-        } while (still_lexing);
+            
+            if (!still_lexing){
+                break;
+            }
+        }
         
         Cpp_Token_Array *token_array = &file->state.token_array;
         token_array->count = new_array.count;
@@ -116,7 +118,7 @@ file_first_lex_serial(System_Functions *system, Models *models, Editing_File *fi
 }
 
 internal b32
-file_relex_serial(System_Functions *system, Models *models, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+file_relex_serial(System_Functions *system, Models *models, Editing_File *file, i64 start_i, i64 end_i, i64 shift_amount){
     Mem_Options *mem = &models->mem;
     Arena *scratch = &mem->arena;
     Heap *heap = &mem->heap;
@@ -137,35 +139,38 @@ file_relex_serial(System_Functions *system, Models *models, Editing_File *file, 
         relex_array.max_count = Million(1);
         relex_array.tokens = push_array(scratch, Cpp_Token, relex_array.max_count);
         
-        i32 size = buffer_size(buffer);
+        i64 size = buffer_size(buffer);
         
-        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
+        Cpp_Relex_Data state = cpp_relex_init(array, (i32)start_i, (i32)end_i, (i32)shift_amount, file->settings.tokens_without_strings, parse_context.kw_table, parse_context.pp_table);
         
-        String_Const_u8_Array chunk_space[3];
-        Cursor chunk_cursor = make_cursor(chunk_space, sizeof(chunk_space));
-        String_Const_u8_Array chunks = buffer_get_chunks(&chunk_cursor, buffer, BufferGetChunk_ZeroTerminated);
+        List_String_Const_u8 chunks = buffer_get_chunks(scratch, buffer);
+        u8 null_terminator = 0;
+        string_list_push(scratch, &chunks, SCu8(&null_terminator, 1));
+        Node_String_Const_u8 *node = chunks.first;
         
         i32 chunk_index = 0;
-        u8 *chunk = chunks.vals[chunk_index].str;
-        umem chunk_size = chunks.vals[chunk_index].size;
-        
-        for (;!cpp_relex_is_start_chunk(&state, (char*)chunk, (i32)chunk_size);){
-            ++chunk_index;
-            Assert(chunk_index < chunks.count);
-            chunk = chunks.vals[chunk_index].str;
-            chunk_size = chunks.vals[chunk_index].size;
+        u8 *chunk = 0;
+        umem chunk_size = 0;
+        if (node != 0){
+            chunk = node->string.str;
+            chunk_size = node->string.size;
         }
-        
+        for (;!cpp_relex_is_start_chunk(&state, (char*)chunk, (i32)chunk_size);){
+            node = node->next;
+            Assert(node != 0);
+            chunk = node->string.str;
+            chunk_size = node->string.size;
+        }
         for(;;){
-            Cpp_Lex_Result lex_result = cpp_relex_step(&state, (char*)chunk, (i32)chunk_size, size, array, &relex_array);
+            Cpp_Lex_Result lex_result = cpp_relex_step(&state, (char*)chunk, (i32)chunk_size, (i32)size, array, &relex_array);
             
             switch (lex_result){
                 case LexResult_NeedChunk:
                 {
-                    ++chunk_index;
-                    Assert(chunk_index < chunks.count);
-                    chunk = chunks.vals[chunk_index].str;
-                    chunk_size = chunks.vals[chunk_index].size;
+                    node = node->next;
+                    Assert(node != 0);
+                    chunk = node->string.str;
+                    chunk_size = node->string.size;
                 }break;
                 
                 case LexResult_NeedTokenMemory: InvalidPath;
@@ -199,7 +204,7 @@ file_first_lex(System_Functions *system, Models *models, Editing_File *file){
 }
 
 internal void
-file_relex(System_Functions *system, Models *models, Editing_File *file, i32 start, i32 end, i32 shift_amount){
+file_relex(System_Functions *system, Models *models, Editing_File *file, i64 start, i64 end, i64  shift_amount){
     file_relex_serial(system, models, file, start, end, shift_amount);
 }
 

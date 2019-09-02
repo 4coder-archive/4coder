@@ -6,7 +6,7 @@
 
 internal u64
 table_hash(Data key){
-    return(table_hash_u8((u8*)key.data, key.size) | bit_63);
+    return(table_hash_u8((u8*)key.data, key.size) | bit_64);
 }
 
 global_const u64 table_empty_slot = 0;
@@ -154,16 +154,27 @@ table_insert(Table_u64_u64 *table, u64 key, u64 val){
 }
 
 internal b32
-table_erase(Table_u64_u64 *table, u64 key){
+table_erase(Table_u64_u64 *table, Table_Lookup lookup){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
     if (lookup.found_match){
-        table->keys[lookup.index] = 0;
+        table->keys[lookup.index] = table_erased_key;
         table->vals[lookup.index] = 0;
         table->used_count -= 1;
         result = true;
     }
     return(result);
+}
+
+internal b32
+table_erase(Table_u64_u64 *table, u64 key){
+    Table_Lookup lookup = table_lookup(table, key);
+    return(table_erase(table, lookup));
+}
+
+internal b32
+table_clear(Table_u64_u64 *table){
+    block_zero_dynamic_array(table->keys, table->slot_count);
+    block_zero_dynamic_array(table->vals, table->slot_count);
 }
 
 ////////////////////////////////
@@ -296,16 +307,27 @@ table_insert(Table_u32_u16 *table, u32 key, u16 val){
 }
 
 internal b32
-table_erase(Table_u32_u16 *table, u32 key){
+table_erase(Table_u32_u16 *table, Table_Lookup lookup){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
     if (lookup.found_match){
-        table->keys[lookup.index] = 0;
+        table->keys[lookup.index] = table_erased_u32_key;
         table->vals[lookup.index] = 0;
         table->used_count -= 1;
         result = true;
     }
     return(result);
+}
+
+internal b32
+table_erase(Table_u32_u16 *table, u32 key){
+    Table_Lookup lookup = table_lookup(table, key);
+    return(table_erase(table, lookup));
+}
+
+internal b32
+table_clear(Table_u32_u16 *table){
+    block_zero_dynamic_array(table->keys, table->slot_count);
+    block_zero_dynamic_array(table->vals, table->slot_count);
 }
 
 ////////////////////////////////
@@ -410,7 +432,7 @@ table_rehash(Table_Data_u64 *dst, Table_Data_u64 *src){
     if ((dst->dirty_count + src->used_count)*8 < dst->slot_count*7){
         u64 *src_hashes = src->hashes;
         for (u32 i = 0; i < src_slot_count; i += 1){
-            if (HasFlag(src_hashes[i], bit_63)){
+            if (HasFlag(src_hashes[i], bit_64)){
                 Data key = src->keys[i];
                 Table_Lookup lookup = table_lookup(dst, key);
                 table_insert__inner(dst, lookup, key, src->vals[i]);
@@ -456,6 +478,12 @@ table_erase(Table_Data_u64 *table, Data key){
         result = true;
     }
     return(result);
+}
+
+internal b32
+table_clear(Table_Data_u64 *table){
+    block_zero_dynamic_array(table->keys, table->slot_count);
+    block_zero_dynamic_array(table->vals, table->slot_count);
 }
 
 ////////////////////////////////
@@ -606,6 +634,12 @@ table_erase(Table_u64_Data *table, u64 key){
     return(result);
 }
 
+internal b32
+table_clear(Table_u64_Data *table){
+    block_zero_dynamic_array(table->keys, table->slot_count);
+    block_zero_dynamic_array(table->vals, table->slot_count);
+}
+
 ////////////////////////////////
 
 internal Table_Data_Data
@@ -703,7 +737,7 @@ table_rehash(Table_Data_Data *dst, Table_Data_Data *src){
     if ((dst->dirty_count + src->used_count)*8 < dst->slot_count*7){
         u64 *src_hashes = src->hashes;
         for (u32 i = 0; i < src_slot_count; i += 1){
-            if (HasFlag(src_hashes[i], bit_63)){
+            if (HasFlag(src_hashes[i], bit_64)){
                 Data key = src->keys[i];
                 Table_Lookup lookup = table_lookup(dst, key);
                 table_insert__inner(dst, lookup, key, src->vals[i]);
@@ -749,6 +783,12 @@ table_erase(Table_Data_Data *table, Data key){
         result = true;
     }
     return(result);
+}
+
+internal b32
+table_clear(Table_Data_Data *table){
+    block_zero_dynamic_array(table->keys, table->slot_count);
+    block_zero_dynamic_array(table->vals, table->slot_count);
 }
 
 // BOTTOM

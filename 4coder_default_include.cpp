@@ -7,16 +7,6 @@
 #if !defined(FCODER_DEFAULT_INCLUDE_CPP)
 #define FCODER_DEFAULT_INCLUDE_CPP
 
-// NOTE(allen): Defines before 4coder_default_include.cpp:
-// REMOVE_TRANSITION_HELPER_31 -> does not include the transition helpers for the API changes in 4.0.31
-// REMOVE_OLD_STRING -> does not include the old 4coder_string.h library.
-//   NOTE: You can only remove "old string" if you first remove the transition helper.
-
-#if 0
-#define REMOVE_TRANSITION_HELPER_31
-#define REMOVE_OLD_STRING
-#endif
-
 #include "4coder_API/4coder_custom.h"
 
 #include "4coder_generated/command_metadata.h"
@@ -33,8 +23,6 @@
 #include "4coder_lib/4cpp_lexer.h"
 #include "4coder_table.h"
 #include "4coder_string_match.h"
-
-#include "4coder_api_transition_30_31.h"
 
 #include "4coder_helper.h"
 #include "4coder_insertion.h"
@@ -60,8 +48,6 @@
 #include "4coder_table.cpp"
 #include "4coder_string_match.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
-
-#include "4coder_api_transition_30_31.cpp"
 
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_helper.cpp"
@@ -90,8 +76,6 @@
 
 #include "4coder_default_hooks.cpp"
 #include "4coder_remapping_commands.cpp"
-
-#include "4coder_api_transition_30_31_helpers.cpp"
 
 #endif
 

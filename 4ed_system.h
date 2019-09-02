@@ -42,7 +42,7 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
 typedef Sys_Load_Close_Sig(System_Load_Close);
 
-#define Sys_Save_File_Sig(name) File_Attributes name(Arena *scratch, char *filename, char *buffer, u32 size)
+#define Sys_Save_File_Sig(name) File_Attributes name(Arena *scratch, char *filename, String_Const_u8 data)
 typedef Sys_Save_File_Sig(System_Save_File);
 
 // time

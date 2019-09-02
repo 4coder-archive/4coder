@@ -9,6 +9,31 @@
 
 // TOP
 
+// TODO(allen): I don't like this code _AT ALL_
+// unravel the mess!
+//
+//
+// So what happened here was I thought, "Hey I have text in non-contiguous chunks and now I 
+// need to translates it into unicode codepoints (interpreting it as utf8), so I should make
+// a system that translates utf-8 by taking in one byte at a time then emitting one or more
+// codepoints whenever there is enough information, all the while ensuring there is no backtracking"
+//
+// Even though this may make the iteration sound nice, it's a HUGE FREAKING PAIN IN THE ASS.
+// You can't optimize it very well, the code is inscrutible both on the implementation side
+// and the calling side.  Besides the fact that I "got it working" there isn't one good thing
+// about this code.
+//
+// My next idea would be to try to make translation systems that take in the chunks themselves as
+// a linked list, and then just does the WHOLE translation, MAYBE with optional "stop conditions".
+// This way someone can actually optimize the translation loop by hand in _ONE SPOT_.  The downside
+// is that the caller will have to put up with maybe more translation work than they needed, but that
+// translation work will be so much cheaper, and easier to maintain, that the caller will be happier
+// overall.
+//
+//
+// If this comment is still here, then I haven't fixed any of this garbage yet, but it should really
+// be fixed!
+
 #define ERROR_BYTE (max_u8-1)
 #define CONTINUATION_BYTE max_u8
 

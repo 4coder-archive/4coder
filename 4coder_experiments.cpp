@@ -12,205 +12,6 @@
 
 #include <string.h>
 
-static float
-get_line_y(Application_Links *app, View_ID view, i32 line){
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_line_char(line, 1));
-    return(cursor.wrapped_y);
-}
-
-static Rect_i32
-get_line_x_rect(Application_Links *app, View_ID view){
-    i64 cursor_pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_pos));
-    i64 mark_pos = view_get_mark_pos(app, view);
-    Full_Cursor mark = view_compute_cursor(app, view, seek_pos(mark_pos));
-    
-    Rect_i32 rect = {};
-    rect.x0 = (i32)mark.wrapped_x;
-    rect.x1 = (i32)cursor.wrapped_x;
-    rect.y0 = (i32)mark.line;
-    rect.y1 = (i32)cursor.line;
-    
-    if (rect.y0 > rect.y1){
-        Swap(i32, rect.y0, rect.y1);
-    }
-    if (rect.x0 > rect.x1){
-        Swap(i32, rect.x0, rect.x1);
-    }
-    
-    return(rect);
-}
-
-CUSTOM_COMMAND_SIG(kill_rect)
-CUSTOM_DOC("Delete characters in a rectangular region. Range testing is done by unwrapped-xy coordinates.")
-{
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    
-    i32_Rect rect = get_line_x_rect(app, view);
-    
-    for (i32 line = rect.y1; line >= rect.y0; --line){
-        f32 y = get_line_y(app, view, line);
-        Full_Cursor cursor = view_compute_cursor(app, view, seek_wrapped_xy((f32)rect.x0, y, 0));
-        if (cursor.line > 0){
-            i64 start = cursor.pos;
-            cursor = view_compute_cursor(app, view, seek_wrapped_xy((f32)rect.x1, y, 0));
-            if (cursor.line > 0){
-                i64 end = cursor.pos;
-                buffer_replace_range(app, buffer, Ii64(start, end), string_u8_empty);
-            }
-        }
-    }
-}
-
-static void
-pad_buffer_line(Application_Links *app, Buffer_ID buffer, i64 line, char padchar, i64 target){
-    Partial_Cursor start = buffer_compute_cursor(app, buffer, seek_line_char(line, 1));
-    if (start.line == line){
-        Partial_Cursor end = buffer_compute_cursor(app, buffer, seek_line_char(line, 65536));
-        if (end.line == line){
-            if (end.character - 1 < target){
-                Scratch_Block scratch(app);
-                i64 size = target - (end.character - 1);
-                char *str = push_array(scratch, char, size);
-                block_fill_u8(str, size, ' ');
-                buffer_replace_range(app, buffer, Ii64(end.pos), SCu8(str, size));
-            }
-        }
-    }
-}
-
-/*
-NOTE(allen):  Things I learned from this experiment.
-
-First of all the batch edits aren't too bad, but I think
-there could be a single system that I run that through that
-knows how to build the batch edit from slightly higher level
-information. For instance the idea in point 2.
-
-Secondly I definitely believe I need some sort of "mini-buffer"
-concept where a view sends commands so that things like
-pasting still work.  Then the contents of the "mini-buffer"
-can be used to complete the edits at all cursor points.
-This doesn't answer all questions, because somehow backspace
-still wants to work for multi-lines even when the "mini-buffer"
-is emtpy.  Such a system would also make it possible to send
-paste commands and cursor navigation to interactive bars.
-
-Thirdly any system like this will probably not want to
-operate through the co-routine system, because that makes
-sending these commands to the "mini-buffer" much more
-difficult.
-
-Fourthly I desperately need some way to do multi-highlighting
-multi-cursor showing but it is unclear to me how to do that
-conveniently.  Since this won't exist inside a coroutine
-what does such an API even look like??? It's clear to me now
-that I may need to start pushing for the view routine before
-I am even able to support the GUI. Because that will set up the
-system to allow me to think about the problem in more ways.
-
-Finally I have decided not to pursue this direction any more,
-it just seems like the wrong way to do it, so I'll stop without
-doing multi-cursor for now.
-*/
-
-struct Buffer_Rect{
-    i64 char0;
-    i64 line0;
-    i64 char1;
-    i64 line1;
-};
-
-CUSTOM_COMMAND_SIG(multi_line_edit)
-CUSTOM_DOC("Begin multi-line mode.  In multi-line mode characters are inserted at every line between the mark and cursor.  All characters are inserted at the same character offset into the line.  This mode uses line_char coordinates.")
-{
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    
-    i64 cursor_pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_pos));
-    i64 mark_pos = view_get_mark_pos(app, view);
-    Full_Cursor mark = view_compute_cursor(app, view, seek_pos(mark_pos));
-    Buffer_Rect rect = {};
-    rect.char0 = mark.character;
-    rect.line0 = mark.line;
-    rect.char1 = cursor.character;
-    rect.line1 = cursor.line;
-    if (rect.line0 > rect.line1){
-        Swap(i64, rect.line0, rect.line1);
-    }
-    if (rect.char0 > rect.char1){
-        Swap(i64, rect.char0, rect.char1);
-    }
-    
-    i64 start_line = cursor.line;
-    i64 pos = cursor.character - 1;
-    
-    for (i64 i = rect.line0; i <= rect.line1; ++i){
-        pad_buffer_line(app, buffer, i, ' ', pos);
-    }
-    
-    i64 line_count = rect.line1 - rect.line0 + 1;
-    
-    for (;;){
-        User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc|EventOnMouseLeftButton|EventOnMouseRightButton);
-        if (in.abort) break;
-        
-        if (in.key.character && key_is_unmodified(&in.key)){
-            char str = (char)in.key.character;
-            
-            Scratch_Block scratch(app);
-            Buffer_Edit *edits = push_array(scratch, Buffer_Edit, line_count);
-            Buffer_Edit *edit = edits;
-            
-            for (i64 i = rect.line0; i <= rect.line1; ++i){
-                Partial_Cursor partial_cursor = buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1));
-                if (partial_cursor.line > 0){
-                    edit->str_start = 0;
-                    edit->len = 1;
-                    edit->start = partial_cursor.pos;
-                    edit->end = partial_cursor.pos;
-                    ++edit;
-                }
-            }
-            
-            i32 edit_count = (int)(edit - edits);
-            buffer_batch_edit(app, buffer, &str, edits, edit_count);
-            
-            ++pos;
-            
-            view_set_cursor(app, view, seek_line_char(start_line, pos + 1), true);
-        }
-        else if (in.key.keycode == key_back){
-            if (pos > 0){
-                Scratch_Block scratch(app);
-                Buffer_Edit *edits = push_array(scratch, Buffer_Edit, line_count);
-                Buffer_Edit *edit = edits;
-                
-                for (i64 i = rect.line0; i <= rect.line1; ++i){
-                    Partial_Cursor partial_cursor = buffer_compute_cursor(app, buffer, seek_line_char(i, pos + 1));
-                    if (partial_cursor.line > 0){
-                        edit->str_start = 0;
-                        edit->len = 0;
-                        edit->start = partial_cursor.pos - 1;
-                        edit->end = partial_cursor.pos;
-                        ++edit;
-                    }
-                }
-                
-                i32 edit_count = (int)(edit - edits);
-                buffer_batch_edit(app, buffer, 0, edits, edit_count);
-                
-                --pos;
-            }
-        }
-        else{
-            break;
-        }
-    }
-}
-
 // NOTE(allen): An experimental mutli-pasting thing
 
 CUSTOM_COMMAND_SIG(multi_paste){
@@ -260,9 +61,11 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
     if (paste_count >= 1){
         Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         if (buffer != 0){
-            i32 total_size = 0;
+            i64 total_size = 0;
             for (i32 paste_index = 0; paste_index < paste_count; ++paste_index){
-                total_size += 1 + clipboard_index(app, 0, paste_index, 0, 0);
+                Scratch_Block scratch(app);
+                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                total_size += string.size + 1;
             }
             total_size -= 1;
             
@@ -386,6 +189,8 @@ CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
 CUSTOM_COMMAND_SIG(rename_parameter)
 CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in the signature of a function definition, all occurences within the scope of the function will be replaced with a new provided string.")
 {
+    NotImplemented;
+#if 0
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     i64 cursor_pos = view_get_cursor_pos(app, view);
@@ -396,7 +201,6 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
     Cpp_Get_Token_Result result = {};
     if (get_token_from_pos(app, buffer, cursor_pos, &result)){
         if (!result.in_whitespace_after_token){
-#if 0
             static const i32 stream_space_size = 512;
             Cpp_Token stream_space[stream_space_size];
             Stream_Tokens_DEP stream = {};
@@ -517,11 +321,11 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                     }
                 }
             }
-#endif
         }
     }
     
     end_temp(temp);
+#endif
 }
 
 typedef u32 Write_Explicit_Enum_Values_Mode;
@@ -532,6 +336,8 @@ enum{
 
 static void
 write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enum_Values_Mode mode){
+    NotImplemented;
+#if 0
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
@@ -543,7 +349,6 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
     Cpp_Get_Token_Result result = {};
     if (get_token_from_pos(app, buffer, pos, &result)){
         if (!result.in_whitespace_after_token){
-#if 0
             Cpp_Token stream_space[32];
             Stream_Tokens_DEP stream = {};
             
@@ -683,11 +488,11 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                     }
                 }
             }
-#endif
         }
     }
     
     end_temp(temp);
+#endif
 }
 
 CUSTOM_COMMAND_SIG(write_explicit_enum_values)
@@ -742,8 +547,8 @@ get_bindings(void *data, i32 size){
     // begin_map to clear everything that was in the map and
     // bind new things instead.
     begin_map(context, mapid_file);
-    bind(context, key_back, MDFR_ALT|MDFR_CTRL, kill_rect);
-    bind(context, ' ', MDFR_ALT|MDFR_CTRL, multi_line_edit);
+    //bind(context, key_back, MDFR_ALT|MDFR_CTRL, kill_rect);
+    //bind(context, ' ', MDFR_ALT|MDFR_CTRL, multi_line_edit);
     
     bind(context, key_page_up, MDFR_ALT, miblo_increment_time_stamp);
     bind(context, key_page_down, MDFR_ALT, miblo_decrement_time_stamp);

@@ -4,17 +4,14 @@
 
 // TOP
 
-internal Buffer_Batch_Edit
+internal Batch_Edit*
 make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                              i64 first_line, i64 one_past_last_line, i64 *indent_marks,
                              Indent_Options opts){
     i64 *shifted_indent_marks = indent_marks - first_line;
     
-    i64 edit_count = 0;
-    i64 edit_max = one_past_last_line - first_line;
-    Buffer_Edit *edits = push_array(arena, Buffer_Edit, edit_max);
-    
-    List_String_Const_u8 list = {};
+    Batch_Edit *batch_first = 0;
+    Batch_Edit *batch_last = 0;
     
     for (i64 line_number = first_line;
          line_number < one_past_last_line;
@@ -32,50 +29,37 @@ make_batch_from_indent_marks(Application_Links *app, Arena *arena, Buffer_ID buf
         
         if (correct_indentation != hard_start.indent_pos){
             umem str_size = 0;
-            char *str = 0;
+            u8 *str = 0;
             if (opts.use_tabs){
                 i64 tab_count = correct_indentation/opts.tab_width;
                 i64 indent = tab_count*opts.tab_width;
                 i64 space_count = correct_indentation - indent;
                 str_size = tab_count + space_count;
-                str = push_array(arena, char, str_size);
+                str = push_array(arena, u8, str_size);
                 block_fill_u8(str, tab_count, '\t');
                 block_fill_u8(str + tab_count, space_count, ' ');
             }
             else{
                 str_size = correct_indentation;
-                str = push_array(arena, char, str_size);
+                str = push_array(arena, u8, str_size);
                 block_fill_u8(str, str_size, ' ');
             }
             
-            i64 str_position = list.total_size;
-            string_list_push(arena, &list, SCu8(str, str_size));
-            
-            edits[edit_count].str_start = (i32)str_position;
-            edits[edit_count].len = (i32)str_size;
-            edits[edit_count].start = (i32)line_start_pos;
-            edits[edit_count].end = (i32)hard_start.first_char_pos;
-            edit_count += 1;
+            Batch_Edit *batch = push_array(arena, Batch_Edit, 1);
+            sll_queue_push(batch_first, batch_last, batch);
+            batch->edit.text = SCu8(str, str_size);
+            batch->edit.range = Ii64(line_start_pos, hard_start.first_char_pos);
         }
-        
-        Assert(edit_count <= edit_max);
     }
     
-    String_Const_u8 contiguous_text = string_list_flatten(arena, list);
-    
-    Buffer_Batch_Edit result = {};
-    result.str = (char*)contiguous_text.str;
-    result.str_len = (i32)contiguous_text.size;
-    result.edits = edits;
-    result.edit_count = (i32)edit_count;
-    return(result);
+    return(batch_first);
 }
 
 internal void
 set_line_indents(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 first_line, i64 one_past_last_line, i64 *indent_marks, Indent_Options opts){
-    Buffer_Batch_Edit batch = make_batch_from_indent_marks(app, arena, buffer, first_line, one_past_last_line, indent_marks, opts);
-    if (batch.edit_count > 0){
-        buffer_batch_edit(app, buffer, batch.str, batch.edits, batch.edit_count);
+    Batch_Edit *batch = make_batch_from_indent_marks(app, arena, buffer, first_line, one_past_last_line, indent_marks, opts);
+    if (batch != 0){
+        buffer_batch_edit(app, buffer, batch);
     }
 }
 

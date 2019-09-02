@@ -274,6 +274,7 @@ block_fill_u64(void *a, umem size, u64 val){
 
 #define block_zero_struct(p) block_zero((p), sizeof(*(p)))
 #define block_zero_array(a) block_zero((a), sizeof(a))
+#define block_zero_dynamic_array(p,c) block_zero((p), sizeof(*(p))*(c))
 
 #define block_copy_struct(d,s) block_copy((d), (s), sizeof(*(d)))
 #define block_copy_array(d,s) block_copy((d), (s), sizeof(d))
@@ -1429,6 +1430,40 @@ operator!=(Vec4_f32 a, Vec4_f32 b){
 ////////////////////////////////
 
 static b32
+near_zero(f32 p, f32 epsilon){
+    return(-epsilon <= p && p <= epsilon);
+}
+static b32
+near_zero(Vec2_f32 p, f32 epsilon){
+    return(-epsilon <= p.x && p.x <= epsilon &&
+           -epsilon <= p.y && p.y <= epsilon);
+}
+static b32
+near_zero(Vec3_f32 p, f32 epsilon){
+    return(-epsilon <= p.x && p.x <= epsilon &&
+           -epsilon <= p.y && p.y <= epsilon &&
+           -epsilon <= p.z && p.z <= epsilon);
+}
+static b32
+near_zero(Vec4_f32 p, f32 epsilon){
+    return(-epsilon <= p.x && p.x <= epsilon &&
+           -epsilon <= p.y && p.y <= epsilon &&
+           -epsilon <= p.z && p.z <= epsilon &&
+           -epsilon <= p.w && p.w <= epsilon);
+}
+
+static b32
+near_zero(f32 p){ return(near_zero(p, epsilon_f32)); }
+static b32
+near_zero(Vec2_f32 p){ return(near_zero(p, epsilon_f32)); }
+static b32
+near_zero(Vec3_f32 p){ return(near_zero(p, epsilon_f32)); }
+static b32
+near_zero(Vec4_f32 p){ return(near_zero(p, epsilon_f32)); }
+
+////////////////////////////////
+
+static b32
 operator==(Rect_i32 a, Rect_i32 b){
     return(a.p0 == b.p0 && a.p1 == b.p1);
 }
@@ -1719,6 +1754,23 @@ range_overlap(Interval_f32 a, Interval_f32 b){
 }
 
 internal b32
+range_contains_inclusive(Interval_i32 a, i32 p){
+    return(a.min <= p && p <= a.max);
+}
+internal b32
+range_contains_inclusive(Interval_i64 a, i64 p){
+    return(a.min <= p && p <= a.max);
+}
+internal b32
+range_contains_inclusive(Interval_u64 a, u64 p){
+    return(a.min <= p && p <= a.max);
+}
+internal b32
+range_inclusive_contains(Interval_f32 a, f32 p){
+    return(a.min <= p && p <= a.max);
+}
+
+internal b32
 range_contains(Interval_i32 a, i32 p){
     return(a.min <= p && p < a.max);
 }
@@ -1756,6 +1808,31 @@ range_size(Interval_u64 a){
 internal f32
 range_size(Interval_f32 a){
     f32 size = a.max - a.min;
+    size = clamp_bot(0, size);
+    return(size);
+}
+
+internal i32
+range_size_inclusive(Interval_i32 a){
+    i32 size = a.max - a.min + 1;
+    size = clamp_bot(0, size);
+    return(size);
+}
+internal i64
+range_size_inclusive(Interval_i64 a){
+    i64 size = a.max - a.min + 1;
+    size = clamp_bot(0, size);
+    return(size);
+}
+internal u64
+range_size_inclusive(Interval_u64 a){
+    u64 size = a.max - a.min + 1;
+    size = clamp_bot(0, size);
+    return(size);
+}
+internal f32
+range_size_inclusive(Interval_f32 a){
+    f32 size = a.max - a.min + 1;
     size = clamp_bot(0, size);
     return(size);
 }
@@ -1892,39 +1969,39 @@ range_distance(Interval_f32 a, Interval_f32 b){
 ////////////////////////////////
 
 internal i32
-replace_range_compute_shift(i32 replace_length, i32 insert_length){
+replace_range_shift(i32 replace_length, i32 insert_length){
     return(insert_length - replace_length);
 }
 internal i32
-replace_range_compute_shift(i32 start, i32 end, i32 insert_length){
+replace_range_shift(i32 start, i32 end, i32 insert_length){
     return(insert_length - (end - start));
 }
 internal i32
-replace_range_compute_shift(Interval_i32 range, i32 insert_length){
+replace_range_shift(Interval_i32 range, i32 insert_length){
     return(insert_length - (range.end - range.start));
 }
 internal i64
-replace_range_compute_shift(i64 replace_length, i64 insert_length){
+replace_range_shift(i64 replace_length, i64 insert_length){
     return(insert_length - replace_length);
 }
 internal i64
-replace_range_compute_shift(i64 start, i64 end, i64 insert_length){
+replace_range_shift(i64 start, i64 end, i64 insert_length){
     return(insert_length - (end - start));
 }
 internal i64
-replace_range_compute_shift(Interval_i64 range, i64 insert_length){
+replace_range_shift(Interval_i64 range, i64 insert_length){
     return(insert_length - (range.end - range.start));
 }
 internal i64
-replace_range_compute_shift(u64 replace_length, u64 insert_length){
+replace_range_shift(u64 replace_length, u64 insert_length){
     return((i64)insert_length - replace_length);
 }
 internal i64
-replace_range_compute_shift(i64 start, i64 end, u64 insert_length){
+replace_range_shift(i64 start, i64 end, u64 insert_length){
     return((i64)insert_length - (end - start));
 }
 internal i64
-replace_range_compute_shift(Interval_i64 range, u64 insert_length){
+replace_range_shift(Interval_i64 range, u64 insert_length){
     return((i64)insert_length - (range.end - range.start));
 }
 
@@ -1991,6 +2068,9 @@ Rf32_xy_wh(Vec2_f32 p0, Vec2_f32 d){
 #define i32R_xy_wh
 #define f32R_xy_wh
 
+global_const Rect_f32 Rf32_infinity          = {-max_f32, -max_f32,  max_f32,  max_f32};
+global_const Rect_f32 Rf32_negative_infinity = { max_f32,  max_f32, -max_f32, -max_f32};
+
 internal b32
 rect_equals(Rect_i32 a, Rect_i32 b){
     return(a.x0 == b.x0 && a.y0 == b.y0 && a.x1 == b.x1 && a.y1 == b.y1);
@@ -2053,6 +2133,15 @@ rect_height(Rect_f32 r){
     return(r.y1 - r.y0);
 }
 
+internal Vec2_i32
+rect_center(Rect_i32 r){
+    return((r.p0 + r.p1)/2);
+}
+internal Vec2_f32
+rect_center(Rect_f32 r){
+    return((r.p0 + r.p1)*0.5f);
+}
+
 internal Interval_i32
 rect_range_x(Rect_i32 r){
     return(Ii32(r.x0, r.x1));
@@ -2082,15 +2171,13 @@ rect_overlap(Rect_f32 a, Rect_f32 b){
 }
 
 internal Vec2_i32
-rect_center(Rect_i32 r){
+rect_half_dim(Rect_i32 r){
     return(rect_dim(r)/2);
 }
 internal Vec2_f32
-rect_center(Rect_f32 r){
-    return(rect_dim(r)/2);
+rect_half_dim(Rect_f32 r){
+    return(rect_dim(r)*0.5f);
 }
-
-#define center_of rect_center
 
 internal Rect_i32
 rect_intersect(Rect_i32 a, Rect_i32 b){
@@ -2221,7 +2308,9 @@ base_allocate(Base_Allocator *allocator, umem size){
 }
 static void
 base_free(Base_Allocator *allocator, void *ptr){
-    allocator->free(allocator->user_data, ptr);
+    if (ptr != 0){
+        allocator->free(allocator->user_data, ptr);
+    }
 }
 
 ////////////////////////////////
@@ -5353,6 +5442,59 @@ string_wildcard_match(List_String_Const_u8 list, String_Const_u8 string){
 static b32
 string_wildcard_match_insensitive(List_String_Const_u8 list, String_Const_u8 string){
     return(string_wildcard_match(list, string, StringMatch_CaseInsensitive));
+}
+
+static void
+string_list_reverse(List_String_Const_char *list){
+    Node_String_Const_char *first = 0;
+    Node_String_Const_char *last = list->first;
+    for (Node_String_Const_char *node = list->first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        sll_stack_push(first, node);
+    }
+    list->first = first;
+    list->last = last;
+}
+static void
+string_list_reverse(List_String_Const_u8 *list){
+    Node_String_Const_u8 *first = 0;
+    Node_String_Const_u8 *last = list->first;
+    for (Node_String_Const_u8 *node = list->first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        sll_stack_push(first, node);
+    }
+    list->first = first;
+    list->last = last;
+}
+static void
+string_list_reverse(List_String_Const_u16 *list){
+    Node_String_Const_u16 *first = 0;
+    Node_String_Const_u16 *last = list->first;
+    for (Node_String_Const_u16 *node = list->first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        sll_stack_push(first, node);
+    }
+    list->first = first;
+    list->last = last;
+}
+static void
+string_list_reverse(List_String_Const_u32 *list){
+    Node_String_Const_u32 *first = 0;
+    Node_String_Const_u32 *last = list->first;
+    for (Node_String_Const_u32 *node = list->first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        sll_stack_push(first, node);
+    }
+    list->first = first;
+    list->last = last;
 }
 
 ////////////////////////////////

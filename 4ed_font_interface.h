@@ -40,6 +40,7 @@ struct Codepoint_Index_Map{
 struct Face{
     Face_Description description;
     Face_ID id;
+    i32 version_number;
     
     // NOTE(allen): Metrics
     f32 height;

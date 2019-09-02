@@ -250,17 +250,9 @@ history_record_edit(Heap *heap, Global_History *global_history, History *history
         
         new_record->kind = RecordKind_Single;
         
-        i32 length_forward = edit.length;
-        i32 length_backward = edit.range.one_past_last - edit.range.first;
-        
-        new_record->single.str_forward  = push_array(&history->arena, char, length_forward);
-        new_record->single.str_backward = push_array(&history->arena, char, length_backward);
-        new_record->single.length_forward  = length_forward;
-        new_record->single.length_backward = length_backward;
+        new_record->single.forward_text = push_string_copy(&history->arena, edit.text);
+        new_record->single.backward_text = buffer_stringify(&history->arena, buffer, edit.range);
         new_record->single.first = edit.range.first;
-        
-        block_copy(new_record->single.str_forward, edit.str, length_forward);
-        buffer_stringify_range(buffer, edit.range, new_record->single.str_backward);
         
         Assert(history->record_lookup.count == history->record_count);
     }
@@ -313,29 +305,29 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
             b32 do_merge = false;
             
             Temp_Memory temp = begin_temp(scratch);
-            i32 new_length_forward  = left->single.length_forward  + right->single.length_forward ;
-            i32 new_length_backward = left->single.length_backward + right->single.length_backward;
+            i64 new_length_forward  = left->single.forward_text.size  + right->single.forward_text.size ;
+            i64 new_length_backward = left->single.backward_text.size + right->single.backward_text.size;
             
-            char *temp_str_forward  = 0;
-            char *temp_str_backward = 0;
+            String_Const_u8 merged_forward = {};
+            String_Const_u8 merged_backward = {};
             
-            if (left->single.first + left->single.length_forward == right->single.first){
+            if (left->single.first + (i64)left->single.forward_text.size == right->single.first){
                 do_merge = true;
-                temp_str_forward  = push_array(scratch, char, new_length_forward );
-                temp_str_backward = push_array(scratch, char, new_length_backward);
-                block_copy(temp_str_forward                              , left->single.str_forward , left->single.length_forward );
-                block_copy(temp_str_forward + left->single.length_forward, right->single.str_forward, right->single.length_forward);
-                block_copy(temp_str_backward                               , left->single.str_backward , left->single.length_backward );
-                block_copy(temp_str_backward + left->single.length_backward, right->single.str_backward, right->single.length_backward);
+                merged_forward = push_u8_stringf(scratch, "%.*s%.*s",
+                                                 string_expand(left->single.forward_text),
+                                                 string_expand(right->single.forward_text));
+                merged_backward = push_u8_stringf(scratch, "%.*s%.*s",
+                                                  string_expand(left->single.backward_text),
+                                                  string_expand(right->single.backward_text));
             }
-            else if (right->single.first + right->single.length_backward == left->single.first){
+            else if (right->single.first + (i64)right->single.backward_text.size == left->single.first){
                 do_merge = true;
-                temp_str_forward  = push_array(scratch, char, new_length_forward );
-                temp_str_backward = push_array(scratch, char, new_length_backward);
-                block_copy(temp_str_forward                               , right->single.str_forward, right->single.length_forward);
-                block_copy(temp_str_forward + right->single.length_forward, left->single.str_forward , left->single.length_forward );
-                block_copy(temp_str_backward                                , right->single.str_backward, right->single.length_backward);
-                block_copy(temp_str_backward + right->single.length_backward, left->single.str_backward , left->single.length_backward );
+                merged_forward = push_u8_stringf(scratch, "%.*s%.*s",
+                                                 string_expand(right->single.forward_text),
+                                                 string_expand(left->single.forward_text));
+                merged_backward = push_u8_stringf(scratch, "%.*s%.*s",
+                                                  string_expand(right->single.backward_text),
+                                                  string_expand(left->single.backward_text));
             }
             else{
                 break;
@@ -344,17 +336,9 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
             if (do_merge){
                 end_temp(left->restore_point);
                 
-                char *new_str_forward  = push_array(&history->arena, char, new_length_forward );
-                char *new_str_backward = push_array(&history->arena, char, new_length_backward);
-                
-                block_copy(new_str_forward , temp_str_forward , new_length_forward );
-                block_copy(new_str_backward, temp_str_backward, new_length_backward);
-                
                 left->edit_number = right->edit_number;
-                left->single.str_forward  = new_str_forward ;
-                left->single.str_backward = new_str_backward;
-                left->single.length_forward  = new_length_forward ;
-                left->single.length_backward = new_length_backward;
+                left->single.forward_text  = push_string_copy(&history->arena, merged_forward);
+                left->single.backward_text = push_string_copy(&history->arena, merged_backward);
                 
                 history__free_single_node(history, &right->node);
                 record->group.count -= 1;

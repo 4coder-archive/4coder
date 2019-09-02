@@ -13,7 +13,7 @@ CUSTOM_COMMAND_SIG(set_bindings_choose);
 CUSTOM_COMMAND_SIG(set_bindings_default);
 CUSTOM_COMMAND_SIG(set_bindings_mac_default);
 
-static Named_Mapping named_maps_values[] = {
+global Named_Mapping named_maps_values[] = {
     {string_u8_litexpr("mac-default")    , set_bindings_mac_default    },
     {string_u8_litexpr("choose")         , set_bindings_choose         },
     {string_u8_litexpr("default")        , set_bindings_default        },
@@ -119,7 +119,7 @@ struct Highlight_Record{
     int_color color;
 };
 
-static void
+internal void
 sort_highlight_record(Highlight_Record *records, i32 first, i32 one_past_last){
     if (first + 1 < one_past_last){
         i32 pivot_index = one_past_last - 1;
@@ -140,7 +140,7 @@ sort_highlight_record(Highlight_Record *records, i32 first, i32 one_past_last){
     }
 }
 
-static Range_i64_Array
+internal Range_i64_Array
 get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, u32 flags){
     Range_i64_Array array = {};
     i32 max = 100;
@@ -168,7 +168,7 @@ enum{
     RangeHighlightKind_CharacterHighlight,
 };
 
-static void
+internal void
 draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer,
                 i64 pos, u32 flags, Range_Highlight_Kind kind,
                 int_color *back_colors, int_color *fore_colors, i32 color_count){
@@ -327,27 +327,7 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     return(sub_region);
 }
 
-static Buffer_Point
-buffer_position_from_scroll_position(Application_Links *app, View_ID view_id, Vec2 scroll){
-    Full_Cursor cursor = view_compute_cursor(app, view_id, seek_wrapped_xy(0.f, scroll.y, false));
-    cursor = view_compute_cursor(app, view_id, seek_line_char(cursor.line, 1));
-    Buffer_Point result = {};
-    result.line_number = cursor.line;
-    result.pixel_shift.x = scroll.x;
-    result.pixel_shift.y = scroll.y - cursor.wrapped_y;
-    return(result);
-}
-
-static i64
-abs_position_from_buffer_point(Application_Links *app, View_ID view_id, Buffer_Point buffer_point){
-    Full_Cursor cursor = view_compute_cursor(app, view_id, seek_line_char(buffer_point.line_number, 0));
-    Buffer_Seek seek = seek_wrapped_xy(buffer_point.pixel_shift.x,
-                                       buffer_point.pixel_shift.y + cursor.wrapped_y, false);
-    cursor = view_compute_cursor(app, view_id, seek);
-    return(cursor.pos);
-}
-
-static void
+internal void
 default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id, Rect_f32 view_inner_rect){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     
@@ -362,11 +342,10 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                                 V2(view_inner_rect.p0 + sub_region.p1));
     buffer_rect = rect_intersect(buffer_rect, view_inner_rect);
     
-    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view_id);
-    
-    Buffer_Point buffer_point = buffer_position_from_scroll_position(app, view_id, scroll.scroll_p);
-    Text_Layout_ID text_layout_id = compute_render_layout(app, view_id, buffer, buffer_rect.p0, rect_dim(buffer_rect), buffer_point, max_i32);
-    Range_i64 on_screen_range = text_layout_get_on_screen_range(app, text_layout_id);
+    Buffer_Scroll scroll = view_get_buffer_scroll(app, view_id);
+    Buffer_Point buffer_point = scroll.position;
+    Text_Layout_ID text_layout_id = text_layout_create(app, buffer, buffer_rect, buffer_point);
+    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
     
     View_ID active_view = get_active_view(app, AccessAll);
     b32 is_active_view = (active_view == view_id);
@@ -376,7 +355,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     // NOTE(allen): Scan for TODOs and NOTEs
     {
         Temp_Memory temp = begin_temp(scratch);
-        String_Const_u8 tail = push_buffer_range(app, scratch, buffer, on_screen_range);
+        String_Const_u8 tail = push_buffer_range(app, scratch, buffer, visible_range);
         
         Highlight_Record *record_first = 0;
         Highlight_Record *record_last = 0;
@@ -388,7 +367,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
                 sll_queue_push(record_first, record_last, record);
                 record_count += 1;
-                record->range.first = on_screen_range.first + index;
+                record->range.first = visible_range.first + index;
                 record->range.one_past_last = record->range.first + 4;
                 record->color = Stag_Text_Cycle_2;
                 tail = string_skip(tail, 3);
@@ -398,7 +377,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
                 sll_queue_push(record_first, record_last, record);
                 record_count += 1;
-                record->range.first = on_screen_range.first + index;
+                record->range.first = visible_range.first + index;
                 record->range.one_past_last = record->range.first + 4;
                 record->color = Stag_Text_Cycle_1;
                 tail = string_skip(tail, 3);
@@ -537,7 +516,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     draw_clip_push(app, buffer_rect);
-    draw_render_layout(app, view_id);
+    draw_text_layout(app, text_layout_id);
     text_layout_free(app, text_layout_id);
     draw_clip_pop(app);
     
@@ -622,12 +601,12 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         Temp_Memory temp = begin_temp(scratch);
         
         i64 cursor_position = view_get_cursor_pos(app, view_id);
-        Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
+        Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
         
         Fancy_String_List list = {};
         String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
         push_fancy_string(scratch, &list, base_color, unique_name);
-        push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.character);
+        push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.col);
         
         b32 is_dos_mode = false;
         if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
@@ -715,18 +694,16 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
         
-        Full_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(on_screen_range.first));
-        GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view_id);
-        for (;cursor.pos <= on_screen_range.one_past_last;){
-            Vec2 p = panel_space_from_view_space(cursor.wrapped_p, scroll_vars.scroll_p);
-            p.y += left_margin.y0;
-            p.x = left_margin.x0;
+        Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(visible_range.first));
+        for (;cursor.pos <= visible_range.one_past_last;){
+            Rect_f32 line_rect = text_layout_line_on_screen(app, text_layout_id, cursor.line);
+            Vec2_f32 p = V2f32(left_margin.x1, line_rect.y0);
             Temp_Memory temp = begin_temp(scratch);
             Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, cursor.line);
             draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
             end_temp(temp);
             i64 next_line = cursor.line + 1;
-            cursor = view_compute_cursor(app, view_id, seek_line_char(next_line, 1));
+            cursor = view_compute_cursor(app, view_id, seek_line_col(next_line, 1));
             if (cursor.line < next_line){
                 break;
             }
@@ -736,12 +713,12 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
 }
 
-static void
+internal void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32, Face_ID face_id){
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
-        GUI_Scroll_Vars ui_scroll = view_get_scroll_vars(app, view_id);
+        Basic_Scroll scroll = view_get_basic_scroll(app, view_id);
         
         for (UI_Item *item = ui_data->list.first;
              item != 0;
@@ -751,8 +728,8 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
             switch (item->coordinates){
                 case UICoordinates_ViewSpace:
                 {
-                    item_rect.p0 -= ui_scroll.scroll_p;
-                    item_rect.p1 -= ui_scroll.scroll_p;
+                    item_rect.p0 -= scroll.position;
+                    item_rect.p1 -= scroll.position;
                 }break;
                 case UICoordinates_PanelSpace:
                 {}break;
@@ -778,20 +755,20 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
         }
     }
 }
-static void
+internal void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     default_ui_render_caller(app, view_id, rect_f32, face_id);
 }
-static void
+internal void
 default_ui_render_caller(Application_Links *app, View_ID view_id, Face_ID face_id){
     Rect_f32 rect = view_get_screen_rect(app, view_id);
     rect.p1 -= rect.p0;
     rect.p0 = V2(0.f,0.f);
     default_ui_render_caller(app, view_id, rect, face_id);
 }
-static void
+internal void
 default_ui_render_caller(Application_Links *app, View_ID view){
     Rect_f32 rect = view_get_screen_rect(app, view);
     rect.p1 -= rect.p0;
@@ -801,7 +778,7 @@ default_ui_render_caller(Application_Links *app, View_ID view){
     default_ui_render_caller(app, view, rect, face_id);
 }
 
-static void
+internal void
 default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view, b32 is_active){
     Rect_f32 view_rect = view_get_screen_rect(app, view);
     Rect_f32 inner = rect_inner(view_rect, 3);
@@ -1244,57 +1221,54 @@ INPUT_FILTER_SIG(default_suppress_mouse_filter){
 // 4coder scrolling behavior.
 //
 
-Vec2 scroll_velocity_[16] = {};
-Vec2 *scroll_velocity = scroll_velocity_ - 1;
+Vec2_f32 scroll_velocity_[16] = {};
+Vec2_f32 *scroll_velocity = scroll_velocity_ - 1;
 
-static i32
-smooth_camera_step(f32 target, f32 *current, f32 *vel, f32 S, f32 T){
-    i32 result = 0;
-    f32 curr = *current;
-    f32 v = *vel;
-    if (curr != target){
-        if (curr > target - .1f && curr < target + .1f){
-            curr = target;
-            v = 1.f;
+struct Smooth_Step{
+    f32 p;
+    f32 v;
+};
+
+internal Smooth_Step
+smooth_camera_step(f32 target, f32 v, f32 S, f32 T){
+    Smooth_Step step = {};
+    step.v = v;
+    if (step.p != target){
+        if (step.p > target - .1f && step.p < target + .1f){
+            step.p = target;
+            step.v = 1.f;
         }
         else{
-            f32 L = curr + T*(target - curr);
-            
-            i32 sign = (target > curr) - (target < curr);
-            f32 V = curr + sign*v;
-            
-            if (sign > 0) curr = (L<V)?(L):(V);
-            else curr = (L>V)?(L):(V);
-            
-            if (curr == V){
-                v *= S;
+            f32 L = step.p + T*(target - step.p);
+            i32 sign = (target > step.p) - (target < step.p);
+            f32 V = step.p + sign*step.v;
+            if (sign > 0){
+                step.p = (L<V)?(L):(V);
+            }
+            else{
+                step.p = (L>V)?(L):(V);
+            }
+            if (step.p == V){
+                step.v *= S;
             }
         }
-        
-        *current = curr;
-        *vel = v;
-        result = 1;
     }
-    return(result);
+    return(step);
 }
 
-SCROLL_RULE_SIG(smooth_scroll_rule){
-    Vec2 *velocity = scroll_velocity + view_id;
-    i32 result = 0;
+DELTA_RULE_SIG(smooth_scroll_rule){
+    Vec2_f32 *velocity = scroll_velocity + view_id;
     if (velocity->x == 0.f){
         velocity->x = 1.f;
         velocity->y = 1.f;
     }
-    if (smooth_camera_step(target_y, scroll_y, &velocity->y, 80.f, 1.f/2.f)){
-        result = 1;
-    }
-    if (smooth_camera_step(target_x, scroll_x, &velocity->x, 80.f, 1.f/2.f)){
-        result = 1;
-    }
-    return(result);
+    Smooth_Step step_x = smooth_camera_step(pending_delta.x, velocity->x, 80.f, 1.f/2.f);
+    Smooth_Step step_y = smooth_camera_step(pending_delta.y, velocity->y, 80.f, 1.f/2.f);
+    *velocity = V2f32(step_x.v, step_y.v);
+    return(V2f32(step_x.p, step_y.p));
 }
 
-static void
+internal void
 set_all_default_hooks(Bind_Helper *context){
     set_hook(context, hook_exit, default_exit);
     set_hook(context, hook_buffer_viewer_update, default_view_adjust);

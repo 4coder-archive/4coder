@@ -246,7 +246,7 @@ set_view_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Buf
 static void
 jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Name_Line_Column_Location location){
     view_set_active(app, view);
-    set_view_to_location(app, view, buffer, seek_line_char(location.line, location.column));
+    set_view_to_location(app, view, buffer, seek_line_col(location.line, location.column));
     if (auto_center_after_jumps){
         center_view(app);
     }
@@ -305,7 +305,7 @@ convert_name_based_to_id_based(Application_Links *app, Name_Line_Column_Location
 static Parsed_Jump
 seek_next_jump_in_view(Application_Links *app, Arena *arena, View_ID view, i32 skip_sub_errors, Scan_Direction direction, i64 *line_out){
     i64 cursor_position = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_position));
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(cursor_position));
     i64 line = cursor.line;
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Parsed_Jump jump = seek_next_jump_in_buffer(app, arena, buffer, line + direction, skip_sub_errors, direction, &line);

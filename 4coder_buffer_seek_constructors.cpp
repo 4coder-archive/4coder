@@ -13,49 +13,11 @@ seek_pos(i64 pos){
 }
 
 static Buffer_Seek
-seek_character_pos(i64 pos){
+seek_line_col(i64 line, i64 col){
     Buffer_Seek result;
-    result.type = buffer_seek_character_pos;
-    result.pos = pos;
-    return(result);
-}
-
-static Buffer_Seek
-seek_wrapped_xy(f32 x, f32 y, b32 round_down){
-    Buffer_Seek result;
-    result.type = buffer_seek_wrapped_xy;
-    result.x = x;
-    result.y = y;
-    result.round_down = round_down;
-    return(result);
-}
-
-static Buffer_Seek
-seek_unwrapped_xy(f32 x, f32 y, b32 round_down){
-    Buffer_Seek result;
-    result.type = buffer_seek_unwrapped_xy;
-    result.x = x;
-    result.y = y;
-    result.round_down = round_down;
-    return(result);
-}
-
-static Buffer_Seek
-seek_xy(f32 x, f32 y, b32 round_down, b32 unwrapped){
-    Buffer_Seek result;
-    result.type = unwrapped?buffer_seek_unwrapped_xy:buffer_seek_wrapped_xy;
-    result.x = x;
-    result.y = y;
-    result.round_down = round_down;
-    return(result);
-}
-
-static Buffer_Seek
-seek_line_char(i64 line, i64 character){
-    Buffer_Seek result;
-    result.type = buffer_seek_line_char;
+    result.type = buffer_seek_line_col;
     result.line = line;
-    result.character = character;
+    result.col = col;
     return(result);
 }
 

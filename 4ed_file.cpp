@@ -17,14 +17,13 @@ string_from_file_name(Editing_File_Name *name){
 ////////////////////////////////
 
 internal void
-file_edit_positions_set_cursor(File_Edit_Positions *edit_pos, i32 pos){
+file_edit_positions_set_cursor(File_Edit_Positions *edit_pos, i64 pos){
     edit_pos->cursor_pos = pos;
     edit_pos->last_set_type = EditPos_CursorSet;
 }
 
 internal void
-file_edit_positions_set_scroll(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll, i32 max_y){
-    scroll.target_y = clamp(0, scroll.target_y, max_y);
+file_edit_positions_set_scroll(File_Edit_Positions *edit_pos, Buffer_Scroll scroll){
     edit_pos->scroll = scroll;
     edit_pos->last_set_type = EditPos_ScrollSet;
 }
@@ -152,35 +151,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         Gap_Buffer *buffer = &file->state.buffer;
         b32 dos_write_mode = file->settings.dos_write_mode;
         
-        i32 max = 0;
-        if (dos_write_mode){
-            max = buffer_size(buffer) + buffer->line_count + 1;
-        }
-        else{
-            max = buffer_size(buffer);
-        }
-        
         Arena *scratch = &mem->arena;
-        Temp_Memory temp = begin_temp(scratch);
-        char empty = 0;
-        char *data = 0;
-        if (max == 0){
-            data = &empty;
-        }
-        else{
-            data = (char*)push_array(scratch, char, max);
-        }
-        Assert(data != 0);
-        
-        i32 size = 0;
-        if (dos_write_mode){
-            size = buffer_convert_out(buffer, data, max);
-        }
-        else{
-            size = max;
-            buffer_stringify(buffer, 0, size, data);
-        }
-        
         if (!using_actual_file_name){
             String_Const_u8 s_file_name = SCu8(file_name);
             String_Const_u8 canonical_file_name = system->get_canonical(scratch, s_file_name);
@@ -189,7 +160,10 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             }
         }
         
-        File_Attributes new_attributes = system->save_file(scratch, (char*)file_name, data, size);
+        Temp_Memory temp = begin_temp(scratch);
+        String_Const_u8 saveable_string = buffer_stringify(scratch, buffer, Ii64(0, buffer_size(buffer)));
+        
+        File_Attributes new_attributes = system->save_file(scratch, (char*)file_name, saveable_string);
         if (new_attributes.last_write_time > 0){
             if (using_actual_file_name){
                 file->state.ignore_behind_os = 1;
@@ -208,233 +182,42 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
 
 internal b32
 save_file(System_Functions *system, Models *models, Editing_File *file){
-    b32 result = save_file_to_name(system, models, file, 0);
-    return(result);
+    return(save_file_to_name(system, models, file, 0));
 }
 
 ////////////////////////////////
 
-internal Partial_Cursor
-file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek){
-    Partial_Cursor result = {};
+internal Buffer_Cursor
+file_compute_cursor(Editing_File *file, Buffer_Seek seek){
+    Buffer_Cursor result = {};
     switch (seek.type){
         case buffer_seek_pos:
         {
-            result = buffer_partial_from_pos(&file->state.buffer, (i32)seek.pos);
+            result = buffer_cursor_from_pos(&file->state.buffer, seek.pos);
         }break;
-        case buffer_seek_line_char:
+        case buffer_seek_line_col:
         {
-            result = buffer_partial_from_line_character(&file->state.buffer, (i32)seek.line, (i32)seek.character);
+            result = buffer_cursor_from_line_col(&file->state.buffer, seek.line, seek.col);
         }break;
-        // TODO(allen): do(support buffer_seek_character_pos and character_pos coordiantes in partial cursor system)
     }
     return(result);
 }
 
-internal Full_Cursor
-file_compute_cursor__inner(Models *models, Editing_File *file, Buffer_Seek seek, b32 return_hint){
+////////////////////////////////
+
+internal void
+file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
     System_Functions *system = models->system;
-    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-    Assert(face != 0);
-    
-    Full_Cursor result = {};
-    
-    Buffer_Cursor_Seek_Params params;
-    params.buffer           = &file->state.buffer;
-    params.seek             = seek;
-    params.system           = system;
-    params.face             = face;
-    params.wrap_line_index  = file->state.wrap_line_index;
-    params.character_starts = file->state.character_starts;
-    params.virtual_white    = file->settings.virtual_white;
-    params.return_hint      = return_hint;
-    params.cursor_out       = &result;
-    
-    Buffer_Cursor_Seek_State state = {};
-    Buffer_Layout_Stop stop = {};
-    
-    i32 size = buffer_size(params.buffer);
-    
-    f32 line_shift = 0.f;
-    b32 do_wrap = false;
-    i32 wrap_unit_end = 0;
-    
-    b32 first_wrap_determination = true;
-    i32 wrap_array_index = 0;
-    
-    do{
-        stop = buffer_cursor_seek(&state, params, line_shift, do_wrap, wrap_unit_end);
-        switch (stop.status){
-            case BLStatus_NeedWrapDetermination:
-            {
-                if (stop.pos >= size){
-                    do_wrap = false;
-                    wrap_unit_end = max_i32;
-                }
-                else{
-                    if (first_wrap_determination){
-                        wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
-                        ++wrap_array_index;
-                        if (file->state.wrap_positions[wrap_array_index] == stop.pos){
-                            do_wrap = true;
-                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                        }
-                        else{
-                            do_wrap = false;
-                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                        }
-                        first_wrap_determination = false;
-                    }
-                    else{
-                        Assert(stop.pos == wrap_unit_end);
-                        do_wrap = true;
-                        ++wrap_array_index;
-                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                    }
-                }
-            }break;
-            
-            case BLStatus_NeedWrapLineShift:
-            case BLStatus_NeedLineShift:
-            {
-                line_shift = file->state.line_indents[stop.wrap_line_index];
-            }break;
-        }
-    }while(stop.status != BLStatus_Finished);
-    
-    return(result);
-}
-
-internal Full_Cursor
-file_compute_cursor(Models *models, Editing_File *file, Buffer_Seek seek){
-    return(file_compute_cursor__inner(models, file, seek, false));
-}
-
-internal Full_Cursor
-file_compute_cursor_hint(Models *models, Editing_File *file, Buffer_Seek seek){
-    return(file_compute_cursor__inner(models, file, seek, true));
-}
-
-////////////////////////////////
-
-internal i32
-file_grow_starts_as_needed(Heap *heap, Gap_Buffer *buffer, i32 additional_lines){
-    b32 result = GROW_NOT_NEEDED;
-    i32 max = buffer->line_max;
-    i32 count = buffer->line_count;
-    i32 target_lines = count + additional_lines;
-    if (target_lines > max || max == 0){
-        max = round_up_i32(target_lines + max, KB(1));
-        i32 *new_lines = heap_array(heap, i32, max);
-        if (new_lines != 0){
-            result = GROW_SUCCESS;
-            memcpy(new_lines, buffer->line_starts, sizeof(*new_lines)*count);
-            heap_free(heap, buffer->line_starts);
-            buffer->line_starts = new_lines;
-            buffer->line_max = max;
-        }
-        else{
-            result = GROW_FAILED;
-        }
-    }
-    return(result);
-}
-
-internal void
-file_measure_starts(Heap *heap, Gap_Buffer *buffer){
-    if (buffer->line_starts == 0){
-        i32 max = buffer->line_max = KB(1);
-        buffer->line_starts = heap_array(heap, i32, max);
-        Assert(buffer->line_starts != 0);
-    }
-    
-    Buffer_Measure_Starts state = {};
-    for (;buffer_measure_starts(&state, buffer);){
-        i32 count = state.count;
-        i32 max = ((buffer->line_max + 1) << 1);
-        i32 *new_lines = heap_array(heap, i32, max);
-        Assert(new_lines != 0);
-        memcpy(new_lines, buffer->line_starts, sizeof(*new_lines)*count);
-        heap_free(heap, buffer->line_starts);
-        buffer->line_starts = new_lines;
-        buffer->line_max = max;
-    }
-}
-
-internal void
-file_allocate_metadata_as_needed(Heap *heap, Gap_Buffer *buffer, void **mem, i32 *mem_max_count, i32 count, i32 item_size){
-    if (*mem == 0){
-        i32 max = round_up_i32(((count + 1)*2), KB(1));
-        *mem = heap_allocate(heap, max*item_size);
-        *mem_max_count = max;
-        Assert(*mem != 0);
-    }
-    else if (*mem_max_count < count){
-        i32 old_max = *mem_max_count;
-        i32 max = round_up_i32(((count + 1)*2), KB(1));
-        void *new_mem = heap_allocate(heap, item_size*max);
-        memcpy(new_mem, *mem, item_size*old_max);
-        heap_free(heap, *mem);
-        *mem = new_mem;
-        *mem_max_count = max;
-        Assert(*mem != 0);
-    }
-}
-
-internal void
-file_allocate_character_starts_as_needed(Heap *heap, Editing_File *file){
-    file_allocate_metadata_as_needed(heap,
-                                     &file->state.buffer, (void**)&file->state.character_starts,
-                                     &file->state.character_start_max, file->state.buffer.line_count + 1, sizeof(i32));
-}
-
-internal void
-file_allocate_indents_as_needed(Heap *heap, Editing_File *file, i32 min_last_index){
-    i32 min_amount = min_last_index + 1;
-    file_allocate_metadata_as_needed(heap,
-                                     &file->state.buffer, (void**)&file->state.line_indents,
-                                     &file->state.line_indent_max, min_amount, sizeof(f32));
-}
-
-internal void
-file_allocate_wraps_as_needed(Heap *heap, Editing_File *file){
-    file_allocate_metadata_as_needed(heap,
-                                     &file->state.buffer, (void**)&file->state.wrap_line_index,
-                                     &file->state.wrap_max, file->state.buffer.line_count + 1, sizeof(f32));
-}
-
-internal void
-file_allocate_wrap_positions_as_needed(Heap *heap, Editing_File *file, i32 min_last_index){
-    i32 min_amount = min_last_index + 1;
-    file_allocate_metadata_as_needed(heap,
-                                     &file->state.buffer, (void**)&file->state.wrap_positions,
-                                     &file->state.wrap_position_max, min_amount, sizeof(f32));
-}
-
-////////////////////////////////
-
-internal void
-file_create_from_string(System_Functions *system, Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
+    // TODO(allen): completely eliminate the heap,  then clean up the implementation or remove it too!
     Heap *heap = &models->mem.heap;
     Arena *scratch = &models->mem.arena;
     Application_Links *app_links = &models->app_links;
+    Base_Allocator *allocator = models->base_allocator;
     
     block_zero_struct(&file->state);
-    Gap_Buffer_Init init = buffer_begin_init(&file->state.buffer, val.str, val.size);
-    for (;buffer_init_need_more(&init);){
-        i32 page_size = buffer_init_page_size(&init);
-        page_size = round_up_i32(page_size, KB(4));
-        if (page_size < KB(4)){
-            page_size = KB(4);
-        }
-        void *data = heap_allocate(heap, page_size);
-        buffer_init_provide_page(&init, data, page_size);
-    }
+    buffer_init(&file->state.buffer, val.str, val.size, allocator);
     
-    b32 init_success = buffer_end_init(&init);
-    Assert(init_success);
-    
-    if (buffer_size(&file->state.buffer) < val.size){
+    if (buffer_size(&file->state.buffer) < (i64)val.size){
         file->settings.dos_write_mode = true;
     }
     file_clear_dirty_flags(file);
@@ -445,13 +228,7 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     Face *face = font_set_face_from_id(&models->font_set, font_id);
     Assert(face != 0);
     
-    file_measure_starts(heap, &file->state.buffer);
-    
-    file_allocate_character_starts_as_needed(heap, file);
-    buffer_measure_character_starts(system, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-    
-    file_measure_wraps(system, &models->mem, file, face);
-    //adjust_views_looking_at_files_to_new_cursor(system, models, file);
+    buffer_measure_starts(scratch, &file->state.buffer);
     
     file->lifetime_object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Buffer, file);
     history_init(&models->app_links, &file->state.history);
@@ -474,6 +251,9 @@ file_create_from_string(System_Functions *system, Models *models, Editing_File *
     else{
         file_mark_edit_finished(&models->working_set, file);
     }
+    
+    file->state.cached_layouts_arena = make_arena(allocator);
+    file->state.line_layout_table = make_table_Data_u64(allocator, 500);
     
     file->settings.is_initialized = true;
     
@@ -498,15 +278,14 @@ file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_all
     
     Gap_Buffer *buffer = &file->state.buffer;
     if (buffer->data){
-        heap_free(heap, buffer->data);
-        heap_free(heap, buffer->line_starts);
+        base_free(buffer->allocator, buffer->data);
+        base_free(buffer->allocator, buffer->line_starts);
     }
     
-    heap_free(heap, file->state.wrap_line_index);
-    heap_free(heap, file->state.character_starts);
-    heap_free(heap, file->state.line_indents);
-    
     history_free(heap, &file->state.history);
+    
+    linalloc_clear(&file->state.cached_layouts_arena);
+    table_free(&file->state.line_layout_table);
     
     file_unmark_edit_finished(working_set, file);
 }
@@ -531,6 +310,251 @@ file_get_managed_scope(Editing_File *file){
         scope = (Managed_Scope)file->lifetime_object->workspace.scope_id;
     }
     return(scope);
+}
+
+////////////////////////////////
+
+internal Buffer_Layout_Item_List
+file_get_line_layout(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_number){
+    Buffer_Layout_Item_List result = {};
+    
+    i64 line_count = buffer_line_count(&file->state.buffer);
+    if (1 <= line_number && line_number <= line_count){
+        // TODO(allen): optimization: most places that CALL this do so in a LOOP, which could HOIST
+        // this font_set_face_from_id call OUTSIDE of the LOOP.
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            Line_Layout_Key key = {};
+            key.face_id = face_id;
+            key.face_version_number = face->version_number;
+            key.width = width;
+            key.line_number = line_number;
+            
+            Data key_data = make_data_struct(&key);
+            
+            Buffer_Layout_Item_List *list = 0;
+            
+            Table_Lookup lookup = table_lookup(&file->state.line_layout_table, key_data);
+            if (lookup.found_match){
+                u64 val = 0;
+                table_read(&file->state.line_layout_table, lookup, &val);
+                list = (Buffer_Layout_Item_List*)IntAsPtr(val);
+            }
+            else{
+                list = push_array(&file->state.cached_layouts_arena, Buffer_Layout_Item_List, 1);
+                Interval_i64 line_range = buffer_get_pos_range_from_line_number(&file->state.buffer, line_number);
+                *list = buffer_layout(&models->mem.arena, &file->state.cached_layouts_arena,
+                                      &file->state.buffer, line_range, face, width);
+                key_data = push_data_copy(&file->state.cached_layouts_arena, key_data);
+                table_insert(&file->state.line_layout_table, key_data, (u64)PtrAsInt(list));
+            }
+            block_copy_struct(&result, list);
+        }
+    }
+    
+    return(result);
+}
+
+internal void
+file_clear_layout_cache(Editing_File *file){
+    linalloc_clear(&file->state.cached_layouts_arena);
+    table_clear(&file->state.line_layout_table);
+}
+
+internal Line_Shift_Vertical
+file_line_shift_y(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_number, f32 y_delta){
+    Line_Shift_Vertical result = {};
+    
+    f32 line_y = 0.f;
+    
+    if (y_delta < 0.f){
+        // NOTE(allen): Iterating upward
+        b32 has_result = false;
+        for (;;){
+            if (line_y <= y_delta){
+                has_result = true;
+                result.line = line_number;
+                result.y_delta = line_y;
+                break;
+            }
+            line_number -= 1;
+            if (line_number <= 0){
+                line_number = 1;
+                break;
+            }
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            line_y -= line.height;
+        }
+        if (!has_result){
+            result.line = line_number;
+            result.y_delta = line_y;
+        }
+    }
+    else{
+        // NOTE(allen): Iterating downward
+        b32 has_result = false;
+        i64 line_count = buffer_line_count(&file->state.buffer);
+        for (;;line_number += 1){
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            f32 next_y = line_y + line.height;
+            if (y_delta < next_y){
+                has_result = true;
+                result.line = line_number;
+                result.y_delta = line_y;
+                break;
+            }
+            if (line_number >= line_count){
+                break;
+            }
+            line_y = next_y;
+        }
+        if (!has_result){
+            result.line = line_number;
+            result.y_delta = line_y;
+        }
+    }
+    
+    return(result);
+}
+
+internal f32
+file_line_y_difference(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_a, i64 line_b){
+    f32 result = 0.f;
+    if (line_a != line_b){
+        Interval_i64 line_range = Ii64(line_a, line_b);
+        for (i64 i = line_range.min; i < line_range.max; i += 1){
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, i);
+            result += line.height;
+        }
+        if (line_a < line_b){
+            result *= -1.f;
+        }
+    }
+    return(result);
+}
+
+internal i64
+file_pos_at_relative_xy(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, Vec2_f32 relative_xy){
+    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face_id, base_line, relative_xy.y);
+    relative_xy.y -= shift.y_delta;
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, shift.line);
+    return(buffer_layout_nearest_pos_to_xy(line, relative_xy));
+}
+
+internal Vec2_f32
+file_relative_xy_of_pos(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, i64 pos){
+    i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+    Vec2_f32 result = buffer_layout_xy_center_of_pos(line, pos);
+    result.y += file_line_y_difference(models, file, width, face_id, line_number, base_line);
+    return(result);
+}
+
+internal Buffer_Point
+file_normalize_buffer_point(Models *models, Editing_File *file, f32 width, Face_ID face_id, Buffer_Point point){
+    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face_id, point.line_number, point.pixel_shift.y);
+    point.line_number = shift.line;
+    point.pixel_shift.y -= shift.y_delta;
+    point.pixel_shift.x = clamp_bot(0.f, point.pixel_shift.x);
+    point.pixel_shift.y = clamp_bot(0.f, point.pixel_shift.y);
+    return(point);
+}
+
+internal Vec2_f32
+file_buffer_point_difference(Models *models, Editing_File *file, f32 width, Face_ID face_id, Buffer_Point a, Buffer_Point b){
+    f32 y_difference = file_line_y_difference(models, file, width, face_id, a.line_number, b.line_number);
+    Vec2_f32 result = a.pixel_shift - b.pixel_shift;
+    result.y += y_difference;
+    return(result);
+}
+
+internal Line_Shift_Character
+file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_number, i64 character_delta){
+    Line_Shift_Character result = {};
+    
+    i64 line_character = 0;
+    
+    if (character_delta < 0){
+        // NOTE(allen): Iterating upward
+        b32 has_result = false;
+        for (;;){
+            if (line_character <= character_delta){
+                has_result = true;
+                result.line = line_number;
+                result.character_delta = line_character;
+                break;
+            }
+            line_number -= 1;
+            if (line_number <= 0){
+                line_number = 1;
+                break;
+            }
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            line_character -= line.character_count;
+        }
+        if (!has_result){
+            result.line = line_number;
+            result.character_delta = line_character;
+        }
+    }
+    else{
+        // NOTE(allen): Iterating downward
+        b32 has_result = false;
+        i64 line_count = buffer_line_count(&file->state.buffer);
+        for (;;line_number += 1){
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            i64 next_character = line_character + line.character_count;
+            if (character_delta < next_character){
+                has_result = true;
+                result.line = line_number;
+                result.character_delta = line_character;
+                break;
+            }
+            if (line_number >= line_count){
+                break;
+            }
+            line_character = next_character;
+        }
+        if (!has_result){
+            result.line = line_number;
+            result.character_delta = line_character;
+        }
+    }
+    
+    return(result);
+}
+
+internal i64
+file_line_character_difference(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_a, i64 line_b){
+    i64 result = 0;
+    if (line_a != line_b){
+        Interval_i64 line_range = Ii64(line_a, line_b);
+        for (i64 i = line_range.min; i < line_range.max; i += 1){
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, i);
+            result += line.character_count;
+        }
+        if (line_a < line_b){
+            result *= -1;
+        }
+    }
+    return(result);
+}
+
+internal i64
+file_pos_from_relative_character(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, i64 relative_character){
+    Line_Shift_Character shift = file_line_shift_characters(models, file, width, face_id, base_line, relative_character);
+    relative_character -= shift.character_delta;
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, shift.line);
+    return(buffer_layout_get_pos_at_character(line, relative_character));
+}
+
+internal i64
+file_relative_character_from_pos(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, i64 pos){
+    i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+    i64 result = buffer_layout_character_from_pos(line, pos);
+    result += file_line_character_difference(models, file, width, face_id, line_number, base_line);
+    return(result);
 }
 
 // BOTTOM

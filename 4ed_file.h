@@ -20,14 +20,14 @@ enum{
 };
 struct File_Edit_Positions{
     Edit_Pos_Set_Type last_set_type;
-    GUI_Scroll_Vars scroll;
+    Buffer_Scroll scroll;
     i64 cursor_pos;
 };
 
 // TODO(allen): do(replace Text_Effect with markers over time)
 struct Text_Effect{
-    i32 start;
-    i32 end;
+    i64 start;
+    i64 end;
     u32 color;
     f32 seconds_down;
     f32 seconds_max;
@@ -35,43 +35,31 @@ struct Text_Effect{
 
 struct Editing_File_Settings{
     i32 base_map_id;
-    i32 display_width;
-    i32 minimum_base_display_width;
-    i32 wrap_indicator;
     Parse_Context_ID parse_context_id;
     b32 dos_write_mode;
     Face_ID font_id;
-    b8 unwrapped_lines;
     b8 tokens_exist;
     b8 tokens_without_strings;
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;
     b8 never_kill;
-    b8 virtual_white;
+};
+
+struct Line_Layout_Key{
+    Face_ID face_id;
+    i32 face_version_number;
+    f32 width;
+    i64 line_number;
 };
 
 struct Editing_File_State{
     Gap_Buffer buffer;
     
-    i32 *wrap_line_index;
-    i32 wrap_max;
-    
-    i32 *character_starts;
-    i32 character_start_max;
-    
-    f32 *line_indents;
-    i32 line_indent_max;
-    
-    i32 wrap_line_count;
-    
-    i32 *wrap_positions;
-    i32 wrap_position_count;
-    i32 wrap_position_max;
-    
     History history;
     i32 current_record_index;
     
+    // TODO(allen): eliminate this too
     Cpp_Token_Array token_array;
     b32 in_edit_handler;
     
@@ -85,6 +73,9 @@ struct Editing_File_State{
     i32 edit_pos_stack_top;
     
     Child_Process_ID attached_child_process;
+    
+    Arena cached_layouts_arena;
+    Table_Data_u64 line_layout_table;
 };
 
 struct Editing_File_Name{
@@ -110,6 +101,11 @@ struct Editing_File{
     Editing_File_Name base_name;
     Editing_File_Name unique_name;
     Editing_File_Name canon;
+};
+
+struct Buffer_Point_Delta{
+    Buffer_Point new_point;
+    f32 y_shift;
 };
 
 #endif

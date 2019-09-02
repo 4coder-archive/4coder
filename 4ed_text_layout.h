@@ -12,33 +12,24 @@
 #if !defined(FRED_TEXT_LAYOUT_H)
 #define FRED_TEXT_LAYOUT_H
 
-struct Text_Layout{
-    // NOTE(allen): This is not a _real_ text layout yet.
-    // The eventual destiny of this type is that it will store the fairly
-    // costly to generate results of the text layout engine.
-    // For now, since the engine cannot be easily consolidated,
-    // this just stores the parameters that should be handed to any
-    // system that attempts to query the layout for hit testing.
-    View_ID view_id;
-    Buffer_ID buffer_id;
-    Buffer_Point point;
-    Range on_screen_range;
-    f32 height;
-    
-    Text_Layout_Coordinates coordinates;
-    int_color *item_colors;
-};
-
-union Text_Layout_Node{
-    Text_Layout_Node *next;
-    Text_Layout layout;
+union Text_Layout{
+    Text_Layout *next;
+    struct{
+        Arena arena;
+        Buffer_ID buffer_id;
+        Buffer_Point point;
+        Interval_i64 visible_range;
+        Interval_i64 visible_line_number_range;
+        Rect_f32 rect;
+        int_color *item_colors;
+    };
 };
 
 struct Text_Layout_Container{
     Arena node_arena;
-    Text_Layout_Node *free_nodes;
-    u32_Ptr_Table table;
-    u32 id_counter;
+    Text_Layout *free_nodes;
+    Table_u64_u64 table;
+    Text_Layout_ID id_counter;
 };
 
 #endif

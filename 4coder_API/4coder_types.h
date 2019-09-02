@@ -41,6 +41,16 @@ STRUCT Buffer_Point{
     Vec2 pixel_shift;
 };
 
+STRUCT Line_Shift_Vertical{
+    i64 line;
+    f32 y_delta;
+};
+
+STRUCT Line_Shift_Character{
+    i64 line;
+    i64 character_delta;
+};
+
 ENUM(u32, Child_Process_Set_Target_Flags){
     ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess = 1,
     ChildProcessSet_FailIfProcessAlreadyAttachedToABuffer = 2,
@@ -469,143 +479,56 @@ STRUCT Buffer_Identifier{
     Buffer_ID id;
 };
 
-/* DOC(Describes the various coordinate locations associated with the view's scroll position within it's buffer.) */
-STRUCT GUI_Scroll_Vars{
-    UNION{
-        STRUCT{
-            /* DOC(The current actual x position of the view scroll.) */
-            f32 scroll_x;
-            /* DOC(The current actual y position of the view scroll.) */
-            f32 scroll_y;
-        };
-        /* DOC(TODO) */
-        Vec2 scroll_p;
-    };
-    UNION{
-        STRUCT{
-            /* DOC(The target x position to which the view is moving.  If scroll_x is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
-            i32 target_x;
-            /* DOC(The target y position to which the view is moving.  If scroll_y is not the same value, then it is still sliding to the target by the smooth scroll rule.) */
-            i32 target_y;
-        };
-        /* DOC(TODO) */
-        Vec2_i32 target_p;
-    };
+STRUCT Buffer_Scroll{
+    Buffer_Point position;
+    Buffer_Point target;
 };
 
-/* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which coordinates are suppose to be used for the seek.)
-DOC_SEE(Buffer_Seek)
-DOC_SEE(4coder_Buffer_Positioning_System)
-*/
+STRUCT Basic_Scroll{
+    Vec2_f32 position;
+    Vec2_f32 target;
+};
+
 ENUM(i32, Buffer_Seek_Type){
-    /* DOC(This value indicates absolute byte index positioning
-    where positions are measured as the number of bytes from the start of the file.) */
     buffer_seek_pos,
-    /* DOC(This value indicates apparent character index positioning
-    where positions are measured as the number of apparent characters from the starts of the file.) */
-    buffer_seek_character_pos,
-    /* DOC(This value indicates xy positioning with wrapped lines where the x and y values are in pixels.) */
-    buffer_seek_wrapped_xy,
-    /* DOC(This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.) */
-    buffer_seek_unwrapped_xy,
-    /* DOC(This value indicates line-character positioning.
-    These coordinates are 1 based to match standard line numbering.) */
-    buffer_seek_line_char
+    buffer_seek_line_col,
 };
 
-/* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.)
-DOC_SEE(Buffer_Seek_Type)
-DOC_SEE(4coder_Buffer_Positioning_System) */
 STRUCT Buffer_Seek{
-    /* DOC(The type field determines the coordinate system of the seek operation.) */
     Buffer_Seek_Type type;
     UNION{
-        STRUCT {
-            /* DOC(The pos field specified the pos when the seek is in absolute position.) */
+        STRUCT{
             i64 pos;
         };
-        STRUCT {
-            /* DOC(For xy coordinate seeks, rounding down means that any x in the box of the character lands on that character. For instance when clicking rounding down is the user's expected behavior.  Not rounding down means that the right hand portion of the character's box, which is closer to the next character, will land on that next character.  The unrounded behavior is the expected behavior when moving vertically and keeping the preferred x.) */
-            b32 round_down;
-            /* DOC(The x coordinate for xy type seeks.) */
-            f32 x;
-            /* DOC(The y coordinate for xy type seeks.) */
-            f32 y;
-        };
-        STRUCT {
-            /* DOC(The line number of a line-character type seek.) */
+        STRUCT{
             i64 line;
-            /* DOC(The character number of a line-character type seek.) */
-            i64 character;
+            i64 col;
         };
     };
 };
 
-/* DOC(Full_Cursor describes the position of a cursor in every buffer coordinate system supported by 4coder. This cursor type requires that the buffer is associated with a view to give the x/y values meaning.)
-DOC_SEE(4coder_Buffer_Positioning_System) */
-STRUCT Full_Cursor{
-    /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
+STRUCT Buffer_Cursor{
     i64 pos;
-    /* DOC(This field contains the cursor's position in apparent character index positioning.) */
-    i64 character_pos;
-    /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
     i64 line;
-    /* DOC(This field contains the number of the character from the beginninf of the line where the cursor is located. This field is one based.) */
-    i64 character;
-    /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping into account.  This field is one based.) */
-    i64 wrap_line;
-    union{
-        struct{
-            /* DOC(This field contains the x position measured with unwrapped lines.) */
-            f32 unwrapped_x;
-            /* DOC(This field contains the y position measured with unwrapped lines.) */
-            f32 unwrapped_y;
-        };
-        /* DOC(TODO) */
-        Vec2 unwrapped_p;
-    };
-    union{
-        struct{
-            /* DOC(This field contains the x position measured with wrapped lines.) */
-            f32 wrapped_x;
-            /* DOC(This field contains the y position measured with wrapped lines.) */
-            f32 wrapped_y;
-        };
-        /* DOC(TODO) */
-        Vec2 wrapped_p;
-    };
+    i64 col;
 };
 
-/* DOC(Partial_Cursor describes the position of a cursor in all of the coordinate systems that a invariant to the View.  In other words the coordinate systems available here can be used on a buffer that is not currently associated with a View.)
-DOC_SEE(4coder_Buffer_Positioning_System) */
-STRUCT Partial_Cursor{
-    /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
-    i32 pos;
-    /* DOC(This field contains the cursor's position in apparent character index positioning.) */
-    i32 character_pos;
-    /* DOC(This field contains the number of the character from the beginninf of the line
-    where the cursor is located. This field is one based.) */
-    i32 line;
-    /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
-    i32 character;
-};
-
-STRUCT Range_Partial_Cursor{
+STRUCT Range_Cursor{
     struct{
-        Partial_Cursor min;
-        Partial_Cursor max;
+        Buffer_Cursor min;
+        Buffer_Cursor max;
     };
     struct{
-        Partial_Cursor begin;
-        Partial_Cursor end;
+        Buffer_Cursor begin;
+        Buffer_Cursor end;
     };
     struct{
-        Partial_Cursor start;
-        Partial_Cursor end;
+        Buffer_Cursor start;
+        Buffer_Cursor end;
     };
     struct{
-        Partial_Cursor first;
-        Partial_Cursor one_past_last;
+        Buffer_Cursor first;
+        Buffer_Cursor one_past_last;
     };
 };
 
@@ -650,12 +573,6 @@ TYPEDEF u64 Managed_Object;
 static Managed_Scope ManagedScope_NULL = 0;
 static Managed_Variable_ID ManagedVariableIndex_ERROR = -1;
 static Managed_Object ManagedObject_NULL = 0;
-
-STRUCT Text_Layout_Coordinates{
-    Vec2_f32 on_screen_p0;
-    Vec2_f32 in_buffer_p0;
-    Vec2_f32 dim;
-};
 
 /* DOC(A multi-member identifier for a marker visual.  A marker visual is attached to a marker object (Marker_Object), it is freed when the marker object is freed or when it is specifically destroyed.  Multiple marker visuals can be placed on a single marker object.)
 DOC_SEE(Marker_Visual_Type)
@@ -843,34 +760,14 @@ STRUCT Face_Metrics{
     f32 typical_character_width;
 };
 
-/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range. A Buffer_Edit has to be paired with a string that contains the actual
-text that will be replaced into the buffer.) */
-STRUCT Buffer_Edit{
-    /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
-    i32 str_start;
-    /* DOC(The len field specifies the length of the string being written into the buffer.) */
-    i32 len;
-    /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
-    i32 start;
-    /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
-    i32 end;
+STRUCT Edit{
+    String_Const_u8 text;
+    Interval_i64 range;
 };
 
-/*
-DOC(This struct is used to bundle the parameters of the buffer_batch_edit function.  It is convenient for a few functions that return a batch edit to the user.)
-DOC_SEE(Buffer_Edit)
-DOC_SEE(buffer_batch_edit)
-*/
-STRUCT Buffer_Batch_Edit{
-    /* DOC(The pointer to the edit string buffer.) */
-    char *str;
-    /* DOC(The length of the edit string buffer.) */
-    i32 str_len;
-    
-    /* DOC(The array of edits to be applied.) */
-    Buffer_Edit *edits;
-    /* DOC(The number of edits in the array.) */
-    i32 edit_count;
+STRUCT Batch_Edit{
+    Batch_Edit *next;
+    Edit edit;
 };
 
 ENUM(i32, Record_Kind){
@@ -1022,8 +919,9 @@ TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
 TYPEDEF_FUNC i32 Open_File_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define OPEN_FILE_HOOK_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
 
-TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 text);
-#define FILE_EDIT_RANGE_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id, Range range, String_Const_u8 text)
+TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_ID buffer_id, 
+                                          Interval_i64 range, String_Const_u8 text);
+#define FILE_EDIT_RANGE_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id, Interval_i64 range, String_Const_u8 text)
 
 TYPEDEF_FUNC i32 File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count);
 #define FILE_EDIT_FINISHED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count)
@@ -1034,9 +932,8 @@ TYPEDEF_FUNC i32 File_Externally_Modified_Function(struct Application_Links *app
 TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
 
-TYPEDEF_FUNC i32 Scroll_Rule_Function(float target_x, float target_y, float *scroll_x, float *scroll_y, i32 view_id, i32 is_new_target, float dt);
-#define SCROLL_RULE_SIG(name) \
-i32 name(float target_x, float target_y, float *scroll_x, float *scroll_y, i32 view_id, i32 is_new_target, float dt)
+TYPEDEF_FUNC Vec2_f32 Delta_Rule_Function(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt);
+#define DELTA_RULE_SIG(name) Vec2_f32 name(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt)
 
 STRUCT Color_Table{
     argb_color *vals;

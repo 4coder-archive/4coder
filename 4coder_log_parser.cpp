@@ -1010,7 +1010,7 @@ CUSTOM_DOC("Jump to the code that logged the event record at the mouse point in 
                             view_end_ui_mode(app, target_view);
                         }
                         set_view_to_location(app, target_view, target_buffer,
-                                             seek_line_char(event->line_number, 1));
+                                             seek_line_col(event->line_number, 1));
                     }
                 }
             }

@@ -117,7 +117,7 @@ set_hook(Bind_Helper *helper, i32 hook_id, Hook_Function *func){
 }
 
 internal void
-set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
+set_scroll_rule(Bind_Helper *helper, Delta_Rule_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_scroll_rule;
@@ -290,7 +290,7 @@ get_key_code(char *buffer){
 
 internal Buffer_Seek
 seek_location(ID_Line_Column_Jump_Location location){
-    return(seek_line_char(location.line, location.column));
+    return(seek_line_col(location.line, location.column));
 }
 
 internal Buffer_Seek
@@ -300,7 +300,7 @@ seek_location(ID_Pos_Jump_Location location){
 
 internal Buffer_Seek
 seek_location(Name_Line_Column_Location location){
-    return(seek_line_char(location.line, location.column));
+    return(seek_line_col(location.line, location.column));
 }
 
 internal Buffer_Seek
@@ -408,6 +408,46 @@ buffer_seek_character_class_change_0_1(Application_Links *app, Buffer_ID buffer,
 
 ////////////////////////////////
 
+internal Buffer_Cursor
+view_compute_cursor(Application_Links *app, View_ID view, Buffer_Seek seek){
+    return(buffer_compute_cursor(app, view_get_buffer(app, view, AccessAll), seek));
+}
+
+internal i64
+view_pos_from_xy(Application_Links *app, View_ID view, Vec2_f32 p){
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    Rect_f32 region = view_get_buffer_region(app, view);
+    f32 width = rect_width(region);
+    Face_ID face_id = get_face_id(app, buffer);
+    Buffer_Scroll scroll_vars = view_get_buffer_scroll(app, view);
+    i64 line = scroll_vars.position.line_number;
+    p = (p - region.p0) + scroll_vars.position.pixel_shift;
+    return(buffer_pos_at_relative_xy(app, buffer, width, face_id, line, p));
+}
+
+internal Buffer_Point
+view_move_buffer_point(Application_Links *app, View_ID view, Buffer_Point buffer_point, Vec2_f32 delta){
+    delta += buffer_point.pixel_shift;
+    Line_Shift_Vertical shift = view_line_shift_y(app, view, buffer_point.line_number, delta.y);
+    buffer_point.line_number = shift.line;
+    buffer_point.pixel_shift = V2f32(delta.x, delta.y - shift.y_delta);
+    return(buffer_point);
+}
+
+internal void
+view_zero_scroll(Application_Links *app, View_ID view){
+    if (view_is_in_ui_mode(app, view)){
+        Basic_Scroll scroll = {};
+        view_set_basic_scroll(app, view, scroll);
+    }
+    else{
+        Buffer_Scroll scroll = {};
+        view_set_buffer_scroll(app, view, scroll);
+    }
+}
+
+////////////////////////////////
+
 internal Range_i64
 buffer_range(Application_Links *app, Buffer_ID buffer){
     Range_i64 range = {};
@@ -439,20 +479,6 @@ set_view_range(Application_Links *app, View_ID view, Range_i64 range){
     }
 }
 
-internal f32
-get_view_y(Application_Links *app, View_ID view){
-    i64 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    return(cursor.wrapped_y);
-}
-
-internal f32
-get_view_x(Application_Links *app, View_ID view){
-    i64 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    return(cursor.wrapped_x);
-}
-
 internal b32
 is_valid_line(Application_Links *app, Buffer_ID buffer_id, i64 line){
     i64 max_line = buffer_get_line_count(app, buffer_id);
@@ -467,42 +493,40 @@ is_valid_line_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range
 
 internal i64
 get_line_number_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
-    Partial_Cursor partial_cursor = buffer_compute_cursor(app, buffer, seek_pos(pos));
-    return(partial_cursor.line);
+    Buffer_Cursor cursor = buffer_compute_cursor(app, buffer, seek_pos(pos));
+    return(cursor.line);
 }
 
 internal i64
-character_pos_to_pos_view(Application_Links *app, View_ID view, i64 character_pos){
-    i64 result = 0;
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_character_pos(character_pos));
-    if (cursor.line > 0){
-        result = cursor.pos;
-    }
-    return(result);
+buffer_get_character_legal_pos_from_pos(Application_Links *app, Buffer_ID buffer, f32 width, Face_ID face, i64 pos){
+    Buffer_Cursor cursor = buffer_compute_cursor(app, buffer, seek_pos(pos));
+    i64 character = buffer_relative_character_from_pos(app, buffer, width, face, cursor.line, pos);
+    return(buffer_pos_from_relative_character(app, buffer, width, face, cursor.line, character));
 }
 
 internal i64
-character_pos_to_pos_buffer(Application_Links *app, Buffer_ID buffer, i64 character_pos){
-    Partial_Cursor cursor = buffer_compute_cursor(app, buffer, seek_character_pos(character_pos));
-    return(cursor.pos);
+view_get_character_legal_pos_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
+    Buffer_Cursor cursor = buffer_compute_cursor(app, buffer, seek_pos(pos));
+    i64 character = view_relative_character_from_pos(app, buffer, cursor.line, pos);
+    return(view_pos_from_relative_character(app, buffer, cursor.line, character));
 }
 
-internal Partial_Cursor
+internal Buffer_Cursor
 get_line_side(Application_Links *app, Buffer_ID buffer, i64 line_number, Side side){
     i64 character_index = (side == Side_Min)?(1):(-1);
-    return(buffer_compute_cursor(app, buffer, seek_line_char(line_number, character_index)));
+    return(buffer_compute_cursor(app, buffer, seek_line_col(line_number, character_index)));
 }
 internal i64
 get_line_side_pos(Application_Links *app, Buffer_ID buffer, i64 line_number, Side side){
     i64 pos = -1;
-    Partial_Cursor partial_cursor = get_line_side(app, buffer, line_number, side);
-    if (partial_cursor.line != 0){
-        pos = partial_cursor.pos;
+    Buffer_Cursor cursor = get_line_side(app, buffer, line_number, side);
+    if (cursor.line != 0){
+        pos = cursor.pos;
     }
     return(pos);
 }
 
-internal Partial_Cursor
+internal Buffer_Cursor
 get_line_start(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side(app, buffer, line_number, Side_Min));
 }
@@ -513,7 +537,7 @@ get_line_start_pos(Application_Links *app, Buffer_ID buffer, i64 line_number){
 
 // NOTE(allen): The position returned has the index of the terminating newline character,
 // not one past the newline character.
-internal Partial_Cursor
+internal Buffer_Cursor
 get_line_end(Application_Links *app, Buffer_ID buffer, i64 line_number){
     return(get_line_side(app, buffer, line_number, Side_Max));
 }
@@ -523,10 +547,10 @@ get_line_end_pos(Application_Links *app, Buffer_ID buffer, i64 line_number){
 }
 
 // NOTE(allen): The range returned does not include the terminating newline character
-internal Range_Partial_Cursor
+internal Range_Cursor
 get_line_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     b32 success = false;
-    Range_Partial_Cursor result = {};
+    Range_Cursor result = {};
     result.begin = get_line_start(app, buffer, line_number);
     if (result.begin.line != 0){
         result.end = get_line_end(app, buffer, line_number);
@@ -543,7 +567,7 @@ get_line_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
 // NOTE(allen): The range returned does not include the terminating newline character
 internal Range_i64
 get_line_pos_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
-    Range_Partial_Cursor range = get_line_range(app, buffer, line_number);
+    Range_Cursor range = get_line_range(app, buffer, line_number);
     Range_i64 result = {};
     if (range.begin.line != 0 && range.end.line != 0){
         result = Ii64(range.begin.pos, range.end.pos);
@@ -552,7 +576,7 @@ get_line_pos_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
 }
 
 internal Range_i64
-make_range_from_cursors(Range_Partial_Cursor range){
+make_range_from_cursors(Range_Cursor range){
     return(Ii64(range.begin.pos, range.end.pos));
 }
 
@@ -1406,7 +1430,7 @@ replace_in_range(Application_Links *app, Buffer_ID buffer, Range_i64 range, Stri
     i64 pos = range.min - 1;
     i64 new_pos = 0;
     buffer_seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
-    i64 shift = replace_range_compute_shift(needle.size, string.size);
+    i64 shift = replace_range_shift(needle.size, string.size);
     for (; new_pos + (imem)needle.size <= range.end;){
         Range_i64 needle_range = Ii64(new_pos, new_pos + (i32)needle.size);
         buffer_replace_range(app, buffer, needle_range, string);
@@ -1435,7 +1459,7 @@ swap_lines(Application_Links *app, Buffer_ID buffer, i64 line_1, i64 line_2){
         buffer_replace_range(app, buffer, range_1, text_2);
         history_group_end(group);
         
-        i64 shift = replace_range_compute_shift(range_1, text_2.size);
+        i64 shift = replace_range_shift(range_1, text_2.size);
         result.min = range_1.min;
         result.max = range_2.min + shift;
     }
@@ -1521,11 +1545,10 @@ exec_command(Application_Links *app, Generic_Command cmd){
     exec_command(app, cmd.command);
 }
 
-internal i32
+internal b32
 key_is_unmodified(Key_Event_Data *key){
-    int8_t *mods = key->modifiers;
-    i32 unmodified = (!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
-    return(unmodified);
+    b8 *mods = key->modifiers;
+    return(!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
 }
 
 internal u32

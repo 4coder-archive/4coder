@@ -14,18 +14,6 @@ edit_pre_state_change(Models *models, Heap *heap, Editing_File *file){
     System_Functions *system = models->system;
     file_add_dirty_flag(file, DirtyState_UnsavedChanges);
     file_unmark_edit_finished(&models->working_set, file);
-    Layout *layout = &models->layout;
-    for (Panel *panel = layout_get_first_open_panel(layout);
-         panel != 0;
-         panel = layout_get_next_open_panel(layout, panel)){
-        View *view = panel->view;
-        if (view->file == file){
-            Full_Cursor render_cursor = view_get_render_cursor(models, view);
-            Full_Cursor target_cursor = view_get_render_cursor_target(models, view);
-            view->temp_view_top_left_pos        = (i32)render_cursor.pos;
-            view->temp_view_top_left_target_pos = (i32)target_cursor.pos;
-        }
-    }
 }
 
 internal void
@@ -83,7 +71,7 @@ edit_fix_markers__compute_scroll_y(i32 line_height, i32 old_y_val, f32 new_y_val
 }
 
 internal void
-edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, Edit edit){
+edit_fix_markers(Models *models, Editing_File *file, Edit edit){
     Layout *layout = &models->layout;
     
     Lifetime_Object *file_lifetime_object = file->lifetime_object;
@@ -127,8 +115,6 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
             write_cursor_with_index(cursors, &cursor_count, (i32)edit_pos.cursor_pos);
             write_cursor_with_index(cursors, &cursor_count, (i32)view->mark);
-            write_cursor_with_index(cursors, &cursor_count, view->temp_view_top_left_pos);
-            write_cursor_with_index(cursors, &cursor_count, view->temp_view_top_left_target_pos);
         }
     }
     
@@ -152,8 +138,8 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
     if (cursor_count > 0 || r_cursor_count > 0){
         buffer_sort_cursors(  cursors,   cursor_count);
         buffer_sort_cursors(r_cursors, r_cursor_count);
-        buffer_update_cursors(  cursors,   cursor_count, edit.range.first, edit.range.one_past_last, edit.length, false);
-        buffer_update_cursors(r_cursors, r_cursor_count, edit.range.first, edit.range.one_past_last, edit.length, true);
+        buffer_update_cursors(  cursors,   cursor_count, edit.range.first, edit.range.one_past_last, edit.text.size, false);
+        buffer_update_cursors(r_cursors, r_cursor_count, edit.range.first, edit.range.one_past_last, edit.text.size, true);
         buffer_unsort_cursors(  cursors,   cursor_count);
         buffer_unsort_cursors(r_cursors, r_cursor_count);
         
@@ -168,41 +154,9 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
             View *view = panel->view;
             if (view->file == file){
                 i64 cursor_pos = cursors[cursor_count++].pos;
-                Full_Cursor new_cursor = file_compute_cursor(models, file, seek_pos(cursor_pos));
-                
-                File_Edit_Positions edit_pos = view_get_edit_pos(view);
-                GUI_Scroll_Vars scroll = edit_pos.scroll;
-                
                 view->mark = cursors[cursor_count++].pos;
-                
-                i32 line_height = (i32)face->height;
-                i64 top_left_pos = cursors[cursor_count++].pos;
-                i64 top_left_target_pos = cursors[cursor_count++].pos;
-                f32 new_y_val_aligned = 0;
-                if (view->temp_view_top_left_pos != top_left_pos){
-                    Full_Cursor new_position_cursor = file_compute_cursor(models, file, seek_pos(top_left_pos));
-                    if (file->settings.unwrapped_lines){
-                        new_y_val_aligned = new_position_cursor.unwrapped_y;
-                    }
-                    else{
-                        new_y_val_aligned = new_position_cursor.wrapped_y;
-                    }
-                    scroll.scroll_y = edit_fix_markers__compute_scroll_y(line_height, scroll.scroll_y, new_y_val_aligned);
-                }
-                if (view->temp_view_top_left_target_pos != top_left_target_pos){
-                    if (top_left_target_pos != top_left_pos){
-                        Full_Cursor new_position_cursor = file_compute_cursor(models, file, seek_pos(top_left_target_pos));
-                        if (file->settings.unwrapped_lines){
-                            new_y_val_aligned = new_position_cursor.unwrapped_y;
-                        }
-                        else{
-                            new_y_val_aligned = new_position_cursor.wrapped_y;
-                        }
-                    }
-                    scroll.target_y = edit_fix_markers__compute_scroll_y(line_height, scroll.target_y, new_y_val_aligned);
-                }
-                
-                view_set_cursor_and_scroll(models, view, new_cursor, true, scroll);
+                File_Edit_Positions edit_pos = view_get_edit_pos(view);
+                view_set_cursor_and_scroll(models, view, cursor_pos, true, edit_pos.scroll);
             }
         }
         
@@ -226,12 +180,10 @@ edit_fix_markers(System_Functions *system, Models *models, Editing_File *file, E
 }
 
 internal void
-edit_single(System_Functions *system, Models *models, Editing_File *file, Range range, String_Const_u8 string, Edit_Behaviors behaviors){
+edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
     Edit edit = {};
-    edit.str = (char*)string.str;
-    edit.length = (i32)string.size;
+    edit.text = string;
     edit.range = range;
-    
     
     Gap_Buffer *buffer = &file->state.buffer;
     Assert(0 <= edit.range.first);
@@ -239,6 +191,7 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     Assert(edit.range.one_past_last <= buffer_size(buffer));
     
     Heap *heap = &models->mem.heap;
+    Arena *scratch = &models->mem.arena;
     
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
@@ -253,61 +206,34 @@ edit_single(System_Functions *system, Models *models, Editing_File *file, Range 
     
     // NOTE(allen): edit range hook
     if (models->hook_file_edit_range != 0){
-        models->hook_file_edit_range(&models->app_links, file->id, edit.range, SCu8(edit.str, edit.length));
+        models->hook_file_edit_range(&models->app_links, file->id, edit.range, edit.text);
     }
     
     // NOTE(allen): expand spec, compute shift
-    i32 shift_amount = buffer_replace_range_compute_shift(edit.range.first, edit.range.one_past_last, edit.length);
+    i64 shift_amount = replace_range_shift(edit.range, (i64)edit.text.size);
     
     // NOTE(allen): actual text replacement
-    i32 request_amount = 0;
-    for (;buffer_replace_range(buffer, edit.range.first, edit.range.one_past_last, edit.str, edit.length, shift_amount, &request_amount);){
-        void *new_data = 0;
-        if (request_amount > 0){
-            new_data = heap_allocate(heap, request_amount);
-        }
-        void *old_data = buffer_edit_provide_memory(buffer, new_data, request_amount);
-        if (old_data != 0){
-            heap_free(heap, old_data);
-        }
-    }
+    buffer_replace_range(buffer, edit.range, edit.text, shift_amount);
     
     // NOTE(allen): line meta data
-    i32 line_start = buffer_get_line_number(buffer, edit.range.first);
-    i32 line_end = buffer_get_line_number(buffer, edit.range.one_past_last);
-    i32 replaced_line_count = line_end - line_start;
-    i32 new_line_count = buffer_count_newlines(buffer, edit.range.first, edit.range.first + edit.length);
-    i32 line_shift =  new_line_count - replaced_line_count;
+    i64 line_start = buffer_get_line_index(buffer, edit.range.first);
+    i64 line_end = buffer_get_line_index(buffer, edit.range.one_past_last);
+    i64 replaced_line_count = line_end - line_start;
+    i64 new_line_count = buffer_count_newlines(scratch, buffer, edit.range.first, edit.range.first + edit.text.size);
+    i64 line_shift =  new_line_count - replaced_line_count;
     
-    file_grow_starts_as_needed(heap, buffer, line_shift);
-    buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
-    
-    file_allocate_character_starts_as_needed(heap, file);
-    buffer_remeasure_character_starts(system, buffer, line_start, line_end, line_shift, file->state.character_starts, 0, file->settings.virtual_white);
+    buffer_remeasure_starts(scratch, buffer, Ii64(line_start, line_end + 1), line_shift, shift_amount);
     
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
-        file_relex(system, models, file, edit.range.first, edit.range.one_past_last, shift_amount);
+        file_relex(models->system, models, file, edit.range.first, edit.range.one_past_last, shift_amount);
     }
-    
-    // NOTE(allen): wrap meta data
-    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-    Assert(face != 0);
-    
-    file_measure_wraps(system, &models->mem, file, face);
     
     // NOTE(allen): cursor fixing
-    edit_fix_markers(system, models, file, edit);
+    edit_fix_markers(models, file, edit);
     
     // NOTE(allen): mark edit finished
-    if (file->settings.tokens_exist){
-        if (file->settings.virtual_white){
-            file_mark_edit_finished(&models->working_set, file);
-        }
-    }
-    else{
-        file_mark_edit_finished(&models->working_set, file);
-    }
+    file_mark_edit_finished(&models->working_set, file);
 }
 
 internal void
@@ -329,9 +255,9 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
     switch (record->kind){
         case RecordKind_Single:
         {
-            String_Const_u8 str = SCu8(record->single.str_forward, record->single.length_forward);
-            Range range = make_range(record->single.first, record->single.first + record->single.length_backward);
-            edit_single(system, models, file, range, str, behaviors_prototype);
+            String_Const_u8 str = record->single.forward_text;
+            Interval_i64 range = Ii64(record->single.first, record->single.first + record->single.backward_text.size);
+            edit_single(models, file, range, str, behaviors_prototype);
         }break;
         
         case RecordKind_Group:
@@ -360,9 +286,9 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
     switch (record->kind){
         case RecordKind_Single:
         {
-            String_Const_u8 str = SCu8(record->single.str_backward, record->single.length_backward);
-            Range range = make_range(record->single.first, record->single.first + record->single.length_forward);
-            edit_single(system, models, file, range, str, behaviors_prototype);
+            String_Const_u8 str = record->single.backward_text;
+            Interval_i64 range = Ii64(record->single.first, record->single.first + record->single.forward_text.size);
+            edit_single(models, file, range, str, behaviors_prototype);
         }break;
         
         case RecordKind_Group:
@@ -464,26 +390,28 @@ edit_merge_history_range(Models *models, Editing_File *file, History_Record_Inde
 }
 
 internal b32
-edit_batch(System_Functions *system, Models *models, Editing_File *file, char *str, Buffer_Edit *edits, i32 edit_count, Edit_Behaviors behaviors){
+edit_batch(Models *models, Editing_File *file, Batch_Edit *batch, Edit_Behaviors behaviors){
     b32 result = true;
-    if (edit_count > 0){
+    if (batch != 0){
         History_Record_Index start_index = 0;
         if (history_is_activated(&file->state.history)){
             start_index = file->state.current_record_index;
         }
         
-        Buffer_Edit *edit_in = edits;
-        Buffer_Edit *one_past_last = edits + edit_count;
-        i32 shift = 0;
-        for (;edit_in < one_past_last; edit_in += 1){
-            String_Const_u8 insert_string = SCu8(str + edit_in->str_start, edit_in->len);
-            Range edit_range = make_range(edit_in->start, edit_in->end);
+        i64 shift = 0;
+        for (Batch_Edit *edit = batch;
+             edit != 0;
+             edit = edit->next){
+            String_Const_u8 insert_string = edit->edit.text;
+            Interval_i64 edit_range = edit->edit.range;
             edit_range.first += shift;
             edit_range.one_past_last += shift;
-            i32 size = buffer_size(&file->state.buffer);
-            if (0 <= edit_range.first && edit_range.first <= edit_range.one_past_last && edit_range.one_past_last <= size){
-                edit_single(system, models, file, edit_range, insert_string, behaviors);
-                shift += replace_range_compute_shift(edit_range, (i32)insert_string.size);
+            i64 size = buffer_size(&file->state.buffer);
+            if (0 <= edit_range.first &&
+                edit_range.first <= edit_range.one_past_last &&
+                edit_range.one_past_last <= size){
+                edit_single(models, file, edit_range, insert_string, behaviors);
+                shift += replace_range_shift(edit_range, insert_string.size);
             }
             else{
                 result = false;
@@ -568,7 +496,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                         String_Const_u8 front = string_front_of_path(file_name);
                         buffer_bind_name(models, heap, scratch, working_set, file, front);
                         File_Attributes attributes = {};
-                        file_create_from_string(system, models, file, SCu8(""), attributes);
+                        file_create_from_string(models, file, SCu8(""), attributes);
                         result = file;
                     }
                 }
@@ -591,7 +519,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                         file_bind_file_name(system, heap, working_set, file, string_from_file_name(&canon));
                         String_Const_u8 front = string_front_of_path(file_name);
                         buffer_bind_name(models, heap, scratch, working_set, file, front);
-                        file_create_from_string(system, models, file, SCu8(buffer, (i32)attributes.size), attributes);
+                        file_create_from_string(models, file, SCu8(buffer, (i32)attributes.size), attributes);
                         result = file;
                     }
                 }
@@ -613,10 +541,10 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
         }
         
         if (file != 0 && HasFlag(flags, BufferCreate_AlwaysNew)){
-            i32 size = buffer_size(&file->state.buffer);
+            i64 size = buffer_size(&file->state.buffer);
             if (size > 0){
                 Edit_Behaviors behaviors = {};
-                edit_single(system, models, file, make_range(0, size), string_u8_litexpr(""), behaviors);
+                edit_single(models, file, Ii64(0, size), string_u8_litexpr(""), behaviors);
                 if (has_canon_name){
                     buffer_is_for_new_file = true;
                 }

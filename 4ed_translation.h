@@ -18,7 +18,6 @@ struct Translation_State{
     u8 fill_i;
     u8 fill_expected;
 };
-global_const Translation_State null_buffer_translating_state = {};
 
 enum{
     TranLBH_None,

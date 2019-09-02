@@ -137,7 +137,7 @@ heap_free(Heap *heap, void *memory){
     }
 }
 
-#define heap_array(g, T, size) (T*)heap_allocate(g, sizeof(T)*(size))
+#define heap_array(g, T, size) (T*)heap_allocate(g, (i32)(sizeof(T)*(size)))
 
 // BOTTOM
 

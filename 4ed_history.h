@@ -13,8 +13,8 @@
 #define FRED_HISTORY_H
 
 struct Record_Batch_Slot{
-    i32 length_forward;
-    i32 length_backward;
+    i64 length_forward;
+    i64 length_backward;
     i32 first;
 };
 
@@ -25,13 +25,10 @@ struct Record{
     Record_Kind kind;
     union{
         struct{
-            char *str_forward;
-            char *str_backward;
-            i32 length_forward;
-            i32 length_backward;
-            i32 first;
+            String_Const_u8 forward_text;
+            String_Const_u8 backward_text;
+            i64 first;
         } single;
-        
         struct{
             Node children;
             i32 count;

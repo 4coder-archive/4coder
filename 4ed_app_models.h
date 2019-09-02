@@ -68,7 +68,7 @@ struct Models{
     Command_Caller_Hook_Function *command_caller;
     Render_Caller_Function *render_caller;
     Input_Filter_Function *input_filter;
-    Scroll_Rule_Function *scroll_rule;
+    Delta_Rule_Function *scroll_rule;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
     Modify_Color_Table_Function *modify_color_table;
     Clipboard_Change_Hook_Function *clipboard_change;

@@ -11,17 +11,10 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         View_ID view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view);
         
-        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         i64 pos = view_get_cursor_pos(app, view);
-        Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+        pos = view_get_character_legal_pos_from_pos(app, view, pos);
         
-        // NOTE(allen): setup markers to figure out the new position of cursor after the insert
-        Marker next_cursor_marker = {};
-        // TODO(allen): should be using character_pos_to_pos_buffer here!
-        next_cursor_marker.pos = (i32)character_pos_to_pos_view(app, view, cursor.character_pos);
-        next_cursor_marker.lean_right = true;
-        Managed_Object handle = alloc_buffer_markers_on_buffer(app, buffer, 1, 0);
-        managed_object_store_data(app, handle, 0, 1, &next_cursor_marker);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         
         // NOTE(allen): consecutive inserts merge logic
         History_Record_Index first_index = buffer_history_get_current_state_index(app, buffer);
@@ -55,10 +48,8 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         }
         
         // NOTE(allen): finish updating the cursor
-        managed_object_load_data(app, handle, 0, 1, &next_cursor_marker);
-        managed_object_free(app, handle);
         if (edit_success){
-            view_set_cursor(app, view, seek_pos(next_cursor_marker.pos), true);
+            view_set_cursor(app, view, seek_pos(pos + length), true);
         }
     }
 }
@@ -88,9 +79,9 @@ CUSTOM_DOC("Deletes the character to the right of the cursor.")
         i64 start = view_get_cursor_pos(app, view);
         i64 buffer_size = buffer_get_size(app, buffer);
         if (0 <= start && start < buffer_size){
-            Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(start));
-            cursor = view_compute_cursor(app, view, seek_character_pos(cursor.character_pos + 1));
-            i64 end = cursor.pos;
+            Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(start));
+            i64 character = view_relative_character_from_pos(app, view, cursor.line, cursor.pos);
+            i64 end = view_pos_from_relative_character(app, view, cursor.line, character + 1);
             buffer_replace_range(app, buffer, Ii64(start, end), string_u8_empty);
         }
     }
@@ -105,9 +96,9 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
         i64 end = view_get_cursor_pos(app, view);
         i64 buffer_size = buffer_get_size(app, buffer);
         if (0 < end && end <= buffer_size){
-            Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(end));
-            cursor = view_compute_cursor(app, view, seek_character_pos(cursor.character_pos - 1));
-            i64 start = cursor.pos;
+            Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(end));
+            i64 character = view_relative_character_from_pos(app, view, cursor.line, cursor.pos);
+            i64 start = view_pos_from_relative_character(app, view, cursor.line, character - 1);
             if (buffer_replace_range(app, buffer, Ii64(start, end), string_u8_empty)){
                 view_set_cursor(app, view, seek_pos(start), true);
             }
@@ -207,52 +198,37 @@ CUSTOM_COMMAND_SIG(center_view)
 CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    
     Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
-    
-    f32 h = (f32)(rect_height(region));
-    f32 y = get_view_y(app, view);
-    y = y - h*.5f;
-    scroll.target_y = (i32)(y + .5f);
-    view_set_scroll(app, view, scroll);
+    i64 pos = view_get_cursor_pos(app, view);
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    f32 view_height = rect_height(region);
+    Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+    scroll.target.line_number = cursor.line;
+    scroll.target.pixel_shift.y = -view_height*0.5f;
+    view_set_buffer_scroll(app, view, scroll);
 }
 
 CUSTOM_COMMAND_SIG(left_adjust_view)
 CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
-    f32 x = clamp_bot(0.f, get_view_x(app, view) - 30.f);
-    scroll.target_x = (i32)(x + .5f);
-    view_set_scroll(app, view, scroll);
-}
-
-static b32
-view_space_from_screen_space_checked(Vec2_f32 p, Rect_f32 file_region, Vec2 scroll_p, Vec2 *p_out){
-    b32 result = false;
-    if (rect_contains_point(file_region, p)){
-        *p_out = view_space_from_screen_space(p, file_region.p0, scroll_p);
-        result = true;
-    }
-    else{
-        *p_out = V2(0.f, 0.f);
-    }
-    return(result);
+    i64 pos = view_get_cursor_pos(app, view);
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, pos);
+    Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+    scroll.target.pixel_shift.x = clamp_bot(0.f, p.x - 30.f);
+    view_set_buffer_scroll(app, view, scroll);
 }
 
 CUSTOM_COMMAND_SIG(click_set_cursor_and_mark)
 CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
-    Mouse_State mouse = get_mouse_state(app);
-    Vec2 p = {};
-    if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
-        Full_Cursor cursor = view_compute_cursor(app, view, seek_wrapped_xy(p.x, p.y, true));
-        view_set_cursor(app, view, seek_pos(cursor.pos), true);
-        view_set_mark(app, view, seek_pos(cursor.pos));
+    if (!view_is_in_ui_mode(app, view)){
+        Mouse_State mouse = get_mouse_state(app);
+        i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+        view_set_cursor(app, view, seek_pos(pos), true);
+        view_set_mark(app, view, seek_pos(pos));
     }
 }
 
@@ -260,44 +236,38 @@ CUSTOM_COMMAND_SIG(click_set_cursor)
 CUSTOM_DOC("Sets the cursor position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
-    Mouse_State mouse = get_mouse_state(app);
-    Vec2 p = {};
-    if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
-        view_set_cursor(app, view, seek_wrapped_xy(p.x, p.y, true), true);
+    if (!view_is_in_ui_mode(app, view)){
+        Mouse_State mouse = get_mouse_state(app);
+        i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+        view_set_cursor(app, view, seek_pos(pos), true);
+        no_mark_snap_to_cursor(app, view);
     }
-    no_mark_snap_to_cursor(app, view);
 }
 
 CUSTOM_COMMAND_SIG(click_set_cursor_if_lbutton)
 CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    Mouse_State mouse = get_mouse_state(app);
-    if (mouse.l){
-        Rect_f32 region = view_get_buffer_region(app, view);
-        GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
-        Vec2 p = {};
-        if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
-            view_set_cursor(app, view, seek_wrapped_xy(p.x, p.y, true), true);
+    if (!view_is_in_ui_mode(app, view)){
+        Mouse_State mouse = get_mouse_state(app);
+        if (mouse.l){
+            i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+            view_set_cursor(app, view, seek_pos(pos), true);
         }
+        no_mark_snap_to_cursor(app, view);
     }
-    no_mark_snap_to_cursor(app, view);
 }
 
 CUSTOM_COMMAND_SIG(click_set_mark)
 CUSTOM_DOC("Sets the mark position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    Rect_f32 region = view_get_buffer_region(app, view);
-    GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
-    Mouse_State mouse = get_mouse_state(app);
-    Vec2 p = {};
-    if (view_space_from_screen_space_checked(V2(mouse.p), region, scroll_vars.scroll_p, &p)){
-        view_set_mark(app, view, seek_wrapped_xy(p.x, p.y, true));
+    if (!view_is_in_ui_mode(app, view)){
+        Mouse_State mouse = get_mouse_state(app);
+        i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+        view_set_mark(app, view, seek_pos(pos));
+        no_mark_snap_to_cursor(app, view);
     }
-    no_mark_snap_to_cursor(app, view);
 }
 
 CUSTOM_COMMAND_SIG(mouse_wheel_scroll)
@@ -306,9 +276,16 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
     View_ID view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.wheel != 0){
-        GUI_Scroll_Vars scroll = view_get_scroll_vars(app, view);
-        scroll.target_y += mouse.wheel;
-        view_set_scroll(app, view, scroll);
+        if (view_is_in_ui_mode(app, view)){
+            Basic_Scroll scroll = view_get_basic_scroll(app, view);
+            scroll.target.y += mouse.wheel;
+            view_set_basic_scroll(app, view, scroll);
+        }
+        else{
+            Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+            scroll.target = view_move_buffer_point(app, view, scroll.target, V2f32(0.f, (f32)mouse.wheel));
+            view_set_buffer_scroll(app, view, scroll);
+        }
     }
 }
 
@@ -316,24 +293,12 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
 
 internal void
 move_vertical_pixels(Application_Links *app, View_ID view, f32 pixels){
-    f32 new_y = get_view_y(app, view) + pixels;
-    f32 x = view_get_preferred_x(app, view);
-    
-    view_set_cursor(app, view, seek_wrapped_xy(x, new_y, false), false);
-    f32 actual_new_y = get_view_y(app, view);
-    if (actual_new_y < new_y){
-        Rect_f32 file_region = view_get_buffer_region(app, view);
-        f32 height = rect_height(file_region);
-        f32 full_scroll_y = actual_new_y - height*0.5f;
-        GUI_Scroll_Vars scroll_vars = view_get_scroll_vars(app, view);
-        if (scroll_vars.target_y < full_scroll_y){
-            GUI_Scroll_Vars new_scroll_vars = scroll_vars;
-            new_scroll_vars.target_y += (i32)pixels;
-            new_scroll_vars.target_y = clamp_top(new_scroll_vars.target_y, (i32)full_scroll_y);
-            view_set_scroll(app, view, new_scroll_vars);
-        }
-    }
-    
+    i64 pos = view_get_cursor_pos(app, view);
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, pos);
+    p.y += pixels;
+    i64 new_pos = view_pos_at_relative_xy(app, view, cursor.line, p);
+    view_set_cursor(app, view, seek_pos(new_pos), false);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -396,9 +361,9 @@ CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapp
 {
     View_ID view = get_active_view(app, AccessOpen);
     i64 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     i64 next_line = cursor.line + 1;
-    view_set_cursor(app, view, seek_line_char(next_line, 1), true);
+    view_set_cursor(app, view, seek_line_col(next_line, 1), true);
 }
 
 CUSTOM_COMMAND_SIG(page_up)
@@ -484,9 +449,10 @@ CUSTOM_DOC("Moves the cursor one character to the left.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     i64 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    i64 new_pos = clamp_bot(0, cursor.character_pos - 1);
-    view_set_cursor(app, view, seek_character_pos(new_pos), true);
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    i64 character = view_relative_character_from_pos(app, view, cursor.line, pos);
+    i64 new_pos = view_pos_from_relative_character(app, view, cursor.line, character - 1);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -495,9 +461,10 @@ CUSTOM_DOC("Moves the cursor one character to the right.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     i64 pos = view_get_cursor_pos(app, view);
-    Full_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    i64 new_pos = cursor.character_pos + 1;
-    view_set_cursor(app, view, seek_character_pos(new_pos), 1);
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    i64 character = view_relative_character_from_pos(app, view, cursor.line, pos);
+    i64 new_pos = view_pos_from_relative_character(app, view, cursor.line, character + 1);
+    view_set_cursor(app, view, seek_pos(new_pos), true);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -649,11 +616,9 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     
-    i32 line_count = (i32)buffer_get_line_count(app, buffer);
-    
     Scratch_Block scratch(app);
-    Buffer_Edit *edits = push_array(scratch, Buffer_Edit, line_count);
-    Buffer_Edit *edit = edits;
+    Batch_Edit *batch_first = 0;
+    Batch_Edit *batch_last = 0;
     
     String_Const_u8 text = push_whole_buffer(app, scratch, buffer);
     
@@ -662,11 +627,10 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
         u8 v = string_get_character(text, i);
         if (v == '\n' || i + 1 == text.size){
             if (whitespace_start < i){
-                edit->str_start = 0;
-                edit->len = 0;
-                edit->start = (i32)whitespace_start;
-                edit->end = (i32)i;
-                ++edit;
+                Batch_Edit *batch = push_array(scratch, Batch_Edit, 1);
+                sll_queue_push(batch_first, batch_last, batch);
+                batch->edit.text = SCu8();
+                batch->edit.range = Ii64(whitespace_start, i);
             }
             whitespace_start = i + 1;
         }
@@ -675,8 +639,7 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
         }
     }
     
-    i32 edit_count = (i32)(edit - edits);
-    buffer_batch_edit(app, buffer, 0, edits, edit_count);
+    buffer_batch_edit(app, buffer, batch_first);
 }
 
 ////////////////////////////////
@@ -870,7 +833,7 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
     if (query_user_number(app, &bar)){
         i32 line_number = (i32)string_to_integer(bar.string, 10);
         View_ID view = get_active_view(app, AccessProtected);
-        view_set_cursor(app, view, seek_line_char(line_number, 0), true);
+        view_set_cursor(app, view, seek_line_col(line_number, 0), true);
     }
 }
 
@@ -1647,7 +1610,9 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
     change_active_panel(app);
     View_ID view2 = get_active_view(app, AccessAll);
     
-    if (view1 != view2){
+    if (view1 != view2 &&
+        !view_is_in_ui_mode(app, view1) &&
+        !view_is_in_ui_mode(app, view2)){
         Buffer_ID buffer1 = view_get_buffer(app, view1, AccessAll);
         Buffer_ID buffer2 = view_get_buffer(app, view2, AccessAll);
         if (buffer1 != buffer2){
@@ -1657,17 +1622,17 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
         else{
             i64 p1 = view_get_cursor_pos(app, view1);
             i64 m1 = view_get_mark_pos(app, view1);
-            GUI_Scroll_Vars sc1 = view_get_scroll_vars(app, view1);
+            Buffer_Scroll sc1 = view_get_buffer_scroll(app, view1);
             i64 p2 = view_get_cursor_pos(app, view2);
             i64 m2 = view_get_mark_pos(app, view2);
-            GUI_Scroll_Vars sc2 = view_get_scroll_vars(app, view2);
+            Buffer_Scroll sc2 = view_get_buffer_scroll(app, view2);
             
             view_set_cursor(app, view1, seek_pos(p2), true);
             view_set_mark  (app, view1, seek_pos(m2));
-            view_set_scroll(app, view1, sc2);
+            view_set_buffer_scroll(app, view1, sc2);
             view_set_cursor(app, view2, seek_pos(p1), true);
             view_set_mark  (app, view2, seek_pos(m1));
-            view_set_scroll(app, view2, sc1);
+            view_set_buffer_scroll(app, view2, sc1);
         }
     }
 }

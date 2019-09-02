@@ -25,36 +25,24 @@ struct View{
     i64 mark;
     f32 preferred_x;
     
+    // TODO(allen): ELIMINATE THESE
     i32 temp_view_top_left_pos;
     i32 temp_view_top_left_target_pos;
     
-    b32 ui_mode;
+    b8 new_scroll_target;
+    
+    b8 ui_mode;
     i32 ui_map_id;
-    GUI_Scroll_Vars ui_scroll;
+    Basic_Scroll ui_scroll;
     UI_Quit_Function_Type *ui_quit;
     
-    Vec2_i32 prev_target;
-    
-    b32 hide_scrollbar;
-    b32 hide_file_bar;
-    b32 show_whitespace;
+    b8 hide_scrollbar;
+    b8 hide_file_bar;
+    b8 show_whitespace;
     
     // misc
     
     Query_Set query_set;
-    
-    // Render Context
-    Arena layout_arena;
-    
-    struct{    
-        Rect_i32 view_rect;
-        Rect_i32 buffer_rect;
-        Full_Cursor cursor;
-        Range range;
-        Buffer_Render_Item *items;
-        int_color *item_colors;
-        i32 item_count;
-    } render;
 };
 
 struct Live_Views{
@@ -62,12 +50,6 @@ struct Live_Views{
     View free_sentinel;
     i32 count;
     i32 max;
-};
-
-struct Cursor_Limits{
-    i32 min;
-    i32 max;
-    i32 delta;
 };
 
 enum{
