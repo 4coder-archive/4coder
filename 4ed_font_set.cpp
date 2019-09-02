@@ -75,23 +75,22 @@ font_set_init(System_Functions *system, Font_Set *set){
     set->id_to_slot_table = make_table_u64_u64(set->arena.base_allocator, 40);
 }
 
-internal Face_ID
+internal Face*
 font_set_new_face(Font_Set *set, Face_Description *description){
-    Face_ID result = 0;
     Arena arena = make_arena_system(set->system);
     Face *face = set->system->font_make_face(&arena, description);
     if (face != 0){
         Font_Face_Slot *slot = font_set__alloc_face_slot(set);
         slot->arena = arena;
         slot->face = face;
-        result = font_set__alloc_face_id(set);
-        face->id = result;
-        table_insert(&set->id_to_slot_table, result, (u64)slot);
+        Face_ID new_id = font_set__alloc_face_id(set);
+        face->id = new_id;
+        table_insert(&set->id_to_slot_table, new_id, (u64)slot);
     }
     else{
         linalloc_clear(&arena);
     }
-    return(result);
+    return(face);
 }
 
 internal Font_Face_Slot*

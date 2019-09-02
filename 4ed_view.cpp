@@ -123,7 +123,7 @@ view_height(Models *models, View *view){
 internal Buffer_Layout_Item_List
 view_get_line_layout(Models *models, View *view, i64 line_number){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_get_line_layout(models, file, width, face, line_number));
 }
@@ -131,7 +131,7 @@ view_get_line_layout(Models *models, View *view, i64 line_number){
 internal Line_Shift_Vertical
 view_line_shift_y(Models *models, View *view, i64 line_number, f32 y_delta){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_line_shift_y(models, file, width, face, line_number, y_delta));
 }
@@ -139,7 +139,7 @@ view_line_shift_y(Models *models, View *view, i64 line_number, f32 y_delta){
 internal f32
 view_line_y_difference(Models *models, View *view, i64 line_a, i64 line_b){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_line_y_difference(models, file, width, face, line_a, line_b));
 }
@@ -147,7 +147,7 @@ view_line_y_difference(Models *models, View *view, i64 line_a, i64 line_b){
 internal i64
 view_pos_at_relative_xy(Models *models, View *view, i64 base_line, Vec2_f32 relative_xy){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_pos_at_relative_xy(models, file, width, face, base_line, relative_xy));
 }
@@ -155,7 +155,7 @@ view_pos_at_relative_xy(Models *models, View *view, i64 base_line, Vec2_f32 rela
 internal Vec2_f32
 view_relative_xy_of_pos(Models *models, View *view, i64 base_line, i64 pos){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_relative_xy_of_pos(models, file, width, face, base_line, pos));
 }
@@ -163,7 +163,7 @@ view_relative_xy_of_pos(Models *models, View *view, i64 base_line, i64 pos){
 internal Buffer_Point
 view_normalize_buffer_point(Models *models, View *view, Buffer_Point point){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_normalize_buffer_point(models, file, width, face, point));
 }
@@ -171,7 +171,7 @@ view_normalize_buffer_point(Models *models, View *view, Buffer_Point point){
 internal Vec2_f32
 view_buffer_point_difference(Models *models, View *view, Buffer_Point a, Buffer_Point b){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_buffer_point_difference(models, file, width, face, a, b));
 }
@@ -188,7 +188,7 @@ view_move_buffer_point(Models *models, View *view, Buffer_Point buffer_point, Ve
 internal Line_Shift_Character
 view_line_shift_characters(Models *models, View *view, i64 line_number, i64 character_delta){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_line_shift_characters(models, file, width, face, line_number, character_delta));
 }
@@ -196,7 +196,7 @@ view_line_shift_characters(Models *models, View *view, i64 line_number, i64 char
 internal i64
 view_line_character_difference(Models *models, View *view, i64 line_a, i64 line_b){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_line_character_difference(models, file, width, face, line_a, line_b));
 }
@@ -204,7 +204,7 @@ view_line_character_difference(Models *models, View *view, i64 line_a, i64 line_
 internal i64
 view_pos_from_relative_character(Models *models, View *view, i64 base_line, i64 relative_character){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_pos_from_relative_character(models, file, width, face, base_line, relative_character));
 }
@@ -212,9 +212,15 @@ view_pos_from_relative_character(Models *models, View *view, i64 base_line, i64 
 internal i64
 view_relative_character_from_pos(Models *models, View *view, i64 base_line, i64 pos){
     Editing_File *file = view->file;
-    Face_ID face = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     f32 width = view_width(models, view);
     return(file_relative_character_from_pos(models, file, width, face, base_line, pos));
+}
+
+internal Buffer_Cursor
+view_compute_cursor(View *view, Buffer_Seek seek){
+    Editing_File *file = view->file;
+    return(file_compute_cursor(file, seek));
 }
 
 ////////////////////////////////
@@ -247,16 +253,15 @@ view_safety_margin(f32 view_width, f32 acceptable_y_height, f32 line_height, f32
 internal b32
 view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
     Editing_File *file = view->file;
-    Face_ID face_id = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     Rect_f32 rect = view_get_buffer_rect(models, view);
     Vec2_f32 view_dim = rect_dim(rect);
     
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face_id, scroll->target.line_number, 
+    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face, scroll->target.line_number, 
                                          edit_pos.cursor_pos);
     p -= scroll->target.pixel_shift;
     
-    Face *face = font_set_face_from_id(&models->font_set, face_id);
     f32 line_height = face->height;
     f32 typical_advance = face->typical_advance;
     Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
@@ -286,14 +291,13 @@ view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
 internal b32
 view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *pos_in_out, f32 preferred_x){
     Editing_File *file = view->file;
-    Face_ID face_id = file->settings.font_id;
+    Face *face = file_get_face(models, file);
     Rect_f32 rect = view_get_buffer_rect(models, view);
     Vec2_f32 view_dim = rect_dim(rect);
     
-    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face_id, scroll.target.line_number, *pos_in_out);
+    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face, scroll.target.line_number, *pos_in_out);
     p -= scroll.target.pixel_shift;
     
-    Face *face = font_set_face_from_id(&models->font_set, face_id);
     f32 line_height = face->height;
     Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
     Vec2_f32 safety = view_safety_margin(view_dim.x, range_size(acceptable_y),
@@ -313,7 +317,7 @@ view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *
     b32 result = false;
     if (adjusted_y){
         p += scroll.target.pixel_shift;
-        *pos_in_out = file_pos_at_relative_xy(models, file, view_dim.x, face_id, scroll.target.line_number, p);
+        *pos_in_out = file_pos_at_relative_xy(models, file, view_dim.x, face, scroll.target.line_number, p);
         result = true;
     }
     
@@ -321,20 +325,9 @@ view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *
 }
 
 internal void
-view_set_preferred_x_to_current_position(Models *models, View *view){
-    view->preferred_x = 0.f;
-#if 0
-    File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Full_Cursor cursor = file_compute_cursor(models, view->file, seek_pos(edit_pos.cursor_pos));
-    view_set_preferred_x(view, cursor);
-#endif
-}
-
-internal void
 view_set_cursor(Models *models, View *view, i64 pos){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     file_edit_positions_set_cursor(&edit_pos, pos);
-    view->preferred_x = 0.f;
     view_set_edit_pos(view, edit_pos);
     Buffer_Scroll scroll = edit_pos.scroll;
     if (view_move_view_to_cursor(models, view, &scroll)){
@@ -390,10 +383,9 @@ view_set_file(System_Functions *system, Models *models, View *view, Editing_File
     File_Edit_Positions edit_pos = file_edit_positions_pop(file);
     view_set_edit_pos(view, edit_pos);
     view->mark = edit_pos.cursor_pos;
-    view_set_preferred_x_to_current_position(models, view);
-    
-    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-    Assert(face != 0);
+    Buffer_Cursor cursor = view_compute_cursor(view, seek_pos(edit_pos.cursor_pos));
+    Vec2_f32 p = view_relative_xy_of_pos(models, view, cursor.line, edit_pos.cursor_pos);
+    view->preferred_x = p.x;
     
     models->layout.panel_state_dirty = true;
 }
@@ -430,37 +422,31 @@ adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *mod
 }
 
 internal void
-file_set_font(System_Functions *system, Models *models, Editing_File *file, Face_ID font_id){
-    file->settings.font_id = font_id;
-}
-
-internal void
-global_set_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id){
+global_set_font_and_update_files(System_Functions *system, Models *models, Face *new_global_face){
     for (Node *node = models->working_set.active_file_sentinel.next;
          node != &models->working_set.active_file_sentinel;
          node = node->next){
         Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
-        file_set_font(system, models, file, font_id);
+        file->settings.face_id = new_global_face->id;
     }
-    models->global_font_id = font_id;
+    models->global_face_id = new_global_face->id;
 }
 
 internal b32
-release_font_and_update_files(System_Functions *system, Models *models, Face_ID font_id, Face_ID replacement_id){
+release_font_and_update(System_Functions *system, Models *models, Face *face, Face *replacement_face){
     b32 success = false;
-    if (font_set_release_face(&models->font_set, font_id)){
-        Face *face = font_set_face_from_id(&models->font_set, replacement_id);
-        if (face == 0){
-            replacement_id = font_set_get_fallback_face(&models->font_set);
-            Assert(font_set_face_from_id(&models->font_set, replacement_id) != 0);
-        }
+    Assert(replacement_face != 0 && replacement_face != face);
+    if (font_set_release_face(&models->font_set, face->id)){
         for (Node *node = models->working_set.active_file_sentinel.next;
              node != &models->working_set.active_file_sentinel;
              node = node->next){
             Editing_File *file = CastFromMember(Editing_File, main_chain_node, node);
-            if (file->settings.font_id == font_id){
-                file_set_font(system, models, file, replacement_id);
+            if (file->settings.face_id == face->id){
+                file->settings.face_id = replacement_face->id;
             }
+        }
+        if (models->global_face_id == face->id){
+            models->global_face_id = replacement_face->id;
         }
         success = true;
     }

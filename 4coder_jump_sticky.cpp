@@ -440,7 +440,7 @@ goto_next_filtered_jump(Application_Links *app, Marker_List *list, View_ID jump_
                 if (!skip_this){
                     goto_jump_in_order(app, list, jump_view, location);
                     i64 updated_line = get_line_from_list(app, list, list_index);
-                    view_set_cursor(app, jump_view, seek_line_col(updated_line, 1), true);
+                    view_set_cursor_and_preferred_x(app, jump_view, seek_line_col(updated_line, 1));
                     break;
                 }
             }
@@ -538,7 +538,7 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
         if (get_jump_from_list(app, jump_state.list, list_index, &location)){
             goto_jump_in_order(app, jump_state.list, jump_state.view, location);
             i64 updated_line = get_line_from_list(app, jump_state.list, list_index);
-            view_set_cursor(app, jump_state.view, seek_line_col(updated_line, 1), true);
+            view_set_cursor_and_preferred_x(app, jump_state.view, seek_line_col(updated_line, 1));
         }
     }
 }

@@ -65,6 +65,7 @@ struct Application_Links;
 #define VIEW_GET_CURSOR_POS_SIG(n) i64 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_MARK_POS_SIG(n) i64 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_PREFERRED_X_SIG(n) f32 n(Application_Links *app, View_ID view_id)
+#define VIEW_SET_PREFERRED_X_SIG(n) b32 n(Application_Links *app, View_ID view_id, f32 x)
 #define VIEW_GET_SCREEN_RECT_SIG(n) Rect_f32 n(Application_Links *app, View_ID view_id)
 #define VIEW_GET_PANEL_SIG(n) Panel_ID n(Application_Links *app, View_ID view_id)
 #define PANEL_GET_VIEW_SIG(n) View_ID n(Application_Links *app, Panel_ID panel_id)
@@ -86,7 +87,8 @@ struct Application_Links;
 #define VIEW_SET_SETTING_SIG(n) b32 n(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value)
 #define VIEW_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, View_ID view_id)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) Buffer_Cursor n(Application_Links *app, Buffer_ID buffer, Buffer_Seek seek)
-#define VIEW_SET_CURSOR_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x)
+#define VIEW_COMPUTE_CURSOR_SIG(n) Buffer_Cursor n(Application_Links *app, View_ID view_id, Buffer_Seek seek)
+#define VIEW_SET_CURSOR_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 #define VIEW_SET_BUFFER_SCROLL_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Scroll scroll)
 #define VIEW_SET_BASIC_SCROLL_SIG(n) b32 n(Application_Links *app, View_ID view_id, Basic_Scroll scroll)
 #define VIEW_SET_MARK_SIG(n) b32 n(Application_Links *app, View_ID view_id, Buffer_Seek seek)
@@ -249,6 +251,7 @@ typedef VIEW_GET_BUFFER_SIG(View_Get_Buffer_Function);
 typedef VIEW_GET_CURSOR_POS_SIG(View_Get_Cursor_Pos_Function);
 typedef VIEW_GET_MARK_POS_SIG(View_Get_Mark_Pos_Function);
 typedef VIEW_GET_PREFERRED_X_SIG(View_Get_Preferred_X_Function);
+typedef VIEW_SET_PREFERRED_X_SIG(View_Set_Preferred_X_Function);
 typedef VIEW_GET_SCREEN_RECT_SIG(View_Get_Screen_Rect_Function);
 typedef VIEW_GET_PANEL_SIG(View_Get_Panel_Function);
 typedef PANEL_GET_VIEW_SIG(Panel_Get_View_Function);
@@ -270,6 +273,7 @@ typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
 typedef VIEW_GET_MANAGED_SCOPE_SIG(View_Get_Managed_Scope_Function);
 typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
+typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
 typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
 typedef VIEW_SET_BUFFER_SCROLL_SIG(View_Set_Buffer_Scroll_Function);
 typedef VIEW_SET_BASIC_SCROLL_SIG(View_Set_Basic_Scroll_Function);
@@ -435,6 +439,7 @@ View_Get_Buffer_Function *view_get_buffer;
 View_Get_Cursor_Pos_Function *view_get_cursor_pos;
 View_Get_Mark_Pos_Function *view_get_mark_pos;
 View_Get_Preferred_X_Function *view_get_preferred_x;
+View_Set_Preferred_X_Function *view_set_preferred_x;
 View_Get_Screen_Rect_Function *view_get_screen_rect;
 View_Get_Panel_Function *view_get_panel;
 Panel_Get_View_Function *panel_get_view;
@@ -456,6 +461,7 @@ View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
 View_Get_Managed_Scope_Function *view_get_managed_scope;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor;
+View_Compute_Cursor_Function *view_compute_cursor;
 View_Set_Cursor_Function *view_set_cursor;
 View_Set_Buffer_Scroll_Function *view_set_buffer_scroll;
 View_Set_Basic_Scroll_Function *view_set_basic_scroll;
@@ -620,6 +626,7 @@ View_Get_Buffer_Function *view_get_buffer_;
 View_Get_Cursor_Pos_Function *view_get_cursor_pos_;
 View_Get_Mark_Pos_Function *view_get_mark_pos_;
 View_Get_Preferred_X_Function *view_get_preferred_x_;
+View_Set_Preferred_X_Function *view_set_preferred_x_;
 View_Get_Screen_Rect_Function *view_get_screen_rect_;
 View_Get_Panel_Function *view_get_panel_;
 Panel_Get_View_Function *panel_get_view_;
@@ -641,6 +648,7 @@ View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
 View_Get_Managed_Scope_Function *view_get_managed_scope_;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
+View_Compute_Cursor_Function *view_compute_cursor_;
 View_Set_Cursor_Function *view_set_cursor_;
 View_Set_Buffer_Scroll_Function *view_set_buffer_scroll_;
 View_Set_Basic_Scroll_Function *view_set_basic_scroll_;
@@ -813,6 +821,7 @@ app_links->view_get_buffer_ = View_Get_Buffer;\
 app_links->view_get_cursor_pos_ = View_Get_Cursor_Pos;\
 app_links->view_get_mark_pos_ = View_Get_Mark_Pos;\
 app_links->view_get_preferred_x_ = View_Get_Preferred_X;\
+app_links->view_set_preferred_x_ = View_Set_Preferred_X;\
 app_links->view_get_screen_rect_ = View_Get_Screen_Rect;\
 app_links->view_get_panel_ = View_Get_Panel;\
 app_links->panel_get_view_ = Panel_Get_View;\
@@ -834,6 +843,7 @@ app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
 app_links->view_get_managed_scope_ = View_Get_Managed_Scope;\
 app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
+app_links->view_compute_cursor_ = View_Compute_Cursor;\
 app_links->view_set_cursor_ = View_Set_Cursor;\
 app_links->view_set_buffer_scroll_ = View_Set_Buffer_Scroll;\
 app_links->view_set_basic_scroll_ = View_Set_Basic_Scroll;\
@@ -998,6 +1008,7 @@ static Buffer_ID view_get_buffer(Application_Links *app, View_ID view_id, Access
 static i64 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos(app, view_id));}
 static i64 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos(app, view_id));}
 static f32 view_get_preferred_x(Application_Links *app, View_ID view_id){return(app->view_get_preferred_x(app, view_id));}
+static b32 view_set_preferred_x(Application_Links *app, View_ID view_id, f32 x){return(app->view_set_preferred_x(app, view_id, x));}
 static Rect_f32 view_get_screen_rect(Application_Links *app, View_ID view_id){return(app->view_get_screen_rect(app, view_id));}
 static Panel_ID view_get_panel(Application_Links *app, View_ID view_id){return(app->view_get_panel(app, view_id));}
 static View_ID panel_get_view(Application_Links *app, Panel_ID panel_id){return(app->panel_get_view(app, panel_id));}
@@ -1019,7 +1030,8 @@ static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Settin
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting(app, view_id, setting, value));}
 static Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope(app, view_id));}
 static Buffer_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID buffer, Buffer_Seek seek){return(app->buffer_compute_cursor(app, buffer, seek));}
-static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x){return(app->view_set_cursor(app, view_id, seek, set_preferred_x));}
+static Buffer_Cursor view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_compute_cursor(app, view_id, seek));}
+static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_cursor(app, view_id, seek));}
 static b32 view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll scroll){return(app->view_set_buffer_scroll(app, view_id, scroll));}
 static b32 view_set_basic_scroll(Application_Links *app, View_ID view_id, Basic_Scroll scroll){return(app->view_set_basic_scroll(app, view_id, scroll));}
 static b32 view_set_mark(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_mark(app, view_id, seek));}
@@ -1183,6 +1195,7 @@ static Buffer_ID view_get_buffer(Application_Links *app, View_ID view_id, Access
 static i64 view_get_cursor_pos(Application_Links *app, View_ID view_id){return(app->view_get_cursor_pos_(app, view_id));}
 static i64 view_get_mark_pos(Application_Links *app, View_ID view_id){return(app->view_get_mark_pos_(app, view_id));}
 static f32 view_get_preferred_x(Application_Links *app, View_ID view_id){return(app->view_get_preferred_x_(app, view_id));}
+static b32 view_set_preferred_x(Application_Links *app, View_ID view_id, f32 x){return(app->view_set_preferred_x_(app, view_id, x));}
 static Rect_f32 view_get_screen_rect(Application_Links *app, View_ID view_id){return(app->view_get_screen_rect_(app, view_id));}
 static Panel_ID view_get_panel(Application_Links *app, View_ID view_id){return(app->view_get_panel_(app, view_id));}
 static View_ID panel_get_view(Application_Links *app, Panel_ID panel_id){return(app->panel_get_view_(app, panel_id));}
@@ -1204,7 +1217,8 @@ static b32 view_get_setting(Application_Links *app, View_ID view_id, View_Settin
 static b32 view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value){return(app->view_set_setting_(app, view_id, setting, value));}
 static Managed_Scope view_get_managed_scope(Application_Links *app, View_ID view_id){return(app->view_get_managed_scope_(app, view_id));}
 static Buffer_Cursor buffer_compute_cursor(Application_Links *app, Buffer_ID buffer, Buffer_Seek seek){return(app->buffer_compute_cursor_(app, buffer, seek));}
-static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x){return(app->view_set_cursor_(app, view_id, seek, set_preferred_x));}
+static Buffer_Cursor view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_compute_cursor_(app, view_id, seek));}
+static b32 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_cursor_(app, view_id, seek));}
 static b32 view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll scroll){return(app->view_set_buffer_scroll_(app, view_id, scroll));}
 static b32 view_set_basic_scroll(Application_Links *app, View_ID view_id, Basic_Scroll scroll){return(app->view_set_basic_scroll_(app, view_id, scroll));}
 static b32 view_set_mark(Application_Links *app, View_ID view_id, Buffer_Seek seek){return(app->view_set_mark_(app, view_id, seek));}

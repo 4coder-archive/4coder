@@ -49,7 +49,7 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         
         // NOTE(allen): finish updating the cursor
         if (edit_success){
-            view_set_cursor(app, view, seek_pos(pos + length), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(pos + length));
         }
     }
 }
@@ -100,7 +100,7 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
             i64 character = view_relative_character_from_pos(app, view, cursor.line, cursor.pos);
             i64 start = view_pos_from_relative_character(app, view, cursor.line, character - 1);
             if (buffer_replace_range(app, buffer, Ii64(start, end), string_u8_empty)){
-                view_set_cursor(app, view, seek_pos(start), true);
+                view_set_cursor_and_preferred_x(app, view, seek_pos(start));
             }
         }
     }
@@ -112,7 +112,7 @@ CUSTOM_DOC("Sets the mark to the current position of the cursor.")
     View_ID view = get_active_view(app, AccessProtected);
     i64 pos = view_get_cursor_pos(app, view);
     view_set_mark(app, view, seek_pos(pos));
-    view_set_cursor(app, view, seek_pos(pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
 }
 
 CUSTOM_COMMAND_SIG(cursor_mark_swap)
@@ -121,7 +121,7 @@ CUSTOM_DOC("Swaps the position of the cursor and the mark.")
     View_ID view = get_active_view(app, AccessProtected);
     i64 cursor = view_get_cursor_pos(app, view);
     i64 mark = view_get_mark_pos(app, view);
-    view_set_cursor(app, view, seek_pos(mark), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(mark));
     view_set_mark(app, view, seek_pos(cursor));
 }
 
@@ -227,7 +227,7 @@ CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
     if (!view_is_in_ui_mode(app, view)){
         Mouse_State mouse = get_mouse_state(app);
         i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
-        view_set_cursor(app, view, seek_pos(pos), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
         view_set_mark(app, view, seek_pos(pos));
     }
 }
@@ -239,7 +239,7 @@ CUSTOM_DOC("Sets the cursor position to the mouse position.")
     if (!view_is_in_ui_mode(app, view)){
         Mouse_State mouse = get_mouse_state(app);
         i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
-        view_set_cursor(app, view, seek_pos(pos), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
         no_mark_snap_to_cursor(app, view);
     }
 }
@@ -252,7 +252,7 @@ CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the
         Mouse_State mouse = get_mouse_state(app);
         if (mouse.l){
             i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
-            view_set_cursor(app, view, seek_pos(pos), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
         }
         no_mark_snap_to_cursor(app, view);
     }
@@ -296,9 +296,10 @@ move_vertical_pixels(Application_Links *app, View_ID view, f32 pixels){
     i64 pos = view_get_cursor_pos(app, view);
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, pos);
+    p.x = view_get_preferred_x(app, view);
     p.y += pixels;
     i64 new_pos = view_pos_at_relative_xy(app, view, cursor.line, p);
-    view_set_cursor(app, view, seek_pos(new_pos), false);
+    view_set_cursor(app, view, seek_pos(new_pos));
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -324,8 +325,6 @@ move_vertical_lines(Application_Links *app, f32 lines){
     move_vertical_lines(app, view, lines);
 }
 
-#define move_vertical move_vertical_lines
-
 internal f32
 get_page_jump(Application_Links *app, View_ID view){
     Rect_f32 region = view_get_buffer_region(app, view);
@@ -335,25 +334,25 @@ get_page_jump(Application_Links *app, View_ID view){
 CUSTOM_COMMAND_SIG(move_up)
 CUSTOM_DOC("Moves the cursor up one line.")
 {
-    move_vertical(app, -1.f);
+    move_vertical_lines(app, -1.f);
 }
 
 CUSTOM_COMMAND_SIG(move_down)
 CUSTOM_DOC("Moves the cursor down one line.")
 {
-    move_vertical(app, 1.f);
+    move_vertical_lines(app, 1.f);
 }
 
 CUSTOM_COMMAND_SIG(move_up_10)
 CUSTOM_DOC("Moves the cursor up ten lines.")
 {
-    move_vertical(app, -10.f);
+    move_vertical_lines(app, -10.f);
 }
 
 CUSTOM_COMMAND_SIG(move_down_10)
 CUSTOM_DOC("Moves the cursor down ten lines.")
 {
-    move_vertical(app, 10.f);
+    move_vertical_lines(app, 10.f);
 }
 
 CUSTOM_COMMAND_SIG(move_down_textual)
@@ -363,7 +362,7 @@ CUSTOM_DOC("Moves down to the next line of actual text, regardless of line wrapp
     i64 pos = view_get_cursor_pos(app, view);
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     i64 next_line = cursor.line + 1;
-    view_set_cursor(app, view, seek_line_col(next_line, 1), true);
+    view_set_cursor_and_preferred_x(app, view, seek_line_col(next_line, 1));
 }
 
 CUSTOM_COMMAND_SIG(page_up)
@@ -399,7 +398,7 @@ seek_blank_line(Application_Links *app, Scan_Direction direction, Position_Withi
             new_pos = get_line_side_pos_from_pos(app, buffer, new_pos, Side_Max);
         }break;
     }
-    view_set_cursor(app, view, seek_pos(new_pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -439,11 +438,6 @@ CUSTOM_DOC("Seeks the cursor down to the next blank line and places it at the en
     seek_blank_line(app, Scan_Forward, PositionWithinLine_End);
 }
 
-#define seek_whitespace_up            move_up_to_blank_line
-#define seek_whitespace_down          move_down_to_blank_line
-#define seek_whitespace_up_end_line   move_up_to_blank_line_skip_whitespace
-#define seek_whitespace_down_end_line move_down_to_blank_line_skip_whitespace
-
 CUSTOM_COMMAND_SIG(move_left)
 CUSTOM_DOC("Moves the cursor one character to the left.")
 {
@@ -452,7 +446,7 @@ CUSTOM_DOC("Moves the cursor one character to the left.")
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     i64 character = view_relative_character_from_pos(app, view, cursor.line, pos);
     i64 new_pos = view_pos_from_relative_character(app, view, cursor.line, character - 1);
-    view_set_cursor(app, view, seek_pos(new_pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -464,7 +458,7 @@ CUSTOM_DOC("Moves the cursor one character to the right.")
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     i64 character = view_relative_character_from_pos(app, view, cursor.line, pos);
     i64 new_pos = view_pos_from_relative_character(app, view, cursor.line, character + 1);
-    view_set_cursor(app, view, seek_pos(new_pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -474,7 +468,7 @@ current_view_scan_move(Application_Links *app, Scan_Direction direction, Boundar
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i64 cursor_pos = view_get_cursor_pos(app, view);
     i64 pos = scan(app, funcs, buffer, direction, cursor_pos);
-    view_set_cursor(app, view, seek_pos(pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -577,7 +571,7 @@ CUSTOM_DOC("Puts the cursor at the top of the file, and the mark at the bottom o
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 buffer_size = (i32)buffer_get_size(app, buffer);
-    view_set_cursor(app, view, seek_pos(0), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(0));
     view_set_mark(app, view, seek_pos(buffer_size));
     no_mark_snap_to_cursor(app, view);
 }
@@ -594,7 +588,7 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
     string = string_mod_upper(string);
     buffer_replace_range(app, buffer, range, string);
-    view_set_cursor(app, view, seek_pos(range.max), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(range.max));
 }
 
 CUSTOM_COMMAND_SIG(to_lowercase)
@@ -607,7 +601,7 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
     string = string_mod_lower(string);
     buffer_replace_range(app, buffer, range, string);
-    view_set_cursor(app, view, seek_pos(range.max), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(range.max));
 }
 
 CUSTOM_COMMAND_SIG(clean_all_lines)
@@ -833,7 +827,7 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
     if (query_user_number(app, &bar)){
         i32 line_number = (i32)string_to_integer(bar.string, 10);
         View_ID view = get_active_view(app, AccessProtected);
-        view_set_cursor(app, view, seek_line_col(line_number, 0), true);
+        view_set_cursor_and_preferred_x(app, view, seek_line_col(line_number, 0));
     }
 }
 
@@ -843,7 +837,7 @@ CUSTOM_COMMAND_SIG(reverse_search);
 static void
 isearch__update_highlight(Application_Links *app, View_ID view, Range_i64 range){
     view_set_highlight_range(app, view, range);
-    view_set_cursor(app, view, seek_pos(range.start), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(range.start));
 }
 
 static void
@@ -1029,7 +1023,7 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
         size = clamp_top(size, sizeof(previous_isearch_query) - 1);
         block_copy(previous_isearch_query, bar.string.str, size);
         previous_isearch_query[size] = 0;
-        view_set_cursor(app, view, seek_pos(first_pos), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(first_pos));
     }
 }
 
@@ -1178,7 +1172,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
         return;
     }
     
-    view_set_cursor(app, view, seek_pos(pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
 }
 
 static void
@@ -1452,7 +1446,7 @@ current_view_move_line(Application_Links *app, Scan_Direction direction){
     i64 pos = view_get_cursor_pos(app, view);
     i64 line_number = get_line_number_from_pos(app, buffer, pos);
     pos = move_line(app, buffer, line_number, direction);
-    view_set_cursor(app, view, seek_pos(pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
 }
 
 CUSTOM_COMMAND_SIG(move_line_up)
@@ -1600,7 +1594,7 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
     change_active_panel(app);
     view = get_active_view(app, AccessAll);
     view_set_buffer(app, view, buffer, 0);
-    view_set_cursor(app, view, seek_pos(pos), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
 }
 
 CUSTOM_COMMAND_SIG(swap_buffers_between_panels)
@@ -1627,11 +1621,11 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
             i64 m2 = view_get_mark_pos(app, view2);
             Buffer_Scroll sc2 = view_get_buffer_scroll(app, view2);
             
-            view_set_cursor(app, view1, seek_pos(p2), true);
-            view_set_mark  (app, view1, seek_pos(m2));
+            view_set_cursor_and_preferred_x(app, view1, seek_pos(p2));
+            view_set_mark(app, view1, seek_pos(m2));
             view_set_buffer_scroll(app, view1, sc2);
-            view_set_cursor(app, view2, seek_pos(p1), true);
-            view_set_mark  (app, view2, seek_pos(m1));
+            view_set_cursor_and_preferred_x(app, view2, seek_pos(p1));
+            view_set_mark(app, view2, seek_pos(m1));
             view_set_buffer_scroll(app, view2, sc1);
         }
     }
@@ -1726,7 +1720,7 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
     if (current > 0){
         i32 new_position = record_get_new_cursor_position_undo(app, buffer, current);
         buffer_history_set_current_state_index(app, buffer, current - 1);
-        view_set_cursor(app, view, seek_pos(new_position), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(new_position));
     }
 }
 
@@ -1740,7 +1734,7 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
     if (current < max_index){
         i32 new_position = record_get_new_cursor_position_redo(app, buffer, current + 1);
         buffer_history_set_current_state_index(app, buffer, current + 1);
-        view_set_cursor(app, view, seek_pos(new_position), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(new_position));
     }
 }
 

@@ -51,6 +51,11 @@ file_edit_positions_pop(Editing_File *file){
 
 ////////////////////////////////
 
+internal Face*
+file_get_face(Models *models, Editing_File *file){
+    return(font_set_face_from_id(&models->font_set, file->settings.face_id));
+}
+
 internal u32
 file_get_access_flags(Editing_File *file){
     u32 flags = 0;
@@ -223,10 +228,7 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     file_clear_dirty_flags(file);
     file->attributes = attributes;
     
-    Face_ID font_id = models->global_font_id;
-    file->settings.font_id = font_id;
-    Face *face = font_set_face_from_id(&models->font_set, font_id);
-    Assert(face != 0);
+    file->settings.face_id = models->global_face_id;
     
     buffer_measure_starts(scratch, &file->state.buffer);
     
@@ -315,41 +317,36 @@ file_get_managed_scope(Editing_File *file){
 ////////////////////////////////
 
 internal Buffer_Layout_Item_List
-file_get_line_layout(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_number){
+file_get_line_layout(Models *models, Editing_File *file, f32 width, Face *face, i64 line_number){
     Buffer_Layout_Item_List result = {};
     
     i64 line_count = buffer_line_count(&file->state.buffer);
     if (1 <= line_number && line_number <= line_count){
-        // TODO(allen): optimization: most places that CALL this do so in a LOOP, which could HOIST
-        // this font_set_face_from_id call OUTSIDE of the LOOP.
-        Face *face = font_set_face_from_id(&models->font_set, face_id);
-        if (face != 0){
-            Line_Layout_Key key = {};
-            key.face_id = face_id;
-            key.face_version_number = face->version_number;
-            key.width = width;
-            key.line_number = line_number;
-            
-            Data key_data = make_data_struct(&key);
-            
-            Buffer_Layout_Item_List *list = 0;
-            
-            Table_Lookup lookup = table_lookup(&file->state.line_layout_table, key_data);
-            if (lookup.found_match){
-                u64 val = 0;
-                table_read(&file->state.line_layout_table, lookup, &val);
-                list = (Buffer_Layout_Item_List*)IntAsPtr(val);
-            }
-            else{
-                list = push_array(&file->state.cached_layouts_arena, Buffer_Layout_Item_List, 1);
-                Interval_i64 line_range = buffer_get_pos_range_from_line_number(&file->state.buffer, line_number);
-                *list = buffer_layout(&models->mem.arena, &file->state.cached_layouts_arena,
-                                      &file->state.buffer, line_range, face, width);
-                key_data = push_data_copy(&file->state.cached_layouts_arena, key_data);
-                table_insert(&file->state.line_layout_table, key_data, (u64)PtrAsInt(list));
-            }
-            block_copy_struct(&result, list);
+        Line_Layout_Key key = {};
+        key.face_id = face->id;
+        key.face_version_number = face->version_number;
+        key.width = width;
+        key.line_number = line_number;
+        
+        Data key_data = make_data_struct(&key);
+        
+        Buffer_Layout_Item_List *list = 0;
+        
+        Table_Lookup lookup = table_lookup(&file->state.line_layout_table, key_data);
+        if (lookup.found_match){
+            u64 val = 0;
+            table_read(&file->state.line_layout_table, lookup, &val);
+            list = (Buffer_Layout_Item_List*)IntAsPtr(val);
         }
+        else{
+            list = push_array(&file->state.cached_layouts_arena, Buffer_Layout_Item_List, 1);
+            Interval_i64 line_range = buffer_get_pos_range_from_line_number(&file->state.buffer, line_number);
+            *list = buffer_layout(&models->mem.arena, &file->state.cached_layouts_arena,
+                                  &file->state.buffer, line_range, face, width);
+            key_data = push_data_copy(&file->state.cached_layouts_arena, key_data);
+            table_insert(&file->state.line_layout_table, key_data, (u64)PtrAsInt(list));
+        }
+        block_copy_struct(&result, list);
     }
     
     return(result);
@@ -362,7 +359,7 @@ file_clear_layout_cache(Editing_File *file){
 }
 
 internal Line_Shift_Vertical
-file_line_shift_y(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_number, f32 y_delta){
+file_line_shift_y(Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, f32 y_delta){
     Line_Shift_Vertical result = {};
     
     f32 line_y = 0.f;
@@ -382,7 +379,7 @@ file_line_shift_y(Models *models, Editing_File *file, f32 width, Face_ID face_id
                 line_number = 1;
                 break;
             }
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
             line_y -= line.height;
         }
         if (!has_result){
@@ -395,7 +392,7 @@ file_line_shift_y(Models *models, Editing_File *file, f32 width, Face_ID face_id
         b32 has_result = false;
         i64 line_count = buffer_line_count(&file->state.buffer);
         for (;;line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
             f32 next_y = line_y + line.height;
             if (y_delta < next_y){
                 has_result = true;
@@ -418,12 +415,12 @@ file_line_shift_y(Models *models, Editing_File *file, f32 width, Face_ID face_id
 }
 
 internal f32
-file_line_y_difference(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_a, i64 line_b){
+file_line_y_difference(Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
     f32 result = 0.f;
     if (line_a != line_b){
         Interval_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, i);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, i);
             result += line.height;
         }
         if (line_a < line_b){
@@ -434,25 +431,25 @@ file_line_y_difference(Models *models, Editing_File *file, f32 width, Face_ID fa
 }
 
 internal i64
-file_pos_at_relative_xy(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, Vec2_f32 relative_xy){
-    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face_id, base_line, relative_xy.y);
+file_pos_at_relative_xy(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, Vec2_f32 relative_xy){
+    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face, base_line, relative_xy.y);
     relative_xy.y -= shift.y_delta;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, shift.line);
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, shift.line);
     return(buffer_layout_nearest_pos_to_xy(line, relative_xy));
 }
 
 internal Vec2_f32
-file_relative_xy_of_pos(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, i64 pos){
+file_relative_xy_of_pos(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
     i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
     Vec2_f32 result = buffer_layout_xy_center_of_pos(line, pos);
-    result.y += file_line_y_difference(models, file, width, face_id, line_number, base_line);
+    result.y += file_line_y_difference(models, file, width, face, line_number, base_line);
     return(result);
 }
 
 internal Buffer_Point
-file_normalize_buffer_point(Models *models, Editing_File *file, f32 width, Face_ID face_id, Buffer_Point point){
-    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face_id, point.line_number, point.pixel_shift.y);
+file_normalize_buffer_point(Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point point){
+    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face, point.line_number, point.pixel_shift.y);
     point.line_number = shift.line;
     point.pixel_shift.y -= shift.y_delta;
     point.pixel_shift.x = clamp_bot(0.f, point.pixel_shift.x);
@@ -461,15 +458,15 @@ file_normalize_buffer_point(Models *models, Editing_File *file, f32 width, Face_
 }
 
 internal Vec2_f32
-file_buffer_point_difference(Models *models, Editing_File *file, f32 width, Face_ID face_id, Buffer_Point a, Buffer_Point b){
-    f32 y_difference = file_line_y_difference(models, file, width, face_id, a.line_number, b.line_number);
+file_buffer_point_difference(Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point a, Buffer_Point b){
+    f32 y_difference = file_line_y_difference(models, file, width, face, a.line_number, b.line_number);
     Vec2_f32 result = a.pixel_shift - b.pixel_shift;
     result.y += y_difference;
     return(result);
 }
 
 internal Line_Shift_Character
-file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_number, i64 character_delta){
+file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, i64 character_delta){
     Line_Shift_Character result = {};
     
     i64 line_character = 0;
@@ -489,7 +486,7 @@ file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face_I
                 line_number = 1;
                 break;
             }
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
             line_character -= line.character_count;
         }
         if (!has_result){
@@ -502,7 +499,7 @@ file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face_I
         b32 has_result = false;
         i64 line_count = buffer_line_count(&file->state.buffer);
         for (;;line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
             i64 next_character = line_character + line.character_count;
             if (character_delta < next_character){
                 has_result = true;
@@ -525,12 +522,12 @@ file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face_I
 }
 
 internal i64
-file_line_character_difference(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 line_a, i64 line_b){
+file_line_character_difference(Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
     i64 result = 0;
     if (line_a != line_b){
         Interval_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, i);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, i);
             result += line.character_count;
         }
         if (line_a < line_b){
@@ -541,19 +538,19 @@ file_line_character_difference(Models *models, Editing_File *file, f32 width, Fa
 }
 
 internal i64
-file_pos_from_relative_character(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, i64 relative_character){
-    Line_Shift_Character shift = file_line_shift_characters(models, file, width, face_id, base_line, relative_character);
+file_pos_from_relative_character(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 relative_character){
+    Line_Shift_Character shift = file_line_shift_characters(models, file, width, face, base_line, relative_character);
     relative_character -= shift.character_delta;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, shift.line);
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, shift.line);
     return(buffer_layout_get_pos_at_character(line, relative_character));
 }
 
 internal i64
-file_relative_character_from_pos(Models *models, Editing_File *file, f32 width, Face_ID face_id, i64 base_line, i64 pos){
+file_relative_character_from_pos(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
     i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number);
+    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
     i64 result = buffer_layout_character_from_pos(line, pos);
-    result += file_line_character_difference(models, file, width, face_id, line_number, base_line);
+    result += file_line_character_difference(models, file, width, face, line_number, base_line);
     return(result);
 }
 

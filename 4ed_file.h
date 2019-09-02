@@ -37,7 +37,7 @@ struct Editing_File_Settings{
     i32 base_map_id;
     Parse_Context_ID parse_context_id;
     b32 dos_write_mode;
-    Face_ID font_id;
+    Face_ID face_id;
     b8 tokens_exist;
     b8 tokens_without_strings;
     b8 is_initialized;

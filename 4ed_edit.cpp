@@ -143,8 +143,7 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
         buffer_unsort_cursors(  cursors,   cursor_count);
         buffer_unsort_cursors(r_cursors, r_cursor_count);
         
-        Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-        Assert(face != 0);
+        Face *face = file_get_face(models, file);
         
         cursor_count = 0;
         r_cursor_count = 0;

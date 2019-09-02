@@ -226,14 +226,6 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
     draw__write_vertices_in_current_group(target, vertices, 6);
 }
 
-internal void
-draw_font_glyph(Render_Target *target, Font_Set *font_set, Face_ID face_id, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
-    Face *face = font_set_face_from_id(font_set, face_id);
-    if (face != 0){
-        draw_font_glyph(target, face, codepoint, x, y, color, flags);
-    }
-}
-
 ////////////////////////////////
 
 internal void

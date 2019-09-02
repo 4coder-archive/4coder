@@ -58,7 +58,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             i64 pos = view_get_cursor_pos(app, view);
             buffer_replace_range(app, buffer, Ii64(pos), string);
             view_set_mark(app, view, seek_pos(pos));
-            view_set_cursor(app, view, seek_pos(pos + (i32)string.size), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(pos + (i32)string.size));
             
             // TODO(allen): Send this to all views.
             Theme_Color paste = {};
@@ -97,7 +97,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
             i64 pos = range.min;
             
             buffer_replace_range(app, buffer, range, string);
-            view_set_cursor(app, view, seek_pos(pos + string.size), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(pos + string.size));
             
             // TODO(allen): Send this to all views.
             Theme_Color paste = {};

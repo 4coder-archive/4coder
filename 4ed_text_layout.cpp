@@ -88,8 +88,7 @@ text_layout_render(Models *models, Text_Layout *layout){
         Arena *scratch = &models->mem.arena;
         Render_Target *target = models->target;
         Color_Table color_table = models->color_table;
-        Font_Set *font_set = &models->font_set;
-        Face_ID font_id = file->settings.font_id;
+        Face *face = file_get_face(models, file);
         f32 width = rect_width(layout->rect);
         
         u32 special_color = color_table.vals[Stag_Special_Character];
@@ -100,7 +99,7 @@ text_layout_render(Models *models, Text_Layout *layout){
         i64 line_number = layout->visible_line_number_range.min;
         i64 line_number_last = layout->visible_line_number_range.max;
         for (;line_number <= line_number_last; line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, font_id, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
             for (Buffer_Layout_Item_Block *block = line.first;
                  block != 0;
                  block = block->next){
@@ -127,7 +126,7 @@ text_layout_render(Models *models, Text_Layout *layout){
                         }
                         
                         Vec2_f32 p = item->rect.p0 + shift_p;
-                        draw_font_glyph(target, font_set, font_id, item->codepoint, p.x, p.y, color, GlyphFlag_None);
+                        draw_font_glyph(target, face, item->codepoint, p.x, p.y, color, GlyphFlag_None);
                     }
                 }
             }

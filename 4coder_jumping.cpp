@@ -240,7 +240,7 @@ set_view_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Buf
     if (current_buffer != buffer){
         view_set_buffer(app, view, buffer, 0);
     }
-    view_set_cursor(app, view, seek, true);
+    view_set_cursor_and_preferred_x(app, view, seek);
 }
 
 static void

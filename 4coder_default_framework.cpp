@@ -188,7 +188,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
         View_Node *node = primary_view_first;
         for (i32 i = 0; i < buffer_set_count; i += 1, node = node->next){
             if (view_set_buffer(app, node->view_id, buffers[i], 0)){
-                view_set_cursor(app, node->view_id, seek_pos(positions[i]), true);
+                view_set_cursor_and_preferred_x(app, node->view_id, seek_pos(positions[i]));
             }
         }
         

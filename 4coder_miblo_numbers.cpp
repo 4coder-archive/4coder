@@ -37,7 +37,7 @@ CUSTOM_DOC("Increment an integer under the cursor by one.")
         Scratch_Block scratch(app);
         String_Const_u8 str = push_u8_stringf(scratch, "%d", number.x + 1);
         buffer_replace_range(app, buffer, number.range, str);
-        view_set_cursor(app, view, seek_pos(number.range.start + str.size - 1), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(number.range.start + str.size - 1));
     }
 }
 
@@ -52,7 +52,7 @@ CUSTOM_DOC("Decrement an integer under the cursor by one.")
         Scratch_Block scratch(app);
         String_Const_u8 str = push_u8_stringf(scratch, "%d", number.x - 1);
         buffer_replace_range(app, buffer, number.range, str);
-        view_set_cursor(app, view, seek_pos(number.range.start + str.size - 1), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(number.range.start + str.size - 1));
     }
 }
 
@@ -224,7 +224,7 @@ miblo_time_stamp_alter(Application_Links *app, i32 unit_type, i32 amt){
         Miblo_Timestamp inc_timestamp = increment_timestamp(timestamp.time, unit_type, amt);
         String_Const_u8 str = timestamp_to_string(scratch, inc_timestamp);
         buffer_replace_range(app, buffer, timestamp.range, str);
-        view_set_cursor(app, view, seek_pos(timestamp.range.start + str.size - 1), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(timestamp.range.start + str.size - 1));
     }
 }
 

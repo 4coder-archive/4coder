@@ -39,7 +39,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
             Range_i64 range = get_view_range(app, view);
             buffer_replace_range(app, buffer, Ii64(range.max), insert_string);
             view_set_mark(app, view, seek_pos(range.max + 1));
-            view_set_cursor(app, view, seek_pos(range.max + insert_string.size), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(range.max + insert_string.size));
             
             // TODO(allen): Send this to all views.
             Theme_Color paste = {};
@@ -98,7 +98,7 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
                 finish_range.min = pos;
                 finish_range.max = pos + total_size;
                 view_set_mark(app, view, seek_pos(finish_range.min));
-                view_set_cursor(app, view, seek_pos(finish_range.max), true);
+                view_set_cursor_and_preferred_x(app, view, seek_pos(finish_range.max));
                 
                 // TODO(allen): Send this to all views.
                 Theme_Color paste;

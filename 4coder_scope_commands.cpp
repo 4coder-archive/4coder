@@ -346,7 +346,7 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
     i64 pos = view_get_cursor_pos(app, view);
     Range_i64 range = {};
     if (find_scope_range(app, buffer, pos, &range, FindScope_Brace)){
-        view_set_cursor(app, view, seek_pos(range.first), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(range.first));
         view_set_mark(app, view, seek_pos(range.end));
         view_set_to_region(app, view, range.first, range.end);
         no_mark_snap_to_cursor(app, view);
@@ -364,7 +364,7 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
     i64 bottom = 0;
     if (find_next_scope(app, buffer, start_pos, FindScope_Brace, &top)){
         if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
-            view_set_cursor(app, view, seek_pos(top), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(top));
             view_set_mark(app, view, seek_pos(bottom));
             view_set_to_region(app, view, top, bottom);
             no_mark_snap_to_cursor(app, view);
@@ -383,7 +383,7 @@ CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the 
     i64 bottom = 0;
     if (find_prev_scope(app, buffer, start_pos, FindScope_Brace, &top)){
         if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
-            view_set_cursor(app, view, seek_pos(top), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(top));
             view_set_mark(app, view, seek_pos(bottom));
             view_set_to_region(app, view, top, bottom);
             no_mark_snap_to_cursor(app, view);
@@ -441,7 +441,7 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
         String_Const_u8 str = push_u8_stringf(scratch, "%s\n\n%s", begin, end);
         buffer_replace_range(app, buffer, range, str);
         i64 center_pos = range.min + cstring_length(begin) + 1;
-        view_set_cursor(app, view, seek_pos(center_pos), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(center_pos));
         view_set_mark(app, view, seek_pos(center_pos));
     }
 }

@@ -424,7 +424,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             
             buffer_replace_range(app, buffer, state.range, str);
             state.range.max = state.range.min + str.size;
-            view_set_cursor(app, view, seek_pos(state.range.max), true);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(state.range.max));
         }
     }
 }

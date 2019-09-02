@@ -391,7 +391,10 @@ Buffer_Line_Y_Difference(Application_Links *app, Buffer_ID buffer_id, f32 width,
     Editing_File *file = imp_get_file(models, buffer_id);
     f32 result = {};
     if (api_check_buffer(file)){
-        result = file_line_y_difference(models, file, width, face_id, line_a, line_b);
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            result = file_line_y_difference(models, file, width, face, line_a, line_b);
+        }
     }
     return(result);
 }
@@ -402,7 +405,10 @@ Buffer_Line_Shift_Y(Application_Links *app, Buffer_ID buffer_id, f32 width, Face
     Editing_File *file = imp_get_file(models, buffer_id);
     Line_Shift_Vertical result = {};
     if (api_check_buffer(file)){
-        result = file_line_shift_y(models, file, width, face_id, line, y_shift);
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            result = file_line_shift_y(models, file, width, face, line, y_shift);
+        }
     }
     return(result);
 }
@@ -413,7 +419,10 @@ Buffer_Pos_At_Relative_XY(Application_Links *app, Buffer_ID buffer_id, f32 width
     Editing_File *file = imp_get_file(models, buffer_id);
     i64 result = -1;
     if (api_check_buffer(file)){
-        result = file_pos_at_relative_xy(models, file, width, face_id, base_line, relative_xy);
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            result = file_pos_at_relative_xy(models, file, width, face, base_line, relative_xy);
+        }
     }
     return(result);
 }
@@ -425,7 +434,10 @@ Buffer_Relative_XY_Of_Pos(Application_Links *app, Buffer_ID buffer_id, f32 width
     Editing_File *file = imp_get_file(models, buffer_id);
     Vec2_f32 result = {};
     if (api_check_buffer(file)){
-        result = file_relative_xy_of_pos(models, file, width, face_id, base_line, pos);
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            result = file_relative_xy_of_pos(models, file, width, face, base_line, pos);
+        }
     }
     return(result);
 }
@@ -437,7 +449,10 @@ Buffer_Relative_Character_From_Pos(Application_Links *app, Buffer_ID buffer_id, 
     Editing_File *file = imp_get_file(models, buffer_id);
     i64 result = {};
     if (api_check_buffer(file)){
-        result = file_relative_character_from_pos(models, file, width, face_id, base_line, pos);
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            result = file_relative_character_from_pos(models, file, width, face, base_line, pos);
+        }
     }
     return(result);
 }
@@ -449,7 +464,10 @@ Buffer_Pos_From_Relative_Character(Application_Links *app,  Buffer_ID buffer_id,
     Editing_File *file = imp_get_file(models, buffer_id);
     i64 result = -1;
     if (api_check_buffer(file)){
-        result = file_pos_from_relative_character(models, file, width, face_id, base_line, relative_character);
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            result = file_pos_from_relative_character(models, file, width, face, base_line, relative_character);
+        }
     }
     return(result);
 }
@@ -1299,6 +1317,18 @@ View_Get_Preferred_X(Application_Links *app, View_ID view_id){
     return(result);
 }
 
+API_EXPORT b32
+View_Set_Preferred_X(Application_Links *app, View_ID view_id, f32 x){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (api_check_view(view)){
+        view->preferred_x = x;
+        result = true;
+    }
+    return(result);
+}
+
 API_EXPORT Rect_f32
 View_Get_Screen_Rect(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
@@ -1673,8 +1703,19 @@ Buffer_Compute_Cursor(Application_Links *app, Buffer_ID buffer, Buffer_Seek seek
     return(result);
 }
 
+API_EXPORT Buffer_Cursor
+View_Compute_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    Buffer_Cursor result = {};
+    if (api_check_view(view)){
+        result = view_compute_cursor(view, seek);
+    }
+    return(result);
+}
+
 API_EXPORT b32
-View_Set_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 set_preferred_x)
+View_Set_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
@@ -1684,14 +1725,7 @@ View_Set_Cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek, b32 s
         Assert(file != 0);
         if (api_check_buffer(file)){
             Buffer_Cursor cursor = file_compute_cursor(file, seek);
-            f32 preferred_x = 0.f;
-            if (!set_preferred_x){
-                preferred_x = view->preferred_x;
-            }
             view_set_cursor(models, view, cursor.pos);
-            if (!set_preferred_x){
-                view->preferred_x = preferred_x;
-            }
             result = true;
         }
     }
@@ -2403,10 +2437,10 @@ Set_Global_Face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers)
     Face *face = font_set_face_from_id(&models->font_set, id);
     if (face != 0){
         if (apply_to_all_buffers){
-            global_set_font_and_update_files(system, models, id);
+            global_set_font_and_update_files(system, models, face);
         }
         else{
-            models->global_font_id = id;
+            models->global_face_id = face->id;
         }
         did_change = true;
     }
@@ -2592,9 +2626,10 @@ Buffer_Set_Face(Application_Links *app, Buffer_ID buffer_id, Face_ID id)
     
     b32 did_change = false;
     if (api_check_buffer(file)){
-        if (font_set_face_from_id(&models->font_set, id) != 0){
+        Face *face = font_set_face_from_id(&models->font_set, id);
+        if (face != 0){
+            file->settings.face_id = face->id;
             did_change = true;
-            file_set_font(models->system, models, file, id);
         }
     }
     return(did_change);
@@ -2641,11 +2676,11 @@ Get_Face_ID(Application_Links *app, Buffer_ID buffer_id)
     if (buffer_id != 0){
         Editing_File *file = imp_get_file(models, buffer_id);
         if (api_check_buffer(file)){
-            result = file->settings.font_id;
+            result = file->settings.face_id;
         }
     }
     else{
-        result = models->global_font_id;
+        result = models->global_face_id;
     }
     return(result);
 }
@@ -2665,7 +2700,8 @@ Try_Create_New_Face(Application_Links *app, Face_Description *description)
         result = *(Face_ID*)(coroutine->in);
     }
     else{
-        result = font_set_new_face(&models->font_set, description);
+        Face *new_face = font_set_new_face(&models->font_set, description);
+        result = new_face->id;
     }
     return(result);
 }
@@ -2695,8 +2731,10 @@ API_EXPORT b32
 Try_Release_Face(Application_Links *app, Face_ID id, Face_ID replacement_id)
 {
     Models *models = (Models*)app->cmd_context;
-    b32 success = release_font_and_update_files(models->system, models, id, replacement_id);
-    return(success);
+    Font_Set *font_set = &models->font_set;
+    Face *face = font_set_face_from_id(font_set, id);
+    Face *replacement = font_set_face_from_id(font_set, replacement_id);
+    return(release_font_and_update(models->system, models, face, replacement));
 }
 
 API_EXPORT void
@@ -2982,7 +3020,7 @@ Text_Layout_Create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
     if (api_check_buffer(file)){
         Scratch_Block scratch(app);
         Arena arena = make_arena_models(models);
-        Face_ID face_id = file->settings.font_id;
+        Face *face = file_get_face(models, file);
         
         Gap_Buffer *buffer = &file->state.buffer;
         
@@ -2993,7 +3031,7 @@ Text_Layout_Create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
         f32 y = -buffer_point.pixel_shift.y;
         for (;line_number <= line_count;
              line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, dim.x, face_id, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(models, file, dim.x, face, line_number);
             f32 next_y = y + line.height;
             if (next_y >= dim.y){
                 break;
@@ -3049,13 +3087,13 @@ Text_Layout_Line_On_Screen(Application_Links *app, Text_Layout_ID layout_id, i64
         if (api_check_buffer(file)){
             Rect_f32 rect = layout->rect;
             f32 width = rect_width(rect);
-            Face_ID face_id = file->settings.font_id;
+            Face *face = file_get_face(models, file);
             
             f32 top = 0.f;
             f32 bot = 0.f;
             for (i64 line_number_it = layout->visible_line_number_range.first;;
                  line_number_it += 1){
-                Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face_id, line_number_it);
+                Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number_it);
                 bot += line.height;
                 if (line_number_it == line_number){
                     break;
@@ -3090,13 +3128,13 @@ Text_Layout_Character_On_Screen(Application_Links *app, Text_Layout_ID layout_id
             
             Rect_f32 rect = layout->rect;
             f32 width = rect_width(rect);
-            Face_ID face_id = file->settings.font_id;
+            Face *face = file_get_face(models, file);
             
             f32 y = 0.f;
             Buffer_Layout_Item_List line = {};
             for (i64 line_number_it = layout->visible_line_number_range.first;;
                  line_number_it += 1){
-                line = file_get_line_layout(models, file, width, face_id, line_number_it);
+                line = file_get_line_layout(models, file, width, face, line_number_it);
                 if (line_number_it == line_number){
                     break;
                 }

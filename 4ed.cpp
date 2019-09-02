@@ -52,8 +52,8 @@ app_coroutine_handle_request(Models *models, Coroutine *co, u32 *vals){
         case AppCoroutineRequest_NewFontFace:
         {
             Face_Description *description = ((Face_Description**)vals)[0];
-            Face_ID face_id = font_set_new_face(&models->font_set, description);
-            result = coroutine_run(&models->coroutines, co, &face_id, vals);
+            Face *face = font_set_new_face(&models->font_set, description);
+            result = coroutine_run(&models->coroutines, co, &face->id, vals);
         }break;
         
         case AppCoroutineRequest_ModifyFace:
@@ -925,7 +925,8 @@ App_Init_Sig(app_init){
         description.font.file_name = string_u8_litexpr("liberation-mono.ttf");
         description.font.in_4coder_font_folder = true;
         description.parameters.pt_size = 12;
-        models->global_font_id = font_set_new_face(&models->font_set, &description);
+        Face *new_face = font_set_new_face(&models->font_set, &description);
+        models->global_face_id = new_face->id;
     }
     app_hardcode_default_style(models);
     

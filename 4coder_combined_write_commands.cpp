@@ -8,7 +8,7 @@ static void
 write_string(Application_Links *app, View_ID view, Buffer_ID buffer, String_Const_u8 string){
     i64 pos = view_get_cursor_pos(app, view);
     buffer_replace_range(app, buffer, Ii64(pos), string);
-    view_set_cursor(app, view, seek_pos(pos + string.size), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos + string.size));
 }
 
 static void
@@ -38,7 +38,7 @@ long_braces(Application_Links *app, char *text, i32 size){
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     i64 pos = view_get_cursor_pos(app, view);
     buffer_replace_range(app, buffer, Ii64(pos), SCu8(text, size));
-    view_set_cursor(app, view, seek_pos(pos + 2), true);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos + 2));
     buffer_auto_indent(app, buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, view, buffer);
 }
@@ -205,7 +205,7 @@ activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister
         Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         i64 pos = view_get_cursor_pos(app, view);
         buffer_replace_range(app, buffer, Ii64(pos), SCu8(snippet.text));
-        view_set_cursor(app, view, seek_pos(pos + snippet.cursor_offset), true);
+        view_set_cursor_and_preferred_x(app, view, seek_pos(pos + snippet.cursor_offset));
         view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
     }
     else{

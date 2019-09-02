@@ -42,7 +42,7 @@ struct Models{
     App_Settings settings;
     App_State state;
     
-    Face_ID global_font_id;
+    Face_ID global_face_id;
     
     Mapping mapping;
     Command_Binding prev_command;
