@@ -664,43 +664,5 @@ STRUCT Process_State{
     i64 return_code;
 };
 
-ENUM(i16, Token_Base_Kind){
-    TokenBaseKind_EOF,
-    TokenBaseKind_Whitespace,
-    TokenBaseKind_LexError,
-    TokenBaseKind_Comment,
-    TokenBaseKind_Keyword,
-    TokenBaseKind_Identifier,
-    TokenBaseKind_Operator,
-    TokenBaseKind_LiteralInteger,
-    TokenBaseKind_LiteralFloat,
-    TokenBaseKind_LiteralString,
-    TokenBaseKind_ScopeOpen,
-    TokenBaseKind_ScopeClose,
-    TokenBaseKind_ParentheticalOpen,
-    TokenBaseKind_ParentheticalClose,
-    
-    TokenBaseKind_COUNT,
-};
-
-ENUM(u16, Token_Base_Flags){
-    TokenBaseFlag_PreProcessorBody = 1,
-};
-
-STRUCT Token{
-    i64 pos;
-    i64 size;
-    Token_Base_Kind kind;
-    Token_Base_Flags flags;
-    i16 sub_kind;
-    u16 sub_flags;
-};
-
-STRUCT Token_Array{
-    Token *tokens;
-    i64 count;
-    i64 max;
-};
-
 #endif
 

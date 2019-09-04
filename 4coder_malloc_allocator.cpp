@@ -26,12 +26,18 @@ make_malloc_base_allocator(void){
 
 global Base_Allocator malloc_base_allocator = {};
 
-internal Arena
-make_arena_malloc(umem chunk_size, umem align){
+internal Base_Allocator*
+get_allocator_malloc(void){
     if (malloc_base_allocator.reserve == 0){
         malloc_base_allocator = make_malloc_base_allocator();
     }
-    return(make_arena(&malloc_base_allocator, chunk_size, align));
+    return(&malloc_base_allocator);
+}
+
+internal Arena
+make_arena_malloc(umem chunk_size, umem align){
+    Base_Allocator *allocator = get_allocator_malloc();
+    return(make_arena(allocator, chunk_size, align));
 }
 
 internal Arena

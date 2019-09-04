@@ -7,14 +7,14 @@
 #define COMMAND_METADATA_OUT "4coder_generated/command_metadata.h"
 
 #include "4coder_base_types.h"
+#include "4coder_token.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_malloc_allocator.cpp"
 
 #include "4coder_file.h"
-
-#include "4coder_lib/4cpp_lexer.h"
+#include "languages/4coder_language_cpp.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,24 +26,24 @@
 ///////////////////////////////
 
 struct Line_Column_Coordinates{
-    int32_t line;
-    int32_t column;
+    i64 line;
+    i64 column;
 };
 
 static Line_Column_Coordinates
-line_column_coordinates(String_Const_char text, int32_t pos){
+line_column_coordinates(String_Const_u8 text, i64 pos){
     if (pos < 0){
         pos = 0;
     }
-    if (pos > text.size){
-        pos = (i32)text.size;
+    if (pos > (i64)text.size){
+        pos = (i64)text.size;
     }
     
     Line_Column_Coordinates coords = {};
     coords.line = 1;
     coords.column = 1;
-    char *end = text.str + pos;
-    for (char *p = text.str; p < end; ++p){
+    u8 *end = text.str + pos;
+    for (u8 *p = text.str; p < end; ++p){
         if (*p == '\n'){
             ++coords.line;
             coords.column = 1;
@@ -56,16 +56,17 @@ line_column_coordinates(String_Const_char text, int32_t pos){
     return(coords);
 }
 
-static int32_t
-line_number(String_Const_char text, int32_t pos){
+static i64
+line_number(String_Const_u8 text, i64 pos){
     Line_Column_Coordinates coords = line_column_coordinates(text, pos);
     return(coords.line);
 }
 
 static void
-error(char *source_name, String_Const_char text, int32_t pos, char *msg){
+error(u8 *source_name, String_Const_u8 text, i64 pos, u8 *msg){
     Line_Column_Coordinates coords = line_column_coordinates(text, pos);
-    fprintf(stdout, "%s:%d:%d: %s\n", source_name, coords.line, coords.column, msg);
+    fprintf(stdout, "%s:%lld:%lld: %s\n",
+            source_name, coords.line, coords.column, msg);
     fflush(stdout);
 }
 
@@ -73,8 +74,8 @@ error(char *source_name, String_Const_char text, int32_t pos, char *msg){
 
 struct Reader{
     Arena *error_arena;
-    char *source_name;
-    String_Const_char text;
+    u8 *source_name;
+    String_Const_u8 text;
     Token_Array tokens;
     Token *ptr;
 };
@@ -85,7 +86,7 @@ struct Temp_Read{
 };
 
 static Reader
-make_reader(Cpp_Token_Array array, char *source_name, String_Const_char text){
+make_reader(Token_Array array, u8 *source_name, String_Const_u8 text){
     Reader reader = {};
     reader.tokens = array;
     reader.ptr = array.tokens;
@@ -113,7 +114,8 @@ prev_token(Reader *reader){
             break;
         }
         
-        if (result.type != CPP_TOKEN_COMMENT && result.type != CPP_TOKEN_JUNK){
+        if (result.kind != TokenBaseKind_Comment &&
+            result.kind != TokenBaseKind_LexError){
             break;
         }
     }
@@ -137,11 +139,12 @@ get_token(Reader *reader){
         else{
             reader->ptr = reader->tokens.tokens + reader->tokens.count;
             memset(&result, 0, sizeof(result));
-            result.start = (i32)reader->text.size;
+            result.pos = reader->text.size;
             break;
         }
         
-        if (result.type != CPP_TOKEN_COMMENT && result.type != CPP_TOKEN_JUNK){
+        if (result.kind != TokenBaseKind_Comment &&
+            result.kind != TokenBaseKind_LexError){
             break;
         }
     }
@@ -158,7 +161,7 @@ peek_token(Reader *reader){
     }
     
     if (reader->ptr >= reader->tokens.tokens + reader->tokens.count){
-        result.start = (i32)reader->text.size;
+        result.pos = reader->text.size;
     }
     else{
         result = *reader->ptr;
@@ -167,20 +170,19 @@ peek_token(Reader *reader){
     return(result);
 }
 
-static int32_t
+static i64
 peek_pos(Reader *reader){
     Token token = peek_token(reader);
-    return(token.start);
+    return(token.pos);
 }
 
-static int32_t
-line_number(Reader *reader, int32_t pos){
-    int32_t result = line_number(reader->text, pos);
-    return(result);
+static i64
+line_number(Reader *reader, i64 pos){
+    return(line_number(reader->text, pos));
 }
 
 static void
-error(Reader *reader, int32_t pos, char *msg){
+error(Reader *reader, i64 pos, u8 *msg){
     error(reader->source_name, reader->text, pos, msg);
 }
 
@@ -199,15 +201,15 @@ end_temp_read(Temp_Read temp){
 
 ///////////////////////////////
 
-static String_Const_char
-token_str(String_Const_char text, Token token){
-    String_Const_char str = string_prefix(string_skip(text, token.start), token.size);
+static String_Const_u8
+token_str(String_Const_u8  text, Token token){
+    String_Const_u8 str = string_prefix(string_skip(text, token.pos), token.size);
     return(str);
 }
 
 ///////////////////////////////
 
-typedef uint32_t Meta_Command_Entry_Type;
+typedef u32 Meta_Command_Entry_Type;
 enum{
     MetaCommandEntry_DocString,
     MetaCommandEntry_Alias,
@@ -215,15 +217,15 @@ enum{
 
 struct Meta_Command_Entry{
     Meta_Command_Entry *next;
-    String_Const_char name;
-    char *source_name;
-    int32_t line_number;
+    String_Const_u8 name;
+    u8 *source_name;
+    i64 line_number;
     union{
         struct{
-            String_Const_char doc;
+            String_Const_u8 doc;
         } docstring;
         struct{
-            String_Const_char potential;
+            String_Const_u8 potential;
         } alias;
     };
 };
@@ -231,21 +233,21 @@ struct Meta_Command_Entry{
 struct Meta_Command_Entry_Arrays{
     Meta_Command_Entry *first_doc_string;
     Meta_Command_Entry *last_doc_string;
-    int32_t doc_string_count;
+    i32 doc_string_count;
     
     Meta_Command_Entry *first_alias;
     Meta_Command_Entry *last_alias;
-    int32_t alias_count;
+    i32 alias_count;
 };
 
 ///////////////////////////////
 
-static int32_t
-quick_sort_part(Meta_Command_Entry **entries, int32_t first, int32_t one_past_last){
-    int32_t pivot = one_past_last - 1;
-    String_Const_char pivot_key = entries[pivot]->name;
-    int32_t j = first;
-    for (int32_t i = first; i < pivot; ++i){
+static i32
+quick_sort_part(Meta_Command_Entry **entries, i32 first, i32 one_past_last){
+    i32 pivot = one_past_last - 1;
+    String_Const_u8 pivot_key = entries[pivot]->name;
+    i32 j = first;
+    for (i32 i = first; i < pivot; ++i){
         if (string_compare(entries[i]->name, pivot_key) < 0){
             Swap(Meta_Command_Entry*, entries[i], entries[j]);
             ++j;
@@ -256,19 +258,19 @@ quick_sort_part(Meta_Command_Entry **entries, int32_t first, int32_t one_past_la
 }
 
 static void
-quick_sort(Meta_Command_Entry **entries, int32_t first, int32_t one_past_last){
+quick_sort(Meta_Command_Entry **entries, i32 first, i32 one_past_last){
     if (first + 1 < one_past_last){
-        int32_t pivot = quick_sort_part(entries, first, one_past_last);
+        i32 pivot = quick_sort_part(entries, first, one_past_last);
         quick_sort(entries, first, pivot);
         quick_sort(entries, pivot + 1, one_past_last);
     }
 }
 
 static Meta_Command_Entry**
-get_sorted_meta_commands(Arena *arena, Meta_Command_Entry *first, int32_t count){
+get_sorted_meta_commands(Arena *arena, Meta_Command_Entry *first, i32 count){
     Meta_Command_Entry **entries = push_array(arena, Meta_Command_Entry*, count);
     
-    int32_t i = 0;
+    i32 i = 0;
     for (Meta_Command_Entry *entry = first;
          entry != 0;
          entry = entry->next, ++i){
@@ -284,7 +286,7 @@ get_sorted_meta_commands(Arena *arena, Meta_Command_Entry *first, int32_t count)
 ///////////////////////////////
 
 static b32
-has_duplicate_entry(Meta_Command_Entry *first, String_Const_char name){
+has_duplicate_entry(Meta_Command_Entry *first, String_Const_u8 name){
     b32 has_duplicate = false;
     for (Meta_Command_Entry *entry = first;
          entry != 0;
@@ -299,26 +301,25 @@ has_duplicate_entry(Meta_Command_Entry *first, String_Const_char name){
 ///////////////////////////////
 
 static b32
-require_key_identifier(Reader *reader, char *str, int32_t *opt_pos_out = 0){
+require_key_identifier(Reader *reader, String_Const_u8 string, i64 *opt_pos_out){
     b32 success = false;
     
-    String_Const_char string = SCchar(str);
-    
     Token token = get_token(reader);
-    if (token.type == CPP_TOKEN_IDENTIFIER){
-        String_Const_char lexeme = token_str(reader->text, token);
+    if (token.kind == TokenBaseKind_Identifier){
+        String_Const_u8 lexeme = token_str(reader->text, token);
         if (string_match(lexeme, string)){
             success = true;
             if (opt_pos_out != 0){
-                *opt_pos_out = token.start;
+                *opt_pos_out = token.pos;
             }
         }
     }
     
     if (!success){
         Temp_Memory temp = begin_temp(reader->error_arena);
-        String_Const_char error_string = push_stringf(reader->error_arena, "expected to find '%s'", str);
-        error(reader, token.start, error_string.str);
+        String_Const_u8 error_string = push_u8_stringf(reader->error_arena, "expected to find '%.*s'",
+                                                       string.size, string.str);
+        error(reader, token.pos, error_string.str);
         end_temp(temp);
     }
     
@@ -326,153 +327,198 @@ require_key_identifier(Reader *reader, char *str, int32_t *opt_pos_out = 0){
 }
 
 static b32
-require_open_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
+require_key_identifier(Reader *reader, char *str, i64 *opt_pos_out){
+    return(require_key_identifier(reader, SCu8(str), opt_pos_out));
+}
+
+static b32
+require_key_identifier(Reader *reader, String_Const_u8 string){
+    return(require_key_identifier(reader, string, 0));
+}
+
+static b32
+require_key_identifier(Reader *reader, char *str){
+    return(require_key_identifier(reader, SCu8(str), 0));
+}
+
+static b32
+require_open_parenthese(Reader *reader, i64 *opt_pos_out){
+    b32 success = false;
+    Token token = get_token(reader);
+    if (token.kind == TokenBaseKind_ParentheticalOpen){
+        success = true;
+        if (opt_pos_out != 0){
+            *opt_pos_out = token.pos;
+        }
+    }
+    if (!success){
+        error(reader, token.pos, (u8*)"expected to find '('");
+    }
+    return(success);
+}
+
+static b32
+require_open_parenthese(Reader *reader){
+    return(require_open_parenthese(reader, 0));
+}
+
+static b32
+require_close_parenthese(Reader *reader, i64 *opt_pos_out){
+    b32 success = false;
+    Token token = get_token(reader);
+    if (token.kind == TokenBaseKind_ParentheticalClose){
+        success = true;
+        if (opt_pos_out != 0){
+            *opt_pos_out = token.pos;
+        }
+    }
+    if (!success){
+        error(reader, token.pos, (u8*)"expected to find ')'");
+    }
+    return(success);
+}
+
+static b32
+require_close_parenthese(Reader *reader){
+    return(require_close_parenthese(reader, 0));
+}
+
+static b32
+require_comma(Reader *reader, i64 *opt_pos_out){
     b32 success = false;
     
     Token token = get_token(reader);
-    if (token.type == CPP_TOKEN_PARENTHESE_OPEN){
+    if (token.sub_kind == TokenCppKind_Comma){
         success = true;
         if (opt_pos_out != 0){
-            *opt_pos_out = token.start;
+            *opt_pos_out = token.pos;
         }
     }
     
     if (!success){
-        error(reader, token.start, "expected to find '('");
+        error(reader, token.pos, (u8*)"expected to find ','");
     }
     
     return(success);
 }
 
 static b32
-require_close_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
+require_comma(Reader *reader){
+    return(require_comma(reader, 0));
+}
+
+static b32
+require_define(Reader *reader, i64 *opt_pos_out){
     b32 success = false;
     
     Token token = get_token(reader);
-    if (token.type == CPP_TOKEN_PARENTHESE_CLOSE){
+    if (token.sub_kind == TokenCppKind_Define){
         success = true;
         if (opt_pos_out != 0){
-            *opt_pos_out = token.start;
+            *opt_pos_out = token.pos;
         }
     }
     
     if (!success){
-        error(reader, token.start, "expected to find ')'");
+        error(reader, token.pos, (u8*)"expected to find '#define'");
     }
     
     return(success);
 }
 
 static b32
-require_comma(Reader *reader, int32_t *opt_pos_out = 0){
-    b32 success = false;
-    
-    Token token = get_token(reader);
-    if (token.type == CPP_TOKEN_COMMA){
-        success = true;
-        if (opt_pos_out != 0){
-            *opt_pos_out = token.start;
-        }
-    }
-    
-    if (!success){
-        error(reader, token.start, "expected to find ','");
-    }
-    
-    return(success);
+require_define(Reader *reader){
+    return(require_define(reader, 0));
 }
 
 static b32
-require_define(Reader *reader, int32_t *opt_pos_out = 0){
+extract_identifier(Reader *reader, String_Const_u8 *str_out, i64 *opt_pos_out){
     b32 success = false;
     
     Token token = get_token(reader);
-    if (token.type == CPP_PP_DEFINE){
-        success = true;
-        if (opt_pos_out != 0){
-            *opt_pos_out = token.start;
-        }
-    }
-    
-    if (!success){
-        error(reader, token.start, "expected to find '#define'");
-    }
-    
-    return(success);
-}
-
-static b32
-extract_identifier(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
-    b32 success = false;
-    
-    Token token = get_token(reader);
-    if (token.type == CPP_TOKEN_IDENTIFIER){
-        String_Const_char lexeme = token_str(reader->text, token);
+    if (token.kind == TokenBaseKind_Identifier){
+        String_Const_u8 lexeme = token_str(reader->text, token);
         *str_out = lexeme;
         success = true;
         if (opt_pos_out != 0){
-            *opt_pos_out = token.start;
+            *opt_pos_out = token.pos;
         }
     }
     
     if (!success){
-        error(reader, token.start, "expected to find an identifier");
+        error(reader, token.pos, (u8*)"expected to find an identifier");
     }
     
     return(success);
 }
 
 static b32
-extract_integer(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
+extract_identifier(Reader *reader, String_Const_u8 *str_out){
+    return(extract_identifier(reader, str_out, 0));
+}
+
+static b32
+extract_integer(Reader *reader, String_Const_u8 *str_out, i64 *opt_pos_out){
     b32 success = false;
     
     Token token = get_token(reader);
-    if (token.type == CPP_TOKEN_INTEGER_CONSTANT){
-        String_Const_char lexeme = token_str(reader->text, token);
+    if (token.kind == TokenBaseKind_LiteralInteger){
+        String_Const_u8 lexeme = token_str(reader->text, token);
         *str_out = lexeme;
         success = true;
         if (opt_pos_out != 0){
-            *opt_pos_out = token.start;
+            *opt_pos_out = token.pos;
         }
     }
     
     if (!success){
-        error(reader, token.start, "expected to find an integer");
+        error(reader, token.pos, (u8*)"expected to find an integer");
+    }
+    
+    return(success);
+}
+
+
+static b32
+extract_integer(Reader *reader, String_Const_u8 *str_out){
+    return(extract_integer(reader, str_out, 0));
+}
+
+static b32
+extract_string(Reader *reader, String_Const_u8 *str_out, i64 *opt_pos_out){
+    b32 success = false;
+    
+    Token token = get_token(reader);
+    if (token.kind == TokenBaseKind_LiteralString){
+        String_Const_u8 lexeme = token_str(reader->text, token);
+        *str_out = lexeme;
+        success = true;
+        if (opt_pos_out != 0){
+            *opt_pos_out = token.pos;
+        }
+    }
+    
+    if (!success){
+        error(reader, token.pos, (u8*)"expected to find a string literal");
     }
     
     return(success);
 }
 
 static b32
-extract_string(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
-    b32 success = false;
-    
-    Token token = get_token(reader);
-    if (token.type == CPP_TOKEN_STRING_CONSTANT){
-        String_Const_char lexeme = token_str(reader->text, token);
-        *str_out = lexeme;
-        success = true;
-        if (opt_pos_out != 0){
-            *opt_pos_out = token.start;
-        }
-    }
-    
-    if (!success){
-        error(reader, token.start, "expected to find a string literal");
-    }
-    
-    return(success);
+extract_string(Reader *reader, String_Const_u8 *str_out){
+    return(extract_string(reader, str_out, 0));
 }
 
 static b32
 parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
-    String_Const_char name = {};
-    String_Const_char file_name = {};
-    String_Const_char line_number = {};
-    String_Const_char doc = {};
+    String_Const_u8 name = {};
+    String_Const_u8 file_name = {};
+    String_Const_u8 line_number = {};
+    String_Const_u8 doc = {};
     
     // Getting the command's name
-    int32_t start_pos = 0;
+    i64 start_pos = 0;
     if (!require_key_identifier(reader, "CUSTOM_COMMAND_SIG", &start_pos)){
         return(false);
     }
@@ -514,13 +560,13 @@ parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader
         return(false);
     }
     
-    int32_t doc_pos = 0;
+    i64 doc_pos = 0;
     if (!extract_string(reader, &doc, &doc_pos)){
         return(false);
     }
     
     if (doc.size < 1 || doc.str[0] != '"'){
-        error(reader, doc_pos, "warning: doc strings with string literal prefixes not allowed");
+        error(reader, doc_pos, (u8*)"warning: doc strings with string literal prefixes not allowed");
         return(false);
     }
     
@@ -529,14 +575,14 @@ parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader
     }
     
     if (has_duplicate_entry(arrays->first_doc_string, name)){
-        error(reader, start_pos, "warning: multiple commands with the same name and separate doc strings, skipping this one");
+        error(reader, start_pos, (u8*)"warning: multiple commands with the same name and separate doc strings, skipping this one");
         return(false);
     }
     
     doc = string_chop(string_skip(doc, 1), 1);
     
-    String_Const_char file_name_unquoted = string_chop(string_skip(file_name, 1), 1);
-    String_Const_char source_name = string_interpret_escapes(arena, file_name_unquoted);
+    String_Const_u8 file_name_unquoted = string_chop(string_skip(file_name, 1), 1);
+    String_Const_u8 source_name = string_interpret_escapes(arena, file_name_unquoted);
     
     Meta_Command_Entry *new_entry = push_array(arena, Meta_Command_Entry, 1);
     new_entry->name = name;
@@ -551,11 +597,11 @@ parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader
 
 static b32
 parse_alias(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
-    String_Const_char name = {};
-    String_Const_char potential = {};
+    String_Const_u8 name = {};
+    String_Const_u8 potential = {};
     
     // Getting the alias's name
-    int32_t start_pos = 0;
+    i64 start_pos = 0;
     if (!require_define(reader, &start_pos)){
         return(false);
     }
@@ -595,9 +641,9 @@ parse_alias(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
 ///////////////////////////////
 
 static void
-parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_name, String_Const_char text){
-    Token_Array array = cpp_make_token_array(1024);
-    cpp_lex_file(text.str, (i32)text.size, &array);
+parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, u8 *source_name, String_Const_u8 text){
+    Base_Allocator *allocator = get_allocator_malloc();
+    Token_Array array = lex_cpp_initial(allocator, text);
     
     Reader reader_ = make_reader(array, source_name, text);
     Reader *reader = &reader_;
@@ -605,25 +651,25 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_n
     for (;;){
         Token token = get_token(reader);
         
-        if (token.type == CPP_TOKEN_IDENTIFIER){
-            String_Const_char lexeme = token_str(text, token);
+        if (token.kind == TokenBaseKind_Identifier){
+            String_Const_u8 lexeme = token_str(text, token);
             
-            b32 in_preproc_body = ((token.flags & CPP_TFLAG_PP_BODY) != 0);
+            b32 in_preproc_body = HasFlag(token.flags, TokenBaseFlag_PreprocessorBody);
             
-            if (!in_preproc_body && string_match(lexeme, string_litexpr("CUSTOM_DOC"))){
+            if (!in_preproc_body && string_match(lexeme, string_u8_litexpr("CUSTOM_DOC"))){
                 Temp_Read temp_read = begin_temp_read(reader);
                 
                 b32 found_start_pos = false;
-                for (int32_t R = 0; R < 10; ++R){
+                for (i32 R = 0; R < 10; ++R){
                     Token p_token = prev_token(reader);
-                    if (p_token.type == CPP_TOKEN_IDENTIFIER){
-                        String_Const_char p_lexeme = token_str(text, p_token);
-                        if (string_match(p_lexeme, string_litexpr("CUSTOM_COMMAND_SIG"))){
+                    if (p_token.kind == TokenBaseKind_Identifier){
+                        String_Const_u8 p_lexeme = token_str(text, p_token);
+                        if (string_match(p_lexeme, string_u8_litexpr("CUSTOM_COMMAND_SIG"))){
                             found_start_pos = true;
                             break;
                         }
                     }
-                    if (p_token.type == 0){
+                    if (p_token.kind == TokenBaseKind_EOF){
                         break;
                     }
                 }
@@ -637,19 +683,19 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_n
                     }
                 }
             }
-            else if (string_match(lexeme, string_litexpr("CUSTOM_ALIAS"))){
+            else if (string_match(lexeme, string_u8_litexpr("CUSTOM_ALIAS"))){
                 Temp_Read temp_read = begin_temp_read(reader);
                 
                 b32 found_start_pos = false;
-                for (int32_t R = 0; R < 3; ++R){
+                for (i32 R = 0; R < 3; ++R){
                     Token p_token = prev_token(reader);
-                    if (p_token.type == CPP_PP_DEFINE){
+                    if (p_token.sub_kind == TokenCppKind_Define){
                         if (R == 2){
                             found_start_pos = true;
                         }
                         break;
                     }
-                    if (p_token.type == 0){
+                    if (p_token.kind == TokenBaseKind_EOF){
                         break;
                     }
                 }
@@ -665,16 +711,16 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_n
             }
         }
         
-        if (token.type == 0){
+        if (token.kind == TokenBaseKind_EOF){
             break;
         }
     }
     
-    cpp_free_token_array(array);
+    base_free(allocator, array.tokens);
 }
 
 static void
-parse_file(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *name_, int32_t len){
+parse_file(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *name_, i32 len){
     char *name = unencode(arena, name_, len);
     if (name == 0){
         if (sizeof(*name_) == 2){
@@ -686,20 +732,20 @@ parse_file(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, Filename_Chara
         return;
     }
     
-    String_Const_char text = file_dump(arena, name);
-    parse_text(arena, entry_arrays, name, text);
+    String_Const_u8 text = file_dump(arena, name);
+    parse_text(arena, entry_arrays, (u8*)name, text);
 }
 
 static void
 parse_files_by_pattern(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, Filename_Character *pattern, b32 recursive){
     Cross_Platform_File_List list = get_file_list(arena, pattern, filter_all);
-    for (int32_t i = 0; i < list.count; ++i){
+    for (i32 i = 0; i < list.count; ++i){
         Cross_Platform_File_Info *info = &list.info[i];
         
         String_Const_Any info_name = SCany(info->name, info->len);
         Temp_Memory temp = begin_temp(arena);
-        String_Const_char info_name_ascii = string_char_from_any(arena, info_name);
-        b32 is_generated = string_match(info_name_ascii, string_litexpr("4coder_generated"));
+        String_Const_u8 info_name_ascii = string_u8_from_any(arena, info_name);
+        b32 is_generated = string_match(info_name_ascii, string_u8_litexpr("4coder_generated"));
         end_temp(temp);
         
         if (info->is_folder && is_generated){
@@ -709,7 +755,7 @@ parse_files_by_pattern(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, Fi
             continue;
         }
         
-        int32_t full_name_len = list.path_length + 1 + info->len;
+        i32 full_name_len = list.path_length + 1 + info->len;
         if (info->is_folder){
             full_name_len += 2;
         }
@@ -752,7 +798,7 @@ main(int argc, char **argv){
         show_usage(argc, argv);
     }
     
-    b32 recursive = string_match(SCchar(argv[1]), string_litexpr("-R"));
+    b32 recursive = string_match(SCu8(argv[1]), string_u8_litexpr("-R"));
     if (recursive && argc < 4){
         show_usage(argc, argv);
     }
@@ -762,13 +808,13 @@ main(int argc, char **argv){
     
     char *out_directory = argv[2];
     
-    int32_t start_i = 2;
+    i32 start_i = 2;
     if (recursive){
         start_i = 3;
     }
     
     Meta_Command_Entry_Arrays entry_arrays = {};
-    for (int32_t i = start_i; i < argc; ++i){
+    for (i32 i = start_i; i < argc; ++i){
         Filename_Character *pattern_name = encode(arena, argv[i]);
         parse_files_by_pattern(arena, &entry_arrays, pattern_name, recursive);
     }
@@ -780,9 +826,9 @@ main(int argc, char **argv){
     }
     
     {
-        String_Const_char str = SCchar(out_directory, out_dir_len);
+        String_Const_u8 str = SCu8(out_directory, out_dir_len);
         str = string_skip_chop_whitespace(str);
-        out_directory = str.str;
+        out_directory = (char*)str.str;
         out_dir_len = str.size;
     }
     
@@ -795,7 +841,7 @@ main(int argc, char **argv){
     FILE *out = fopen(out_file_name, "wb");
     
     if (out != 0){
-        int32_t entry_count = entry_arrays.doc_string_count;
+        i32 entry_count = entry_arrays.doc_string_count;
         Meta_Command_Entry **entries = get_sorted_meta_commands(arena, entry_arrays.first_doc_string, entry_count);
         
         fprintf(out, "#if !defined(META_PASS)\n");
@@ -810,7 +856,7 @@ main(int argc, char **argv){
         fprintf(out, "#endif\n");
         
         fprintf(out, "#if defined(CUSTOM_COMMAND_SIG)\n");
-        for (int32_t i = 0; i < entry_count; ++i){
+        for (i32 i = 0; i < entry_count; ++i){
             Meta_Command_Entry *entry = entries[i];
             fprintf(out, "CUSTOM_COMMAND_SIG(%.*s);\n", str_to_l_c(entry->name));
         }
@@ -820,18 +866,18 @@ main(int argc, char **argv){
                 "struct Command_Metadata{\n"
                 "PROC_LINKS(Custom_Command_Function, void) *proc;\n"
                 "char *name;\n"
-                "int32_t name_len;\n"
+                "i32 name_len;\n"
                 "char *description;\n"
-                "int32_t description_len;\n"
+                "i32 description_len;\n"
                 "char *source_name;\n"
-                "int32_t source_name_len;\n"
-                "int32_t line_number;\n"
+                "i32 source_name_len;\n"
+                "i32 line_number;\n"
                 "};\n");
         
         fprintf(out,
                 "static Command_Metadata fcoder_metacmd_table[%d] = {\n",
                 entry_arrays.doc_string_count);
-        for (int32_t i = 0; i < entry_count; ++i){
+        for (i32 i = 0; i < entry_count; ++i){
             Meta_Command_Entry *entry = entries[i];
             
             Temp_Memory temp = begin_temp(arena);
@@ -839,27 +885,31 @@ main(int argc, char **argv){
             // HACK(allen): We could just get these at the HEAD END of the process,
             // then we only have to do it once per file, and pass the lengths through.
             //umem source_name_len = cstring_length(entry->source_name);
-            String_Const_char source_name = SCchar(entry->source_name);
-            String_Const_char printable = string_replace(arena, source_name,
-                                                         SCchar("\\"), SCchar("\\\\"),
-                                                         StringFill_NullTerminate);
+            String_Const_u8 source_name = SCu8(entry->source_name);
+            String_Const_u8 printable = string_replace(arena, source_name,
+                                                       SCu8("\\"), SCu8("\\\\"),
+                                                       StringFill_NullTerminate);
             
             fprintf(out,
-                    "{ PROC_LINKS(%.*s, 0), \"%.*s\", %d,  \"%.*s\", %d, \"%s\", %d, %d },\n",
-                    str_to_l_c(entry->name),
-                    str_to_l_c(entry->name), (i32)entry->name.size,
-                    str_to_l_c(entry->docstring.doc), (i32)entry->docstring.doc.size,
-                    printable.str, (i32)source_name.size, entry->line_number);
+                    "{ PROC_LINKS(%.*s, 0), \"%.*s\", %d,  \"%.*s\", %d, \"%s\", %d, %lld },\n",
+                    string_expand(entry->name),
+                    string_expand(entry->name),
+                    (i32)entry->name.size,
+                    string_expand(entry->docstring.doc),
+                    (i32)entry->docstring.doc.size,
+                    printable.str,
+                    (i32)source_name.size,
+                    entry->line_number);
             end_temp(temp);
         }
         fprintf(out, "};\n");
         
-        int32_t id = 0;
-        for (int32_t i = 0; i < entry_count; ++i){
+        i32 id = 0;
+        for (i32 i = 0; i < entry_count; ++i){
             Meta_Command_Entry *entry = entries[i];
             
-            fprintf(out, "static int32_t fcoder_metacmd_ID_%.*s = %d;\n",
-                    str_to_l_c(entry->name), id);
+            fprintf(out, "static i32 fcoder_metacmd_ID_%.*s = %d;\n",
+                    string_expand(entry->name), id);
             ++id;
         }
         

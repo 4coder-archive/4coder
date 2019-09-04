@@ -468,15 +468,15 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
 # error metdata generator not supported on this platform
 #endif
 
-static String_Const_char
+static String_Const_u8
 file_dump(Arena *arena, char *name){
-    String_Const_char text = {};
+    String_Const_u8 text = {};
     FILE *file = fopen(name, "rb");
     if (file != 0){
         fseek(file, 0, SEEK_END);
         text.size = ftell(file);
         fseek(file, 0, SEEK_SET);
-        text.str = push_array(arena, char, text.size + 1);
+        text.str = push_array(arena, u8, text.size + 1);
         if (text.str == 0){
             fprintf(stdout, "fatal error: not enough memory in partition for file dumping");
             exit(1);
