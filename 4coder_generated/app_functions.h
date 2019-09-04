@@ -12,7 +12,6 @@ struct Application_Links;
 #define CLIPBOARD_POST_SIG(n) b32 n(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
 #define CLIPBOARD_COUNT_SIG(n) i32 n(Application_Links *app, i32 clipboard_id)
 #define PUSH_CLIPBOARD_INDEX_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index)
-#define CREATE_PARSE_CONTEXT_SIG(n) Parse_Context_ID n(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count)
 #define GET_BUFFER_COUNT_SIG(n) i32 n(Application_Links *app)
 #define GET_BUFFER_NEXT_SIG(n) Buffer_ID n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
 #define GET_BUFFER_BY_NAME_SIG(n) Buffer_ID n(Application_Links *app, String_Const_u8 name, Access_Flag access)
@@ -44,11 +43,9 @@ struct Application_Links;
 #define PUSH_BUFFER_FILE_NAME_SIG(n) String_Const_u8 n(Application_Links *app, Arena *arena, Buffer_ID buffer_id)
 #define BUFFER_GET_DIRTY_STATE_SIG(n) Dirty_State n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_SET_DIRTY_STATE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state)
-#define BUFFER_TOKENS_ARE_READY_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_GET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)
 #define BUFFER_SET_SETTING_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
 #define BUFFER_GET_MANAGED_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, Buffer_ID buffer_id)
-#define BUFFER_GET_TOKEN_ARRAY_SIG(n) Cpp_Token_Array n(Application_Links *app, Buffer_ID buffer_id)
 #define BUFFER_SEND_END_SIGNAL_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id)
 #define CREATE_BUFFER_SIG(n) Buffer_ID n(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags)
 #define BUFFER_SAVE_SIG(n) b32 n(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, Buffer_Save_Flag flags)
@@ -105,16 +102,15 @@ struct Application_Links;
 #define GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(n) Managed_Scope n(Application_Links *app, Managed_Scope *scopes, i32 count)
 #define MANAGED_SCOPE_CLEAR_CONTENTS_SIG(n) b32 n(Application_Links *app, Managed_Scope scope)
 #define MANAGED_SCOPE_CLEAR_SELF_ALL_DEPENDENT_SCOPES_SIG(n) b32 n(Application_Links *app, Managed_Scope scope)
-#define MANAGED_VARIABLE_CREATE_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, u64 default_value)
-#define MANAGED_VARIABLE_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name)
-#define MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(n) Managed_Variable_ID n(Application_Links *app, char *null_terminated_name, u64 default_value)
-#define MANAGED_VARIABLE_SET_SIG(n) b32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value)
-#define MANAGED_VARIABLE_GET_SIG(n) b32 n(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out)
+#define MANAGED_SCOPE_ALLOCATOR_SIG(n) Base_Allocator* n(Application_Links *app, Managed_Scope scope)
+#define MANAGED_ID_DECLARE_SIG(n) Managed_ID n(Application_Links *app, String_Const_u8 name)
+#define MANAGED_SCOPE_GET_ATTACHMENT_SIG(n) void* n(Application_Links *app, Managed_Scope scope, Managed_ID id, umem size)
+#define MANAGED_SCOPE_ATTACHMENT_ERASE_SIG(n) void* n(Application_Links *app, Managed_Scope scope, Managed_ID id)
 #define ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(n) Managed_Object n(Application_Links *app, Managed_Scope scope, i32 item_size, i32 count)
 #define ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(n) Managed_Object n(Application_Links *app, Buffer_ID buffer_id, i32 count, Managed_Scope *optional_extra_scope)
-#define ALLOC_MANAGED_ARENA_IN_SCOPE_SIG(n) Managed_Object n(Application_Links *app, Managed_Scope scope, i32 page_size)
 #define MANAGED_OBJECT_GET_ITEM_SIZE_SIG(n) u32 n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_GET_ITEM_COUNT_SIG(n) u32 n(Application_Links *app, Managed_Object object)
+#define MANAGED_OBJECT_GET_POINTER_SIG(n) void* n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_GET_TYPE_SIG(n) Managed_Object_Type n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_GET_CONTAINING_SCOPE_SIG(n) Managed_Scope n(Application_Links *app, Managed_Object object)
 #define MANAGED_OBJECT_FREE_SIG(n) b32 n(Application_Links *app, Managed_Object object)
@@ -198,7 +194,6 @@ typedef CHILD_PROCESS_GET_STATE_SIG(Child_Process_Get_State_Function);
 typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
 typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
 typedef PUSH_CLIPBOARD_INDEX_SIG(Push_Clipboard_Index_Function);
-typedef CREATE_PARSE_CONTEXT_SIG(Create_Parse_Context_Function);
 typedef GET_BUFFER_COUNT_SIG(Get_Buffer_Count_Function);
 typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
 typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
@@ -230,11 +225,9 @@ typedef PUSH_BUFFER_UNIQUE_NAME_SIG(Push_Buffer_Unique_Name_Function);
 typedef PUSH_BUFFER_FILE_NAME_SIG(Push_Buffer_File_Name_Function);
 typedef BUFFER_GET_DIRTY_STATE_SIG(Buffer_Get_Dirty_State_Function);
 typedef BUFFER_SET_DIRTY_STATE_SIG(Buffer_Set_Dirty_State_Function);
-typedef BUFFER_TOKENS_ARE_READY_SIG(Buffer_Tokens_Are_Ready_Function);
 typedef BUFFER_GET_SETTING_SIG(Buffer_Get_Setting_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
 typedef BUFFER_GET_MANAGED_SCOPE_SIG(Buffer_Get_Managed_Scope_Function);
-typedef BUFFER_GET_TOKEN_ARRAY_SIG(Buffer_Get_Token_Array_Function);
 typedef BUFFER_SEND_END_SIGNAL_SIG(Buffer_Send_End_Signal_Function);
 typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
 typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
@@ -291,16 +284,15 @@ typedef GET_GLOBAL_MANAGED_SCOPE_SIG(Get_Global_Managed_Scope_Function);
 typedef GET_MANAGED_SCOPE_WITH_MULTIPLE_DEPENDENCIES_SIG(Get_Managed_Scope_With_Multiple_Dependencies_Function);
 typedef MANAGED_SCOPE_CLEAR_CONTENTS_SIG(Managed_Scope_Clear_Contents_Function);
 typedef MANAGED_SCOPE_CLEAR_SELF_ALL_DEPENDENT_SCOPES_SIG(Managed_Scope_Clear_Self_All_Dependent_Scopes_Function);
-typedef MANAGED_VARIABLE_CREATE_SIG(Managed_Variable_Create_Function);
-typedef MANAGED_VARIABLE_GET_ID_SIG(Managed_Variable_Get_ID_Function);
-typedef MANAGED_VARIABLE_CREATE_OR_GET_ID_SIG(Managed_Variable_Create_Or_Get_ID_Function);
-typedef MANAGED_VARIABLE_SET_SIG(Managed_Variable_Set_Function);
-typedef MANAGED_VARIABLE_GET_SIG(Managed_Variable_Get_Function);
+typedef MANAGED_SCOPE_ALLOCATOR_SIG(Managed_Scope_Allocator_Function);
+typedef MANAGED_ID_DECLARE_SIG(Managed_Id_Declare_Function);
+typedef MANAGED_SCOPE_GET_ATTACHMENT_SIG(Managed_Scope_Get_Attachment_Function);
+typedef MANAGED_SCOPE_ATTACHMENT_ERASE_SIG(Managed_Scope_Attachment_Erase_Function);
 typedef ALLOC_MANAGED_MEMORY_IN_SCOPE_SIG(Alloc_Managed_Memory_In_Scope_Function);
 typedef ALLOC_BUFFER_MARKERS_ON_BUFFER_SIG(Alloc_Buffer_Markers_On_Buffer_Function);
-typedef ALLOC_MANAGED_ARENA_IN_SCOPE_SIG(Alloc_Managed_Arena_In_Scope_Function);
 typedef MANAGED_OBJECT_GET_ITEM_SIZE_SIG(Managed_Object_Get_Item_Size_Function);
 typedef MANAGED_OBJECT_GET_ITEM_COUNT_SIG(Managed_Object_Get_Item_Count_Function);
+typedef MANAGED_OBJECT_GET_POINTER_SIG(Managed_Object_Get_Pointer_Function);
 typedef MANAGED_OBJECT_GET_TYPE_SIG(Managed_Object_Get_Type_Function);
 typedef MANAGED_OBJECT_GET_CONTAINING_SCOPE_SIG(Managed_Object_Get_Containing_Scope_Function);
 typedef MANAGED_OBJECT_FREE_SIG(Managed_Object_Free_Function);
@@ -386,7 +378,6 @@ Child_Process_Get_State_Function *child_process_get_state;
 Clipboard_Post_Function *clipboard_post;
 Clipboard_Count_Function *clipboard_count;
 Push_Clipboard_Index_Function *push_clipboard_index;
-Create_Parse_Context_Function *create_parse_context;
 Get_Buffer_Count_Function *get_buffer_count;
 Get_Buffer_Next_Function *get_buffer_next;
 Get_Buffer_By_Name_Function *get_buffer_by_name;
@@ -418,11 +409,9 @@ Push_Buffer_Unique_Name_Function *push_buffer_unique_name;
 Push_Buffer_File_Name_Function *push_buffer_file_name;
 Buffer_Get_Dirty_State_Function *buffer_get_dirty_state;
 Buffer_Set_Dirty_State_Function *buffer_set_dirty_state;
-Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready;
 Buffer_Get_Setting_Function *buffer_get_setting;
 Buffer_Set_Setting_Function *buffer_set_setting;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope;
-Buffer_Get_Token_Array_Function *buffer_get_token_array;
 Buffer_Send_End_Signal_Function *buffer_send_end_signal;
 Create_Buffer_Function *create_buffer;
 Buffer_Save_Function *buffer_save;
@@ -479,16 +468,15 @@ Get_Global_Managed_Scope_Function *get_global_managed_scope;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies;
 Managed_Scope_Clear_Contents_Function *managed_scope_clear_contents;
 Managed_Scope_Clear_Self_All_Dependent_Scopes_Function *managed_scope_clear_self_all_dependent_scopes;
-Managed_Variable_Create_Function *managed_variable_create;
-Managed_Variable_Get_ID_Function *managed_variable_get_id;
-Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id;
-Managed_Variable_Set_Function *managed_variable_set;
-Managed_Variable_Get_Function *managed_variable_get;
+Managed_Scope_Allocator_Function *managed_scope_allocator;
+Managed_Id_Declare_Function *managed_id_declare;
+Managed_Scope_Get_Attachment_Function *managed_scope_get_attachment;
+Managed_Scope_Attachment_Erase_Function *managed_scope_attachment_erase;
 Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope;
 Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer;
-Alloc_Managed_Arena_In_Scope_Function *alloc_managed_arena_in_scope;
 Managed_Object_Get_Item_Size_Function *managed_object_get_item_size;
 Managed_Object_Get_Item_Count_Function *managed_object_get_item_count;
+Managed_Object_Get_Pointer_Function *managed_object_get_pointer;
 Managed_Object_Get_Type_Function *managed_object_get_type;
 Managed_Object_Get_Containing_Scope_Function *managed_object_get_containing_scope;
 Managed_Object_Free_Function *managed_object_free;
@@ -573,7 +561,6 @@ Child_Process_Get_State_Function *child_process_get_state_;
 Clipboard_Post_Function *clipboard_post_;
 Clipboard_Count_Function *clipboard_count_;
 Push_Clipboard_Index_Function *push_clipboard_index_;
-Create_Parse_Context_Function *create_parse_context_;
 Get_Buffer_Count_Function *get_buffer_count_;
 Get_Buffer_Next_Function *get_buffer_next_;
 Get_Buffer_By_Name_Function *get_buffer_by_name_;
@@ -605,11 +592,9 @@ Push_Buffer_Unique_Name_Function *push_buffer_unique_name_;
 Push_Buffer_File_Name_Function *push_buffer_file_name_;
 Buffer_Get_Dirty_State_Function *buffer_get_dirty_state_;
 Buffer_Set_Dirty_State_Function *buffer_set_dirty_state_;
-Buffer_Tokens_Are_Ready_Function *buffer_tokens_are_ready_;
 Buffer_Get_Setting_Function *buffer_get_setting_;
 Buffer_Set_Setting_Function *buffer_set_setting_;
 Buffer_Get_Managed_Scope_Function *buffer_get_managed_scope_;
-Buffer_Get_Token_Array_Function *buffer_get_token_array_;
 Buffer_Send_End_Signal_Function *buffer_send_end_signal_;
 Create_Buffer_Function *create_buffer_;
 Buffer_Save_Function *buffer_save_;
@@ -666,16 +651,15 @@ Get_Global_Managed_Scope_Function *get_global_managed_scope_;
 Get_Managed_Scope_With_Multiple_Dependencies_Function *get_managed_scope_with_multiple_dependencies_;
 Managed_Scope_Clear_Contents_Function *managed_scope_clear_contents_;
 Managed_Scope_Clear_Self_All_Dependent_Scopes_Function *managed_scope_clear_self_all_dependent_scopes_;
-Managed_Variable_Create_Function *managed_variable_create_;
-Managed_Variable_Get_ID_Function *managed_variable_get_id_;
-Managed_Variable_Create_Or_Get_ID_Function *managed_variable_create_or_get_id_;
-Managed_Variable_Set_Function *managed_variable_set_;
-Managed_Variable_Get_Function *managed_variable_get_;
+Managed_Scope_Allocator_Function *managed_scope_allocator_;
+Managed_Id_Declare_Function *managed_id_declare_;
+Managed_Scope_Get_Attachment_Function *managed_scope_get_attachment_;
+Managed_Scope_Attachment_Erase_Function *managed_scope_attachment_erase_;
 Alloc_Managed_Memory_In_Scope_Function *alloc_managed_memory_in_scope_;
 Alloc_Buffer_Markers_On_Buffer_Function *alloc_buffer_markers_on_buffer_;
-Alloc_Managed_Arena_In_Scope_Function *alloc_managed_arena_in_scope_;
 Managed_Object_Get_Item_Size_Function *managed_object_get_item_size_;
 Managed_Object_Get_Item_Count_Function *managed_object_get_item_count_;
+Managed_Object_Get_Pointer_Function *managed_object_get_pointer_;
 Managed_Object_Get_Type_Function *managed_object_get_type_;
 Managed_Object_Get_Containing_Scope_Function *managed_object_get_containing_scope_;
 Managed_Object_Free_Function *managed_object_free_;
@@ -768,7 +752,6 @@ app_links->child_process_get_state_ = Child_Process_Get_State;\
 app_links->clipboard_post_ = Clipboard_Post;\
 app_links->clipboard_count_ = Clipboard_Count;\
 app_links->push_clipboard_index_ = Push_Clipboard_Index;\
-app_links->create_parse_context_ = Create_Parse_Context;\
 app_links->get_buffer_count_ = Get_Buffer_Count;\
 app_links->get_buffer_next_ = Get_Buffer_Next;\
 app_links->get_buffer_by_name_ = Get_Buffer_By_Name;\
@@ -800,11 +783,9 @@ app_links->push_buffer_unique_name_ = Push_Buffer_Unique_Name;\
 app_links->push_buffer_file_name_ = Push_Buffer_File_Name;\
 app_links->buffer_get_dirty_state_ = Buffer_Get_Dirty_State;\
 app_links->buffer_set_dirty_state_ = Buffer_Set_Dirty_State;\
-app_links->buffer_tokens_are_ready_ = Buffer_Tokens_Are_Ready;\
 app_links->buffer_get_setting_ = Buffer_Get_Setting;\
 app_links->buffer_set_setting_ = Buffer_Set_Setting;\
 app_links->buffer_get_managed_scope_ = Buffer_Get_Managed_Scope;\
-app_links->buffer_get_token_array_ = Buffer_Get_Token_Array;\
 app_links->buffer_send_end_signal_ = Buffer_Send_End_Signal;\
 app_links->create_buffer_ = Create_Buffer;\
 app_links->buffer_save_ = Buffer_Save;\
@@ -861,16 +842,15 @@ app_links->get_global_managed_scope_ = Get_Global_Managed_Scope;\
 app_links->get_managed_scope_with_multiple_dependencies_ = Get_Managed_Scope_With_Multiple_Dependencies;\
 app_links->managed_scope_clear_contents_ = Managed_Scope_Clear_Contents;\
 app_links->managed_scope_clear_self_all_dependent_scopes_ = Managed_Scope_Clear_Self_All_Dependent_Scopes;\
-app_links->managed_variable_create_ = Managed_Variable_Create;\
-app_links->managed_variable_get_id_ = Managed_Variable_Get_ID;\
-app_links->managed_variable_create_or_get_id_ = Managed_Variable_Create_Or_Get_ID;\
-app_links->managed_variable_set_ = Managed_Variable_Set;\
-app_links->managed_variable_get_ = Managed_Variable_Get;\
+app_links->managed_scope_allocator_ = Managed_Scope_Allocator;\
+app_links->managed_id_declare_ = Managed_Id_Declare;\
+app_links->managed_scope_get_attachment_ = Managed_Scope_Get_Attachment;\
+app_links->managed_scope_attachment_erase_ = Managed_Scope_Attachment_Erase;\
 app_links->alloc_managed_memory_in_scope_ = Alloc_Managed_Memory_In_Scope;\
 app_links->alloc_buffer_markers_on_buffer_ = Alloc_Buffer_Markers_On_Buffer;\
-app_links->alloc_managed_arena_in_scope_ = Alloc_Managed_Arena_In_Scope;\
 app_links->managed_object_get_item_size_ = Managed_Object_Get_Item_Size;\
 app_links->managed_object_get_item_count_ = Managed_Object_Get_Item_Count;\
+app_links->managed_object_get_pointer_ = Managed_Object_Get_Pointer;\
 app_links->managed_object_get_type_ = Managed_Object_Get_Type;\
 app_links->managed_object_get_containing_scope_ = Managed_Object_Get_Containing_Scope;\
 app_links->managed_object_free_ = Managed_Object_Free;\
@@ -955,7 +935,6 @@ static Process_State child_process_get_state(Application_Links *app, Child_Proce
 static b32 clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string){return(app->clipboard_post(app, clipboard_id, string));}
 static i32 clipboard_count(Application_Links *app, i32 clipboard_id){return(app->clipboard_count(app, clipboard_id));}
 static String_Const_u8 push_clipboard_index(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index){return(app->push_clipboard_index(app, arena, clipboard_id, item_index));}
-static Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count){return(app->create_parse_context(app, kw, kw_count, pp, pp_count));}
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
 static Buffer_ID get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_next(app, buffer_id, access));}
 static Buffer_ID get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access){return(app->get_buffer_by_name(app, name, access));}
@@ -987,11 +966,9 @@ static String_Const_u8 push_buffer_unique_name(Application_Links *app, Arena *ou
 static String_Const_u8 push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_file_name(app, arena, buffer_id));}
 static Dirty_State buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_dirty_state(app, buffer_id));}
 static b32 buffer_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_set_dirty_state(app, buffer_id, dirty_state));}
-static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting(app, buffer_id, setting, value));}
 static Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope(app, buffer_id));}
-static Cpp_Token_Array buffer_get_token_array(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_token_array(app, buffer_id));}
 static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_send_end_signal(app, buffer_id));}
 static Buffer_ID create_buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags){return(app->create_buffer(app, file_name, flags));}
 static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, Buffer_Save_Flag flags){return(app->buffer_save(app, buffer_id, file_name, flags));}
@@ -1048,16 +1025,15 @@ static Managed_Scope get_global_managed_scope(Application_Links *app){return(app
 static Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *scopes, i32 count){return(app->get_managed_scope_with_multiple_dependencies(app, scopes, count));}
 static b32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents(app, scope));}
 static b32 managed_scope_clear_self_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_self_all_dependent_scopes(app, scope));}
-static Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create(app, null_terminated_name, default_value));}
-static Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id(app, null_terminated_name));}
-static Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create_or_get_id(app, null_terminated_name, default_value));}
-static b32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value){return(app->managed_variable_set(app, scope, id, value));}
-static b32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out){return(app->managed_variable_get(app, scope, id, value_out));}
+static Base_Allocator* managed_scope_allocator(Application_Links *app, Managed_Scope scope){return(app->managed_scope_allocator(app, scope));}
+static Managed_ID managed_id_declare(Application_Links *app, String_Const_u8 name){return(app->managed_id_declare(app, name));}
+static void* managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Managed_ID id, umem size){return(app->managed_scope_get_attachment(app, scope, id, size));}
+static void* managed_scope_attachment_erase(Application_Links *app, Managed_Scope scope, Managed_ID id){return(app->managed_scope_attachment_erase(app, scope, id));}
 static Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, i32 item_size, i32 count){return(app->alloc_managed_memory_in_scope(app, scope, item_size, count));}
 static Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, i32 count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer(app, buffer_id, count, optional_extra_scope));}
-static Managed_Object alloc_managed_arena_in_scope(Application_Links *app, Managed_Scope scope, i32 page_size){return(app->alloc_managed_arena_in_scope(app, scope, page_size));}
 static u32 managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size(app, object));}
 static u32 managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count(app, object));}
+static void* managed_object_get_pointer(Application_Links *app, Managed_Object object){return(app->managed_object_get_pointer(app, object));}
 static Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type(app, object));}
 static Managed_Scope managed_object_get_containing_scope(Application_Links *app, Managed_Object object){return(app->managed_object_get_containing_scope(app, object));}
 static b32 managed_object_free(Application_Links *app, Managed_Object object){return(app->managed_object_free(app, object));}
@@ -1142,7 +1118,6 @@ static Process_State child_process_get_state(Application_Links *app, Child_Proce
 static b32 clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string){return(app->clipboard_post_(app, clipboard_id, string));}
 static i32 clipboard_count(Application_Links *app, i32 clipboard_id){return(app->clipboard_count_(app, clipboard_id));}
 static String_Const_u8 push_clipboard_index(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index){return(app->push_clipboard_index_(app, arena, clipboard_id, item_index));}
-static Parse_Context_ID create_parse_context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count){return(app->create_parse_context_(app, kw, kw_count, pp, pp_count));}
 static i32 get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
 static Buffer_ID get_buffer_next(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_next_(app, buffer_id, access));}
 static Buffer_ID get_buffer_by_name(Application_Links *app, String_Const_u8 name, Access_Flag access){return(app->get_buffer_by_name_(app, name, access));}
@@ -1174,11 +1149,9 @@ static String_Const_u8 push_buffer_unique_name(Application_Links *app, Arena *ou
 static String_Const_u8 push_buffer_file_name(Application_Links *app, Arena *arena, Buffer_ID buffer_id){return(app->push_buffer_file_name_(app, arena, buffer_id));}
 static Dirty_State buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_dirty_state_(app, buffer_id));}
 static b32 buffer_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State dirty_state){return(app->buffer_set_dirty_state_(app, buffer_id, dirty_state));}
-static b32 buffer_tokens_are_ready(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_tokens_are_ready_(app, buffer_id));}
 static b32 buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out){return(app->buffer_get_setting_(app, buffer_id, setting, value_out));}
 static b32 buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value){return(app->buffer_set_setting_(app, buffer_id, setting, value));}
 static Managed_Scope buffer_get_managed_scope(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_managed_scope_(app, buffer_id));}
-static Cpp_Token_Array buffer_get_token_array(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_token_array_(app, buffer_id));}
 static b32 buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_send_end_signal_(app, buffer_id));}
 static Buffer_ID create_buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags){return(app->create_buffer_(app, file_name, flags));}
 static b32 buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, Buffer_Save_Flag flags){return(app->buffer_save_(app, buffer_id, file_name, flags));}
@@ -1235,16 +1208,15 @@ static Managed_Scope get_global_managed_scope(Application_Links *app){return(app
 static Managed_Scope get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Scope *scopes, i32 count){return(app->get_managed_scope_with_multiple_dependencies_(app, scopes, count));}
 static b32 managed_scope_clear_contents(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_contents_(app, scope));}
 static b32 managed_scope_clear_self_all_dependent_scopes(Application_Links *app, Managed_Scope scope){return(app->managed_scope_clear_self_all_dependent_scopes_(app, scope));}
-static Managed_Variable_ID managed_variable_create(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create_(app, null_terminated_name, default_value));}
-static Managed_Variable_ID managed_variable_get_id(Application_Links *app, char *null_terminated_name){return(app->managed_variable_get_id_(app, null_terminated_name));}
-static Managed_Variable_ID managed_variable_create_or_get_id(Application_Links *app, char *null_terminated_name, u64 default_value){return(app->managed_variable_create_or_get_id_(app, null_terminated_name, default_value));}
-static b32 managed_variable_set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value){return(app->managed_variable_set_(app, scope, id, value));}
-static b32 managed_variable_get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out){return(app->managed_variable_get_(app, scope, id, value_out));}
+static Base_Allocator* managed_scope_allocator(Application_Links *app, Managed_Scope scope){return(app->managed_scope_allocator_(app, scope));}
+static Managed_ID managed_id_declare(Application_Links *app, String_Const_u8 name){return(app->managed_id_declare_(app, name));}
+static void* managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Managed_ID id, umem size){return(app->managed_scope_get_attachment_(app, scope, id, size));}
+static void* managed_scope_attachment_erase(Application_Links *app, Managed_Scope scope, Managed_ID id){return(app->managed_scope_attachment_erase_(app, scope, id));}
 static Managed_Object alloc_managed_memory_in_scope(Application_Links *app, Managed_Scope scope, i32 item_size, i32 count){return(app->alloc_managed_memory_in_scope_(app, scope, item_size, count));}
 static Managed_Object alloc_buffer_markers_on_buffer(Application_Links *app, Buffer_ID buffer_id, i32 count, Managed_Scope *optional_extra_scope){return(app->alloc_buffer_markers_on_buffer_(app, buffer_id, count, optional_extra_scope));}
-static Managed_Object alloc_managed_arena_in_scope(Application_Links *app, Managed_Scope scope, i32 page_size){return(app->alloc_managed_arena_in_scope_(app, scope, page_size));}
 static u32 managed_object_get_item_size(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_size_(app, object));}
 static u32 managed_object_get_item_count(Application_Links *app, Managed_Object object){return(app->managed_object_get_item_count_(app, object));}
+static void* managed_object_get_pointer(Application_Links *app, Managed_Object object){return(app->managed_object_get_pointer_(app, object));}
 static Managed_Object_Type managed_object_get_type(Application_Links *app, Managed_Object object){return(app->managed_object_get_type_(app, object));}
 static Managed_Scope managed_object_get_containing_scope(Application_Links *app, Managed_Object object){return(app->managed_object_get_containing_scope_(app, object));}
 static b32 managed_object_free(Application_Links *app, Managed_Object object){return(app->managed_object_free_(app, object));}

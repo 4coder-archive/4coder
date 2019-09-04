@@ -16,10 +16,11 @@ enum Default_Maps{
 
 ////////////////////////////////
 
-enum Rewrite_Type{
-    RewriteNone,
-    RewritePaste,
-    RewriteWordComplete
+typedef i64 Rewrite_Type;
+enum{
+    Rewrite_None,
+    Rewrite_Paste,
+    Rewrite_WordComplete
 };
 
 ////////////////////////////////

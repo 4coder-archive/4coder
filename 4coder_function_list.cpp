@@ -14,6 +14,8 @@ static Get_Positions_Results
 get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token_index, Function_Positions *positions_array, i32 positions_max){
     Get_Positions_Results result = {};
     
+    NotImplemented;
+#if 0
     Token_Range token_range = buffer_get_token_range(app, buffer);
     if (token_range.first != 0){
         Token_Iterator token_it = make_token_iterator(token_range, first_token_index);
@@ -21,7 +23,7 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
         i32 nest_level = 0;
         i32 paren_nest_level = 0;
         
-        Cpp_Token *first_paren = 0;
+        Token *first_paren = 0;
         i32 first_paren_index = 0;
         i32 first_paren_position = 0;
         i32 last_paren_index = 0;
@@ -33,7 +35,7 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
         first_paren_index = 0;
         first_paren_position = 0;
         last_paren_index = 0;
-        for (Cpp_Token *token = token_iterator_current(&token_it);
+        for (Token *token = token_iterator_current(&token_it);
              token != 0;
              token = token_iterator_goto_next(&token_it)){
             if (!(token->flags & CPP_TFLAG_PP_BODY)){
@@ -67,7 +69,7 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
         // Look for a closing parenthese to mark the end of a function signature.
         paren_mode1:
         paren_nest_level = 0;
-        for (Cpp_Token *token = token_iterator_current(&token_it);
+        for (Token *token = token_iterator_current(&token_it);
              token != 0;
              token = token_iterator_goto_next(&token_it)){
             if (!(token->flags & CPP_TFLAG_PP_BODY)){
@@ -93,11 +95,11 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
         // Look backwards from an open parenthese to find the start of a function signature.
         paren_mode2:
         {
-            Cpp_Token *restore_point = token_iterator_current(&token_it);
+            Token *restore_point = token_iterator_current(&token_it);
             
             token_iterator_set(&token_it, first_paren);
             i32 signature_start_index = 0;
-            for (Cpp_Token *token = token_iterator_current(&token_it);
+            for (Token *token = token_iterator_current(&token_it);
                  token != 0;
                  token = token_iterator_goto_prev(&token_it)){
                 if ((token->flags & CPP_TFLAG_PP_BODY) || (token->flags & CPP_TFLAG_PP_DIRECTIVE) ||
@@ -136,12 +138,15 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
         end:;
         
     }
+#endif
     
     return(result);
 }
 
 static void
 print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_ID buffer, Function_Positions *positions_array, i32 positions_count){
+    NotImplemented;
+#if 0
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     
@@ -161,9 +166,9 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_I
         if (token_range.first != 0){
             insertf(out, "%.*s:%lld: ", string_expand(buffer_name), line_number);
             
-            Cpp_Token prev_token = {};
+            Token prev_token = {};
             Token_Iterator token_it = make_token_iterator(token_range, start_index);
-            for (Cpp_Token *token = token_iterator_current(&token_it);
+            for (Token *token = token_iterator_current(&token_it);
                  token != 0 && token_iterator_current_index(&token_it) <= end_index;
                  token = token_iterator_goto_next_raw(&token_it)){
                 if ((token->flags & CPP_TFLAG_PP_BODY) == 0 && token->type != CPP_TOKEN_COMMENT){
@@ -194,10 +199,14 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_I
     }
     
     end_temp(temp);
+#endif
 }
 
 static void
 list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
+    
+    NotImplemented;
+#if 0
     // TODO(allen): Use create or switch to buffer and clear here?
     String_Const_u8 decls_name = string_u8_litexpr("*decls*");
     Buffer_ID decls_buffer = get_buffer_by_name(app, decls_name, AccessAll);
@@ -260,6 +269,7 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     lock_jump_buffer(app, decls_name);
     
     end_temp(temp);
+#endif
     
 }
 

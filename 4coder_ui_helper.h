@@ -47,7 +47,6 @@ struct UI_Data{
 struct UI_Storage{
     UI_Data *data;
     Arena *arena;
-    Managed_Object arena_object;
     Temp_Memory temp;
 };
 

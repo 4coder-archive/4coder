@@ -7,6 +7,7 @@
 #if !defined(FCODER_LANGUAGE_RUST_H)
 #define FCODER_LANGUAGE_RUST_H
 
+#if 0
 static Parse_Context_ID parse_context_language_rust;
 
 #define PSAT(s, t) {s, sizeof(s)-1, t}
@@ -73,6 +74,7 @@ init_language_rust(Application_Links *app){
     parse_context_language_rust = create_parse_context(app, kw, ArrayCount(kw), 0, 0);
 }
 #undef PSAT
+#endif
 
 #endif
 

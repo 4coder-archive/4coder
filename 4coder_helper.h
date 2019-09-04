@@ -144,30 +144,11 @@ struct Indent_Info{
 
 ////////////////////////////////
 
-struct Stream_Chunk{
-    Application_Links *app;
-    Buffer_ID buffer_id;
-    
-    char *base_data;
-    i32 start;
-    i32 end;
-    i32 min_start;
-    i32 max_end;
-    b32 add_null;
-    u32 data_size;
-    
-    char *data;
-};
-
-struct Token_Range{
-    Cpp_Token *first;
-    Cpp_Token *one_past_last;
-};
-
 struct Token_Iterator{
-    // TODO(allen): source buffer
-    Cpp_Token *token;
-    Token_Range range;
+    Buffer_ID buffer;
+    Token *first;
+    Token *one_past_last;
+    Token *token;
 };
 
 ////////////////////////////////

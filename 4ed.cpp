@@ -361,22 +361,22 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                             switch (hook_id){
                                 case special_hook_open_file:
                                 {
-                                    models->hook_open_file = (Open_File_Hook_Function*)unit->hook.func;
+                                    models->hook_open_file = (Buffer_Hook_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_new_file:
                                 {
-                                    models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
+                                    models->hook_new_file = (Buffer_Hook_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_save_file:
                                 {
-                                    models->hook_save_file = (Open_File_Hook_Function*)unit->hook.func;
+                                    models->hook_save_file = (Buffer_Hook_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_end_file:
                                 {
-                                    models->hook_end_file = (Open_File_Hook_Function*)unit->hook.func;
+                                    models->hook_end_file = (Buffer_Hook_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_file_edit_range:
@@ -735,8 +735,7 @@ app_setup_memory(System_Functions *system, Application_Memory *memory){
     Models *models = push_array_zero(&cursor, Models, 1);
     models->mem.arena = make_arena_system(system);
     models->base_allocator = models->mem.arena.base_allocator;
-    heap_init(&models->mem.heap);
-    heap_extend(&models->mem.heap, memory->target_memory, memory->target_memory_size);
+    heap_init(&models->mem.heap, models->base_allocator);
     return(models);
 }
 
@@ -878,13 +877,6 @@ App_Init_Sig(app_init){
     }
     
     {
-        umem memsize = KB(8);
-        void *mem = push_array(arena, u8, (i32)memsize);
-        parse_context_init_memory(&models->parse_context_memory, mem, memsize);
-        parse_context_add_default(&models->parse_context_memory, &models->mem.heap);
-    }
-    
-    {
         Assert(models->config_api.get_bindings != 0);
         i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
         Assert(wanted_size <= models->app_links.memory_size);
@@ -892,8 +884,9 @@ App_Init_Sig(app_init){
         memset(models->app_links.memory, 0, wanted_size);
     }
     
-    dynamic_variables_init(&models->variable_layout);
-    dynamic_workspace_init(&models->mem.heap, &models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
+    managed_ids_init(models->base_allocator, &models->managed_id_set);
+    lifetime_allocator_init(models->base_allocator, &models->lifetime_allocator);
+    dynamic_workspace_init(&models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
     working_set_init(models, &models->working_set);
@@ -946,7 +939,7 @@ App_Init_Sig(app_init){
     Heap *heap = &models->mem.heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_allocate_file(&models->working_set, &models->lifetime_allocator);
-        buffer_bind_name(models, heap, arena, &models->working_set, file, init_files[i].name);
+        buffer_bind_name(models, arena, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].ptr != 0){
             *init_files[i].ptr = file;
@@ -956,7 +949,7 @@ App_Init_Sig(app_init){
         file_create_from_string(models, file, SCu8(), attributes);
         if (init_files[i].read_only){
             file->settings.read_only = true;
-            history_free(&models->mem.heap, &file->state.history);
+            history_free(&file->state.history);
         }
         
         file->settings.never_kill = true;
@@ -966,13 +959,13 @@ App_Init_Sig(app_init){
     // NOTE(allen): setup first panel
     {
         Panel *panel = layout_initialize(arena, &models->layout);
-        View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, panel);
+        View *new_view = live_set_alloc_view(&models->lifetime_allocator, &models->live_set, panel);
         view_set_file(system, models, new_view, models->scratch_buffer);
     }
     
     // NOTE(allen): miscellaneous init
     hot_directory_init(system, arena, &models->hot_directory, current_directory);
-    child_process_container_init(&models->child_processes, models);
+    child_process_container_init(models->base_allocator, &models->child_processes);
     models->user_up_key = key_up;
     models->user_down_key = key_down;
     models->period_wakeup_timer = system->wake_up_timer_create();

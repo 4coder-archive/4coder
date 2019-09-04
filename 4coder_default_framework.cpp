@@ -68,15 +68,15 @@ new_view_settings(Application_Links *app, View_ID view){
 static void
 view_set_passive(Application_Links *app, View_ID view_id, b32 value){
     Managed_Scope scope = view_get_managed_scope(app, view_id);
-    managed_variable_set(app, scope, view_is_passive_loc, (u64)value);
+    b32 *is_passive = scope_attachment(app, scope, view_is_passive_loc, b32);
+    *is_passive = value;
 }
 
 static b32
 view_get_is_passive(Application_Links *app, View_ID view_id){
     Managed_Scope scope = view_get_managed_scope(app, view_id);
-    u64 is_passive = 0;
-    managed_variable_get(app, scope, view_is_passive_loc, &is_passive);
-    return(is_passive != 0);
+    b32 *is_passive = scope_attachment(app, scope, view_is_passive_loc, b32);
+    return(*is_passive);
 }
 
 static View_ID
@@ -267,7 +267,9 @@ create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Cons
         search_buffer = create_buffer(app, name_string, BufferCreate_AlwaysNew);
         buffer_set_setting(app, search_buffer, BufferSetting_Unimportant, true);
         buffer_set_setting(app, search_buffer, BufferSetting_ReadOnly, true);
+#if 0
         buffer_set_setting(app, search_buffer, BufferSetting_WrapLine, false);
+#endif
         view_set_buffer(app, default_target_view, search_buffer, 0);
         view_set_active(app, default_target_view);
     }
@@ -361,10 +363,8 @@ CUSTOM_DOC("Switch to a named key binding map.")
 
 static void
 default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count, i32 override_font_size, b32 override_hinting){
-    i32 heap_size = (4 << 20);
-    void *heap_mem = memory_allocate(app, heap_size);
-    heap_init(&global_heap);
-    heap_extend(&global_heap, heap_mem, heap_size);
+    Base_Allocator *allocator = context_get_base_allocator(app);
+    heap_init(&global_heap, allocator);
     
 #define M \
     "Welcome to " VERSION "\n" \
@@ -382,17 +382,17 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     global_config_arena = make_arena_app_links(app);
     load_config_and_apply(app, &global_config_arena, &global_config, override_font_size, override_hinting);
     
-    view_rewrite_loc         = managed_variable_create_or_get_id(app, "DEFAULT.rewrite"       , 0);
-    view_next_rewrite_loc    = managed_variable_create_or_get_id(app, "DEFAULT.next_rewrite"  , 0);
-    view_paste_index_loc     = managed_variable_create_or_get_id(app, "DEFAULT.paste_index"   , 0);
-    view_is_passive_loc      = managed_variable_create_or_get_id(app, "DEFAULT.is_passive"    , 0);
-    view_snap_mark_to_cursor = managed_variable_create_or_get_id(app, "DEFAULT.mark_to_cursor", 0);
-    view_ui_data             = managed_variable_create_or_get_id(app, "DEFAULT.ui_data"       , 0);
-    view_highlight_range     = managed_variable_create_or_get_id(app, "DEFAULT.highlight"     , 0);
-    view_highlight_buffer    = managed_variable_create_or_get_id(app, "DEFAULT.highlight_buf" , 0);
-    view_render_hook         = managed_variable_create_or_get_id(app, "DEFAULT.render" , 0);
-    
-    sticky_jump_marker_handle = managed_variable_create_or_get_id(app, "DEFAULT.sticky_jump_marker_handle", 0);
+    view_rewrite_loc          = managed_id_declare(app, SCu8("DEFAULT.rewrite"       ));
+    view_next_rewrite_loc     = managed_id_declare(app, SCu8("DEFAULT.next_rewrite"  ));
+    view_paste_index_loc      = managed_id_declare(app, SCu8("DEFAULT.paste_index"   ));
+    view_is_passive_loc       = managed_id_declare(app, SCu8("DEFAULT.is_passive"    ));
+    view_snap_mark_to_cursor  = managed_id_declare(app, SCu8("DEFAULT.mark_to_cursor"));
+    view_ui_data              = managed_id_declare(app, SCu8("DEFAULT.ui_data"       ));
+    view_highlight_range      = managed_id_declare(app, SCu8("DEFAULT.highlight"     ));
+    view_highlight_buffer     = managed_id_declare(app, SCu8("DEFAULT.highlight_buf" ));
+    view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render" ));
+    sticky_jump_marker_handle = managed_id_declare(app, SCu8("DEFAULT.sticky_jump_marker_handle"));
+    attachment_tokens         = managed_id_declare(app, SCu8("DEFAULT.tokens"));
     
     // open command line files
     Arena *scratch = context_get_arena(app);

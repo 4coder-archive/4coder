@@ -10,7 +10,7 @@
 // TOP
 
 internal void
-edit_pre_state_change(Models *models, Heap *heap, Editing_File *file){
+edit_pre_state_change(Models *models, Editing_File *file){
     System_Functions *system = models->system;
     file_add_dirty_flag(file, DirtyState_UnsavedChanges);
     file_unmark_edit_finished(&models->working_set, file);
@@ -18,7 +18,8 @@ edit_pre_state_change(Models *models, Heap *heap, Editing_File *file){
 
 internal void
 edit_fix_markers__write_workspace_markers(Dynamic_Workspace *workspace, Buffer_ID buffer_id,
-                                          Cursor_With_Index *cursors, Cursor_With_Index *r_cursors, i32 *cursor_count, i32 *r_cursor_count){
+                                          Cursor_With_Index *cursors, Cursor_With_Index *r_cursors,
+                                          i32 *cursor_count, i32 *r_cursor_count){
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
          node != 0;
          node = node->next){
@@ -189,19 +190,18 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     Assert(edit.range.first <= edit.range.one_past_last);
     Assert(edit.range.one_past_last <= buffer_size(buffer));
     
-    Heap *heap = &models->mem.heap;
     Arena *scratch = &models->mem.arena;
     
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
         // TODO(allen): if the edit number counter is not updated, maybe auto-merge edits?  Wouldn't that just work?
         history_dump_records_after_index(&file->state.history, file->state.current_record_index);
-        history_record_edit(heap, &models->global_history, &file->state.history, buffer, edit);
+        history_record_edit(&models->global_history, &file->state.history, buffer, edit);
         file->state.current_record_index = history_get_record_count(&file->state.history);
     }
     
     // NOTE(allen): fixing stuff beforewards????
-    edit_pre_state_change(models, heap, file);
+    edit_pre_state_change(models, file);
     
     // NOTE(allen): edit range hook
     if (models->hook_file_edit_range != 0){
@@ -221,12 +221,8 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     i64 new_line_count = buffer_count_newlines(scratch, buffer, edit.range.first, edit.range.first + edit.text.size);
     i64 line_shift =  new_line_count - replaced_line_count;
     
+    file_clear_layout_cache(file);
     buffer_remeasure_starts(scratch, buffer, Ii64(line_start, line_end + 1), line_shift, shift_amount);
-    
-    // NOTE(allen): token fixing
-    if (file->settings.tokens_exist){
-        file_relex(models->system, models, file, edit.range.first, edit.range.one_past_last, shift_amount);
-    }
     
     // NOTE(allen): cursor fixing
     edit_fix_markers(models, file, edit);
@@ -240,10 +236,9 @@ file_end_file(Models *models, Editing_File *file){
     if (models->hook_end_file != 0){
         models->hook_end_file(&models->app_links, file->id);
     }
-    Heap *heap = &models->mem.heap;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
-    lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
-    file->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_Buffer, file);
+    lifetime_free_object(lifetime_allocator, file->lifetime_object);
+    file->lifetime_object = lifetime_alloc_object(lifetime_allocator, DynamicWorkspace_Buffer, file);
 }
 
 internal void
@@ -375,7 +370,7 @@ edit_merge_history_range(Models *models, Editing_File *file, History_Record_Inde
                         }break;
                     }
                 }
-                history_merge_records(&models->mem.arena, &models->mem.heap, history, first_index, last_index);
+                history_merge_records(&models->mem.arena, history, first_index, last_index);
                 if (current_index >= last_index){
                     current_index -= (last_index - first_index);
                 }
@@ -490,10 +485,10 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     file = working_set_allocate_file(working_set, &models->lifetime_allocator);
                     if (file != 0){
                         if (has_canon_name){
-                            file_bind_file_name(system, heap, working_set, file, string_from_file_name(&canon));
+                            file_bind_file_name(system, working_set, file, string_from_file_name(&canon));
                         }
                         String_Const_u8 front = string_front_of_path(file_name);
-                        buffer_bind_name(models, heap, scratch, working_set, file, front);
+                        buffer_bind_name(models, scratch, working_set, file, front);
                         File_Attributes attributes = {};
                         file_create_from_string(models, file, SCu8(""), attributes);
                         result = file;
@@ -515,9 +510,9 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     system->load_close(handle);
                     file = working_set_allocate_file(working_set, &models->lifetime_allocator);
                     if (file != 0){
-                        file_bind_file_name(system, heap, working_set, file, string_from_file_name(&canon));
+                        file_bind_file_name(system, working_set, file, string_from_file_name(&canon));
                         String_Const_u8 front = string_front_of_path(file_name);
-                        buffer_bind_name(models, heap, scratch, working_set, file, front);
+                        buffer_bind_name(models, scratch, working_set, file, front);
                         file_create_from_string(models, file, SCu8(buffer, (i32)attributes.size), attributes);
                         result = file;
                     }

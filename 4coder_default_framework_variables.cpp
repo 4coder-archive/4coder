@@ -34,17 +34,19 @@ global String_Const_u8 locked_buffer = {};
 global View_ID build_footer_panel_view_id = 0;
 
 
-global Managed_Variable_ID view_rewrite_loc = 0;
-global Managed_Variable_ID view_next_rewrite_loc = 0;
-global Managed_Variable_ID view_paste_index_loc = 0;
-global Managed_Variable_ID view_is_passive_loc = 0;
-global Managed_Variable_ID view_snap_mark_to_cursor = 0;
-global Managed_Variable_ID view_ui_data = 0;
-global Managed_Variable_ID view_highlight_range = 0;
-global Managed_Variable_ID view_highlight_buffer = 0;
-global Managed_Variable_ID view_render_hook = 0;
+global Managed_ID view_rewrite_loc = 0;
+global Managed_ID view_next_rewrite_loc = 0;
+global Managed_ID view_paste_index_loc = 0;
+global Managed_ID view_is_passive_loc = 0;
+global Managed_ID view_snap_mark_to_cursor = 0;
+global Managed_ID view_ui_data = 0;
+global Managed_ID view_highlight_range = 0;
+global Managed_ID view_highlight_buffer = 0;
+global Managed_ID view_render_hook = 0;
 
-global Managed_Variable_ID sticky_jump_marker_handle = 0;
+global Managed_ID sticky_jump_marker_handle = 0;
+
+global Managed_ID attachment_tokens = 0;
 
 global u8 out_buffer_space[1024];
 global u8 command_space[1024];
@@ -61,6 +63,7 @@ global b32 cursor_is_hidden = false;
 
 global b32 show_fps_hud = false;
 
+// TODO(allen): REMOVE THIS!
 global Heap global_heap;
 
 enum{

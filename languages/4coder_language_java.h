@@ -7,6 +7,7 @@
 #if !defined(FCODER_LANGUAGE_JAVA_H)
 #define FCODER_LANGUAGE_JAVA_H
 
+#if 0
 static Parse_Context_ID parse_context_language_java;
 
 #define PSAT(s, t) {s, sizeof(s)-1, t}
@@ -73,6 +74,7 @@ init_language_java(Application_Links *app){
     parse_context_language_java = create_parse_context(app, kw, ArrayCount(kw), 0, 0);
 }
 #undef PSAT
+#endif
 
 #endif
 

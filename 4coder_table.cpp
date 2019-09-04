@@ -171,7 +171,7 @@ table_erase(Table_u64_u64 *table, u64 key){
     return(table_erase(table, lookup));
 }
 
-internal b32
+internal void
 table_clear(Table_u64_u64 *table){
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
@@ -324,7 +324,7 @@ table_erase(Table_u32_u16 *table, u32 key){
     return(table_erase(table, lookup));
 }
 
-internal b32
+internal void
 table_clear(Table_u32_u16 *table){
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
@@ -480,7 +480,7 @@ table_erase(Table_Data_u64 *table, Data key){
     return(result);
 }
 
-internal b32
+internal void
 table_clear(Table_Data_u64 *table){
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
@@ -634,7 +634,7 @@ table_erase(Table_u64_Data *table, u64 key){
     return(result);
 }
 
-internal b32
+internal void
 table_clear(Table_u64_Data *table){
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
@@ -785,7 +785,7 @@ table_erase(Table_Data_Data *table, Data key){
     return(result);
 }
 
-internal b32
+internal void
 table_clear(Table_Data_Data *table){
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);

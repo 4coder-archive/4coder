@@ -30,9 +30,6 @@
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 
-#include "4coder_lib/4coder_heap.cpp"
-#define FSTRING_IMPLEMENTATION
-#include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4coder_utf8.h"
 
 // TODO(allen): stop this nonsense
@@ -49,8 +46,6 @@ struct Mem_Options{
 #define FCPP_FORBID_MALLOC
 #include "4coder_lib/4cpp_lexer.h"
 
-#include "4ed_ptr_check.h"
-#include "4ed_memory_bank.h"
 #include "4ed_dynamic_variables.h"
 
 #include "4ed_buffer_model.h"
@@ -78,10 +73,7 @@ struct Mem_Options{
 #include "4coder_log.cpp"
 #include "4ed_coroutine.cpp"
 #include "4ed_mem.cpp"
-#include "4ed_ptr_check.cpp"
-#include "4ed_memory_bank.cpp"
 #include "4ed_dynamic_variables.cpp"
-#include "4ed_parse_context.cpp"
 #include "4ed_font_face.cpp"
 #include "4ed_font_set.cpp"
 #include "4ed_translation.cpp"
@@ -90,7 +82,6 @@ struct Mem_Options{
 #include "4ed_buffer.cpp"
 #include "4ed_string_matching.cpp"
 #include "4ed_history.cpp"
-#include "4ed_file_lex.cpp"
 #include "4ed_file.cpp"
 #include "4ed_working_set.cpp"
 #include "4ed_hot_directory.cpp"

@@ -907,8 +907,6 @@ CUSTOM_COMMAND_SIG(log_graph__escape)
 CUSTOM_DOC("Ends the log grapher")
 {
     if (log_view != 0){
-        Managed_Scope scope = view_get_managed_scope(app, log_view);
-        managed_variable_set(app, scope, view_render_hook, 0);
         view_end_ui_mode(app, log_view);
         log_view = 0;
     }
@@ -1044,8 +1042,8 @@ CUSTOM_DOC("Parser *log* and displays the 'log graph' UI")
         log_view = get_active_view(app, AccessAll);
     }
     Managed_Scope scope = view_get_managed_scope(app, log_view);
-    u64 render_hook_value = (u64)PtrAsInt(log_graph_render);
-    managed_variable_set(app, scope, view_render_hook, render_hook_value);
+    View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
+    *hook = log_graph_render;
     view_set_setting(app, log_view, ViewSetting_UICommandMap, default_log_graph_map);
     view_begin_ui_mode(app, log_view);
     view_set_quit_ui_handler(app, log_view, ui_quit_clear_render_hook);

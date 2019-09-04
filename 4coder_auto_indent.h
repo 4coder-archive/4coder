@@ -23,7 +23,7 @@ struct Indent_Parse_State{
 };
 
 struct Indent_Anchor_Position{
-    Cpp_Token *token;
+    Token *token;
     i32 indentation;
 };
 

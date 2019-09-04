@@ -7,6 +7,7 @@
 #if !defined(FCODER_LANGUAGE_CS_H)
 #define FCODER_LANGUAGE_CS_H
 
+#if 0
 static Parse_Context_ID parse_context_language_cs;
 
 #define PSAT(s, t) {s, sizeof(s)-1, t}
@@ -113,6 +114,7 @@ init_language_cs(Application_Links *app){
     parse_context_language_cs = create_parse_context(app, kw, ArrayCount(kw), pp, ArrayCount(pp));
 }
 #undef PSAT
+#endif
 
 #endif
 

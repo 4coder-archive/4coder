@@ -72,8 +72,8 @@ config_stringize_errors(Arena *arena, Config *parsed){
 
 static void
 config_parser__advance_to_next(Config_Parser *ctx){
-    Cpp_Token *t = ctx->token;
-    Cpp_Token *e = ctx->end;
+    Token *t = ctx->token;
+    Token *e = ctx->end;
     for (t += 1; t < e && t->type == CPP_TOKEN_COMMENT; t += 1);
     ctx->token = t;
 }
@@ -1147,8 +1147,8 @@ text_data_to_token_array(Arena *arena, String_Const_u8 data){
     b32 success = false;
     Temp_Memory restore_point = begin_temp(arena);
     Cpp_Token_Array array = {};
-    i32 max_count = (1 << 20)/sizeof(Cpp_Token);
-    array.tokens = push_array(arena, Cpp_Token, max_count);
+    i32 max_count = (1 << 20)/sizeof(Token);
+    array.tokens = push_array(arena, Token, max_count);
     array.max_count = max_count;
     Cpp_Keyword_Table kw_table = {};
     Cpp_Keyword_Table pp_table = {};
@@ -1518,7 +1518,6 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         do_matching_enclosure_highlight = config->use_scope_highlight;
         do_matching_paren_highlight = config->use_paren_helper;
         do_colored_comment_keywords = config->use_comment_keyword;
-        adjust_all_buffer_wrap_widths(app, config->default_wrap_width, config->default_min_base_width);
         global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
         
         //change_theme(app, config->default_theme_name.str, config->default_theme_name.size);

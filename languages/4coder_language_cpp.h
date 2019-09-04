@@ -7,6 +7,25 @@
 #if !defined(FCODER_LANGUAGE_CPP_H)
 #define FCODER_LANGUAGE_CPP_H
 
+// TODO(allen): Organize this better!
+
+internal Token_Array
+lex_cpp_initial(Base_Allocator *allocator, String_Const_u8 contents){
+    Token_Array result = {};
+    result.tokens = base_array(allocator, Token, 2);
+    result.count = 2;
+    result.max = 2;
+    result.tokens[0].pos = 0;
+    result.tokens[0].size = contents.size;
+    result.tokens[0].kind = TokenBaseKind_COUNT;
+    result.tokens[0].sub_kind = 0;
+    result.tokens[1].pos = contents.size;
+    result.tokens[1].size = 0;
+    result.tokens[1].kind = TokenBaseKind_EOF;
+    return(result);
+}
+
+#if 0
 static Parse_Context_ID parse_context_language_cpp;
 
 #define PSAT(s, t) {s, sizeof(s)-1, t}
@@ -152,6 +171,7 @@ init_language_cpp(Application_Links *app){
     parse_context_language_cpp = create_parse_context(app, kw, ArrayCount(kw), pp, ArrayCount(pp));
 }
 #undef PSAT
+#endif
 
 #endif
 

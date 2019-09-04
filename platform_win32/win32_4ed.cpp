@@ -28,9 +28,6 @@
 #include "4coder_lib/4coder_utf8.h"
 
 #if defined(FRED_SUPER)
-# include "4coder_lib/4coder_heap.h"
-# include "4coder_lib/4coder_heap.cpp"
-
 # include "4coder_base_types.cpp"
 # include "4coder_stringf.cpp"
 # include "4coder_hash_functions.cpp"

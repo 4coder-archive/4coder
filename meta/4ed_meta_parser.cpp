@@ -13,9 +13,9 @@
 #define FRED_META_PARSER_CPP
 
 struct Parse_Context{
-    Cpp_Token *token_s;
-    Cpp_Token *token_e;
-    Cpp_Token *token;
+    Token *token_s;
+    Token *token_e;
+    Token *token;
     char *data;
 };
 
@@ -101,7 +101,7 @@ struct Item_Set{
 struct Parse{
     String_Const_char code;
     //String code;
-    Cpp_Token_Array tokens;
+    Token_Array tokens;
     i32 item_count;
 };
 
@@ -131,13 +131,13 @@ SCchar_range(char *data, i32 start, i32 end){
 }
 
 internal String_Const_char
-get_lexeme(Cpp_Token token, char *code){
+get_lexeme(Token token, char *code){
     String_Const_char str = SCchar(code + token.start, token.size);
     return(str);
 }
 
 internal Parse_Context
-setup_parse_context(char *data, Cpp_Token_Array array){
+setup_parse_context(char *data, Token_Array array){
     Parse_Context context;
     context.token_s = array.tokens;
     context.token_e = array.tokens + array.count;
@@ -156,18 +156,18 @@ setup_parse_context(Parse parse){
     return(context);
 }
 
-internal Cpp_Token*
+internal Token*
 get_token(Parse_Context *context){
-    Cpp_Token *result = context->token;
+    Token *result = context->token;
     if (result >= context->token_e){
         result = 0;
     }
     return(result);
 }
 
-internal Cpp_Token*
+internal Token*
 get_next_token(Parse_Context *context){
-    Cpp_Token *result = context->token+1;
+    Token *result = context->token+1;
     context->token = result;
     if (result >= context->token_e){
         result = 0;
@@ -176,9 +176,9 @@ get_next_token(Parse_Context *context){
     return(result);
 }
 
-internal Cpp_Token*
+internal Token*
 get_prev_token(Parse_Context *context){
-    Cpp_Token *result = context->token-1;
+    Token *result = context->token-1;
     if (result < context->token_s){
         result = 0;
     }
@@ -188,18 +188,18 @@ get_prev_token(Parse_Context *context){
     return(result);
 }
 
-internal Cpp_Token*
+internal Token*
 can_back_step(Parse_Context *context){
-    Cpp_Token *result = context->token-1;
+    Token *result = context->token-1;
     if (result < context->token_s){
         result = 0;
     }
     return(result);
 }
 
-internal Cpp_Token*
-set_token(Parse_Context *context, Cpp_Token *token){
-    Cpp_Token *result = 0;
+internal Token*
+set_token(Parse_Context *context, Token *token){
+    Token *result = 0;
     if (token >= context->token_s && token < context->token_e){
         context->token = token;
         result = token;
@@ -321,7 +321,7 @@ get_doc_string_from_prev(Parse_Context *context, String_Const_char *doc_string){
     i32 result = false;
     
     if (can_back_step(context)){
-        Cpp_Token *prev_token = get_token(context) - 1;
+        Token *prev_token = get_token(context) - 1;
         if (prev_token->type == CPP_TOKEN_COMMENT){
             *doc_string = get_lexeme(*prev_token, context->data);
             if (check_and_fix_docs(doc_string)){
@@ -546,12 +546,12 @@ internal i32
 struct_parse_member(Parse_Context *context, Item_Node *member){
     i32 result = false;
     
-    Cpp_Token *token = get_token(context);
+    Token *token = get_token(context);
     
     String_Const_char doc_string = {};
     get_doc_string_from_prev(context, &doc_string);
     
-    Cpp_Token *start_token = token;
+    Token *start_token = token;
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_SEMICOLON){
@@ -561,7 +561,7 @@ struct_parse_member(Parse_Context *context, Item_Node *member){
     
     if (token){
         String_Const_char name = {};
-        Cpp_Token *token_j = 0;
+        Token *token_j = 0;
         i32 nest_level = 0;
         
         for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
@@ -606,7 +606,7 @@ internal Item_Node*
 struct_parse_next_member(Arena *arena, Parse_Context *context){
     Item_Node *result = 0;
     
-    Cpp_Token *token = 0;
+    Token *token = 0;
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_IDENTIFIER ||
@@ -656,8 +656,8 @@ internal i32
 struct_parse(Arena *arena, i32 is_struct, Parse_Context *context, Item_Node *top_member){
     i32 result = false;
     
-    Cpp_Token *start_token = get_token(context);
-    Cpp_Token *token = 0;
+    Token *start_token = get_token(context);
+    Token *token = 0;
     
     String_Const_char doc_string = {};
     get_doc_string_from_prev(context, &doc_string);
@@ -669,7 +669,7 @@ struct_parse(Arena *arena, i32 is_struct, Parse_Context *context, Item_Node *top
     }
     
     if (token){
-        Cpp_Token *token_j = token;
+        Token *token_j = token;
         
         for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
@@ -737,11 +737,11 @@ internal i32
 typedef_parse(Parse_Context *context, Item_Node *item){
     i32 result = false;
     
-    Cpp_Token *token = get_token(context);
+    Token *token = get_token(context);
     String_Const_char doc_string = {};
     get_doc_string_from_prev(context, &doc_string);
     
-    Cpp_Token *start_token = token;
+    Token *start_token = token;
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_SEMICOLON){
@@ -750,7 +750,7 @@ typedef_parse(Parse_Context *context, Item_Node *item){
     }
     
     if (token){
-        Cpp_Token *token_j = token;
+        Token *token_j = token;
         
         for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
@@ -781,8 +781,8 @@ enum_parse(Arena *arena, Parse_Context *context, Item_Node *item){
     String_Const_char parent_doc_string = {};
     get_doc_string_from_prev(context, &parent_doc_string);
     
-    Cpp_Token *parent_start_token = get_token(context);
-    Cpp_Token *token = 0;
+    Token *parent_start_token = get_token(context);
+    Token *token = 0;
     
     for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_BRACE_OPEN){
@@ -792,7 +792,7 @@ enum_parse(Arena *arena, Parse_Context *context, Item_Node *item){
     
     if (token){
         String_Const_char parent_name = {};
-        Cpp_Token *token_j = 0;
+        Token *token_j = 0;
         
         for (; (token_j = get_token(context)) != 0; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
@@ -829,7 +829,7 @@ enum_parse(Arena *arena, Parse_Context *context, Item_Node *item){
                     
                     if (token){
                         if (token->type == CPP_TOKEN_EQ){
-                            Cpp_Token *start_token = token;
+                            Token *start_token = token;
                             
                             for (; (token = get_token(context)) != 0; get_next_token(context)){
                                 if (token->type == CPP_TOKEN_COMMA ||
@@ -901,9 +901,9 @@ foo(a, ... , z)
    ^          ^
 */
 internal Argument_Breakdown
-parameter_parse(Arena *arena, char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_token){
+parameter_parse(Arena *arena, char *data, Token *args_start_token, Token *args_end_token){
     i32 arg_index = 0;
-    Cpp_Token *arg_token = args_start_token + 1;
+    Token *arg_token = args_start_token + 1;
     i32 param_string_start = arg_token->start;
     
     i32 arg_count = 1;
@@ -926,7 +926,7 @@ parameter_parse(Arena *arena, char *data, Cpp_Token *args_start_token, Cpp_Token
             param_string = string_chop_whitespace(param_string);
             breakdown.args[arg_index].param_string = param_string;
             
-            for (Cpp_Token *param_name_token = arg_token - 1;
+            for (Token *param_name_token = arg_token - 1;
                  param_name_token->start > param_string_start;
                  --param_name_token){
                 if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
@@ -957,7 +957,7 @@ internal i32
 function_parse_goto_name(Parse_Context *context){
     i32 result = false;
     
-    Cpp_Token *token = 0;
+    Token *token = 0;
     
     {
         for (; (token = get_token(context)) != 0; get_next_token(context)){
@@ -989,7 +989,7 @@ internal i32
 function_get_doc(Parse_Context *context, char *data, String_Const_char *doc_string){
     i32 result = false;
     
-    Cpp_Token *token = get_token(context);
+    Token *token = get_token(context);
     String_Const_char lexeme = {};
     
     if (function_parse_goto_name(context)){
@@ -1017,8 +1017,8 @@ internal i32
 cpp_name_parse(Parse_Context *context, String_Const_char *name){
     i32 result = false;
     
-    Cpp_Token *token = 0;
-    Cpp_Token *token_start = get_token(context);
+    Token *token = 0;
+    Token *token_start = get_token(context);
     
     token = get_next_token(context);
     if (token && token->type == CPP_TOKEN_PARENTHESE_OPEN){
@@ -1048,9 +1048,9 @@ internal i32
 function_sig_parse(Arena *arena, Parse_Context *context, Item_Node *item, String_Const_char cpp_name){
     i32 result = false;
     
-    Cpp_Token *token = 0;
-    Cpp_Token *args_start_token = 0;
-    Cpp_Token *ret_token = get_token(context);
+    Token *token = 0;
+    Token *args_start_token = 0;
+    Token *ret_token = get_token(context);
     
     if (function_parse_goto_name(context)){
         token = get_token(context);
@@ -1089,7 +1089,7 @@ function_parse(Arena *arena, Parse_Context *context, Item_Node *item, String_Con
     i32 result = false;
     
     String_Const_char doc_string = {};
-    Cpp_Token *token = get_token(context);
+    Token *token = get_token(context);
     
     item->marker = get_lexeme(*token, context->data);
     
@@ -1117,7 +1117,7 @@ internal i32
 macro_parse_check(Parse_Context *context){
     i32 result = false;
     
-    Cpp_Token *token = 0;
+    Token *token = 0;
     
     if ((token = get_next_token(context)) != 0){
         if (token->type == CPP_TOKEN_COMMENT){
@@ -1141,9 +1141,9 @@ internal i32
 macro_parse(Arena *arena, Parse_Context *context, Item_Node *item){
     i32 result = false;
     
-    Cpp_Token *token = 0;
-    Cpp_Token *doc_token = 0;
-    Cpp_Token *args_start_token = 0;
+    Token *token = 0;
+    Token *doc_token = 0;
+    Token *args_start_token = 0;
     
     String_Const_char doc_string = {};
     
@@ -1180,7 +1180,7 @@ macro_parse(Arena *arena, Parse_Context *context, Item_Node *item){
                             item->breakdown = parameter_parse(arena, context->data, args_start_token, token);
                             
                             if ((token = get_next_token(context)) != 0){
-                                Cpp_Token *body_start = token;
+                                Token *body_start = token;
                                 
                                 if (body_start->flags & CPP_TFLAG_PP_BODY){
                                     for (; (token = get_token(context)) != 0; get_next_token(context)){
@@ -1240,7 +1240,7 @@ compile_meta_unit(Arena *arena, char *code_directory, char **files, Meta_Keyword
     if (all_files_lexed){
         // TODO(allen): This stage counts nested structs and unions which is not correct.  Luckily it only means we over allocate by a few items, but fixing it to be exactly correct would be nice.
         for (i32 J = 0; J < unit.count; ++J){
-            Cpp_Token *token = 0;
+            Token *token = 0;
             Parse_Context context_ = setup_parse_context(unit.parse[J]);
             Parse_Context *context = &context_;
             
@@ -1270,7 +1270,7 @@ compile_meta_unit(Arena *arena, char *code_directory, char **files, Meta_Keyword
         i32 index = 0;
         
         for (i32 J = 0; J < unit.count; ++J){
-            Cpp_Token *token = 0;
+            Token *token = 0;
             Parse_Context context_ = setup_parse_context(unit.parse[J]);
             Parse_Context *context = &context_;
             

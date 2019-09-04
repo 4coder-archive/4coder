@@ -35,11 +35,8 @@ struct Text_Effect{
 
 struct Editing_File_Settings{
     i32 base_map_id;
-    Parse_Context_ID parse_context_id;
     b32 dos_write_mode;
     Face_ID face_id;
-    b8 tokens_exist;
-    b8 tokens_without_strings;
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;
@@ -58,10 +55,6 @@ struct Editing_File_State{
     
     History history;
     i32 current_record_index;
-    
-    // TODO(allen): eliminate this too
-    Cpp_Token_Array token_array;
-    b32 in_edit_handler;
     
     Text_Effect paste_effect;
     

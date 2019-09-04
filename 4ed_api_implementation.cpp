@@ -29,11 +29,6 @@ api_check_buffer(Editing_File *file){
 }
 
 internal b32
-api_check_buffer_and_tokens(Editing_File *file){
-    return(api_check_buffer(file) && file->state.token_array.tokens != 0);
-}
-
-internal b32
 api_check_buffer(Editing_File *file, Access_Flag access){
     return(api_check_buffer(file) && access_test(file_get_access_flags(file), access));
 }
@@ -171,14 +166,6 @@ Push_Clipboard_Index(Application_Links *app, Arena *arena, i32 clipboard_id, i32
         result = push_string_copy(arena, *str);
     }
     return(result);
-}
-
-API_EXPORT Parse_Context_ID
-Create_Parse_Context(Application_Links *app, Parser_String_And_Type *kw, u32 kw_count, Parser_String_And_Type *pp, u32 pp_count)
-{
-    Models *models = (Models*)app->cmd_context;
-    Parse_Context_ID id = parse_context_add(&models->parse_context_memory, &models->mem.heap, kw, kw_count, pp, pp_count);
-    return(id);
 }
 
 API_EXPORT i32
@@ -646,17 +633,6 @@ Buffer_Set_Dirty_State(Application_Links *app, Buffer_ID buffer_id, Dirty_State 
 }
 
 API_EXPORT b32
-Buffer_Tokens_Are_Ready(Application_Links *app, Buffer_ID buffer_id){
-    Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
-    if (api_check_buffer(file)){
-        result = file_tokens_are_ready(file);
-    }
-    return(result);
-}
-
-API_EXPORT b32
 Buffer_Get_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)
 {
     Models *models = (Models*)app->cmd_context;
@@ -665,36 +641,6 @@ Buffer_Get_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
     if (api_check_buffer(file)){
         result = true;
         switch (setting){
-            case BufferSetting_Lex:
-            {
-                *value_out = file->settings.tokens_exist;
-            }break;
-            
-            case BufferSetting_LexWithoutStrings:
-            {
-                *value_out = file->settings.tokens_without_strings;
-            }break;
-            
-            case BufferSetting_ParserContext:
-            {
-                *value_out = file->settings.parse_context_id;
-            }break;
-            
-            case BufferSetting_WrapLine:
-            {
-                //*value_out = !file->settings.unwrapped_lines;
-            }break;
-            
-            case BufferSetting_WrapPosition:
-            {
-                //*value_out = file->settings.display_width;
-            }break;
-            
-            case BufferSetting_MinimumBaseWrapPosition:
-            {
-                //*value_out = file->settings.minimum_base_display_width;
-            }break;
-            
             case BufferSetting_MapID:
             {
                 *value_out = file->settings.base_map_id;
@@ -713,13 +659,6 @@ Buffer_Get_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
             case BufferSetting_ReadOnly:
             {
                 *value_out = file->settings.read_only;
-            }break;
-            
-            case BufferSetting_VirtualWhitespace:
-            {
-#if 0
-                *value_out = file->settings.virtual_white;
-#endif
             }break;
             
             case BufferSetting_RecordsHistory:
@@ -746,94 +685,6 @@ Buffer_Set_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
     if (api_check_buffer(file)){
         result = true;
         switch (setting){
-            case BufferSetting_Lex:
-            {
-                if (file->settings.tokens_exist){
-                    if (!value){
-                        file_kill_tokens(system, &models->mem.heap, file);
-                    }
-                }
-                else{
-                    if (value){
-                        file_first_lex(system, models, file);
-                    }
-                }
-            }break;
-            
-            case BufferSetting_LexWithoutStrings:
-            {
-                if (file->settings.tokens_exist){
-                    if ((b8)value != file->settings.tokens_without_strings){
-                        file_kill_tokens(system, &models->mem.heap, file);
-                        file->settings.tokens_without_strings = (b8)value;
-                        file_first_lex(system, models, file);
-                    }
-                }
-                else{
-                    file->settings.tokens_without_strings = (b8)value;
-                }
-            }break;
-            
-            case BufferSetting_ParserContext:
-            {
-                u32 fixed_value = parse_context_valid_id(&models->parse_context_memory, (u32)value);
-                
-                if (file->settings.tokens_exist){
-                    if (fixed_value != file->settings.parse_context_id){
-                        file_kill_tokens(system, &models->mem.heap, file);
-                        file->settings.parse_context_id = fixed_value;
-                        file_first_lex(system, models, file);
-                    }
-                }
-                else{
-                    file->settings.parse_context_id = fixed_value;
-                }
-            }break;
-            
-            case BufferSetting_WrapLine:
-            {
-                //file->settings.unwrapped_lines = !value;
-            }break;
-            
-            case BufferSetting_WrapPosition:
-            {
-#if 0
-                i32 new_value = value;
-                if (new_value < 48){
-                    new_value = 48;
-                }
-                if (new_value != file->settings.display_width){
-                    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-                    file->settings.display_width = new_value;
-                    file_measure_wraps(system, &models->mem, file, face);
-                    adjust_views_looking_at_file_to_new_cursor(system, models, file);
-                }
-#endif
-            }break;
-            
-            case BufferSetting_MinimumBaseWrapPosition:
-            {
-#if 0
-                i32 new_value = value;
-                if (new_value < 0){
-                    new_value = 0;
-                }
-                if (new_value != file->settings.minimum_base_display_width){
-                    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-                    file->settings.minimum_base_display_width = new_value;
-                    file_measure_wraps(system, &models->mem, file, face);
-                    adjust_views_looking_at_file_to_new_cursor(system, models, file);
-                }
-#endif
-            }break;
-            
-            case BufferSetting_WrapIndicator:
-            {
-#if 0
-                file->settings.wrap_indicator = value;
-#endif
-            }break;
-            
             case BufferSetting_MapID:
             {
                 if (value < mapid_global){
@@ -914,7 +765,7 @@ Buffer_Set_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
                 }
                 else{
                     if (history_is_activated(&file->state.history)){
-                        history_free(&models->mem.heap, &file->state.history);
+                        history_free(&file->state.history);
                     }
                 }
             }break;
@@ -937,18 +788,6 @@ Buffer_Get_Managed_Scope(Application_Links *app, Buffer_ID buffer_id)
     Managed_Scope result = 0;
     if (api_check_buffer(file)){
         result = file_get_managed_scope(file);
-    }
-    return(result);
-}
-
-API_EXPORT Cpp_Token_Array
-Buffer_Get_Token_Array(Application_Links *app, Buffer_ID buffer_id)
-{
-    Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    Cpp_Token_Array result = {};
-    if (api_check_buffer_and_tokens(file)){
-        result = file->state.token_array;
     }
     return(result);
 }
@@ -1027,7 +866,7 @@ Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
                 if (file->canon.name_size != 0){
                     buffer_unbind_file(system, working_set, file);
                 }
-                file_free(system, &models->mem.heap, &models->lifetime_allocator, working_set, file);
+                file_free(system, &models->lifetime_allocator, working_set, file);
                 working_set_free_file(&models->mem.heap, working_set, file);
                 
                 Layout *layout = &models->layout;
@@ -1109,7 +948,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         }
                         
                         Working_Set *working_set = &models->working_set;
-                        file_free(system, &models->mem.heap, &models->lifetime_allocator, working_set, file);
+                        file_free(system, &models->lifetime_allocator, working_set, file);
                         working_set_file_default_settings(working_set, file);
                         file_create_from_string(models, file, SCu8(file_memory, attributes.size), attributes);
                         
@@ -1404,7 +1243,7 @@ Panel_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation o
         Panel *new_panel = 0;
         if (layout_split_panel(layout, panel, (orientation == PanelSplit_LeftAndRight), &new_panel)){
             Live_Views *live_set = &models->live_set;
-            View *new_view = live_set_alloc_view(&models->mem.heap, &models->lifetime_allocator, live_set, new_panel);
+            View *new_view = live_set_alloc_view(&models->lifetime_allocator, live_set, new_panel);
             view_set_file(models->system, models, new_view, models->scratch_buffer);
             result = true;
         }
@@ -1542,7 +1381,7 @@ View_Close(Application_Links *app, View_ID view_id)
     b32 result = false;
     if (api_check_view(view)){
         if (layout_close_panel(layout, view->panel)){
-            live_set_free_view(&models->mem.heap, &models->lifetime_allocator, &models->live_set, view);
+            live_set_free_view(&models->lifetime_allocator, &models->live_set, view);
             result = true;
         }
     }
@@ -1902,19 +1741,21 @@ View_Get_Quit_UI_Handler(Application_Links *app, View_ID view_id, UI_Quit_Functi
 
 internal Dynamic_Workspace*
 get_dynamic_workspace(Models *models, Managed_Scope handle){
-    u32_Ptr_Lookup_Result lookup_result = lookup_u32_Ptr_table(&models->lifetime_allocator.scope_id_to_scope_ptr_table, (u32)handle);
-    if (!lookup_result.success){
-        return(0);
+    Dynamic_Workspace *result = 0;
+    Table_Lookup lookup = table_lookup(&models->lifetime_allocator.scope_id_to_scope_ptr_table, handle);
+    if (lookup.found_match){
+        u64 val = 0;
+        table_read(&models->lifetime_allocator.scope_id_to_scope_ptr_table, lookup, &val);
+        result = (Dynamic_Workspace*)IntAsPtr(val);
     }
-    return((Dynamic_Workspace*)*lookup_result.val);
+    return(result);
 }
 
 API_EXPORT Managed_Scope
 Create_User_Managed_Scope(Application_Links *app)
 {
     Models *models = (Models*)app->cmd_context;
-    Heap *heap = &models->mem.heap;
-    Lifetime_Object *object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Unassociated, 0);
+    Lifetime_Object *object = lifetime_alloc_object(&models->lifetime_allocator, DynamicWorkspace_Unassociated, 0);
     object->workspace.user_back_ptr = object;
     Managed_Scope scope = (Managed_Scope)object->workspace.scope_id;
     return(scope);
@@ -1928,7 +1769,7 @@ Destroy_User_Managed_Scope(Application_Links *app, Managed_Scope scope)
     b32 result = false;
     if (workspace != 0 && workspace->user_type == DynamicWorkspace_Unassociated){
         Lifetime_Object *lifetime_object = (Lifetime_Object*)workspace->user_back_ptr;
-        lifetime_free_object(&models->mem.heap, &models->lifetime_allocator, lifetime_object);
+        lifetime_free_object(&models->lifetime_allocator, lifetime_object);
         result = true;
     }
     return(result);
@@ -2045,8 +1886,7 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
             index += 1;
         }
         member_count = lifetime_sort_and_dedup_object_set(object_ptr_array, member_count);
-        Heap *heap = &models->mem.heap;
-        Lifetime_Key *key = lifetime_get_or_create_intersection_key(heap, lifetime_allocator, object_ptr_array, member_count);
+        Lifetime_Key *key = lifetime_get_or_create_intersection_key(lifetime_allocator, object_ptr_array, member_count);
         result = (Managed_Scope)key->dynamic_workspace.scope_id;
     }
     
@@ -2062,7 +1902,7 @@ Managed_Scope_Clear_Contents(Application_Links *app, Managed_Scope scope)
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     b32 result = false;
     if (workspace != 0){
-        dynamic_workspace_clear_contents(&models->mem.heap, workspace);
+        dynamic_workspace_clear_contents(workspace);
         result = true;
     }
     return(result);
@@ -2077,74 +1917,60 @@ Managed_Scope_Clear_Self_All_Dependent_Scopes(Application_Links *app, Managed_Sc
     if (workspace != 0 && workspace->user_type != DynamicWorkspace_Global && workspace->user_type != DynamicWorkspace_Intersected){
         Lifetime_Object *object = get_lifetime_object_from_workspace(workspace);
         Assert(object != 0);
-        lifetime_object_reset(&models->mem.heap, &models->lifetime_allocator, object);
+        lifetime_object_reset(&models->lifetime_allocator, object);
         result = true;
     }
     return(result);
 }
 
-API_EXPORT Managed_Variable_ID
-Managed_Variable_Create(Application_Links *app, char *null_terminated_name, u64 default_value)
+API_EXPORT Base_Allocator*
+Managed_Scope_Allocator(Application_Links *app, Managed_Scope scope)
 {
     Models *models = (Models*)app->cmd_context;
-    Heap *heap = &models->mem.heap;
-    Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_create(heap, layout, SCu8(null_terminated_name), default_value));
-}
-
-API_EXPORT Managed_Variable_ID
-Managed_Variable_Get_ID(Application_Links *app, char *null_terminated_name)
-{
-    Models *models = (Models*)app->cmd_context;
-    Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_lookup(layout, SCu8(null_terminated_name)));
-}
-
-API_EXPORT Managed_Variable_ID
-Managed_Variable_Create_Or_Get_ID(Application_Links *app, char *null_terminated_name, u64 default_value)
-{
-    Models *models = (Models*)app->cmd_context;
-    Heap *heap = &models->mem.heap;
-    Dynamic_Variable_Layout *layout = &models->variable_layout;
-    return(dynamic_variables_lookup_or_create(heap, layout, SCu8(null_terminated_name), default_value));
-}
-
-internal b32
-get_dynamic_variable__internal(Models *models, Managed_Scope handle, i32 location, u64 **ptr_out){
-    Heap *heap = &models->mem.heap;
-    Dynamic_Variable_Layout *layout = &models->variable_layout;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, handle);
-    b32 result = false;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    Base_Allocator *result = 0;
     if (workspace != 0){
-        if (dynamic_variables_get_ptr(heap, &workspace->mem_bank, layout, &workspace->var_block, location, ptr_out)){
-            result = true;
+        result = &workspace->heap_wrapper;
+    }
+    return(result);
+}
+
+API_EXPORT Managed_ID
+Managed_Id_Declare(Application_Links *app, String_Const_u8 name)
+{
+    Models *models = (Models*)app->cmd_context;
+    Managed_ID_Set *set = &models->managed_id_set;
+    return(managed_ids_declare(set, name));
+}
+
+API_EXPORT void*
+Managed_Scope_Get_Attachment(Application_Links *app, Managed_Scope scope, Managed_ID id, umem size){
+    Models *models = (Models*)app->cmd_context;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    void *result = 0;
+    if (workspace != 0){
+        Dynamic_Variable_Block *var_block = &workspace->var_block;
+        Data data = dynamic_variable_get(var_block, id, size);
+        if (data.size >= size){
+            result = data.data;
+        }
+        else{
+#define M \
+            "ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can returned."
+            print_message(app, string_u8_litexpr(M));
         }
     }
     return(result);
 }
 
-API_EXPORT b32
-Managed_Variable_Set(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 value)
-{
+API_EXPORT void*
+Managed_Scope_Attachment_Erase(Application_Links *app, Managed_Scope scope, Managed_ID id){
     Models *models = (Models*)app->cmd_context;
-    u64 *ptr = 0;
-    b32 result = false;
-    if (get_dynamic_variable__internal(models, scope, id, &ptr)){
-        *ptr = value;
-        result = true;
-    }
-    return(result);
-}
-
-API_EXPORT b32
-Managed_Variable_Get(Application_Links *app, Managed_Scope scope, Managed_Variable_ID id, u64 *value_out)
-{
-    Models *models = (Models*)app->cmd_context;
-    u64 *ptr = 0;
-    b32 result = false;
-    if (get_dynamic_variable__internal(models, scope, id, &ptr)){
-        *value_out = *ptr;
-        result = true;
+    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
+    void *result = 0;
+    if (workspace != 0){
+        Dynamic_Variable_Block *var_block = &workspace->var_block;
+        dynamic_variable_erase(var_block, id);
     }
     return(result);
 }
@@ -2156,7 +1982,7 @@ Alloc_Managed_Memory_In_Scope(Application_Links *app, Managed_Scope scope, i32 i
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     Managed_Object result = 0;
     if (workspace != 0){
-        result = managed_object_alloc_managed_memory(&models->mem.heap, workspace, item_size, count, 0);
+        result = managed_object_alloc_managed_memory(workspace, item_size, count, 0);
     }
     return(result);
 }
@@ -2176,18 +2002,7 @@ Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, i32 
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, markers_scope);
     Managed_Object result = 0;
     if (workspace != 0){
-        result = managed_object_alloc_buffer_markers(&models->mem.heap, workspace, buffer_id, count, 0);
-    }
-    return(result);
-}
-
-API_EXPORT Managed_Object
-Alloc_Managed_Arena_In_Scope(Application_Links *app, Managed_Scope scope, i32 page_size){
-    Models *models = (Models*)app->cmd_context;
-    Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
-    Managed_Object result = 0;
-    if (workspace != 0){
-        result = managed_object_alloc_managed_arena_in_scope(&models->mem.heap, workspace, app, page_size, 0);
+        result = managed_object_alloc_buffer_markers(workspace, buffer_id, count, 0);
     }
     return(result);
 }
@@ -2232,6 +2047,14 @@ Managed_Object_Get_Item_Count(Application_Links *app, Managed_Object object)
     return(result);
 }
 
+API_EXPORT void*
+Managed_Object_Get_Pointer(Application_Links *app, Managed_Object object)
+{
+    Models *models = (Models*)app->cmd_context;
+    Managed_Object_Ptr_And_Workspace object_ptrs = get_dynamic_object_ptrs(models, object);
+    return(get_dynamic_object_memory_ptr(object_ptrs.header));
+}
+
 API_EXPORT Managed_Object_Type
 Managed_Object_Get_Type(Application_Links *app, Managed_Object object)
 {
@@ -2272,6 +2095,7 @@ Managed_Object_Free(Application_Links *app, Managed_Object object)
     return(result);
 }
 
+// TODO(allen): ELIMINATE STORE & LOAD
 API_EXPORT b32
 Managed_Object_Store_Data(Application_Links *app, Managed_Object object, u32 first_index, u32 count, void *mem)
 {
@@ -2284,7 +2108,7 @@ Managed_Object_Store_Data(Application_Links *app, Managed_Object object, u32 fir
         if (0 <= first_index && first_index + count <= item_count){
             u32 item_size = object_ptrs.header->item_size;
             memcpy(ptr + first_index*item_size, mem, count*item_size);
-            heap_assert_good(&object_ptrs.workspace->mem_bank.heap);
+            heap_assert_good(&object_ptrs.workspace->heap);
             result = true;
         }
     }
@@ -2303,7 +2127,7 @@ Managed_Object_Load_Data(Application_Links *app, Managed_Object object, u32 firs
         if (0 <= first_index && first_index + count <= item_count){
             u32 item_size = object_ptrs.header->item_size;
             memcpy(mem_out, ptr + first_index*item_size, count*item_size);
-            heap_assert_good(&object_ptrs.workspace->mem_bank.heap);
+            heap_assert_good(&object_ptrs.workspace->heap);
             result = true;
         }
     }

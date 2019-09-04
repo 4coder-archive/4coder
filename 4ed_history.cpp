@@ -25,13 +25,14 @@ history__to_node(Node *sentinel, i32 index){
 }
 
 internal void
-history__push_back_record_ptr(Heap *heap, Record_Ptr_Lookup_Table *lookup, Record *record){
+history__push_back_record_ptr(Base_Allocator *allocator, Record_Ptr_Lookup_Table *lookup, Record *record){
     if (lookup->records == 0 || lookup->count == lookup->max){
         i32 new_max = clamp_bot(1024, lookup->max*2);
-        Record **new_records = (Record**)heap_allocate(heap, sizeof(Record*)*new_max);
+        Data new_memory = base_allocate(allocator, sizeof(Record*)*new_max);
+        Record **new_records = (Record**)new_memory.data;
         block_copy(new_records, lookup->records, sizeof(*new_records)*lookup->count);
         if (lookup->records != 0){
-            heap_free(heap, lookup->records);
+            base_free(allocator, lookup->records);
         }
         lookup->records = new_records;
         lookup->max = new_max;
@@ -77,12 +78,13 @@ history__to_node(History *history, i32 index){
 ////////////////////////////////
 
 internal Record*
-history__allocate_record(Heap *heap, History *history){
+history__allocate_record(History *history){
     Node *sentinel = &history->free_records;
     Node *new_node = sentinel->next;
     if (new_node == sentinel){
         i32 new_record_count = 1024;
-        void *memory = memory_bank_allocate(heap, &history->bank, sizeof(Record)*new_record_count);
+        Data new_memory = base_allocate(&history->heap_wrapper, sizeof(Record)*new_record_count);
+        void *memory = new_memory.data;
         
         Record *new_record = (Record*)memory;
         sentinel->next = &new_record->node;
@@ -130,7 +132,8 @@ internal void
 history_init(Application_Links *app, History *history){
     history->activated = true;
     history->arena = make_arena_app_links(app, KB(32));
-    memory_bank_init(&history->bank);
+    heap_init(&history->heap, history->arena.base_allocator);
+    history->heap_wrapper = base_allocator_on_heap(&history->heap);
     dll_init_sentinel(&history->free_records);
     dll_init_sentinel(&history->records);
     history->record_count = 0;
@@ -143,10 +146,10 @@ history_is_activated(History *history){
 }
 
 internal void
-history_free(Heap *heap, History *history){
+history_free(History *history){
     if (history->activated){
         linalloc_clear(&history->arena);
-        memory_bank_free_all(heap, &history->bank);
+        heap_free_all(&history->heap);
         block_zero_struct(history);
     }
 }
@@ -196,11 +199,11 @@ history_get_dummy_record(History *history){
 }
 
 internal void
-history__stash_record(Heap *heap, History *history, Record *new_record){
+history__stash_record(History *history, Record *new_record){
     Assert(history->record_lookup.count == history->record_count);
     dll_insert_back(&history->records, &new_record->node);
     history->record_count += 1;
-    history__push_back_record_ptr(heap, &history->record_lookup, new_record);
+    history__push_back_record_ptr(&history->heap_wrapper, &history->record_lookup, new_record);
     Assert(history->record_lookup.count == history->record_count);
 }
 
@@ -238,12 +241,12 @@ history__free_nodes(History *history, i32 first_index, Node *first_node, Node *l
 }
 
 internal void
-history_record_edit(Heap *heap, Global_History *global_history, History *history, Gap_Buffer *buffer, Edit edit){
+history_record_edit(Global_History *global_history, History *history, Gap_Buffer *buffer, Edit edit){
     if (history->activated){
         Assert(history->record_lookup.count == history->record_count);
         
-        Record *new_record = history__allocate_record(heap, history);
-        history__stash_record(heap, history, new_record);
+        Record *new_record = history__allocate_record(history);
+        history__stash_record(history, new_record);
         
         new_record->restore_point = begin_temp(&history->arena);
         new_record->edit_number = global_history_get_edit_number(global_history);
@@ -353,7 +356,7 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
 }
 
 internal void
-history_merge_records(Arena *scratch, Heap *heap, History *history, i32 first_index, i32 last_index){
+history_merge_records(Arena *scratch, History *history, i32 first_index, i32 last_index){
     if (history->activated){
         Assert(history->record_lookup.count == history->record_count);
         Assert(first_index < last_index);
@@ -362,7 +365,7 @@ history_merge_records(Arena *scratch, Heap *heap, History *history, i32 first_in
         Assert(first_node != &history->records && first_node != 0);
         Assert(last_node  != &history->records && last_node  != 0);
         
-        Record *new_record = history__allocate_record(heap, history);
+        Record *new_record = history__allocate_record(history);
         
         // NOTE(allen): here we remove (last_index - first_index + 1) nodes, and insert 1 node
         // which simplifies to this:

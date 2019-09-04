@@ -382,12 +382,11 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         Managed_Scope scope = view_get_managed_scope(app, view);
         
         b32 first_completion = false;
-        u64 rewrite = 0;
-        managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
-        if (rewrite != RewriteWordComplete){
+        Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
+        if (*rewrite != Rewrite_WordComplete){
             first_completion = true;
         }
-        managed_variable_set(app, scope, view_next_rewrite_loc, RewriteWordComplete);
+        *rewrite = Rewrite_WordComplete;
         
         local_persist Arena completion_arena = {};
         if (completion_arena.base_allocator == 0){

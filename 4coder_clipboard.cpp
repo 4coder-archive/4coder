@@ -45,13 +45,14 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         if_view_has_highlighted_range_delete_range(app, view);
         
         Managed_Scope scope = view_get_managed_scope(app, view);
-        managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
-        i32 paste_index = 0;
-        managed_variable_set(app, scope, view_paste_index_loc, paste_index);
+        Rewrite_Type *rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+        *rewrite = Rewrite_Paste;
+        i32 *paste_index = scope_attachment(app, scope, view_paste_index_loc, i32);
+        *paste_index = 0;
         
         Scratch_Block scratch(app);
         
-        String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+        String_Const_u8 string = push_clipboard_index(app, scratch, 0, *paste_index);
         if (string.size > 0){
             Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
             
@@ -80,14 +81,13 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
         Managed_Scope scope = view_get_managed_scope(app, view);
         no_mark_snap_to_cursor(app, scope);
         
-        u64 rewrite = 0;
-        managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
-        if (rewrite == RewritePaste){
-            managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
-            u64 prev_paste_index = 0;
-            managed_variable_get(app, scope, view_paste_index_loc, &prev_paste_index);
-            i32 paste_index = (i32)prev_paste_index + 1;
-            managed_variable_set(app, scope, view_paste_index_loc, paste_index);
+        Rewrite_Type *rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+        if (*rewrite == Rewrite_Paste){
+            Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+            *next_rewrite = Rewrite_Paste;
+            i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
+            i32 paste_index = (*paste_index_ptr) + 1;
+            *paste_index_ptr = paste_index;
             
             String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
             

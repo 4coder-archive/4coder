@@ -26,8 +26,8 @@ struct Child_Process_Container{
     Node child_process_free_list;
     i32 active_child_process_count;
     u32 child_process_id_counter;
-    u32_Ptr_Table id_to_ptr_table;
-    u32_Ptr_Table id_to_return_code_table;
+    Table_u64_u64 id_to_ptr_table;
+    Table_u64_u64 id_to_return_code_table;
 };
 
 struct Child_Process_And_ID{

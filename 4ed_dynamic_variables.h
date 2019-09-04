@@ -30,37 +30,6 @@ struct Managed_Buffer_Markers_Header{
     Managed_Buffer_Markers_Header *next;
     Managed_Buffer_Markers_Header *prev;
     Buffer_ID buffer_id;
-    struct Marker_Visual_Data *visual_first;
-    struct Marker_Visual_Data *visual_last;
-    i32 visual_count;
-};
-
-struct Marker_Visual_Data{
-    Marker_Visual_Data *next;
-    Marker_Visual_Data *prev;
-    Managed_Object owner_object;
-    u32 slot_id;
-    u32 gen_id;
-    // "Look"
-    Marker_Visual_Type type;
-    u32 color;
-    u32 text_color;
-    Marker_Visual_Text_Style text_style;
-    // "Take Rule"
-    Marker_Visual_Take_Rule take_rule;
-    i32 one_past_last_take_index;
-    // "Priority"
-    Marker_Visual_Priority_Level priority;
-    // "Key View ID"
-    View_ID key_view_id;
-};
-
-struct Marker_Visual_Allocator{
-    Marker_Visual_Data *free_first;
-    Marker_Visual_Data *free_last;
-    i32 free_count;
-    i32 total_visual_count;
-    u32_Ptr_Table id_to_ptr_table;
 };
 
 struct Managed_Arena_Header{
@@ -91,32 +60,24 @@ struct Managed_Arena_Header_List{
 
 ////////////////////////////////
 
-struct Dynamic_Variable_Slot{
-    Dynamic_Variable_Slot *next;
-    Dynamic_Variable_Slot *prev;
-    String_Const_u8 name;
-    u64 default_value;
-    i32 location;
-};
-
-struct Dynamic_Variable_Layout{
-    Dynamic_Variable_Slot sentinel;
-    i32 location_counter;
+struct Managed_ID_Set{
+    Arena arena;
+    Table_Data_u64 name_to_id_table;
+    Managed_ID id_counter;
 };
 
 struct Dynamic_Variable_Block{
-    u64 *val_array;
-    i32 count;
-    i32 max;
+    Arena arena;
+    Table_u64_Data id_to_data_table;
 };
 
 ////////////////////////////////
 
 struct Dynamic_Workspace{
     Dynamic_Variable_Block var_block;
-    Memory_Bank mem_bank;
-    Marker_Visual_Allocator visual_allocator;
-    u32_Ptr_Table object_id_to_object_ptr;
+    Heap heap;
+    Base_Allocator heap_wrapper;
+    Table_u64_u64 object_id_to_object_ptr;
     u32 object_id_counter;
     u32 visual_id_counter;
     u32 scope_id;
@@ -169,14 +130,6 @@ struct Lifetime_Key{
 global_const u64 LifetimeKeyHash_Empty   = 0&(~bit_63);
 global_const u64 LifetimeKeyHash_Deleted = max_u64&(~bit_63);
 
-struct Lifetime_Key_Table{
-    void *mem_ptr;
-    u64 *hashes;
-    Lifetime_Key **keys;
-    u32 count;
-    u32 max;
-};
-
 struct Lifetime_Key_Ref_Node_List{
     Lifetime_Key_Ref_Node *first;
     Lifetime_Key_Ref_Node *last;
@@ -196,12 +149,13 @@ struct Lifetime_Key_List{
 };
 
 struct Lifetime_Allocator{
+    Base_Allocator *allocator;
     Lifetime_Key_Ref_Node_List free_key_references;
     Lifetime_Object_List free_objects;
     Lifetime_Key_List free_keys;
-    Lifetime_Key_Table key_table;
-    Ptr_Table key_check_table;
-    u32_Ptr_Table scope_id_to_scope_ptr_table;
+    Table_Data_u64 key_table;
+    Table_u64_u64 key_check_table;
+    Table_u64_u64 scope_id_to_scope_ptr_table;
     u32 scope_id_counter;
 };
 

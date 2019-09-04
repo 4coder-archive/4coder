@@ -9,154 +9,154 @@
 
 #define C_MATH 1
 
-static i32
+internal i32
 ceil32(f32 v){
     return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
 }
 
-static i32
+internal i32
 floor32(f32 v){
     return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
 }
 
-static i32
+internal i32
 round32(f32 v){
     return(floor32(v + 0.5f));
 }
 
-static f32
+internal f32
 f32_ceil32(f32 v){
     return((f32)ceil32(v));
 }
 
-static f32
+internal f32
 f32_floor32(f32 v){
     return((f32)floor32(v));
 }
 
-static f32
+internal f32
 f32_round32(f32 v){
     return((f32)round32(v));
 }
 
-static i8
+internal i8
 round_up_i8(i8 x, i8 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static u8
+internal u8
 round_up_u8(u8 x, u8 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static i16
+internal i16
 round_up_i16(i16 x, i16 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static u16
+internal u16
 round_up_u16(u16 x, u16 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static i32
+internal i32
 round_up_i32(i32 x, i32 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static u32
+internal u32
 round_up_u32(u32 x, u32 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static i64
+internal i64
 round_up_i64(i64 x, i64 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static u64
+internal u64
 round_up_u64(u64 x, u64 b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static imem
+internal imem
 round_up_imem(imem x, imem b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
-static umem
+internal umem
 round_up_umem(umem x, umem b){
     x += b - 1;
     x -= x%b;
     return(x);
 }
 
-static i8
+internal i8
 round_down_i8(i8 x, i8 b){
     x -= x%b;
     return(x);
 }
-static u8
+internal u8
 round_down_u8(u8 x, u8 b){
     x -= x%b;
     return(x);
 }
-static i16
+internal i16
 round_down_i16(i16 x, i16 b){
     x -= x%b;
     return(x);
 }
-static u16
+internal u16
 round_down_u16(u16 x, u16 b){
     x -= x%b;
     return(x);
 }
-static i32
+internal i32
 round_down_i32(i32 x, i32 b){
     x -= x%b;
     return(x);
 }
-static u32
+internal u32
 round_down_u32(u32 x, u32 b){
     x -= x%b;
     return(x);
 }
-static i64
+internal i64
 round_down_i64(i64 x, i64 b){
     x -= x%b;
     return(x);
 }
-static u64
+internal u64
 round_down_u64(u64 x, u64 b){
     x -= x%b;
     return(x);
 }
-static imem
+internal imem
 round_down_imem(imem x, imem b){
     x -= x%b;
     return(x);
 }
-static umem
+internal umem
 round_down_umem(umem x, umem b){
     x -= x%b;
     return(x);
 }
 
-static f32
+internal f32
 f32_integer(f32 x){
     return((f32)((i32)x));
 }
 
-static u32
+internal u32
 round_up_pot_u32(u32 x){
     --x;
     x |= x >> 1;
@@ -170,7 +170,7 @@ round_up_pot_u32(u32 x){
 
 ////////////////////////////////
 
-static Data
+internal Data
 make_data(void *memory, umem size){
     Data data = {(u8*)memory, size};
     return(data);
@@ -187,19 +187,27 @@ global_const Data zero_data = {};
 
 ////////////////////////////////
 
-static void
+internal void
 block_zero(void *mem, umem size){
     for (u8 *p = (u8*)mem, *e = p + size; p < e; p += 1){
         *p = 0;
     }
 }
-static void
+internal void
+block_zero(Data data){
+    block_zero(data.data, data.size);
+}
+internal void
 block_fill_ones(void *mem, umem size){
     for (u8 *p = (u8*)mem, *e = p + size; p < e; p += 1){
         *p = 0xFF;
     }
 }
-static void
+internal void
+block_fill_ones(Data data){
+    block_fill_ones(data.data, data.size);
+}
+internal void
 block_copy(void *dst, void *src, umem size){
     u8 *d = (u8*)dst;
     u8 *s = (u8*)src;
@@ -218,7 +226,7 @@ block_copy(void *dst, void *src, umem size){
         }
     }
 }
-static b32
+internal b32
 block_match(void *a, void *b, umem size){
     b32 result = true;
     for (u8 *pa = (u8*)a, *pb = (u8*)b, *ea = pa + size; pa < ea; pa += 1, pb += 1){
@@ -229,7 +237,7 @@ block_match(void *a, void *b, umem size){
     }
     return(result);
 }
-static i32
+internal i32
 block_compare(void *a, void *b, umem size){
     i32 result = 0;
     for (u8 *pa = (u8*)a, *pb = (u8*)b, *ea = pa + size; pa < ea; pa += 1, pb += 1){
@@ -241,13 +249,13 @@ block_compare(void *a, void *b, umem size){
     }
     return(result);
 }
-static void
+internal void
 block_fill_u8(void *a, umem size, u8 val){
     for (u8 *ptr = (u8*)a, *e = ptr + size; ptr < e; ptr += 1){
         *ptr = val;
     }
 }
-static void
+internal void
 block_fill_u16(void *a, umem size, u16 val){
     Assert(size%sizeof(u16) == 0);
     umem count = size/sizeof(u16);
@@ -255,7 +263,7 @@ block_fill_u16(void *a, umem size, u16 val){
         *ptr = val;
     }
 }
-static void
+internal void
 block_fill_u32(void *a, umem size, u32 val){
     Assert(size%sizeof(u32) == 0);
     umem count = size/sizeof(u32);
@@ -263,7 +271,7 @@ block_fill_u32(void *a, umem size, u32 val){
         *ptr = val;
     }
 }
-static void
+internal void
 block_fill_u64(void *a, umem size, u64 val){
     Assert(size%sizeof(u64) == 0);
     umem count = size/sizeof(u64);
@@ -285,7 +293,7 @@ block_fill_u64(void *a, umem size, u64 val){
 
 ////////////////////////////////
 
-static f32
+internal f32
 abs_f32(f32 x){
     if (x < 0){
         x = -x;
@@ -296,7 +304,7 @@ abs_f32(f32 x){
 #if C_MATH
 #include <math.h>
 
-static f32
+internal f32
 mod_f32(f32 x, i32 m){
     f32 whole;
     f32 frac = modff(x, &whole);
@@ -307,256 +315,256 @@ mod_f32(f32 x, i32 m){
 
 ////////////////////////////////
 
-static Vec2_i8
+internal Vec2_i8
 V2i8(i8 x, i8 y){
     Vec2_i8 v = {x, y};
     return(v);
 }
-static Vec3_i8
+internal Vec3_i8
 V3i8(i8 x, i8 y, i8 z){
     Vec3_i8 v = {x, y, z};
     return(v);
 }
-static Vec4_i8
+internal Vec4_i8
 V4i8(i8 x, i8 y, i8 z, i8 w){
     Vec4_i8 v = {x, y, z, w};
     return(v);
 }
-static Vec2_i16
+internal Vec2_i16
 V2i16(i16 x, i16 y){
     Vec2_i16 v = {x, y};
     return(v);
 }
-static Vec3_i16
+internal Vec3_i16
 V3i16(i16 x, i16 y, i16 z){
     Vec3_i16 v = {x, y, z};
     return(v);
 }
-static Vec4_i16
+internal Vec4_i16
 V4i16(i16 x, i16 y, i16 z, i16 w){
     Vec4_i16 v = {x, y, z, w};
     return(v);
 }
-static Vec2_i32
+internal Vec2_i32
 V2i32(i32 x, i32 y){
     Vec2_i32 v = {x, y};
     return(v);
 }
-static Vec3_i32
+internal Vec3_i32
 V3i32(i32 x, i32 y, i32 z){
     Vec3_i32 v = {x, y, z};
     return(v);
 }
-static Vec4_i32
+internal Vec4_i32
 V4i32(i32 x, i32 y, i32 z, i32 w){
     Vec4_i32 v = {x, y, z, w};
     return(v);
 }
-static Vec2_f32
+internal Vec2_f32
 V2f32(f32 x, f32 y){
     Vec2_f32 v = {x, y};
     return(v);
 }
-static Vec3_f32
+internal Vec3_f32
 V3f32(f32 x, f32 y, f32 z){
     Vec3_f32 v = {x, y, z};
     return(v);
 }
-static Vec4_f32
+internal Vec4_f32
 V4f32(f32 x, f32 y, f32 z, f32 w){
     Vec4_f32 v = {x, y, z, w};
     return(v);
 }
 
-static Vec2_i8
+internal Vec2_i8
 V2i8(Vec2_i8 o){
     return(V2i8((i8)o.x, (i8)o.y));
 }
-static Vec2_i8
+internal Vec2_i8
 V2i8(Vec2_i16 o){
     return(V2i8((i8)o.x, (i8)o.y));
 }
-static Vec2_i8
+internal Vec2_i8
 V2i8(Vec2_i32 o){
     return(V2i8((i8)o.x, (i8)o.y));
 }
-static Vec2_i8
+internal Vec2_i8
 V2i8(Vec2_f32 o){
     return(V2i8((i8)o.x, (i8)o.y));
 }
-static Vec3_i8
+internal Vec3_i8
 V3i8(Vec3_i8 o){
     return(V3i8((i8)o.x, (i8)o.y, (i8)o.z));
 }
-static Vec3_i8
+internal Vec3_i8
 V3i8(Vec3_i16 o){
     return(V3i8((i8)o.x, (i8)o.y, (i8)o.z));
 }
-static Vec3_i8
+internal Vec3_i8
 V3i8(Vec3_i32 o){
     return(V3i8((i8)o.x, (i8)o.y, (i8)o.z));
 }
-static Vec3_i8
+internal Vec3_i8
 V3i8(Vec3_f32 o){
     return(V3i8((i8)o.x, (i8)o.y, (i8)o.z));
 }
-static Vec4_i8
+internal Vec4_i8
 V4i8(Vec4_i8 o){
     return(V4i8((i8)o.x, (i8)o.y, (i8)o.z, (i8)o.w));
 }
-static Vec4_i8
+internal Vec4_i8
 V4i8(Vec4_i16 o){
     return(V4i8((i8)o.x, (i8)o.y, (i8)o.z, (i8)o.w));
 }
-static Vec4_i8
+internal Vec4_i8
 V4i8(Vec4_i32 o){
     return(V4i8((i8)o.x, (i8)o.y, (i8)o.z, (i8)o.w));
 }
-static Vec4_i8
+internal Vec4_i8
 V4i8(Vec4_f32 o){
     return(V4i8((i8)o.x, (i8)o.y, (i8)o.z, (i8)o.w));
 }
-static Vec2_i16
+internal Vec2_i16
 V2i16(Vec2_i8 o){
     return(V2i16((i16)o.x, (i16)o.y));
 }
-static Vec2_i16
+internal Vec2_i16
 V2i16(Vec2_i16 o){
     return(V2i16((i16)o.x, (i16)o.y));
 }
-static Vec2_i16
+internal Vec2_i16
 V2i16(Vec2_i32 o){
     return(V2i16((i16)o.x, (i16)o.y));
 }
-static Vec2_i16
+internal Vec2_i16
 V2i16(Vec2_f32 o){
     return(V2i16((i16)o.x, (i16)o.y));
 }
-static Vec3_i16
+internal Vec3_i16
 V3i16(Vec3_i8 o){
     return(V3i16((i16)o.x, (i16)o.y, (i16)o.z));
 }
-static Vec3_i16
+internal Vec3_i16
 V3i16(Vec3_i16 o){
     return(V3i16((i16)o.x, (i16)o.y, (i16)o.z));
 }
-static Vec3_i16
+internal Vec3_i16
 V3i16(Vec3_i32 o){
     return(V3i16((i16)o.x, (i16)o.y, (i16)o.z));
 }
-static Vec3_i16
+internal Vec3_i16
 V3i16(Vec3_f32 o){
     return(V3i16((i16)o.x, (i16)o.y, (i16)o.z));
 }
-static Vec4_i16
+internal Vec4_i16
 V4i16(Vec4_i8 o){
     return(V4i16((i16)o.x, (i16)o.y, (i16)o.z, (i16)o.w));
 }
-static Vec4_i16
+internal Vec4_i16
 V4i16(Vec4_i16 o){
     return(V4i16((i16)o.x, (i16)o.y, (i16)o.z, (i16)o.w));
 }
-static Vec4_i16
+internal Vec4_i16
 V4i16(Vec4_i32 o){
     return(V4i16((i16)o.x, (i16)o.y, (i16)o.z, (i16)o.w));
 }
-static Vec4_i16
+internal Vec4_i16
 V4i16(Vec4_f32 o){
     return(V4i16((i16)o.x, (i16)o.y, (i16)o.z, (i16)o.w));
 }
-static Vec2_i32
+internal Vec2_i32
 V2i32(Vec2_i8 o){
     return(V2i32((i32)o.x, (i32)o.y));
 }
-static Vec2_i32
+internal Vec2_i32
 V2i32(Vec2_i16 o){
     return(V2i32((i32)o.x, (i32)o.y));
 }
-static Vec2_i32
+internal Vec2_i32
 V2i32(Vec2_i32 o){
     return(V2i32((i32)o.x, (i32)o.y));
 }
-static Vec2_i32
+internal Vec2_i32
 V2i32(Vec2_f32 o){
     return(V2i32((i32)o.x, (i32)o.y));
 }
-static Vec3_i32
+internal Vec3_i32
 V3i32(Vec3_i8 o){
     return(V3i32((i32)o.x, (i32)o.y, (i32)o.z));
 }
-static Vec3_i32
+internal Vec3_i32
 V3i32(Vec3_i16 o){
     return(V3i32((i32)o.x, (i32)o.y, (i32)o.z));
 }
-static Vec3_i32
+internal Vec3_i32
 V3i32(Vec3_i32 o){
     return(V3i32((i32)o.x, (i32)o.y, (i32)o.z));
 }
-static Vec3_i32
+internal Vec3_i32
 V3i32(Vec3_f32 o){
     return(V3i32((i32)o.x, (i32)o.y, (i32)o.z));
 }
-static Vec4_i32
+internal Vec4_i32
 V4i32(Vec4_i8 o){
     return(V4i32((i32)o.x, (i32)o.y, (i32)o.z, (i32)o.w));
 }
-static Vec4_i32
+internal Vec4_i32
 V4i32(Vec4_i16 o){
     return(V4i32((i32)o.x, (i32)o.y, (i32)o.z, (i32)o.w));
 }
-static Vec4_i32
+internal Vec4_i32
 V4i32(Vec4_i32 o){
     return(V4i32((i32)o.x, (i32)o.y, (i32)o.z, (i32)o.w));
 }
-static Vec4_i32
+internal Vec4_i32
 V4i32(Vec4_f32 o){
     return(V4i32((i32)o.x, (i32)o.y, (i32)o.z, (i32)o.w));
 }
-static Vec2_f32
+internal Vec2_f32
 V2f32(Vec2_i8 o){
     return(V2f32((f32)o.x, (f32)o.y));
 }
-static Vec2_f32
+internal Vec2_f32
 V2f32(Vec2_i16 o){
     return(V2f32((f32)o.x, (f32)o.y));
 }
-static Vec2_f32
+internal Vec2_f32
 V2f32(Vec2_i32 o){
     return(V2f32((f32)o.x, (f32)o.y));
 }
-static Vec2_f32
+internal Vec2_f32
 V2f32(Vec2_f32 o){
     return(V2f32((f32)o.x, (f32)o.y));
 }
-static Vec3_f32
+internal Vec3_f32
 V3f32(Vec3_i8 o){
     return(V3f32((f32)o.x, (f32)o.y, (f32)o.z));
 }
-static Vec3_f32
+internal Vec3_f32
 V3f32(Vec3_i16 o){
     return(V3f32((f32)o.x, (f32)o.y, (f32)o.z));
 }
-static Vec3_f32
+internal Vec3_f32
 V3f32(Vec3_i32 o){
     return(V3f32((f32)o.x, (f32)o.y, (f32)o.z));
 }
-static Vec3_f32
+internal Vec3_f32
 V3f32(Vec3_f32 o){
     return(V3f32((f32)o.x, (f32)o.y, (f32)o.z));
 }
-static Vec4_f32
+internal Vec4_f32
 V4f32(Vec4_i8 o){
     return(V4f32((f32)o.x, (f32)o.y, (f32)o.z, (f32)o.w));
 }
-static Vec4_f32
+internal Vec4_f32
 V4f32(Vec4_i16 o){
     return(V4f32((f32)o.x, (f32)o.y, (f32)o.z, (f32)o.w));
 }
-static Vec4_f32
+internal Vec4_f32
 V4f32(Vec4_i32 o){
     return(V4f32((f32)o.x, (f32)o.y, (f32)o.z, (f32)o.w));
 }
-static Vec4_f32
+internal Vec4_f32
 V4f32(Vec4_f32 o){
     return(V4f32((f32)o.x, (f32)o.y, (f32)o.z, (f32)o.w));
 }
@@ -565,20 +573,20 @@ V4f32(Vec4_f32 o){
 #define V3 V3f32
 #define V4 V4f32
 
-static Vec2_i8
+internal Vec2_i8
 operator+(Vec2_i8 a, Vec2_i8 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_i8
+internal Vec3_i8
 operator+(Vec3_i8 a, Vec3_i8 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_i8
+internal Vec4_i8
 operator+(Vec4_i8 a, Vec4_i8 b){
     a.x += b.x;
     a.y += b.y;
@@ -586,20 +594,20 @@ operator+(Vec4_i8 a, Vec4_i8 b){
     a.w += b.w;
     return(a);
 }
-static Vec2_i16
+internal Vec2_i16
 operator+(Vec2_i16 a, Vec2_i16 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_i16
+internal Vec3_i16
 operator+(Vec3_i16 a, Vec3_i16 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_i16
+internal Vec4_i16
 operator+(Vec4_i16 a, Vec4_i16 b){
     a.x += b.x;
     a.y += b.y;
@@ -607,20 +615,20 @@ operator+(Vec4_i16 a, Vec4_i16 b){
     a.w += b.w;
     return(a);
 }
-static Vec2_i32
+internal Vec2_i32
 operator+(Vec2_i32 a, Vec2_i32 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_i32
+internal Vec3_i32
 operator+(Vec3_i32 a, Vec3_i32 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_i32
+internal Vec4_i32
 operator+(Vec4_i32 a, Vec4_i32 b){
     a.x += b.x;
     a.y += b.y;
@@ -628,20 +636,20 @@ operator+(Vec4_i32 a, Vec4_i32 b){
     a.w += b.w;
     return(a);
 }
-static Vec2_f32
+internal Vec2_f32
 operator+(Vec2_f32 a, Vec2_f32 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_f32
+internal Vec3_f32
 operator+(Vec3_f32 a, Vec3_f32 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_f32
+internal Vec4_f32
 operator+(Vec4_f32 a, Vec4_f32 b){
     a.x += b.x;
     a.y += b.y;
@@ -650,20 +658,20 @@ operator+(Vec4_f32 a, Vec4_f32 b){
     return(a);
 }
 
-static Vec2_i8&
+internal Vec2_i8&
 operator+=(Vec2_i8 &a, Vec2_i8 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_i8&
+internal Vec3_i8&
 operator+=(Vec3_i8 &a, Vec3_i8 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_i8&
+internal Vec4_i8&
 operator+=(Vec4_i8 &a, Vec4_i8 b){
     a.x += b.x;
     a.y += b.y;
@@ -671,20 +679,20 @@ operator+=(Vec4_i8 &a, Vec4_i8 b){
     a.w += b.w;
     return(a);
 }
-static Vec2_i16&
+internal Vec2_i16&
 operator+=(Vec2_i16 &a, Vec2_i16 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_i16&
+internal Vec3_i16&
 operator+=(Vec3_i16 &a, Vec3_i16 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_i16&
+internal Vec4_i16&
 operator+=(Vec4_i16 &a, Vec4_i16 b){
     a.x += b.x;
     a.y += b.y;
@@ -692,20 +700,20 @@ operator+=(Vec4_i16 &a, Vec4_i16 b){
     a.w += b.w;
     return(a);
 }
-static Vec2_i32&
+internal Vec2_i32&
 operator+=(Vec2_i32 &a, Vec2_i32 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_i32&
+internal Vec3_i32&
 operator+=(Vec3_i32 &a, Vec3_i32 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_i32&
+internal Vec4_i32&
 operator+=(Vec4_i32 &a, Vec4_i32 b){
     a.x += b.x;
     a.y += b.y;
@@ -713,20 +721,20 @@ operator+=(Vec4_i32 &a, Vec4_i32 b){
     a.w += b.w;
     return(a);
 }
-static Vec2_f32&
+internal Vec2_f32&
 operator+=(Vec2_f32 &a, Vec2_f32 b){
     a.x += b.x;
     a.y += b.y;
     return(a);
 }
-static Vec3_f32&
+internal Vec3_f32&
 operator+=(Vec3_f32 &a, Vec3_f32 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return(a);
 }
-static Vec4_f32&
+internal Vec4_f32&
 operator+=(Vec4_f32 &a, Vec4_f32 b){
     a.x += b.x;
     a.y += b.y;
@@ -735,20 +743,20 @@ operator+=(Vec4_f32 &a, Vec4_f32 b){
     return(a);
 }
 
-static Vec2_i8
+internal Vec2_i8
 operator-(Vec2_i8 a, Vec2_i8 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_i8
+internal Vec3_i8
 operator-(Vec3_i8 a, Vec3_i8 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_i8
+internal Vec4_i8
 operator-(Vec4_i8 a, Vec4_i8 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -756,20 +764,20 @@ operator-(Vec4_i8 a, Vec4_i8 b){
     a.w -= b.w;
     return(a);
 }
-static Vec2_i16
+internal Vec2_i16
 operator-(Vec2_i16 a, Vec2_i16 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_i16
+internal Vec3_i16
 operator-(Vec3_i16 a, Vec3_i16 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_i16
+internal Vec4_i16
 operator-(Vec4_i16 a, Vec4_i16 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -777,20 +785,20 @@ operator-(Vec4_i16 a, Vec4_i16 b){
     a.w -= b.w;
     return(a);
 }
-static Vec2_i32
+internal Vec2_i32
 operator-(Vec2_i32 a, Vec2_i32 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_i32
+internal Vec3_i32
 operator-(Vec3_i32 a, Vec3_i32 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_i32
+internal Vec4_i32
 operator-(Vec4_i32 a, Vec4_i32 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -798,20 +806,20 @@ operator-(Vec4_i32 a, Vec4_i32 b){
     a.w -= b.w;
     return(a);
 }
-static Vec2_f32
+internal Vec2_f32
 operator-(Vec2_f32 a, Vec2_f32 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_f32
+internal Vec3_f32
 operator-(Vec3_f32 a, Vec3_f32 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_f32
+internal Vec4_f32
 operator-(Vec4_f32 a, Vec4_f32 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -820,20 +828,20 @@ operator-(Vec4_f32 a, Vec4_f32 b){
     return(a);
 }
 
-static Vec2_i8&
+internal Vec2_i8&
 operator-=(Vec2_i8 &a, Vec2_i8 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_i8&
+internal Vec3_i8&
 operator-=(Vec3_i8 &a, Vec3_i8 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_i8&
+internal Vec4_i8&
 operator-=(Vec4_i8 &a, Vec4_i8 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -841,20 +849,20 @@ operator-=(Vec4_i8 &a, Vec4_i8 b){
     a.w -= b.w;
     return(a);
 }
-static Vec2_i16&
+internal Vec2_i16&
 operator-=(Vec2_i16 &a, Vec2_i16 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_i16&
+internal Vec3_i16&
 operator-=(Vec3_i16 &a, Vec3_i16 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_i16&
+internal Vec4_i16&
 operator-=(Vec4_i16 &a, Vec4_i16 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -862,20 +870,20 @@ operator-=(Vec4_i16 &a, Vec4_i16 b){
     a.w -= b.w;
     return(a);
 }
-static Vec2_i32&
+internal Vec2_i32&
 operator-=(Vec2_i32 &a, Vec2_i32 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_i32&
+internal Vec3_i32&
 operator-=(Vec3_i32 &a, Vec3_i32 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_i32&
+internal Vec4_i32&
 operator-=(Vec4_i32 &a, Vec4_i32 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -883,20 +891,20 @@ operator-=(Vec4_i32 &a, Vec4_i32 b){
     a.w -= b.w;
     return(a);
 }
-static Vec2_f32&
+internal Vec2_f32&
 operator-=(Vec2_f32 &a, Vec2_f32 b){
     a.x -= b.x;
     a.y -= b.y;
     return(a);
 }
-static Vec3_f32&
+internal Vec3_f32&
 operator-=(Vec3_f32 &a, Vec3_f32 b){
     a.x -= b.x;
     a.y -= b.y;
     a.z -= b.z;
     return(a);
 }
-static Vec4_f32&
+internal Vec4_f32&
 operator-=(Vec4_f32 &a, Vec4_f32 b){
     a.x -= b.x;
     a.y -= b.y;
@@ -905,33 +913,33 @@ operator-=(Vec4_f32 &a, Vec4_f32 b){
     return(a);
 }
 
-static Vec2_i8
+internal Vec2_i8
 operator*(i8 s, Vec2_i8 v){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec2_i8
+internal Vec2_i8
 operator*(Vec2_i8 v, i8 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_i8
+internal Vec3_i8
 operator*(i8 s, Vec3_i8 v){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec3_i8
+internal Vec3_i8
 operator*(Vec3_i8 v, i8 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_i8
+internal Vec4_i8
 operator*(i8 s, Vec4_i8 v){
     v.x *= s;
     v.y *= s;
@@ -939,7 +947,7 @@ operator*(i8 s, Vec4_i8 v){
     v.w *= s;
     return(v);
 }
-static Vec4_i8
+internal Vec4_i8
 operator*(Vec4_i8 v, i8 s){
     v.x *= s;
     v.y *= s;
@@ -947,33 +955,33 @@ operator*(Vec4_i8 v, i8 s){
     v.w *= s;
     return(v);
 }
-static Vec2_i16
+internal Vec2_i16
 operator*(i16 s, Vec2_i16 v){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec2_i16
+internal Vec2_i16
 operator*(Vec2_i16 v, i16 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_i16
+internal Vec3_i16
 operator*(i16 s, Vec3_i16 v){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec3_i16
+internal Vec3_i16
 operator*(Vec3_i16 v, i16 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_i16
+internal Vec4_i16
 operator*(i16 s, Vec4_i16 v){
     v.x *= s;
     v.y *= s;
@@ -981,7 +989,7 @@ operator*(i16 s, Vec4_i16 v){
     v.w *= s;
     return(v);
 }
-static Vec4_i16
+internal Vec4_i16
 operator*(Vec4_i16 v, i16 s){
     v.x *= s;
     v.y *= s;
@@ -989,33 +997,33 @@ operator*(Vec4_i16 v, i16 s){
     v.w *= s;
     return(v);
 }
-static Vec2_i32
+internal Vec2_i32
 operator*(i32 s, Vec2_i32 v){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec2_i32
+internal Vec2_i32
 operator*(Vec2_i32 v, i32 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_i32
+internal Vec3_i32
 operator*(i32 s, Vec3_i32 v){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec3_i32
+internal Vec3_i32
 operator*(Vec3_i32 v, i32 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_i32
+internal Vec4_i32
 operator*(i32 s, Vec4_i32 v){
     v.x *= s;
     v.y *= s;
@@ -1023,7 +1031,7 @@ operator*(i32 s, Vec4_i32 v){
     v.w *= s;
     return(v);
 }
-static Vec4_i32
+internal Vec4_i32
 operator*(Vec4_i32 v, i32 s){
     v.x *= s;
     v.y *= s;
@@ -1031,33 +1039,33 @@ operator*(Vec4_i32 v, i32 s){
     v.w *= s;
     return(v);
 }
-static Vec2_f32
+internal Vec2_f32
 operator*(f32 s, Vec2_f32 v){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec2_f32
+internal Vec2_f32
 operator*(Vec2_f32 v, f32 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_f32
+internal Vec3_f32
 operator*(f32 s, Vec3_f32 v){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec3_f32
+internal Vec3_f32
 operator*(Vec3_f32 v, f32 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_f32
+internal Vec4_f32
 operator*(f32 s, Vec4_f32 v){
     v.x *= s;
     v.y *= s;
@@ -1065,7 +1073,7 @@ operator*(f32 s, Vec4_f32 v){
     v.w *= s;
     return(v);
 }
-static Vec4_f32
+internal Vec4_f32
 operator*(Vec4_f32 v, f32 s){
     v.x *= s;
     v.y *= s;
@@ -1074,20 +1082,20 @@ operator*(Vec4_f32 v, f32 s){
     return(v);
 }
 
-static Vec2_i8&
+internal Vec2_i8&
 operator*=(Vec2_i8 &v, i8 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_i8&
+internal Vec3_i8&
 operator*=(Vec3_i8 &v, i8 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_i8&
+internal Vec4_i8&
 operator*=(Vec4_i8 &v, i8 s){
     v.x *= s;
     v.y *= s;
@@ -1095,20 +1103,20 @@ operator*=(Vec4_i8 &v, i8 s){
     v.w *= s;
     return(v);
 }
-static Vec2_i16&
+internal Vec2_i16&
 operator*=(Vec2_i16 &v, i16 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_i16&
+internal Vec3_i16&
 operator*=(Vec3_i16 &v, i16 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_i16&
+internal Vec4_i16&
 operator*=(Vec4_i16 &v, i16 s){
     v.x *= s;
     v.y *= s;
@@ -1116,20 +1124,20 @@ operator*=(Vec4_i16 &v, i16 s){
     v.w *= s;
     return(v);
 }
-static Vec2_i32&
+internal Vec2_i32&
 operator*=(Vec2_i32 &v, i32 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_i32&
+internal Vec3_i32&
 operator*=(Vec3_i32 &v, i32 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_i32&
+internal Vec4_i32&
 operator*=(Vec4_i32 &v, i32 s){
     v.x *= s;
     v.y *= s;
@@ -1137,20 +1145,20 @@ operator*=(Vec4_i32 &v, i32 s){
     v.w *= s;
     return(v);
 }
-static Vec2_f32&
+internal Vec2_f32&
 operator*=(Vec2_f32 &v, f32 s){
     v.x *= s;
     v.y *= s;
     return(v);
 }
-static Vec3_f32&
+internal Vec3_f32&
 operator*=(Vec3_f32 &v, f32 s){
     v.x *= s;
     v.y *= s;
     v.z *= s;
     return(v);
 }
-static Vec4_f32&
+internal Vec4_f32&
 operator*=(Vec4_f32 &v, f32 s){
     v.x *= s;
     v.y *= s;
@@ -1159,20 +1167,20 @@ operator*=(Vec4_f32 &v, f32 s){
     return(v);
 }
 
-static Vec2_i8
+internal Vec2_i8
 operator/(Vec2_i8 v, i8 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_i8
+internal Vec3_i8
 operator/(Vec3_i8 v, i8 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_i8
+internal Vec4_i8
 operator/(Vec4_i8 v, i8 s){
     v.x /= s;
     v.y /= s;
@@ -1180,20 +1188,20 @@ operator/(Vec4_i8 v, i8 s){
     v.w /= s;
     return(v);
 }
-static Vec2_i16
+internal Vec2_i16
 operator/(Vec2_i16 v, i16 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_i16
+internal Vec3_i16
 operator/(Vec3_i16 v, i16 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_i16
+internal Vec4_i16
 operator/(Vec4_i16 v, i16 s){
     v.x /= s;
     v.y /= s;
@@ -1201,20 +1209,20 @@ operator/(Vec4_i16 v, i16 s){
     v.w /= s;
     return(v);
 }
-static Vec2_i32
+internal Vec2_i32
 operator/(Vec2_i32 v, i32 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_i32
+internal Vec3_i32
 operator/(Vec3_i32 v, i32 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_i32
+internal Vec4_i32
 operator/(Vec4_i32 v, i32 s){
     v.x /= s;
     v.y /= s;
@@ -1222,20 +1230,20 @@ operator/(Vec4_i32 v, i32 s){
     v.w /= s;
     return(v);
 }
-static Vec2_f32
+internal Vec2_f32
 operator/(Vec2_f32 v, f32 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_f32
+internal Vec3_f32
 operator/(Vec3_f32 v, f32 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_f32
+internal Vec4_f32
 operator/(Vec4_f32 v, f32 s){
     v.x /= s;
     v.y /= s;
@@ -1244,20 +1252,20 @@ operator/(Vec4_f32 v, f32 s){
     return(v);
 }
 
-static Vec2_i8&
+internal Vec2_i8&
 operator/=(Vec2_i8 &v, i8 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_i8&
+internal Vec3_i8&
 operator/=(Vec3_i8 &v, i8 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_i8&
+internal Vec4_i8&
 operator/=(Vec4_i8 &v, i8 s){
     v.x /= s;
     v.y /= s;
@@ -1265,20 +1273,20 @@ operator/=(Vec4_i8 &v, i8 s){
     v.w /= s;
     return(v);
 }
-static Vec2_i16&
+internal Vec2_i16&
 operator/=(Vec2_i16 &v, i16 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_i16&
+internal Vec3_i16&
 operator/=(Vec3_i16 &v, i16 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_i16&
+internal Vec4_i16&
 operator/=(Vec4_i16 &v, i16 s){
     v.x /= s;
     v.y /= s;
@@ -1286,20 +1294,20 @@ operator/=(Vec4_i16 &v, i16 s){
     v.w /= s;
     return(v);
 }
-static Vec2_i32&
+internal Vec2_i32&
 operator/=(Vec2_i32 &v, i32 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_i32&
+internal Vec3_i32&
 operator/=(Vec3_i32 &v, i32 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_i32&
+internal Vec4_i32&
 operator/=(Vec4_i32 &v, i32 s){
     v.x /= s;
     v.y /= s;
@@ -1307,20 +1315,20 @@ operator/=(Vec4_i32 &v, i32 s){
     v.w /= s;
     return(v);
 }
-static Vec2_f32&
+internal Vec2_f32&
 operator/=(Vec2_f32 &v, f32 s){
     v.x /= s;
     v.y /= s;
     return(v);
 }
-static Vec3_f32&
+internal Vec3_f32&
 operator/=(Vec3_f32 &v, f32 s){
     v.x /= s;
     v.y /= s;
     v.z /= s;
     return(v);
 }
-static Vec4_f32&
+internal Vec4_f32&
 operator/=(Vec4_f32 &v, f32 s){
     v.x /= s;
     v.y /= s;
@@ -1329,122 +1337,122 @@ operator/=(Vec4_f32 &v, f32 s){
     return(v);
 }
 
-static b32
+internal b32
 operator==(Vec2_i8 a, Vec2_i8 b){
     return(a.x == b.x && a.y == b.y);
 }
-static b32
+internal b32
 operator==(Vec3_i8 a, Vec3_i8 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z);
 }
-static b32
+internal b32
 operator==(Vec4_i8 a, Vec4_i8 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
 }
-static b32
+internal b32
 operator==(Vec2_i16 a, Vec2_i16 b){
     return(a.x == b.x && a.y == b.y);
 }
-static b32
+internal b32
 operator==(Vec3_i16 a, Vec3_i16 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z);
 }
-static b32
+internal b32
 operator==(Vec4_i16 a, Vec4_i16 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
 }
-static b32
+internal b32
 operator==(Vec2_i32 a, Vec2_i32 b){
     return(a.x == b.x && a.y == b.y);
 }
-static b32
+internal b32
 operator==(Vec3_i32 a, Vec3_i32 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z);
 }
-static b32
+internal b32
 operator==(Vec4_i32 a, Vec4_i32 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
 }
-static b32
+internal b32
 operator==(Vec2_f32 a, Vec2_f32 b){
     return(a.x == b.x && a.y == b.y);
 }
-static b32
+internal b32
 operator==(Vec3_f32 a, Vec3_f32 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z);
 }
-static b32
+internal b32
 operator==(Vec4_f32 a, Vec4_f32 b){
     return(a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w);
 }
 
-static b32
+internal b32
 operator!=(Vec2_i8 a, Vec2_i8 b){
     return(a.x != b.x || a.y != b.y);
 }
-static b32
+internal b32
 operator!=(Vec3_i8 a, Vec3_i8 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z);
 }
-static b32
+internal b32
 operator!=(Vec4_i8 a, Vec4_i8 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w);
 }
-static b32
+internal b32
 operator!=(Vec2_i16 a, Vec2_i16 b){
     return(a.x != b.x || a.y != b.y);
 }
-static b32
+internal b32
 operator!=(Vec3_i16 a, Vec3_i16 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z);
 }
-static b32
+internal b32
 operator!=(Vec4_i16 a, Vec4_i16 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w);
 }
-static b32
+internal b32
 operator!=(Vec2_i32 a, Vec2_i32 b){
     return(a.x != b.x || a.y != b.y);
 }
-static b32
+internal b32
 operator!=(Vec3_i32 a, Vec3_i32 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z);
 }
-static b32
+internal b32
 operator!=(Vec4_i32 a, Vec4_i32 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w);
 }
-static b32
+internal b32
 operator!=(Vec2_f32 a, Vec2_f32 b){
     return(a.x != b.x || a.y != b.y);
 }
-static b32
+internal b32
 operator!=(Vec3_f32 a, Vec3_f32 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z);
 }
-static b32
+internal b32
 operator!=(Vec4_f32 a, Vec4_f32 b){
     return(a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w);
 }
 
 ////////////////////////////////
 
-static b32
+internal b32
 near_zero(f32 p, f32 epsilon){
     return(-epsilon <= p && p <= epsilon);
 }
-static b32
+internal b32
 near_zero(Vec2_f32 p, f32 epsilon){
     return(-epsilon <= p.x && p.x <= epsilon &&
            -epsilon <= p.y && p.y <= epsilon);
 }
-static b32
+internal b32
 near_zero(Vec3_f32 p, f32 epsilon){
     return(-epsilon <= p.x && p.x <= epsilon &&
            -epsilon <= p.y && p.y <= epsilon &&
            -epsilon <= p.z && p.z <= epsilon);
 }
-static b32
+internal b32
 near_zero(Vec4_f32 p, f32 epsilon){
     return(-epsilon <= p.x && p.x <= epsilon &&
            -epsilon <= p.y && p.y <= epsilon &&
@@ -1452,63 +1460,63 @@ near_zero(Vec4_f32 p, f32 epsilon){
            -epsilon <= p.w && p.w <= epsilon);
 }
 
-static b32
+internal b32
 near_zero(f32 p){ return(near_zero(p, epsilon_f32)); }
-static b32
+internal b32
 near_zero(Vec2_f32 p){ return(near_zero(p, epsilon_f32)); }
-static b32
+internal b32
 near_zero(Vec3_f32 p){ return(near_zero(p, epsilon_f32)); }
-static b32
+internal b32
 near_zero(Vec4_f32 p){ return(near_zero(p, epsilon_f32)); }
 
 ////////////////////////////////
 
-static b32
+internal b32
 operator==(Rect_i32 a, Rect_i32 b){
     return(a.p0 == b.p0 && a.p1 == b.p1);
 }
-static b32
+internal b32
 operator==(Rect_f32 a, Rect_f32 b){
     return(a.p0 == b.p0 && a.p1 == b.p1);
 }
 
-static b32
+internal b32
 operator!=(Rect_i32 a, Rect_i32 b){
     return(!(a == b));
 }
-static b32
+internal b32
 operator!=(Rect_f32 a, Rect_f32 b){
     return(!(a == b));
 }
 
 ////////////////////////////////
 
-static f32
+internal f32
 lerp(f32 a, f32 t, f32 b){
     return(a + (b-a)*t);
 }
 
-static i32
+internal i32
 lerp(i32 a, f32 t, i32 b){
     return((i32)(lerp((f32)a, t, (f32)b)));
 }
 
-static Vec2
+internal Vec2
 lerp(Vec2 a, f32 t, Vec2 b){
     return(a + (b-a)*t);
 }
 
-static Vec3
+internal Vec3
 lerp(Vec3 a, f32 t, Vec3 b){
     return(a + (b-a)*t);
 }
 
-static Vec4
+internal Vec4
 lerp(Vec4 a, f32 t, Vec4 b){
     return(a + (b-a)*t);
 }
 
-static f32
+internal f32
 unlerp(f32 a, f32 x, f32 b){
     f32 r = x;
     if (b != a){
@@ -1520,7 +1528,7 @@ unlerp(f32 a, f32 x, f32 b){
 ////////////////////////////////
 
 // TODO(allen): Convert colors to Vec4
-static u32
+internal u32
 color_blend(u32 a, f32 t, u32 b){
     union{
         u8 byte[4];
@@ -1535,7 +1543,7 @@ color_blend(u32 a, f32 t, u32 b){
     return(R.comp);
 }
 
-static Vec3
+internal Vec3
 unpack_color3(u32 color){
     Vec3 result;
     result.r = ((color >> 16) & 0xFF)/255.f;
@@ -1544,7 +1552,7 @@ unpack_color3(u32 color){
     return(result);
 }
 
-static Vec4
+internal Vec4
 unpack_color4(u32 color){
     Vec4 result;
     result.a = ((color >> 24) & 0xFF)/255.f;
@@ -1554,7 +1562,7 @@ unpack_color4(u32 color){
     return(result);
 }
 
-static u32
+internal u32
 pack_color4(Vec4 color){
     u32 result =
         ((u8)(color.a*255) << 24) |
@@ -1564,7 +1572,7 @@ pack_color4(Vec4 color){
     return(result);
 }
 
-static Vec4
+internal Vec4
 rgba_to_hsla(Vec4 rgba){
     Vec4 hsla = {};
     f32 max, min, delta;
@@ -1620,7 +1628,7 @@ rgba_to_hsla(Vec4 rgba){
     return(hsla);
 }
 
-static Vec4
+internal Vec4
 hsla_to_rgba(Vec4 hsla){
     if (hsla.h >= 1.f){
         hsla.h = 0.f;
@@ -2253,21 +2261,21 @@ flip_side(Side side){
 
 ////////////////////////////////
 
-static void*
+internal void*
 base_reserve__noop(void *user_data, umem size, umem *size_out){
     *size_out = 0;
     return(0);
 }
-static void
+internal void
 base_commit__noop(void *user_data, void *ptr, umem size){}
-static void
+internal void
 base_uncommit__noop(void *user_data, void *ptr, umem size){}
-static void
+internal void
 base_free__noop(void *user_data, void *ptr){}
-static void
+internal void
 base_set_access__noop(void *user_data, void *ptr, umem size, Access_Flag flags){}
 
-static Base_Allocator
+internal Base_Allocator
 make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
                     Base_Allocator_Commit_Signature *func_commit,
                     Base_Allocator_Uncommit_Signature *func_uncommit,
@@ -2299,37 +2307,39 @@ make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
     };
     return(base_allocator);
 }
-static Data
+internal Data
 base_allocate(Base_Allocator *allocator, umem size){
     umem full_size = 0;
     void *memory = allocator->reserve(allocator->user_data, size, &full_size);
     allocator->commit(allocator->user_data, memory, full_size);
     return(make_data(memory, full_size));
 }
-static void
+internal void
 base_free(Base_Allocator *allocator, void *ptr){
     if (ptr != 0){
         allocator->free(allocator->user_data, ptr);
     }
 }
 
+#define base_array(a,T,c) (T*)(base_allocate((a), sizeof(T)*(c)).data)
+
 ////////////////////////////////
 
-static Cursor
+internal Cursor
 make_cursor(void *base, umem size){
     Cursor cursor = {(u8*)base, 0, size};
     return(cursor);
 }
-static Cursor
+internal Cursor
 make_cursor(Data data){
     return(make_cursor(data.data, data.size));
 }
-static Cursor
+internal Cursor
 make_cursor(Base_Allocator *allocator, umem size){
     Data memory = base_allocate(allocator, size);
     return(make_cursor(memory));
 }
-static Data
+internal Data
 linalloc_push(Cursor *cursor, umem size){
     Data result = {};
     if (cursor->pos + size <= cursor->cap){
@@ -2339,7 +2349,7 @@ linalloc_push(Cursor *cursor, umem size){
     }
     return(result);
 }
-static void
+internal void
 linalloc_pop(Cursor *cursor, umem size){
     if (cursor->pos > size){
         cursor->pos -= size;
@@ -2348,39 +2358,39 @@ linalloc_pop(Cursor *cursor, umem size){
         cursor->pos = 0;
     }
 }
-static Data
+internal Data
 linalloc_align(Cursor *cursor, umem alignment){
     umem pos = round_up_umem(cursor->pos, alignment);
     umem new_size = pos - cursor->pos;
     return(linalloc_push(cursor, new_size));
 }
-static Temp_Memory_Cursor
+internal Temp_Memory_Cursor
 linalloc_begin_temp(Cursor *cursor){
     Temp_Memory_Cursor temp = {cursor, cursor->pos};
     return(temp);
 }
-static void
+internal void
 linalloc_end_temp(Temp_Memory_Cursor temp){
     temp.cursor->pos = temp.pos;
 }
-static void
+internal void
 linalloc_clear(Cursor *cursor){
     cursor->pos = 0;
 }
-static Arena
+internal Arena
 make_arena(Base_Allocator *allocator, umem chunk_size, umem alignment){
     Arena arena = {allocator, 0, chunk_size, alignment};
     return(arena);
 }
-static Arena
+internal Arena
 make_arena(Base_Allocator *allocator, umem chunk_size){
     return(make_arena(allocator, chunk_size, 8));
 }
-static Arena
+internal Arena
 make_arena(Base_Allocator *allocator){
     return(make_arena(allocator, KB(16), 8));
 }
-static Cursor_Node*
+internal Cursor_Node*
 arena__new_node(Arena *arena, umem min_size){
     min_size = clamp_bot(min_size, arena->chunk_size);
     Data memory = base_allocate(arena->base_allocator, min_size + sizeof(Cursor_Node));
@@ -2389,7 +2399,7 @@ arena__new_node(Arena *arena, umem min_size){
     sll_stack_push(arena->cursor_node, cursor_node);
     return(cursor_node);
 }
-static Data
+internal Data
 linalloc_push(Arena *arena, umem size){
     Data result = {};
     if (size > 0){
@@ -2407,7 +2417,7 @@ linalloc_push(Arena *arena, umem size){
     }
     return(result);
 }
-static void
+internal void
 linalloc_pop(Arena *arena, umem size){
     Base_Allocator *allocator = arena->base_allocator;
     Cursor_Node *cursor_node = arena->cursor_node;
@@ -2426,7 +2436,7 @@ linalloc_pop(Arena *arena, umem size){
     }
     arena->cursor_node = cursor_node;
 }
-static Data
+internal Data
 linalloc_align(Arena *arena, umem alignment){
     arena->alignment = alignment;
     Data data = {};
@@ -2436,14 +2446,14 @@ linalloc_align(Arena *arena, umem alignment){
     }
     return(data);
 }
-static Temp_Memory_Arena
+internal Temp_Memory_Arena
 linalloc_begin_temp(Arena *arena){
     Cursor_Node *cursor_node = arena->cursor_node;
     Temp_Memory_Arena temp = {arena, cursor_node,
         cursor_node == 0?0:cursor_node->cursor.pos};
     return(temp);
 }
-static void
+internal void
 linalloc_end_temp(Temp_Memory_Arena temp){
     Base_Allocator *allocator = temp.arena->base_allocator;
     Cursor_Node *cursor_node = temp.arena->cursor_node;
@@ -2464,12 +2474,12 @@ linalloc_end_temp(Temp_Memory_Arena temp){
         }
     }
 }
-static void
+internal void
 linalloc_clear(Arena *arena){
     Temp_Memory_Arena temp = {arena, 0, 0};
     linalloc_end_temp(temp);
 }
-static void
+internal void
 arena_tap(Arena *arena){
     Cursor_Node *cursor_node = arena->cursor_node;
     if (cursor_node == 0){
@@ -2479,7 +2489,7 @@ arena_tap(Arena *arena){
         arena__new_node(arena, 0);
     }
 }
-static Cursor*
+internal Cursor*
 arena_as_cursor(Arena *arena){
     Cursor *cursor = 0;
     arena_tap(arena);
@@ -2489,16 +2499,16 @@ arena_as_cursor(Arena *arena){
     }
     return(cursor);
 }
-static void*
+internal void*
 linalloc_wrap_unintialized(Data data){
     return(data.data);
 }
-static void*
+internal void*
 linalloc_wrap_zero(Data data){
     block_zero(data.data, data.size);
     return(data.data);
 }
-static void*
+internal void*
 linalloc_wrap_write(Data data, umem size, void *src){
     block_copy(data.data, src, clamp_top(data.size, size));
     return(data.data);
@@ -2509,19 +2519,19 @@ linalloc_wrap_write(Data data, umem size, void *src){
 #define pop_array(a,T,c) (linalloc_pop((a), sizeof(T)*(c)))
 #define push_align(a,b) (linalloc_align((a), (b)))
 #define push_align_zero(a,b) (linalloc_wrap_zero(linalloc_align((a), (b))))
-static Temp_Memory
+internal Temp_Memory
 begin_temp(Cursor *cursor){
     Temp_Memory temp = {LinearAllocatorKind_Cursor};
     temp.temp_memory_cursor = linalloc_begin_temp(cursor);
     return(temp);
 }
-static Temp_Memory
+internal Temp_Memory
 begin_temp(Arena *arena){
     Temp_Memory temp = {LinearAllocatorKind_Arena};
     temp.temp_memory_arena = linalloc_begin_temp(arena);
     return(temp);
 }
-static void
+internal void
 end_temp(Temp_Memory temp){
     switch (temp.kind){
         case LinearAllocatorKind_Cursor:
@@ -2537,7 +2547,188 @@ end_temp(Temp_Memory temp){
 
 ////////////////////////////////
 
-static Data
+#define heap__sent_init(s) (s)->next=(s)->prev=(s)
+#define heap__insert_next(p,n) ((n)->next=(p)->next,(n)->prev=(p),(n)->next->prev=(n),(p)->next=(n))
+#define heap__insert_prev(p,n) ((n)->prev=(p)->prev,(n)->next=(p),(n)->prev->next=(n),(p)->prev=(n))
+#define heap__remove(n) ((n)->next->prev=(n)->prev,(n)->prev->next=(n)->next)
+
+#if defined(DO_HEAP_CHECKS)
+internal void
+heap_assert_good(Heap *heap){
+    if (heap->in_order.next != 0){
+        Assert(heap->in_order.prev != 0);
+        Assert(heap->free_nodes.next != 0);
+        Assert(heap->free_nodes.prev != 0);
+        for (Heap_Basic_Node *node = &heap->in_order;;){
+            Assert(node->next->prev == node);
+            Assert(node->prev->next == node);
+            node = node->next;
+            if (node == &heap->in_order){
+                break;
+            }
+        }
+        for (Heap_Basic_Node *node = &heap->free_nodes;;){
+            Assert(node->next->prev == node);
+            Assert(node->prev->next == node);
+            node = node->next;
+            if (node == &heap->free_nodes){
+                break;
+            }
+        }
+    }
+}
+#else
+#define heap_assert_good(heap) ((void)(heap))
+#endif
+
+internal void
+heap_init(Heap *heap, Base_Allocator *allocator){
+    heap->arena = make_arena(allocator, KB(64), KB(8));
+    heap__sent_init(&heap->in_order);
+    heap__sent_init(&heap->free_nodes);
+    heap->used_space = 0;
+    heap->total_space = 0;
+}
+
+internal Base_Allocator*
+heap_free_all(Heap *heap){
+    Base_Allocator *allocator = heap->arena.base_allocator;
+    linalloc_clear(&heap->arena);
+    block_zero_struct(heap);
+    return(allocator);
+}
+
+internal void
+heap__extend(Heap *heap, void *memory, umem size){
+    heap_assert_good(heap);
+    if (size >= sizeof(Heap_Node)){
+        Heap_Node *new_node = (Heap_Node*)memory;
+        heap__insert_prev(&heap->in_order, &new_node->order);
+        heap__insert_next(&heap->free_nodes, &new_node->alloc);
+        new_node->size = size - sizeof(*new_node);
+        heap->total_space += size;
+    }
+    heap_assert_good(heap);
+}
+
+internal void
+heap__extend_automatic(Heap *heap, umem size){
+    void *memory = push_array(&heap->arena, u8, size);
+    heap__extend(heap, memory, size);
+}
+
+internal void*
+heap__reserve_chunk(Heap *heap, Heap_Node *node, umem size){
+    u8 *ptr = (u8*)(node + 1);
+    Assert(node->size >= size);
+    umem left_over_size = node->size - size;
+    if (left_over_size > sizeof(*node)){
+        umem new_node_size = left_over_size - sizeof(*node);
+        Heap_Node *new_node = (Heap_Node*)(ptr + size);
+        heap__insert_next(&node->order, &new_node->order);
+        heap__insert_next(&node->alloc, &new_node->alloc);
+        new_node->size = new_node_size;
+    }
+    heap__remove(&node->alloc);
+    node->alloc.next = 0;
+    node->alloc.prev = 0;
+    node->size = size;
+    heap->used_space += sizeof(*node) + size;
+    return(ptr);
+}
+
+internal void*
+heap_allocate(Heap *heap, umem size){
+    b32 first_try = true;
+    for (;;){
+        if (heap->in_order.next != 0){
+            heap_assert_good(heap);
+            umem aligned_size = (size + sizeof(Heap_Node) - 1);
+            aligned_size = aligned_size - (aligned_size%sizeof(Heap_Node));
+            for (Heap_Basic_Node *n = heap->free_nodes.next;
+                 n != &heap->free_nodes;
+                 n = n->next){
+                Heap_Node *node = CastFromMember(Heap_Node, alloc, n);
+                if (node->size >= aligned_size){
+                    void *ptr = heap__reserve_chunk(heap, node, aligned_size);
+                    heap_assert_good(heap);
+                    return(ptr);
+                }
+            }
+            heap_assert_good(heap);
+        }
+        
+        if (first_try){
+            umem extension_size = clamp_bot(KB(64), size*2);
+            heap__extend_automatic(heap, extension_size);
+            first_try = false;
+        }
+        else{
+            break;
+        }
+    }
+    return(0);
+}
+
+internal void
+heap__merge(Heap *heap, Heap_Node *l, Heap_Node *r){
+    if (&l->order != &heap->in_order && &r->order != &heap->in_order &&
+        l->alloc.next != 0 && l->alloc.prev != 0 &&
+        r->alloc.next != 0 && r->alloc.prev != 0){
+        u8 *ptr = (u8*)(l + 1) + l->size;
+        if (PtrDif(ptr, r) == 0){
+            heap__remove(&r->order);
+            heap__remove(&r->alloc);
+            heap__remove(&l->alloc);
+            l->size += r->size + sizeof(*r);
+            heap__insert_next(&heap->free_nodes, &l->alloc);
+        }
+    }
+}
+
+internal void
+heap_free(Heap *heap, void *memory){
+    if (heap->in_order.next != 0 && memory != 0){
+        Heap_Node *node = ((Heap_Node*)memory) - 1;
+        Assert(node->alloc.next == 0);
+        Assert(node->alloc.prev == 0);
+        heap->used_space -= sizeof(*node) + node->size;
+        heap_assert_good(heap);
+        heap__insert_next(&heap->free_nodes, &node->alloc);
+        heap_assert_good(heap);
+        heap__merge(heap, node, CastFromMember(Heap_Node, order, node->order.next));
+        heap_assert_good(heap);
+        heap__merge(heap, CastFromMember(Heap_Node, order, node->order.prev), node);
+        heap_assert_good(heap);
+    }
+}
+
+#define heap_array(heap, T, c) (T*)(heap_allocate((heap), sizeof(T)*(c)))
+
+////////////////////////////////
+
+internal void*
+base_reserve__heap(void *user_data, umem size, umem *size_out){
+    Heap *heap = (Heap*)user_data;
+    void *memory = heap_allocate(heap, size);
+    *size_out = size;
+    return(memory);
+}
+
+internal void
+base_free__heap(void *user_data, void *ptr){
+    Heap *heap = (Heap*)user_data;
+    heap_free(heap, ptr);
+}
+
+internal Base_Allocator
+base_allocator_on_heap(Heap *heap){
+    return(make_base_allocator(base_reserve__heap, 0, 0, base_free__heap, 0, heap));
+}
+
+////////////////////////////////
+
+internal Data
 push_data(Arena *arena, umem size){
     Data result = {};
     result.data = push_array(arena, u8, size);
@@ -2545,7 +2736,7 @@ push_data(Arena *arena, umem size){
     return(result);
 }
 
-static Data
+internal Data
 push_data_copy(Arena *arena, Data data){
     Data result = {};
     result.data = push_array_write(arena, u8, data.size, data.data);
@@ -2553,127 +2744,127 @@ push_data_copy(Arena *arena, Data data){
     return(result);
 }
 
-static b32
+internal b32
 data_match(Data a, Data b){
     return(a.size == b.size && block_match(a.data, b.data, a.size));
 }
 
 ////////////////////////////////
 
-static b32
+internal b32
 character_is_slash(char c){
     return((c == '/') || (c == '\\'));
 }
-static b32
+internal b32
 character_is_slash(u8 c){
     return((c == '/') || (c == '\\'));
 }
-static b32
+internal b32
 character_is_slash(u16 c){
     return((c == '/') || (c == '\\'));
 }
-static b32
+internal b32
 character_is_slash(u32 c){
     return((c == '/') || (c == '\\'));
 }
 
-static b32
+internal b32
 character_is_upper(char c){
     return(('A' <= c) && (c <= 'Z'));
 }
-static b32
+internal b32
 character_is_upper(u8 c){
     return(('A' <= c) && (c <= 'Z'));
 }
-static b32
+internal b32
 character_is_upper(u16 c){
     return(('A' <= c) && (c <= 'Z'));
 }
-static b32
+internal b32
 character_is_upper(u32 c){
     return(('A' <= c) && (c <= 'Z'));
 }
 
-static b32
+internal b32
 character_is_lower(char c){
     return(('a' <= c) && (c <= 'z'));
 }
-static b32
+internal b32
 character_is_lower(u8 c){
     return(('a' <= c) && (c <= 'z'));
 }
-static b32
+internal b32
 character_is_lower(u16 c){
     return(('a' <= c) && (c <= 'z'));
 }
-static b32
+internal b32
 character_is_lower(u32 c){
     return(('a' <= c) && (c <= 'z'));
 }
 
-static b32
+internal b32
 character_is_lower_unicode(u8 c){
     return((('a' <= c) && (c <= 'z')) || c >= 128);
 }
-static b32
+internal b32
 character_is_lower_unicode(u16 c){
     return((('a' <= c) && (c <= 'z')) || c >= 128);
 }
-static b32
+internal b32
 character_is_lower_unicode(u32 c){
     return((('a' <= c) && (c <= 'z')) || c >= 128);
 }
 
-static char
+internal char
 character_to_upper(char c){
     if (('a' <= c) && (c <= 'z')){
         c -= 'a' - 'A';
     }
     return(c);
 }
-static u8
+internal u8
 character_to_upper(u8 c){
     if (('a' <= c) && (c <= 'z')){
         c -= 'a' - 'A';
     }
     return(c);
 }
-static u16
+internal u16
 character_to_upper(u16 c){
     if (('a' <= c) && (c <= 'z')){
         c -= 'a' - 'A';
     }
     return(c);
 }
-static u32
+internal u32
 character_to_upper(u32 c){
     if (('a' <= c) && (c <= 'z')){
         c -= 'a' - 'A';
     }
     return(c);
 }
-static char
+internal char
 character_to_lower(char c){
     if (('A' <= c) && (c <= 'Z')){
         c += 'a' - 'A';
     }
     return(c);
 }
-static u8
+internal u8
 character_to_lower(u8 c){
     if (('A' <= c) && (c <= 'Z')){
         c += 'a' - 'A';
     }
     return(c);
 }
-static u16
+internal u16
 character_to_lower(u16 c){
     if (('A' <= c) && (c <= 'Z')){
         c += 'a' - 'A';
     }
     return(c);
 }
-static u32
+internal u32
 character_to_lower(u32 c){
     if (('A' <= c) && (c <= 'Z')){
         c += 'a' - 'A';
@@ -2681,79 +2872,79 @@ character_to_lower(u32 c){
     return(c);
 }
 
-static b32
+internal b32
 character_is_whitespace(char c){
     return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
 }
-static b32
+internal b32
 character_is_whitespace(u8 c){
     return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
 }
-static b32
+internal b32
 character_is_whitespace(u16 c){
     return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
 }
-static b32
+internal b32
 character_is_whitespace(u32 c){
     return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
 }
 
-static b32
+internal b32
 character_is_base10(char c){
     return('0' <= c && c <= '9');
 }
-static b32
+internal b32
 character_is_base10(u8 c){
     return('0' <= c && c <= '9');
 }
-static b32
+internal b32
 character_is_base10(u16 c){
     return('0' <= c && c <= '9');
 }
-static b32
+internal b32
 character_is_base10(u32 c){
     return('0' <= c && c <= '9');
 }
 
-static b32
+internal b32
 character_is_base16(char c){
     return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
 }
-static b32
+internal b32
 character_is_base16(u8 c){
     return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
 }
-static b32
+internal b32
 character_is_base16(u16 c){
     return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
 }
-static b32
+internal b32
 character_is_base16(u32 c){
     return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
 }
 
-static b32
+internal b32
 character_is_base64(char c){
     return(('0' <= c && c <= '9') ||
            ('a' <= c && c <= 'z') ||
            ('A' <= c && c <= 'Z') ||
            c == '_' || c == '$' || c == '?');
 }
-static b32
+internal b32
 character_is_base64(u8 c){
     return(('0' <= c && c <= '9') ||
            ('a' <= c && c <= 'z') ||
            ('A' <= c && c <= 'Z') ||
            c == '_' || c == '$' || c == '?');
 }
-static b32
+internal b32
 character_is_base64(u16 c){
     return(('0' <= c && c <= '9') ||
            ('a' <= c && c <= 'z') ||
            ('A' <= c && c <= 'Z') ||
            c == '_' || c == '$' || c == '?');
 }
-static b32
+internal b32
 character_is_base64(u32 c){
     return(('0' <= c && c <= '9') ||
            ('a' <= c && c <= 'z') ||
@@ -2761,114 +2952,114 @@ character_is_base64(u32 c){
            c == '_' || c == '$' || c == '?');
 }
 
-static b32
+internal b32
 character_is_alpha(char c){
     return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
 }
-static b32
+internal b32
 character_is_alpha(u8 c){
     return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
 }
-static b32
+internal b32
 character_is_alpha(u16 c){
     return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
 }
-static b32
+internal b32
 character_is_alpha(u32 c){
     return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
 }
 
-static b32
+internal b32
 character_is_alpha_numeric(char c){
     return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
 }
-static b32
+internal b32
 character_is_alpha_numeric(u8 c){
     return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
 }
-static b32
+internal b32
 character_is_alpha_numeric(u16 c){
     return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
 }
-static b32
+internal b32
 character_is_alpha_numeric(u32 c){
     return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
 }
 
 
-static b32
+internal b32
 character_is_alpha_unicode(u8 c){
     return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
 }
-static b32
+internal b32
 character_is_alpha_unicode(u16 c){
     return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
 }
-static b32
+internal b32
 character_is_alpha_unicode(u32 c){
     return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
 }
 
-static b32
+internal b32
 character_is_alpha_numeric_unicode(u8 c){
     return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
 }
-static b32
+internal b32
 character_is_alpha_numeric_unicode(u16 c){
     return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
 }
-static b32
+internal b32
 character_is_alpha_numeric_unicode(u32 c){
     return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
 }
 
-static umem
+internal umem
 cstring_length(char *str){
     umem length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
-static umem
+internal umem
 cstring_length(u8 *str){
     umem length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
-static umem
+internal umem
 cstring_length(u16 *str){
     umem length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
-static umem
+internal umem
 cstring_length(u32 *str){
     umem length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
 
-static String_char
+internal String_char
 Schar(char *str, umem size, umem cap){
     String_char string = {str, size, cap};
     return(string);
 }
-static String_u8
+internal String_u8
 Su8(u8 *str, umem size, umem cap){
     String_u8 string = {str, size, cap};
     return(string);
 }
-static String_u16
+internal String_u16
 Su16(u16 *str, umem size, umem cap){
     String_u16 string = {str, size, cap};
     return(string);
 }
-static String_u32
+internal String_u32
 Su32(u32 *str, umem size, umem cap){
     String_u32 string = {str, size, cap};
     return(string);
 }
 
-static String_Any
+internal String_Any
 Sany(void *str, umem size, umem cap, String_Encoding encoding){
     String_Any string = {encoding};
     switch (encoding){
@@ -2880,28 +3071,28 @@ Sany(void *str, umem size, umem cap, String_Encoding encoding){
     return(string);
 }
 
-static String_char
+internal String_char
 Schar(char *str, umem size){
     String_char string = {str, size, size + 1};
     return(string);
 }
-static String_u8
+internal String_u8
 Su8(u8 *str, umem size){
     String_u8 string = {str, size, size + 1};
     return(string);
 }
-static String_u16
+internal String_u16
 Su16(u16 *str, umem size){
     String_u16 string = {str, size, size + 1};
     return(string);
 }
-static String_u32
+internal String_u32
 Su32(u32 *str, umem size){
     String_u32 string = {str, size, size + 1};
     return(string);
 }
 
-static String_Any
+internal String_Any
 Sany(void *str, umem size, String_Encoding encoding){
     String_Any string = {encoding};
     switch (encoding){
@@ -2913,24 +3104,24 @@ Sany(void *str, umem size, String_Encoding encoding){
     return(string);
 }
 
-static String_char
+internal String_char
 Schar(char *str, char *one_past_last){
     return(Schar(str, (umem)(one_past_last - str)));
 }
-static String_u8
+internal String_u8
 Su8(u8 *str, u8 *one_past_last){
     return(Su8(str, (umem)(one_past_last - str)));
 }
-static String_u16
+internal String_u16
 Su16(u16 *str, u16 *one_past_last){
     return(Su16(str, (umem)(one_past_last - str)));
 }
-static String_u32
+internal String_u32
 Su32(u32 *str, u32 *one_past_last){
     return(Su32(str, (umem)(one_past_last - str)));
 }
 
-static String_Any
+internal String_Any
 Sany(void *str, void *one_past_last, String_Encoding encoding){
     String_Any string = {encoding};
     switch (encoding){
@@ -2942,32 +3133,32 @@ Sany(void *str, void *one_past_last, String_Encoding encoding){
     return(string);
 }
 
-static String_char
+internal String_char
 Schar(char *str){
     umem size = cstring_length(str);
     String_char string = {str, size, size + 1};
     return(string);
 }
-static String_u8
+internal String_u8
 Su8(u8 *str){
     umem size = cstring_length(str);
     String_u8 string = {str, size, size + 1};
     return(string);
 }
-static String_u16
+internal String_u16
 Su16(u16 *str){
     umem size = cstring_length(str);
     String_u16 string = {str, size, size + 1};
     return(string);
 }
-static String_u32
+internal String_u32
 Su32(u32 *str){
     umem size = cstring_length(str);
     String_u32 string = {str, size, size + 1};
     return(string);
 }
 
-static String_Any
+internal String_Any
 Sany(void *str, String_Encoding encoding){
     String_Any string = {encoding};
     switch (encoding){
@@ -2979,74 +3170,74 @@ Sany(void *str, String_Encoding encoding){
     return(string);
 }
 
-static String_char
+internal String_char
 Schar(String_Const_char str, umem cap){
     String_char string = {str.str, str.size, cap};
     return(string);
 }
-static String_u8
+internal String_u8
 Su8(String_Const_u8 str, umem cap){
     String_u8 string = {str.str, str.size, cap};
     return(string);
 }
-static String_u16
+internal String_u16
 Su16(String_Const_u16 str, umem cap){
     String_u16 string = {str.str, str.size, cap};
     return(string);
 }
-static String_u32
+internal String_u32
 Su32(String_Const_u32 str, umem cap){
     String_u32 string = {str.str, str.size, cap};
     return(string);
 }
 
-static String_Any
+internal String_Any
 SCany(String_char str){
     String_Any string = {StringEncoding_ASCII};
     string.s_char = str;
     return(string);
 }
-static String_Any
+internal String_Any
 SCany(String_u8 str){
     String_Any string = {StringEncoding_UTF8};
     string.s_u8 = str;
     return(string);
 }
-static String_Any
+internal String_Any
 SCany(String_u16 str){
     String_Any string = {StringEncoding_UTF16};
     string.s_u16 = str;
     return(string);
 }
-static String_Any
+internal String_Any
 SCany(String_u32 str){
     String_Any string = {StringEncoding_UTF32};
     string.s_u32 = str;
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 SCchar(char *str, umem size){
     String_Const_char string = {str, size};
     return(string);
 }
-static String_Const_u8
+internal String_Const_u8
 SCu8(u8 *str, umem size){
     String_Const_u8 string = {str, size};
     return(string);
 }
-static String_Const_u16
+internal String_Const_u16
 SCu16(u16 *str, umem size){
     String_Const_u16 string = {str, size};
     return(string);
 }
-static String_Const_u32
+internal String_Const_u32
 SCu32(u32 *str, umem size){
     String_Const_u32 string = {str, size};
     return(string);
 }
 
-static String_Const_Any
+internal String_Const_Any
 SCany(void *str, umem size, String_Encoding encoding){
     String_Const_Any string = {encoding};
     switch (encoding){
@@ -3058,45 +3249,45 @@ SCany(void *str, umem size, String_Encoding encoding){
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 SCchar(void){
     String_Const_char string = {};
     return(string);
 }
-static String_Const_u8
+internal String_Const_u8
 SCu8(void){
     String_Const_u8 string = {};
     return(string);
 }
-static String_Const_u16
+internal String_Const_u16
 SCu16(void){
     String_Const_u16 string = {};
     return(string);
 }
-static String_Const_u32
+internal String_Const_u32
 SCu32(void){
     String_Const_u32 string = {};
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 SCchar(char *str, char *one_past_last){
     return(SCchar(str, (umem)(one_past_last - str)));
 }
-static String_Const_u8
+internal String_Const_u8
 SCu8(u8 *str, u8 *one_past_last){
     return(SCu8(str, (umem)(one_past_last - str)));
 }
-static String_Const_u16
+internal String_Const_u16
 SCu16(u16 *str, u16 *one_past_last){
     return(SCu16(str, (umem)(one_past_last - str)));
 }
-static String_Const_u32
+internal String_Const_u32
 SCu32(u32 *str, u32 *one_past_last){
     return(SCu32(str, (umem)(one_past_last - str)));
 }
 
-static String_Const_Any
+internal String_Const_Any
 SCany(void *str, void *one_past_last, String_Encoding encoding){
     String_Const_Any string = {encoding};
     switch (encoding){
@@ -3108,68 +3299,68 @@ SCany(void *str, void *one_past_last, String_Encoding encoding){
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 SCchar(char *str){
     umem size = cstring_length(str);
     String_Const_char string = {str, size};
     return(string);
 }
-static String_Const_u8
+internal String_Const_u8
 SCu8(u8 *str){
     umem size = cstring_length(str);
     String_Const_u8 string = {str, size};
     return(string);
 }
-static String_Const_u16
+internal String_Const_u16
 SCu16(u16 *str){
     umem size = cstring_length(str);
     String_Const_u16 string = {str, size};
     return(string);
 }
-static String_Const_u32
+internal String_Const_u32
 SCu32(u32 *str){
     umem size = cstring_length(str);
     String_Const_u32 string = {str, size};
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 SCchar(String_Const_u8 str){
     return(SCchar((char*)str.str, str.size));
 }
-static String_Const_u8
+internal String_Const_u8
 SCu8(String_Const_char str){
     return(SCu8((u8*)str.str, str.size));
 }
 
-static String_Const_u8
+internal String_Const_u8
 SCu8(char *str, umem length){
     return(SCu8((u8*)str, length));
 }
-static String_Const_u8
+internal String_Const_u8
 SCu8(char *first, char *one_past_last){
     return(SCu8((u8*)first, (u8*)one_past_last));
 }
-static String_Const_u8
+internal String_Const_u8
 SCu8(char *str){
     return(SCu8((u8*)str));
 }
 
-static String_Const_u8
+internal String_Const_u8
 SCu8(Data data){
     return(SCu8((u8*)data.data, data.size));
 }
 
-static String_Const_u16
+internal String_Const_u16
 SCu16(wchar_t *str, umem size){
     return(SCu16((u16*)str, size));
 }
-static String_Const_u16
+internal String_Const_u16
 SCu16(wchar_t *str){
     return(SCu16((u16*)str));
 }
 
-static String_Const_Any
+internal String_Const_Any
 SCany(void *str, String_Encoding encoding){
     String_Const_Any string = {encoding};
     switch (encoding){
@@ -3181,25 +3372,25 @@ SCany(void *str, String_Encoding encoding){
     return(string);
 }
 
-static String_Const_Any
+internal String_Const_Any
 SCany(String_Const_char str){
     String_Const_Any string = {StringEncoding_ASCII};
     string.s_char = str;
     return(string);
 }
-static String_Const_Any
+internal String_Const_Any
 SCany(String_Const_u8 str){
     String_Const_Any string = {StringEncoding_UTF8};
     string.s_u8 = str;
     return(string);
 }
-static String_Const_Any
+internal String_Const_Any
 SCany(String_Const_u16 str){
     String_Const_Any string = {StringEncoding_UTF16};
     string.s_u16 = str;
     return(string);
 }
-static String_Const_Any
+internal String_Const_Any
 SCany(String_Const_u32 str){
     String_Const_Any string = {StringEncoding_UTF32};
     string.s_u32 = str;
@@ -3214,10 +3405,10 @@ SCany(String_Const_u32 str){
 
 #define string_expand(s) (i32)(s).size, (char*)(s).str
 
-static String_Const_char string_empty = {"", 0};
-static String_Const_u8 string_u8_empty = {"", 0};
+internal String_Const_char string_empty = {"", 0};
+internal String_Const_u8 string_u8_empty = {"", 0};
 
-static char
+internal char
 string_get_character(String_Const_char str, umem i){
     char r = 0;
     if (i < str.size){
@@ -3225,7 +3416,7 @@ string_get_character(String_Const_char str, umem i){
     }
     return(r);
 }
-static u8
+internal u8
 string_get_character(String_Const_u8 str, umem i){
     u8 r = 0;
     if (i < str.size){
@@ -3233,7 +3424,7 @@ string_get_character(String_Const_u8 str, umem i){
     }
     return(r);
 }
-static u16
+internal u16
 string_get_character(String_Const_u16 str, umem i){
     u16 r = 0;
     if (i < str.size){
@@ -3241,7 +3432,7 @@ string_get_character(String_Const_u16 str, umem i){
     }
     return(r);
 }
-static u32
+internal u32
 string_get_character(String_Const_u32 str, umem i){
     u32 r = 0;
     if (i < str.size){
@@ -3250,32 +3441,32 @@ string_get_character(String_Const_u32 str, umem i){
     return(r);
 }
 
-static String_Const_char
+internal String_Const_char
 string_prefix(String_Const_char str, umem size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_prefix(String_Const_u8 str, umem size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_prefix(String_Const_u16 str, umem size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_prefix(String_Const_u32 str, umem size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
 
-static String_Const_Any
+internal String_Const_Any
 string_prefix(String_Const_Any str, umem size){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_prefix(str.s_char, size); break;
@@ -3286,28 +3477,28 @@ string_prefix(String_Const_Any str, umem size){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_postfix(String_Const_char str, umem size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
     str.size = size;
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_postfix(String_Const_u8 str, umem size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
     str.size = size;
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_postfix(String_Const_u16 str, umem size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
     str.size = size;
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_postfix(String_Const_u32 str, umem size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
@@ -3315,7 +3506,7 @@ string_postfix(String_Const_u32 str, umem size){
     return(str);
 }
 
-static String_Const_Any
+internal String_Const_Any
 string_postfix(String_Const_Any str, umem size){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_postfix(str.s_char, size); break;
@@ -3326,28 +3517,28 @@ string_postfix(String_Const_Any str, umem size){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_skip(String_Const_char str, umem n){
     n = clamp_top(n, str.size);
     str.str += n;;
     str.size -= n;
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_skip(String_Const_u8 str, umem n){
     n = clamp_top(n, str.size);
     str.str += n;;
     str.size -= n;
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_skip(String_Const_u16 str, umem n){
     n = clamp_top(n, str.size);
     str.str += n;;
     str.size -= n;
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_skip(String_Const_u32 str, umem n){
     n = clamp_top(n, str.size);
     str.str += n;;
@@ -3355,7 +3546,7 @@ string_skip(String_Const_u32 str, umem n){
     return(str);
 }
 
-static String_Const_Any
+internal String_Const_Any
 string_skip(String_Const_Any str, umem n){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_skip(str.s_char, n); break;
@@ -3366,32 +3557,32 @@ string_skip(String_Const_Any str, umem n){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_chop(String_Const_char str, umem n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_chop(String_Const_u8 str, umem n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_chop(String_Const_u16 str, umem n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_chop(String_Const_u32 str, umem n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
 
-static String_Const_Any
+internal String_Const_Any
 string_chop(String_Const_Any str, umem n){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_chop(str.s_char, n); break;
@@ -3402,87 +3593,87 @@ string_chop(String_Const_Any str, umem n){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_substring(String_Const_char str, Range_i64 range){
     return(SCchar(str.str + range.min, str.str + range.max));
 }
-static String_Const_u8
+internal String_Const_u8
 string_substring(String_Const_u8 str, Range_i64 range){
     return(SCu8(str.str + range.min, str.str + range.max));
 }
-static String_Const_u16
+internal String_Const_u16
 string_substring(String_Const_u16 str, Range_i64 range){
     return(SCu16(str.str + range.min, str.str + range.max));
 }
-static String_Const_u32
+internal String_Const_u32
 string_substring(String_Const_u32 str, Range_i64 range){
     return(SCu32(str.str + range.min, str.str + range.max));
 }
 
-static umem
+internal umem
 string_find_first(String_Const_char str, umem start_pos, char c){
     umem i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first(String_Const_u8 str, umem start_pos, u8 c){
     umem i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first(String_Const_u16 str, umem start_pos, u16 c){
     umem i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first(String_Const_u32 str, umem start_pos, u32 c){
     umem i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
 
-static umem
+internal umem
 string_find_first(String_Const_char str, char c){
     return(string_find_first(str, 0, c));
 }
-static umem
+internal umem
 string_find_first(String_Const_u8 str, u8 c){
     return(string_find_first(str, 0, c));
 }
-static umem
+internal umem
 string_find_first(String_Const_u16 str, u16 c){
     return(string_find_first(str, 0, c));
 }
-static umem
+internal umem
 string_find_first(String_Const_u32 str, u32 c){
     return(string_find_first(str, 0, c));
 }
 
-static imem
+internal imem
 string_find_last(String_Const_char str, char c){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last(String_Const_u8 str, u8 c){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last(String_Const_u16 str, u16 c){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last(String_Const_u32 str, u32 c){
     imem size = (imem)str.size;
     imem i = size - 1;
@@ -3490,52 +3681,52 @@ string_find_last(String_Const_u32 str, u32 c){
     return(i);
 }
 
-static umem
+internal umem
 string_find_first_whitespace(String_Const_char str){
     umem i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_whitespace(String_Const_u8 str){
     umem i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_whitespace(String_Const_u16 str){
     umem i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_whitespace(String_Const_u32 str){
     umem i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_whitespace(String_Const_char str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_whitespace(String_Const_u8 str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_whitespace(String_Const_u16 str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_whitespace(String_Const_u32 str){
     imem size = (imem)str.size;
     imem i = size - 1;
@@ -3543,52 +3734,52 @@ string_find_last_whitespace(String_Const_u32 str){
     return(i);
 }
 
-static umem
+internal umem
 string_find_first_non_whitespace(String_Const_char str){
     umem i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_non_whitespace(String_Const_u8 str){
     umem i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_non_whitespace(String_Const_u16 str){
     umem i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_non_whitespace(String_Const_u32 str){
     umem i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_non_whitespace(String_Const_char str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_non_whitespace(String_Const_u8 str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_non_whitespace(String_Const_u16 str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_non_whitespace(String_Const_u32 str){
     imem size = (imem)str.size;
     imem i = size - 1;
@@ -3596,52 +3787,52 @@ string_find_last_non_whitespace(String_Const_u32 str){
     return(i);
 }
 
-static umem
+internal umem
 string_find_first_slash(String_Const_char str){
     umem i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_slash(String_Const_u8 str){
     umem i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_slash(String_Const_u16 str){
     umem i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-static umem
+internal umem
 string_find_first_slash(String_Const_u32 str){
     umem i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_slash(String_Const_char str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && !character_is_slash(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_slash(String_Const_u8 str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && !character_is_slash(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_slash(String_Const_u16 str){
     imem size = (imem)str.size;
     imem i = size - 1;
     for (;i >= 0 && !character_is_slash(str.str[i]); i -= 1);
     return(i);
 }
-static imem
+internal imem
 string_find_last_slash(String_Const_u32 str){
     imem size = (imem)str.size;
     imem i = size - 1;
@@ -3649,7 +3840,7 @@ string_find_last_slash(String_Const_u32 str){
     return(i);
 }
 
-static String_Const_char
+internal String_Const_char
 string_remove_last_folder(String_Const_char str){
     if (str.size > 0){
         str.size -= 1;
@@ -3663,7 +3854,7 @@ string_remove_last_folder(String_Const_char str){
     }
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_remove_last_folder(String_Const_u8 str){
     if (str.size > 0){
         str.size -= 1;
@@ -3677,7 +3868,7 @@ string_remove_last_folder(String_Const_u8 str){
     }
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_remove_last_folder(String_Const_u16 str){
     if (str.size > 0){
         str.size -= 1;
@@ -3691,7 +3882,7 @@ string_remove_last_folder(String_Const_u16 str){
     }
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_remove_last_folder(String_Const_u32 str){
     if (str.size > 0){
         str.size -= 1;
@@ -3706,7 +3897,7 @@ string_remove_last_folder(String_Const_u32 str){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_remove_front_of_path(String_Const_char str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
@@ -3717,7 +3908,7 @@ string_remove_front_of_path(String_Const_char str){
     }
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_remove_front_of_path(String_Const_u8 str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
@@ -3728,7 +3919,7 @@ string_remove_front_of_path(String_Const_u8 str){
     }
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_remove_front_of_path(String_Const_u16 str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
@@ -3739,7 +3930,7 @@ string_remove_front_of_path(String_Const_u16 str){
     }
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_remove_front_of_path(String_Const_u32 str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
@@ -3751,7 +3942,7 @@ string_remove_front_of_path(String_Const_u32 str){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_front_of_path(String_Const_char str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
@@ -3759,7 +3950,7 @@ string_front_of_path(String_Const_char str){
     }
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_front_of_path(String_Const_u8 str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
@@ -3767,7 +3958,7 @@ string_front_of_path(String_Const_u8 str){
     }
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_front_of_path(String_Const_u16 str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
@@ -3775,7 +3966,7 @@ string_front_of_path(String_Const_u16 str){
     }
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_front_of_path(String_Const_u32 str){
     imem slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
@@ -3784,24 +3975,24 @@ string_front_of_path(String_Const_u32 str){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_file_extension(String_Const_char string){
     return(string_skip(string, string_find_last(string, '.') + 1));
 }
-static String_Const_u8
+internal String_Const_u8
 string_file_extension(String_Const_u8 string){
     return(string_skip(string, string_find_last(string, '.') + 1));
 }
-static String_Const_u16
+internal String_Const_u16
 string_file_extension(String_Const_u16 string){
     return(string_skip(string, string_find_last(string, '.') + 1));
 }
-static String_Const_u32
+internal String_Const_u32
 string_file_extension(String_Const_u32 string){
     return(string_skip(string, string_find_last(string, '.') + 1));
 }
 
-static String_Const_char
+internal String_Const_char
 string_file_without_extension(String_Const_char string){
     imem pos = string_find_last(string, '.');
     if (pos > 0){
@@ -3809,7 +4000,7 @@ string_file_without_extension(String_Const_char string){
     }
     return(string);
 }
-static String_Const_u8
+internal String_Const_u8
 string_file_without_extension(String_Const_u8 string){
     imem pos = string_find_last(string, '.');
     if (pos > 0){
@@ -3817,7 +4008,7 @@ string_file_without_extension(String_Const_u8 string){
     }
     return(string);
 }
-static String_Const_u16
+internal String_Const_u16
 string_file_without_extension(String_Const_u16 string){
     imem pos = string_find_last(string, '.');
     if (pos > 0){
@@ -3825,7 +4016,7 @@ string_file_without_extension(String_Const_u16 string){
     }
     return(string);
 }
-static String_Const_u32
+internal String_Const_u32
 string_file_without_extension(String_Const_u32 string){
     imem pos = string_find_last(string, '.');
     if (pos > 0){
@@ -3834,57 +4025,57 @@ string_file_without_extension(String_Const_u32 string){
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 string_skip_whitespace(String_Const_char str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_skip_whitespace(String_Const_u8 str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_skip_whitespace(String_Const_u16 str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_skip_whitespace(String_Const_u32 str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_chop_whitespace(String_Const_char str){
     imem e = string_find_last_non_whitespace(str);
     str = string_prefix(str, (umem)(e + 1));
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_chop_whitespace(String_Const_u8 str){
     imem e = string_find_last_non_whitespace(str);
     str = string_prefix(str, (umem)(e + 1));
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_chop_whitespace(String_Const_u16 str){
     imem e = string_find_last_non_whitespace(str);
     str = string_prefix(str, (umem)(e + 1));
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_chop_whitespace(String_Const_u32 str){
     imem e = string_find_last_non_whitespace(str);
     str = string_prefix(str, (umem)(e + 1));
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_skip_chop_whitespace(String_Const_char str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
@@ -3892,7 +4083,7 @@ string_skip_chop_whitespace(String_Const_char str){
     str = string_prefix(str, (umem)(e + 1));
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_skip_chop_whitespace(String_Const_u8 str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
@@ -3900,7 +4091,7 @@ string_skip_chop_whitespace(String_Const_u8 str){
     str = string_prefix(str, (umem)(e + 1));
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_skip_chop_whitespace(String_Const_u16 str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
@@ -3908,7 +4099,7 @@ string_skip_chop_whitespace(String_Const_u16 str){
     str = string_prefix(str, (umem)(e + 1));
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_skip_chop_whitespace(String_Const_u32 str){
     umem f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
@@ -3917,7 +4108,7 @@ string_skip_chop_whitespace(String_Const_u32 str){
     return(str);
 }
 
-static b32
+internal b32
 string_match(String_Const_char a, String_Const_char b){
     b32 result = false;
     if (a.size == b.size){
@@ -3931,7 +4122,7 @@ string_match(String_Const_char a, String_Const_char b){
     }
     return(result);
 }
-static b32
+internal b32
 string_match(String_Const_u8 a, String_Const_u8 b){
     b32 result = false;
     if (a.size == b.size){
@@ -3945,7 +4136,7 @@ string_match(String_Const_u8 a, String_Const_u8 b){
     }
     return(result);
 }
-static b32
+internal b32
 string_match(String_Const_u16 a, String_Const_u16 b){
     b32 result = false;
     if (a.size == b.size){
@@ -3959,7 +4150,7 @@ string_match(String_Const_u16 a, String_Const_u16 b){
     }
     return(result);
 }
-static b32
+internal b32
 string_match(String_Const_u32 a, String_Const_u32 b){
     b32 result = false;
     if (a.size == b.size){
@@ -3974,7 +4165,7 @@ string_match(String_Const_u32 a, String_Const_u32 b){
     return(result);
 }
 
-static b32
+internal b32
 string_match(String_Const_Any a, String_Const_Any b){
     b32 result = false;
     if (a.encoding == b.encoding){
@@ -3988,7 +4179,7 @@ string_match(String_Const_Any a, String_Const_Any b){
     return(result);
 }
 
-static b32
+internal b32
 string_match_insensitive(String_Const_char a, String_Const_char b){
     b32 result = false;
     if (a.size == b.size){
@@ -4002,7 +4193,7 @@ string_match_insensitive(String_Const_char a, String_Const_char b){
     }
     return(result);
 }
-static b32
+internal b32
 string_match_insensitive(String_Const_u8 a, String_Const_u8 b){
     b32 result = false;
     if (a.size == b.size){
@@ -4016,7 +4207,7 @@ string_match_insensitive(String_Const_u8 a, String_Const_u8 b){
     }
     return(result);
 }
-static b32
+internal b32
 string_match_insensitive(String_Const_u16 a, String_Const_u16 b){
     b32 result = false;
     if (a.size == b.size){
@@ -4030,7 +4221,7 @@ string_match_insensitive(String_Const_u16 a, String_Const_u16 b){
     }
     return(result);
 }
-static b32
+internal b32
 string_match_insensitive(String_Const_u32 a, String_Const_u32 b){
     b32 result = false;
     if (a.size == b.size){
@@ -4045,7 +4236,7 @@ string_match_insensitive(String_Const_u32 a, String_Const_u32 b){
     return(result);
 }
 
-static b32
+internal b32
 string_match(String_Const_char a, String_Const_char b, String_Match_Rule rule){
     b32 result = false;
     switch (rule){
@@ -4060,7 +4251,7 @@ string_match(String_Const_char a, String_Const_char b, String_Match_Rule rule){
     }
     return(result);
 }
-static b32
+internal b32
 string_match(String_Const_u8 a, String_Const_u8 b, String_Match_Rule rule){
     b32 result = false;
     switch (rule){
@@ -4075,7 +4266,7 @@ string_match(String_Const_u8 a, String_Const_u8 b, String_Match_Rule rule){
     }
     return(result);
 }
-static b32
+internal b32
 string_match(String_Const_u16 a, String_Const_u16 b, String_Match_Rule rule){
     b32 result = false;
     switch (rule){
@@ -4090,7 +4281,7 @@ string_match(String_Const_u16 a, String_Const_u16 b, String_Match_Rule rule){
     }
     return(result);
 }
-static b32
+internal b32
 string_match(String_Const_u32 a, String_Const_u32 b, String_Match_Rule rule){
     b32 result = false;
     switch (rule){
@@ -4106,7 +4297,7 @@ string_match(String_Const_u32 a, String_Const_u32 b, String_Match_Rule rule){
     return(result);
 }
 
-static umem
+internal umem
 string_find_first(String_Const_char str, String_Const_char needle, String_Match_Rule rule){
     umem i = 0;
     if (needle.size > 0){
@@ -4129,7 +4320,7 @@ string_find_first(String_Const_char str, String_Const_char needle, String_Match_
     }
     return(i);
 }
-static umem
+internal umem
 string_find_first(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule rule){
     umem i = 0;
     if (needle.size > 0){
@@ -4152,7 +4343,7 @@ string_find_first(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule
     }
     return(i);
 }
-static umem
+internal umem
 string_find_first(String_Const_u16 str, String_Const_u16 needle, String_Match_Rule rule){
     umem i = 0;
     if (needle.size > 0){
@@ -4175,7 +4366,7 @@ string_find_first(String_Const_u16 str, String_Const_u16 needle, String_Match_Ru
     }
     return(i);
 }
-static umem
+internal umem
 string_find_first(String_Const_u32 str, String_Const_u32 needle, String_Match_Rule rule){
     umem i = 0;
     if (needle.size > 0){
@@ -4199,40 +4390,40 @@ string_find_first(String_Const_u32 str, String_Const_u32 needle, String_Match_Ru
     return(i);
 }
 
-static umem
+internal umem
 string_find_first(String_Const_char str, String_Const_char needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-static umem
+internal umem
 string_find_first(String_Const_u8 str, String_Const_u8 needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-static umem
+internal umem
 string_find_first(String_Const_u16 str, String_Const_u16 needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-static umem
+internal umem
 string_find_first(String_Const_u32 str, String_Const_u32 needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-static umem
+internal umem
 string_find_first_insensitive(String_Const_char str, String_Const_char needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
-static umem
+internal umem
 string_find_first_insensitive(String_Const_u8 str, String_Const_u8 needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
-static umem
+internal umem
 string_find_first_insensitive(String_Const_u16 str, String_Const_u16 needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
-static umem
+internal umem
 string_find_first_insensitive(String_Const_u32 str, String_Const_u32 needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
 
-static i32
+internal i32
 string_compare(String_Const_char a, String_Const_char b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4246,7 +4437,7 @@ string_compare(String_Const_char a, String_Const_char b){
     }
     return(result);
 }
-static i32
+internal i32
 string_compare(String_Const_u8 a, String_Const_u8 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4260,7 +4451,7 @@ string_compare(String_Const_u8 a, String_Const_u8 b){
     }
     return(result);
 }
-static i32
+internal i32
 string_compare(String_Const_u16 a, String_Const_u16 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4274,7 +4465,7 @@ string_compare(String_Const_u16 a, String_Const_u16 b){
     }
     return(result);
 }
-static i32
+internal i32
 string_compare(String_Const_u32 a, String_Const_u32 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4289,7 +4480,7 @@ string_compare(String_Const_u32 a, String_Const_u32 b){
     return(result);
 }
 
-static i32
+internal i32
 string_compare_insensitive(String_Const_char a, String_Const_char b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4303,7 +4494,7 @@ string_compare_insensitive(String_Const_char a, String_Const_char b){
     }
     return(result);
 }
-static i32
+internal i32
 string_compare_insensitive(String_Const_u8 a, String_Const_u8 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4317,7 +4508,7 @@ string_compare_insensitive(String_Const_u8 a, String_Const_u8 b){
     }
     return(result);
 }
-static i32
+internal i32
 string_compare_insensitive(String_Const_u16 a, String_Const_u16 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4331,7 +4522,7 @@ string_compare_insensitive(String_Const_u16 a, String_Const_u16 b){
     }
     return(result);
 }
-static i32
+internal i32
 string_compare_insensitive(String_Const_u32 a, String_Const_u32 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
@@ -4346,56 +4537,56 @@ string_compare_insensitive(String_Const_u32 a, String_Const_u32 b){
     return(result);
 }
 
-static String_Const_char
+internal String_Const_char
 string_mod_upper(String_Const_char str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_mod_upper(String_Const_u8 str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_mod_upper(String_Const_u16 str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_mod_upper(String_Const_u32 str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
-static String_Const_char
+internal String_Const_char
 string_mod_lower(String_Const_char str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
     }
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_mod_lower(String_Const_u8 str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
     }
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_mod_lower(String_Const_u16 str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
     }
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_mod_lower(String_Const_u32 str){
     for (umem i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
@@ -4403,7 +4594,7 @@ string_mod_lower(String_Const_u32 str){
     return(str);
 }
 
-static String_Const_char
+internal String_Const_char
 string_mod_replace_character(String_Const_char str, char o, char n){
     for (umem i = 0; i < str.size; i += 1){
         char c = str.str[i];
@@ -4411,7 +4602,7 @@ string_mod_replace_character(String_Const_char str, char o, char n){
     }
     return(str);
 }
-static String_Const_u8
+internal String_Const_u8
 string_mod_replace_character(String_Const_u8 str, u8 o, u8 n){
     for (umem i = 0; i < str.size; i += 1){
         u8 c = str.str[i];
@@ -4419,7 +4610,7 @@ string_mod_replace_character(String_Const_u8 str, u8 o, u8 n){
     }
     return(str);
 }
-static String_Const_u16
+internal String_Const_u16
 string_mod_replace_character(String_Const_u16 str, u16 o, u16 n){
     for (umem i = 0; i < str.size; i += 1){
         u16 c = str.str[i];
@@ -4427,7 +4618,7 @@ string_mod_replace_character(String_Const_u16 str, u16 o, u16 n){
     }
     return(str);
 }
-static String_Const_u32
+internal String_Const_u32
 string_mod_replace_character(String_Const_u32 str, u32 o, u32 n){
     for (umem i = 0; i < str.size; i += 1){
         u32 c = str.str[i];
@@ -4436,7 +4627,7 @@ string_mod_replace_character(String_Const_u32 str, u32 o, u32 n){
     return(str);
 }
 
-static b32
+internal b32
 string_append(String_char *dst, String_Const_char src){
     b32 result = false;
     umem available = dst->cap - dst->size;
@@ -4448,7 +4639,7 @@ string_append(String_char *dst, String_Const_char src){
     dst->size += copy_size;
     return(result);
 }
-static b32
+internal b32
 string_append(String_u8 *dst, String_Const_u8 src){
     b32 result = false;
     umem available = dst->cap - dst->size;
@@ -4460,7 +4651,7 @@ string_append(String_u8 *dst, String_Const_u8 src){
     dst->size += copy_size;
     return(result);
 }
-static b32
+internal b32
 string_append(String_u16 *dst, String_Const_u16 src){
     b32 result = false;
     umem available = dst->cap - dst->size;
@@ -4472,7 +4663,7 @@ string_append(String_u16 *dst, String_Const_u16 src){
     dst->size += copy_size;
     return(result);
 }
-static b32
+internal b32
 string_append(String_u32 *dst, String_Const_u32 src){
     b32 result = false;
     umem available = dst->cap - dst->size;
@@ -4485,24 +4676,24 @@ string_append(String_u32 *dst, String_Const_u32 src){
     return(result);
 }
 
-static b32
+internal b32
 string_append_character(String_char *dst, char c){
     return(string_append(dst, SCchar(&c, 1)));
 }
-static b32
+internal b32
 string_append_character(String_u8 *dst, u8 c){
     return(string_append(dst, SCu8(&c, 1)));
 }
-static b32
+internal b32
 string_append_character(String_u16 *dst, u16 c){
     return(string_append(dst, SCu16(&c, 1)));
 }
-static b32
+internal b32
 string_append_character(String_u32 *dst, u32 c){
     return(string_append(dst, SCu32(&c, 1)));
 }
 
-static b32
+internal b32
 string_null_terminate(String_char *str){
     b32 result = false;
     if (str->size < str->cap){
@@ -4510,7 +4701,7 @@ string_null_terminate(String_char *str){
     }
     return(result);
 }
-static b32
+internal b32
 string_null_terminate(String_u8 *str){
     b32 result = false;
     if (str->size < str->cap){
@@ -4518,7 +4709,7 @@ string_null_terminate(String_u8 *str){
     }
     return(result);
 }
-static b32
+internal b32
 string_null_terminate(String_u16 *str){
     b32 result = false;
     if (str->size < str->cap){
@@ -4526,7 +4717,7 @@ string_null_terminate(String_u16 *str){
     }
     return(result);
 }
-static b32
+internal b32
 string_null_terminate(String_u32 *str){
     b32 result = false;
     if (str->size < str->cap){
@@ -4535,28 +4726,28 @@ string_null_terminate(String_u32 *str){
     return(result);
 }
 
-static String_char
+internal String_char
 string_char_push(Arena *arena, umem size){
     String_char string = {};
     string.str = push_array(arena, char, size);
     string.cap = size;
     return(string);
 }
-static String_u8
+internal String_u8
 string_u8_push(Arena *arena, umem size){
     String_u8 string = {};
     string.str = push_array(arena, u8, size);
     string.cap = size;
     return(string);
 }
-static String_u16
+internal String_u16
 string_u16_push(Arena *arena, umem size){
     String_u16 string = {};
     string.str = push_array(arena, u16, size);
     string.cap = size;
     return(string);
 }
-static String_u32
+internal String_u32
 string_u32_push(Arena *arena, umem size){
     String_u32 string = {};
     string.str = push_array(arena, u32, size);
@@ -4564,7 +4755,7 @@ string_u32_push(Arena *arena, umem size){
     return(string);
 }
 
-static String_Any
+internal String_Any
 string_any_push(Arena *arena, umem size, String_Encoding encoding){
     String_Any string = {};
     switch (encoding){
@@ -4576,28 +4767,28 @@ string_any_push(Arena *arena, umem size, String_Encoding encoding){
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 string_const_char_push(Arena *arena, umem size){
     String_Const_char string = {};
     string.str = push_array(arena, char, size);
     string.size = size;
     return(string);
 }
-static String_Const_u8
+internal String_Const_u8
 string_const_u8_push(Arena *arena, umem size){
     String_Const_u8 string = {};
     string.str = push_array(arena, u8, size);
     string.size = size;
     return(string);
 }
-static String_Const_u16
+internal String_Const_u16
 string_const_u16_push(Arena *arena, umem size){
     String_Const_u16 string = {};
     string.str = push_array(arena, u16, size);
     string.size = size;
     return(string);
 }
-static String_Const_u32
+internal String_Const_u32
 string_const_u32_push(Arena *arena, umem size){
     String_Const_u32 string = {};
     string.str = push_array(arena, u32, size);
@@ -4605,7 +4796,7 @@ string_const_u32_push(Arena *arena, umem size){
     return(string);
 }
 
-static String_Const_Any
+internal String_Const_Any
 string_const_any_push(Arena *arena, umem size, String_Encoding encoding){
     String_Const_Any string = {};
     switch (encoding){
@@ -4617,7 +4808,7 @@ string_const_any_push(Arena *arena, umem size, String_Encoding encoding){
     return(string);
 }
 
-static String_Const_char
+internal String_Const_char
 push_string_copy(Arena *arena, String_Const_char src){
     String_Const_char string = {};
     string.str = push_array(arena, char, src.size + 1);
@@ -4626,7 +4817,7 @@ push_string_copy(Arena *arena, String_Const_char src){
     string.str[string.size] = 0;
     return(string);
 }
-static String_Const_u8
+internal String_Const_u8
 push_string_copy(Arena *arena, String_Const_u8 src){
     String_Const_u8 string = {};
     string.str = push_array(arena, u8, src.size + 1);
@@ -4635,7 +4826,7 @@ push_string_copy(Arena *arena, String_Const_u8 src){
     string.str[string.size] = 0;
     return(string);
 }
-static String_Const_u16
+internal String_Const_u16
 push_string_copy(Arena *arena, String_Const_u16 src){
     String_Const_u16 string = {};
     string.str = push_array(arena, u16, src.size + 1);
@@ -4644,7 +4835,7 @@ push_string_copy(Arena *arena, String_Const_u16 src){
     string.str[string.size] = 0;
     return(string);
 }
-static String_Const_u32
+internal String_Const_u32
 push_string_copy(Arena *arena, String_Const_u32 src){
     String_Const_u32 string = {};
     string.str = push_array(arena, u32, src.size + 1);
@@ -4654,7 +4845,7 @@ push_string_copy(Arena *arena, String_Const_u32 src){
     return(string);
 }
 
-static String_Const_Any
+internal String_Const_Any
 push_string_copy(Arena *arena, umem size, String_Const_Any src){
     String_Const_Any string = {};
     switch (src.encoding){
@@ -4666,7 +4857,7 @@ push_string_copy(Arena *arena, umem size, String_Const_Any src){
     return(string);
 }
 
-static void
+internal void
 string_list_push(Arena *arena, List_String_Const_char *list, String_Const_char string){
     Node_String_Const_char *node = push_array(arena, Node_String_Const_char, 1);
     sll_queue_push(list->first, list->last, node);
@@ -4674,7 +4865,7 @@ string_list_push(Arena *arena, List_String_Const_char *list, String_Const_char s
     list->node_count += 1;
     list->total_size += string.size;
 }
-static void
+internal void
 string_list_push(Arena *arena, List_String_Const_u8 *list, String_Const_u8 string){
     Node_String_Const_u8 *node = push_array(arena, Node_String_Const_u8, 1);
     sll_queue_push(list->first, list->last, node);
@@ -4682,7 +4873,7 @@ string_list_push(Arena *arena, List_String_Const_u8 *list, String_Const_u8 strin
     list->node_count += 1;
     list->total_size += string.size;
 }
-static void
+internal void
 string_list_push(Arena *arena, List_String_Const_u16 *list, String_Const_u16 string){
     Node_String_Const_u16 *node = push_array(arena, Node_String_Const_u16, 1);
     sll_queue_push(list->first, list->last, node);
@@ -4690,7 +4881,7 @@ string_list_push(Arena *arena, List_String_Const_u16 *list, String_Const_u16 str
     list->node_count += 1;
     list->total_size += string.size;
 }
-static void
+internal void
 string_list_push(Arena *arena, List_String_Const_u32 *list, String_Const_u32 string){
     Node_String_Const_u32 *node = push_array(arena, Node_String_Const_u32, 1);
     sll_queue_push(list->first, list->last, node);
@@ -4699,7 +4890,7 @@ string_list_push(Arena *arena, List_String_Const_u32 *list, String_Const_u32 str
     list->total_size += string.size;
 }
 
-static void
+internal void
 string_list_push(Arena *arena, List_String_Const_Any *list, String_Const_Any string){
     Node_String_Const_Any *node = push_array(arena, Node_String_Const_Any, 1);
     sll_queue_push(list->first, list->last, node);
@@ -4711,28 +4902,28 @@ string_list_push(Arena *arena, List_String_Const_Any *list, String_Const_Any str
 #define string_list_push_lit(a,l,s) string_list_push((a), (l), string_litexpr(s))
 #define string_list_push_u8_lit(a,l,s) string_list_push((a), (l), string_u8_litexpr(s))
 
-static void
+internal void
 string_list_push(List_String_Const_char *list, List_String_Const_char *src_list){
     sll_queue_push_multiple(list->first, list->last, src_list->first, src_list->last);
     list->node_count += src_list->node_count;
     list->total_size += src_list->total_size;
     block_zero_array(src_list);
 }
-static void
+internal void
 string_list_push(List_String_Const_u8 *list, List_String_Const_u8 *src_list){
     sll_queue_push_multiple(list->first, list->last, src_list->first, src_list->last);
     list->node_count += src_list->node_count;
     list->total_size += src_list->total_size;
     block_zero_array(src_list);
 }
-static void
+internal void
 string_list_push(List_String_Const_u16 *list, List_String_Const_u16 *src_list){
     sll_queue_push_multiple(list->first, list->last, src_list->first, src_list->last);
     list->node_count += src_list->node_count;
     list->total_size += src_list->total_size;
     block_zero_array(src_list);
 }
-static void
+internal void
 string_list_push(List_String_Const_u32 *list, List_String_Const_u32 *src_list){
     sll_queue_push_multiple(list->first, list->last, src_list->first, src_list->last);
     list->node_count += src_list->node_count;
@@ -4740,7 +4931,7 @@ string_list_push(List_String_Const_u32 *list, List_String_Const_u32 *src_list){
     block_zero_array(src_list);
 }
 
-static void
+internal void
 string_list_push(List_String_Const_Any *list, List_String_Const_Any *src_list){
     sll_queue_push_multiple(list->first, list->last, src_list->first, src_list->last);
     list->node_count += src_list->node_count;
@@ -4748,7 +4939,7 @@ string_list_push(List_String_Const_Any *list, List_String_Const_Any *src_list){
     block_zero_array(src_list);
 }
 
-static void
+internal void
 string_list_push_overlap(Arena *arena, List_String_Const_char *list, char overlap, String_Const_char string){
     b32 tail_has_overlap = false;
     b32 string_has_overlap = false;
@@ -4773,7 +4964,7 @@ string_list_push_overlap(Arena *arena, List_String_Const_char *list, char overla
         string_list_push(arena, list, string);
     }
 }
-static void
+internal void
 string_list_push_overlap(Arena *arena, List_String_Const_u8 *list, u8 overlap, String_Const_u8 string){
     b32 tail_has_overlap = false;
     b32 string_has_overlap = false;
@@ -4798,7 +4989,7 @@ string_list_push_overlap(Arena *arena, List_String_Const_u8 *list, u8 overlap, S
         string_list_push(arena, list, string);
     }
 }
-static void
+internal void
 string_list_push_overlap(Arena *arena, List_String_Const_u16 *list, u16 overlap, String_Const_u16 string){
     b32 tail_has_overlap = false;
     b32 string_has_overlap = false;
@@ -4823,7 +5014,7 @@ string_list_push_overlap(Arena *arena, List_String_Const_u16 *list, u16 overlap,
         string_list_push(arena, list, string);
     }
 }
-static void
+internal void
 string_list_push_overlap(Arena *arena, List_String_Const_u32 *list, u32 overlap, String_Const_u32 string){
     b32 tail_has_overlap = false;
     b32 string_has_overlap = false;
@@ -4854,7 +5045,7 @@ typedef String_Const_u8 String_u8_Mod_Function_Type(String_Const_u8 string);
 typedef String_Const_u16 String_u16_Mod_Function_Type(String_Const_u16 string);
 typedef String_Const_u32 String_u32_Mod_Function_Type(String_Const_u32 string);
 
-static String_Const_char
+internal String_Const_char
 string_list_flatten(Arena *arena, List_String_Const_char list, String_char_Mod_Function_Type *mod, String_Const_char separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
@@ -4881,7 +5072,7 @@ string_list_flatten(Arena *arena, List_String_Const_char list, String_char_Mod_F
     }
     return(string.string);
 }
-static String_Const_u8
+internal String_Const_u8
 string_list_flatten(Arena *arena, List_String_Const_u8 list, String_u8_Mod_Function_Type *mod, String_Const_u8 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
@@ -4908,7 +5099,7 @@ string_list_flatten(Arena *arena, List_String_Const_u8 list, String_u8_Mod_Funct
     }
     return(string.string);
 }
-static String_Const_u16
+internal String_Const_u16
 string_list_flatten(Arena *arena, List_String_Const_u16 list, String_u16_Mod_Function_Type *mod, String_Const_u16 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
@@ -4935,7 +5126,7 @@ string_list_flatten(Arena *arena, List_String_Const_u16 list, String_u16_Mod_Fun
     }
     return(string.string);
 }
-static String_Const_u32
+internal String_Const_u32
 string_list_flatten(Arena *arena, List_String_Const_u32 list, String_u32_Mod_Function_Type *mod, String_Const_u32 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
@@ -4962,72 +5153,72 @@ string_list_flatten(Arena *arena, List_String_Const_u32 list, String_u32_Mod_Fun
     }
     return(string.string);
 }
-static String_Const_char
+internal String_Const_char
 string_list_flatten(Arena *arena, List_String_Const_char list, String_Const_char separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, 0, separator, separator_flags, rule));
 }
-static String_Const_u8
+internal String_Const_u8
 string_list_flatten(Arena *arena, List_String_Const_u8 list, String_Const_u8 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, 0, separator, separator_flags, rule));
 }
-static String_Const_u16
+internal String_Const_u16
 string_list_flatten(Arena *arena, List_String_Const_u16 list, String_Const_u16 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, 0, separator, separator_flags, rule));
 }
-static String_Const_u32
+internal String_Const_u32
 string_list_flatten(Arena *arena, List_String_Const_u32 list, String_Const_u32 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, 0, separator, separator_flags, rule));
 }
-static String_Const_char
+internal String_Const_char
 string_list_flatten(Arena *arena, List_String_Const_char list, String_char_Mod_Function_Type *mod, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, mod, SCchar(), 0, rule));
 }
-static String_Const_u8
+internal String_Const_u8
 string_list_flatten(Arena *arena, List_String_Const_u8 list, String_u8_Mod_Function_Type *mod, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, mod, SCu8(), 0, rule));
 }
-static String_Const_u16
+internal String_Const_u16
 string_list_flatten(Arena *arena, List_String_Const_u16 list, String_u16_Mod_Function_Type *mod, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, mod, SCu16(), 0, rule));
 }
-static String_Const_u32
+internal String_Const_u32
 string_list_flatten(Arena *arena, List_String_Const_u32 list, String_u32_Mod_Function_Type *mod, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, list, mod, SCu32(), 0, rule));
 }
-static String_Const_char
+internal String_Const_char
 string_list_flatten(Arena *arena, List_String_Const_char string, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, string, 0, SCchar(), 0, rule));
 }
-static String_Const_u8
+internal String_Const_u8
 string_list_flatten(Arena *arena, List_String_Const_u8 string, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, string, 0, SCu8(), 0, rule));
 }
-static String_Const_u16
+internal String_Const_u16
 string_list_flatten(Arena *arena, List_String_Const_u16 string, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, string, 0, SCu16(), 0, rule));
 }
-static String_Const_u32
+internal String_Const_u32
 string_list_flatten(Arena *arena, List_String_Const_u32 string, String_Fill_Terminate_Rule rule){
     return(string_list_flatten(arena, string, 0, SCu32(), 0, rule));
 }
-static String_Const_char
+internal String_Const_char
 string_list_flatten(Arena *arena, List_String_Const_char string){
     return(string_list_flatten(arena, string, 0, SCchar(), 0, StringFill_NoTerminate));
 }
-static String_Const_u8
+internal String_Const_u8
 string_list_flatten(Arena *arena, List_String_Const_u8 string){
     return(string_list_flatten(arena, string, 0, SCu8(), 0, StringFill_NoTerminate));
 }
-static String_Const_u16
+internal String_Const_u16
 string_list_flatten(Arena *arena, List_String_Const_u16 string){
     return(string_list_flatten(arena, string, 0, SCu16(), 0, StringFill_NoTerminate));
 }
-static String_Const_u32
+internal String_Const_u32
 string_list_flatten(Arena *arena, List_String_Const_u32 string){
     return(string_list_flatten(arena, string, 0, SCu32(), 0, StringFill_NoTerminate));
 }
 
-static List_String_Const_char
+internal List_String_Const_char
 string_split(Arena *arena, String_Const_char string, char *split_characters, i32 split_character_count){
     List_String_Const_char list = {};
     for (;;){
@@ -5048,7 +5239,7 @@ string_split(Arena *arena, String_Const_char string, char *split_characters, i32
     }
     return(list);
 }
-static List_String_Const_u8
+internal List_String_Const_u8
 string_split(Arena *arena, String_Const_u8 string, u8 *split_characters, i32 split_character_count){
     List_String_Const_u8 list = {};
     for (;;){
@@ -5069,7 +5260,7 @@ string_split(Arena *arena, String_Const_u8 string, u8 *split_characters, i32 spl
     }
     return(list);
 }
-static List_String_Const_u16
+internal List_String_Const_u16
 string_split(Arena *arena, String_Const_u16 string, u16 *split_characters, i32 split_character_count){
     List_String_Const_u16 list = {};
     for (;;){
@@ -5090,7 +5281,7 @@ string_split(Arena *arena, String_Const_u16 string, u16 *split_characters, i32 s
     }
     return(list);
 }
-static List_String_Const_u32
+internal List_String_Const_u32
 string_split(Arena *arena, String_Const_u32 string, u32 *split_characters, i32 split_character_count){
     List_String_Const_u32 list = {};
     for (;;){
@@ -5112,7 +5303,7 @@ string_split(Arena *arena, String_Const_u32 string, u32 *split_characters, i32 s
     return(list);
 }
 
-static List_String_Const_char
+internal List_String_Const_char
 string_split_needle(Arena *arena, String_Const_char string, String_Const_char needle){
     List_String_Const_char list = {};
     for (;string.size > 0;){
@@ -5128,7 +5319,7 @@ string_split_needle(Arena *arena, String_Const_char string, String_Const_char ne
     }
     return(list);
 }
-static List_String_Const_u8
+internal List_String_Const_u8
 string_split_needle(Arena *arena, String_Const_u8 string, String_Const_u8 needle){
     List_String_Const_u8 list = {};
     for (;string.size > 0;){
@@ -5144,7 +5335,7 @@ string_split_needle(Arena *arena, String_Const_u8 string, String_Const_u8 needle
     }
     return(list);
 }
-static List_String_Const_u16
+internal List_String_Const_u16
 string_split_needle(Arena *arena, String_Const_u16 string, String_Const_u16 needle){
     List_String_Const_u16 list = {};
     for (;string.size > 0;){
@@ -5160,7 +5351,7 @@ string_split_needle(Arena *arena, String_Const_u16 string, String_Const_u16 need
     }
     return(list);
 }
-static List_String_Const_u32
+internal List_String_Const_u32
 string_split_needle(Arena *arena, String_Const_u32 string, String_Const_u32 needle){
     List_String_Const_u32 list = {};
     for (;string.size > 0;){
@@ -5177,7 +5368,7 @@ string_split_needle(Arena *arena, String_Const_u32 string, String_Const_u32 need
     return(list);
 }
 
-static void
+internal void
 string_list_insert_separators(Arena *arena, List_String_Const_char *list, String_Const_char separator, String_Separator_Flag flags){
     Node_String_Const_char *last = list->last;
     for (Node_String_Const_char *node = list->first, *next = 0;
@@ -5209,7 +5400,7 @@ string_list_insert_separators(Arena *arena, List_String_Const_char *list, String
         list->total_size += separator.size;
     }
 }
-static void
+internal void
 string_list_insert_separators(Arena *arena, List_String_Const_u8 *list, String_Const_u8 separator, String_Separator_Flag flags){
     Node_String_Const_u8 *last = list->last;
     for (Node_String_Const_u8 *node = list->first, *next = 0;
@@ -5241,7 +5432,7 @@ string_list_insert_separators(Arena *arena, List_String_Const_u8 *list, String_C
         list->total_size += separator.size;
     }
 }
-static void
+internal void
 string_list_insert_separators(Arena *arena, List_String_Const_u16 *list, String_Const_u16 separator, String_Separator_Flag flags){
     Node_String_Const_u16 *last = list->last;
     for (Node_String_Const_u16 *node = list->first, *next = 0;
@@ -5273,7 +5464,7 @@ string_list_insert_separators(Arena *arena, List_String_Const_u16 *list, String_
         list->total_size += separator.size;
     }
 }
-static void
+internal void
 string_list_insert_separators(Arena *arena, List_String_Const_u32 *list, String_Const_u32 separator, String_Separator_Flag flags){
     Node_String_Const_u32 *last = list->last;
     for (Node_String_Const_u32 *node = list->first, *next = 0;
@@ -5306,7 +5497,7 @@ string_list_insert_separators(Arena *arena, List_String_Const_u32 *list, String_
     }
 }
 
-static void
+internal void
 string_list_rewrite_nodes(Arena *arena, List_String_Const_char *list, String_Const_char needle, String_Const_char new_value){
     for (Node_String_Const_char *node = list->first;
          node != 0;
@@ -5318,7 +5509,7 @@ string_list_rewrite_nodes(Arena *arena, List_String_Const_char *list, String_Con
         }
     }
 }
-static void
+internal void
 string_list_rewrite_nodes(Arena *arena, List_String_Const_u8 *list, String_Const_u8 needle, String_Const_u8 new_value){
     for (Node_String_Const_u8 *node = list->first;
          node != 0;
@@ -5330,7 +5521,7 @@ string_list_rewrite_nodes(Arena *arena, List_String_Const_u8 *list, String_Const
         }
     }
 }
-static void
+internal void
 string_list_rewrite_nodes(Arena *arena, List_String_Const_u16 *list, String_Const_u16 needle, String_Const_u16 new_value){
     for (Node_String_Const_u16 *node = list->first;
          node != 0;
@@ -5342,7 +5533,7 @@ string_list_rewrite_nodes(Arena *arena, List_String_Const_u16 *list, String_Cons
         }
     }
 }
-static void
+internal void
 string_list_rewrite_nodes(Arena *arena, List_String_Const_u32 *list, String_Const_u32 needle, String_Const_u32 new_value){
     for (Node_String_Const_u32 *node = list->first;
          node != 0;
@@ -5355,28 +5546,28 @@ string_list_rewrite_nodes(Arena *arena, List_String_Const_u32 *list, String_Cons
     }
 }
 
-static String_Const_char
+internal String_Const_char
 string_condense_whitespace(Arena *arena, String_Const_char string){
     char split_characters[] = { ' ', '\t', '\n', '\r', '\f', '\v', };
     List_String_Const_char list = string_split(arena, string, split_characters, ArrayCount(split_characters));
     string_list_insert_separators(arena, &list, SCchar(split_characters, 1), StringSeparator_NoFlags);
     return(string_list_flatten(arena, list, StringFill_NullTerminate));
 }
-static String_Const_u8
+internal String_Const_u8
 string_condense_whitespace(Arena *arena, String_Const_u8 string){
     u8 split_characters[] = { ' ', '\t', '\n', '\r', '\f', '\v', };
     List_String_Const_u8 list = string_split(arena, string, split_characters, ArrayCount(split_characters));
     string_list_insert_separators(arena, &list, SCu8(split_characters, 1), StringSeparator_NoFlags);
     return(string_list_flatten(arena, list, StringFill_NullTerminate));
 }
-static String_Const_u16
+internal String_Const_u16
 string_condense_whitespace(Arena *arena, String_Const_u16 string){
     u16 split_characters[] = { ' ', '\t', '\n', '\r', '\f', '\v', };
     List_String_Const_u16 list = string_split(arena, string, split_characters, ArrayCount(split_characters));
     string_list_insert_separators(arena, &list, SCu16(split_characters, 1), StringSeparator_NoFlags);
     return(string_list_flatten(arena, list, StringFill_NullTerminate));
 }
-static String_Const_u32
+internal String_Const_u32
 string_condense_whitespace(Arena *arena, String_Const_u32 string){
     u32 split_characters[] = { ' ', '\t', '\n', '\r', '\f', '\v', };
     List_String_Const_u32 list = string_split(arena, string, split_characters, ArrayCount(split_characters));
@@ -5384,7 +5575,7 @@ string_condense_whitespace(Arena *arena, String_Const_u32 string){
     return(string_list_flatten(arena, list, StringFill_NullTerminate));
 }
 
-static List_String_Const_u8
+internal List_String_Const_u8
 string_split_wildcards(Arena *arena, String_Const_u8 string){
     List_String_Const_u8 list = {};
     if (string_get_character(string, 0) == '*'){
@@ -5400,7 +5591,7 @@ string_split_wildcards(Arena *arena, String_Const_u8 string){
     return(list);
 }
 
-static b32
+internal b32
 string_wildcard_match(List_String_Const_u8 list, String_Const_u8 string, String_Match_Rule rule){
     b32 success = true;
     if (list.node_count > 0){
@@ -5435,16 +5626,16 @@ string_wildcard_match(List_String_Const_u8 list, String_Const_u8 string, String_
     return(success);
 }
 
-static b32
+internal b32
 string_wildcard_match(List_String_Const_u8 list, String_Const_u8 string){
     return(string_wildcard_match(list, string, StringMatch_Exact));
 }
-static b32
+internal b32
 string_wildcard_match_insensitive(List_String_Const_u8 list, String_Const_u8 string){
     return(string_wildcard_match(list, string, StringMatch_CaseInsensitive));
 }
 
-static void
+internal void
 string_list_reverse(List_String_Const_char *list){
     Node_String_Const_char *first = 0;
     Node_String_Const_char *last = list->first;
@@ -5457,7 +5648,7 @@ string_list_reverse(List_String_Const_char *list){
     list->first = first;
     list->last = last;
 }
-static void
+internal void
 string_list_reverse(List_String_Const_u8 *list){
     Node_String_Const_u8 *first = 0;
     Node_String_Const_u8 *last = list->first;
@@ -5470,7 +5661,7 @@ string_list_reverse(List_String_Const_u8 *list){
     list->first = first;
     list->last = last;
 }
-static void
+internal void
 string_list_reverse(List_String_Const_u16 *list){
     Node_String_Const_u16 *first = 0;
     Node_String_Const_u16 *last = list->first;
@@ -5483,7 +5674,7 @@ string_list_reverse(List_String_Const_u16 *list){
     list->first = first;
     list->last = last;
 }
-static void
+internal void
 string_list_reverse(List_String_Const_u32 *list){
     Node_String_Const_u32 *first = 0;
     Node_String_Const_u32 *last = list->first;
@@ -5503,7 +5694,7 @@ global_const u8 utf8_class[32] = {
     1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,2,2,2,2,3,3,4,5,
 };
 
-static Character_Consume_Result
+internal Character_Consume_Result
 utf8_consume(u8 *str, umem max){
     Character_Consume_Result result = {1, max_u32};
     u8 byte = str[0];
@@ -5556,7 +5747,7 @@ utf8_consume(u8 *str, umem max){
     return(result);
 }
 
-static Character_Consume_Result
+internal Character_Consume_Result
 utf16_consume(u16 *str, umem max){
     Character_Consume_Result result = {1, max_u32};
     result.codepoint = str[0];
@@ -5568,7 +5759,7 @@ utf16_consume(u16 *str, umem max){
     return(result);
 }
 
-static u32
+internal u32
 utf8_write(u8 *str, u32 codepoint){
     u32 inc = 0;
     if (codepoint <= 0x7F){
@@ -5600,7 +5791,7 @@ utf8_write(u8 *str, u32 codepoint){
     return(inc);
 }
 
-static u32
+internal u32
 utf16_write(u16 *str, u32 codepoint){
     u32 inc = 1;
     if (codepoint == max_u32){
@@ -5620,7 +5811,7 @@ utf16_write(u16 *str, u32 codepoint){
 
 ////////////////////////////////
 
-static String_u8
+internal String_u8
 string_u8_from_string_char(Arena *arena, String_Const_char string, String_Fill_Terminate_Rule rule){
     String_u8 out = {};
     out.cap = string.size;
@@ -5638,7 +5829,7 @@ string_u8_from_string_char(Arena *arena, String_Const_char string, String_Fill_T
     return(out);
 }
 
-static String_u16
+internal String_u16
 string_u16_from_string_char(Arena *arena, String_Const_char string, String_Fill_Terminate_Rule rule){
     String_u16 out = {};
     out.cap = string.size;
@@ -5656,7 +5847,7 @@ string_u16_from_string_char(Arena *arena, String_Const_char string, String_Fill_
     return(out);
 }
 
-static String_u32
+internal String_u32
 string_u32_from_string_char(Arena *arena, String_Const_char string, String_Fill_Terminate_Rule rule){
     String_u32 out = {};
     out.cap = string.size;
@@ -5674,7 +5865,7 @@ string_u32_from_string_char(Arena *arena, String_Const_char string, String_Fill_
     return(out);
 }
 
-static String_char
+internal String_char
 string_char_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Terminate_Rule rule){
     String_char out = {};
     out.cap = string.size;
@@ -5696,7 +5887,7 @@ string_char_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Ter
     return(out);
 }
 
-static String_u16
+internal String_u16
 string_u16_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Terminate_Rule rule){
     String_u16 out = {};
     out.cap = string.size;
@@ -5718,7 +5909,7 @@ string_u16_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Term
     return(out);
 }
 
-static String_u32
+internal String_u32
 string_u32_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Terminate_Rule rule){
     String_u32 out = {};
     out.cap = string.size;
@@ -5740,7 +5931,7 @@ string_u32_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Term
     return(out);
 }
 
-static String_char
+internal String_char
 string_char_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_Terminate_Rule rule){
     String_char out = {};
     out.cap = string.size;
@@ -5762,7 +5953,7 @@ string_char_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_T
     return(out);
 }
 
-static String_u8
+internal String_u8
 string_u8_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_Terminate_Rule rule){
     String_u8 out = {};
     out.cap = string.size*3;
@@ -5784,7 +5975,7 @@ string_u8_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_Ter
     return(out);
 }
 
-static String_u32
+internal String_u32
 string_u32_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_Terminate_Rule rule){
     String_u32 out = {};
     out.cap = string.size;
@@ -5806,7 +5997,7 @@ string_u32_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_Te
     return(out);
 }
 
-static String_char
+internal String_char
 string_char_from_string_u32(Arena *arena, String_Const_u32 string, String_Fill_Terminate_Rule rule){
     String_char out = {};
     out.cap = string.size;
@@ -5826,7 +6017,7 @@ string_char_from_string_u32(Arena *arena, String_Const_u32 string, String_Fill_T
     return(out);
 }
 
-static String_u8
+internal String_u8
 string_u8_from_string_u32(Arena *arena, String_Const_u32 string, String_Fill_Terminate_Rule rule){
     String_u8 out = {};
     out.cap = string.size*4;
@@ -5845,7 +6036,7 @@ string_u8_from_string_u32(Arena *arena, String_Const_u32 string, String_Fill_Ter
     return(out);
 }
 
-static String_u16
+internal String_u16
 string_u16_from_string_u32(Arena *arena, String_Const_u32 string, String_Fill_Terminate_Rule rule){
     String_u16 out = {};
     out.cap = string.size*2;
@@ -5866,58 +6057,58 @@ string_u16_from_string_u32(Arena *arena, String_Const_u32 string, String_Fill_Te
 
 ////////////////////////////////
 
-static String_char
+internal String_char
 string_char_from_string_u8(Arena *arena, String_Const_u8 string){
     return(string_char_from_string_u8(arena, string, StringFill_NoTerminate));
 }
-static String_char
+internal String_char
 string_char_from_string_u16(Arena *arena, String_Const_u16 string){
     return(string_char_from_string_u16(arena, string, StringFill_NoTerminate));
 }
-static String_char
+internal String_char
 string_char_from_string_u32(Arena *arena, String_Const_u32 string){
     return(string_char_from_string_u32(arena, string, StringFill_NoTerminate));
 }
-static String_u8
+internal String_u8
 string_u8_from_string_char(Arena *arena, String_Const_char string){
     return(string_u8_from_string_char(arena, string, StringFill_NoTerminate));
 }
-static String_u8
+internal String_u8
 string_u8_from_string_u16(Arena *arena, String_Const_u16 string){
     return(string_u8_from_string_u16(arena, string, StringFill_NoTerminate));
 }
-static String_u8
+internal String_u8
 string_u8_from_string_u32(Arena *arena, String_Const_u32 string){
     return(string_u8_from_string_u32(arena, string, StringFill_NoTerminate));
 }
-static String_u16
+internal String_u16
 string_u16_from_string_char(Arena *arena, String_Const_char string){
     return(string_u16_from_string_char(arena, string, StringFill_NoTerminate));
 }
-static String_u16
+internal String_u16
 string_u16_from_string_u8(Arena *arena, String_Const_u8 string){
     return(string_u16_from_string_u8(arena, string, StringFill_NoTerminate));
 }
-static String_u16
+internal String_u16
 string_u16_from_string_u32(Arena *arena, String_Const_u32 string){
     return(string_u16_from_string_u32(arena, string, StringFill_NoTerminate));
 }
-static String_u32
+internal String_u32
 string_u32_from_string_char(Arena *arena, String_Const_char string){
     return(string_u32_from_string_char(arena, string, StringFill_NoTerminate));
 }
-static String_u32
+internal String_u32
 string_u32_from_string_u8(Arena *arena, String_Const_u8 string){
     return(string_u32_from_string_u8(arena, string, StringFill_NoTerminate));
 }
-static String_u32
+internal String_u32
 string_u32_from_string_u16(Arena *arena, String_Const_u16 string){
     return(string_u32_from_string_u16(arena, string, StringFill_NoTerminate));
 }
 
 ////////////////////////////////
 
-static String_Const_char
+internal String_Const_char
 string_char_from_any(Arena *arena, String_Const_Any string){
     String_Const_char result = {};
     switch (string.encoding){
@@ -5928,7 +6119,7 @@ string_char_from_any(Arena *arena, String_Const_Any string){
     }
     return(result);
 }
-static String_Const_u8
+internal String_Const_u8
 string_u8_from_any(Arena *arena, String_Const_Any string){
     String_Const_u8 result = {};
     switch (string.encoding){
@@ -5939,7 +6130,7 @@ string_u8_from_any(Arena *arena, String_Const_Any string){
     }
     return(result);
 }
-static String_Const_u16
+internal String_Const_u16
 string_u16_from_any(Arena *arena, String_Const_Any string){
     String_Const_u16 result = {};
     switch (string.encoding){
@@ -5950,7 +6141,7 @@ string_u16_from_any(Arena *arena, String_Const_Any string){
     }
     return(result);
 }
-static String_Const_u32
+internal String_Const_u32
 string_u32_from_any(Arena *arena, String_Const_Any string){
     String_Const_u32 result = {};
     switch (string.encoding){
@@ -5962,7 +6153,7 @@ string_u32_from_any(Arena *arena, String_Const_Any string){
     return(result);
 }
 
-static String_Const_Any
+internal String_Const_Any
 string_any_from_any(Arena *arena, String_Encoding encoding, String_Const_Any string){
     String_Const_Any result = {encoding};
     switch (encoding){
@@ -5974,7 +6165,7 @@ string_any_from_any(Arena *arena, String_Encoding encoding, String_Const_Any str
     return(result);
 }
 
-static List_String_Const_char
+internal List_String_Const_char
 string_list_char_from_any(Arena *arena, List_String_Const_Any list){
     List_String_Const_char result = {};
     for (Node_String_Const_Any *node = list.first;
@@ -5984,7 +6175,7 @@ string_list_char_from_any(Arena *arena, List_String_Const_Any list){
     }
     return(result);
 }
-static List_String_Const_u8
+internal List_String_Const_u8
 string_list_u8_from_any(Arena *arena, List_String_Const_Any list){
     List_String_Const_u8 result = {};
     for (Node_String_Const_Any *node = list.first;
@@ -5994,7 +6185,7 @@ string_list_u8_from_any(Arena *arena, List_String_Const_Any list){
     }
     return(result);
 }
-static List_String_Const_u16
+internal List_String_Const_u16
 string_list_u16_from_any(Arena *arena, List_String_Const_Any list){
     List_String_Const_u16 result = {};
     for (Node_String_Const_Any *node = list.first;
@@ -6004,7 +6195,7 @@ string_list_u16_from_any(Arena *arena, List_String_Const_Any list){
     }
     return(result);
 }
-static List_String_Const_u32
+internal List_String_Const_u32
 string_list_u32_from_any(Arena *arena, List_String_Const_Any list){
     List_String_Const_u32 result = {};
     for (Node_String_Const_Any *node = list.first;
@@ -6017,7 +6208,7 @@ string_list_u32_from_any(Arena *arena, List_String_Const_Any list){
 
 ////////////////////////////////
 
-static List_String_Const_char
+internal List_String_Const_char
 string_replace_list(Arena *arena, String_Const_char source, String_Const_char needle, String_Const_char replacement){
     List_String_Const_char list = {};
     for (;;){
@@ -6033,7 +6224,7 @@ string_replace_list(Arena *arena, String_Const_char source, String_Const_char ne
     }
     return(list);
 }
-static List_String_Const_u8
+internal List_String_Const_u8
 string_replace_list(Arena *arena, String_Const_u8 source, String_Const_u8 needle, String_Const_u8 replacement){
     List_String_Const_u8 list = {};
     for (;;){
@@ -6049,7 +6240,7 @@ string_replace_list(Arena *arena, String_Const_u8 source, String_Const_u8 needle
     }
     return(list);
 }
-static List_String_Const_u16
+internal List_String_Const_u16
 string_replace_list(Arena *arena, String_Const_u16 source, String_Const_u16 needle, String_Const_u16 replacement){
     List_String_Const_u16 list = {};
     for (;;){
@@ -6065,7 +6256,7 @@ string_replace_list(Arena *arena, String_Const_u16 source, String_Const_u16 need
     }
     return(list);
 }
-static List_String_Const_u32
+internal List_String_Const_u32
 string_replace_list(Arena *arena, String_Const_u32 source, String_Const_u32 needle, String_Const_u32 replacement){
     List_String_Const_u32 list = {};
     for (;;){
@@ -6082,52 +6273,52 @@ string_replace_list(Arena *arena, String_Const_u32 source, String_Const_u32 need
     return(list);
 }
 
-static String_Const_char
+internal String_Const_char
 string_replace(Arena *arena, String_Const_char source, String_Const_char needle, String_Const_char replacement, String_Fill_Terminate_Rule rule){
     List_String_Const_char list = string_replace_list(arena, source, needle, replacement);
     return(string_list_flatten(arena, list, rule));
 }
-static String_Const_u8
+internal String_Const_u8
 string_replace(Arena *arena, String_Const_u8 source, String_Const_u8 needle, String_Const_u8 replacement, String_Fill_Terminate_Rule rule){
     List_String_Const_u8 list = string_replace_list(arena, source, needle, replacement);
     return(string_list_flatten(arena, list, rule));
 }
-static String_Const_u16
+internal String_Const_u16
 string_replace(Arena *arena, String_Const_u16 source, String_Const_u16 needle, String_Const_u16 replacement, String_Fill_Terminate_Rule rule){
     List_String_Const_u16 list = string_replace_list(arena, source, needle, replacement);
     return(string_list_flatten(arena, list, rule));
 }
-static String_Const_u32
+internal String_Const_u32
 string_replace(Arena *arena, String_Const_u32 source, String_Const_u32 needle, String_Const_u32 replacement, String_Fill_Terminate_Rule rule){
     List_String_Const_u32 list = string_replace_list(arena, source, needle, replacement);
     return(string_list_flatten(arena, list, rule));
 }
 
-static String_Const_char
+internal String_Const_char
 string_replace(Arena *arena, String_Const_char source, String_Const_char needle, String_Const_char replacement){
     return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
 }
-static String_Const_u8
+internal String_Const_u8
 string_replace(Arena *arena, String_Const_u8 source, String_Const_u8 needle, String_Const_u8 replacement){
     return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
 }
-static String_Const_u16
+internal String_Const_u16
 string_replace(Arena *arena, String_Const_u16 source, String_Const_u16 needle, String_Const_u16 replacement){
     return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
 }
-static String_Const_u32
+internal String_Const_u32
 string_replace(Arena *arena, String_Const_u32 source, String_Const_u32 needle, String_Const_u32 replacement){
     return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
 }
 
 ////////////////////////////////
 
-static b32
+internal b32
 byte_is_ascii(u8 byte){
     return(byte == '\r' || byte == '\n' || byte == '\t' || (' ' <= byte && byte <= '~'));
 }
 
-static b32
+internal b32
 data_is_ascii(Data data){
     u8 *ptr = (u8*)data.data;
     u8 *one_past_last = ptr + data.size;
@@ -6143,7 +6334,7 @@ data_is_ascii(Data data){
 
 ////////////////////////////////
 
-static String_Const_u8
+internal String_Const_u8
 string_escape(Arena *arena, String_Const_u8 string){
     List_String_Const_u8 list = string_replace_list(arena, string, string_u8_litexpr("\\"),
                                                     string_u8_litexpr("\\\\"));
@@ -6167,7 +6358,7 @@ string_escape(Arena *arena, String_Const_u8 string){
     return(string_list_flatten(arena, list, StringFill_NullTerminate));
 }
 
-static String_Const_char
+internal String_Const_char
 string_interpret_escapes(Arena *arena, String_Const_char string){
     char *space = push_array(arena, char, string.size + 1);
     String_char result = Schar(space, 0, string.size);
@@ -6218,7 +6409,7 @@ string_interpret_escapes(Arena *arena, String_Const_char string){
     return(result.string);
 }
 
-static String_Const_u8
+internal String_Const_u8
 string_interpret_escapes(Arena *arena, String_Const_u8 string){
     return(SCu8(string_interpret_escapes(arena, SCchar(string))));
 }
@@ -6258,7 +6449,7 @@ global_const u8 base64_reverse[128] = {
     0x19,0x1A,0x1B,0x1C,0x1D,0x1E,0x1F,0x20,0x21,0x22,0x23,0xFF,0xFF,0xFF,0xFF,0xFF,
 };
 
-static umem
+internal umem
 digit_count_from_integer(u64 x, u32 radix){
     umem result = {};
     if (radix >= 2 && radix <= 16){
@@ -6275,7 +6466,7 @@ digit_count_from_integer(u64 x, u32 radix){
     return(result);
 }
 
-static String_Const_u8
+internal String_Const_u8
 string_from_integer(Arena *arena, u64 x, u32 radix){
     String_Const_u8 result = {};
     if (radix >= 2 && radix <= 16){
@@ -6301,7 +6492,7 @@ string_from_integer(Arena *arena, u64 x, u32 radix){
     return(result);
 }
 
-static b32
+internal b32
 string_is_integer(String_Const_u8 string, u32 radix){
     b32 is_integer = false;
     if (radix <= 16){
@@ -6323,7 +6514,7 @@ string_is_integer(String_Const_u8 string, u32 radix){
     return(is_integer);
 }
 
-static u64
+internal u64
 string_to_integer(String_Const_u8 string, u32 radix){
     u64 x = 0;
     if (radix <= 16){
@@ -6340,12 +6531,12 @@ string_to_integer(String_Const_u8 string, u32 radix){
     return(x);
 }
 
-static u64
+internal u64
 string_to_integer(String_Const_char string, u32 radix){
     return(string_to_integer(SCu8((u8*)string.str, string.size), radix));
 }
 
-static String_Const_u8
+internal String_Const_u8
 string_base64_encode_from_binary(Arena *arena, void *data, umem size){
     umem char_count = div_round_up_positive(size*8, 6);
     char_count = round_up_umem(char_count, 4);
@@ -6384,7 +6575,7 @@ string_base64_encode_from_binary(Arena *arena, void *data, umem size){
     return(string);
 }
 
-static Data
+internal Data
 data_decode_from_base64(Arena *arena, u8 *str, umem size){
     Data data = {};
     if (size%4 == 0){
@@ -6428,27 +6619,6 @@ data_decode_from_base64(Arena *arena, u8 *str, umem size){
     }
     return(data);
 }
-
-////////////////////////////////
-
-#if defined(FSTRING_GUARD)
-static String
-string_old_from_new(String_Const_char string){
-    return(make_string(string.str, (i32)string.size));
-}
-static String
-string_old_from_new(String_Const_u8 string){
-    return(make_string((char*)string.str, (i32)string.size));
-}
-static String_Const_char
-string_new_from_old(String string){
-    return(SCchar(string.str, (umem)string.size));
-}
-static String_Const_u8
-string_new_u8_from_old(String string){
-    return(SCu8((u8*)string.str, (umem)string.size));
-}
-#endif
 
 #endif
 

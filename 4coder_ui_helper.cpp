@@ -4,10 +4,6 @@
 
 // TOP
 
-// TODO(allen): documentation comment here
-
-////////////////////////////////
-
 typedef u32 View_Get_UI_Flags;
 enum{
     ViewGetUIFlag_KeepDataAsIs = 0,
@@ -19,36 +15,36 @@ view_get_ui_data(Application_Links *app, View_ID view_id, View_Get_UI_Flags flag
     b32 result = false;
     Managed_Scope scope = view_get_managed_scope(app, view_id);
     if (scope != 0){
-        Managed_Object ui_data_object = 0;
-        if (managed_variable_get(app, scope, view_ui_data, &ui_data_object)){
-            if (ui_data_object == 0){
-                Managed_Object new_ui_data_object = alloc_managed_memory_in_scope(app, scope, sizeof(UI_Storage), 1);
-                Managed_Object arena_object = alloc_managed_arena_in_scope(app, scope, (8 << 10));
-                Arena *arena = 0;
-                if (managed_object_load_data(app, arena_object, 0, 1, &arena)){
-                    UI_Data *ui_data = push_array(arena, UI_Data, 1);
-                    UI_Storage storage = {};
-                    storage.data = ui_data;
-                    storage.arena = arena;
-                    storage.arena_object = arena_object;
-                    storage.temp = begin_temp(arena);
-                    if (managed_object_store_data(app, new_ui_data_object, 0, 1, &storage)){
-                        if (managed_variable_set(app, scope, view_ui_data, new_ui_data_object)){
-                            ui_data_object = new_ui_data_object;
-                        }
-                    }
-                }
+        Managed_Object *ui_data_object_ptr = scope_attachment(app, scope, view_ui_data, Managed_Object);
+        Managed_Object ui_data_object = *ui_data_object_ptr;
+        if (ui_data_object == 0){
+            Managed_Object new_ui_data_object = alloc_managed_memory_in_scope(app, scope, sizeof(UI_Storage), 1);
+            
+            Base_Allocator *allocator = managed_scope_allocator(app, scope);
+            Arena arena_temp = make_arena(allocator, KB(8));
+            Arena *arena = push_array(&arena_temp, Arena, 1);
+            block_copy_struct(arena, &arena_temp);
+            
+            UI_Data *ui_data = push_array(arena, UI_Data, 1);
+            UI_Storage storage = {};
+            storage.data = ui_data;
+            storage.arena = arena;
+            storage.temp = begin_temp(arena);
+            if (managed_object_store_data(app, new_ui_data_object, 0, 1, &storage)){
+                *ui_data_object_ptr = new_ui_data_object;
+                ui_data_object = new_ui_data_object;
             }
-            if (ui_data_object != 0){
-                UI_Storage storage = {};
-                if (managed_object_load_data(app, ui_data_object, 0, 1, &storage)){
-                    *ui_data_out = storage.data;
-                    *ui_arena_out = storage.arena;
-                    if ((flags & ViewGetUIFlag_ClearData) != 0){
-                        end_temp(storage.temp);
-                    }
-                    result = true;
+            
+        }
+        if (ui_data_object != 0){
+            UI_Storage storage = {};
+            if (managed_object_load_data(app, ui_data_object, 0, 1, &storage)){
+                *ui_data_out = storage.data;
+                *ui_arena_out = storage.arena;
+                if ((flags & ViewGetUIFlag_ClearData) != 0){
+                    end_temp(storage.temp);
                 }
+                result = true;
             }
         }
     }
@@ -60,16 +56,16 @@ view_clear_ui_data(Application_Links *app, View_ID view_id){
     b32 result = false;
     Managed_Scope scope = view_get_managed_scope(app, view_id);
     if (scope != 0){
-        Managed_Object ui_data_object = 0;
-        if (managed_variable_get(app, scope, view_ui_data, &ui_data_object)){
-            if (ui_data_object != 0){
-                UI_Storage storage = {};
-                if (managed_object_load_data(app, ui_data_object, 0, 1, &storage)){
-                    managed_object_free(app, storage.arena_object);
-                    managed_object_free(app, ui_data_object);
-                    managed_variable_set(app, scope, view_ui_data, 0);
-                    result = true;
-                }
+        Managed_Object *ui_data_object_ptr = scope_attachment(app, scope, view_ui_data, Managed_Object);
+        Managed_Object ui_data_object = *ui_data_object_ptr;
+        if (ui_data_object != 0){
+            UI_Storage storage = {};
+            if (managed_object_load_data(app, ui_data_object, 0, 1, &storage)){
+                Arena arena_temp = *storage.arena;
+                linalloc_clear(&arena_temp);
+                managed_object_free(app, ui_data_object);
+                *ui_data_object_ptr = 0;
+                result = true;
             }
         }
     }

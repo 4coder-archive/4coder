@@ -31,9 +31,9 @@ struct Config_Error_List{
 };
 
 struct Config_Parser{
-    Cpp_Token *start;
-    Cpp_Token *token;
-    Cpp_Token *end;
+    Token *start;
+    Token *token;
+    Token *end;
     
     String_Const_u8 file_name;
     String_Const_u8 data;

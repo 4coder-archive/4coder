@@ -10,413 +10,147 @@
 // TOP
 
 internal void
-dynamic_variables_init(Dynamic_Variable_Layout *layout){
-    dll_init_sentinel(&layout->sentinel);
-    layout->location_counter = 1;
+managed_ids_init(Base_Allocator *allocator, Managed_ID_Set *set){
+    set->arena = make_arena(allocator, KB(4), 8);
+    set->name_to_id_table = make_table_Data_u64(allocator, 40);
+    set->id_counter = 1;
 }
 
-internal Managed_Variable_ID
-dynamic_variables_lookup(Dynamic_Variable_Layout *layout, String_Const_u8 name){
-    for (Dynamic_Variable_Slot *slot = layout->sentinel.next;
-         slot != &layout->sentinel;
-         slot = slot->next){
-        if (string_match(slot->name, name)){
-            return(slot->location);
-        }
-    }
-    return(ManagedVariableIndex_ERROR);
-}
-
-internal Managed_Variable_ID
-dynamic_variables_create__always(Heap *heap, Dynamic_Variable_Layout *layout, String_Const_u8 name, u64 default_value){
-    i32 alloc_size = (i32)(name.size + 1 + sizeof(Dynamic_Variable_Slot));
-    void *ptr = heap_allocate(heap, alloc_size);
-    Managed_Variable_ID result = ManagedVariableIndex_ERROR;
-    if (ptr != 0){
-        Dynamic_Variable_Slot *new_slot = (Dynamic_Variable_Slot*)ptr;
-        char *c_str = (char*)(new_slot + 1);
-        block_copy(c_str, name.str, name.size);
-        c_str[name.size] = 0;
-        new_slot->name = SCu8(c_str, name.size);
-        new_slot->default_value = default_value;
-        new_slot->location = layout->location_counter++;
-        dll_insert_back(&layout->sentinel, new_slot);
-        result = new_slot->location;
-    }
-    return(result);
-}
-
-internal Managed_Variable_ID
-dynamic_variables_lookup_or_create(Heap *heap, Dynamic_Variable_Layout *layout, String_Const_u8 name, u64 default_value){
-    Managed_Variable_ID lookup_id = dynamic_variables_lookup(layout, name);
-    if (lookup_id == ManagedVariableIndex_ERROR){
-        lookup_id = dynamic_variables_create__always(heap, layout, name, default_value);
-    }
-    return(lookup_id);
-}
-
-internal i32
-dynamic_variables_create(Heap *heap, Dynamic_Variable_Layout *layout, String_Const_u8 name, u64 default_value){
-    Managed_Variable_ID lookup_id = dynamic_variables_lookup(layout, name);
-    if (lookup_id == ManagedVariableIndex_ERROR){
-        return(dynamic_variables_create__always(heap, layout, name, default_value));
-    }
-    return(ManagedVariableIndex_ERROR);
-}
-
-////////////////////////////////
-
-internal void
-dynamic_variables_block_init(Dynamic_Variable_Block *block){
-    block->val_array = 0;
-    block->count = 0;
-    block->max = 0;
-}
-
-internal void
-dynamic_variables_block_grow_max_to(Heap *heap, Memory_Bank *mem_bank, i32 new_max, Dynamic_Variable_Block *block){
-    i32 new_size = new_max*sizeof(u64);
-    u64 *new_array = (u64*)memory_bank_allocate(heap, mem_bank, new_size);
-    if (block->val_array != 0){
-        memcpy(new_array, block->val_array, sizeof(u64)*block->count);
-        memory_bank_free(mem_bank, block->val_array);
-    }
-    block->val_array = new_array;
-}
-
-internal void
-dynamic_variables_block_fill_unset_values(Dynamic_Variable_Layout *layout, Dynamic_Variable_Block *block, i32 one_past_last_index){
-    i32 first_location = block->count + 1;
-    i32 one_past_last_location = one_past_last_index + 1;
-    block->count = one_past_last_index;
-    for (Dynamic_Variable_Slot *slot = layout->sentinel.next;
-         slot != &layout->sentinel;
-         slot = slot->next){
-        if (first_location <= slot->location && slot->location < one_past_last_location){
-            block->val_array[slot->location - 1] = slot->default_value;
-        }
-    }
-}
-
-internal b32
-dynamic_variables_get_ptr(Heap *heap, Memory_Bank *mem_bank,
-                          Dynamic_Variable_Layout *layout, Dynamic_Variable_Block *block,
-                          i32 location, u64 **ptr_out){
-    b32 result = false;
-    if (location > 0 && location < layout->location_counter){
-        i32 index = location - 1;
-        if (index >= block->count){
-            i32 minimum_max = layout->location_counter - 1;
-            if (block->max < minimum_max){
-                dynamic_variables_block_grow_max_to(heap, mem_bank, minimum_max*2, block);
-            }
-            dynamic_variables_block_fill_unset_values(layout, block, index + 1);
-        }
-        *ptr_out = block->val_array + index;
-        result = true;
-    }
-    return(result);
-}
-
-////////////////////////////////
-
-internal void
-insert_u32_Ptr_table(Heap *heap, Memory_Bank *mem_bank, u32_Ptr_Table *table, u32 key, void* val){
-    if (at_max_u32_Ptr_table(table)){
-        i32 new_max = (table->max + 1)*2;
-        i32 new_mem_size = max_to_memsize_u32_Ptr_table(new_max);
-        void *new_mem = memory_bank_allocate(heap, mem_bank, new_mem_size);
-        u32_Ptr_Table new_table = make_u32_Ptr_table(new_mem, new_mem_size);
-        if (table->mem != 0){
-            b32 result = move_u32_Ptr_table(&new_table, table);
-            Assert(result);
-            memory_bank_free(mem_bank, table->mem);
-        }
-        *table = new_table;
-    }
-    b32 result = insert_u32_Ptr_table(table, &key, &val);
-    Assert(result);
-}
-
-////////////////////////////////
-
-internal void
-marker_visual_allocator_init(Marker_Visual_Allocator *allocator){
-    memset(allocator, 0, sizeof(*allocator));
-}
-
-internal Marker_Visual_Data*
-dynamic_workspace_alloc_visual(Heap *heap, Memory_Bank *mem_bank, Dynamic_Workspace *workspace){
-    Marker_Visual_Allocator *allocator = &workspace->visual_allocator;
-    if (allocator->free_count == 0){
-        i32 new_slots_count = clamp_bot(16, allocator->total_visual_count);
-        i32 memsize = new_slots_count*sizeof(Marker_Visual_Data);
-        void *new_slots_memory = memory_bank_allocate(heap, mem_bank, memsize);
-        memset(new_slots_memory, 0, memsize);
-        Marker_Visual_Data *new_slot = (Marker_Visual_Data*)new_slots_memory;
-        allocator->free_count += new_slots_count;
-        allocator->total_visual_count += new_slots_count;
-        for (i32 i = 0; i < new_slots_count; i += 1, new_slot += 1){
-            zdll_push_back(allocator->free_first, allocator->free_last, new_slot);
-            new_slot->slot_id = ++workspace->visual_id_counter;
-            insert_u32_Ptr_table(heap, mem_bank, &allocator->id_to_ptr_table, new_slot->slot_id, new_slot);
-        }
-    }
-    Marker_Visual_Data *data = allocator->free_first;
-    zdll_remove(allocator->free_first, allocator->free_last, data);
-    allocator->free_count -= 1;
-    data->gen_id += 1;
-    return(data);
-}
-
-internal void
-marker_visual_free(Marker_Visual_Allocator *allocator, Marker_Visual_Data *data){
-    zdll_push_back(allocator->free_first, allocator->free_last, data);
-    allocator->free_count += 1;
-}
-
-internal void
-marker_visual_free_chain(Marker_Visual_Allocator *allocator, Marker_Visual_Data *first, Marker_Visual_Data *last, i32 count){
-    if (allocator->free_first == 0){
-        allocator->free_first = first;
-        allocator->free_last = last;
+internal Managed_ID
+managed_ids_declare(Managed_ID_Set *set, String_Const_u8 name){
+    Managed_ID result = 0;
+    Data data = make_data(name.str, name.size);
+    Table_Lookup lookup = table_lookup(&set->name_to_id_table, data);
+    if (lookup.found_match){
+        table_read(&set->name_to_id_table, lookup, &result);
     }
     else{
-        allocator->free_last->next = first;
-        first->prev = allocator->free_last;
-        allocator->free_last = last;
+        result = set->id_counter;
+        set->id_counter += 1;
+        data = push_data_copy(&set->arena, data);
+        table_insert(&set->name_to_id_table, data, result);
     }
-    allocator->free_count += count;
-}
-
-internal void
-marker_visual_defaults(Marker_Visual_Data *data){
-    data->type = VisualType_Invisible;
-    data->color = 0;
-    data->text_color = 0;
-    data->text_style = 0;
-    data->take_rule.first_index = 0;
-    data->take_rule.take_count_per_step = 1;
-    data->take_rule.step_stride_in_marker_count = 1;
-    data->take_rule.maximum_number_of_markers = max_i32;
-    data->one_past_last_take_index = max_i32;
-    data->priority = VisualPriority_Default;
-    data->key_view_id = 0;
+    return(result);
 }
 
 ////////////////////////////////
 
 internal void
-dynamic_workspace_init(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr, Dynamic_Workspace *workspace){
-    memset(workspace, 0, sizeof(*workspace));
-    memory_bank_init(&workspace->mem_bank);
-    dynamic_variables_block_init(&workspace->var_block);
-    marker_visual_allocator_init(&workspace->visual_allocator);
+dynamic_variable_block_init(Base_Allocator *allocator, Dynamic_Variable_Block *block){
+    block->arena = make_arena(allocator, KB(4), 8);
+    block->id_to_data_table = make_table_u64_Data(allocator, 20);
+}
+
+internal Data
+dynamic_variable_get(Dynamic_Variable_Block *block, Managed_ID id, umem size){
+    Data result = {};
+    Table_Lookup lookup = table_lookup(&block->id_to_data_table, id);
+    if (lookup.found_match){
+        table_read(&block->id_to_data_table, lookup, &result);
+    }
+    else{
+        result = push_data(&block->arena, size);
+        block_zero(result);
+        table_insert(&block->id_to_data_table, id, result);
+    }
+    return(result);
+}
+
+internal void
+dynamic_variable_erase(Dynamic_Variable_Block *block, Managed_ID id){
+    table_erase(&block->id_to_data_table, id);
+}
+
+////////////////////////////////
+
+internal void
+lifetime_allocator_init(Base_Allocator *base_allocator, Lifetime_Allocator *lifetime_allocator){
+    block_zero_struct(lifetime_allocator);
+    lifetime_allocator->allocator = base_allocator;
+    lifetime_allocator->key_table = make_table_Data_u64(base_allocator, 100);
+    lifetime_allocator->key_check_table = make_table_u64_u64(base_allocator, 100);
+    lifetime_allocator->scope_id_to_scope_ptr_table = make_table_u64_u64(base_allocator, 100);
+}
+
+////////////////////////////////
+
+internal void
+dynamic_workspace_init(Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr, Dynamic_Workspace *workspace){
+    block_zero_struct(workspace);
+    heap_init(&workspace->heap, lifetime_allocator->allocator);
+    workspace->heap_wrapper = base_allocator_on_heap(&workspace->heap);
+    workspace->object_id_to_object_ptr = make_table_u64_u64(&workspace->heap_wrapper, 10);
+    dynamic_variable_block_init(&workspace->heap_wrapper, &workspace->var_block);
     if (lifetime_allocator->scope_id_counter == 0){
         lifetime_allocator->scope_id_counter = 1;
     }
     workspace->scope_id = lifetime_allocator->scope_id_counter++;
-    insert_u32_Ptr_table(heap, &lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id, workspace);
+    table_insert(&lifetime_allocator->scope_id_to_scope_ptr_table,
+                 workspace->scope_id, (u64)PtrAsInt(workspace));
     workspace->user_type = user_type;
     workspace->user_back_ptr = user_back_ptr;
 }
 
 internal void
-dynamic_workspace_free(Heap *heap, Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace *workspace){
-    erase_u32_Ptr_table(&lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id);
-    memory_bank_free_all(heap, &workspace->mem_bank);
+dynamic_workspace_free(Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace *workspace){
+    table_erase(&lifetime_allocator->scope_id_to_scope_ptr_table, workspace->scope_id);
+    heap_free_all(&workspace->heap);
 }
 
 internal void
-dynamic_workspace_clear_contents(Heap *heap, Dynamic_Workspace *workspace){
-    memory_bank_free_all(heap, &workspace->mem_bank);
-    memory_bank_init(&workspace->mem_bank);
-    
-    dynamic_variables_block_init(&workspace->var_block);
-    marker_visual_allocator_init(&workspace->visual_allocator);
-    memset(&workspace->object_id_to_object_ptr, 0, sizeof(workspace->object_id_to_object_ptr));
-    memset(&workspace->buffer_markers_list, 0, sizeof(workspace->buffer_markers_list));
+dynamic_workspace_clear_contents(Dynamic_Workspace *workspace){
+    Base_Allocator *base_allocator = heap_free_all(&workspace->heap);
+    heap_init(&workspace->heap, base_allocator);
+    workspace->heap_wrapper = base_allocator_on_heap(&workspace->heap);
+    workspace->object_id_to_object_ptr = make_table_u64_u64(&workspace->heap_wrapper, 10);
+    dynamic_variable_block_init(&workspace->heap_wrapper, &workspace->var_block);
+    block_zero_struct(&workspace->buffer_markers_list);
     workspace->total_marker_count = 0;
 }
 
 internal u32
-dynamic_workspace_store_pointer(Heap *heap, Dynamic_Workspace *workspace, void *ptr){
+dynamic_workspace_store_pointer(Dynamic_Workspace *workspace, void *ptr){
     if (workspace->object_id_counter == 0){
         workspace->object_id_counter = 1;
     }
     u32 id = workspace->object_id_counter++;
-    insert_u32_Ptr_table(heap, &workspace->mem_bank, &workspace->object_id_to_object_ptr, id, ptr);
+    table_insert(&workspace->object_id_to_object_ptr, id, (u64)PtrAsInt(ptr));
     return(id);
 }
 
 internal void
 dynamic_workspace_erase_pointer(Dynamic_Workspace *workspace, u32 id){
-    erase_u32_Ptr_table(&workspace->object_id_to_object_ptr, id);
+    table_erase(&workspace->object_id_to_object_ptr, id);
 }
 
 internal void*
 dynamic_workspace_get_pointer(Dynamic_Workspace *workspace, u32 id){
-    u32_Ptr_Lookup_Result lookup = lookup_u32_Ptr_table(&workspace->object_id_to_object_ptr, id);
-    if (lookup.success){
-        return(*lookup.val);
+    void *result = 0;
+    Table_Lookup lookup = table_lookup(&workspace->object_id_to_object_ptr, id);
+    if (lookup.found_match){
+        u64 val = 0;
+        table_read(&workspace->object_id_to_object_ptr, lookup, &val);
+        result = IntAsPtr(val);
     }
-    return(0);
-}
-
-internal Marker_Visual_Data*
-dynamic_workspace_get_visual_pointer(Dynamic_Workspace *workspace, u32 slot_id, u32 gen_id){
-    void *data_ptr = 0;
-    if (lookup_u32_Ptr_table(&workspace->visual_allocator.id_to_ptr_table, slot_id, &data_ptr)){
-        Marker_Visual_Data *data = (Marker_Visual_Data*)data_ptr;
-        if (data->gen_id == gen_id){
-            void *object_ptr = dynamic_workspace_get_pointer(workspace, data->owner_object&max_u32);
-            if (object_ptr != 0){
-                return(data);
-            }
-        }
-    }
-    return(0);
+    return(result);
 }
 
 ////////////////////////////////
 
-internal u64
-lifetime__key_hash(Lifetime_Object **object_ptr_array, i32 count){
-    u64 hash = bit_1;
-    for (i32 i = 0; i < count; i += 1){
-        u64 x = (u64)(PtrAsInt(object_ptr_array[i]));
-        x >>= 3;
-        hash = (hash + ((hash << 37) ^ (((x) >> (x&1)))));
-    }
-    return(hash | bit_63);
+internal Data
+lifetime__key_as_data(Lifetime_Object **members, i32 count){
+    return(make_data(members, sizeof(*members)*count));
 }
 
-internal Lifetime_Key*
-lifetime__key_table_lookup(Lifetime_Key_Table *table, u64 hash, Lifetime_Object **object_ptr_array, i32 count){
-    u32 max = table->max;
-    if (max > 0 && table->count > 0){
-        u32 first_index = hash%max;
-        u32 index = first_index;
-        u64 *hashes = table->hashes;
-        umem set_size = count*sizeof(Lifetime_Object*);
-        for (;;){
-            if (hashes[index] == hash){
-                Lifetime_Key *key = table->keys[index];
-                if (key->count == count &&
-                    memcmp(object_ptr_array, key->members, set_size) == 0){
-                    return(key);
-                }
-            }
-            else if (hashes[index] == LifetimeKeyHash_Empty){
-                return(0);
-            }
-            index += 1;
-            if (index == max){
-                index = 0;
-            }
-            if (index == first_index){
-                return(0);
-            }
-        }
-    }
-    return(0);
-}
-
-internal Lifetime_Key_Table
-lifetime__key_table_copy(Heap *heap, Lifetime_Key_Table table, u32 new_max);
-
-internal void
-lifetime__key_table_insert(Heap *heap, Lifetime_Key_Table *table, u64 hash, Lifetime_Key *key){
-    {
-        u32 max = table->max;
-        u32 count = table->count;
-        if (max == 0 || (count + 1)*6 > max*5){
-            Assert(heap != 0);
-            Lifetime_Key_Table new_table = lifetime__key_table_copy(heap, *table, max*2);
-            heap_free(heap, table->mem_ptr);
-            *table = new_table;
-        }
-    }
-    
-    {
-        u32 max = table->max;
-        if (max > 0){
-            u32 first_index = hash%max;
-            u32 index = first_index;
-            u64 *hashes = table->hashes;
-            for (;;){
-                if (hashes[index] == LifetimeKeyHash_Empty ||
-                    hashes[index] == LifetimeKeyHash_Deleted){
-                    hashes[index] = hash;
-                    table->keys[index] = key;
-                    table->count += 1;
-                    return;
-                }
-                index += 1;
-                if (index == max){
-                    index = 0;
-                }
-                if (index == first_index){
-                    return;
-                }
-            }
-        }
-    }
+internal Data
+lifetime__key_as_data(Lifetime_Key *key){
+    return(lifetime__key_as_data(key->members, key->count));
 }
 
 internal void
-lifetime__key_table_erase(Lifetime_Key_Table *table, Lifetime_Key *erase_key){
-    u32 max = table->max;
-    if (max > 0 && table->count > 0){
-        u64 hash = lifetime__key_hash(erase_key->members, erase_key->count);
-        u32 first_index = hash%max;
-        u32 index = first_index;
-        u64 *hashes = table->hashes;
-        for (;;){
-            if (hashes[index] == hash){
-                Lifetime_Key *key = table->keys[index];
-                if (erase_key == key){
-                    hashes[index] = LifetimeKeyHash_Deleted;
-                    table->keys[index] = 0;
-                    return;
-                }
-            }
-            else if (hashes[index] == LifetimeKeyHash_Empty){
-                return;
-            }
-            index += 1;
-            if (index == max){
-                index = 0;
-            }
-            if (index == first_index){
-                return;
-            }
-        }
-    }
-}
-
-internal Lifetime_Key_Table
-lifetime__key_table_copy(Heap *heap, Lifetime_Key_Table table, u32 new_max){
-    Lifetime_Key_Table new_table = {};
-    new_table.max = clamp_bot(table.max, new_max);
-    new_table.max = clamp_bot(307, new_table.max);
-    i32 item_size = sizeof(*new_table.hashes) + sizeof(*new_table.keys);
-    new_table.mem_ptr = heap_allocate(heap, item_size*new_table.max);
-    memset(new_table.mem_ptr, 0, item_size*new_table.max);
-    new_table.hashes = (u64*)(new_table.mem_ptr);
-    new_table.keys = (Lifetime_Key**)(new_table.hashes + new_table.max);
-    for (u32 i = 0; i < table.max; i += 1){
-        if ((table.hashes[i]&bit_63) != 0){
-            lifetime__key_table_insert(0, &new_table, table.hashes[i], table.keys[i]);
-        }
-    }
-    return(new_table);
-}
-
-internal void
-lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key, Lifetime_Object *skip_object){
+lifetime__free_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key, Lifetime_Object *skip_object){
     // Deinit
-    dynamic_workspace_free(heap, lifetime_allocator, &key->dynamic_workspace);
+    dynamic_workspace_free(lifetime_allocator, &key->dynamic_workspace);
     
     // Remove From Objects
     i32 count = key->count;
@@ -458,20 +192,22 @@ lifetime__free_key(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_
     }
     
     // Free
-    lifetime__key_table_erase(&lifetime_allocator->key_table, key);
-    erase_Ptr_table(&lifetime_allocator->key_check_table, key);
-    heap_free(heap, key->members);
+    Data key_data = lifetime__key_as_data(key);
+    table_erase(&lifetime_allocator->key_table, key_data);
+    table_erase(&lifetime_allocator->key_check_table, (u64)PtrAsInt(key));
+    base_free(lifetime_allocator->allocator, key->members);
     zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, key);
 }
 
 internal Lifetime_Key_Ref_Node*
-lifetime__alloc_key_reference_node(Heap *heap, Lifetime_Allocator *lifetime_allocator){
+lifetime__alloc_key_reference_node(Lifetime_Allocator *lifetime_allocator){
     Assert(lifetime_allocator != 0);
     Lifetime_Key_Ref_Node *result = lifetime_allocator->free_key_references.first;
     if (result == 0){
         i32 new_node_count = 32;
-        Lifetime_Key_Ref_Node *new_nodes = heap_array(heap, Lifetime_Key_Ref_Node, new_node_count);
-        Assert(new_nodes != 0);
+        umem new_memory_size = new_node_count*sizeof(Lifetime_Key_Ref_Node);
+        Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
+        Lifetime_Key_Ref_Node *new_nodes = (Lifetime_Key_Ref_Node*)new_memory.data;
         Lifetime_Key_Ref_Node *new_node_ptr = new_nodes;
         for (i32 i = 0; i < new_node_count; i += 1, new_node_ptr += 1){
             zdll_push_back(lifetime_allocator->free_key_references.first,
@@ -486,8 +222,7 @@ lifetime__alloc_key_reference_node(Heap *heap, Lifetime_Allocator *lifetime_allo
 }
 
 internal void
-lifetime__object_add_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
-                         Lifetime_Object *object, Lifetime_Key *key){
+lifetime__object_add_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Object *object, Lifetime_Key *key){
     Lifetime_Key_Ref_Node *last_node = object->key_node_last;
     b32 insert_on_new_node = false;
     if (last_node == 0){
@@ -504,20 +239,22 @@ lifetime__object_add_key(Heap *heap, Lifetime_Allocator *lifetime_allocator,
         }
     }
     if (insert_on_new_node){
-        Lifetime_Key_Ref_Node *new_node = lifetime__alloc_key_reference_node(heap, lifetime_allocator);
+        Lifetime_Key_Ref_Node *new_node = lifetime__alloc_key_reference_node(lifetime_allocator);
         zdll_push_back(object->key_node_first, object->key_node_last, new_node);
-        memset(new_node->keys, 0, sizeof(new_node->keys));
+        block_zero_struct(new_node->keys);
         new_node->keys[0] = key;
         object->key_count += 1;
     }
 }
 
 internal Lifetime_Object*
-lifetime_alloc_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr){
+lifetime_alloc_object(Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr){
     Lifetime_Object *object = lifetime_allocator->free_objects.first;
     if (object == 0){
         i32 new_object_count = 256;
-        Lifetime_Object *new_objects = heap_array(heap, Lifetime_Object, new_object_count);
+        umem new_memory_size = new_object_count*sizeof(Lifetime_Object);
+        Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
+        Lifetime_Object *new_objects = (Lifetime_Object*)new_memory.data;
         Lifetime_Object *new_object_ptr = new_objects;
         for (i32 i = 0; i < new_object_count; i += 1, new_object_ptr += 1){
             zdll_push_back(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, new_object_ptr);
@@ -529,21 +266,21 @@ lifetime_alloc_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, i32 us
     zdll_remove(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, object);
     lifetime_allocator->free_objects.count -= 1;
     
-    memset(object, 0, sizeof(*object));
-    dynamic_workspace_init(heap, lifetime_allocator, user_type, user_back_ptr, &object->workspace);
+    block_zero_struct(object);
+    dynamic_workspace_init(lifetime_allocator, user_type, user_back_ptr, &object->workspace);
     
     return(object);
 }
 
 internal void
-lifetime__object_free_all_keys(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
+lifetime__object_free_all_keys(Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
     i32 key_i = 0;
     for (Lifetime_Key_Ref_Node *node = lifetime_object->key_node_first;
          node != 0;
          node = node->next){
         i32 one_past_last = clamp_top(ArrayCount(node->keys), lifetime_object->key_count - key_i);
         for (i32 i = 0; i < one_past_last; i += 1){
-            lifetime__free_key(heap, lifetime_allocator, node->keys[i], lifetime_object);
+            lifetime__free_key(lifetime_allocator, node->keys[i], lifetime_object);
         }
         key_i += one_past_last;
     }
@@ -557,7 +294,7 @@ lifetime__object_free_all_keys(Heap *heap, Lifetime_Allocator *lifetime_allocato
 }
 
 internal void
-lifetime__object_clear_all_keys(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
+lifetime__object_clear_all_keys(Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
     i32 key_i = 0;
     for (Lifetime_Key_Ref_Node *node = lifetime_object->key_node_first;
          node != 0;
@@ -565,23 +302,23 @@ lifetime__object_clear_all_keys(Heap *heap, Lifetime_Allocator *lifetime_allocat
         i32 one_past_last = clamp_top(ArrayCount(node->keys), lifetime_object->key_count - key_i);
         Lifetime_Key **key_ptr = node->keys;
         for (i32 i = 0; i < one_past_last; i += 1, key_ptr += 1){
-            dynamic_workspace_clear_contents(heap, &(*key_ptr)->dynamic_workspace);
+            dynamic_workspace_clear_contents(&(*key_ptr)->dynamic_workspace);
         }
         key_i += one_past_last;
     }
 }
 
 internal void
-lifetime_free_object(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
-    lifetime__object_free_all_keys(heap, lifetime_allocator, lifetime_object);
-    dynamic_workspace_free(heap, lifetime_allocator, &lifetime_object->workspace);
+lifetime_free_object(Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
+    lifetime__object_free_all_keys(lifetime_allocator, lifetime_object);
+    dynamic_workspace_free(lifetime_allocator, &lifetime_object->workspace);
     zdll_push_back(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, lifetime_object);
 }
 
 internal void
-lifetime_object_reset(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
-    lifetime__object_clear_all_keys(heap, lifetime_allocator, lifetime_object);
-    dynamic_workspace_clear_contents(heap, &lifetime_object->workspace);
+lifetime_object_reset(Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
+    lifetime__object_clear_all_keys(lifetime_allocator, lifetime_object);
+    dynamic_workspace_clear_contents(&lifetime_object->workspace);
 }
 
 internal i32
@@ -624,21 +361,24 @@ lifetime_sort_and_dedup_object_set(Lifetime_Object **ptr_array, i32 count){
 }
 
 internal Lifetime_Key*
-lifetime_get_or_create_intersection_key(Heap *heap, Lifetime_Allocator *lifetime_allocator, Lifetime_Object **object_ptr_array, i32 count){
-    u64 hash = lifetime__key_hash(object_ptr_array, count);
-    
-    // Lookup
-    Lifetime_Key *existing_key = lifetime__key_table_lookup(&lifetime_allocator->key_table, hash,
-                                                            object_ptr_array, count);
-    if (existing_key != 0){
-        return(existing_key);
+lifetime_get_or_create_intersection_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Object **object_ptr_array, i32 count){
+    {
+        Data key_data = lifetime__key_as_data(object_ptr_array, count);
+        Table_Lookup lookup = table_lookup(&lifetime_allocator->key_table, key_data);
+        if (lookup.found_match){
+            u64 val = 0;
+            table_read(&lifetime_allocator->key_table, lookup, &val);
+            return((Lifetime_Key*)IntAsPtr(val));
+        }
     }
     
     // Allocate
     Lifetime_Key *new_key = lifetime_allocator->free_keys.first;
     if (new_key == 0){
         i32 new_key_count = 256;
-        Lifetime_Key *new_keys = heap_array(heap, Lifetime_Key, new_key_count);
+        umem new_memory_size = new_key_count*sizeof(Lifetime_Key);
+        Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
+        Lifetime_Key *new_keys = (Lifetime_Key*)new_memory.data;
         Lifetime_Key *new_key_ptr = new_keys;
         for (i32 i = 0; i < new_key_count; i += 1, new_key_ptr += 1){
             zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, new_key_ptr);
@@ -647,32 +387,39 @@ lifetime_get_or_create_intersection_key(Heap *heap, Lifetime_Allocator *lifetime
         new_key = lifetime_allocator->free_keys.first;
     }
     zdll_remove(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, new_key);
-    memset(new_key, 0, sizeof(*new_key));
+    block_zero_struct(new_key);
     
     // Add to Objects
     Lifetime_Object **object_ptr = object_ptr_array;
     for (i32 i = 0; i < count; i += 1, object_ptr += 1){
         Lifetime_Object *object = *object_ptr;
-        lifetime__object_add_key(heap, lifetime_allocator, object, new_key);
+        lifetime__object_add_key(lifetime_allocator, object, new_key);
     }
     
     // Initialize
-    new_key->members = heap_array(heap, Lifetime_Object*, count);
-    memcpy(new_key->members, object_ptr_array, sizeof(*new_key->members)*count);
+    umem new_memory_size = sizeof(Lifetime_Object*)*count;
+    Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
+    new_key->members = (Lifetime_Object**)new_memory.data;
+    block_copy_dynamic_array(new_key->members, object_ptr_array, count);
     new_key->count = count;
-    dynamic_workspace_init(heap, lifetime_allocator,
+    dynamic_workspace_init(lifetime_allocator,
                            DynamicWorkspace_Intersected, new_key,
                            &new_key->dynamic_workspace);
     
-    lifetime__key_table_insert(heap, &lifetime_allocator->key_table, hash, new_key);
-    insert_Ptr_table(heap, &lifetime_allocator->key_check_table, new_key);
+    {
+        Data key_data = lifetime__key_as_data(new_key);
+        u64 new_key_val = (u64)PtrAsInt(new_key);
+        table_insert(&lifetime_allocator->key_table, key_data, new_key_val);
+        table_insert(&lifetime_allocator->key_check_table, new_key_val, new_key_val);
+    }
     
     return(new_key);
 }
 
 internal b32
 lifetime_key_check(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key){
-    return(lookup_Ptr_table(&lifetime_allocator->key_check_table, key));
+    Table_Lookup lookup = table_lookup(&lifetime_allocator->key_check_table, (u64)PtrAsInt(key));
+    return(lookup.found_match);
 }
 
 ////////////////////////////////
@@ -688,21 +435,16 @@ get_dynamic_object_memory_ptr(Managed_Object_Standard_Header *header){
             {
                 ptr = ((u8*)header) + managed_header_type_sizes[header->type];
             }break;
-            case ManagedObjectType_Arena:
-            {
-                ptr = ((u8*)header) + managed_header_type_sizes[header->type];
-                Managed_Arena_Header *arena_header = (Managed_Arena_Header*)header;
-                *(Arena**)ptr = &arena_header->arena;
-            }break;
         }
     }
     return(ptr);
 }
 
 internal Managed_Object
-managed_object_alloc_managed_memory(Heap *heap, Dynamic_Workspace *workspace, i32 item_size, i32 count, void **ptr_out){
+managed_object_alloc_managed_memory(Dynamic_Workspace *workspace, i32 item_size, i32 count, void **ptr_out){
     i32 size = item_size*count;
-    void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, sizeof(Managed_Memory_Header) + size);
+    Data new_memory = base_allocate(&workspace->heap_wrapper, sizeof(Managed_Memory_Header) + size);
+    void *ptr = new_memory.data;
     Managed_Memory_Header *header = (Managed_Memory_Header*)ptr;
     header->std_header.type = ManagedObjectType_Memory;
     header->std_header.item_size = item_size;
@@ -710,14 +452,15 @@ managed_object_alloc_managed_memory(Heap *heap, Dynamic_Workspace *workspace, i3
     if (ptr_out != 0){
         *ptr_out = get_dynamic_object_memory_ptr(&header->std_header);
     }
-    u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
+    u32 id = dynamic_workspace_store_pointer(workspace, ptr);
     return(((u64)workspace->scope_id << 32) | (u64)id);
 }
 
 internal Managed_Object
-managed_object_alloc_buffer_markers(Heap *heap, Dynamic_Workspace *workspace, Buffer_ID buffer_id, i32 count, Marker **markers_out){
+managed_object_alloc_buffer_markers(Dynamic_Workspace *workspace, Buffer_ID buffer_id, i32 count, Marker **markers_out){
     i32 size = count*sizeof(Marker);
-    void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, size + sizeof(Managed_Buffer_Markers_Header));
+    Data new_memory = base_allocate(&workspace->heap_wrapper, size + sizeof(Managed_Buffer_Markers_Header));
+    void *ptr = new_memory.data;
     Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)ptr;
     header->std_header.type = ManagedObjectType_Markers;
     header->std_header.item_size = sizeof(Marker);
@@ -726,29 +469,10 @@ managed_object_alloc_buffer_markers(Heap *heap, Dynamic_Workspace *workspace, Bu
     workspace->buffer_markers_list.count += 1;
     workspace->total_marker_count += count;
     header->buffer_id = buffer_id;
-    header->visual_first = 0;
-    header->visual_last = 0;
-    header->visual_count = 0;
     if (markers_out != 0){
         *markers_out = (Marker*)get_dynamic_object_memory_ptr(&header->std_header);
     }
-    u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
-    return(((u64)workspace->scope_id << 32) | (u64)id);
-}
-
-internal Managed_Object
-managed_object_alloc_managed_arena_in_scope(Heap *heap, Dynamic_Workspace *workspace, Application_Links *app, i32 page_size, Arena **arena_out){
-    void *ptr = memory_bank_allocate(heap, &workspace->mem_bank, sizeof(Managed_Arena_Header) + sizeof(Arena*));
-    Managed_Arena_Header *header = (Managed_Arena_Header*)ptr;
-    header->std_header.type = ManagedObjectType_Arena;
-    header->std_header.item_size = sizeof(Arena*);
-    header->std_header.count = 1;
-    zdll_push_back(workspace->arena_list.first, workspace->arena_list.last, header);
-    header->arena = make_arena_app_links(app, page_size);
-    if (arena_out != 0){
-        *arena_out = &header->arena;
-    }
-    u32 id = dynamic_workspace_store_pointer(heap, workspace, ptr);
+    u32 id = dynamic_workspace_store_pointer(workspace, ptr);
     return(((u64)workspace->scope_id << 32) | (u64)id);
 }
 
@@ -764,22 +488,12 @@ managed_object_free(Dynamic_Workspace *workspace, Managed_Object object){
             {
                 Managed_Buffer_Markers_Header *header = (Managed_Buffer_Markers_Header*)object_ptr;
                 workspace->total_marker_count -= header->std_header.count;
-                if (header->visual_count > 0){
-                    marker_visual_free_chain(&workspace->visual_allocator, header->visual_first, header->visual_last, header->visual_count);
-                }
                 zdll_remove(workspace->buffer_markers_list.first, workspace->buffer_markers_list.last, header);
                 workspace->buffer_markers_list.count -= 1;
             }break;
-            
-            case ManagedObjectType_Arena:
-            {
-                Managed_Arena_Header *header = (Managed_Arena_Header*)object_ptr;
-                linalloc_clear(&header->arena);
-                zdll_remove(workspace->arena_list.first, workspace->arena_list.last, header);
-            }break;
         }
         dynamic_workspace_erase_pointer(workspace, lo_id);
-        memory_bank_free(&workspace->mem_bank, object_ptr);
+        base_free(&workspace->heap_wrapper, object_ptr);
         result = true;
     }
     return(result);

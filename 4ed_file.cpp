@@ -213,8 +213,6 @@ file_compute_cursor(Editing_File *file, Buffer_Seek seek){
 internal void
 file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
     System_Functions *system = models->system;
-    // TODO(allen): completely eliminate the heap,  then clean up the implementation or remove it too!
-    Heap *heap = &models->mem.heap;
     Arena *scratch = &models->mem.arena;
     Application_Links *app_links = &models->app_links;
     Base_Allocator *allocator = models->base_allocator;
@@ -232,27 +230,10 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     
     buffer_measure_starts(scratch, &file->state.buffer);
     
-    file->lifetime_object = lifetime_alloc_object(heap, &models->lifetime_allocator, DynamicWorkspace_Buffer, file);
+    file->lifetime_object = lifetime_alloc_object(&models->lifetime_allocator, DynamicWorkspace_Buffer, file);
     history_init(&models->app_links, &file->state.history);
     
-    // TODO(allen): do(cleanup the create and settings dance)
-    // Right now we have this thing where we call hook_open_file, which may or may not
-    // trigger a lex job or serial lex, or might just flag the buffer to say it wants
-    // tokens.  Then we check if we need to lex still and do it here too.  Better would
-    // be to make sure it always happens in one way.
-    Open_File_Hook_Function *hook_open_file = models->hook_open_file;
-    if (hook_open_file != 0){
-        hook_open_file(app_links, file->id);
-    }
-    
-    if (file->settings.tokens_exist){
-        if (file->state.token_array.tokens == 0){
-            file_first_lex(system, models, file);
-        }
-    }
-    else{
-        file_mark_edit_finished(&models->working_set, file);
-    }
+    file_mark_edit_finished(&models->working_set, file);
     
     file->state.cached_layouts_arena = make_arena(allocator);
     file->state.line_layout_table = make_table_Data_u64(allocator, 500);
@@ -268,15 +249,18 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
                   attributes.last_write_time, string_expand(name));
         end_temp(temp);
     }
+    
+    ////////////////////////////////
+    
+    Buffer_Hook_Function *hook_open_file = models->hook_open_file;
+    if (hook_open_file != 0){
+        hook_open_file(app_links, file->id);
+    }
 }
 
 internal void
-file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_allocator, Working_Set *working_set, Editing_File *file){
-    if (file->state.token_array.tokens){
-        heap_free(heap, file->state.token_array.tokens);
-    }
-    
-    lifetime_free_object(heap, lifetime_allocator, file->lifetime_object);
+file_free(System_Functions *system, Lifetime_Allocator *lifetime_allocator, Working_Set *working_set, Editing_File *file){
+    lifetime_free_object(lifetime_allocator, file->lifetime_object);
     
     Gap_Buffer *buffer = &file->state.buffer;
     if (buffer->data){
@@ -284,7 +268,7 @@ file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_all
         base_free(buffer->allocator, buffer->line_starts);
     }
     
-    history_free(heap, &file->state.history);
+    history_free(&file->state.history);
     
     linalloc_clear(&file->state.cached_layouts_arena);
     table_free(&file->state.line_layout_table);
@@ -297,11 +281,6 @@ file_free(System_Functions *system, Heap *heap, Lifetime_Allocator *lifetime_all
 internal i32
 file_get_current_record_index(Editing_File *file){
     return(file->state.current_record_index);
-}
-
-internal b32
-file_tokens_are_ready(Editing_File *file){
-    return(file->state.token_array.tokens != 0);
 }
 
 internal Managed_Scope

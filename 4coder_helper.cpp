@@ -4,6 +4,10 @@
 
 // TOP
 
+#define scope_attachment(app,S,I,T) ((T*)managed_scope_get_attachment((app), (S), (I), sizeof(T)))
+
+////////////////////////////////
+
 internal Binding_Unit*
 write_unit(Bind_Helper *helper, Binding_Unit unit){
     Binding_Unit *p = 0;
@@ -162,7 +166,7 @@ set_get_view_buffer_region_hook(Bind_Helper *helper, Get_View_Buffer_Region_Func
 }
 
 internal void
-set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+set_new_file_hook(Bind_Helper *helper, Buffer_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_new_file;
@@ -180,7 +184,7 @@ set_start_hook(Bind_Helper *helper, Start_Hook_Function *func){
 }
 
 internal void
-set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+set_open_file_hook(Bind_Helper *helper, Buffer_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_open_file;
@@ -189,7 +193,7 @@ set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 }
 
 internal void
-set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+set_save_file_hook(Bind_Helper *helper, Buffer_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_save_file;
@@ -198,7 +202,7 @@ set_save_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 }
 
 internal void
-set_end_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+set_end_file_hook(Bind_Helper *helper, Buffer_Hook_Function *func){
     Binding_Unit unit = {};
     unit.type = unit_hook;
     unit.hook.hook_id = special_hook_end_file;
@@ -597,21 +601,25 @@ get_line_end_pos_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
     return(get_line_side_pos_from_pos(app, buffer, pos, Side_Max));
 }
 
-internal Cpp_Token*
-get_first_token_from_pos(Cpp_Token_Array tokens, i64 pos){
-    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, (i32)pos);
+internal Token*
+get_first_token_from_pos(Token_Array tokens, i64 pos){
+    NotImplemented;
+    Token *result = 0;
+#if 0
+    Get_Token_Result get_token = cpp_get_token(tokens, (i32)pos);
     if (get_token.in_whitespace_after_token){
         get_token.token_index += 1;
     }
-    Cpp_Token *result = 0;
+    Token *result = 0;
     if (get_token.token_index < tokens.count){
         result = tokens.tokens + get_token.token_index;
     }
+#endif
     return(result);
 }
 
-internal Cpp_Token*
-get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Cpp_Token_Array tokens, i64 line){
+internal Token*
+get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Token_Array tokens, i64 line){
     i64 line_start = get_line_start_pos(app, buffer, line);
     return(get_first_token_from_pos(tokens, line_start));
 }
@@ -792,18 +800,20 @@ boundary_inside_quotes(Application_Links *app, Buffer_ID buffer, Side side, Scan
 
 internal i64
 boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
-    i64 result = 0;
+    i64 result = boundary_non_whitespace(app, buffer, side, direction, pos);
+    NotImplemented;
+#if 0
     if (!buffer_tokens_are_ready(app, buffer)){
         result = boundary_non_whitespace(app, buffer, side, direction, pos);
     }
     else{
-        Cpp_Token_Array tokens = buffer_get_token_array(app, buffer);
+        Token_Array tokens = buffer_get_token_array(app, buffer);
         switch (direction){
             case Scan_Forward:
             {
                 i32 buffer_size = (i32)buffer_get_size(app, buffer);
                 if (tokens.count > 0){
-                    Cpp_Token *token = get_first_token_from_pos(tokens, pos);
+                    Token *token = get_first_token_from_pos(tokens, pos);
                     if (token != 0){
                         if (side == Side_Max){
                             result = token->start + token->size;
@@ -835,7 +845,7 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
             case Scan_Backward:
             {
                 if (tokens.count > 0){
-                    Cpp_Token *token = get_first_token_from_pos(tokens, pos);
+                    Token *token = get_first_token_from_pos(tokens, pos);
                     if (side == Side_Min){
                         if (token == 0){
                             token = tokens.tokens + tokens.count - 1;
@@ -881,7 +891,7 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
             }break;
         }
     }
-    
+#endif
     return(result);
 }
 
@@ -1191,8 +1201,8 @@ push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_
 }
 
 internal String_Const_u8
-push_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Cpp_Token token){
-    return(push_buffer_range(app, arena, buffer, Ii64(token.start, token.start + token.size)));
+push_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Token token){
+    return(push_buffer_range(app, arena, buffer, Ii64(token.pos, token.pos + token.size)));
 }
 
 internal String_Const_u8
@@ -1243,7 +1253,7 @@ buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i64 pos){
 }
 
 internal b32
-token_lexeme_string_match(Application_Links *app, Buffer_ID buffer, Cpp_Token token, String_Const_u8 b){
+token_lexeme_string_match(Application_Links *app, Buffer_ID buffer, Token token, String_Const_u8 b){
     Scratch_Block scratch(app);
     return(string_match(push_token_lexeme(app, scratch, buffer, token), b));
 }
@@ -1727,16 +1737,6 @@ buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identif
 
 ////////////////////////////////
 
-internal void
-adjust_all_buffer_wrap_widths(Application_Links *app, i32 wrap_width, i32 min_base_width){
-    for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
-         buffer != 0;
-         buffer = get_buffer_next(app, buffer, AccessAll)){
-        buffer_set_setting(app, buffer, BufferSetting_WrapPosition, wrap_width);
-        buffer_set_setting(app, buffer, BufferSetting_MinimumBaseWrapPosition, min_base_width);
-    }
-}
-
 internal View_ID
 open_view(Application_Links *app, View_ID view_location, View_Split_Position position){
     View_ID result = 0;
@@ -1817,12 +1817,12 @@ view_open_file(Application_Links *app, View_ID view, String_Const_u8 file_name, 
 internal void
 view_disable_highlight_range(Application_Links *app, View_ID view){
     Managed_Scope scope = view_get_managed_scope(app, view);
-    Managed_Object highlight = 0;
-    if (managed_variable_get(app, scope, view_highlight_range, &highlight)){
-        managed_object_free(app, highlight);
+    Managed_Object *highlight = scope_attachment(app, scope, view_highlight_range, Managed_Object);
+    if (*highlight != 0){
+        managed_object_free(app, *highlight);
     }
-    managed_variable_set(app, scope, view_highlight_range, 0);
-    managed_variable_set(app, scope, view_highlight_buffer, 0);
+    managed_scope_attachment_erase(app, scope, view_highlight_range);
+    managed_scope_attachment_erase(app, scope, view_highlight_buffer);
 }
 
 internal void
@@ -1831,13 +1831,14 @@ view_set_highlight_range(Application_Links *app, View_ID view, Range_i64 range){
     
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Managed_Scope scope = view_get_managed_scope(app, view);
-    Managed_Object highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &scope);
-    managed_variable_set(app, scope, view_highlight_range, highlight);
+    Managed_Object *highlight = scope_attachment(app, scope, view_highlight_range, Managed_Object);
+    *highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &scope);
     Marker markers[2] = {};
-    markers[0].pos = (i32)range.min;
-    markers[1].pos = (i32)range.max;
-    managed_object_store_data(app, highlight, 0, 2, markers);
-    managed_variable_set(app, scope, view_highlight_buffer, buffer);
+    markers[0].pos = range.min;
+    markers[1].pos = range.max;
+    managed_object_store_data(app, *highlight, 0, 2, markers);
+    Buffer_ID *highlight_buffer = scope_attachment(app, scope, view_highlight_buffer, Buffer_ID);
+    *highlight_buffer = buffer;
 }
 
 ////////////////////////////////
@@ -1873,212 +1874,130 @@ try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, B
 
 ////////////////////////////////
 
-internal b32
-init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_ID buffer_id,
-                  i32 pos, char *data, u32 size){
-    b32 result = false;
-    
-    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
-    if (0 <= pos && pos < buffer_size && size > 0){
-        chunk->app = app;
-        chunk->buffer_id = buffer_id;
-        chunk->base_data = data;
-        chunk->data_size = size;
-        chunk->start = round_down_i32(pos, size);
-        chunk->end = round_up_i32(pos, size);
-        
-        if (chunk->max_end > buffer_size || chunk->max_end == 0){
-            chunk->max_end = buffer_size;
-        }
-        
-        if (chunk->max_end && chunk->max_end < chunk->end){
-            chunk->end = chunk->max_end;
-        }
-        if (chunk->min_start && chunk->min_start > chunk->start){
-            chunk->start = chunk->min_start;
-        }
-        
-        if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer_id, Ii64(chunk->start, chunk->end), chunk->base_data);
-            chunk->data = chunk->base_data - chunk->start;
-            result = true;
-        }
-    }
-    
-    return(result);
-}
-
-internal b32
-forward_stream_chunk(Stream_Chunk *chunk){
-    Application_Links *app = chunk->app;
-    Buffer_ID buffer_id = chunk->buffer_id;
-    b32 result = 0;
-    
-    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
-    if (chunk->end < buffer_size){
-        chunk->start = chunk->end;
-        chunk->end += chunk->data_size;
-        
-        if (chunk->max_end && chunk->max_end < chunk->end){
-            chunk->end = chunk->max_end;
-        }
-        if (chunk->min_start && chunk->min_start > chunk->start){
-            chunk->start = chunk->min_start;
-        }
-        
-        if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer_id, Ii64(chunk->start, chunk->end), chunk->base_data);
-            chunk->data = chunk->base_data - chunk->start;
-            result = 1;
-        }
-    }
-    
-    else if (chunk->add_null && chunk->end + 1 < buffer_size){
-        chunk->start = buffer_size;
-        chunk->end = buffer_size + 1;
-        chunk->base_data[0] = 0;
-        chunk->data = chunk->base_data - chunk->start;
-        result = 1;
-    }
-    
-    return(result);
-}
-
-internal b32
-backward_stream_chunk(Stream_Chunk *chunk){
-    Application_Links *app = chunk->app;
-    Buffer_ID buffer_id = chunk->buffer_id;
-    b32 result = false;
-    
-    if (chunk->start > 0){
-        chunk->end = chunk->start;
-        chunk->start -= chunk->data_size;
-        
-        if (chunk->max_end && chunk->max_end < chunk->end){
-            chunk->end = chunk->max_end;
-        }
-        if (chunk->min_start && chunk->min_start > chunk->start){
-            chunk->start = chunk->min_start;
-        }
-        
-        if (chunk->start < chunk->end){
-            buffer_read_range(app, buffer_id, Ii64(chunk->start, chunk->end), chunk->base_data);
-            chunk->data = chunk->base_data - chunk->start;
-            result = true;
-        }
-    }
-    
-    else if (chunk->add_null && chunk->start > -1){
-        chunk->start = -1;
-        chunk->end = 0;
-        chunk->base_data[0] = 0;
-        chunk->data = chunk->base_data - chunk->start;
-        result = true;
-    }
-    
-    return(result);
-}
-
-////////////////////////////////
-
-internal Token_Range
-buffer_get_token_range(Application_Links *app, Buffer_ID buffer){
-    Cpp_Token_Array array = buffer_get_token_array(app, buffer);
-    Token_Range range = {};
-    range.first = array.tokens;
-    range.one_past_last = array.tokens + array.count;
-    return(range);
-}
-
 internal Token_Iterator
-make_token_iterator(Token_Range range, Cpp_Token *token){
-    Token_Iterator iterator = {};
-    if (range.first != 0 && range.one_past_last != 0){
-        if (token == 0 || token < range.first){
-            token = range.first;
-        }
-        if (token > range.one_past_last){
-            token = range.one_past_last;
-        }
-        iterator.token = token;
-        iterator.range = range;
-    }
+make_token_iter(Buffer_ID buffer, Token_Array array, Token *token){
+    Token_Iterator iterator = {buffer, array.tokens, array.tokens + array.count, token};
     return(iterator);
 }
 
 internal Token_Iterator
-make_token_iterator(Token_Range range, i32 index){
-    return(make_token_iterator(range, range.first + index));
-}
 
-internal void
-token_iterator_set(Token_Iterator *iterator, Cpp_Token *token){
-    *iterator = make_token_iterator(iterator->range, token);
-}
-
-internal Cpp_Token*
-token_range_check(Token_Range range, Cpp_Token *token){
-    if (token < range.first || range.one_past_last <= token){
-        token = 0;
+make_token_iter(Buffer_ID buffer, Token_Array array, i64 pos){
+    i64 first = 0;
+    i64 one_past_last = array.count;
+    i64 token_index = 0;
+    for (;;){
+        i64 i = (first + one_past_last)/2;
+        Token *token = array.tokens + i;
+        if (token->pos + token->size <= pos){
+            first = i + 1;
+        }
+        else if (pos < token->pos){
+            one_past_last = i;
+        }
+        else{
+            token_index = i;
+            break;
+        }
+        if (first + 1 >= one_past_last){
+            token_index = first;
+            break;
+        }
     }
+    return(make_token_iter(buffer, array, array.tokens + token_index));
+}
+
+internal Token*
+token_iter_current(Token_Iterator *iter){
+    return(iter->token);
+}
+
+internal Token*
+token_iter_next_all(Token_Iterator *iter){
+    Token *token = iter->token + 1;
+    Token *one_past_last = iter->one_past_last;
+    if (token > one_past_last){
+        token = one_past_last;
+    }
+    iter->token = token;
     return(token);
 }
 
-internal Cpp_Token*
-token_iterator_current(Token_Iterator *iterator){
-    return(token_range_check(iterator->range, iterator->token));
-}
-
-internal i32
-token_iterator_current_index(Token_Iterator *iterator){
-    i32 index = -1;
-    Cpp_Token *token = token_iterator_current(iterator);
-    if (token != 0 && iterator->range.first <= token && token <= iterator->range.one_past_last){
-        index = (i32)(token - iterator->range.first);
-    }
-    return(index);
-}
-
-internal Cpp_Token*
-token_iterator_goto_next(Token_Iterator *iterator){
-    Cpp_Token *token = iterator->token;
-    Cpp_Token *one_past_last = iterator->range.one_past_last;
+internal Token*
+token_iter_next_non_whitespace(Token_Iterator *iter){
+    Token *token = iter->token;
+    Token *one_past_last = iter->one_past_last;
     for (token += 1; token < one_past_last; token += 1){
-        if (token->type != CPP_TOKEN_COMMENT){
+        if (token->kind != TokenBaseKind_Whitespace){
             break;
         }
     }
-    Cpp_Token *result = token_range_check(iterator->range, token);
-    *iterator = make_token_iterator(iterator->range, token);
-    return(result);
+    if (token > one_past_last){
+        token = one_past_last;
+    }
+    iter->token = token;
+    return(token);
 }
 
-internal Cpp_Token*
-token_iterator_goto_next_raw(Token_Iterator *iterator){
-    Cpp_Token *result = token_range_check(iterator->range, iterator->token + 1);
-    *iterator = make_token_iterator(iterator->range, iterator->token + 1);
-    return(result);
+internal Token*
+token_iter_next(Token_Iterator *iter){
+    Token *token = iter->token;
+    Token *one_past_last = iter->one_past_last;
+    for (token += 1; token < one_past_last; token += 1){
+        if (token->kind != TokenBaseKind_Whitespace &&
+            token->kind != TokenBaseKind_Comment){
+            break;
+        }
+    }
+    if (token > one_past_last){
+        token = one_past_last;
+    }
+    iter->token = token;
+    return(token);
 }
 
-internal Cpp_Token*
-token_iterator_goto_prev(Token_Iterator *iterator){
-    Cpp_Token *token = iterator->token;
-    Cpp_Token *first = iterator->range.first;
+internal Token*
+token_iter_prev_all(Token_Iterator *iter){
+    Token *token = iter->token - 1;
+    Token *first = iter->first;
+    if (token < first){
+        token = first;
+    }
+    iter->token = token;
+    return(token);
+}
+
+internal Token*
+token_iter_prev_non_whitespace(Token_Iterator *iter){
+    Token *token = iter->token;
+    Token *first = iter->first;
     for (token -= 1; token >= first; token -= 1){
-        if (token->type != CPP_TOKEN_COMMENT){
+        if (token->kind != TokenBaseKind_Whitespace){
             break;
         }
     }
-    Cpp_Token *result = token_range_check(iterator->range, token);
-    *iterator = make_token_iterator(iterator->range, token);
-    return(result);
+    if (token < first){
+        token = first;
+    }
+    iter->token = token;
+    return(token);
 }
 
-internal Cpp_Token*
-token_iterator_goto_prev_raw(Token_Iterator *iterator){
-    Cpp_Token *result = token_range_check(iterator->range, iterator->token - 1);
-    *iterator = make_token_iterator(iterator->range, iterator->token - 1);
-    return(result);
+internal Token*
+token_iter_prev(Token_Iterator *iter){
+    Token *token = iter->token;
+    Token *first = iter->first;
+    for (token -= 1; token >= first; token -= 1){
+        if (token->kind != TokenBaseKind_Whitespace &&
+            token->kind != TokenBaseKind_Comment){
+            break;
+        }
+    }
+    if (token < first){
+        token = first;
+    }
+    iter->token = token;
+    return(token);
 }
 
 ////////////////////////////////
@@ -2098,18 +2017,23 @@ get_query_string(Application_Links *app, char *query_str, u8 *string_space, i32 
 internal b32
 get_token_from_pos(Application_Links *app, Buffer_ID buffer, u64 pos, Cpp_Get_Token_Result *result){
     b32 success = false;
-    Cpp_Token_Array array = buffer_get_token_array(app, buffer);
+    NotImplemented;
+#if 0
+    Token_Array array = buffer_get_token_array(app, buffer);
     if (array.count > 0){
         success = true;
         *result = cpp_get_token(array, (i32)pos);
     }
+#endif
     return(success);
 }
 
 internal String_Const_u8
 push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
     String_Const_u8 result = {};
-    Cpp_Get_Token_Result get_result = {};
+    NotImplemented;
+#if 0
+    Get_Token_Result get_result = {};
     b32 success = get_token_from_pos(app, buffer, (i32)pos, &get_result);
     if (success && !get_result.in_whitespace_after_token){
         umem size = get_result.token_one_past_last - get_result.token_start;
@@ -2117,6 +2041,7 @@ push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buf
             result = push_buffer_range(app, arena, buffer, Ii64(get_result.token_start, get_result.token_one_past_last));
         }
     }
+#endif
     return(result);
 }
 
@@ -2309,7 +2234,8 @@ get_ranges_of_duplicate_keys(Arena *arena, i32 *keys, i32 stride, i32 count){
 
 internal void
 no_mark_snap_to_cursor(Application_Links *app, Managed_Scope view_scope){
-    managed_variable_set(app, view_scope, view_snap_mark_to_cursor, false);
+    b32 *snap_to_cursor = scope_attachment(app, view_scope, view_snap_mark_to_cursor, b32);
+    *snap_to_cursor = false;
 }
 
 internal void
@@ -2543,7 +2469,8 @@ get_dpi_scaling_value(Application_Links *app){
 
 UI_QUIT_FUNCTION(ui_quit_clear_render_hook){
     Managed_Scope scope = view_get_managed_scope(app, view);
-    managed_variable_set(app, scope, view_render_hook, 0);
+    View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
+    *hook = 0;
 }
 
 ////////////////////////////////

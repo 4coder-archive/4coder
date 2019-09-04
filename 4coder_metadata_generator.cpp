@@ -8,8 +8,6 @@
 
 #include "4coder_base_types.h"
 
-#include "4coder_lib/4coder_string.h"
-
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_malloc_allocator.cpp"
@@ -77,13 +75,13 @@ struct Reader{
     Arena *error_arena;
     char *source_name;
     String_Const_char text;
-    Cpp_Token_Array tokens;
-    Cpp_Token *ptr;
+    Token_Array tokens;
+    Token *ptr;
 };
 
 struct Temp_Read{
     Reader *reader;
-    Cpp_Token *pos;
+    Token *pos;
 };
 
 static Reader
@@ -96,9 +94,9 @@ make_reader(Cpp_Token_Array array, char *source_name, String_Const_char text){
     return(reader);
 }
 
-static Cpp_Token
+static Token
 prev_token(Reader *reader){
-    Cpp_Token result = {};
+    Token result = {};
     
     for (;;){
         if (reader->ptr > reader->tokens.tokens + reader->tokens.count){
@@ -123,9 +121,9 @@ prev_token(Reader *reader){
     return(result);
 }
 
-static Cpp_Token
+static Token
 get_token(Reader *reader){
-    Cpp_Token result = {};
+    Token result = {};
     
     for (;;){
         if (reader->ptr < reader->tokens.tokens){
@@ -151,9 +149,9 @@ get_token(Reader *reader){
     return(result);
 }
 
-static Cpp_Token
+static Token
 peek_token(Reader *reader){
-    Cpp_Token result = {};
+    Token result = {};
     
     if (reader->ptr < reader->tokens.tokens){
         reader->ptr = reader->tokens.tokens;
@@ -171,7 +169,7 @@ peek_token(Reader *reader){
 
 static int32_t
 peek_pos(Reader *reader){
-    Cpp_Token token = peek_token(reader);
+    Token token = peek_token(reader);
     return(token.start);
 }
 
@@ -202,7 +200,7 @@ end_temp_read(Temp_Read temp){
 ///////////////////////////////
 
 static String_Const_char
-token_str(String_Const_char text, Cpp_Token token){
+token_str(String_Const_char text, Token token){
     String_Const_char str = string_prefix(string_skip(text, token.start), token.size);
     return(str);
 }
@@ -306,7 +304,7 @@ require_key_identifier(Reader *reader, char *str, int32_t *opt_pos_out = 0){
     
     String_Const_char string = SCchar(str);
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_TOKEN_IDENTIFIER){
         String_Const_char lexeme = token_str(reader->text, token);
         if (string_match(lexeme, string)){
@@ -331,7 +329,7 @@ static b32
 require_open_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
     b32 success = false;
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_TOKEN_PARENTHESE_OPEN){
         success = true;
         if (opt_pos_out != 0){
@@ -350,7 +348,7 @@ static b32
 require_close_parenthese(Reader *reader, int32_t *opt_pos_out = 0){
     b32 success = false;
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_TOKEN_PARENTHESE_CLOSE){
         success = true;
         if (opt_pos_out != 0){
@@ -369,7 +367,7 @@ static b32
 require_comma(Reader *reader, int32_t *opt_pos_out = 0){
     b32 success = false;
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_TOKEN_COMMA){
         success = true;
         if (opt_pos_out != 0){
@@ -388,7 +386,7 @@ static b32
 require_define(Reader *reader, int32_t *opt_pos_out = 0){
     b32 success = false;
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_PP_DEFINE){
         success = true;
         if (opt_pos_out != 0){
@@ -407,7 +405,7 @@ static b32
 extract_identifier(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
     b32 success = false;
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_TOKEN_IDENTIFIER){
         String_Const_char lexeme = token_str(reader->text, token);
         *str_out = lexeme;
@@ -428,7 +426,7 @@ static b32
 extract_integer(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
     b32 success = false;
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_TOKEN_INTEGER_CONSTANT){
         String_Const_char lexeme = token_str(reader->text, token);
         *str_out = lexeme;
@@ -449,7 +447,7 @@ static b32
 extract_string(Reader *reader, String_Const_char *str_out, int32_t *opt_pos_out = 0){
     b32 success = false;
     
-    Cpp_Token token = get_token(reader);
+    Token token = get_token(reader);
     if (token.type == CPP_TOKEN_STRING_CONSTANT){
         String_Const_char lexeme = token_str(reader->text, token);
         *str_out = lexeme;
@@ -598,14 +596,14 @@ parse_alias(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
 
 static void
 parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_name, String_Const_char text){
-    Cpp_Token_Array array = cpp_make_token_array(1024);
+    Token_Array array = cpp_make_token_array(1024);
     cpp_lex_file(text.str, (i32)text.size, &array);
     
     Reader reader_ = make_reader(array, source_name, text);
     Reader *reader = &reader_;
     
     for (;;){
-        Cpp_Token token = get_token(reader);
+        Token token = get_token(reader);
         
         if (token.type == CPP_TOKEN_IDENTIFIER){
             String_Const_char lexeme = token_str(text, token);
@@ -617,7 +615,7 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_n
                 
                 b32 found_start_pos = false;
                 for (int32_t R = 0; R < 10; ++R){
-                    Cpp_Token p_token = prev_token(reader);
+                    Token p_token = prev_token(reader);
                     if (p_token.type == CPP_TOKEN_IDENTIFIER){
                         String_Const_char p_lexeme = token_str(text, p_token);
                         if (string_match(p_lexeme, string_litexpr("CUSTOM_COMMAND_SIG"))){
@@ -644,7 +642,7 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, char *source_n
                 
                 b32 found_start_pos = false;
                 for (int32_t R = 0; R < 3; ++R){
-                    Cpp_Token p_token = prev_token(reader);
+                    Token p_token = prev_token(reader);
                     if (p_token.type == CPP_PP_DEFINE){
                         if (R == 2){
                             found_start_pos = true;

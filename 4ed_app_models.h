@@ -58,10 +58,10 @@ struct Models{
     
     Hook_Function *hooks[hook_type_count];
     Start_Hook_Function *hook_start;
-    Open_File_Hook_Function *hook_open_file;
-    Open_File_Hook_Function *hook_new_file;
-    Open_File_Hook_Function *hook_save_file;
-    Open_File_Hook_Function *hook_end_file;
+    Buffer_Hook_Function *hook_open_file;
+    Buffer_Hook_Function *hook_new_file;
+    Buffer_Hook_Function *hook_save_file;
+    Buffer_Hook_Function *hook_end_file;
     File_Edit_Range_Function *hook_file_edit_range;
     File_Edit_Finished_Function *hook_file_edit_finished;
     File_Externally_Modified_Function *hook_file_externally_modified;
@@ -85,7 +85,7 @@ struct Models{
     Text_Layout_Container text_layouts;
     Font_Set font_set;
     
-    Dynamic_Variable_Layout variable_layout;
+    Managed_ID_Set managed_id_set;
     Dynamic_Workspace dynamic_workspace;
     Lifetime_Allocator lifetime_allocator;
     

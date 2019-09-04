@@ -695,11 +695,14 @@ CUSTOM_DOC("Toggles the visibility status of the current view's filebar.")
 CUSTOM_COMMAND_SIG(toggle_line_wrap)
 CUSTOM_DOC("Toggles the current buffer's line wrapping status.")
 {
+    NotImplemented;
+#if 0
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     b32 wrapped;
     buffer_get_setting(app, buffer, BufferSetting_WrapLine, &wrapped);
     buffer_set_setting(app, buffer, BufferSetting_WrapLine, !wrapped);
+#endif
 }
 
 CUSTOM_COMMAND_SIG(toggle_fps_meter)
@@ -711,21 +714,27 @@ CUSTOM_DOC("Toggles the visibility of the FPS performance meter")
 CUSTOM_COMMAND_SIG(increase_line_wrap)
 CUSTOM_DOC("Increases the current buffer's width for line wrapping.")
 {
+    NotImplemented;
+#if 0
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 wrap = 0;
     buffer_get_setting(app, buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, buffer, BufferSetting_WrapPosition, wrap + 10);
+#endif
 }
 
 CUSTOM_COMMAND_SIG(decrease_line_wrap)
 CUSTOM_DOC("Decrases the current buffer's width for line wrapping.")
 {
+    NotImplemented;
+#if 0
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i32 wrap = 0;
     buffer_get_setting(app, buffer, BufferSetting_WrapPosition, &wrap);
     buffer_set_setting(app, buffer, BufferSetting_WrapPosition, wrap - 10);
+#endif
 }
 
 CUSTOM_COMMAND_SIG(increase_face_size)

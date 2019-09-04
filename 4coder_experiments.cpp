@@ -22,14 +22,13 @@ CUSTOM_COMMAND_SIG(multi_paste){
         View_ID view = get_active_view(app, AccessOpen);
         Managed_Scope scope = view_get_managed_scope(app, view);
         
-        u64 rewrite = 0;
-        managed_variable_get(app, scope, view_rewrite_loc, &rewrite);
-        if (rewrite == RewritePaste){
-            managed_variable_set(app, scope, view_next_rewrite_loc, RewritePaste);
-            u64 prev_paste_index = 0;
-            managed_variable_get(app, scope, view_paste_index_loc, &prev_paste_index);
-            i32 paste_index = (i32)prev_paste_index + 1;
-            managed_variable_set(app, scope, view_paste_index_loc, paste_index);
+        Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
+        if (*rewrite == Rewrite_Paste){
+            Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+            *next_rewrite = Rewrite_Paste;
+            i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
+            i32 paste_index = (*paste_index_ptr) + 1;
+            *paste_index_ptr = paste_index;
             
             String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
             
@@ -41,7 +40,6 @@ CUSTOM_COMMAND_SIG(multi_paste){
             view_set_mark(app, view, seek_pos(range.max + 1));
             view_set_cursor_and_preferred_x(app, view, seek_pos(range.max + insert_string.size));
             
-            // TODO(allen): Send this to all views.
             Theme_Color paste = {};
             paste.tag = Stag_Paste;
             get_theme_colors(app, &paste, 1);
@@ -202,15 +200,15 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
     if (get_token_from_pos(app, buffer, cursor_pos, &result)){
         if (!result.in_whitespace_after_token){
             static const i32 stream_space_size = 512;
-            Cpp_Token stream_space[stream_space_size];
+            Token stream_space[stream_space_size];
             Stream_Tokens_DEP stream = {};
             
             if (init_stream_tokens(&stream, app, buffer, result.token_index, stream_space, stream_space_size)){
                 i32 token_index = result.token_index;
-                Cpp_Token token = stream.tokens[token_index];
+                Token token = stream.tokens[token_index];
                 
                 if (token.type == CPP_TOKEN_IDENTIFIER){
-                    Cpp_Token original_token = token;
+                    Token original_token = token;
                     String_Const_u8 old_lexeme = push_token_lexeme(app, scratch, buffer, token);
                     
                     i32 proc_body_found = 0;
@@ -219,7 +217,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                     ++token_index;
                     do{
                         for (; token_index < stream.end; ++token_index){
-                            Cpp_Token *token_ptr = stream.tokens + token_index;
+                            Token *token_ptr = stream.tokens + token_index;
                             switch (token_ptr->type){
                                 case CPP_TOKEN_BRACE_OPEN:
                                 {
@@ -271,7 +269,7 @@ CUSTOM_DOC("If the cursor is found to be on the name of a function parameter in 
                         still_looping = 0;
                         do{
                             for (; token_index < stream.end; ++token_index){
-                                Cpp_Token *token_ptr = stream.tokens + token_index;
+                                Token *token_ptr = stream.tokens + token_index;
                                 switch (token_ptr->type){
                                     case CPP_TOKEN_IDENTIFIER:
                                     {
@@ -349,12 +347,12 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
     Cpp_Get_Token_Result result = {};
     if (get_token_from_pos(app, buffer, pos, &result)){
         if (!result.in_whitespace_after_token){
-            Cpp_Token stream_space[32];
+            Token stream_space[32];
             Stream_Tokens_DEP stream = {};
             
             if (init_stream_tokens(&stream, app, buffer, result.token_index, stream_space, 32)){
                 i32 token_index = result.token_index;
-                Cpp_Token token = stream.tokens[token_index];
+                Token token = stream.tokens[token_index];
                 
                 if (token.type == CPP_TOKEN_BRACE_OPEN){
                     ++token_index;
@@ -366,7 +364,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                     b32 still_looping = false;
                     do{
                         for (; seeker_index < stream.end; ++seeker_index){
-                            Cpp_Token *token_seeker = stream.tokens + seeker_index;
+                            Token *token_seeker = stream.tokens + seeker_index;
                             switch (token_seeker->type){
                                 case CPP_TOKEN_BRACE_CLOSE:
                                 closed_correctly = true;
@@ -398,7 +396,7 @@ write_explicit_enum_values_parameters(Application_Links *app, Write_Explicit_Enu
                         
                         do{
                             for (;token_index < stream.end; ++token_index){
-                                Cpp_Token *token_ptr = stream.tokens + token_index;
+                                Token *token_ptr = stream.tokens + token_index;
                                 switch (token_ptr->type){
                                     case CPP_TOKEN_IDENTIFIER:
                                     {

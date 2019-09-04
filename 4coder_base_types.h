@@ -1107,6 +1107,34 @@ struct Scratch_Block{
     Temp_Memory temp;
 };
 
+////////////////////////////////
+
+struct Heap_Basic_Node{
+    Heap_Basic_Node *next;
+    Heap_Basic_Node *prev;
+};
+
+struct Heap_Node{
+    union{
+        struct{
+            Heap_Basic_Node order;
+            Heap_Basic_Node alloc;
+            umem size;
+        };
+        u8 force_size__[64];
+    };
+};
+
+struct Heap{
+    Arena arena;
+    Heap_Basic_Node in_order;
+    Heap_Basic_Node free_nodes;
+    umem used_space;
+    umem total_space;
+};
+
+//#define DO_HEAP_CHECKS
+
 #endif
 
 // BOTTOM

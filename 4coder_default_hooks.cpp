@@ -80,29 +80,32 @@ START_HOOK_SIG(default_start){
 COMMAND_CALLER_HOOK(default_command_caller){
     View_ID view = get_active_view(app, AccessAll);
     Managed_Scope scope = view_get_managed_scope(app, view);
-    managed_variable_set(app, scope, view_next_rewrite_loc, 0);
+    Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+    *next_rewrite = Rewrite_None;
     if (fcoder_mode == FCoderMode_NotepadLike){
         for (View_ID view_it = get_view_next(app, 0, AccessAll);
              view_it != 0;
              view_it = get_view_next(app, view_it, AccessAll)){
             Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-            managed_variable_set(app, scope_it, view_snap_mark_to_cursor, true);
+            b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
+            *snap_mark_to_cursor = true;
         }
     }
     
     cmd.command(app);
     
-    u64 next_rewrite = 0;
-    managed_variable_get(app, scope, view_next_rewrite_loc, &next_rewrite);
-    managed_variable_set(app, scope, view_rewrite_loc, next_rewrite);
-    if (fcoder_mode == FCoderMode_NotepadLike){
-        for (View_ID view_it = get_view_next(app, 0, AccessAll);
-             view_it != 0;
-             view_it = get_view_next(app, view_it, AccessAll)){
-            Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-            u64 val = 0;
-            if (managed_variable_get(app, scope_it, view_snap_mark_to_cursor, &val)){
-                if (val != 0){
+    
+    next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+    if (next_rewrite != 0){
+        Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
+        *rewrite = *next_rewrite;
+        if (fcoder_mode == FCoderMode_NotepadLike){
+            for (View_ID view_it = get_view_next(app, 0, AccessAll);
+                 view_it != 0;
+                 view_it = get_view_next(app, view_it, AccessAll)){
+                Managed_Scope scope_it = view_get_managed_scope(app, view_it);
+                b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
+                if (*snap_mark_to_cursor){
                     i64 pos = view_get_cursor_pos(app, view_it);
                     view_set_mark(app, view_it, seek_pos(pos));
                 }
@@ -172,6 +175,7 @@ internal void
 draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer,
                 i64 pos, u32 flags, Range_Highlight_Kind kind,
                 int_color *back_colors, int_color *fore_colors, i32 color_count){
+#if 0
     Scratch_Block scratch(app);
     Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
@@ -225,6 +229,7 @@ draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID
         color_index += 1;
         color_index = (color_index%color_count);
     }
+#endif
 }
 
 static argb_color default_colors[Stag_COUNT] = {};
@@ -418,19 +423,18 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             scopes[0] = buffer_get_managed_scope(app, compilation_buffer);
             scopes[1] = buffer_get_managed_scope(app, buffer);
             Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scopes, ArrayCount(scopes));
-            Managed_Object markers_object = 0;
-            if (managed_variable_get(app, scope, sticky_jump_marker_handle, &markers_object)){
-                Temp_Memory temp = begin_temp(scratch);
-                i32 count = managed_object_get_item_count(app, markers_object);
-                Marker *markers = push_array(scratch, Marker, count);
-                managed_object_load_data(app, markers_object, 0, count, markers);
-                for (i32 i = 0; i < count; i += 1){
-                    i64 line_number = get_line_number_from_pos(app, buffer, markers[i].pos);
-                    draw_line_highlight(app, text_layout_id, line_number,
-                                        Stag_Highlight_Junk);
-                }
-                end_temp(temp);
+            Managed_Object *markers_object = scope_attachment(app, scope, sticky_jump_marker_handle, Managed_Object);
+            
+            Temp_Memory temp = begin_temp(scratch);
+            i32 count = managed_object_get_item_count(app, *markers_object);
+            Marker *markers = push_array(scratch, Marker, count);
+            managed_object_load_data(app, *markers_object, 0, count, markers);
+            for (i32 i = 0; i < count; i += 1){
+                i64 line_number = get_line_number_from_pos(app, buffer, markers[i].pos);
+                draw_line_highlight(app, text_layout_id, line_number,
+                                    Stag_Highlight_Junk);
             }
+            end_temp(temp);
         }
     }
     
@@ -465,20 +469,17 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     b32 has_highlight_range = false;
     {
         Managed_Scope scope = view_get_managed_scope(app, view_id);
-        u64 highlight_buffer = 0;
-        managed_variable_get(app, scope, view_highlight_buffer, &highlight_buffer);
-        if (highlight_buffer != 0){
-            if ((Buffer_ID)highlight_buffer != buffer){
+        Buffer_ID *highlight_buffer = scope_attachment(app, scope, view_highlight_buffer, Buffer_ID);
+        if (*highlight_buffer != 0){
+            if (*highlight_buffer != buffer){
                 view_disable_highlight_range(app, view_id);
             }
             else{
                 has_highlight_range = true;
-                Managed_Object highlight = 0;
-                managed_variable_get(app, scope, view_highlight_range, &highlight);
+                Managed_Object *highlight = scope_attachment(app, scope, view_highlight_range, Managed_Object);
                 Marker marker_range[2];
-                if (managed_object_load_data(app, highlight, 0, 2, marker_range)){
-                    Range_i64 range = Ii64(marker_range[0].pos,
-                                           marker_range[1].pos);
+                if (managed_object_load_data(app, *highlight, 0, 2, marker_range)){
+                    Range_i64 range = Ii64(marker_range[0].pos, marker_range[1].pos);
                     draw_character_block(app, text_layout_id, range, Stag_Highlight);
                     paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
                 }
@@ -788,25 +789,19 @@ default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view,
     draw_coordinate_center_push(app, inner.p0);
     
     Managed_Scope scope = view_get_managed_scope(app, view);
-    u64 render_hook_value = 0;
-    if (managed_variable_get(app, scope, view_render_hook, &render_hook_value)){
-        if (render_hook_value == 0){
-            if (view_is_in_ui_mode(app, view)){
-                default_ui_render_caller(app, view);
-            }
-            else{
-                default_buffer_render_caller(app, frame_info, view, inner);
-            }
+    View_Render_Hook **hook_ptr = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
+    
+    if (*hook_ptr == 0){
+        if (view_is_in_ui_mode(app, view)){
+            default_ui_render_caller(app, view);
         }
         else{
-            // TODO(allen): This doesn't actually work.
-            // We aren't supposed to assume that a function
-            // pointer is 64-bits I don't think.  How
-            // should we attach a user named hook to a scope
-            // easily?
-            View_Render_Hook *hook = (View_Render_Hook*)render_hook_value;
-            hook(app, view, frame_info, inner);
+            default_buffer_render_caller(app, frame_info, view, inner);
         }
+    }
+    else{
+        View_Render_Hook *hook = *hook_ptr;
+        hook(app, view, frame_info, inner);
     }
     
     draw_clip_pop(app);
@@ -848,30 +843,9 @@ HOOK_SIG(default_exit){
     return(result);
 }
 
-// TODO(allen): how to deal with multiple sizes on a single view
-// TODO(allen): expected character advance.
 HOOK_SIG(default_view_adjust){
-    for (View_ID view = get_view_next(app, 0, AccessAll);
-         view != 0;
-         view = get_view_next(app, view, AccessAll)){
-        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-        
-        Rect_f32 screen_rect = view_get_screen_rect(app, view);
-        f32 view_width = rect_width(screen_rect);
-        
-        Face_ID face_id = get_face_id(app, buffer);
-        f32 em = get_string_advance(app, face_id, string_u8_litexpr("m"));
-        
-        f32 wrap_width = view_width - 2.0f*em;
-        f32 min_width = 40.0f*em;
-        if (wrap_width < min_width){
-            wrap_width = min_width;
-        }
-        
-        f32 min_base_width = 20.0f*em;
-        buffer_set_setting(app, buffer, BufferSetting_WrapPosition, (i32)(wrap_width));
-        buffer_set_setting(app, buffer, BufferSetting_MinimumBaseWrapPosition, (i32)(min_base_width));
-    }
+    // NOTE(allen): Called whenever the view layout/sizes have been modified, including
+    // by full window resize.
     return(0);
 }
 
@@ -986,25 +960,32 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
     }
 }
 
-OPEN_FILE_HOOK_SIG(default_file_settings){
+BUFFER_HOOK_SIG(default_file_settings){
     b32 treat_as_code = false;
-    b32 treat_as_todo = false;
     b32 lex_without_strings = false;
+    (void)(lex_without_strings);
     
     String_Const_u8_Array extensions = global_config.code_exts;
-    
-    Parse_Context_ID parse_context_id = 0;
     
     Arena *scratch = context_get_arena(app);
     Temp_Memory temp = begin_temp(scratch);
     
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
-    i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
     
-    if (file_name.size > 0 && buffer_size < MB(32)){
+    if (file_name.size > 0){
         String_Const_u8 ext = string_file_extension(file_name);
         for (i32 i = 0; i < extensions.count; ++i){
             if (string_match(ext, extensions.strings[i])){
+                
+                if (string_match(ext, string_u8_litexpr("cpp")) || 
+                    string_match(ext, string_u8_litexpr("h")) ||
+                    string_match(ext, string_u8_litexpr("c")) ||
+                    string_match(ext, string_u8_litexpr("hpp")) ||
+                    string_match(ext, string_u8_litexpr("cc"))){
+                    treat_as_code = true;
+                }
+                
+#if 0                
                 treat_as_code = true;
                 
                 if (string_match(ext, string_u8_litexpr("cs"))){
@@ -1055,14 +1036,10 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
                     }
                     parse_context_id = parse_context_language_cpp;
                 }
+#endif
                 
                 break;
             }
-        }
-        
-        if (!treat_as_code){
-            treat_as_todo = string_match_insensitive(string_front_of_path(file_name),
-                                                     string_u8_litexpr("todo.txt"));
         }
     }
     
@@ -1073,24 +1050,23 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
     Assert(map_id_query == default_lister_ui_map);
     
+    // TODO(allen): kill all concepts of wrap width as settings
+#if 0
     buffer_set_setting(app, buffer_id, BufferSetting_WrapPosition, global_config.default_wrap_width);
     buffer_set_setting(app, buffer_id, BufferSetting_MinimumBaseWrapPosition, global_config.default_min_base_width);
+#endif
     buffer_set_setting(app, buffer_id, BufferSetting_MapID, map_id);
     buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
     Assert(map_id_query == map_id);
+#if 0
     buffer_set_setting(app, buffer_id, BufferSetting_ParserContext, parse_context_id);
+#endif
     
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
     b32 use_virtual_whitespace = false;
     b32 use_lexer = false;
-    if (treat_as_todo){
-        lex_without_strings = true;
-        wrap_lines = true;
-        use_virtual_whitespace = true;
-        use_lexer = true;
-    }
-    else if (treat_as_code){
+    if (treat_as_code){
         wrap_lines = global_config.enable_code_wrapping;
         use_virtual_whitespace = global_config.enable_virtual_whitespace;
         use_lexer = true;
@@ -1100,11 +1076,21 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     if (string_match(buffer_name, string_u8_litexpr("*compilation*"))){
         wrap_lines = false;
     }
-    if (buffer_size >= (1 << 20)){
-        wrap_lines = false;
-        use_virtual_whitespace = false;
+    
+    if (use_lexer){
+        Temp_Memory temp = begin_temp(scratch);
+        String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
+        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+        Base_Allocator *allocator = managed_scope_allocator(app, scope);
+        Token_Array tokens = lex_cpp_initial(allocator, contents);
+        
+        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+        block_copy_struct(tokens_ptr, &tokens);
+        
+        end_temp(temp);
     }
     
+#if 0
     // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
     // If we set BufferSetting_Lex to true, it will launch a lexing job.
     // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
@@ -1115,6 +1101,7 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     buffer_set_setting(app, buffer_id, BufferSetting_WrapLine, wrap_lines);
     buffer_set_setting(app, buffer_id, BufferSetting_VirtualWhitespace, use_virtual_whitespace);
     buffer_set_setting(app, buffer_id, BufferSetting_Lex, use_lexer);
+#endif
     
     end_temp(temp);
     
@@ -1122,13 +1109,13 @@ OPEN_FILE_HOOK_SIG(default_file_settings){
     return(0);
 }
 
-OPEN_FILE_HOOK_SIG(default_new_file){
+BUFFER_HOOK_SIG(default_new_file){
     // no meaning for return
     // buffer_id
     return(0);
 }
 
-OPEN_FILE_HOOK_SIG(default_file_save){
+BUFFER_HOOK_SIG(default_file_save){
     b32 is_virtual = false;
     if (global_config.automatically_indent_text_on_save &&
         buffer_get_setting(app, buffer_id, BufferSetting_VirtualWhitespace, &is_virtual)){ 
@@ -1167,7 +1154,7 @@ FILE_EXTERNALLY_MODIFIED_SIG(default_file_externally_modified){
     return(0);
 }
 
-OPEN_FILE_HOOK_SIG(default_end_file){
+BUFFER_HOOK_SIG(default_end_file){
     Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
     String_Const_u8 str = push_u8_stringf(scratch, "Ending file: %s\n", buffer_name.str);

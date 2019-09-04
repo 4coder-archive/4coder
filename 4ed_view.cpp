@@ -40,7 +40,7 @@ view_get_id(Live_Views *live_set, View *view){
 }
 
 internal View*
-live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, Panel *panel){
+live_set_alloc_view(Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, Panel *panel){
     Assert(live_set->count < live_set->max);
     ++live_set->count;
     
@@ -50,7 +50,7 @@ live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Vie
     
     result->in_use = true;
     init_query_set(&result->query_set);
-    result->lifetime_object = lifetime_alloc_object(heap, lifetime_allocator, DynamicWorkspace_View, result);
+    result->lifetime_object = lifetime_alloc_object(lifetime_allocator, DynamicWorkspace_View, result);
     panel->view = result;
     result->panel = panel;
     
@@ -58,7 +58,7 @@ live_set_alloc_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Vie
 }
 
 internal void
-live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, View *view){
+live_set_free_view(Lifetime_Allocator *lifetime_allocator, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
     
@@ -68,7 +68,7 @@ live_set_free_view(Heap *heap, Lifetime_Allocator *lifetime_allocator, Live_View
     view->next->prev = view;
     view->in_use = false;
     
-    lifetime_free_object(heap, lifetime_allocator, view->lifetime_object);
+    lifetime_free_object(lifetime_allocator, view->lifetime_object);
 }
 
 ////////////////////////////////
@@ -465,7 +465,7 @@ finalize_color(Color_Table color_table, int_color color){
 }
 
 internal u32
-get_token_color(Color_Table color_table, Cpp_Token token){
+get_token_color(Color_Table color_table, Token token){
     u32 result = 0;
     if ((token.flags & CPP_TFLAG_IS_KEYWORD) != 0){
         if (cpp_token_category_from_type(token.type) == CPP_TOKEN_CAT_BOOLEAN_CONSTANT){
@@ -568,7 +568,7 @@ render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *v
         // NOTE(allen): Token scanning
         u32 highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
-            Cpp_Token current_token = token_array.tokens[token_i-1];
+            Token current_token = token_array.tokens[token_i-1];
             
             if (token_i < token_array.count){
                 if (ind >= token_array.tokens[token_i].start){

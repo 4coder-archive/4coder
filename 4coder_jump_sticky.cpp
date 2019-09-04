@@ -171,7 +171,8 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
         Assert(managed_object_get_item_count(app, marker_handle) == total_jump_count);
         Assert(managed_object_get_type(app, marker_handle) == ManagedObjectType_Markers);
         
-        managed_variable_set(app, scope, sticky_jump_marker_handle, marker_handle);
+        Managed_Object *marker_handle_ptr = scope_attachment(app, scope, sticky_jump_marker_handle, Managed_Object);
+        *marker_handle_ptr = marker_handle;
     }
     
     Managed_Object stored_jump_array = alloc_managed_memory_in_scope(app, scope_array[0], sizeof(Sticky_Jump_Stored), jumps.count);
@@ -280,10 +281,10 @@ get_jump_from_list(Application_Links *app, Marker_List *list, i32 index, ID_Pos_
         scope_array[1] = buffer_get_managed_scope(app, target_buffer_id);
         Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         
-        Managed_Object marker_array = 0;
-        if (managed_variable_get(app, scope, sticky_jump_marker_handle, &marker_array)){
+        Managed_Object *marker_array = scope_attachment(app, scope, sticky_jump_marker_handle, Managed_Object);
+        if (*marker_array != 0){
             Marker marker = {};
-            managed_object_load_data(app, marker_array, stored.index_into_marker_array, 1, &marker);
+            managed_object_load_data(app, *marker_array, stored.index_into_marker_array, 1, &marker);
             location->buffer_id = target_buffer_id;
             location->pos = marker.pos;
             result = true;
@@ -603,8 +604,8 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
 // End File Hook
 //
 
-OPEN_FILE_HOOK_SIG(default_end_file);
-OPEN_FILE_HOOK_SIG(end_file_close_jump_list){
+BUFFER_HOOK_SIG(default_end_file);
+BUFFER_HOOK_SIG(end_file_close_jump_list){
     Marker_List *list = get_marker_list_for_buffer(buffer_id);
     if (list != 0){
         delete_marker_list(list);

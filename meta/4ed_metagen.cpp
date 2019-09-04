@@ -20,7 +20,6 @@
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
 # define FSTRING_IMPLEMENTATION
-# include "4coder_lib/4coder_string.h"
 #include "4coder_lib/4cpp_lexer.h"
 
 #include <stdlib.h>

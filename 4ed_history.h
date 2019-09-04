@@ -45,7 +45,8 @@ struct Record_Ptr_Lookup_Table{
 struct History{
     b32 activated;
     Arena arena;
-    Memory_Bank bank;
+    Heap heap;
+    Base_Allocator heap_wrapper;
     Node free_records;
     Node records;
     i32 record_count;

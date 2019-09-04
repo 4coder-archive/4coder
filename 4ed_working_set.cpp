@@ -183,7 +183,7 @@ working_set_contains_name(Working_Set *working_set, String_Const_u8 name){
 }
 
 internal b32
-working_set_add_name(Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 name){
+working_set_add_name(Working_Set *working_set, Editing_File *file, String_Const_u8 name){
     return(working_set_add__generic(&working_set->name_table, file->id, name));
 }
 
@@ -287,7 +287,7 @@ get_canon_name(System_Functions *system, Arena *scratch, String_Const_u8 file_na
 }
 
 internal void
-file_bind_file_name(System_Functions *system, Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 canon_file_name){
+file_bind_file_name(System_Functions *system, Working_Set *working_set, Editing_File *file, String_Const_u8 canon_file_name){
     Assert(file->unique_name.name_size == 0);
     Assert(file->canon.name_size == 0);
     umem size = canon_file_name.size;
@@ -349,7 +349,7 @@ buffer_resolve_name_low_level(Arena *scratch, Working_Set *working_set, Editing_
 }
 
 internal void
-buffer_bind_name_low_level(Arena *scratch, Heap *heap, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name, String_Const_u8 name){
+buffer_bind_name_low_level(Arena *scratch, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name, String_Const_u8 name){
     Assert(file->base_name.name_size == 0);
     Assert(file->unique_name.name_size == 0);
     
@@ -369,7 +369,7 @@ buffer_bind_name_low_level(Arena *scratch, Heap *heap, Working_Set *working_set,
         file->unique_name.name_size = size;
     }
     
-    b32 result = working_set_add_name(heap, working_set, file, string_from_file_name(&file->unique_name));
+    b32 result = working_set_add_name(working_set, file, string_from_file_name(&file->unique_name));
     Assert(result);
 }
 
@@ -383,7 +383,7 @@ buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
 }
 
 internal void
-buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name){
+buffer_bind_name(Models *models, Arena *scratch, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name){
     Temp_Memory temp = begin_temp(scratch);
     
     // List of conflict files.
@@ -471,7 +471,7 @@ buffer_bind_name(Models *models, Heap *heap, Arena *scratch, Working_Set *workin
             Editing_File *file_ptr = node->file_ptr;
             Buffer_Name_Conflict_Entry *entry = &conflicts[i];
             String_Const_u8 unique_name = SCu8(entry->unique_name_in_out, entry->unique_name_len_in_out);
-            buffer_bind_name_low_level(scratch, heap, working_set, file_ptr, base_name, unique_name);
+            buffer_bind_name_low_level(scratch, working_set, file_ptr, base_name, unique_name);
         }
     }
     
