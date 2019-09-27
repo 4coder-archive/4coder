@@ -1747,7 +1747,7 @@ smo_op_set_lexer_root(Operator_Set *set, State *machine_root, String_Const_u8 fa
                     parent = root;
                 }
                 else{
-                    Table_Lookup lookup = table_lookup(&string_to_state, make_data(prefix.str, prefix.size - 1));
+                    lookup = table_lookup(&string_to_state, make_data(prefix.str, prefix.size - 1));
                     Assert(lookup.found_match);
                     u64 val = 0;
                     table_read(&string_to_state, lookup, &val);
@@ -1773,7 +1773,7 @@ smo_op_set_lexer_root(Operator_Set *set, State *machine_root, String_Const_u8 fa
                 parent = root;
             }
             else{
-                Table_Lookup lookup = table_lookup(&string_to_state, make_data(lexeme.str, lexeme.size - 1));
+                lookup = table_lookup(&string_to_state, make_data(lexeme.str, lexeme.size - 1));
                 Assert(lookup.found_match);
                 u64 val = 0;
                 table_read(&string_to_state, lookup, &val);
@@ -3047,7 +3047,7 @@ debug_print_transitions(Arena *scratch, Lexer_Model model){
                     }
                     printf("))");
                     if (node->next != 0){
-                        printf(" union\n\t%.*s", sizeof(transition_on) - 1,
+                        printf(" union\n\t%.*s", (i32)(sizeof(transition_on) - 1),
                                "                                            ");
                     }
                 }
@@ -3181,8 +3181,8 @@ gen_keyword_table(Arena *scratch, Token_Kind_Set tokens, Keyword_Set keywords, F
             fprintf(out, "u8 %.*s_key_array_%d[] = {",
                     string_expand(keywords.pretty_name), i);
             String_Const_u8 lexeme = key_layout.slots[i]->lexeme;
-            for (umem i = 0; i < lexeme.size; i += 1){
-                fprintf(out, "0x%02x,", lexeme.str[i]);
+            for (umem j = 0; j < lexeme.size; j += 1){
+                fprintf(out, "0x%02x,", lexeme.str[j]);
             }
             fprintf(out, "};\n");
         }
