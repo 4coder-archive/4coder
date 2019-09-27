@@ -8,13 +8,16 @@
 
 #include "4coder_base_types.h"
 #include "4coder_token.h"
+#include "languages/generated_lexer_cpp.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_malloc_allocator.cpp"
 
+#include "4coder_token.cpp"
+#include "languages/generated_lexer_cpp.cpp"
+
 #include "4coder_file.h"
-#include "languages/4coder_language_cpp.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -412,7 +415,7 @@ require_define(Reader *reader, i64 *opt_pos_out){
     b32 success = false;
     
     Token token = get_token(reader);
-    if (token.sub_kind == TokenCppKind_Define){
+    if (token.sub_kind == TokenCppKind_PPDefine){
         success = true;
         if (opt_pos_out != 0){
             *opt_pos_out = token.pos;

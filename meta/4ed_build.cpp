@@ -468,11 +468,6 @@ build_and_run(Arena *arena, char *cdir, char *filename, char *name, u32 flags){
 }
 
 internal void
-fsm_generator(Arena *arena, char *cdir){
-    build_and_run(arena, cdir, "meta/4ed_fsm_table_generator.cpp", "fsmgen", OPTS | DEBUG_INFO);
-}
-
-internal void
 string_build(Arena *arena, char *cdir){
     char *dir = fm_str(arena, BUILD_DIR);
     
@@ -574,8 +569,6 @@ build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch
 
 internal void
 standard_build(Arena *arena, char *cdir, u32 flags, u32 arch){
-    //fsm_generator(arena, cdir);
-    
     //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
     do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Experiments]), arch);
     //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Casey]), arch);
@@ -602,8 +595,6 @@ get_4coder_dist_name(Arena *arena, u32 platform, char *tier, u32 arch){
 internal void
 package(Arena *arena, char *cdir){
     // NOTE(allen): meta
-    fsm_generator(arena, cdir);
-    
     char *build_dir = fm_str(arena, BUILD_DIR);
     char *pack_dir = fm_str(arena, PACK_DIR);
     char *fonts_source_dir = fm_str(arena, "../4coder-non-source/dist_files/fonts");

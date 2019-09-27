@@ -2752,6 +2752,23 @@ data_match(Data a, Data b){
 ////////////////////////////////
 
 internal b32
+character_is_basic_ascii(char c){
+    return(' ' <= c && c <= '~');
+}
+internal b32
+character_is_basic_ascii(u8 c){
+    return(' ' <= c && c <= '~');
+}
+internal b32
+character_is_basic_ascii(u16 c){
+    return(' ' <= c && c <= '~');
+}
+internal b32
+character_is_basic_ascii(u32 c){
+    return(' ' <= c && c <= '~');
+}
+
+internal b32
 character_is_slash(char c){
     return((c == '/') || (c == '\\'));
 }

@@ -28,6 +28,24 @@ enum{
     TokenBaseKind_COUNT,
 };
 
+char *token_base_kind_names[] ={
+    "EOF",
+    "Whitespace",
+    "LexError",
+    "Comment",
+    "Keyword",
+    "Preprocessor",
+    "Identifier",
+    "Operator",
+    "LiteralInteger",
+    "LiteralFloat",
+    "LiteralString",
+    "ScopeOpen",
+    "ScopeClose",
+    "ParentheticalOpen",
+    "ParentheticalClose",
+};
+
 typedef u16 Token_Base_Flag;
 enum{
     TokenBaseFlag_PreprocessorBody = 1,
@@ -46,6 +64,21 @@ struct Token_Array{
     Token *tokens;
     i64 count;
     i64 max;
+};
+
+struct Token_Block{
+    Token_Block *next;
+    Token_Block *prev;
+    Token *tokens;
+    i32 count;
+    i32 max;
+};
+
+struct Token_List{
+    Token_Block *first;
+    Token_Block *last;
+    i32 node_count;
+    i32 total_count;
 };
 
 #endif

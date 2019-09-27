@@ -4,10 +4,9 @@
 
 // TOP
 
-#include "languages/4coder_language_cpp.h"
-#include "languages/4coder_language_rust.h"
-#include "languages/4coder_language_cs.h"
-#include "languages/4coder_language_java.h"
+#include "languages/generated_lexer_cpp.h"
+
+#include "languages/generated_lexer_cpp.cpp"
 
 CUSTOM_COMMAND_SIG(set_bindings_choose);
 CUSTOM_COMMAND_SIG(set_bindings_default);

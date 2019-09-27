@@ -46,7 +46,8 @@ internal Table_Lookup
 table_lookup(Table_u64_u64 *table, u64 key){
     Table_Lookup result = {};
     
-    if (key != table_empty_key && key != table_erased_key){
+    if (key != table_empty_key && key != table_erased_key &&
+        table->slot_count > 0){
         u64 *keys = table->keys;
         u32 slot_count = table->slot_count;
         
@@ -205,7 +206,8 @@ internal Table_Lookup
 table_lookup(Table_u32_u16 *table, u32 key){
     Table_Lookup result = {};
     
-    if (key != table_empty_u32_key && key != table_erased_u32_key){
+    if (key != table_empty_u32_key && key != table_erased_u32_key &&
+        table->slot_count > 0){
         u32 *keys = table->keys;
         u32 slot_count = table->slot_count;
         
@@ -357,40 +359,43 @@ table_free(Table_Data_u64 *table){
 
 internal Table_Lookup
 table_lookup(Table_Data_u64 *table, Data key){
-    u64 *hashes = table->hashes;
-    u32 slot_count = table->slot_count;
-    
-    u64 hash = table_hash(key);
-    u32 first_index = hash % slot_count;
-    u32 index = first_index;
     Table_Lookup result = {};
-    result.hash = hash;
-    for (;;){
-        if (hash == hashes[index]){
-            if (data_match(key, table->keys[index])){
+    
+    if (table->slot_count > 0){
+        u64 *hashes = table->hashes;
+        u32 slot_count = table->slot_count;
+        
+        u64 hash = table_hash(key);
+        u32 first_index = hash % slot_count;
+        u32 index = first_index;
+        result.hash = hash;
+        for (;;){
+            if (hash == hashes[index]){
+                if (data_match(key, table->keys[index])){
+                    result.index = index;
+                    result.found_match = true;
+                    result.found_empty_slot = false;
+                    result.found_erased_slot = false;
+                    break;
+                }
+            }
+            if (table_empty_slot == hashes[index]){
                 result.index = index;
-                result.found_match = true;
-                result.found_empty_slot = false;
+                result.found_empty_slot = true;
                 result.found_erased_slot = false;
                 break;
             }
-        }
-        if (table_empty_slot == hashes[index]){
-            result.index = index;
-            result.found_empty_slot = true;
-            result.found_erased_slot = false;
-            break;
-        }
-        if (table_erased_slot == hashes[index] && !result.found_erased_slot){
-            result.index = index;
-            result.found_erased_slot = true;
-        }
-        index += 1;
-        if (index >= slot_count){
-            index = 0;
-        }
-        if (index == first_index){
-            break;
+            if (table_erased_slot == hashes[index] && !result.found_erased_slot){
+                result.index = index;
+                result.found_erased_slot = true;
+            }
+            index += 1;
+            if (index >= slot_count){
+                index = 0;
+            }
+            if (index == first_index){
+                break;
+            }
         }
     }
     
@@ -514,7 +519,8 @@ internal Table_Lookup
 table_lookup(Table_u64_Data *table, u64 key){
     Table_Lookup result = {};
     
-    if (key != table_empty_key && key != table_erased_key){
+    if (key != table_empty_key && key != table_erased_key &&
+        table->slot_count > 0){
         u64 *keys = table->keys;
         u32 slot_count = table->slot_count;
         
@@ -622,9 +628,8 @@ table_insert(Table_u64_Data *table, u64 key, Data val){
 }
 
 internal b32
-table_erase(Table_u64_Data *table, u64 key){
+table_erase(Table_u64_Data *table, Table_Lookup lookup){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
     if (lookup.found_match){
         table->keys[lookup.index] = 0;
         block_zero_struct(&table->vals[lookup.index]);
@@ -632,6 +637,12 @@ table_erase(Table_u64_Data *table, u64 key){
         result = true;
     }
     return(result);
+}
+
+internal b32
+table_erase(Table_u64_Data *table, u64 key){
+    Table_Lookup lookup = table_lookup(table, key);
+    return(table_erase(table, lookup));
 }
 
 internal void
@@ -667,40 +678,43 @@ table_free(Table_Data_Data *table){
 
 internal Table_Lookup
 table_lookup(Table_Data_Data *table, Data key){
-    u64 *hashes = table->hashes;
-    u32 slot_count = table->slot_count;
-    
-    u64 hash = table_hash(key);
-    u32 first_index = hash % slot_count;
-    u32 index = first_index;
     Table_Lookup result = {};
-    result.hash = hash;
-    for (;;){
-        if (hash == hashes[index]){
-            if (data_match(key, table->keys[index])){
+    
+    if (table->slot_count > 0){
+        u64 *hashes = table->hashes;
+        u32 slot_count = table->slot_count;
+        
+        u64 hash = table_hash(key);
+        u32 first_index = hash % slot_count;
+        u32 index = first_index;
+        result.hash = hash;
+        for (;;){
+            if (hash == hashes[index]){
+                if (data_match(key, table->keys[index])){
+                    result.index = index;
+                    result.found_match = true;
+                    result.found_empty_slot = false;
+                    result.found_erased_slot = false;
+                    break;
+                }
+            }
+            if (table_empty_slot == hashes[index]){
                 result.index = index;
-                result.found_match = true;
-                result.found_empty_slot = false;
+                result.found_empty_slot = true;
                 result.found_erased_slot = false;
                 break;
             }
-        }
-        if (table_empty_slot == hashes[index]){
-            result.index = index;
-            result.found_empty_slot = true;
-            result.found_erased_slot = false;
-            break;
-        }
-        if (table_erased_slot == hashes[index] && !result.found_erased_slot){
-            result.index = index;
-            result.found_erased_slot = true;
-        }
-        index += 1;
-        if (index >= slot_count){
-            index = 0;
-        }
-        if (index == first_index){
-            break;
+            if (table_erased_slot == hashes[index] && !result.found_erased_slot){
+                result.index = index;
+                result.found_erased_slot = true;
+            }
+            index += 1;
+            if (index >= slot_count){
+                index = 0;
+            }
+            if (index == first_index){
+                break;
+            }
         }
     }
     

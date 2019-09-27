@@ -1,9 +1,5 @@
 @echo off
 
-REM This stores the path of the buildsuper.bat script
-REM in CODE_HOME.  This way you can always include the
-REM default files no matter where you store your code.
-REM And no matter how you call buildsuper.bat.
 set code_home=%~dp0
 if %code_home:~-1%==\ (set code_home=%code_home:~0,-1%)
 
