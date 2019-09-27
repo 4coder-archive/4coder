@@ -4,10 +4,6 @@
 
 // TOP
 
-#include "languages/generated_lexer_cpp.h"
-
-#include "languages/generated_lexer_cpp.cpp"
-
 CUSTOM_COMMAND_SIG(set_bindings_choose);
 CUSTOM_COMMAND_SIG(set_bindings_default);
 CUSTOM_COMMAND_SIG(set_bindings_mac_default);
@@ -409,7 +405,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             colors[i] = Stag_Back_Cycle_1 + i;
         }
         draw_enclosures(app, text_layout_id, buffer,
-                        cursor_pos, FindScope_Brace, RangeHighlightKind_LineHighlight,
+                        cursor_pos, FindScope_Scope, RangeHighlightKind_LineHighlight,
                         colors, 0, color_count);
     }
     
@@ -554,9 +550,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 dts[1] = history_animation_dt[j];
                 i32 frame_index = history_frame_index[j];
                 
-                Fancy_Color white = fancy_rgba(1.f, 1.f, 1.f, 1.f);
-                Fancy_Color pink  = fancy_rgba(1.f, 0.f, 1.f, 1.f);
-                Fancy_Color green = fancy_rgba(0.f, 1.f, 0.f, 1.f);
                 Fancy_String_List list = {};
                 push_fancy_stringf(scratch, &list, pink , "FPS: ");
                 push_fancy_stringf(scratch, &list, green, "[");
@@ -871,7 +864,7 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                 umem size = conflict->base_name.size;
                 size = clamp_top(size, conflict->unique_name_capacity);
                 conflict->unique_name_len_in_out = size;
-                memcpy(conflict->unique_name_in_out, conflict->base_name.str, size);
+                block_copy(conflict->unique_name_in_out, conflict->base_name.str, size);
                 
                 if (conflict->file_name.str != 0){
                     Scratch_Block per_file_closer(scratch);
@@ -966,8 +959,7 @@ BUFFER_HOOK_SIG(default_file_settings){
     
     String_Const_u8_Array extensions = global_config.code_exts;
     
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch = context_get_arena(app);
     
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
     
@@ -1081,7 +1073,9 @@ BUFFER_HOOK_SIG(default_file_settings){
         String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
         Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
         Base_Allocator *allocator = managed_scope_allocator(app, scope);
-        Token_Array tokens = lex_cpp_initial(allocator, contents);
+        Arena alloc_arena = make_arena(allocator);
+        Token_List list = lex_full_input_cpp(&alloc_arena, contents);
+        Token_Array tokens = token_array_from_list(&alloc_arena, &list);
         
         Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
         block_copy_struct(tokens_ptr, &tokens);
@@ -1101,8 +1095,6 @@ BUFFER_HOOK_SIG(default_file_settings){
     buffer_set_setting(app, buffer_id, BufferSetting_VirtualWhitespace, use_virtual_whitespace);
     buffer_set_setting(app, buffer_id, BufferSetting_Lex, use_lexer);
 #endif
-    
-    end_temp(temp);
     
     // no meaning for return
     return(0);
@@ -1169,7 +1161,7 @@ BUFFER_HOOK_SIG(default_end_file){
 // extended to have access to the key presses soon.
 INPUT_FILTER_SIG(default_suppress_mouse_filter){
     if (suppressing_mouse){
-        memset(mouse, 0, sizeof(*mouse));
+        block_zero_struct(mouse);
         mouse->p.x = -100;
         mouse->p.y = -100;
     }

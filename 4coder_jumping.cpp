@@ -177,7 +177,7 @@ parse_jump_location(String_Const_u8 line){
     }
     
     if (!jump.success){
-        memset(&jump, 0, sizeof(jump));
+        block_zero_struct(&jump);
     }
     else{
         jump.is_sub_jump = (jump.sub_jump_indented || jump.sub_jump_note);

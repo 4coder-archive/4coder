@@ -4,7 +4,7 @@
 
 // TOP
 
-static String_Const_u8_Array
+internal String_Const_u8_Array
 parse_extension_line_to_extension_list(Arena *arena, String_Const_u8 str){
     i32 count = 0;
     for (umem i = 0; i < str.size; i += 1){
@@ -32,7 +32,7 @@ parse_extension_line_to_extension_list(Arena *arena, String_Const_u8 str){
 
 ////////////////////////////////
 
-static Error_Location
+internal Error_Location
 get_error_location(u8 *base, u8 *pos){
     Error_Location location = {};
     location.line_number = 1;
@@ -51,7 +51,7 @@ get_error_location(u8 *base, u8 *pos){
     return(location);
 }
 
-static String_Const_u8
+internal String_Const_u8
 config_stringize_errors(Arena *arena, Config *parsed){
     String_Const_u8 result = {};
     if (parsed->errors.first != 0){
@@ -70,16 +70,19 @@ config_stringize_errors(Arena *arena, Config *parsed){
 
 ////////////////////////////////
 
-static void
+internal void
 config_parser__advance_to_next(Config_Parser *ctx){
     Token *t = ctx->token;
     Token *e = ctx->end;
-    for (t += 1; t < e && t->type == CPP_TOKEN_COMMENT; t += 1);
+    for (t += 1;
+         t < e && (t->kind == TokenBaseKind_Comment ||
+                   t->kind == TokenBaseKind_Whitespace);
+         t += 1);
     ctx->token = t;
 }
 
-static Config_Parser
-make_config_parser(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Cpp_Token_Array array){
+internal Config_Parser
+make_config_parser(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array){
     Config_Parser ctx = {};
     ctx.start = array.tokens;
     ctx.token = ctx.start - 1;
@@ -91,40 +94,52 @@ make_config_parser(Arena *arena, String_Const_u8 file_name, String_Const_u8 data
     return(ctx);
 }
 
-static b32
-config_parser__recognize_token(Config_Parser *ctx, Cpp_Token_Type type){
+internal b32
+config_parser__recognize_base_token(Config_Parser *ctx, Token_Base_Kind kind){
     b32 result = false;
     if (ctx->start <= ctx->token && ctx->token < ctx->end){
-        result = (ctx->token->type == type);
+        result = (ctx->token->kind == kind);
     }
-    else if (type == CPP_TOKEN_EOF){
+    else if (kind == TokenBaseKind_EOF){
         result = true;
     }
     return(result);
 }
 
-static b32
-config_parser__recognize_token_category(Config_Parser *ctx, Cpp_Token_Category category){
+internal b32
+config_parser__recognize_token(Config_Parser *ctx, Token_Cpp_Kind kind){
     b32 result = false;
     if (ctx->start <= ctx->token && ctx->token < ctx->end){
-        result = (cpp_token_category_from_type(ctx->token->type) == category);
+        result = (ctx->token->sub_kind == kind);
     }
-    else if (category == CPP_TOKEN_CAT_EOF){
+    else if (kind == TokenCppKind_EOF){
         result = true;
     }
     return(result);
 }
 
-static String_Const_u8
+internal b32
+config_parser__recognize_boolean(Config_Parser *ctx){
+    b32 result = false;
+    Token *token = ctx->token;
+    if (ctx->start <= ctx->token && ctx->token < ctx->end){
+        result = (token->sub_kind == TokenCppKind_LiteralTrue ||
+                  token->sub_kind == TokenCppKind_LiteralFalse);
+    }
+    return(result);
+}
+
+internal String_Const_u8
 config_parser__get_lexeme(Config_Parser *ctx){
     String_Const_u8 lexeme = {};
-    if (ctx->start <= ctx->token && ctx->token < ctx->end){
-        lexeme = SCu8(ctx->data.str + ctx->token->start, ctx->token->size);
+    Token *token = ctx->token;
+    if (ctx->start <= token && token < ctx->end){
+        lexeme = SCu8(ctx->data.str + token->pos, token->size);
     }
     return(lexeme);
 }
 
-static Config_Integer
+internal Config_Integer
 config_parser__get_int(Config_Parser *ctx){
     Config_Integer config_integer = {};
     String_Const_u8 str = config_parser__get_lexeme(ctx);
@@ -146,28 +161,28 @@ config_parser__get_int(Config_Parser *ctx){
     return(config_integer);
 }
 
-static b32
+internal b32
 config_parser__get_boolean(Config_Parser *ctx){
     String_Const_u8 str = config_parser__get_lexeme(ctx);
     return(string_match(str, string_u8_litexpr("true")));
 }
 
-static b32
+internal b32
 config_parser__recognize_text(Config_Parser *ctx, String_Const_u8 text){
     String_Const_u8 lexeme = config_parser__get_lexeme(ctx);
     return(lexeme.str != 0 && string_match(lexeme, text));
 }
 
-static b32
-config_parser__match_token(Config_Parser *ctx, Cpp_Token_Type type){
-    b32 result = config_parser__recognize_token(ctx, type);
+internal b32
+config_parser__match_token(Config_Parser *ctx, Token_Cpp_Kind kind){
+    b32 result = config_parser__recognize_token(ctx, kind);
     if (result){
         config_parser__advance_to_next(ctx);
     }
     return(result);
 }
 
-static b32
+internal b32
 config_parser__match_text(Config_Parser *ctx, String_Const_u8 text){
     b32 result = config_parser__recognize_text(ctx, text);
     if (result){
@@ -178,16 +193,16 @@ config_parser__match_text(Config_Parser *ctx, String_Const_u8 text){
 
 #define config_parser__match_text_lit(c,s) config_parser__match_text((c), string_u8_litexpr(s))
 
-static Config                  *config_parser__config    (Config_Parser *ctx);
-static i32                 *config_parser__version   (Config_Parser *ctx);
-static Config_Assignment       *config_parser__assignment(Config_Parser *ctx);
-static Config_LValue           *config_parser__lvalue    (Config_Parser *ctx);
-static Config_RValue           *config_parser__rvalue    (Config_Parser *ctx);
-static Config_Compound         *config_parser__compound  (Config_Parser *ctx);
-static Config_Compound_Element *config_parser__element   (Config_Parser *ctx);
+internal Config                  *config_parser__config    (Config_Parser *ctx);
+internal i32                     *config_parser__version   (Config_Parser *ctx);
+internal Config_Assignment       *config_parser__assignment(Config_Parser *ctx);
+internal Config_LValue           *config_parser__lvalue    (Config_Parser *ctx);
+internal Config_RValue           *config_parser__rvalue    (Config_Parser *ctx);
+internal Config_Compound         *config_parser__compound  (Config_Parser *ctx);
+internal Config_Compound_Element *config_parser__element   (Config_Parser *ctx);
 
-static Config*
-text_data_and_token_array_to_parse_data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Cpp_Token_Array array){
+internal Config*
+text_data_and_token_array_to_parse_data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array){
     Temp_Memory restore_point = begin_temp(arena);
     Config_Parser ctx = make_config_parser(arena, file_name, data, array);
     Config *config = config_parser__config(&ctx);
@@ -198,7 +213,7 @@ text_data_and_token_array_to_parse_data(Arena *arena, String_Const_u8 file_name,
 }
 
 // TODO(allen): Move to string library
-static Config_Error*
+internal Config_Error*
 config_error_push(Arena *arena, Config_Error_List *list, String_Const_u8 file_name, u8 *pos, char *error_text){
     Config_Error *error = push_array(arena, Config_Error, 1);
     zdll_push_back(list->first, list->last, error);
@@ -209,29 +224,29 @@ config_error_push(Arena *arena, Config_Error_List *list, String_Const_u8 file_na
     return(error);
 }
 
-static u8*
+internal u8*
 config_parser__get_pos(Config_Parser *ctx){
-    return(ctx->data.str + ctx->token->start);
+    return(ctx->data.str + ctx->token->pos);
 }
 
-static void
+internal void
 config_parser__log_error_pos(Config_Parser *ctx, u8 *pos, char *error_text){
     config_error_push(ctx->arena, &ctx->errors, ctx->file_name, pos, error_text);
 }
 
-static void
+internal void
 config_parser__log_error(Config_Parser *ctx, char *error_text){
     config_parser__log_error_pos(ctx, config_parser__get_pos(ctx), error_text);
 }
 
-static Config*
+internal Config*
 config_parser__config(Config_Parser *ctx){
     i32 *version = config_parser__version(ctx);
     
     Config_Assignment *first = 0;
     Config_Assignment *last = 0;
     i32 count = 0;
-    for (;!config_parser__recognize_token(ctx, CPP_TOKEN_EOF);){
+    for (;!config_parser__recognize_token(ctx, TokenCppKind_EOF);){
         Config_Assignment *assignment = config_parser__assignment(ctx);
         if (assignment != 0){
             zdll_push_back(first, last, assignment);
@@ -240,7 +255,7 @@ config_parser__config(Config_Parser *ctx){
     }
     
     Config *config = push_array(ctx->arena, Config, 1);
-    memset(config, 0, sizeof(*config));
+    block_zero_struct(config);
     config->version = version;
     config->first = first;
     config->last = last;
@@ -251,30 +266,30 @@ config_parser__config(Config_Parser *ctx){
     return(config);
 }
 
-static void
+internal void
 config_parser__recover_parse(Config_Parser *ctx){
     for (;;){
-        if (config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON)){
+        if (config_parser__match_token(ctx, TokenCppKind_Semicolon)){
             break;
         }
-        if (config_parser__recognize_token(ctx, CPP_TOKEN_EOF)){
+        if (config_parser__recognize_token(ctx, TokenCppKind_EOF)){
             break;
         }
         config_parser__advance_to_next(ctx);
     }
 }
 
-static i32*
+internal i32*
 config_parser__version(Config_Parser *ctx){
     require(config_parser__match_text_lit(ctx, "version"));
     
-    if (!config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_OPEN)){
+    if (!config_parser__match_token(ctx, TokenCppKind_ParenOp)){
         config_parser__log_error(ctx, "expected token '(' for version specifier: 'version(#)'");
         config_parser__recover_parse(ctx);
         return(0);
     }
     
-    if (!config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT)){
+    if (!config_parser__recognize_base_token(ctx, TokenBaseKind_LiteralInteger)){
         config_parser__log_error(ctx, "expected an integer constant for version specifier: 'version(#)'");
         config_parser__recover_parse(ctx);
         return(0);
@@ -283,13 +298,13 @@ config_parser__version(Config_Parser *ctx){
     Config_Integer value = config_parser__get_int(ctx);
     config_parser__advance_to_next(ctx);
     
-    if (!config_parser__match_token(ctx, CPP_TOKEN_PARENTHESE_CLOSE)){
+    if (!config_parser__match_token(ctx, TokenCppKind_ParenCl)){
         config_parser__log_error(ctx, "expected token ')' for version specifier: 'version(#)'");
         config_parser__recover_parse(ctx);
         return(0);
     }
     
-    if (!config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON)){
+    if (!config_parser__match_token(ctx, TokenCppKind_Semicolon)){
         config_parser__log_error(ctx, "expected token ';' for version specifier: 'version(#)'");
         config_parser__recover_parse(ctx);
         return(0);
@@ -300,7 +315,7 @@ config_parser__version(Config_Parser *ctx){
     return(ptr);
 }
 
-static Config_Assignment*
+internal Config_Assignment*
 config_parser__assignment(Config_Parser *ctx){
     u8 *pos = config_parser__get_pos(ctx);
     
@@ -311,7 +326,7 @@ config_parser__assignment(Config_Parser *ctx){
         return(0);
     }
     
-    if (!config_parser__match_token(ctx, CPP_TOKEN_EQ)){
+    if (!config_parser__match_token(ctx, TokenCppKind_Eq)){
         config_parser__log_error(ctx, "expected token '=' for assignment: 'l-value = r-value;'");
         config_parser__recover_parse(ctx);
         return(0);
@@ -329,7 +344,7 @@ config_parser__assignment(Config_Parser *ctx){
         return(0);
     }
     
-    if (!config_parser__match_token(ctx, CPP_TOKEN_SEMICOLON)){
+    if (!config_parser__match_token(ctx, TokenCppKind_Semicolon)){
         config_parser__log_error(ctx, "expected token ';' for assignment: 'l-value = r-value;'");
         config_parser__recover_parse(ctx);
         return(0);
@@ -342,19 +357,19 @@ config_parser__assignment(Config_Parser *ctx){
     return(assignment);
 }
 
-static Config_LValue*
+internal Config_LValue*
 config_parser__lvalue(Config_Parser *ctx){
-    require(config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER));
+    require(config_parser__recognize_token(ctx, TokenCppKind_Identifier));
     String_Const_u8 identifier = config_parser__get_lexeme(ctx);
     config_parser__advance_to_next(ctx);
     
     i32 index = 0;
-    if (config_parser__match_token(ctx, CPP_TOKEN_BRACKET_OPEN)){
-        require(config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT));
+    if (config_parser__match_token(ctx, TokenCppKind_BrackOp)){
+        require(config_parser__recognize_base_token(ctx, TokenBaseKind_LiteralInteger));
         Config_Integer value = config_parser__get_int(ctx);
         index = value.integer;
         config_parser__advance_to_next(ctx);
-        require(config_parser__match_token(ctx, CPP_TOKEN_BRACKET_CLOSE));
+        require(config_parser__match_token(ctx, TokenCppKind_BrackCl));
     }
     
     Config_LValue *lvalue = push_array_zero(ctx->arena, Config_LValue, 1);
@@ -363,17 +378,17 @@ config_parser__lvalue(Config_Parser *ctx){
     return(lvalue);
 }
 
-static Config_RValue*
+internal Config_RValue*
 config_parser__rvalue(Config_Parser *ctx){
     Config_RValue *rvalue = 0;
-    if (config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER)){
+    if (config_parser__recognize_token(ctx, TokenCppKind_Identifier)){
         Config_LValue *l = config_parser__lvalue(ctx);
         require(l != 0);
         rvalue = push_array_zero(ctx->arena, Config_RValue, 1);
         rvalue->type = ConfigRValueType_LValue;
         rvalue->lvalue = l;
     }
-    else if (config_parser__recognize_token(ctx, CPP_TOKEN_BRACE_OPEN)){
+    else if (config_parser__recognize_token(ctx, TokenCppKind_BraceOp)){
         config_parser__advance_to_next(ctx);
         Config_Compound *compound = config_parser__compound(ctx);
         require(compound != 0);
@@ -381,14 +396,14 @@ config_parser__rvalue(Config_Parser *ctx){
         rvalue->type = ConfigRValueType_Compound;
         rvalue->compound = compound;
     }
-    else if (config_parser__recognize_token_category(ctx, CPP_TOKEN_CAT_BOOLEAN_CONSTANT)){
+    else if (config_parser__recognize_boolean(ctx)){
         b32 b = config_parser__get_boolean(ctx);
         config_parser__advance_to_next(ctx);
         rvalue = push_array_zero(ctx->arena, Config_RValue, 1);
         rvalue->type = ConfigRValueType_Boolean;
         rvalue->boolean = b;
     }
-    else if (config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT)){
+    else if (config_parser__recognize_base_token(ctx, TokenBaseKind_LiteralInteger)){
         Config_Integer value = config_parser__get_int(ctx);
         config_parser__advance_to_next(ctx);
         rvalue = push_array_zero(ctx->arena, Config_RValue, 1);
@@ -400,7 +415,7 @@ config_parser__rvalue(Config_Parser *ctx){
             rvalue->uinteger = value.uinteger;
         }
     }
-    else if (config_parser__recognize_token(ctx, CPP_TOKEN_STRING_CONSTANT)){
+    else if (config_parser__recognize_token(ctx, TokenCppKind_LiteralString)){
         String_Const_u8 s = config_parser__get_lexeme(ctx);
         config_parser__advance_to_next(ctx);
         s = string_chop(string_skip(s, 1), 1);
@@ -409,7 +424,7 @@ config_parser__rvalue(Config_Parser *ctx){
         rvalue->type = ConfigRValueType_String;
         rvalue->string = interpreted;
     }
-    else if (config_parser__recognize_token(ctx, CPP_TOKEN_CHARACTER_CONSTANT)){
+    else if (config_parser__recognize_token(ctx, TokenCppKind_LiteralCharacter)){
         String_Const_u8 s = config_parser__get_lexeme(ctx);
         config_parser__advance_to_next(ctx);
         s = string_chop(string_skip(s, 1), 1);
@@ -421,7 +436,7 @@ config_parser__rvalue(Config_Parser *ctx){
     return(rvalue);
 }
 
-static void
+internal void
 config_parser__compound__check(Config_Parser *ctx, Config_Compound *compound){
     b32 implicit_index_allowed = true;
     for (Config_Compound_Element *node = compound->first;
@@ -437,7 +452,7 @@ config_parser__compound__check(Config_Parser *ctx, Config_Compound *compound){
     }
 }
 
-static Config_Compound*
+internal Config_Compound*
 config_parser__compound(Config_Parser *ctx){
     Config_Compound_Element *first = 0;
     Config_Compound_Element *last = 0;
@@ -448,8 +463,8 @@ config_parser__compound(Config_Parser *ctx){
     zdll_push_back(first, last, element);
     count += 1;
     
-    for (;config_parser__match_token(ctx, CPP_TOKEN_COMMA);){
-        if (config_parser__recognize_token(ctx, CPP_TOKEN_BRACE_CLOSE)){
+    for (;config_parser__match_token(ctx, TokenCppKind_Comma);){
+        if (config_parser__recognize_token(ctx, TokenCppKind_BraceCl)){
             break;
         }
         element = config_parser__element(ctx);
@@ -458,10 +473,10 @@ config_parser__compound(Config_Parser *ctx){
         count += 1;
     }
     
-    require(config_parser__match_token(ctx, CPP_TOKEN_BRACE_CLOSE));
+    require(config_parser__match_token(ctx, TokenCppKind_BraceCl));
     
     Config_Compound *compound = push_array(ctx->arena, Config_Compound, 1);
-    memset(compound, 0, sizeof(*compound));
+    block_zero_struct(compound);
     compound->first = first;
     compound->last = last;
     compound->count = count;
@@ -469,17 +484,17 @@ config_parser__compound(Config_Parser *ctx){
     return(compound);
 }
 
-static Config_Compound_Element*
+internal Config_Compound_Element*
 config_parser__element(Config_Parser *ctx){
     Config_Layout layout = {};
     layout.pos = config_parser__get_pos(ctx);
-    if (config_parser__match_token(ctx, CPP_TOKEN_DOT)){
-        if (config_parser__recognize_token(ctx, CPP_TOKEN_IDENTIFIER)){
+    if (config_parser__match_token(ctx, TokenCppKind_Dot)){
+        if (config_parser__recognize_token(ctx, TokenCppKind_Identifier)){
             layout.type = ConfigLayoutType_Identifier;
             layout.identifier = config_parser__get_lexeme(ctx);
             config_parser__advance_to_next(ctx);
         }
-        else if (config_parser__recognize_token(ctx, CPP_TOKEN_INTEGER_CONSTANT)){
+        else if (config_parser__recognize_base_token(ctx, TokenBaseKind_LiteralInteger)){
             layout.type = ConfigLayoutType_Integer;
             Config_Integer value = config_parser__get_int(ctx);
             layout.integer = value.integer;
@@ -488,12 +503,12 @@ config_parser__element(Config_Parser *ctx){
         else{
             return(0);
         }
-        require(config_parser__match_token(ctx, CPP_TOKEN_EQ));
+        require(config_parser__match_token(ctx, TokenCppKind_Eq));
     }
     Config_RValue *rvalue = config_parser__rvalue(ctx);
     require(rvalue != 0);
     Config_Compound_Element *element = push_array(ctx->arena, Config_Compound_Element, 1);
-    memset(element, 0, sizeof(*element));
+    block_zero_struct(element);
     element->l = layout;
     element->r = rvalue;
     return(element);
@@ -501,14 +516,14 @@ config_parser__element(Config_Parser *ctx){
 
 ////////////////////////////////
 
-static Config_Error*
+internal Config_Error*
 config_add_error(Arena *arena, Config *config, u8 *pos, char *error_text){
     return(config_error_push(arena, &config->errors, config->file_name, pos, error_text));
 }
 
 ////////////////////////////////
 
-static Config_Assignment*
+internal Config_Assignment*
 config_lookup_assignment(Config *config, String_Const_u8 var_name, i32 subscript){
     Config_Assignment *assignment = 0;
     for (assignment = config->first;
@@ -522,10 +537,10 @@ config_lookup_assignment(Config *config, String_Const_u8 var_name, i32 subscript
     return(assignment);
 }
 
-static Config_Get_Result
+internal Config_Get_Result
 config_var(Config *config, String_Const_u8 var_name, i32 subscript);
 
-static Config_Get_Result
+internal Config_Get_Result
 config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RValue *r){
     Config_Get_Result result = {};
     if (r != 0 && !assignment->visited){
@@ -1141,36 +1156,17 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 
 ////////////////////////////////
 
-// TODO(allen): rewrite!
-static Cpp_Token_Array
-text_data_to_token_array(Arena *arena, String_Const_u8 data){
-    b32 success = false;
-    Temp_Memory restore_point = begin_temp(arena);
-    Cpp_Token_Array array = {};
-    i32 max_count = (1 << 20)/sizeof(Token);
-    array.tokens = push_array(arena, Token, max_count);
-    array.max_count = max_count;
-    Cpp_Keyword_Table kw_table = {};
-    Cpp_Keyword_Table pp_table = {};
-    if (lexer_keywords_default_init(arena, &kw_table, &pp_table)){
-        Cpp_Lex_Data S = cpp_lex_data_init(false, kw_table, pp_table);
-        Cpp_Lex_Result result = cpp_lex_step(&S, (char*)data.str, (i32)(data.size + 1), HAS_NULL_TERM, &array, NO_OUT_LIMIT);
-        if (result == LexResult_Finished){
-            success = true;
-        }
-    }
-    if (!success){
-        block_zero_struct(&array);
-        end_temp(restore_point);
-    }
-    return(array);
+static Token_Array
+token_array_from_text(Arena *arena, String_Const_u8 data){
+    Token_List list = lex_full_input_cpp(arena, data);
+    return(token_array_from_list(arena, &list));
 }
 
 static Config*
 text_data_to_parsed_data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data){
     Config *parsed = 0;
     Temp_Memory restore_point = begin_temp(arena);
-    Cpp_Token_Array array = text_data_to_token_array(arena, data);
+    Token_Array array = token_array_from_text(arena, data);
     if (array.tokens != 0){
         parsed = text_data_and_token_array_to_parse_data(arena, file_name, data, array);
         if (parsed == 0){

@@ -247,6 +247,7 @@ draw_rectangle(Application_Links *app, Rect_f32 rect, Fancy_Color fancy_color){
 
 ////////////////////////////////
 
+// TODO(allen): beta: color palette
 global Fancy_Color white      = fancy_rgba(1.0f, 1.0f, 1.0f, 1.0f);
 global Fancy_Color light_gray = fancy_rgba(0.7f, 0.7f, 0.7f, 1.0f);
 global Fancy_Color gray       = fancy_rgba(0.5f, 0.5f, 0.5f, 1.0f);

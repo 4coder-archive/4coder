@@ -201,7 +201,7 @@ make_new_marker_list_for_buffer(Heap *heap, i32 buffer_id){
     Marker_List_Node *new_node = heap_array(heap, Marker_List_Node, 1);
     zdll_push_back(marker_list_first, marker_list_last, new_node);
     new_node->buffer_id = buffer_id;
-    memset(&new_node->list, 0, sizeof(new_node->list));
+    block_zero_struct(&new_node->list);
     Marker_List *result = &new_node->list;
     return(result);
 }

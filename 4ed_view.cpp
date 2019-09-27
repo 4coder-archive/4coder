@@ -467,42 +467,33 @@ finalize_color(Color_Table color_table, int_color color){
 internal u32
 get_token_color(Color_Table color_table, Token token){
     u32 result = 0;
-    if ((token.flags & CPP_TFLAG_IS_KEYWORD) != 0){
-        if (cpp_token_category_from_type(token.type) == CPP_TOKEN_CAT_BOOLEAN_CONSTANT){
-            result = color_table.vals[Stag_Bool_Constant];
-        }
-        else{
-            result = color_table.vals[Stag_Keyword];
-        }
-    }
-    else if ((token.flags & CPP_TFLAG_PP_DIRECTIVE) != 0){
+    if (HasFlag(token.flags, TokenBaseFlag_PreprocessorBody)){
         result = color_table.vals[Stag_Preproc];
     }
     else{
-        switch (token.type){
-            case CPP_TOKEN_COMMENT:
+        switch (token.kind){
+            case TokenBaseKind_Keyword:
+            {            
+                // TODO(allen): beta: Stag_Bool_Constant
+                result = color_table.vals[Stag_Keyword];
+            }break;
+            case TokenBaseKind_Comment:
             {
                 result = color_table.vals[Stag_Comment];
             }break;
-            case CPP_TOKEN_STRING_CONSTANT:
+            case TokenBaseKind_LiteralString:
             {
                 result = color_table.vals[Stag_Str_Constant];
+                // TODO(allen): beta: Stag_Char_Constant
+                // TODO(allen): beta: Stag_Include
             }break;
-            case CPP_TOKEN_CHARACTER_CONSTANT:
-            {
-                result = color_table.vals[Stag_Char_Constant];
-            }break;
-            case CPP_TOKEN_INTEGER_CONSTANT:
+            case TokenBaseKind_LiteralInteger:
             {
                 result = color_table.vals[Stag_Int_Constant];
             }break;
-            case CPP_TOKEN_FLOATING_CONSTANT:
+            case TokenBaseKind_LiteralFloat:
             {
                 result = color_table.vals[Stag_Float_Constant];
-            }break;
-            case CPP_PP_INCLUDE_FILE:
-            {
-                result = color_table.vals[Stag_Include];
             }break;
             default:
             {

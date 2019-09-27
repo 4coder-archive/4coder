@@ -646,8 +646,8 @@ log_parse_fill(Application_Links *app, Buffer_ID buffer){
 }
 
 internal void
-log_graph_render__tag(Arena *arena, Fancy_String_List *line, Log_Parse *log_parse, Log_Tag *tag){
-    String_Const_u8 tag_name = log_parse__get_string(log_parse, tag->name);
+log_graph_render__tag(Arena *arena, Fancy_String_List *line, Log_Parse *log, Log_Tag *tag){
+    String_Const_u8 tag_name = log_parse__get_string(log, tag->name);
     push_fancy_stringf(arena, line, white, "[");
     push_fancy_string(arena, line, green, tag_name);
     push_fancy_stringf(arena, line, white, "=");
@@ -655,7 +655,7 @@ log_graph_render__tag(Arena *arena, Fancy_String_List *line, Log_Parse *log_pars
         push_fancy_stringf(arena, line, pink, "0x%llx", tag->value.value_s);
     }
     else if (tag->value.kind == LogTagKind_String){
-        String_Const_u8 value = log_parse__get_string(log_parse, tag->value.value);
+        String_Const_u8 value = log_parse__get_string(log, tag->value.value);
         push_fancy_string(arena, line, pink, value);
     }
     push_fancy_stringf(arena, line, white, "]");
@@ -940,15 +940,15 @@ CUSTOM_DOC("Scroll the log graph down one whole page")
 }
 
 internal Log_Graph_Box*
-log_graph__get_box_at_point(Log_Graph *log_graph, Vec2_f32 p){
+log_graph__get_box_at_point(Log_Graph *graph, Vec2_f32 p){
     Log_Graph_Box *result = 0;
-    if (!rect_contains_point(log_graph->details_region, p)){
-        for (Log_Graph_Box *box_node = log_graph->first_box;
+    if (!rect_contains_point(graph->details_region, p)){
+        for (Log_Graph_Box *box_node = graph->first_box;
              box_node != 0;
              box_node = box_node->next){
             Rect_f32 box = box_node->rect;
-            box.y0 -= log_graph->y_scroll;
-            box.y1 -= log_graph->y_scroll;
+            box.y0 -= graph->y_scroll;
+            box.y1 -= graph->y_scroll;
             if (rect_contains_point(box, p)){
                 result = box_node;
                 break;
@@ -959,10 +959,10 @@ log_graph__get_box_at_point(Log_Graph *log_graph, Vec2_f32 p){
 }
 
 internal Log_Graph_Box*
-log_graph__get_box_at_mouse_point(Application_Links *app, Log_Graph *log_graph){
+log_graph__get_box_at_mouse_point(Application_Links *app, Log_Graph *graph){
     Mouse_State mouse = get_mouse_state(app);
-    Vec2_f32 m_p = V2f32(mouse.p) - log_graph->layout_region.p0;
-    return(log_graph__get_box_at_point(log_graph, m_p));
+    Vec2_f32 m_p = V2f32(mouse.p) - graph->layout_region.p0;
+    return(log_graph__get_box_at_point(graph, m_p));
 }
 
 CUSTOM_COMMAND_SIG(log_graph__click_select_event)

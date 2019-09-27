@@ -22,7 +22,7 @@ set preproc_file=4coder_command_metadata.i
 set meta_macros=/DMETA_PASS
 call cl /I"%code_home%" %opts% %mode% %src% /P /Fi%preproc_file% %meta_macros%
 call cl /I"%code_home%" %opts% %mode% "%code_home%\4coder_metadata_generator.cpp" /Femetadata_generator
-metadata_generator -R "%code_home%" "%cd%\\%preproc_file%"
+metadata_generator -R "%code_home%" "%cd%\%preproc_file%"
 
 call cl /I"%code_home%" %opts% %mode% %src% /Fecustom_4coder %build_dll% %exports%
 

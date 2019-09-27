@@ -77,7 +77,7 @@ view_clear_ui_data(Application_Links *app, View_ID view_id){
 static UI_Item*
 ui_list_add_item(Arena *arena, UI_List *list, UI_Item item){
     UI_Item *node = push_array(arena, UI_Item, 1);
-    memcpy(node, &item, sizeof(item));
+    block_copy_struct(node, &item);
     zdll_push_back(list->first, list->last, node);
     list->count += 1;
     return(node);
@@ -358,7 +358,7 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view, ViewGetUIFlag_ClearData, &ui_data, &ui_arena)){
-        memset(ui_data, 0, sizeof(*ui_data));
+        block_zero_struct(ui_data);
         
         UI_Item *highlighted_item = 0;
         UI_Item *hot_item = 0;
@@ -508,7 +508,7 @@ lister_first_init(Application_Links *app, Lister *lister, void *user_data, i32 u
     lister->data.user_data_size = user_data_size;
     push_align(&lister->arena, 8);
     if (user_data != 0){
-        memcpy(lister->data.user_data, user_data, user_data_size);
+        block_copy(lister->data.user_data, user_data, user_data_size);
     }
 }
 

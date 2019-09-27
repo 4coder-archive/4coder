@@ -43,8 +43,7 @@ struct Mem_Options{
 #include "4ed_buffer_model.h"
 #include "4ed_coroutine.h"
 
-#define FCPP_FORBID_MALLOC
-#include "4coder_lib/4cpp_lexer.h"
+#include "4coder_token.h"
 
 #include "4ed_dynamic_variables.h"
 
@@ -57,7 +56,6 @@ struct Mem_Options{
 
 #include "4ed_working_set.h"
 #include "4ed_hot_directory.h"
-#include "4ed_parse_context.h"
 #include "4ed_cli.h"
 #include "4ed_gui.h"
 #include "4ed_layout.h"

@@ -379,7 +379,7 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
                                       SCu8(options[i].status),
                                       options[i].user_data,
                                       shortcut_chars_length + 1);
-        memcpy(extra, shortcut_chars, shortcut_chars_length + 1);
+        block_copy(extra, shortcut_chars, shortcut_chars_length + 1);
     }
     lister_set_query(&state->lister, query_string);
     state->lister.data.handlers = handlers;

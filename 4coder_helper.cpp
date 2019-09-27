@@ -1874,130 +1874,11 @@ try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, B
 
 ////////////////////////////////
 
-internal Token_Iterator
-make_token_iter(Buffer_ID buffer, Token_Array array, Token *token){
-    Token_Iterator iterator = {buffer, array.tokens, array.tokens + array.count, token};
-    return(iterator);
-}
-
-internal Token_Iterator
-
-make_token_iter(Buffer_ID buffer, Token_Array array, i64 pos){
-    i64 first = 0;
-    i64 one_past_last = array.count;
-    i64 token_index = 0;
-    for (;;){
-        i64 i = (first + one_past_last)/2;
-        Token *token = array.tokens + i;
-        if (token->pos + token->size <= pos){
-            first = i + 1;
-        }
-        else if (pos < token->pos){
-            one_past_last = i;
-        }
-        else{
-            token_index = i;
-            break;
-        }
-        if (first + 1 >= one_past_last){
-            token_index = first;
-            break;
-        }
-    }
-    return(make_token_iter(buffer, array, array.tokens + token_index));
-}
-
-internal Token*
-token_iter_current(Token_Iterator *iter){
-    return(iter->token);
-}
-
-internal Token*
-token_iter_next_all(Token_Iterator *iter){
-    Token *token = iter->token + 1;
-    Token *one_past_last = iter->one_past_last;
-    if (token > one_past_last){
-        token = one_past_last;
-    }
-    iter->token = token;
-    return(token);
-}
-
-internal Token*
-token_iter_next_non_whitespace(Token_Iterator *iter){
-    Token *token = iter->token;
-    Token *one_past_last = iter->one_past_last;
-    for (token += 1; token < one_past_last; token += 1){
-        if (token->kind != TokenBaseKind_Whitespace){
-            break;
-        }
-    }
-    if (token > one_past_last){
-        token = one_past_last;
-    }
-    iter->token = token;
-    return(token);
-}
-
-internal Token*
-token_iter_next(Token_Iterator *iter){
-    Token *token = iter->token;
-    Token *one_past_last = iter->one_past_last;
-    for (token += 1; token < one_past_last; token += 1){
-        if (token->kind != TokenBaseKind_Whitespace &&
-            token->kind != TokenBaseKind_Comment){
-            break;
-        }
-    }
-    if (token > one_past_last){
-        token = one_past_last;
-    }
-    iter->token = token;
-    return(token);
-}
-
-internal Token*
-token_iter_prev_all(Token_Iterator *iter){
-    Token *token = iter->token - 1;
-    Token *first = iter->first;
-    if (token < first){
-        token = first;
-    }
-    iter->token = token;
-    return(token);
-}
-
-internal Token*
-token_iter_prev_non_whitespace(Token_Iterator *iter){
-    Token *token = iter->token;
-    Token *first = iter->first;
-    for (token -= 1; token >= first; token -= 1){
-        if (token->kind != TokenBaseKind_Whitespace){
-            break;
-        }
-    }
-    if (token < first){
-        token = first;
-    }
-    iter->token = token;
-    return(token);
-}
-
-internal Token*
-token_iter_prev(Token_Iterator *iter){
-    Token *token = iter->token;
-    Token *first = iter->first;
-    for (token -= 1; token >= first; token -= 1){
-        if (token->kind != TokenBaseKind_Whitespace &&
-            token->kind != TokenBaseKind_Comment){
-            break;
-        }
-    }
-    if (token < first){
-        token = first;
-    }
-    iter->token = token;
-    return(token);
+internal Token_Array
+get_token_array_from_buffer(Application_Links *app, Buffer_ID buffer){
+    Token_Array array = {};
+    // TODO(allen): implement
+    return(array);
 }
 
 ////////////////////////////////
@@ -2014,34 +1895,30 @@ get_query_string(Application_Links *app, char *query_str, u8 *string_space, i32 
     return(bar.string);
 }
 
-internal b32
-get_token_from_pos(Application_Links *app, Buffer_ID buffer, u64 pos, Cpp_Get_Token_Result *result){
-    b32 success = false;
-    NotImplemented;
-#if 0
-    Token_Array array = buffer_get_token_array(app, buffer);
-    if (array.count > 0){
-        success = true;
-        *result = cpp_get_token(array, (i32)pos);
+internal Token*
+get_token_from_pos(Application_Links *app, Token_Array *array, u64 pos){
+    Token *result = 0;
+    if (array->count > 0){
+        i64 index = token_index_from_pos(array, pos);
+        result = array->tokens + index;
     }
-#endif
-    return(success);
+    return(result);
+}
+
+internal Token*
+get_token_from_pos(Application_Links *app, Buffer_ID buffer, u64 pos){
+    Token_Array array = get_token_array_from_buffer(app, buffer);
+    return(get_token_from_pos(app, &array, pos));
 }
 
 internal String_Const_u8
 push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buffer, u64 pos){
     String_Const_u8 result = {};
-    NotImplemented;
-#if 0
-    Get_Token_Result get_result = {};
-    b32 success = get_token_from_pos(app, buffer, (i32)pos, &get_result);
-    if (success && !get_result.in_whitespace_after_token){
-        umem size = get_result.token_one_past_last - get_result.token_start;
-        if (0 < size){
-            result = push_buffer_range(app, arena, buffer, Ii64(get_result.token_start, get_result.token_one_past_last));
-        }
+    Token *token = get_token_from_pos(app, buffer, pos);
+    if (token != 0 && token->size > 0 && token->kind != TokenBaseKind_Whitespace){
+        Interval_i64 range = Ii64(token->pos, token->pos + token->size);
+        result = push_buffer_range(app, arena, buffer, range);
     }
-#endif
     return(result);
 }
 
@@ -2051,21 +1928,6 @@ push_token_or_word_under_active_cursor(Application_Links *app, Arena *arena){
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     i64 pos = view_get_cursor_pos(app, view);
     return(push_token_or_word_under_pos(app, arena, buffer, pos));
-}
-
-internal b32
-lexer_keywords_default_init(Arena *arena, Cpp_Keyword_Table *kw_out, Cpp_Keyword_Table *pp_out){
-    b32 success = false;
-    umem kw_size = cpp_get_table_memory_size_default(CPP_TABLE_KEYWORDS);
-    umem pp_size = cpp_get_table_memory_size_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES);
-    void *kw_mem = push_array(arena, char, kw_size);
-    void *pp_mem = push_array(arena, char, pp_size);
-    if (kw_mem != 0 && pp_mem != 0){
-        *kw_out = cpp_make_table_default(CPP_TABLE_KEYWORDS, kw_mem, kw_size);
-        *pp_out = cpp_make_table_default(CPP_TABLE_PREPROCESSOR_DIRECTIVES, pp_mem, pp_size);
-        success = true;
-    }
-    return(success);
 }
 
 ////////////////////////////////

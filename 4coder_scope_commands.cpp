@@ -4,32 +4,28 @@
 
 // TOP
 
-static b32 parse_statement_down(Application_Links *app, Statement_Parser *parser, Token *token_out);
-
-////////////////////////////////
-
 static Find_Scope_Token_Type
-find_scope_get_token_type(u32 flags, Token_Type token_type){
+find_scope_get_token_type(Find_Scope_Flag flags, Token_Base_Kind kind){
     Find_Scope_Token_Type type = FindScopeTokenType_None;
-    if (flags & FindScope_Brace){
-        switch (token_type){
-            case CPP_TOKEN_BRACE_OPEN:
+    if (flags & FindScope_Scope){
+        switch (kind){
+            case TokenBaseKind_ScopeOpen:
             {
                 type = FindScopeTokenType_Open;
             }break;
-            case CPP_TOKEN_BRACE_CLOSE:
+            case TokenBaseKind_ScopeClose:
             {
                 type = FindScopeTokenType_Close;
             }break;
         }
     }
-    if (flags & FindScope_Paren){
-        switch (token_type){
-            case CPP_TOKEN_PARENTHESE_OPEN:
+    else if (flags & FindScope_Paren){
+        switch (kind){
+            case TokenBaseKind_ParentheticalOpen:
             {
                 type = FindScopeTokenType_Open;
             }break;
-            case CPP_TOKEN_PARENTHESE_CLOSE:
+            case TokenBaseKind_ParentheticalClose:
             {
                 type = FindScopeTokenType_Close;
             }break;
@@ -356,7 +352,7 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     i64 pos = view_get_cursor_pos(app, view);
     Range_i64 range = {};
-    if (find_scope_range(app, buffer, pos, &range, FindScope_Brace)){
+    if (find_scope_range(app, buffer, pos, &range, FindScope_Scope)){
         view_set_cursor_and_preferred_x(app, view, seek_pos(range.first));
         view_set_mark(app, view, seek_pos(range.end));
         view_set_to_region(app, view, range.first, range.end);
@@ -373,8 +369,8 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
     i64 start_pos = pos;
     i64 top = 0;
     i64 bottom = 0;
-    if (find_next_scope(app, buffer, start_pos, FindScope_Brace, &top)){
-        if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
+    if (find_next_scope(app, buffer, start_pos, FindScope_Scope, &top)){
+        if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Scope, &bottom)){
             view_set_cursor_and_preferred_x(app, view, seek_pos(top));
             view_set_mark(app, view, seek_pos(bottom));
             view_set_to_region(app, view, top, bottom);
@@ -392,8 +388,8 @@ CUSTOM_DOC("Finds the first scope started by '{' before the cursor and puts the 
     i64 start_pos = pos;
     i64 top = 0;
     i64 bottom = 0;
-    if (find_prev_scope(app, buffer, start_pos, FindScope_Brace, &top)){
-        if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Brace, &bottom)){
+    if (find_prev_scope(app, buffer, start_pos, FindScope_Scope, &top)){
+        if (find_scope_bottom(app, buffer, top, FindScope_EndOfToken|FindScope_Scope, &bottom)){
             view_set_cursor_and_preferred_x(app, view, seek_pos(top));
             view_set_mark(app, view, seek_pos(bottom));
             view_set_to_region(app, view, top, bottom);
@@ -492,257 +488,6 @@ CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves
         
         buffer_batch_edit(app, buffer, &batch_first);
     }
-}
-
-static Token*
-parser_next_token(Statement_Parser *parser){
-    return(token_iter_next(&parser->token_iterator));
-}
-
-static b32
-parse_for_down(Application_Links *app, Statement_Parser *parser, Token *token_out){
-    b32 success = false;
-    NotImplemented;
-#if 0
-    Token *token = parser_next_token(parser);
-    
-    i32 paren_level = 0;
-    for (;token != 0;){
-        if (!(token->flags & CPP_TFLAG_PP_BODY)){
-            switch (token->type){
-                case CPP_TOKEN_PARENTHESE_OPEN:
-                {
-                    ++paren_level;
-                }break;
-                
-                case CPP_TOKEN_PARENTHESE_CLOSE:
-                {
-                    --paren_level;
-                    if (paren_level == 0){
-                        success = parse_statement_down(app, parser, token_out);
-                        goto finished;
-                    }
-                    else if (paren_level < 0){
-                        success = false;
-                        goto finished;
-                    }
-                }break;
-            }
-        }
-        token = parser_next_token(parser);
-    }
-    
-    finished:;
-#endif
-    return(success);
-}
-
-static b32
-parse_if_down(Application_Links *app, Statement_Parser *parser, Token *token_out){
-    b32 success = false;
-    NotImplemented;
-#if 0
-    Token *token = parser_next_token(parser);
-    if (token != 0){
-        success = parse_statement_down(app, parser, token_out);
-        if (success){
-            token = parser_next_token(parser);
-            if (token != 0 && token->type == CPP_TOKEN_ELSE){
-                success = parse_statement_down(app, parser, token_out);
-            }
-        }
-    }
-#endif
-    return(success);
-}
-
-static b32
-parse_block_down(Application_Links *app, Statement_Parser *parser, Token *token_out){
-    b32 success = false;
-    NotImplemented;
-#if 0
-    Token *token = parser_next_token(parser);
-    
-    i32 nest_level = 0;
-    while (token != 0){
-        switch (token->type){
-            case CPP_TOKEN_BRACE_OPEN:
-            {
-                ++nest_level;
-            }break;
-            
-            case CPP_TOKEN_BRACE_CLOSE:
-            {
-                if (nest_level == 0){
-                    *token_out = *token;
-                    success = true;
-                    goto finished;
-                }
-                --nest_level;
-            }break;
-        }
-        token = parser_next_token(parser);
-    }
-    
-    finished:;
-#endif
-    return(success);
-}
-
-static b32
-parse_statement_down(Application_Links *app, Statement_Parser *parser, Token *token_out){
-    b32 success = false;
-    NotImplemented;
-#if 0
-    Token *token = parser_next_token(parser);
-    
-    if (token != 0){
-        b32 not_getting_block = false;
-        
-        do{
-            switch (token->type){
-                case CPP_TOKEN_BRACE_CLOSE:
-                {
-                    goto finished;
-                }break;
-                
-                case CPP_TOKEN_FOR:
-                {
-                    success = parse_for_down(app, parser, token_out);
-                    goto finished;
-                }break;
-                
-                case CPP_TOKEN_IF:
-                {
-                    success = parse_if_down(app, parser, token_out);
-                    goto finished;
-                }break;
-                
-                case CPP_TOKEN_ELSE:
-                {
-                    success = false;
-                    goto finished;
-                }break;
-                
-                case CPP_TOKEN_BRACE_OPEN:
-                {
-                    if (!not_getting_block){
-                        success = parse_block_down(app, parser, token_out);
-                        goto finished;
-                    }
-                }break;
-                
-                case CPP_TOKEN_SEMICOLON:
-                {
-                    success = true;
-                    *token_out = *token;
-                    goto finished;
-                }break;
-                
-                case CPP_TOKEN_EQ:
-                {
-                    not_getting_block = true;
-                }break;
-            }
-            
-            token = parser_next_token(parser);
-        }while(token != 0);
-    }
-    
-    finished:;
-#endif
-    return(success);
-}
-
-static Statement_Parser
-make_statement_parser(Application_Links *app, Buffer_ID buffer, i32 token_index){
-    Statement_Parser parser = {};
-    NotImplemented;
-#if 0
-    Token_Range token_range = buffer_get_token_range(app, buffer);
-    if (token_range.first != 0){
-        parser.token_iterator = make_token_iterator(token_range, token_index);
-        parser.buffer = buffer;
-    }
-#endif
-    return(parser);
-}
-
-static b32
-find_whole_statement_down(Application_Links *app, Buffer_ID buffer, i64 pos, i64 *start_out, i64 *end_out){
-    b32 result = false;
-    i64 start = pos;
-    i64 end = start;
-    
-    Cpp_Get_Token_Result get_result = {};
-    if (get_token_from_pos(app, buffer, pos, &get_result)){
-        Statement_Parser parser = make_statement_parser(app, buffer, get_result.token_index);
-        if (parser.buffer != 0){
-            if (get_result.in_whitespace_after_token){
-                parser_next_token(&parser);
-            }
-            
-            Token end_token = {};
-            if (parse_statement_down(app, &parser, &end_token)){
-                end = end_token.start + end_token.size;
-                result = true;
-            }
-        }
-    }
-    
-    *start_out = start;
-    *end_out = end;
-    return(result);
-}
-
-CUSTOM_COMMAND_SIG(scope_absorb_down)
-CUSTOM_DOC("If a scope is currently selected, and a statement or block statement is present below the current scope, the statement is moved into the scope.")
-{
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    
-    Range_i64 range = get_view_range(app, view);
-    if (buffer_get_char(app, buffer, range.min) == '{' &&
-        buffer_get_char(app, buffer, range.max - 1) == '}'){
-        Scratch_Block scratch(app);
-        if (find_whole_statement_down(app, buffer, range.max, &range.start, &range.end)){
-            String_Const_u8 base_string = push_buffer_range(app, scratch, buffer, range);
-            String_Const_u8 string = string_skip_chop_whitespace(base_string);
-            
-            i32 newline_count = 0;
-            for (u8 *ptr = base_string.str; ptr < string.str; ++ptr){
-                if (*ptr == '\n'){
-                    ++newline_count;
-                }
-            }
-            
-            b32 extra_newline = false;
-            if (newline_count >= 2){
-                extra_newline = true;
-            }
-            
-            String_Const_u8 edit_str = {};
-            if (extra_newline){
-                edit_str = push_u8_stringf(scratch, "\n%.*s\n", string_expand(string));
-            }
-            else{
-                edit_str = push_u8_stringf(scratch, "%.*s\n", string_expand(string));
-            }
-            
-            Batch_Edit batch_first = {};
-            Batch_Edit batch_last = {};
-            
-            batch_first.edit.text = edit_str;
-            batch_first.edit.range = Ii64(range.min - 1, range.min - 1);
-            batch_first.next = &batch_last;
-            batch_last.edit.text = SCu8();
-            batch_last.edit.range = range;
-            
-            buffer_batch_edit(app, buffer, &batch_first);
-        }
-    }
-    
-    no_mark_snap_to_cursor(app, view);
 }
 
 // BOTTOM

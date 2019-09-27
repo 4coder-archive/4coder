@@ -1,12 +1,12 @@
 #define MAJOR 4
-#define MINOR 0
-#define PATCH 30
+#define MINOR 1
+#define PATCH 0
 
 // string
 #define VN__(a,b,c) #a "." #b "." #c
 #define VN_(a,b,c) VN__(a,b,c)
 #define VERSION_NUMBER VN_(MAJOR,MINOR,PATCH)
-#define VERSION_STRING "alpha " VERSION_NUMBER
+#define VERSION_STRING "beta " VERSION_NUMBER
 
 #define ST__(s) #s
 #define ST_(s) ST__(s)
@@ -24,7 +24,7 @@
 #define VN__(a,b,c) #a "." #b "." #c
 #define VN_(a,b,c) VN__(a,b,c)
 #define VERSION_NUMBER VN_(MAJOR,MINOR,PATCH)
-#define VERSION_STRING "alpha " VERSION_NUMBER
+#define VERSION_STRING "beta " VERSION_NUMBER
 
 #define VERSION VERSION_STRING VERSION_TYPE
 
@@ -34,7 +34,7 @@
 #define L_VN__(a,b,c) L#a L"." L#b L"." L#c
 #define L_VN_(a,b,c) L_VN__(a,b,c)
 #define L_VERSION_NUMBER L_VN_(MAJOR,MINOR,PATCH)
-#define L_VERSION_STRING L"alpha " L_VERSION_NUMBER
+#define L_VERSION_STRING L"beta " L_VERSION_NUMBER
 
 #if defined(FRED_SUPER)
 #define L_VERSION_TYPE L" super!"

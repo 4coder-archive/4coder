@@ -118,6 +118,7 @@ prev_token(Reader *reader){
         }
         
         if (result.kind != TokenBaseKind_Comment &&
+            result.kind != TokenBaseKind_Whitespace &&
             result.kind != TokenBaseKind_LexError){
             break;
         }
@@ -147,6 +148,7 @@ get_token(Reader *reader){
         }
         
         if (result.kind != TokenBaseKind_Comment &&
+            result.kind != TokenBaseKind_Whitespace &&
             result.kind != TokenBaseKind_LexError){
             break;
         }
@@ -645,8 +647,8 @@ parse_alias(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
 
 static void
 parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, u8 *source_name, String_Const_u8 text){
-    Base_Allocator *allocator = get_allocator_malloc();
-    Token_Array array = lex_cpp_initial(allocator, text);
+    Token_List token_list = lex_full_input_cpp(arena, text);
+    Token_Array array = token_array_from_list(arena, &token_list);
     
     Reader reader_ = make_reader(array, source_name, text);
     Reader *reader = &reader_;
@@ -692,7 +694,7 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, u8 *source_nam
                 b32 found_start_pos = false;
                 for (i32 R = 0; R < 3; ++R){
                     Token p_token = prev_token(reader);
-                    if (p_token.sub_kind == TokenCppKind_Define){
+                    if (p_token.sub_kind == TokenCppKind_PPDefine){
                         if (R == 2){
                             found_start_pos = true;
                         }
@@ -718,8 +720,6 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, u8 *source_nam
             break;
         }
     }
-    
-    base_free(allocator, array.tokens);
 }
 
 static void
@@ -815,6 +815,13 @@ main(int argc, char **argv){
     if (recursive){
         start_i = 3;
     }
+    
+    printf("metadata_generator ");
+    for (i32 i = start_i; i < argc; i += 1){
+        printf("%s ", argv[i]);
+    }
+    printf("\n");
+    fflush(stdout);
     
     Meta_Command_Entry_Arrays entry_arrays = {};
     for (i32 i = start_i; i < argc; ++i){

@@ -78,7 +78,7 @@ insert_string(Buffer_Insertion *insertion, String_Const_u8 string){
     else{
         char *space = insert__reserve(insertion, string.size);
         if (space != 0){
-            memcpy(space, string.str, string.size);
+            block_copy(space, string.str, string.size);
         }
         else{
             insert_string__no_buffering(insertion, string);

@@ -144,15 +144,6 @@ struct Indent_Info{
 
 ////////////////////////////////
 
-struct Token_Iterator{
-    Buffer_ID buffer;
-    Token *first;
-    Token *one_past_last;
-    Token *token;
-};
-
-////////////////////////////////
-
 struct Sort_Pair_i32{
     i32 index;
     i32 key;

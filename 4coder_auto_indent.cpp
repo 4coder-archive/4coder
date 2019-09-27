@@ -72,7 +72,7 @@ seek_matching_token_backwards(Token_Array tokens, Token *token,
     else{
         i32 nesting_level = 0;
         for (; token > tokens.tokens; --token){
-            if (!HasFlag(token->flags, TokenBaseFlag_PreProcessorBody)){
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
                 if (token->kind == close){
                     ++nesting_level;
                 }
@@ -104,7 +104,7 @@ find_anchor_token(Application_Links *app, Buffer_ID buffer, Token_Array tokens, 
             Token *token_it = tokens.tokens;
             i64 highest_checked_line_number = -1;
             for (; token_it < first_invalid_token; ++token_it){
-                i64 line_number = get_line_number_from_pos(app, buffer, token_it->start);
+                i64 line_number = get_line_number_from_pos(app, buffer, token_it->pos);
                 if (highest_checked_line_number < line_number){
                     highest_checked_line_number = line_number;
                     if (top == -1){
@@ -112,50 +112,34 @@ find_anchor_token(Application_Links *app, Buffer_ID buffer, Token_Array tokens, 
                     }
                 }
                 
-                switch (token_it->type){
-                    case CPP_TOKEN_BRACE_OPEN:
-                    case CPP_TOKEN_BRACKET_OPEN:
-                    case CPP_TOKEN_PARENTHESE_OPEN:
+                switch (token_it->kind){
+                    case TokenBaseKind_ParentheticalOpen:
+                    case TokenBaseKind_ScopeOpen:
                     {
                         top += 1;
-                        stack[top] = token_it->type;
+                        stack[top] = token_it->kind;
                     }break;
                     
-                    case CPP_TOKEN_PARENTHESE_CLOSE:
+                    case TokenBaseKind_ParentheticalClose:
                     {
                         for (;top >= 0;){
                             i32 index = top;
                             top -= 1;
-                            if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN){
+                            if (stack[index] == TokenBaseKind_ParentheticalOpen){
                                 break;
                             }
                         }
                     }break;
                     
-                    case CPP_TOKEN_BRACE_CLOSE:
+                    case TokenBaseKind_ScopeClose:
                     {
                         for (;top >= 0;){
                             i32 index = top;
-                            if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN){
+                            if (stack[index] == TokenBaseKind_ParentheticalOpen){
                                 break;
                             }
                             top -= 1;
-                            if (stack[index] == CPP_TOKEN_BRACE_OPEN){
-                                break;
-                            }
-                        }
-                    }break;
-                    
-                    case CPP_TOKEN_BRACKET_CLOSE:
-                    {
-                        for (;top >= 0;){
-                            i32 index = top;
-                            if (stack[index] == CPP_TOKEN_PARENTHESE_OPEN ||
-                                stack[index] == CPP_TOKEN_BRACE_OPEN){
-                                break;
-                            }
-                            top -= 1;
-                            if (stack[index] == CPP_TOKEN_BRACKET_OPEN){
+                            if (stack[index] == TokenBaseKind_ScopeClose){
                                 break;
                             }
                         }
@@ -188,10 +172,8 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
         }
     }
     else{
-        i64 line_number = get_line_number_from_pos(app, buffer, token_ptr->start);
-        if (line_number > first_line){
-            line_number = first_line;
-        }
+        i64 line_number = get_line_number_from_pos(app, buffer, token_ptr->pos);
+        line_number = clamp_top(line_number, first_line);
         
         if (token_ptr == tokens.tokens){
             indent.current_indent = 0;
@@ -206,7 +188,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
         }
         
         // Back up and consume this token too IF it is a scope opener.
-        if (token.type == CPP_TOKEN_BRACE_OPEN || token.type == CPP_TOKEN_BRACKET_OPEN){
+        if (token.kind == TokenBaseKind_ScopeOpen){
             --token_ptr;
         }
         
@@ -222,12 +204,12 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 token = *token_ptr;
             }
             else{
-                token.type = CPP_TOKEN_EOF;
-                token.start = (i32)buffer_get_size(app, buffer);
-                token.flags = 0;
+                block_zero_struct(&token);
+                token.kind = TokenBaseKind_EOF;
+                token.pos = buffer_get_size(app, buffer);
             }
             
-            for (;token.start >= next_line_start_pos && line_number < one_past_last_line;){
+            for (;token.pos >= next_line_start_pos && line_number < one_past_last_line;){
                 next_line_start_pos = get_line_start_pos(app, buffer, line_number + 1);
                 
                 i64 this_indent = 0;
@@ -239,8 +221,8 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 b32 did_multi_line_behavior = false;
                 
                 // NOTE(allen): Check for multi-line tokens
-                if (prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
-                    if (prev_token.type == CPP_TOKEN_COMMENT || prev_token.type == CPP_TOKEN_STRING_CONSTANT){
+                if (prev_token.pos <= this_line_start && prev_token.pos + prev_token.size > this_line_start){
+                    if (prev_token.kind == TokenBaseKind_Comment || prev_token.kind == TokenBaseKind_LiteralString){
                         Indent_Info hard_start = get_indent_info_line_start(app, buffer, this_line_start, tab_width);
                         
                         if (exact_align){
@@ -274,72 +256,67 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 
                 if (!did_multi_line_behavior){
                     this_indent = indent.current_indent;
-                    if (token.start < next_line_start){
-                        if (token.flags & CPP_TFLAG_PP_DIRECTIVE){
-                            this_indent = 0;
-                        }
-                        else{
-                            switch (token.type){
-                                case CPP_TOKEN_BRACKET_CLOSE:
-                                {
-                                    this_indent -= tab_width;
-                                }break;
-                                case CPP_TOKEN_BRACE_CLOSE:
-                                {
-                                    this_indent -= tab_width;
-                                }break;
-                                case CPP_TOKEN_BRACE_OPEN: 
-                                {}break;
+                    if (token.pos < next_line_start){
+                        switch (token.kind){
+                            case TokenBaseKind_Preprocessor:
+                            {
+                                this_indent = 0;
+                            }break;
+                            
+                            case TokenBaseKind_ScopeClose:
+                            {
+                                this_indent -= tab_width;
+                            }break;
+                            case TokenBaseKind_ScopeOpen:
+                            {}break;
+                            
+                            default:
+                            if (indent.current_indent > 0){
+                                b32 statement_complete = false;
                                 
-                                default:
-                                if (indent.current_indent > 0){
-                                    b32 statement_complete = false;
-                                    
-                                    Token *prev_usable_token_ptr = token_ptr - 1;
-                                    Token prev_usable_token = {};
-                                    if (prev_usable_token_ptr >= tokens.tokens){
-                                        prev_usable_token = *prev_usable_token_ptr;
-                                    }
-                                    
-                                    // Scan backwards for the previous token that actually tells us about the statement.
-                                    b32 has_prev_usable_token = true;
+                                Token *prev_usable_token_ptr = token_ptr - 1;
+                                Token prev_usable_token = {};
+                                if (prev_usable_token_ptr >= tokens.tokens){
+                                    prev_usable_token = *prev_usable_token_ptr;
+                                }
+                                
+                                // Scan backwards for the previous token that actually tells us about the statement.
+                                b32 has_prev_usable_token = true;
 #define NotUsable(T) \
-                                    (((T).flags&CPP_TFLAG_PP_BODY) || ((T).flags&CPP_TFLAG_PP_DIRECTIVE) || ((T).type == CPP_TOKEN_COMMENT))
-                                    if (NotUsable(prev_usable_token)){
-                                        has_prev_usable_token = false;
+                                (((T).flags&TokenBaseFlag_PreprocessorBody) || ((T).kind == TokenBaseKind_Comment) || ((T).kind == TokenBaseKind_Whitespace))
+                                if (NotUsable(prev_usable_token)){
+                                    has_prev_usable_token = false;
+                                    
+                                    for (--prev_usable_token_ptr;
+                                         prev_usable_token_ptr >= tokens.tokens;
+                                         --prev_usable_token_ptr){
                                         
-                                        for (--prev_usable_token_ptr;
-                                             prev_usable_token_ptr >= tokens.tokens;
-                                             --prev_usable_token_ptr){
-                                            
-                                            prev_usable_token = *prev_usable_token_ptr;
-                                            if (!NotUsable(prev_usable_token)){
-                                                has_prev_usable_token = true;
-                                                break;
-                                            }
+                                        prev_usable_token = *prev_usable_token_ptr;
+                                        if (!NotUsable(prev_usable_token)){
+                                            has_prev_usable_token = true;
+                                            break;
                                         }
-                                    }
-#undef NotUsable
-                                    
-                                    if (!has_prev_usable_token){
-                                        statement_complete = true;
-                                    }
-                                    else{
-                                        if (prev_usable_token.type == CPP_TOKEN_BRACKET_OPEN ||
-                                            prev_usable_token.type == CPP_TOKEN_BRACE_OPEN ||
-                                            prev_usable_token.type == CPP_TOKEN_BRACE_CLOSE ||
-                                            prev_usable_token.type == CPP_TOKEN_SEMICOLON ||
-                                            prev_usable_token.type == CPP_TOKEN_COLON ||
-                                            prev_usable_token.type == CPP_TOKEN_COMMA){
-                                            statement_complete = true;
-                                        }
-                                    }
-                                    
-                                    if (!statement_complete){
-                                        this_indent += tab_width;
                                     }
                                 }
-                            }
+#undef NotUsable
+                                
+                                if (!has_prev_usable_token){
+                                    statement_complete = true;
+                                }
+                                else{
+                                    if (prev_usable_token.kind == TokenBaseKind_ScopeOpen ||
+                                        prev_usable_token.kind == TokenBaseKind_ScopeClose ||
+                                        prev_usable_token.sub_kind == TokenCppKind_Semicolon ||
+                                        prev_usable_token.sub_kind == TokenCppKind_Colon ||
+                                        prev_usable_token.sub_kind == TokenCppKind_Comma){
+                                        statement_complete = true;
+                                    }
+                                }
+                                
+                                if (!statement_complete){
+                                    this_indent += tab_width;
+                                }
+                            }break;
                         }
                     }
                     if (this_indent < 0){
@@ -348,7 +325,7 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 }
                 
                 if (indent.paren_nesting > 0){
-                    if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
+                    if (prev_token.kind != TokenBaseKind_ParentheticalOpen){
                         i64 level = indent.paren_nesting - 1;
                         level = clamp_top(level, ArrayCount(indent.paren_anchor_indent) - 1);
                         this_indent = indent.paren_anchor_indent[level];
@@ -357,12 +334,11 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                 
                 // Rebase the paren anchor if the first token
                 // after the open paren is on the next line.
-                if (indent.paren_nesting > 0){
-                    if (prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-                        i64 level = indent.paren_nesting - 1;
-                        level = clamp_top(level, ArrayCount(indent.paren_anchor_indent) - 1);
-                        indent.paren_anchor_indent[level] = this_indent;
-                    }
+                if (indent.paren_nesting > 0 &&
+                    prev_token.kind == TokenBaseKind_ParentheticalOpen){
+                    i64 level = indent.paren_nesting - 1;
+                    level = clamp_top(level, ArrayCount(indent.paren_anchor_indent) - 1);
+                    indent.paren_anchor_indent[level] = this_indent;
                 }
                 
                 if (line_number >= first_line){
@@ -374,20 +350,18 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
             }
             
             // Update indent state.
-            switch (token.type){
-                case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
-                case CPP_TOKEN_BRACKET_CLOSE: indent.current_indent -= tab_width; break;
-                case CPP_TOKEN_BRACE_OPEN: indent.current_indent += tab_width; break;
-                case CPP_TOKEN_BRACE_CLOSE: indent.current_indent -= tab_width; break;
+            switch (token.kind){
+                case TokenBaseKind_ScopeOpen: indent.current_indent += tab_width; break;
+                case TokenBaseKind_ScopeClose: indent.current_indent -= tab_width; break;
                 
-                case CPP_TOKEN_COMMENT:
-                case CPP_TOKEN_STRING_CONSTANT:
+                case TokenBaseKind_Comment:
+                case TokenBaseKind_LiteralString:
                 {
-                    i64 line = get_line_number_from_pos(app, buffer, token.start);
+                    i64 line = get_line_number_from_pos(app, buffer, token.pos);
                     i64 start = get_line_start_pos(app, buffer, line);
                     Indent_Info hard_start = get_indent_info_line_start(app, buffer, start, tab_width);
                     
-                    i64 old_dist_to_token = (token.start - start);
+                    i64 old_dist_to_token = (token.pos - start);
                     i64 old_indent = hard_start.indent_pos;
                     i64 token_start_inset = old_dist_to_token - old_indent;
                     i64 new_dist_to_token = indent.current_indent + token_start_inset;
@@ -396,13 +370,13 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                     indent.previous_comment_indent = old_indent;
                 }break;
                 
-                case CPP_TOKEN_PARENTHESE_OPEN:
+                case TokenBaseKind_ParentheticalOpen:
                 {
-                    if (!(token.flags & CPP_TFLAG_PP_BODY)){
+                    if (!HasFlag(token.flags, TokenBaseFlag_PreprocessorBody)){
                         if (indent.paren_nesting < ArrayCount(indent.paren_anchor_indent)){
-                            i64 line = get_line_number_from_pos(app, buffer, token.start);
+                            i64 line = get_line_number_from_pos(app, buffer, token.pos);
                             i64 start = get_line_start_pos(app, buffer, line);
-                            i64 char_pos = token.start - start;
+                            i64 char_pos = token.pos - start;
                             
                             Indent_Info hard_start = get_indent_info_line_start(app, buffer, start, tab_width);
                             
@@ -414,9 +388,9 @@ get_indentation_marks(Application_Links *app, Arena *arena, Buffer_ID buffer,
                     }
                 }break;
                 
-                case CPP_TOKEN_PARENTHESE_CLOSE:
+                case TokenBaseKind_ParentheticalClose:
                 {
-                    if (!(token.flags & CPP_TFLAG_PP_BODY)){
+                    if (!HasFlag(token.flags, TokenBaseFlag_PreprocessorBody)){
                         if (indent.paren_nesting > 0){
                             --indent.paren_nesting;
                         }
@@ -448,8 +422,8 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_ID buffer, Token_Ar
     for (;line_start > 1;){
         i64 line_start_pos = get_line_start_pos(app, buffer, line_start);
         Token *token = get_first_token_from_pos(tokens, line_start_pos);
-        if (token != 0 && token->start < line_start_pos){
-            line_start = get_line_number_from_pos(app, buffer, token->start);
+        if (token != 0 && token->pos < line_start_pos){
+            line_start = get_line_number_from_pos(app, buffer, token->pos);
         }
         else{
             break;
@@ -461,8 +435,8 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_ID buffer, Token_Ar
     for (;line_end < line_count;){
         i64 next_line_start_pos = get_line_start_pos(app, buffer, line_end + 1);
         Token *token = get_first_token_from_pos(tokens, next_line_start_pos);
-        if (token != 0 && token->start < next_line_start_pos){
-            line_end = get_line_number_from_pos(app, buffer, token->start + token->size);
+        if (token != 0 && token->pos < next_line_start_pos){
+            line_end = get_line_number_from_pos(app, buffer, token->pos + token->size);
         }
         else{
             break;
@@ -485,7 +459,7 @@ buffer_auto_indent(Application_Links *app, Buffer_ID buffer, i64 start, i64 end,
     Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
     if (tokens_ptr != 0 && tokens_ptr->count != 0){
         Scratch_Block scratch(app);
-        Token_Array tokens = *token_ptr;
+        Token_Array tokens = *tokens_ptr;
         
         i64 line_start = 0;
         i64 line_end = 0;

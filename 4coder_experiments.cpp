@@ -61,9 +61,10 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
         if (buffer != 0){
             i64 total_size = 0;
             for (i32 paste_index = 0; paste_index < paste_count; ++paste_index){
-                Scratch_Block scratch(app);
+                Temp_Memory temp = begin_temp(scratch);
                 String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
                 total_size += string.size + 1;
+                end_temp(temp);
             }
             total_size -= 1;
             

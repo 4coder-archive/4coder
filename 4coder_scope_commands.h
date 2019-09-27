@@ -7,17 +7,13 @@
 #if !defined(FCODER_SCOPE_COMMANDS_H)
 #define FCODER_SCOPE_COMMANDS_H
 
+typedef u32 Find_Scope_Flag;
 enum{
     FindScope_Parent = 1,
     FindScope_NextSibling = 2,
     FindScope_EndOfToken = 4,
-    FindScope_Brace = 8,
+    FindScope_Scope = 8,
     FindScope_Paren = 16,
-};
-
-struct Statement_Parser{
-    Token_Iterator token_iterator;
-    Buffer_ID buffer;
 };
 
 typedef i32 Find_Scope_Token_Type;

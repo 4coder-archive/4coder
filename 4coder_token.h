@@ -70,15 +70,47 @@ struct Token_Block{
     Token_Block *next;
     Token_Block *prev;
     Token *tokens;
-    i32 count;
-    i32 max;
+    i64 count;
+    i64 max;
 };
 
 struct Token_List{
     Token_Block *first;
     Token_Block *last;
-    i32 node_count;
-    i32 total_count;
+    i64 node_count;
+    i64 total_count;
+};
+
+struct Token_Iterator_Array{
+    u64 user_id;
+    Token *ptr;
+    Token *tokens;
+    i64 count;
+};
+
+struct Token_Iterator_List{
+    u64 user_id;
+    i64 index;
+    Token *ptr;
+    Token_Block *block;
+    Token_Block *first;
+    Token_Block *last;
+    i64 node_count;
+    i64 total_count;
+};
+
+typedef i32 Token_Iterator_Kind;
+enum{
+    TokenIterator_Array,
+    TokenIterator_List,
+};
+
+struct Token_Iterator{
+    Token_Iterator_Kind kind;
+    union{
+        Token_Iterator_Array array;
+        Token_Iterator_List list;
+    };
 };
 
 #endif

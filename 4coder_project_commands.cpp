@@ -353,7 +353,7 @@ parse_project__config_data__version_1(Arena *arena, String_Const_u8 root_dir, Co
                      node != 0;
                      node = node->next, ++dst){
                     Config_Compound *src = node->result.compound;
-                    memset(dst, 0, sizeof(*dst));
+                    block_zero_struct(dst);
                     dst->recursive = true;
                     dst->relative = true;
                     
@@ -523,7 +523,7 @@ static Project_Parse_Result
 parse_project__data(Arena *arena, String_Const_u8 file_name, Data raw_data, String_Const_u8 file_dir){
     String_Const_u8 data = SCu8(raw_data);
     Project_Parse_Result result = {};
-    Cpp_Token_Array array = text_data_to_token_array(arena, data);
+    Token_Array array = token_array_from_text(arena, data);
     if (array.tokens != 0){
         result.parsed = text_data_and_token_array_to_parse_data(arena, file_name, data, array);
         if (result.parsed != 0){
@@ -634,7 +634,7 @@ project_deep_copy__inner(Arena *arena, Project *project){
         }
     }
     
-    memcpy(result.fkey_commands, project->fkey_commands, sizeof(result.fkey_commands));
+    block_copy_array(result.fkey_commands, project->fkey_commands);
     
     result.loaded = true;
     return(result);
