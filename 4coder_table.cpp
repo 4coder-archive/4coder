@@ -330,6 +330,8 @@ internal void
 table_clear(Table_u32_u16 *table){
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
+    table->used_count = 0;
+    table->dirty_count = 0;
 }
 
 ////////////////////////////////
@@ -487,8 +489,11 @@ table_erase(Table_Data_u64 *table, Data key){
 
 internal void
 table_clear(Table_Data_u64 *table){
+    block_zero_dynamic_array(table->hashes, table->slot_count);
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
+    table->used_count = 0;
+    table->dirty_count = 0;
 }
 
 ////////////////////////////////
@@ -649,6 +654,8 @@ internal void
 table_clear(Table_u64_Data *table){
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
+    table->used_count = 0;
+    table->dirty_count = 0;
 }
 
 ////////////////////////////////
@@ -801,8 +808,11 @@ table_erase(Table_Data_Data *table, Data key){
 
 internal void
 table_clear(Table_Data_Data *table){
+    block_zero_dynamic_array(table->hashes, table->slot_count);
     block_zero_dynamic_array(table->keys, table->slot_count);
     block_zero_dynamic_array(table->vals, table->slot_count);
+    table->used_count = 0;
+    table->dirty_count = 0;
 }
 
 // BOTTOM

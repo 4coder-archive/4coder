@@ -435,8 +435,8 @@ buffer_remeasure_starts(Arena *scratch, Gap_Buffer *buffer, Interval_i64 old_lin
     for (i64 i = old_line_indexes.one_past_last; i < old_line_start_count; i += 1, line_start_ptr += 1){
         *line_start_ptr += text_shift;
     }
-    block_copy_dynamic_array(buffer->line_starts + old_line_indexes.one_past_last,
-                             buffer->line_starts + new_line_indexes_opl,
+    block_copy_dynamic_array(buffer->line_starts + new_line_indexes_opl,
+                             buffer->line_starts + old_line_indexes.one_past_last,
                              buffer->line_start_count - old_line_indexes.one_past_last);
     
     i64 first_pos = buffer->line_starts[old_line_indexes.first];

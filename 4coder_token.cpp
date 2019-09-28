@@ -81,6 +81,18 @@ token_index_from_pos(Token_Array *tokens, u64 pos){
     return(token_index_from_pos(tokens->tokens, tokens->count, pos));
 }
 
+internal Token*
+token_from_pos(Token *tokens, i64 count, i64 pos){
+    i64 index = token_index_from_pos(tokens, count, pos);
+    return(tokens + index);
+}
+
+internal Token*
+token_from_pos(Token_Array *tokens, u64 pos){
+    i64 index = token_index_from_pos(tokens, pos);
+    return(tokens->tokens + index);
+}
+
 ////////////////////////////////
 
 internal Token_Iterator_Array
@@ -96,8 +108,8 @@ token_iterator_index(u64 user_id, Token *tokens, i64 count, i64 token_index){
 }
 
 internal Token_Iterator_Array
-token_iterator_index(u64 user_id, Token_Array tokens, i64 token_index){
-    return(token_iterator_index(user_id, tokens.tokens, tokens.count, token_index));
+token_iterator_index(u64 user_id, Token_Array *tokens, i64 token_index){
+    return(token_iterator_index(user_id, tokens->tokens, tokens->count, token_index));
 }
 
 internal Token_Iterator_Array
@@ -106,8 +118,8 @@ token_iterator(u64 user_id, Token *tokens, i64 count, Token *token){
 }
 
 internal Token_Iterator_Array
-token_iterator(u64 user_id, Token_Array tokens, Token *token){
-    return(token_iterator_index(user_id, tokens.tokens, tokens.count, (i64)(token - tokens.tokens)));
+token_iterator(u64 user_id, Token_Array *tokens, Token *token){
+    return(token_iterator_index(user_id, tokens->tokens, tokens->count, (i64)(token - tokens->tokens)));
 }
 
 internal Token_Iterator_Array
@@ -116,8 +128,8 @@ token_iterator(u64 user_id, Token *tokens, i64 count){
 }
 
 internal Token_Iterator_Array
-token_iterator(u64 user_id, Token_Array tokens){
-    return(token_iterator_index(user_id, tokens.tokens, tokens.count, 0));
+token_iterator(u64 user_id, Token_Array *tokens){
+    return(token_iterator_index(user_id, tokens->tokens, tokens->count, 0));
 }
 
 internal Token_Iterator_Array
@@ -127,9 +139,9 @@ token_iterator_pos(u64 user_id, Token *tokens, i64 count, i64 pos){
 }
 
 internal Token_Iterator_Array
-token_iterator_pos(u64 user_id, Token_Array tokens, i64 pos){
-    i64 index = token_index_from_pos(tokens.tokens, tokens.count, pos);
-    return(token_iterator_index(user_id, tokens.tokens, tokens.count, index));
+token_iterator_pos(u64 user_id, Token_Array *tokens, i64 pos){
+    i64 index = token_index_from_pos(tokens->tokens, tokens->count, pos);
+    return(token_iterator_index(user_id, tokens->tokens, tokens->count, index));
 }
 
 internal Token*

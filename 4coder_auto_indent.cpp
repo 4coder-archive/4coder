@@ -421,7 +421,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_ID buffer, Token_Ar
     
     for (;line_start > 1;){
         i64 line_start_pos = get_line_start_pos(app, buffer, line_start);
-        Token *token = get_first_token_from_pos(tokens, line_start_pos);
+        Token *token = token_from_pos(&tokens, line_start_pos);
         if (token != 0 && token->pos < line_start_pos){
             line_start = get_line_number_from_pos(app, buffer, token->pos);
         }
@@ -434,7 +434,7 @@ get_indent_lines_whole_tokens(Application_Links *app, Buffer_ID buffer, Token_Ar
     
     for (;line_end < line_count;){
         i64 next_line_start_pos = get_line_start_pos(app, buffer, line_end + 1);
-        Token *token = get_first_token_from_pos(tokens, next_line_start_pos);
+        Token *token = token_from_pos(&tokens, next_line_start_pos);
         if (token != 0 && token->pos < next_line_start_pos){
             line_end = get_line_number_from_pos(app, buffer, token->pos + token->size);
         }

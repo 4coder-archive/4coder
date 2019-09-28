@@ -37,245 +37,216 @@ find_scope_get_token_type(Find_Scope_Flag flags, Token_Base_Kind kind){
 static b32
 find_scope_top(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flags, i64 *end_pos_out){
     b32 success = false;
-    NotImplemented;
-#if 0
-    Cpp_Get_Token_Result get_result = {};
-    i32 position = 0;
-    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
-        i32 token_index = get_result.token_index;
+    Token_Array array = get_token_array_from_buffer(app, buffer);
+    if (array.tokens != 0){
+        i64 position = 0;
+        i64 token_index = token_index_from_pos(&array, start_pos);
+        Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
+        b32 good_status = true;
         if (HasFlag(flags, FindScope_Parent)){
-            --token_index;
-            if (get_result.in_whitespace_after_token){
-                ++token_index;
-            }
+            good_status = token_it_dec(&it);
         }
-        if (token_index >= 0){
-            Token_Range token_range = buffer_get_token_range(app, buffer);
-            if (token_range.first != 0){
-                Token_Iterator token_it = make_token_iterator(token_range, token_index);
-                i32 nest_level = 0;
-                for (Token *token = token_iterator_current(&token_it);
-                     token != 0;
-                     token = token_iterator_goto_prev(&token_it)){
-                    Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                    switch (type){
-                        case FindScopeTokenType_Open:
-                        {
-                            if (nest_level == 0){
-                                success = true;
-                                position = token->start;
-                                if (flags & FindScope_EndOfToken){
-                                    position += token->size;
-                                }
-                                goto finished;
-                            }
-                            else{
-                                --nest_level;
-                            }
-                        }break;
-                        case FindScopeTokenType_Close:
-                        {
-                            ++nest_level;
-                        }break;
+        i32 nest_level = 0;
+        for (;good_status;){
+            Token *token = token_it_read(&it);
+            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
+            switch (type){
+                case FindScopeTokenType_Open:
+                {
+                    if (nest_level == 0){
+                        success = true;
+                        position = token->pos;
+                        if (HasFlag(flags, FindScope_EndOfToken)){
+                            position += token->size;
+                        }
+                        goto finished;
                     }
-                }
+                    else{
+                        --nest_level;
+                    }
+                }break;
+                case FindScopeTokenType_Close:
+                {
+                    ++nest_level;
+                }break;
             }
+            good_status = token_it_dec(&it);
         }
+        finished:;
+        *end_pos_out = start_pos;
     }
-    finished:;
-    *end_pos_out = position;
-#endif
     return(success);
 }
 
 static b32
 find_scope_bottom(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flags, i64 *end_pos_out){
     b32 success = false;
-#if 0
-    Cpp_Get_Token_Result get_result = {};
-    i32 position = 0;
-    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
-        i32 token_index = get_result.token_index + 1;
+    Token_Array array = get_token_array_from_buffer(app, buffer);
+    if (array.tokens != 0){
+        i64 position = 0;
+        i64 token_index = token_index_from_pos(&array, start_pos);
+        Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
+        token_it_inc(&it);
         if (HasFlag(flags, FindScope_Parent)){
-            --token_index;
-            if (get_result.in_whitespace_after_token){
-                ++token_index;
-            }
+            token_it_dec(&it);
         }
-        if (token_index >= 0){
-            Token_Range token_range = buffer_get_token_range(app, buffer);
-            if (token_range.first != 0){
-                Token_Iterator token_it = make_token_iterator(token_range, token_index);
-                i32 nest_level = 0;
-                for (Token *token = token_iterator_current(&token_it);
-                     token != 0;
-                     token = token_iterator_goto_next(&token_it)){
-                    Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                    switch (type){
-                        case FindScopeTokenType_Open:
-                        {
-                            ++nest_level;
-                        }break;
-                        case FindScopeTokenType_Close:
-                        {
-                            if (nest_level == 0){
-                                success = true;
-                                position = token->start;
-                                if (flags & FindScope_EndOfToken){
-                                    position += token->size;
-                                }
-                                goto finished;
-                            }
-                            else{
-                                --nest_level;
-                            }
-                        }break;
+        b32 good_status = true;
+        i32 nest_level = 0;
+        for (;good_status;){
+            Token *token = token_it_read(&it);
+            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
+            switch (type){
+                case FindScopeTokenType_Open:
+                {
+                    ++nest_level;
+                }break;
+                case FindScopeTokenType_Close:
+                {
+                    if (nest_level == 0){
+                        success = true;
+                        position = token->pos;
+                        if (HasFlag(flags, FindScope_EndOfToken)){
+                            position += token->size;
+                        }
+                        goto finished;
                     }
-                }
+                    else{
+                        --nest_level;
+                    }
+                }break;
             }
+            good_status = token_it_inc(&it);
         }
+        finished:;
+        *end_pos_out = start_pos;
     }
-    finished:;
-    *end_pos_out = position;
-#endif
     return(success);
 }
 
 static b32
 find_next_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flags, i64 *end_pos_out){
     b32 success = false;
-    NotImplemented;
-#if 0
-    Cpp_Get_Token_Result get_result = {};
-    i64 position = 0;
-    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
-        i32 token_index = get_result.token_index + 1;
-        if (token_index >= 0){
-            Token_Range token_range = buffer_get_token_range(app, buffer);
-            if (token_range.first != 0){
-                Token_Iterator token_it = make_token_iterator(token_range, token_index);
-                if (HasFlag(flags, FindScope_NextSibling)){
-                    i32 nest_level = 1;
-                    for (Token *token = token_iterator_current(&token_it);
-                         token != 0;
-                         token = token_iterator_goto_next(&token_it)){
-                        Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                        switch (type){
-                            case FindScopeTokenType_Open:
-                            {
-                                if (nest_level == 0){
-                                    success = 1;
-                                    position = token->start;
-                                    if (flags & FindScope_EndOfToken){
-                                        position += token->size;
-                                    }
-                                    goto finished;
-                                }
-                                else{
-                                    ++nest_level;
-                                }
-                            }break;
-                            case FindScopeTokenType_Close:
-                            {
-                                --nest_level;
-                                if (nest_level == -1){
-                                    position = start_pos;
-                                    goto finished;
-                                }
-                            }break;
-                        }
-                    }
-                }
-                else{
-                    for (Token *token = token_iterator_current(&token_it);
-                         token != 0;
-                         token = token_iterator_goto_next(&token_it)){
-                        Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                        if (type == FindScopeTokenType_Open){
-                            success = 1;
-                            position = token->start;
-                            if (flags & FindScope_EndOfToken){
+    Token_Array array = get_token_array_from_buffer(app, buffer);
+    if (array.tokens != 0){
+        i64 position = 0;
+        i64 token_index = token_index_from_pos(&array, start_pos);
+        Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
+        token_it_inc(&it);
+        if (HasFlag(flags, FindScope_NextSibling)){
+            b32 good_status = true;
+            i32 nest_level = 1;
+            for (;good_status;){
+                Token *token = token_it_read(&it);
+                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
+                switch (type){
+                    case FindScopeTokenType_Open:
+                    {
+                        if (nest_level == 0){
+                            success = true;
+                            position = token->pos;
+                            if (HasFlag(flags, FindScope_EndOfToken)){
                                 position += token->size;
                             }
                             goto finished;
                         }
-                    }
+                        else{
+                            ++nest_level;
+                        }
+                    }break;
+                    case FindScopeTokenType_Close:
+                    {
+                        --nest_level;
+                        if (nest_level == -1){
+                            position = start_pos;
+                            goto finished;
+                        }
+                    }break;
                 }
+                good_status = token_it_inc(&it);
             }
         }
+        else{
+            b32 good_status = true;
+            for (;good_status;){
+                Token *token = token_it_read(&it);
+                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
+                if (type == FindScopeTokenType_Open){
+                    success = true;
+                    position = token->pos;
+                    if (flags & FindScope_EndOfToken){
+                        position += token->size;
+                    }
+                    goto finished;
+                }
+                good_status = token_it_inc(&it);
+            }
+        }
+        finished:;
+        *end_pos_out = start_pos;
     }
-    finished:;
-    *end_pos_out = position;
-#endif
     return(success);
 }
 
 static b32
 find_prev_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flags, i64 *end_pos_out){
     b32 success = false;
-    NotImplemented;
-#if 0
-    Cpp_Get_Token_Result get_result = {};
-    i64 position = 0;
-    if (get_token_from_pos(app, buffer, start_pos, &get_result)){
-        i32 token_index = get_result.token_index - 1;
-        if (token_index >= 0){
-            Token_Range token_range = buffer_get_token_range(app, buffer);
-            if (token_range.first != 0){
-                Token_Iterator token_it = make_token_iterator(token_range, token_index);
-                if (flags & FindScope_NextSibling){
-                    i32 nest_level = -1;
-                    for (Token *token = token_iterator_current(&token_it);
-                         token != 0;
-                         token = token_iterator_goto_prev(&token_it)){
-                        Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                        switch (type){
-                            case FindScopeTokenType_Open:
-                            {
-                                if (nest_level == -1){
-                                    position = start_pos;
-                                    goto finished;
-                                }
-                                else if (nest_level == 0){
-                                    success = true;
-                                    position = token->start;
-                                    if (flags & FindScope_EndOfToken){
-                                        position += token->size;
-                                    }
-                                    goto finished;
-                                }
-                                else{
-                                    --nest_level;
-                                }
-                            }break;
-                            case FindScopeTokenType_Close:
-                            {
-                                ++nest_level;
-                            }break;
+    Token_Array array = get_token_array_from_buffer(app, buffer);
+    if (array.tokens != 0){
+        i64 position = 0;
+        i64 token_index = token_index_from_pos(&array, start_pos);
+        Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
+        if (HasFlag(flags, FindScope_NextSibling)){
+            b32 status_good = token_it_dec(&it);
+            i32 nest_level = -1;
+            for (;status_good;){
+                Token *token = token_it_read(&it);
+                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
+                switch (type){
+                    case FindScopeTokenType_Open:
+                    {
+                        if (nest_level == -1){
+                            position = start_pos;
+                            goto finished;
                         }
-                    }
-                }
-                else{
-                    for (Token *token = token_iterator_current(&token_it);
-                         token != 0;
-                         token = token_iterator_goto_prev(&token_it)){
-                        Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->type);
-                        if (type == FindScopeTokenType_Open){
+                        else if (nest_level == 0){
                             success = true;
-                            position = token->start;
-                            if (flags & FindScope_EndOfToken){
+                            position = token->pos;
+                            if (HasFlag(flags, FindScope_EndOfToken)){
                                 position += token->size;
                             }
                             goto finished;
                         }
-                    }
+                        else{
+                            --nest_level;
+                        }
+                    }break;
+                    case FindScopeTokenType_Close:
+                    {
+                        ++nest_level;
+                    }break;
                 }
+                status_good = token_it_dec(&it);
             }
         }
+        else{
+            b32 status_good = token_it_dec(&it);
+            for (;status_good;){
+                Token *token = token_it_read(&it);
+                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
+                if (type == FindScopeTokenType_Open){
+                    success = true;
+                    position = token->pos;
+                    if (HasFlag(flags, FindScope_EndOfToken)){
+                        position += token->size;
+                    }
+                    goto finished;
+                }
+                status_good = token_it_dec(&it);
+            }
+        }
+        finished:;
+        *end_pos_out = position;
     }
-    finished:;
-    *end_pos_out = position;
-#endif
     return(success);
 }
 

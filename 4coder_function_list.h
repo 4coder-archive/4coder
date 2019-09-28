@@ -8,14 +8,14 @@
 #define FCODER_FUNCTION_LIST_H
 
 struct Function_Positions{
-    i32 sig_start_index;
-    i32 sig_end_index;
-    i32 open_paren_pos;
+    i64 sig_start_index;
+    i64 sig_end_index;
+    i64 open_paren_pos;
 };
 
 struct Get_Positions_Results{
-    i32 positions_count;
-    i32 next_token_index;
+    i64 positions_count;
+    i64 next_token_index;
     b32 still_looping;
 };
 

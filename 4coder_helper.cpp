@@ -292,6 +292,19 @@ get_key_code(char *buffer){
 
 ////////////////////////////////
 
+internal Token_Array
+get_token_array_from_buffer(Application_Links *app, Buffer_ID buffer){
+    Token_Array result = {};
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    if (ptr != 0){
+        result = *ptr;
+    }
+    return(result);
+}
+
+////////////////////////////////
+
 internal Buffer_Seek
 seek_location(ID_Line_Column_Jump_Location location){
     return(seek_line_col(location.line, location.column));
@@ -602,26 +615,9 @@ get_line_end_pos_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
 }
 
 internal Token*
-get_first_token_from_pos(Token_Array tokens, i64 pos){
-    NotImplemented;
-    Token *result = 0;
-#if 0
-    Get_Token_Result get_token = cpp_get_token(tokens, (i32)pos);
-    if (get_token.in_whitespace_after_token){
-        get_token.token_index += 1;
-    }
-    Token *result = 0;
-    if (get_token.token_index < tokens.count){
-        result = tokens.tokens + get_token.token_index;
-    }
-#endif
-    return(result);
-}
-
-internal Token*
 get_first_token_from_line(Application_Links *app, Buffer_ID buffer, Token_Array tokens, i64 line){
     i64 line_start = get_line_start_pos(app, buffer, line);
-    return(get_first_token_from_pos(tokens, line_start));
+    return(token_from_pos(&tokens, line_start));
 }
 
 ////////////////////////////////
@@ -801,31 +797,29 @@ boundary_inside_quotes(Application_Links *app, Buffer_ID buffer, Side side, Scan
 internal i64
 boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
     i64 result = boundary_non_whitespace(app, buffer, side, direction, pos);
-    NotImplemented;
-#if 0
-    if (!buffer_tokens_are_ready(app, buffer)){
+    Token_Array tokens = get_token_array_from_buffer(app, buffer);
+    if (tokens.tokens == 0){
         result = boundary_non_whitespace(app, buffer, side, direction, pos);
     }
     else{
-        Token_Array tokens = buffer_get_token_array(app, buffer);
         switch (direction){
             case Scan_Forward:
             {
-                i32 buffer_size = (i32)buffer_get_size(app, buffer);
+                i64 buffer_size = buffer_get_size(app, buffer);
                 if (tokens.count > 0){
-                    Token *token = get_first_token_from_pos(tokens, pos);
+                    Token *token = token_from_pos(&tokens, pos);
                     if (token != 0){
                         if (side == Side_Max){
-                            result = token->start + token->size;
+                            result = token->pos + token->size;
                         }
                         else{
-                            if (token->start > pos){
-                                result = token->start;
+                            if (token->pos > pos){
+                                result = token->pos;
                             }
                             else{
                                 token += 1;
                                 if (token < tokens.tokens + tokens.count){
-                                    result = token->start;
+                                    result = token->pos;
                                 }
                                 else{
                                     result = buffer_size;
@@ -845,20 +839,20 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
             case Scan_Backward:
             {
                 if (tokens.count > 0){
-                    Token *token = get_first_token_from_pos(tokens, pos);
+                    Token *token = token_from_pos(&tokens, pos);
                     if (side == Side_Min){
                         if (token == 0){
                             token = tokens.tokens + tokens.count - 1;
-                            result = token->start;
+                            result = token->pos;
                         }
                         else{
-                            if (token->start < pos){
-                                result = token->start;
+                            if (token->pos < pos){
+                                result = token->pos;
                             }
                             else{
                                 token -= 1;
                                 if (token >= tokens.tokens){
-                                    result = token->start;
+                                    result = token->pos;
                                 }
                                 else{
                                     result = 0;
@@ -869,15 +863,15 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
                     else{
                         if (token == 0){
                             token = tokens.tokens + tokens.count - 1;
-                            result = token->start + token->size;
+                            result = token->pos + token->size;
                         }
                         else{
                             token -= 1;
-                            if (token >= tokens.tokens && token->start + token->size == pos){
+                            if (token >= tokens.tokens && token->pos + token->size == pos){
                                 token -= 1;
                             }
                             if (token >= tokens.tokens){
-                                result = token->start + token->size;
+                                result = token->pos + token->size;
                             }
                             else{
                                 result = 0;
@@ -891,7 +885,6 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
             }break;
         }
     }
-#endif
     return(result);
 }
 
@@ -1868,19 +1861,6 @@ try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, B
     Buffer_Kill_Result result = buffer_kill(app, buffer, flags);
     if (result == BufferKillResult_Dirty){
         do_gui_sure_to_kill(app, buffer, gui_view_id);
-    }
-    return(result);
-}
-
-////////////////////////////////
-
-internal Token_Array
-get_token_array_from_buffer(Application_Links *app, Buffer_ID buffer){
-    Token_Array result = {};
-    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
-    Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-    if (ptr != 0){
-        result = *ptr;
     }
     return(result);
 }

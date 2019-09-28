@@ -9,24 +9,23 @@
 // through.  Once I build a real parser this should become almost just as easy as 
 // iterating tokens is now.
 //
+// NOTE(allen|b4.1.0): This routine assumes C++ sub_kinds in the tokens of the buffer.
 
 static Get_Positions_Results
-get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token_index, Function_Positions *positions_array, i32 positions_max){
+get_function_positions(Application_Links *app, Buffer_ID buffer, i64 first_token_index, Function_Positions *positions_array, i64 positions_max){
     Get_Positions_Results result = {};
     
-    NotImplemented;
-#if 0
-    Token_Range token_range = buffer_get_token_range(app, buffer);
-    if (token_range.first != 0){
-        Token_Iterator token_it = make_token_iterator(token_range, first_token_index);
+    Token_Array array = get_token_array_from_buffer(app, buffer);
+    if (array.tokens != 0){
+        Token_Iterator_Array it = token_iterator_index(buffer, &array, first_token_index);
         
         i32 nest_level = 0;
         i32 paren_nest_level = 0;
         
-        Token *first_paren = 0;
-        i32 first_paren_index = 0;
-        i32 first_paren_position = 0;
-        i32 last_paren_index = 0;
+        Token_Iterator_Array first_paren_it = {};
+        i64 first_paren_index = 0;
+        i64 first_paren_position = 0;
+        i64 last_paren_index = 0;
         
         // Look for the next token at global scope that might need to be printed.
         mode1:
@@ -35,81 +34,87 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
         first_paren_index = 0;
         first_paren_position = 0;
         last_paren_index = 0;
-        for (Token *token = token_iterator_current(&token_it);
-             token != 0;
-             token = token_iterator_goto_next(&token_it)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                switch (token->type){
-                    case CPP_TOKEN_BRACE_OPEN:
+        for (;;){
+            Token *token = token_it_read(&it);
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
+                switch (token->sub_kind){
+                    case TokenCppKind_BraceOp:
                     {
                         ++nest_level;
                     }break;
                     
-                    case CPP_TOKEN_BRACE_CLOSE:
+                    case TokenCppKind_BraceCl:
                     {
                         if (nest_level > 0){
                             --nest_level;
                         }
                     }break;
                     
-                    case CPP_TOKEN_PARENTHESE_OPEN:
+                    case TokenCppKind_ParenOp:
                     {
                         if (nest_level == 0){
-                            first_paren = token;
-                            first_paren_index = token_iterator_current_index(&token_it);
-                            first_paren_position = token->start;
+                            first_paren_it = it;
+                            first_paren_index = token_it_index(&it);
+                            first_paren_position = token->pos;
                             goto paren_mode1;
                         }
                     }break;
                 }
             }
+            if (!token_it_inc(&it)){
+                goto end;
+            }
         }
-        goto end;
         
         // Look for a closing parenthese to mark the end of a function signature.
         paren_mode1:
         paren_nest_level = 0;
-        for (Token *token = token_iterator_current(&token_it);
-             token != 0;
-             token = token_iterator_goto_next(&token_it)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                switch (token->type){
-                    case CPP_TOKEN_PARENTHESE_OPEN:
+        for (;;){
+            Token *token = token_it_read(&it);
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
+                switch (token->sub_kind){
+                    case TokenCppKind_ParenOp:
                     {
                         ++paren_nest_level;
                     }break;
                     
-                    case CPP_TOKEN_PARENTHESE_CLOSE:
+                    case TokenCppKind_ParenCl:
                     {
                         --paren_nest_level;
                         if (paren_nest_level == 0){
-                            last_paren_index = token_iterator_current_index(&token_it);
+                            last_paren_index = token_it_index(&it);
                             goto paren_mode2;
                         }
                     }break;
                 }
             }
+            if (!token_it_inc(&it)){
+                goto end;
+            }
         }
-        goto end;
         
         // Look backwards from an open parenthese to find the start of a function signature.
         paren_mode2:
         {
-            Token *restore_point = token_iterator_current(&token_it);
-            
-            token_iterator_set(&token_it, first_paren);
-            i32 signature_start_index = 0;
-            for (Token *token = token_iterator_current(&token_it);
-                 token != 0;
-                 token = token_iterator_goto_prev(&token_it)){
-                if ((token->flags & CPP_TFLAG_PP_BODY) || (token->flags & CPP_TFLAG_PP_DIRECTIVE) ||
-                    token->type == CPP_TOKEN_BRACE_CLOSE || token->type == CPP_TOKEN_SEMICOLON || token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                    token_iterator_goto_next(&token_it);
-                    signature_start_index = token_iterator_current_index(&token_it);
-                    if (signature_start_index == -1){
+            Token_Iterator_Array restore_point = it;
+            it = first_paren_it;
+            i64 signature_start_index = 0;
+            for (;;){
+                Token *token = token_it_read(&it);
+                if (HasFlag(token->flags, TokenBaseFlag_PreprocessorBody) ||
+                    token->sub_kind == TokenCppKind_BraceCl ||
+                    token->sub_kind == TokenCppKind_Semicolon ||
+                    token->sub_kind == TokenCppKind_ParenCl){
+                    if (!token_it_inc(&it)){
                         signature_start_index = first_paren_index;
                     }
+                    else{
+                        signature_start_index = token_it_index(&it);
+                    }
                     goto paren_mode2_done;
+                }
+                if (!token_it_dec(&it)){
+                    break;
                 }
             }
             
@@ -119,16 +124,16 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
             
             paren_mode2_done:;
             {
-                Function_Positions positions;
+                Function_Positions positions = {};
                 positions.sig_start_index = signature_start_index;
                 positions.sig_end_index = last_paren_index;
                 positions.open_paren_pos = first_paren_position;
                 positions_array[result.positions_count++] = positions;
             }
             
-            token_iterator_set(&token_it, restore_point);
+            it = restore_point;
             if (result.positions_count >= positions_max){
-                result.next_token_index = token_iterator_current_index(&token_it);
+                result.next_token_index = token_it_index(&it);
                 result.still_looping = true;
                 goto end;
             }
@@ -136,52 +141,44 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i32 first_token
             goto mode1;
         }
         end:;
-        
     }
-#endif
     
     return(result);
 }
 
 static void
-print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_ID buffer, Function_Positions *positions_array, i32 positions_count){
-    NotImplemented;
-#if 0
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_ID buffer, Function_Positions *positions_array, i64 positions_count){
+    Scratch_Block scratch(app);
     
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     
     for (i32 i = 0; i < positions_count; ++i){
         Function_Positions *positions = &positions_array[i];
         
-        i32 start_index = positions->sig_start_index;
-        i32 end_index = positions->sig_end_index;
+        i64 start_index = positions->sig_start_index;
+        i64 end_index = positions->sig_end_index;
         i64 open_paren_pos = positions->open_paren_pos;
         i64 line_number = get_line_number_from_pos(app, buffer, open_paren_pos);
         
         Assert(end_index > start_index);
         
-        Token_Range token_range = buffer_get_token_range(app, buffer);
-        if (token_range.first != 0){
+        Token_Array array = get_token_array_from_buffer(app, buffer);
+        if (array.tokens != 0){
             insertf(out, "%.*s:%lld: ", string_expand(buffer_name), line_number);
             
             Token prev_token = {};
-            Token_Iterator token_it = make_token_iterator(token_range, start_index);
-            for (Token *token = token_iterator_current(&token_it);
-                 token != 0 && token_iterator_current_index(&token_it) <= end_index;
-                 token = token_iterator_goto_next_raw(&token_it)){
-                if ((token->flags & CPP_TFLAG_PP_BODY) == 0 && token->type != CPP_TOKEN_COMMENT){
-                    if ((prev_token.type == CPP_TOKEN_IDENTIFIER ||
-                         prev_token.type == CPP_TOKEN_STAR ||
-                         prev_token.type == CPP_TOKEN_COMMA ||
-                         (prev_token.flags & CPP_TFLAG_IS_KEYWORD) != 0
-                         ) &&
-                        !(token->type == CPP_TOKEN_PARENTHESE_OPEN ||
-                          token->type == CPP_TOKEN_PARENTHESE_CLOSE ||
-                          token->type == CPP_TOKEN_COMMA
-                          )
-                        ){
+            Token_Iterator_Array it = token_iterator_index(buffer, &array, start_index);
+            for (;;){
+                Token *token = token_it_read(&it);
+                if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody) &&
+                    token->kind != TokenBaseKind_Comment){
+                    if ((prev_token.sub_kind == TokenCppKind_Identifier ||
+                         prev_token.sub_kind == TokenCppKind_Star ||
+                         prev_token.sub_kind == TokenCppKind_Comma ||
+                         prev_token.kind == TokenBaseKind_Keyword) &&
+                        !(token->sub_kind == TokenCppKind_ParenOp ||
+                          token->sub_kind == TokenCppKind_ParenCl ||
+                          token->sub_kind == TokenCppKind_Comma)){
                         insertc(out, ' ');
                     }
                     
@@ -192,21 +189,22 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_I
                     
                     prev_token = *token;
                 }
+                if (!token_it_inc(&it)){
+                    break;
+                }
+                i64 index = token_it_index(&it);
+                if (index > end_index){
+                    break;
+                }
             }
             
             insertc(out, '\n');
         }
     }
-    
-    end_temp(temp);
-#endif
 }
 
 static void
 list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
-    
-    NotImplemented;
-#if 0
     // TODO(allen): Use create or switch to buffer and clear here?
     String_Const_u8 decls_name = string_u8_litexpr("*decls*");
     Buffer_ID decls_buffer = get_buffer_by_name(app, decls_name, AccessAll);
@@ -214,18 +212,17 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
         decls_buffer = create_buffer(app, decls_name, BufferCreate_AlwaysNew);
         buffer_set_setting(app, decls_buffer, BufferSetting_Unimportant, true);
         buffer_set_setting(app, decls_buffer, BufferSetting_ReadOnly, true);
-        buffer_set_setting(app, decls_buffer, BufferSetting_WrapLine, false);
+        //buffer_set_setting(app, decls_buffer, BufferSetting_WrapLine, false);
     }
     else{
         clear_buffer(app, decls_buffer);
         buffer_send_end_signal(app, decls_buffer);
     }
     
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     
-    // TODO(allen): rewrite get_function_positions  to allocate on arena
-    i32 positions_max = (4<<10)/sizeof(Function_Positions);
+    // TODO(allen): rewrite get_function_positions to allocate on arena
+    i32 positions_max = KB(4)/sizeof(Function_Positions);
     Function_Positions *positions_array = push_array(scratch, Function_Positions, positions_max);
     
     Cursor insertion_cursor = make_cursor(push_array(scratch, u8, KB(256)), KB(256));
@@ -239,13 +236,14 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
             buffer = optional_target_buffer;
         }
         
-        if (buffer_tokens_are_ready(app, buffer)){
-            i32 token_index = 0;
+        Token_Array array = get_token_array_from_buffer(app, buffer);
+        if (array.tokens != 0){
+            i64 token_index = 0;
             b32 still_looping = false;
             do{
                 Get_Positions_Results get_positions_results = get_function_positions(app, buffer, token_index, positions_array, positions_max);
                 
-                i32 positions_count = get_positions_results.positions_count;
+                i64 positions_count = get_positions_results.positions_count;
                 token_index = get_positions_results.next_token_index;
                 still_looping = get_positions_results.still_looping;
                 
@@ -256,9 +254,6 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
                 break;
             }
         }
-        else{
-            continue;
-        }
     }
     
     end_buffer_insertion(&out);
@@ -267,10 +262,6 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     view_set_buffer(app, view, decls_buffer, 0);
     
     lock_jump_buffer(app, decls_name);
-    
-    end_temp(temp);
-#endif
-    
 }
 
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
