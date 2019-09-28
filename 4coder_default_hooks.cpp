@@ -328,7 +328,7 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
 }
 
 internal int_color
-get_token_color(Token token){
+get_token_color_cpp(Token token){
     int_color result = Stag_Default;
     if (HasFlag(token.flags, TokenBaseFlag_PreprocessorBody)){
         result = Stag_Preproc;
@@ -337,7 +337,6 @@ get_token_color(Token token){
         switch (token.kind){
             case TokenBaseKind_Keyword:
             {            
-                // TODO(allen): beta: Stag_Bool_Constant
                 result = Stag_Keyword;
             }break;
             case TokenBaseKind_Comment:
@@ -347,8 +346,6 @@ get_token_color(Token token){
             case TokenBaseKind_LiteralString:
             {
                 result = Stag_Str_Constant;
-                // TODO(allen): beta: Stag_Char_Constant
-                // TODO(allen): beta: Stag_Include
             }break;
             case TokenBaseKind_LiteralInteger:
             {
@@ -357,6 +354,28 @@ get_token_color(Token token){
             case TokenBaseKind_LiteralFloat:
             {
                 result = Stag_Float_Constant;
+            }break;
+            default:
+            {
+                switch (token.sub_kind){
+                    case TokenCppKind_LiteralTrue:
+                    case TokenCppKind_LiteralFalse:
+                    {
+                        result = Stag_Bool_Constant;
+                    }break;
+                    case TokenCppKind_LiteralCharacter:
+                    case TokenCppKind_LiteralCharacterWide:
+                    case TokenCppKind_LiteralCharacterUTF8:
+                    case TokenCppKind_LiteralCharacterUTF16:
+                    case TokenCppKind_LiteralCharacterUTF32:
+                    {
+                        result = Stag_Char_Constant;
+                    }break;
+                    case TokenCppKind_PPIncludeFile:
+                    {
+                        result = Stag_Include;
+                    }break;
+                }
             }break;
         }
     }
@@ -399,7 +418,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 break;
             }
             
-            int_color color = get_token_color(*token);
+            int_color color = get_token_color_cpp(*token);
             paint_text_color(app, text_layout_id, Ii64(token->pos, token->pos + token->size), color);
             
             if (!token_it_inc_non_whitespace(&it)){
