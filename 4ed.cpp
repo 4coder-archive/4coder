@@ -9,11 +9,6 @@
 
 // TOP
 
-#define DEFAULT_DISPLAY_WIDTH 672
-#define DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH 550
-
-////////////////////////////////
-
 Mutex_Lock::Mutex_Lock(System_Functions *s, System_Mutex m){
     s->mutex_acquire(m);
     this->system = s;
@@ -892,9 +887,6 @@ App_Init_Sig(app_init){
     working_set_init(models, &models->working_set);
     
     Mutex_Lock file_order_lock(system, models->working_set.mutex);
-    
-    models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
-    models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
     // NOTE(allen): 
     global_history_init(&models->global_history);

@@ -725,11 +725,15 @@ buffer_layout(Arena *scratch, Arena *arena, Gap_Buffer *buffer, Interval_i64 ran
         i64 index = range.first;
         b32 first_of_the_line = true;
         
+        b32 consuming_newline_characters = false;
+        i64 newline_character_index = -1;
+        
         u8 *ptr = text.str;
         u8 *end_ptr = ptr + text.size;
         for (;ptr < end_ptr;){
             Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
             u32 render_codepoint = consume.codepoint;
+            b32 emit_newline = false;
             switch (consume.codepoint){
                 case '\t':
                 {
@@ -753,14 +757,26 @@ buffer_layout(Arena *scratch, Arena *arena, Gap_Buffer *buffer, Interval_i64 ran
                     first_of_the_line = false;
                 }break;
                 
+                case '\r':
+                {
+                    if (!consuming_newline_characters){
+                        consuming_newline_characters = true;
+                        newline_character_index = index;
+                    }
+                    if (ptr + 1 == end_ptr){
+                        emit_newline = true;
+                    }
+                    ptr += 1;
+                    index += 1;
+                }break;
+                
                 case '\n':
                 {
-                    f32 next_x = p.x + space_advance;
-                    buffer_layout__write(arena, &list, index, ' ', 0,  Rf32(p, V2f32(next_x, line_y)));
-                    p.y = line_y;
-                    p.x = 0.f;
-                    line_y += line_height;
-                    first_of_the_line = true;
+                    if (!consuming_newline_characters){
+                        consuming_newline_characters = true;
+                        newline_character_index = index;
+                    }
+                    emit_newline = true;
                     ptr += 1;
                     index += 1;
                 }break;
@@ -793,6 +809,14 @@ buffer_layout(Arena *scratch, Arena *arena, Gap_Buffer *buffer, Interval_i64 ran
                     index += 1;
                     first_of_the_line = false;
                 }break;
+            }
+            if (emit_newline){
+                f32 next_x = p.x + space_advance;
+                buffer_layout__write(arena, &list, newline_character_index, ' ', 0,  Rf32(p, V2f32(next_x, line_y)));
+                p.y = line_y;
+                p.x = 0.f;
+                line_y += line_height;
+                first_of_the_line = true;
             }
         }
     }

@@ -12,9 +12,6 @@
 internal void
 working_set_file_default_settings(Working_Set *working_set, Editing_File *file){
     block_zero_struct(&file->settings);
-    //file->settings.display_width = working_set->default_display_width;
-    //file->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
-    //file->settings.wrap_indicator = WrapIndicator_Show_At_Wrap_Edge;
 }
 
 ////////////////////////////////

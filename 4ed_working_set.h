@@ -41,9 +41,6 @@ struct Working_Set{
     System_Mutex mutex;
     System_Thread file_change_thread;
     
-    i32 default_display_width;
-    i32 default_minimum_base_display_width;
-    
     // TODO(allen): do(update clipboard system to exist fully in the custom layer)
     // NOTE(allen): These members have nothing to do with the working set or
     // the mutex that gaurds the other members.
