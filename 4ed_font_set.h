@@ -35,6 +35,7 @@ struct Font_Set{
     Font_Face_ID_Node *free_id_nodes;
     Font_Face_Slot *free_face_slots;
     Table_u64_u64 id_to_slot_table;
+    f32 scale_factor;
 };
 
 #endif

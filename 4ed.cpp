@@ -684,8 +684,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_FontSize:
                     {
                         if (i < argc){
-                            plat_settings->font_size = (i32)string_to_integer(SCu8(argv[i]), 10);
-                            settings->font_size = plat_settings->font_size;
+                            settings->font_size = (i32)string_to_integer(SCu8(argv[i]), 10);
                         }
                         action = CLAct_Nothing;
                     }break;
@@ -821,8 +820,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
     i32 out_size = 0;
     Models *models = app_setup_memory(system, memory);
     App_Settings *settings = &models->settings;
-    memset(settings, 0, sizeof(*settings));
-    plat_settings->font_size = 16;
+    block_zero_struct(settings);
     if (argc > 1){
         init_command_line_settings(&models->settings, plat_settings, argc, argv);
     }

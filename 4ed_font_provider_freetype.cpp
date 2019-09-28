@@ -161,7 +161,7 @@ ft__glyph_bounds_store_uv_raw(Vec3_i32 p, Vec2_i32 dim, Glyph_Bounds *bounds){
 }
 
 internal Face*
-ft__font_make_face(Arena *arena, Face_Description *description){
+ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor){
     String_Const_u8 file_name = {};
     if (description->font.in_4coder_font_folder){
         String_Const_u8 binary_path = sysfunc.get_4ed_path(arena);
@@ -183,7 +183,7 @@ ft__font_make_face(Arena *arena, Face_Description *description){
     if (error == 0){
         face = push_array_zero(arena, Face, 1);
         
-        u32 pt_size = description->parameters.pt_size;
+        u32 pt_size = (u32)(description->parameters.pt_size*scale_factor);
         b32 hinting = description->parameters.hinting;
         
         FT_Size_RequestRec_ size = {};

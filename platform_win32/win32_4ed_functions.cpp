@@ -494,5 +494,10 @@ Sys_Open_Color_Picker_Sig(system_open_color_picker){
     CloseHandle(ThreadHandle);
 }
 
+internal
+Sys_Get_Screen_Scale_Factor_Sig(system_get_screen_scale_factor){
+    return(win32vars.screen_scale_factor);
+}
+
 // BOTTOM
 

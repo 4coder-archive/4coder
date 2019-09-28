@@ -39,6 +39,7 @@ link_system_code(void){
     SYSLINK(cli_end_update);
     
     SYSLINK(open_color_picker);
+    SYSLINK(get_screen_scale_factor);
     
     SYSLINK(thread_launch);
     SYSLINK(thread_join);

@@ -99,6 +99,9 @@ typedef Sys_CLI_End_Update_Sig(System_CLI_End_Update);
 #define Sys_Open_Color_Picker_Sig(name) void name(Color_Picker *picker)
 typedef Sys_Open_Color_Picker_Sig(System_Open_Color_Picker);
 
+#define Sys_Get_Screen_Scale_Factor_Sig(name) f32 name(void)
+typedef Sys_Get_Screen_Scale_Factor_Sig(System_Get_Screen_Scale_Factor);
+
 // thread
 typedef Plat_Handle System_Thread;
 typedef Plat_Handle System_Mutex;
@@ -202,6 +205,7 @@ struct System_Functions{
     
     // TODO(allen): 
     System_Open_Color_Picker *open_color_picker;
+    System_Get_Screen_Scale_Factor *get_screen_scale_factor;
     
     // threads
     System_Thread_Launch *thread_launch;

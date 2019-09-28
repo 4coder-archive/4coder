@@ -56,14 +56,15 @@ struct Plat_Settings{
     
     u8 use_log;
     
-    i32 window_w, window_h;
-    i32 window_x, window_y;
+    i32 window_w;
+    i32 window_h;
+    i32 window_x;
+    i32 window_y;
     b8 set_window_pos;
     b8 set_window_size;
     b8 maximize_window;
     
     b8 use_hinting;
-    i32 font_size;
 };
 
 #define App_Read_Command_Line_Sig(name)             \
@@ -100,7 +101,6 @@ struct Application_Step_Input{
     String_Const_u8 clipboard;
     b32 clipboard_changed;
     b32 trying_to_kill;
-    u32 debug_number;
 };
 
 #define App_Step_Sig(name) Application_Step_Result \

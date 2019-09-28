@@ -180,8 +180,7 @@ struct Win32_Vars{
     String_Const_u8 clip_post;
     
     HWND window_handle;
-    i32 dpi_x;
-    i32 dpi_y;
+    f32 screen_scale_factor;
     
     f64 count_per_usecond;
     b32 first;
@@ -1582,6 +1581,18 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 #else
     custom_api.get_bindings = get_bindings;
 #endif
+    
+    SetProcessDPIAware();
+    
+    {
+        HDC dc = GetDC(0);
+        i32 x_dpi = GetDeviceCaps(dc, LOGPIXELSX);
+        i32 y_dpi = GetDeviceCaps(dc, LOGPIXELSY);
+        i32 max_dpi = max(x_dpi, y_dpi);
+        win32vars.screen_scale_factor = ((f32)max_dpi)/96.f;
+        ReleaseDC(0, dc);
+    }
+    
     
     //
     // Window and GL Initialization

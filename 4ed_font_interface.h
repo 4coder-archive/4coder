@@ -76,7 +76,7 @@ struct Face{
 ////////////////////////////////
 
 // NOTE(allen): Platform layer calls - implemented in a "font provider"
-typedef Face *Font_Make_Face_Function(Arena *arena, Face_Description *description);
+typedef Face *Font_Make_Face_Function(Arena *arena, Face_Description *description, f32 scale_factor);
 
 #endif
 
