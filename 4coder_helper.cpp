@@ -1876,9 +1876,13 @@ try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, B
 
 internal Token_Array
 get_token_array_from_buffer(Application_Links *app, Buffer_ID buffer){
-    Token_Array array = {};
-    // TODO(allen): implement
-    return(array);
+    Token_Array result = {};
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    if (ptr != 0){
+        result = *ptr;
+    }
+    return(result);
 }
 
 ////////////////////////////////
