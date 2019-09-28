@@ -464,46 +464,6 @@ finalize_color(Color_Table color_table, int_color color){
     return(color_argb);
 }
 
-internal u32
-get_token_color(Color_Table color_table, Token token){
-    u32 result = 0;
-    if (HasFlag(token.flags, TokenBaseFlag_PreprocessorBody)){
-        result = color_table.vals[Stag_Preproc];
-    }
-    else{
-        switch (token.kind){
-            case TokenBaseKind_Keyword:
-            {            
-                // TODO(allen): beta: Stag_Bool_Constant
-                result = color_table.vals[Stag_Keyword];
-            }break;
-            case TokenBaseKind_Comment:
-            {
-                result = color_table.vals[Stag_Comment];
-            }break;
-            case TokenBaseKind_LiteralString:
-            {
-                result = color_table.vals[Stag_Str_Constant];
-                // TODO(allen): beta: Stag_Char_Constant
-                // TODO(allen): beta: Stag_Include
-            }break;
-            case TokenBaseKind_LiteralInteger:
-            {
-                result = color_table.vals[Stag_Int_Constant];
-            }break;
-            case TokenBaseKind_LiteralFloat:
-            {
-                result = color_table.vals[Stag_Float_Constant];
-            }break;
-            default:
-            {
-                result = color_table.vals[Stag_Default];
-            }break;
-        }
-    }
-    return(result);
-}
-
 internal void
 view_quit_ui(System_Functions *system, Models *models, View *view){
     Assert(view != 0);

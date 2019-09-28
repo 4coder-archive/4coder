@@ -327,6 +327,42 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     return(sub_region);
 }
 
+internal int_color
+get_token_color(Token token){
+    int_color result = Stag_Default;
+    if (HasFlag(token.flags, TokenBaseFlag_PreprocessorBody)){
+        result = Stag_Preproc;
+    }
+    else{
+        switch (token.kind){
+            case TokenBaseKind_Keyword:
+            {            
+                // TODO(allen): beta: Stag_Bool_Constant
+                result = Stag_Keyword;
+            }break;
+            case TokenBaseKind_Comment:
+            {
+                result = Stag_Comment;
+            }break;
+            case TokenBaseKind_LiteralString:
+            {
+                result = Stag_Str_Constant;
+                // TODO(allen): beta: Stag_Char_Constant
+                // TODO(allen): beta: Stag_Include
+            }break;
+            case TokenBaseKind_LiteralInteger:
+            {
+                result = Stag_Int_Constant;
+            }break;
+            case TokenBaseKind_LiteralFloat:
+            {
+                result = Stag_Float_Constant;
+            }break;
+        }
+    }
+    return(result);
+}
+
 internal void
 default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id, Rect_f32 view_inner_rect){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
@@ -351,6 +387,26 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     b32 is_active_view = (active_view == view_id);
     
     Scratch_Block scratch(app);
+    
+    // NOTE(allen): Token colorizing
+    Token_Array token_array = get_token_array_from_buffer(app, buffer);
+    if (token_array.tokens != 0){
+        i64 first_index = token_index_from_pos(&token_array, visible_range.first);
+        Token_Iterator_Array it = token_iterator_index(buffer, &token_array, first_index);
+        for (;;){
+            Token *token = token_it_read(&it);
+            if (token->pos >= visible_range.one_past_last){
+                break;
+            }
+            
+            int_color color = get_token_color(*token);
+            paint_text_color(app, text_layout_id, Ii64(token->pos, token->pos + token->size), color);
+            
+            if (!token_it_inc_non_whitespace(&it)){
+                break;
+            }
+        }
+    }
     
     // NOTE(allen): Scan for TODOs and NOTEs
     {
