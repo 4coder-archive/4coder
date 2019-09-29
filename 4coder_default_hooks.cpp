@@ -1027,6 +1027,24 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
     }
 }
 
+internal void
+do_full_lex(Application_Links *app, Buffer_ID buffer_id){
+    Scratch_Block scratch(app);
+    String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
+    Token_List list = lex_full_input_cpp(scratch, contents);
+    
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+    Base_Allocator *allocator = managed_scope_allocator(app, scope);
+    Token_Array tokens = {};
+    tokens.tokens = base_array(allocator, Token, list.total_count);
+    tokens.count = list.total_count;
+    tokens.max = list.total_count;
+    token_fill_memory_from_list(tokens.tokens, &list);
+    
+    Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    block_copy_struct(tokens_ptr, &tokens);
+}
+
 BUFFER_HOOK_SIG(default_file_settings){
     b32 treat_as_code = false;
     b32 lex_without_strings = false;
@@ -1144,18 +1162,7 @@ BUFFER_HOOK_SIG(default_file_settings){
     }
     
     if (use_lexer){
-        Temp_Memory temp = begin_temp(scratch);
-        String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        Base_Allocator *allocator = managed_scope_allocator(app, scope);
-        Arena alloc_arena = make_arena(allocator);
-        Token_List list = lex_full_input_cpp(&alloc_arena, contents);
-        Token_Array tokens = token_array_from_list(&alloc_arena, &list);
-        
-        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-        block_copy_struct(tokens_ptr, &tokens);
-        
-        end_temp(temp);
+        do_full_lex(app, buffer_id);
     }
     
 #if 0
@@ -1176,8 +1183,8 @@ BUFFER_HOOK_SIG(default_file_settings){
 }
 
 BUFFER_HOOK_SIG(default_new_file){
-    // no meaning for return
     // buffer_id
+    // no meaning for return
     return(0);
 }
 
@@ -1186,7 +1193,7 @@ BUFFER_HOOK_SIG(default_file_save){
     if (global_config.automatically_indent_text_on_save &&
         buffer_get_setting(app, buffer_id, BufferSetting_VirtualWhitespace, &is_virtual)){ 
         if (is_virtual){
-            i32 buffer_size = (i32)buffer_get_size(app, buffer_id);
+            i64 buffer_size = buffer_get_size(app, buffer_id);
             buffer_auto_indent(app, buffer_id, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         }
     }
@@ -1195,23 +1202,73 @@ BUFFER_HOOK_SIG(default_file_save){
 }
 
 FILE_EDIT_RANGE_SIG(default_file_edit_range){
-    // no meaning for return
     // buffer_id, range, text
-    return(0);
-}
-
-FILE_EDIT_FINISHED_SIG(default_file_edit_finished){
-#if 0
-    for (i32 i = 0; i < buffer_id_count; i += 1){
-        // buffer_ids[i]
+    
+    Interval_i64 replace_range = Ii64(range.first, range.first + text.size);
+    i64 insert_size = range_size(range);
+    i64 text_shift = replace_range_shift(replace_range, insert_size);
+    
+    Scratch_Block scratch(app);
+    
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+    Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    if (ptr != 0 && ptr->tokens != 0){
+        i64 token_index_first = token_relex_first(ptr, range.first, 1);
+        i64 token_index_resync_guess = token_relex_resync(ptr, range.one_past_last, 16);
+        
+        Token *token_first = ptr->tokens + token_index_first;
+        Token *token_resync = ptr->tokens + token_index_resync_guess;
+        
+        Interval_i64 relex_range = Ii64(token_first->pos, token_resync->pos + token_resync->size);
+        String_Const_u8 partial_text = push_buffer_range(app, scratch, buffer_id, relex_range);
+        
+        Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
+        if (relex_range.one_past_last < buffer_get_size(app, buffer_id)){
+            token_drop_eof(&relex_list);
+        }
+        
+        Token_Relex relex = token_relex(relex_list, token_first->pos - text_shift, 
+                                        ptr->tokens, token_index_first, token_index_resync_guess);
+        
+        Base_Allocator *allocator = managed_scope_allocator(app, scope);
+        
+        if (relex.successful_resync){
+            i64 token_index_resync = relex.first_resync_index;
+            
+            Interval_i64 head = Ii64(0, token_index_first);
+            Interval_i64 tail = Ii64(token_index_resync, ptr->count);
+            i64 tail_shift = relex_list.total_count - (token_index_resync - token_index_first);
+            
+            i64 new_tokens_count = ptr->count + tail_shift;
+            Token *new_tokens = base_array(allocator, Token, new_tokens_count);
+            
+            Token *old_tokens = ptr->tokens;
+            block_copy_array_shift(new_tokens, old_tokens, head, 0);
+            for (i64 i = tail.first; i < tail.one_past_last; i += 1){
+                old_tokens[i].pos += text_shift;
+            }
+            block_copy_array_shift(new_tokens, ptr->tokens, tail, tail_shift);
+            token_fill_memory_from_list(new_tokens + head.one_past_last, &relex_list);
+            
+            base_free(allocator, ptr->tokens);
+            
+            ptr->tokens = new_tokens;
+            ptr->count = new_tokens_count;
+            ptr->max = new_tokens_count;
+        }
+        else{
+            scratch.restore();
+            base_free(allocator, ptr->tokens);
+            do_full_lex(app, buffer_id);
+        }
     }
-#endif
     
     // no meaning for return
     return(0);
 }
 
 FILE_EXTERNALLY_MODIFIED_SIG(default_file_externally_modified){
+    // buffer_id
     Scratch_Block scratch(app);
     String_Const_u8 name = push_buffer_unique_name(app, scratch, buffer_id);
     String_Const_u8 str = push_u8_stringf(scratch, "Modified externally: %s\n", name.str);
@@ -1331,7 +1388,6 @@ set_all_default_hooks(Bind_Helper *context){
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
     set_file_edit_range_hook(context, default_file_edit_range);
-    set_file_edit_finished_hook(context, default_file_edit_finished);
     set_file_externally_modified_hook(context, default_file_externally_modified);
     
     set_end_file_hook(context, end_file_close_jump_list);

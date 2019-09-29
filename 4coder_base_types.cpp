@@ -291,6 +291,17 @@ block_fill_u64(void *a, umem size, u64 val){
 #define block_match_struct(a,b) block_match((a), (b), sizeof(*(a)))
 #define block_match_array(a,b) block_match((a), (b), sizeof(a))
 
+internal void
+block_copy_array_shift__inner(void *dst, void *src, umem it_size, Interval_i64 range, i64 shift){
+    u8 *dptr = (u8*)dst;
+    u8 *sptr = (u8*)src;
+    dptr += it_size*(range.first + shift);
+    sptr += it_size*range.first;
+    block_copy(dptr, sptr, it_size*(range.one_past_last - range.first));
+}
+
+#define block_copy_array_shift(d,s,r,h) block_copy_array_shift__inner((d),(s),sizeof(*(d)),(r),(h))
+
 ////////////////////////////////
 
 internal f32

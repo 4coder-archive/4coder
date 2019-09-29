@@ -26,12 +26,6 @@ struct Working_Set{
     Node touch_order_sentinel;
     i32 active_file_count;
     
-    Node edit_finished_sentinel;
-    i32 edit_finished_count;
-    u64 time_of_next_edit_finished_signal;
-    Plat_Handle edit_finished_timer;
-    b32 do_not_mark_edits;
-    
     Table_u64_u64 id_to_ptr_table;
     Table_Data_u64 canon_table;
     Table_Data_u64 name_table;
@@ -50,12 +44,6 @@ struct Working_Set{
     i32 clipboard_current;
     i32 clipboard_rolling;
 };
-
-internal void
-file_mark_edit_finished(Working_Set *working_set, Editing_File *file);
-
-internal b32
-file_unmark_edit_finished(Working_Set *working_set, Editing_File *file);
 
 #endif
 

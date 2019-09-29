@@ -173,7 +173,6 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     models->hook_save_file = 0;
     models->hook_end_file = 0;
     models->hook_file_edit_range = 0;
-    models->hook_file_edit_finished = 0;
     models->command_caller = 0;
     models->render_caller = 0;
     models->input_filter = 0;
@@ -377,11 +376,6 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                 case special_hook_file_edit_range:
                                 {
                                     models->hook_file_edit_range = (File_Edit_Range_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_file_edit_finished:
-                                {
-                                    models->hook_file_edit_finished = (File_Edit_Finished_Function*)unit->hook.func;
                                 }break;
                                 
                                 case special_hook_file_externally_modified:
@@ -1341,68 +1335,6 @@ App_Step_Sig(app_step){
                     dll_remove(node);
                     block_zero_struct(node);
                     hook_file_externally_modified(&models->app_links, file->id);
-                }
-            }
-        }
-    }
-    
-    // NOTE(allen): hook for files marked "edit finished"
-    {
-        File_Edit_Finished_Function *hook_file_edit_finished = models->hook_file_edit_finished;
-        if (hook_file_edit_finished != 0){
-            Working_Set *working_set = &models->working_set;
-            if (working_set->edit_finished_count > 0){
-                Assert(working_set->edit_finished_sentinel.next != 0);
-                b32 trigger_hook = false;
-                
-                u32 elapse_time = models->edit_finished_hook_repeat_speed;
-                if (elapse_time != 0){
-                    trigger_hook = true;
-                }
-                else if (working_set->time_of_next_edit_finished_signal == 0){
-                    u32 trigger_window_length = 0;
-                    if (elapse_time > 5){
-                        trigger_window_length = elapse_time - 5;
-                    }
-                    u64 trigger_time = system->now_time() + (u64)trigger_window_length*1000LLU;
-                    working_set->time_of_next_edit_finished_signal = trigger_time;
-                    system->wake_up_timer_set(working_set->edit_finished_timer, elapse_time);
-                }
-                else if (system->now_time() >= working_set->time_of_next_edit_finished_signal){
-                    trigger_hook = true;
-                }
-                if (trigger_hook){
-                    Arena *scratch = &models->mem.arena;
-                    Temp_Memory temp = begin_temp(scratch);
-                    Node *first = working_set->edit_finished_sentinel.next;
-                    Node *one_past_last = &working_set->edit_finished_sentinel;
-                    
-                    i32 max_id_count = working_set->edit_finished_count;
-                    Editing_File **file_ptrs = push_array(scratch, Editing_File*, max_id_count);
-                    Buffer_ID *ids = push_array(scratch, Buffer_ID, max_id_count);
-                    i32 id_count = 0;
-                    for (Node *node = first;
-                         node != one_past_last;
-                         node = node->next){
-                        Editing_File *file_ptr = CastFromMember(Editing_File, edit_finished_mark_node, node);
-                        file_ptrs[id_count] = file_ptr;
-                        ids[id_count] = file_ptr->id;
-                        id_count += 1;
-                    }
-                    
-                    working_set->do_not_mark_edits = true;
-                    hook_file_edit_finished(&models->app_links, ids, id_count);
-                    working_set->do_not_mark_edits = false;
-                    
-                    for (i32 i = 0; i < id_count; i += 1){
-                        file_ptrs[i]->edit_finished_marked = false;
-                    }
-                    
-                    dll_init_sentinel(&working_set->edit_finished_sentinel);
-                    working_set->edit_finished_count = 0;
-                    working_set->time_of_next_edit_finished_signal = 0;
-                    
-                    end_temp(temp);
                 }
             }
         }

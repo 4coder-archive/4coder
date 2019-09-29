@@ -548,9 +548,6 @@ TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_
                                           Interval_i64 range, String_Const_u8 text);
 #define FILE_EDIT_RANGE_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id, Interval_i64 range, String_Const_u8 text)
 
-TYPEDEF_FUNC i32 File_Edit_Finished_Function(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count);
-#define FILE_EDIT_FINISHED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID *buffer_ids, i32 buffer_id_count)
-
 TYPEDEF_FUNC i32 File_Externally_Modified_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define FILE_EXTERNALLY_MODIFIED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
 

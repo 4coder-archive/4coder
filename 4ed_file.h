@@ -83,8 +83,6 @@ struct Editing_File{
     };
     Node touch_node;
     Node external_mod_node;
-    Node edit_finished_mark_node;
-    b32 edit_finished_marked;
     b32 is_loading;
     Buffer_ID id;
     Editing_File_Settings settings;

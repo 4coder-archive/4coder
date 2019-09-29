@@ -134,22 +134,24 @@ table_rehash(Table_u64_u64 *dst, Table_u64_u64 *src){
 internal b32
 table_insert(Table_u64_u64 *table, u64 key, u64 val){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
-    if (!lookup.found_match){
-        if ((table->dirty_count + 1)*8 >= table->slot_count*7){
-            i32 new_slot_count = table->slot_count;
-            if (table->used_count*2 >= table->slot_count){
-                new_slot_count = table->slot_count*4;
+    if (key != table_empty_key && key != table_erased_key){
+        Table_Lookup lookup = table_lookup(table, key);
+        if (!lookup.found_match){
+            if ((table->dirty_count + 1)*8 >= table->slot_count*7){
+                i32 new_slot_count = table->slot_count;
+                if (table->used_count*2 >= table->slot_count){
+                    new_slot_count = table->slot_count*4;
+                }
+                Table_u64_u64 new_table = make_table_u64_u64(table->allocator, new_slot_count);
+                table_rehash(&new_table, table);
+                table_free(table);
+                *table = new_table;
+                lookup = table_lookup(table, key);
+                Assert(lookup.found_empty_slot);
             }
-            Table_u64_u64 new_table = make_table_u64_u64(table->allocator, new_slot_count);
-            table_rehash(&new_table, table);
-            table_free(table);
-            *table = new_table;
-            lookup = table_lookup(table, key);
-            Assert(lookup.found_empty_slot);
+            table_insert__inner(table, lookup, val);
+            result = true;
         }
-        table_insert__inner(table, lookup, val);
-        result = true;
     }
     return(result);
 }
@@ -288,22 +290,24 @@ table_rehash(Table_u32_u16 *dst, Table_u32_u16 *src){
 internal b32
 table_insert(Table_u32_u16 *table, u32 key, u16 val){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
-    if (!lookup.found_match){
-        if ((table->dirty_count + 1)*8 >= table->slot_count*7){
-            i32 new_slot_count = table->slot_count;
-            if (table->used_count*2 >= table->slot_count){
-                new_slot_count = table->slot_count*4;
+    if (key != table_empty_u32_key && key != table_erased_u32_key){
+        Table_Lookup lookup = table_lookup(table, key);
+        if (!lookup.found_match){
+            if ((table->dirty_count + 1)*8 >= table->slot_count*7){
+                i32 new_slot_count = table->slot_count;
+                if (table->used_count*2 >= table->slot_count){
+                    new_slot_count = table->slot_count*4;
+                }
+                Table_u32_u16 new_table = make_table_u32_u16(table->allocator, new_slot_count);
+                table_rehash(&new_table, table);
+                table_free(table);
+                *table = new_table;
+                lookup = table_lookup(table, key);
+                Assert(lookup.found_empty_slot);
             }
-            Table_u32_u16 new_table = make_table_u32_u16(table->allocator, new_slot_count);
-            table_rehash(&new_table, table);
-            table_free(table);
-            *table = new_table;
-            lookup = table_lookup(table, key);
-            Assert(lookup.found_empty_slot);
+            table_insert__inner(table, lookup, key, val);
+            result = true;
         }
-        table_insert__inner(table, lookup, key, val);
-        result = true;
     }
     return(result);
 }
@@ -453,22 +457,24 @@ table_rehash(Table_Data_u64 *dst, Table_Data_u64 *src){
 internal b32
 table_insert(Table_Data_u64 *table, Data key, u64 val){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
-    if (!lookup.found_match){
-        if ((table->dirty_count + 1)*8 >= table->slot_count*7){
-            i32 new_slot_count = table->slot_count;
-            if (table->used_count*2 >= table->slot_count){
-                new_slot_count = table->slot_count*4;
+    if (key.data != 0){
+        Table_Lookup lookup = table_lookup(table, key);
+        if (!lookup.found_match){
+            if ((table->dirty_count + 1)*8 >= table->slot_count*7){
+                i32 new_slot_count = table->slot_count;
+                if (table->used_count*2 >= table->slot_count){
+                    new_slot_count = table->slot_count*4;
+                }
+                Table_Data_u64 new_table = make_table_Data_u64(table->allocator, new_slot_count);
+                table_rehash(&new_table, table);
+                table_free(table);
+                *table = new_table;
+                lookup = table_lookup(table, key);
+                Assert(lookup.found_empty_slot);
             }
-            Table_Data_u64 new_table = make_table_Data_u64(table->allocator, new_slot_count);
-            table_rehash(&new_table, table);
-            table_free(table);
-            *table = new_table;
-            lookup = table_lookup(table, key);
-            Assert(lookup.found_empty_slot);
+            table_insert__inner(table, lookup, key, val);
+            result = true;
         }
-        table_insert__inner(table, lookup, key, val);
-        result = true;
     }
     return(result);
 }
@@ -612,22 +618,24 @@ table_rehash(Table_u64_Data *dst, Table_u64_Data *src){
 internal b32
 table_insert(Table_u64_Data *table, u64 key, Data val){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
-    if (!lookup.found_match){
-        if ((table->dirty_count + 1)*8 >= table->slot_count*7){
-            i32 new_slot_count = table->slot_count;
-            if (table->used_count*2 >= table->slot_count){
-                new_slot_count = table->slot_count*4;
+    if (key != table_empty_key && table_erased_key){
+        Table_Lookup lookup = table_lookup(table, key);
+        if (!lookup.found_match){
+            if ((table->dirty_count + 1)*8 >= table->slot_count*7){
+                i32 new_slot_count = table->slot_count;
+                if (table->used_count*2 >= table->slot_count){
+                    new_slot_count = table->slot_count*4;
+                }
+                Table_u64_Data new_table = make_table_u64_Data(table->allocator, new_slot_count);
+                table_rehash(&new_table, table);
+                table_free(table);
+                *table = new_table;
+                lookup = table_lookup(table, key);
+                Assert(lookup.found_empty_slot);
             }
-            Table_u64_Data new_table = make_table_u64_Data(table->allocator, new_slot_count);
-            table_rehash(&new_table, table);
-            table_free(table);
-            *table = new_table;
-            lookup = table_lookup(table, key);
-            Assert(lookup.found_empty_slot);
+            table_insert__inner(table, lookup, val);
+            result = true;
         }
-        table_insert__inner(table, lookup, val);
-        result = true;
     }
     return(result);
 }
@@ -772,22 +780,24 @@ table_rehash(Table_Data_Data *dst, Table_Data_Data *src){
 internal b32
 table_insert(Table_Data_Data *table, Data key, Data val){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
-    if (!lookup.found_match){
-        if ((table->dirty_count + 1)*8 >= table->slot_count*7){
-            i32 new_slot_count = table->slot_count;
-            if (table->used_count*2 >= table->slot_count){
-                new_slot_count = table->slot_count*4;
+    if (key.data != 0){
+        Table_Lookup lookup = table_lookup(table, key);
+        if (!lookup.found_match){
+            if ((table->dirty_count + 1)*8 >= table->slot_count*7){
+                i32 new_slot_count = table->slot_count;
+                if (table->used_count*2 >= table->slot_count){
+                    new_slot_count = table->slot_count*4;
+                }
+                Table_Data_Data new_table = make_table_Data_Data(table->allocator, new_slot_count);
+                table_rehash(&new_table, table);
+                table_free(table);
+                *table = new_table;
+                lookup = table_lookup(table, key);
+                Assert(lookup.found_empty_slot);
             }
-            Table_Data_Data new_table = make_table_Data_Data(table->allocator, new_slot_count);
-            table_rehash(&new_table, table);
-            table_free(table);
-            *table = new_table;
-            lookup = table_lookup(table, key);
-            Assert(lookup.found_empty_slot);
+            table_insert__inner(table, lookup, key, val);
+            result = true;
         }
-        table_insert__inner(table, lookup, key, val);
-        result = true;
     }
     return(result);
 }

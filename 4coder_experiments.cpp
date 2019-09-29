@@ -196,12 +196,14 @@ get_bindings(void *data, i32 size){
     set_open_file_hook(context, default_file_settings);
     set_new_file_hook(context, default_new_file);
     set_save_file_hook(context, default_file_save);
+    set_file_edit_range_hook(context, default_file_edit_range);
+    set_file_externally_modified_hook(context, default_file_externally_modified);
+    
     set_end_file_hook(context, end_file_close_jump_list);
     
-    set_input_filter(context, default_suppress_mouse_filter);
     set_command_caller(context, default_command_caller);
     set_render_caller(context, default_render_caller);
-    
+    set_input_filter(context, default_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);
     set_buffer_name_resolver(context, default_buffer_name_resolution);
     set_modify_color_table_hook(context, default_modify_color_table);

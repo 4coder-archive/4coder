@@ -13,7 +13,6 @@ internal void
 edit_pre_state_change(Models *models, Editing_File *file){
     System_Functions *system = models->system;
     file_add_dirty_flag(file, DirtyState_UnsavedChanges);
-    file_unmark_edit_finished(&models->working_set, file);
 }
 
 internal void
@@ -191,10 +190,10 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     Assert(edit.range.one_past_last <= buffer_size(buffer));
     
     Arena *scratch = &models->mem.arena;
+    Temp_Memory temp = begin_temp(scratch);
     
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
-        // TODO(allen): if the edit number counter is not updated, maybe auto-merge edits?  Wouldn't that just work?
         history_dump_records_after_index(&file->state.history, file->state.current_record_index);
         history_record_edit(&models->global_history, &file->state.history, buffer, edit);
         file->state.current_record_index = history_get_record_count(&file->state.history);
@@ -203,9 +202,10 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     // NOTE(allen): fixing stuff beforewards????
     edit_pre_state_change(models, file);
     
-    // NOTE(allen): edit range hook
+    // NOTE(allen): save the original text for the edit range hook.
+    String_Const_u8 original_text = {};
     if (models->hook_file_edit_range != 0){
-        models->hook_file_edit_range(&models->app_links, file->id, edit.range, edit.text);
+        original_text = buffer_stringify(scratch, &file->state.buffer, edit.range);
     }
     
     // NOTE(allen): expand spec, compute shift
@@ -227,8 +227,13 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     // NOTE(allen): cursor fixing
     edit_fix_markers(models, file, edit);
     
-    // NOTE(allen): mark edit finished
-    file_mark_edit_finished(&models->working_set, file);
+    // NOTE(allen): edit range hook
+    if (models->hook_file_edit_range != 0){
+        Interval_i64 new_range = Ii64(edit.range.first, edit.range.first + edit.text.size);
+        models->hook_file_edit_range(&models->app_links, file->id, new_range, original_text);
+    }
+    
+    end_temp(temp);
 }
 
 internal void

@@ -23,18 +23,35 @@ token_list_push(Arena *arena, Token_List *list, Token *token){
     list->total_count += 1;
 }
 
+internal void
+token_fill_memory_from_list(Token *dst, Token_List *list){
+    Token *ptr = dst;
+    for (Token_Block *node = list->first;
+         node != 0;
+         node = node->next){
+        block_copy_dynamic_array(ptr, node->tokens, node->count);
+        ptr += node->count;
+    }
+}
+
+internal Token_Array
+token_array_from_list_always_copy(Arena *arena, Token_List *list){
+    Token_Array array = {};
+    if (list->node_count >= 1){
+        array.tokens = push_array(arena, Token, list->total_count);
+        token_fill_memory_from_list(array.tokens, list);
+        array.count = list->total_count;
+        array.max = array.count;
+    }
+    return(array);
+}
+
 internal Token_Array
 token_array_from_list(Arena *arena, Token_List *list){
     Token_Array array = {};
     if (list->node_count > 1){
         array.tokens = push_array(arena, Token, list->total_count);
-        Token *ptr = array.tokens;
-        for (Token_Block *node = list->first;
-             node != 0;
-             node = node->next){
-            block_copy_dynamic_array(ptr, node->tokens, node->count);
-            ptr += node->count;
-        }
+        token_fill_memory_from_list(array.tokens, list);
         array.count = list->total_count;
         array.max = array.count;
     }
@@ -49,27 +66,29 @@ token_array_from_list(Arena *arena, Token_List *list){
 internal i64
 token_index_from_pos(Token *tokens, i64 count, i64 pos){
     i64 result = 0;
-    if (pos >= tokens[count - 1].pos){
-        result = count - 1;
-    }
-    else if (pos < 0){
-        result = 0;
-    }
-    else{
-        i64 first = 0;
-        i64 one_past_last = count;
-        for (;;){
-            i64 index = (first + one_past_last) >> 1;
-            i64 index_pos = tokens[index].pos;
-            if (index_pos > pos){
-                one_past_last = index;
-            }
-            else if (index_pos + tokens[index].size <= pos){
-                first = index + 1;
-            }
-            else{
-                result = index;
-                break;
+    if (count > 0){
+        if (pos >= tokens[count - 1].pos){
+            result = count - 1;
+        }
+        else if (pos <= tokens[0].pos){
+            result = 0;
+        }
+        else{
+            i64 first = 0;
+            i64 one_past_last = count;
+            for (;;){
+                i64 index = (first + one_past_last) >> 1;
+                i64 index_pos = tokens[index].pos;
+                if (index_pos > p){
+                    one_past_last = index;
+                }
+                else if (index_pos + tokens[index].size <= pos){
+                    first = index + 1;
+                }
+                else{
+                    result = index;
+                    break;
+                }
             }
         }
     }
@@ -560,6 +579,98 @@ token_it_dec(Token_Iterator *it){
         }break;
     }
     return(0);
+}
+
+////////////////////////////////
+
+internal void
+token_drop_eof(Token_List *list){
+    if (list->last != 0){
+        Token_Block *block = list->last;
+        if (block->tokens[block->count - 1].kind == TokenBaseKind_EOF){
+            list->total_count -= 1;
+            block->count -= 1;
+            if (block->count == 0){
+                zdll_remove(list->first, list->last, block);
+                list->node_count -= 1;
+            }
+        }
+    }
+}
+
+////////////////////////////////
+
+internal i64
+token_relex_first(Token_Array *tokens, i64 edit_range_first, i64 backup_repeats){
+    Token_Iterator_Array it = token_iterator_pos(0, tokens, edit_range_first);
+    b32 good_status = true;
+    for (i64 i = 0; i < backup_repeats && good_status; i += 1){
+        good_status = token_it_dec(&it);
+    }
+    if (good_status){
+        for (;;){
+            Token *token = token_it_read(&it);
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
+                break;
+            }
+            if (!token_it_dec(&it)){
+                break;
+            }
+        }
+    }
+    return(token_it_index(&it));
+}
+
+internal i64
+token_relex_resync(Token_Array *tokens, i64 edit_range_first, i64 look_ahead_repeats){
+    Token_Iterator_Array it = token_iterator_pos(0, tokens, edit_range_first);
+    b32 good_status = true;
+    for (i64 i = 0; i < look_ahead_repeats && good_status; i += 1){
+        good_status = token_it_inc(&it);
+    }
+    if (good_status){
+        for (;;){
+            Token *token = token_it_read(&it);
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
+                break;
+            }
+            if (!token_it_inc(&it)){
+                break;
+            }
+        }
+    }
+    return(token_it_index(&it));
+}
+
+internal Token_Relex
+token_relex(Token_List relex_list, i64 new_pos_to_old_pos_shift, Token *tokens, i64 relex_first, i64 relex_last){
+    Token_Relex relex = {};
+    if (relex_list.total_count > 0){
+        Token_Array relexed_tokens = {tokens + relex_first, relex_last - relex_first + 1};
+        Token_Iterator_List it = token_iterator_index(0, &relex_list, relex_list.total_count - 1);
+        for (;;){
+            Token *token = token_it_read(&it);
+            i64 new_pos_rebased = token->pos + new_pos_to_old_pos_shift;
+            i64 old_token_index = token_index_from_pos(&relexed_tokens, new_pos_rebased);
+            Token *old_token = relexed_tokens.tokens + old_token_index;
+            if (new_pos_rebased == old_token->pos &&
+                token->size == old_token->size &&
+                token->kind == old_token->kind &&
+                token->sub_kind == old_token->sub_kind &&
+                token->flags == old_token->flags &&
+                token->sub_flags == old_token->sub_flags){
+                relex.successful_resync = true;
+                relex.first_resync_index = relex_first + old_token_index;
+            }
+            else{
+                break;
+            }
+            if (!token_it_dec_all(&it)){
+                break;
+            }
+        }
+    }
+    return(relex);
 }
 
 // BOTTOM

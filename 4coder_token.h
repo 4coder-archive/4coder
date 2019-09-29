@@ -81,6 +81,11 @@ struct Token_List{
     i64 total_count;
 };
 
+struct Token_Relex{
+    b32 successful_resync;
+    i64 first_resync_index;
+};
+
 struct Token_Iterator_Array{
     u64 user_id;
     Token *ptr;

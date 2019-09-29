@@ -233,8 +233,6 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     file->lifetime_object = lifetime_alloc_object(&models->lifetime_allocator, DynamicWorkspace_Buffer, file);
     history_init(&models->app_links, &file->state.history);
     
-    file_mark_edit_finished(&models->working_set, file);
-    
     file->state.cached_layouts_arena = make_arena(allocator);
     file->state.line_layout_table = make_table_Data_u64(allocator, 500);
     
@@ -272,8 +270,6 @@ file_free(System_Functions *system, Lifetime_Allocator *lifetime_allocator, Work
     
     linalloc_clear(&file->state.cached_layouts_arena);
     table_free(&file->state.line_layout_table);
-    
-    file_unmark_edit_finished(working_set, file);
 }
 
 ////////////////////////////////

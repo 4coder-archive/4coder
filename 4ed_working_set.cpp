@@ -125,9 +125,6 @@ working_set_init(Models *models, Working_Set *working_set){
     dll_init_sentinel(&working_set->active_file_sentinel);
     dll_init_sentinel(&working_set->touch_order_sentinel);
     
-    dll_init_sentinel(&working_set->edit_finished_sentinel);
-    working_set->edit_finished_timer = system->wake_up_timer_create();
-    
     local_const i32 slot_count = 128;
     Base_Allocator *allocator = get_base_allocator_system(system);
     working_set->id_to_ptr_table = make_table_u64_u64(allocator, slot_count);
@@ -500,36 +497,6 @@ file_get_next(Working_Set *working_set, Editing_File *file){
         }
     }
     return(file);
-}
-
-internal void
-file_mark_edit_finished(Working_Set *working_set, Editing_File *file){
-    // TODO(allen): do(propogate do_not_mark_edits down the edit pipeline to here)
-    // This current method only works for synchronous calls, asynchronous calls
-    // will get the wrong do_not_mark_edits value.
-    if (!working_set->do_not_mark_edits){
-        if (!file->edit_finished_marked){
-            file->edit_finished_marked = true;
-            dll_insert_back(&working_set->edit_finished_sentinel,
-                            &file->edit_finished_mark_node);
-            working_set->edit_finished_count += 1;
-        }
-    }
-}
-
-internal b32
-file_unmark_edit_finished(Working_Set *working_set, Editing_File *file){
-    b32 result = false;
-    if (!working_set->do_not_mark_edits){
-        if (file->edit_finished_marked){
-            file->edit_finished_marked = false;
-            dll_remove(&file->edit_finished_mark_node);
-            working_set->edit_finished_count -= 1;
-            block_zero_struct(&file->edit_finished_mark_node);
-            result = true;
-        }
-    }
-    return(result);
 }
 
 ////////////////////////////////
