@@ -1704,6 +1704,43 @@ If32(f32 a, f32 b){
 }
 
 internal Interval_i32
+Ii32_size(i32 pos, i32 size){
+    Interval_i32 interval = {pos, pos + size};
+    if (size < 0){
+        interval.min = pos + size;
+        interval.max = pos;
+    }
+    return(interval);
+}
+internal Interval_i64
+Ii64_size(i64 pos, i64 size){
+    Interval_i64 interval = {pos, pos + size};
+    if (size < 0){
+        interval.min = pos + size;
+        interval.max = pos;
+    }
+    return(interval);
+}
+internal Interval_u64
+Iu64_size(u64 pos, u64 size){
+    Interval_u64 interval = {pos, pos + size};
+    if (size < 0){
+        interval.min = pos + size;
+        interval.max = pos;
+    }
+    return(interval);
+}
+internal Interval_f32
+If32_size(f32 pos, f32 size){
+    Interval_f32 interval = {pos, pos + size};
+    if (size < 0){
+        interval.min = pos + size;
+        interval.max = pos;
+    }
+    return(interval);
+}
+
+internal Interval_i32
 Ii32(i32 a){
     Interval_i32 interval = {a, a};
     return(interval);

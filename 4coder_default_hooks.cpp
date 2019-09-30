@@ -17,51 +17,11 @@ global Named_Mapping named_maps_values[] = {
 START_HOOK_SIG(default_start){
     named_maps = named_maps_values;
     named_map_count = ArrayCount(named_maps_values);
-    
     default_4coder_initialize(app, files, file_count);
     default_4coder_side_by_side_panels(app, files, file_count);
-    
-#if 0
-    default_4coder_one_panel(app, files, file_count);
-    
-    Panel_ID left = 0;
-    Panel_ID right = 0;
-    Panel_ID bottom = 0;
-    Panel_ID header = 0;
-    
-    View_ID left_view = get_active_view(app, AccessAll);
-    
-    view_get_panel(app, left_view, &left);
-    
-    Panel_ID h_split_main = 0;
-    Panel_ID h_split_minor = 0;
-    
-    panel_create_split(app, left  , ViewSplit_Bottom, &bottom, &h_split_main);
-    panel_create_split(app, bottom, ViewSplit_Top   , &header, &h_split_minor);
-    panel_create_split(app, left  , ViewSplit_Right , &right,  0);
-    
-    i32_Rect header_margin = {};
-    i32_Rect bottom_margin = {};
-    panel_get_margin(app, header, &header_margin);
-    panel_get_margin(app, header, &bottom_margin);
-    
-    i32 header_vertical_pixels = header_margin.y0 + header_margin.y1;
-    i32 margin_vertical_pixels = header_vertical_pixels + bottom_margin.y0 + bottom_margin.y1;
-    
-    
-    Face_ID face_id = 0;
-    get_face_id(app, 0, &face_id);
-    Face_Metrics metrics = {};
-    get_face_metrics(app, face_id, &metrics);
-    f32 line_height = metrics.line_height;
-    panel_set_split(app, h_split_main , PanelSplitKind_FixedPixels_BR, line_height*6.f + margin_vertical_pixels);
-    panel_set_split(app, h_split_minor, PanelSplitKind_FixedPixels_TL, line_height     + header_vertical_pixels);
-#endif
-    
     if (global_config.automatically_load_project){
         load_project(app);
     }
-    
     // no meaning for return
     return(0);
 }
@@ -89,7 +49,6 @@ COMMAND_CALLER_HOOK(default_command_caller){
     
     cmd.command(app);
     
-    
     next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
     if (next_rewrite != 0){
         Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
@@ -116,27 +75,6 @@ struct Highlight_Record{
     Range_i64 range;
     int_color color;
 };
-
-internal void
-sort_highlight_record(Highlight_Record *records, i32 first, i32 one_past_last){
-    if (first + 1 < one_past_last){
-        i32 pivot_index = one_past_last - 1;
-        int_color pivot_color = records[pivot_index].color;
-        i32 j = first;
-        for (i32 i = first; i < pivot_index; i += 1){
-            int_color color = records[i].color;
-            if (color < pivot_color){
-                Swap(Highlight_Record, records[i], records[j]);
-                j += 1;
-            }
-        }
-        Swap(Highlight_Record, records[pivot_index], records[j]);
-        pivot_index = j;
-        
-        sort_highlight_record(records, first, pivot_index);
-        sort_highlight_record(records, pivot_index + 1, one_past_last);
-    }
-}
 
 internal Range_i64_Array
 get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, u32 flags){
@@ -330,54 +268,53 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
 internal int_color
 get_token_color_cpp(Token token){
     int_color result = Stag_Default;
-    if (HasFlag(token.flags, TokenBaseFlag_PreprocessorBody)){
-        result = Stag_Preproc;
-    }
-    else{
-        switch (token.kind){
-            case TokenBaseKind_Keyword:
-            {            
-                result = Stag_Keyword;
-            }break;
-            case TokenBaseKind_Comment:
-            {
-                result = Stag_Comment;
-            }break;
-            case TokenBaseKind_LiteralString:
-            {
-                result = Stag_Str_Constant;
-            }break;
-            case TokenBaseKind_LiteralInteger:
-            {
-                result = Stag_Int_Constant;
-            }break;
-            case TokenBaseKind_LiteralFloat:
-            {
-                result = Stag_Float_Constant;
-            }break;
-            default:
-            {
-                switch (token.sub_kind){
-                    case TokenCppKind_LiteralTrue:
-                    case TokenCppKind_LiteralFalse:
-                    {
-                        result = Stag_Bool_Constant;
-                    }break;
-                    case TokenCppKind_LiteralCharacter:
-                    case TokenCppKind_LiteralCharacterWide:
-                    case TokenCppKind_LiteralCharacterUTF8:
-                    case TokenCppKind_LiteralCharacterUTF16:
-                    case TokenCppKind_LiteralCharacterUTF32:
-                    {
-                        result = Stag_Char_Constant;
-                    }break;
-                    case TokenCppKind_PPIncludeFile:
-                    {
-                        result = Stag_Include;
-                    }break;
-                }
-            }break;
-        }
+    switch (token.kind){
+        case TokenBaseKind_Preprocessor:
+        {
+            result = Stag_Preproc;
+        }break;
+        case TokenBaseKind_Keyword:
+        {            
+            result = Stag_Keyword;
+        }break;
+        case TokenBaseKind_Comment:
+        {
+            result = Stag_Comment;
+        }break;
+        case TokenBaseKind_LiteralString:
+        {
+            result = Stag_Str_Constant;
+        }break;
+        case TokenBaseKind_LiteralInteger:
+        {
+            result = Stag_Int_Constant;
+        }break;
+        case TokenBaseKind_LiteralFloat:
+        {
+            result = Stag_Float_Constant;
+        }break;
+        default:
+        {
+            switch (token.sub_kind){
+                case TokenCppKind_LiteralTrue:
+                case TokenCppKind_LiteralFalse:
+                {
+                    result = Stag_Bool_Constant;
+                }break;
+                case TokenCppKind_LiteralCharacter:
+                case TokenCppKind_LiteralCharacterWide:
+                case TokenCppKind_LiteralCharacterUTF8:
+                case TokenCppKind_LiteralCharacterUTF16:
+                case TokenCppKind_LiteralCharacterUTF32:
+                {
+                    result = Stag_Char_Constant;
+                }break;
+                case TokenCppKind_PPIncludeFile:
+                {
+                    result = Stag_Include;
+                }break;
+            }
+        }break;
     }
     return(result);
 }
@@ -431,41 +368,21 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     {
         Temp_Memory temp = begin_temp(scratch);
         String_Const_u8 tail = push_buffer_range(app, scratch, buffer, visible_range);
-        
-        Highlight_Record *record_first = 0;
-        Highlight_Record *record_last = 0;
-        i32 record_count = 0;
         i32 index = 0;
-        
         for (;tail.size > 0; tail = string_skip(tail, 1), index += 1){
             if (string_match(string_prefix(tail, 4), string_u8_litexpr("NOTE"))){
-                Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                sll_queue_push(record_first, record_last, record);
-                record_count += 1;
-                record->range.first = visible_range.first + index;
-                record->range.one_past_last = record->range.first + 4;
-                record->color = Stag_Text_Cycle_2;
+                Interval_i64 range = Ii64_size(visible_range.first + index, 4);
+                paint_text_color(app, text_layout_id, range, Stag_Text_Cycle_2);
                 tail = string_skip(tail, 3);
                 index += 3;
             }
             else if (string_match(string_prefix(tail, 4), string_u8_litexpr("TODO"))){
-                Highlight_Record *record = push_array(scratch, Highlight_Record, 1);
-                sll_queue_push(record_first, record_last, record);
-                record_count += 1;
-                record->range.first = visible_range.first + index;
-                record->range.one_past_last = record->range.first + 4;
-                record->color = Stag_Text_Cycle_1;
+                Interval_i64 range = Ii64_size(visible_range.first + index, 4);
+                paint_text_color(app, text_layout_id, range, Stag_Text_Cycle_1);
                 tail = string_skip(tail, 3);
                 index += 3;
             }
         }
-        
-        for (Highlight_Record *node = record_first;
-             node != 0;
-             node = node->next){
-            paint_text_color(app, text_layout_id, node->range, node->color);
-        }
-        
         end_temp(temp);
     }
     
