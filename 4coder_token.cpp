@@ -24,14 +24,21 @@ token_list_push(Arena *arena, Token_List *list, Token *token){
 }
 
 internal void
-token_fill_memory_from_list(Token *dst, Token_List *list){
+token_fill_memory_from_list(Token *dst, Token_List *list, i64 count){
     Token *ptr = dst;
     for (Token_Block *node = list->first;
-         node != 0;
+         node != 0 && count > 0;
          node = node->next){
-        block_copy_dynamic_array(ptr, node->tokens, node->count);
-        ptr += node->count;
+        i64 write_count = clamp_top(node->count, count);
+        block_copy_dynamic_array(ptr, node->tokens, write_count);
+        ptr += write_count;
+        count -= write_count;
     }
+}
+
+internal void
+token_fill_memory_from_list(Token *dst, Token_List *list){
+    token_fill_memory_from_list(dst, list, list->total_count);
 }
 
 internal Token_Array

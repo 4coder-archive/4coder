@@ -66,15 +66,8 @@ COMMAND_CALLER_HOOK(default_command_caller){
             }
         }
     }
-    
     return(0);
 }
-
-struct Highlight_Record{
-    Highlight_Record *next;
-    Range_i64 range;
-    int_color color;
-};
 
 internal Range_i64_Array
 get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, u32 flags){
@@ -1136,7 +1129,8 @@ FILE_EDIT_RANGE_SIG(default_file_edit_range){
         Token *token_first = ptr->tokens + token_index_first;
         Token *token_resync = ptr->tokens + token_index_resync_guess;
         
-        Interval_i64 relex_range = Ii64(token_first->pos, token_resync->pos + token_resync->size);
+        Interval_i64 relex_range = Ii64(token_first->pos,
+                                        token_resync->pos + token_resync->size + text_shift);
         String_Const_u8 partial_text = push_buffer_range(app, scratch, buffer_id, relex_range);
         
         Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
@@ -1144,7 +1138,7 @@ FILE_EDIT_RANGE_SIG(default_file_edit_range){
             token_drop_eof(&relex_list);
         }
         
-        Token_Relex relex = token_relex(relex_list, token_first->pos - text_shift, 
+        Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
                                         ptr->tokens, token_index_first, token_index_resync_guess);
         
         Base_Allocator *allocator = managed_scope_allocator(app, scope);
@@ -1153,19 +1147,25 @@ FILE_EDIT_RANGE_SIG(default_file_edit_range){
             i64 token_index_resync = relex.first_resync_index;
             
             Interval_i64 head = Ii64(0, token_index_first);
+            Interval_i64 replaced = Ii64(token_index_first, token_index_resync);
             Interval_i64 tail = Ii64(token_index_resync, ptr->count);
-            i64 tail_shift = relex_list.total_count - (token_index_resync - token_index_first);
+            i64 resynced_count = (token_index_resync_guess + 1) - token_index_resync;
+            i64 relexed_count = relex_list.total_count - resynced_count;
+            i64 tail_shift = relexed_count - (token_index_resync - token_index_first);
             
             i64 new_tokens_count = ptr->count + tail_shift;
             Token *new_tokens = base_array(allocator, Token, new_tokens_count);
             
             Token *old_tokens = ptr->tokens;
             block_copy_array_shift(new_tokens, old_tokens, head, 0);
+            token_fill_memory_from_list(new_tokens + replaced.first, &relex_list, relexed_count);
+            for (i64 i = 0, index = replaced.first; i < relexed_count; i += 1, index += 1){
+                new_tokens[index].pos += relex_range.first;
+            }
             for (i64 i = tail.first; i < tail.one_past_last; i += 1){
                 old_tokens[i].pos += text_shift;
             }
             block_copy_array_shift(new_tokens, ptr->tokens, tail, tail_shift);
-            token_fill_memory_from_list(new_tokens + head.one_past_last, &relex_list);
             
             base_free(allocator, ptr->tokens);
             
@@ -1178,6 +1178,20 @@ FILE_EDIT_RANGE_SIG(default_file_edit_range){
             base_free(allocator, ptr->tokens);
             do_full_lex(app, buffer_id);
         }
+        
+#if 1
+        {
+            String_Const_u8 full = push_whole_buffer(app, scratch, buffer_id);
+            Token_List list = lex_full_input_cpp(scratch, full);
+            Token_Array array = token_array_from_list(scratch, &list);
+            Assert(array.count == ptr->count);
+            Token *token_a = array.tokens;
+            Token *token_b = ptr->tokens;
+            for (i64 i = 0; i < array.count; i += 1, token_a += 1, token_b += 1){
+                Assert(block_match_struct(token_a, token_b));
+            }
+        }
+#endif
     }
     
     // no meaning for return
