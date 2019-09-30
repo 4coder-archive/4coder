@@ -1179,7 +1179,9 @@ FILE_EDIT_RANGE_SIG(default_file_edit_range){
             do_full_lex(app, buffer_id);
         }
         
-#if 1
+#if 0
+        // NOTE(allen): Assert correctness of relex results. Enable this code
+        // to track down corruption of the token data.
         {
             String_Const_u8 full = push_whole_buffer(app, scratch, buffer_id);
             Token_List list = lex_full_input_cpp(scratch, full);
