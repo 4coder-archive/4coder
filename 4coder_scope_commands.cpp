@@ -39,7 +39,7 @@ find_scope_top(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flag
     b32 success = false;
     Token_Array array = get_token_array_from_buffer(app, buffer);
     if (array.tokens != 0){
-        i64 position = 0;
+        i64 position = start_pos;
         i64 token_index = token_index_from_pos(&array, start_pos);
         Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
         b32 good_status = true;
@@ -73,7 +73,7 @@ find_scope_top(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flag
             good_status = token_it_dec(&it);
         }
         finished:;
-        *end_pos_out = start_pos;
+        *end_pos_out = position;
     }
     return(success);
 }
@@ -83,7 +83,7 @@ find_scope_bottom(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 f
     b32 success = false;
     Token_Array array = get_token_array_from_buffer(app, buffer);
     if (array.tokens != 0){
-        i64 position = 0;
+        i64 position = start_pos;
         i64 token_index = token_index_from_pos(&array, start_pos);
         Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
         token_it_inc(&it);
@@ -118,7 +118,7 @@ find_scope_bottom(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 f
             good_status = token_it_inc(&it);
         }
         finished:;
-        *end_pos_out = start_pos;
+        *end_pos_out = position;
     }
     return(success);
 }
@@ -128,7 +128,7 @@ find_next_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
     b32 success = false;
     Token_Array array = get_token_array_from_buffer(app, buffer);
     if (array.tokens != 0){
-        i64 position = 0;
+        i64 position = start_pos;
         i64 token_index = token_index_from_pos(&array, start_pos);
         Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
         token_it_inc(&it);
@@ -182,7 +182,7 @@ find_next_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
             }
         }
         finished:;
-        *end_pos_out = start_pos;
+        *end_pos_out = position;
     }
     return(success);
 }
@@ -192,7 +192,7 @@ find_prev_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
     b32 success = false;
     Token_Array array = get_token_array_from_buffer(app, buffer);
     if (array.tokens != 0){
-        i64 position = 0;
+        i64 position = start_pos;
         i64 token_index = token_index_from_pos(&array, start_pos);
         Token_Iterator_Array it = token_iterator_index(buffer, &array, token_index);
         if (HasFlag(flags, FindScope_NextSibling)){

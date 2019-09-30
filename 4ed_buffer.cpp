@@ -552,10 +552,11 @@ buffer_cursor_from_line_col(Gap_Buffer *buffer, i64 line, i64 col){
     i64 size = buffer_size(buffer);
     i64 line_index = line - 1;
     i64 line_count = buffer_line_count(buffer);
-    line_index = clamp(0, line_index, line_count);
+    line_index = clamp(0, line_index, line_count - 1);
     
     i64 this_start = buffer->line_starts[line_index];
     i64 max_col = (buffer->line_starts[line_index + 1] - this_start);
+    max_col = clamp_bot(1, max_col);
     
     if (col < 0){
         if (-col > max_col){
