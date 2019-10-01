@@ -106,23 +106,6 @@ translating_consume_byte(Translation_State *tran, u8 ch, u32 i, u32 size, Transl
 }
 
 internal void
-translating_select_emit_rule_ASCII(Translation_State *tran, Translation_Byte_Description desc, Translation_Emit_Rule *type_out){
-    type_out->byte_class = desc.byte_class;
-    type_out->last_byte_handler = desc.last_byte_handler;
-    type_out->emit_type = desc.prelim_emit_type;
-    
-    type_out->codepoint = 0;
-    type_out->codepoint_length = 0;
-    if (desc.prelim_emit_type == BufferModelUnit_Codepoint){
-        u32 cp = utf8_to_u32_length_unchecked(tran->fill_buffer, &type_out->codepoint_length);
-        type_out->codepoint = cp;
-        if (!(cp == '\n' || cp == '\t' || cp == '\r' || (cp >= ' ' && cp <= 255 && cp != 127))){
-            type_out->emit_type = BufferModelUnit_Numbers;
-        }
-    }
-}
-
-internal void
 translating_select_emit_rule_UTF8(Translation_State *tran, Translation_Byte_Description desc, Translation_Emit_Rule *type_out){
     type_out->byte_class = desc.byte_class;
     type_out->last_byte_handler = desc.last_byte_handler;
@@ -131,7 +114,12 @@ translating_select_emit_rule_UTF8(Translation_State *tran, Translation_Byte_Desc
     type_out->codepoint = 0;
     type_out->codepoint_length = 0;
     if (desc.prelim_emit_type == BufferModelUnit_Codepoint){
-        u32 cp = utf8_to_u32_length_unchecked(tran->fill_buffer, &type_out->codepoint_length);
+        Character_Consume_Result consume = utf8_consume(tran->fill_buffer, ArrayCount(tran->fill_buffer));
+        u32 cp = consume.codepoint;
+        type_out->codepoint_length = consume.inc;
+        if (cp == max_u32){
+            type_out->codepoint_length = 0;
+        }
         if (type_out->codepoint_length != 0){
             if ((cp >= nonchar_min && cp <= nonchar_max) || ((cp & 0xFFFF) >= 0xFFFE)){
                 type_out->emit_type = BufferModelUnit_Numbers;

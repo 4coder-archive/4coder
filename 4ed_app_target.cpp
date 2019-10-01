@@ -30,8 +30,6 @@
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 
-#include "4coder_lib/4coder_utf8.h"
-
 #include "4ed_render_target.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"

@@ -999,6 +999,12 @@ struct Character_Consume_Result{
     u32 codepoint;
 };
 
+global u32 surrogate_min = 0xD800;
+global u32 surrogate_max = 0xDFFF;
+
+global u32 nonchar_min = 0xFDD0;
+global u32 nonchar_max = 0xFDEF;
+
 struct Data{
     u8 *data;
     umem size;

@@ -276,9 +276,9 @@ end_bind_helper_get_buffer(Bind_Helper *helper){
 
 internal u32
 get_key_code(char *buffer){
-    u32 ignore;
-    u32 result = utf8_to_u32_length_unchecked((u8*)buffer, &ignore);
-    return(result);
+    String_Const_u8 str = SCu8(buffer);
+    Character_Consume_Result consume = utf8_consume(str.str, str.size);
+    return(consume.codepoint);
 }
 
 ////////////////////////////////
@@ -1559,21 +1559,13 @@ key_is_unmodified(Key_Event_Data *key){
 }
 
 internal u32
-to_writable_character(User_Input in, uint8_t *character){
-    u32 result = 0;
-    if (in.key.character != 0){
-        u32_to_utf8_unchecked(in.key.character, character, &result);
-    }
-    return(result);
+to_writable_character(User_Input in, u8 *space){
+    return(utf8_write(space, in.key.character));
 }
 
 internal u32
-to_writable_character(Key_Event_Data key, uint8_t *character){
-    u32 result = 0;
-    if (key.character != 0){
-        u32_to_utf8_unchecked(key.character, character, &result);
-    }
-    return(result);
+to_writable_character(Key_Event_Data key, u8 *space){
+    return(utf8_write(space, key.character));
 }
 
 internal String_Const_u8
@@ -1617,7 +1609,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
             break;
         }
         
-        uint8_t character[4];
+        u8 character[4];
         u32 length = 0;
         b32 good_character = false;
         if (key_is_unmodified(&in.key)){

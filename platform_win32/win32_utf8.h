@@ -42,16 +42,6 @@ SetWindowText_utf8(Arena *scratch, HWND window, u8 *string);
 internal BOOL
 GetFileAttributesEx_utf8String(Arena *scratch, String_Const_u8 file_name, GET_FILEEX_INFO_LEVELS info_level_id, LPVOID file_info);
 
-// For implementation
-
-struct Win32_UTF16{
-    b32 success;
-    u32 utf8_len;
-    u32 utf16_max;
-    u32 utf16_len;
-    u16 *utf16;
-};
-
 #endif
 
 // BOTTOM

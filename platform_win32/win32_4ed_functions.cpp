@@ -378,17 +378,9 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
             Color_Picker *picker = (Color_Picker*)win32_params->lCustData;
             SetWindowLongPtr(Window, GWLP_USERDATA, (LONG_PTR)LParam);
             
-            u16 Temp[256];
-            Temp[ArrayCount(Temp) - 1] = 0;
-            
-            b32 ignored;
-            utf8_to_utf16_minimal_checking(Temp, ArrayCount(Temp), (u8 *)picker->title.str, picker->title.size, &ignored);
-            if(picker->title.size < ArrayCount(Temp))
-            {
-                Temp[picker->title.size] = 0;
-            }
-            
-            SetWindowTextW(Window, (LPCWSTR)Temp);
+            Scratch_Block scratch(win32vars.tctx);
+            String_u16 temp = string_u16_from_string_u8(scratch, picker->title, StringFill_NullTerminate);
+            SetWindowTextW(Window, (LPCWSTR)temp.str);
         } break;
         
         case WM_CTLCOLORSTATIC:

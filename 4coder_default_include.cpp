@@ -15,7 +15,6 @@
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
 
-#include "4coder_lib/4coder_utf8.h"
 #include "4coder_table.h"
 #include "4coder_token.h"
 

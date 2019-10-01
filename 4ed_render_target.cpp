@@ -318,7 +318,19 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 poin
                     if (color != 0){
                         u8 cs[3];
                         cs[0] = '\\';
-                        byte_to_ascii(n, cs+1);
+                        u8 nh = (n >> 4);
+                        u8 nl = (n & 0xF);
+                        u8 ch = '0' + nh;
+                        u8 cl = '0' + nl;
+                        if (nh > 0x9){
+                            ch = ('A' - 0xA) + nh;
+                        }
+                        if (nl > 0x9){
+                            cl = ('A' - 0xA) + nl;
+                        }
+                        cs[1] = ch;
+                        cs[2] = cl;
+                        
                         Vec2 pp = point;
                         for (u32 j = 0; j < 3; ++j){
                             draw_font_glyph(target, face, cs[j], pp.x, pp.y, color, flags);

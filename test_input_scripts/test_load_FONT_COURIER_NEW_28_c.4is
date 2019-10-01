@@ -1,6 +1,0 @@
-
-basewait 1
-key o MDFR_CTRL
-type 1 FONT_COURIER_NEW_28
-key key_newline MDFR_NONE
-exit

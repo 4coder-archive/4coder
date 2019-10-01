@@ -25,7 +25,6 @@
 #include "4coder_API/4coder_version.h"
 
 #include <string.h>
-#include "4coder_lib/4coder_utf8.h"
 
 #if defined(FRED_SUPER)
 # include "4coder_base_types.cpp"
@@ -170,8 +169,7 @@ struct Win32_Vars{
     
     String_Const_u8 binary_path;
     
-    u8 *clip_buffer;
-    u32 clip_max;
+    Arena *clipboard_arena;
     String_Const_u8 clipboard_contents;
     b32 next_clipboard_is_self;
     DWORD clipboard_sequence;
@@ -388,57 +386,34 @@ win32_read_clipboard_contents(Arena *scratch){
     if (can_read){
         if (OpenClipboard(win32vars.window_handle)){
             result = true;
-            HANDLE clip_data = 0;
-            i32 contents_length = 0;
+            String_u8 contents = {};
+            Arena *clip_arena = win32vars.clipboard_arena;
             if (has_unicode){
-                clip_data = GetClipboardData(CF_UNICODETEXT);
+                HANDLE clip_data = GetClipboardData(CF_UNICODETEXT);
                 if (clip_data != 0){
-                    u16 *clip_16 = (u16*)GlobalLock(clip_data);
-                    if (clip_16 != 0){
-                        u32 clip_16_len = 0;
-                        for(;clip_16[clip_16_len];++clip_16_len);
-                        
-                        b32 error = false;
-                        u32 clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max-1, clip_16, clip_16_len, &error);
-                        
-                        for (;clip_8_len >= win32vars.clip_max && !error;){
-                            system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
-                            win32vars.clip_max = round_up_u32(clip_8_len + 1, KB(4));
-                            win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
-                            clip_8_len = (u32)utf16_to_utf8_minimal_checking(win32vars.clip_buffer, win32vars.clip_max - 1, clip_16, clip_16_len, &error);
-                        }
-                        
-                        if (clip_8_len < win32vars.clip_max && !error){
-                            win32vars.clip_buffer[clip_8_len] = 0;
-                            contents_length = clip_8_len + 1;
-                        }
+                    u16 *clip_16_ptr = (u16*)GlobalLock(clip_data);
+                    if (clip_16_ptr != 0){
+                        linalloc_clear(clip_arena);
+                        String_Const_u16 clip_16 = SCu16(clip_16_ptr);
+                        contents = string_u8_from_string_u16(clip_arena, clip_16, StringFill_NullTerminate);
                     }
                 }
+                GlobalUnlock(clip_data);
             }
             else{
-                clip_data = GetClipboardData(CF_TEXT);
+                HANDLE clip_data = GetClipboardData(CF_TEXT);
                 if (clip_data != 0){
-                    char *clip_ascii = (char*)GlobalLock(clip_data);
-                    if (clip_ascii != 0){
-                        u32 clip_ascii_len = 0;
-                        for(;clip_ascii[clip_ascii_len];++clip_ascii_len);
-                        
-                        if (clip_ascii_len >= win32vars.clip_max){
-                            system_memory_free(win32vars.clip_buffer, win32vars.clip_max);
-                            win32vars.clip_max = round_up_u32(clip_ascii_len + 1, KB(4));
-                            win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
-                        }
-                        memcpy(win32vars.clip_buffer, clip_ascii, clip_ascii_len + 1);
-                        contents_length = clip_ascii_len + 1;
+                    char *clip_ascii_ptr = (char*)GlobalLock(clip_data);
+                    if (clip_ascii_ptr != 0){
+                        linalloc_clear(clip_arena);
+                        String_Const_char clip_ascii = SCchar(clip_ascii_ptr);
+                        contents = string_u8_from_string_char(clip_arena, clip_ascii, StringFill_NullTerminate);
                     }
                 }
+                GlobalUnlock(clip_data);
             }
             
-            if (contents_length > 0){
-                win32vars.clipboard_contents = SCu8(win32vars.clip_buffer, contents_length - 1);
-            }
-            
-            GlobalUnlock(clip_data);
+            win32vars.clipboard_contents = contents.string;
             
             CloseClipboard();
         }
@@ -1634,8 +1609,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32_output_error_string(scratch, ErrorString_UseLog);
     }
     
-    win32vars.clip_max = KB(16);
-    win32vars.clip_buffer = (u8*)system_memory_allocate(win32vars.clip_max);
+    win32vars.clipboard_arena = reserve_arena(win32vars.tctx);
     
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     if (win32vars.clipboard_sequence == 0){
