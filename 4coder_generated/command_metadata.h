@@ -9,7 +9,7 @@
 #define PROC_LINKS(x,y) y
 #endif
 #if defined(CUSTOM_COMMAND_SIG)
-CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp_minute);
+CUSTOM_COMMAND_SIG(set_bindings_mac_default);
 CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line);
 CUSTOM_COMMAND_SIG(seek_end_of_textual_line);
 CUSTOM_COMMAND_SIG(seek_beginning_of_line);
@@ -227,14 +227,14 @@ CUSTOM_COMMAND_SIG(comment_line);
 CUSTOM_COMMAND_SIG(uncomment_line);
 CUSTOM_COMMAND_SIG(comment_line_toggle);
 CUSTOM_COMMAND_SIG(snippet_lister);
-CUSTOM_COMMAND_SIG(set_bindings_choose);
-CUSTOM_COMMAND_SIG(set_bindings_default);
-CUSTOM_COMMAND_SIG(set_bindings_mac_default);
 CUSTOM_COMMAND_SIG(miblo_increment_basic);
 CUSTOM_COMMAND_SIG(miblo_decrement_basic);
 CUSTOM_COMMAND_SIG(miblo_increment_time_stamp);
 CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp);
 CUSTOM_COMMAND_SIG(miblo_increment_time_stamp_minute);
+CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp_minute);
+CUSTOM_COMMAND_SIG(set_bindings_choose);
+CUSTOM_COMMAND_SIG(set_bindings_default);
 #endif
 struct Command_Metadata{
 PROC_LINKS(Custom_Command_Function, void) *proc;
@@ -247,7 +247,7 @@ i32 source_name_len;
 i32 line_number;
 };
 static Command_Metadata fcoder_metacmd_table[226] = {
-{ PROC_LINKS(miblo_decrement_time_stamp_minute, 0), "miblo_decrement_time_stamp_minute", 33,  "Decrement a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\4coder_miblo_numbers.cpp", 36, 249 },
+{ PROC_LINKS(set_bindings_mac_default, 0), "set_bindings_mac_default", 24,  "Remap keybindings using the 'mac-default' mapping rule.", 55, "w:\\4ed\\code\\4coder_remapping_commands.cpp", 41, 62 },
 { PROC_LINKS(seek_beginning_of_textual_line, 0), "seek_beginning_of_textual_line", 30,  "Seeks the cursor to the beginning of the line across all text.", 62, "w:\\4ed\\code\\4coder_seek.cpp", 27, 29 },
 { PROC_LINKS(seek_end_of_textual_line, 0), "seek_end_of_textual_line", 24,  "Seeks the cursor to the end of the line across all text.", 56, "w:\\4ed\\code\\4coder_seek.cpp", 27, 35 },
 { PROC_LINKS(seek_beginning_of_line, 0), "seek_beginning_of_line", 22,  "Seeks the cursor to the beginning of the visual line.", 53, "w:\\4ed\\code\\4coder_seek.cpp", 27, 41 },
@@ -359,11 +359,11 @@ static Command_Metadata fcoder_metacmd_table[226] = {
 { PROC_LINKS(kill_buffer, 0), "kill_buffer", 11,  "Kills the current buffer.", 25, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1597 },
 { PROC_LINKS(save, 0), "save", 4,  "Saves the current buffer.", 25, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1605 },
 { PROC_LINKS(reopen, 0), "reopen", 6,  "Reopen the current buffer from the hard drive.", 46, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1615 },
-{ PROC_LINKS(undo, 0), "undo", 4,  "Advances backwards through the undo history of the current buffer.", 66, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1673 },
-{ PROC_LINKS(redo, 0), "redo", 4,  "Advances forwards through the undo history of the current buffer.", 65, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1686 },
-{ PROC_LINKS(undo_all_buffers, 0), "undo_all_buffers", 16,  "Advances backward through the undo history in the buffer containing the most recent regular edit.", 97, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1700 },
-{ PROC_LINKS(redo_all_buffers, 0), "redo_all_buffers", 16,  "Advances forward through the undo history in the buffer containing the most recent regular edit.", 96, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1771 },
-{ PROC_LINKS(open_in_other, 0), "open_in_other", 13,  "Interactively opens a file in the other panel.", 46, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1872 },
+{ PROC_LINKS(undo, 0), "undo", 4,  "Advances backwards through the undo history of the current buffer.", 66, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1842 },
+{ PROC_LINKS(redo, 0), "redo", 4,  "Advances forwards through the undo history of the current buffer.", 65, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1855 },
+{ PROC_LINKS(undo_all_buffers, 0), "undo_all_buffers", 16,  "Advances backward through the undo history in the buffer containing the most recent regular edit.", 97, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1869 },
+{ PROC_LINKS(redo_all_buffers, 0), "redo_all_buffers", 16,  "Advances forward through the undo history in the buffer containing the most recent regular edit.", 96, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 1940 },
+{ PROC_LINKS(open_in_other, 0), "open_in_other", 13,  "Interactively opens a file in the other panel.", 46, "w:\\4ed\\code\\4coder_base_commands.cpp", 36, 2041 },
 { PROC_LINKS(lister__quit, 0), "lister__quit", 12,  "A lister mode command that quits the list without executing any actions.", 72, "w:\\4ed\\code\\4coder_lists.cpp", 28, 8 },
 { PROC_LINKS(lister__activate, 0), "lister__activate", 16,  "A lister mode command that activates the list's action on the highlighted item.", 79, "w:\\4ed\\code\\4coder_lists.cpp", 28, 15 },
 { PROC_LINKS(lister__write_character, 0), "lister__write_character", 23,  "A lister mode command that dispatches to the lister's write character handler.", 78, "w:\\4ed\\code\\4coder_lists.cpp", 28, 30 },
@@ -465,16 +465,16 @@ static Command_Metadata fcoder_metacmd_table[226] = {
 { PROC_LINKS(uncomment_line, 0), "uncomment_line", 14,  "If present, delete '//' at the beginning of the line after leading whitespace.", 78, "w:\\4ed\\code\\4coder_combined_write_commands.cpp", 46, 137 },
 { PROC_LINKS(comment_line_toggle, 0), "comment_line_toggle", 19,  "Turns uncommented lines into commented lines and vice versa for comments starting with '//'.", 92, "w:\\4ed\\code\\4coder_combined_write_commands.cpp", 46, 149 },
 { PROC_LINKS(snippet_lister, 0), "snippet_lister", 14,  "Opens a snippet lister for inserting whole pre-written snippets of text.", 72, "w:\\4ed\\code\\4coder_combined_write_commands.cpp", 46, 233 },
-{ PROC_LINKS(set_bindings_choose, 0), "set_bindings_choose", 19,  "Remap keybindings using the 'choose' mapping rule.", 50, "w:\\4ed\\code\\4coder_remapping_commands.cpp", 41, 41 },
-{ PROC_LINKS(set_bindings_default, 0), "set_bindings_default", 20,  "Remap keybindings using the 'default' mapping rule.", 51, "w:\\4ed\\code\\4coder_remapping_commands.cpp", 41, 51 },
-{ PROC_LINKS(set_bindings_mac_default, 0), "set_bindings_mac_default", 24,  "Remap keybindings using the 'mac-default' mapping rule.", 55, "w:\\4ed\\code\\4coder_remapping_commands.cpp", 41, 62 },
 { PROC_LINKS(miblo_increment_basic, 0), "miblo_increment_basic", 21,  "Increment an integer under the cursor by one.", 45, "w:\\4ed\\code\\4coder_miblo_numbers.cpp", 36, 29 },
 { PROC_LINKS(miblo_decrement_basic, 0), "miblo_decrement_basic", 21,  "Decrement an integer under the cursor by one.", 45, "w:\\4ed\\code\\4coder_miblo_numbers.cpp", 36, 44 },
 { PROC_LINKS(miblo_increment_time_stamp, 0), "miblo_increment_time_stamp", 26,  "Increment a time stamp under the cursor by one second. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\4coder_miblo_numbers.cpp", 36, 231 },
 { PROC_LINKS(miblo_decrement_time_stamp, 0), "miblo_decrement_time_stamp", 26,  "Decrement a time stamp under the cursor by one second. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\4coder_miblo_numbers.cpp", 36, 237 },
 { PROC_LINKS(miblo_increment_time_stamp_minute, 0), "miblo_increment_time_stamp_minute", 33,  "Increment a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\4coder_miblo_numbers.cpp", 36, 243 },
+{ PROC_LINKS(miblo_decrement_time_stamp_minute, 0), "miblo_decrement_time_stamp_minute", 33,  "Decrement a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\4coder_miblo_numbers.cpp", 36, 249 },
+{ PROC_LINKS(set_bindings_choose, 0), "set_bindings_choose", 19,  "Remap keybindings using the 'choose' mapping rule.", 50, "w:\\4ed\\code\\4coder_remapping_commands.cpp", 41, 41 },
+{ PROC_LINKS(set_bindings_default, 0), "set_bindings_default", 20,  "Remap keybindings using the 'default' mapping rule.", 51, "w:\\4ed\\code\\4coder_remapping_commands.cpp", 41, 51 },
 };
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 0;
+static i32 fcoder_metacmd_ID_set_bindings_mac_default = 0;
 static i32 fcoder_metacmd_ID_seek_beginning_of_textual_line = 1;
 static i32 fcoder_metacmd_ID_seek_end_of_textual_line = 2;
 static i32 fcoder_metacmd_ID_seek_beginning_of_line = 3;
@@ -692,12 +692,12 @@ static i32 fcoder_metacmd_ID_comment_line = 214;
 static i32 fcoder_metacmd_ID_uncomment_line = 215;
 static i32 fcoder_metacmd_ID_comment_line_toggle = 216;
 static i32 fcoder_metacmd_ID_snippet_lister = 217;
-static i32 fcoder_metacmd_ID_set_bindings_choose = 218;
-static i32 fcoder_metacmd_ID_set_bindings_default = 219;
-static i32 fcoder_metacmd_ID_set_bindings_mac_default = 220;
-static i32 fcoder_metacmd_ID_miblo_increment_basic = 221;
-static i32 fcoder_metacmd_ID_miblo_decrement_basic = 222;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 223;
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 224;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 225;
+static i32 fcoder_metacmd_ID_miblo_increment_basic = 218;
+static i32 fcoder_metacmd_ID_miblo_decrement_basic = 219;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 220;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 221;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 222;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 223;
+static i32 fcoder_metacmd_ID_set_bindings_choose = 224;
+static i32 fcoder_metacmd_ID_set_bindings_default = 225;
 #endif

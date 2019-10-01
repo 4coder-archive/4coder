@@ -795,9 +795,9 @@ RENDER_CALLER_SIG(default_render_caller){
 }
 
 HOOK_SIG(default_exit){
-    // If this returns zero it cancels the exit.
+    // If this returns false it cancels the exit.
     
-    i32 result = 1;
+    b32 result = true;
     
     if (!allow_immediate_close_without_checking_for_changes){
         b32 has_unsaved_changes = false;
@@ -813,7 +813,7 @@ HOOK_SIG(default_exit){
         if (has_unsaved_changes){
             View_ID view = get_active_view(app, AccessAll);
             do_gui_sure_to_close_4coder(app, view);
-            result = 0;
+            result = false;
         }
     }
     

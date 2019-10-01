@@ -111,7 +111,6 @@ char **platform_includes[Platform_COUNT][Compiler_COUNT] = {
 
 enum{
     Custom_Default,
-    Custom_Experiments,
     Custom_Casey,
     Custom_ChronalVim,
     //
@@ -120,7 +119,6 @@ enum{
 
 char *custom_files[] = {
     "../code/4coder_default_bindings.cpp",
-    "../code/4coder_experiments.cpp",
     "../code/4coder_casey.cpp",
     "../4vim/4coder_chronal.cpp",
 };
@@ -569,8 +567,7 @@ build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch
 
 internal void
 standard_build(Arena *arena, char *cdir, u32 flags, u32 arch){
-    //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
-    do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Experiments]), arch);
+    do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
     //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Casey]), arch);
     //do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_ChronalVim]), arch);
     

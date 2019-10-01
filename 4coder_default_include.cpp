@@ -72,6 +72,7 @@
 #include "4coder_function_list.cpp"
 #include "4coder_scope_commands.cpp"
 #include "4coder_combined_write_commands.cpp"
+#include "4coder_miblo_numbers.cpp"
 
 #include "4coder_default_hooks.cpp"
 #include "4coder_remapping_commands.cpp"
