@@ -408,6 +408,12 @@ R"bar(foo
 )bar"
 
 #error ``` Foo bar is bad news bears! ```
+#   define foo bar
+#    define bar baz
+#define baz bish
+
+# error wishy washy
+#define swish(x,y,...) switch(x){ y(__VA_ARGS__) }
 
 #endif
 
@@ -438,7 +444,7 @@ print_token_list(Token_List *list, String_Const_u8 text){
                    token_base_kind_names[token->kind],
                    token_cpp_kind_names[token->sub_kind],
                    token->flags, token->sub_flags);
-            printf("\t:%.*s:\n", token->size, text.str + token->pos);
+            printf("\t:%.*s:\n", (i32)token->size, text.str + token->pos);
         }
     }
 }

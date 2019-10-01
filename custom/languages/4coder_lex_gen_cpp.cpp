@@ -311,6 +311,7 @@ build_language_model(void){
     AddState(ULL_number);
     
     AddState(pp_directive_whitespace);
+    AddState(pp_directive_first);
     AddState(pp_directive);
     AddState(pp_directive_emit);
     
@@ -774,13 +775,12 @@ build_language_model(void){
     ////
     
     sm_select_state(pp_directive_whitespace);
-    sm_delim_mark_first();
     sm_case(" \t\f\v", pp_directive_whitespace);
-    sm_case("abcdefghijklmnopqrstuvwxyz"
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "_"
-            "0123456789",
-            pp_directive);
+    sm_case_peek("abcdefghijklmnopqrstuvwxyz"
+                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                 "_"
+                 "0123456789",
+                 pp_directive_first);
     {
         Emit_Rule *emit = sm_emit_rule();
         sm_emit_handler_direct("LexError");
@@ -789,8 +789,14 @@ build_language_model(void){
     
     ////
     
-    sm_select_state(pp_directive);
+    sm_select_state(pp_directive_first);
+    sm_delim_mark_first();
     sm_set_flag(is_pp_body, true);
+    sm_fallback_peek(pp_directive);
+    
+    ////
+    
+    sm_select_state(pp_directive);
     sm_case("abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             "_"

@@ -46,9 +46,9 @@ coroutine_main(void *ptr){
         }
         Assert(me->type != CoroutineType_Root);
         Assert(me->yield_ctx != 0);
-        Assert(me->function != 0);
+        Assert(me->func != 0);
         
-        me->function(me);
+        me->func(me);
         
         // NOTE(allen): Wake up the caller and set this coroutine back to being dead.
         Coroutine *other = me->yield_ctx;
@@ -56,7 +56,7 @@ coroutine_main(void *ptr){
         Assert(other->state == CoroutineState_Waiting);
         
         coroutine__pass_control(me, other, CoroutineState_Dead, CoroutinePassControl_ExitMe);
-        me->function = 0;
+        me->func = 0;
     }
 }
 
@@ -124,7 +124,7 @@ internal Coroutine*
 coroutine_create(Coroutine_Group *coroutines, Coroutine_Function *func){
     Coroutine *result = coroutine_system_alloc(coroutines);
     Assert(result->state == CoroutineState_Dead);
-    result->function = func;
+    result->func = func;
     return(result);
 }
 

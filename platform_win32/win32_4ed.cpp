@@ -46,7 +46,10 @@
 #include "4ed_render_target.h"
 #include "4ed.h"
 
+#undef function
 #include <Windows.h>
+#define function static
+
 #include "win32_gl.h"
 
 //////////////////////////////

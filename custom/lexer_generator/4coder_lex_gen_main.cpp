@@ -1399,7 +1399,7 @@ sm_emit_handler_keys(Keyword_Set *set){
 internal void
 sm_emit_handler_keys_delim(Flag *flag_check, Keyword_Set *set){
     Emit_Rule *rule = helper_ctx.selected_emit_rule;
-    smi_emit_handler(helper_ctx.arena, rule, set, flag_check);
+    smi_emit_handler_delim(helper_ctx.arena, rule, set, flag_check);
 }
 
 internal void
@@ -2419,6 +2419,7 @@ opt_emit_rule_match(Emit_Rule *rule_a, Emit_Rule *rule_b){
                 }
             }break;
             case EmitHandlerKind_Keywords:
+            case EmitHandlerKind_KeywordsDelim:
             {
                 if (handler_a->keywords != handler_b->keywords){
                     result = false;
@@ -3454,6 +3455,30 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                                     "lexeme_table_lookup(%.*s_hash_array, %.*s_key_array, "
                                     "%.*s_value_array, %.*s_slot_count, %.*s_seed, "
                                     "emit_ptr, token.size);\n",
+                                    string_expand(keywords->pretty_name),
+                                    string_expand(keywords->pretty_name),
+                                    string_expand(keywords->pretty_name),
+                                    string_expand(keywords->pretty_name),
+                                    string_expand(keywords->pretty_name));
+                            fprintf(out, "if (lookup.found_match){\n");
+                            fprintf(out, "token.kind = lookup.base_kind;\n");
+                            fprintf(out, "token.sub_kind = lookup.sub_kind;\n");
+                            fprintf(out, "break;\n");
+                            fprintf(out, "}\n");
+                            if (handler->keywords->has_fallback_token_kind){
+                                gen_emit__direct(scratch, tokens,
+                                                 keywords->fallback_name, out);
+                                keep_looping = false;
+                            }
+                        }break;
+                        
+                        case EmitHandlerKind_KeywordsDelim:
+                        {
+                            Keyword_Set *keywords = handler->keywords;
+                            fprintf(out, "Lexeme_Table_Lookup lookup = "
+                                    "lexeme_table_lookup(%.*s_hash_array, %.*s_key_array, "
+                                    "%.*s_value_array, %.*s_slot_count, %.*s_seed, "
+                                    "delim_first, (delim_one_past_last - delim_first));\n",
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),

@@ -22,16 +22,16 @@ load_paths = {
  { load_paths_only, .os = "mac"  },
 };
 
-build_x86_win32 = "echo build: x86 & build.bat /DDEV_BUILD_X86";
-build_x86_linux = "echo build: x86 & ./build.sh -DDEV_BUILD_X86";
-build_x86_mac   = "echo build: x86 & ./build.sh -DDEV_BUILD_X86";
+build_x64_win32 = "echo build: x64 & bin\\build.bat";
+build_x64_linux = "echo build: x64 & bin/build.sh";
+build_x64_mac   = "echo build: x64 & bin/build.sh";
 
 command_list = {
  { .name = "build x64",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { {"echo build: x64 & bin\\build.bat" , .os = "win"  },
-            {"echo build: x64 & bin/build.sh", .os = "linux"},
-            {"echo build: x64 & bin/build.sh", .os = "mac"  }, }, },
+   .cmd = { {build_x64_win32, .os = "win"  },
+            {build_x64_linux, .os = "linux"},
+            {build_x64_max  , .os = "mac"  }, }, },
  
  { .name = "run one time",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,
@@ -43,7 +43,7 @@ command_list = {
  
  { .name = "build token tester",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time languages\\4coder_lexer_cpp_test.cpp ..\\build", .os = "win" }, }, }
+   .cmd = { { "custom\\bin\\build_one_time custom\\languages\\4coder_lexer_cpp_test.cpp ..\\build", .os = "win" }, }, }
 };
 
 fkey_command[1] = "build x64";

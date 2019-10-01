@@ -35,7 +35,7 @@ set opts=%opts% /I%custom_root%
 set opts=%opts% %mode%
 
 pushd %dst%
-call cl /I"%code_home%" %opts% %full_target% /Fegenerator
+call cl /I"%code_home%" %opts% %full_target% /Feone_time
 popd
 
 

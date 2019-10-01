@@ -37,7 +37,7 @@ struct Coroutine{
     System_Thread thread;
     System_Condition_Variable cv;
     struct Coroutine_Group *sys;
-    Coroutine_Function *function;
+    Coroutine_Function *func;
     Coroutine *yield_ctx;
     Coroutine_State state;
     Coroutine_Type type;
