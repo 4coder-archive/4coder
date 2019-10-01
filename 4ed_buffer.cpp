@@ -556,6 +556,9 @@ buffer_cursor_from_line_col(Gap_Buffer *buffer, i64 line, i64 col){
     
     i64 this_start = buffer->line_starts[line_index];
     i64 max_col = (buffer->line_starts[line_index + 1] - this_start);
+    if (line_index + 1 == line_count){
+        max_col += 1;
+    }
     max_col = clamp_bot(1, max_col);
     
     if (col < 0){
@@ -729,6 +732,8 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
         b32 consuming_newline_characters = false;
         i64 newline_character_index = -1;
         
+        b32 prev_did_emit_newline = false;
+        
         u8 *ptr = text.str;
         u8 *end_ptr = ptr + text.size;
         for (;ptr < end_ptr;){
@@ -763,9 +768,6 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
                     if (!consuming_newline_characters){
                         consuming_newline_characters = true;
                         newline_character_index = index;
-                    }
-                    if (ptr + 1 == end_ptr){
-                        emit_newline = true;
                     }
                     ptr += 1;
                     index += 1;
@@ -811,6 +813,7 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
                     first_of_the_line = false;
                 }break;
             }
+            prev_did_emit_newline = false;
             if (emit_newline){
                 f32 next_x = p.x + space_advance;
                 buffer_layout__write(arena, &list, newline_character_index, ' ', 0,  Rf32(p, V2f32(next_x, line_y)));
@@ -818,7 +821,12 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
                 p.x = 0.f;
                 line_y += line_height;
                 first_of_the_line = true;
+                prev_did_emit_newline = true;
             }
+        }
+        if (!prev_did_emit_newline){
+            f32 next_x = p.x + space_advance;
+            buffer_layout__write(arena, &list, index, ' ', 0,  Rf32(p, V2f32(next_x, line_y)));
         }
     }
     
@@ -832,7 +840,7 @@ buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
         closest_match = list.index_range.min;
     }
     else if (p.y >= list.height){
-        closest_match = list.index_range.max;
+        closest_match = list.index_range.max + 1;
     }
     else{
         if (0.f < p.x && p.x < max_f32){
@@ -933,7 +941,7 @@ buffer_layout_get_pos_at_character(Buffer_Layout_Item_List list, i64 character){
         result = list.index_range.min;
     }
     else if (character >= list.character_count){
-        result = list.index_range.max;
+        result = list.index_range.max + 1;
     }
     else{
         i64 counter = 0;
