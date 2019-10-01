@@ -388,7 +388,9 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         if (*rewrite != Rewrite_WordComplete){
             first_completion = true;
         }
-        *rewrite = Rewrite_WordComplete;
+        
+        Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+        *next_rewrite = Rewrite_WordComplete;
         
         local_persist Arena *completion_arena = {};
         if (completion_arena == 0){
