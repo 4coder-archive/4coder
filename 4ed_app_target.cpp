@@ -14,7 +14,7 @@
 // TODO(allen): get away from string.h
 #include <string.h>
 
-#include "4coder_API/4coder_custom.h"
+#include "api/4coder_custom.h"
 
 #include "4coder_base_types.h"
 #include "4coder_table.h"

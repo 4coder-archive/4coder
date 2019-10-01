@@ -4,7 +4,7 @@
 
 // TOP
 
-#define COMMAND_METADATA_OUT "4coder_generated/command_metadata.h"
+#define COMMAND_METADATA_OUT "generated/command_metadata.h"
 
 #include "4coder_base_types.h"
 #include "4coder_token.h"

@@ -22,20 +22,20 @@
 
 #include "4coder_base_types.h"
 #include "4coder_table.h"
-#include "4coder_API/4coder_version.h"
+#include "api/4coder_version.h"
 
 #include <string.h>
 
 #if defined(FRED_SUPER)
+# include "api/4coder_keycodes.h"
+# include "api/4coder_default_colors.h"
+# include "api/4coder_types.h"
+
 # include "4coder_base_types.cpp"
 # include "4coder_stringf.cpp"
 # include "4coder_hash_functions.cpp"
 # include "4coder_table.cpp"
 # include "4coder_log.cpp"
-
-# include "4coder_API/4coder_keycodes.h"
-# include "4coder_API/4coder_default_colors.h"
-# include "4coder_API/4coder_types.h"
 #else
 # include "4coder_default_bindings.cpp"
 #endif
@@ -48,8 +48,6 @@
 
 #include <Windows.h>
 #include "win32_gl.h"
-
-#define GL_TEXTURE_MAX_LEVEL 0x813D
 
 //////////////////////////////
 

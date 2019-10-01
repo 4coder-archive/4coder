@@ -12,7 +12,7 @@ in the set of default maps.
 // Buffer Filling Helpers
 //
 
-#include "4coder_generated/remapping.h"
+#include "generated/remapping.h"
 
 void
 default_keys(Bind_Helper *context){

@@ -12,15 +12,10 @@
 #if !defined(FRED_FILE_MOVING_H)
 #define FRED_FILE_MOVING_H
 
-#include "../4coder_base_types.h"
-
 #include <stdio.h>  // include system for windows
 #include <stdlib.h> // include system for linux   (YAY!)
 #include <stdarg.h>
 #include <string.h>
-
-#include "../4coder_base_types.cpp"
-#include "../4coder_malloc_allocator.cpp"
 
 //
 // API

@@ -14,6 +14,8 @@
 
 #include <GL/gl.h>
 
+#define GL_TEXTURE_MAX_LEVEL 0x813D
+
 #define GL_MULTISAMPLE                    0x809D
 #define GL_CLAMP_TO_EDGE                  0x812F
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS       0x8242

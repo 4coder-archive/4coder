@@ -7,9 +7,8 @@
 #if !defined(FCODER_DEFAULT_INCLUDE_CPP)
 #define FCODER_DEFAULT_INCLUDE_CPP
 
-#include "4coder_API/4coder_custom.h"
-
-#include "4coder_generated/command_metadata.h"
+#include "api/4coder_custom.h"
+#include "generated/command_metadata.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"

@@ -11,12 +11,15 @@
 
 //#define FM_PRINT_COMMANDS
 
-#include "../4coder_base_types.h"
+#include "4coder_base_types.h"
+#include "api/4coder_version.h"
+
+#include "4coder_base_types.cpp"
+#include "4coder_malloc_allocator.cpp"
 
 #define FTECH_FILE_MOVING_IMPLEMENTATION
-#include "4ed_file_moving.h"
+#include "4coder_file_moving.h"
 
-#include "../4coder_API/4coder_version.h"
 
 //
 // OS and compiler index
@@ -79,7 +82,7 @@ char *compiler_names[] = {
 #define FOREIGN "../4coder-non-source/foreign"
 #define FOREIGN_WIN "..\\4coder-non-source\\foreign"
 
-char *includes[] = { FOREIGN, FOREIGN"/freetype2", 0, };
+char *includes[] = { "custom", FOREIGN "/freetype2", 0, };
 
 //
 // Platform layer file tables
@@ -116,7 +119,7 @@ enum{
 };
 
 char *custom_files[] = {
-    "../code/4coder_default_bindings.cpp",
+    "../code/custom/4coder_default_bindings.cpp",
 };
 
 //
@@ -180,11 +183,11 @@ get_defines_from_flags(Arena *arena, u32 flags){
 
 #define CL_LIBS_X64                              \
 "user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib "   \
-FOREIGN_WIN"\\x64\\freetype.lib"
+FOREIGN_WIN "\\x64\\freetype.lib"
 
 #define CL_LIBS_X86                              \
 "user32.lib winmm.lib gdi32.lib opengl32.lib comdlg32.lib "   \
-FOREIGN_WIN"\\x86\\freetype.lib"
+FOREIGN_WIN "\\x86\\freetype.lib"
 
 #define CL_ICON "..\\4coder-non-source\\res\\icon.res"
 
@@ -485,7 +488,7 @@ do_buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
     BEGIN_TIME_SECTION();
     Temp_Dir temp = fm_pushdir(fm_str(arena, BUILD_DIR));
     
-    char *build_script = fm_str(arena, "buildsuper_", arch_names[arch], BAT);
+    char *build_script = fm_str(arena, "custom/bin/buildsuper_", arch_names[arch], BAT);
     
     char *build_command = fm_str(arena, "\"", cdir, "/", build_script, "\" \"", file, "\"");
     if (This_OS == Platform_Windows){
