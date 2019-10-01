@@ -17,21 +17,7 @@
 #if !defined(FRED_SYSTEM_SHARED_H)
 #define FRED_SYSTEM_SHARED_H
 
-struct File_Data{
-    char *data;
-    u32 size;
-    b32 got_file;
-};
-global File_Data null_file_data = {};
-
-#define Sys_File_Can_Be_Made_Sig(name) b32 name(Arena *scratch, u8 *filename)
-internal Sys_File_Can_Be_Made_Sig(system_file_can_be_made);
-
-struct Shared_Vars{
-    Arena font_scratch;
-    Arena pixel_scratch;
-};
-global Shared_Vars shared_vars;
+#error Remove this file
 
 #endif
 

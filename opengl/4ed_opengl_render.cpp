@@ -168,7 +168,7 @@ gl__make_program(char *header, char *vertex, char *fragment){
 #define GLOffset(S,m) ((void*)(OffsetOfMember(S,m)))
 
 internal void
-gl_render(Render_Target *t, Arena *scratch){
+gl_render(Render_Target *t){
     Font_Set *font_set = (Font_Set*)t->font_set;
     
     local_persist b32 first_opengl_call = true;

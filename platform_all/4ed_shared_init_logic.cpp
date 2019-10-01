@@ -97,7 +97,17 @@ read_command_line(Thread_Context *tctx, i32 argc, char **argv){
     char **files = 0;
     i32 *file_count = 0;
     void *result = app.read_command_line(tctx, &sysfunc, curdir, &plat_settings, &files, &file_count, argc, argv);
-    sysshared_filter_real_files(scratch, files, file_count);
+    {
+        i32 end = *file_count;
+        i32 i = 0, j = 0;
+        for (; i < end; ++i){
+            if (system_file_can_be_made(scratch, (u8*)files[i])){
+                files[j] = files[i];
+                ++j;
+            }
+        }
+        *file_count = j;
+    }
     return(result);
 }
 

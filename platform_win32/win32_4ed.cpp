@@ -48,6 +48,7 @@
 #include <Windows.h>
 #define function static
 
+#include "win32_utf8.h"
 #include "win32_gl.h"
 
 //////////////////////////////
@@ -61,10 +62,6 @@ internal void
 win32_output_error_string(Arena *scratch, i32 error_string_type);
 
 //////////////////////////////
-
-#include "win32_utf8.h"
-
-#include "4ed_system_shared.h"
 
 #define WM_4coder_ANIMATE (WM_USER + 0)
 
@@ -323,8 +320,6 @@ Sys_Is_Fullscreen_Sig(system_is_fullscreen){
     b32 result = (win32vars.full_screen != win32vars.do_toggle);
     return(result);
 }
-
-#include "4ed_system_shared.cpp"
 
 //
 // Clipboard
@@ -1529,13 +1524,18 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     InitializeCriticalSection(&win32vars.thread_launch_mutex);
     InitializeConditionVariable(&win32vars.thread_launch_cv);
     
-    //
-    // HACK(allen):
-    // Previously zipped stuff is here, it should be zipped in the new pattern now.
-    //
+    SetProcessDPIAware();
     
-    init_shared_vars();
+    {
+        HDC dc = GetDC(0);
+        i32 x_dpi = GetDeviceCaps(dc, LOGPIXELSX);
+        i32 y_dpi = GetDeviceCaps(dc, LOGPIXELSY);
+        i32 max_dpi = max(x_dpi, y_dpi);
+        win32vars.screen_scale_factor = ((f32)max_dpi)/96.f;
+        ReleaseDC(0, dc);
+    }
     
+    // TODO(allen): 
     load_app_code(win32vars.tctx);
     win32vars.log_string = app.get_logger(&sysfunc);
     void *base_ptr = read_command_line(win32vars.tctx, argc, argv);
@@ -1549,18 +1549,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
 #else
     custom_api.get_bindings = get_bindings;
 #endif
-    
-    SetProcessDPIAware();
-    
-    {
-        HDC dc = GetDC(0);
-        i32 x_dpi = GetDeviceCaps(dc, LOGPIXELSX);
-        i32 y_dpi = GetDeviceCaps(dc, LOGPIXELSY);
-        i32 max_dpi = max(x_dpi, y_dpi);
-        win32vars.screen_scale_factor = ((f32)max_dpi)/96.f;
-        ReleaseDC(0, dc);
-    }
-    
     
     //
     // Window and GL Initialization
@@ -1903,7 +1891,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): render
         HDC hdc = GetDC(win32vars.window_handle);
-        gl_render(&target, &shared_vars.pixel_scratch);
+        gl_render(&target);
         SwapBuffers(hdc);
         ReleaseDC(win32vars.window_handle, hdc);
         

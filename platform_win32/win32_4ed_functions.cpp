@@ -9,12 +9,8 @@
 
 // TOP
 
-//
-// Shared system functions (system_shared.h)
-//
-
-internal
-Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
+internal b32
+system_file_can_be_made(Arena *scratch, u8 *filename){
     HANDLE file = CreateFile_utf8(scratch, filename, FILE_APPEND_DATA, 0, 0, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     b32 result = false;
     if (file != INVALID_HANDLE_VALUE){
