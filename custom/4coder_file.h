@@ -16,25 +16,16 @@
 #if OS_WINDOWS
 
 //// WINDOWS BEGIN ////
+#undef function
 #define UNICODE
 #include <Windows.h>
 typedef TCHAR Filename_Character;
 #define SLASH '\\'
+#define function static
 //// WINDOWS END ////
 
-#elif OS_LINUX || OS_MAC
-
-//// UNIX BEGIN ////
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <dirent.h>
-typedef char Filename_Character;
-#define SLASH '/'
-//// UNIX END ////
-
 #else
-# error metdata generator not supported on this platform
+# error 4coder file not defined
 #endif
 
 struct Cross_Platform_File_Info{

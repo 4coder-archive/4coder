@@ -235,21 +235,21 @@ build_language_model(void){
     Keyword_Set *pp_directive_set = sm_begin_key_set("pp_directives");
     
     sm_select_base_kind(TokenBaseKind_Preprocessor);
-    sm_key("PPInclude", "#include");
-    sm_key("PPVersion", "#version");
-    sm_key("PPDefine", "#define");
-    sm_key("PPUndef", "#undef");
-    sm_key("PPIf", "#if");
-    sm_key("PPIfDef", "#ifdef");
-    sm_key("PPIfNDef", "#ifndef");
-    sm_key("PPElse", "#else");
-    sm_key("PPElIf", "#elif");
-    sm_key("PPEndIf", "#endif");
-    sm_key("PPError", "#error");
-    sm_key("PPImport", "#import");
-    sm_key("PPUsing", "#using");
-    sm_key("PPLine", "#line");
-    sm_key("PPPragma", "#pragma");
+    sm_key("PPInclude", "include");
+    sm_key("PPVersion", "version");
+    sm_key("PPDefine", "define");
+    sm_key("PPUndef", "undef");
+    sm_key("PPIf", "if");
+    sm_key("PPIfDef", "ifdef");
+    sm_key("PPIfNDef", "ifndef");
+    sm_key("PPElse", "else");
+    sm_key("PPElIf", "elif");
+    sm_key("PPEndIf", "endif");
+    sm_key("PPError", "error");
+    sm_key("PPImport", "import");
+    sm_key("PPUsing", "using");
+    sm_key("PPLine", "line");
+    sm_key("PPPragma", "pragma");
     
     sm_select_base_kind(TokenBaseKind_LexError);
     sm_key_fallback("PPUnknown");
@@ -310,7 +310,9 @@ build_language_model(void){
     AddState(LL_number);
     AddState(ULL_number);
     
+    AddState(pp_directive_whitespace);
     AddState(pp_directive);
+    AddState(pp_directive_emit);
     
     AddState(include_pointy);
     AddState(include_quotes);
@@ -401,7 +403,7 @@ build_language_model(void){
     
     sm_case_flagged(is_include_body, false, "\"", string);
     sm_case("\'", character);
-    sm_case_flagged(is_pp_body, false, "#", pp_directive);
+    sm_case_flagged(is_pp_body, false, "#", pp_directive_whitespace);
     {
         State *operator_state = smo_op_set_lexer_root(pp_ops, root, "LexError");
         sm_case_peek_flagged(is_pp_body, true, "#", operator_state);
@@ -771,8 +773,9 @@ build_language_model(void){
     
     ////
     
-    sm_select_state(pp_directive);
-    sm_set_flag(is_pp_body, true);
+    sm_select_state(pp_directive_whitespace);
+    sm_delim_mark_first();
+    sm_case(" \t\f\v", pp_directive_whitespace);
     sm_case("abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
             "_"
@@ -780,9 +783,30 @@ build_language_model(void){
             pp_directive);
     {
         Emit_Rule *emit = sm_emit_rule();
+        sm_emit_handler_direct("LexError");
+        sm_fallback_peek(emit);
+    }
+    
+    ////
+    
+    sm_select_state(pp_directive);
+    sm_set_flag(is_pp_body, true);
+    sm_case("abcdefghijklmnopqrstuvwxyz"
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            "_"
+            "0123456789",
+            pp_directive);
+    sm_fallback_peek(pp_directive_emit);
+    
+    ////
+    
+    sm_select_state(pp_directive_emit);
+    sm_delim_mark_one_past_last();
+    {
+        Emit_Rule *emit = sm_emit_rule();
         sm_emit_check_set_flag("PPInclude", is_include_body, true);
         sm_emit_check_set_flag("PPError", is_error_body, true);
-        sm_emit_handler_keys(pp_directive_set);
+        sm_emit_handler_keys_delim(pp_directive_set);
         sm_fallback_peek(emit);
     }
     

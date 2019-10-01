@@ -172,6 +172,9 @@ typedef void Void_Func(void);
 #define stringify_(a) #a
 #define stringify(a) stringify_(a)
 
+#define function static
+#define api(x)
+
 #define internal static
 #define local_persist static
 #define global static
@@ -296,8 +299,6 @@ global_const f32 epsilon_f32 = 5.96046448e-8f;
 #define FNLN __FILE__ ":" LINE_STR ":"
 
 #define require(c) Stmnt( if (!(c)){ return(0); } )
-
-#define API_EXPORT
 
 ////////////////////////////////
 

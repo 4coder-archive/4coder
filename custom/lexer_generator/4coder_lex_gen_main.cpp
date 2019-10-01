@@ -106,6 +106,7 @@ typedef i32 Emit_Handler_Kind;
 enum{
     EmitHandlerKind_Direct,
     EmitHandlerKind_Keywords,
+    EmitHandlerKind_KeywordsDelim,
 };
 
 struct Emit_Handler{
@@ -494,11 +495,10 @@ smi_emit_rule(Arena *arena){
 }
 
 internal Emit_Handler*
-smi_emit_handler(Arena *arena, Emit_Rule *rule, String_Const_u8 name, Flag *flag_check){
+smi_emit_handler__inner(Arena *arena, Emit_Rule *rule, Emit_Handler_Kind kind, Flag *flag_check){
     Emit_Handler *handler = push_array_zero(arena, Emit_Handler, 1);
-    handler->kind = EmitHandlerKind_Direct;
+    handler->kind = kind;
     handler->flag_check = flag_check;
-    handler->token_name = name;
     if (rule != 0){
         sll_queue_push(rule->first, rule->last, handler);
         rule->count += 1;
@@ -507,15 +507,23 @@ smi_emit_handler(Arena *arena, Emit_Rule *rule, String_Const_u8 name, Flag *flag
 }
 
 internal Emit_Handler*
+smi_emit_handler(Arena *arena, Emit_Rule *rule, String_Const_u8 name, Flag *flag_check){
+    Emit_Handler *handler = smi_emit_handler__inner(arena, rule, EmitHandlerKind_Direct, flag_check);
+    handler->token_name = name;
+    return(handler);
+}
+
+internal Emit_Handler*
 smi_emit_handler(Arena *arena, Emit_Rule *rule, Keyword_Set *set, Flag *flag_check){
-    Emit_Handler *handler = push_array_zero(arena, Emit_Handler, 1);
-    handler->kind = EmitHandlerKind_Keywords;
-    handler->flag_check = flag_check;
+    Emit_Handler *handler = smi_emit_handler__inner(arena, rule, EmitHandlerKind_Keywords, flag_check);
     handler->keywords = set;
-    if (rule != 0){
-        sll_queue_push(rule->first, rule->last, handler);
-        rule->count += 1;
-    }
+    return(handler);
+}
+
+internal Emit_Handler*
+smi_emit_handler_delim(Arena *arena, Emit_Rule *rule, Keyword_Set *set, Flag *flag_check){
+    Emit_Handler *handler = smi_emit_handler__inner(arena, rule, EmitHandlerKind_KeywordsDelim, flag_check);
+    handler->keywords = set;
     return(handler);
 }
 
@@ -1386,6 +1394,17 @@ sm_emit_handler_keys(Flag *flag_check, Keyword_Set *set){
 internal void
 sm_emit_handler_keys(Keyword_Set *set){
     sm_emit_handler_keys(0, set);
+}
+
+internal void
+sm_emit_handler_keys_delim(Flag *flag_check, Keyword_Set *set){
+    Emit_Rule *rule = helper_ctx.selected_emit_rule;
+    smi_emit_handler(helper_ctx.arena, rule, set, flag_check);
+}
+
+internal void
+sm_emit_handler_keys_delim(Keyword_Set *set){
+    sm_emit_handler_keys_delim(0, set);
 }
 
 internal Transition*
