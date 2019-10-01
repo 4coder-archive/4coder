@@ -189,9 +189,6 @@ CUSTOM_DOC("Delete a single, whole token on or to the right of the cursor and po
                               push_boundary_list(scratch, boundary_token, boundary_non_whitespace));
 }
 
-#define snipe_token_or_word       snipe_backward_whitespace_or_token_boundary
-#define snipe_token_or_word_right snipe_forward_whitespace_or_token_boundary
-
 ////////////////////////////////
 
 CUSTOM_COMMAND_SIG(center_view)

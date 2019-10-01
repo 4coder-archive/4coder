@@ -798,7 +798,12 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
             {
                 i64 buffer_size = buffer_get_size(app, buffer);
                 if (tokens.count > 0){
-                    Token *token = token_from_pos(&tokens, pos);
+                    Token_Iterator_Array it = token_iterator_pos(0, &tokens, pos);
+                    Token *token = token_it_read(&it);
+                    if (token->kind == TokenBaseKind_Whitespace){
+                        token_it_inc_non_whitespace(&it);
+                        token = token_it_read(&it);
+                    }
                     if (token != 0){
                         if (side == Side_Max){
                             result = token->pos + token->size;
@@ -830,7 +835,12 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
             case Scan_Backward:
             {
                 if (tokens.count > 0){
-                    Token *token = token_from_pos(&tokens, pos);
+                    Token_Iterator_Array it = token_iterator_pos(0, &tokens, pos - 1);
+                    Token *token = token_it_read(&it);
+                    if (token->kind == TokenBaseKind_Whitespace){
+                        token_it_dec_non_whitespace(&it);
+                        token = token_it_read(&it);
+                    }
                     if (side == Side_Min){
                         if (token == 0){
                             token = tokens.tokens + tokens.count - 1;
