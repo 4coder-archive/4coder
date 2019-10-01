@@ -798,177 +798,157 @@ isearch__update_highlight(Application_Links *app, View_ID view, Range_i64 range)
 }
 
 static void
-isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, b32 on_the_query_init_string){
+isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query_init){
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     if (!buffer_exists(app, buffer)){
         return;
     }
     
+    i64 buffer_size = buffer_get_size(app, buffer);
+    
     Query_Bar bar = {};
     if (start_query_bar(app, &bar, 0) == 0){
         return;
     }
     
-    b32 reverse = start_reversed;
+    Scan_Direction scan = start_scan;
     i64 first_pos = view_get_cursor_pos(app, view);
-    
     i64 pos = first_pos;
-    if (query_init.size != 0){
-        pos += 2;
-    }
-    
-    i64 start_pos = pos;
-    Range_i64 match = Ii64(pos);
     
     u8 bar_string_space[256];
     bar.string = SCu8(bar_string_space, query_init.size);
     block_copy(bar.string.str, query_init.str, query_init.size);
     
-    String_Const_char isearch_str = string_litexpr("I-Search: ");
-    String_Const_char rsearch_str = string_litexpr("Reverse-I-Search: ");
+    String_Const_u8 isearch_str = string_u8_litexpr("I-Search: ");
+    String_Const_u8 rsearch_str = string_u8_litexpr("Reverse-I-Search: ");
     
-    b32 first_step = true;
-    
-    // TODO(allen): rewrite
-    isearch__update_highlight(app, view, match);
+    umem match_size = bar.string.size;
     cursor_is_hidden = true;
     
     User_Input in = {};
     for (;;){
-        // NOTE(allen): Change the bar's prompt to match the current direction.
-        if (reverse){
-            bar.prompt = SCu8(rsearch_str);
+        switch (scan){
+            case Scan_Forward:
+            {
+                bar.prompt = isearch_str;
+            }break;
+            case Scan_Backward:
+            {
+                bar.prompt = rsearch_str;
+            }break;
         }
-        else{
-            bar.prompt = SCu8(isearch_str);
+        isearch__update_highlight(app, view, Ii64_size(pos, match_size));
+        
+        in = get_user_input(app, EventOnAnyKey, EventOnEsc);
+        if (in.abort){
+            break;
         }
         
-        b32 step_forward = false;
-        b32 step_backward = false;
-        b32 backspace = false;
-        b32 suppress_highligh_update = false;
+        u8 character[4];
+        u32 length = to_writable_character(in, character);
         
-        if (!first_step){
-            in = get_user_input(app, EventOnAnyKey, EventOnEsc);
-            if (in.abort) break;
-            
-            u8 character[4];
-            u32 length = to_writable_character(in, character);
-            
-            b32 made_change = false;
-            if (in.key.keycode == '\n' || in.key.keycode == '\t'){
-                if (in.key.modifiers[MDFR_CONTROL_INDEX]){
-                    bar.string.size = cstring_length(previous_isearch_query);
-                    block_copy(bar.string.str, previous_isearch_query, bar.string.size);
-                }
-                else{
-                    umem size = bar.string.size;
-                    size = clamp_top(size, sizeof(previous_isearch_query) - 1);
-                    block_copy(previous_isearch_query, bar.string.str, size);
-                    previous_isearch_query[size] = 0;
-                    break;
+        b32 string_change = false;
+        if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+            if (in.key.modifiers[MDFR_CONTROL_INDEX]){
+                bar.string.size = cstring_length(previous_isearch_query);
+                block_copy(bar.string.str, previous_isearch_query, bar.string.size);
+            }
+            else{
+                umem size = bar.string.size;
+                size = clamp_top(size, sizeof(previous_isearch_query) - 1);
+                block_copy(previous_isearch_query, bar.string.str, size);
+                previous_isearch_query[size] = 0;
+                break;
+            }
+        }
+        else if (length != 0 && key_is_unmodified(&in.key)){
+            String_u8 string = Su8(bar.string, sizeof(bar_string_space));
+            string_append(&string, SCu8(character, length));
+            bar.string = string.string;
+            string_change = true;
+        }
+        else if (in.key.keycode == key_back){
+            if (key_is_unmodified(&in.key)){
+                umem old_bar_string_size = bar.string.size;
+                bar.string = backspace_utf8(bar.string);
+                string_change = (bar.string.size < old_bar_string_size);
+            }
+            else if (in.key.modifiers[MDFR_CONTROL_INDEX]){
+                if (bar.string.size > 0){
+                    string_change = true;
+                    bar.string.size = 0;
                 }
             }
-            else if (length != 0 && key_is_unmodified(&in.key)){
-                String_u8 string = Su8(bar.string, sizeof(bar_string_space));
-                string_append(&string, SCu8(character, length));
-                bar.string = string.string;
-                made_change = true;
+        }
+        
+        b32 do_scan_action = false;
+        Scan_Direction change_scan = scan;
+        if (!string_change){
+            if (in.command.command == search ||
+                in.key.keycode == key_page_down ||
+                in.key.keycode == key_down){
+                change_scan = Scan_Forward;
+                do_scan_action = true;
             }
-            else if (in.key.keycode == key_back){
-                if (key_is_unmodified(&in.key)){
-                    umem old_bar_string_size = bar.string.size;
-                    bar.string = backspace_utf8(bar.string);
-                    made_change = (bar.string.size < old_bar_string_size);
-                    backspace = true;
-                }
-                else if (in.key.modifiers[MDFR_CONTROL_INDEX]){
-                    if (bar.string.size > 0){
-                        made_change = true;
-                        bar.string.size = 0;
-                        backspace = true;
-                    }
-                }
-            }
-            
-            if ((in.command.command == search) || in.key.keycode == key_page_down || in.key.keycode == key_down){
-                step_forward = true;
+            if (in.command.command == reverse_search ||
+                in.key.keycode == key_page_up ||
+                in.key.keycode == key_up){
+                change_scan = Scan_Backward;
+                do_scan_action = true;
             }
             
             if (in.command.command == mouse_wheel_scroll){
                 mouse_wheel_scroll(app);
-                suppress_highligh_update = true;
             }
-            
-            if ((in.command.command == reverse_search) || in.key.keycode == key_page_up || in.key.keycode == key_up){
-                step_backward = true;
-            }
-        }
-        else{
-            if (query_init.size != 0 && on_the_query_init_string){
-                step_backward = true;
-            }
-            first_step = false;
         }
         
-        start_pos = pos;
-        if (step_forward && reverse){
-            start_pos = match.start + 1;
-            pos = start_pos;
-            reverse = false;
-            step_forward = false;
-        }
-        if (step_backward && !reverse){
-            start_pos = match.start - 1;
-            pos = start_pos;
-            reverse = true;
-            step_backward = false;
-        }
-        
-        if (!backspace){
-            if (reverse){
-                i64 new_pos = 0;
-                buffer_seek_string_insensitive_backward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
-                if (new_pos >= 0){
-                    if (step_backward){
+        if (string_change){
+            switch (scan){
+                case Scan_Forward:
+                {
+                    i64 new_pos = 0;
+                    buffer_seek_string_insensitive_forward(app, buffer, pos - 1, 0, bar.string, &new_pos);
+                    if (new_pos < buffer_size){
                         pos = new_pos;
-                        start_pos = new_pos;
-                        buffer_seek_string_insensitive_backward(app, buffer, start_pos + 1, 0, bar.string, &new_pos);
-                        if (new_pos < 0){
-                            new_pos = start_pos;
-                        }
+                        match_size = bar.string.size;
                     }
-                    match.start = new_pos;
-                    match.end = match.start + (i32)bar.string.size;
-                }
-            }
-            else{
-                i64 new_pos = 0;
-                buffer_seek_string_insensitive_forward(app, buffer, start_pos, 0, bar.string, &new_pos);
-                i64 buffer_size = buffer_get_size(app, buffer);
-                if (new_pos < buffer_size){
-                    if (step_forward){
+                }break;
+                
+                case Scan_Backward:
+                {
+                    i64 new_pos = 0;
+                    buffer_seek_string_insensitive_backward(app, buffer, pos + 1, 0, bar.string, &new_pos);
+                    if (new_pos >= 0){
                         pos = new_pos;
-                        start_pos = new_pos;
-                        buffer_seek_string_insensitive_forward(app, buffer, start_pos, 0, bar.string, &new_pos);
-                        if (new_pos >= buffer_size){
-                            new_pos = start_pos;
-                        }
+                        match_size = bar.string.size;
                     }
-                    match.start = new_pos;
-                    match.end = match.start + (i32)bar.string.size;
-                }
+                }break;
             }
         }
-        else{
-            if (match.end > match.start + (i32)bar.string.size){
-                match.end = match.start + (i32)bar.string.size;
+        else if (do_scan_action){
+            scan = change_scan;
+            switch (scan){
+                case Scan_Forward:
+                {
+                    i64 new_pos = 0;
+                    buffer_seek_string_insensitive_forward(app, buffer, pos, 0, bar.string, &new_pos);
+                    if (new_pos < buffer_size){
+                        pos = new_pos;
+                        match_size = bar.string.size;
+                    }
+                }break;
+                
+                case Scan_Backward:
+                {
+                    i64 new_pos = 0;
+                    buffer_seek_string_insensitive_backward(app, buffer, pos, 0, bar.string, &new_pos);
+                    if (new_pos >= 0){
+                        pos = new_pos;
+                        match_size = bar.string.size;
+                    }
+                }break;
             }
-        }
-        
-        if (!suppress_highligh_update){
-            isearch__update_highlight(app, view, match);
         }
     }
     
@@ -987,13 +967,13 @@ isearch(Application_Links *app, b32 start_reversed, String_Const_u8 query_init, 
 CUSTOM_COMMAND_SIG(search)
 CUSTOM_DOC("Begins an incremental search down through the current buffer for a user specified string.")
 {
-    isearch(app, false, SCu8(), false);
+    isearch(app, Scan_Forward, SCu8());
 }
 
 CUSTOM_COMMAND_SIG(reverse_search)
 CUSTOM_DOC("Begins an incremental search up through the current buffer for a user specified string.")
 {
-    isearch(app, true, SCu8(), false);
+    isearch(app, Scan_Backward, SCu8());
 }
 
 CUSTOM_COMMAND_SIG(search_identifier)
@@ -1004,7 +984,7 @@ CUSTOM_DOC("Begins an incremental search down through the current buffer for the
     i64 pos = view_get_cursor_pos(app, view);
     Scratch_Block scratch(app);
     String_Const_u8 query = push_enclose_range_at_pos(app, scratch, buffer_id, pos, enclose_alpha_numeric_underscore);
-    isearch(app, false, query, true);
+    isearch(app, Scan_Forward, query);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search_identifier)
@@ -1015,7 +995,7 @@ CUSTOM_DOC("Begins an incremental search up through the current buffer for the w
     i64 pos = view_get_cursor_pos(app, view);
     Scratch_Block scratch(app);
     String_Const_u8 query = push_enclose_range_at_pos(app, scratch, buffer_id, pos, enclose_alpha_numeric_underscore);
-    isearch(app, true, query, true);
+    isearch(app, Scan_Backward, query);
 }
 
 struct String_Pair{

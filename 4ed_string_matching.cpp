@@ -204,6 +204,9 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
             if (chunk_pos < 0){
                 last_boundary = i;
                 node = node->next;
+                if (node != 0){
+                    chunk_pos = node->string.size - 1;
+                }
             }
             
             switch (jump_back_code){

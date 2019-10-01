@@ -288,13 +288,12 @@ Buffer_Seek_String(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
                 range = make_range_i64(adjusted_pos, size);
             }
             else{
-                i64 adjusted_pos = start_pos - 1;
+                i64 adjusted_pos = start_pos - 1 + needle.size;
                 start_pos = clamp_bot(0, adjusted_pos);
                 range = make_range_i64(0, adjusted_pos);
             }
             buffer_chunks_clamp(&chunks, range);
             if (chunks.first != 0){
-                
                 u64_Array jump_table = string_compute_needle_jump_table(scratch, needle, direction);
                 Character_Predicate dummy = {};
                 String_Match_List list = find_all_matches(scratch, 1,
