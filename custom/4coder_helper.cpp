@@ -1560,12 +1560,20 @@ key_is_unmodified(Key_Event_Data *key){
 
 internal u32
 to_writable_character(User_Input in, u8 *space){
-    return(utf8_write(space, in.key.character));
+    u32 inc = 0;
+    if (in.key.character != 0){
+        inc = utf8_write(space, in.key.character);
+    }
+    return(inc);
 }
 
 internal u32
 to_writable_character(Key_Event_Data key, u8 *space){
-    return(utf8_write(space, key.character));
+    u32 inc = 0;
+    if (key.character != 0){
+        inc = utf8_write(space, key.character);
+    }
+    return(inc);
 }
 
 internal String_Const_u8
