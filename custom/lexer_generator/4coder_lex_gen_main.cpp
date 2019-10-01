@@ -3945,9 +3945,9 @@ int main(void){
     
     String_Const_u8 path_to_src = string_remove_last_folder(path_to_self);
     
-    String_Const_u8 out_h_name = push_u8_stringf(&ctx->arena, "%.*slanguages/generated_lexer_" LANG_NAME_LOWER_STR ".h",
+    String_Const_u8 out_h_name = push_u8_stringf(&ctx->arena, "%.*sgenerated/lexer_" LANG_NAME_LOWER_STR ".h",
                                                  string_expand(path_to_src));
-    String_Const_u8 out_cpp_name = push_u8_stringf(&ctx->arena, "%.*slanguages/generated_lexer_" LANG_NAME_LOWER_STR ".cpp",
+    String_Const_u8 out_cpp_name = push_u8_stringf(&ctx->arena, "%.*sgenerated/lexer_" LANG_NAME_LOWER_STR ".cpp",
                                                    string_expand(path_to_src));
     
     FILE *out_h_file = fopen((char*)out_h_name.str, "wb");

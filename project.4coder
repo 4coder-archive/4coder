@@ -39,11 +39,11 @@ command_list = {
  
  { .name = "build C++ lexer generator",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time custom\\languages\\4coder_lex_gen_cpp.cpp ..\\build", .os = "win" }, }, },
+   .cmd = { { "custom\\bin\\build_one_time custom\\languages\\4coder_cpp_lexer_gen.cpp ..\\build", .os = "win" }, }, },
  
  { .name = "build token tester",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time custom\\languages\\4coder_lexer_cpp_test.cpp ..\\build", .os = "win" }, }, }
+   .cmd = { { "custom\\bin\\build_one_time custom\\languages\\4coder_cpp_lexer_test.cpp ..\\build", .os = "win" }, }, }
 };
 
 fkey_command[1] = "build x64";

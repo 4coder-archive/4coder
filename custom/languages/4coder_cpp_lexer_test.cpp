@@ -419,11 +419,11 @@ R"bar(foo
 
 #include "4coder_base_types.h"
 #include "4coder_token.h"
-#include "generated_lexer_cpp.h"
+#include "generated/lexer_cpp.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_token.cpp"
-#include "generated_lexer_cpp.cpp"
+#include "generated/lexer_cpp.cpp"
 
 #include "4coder_stringf.cpp"
 #include "4coder_malloc_allocator.cpp"

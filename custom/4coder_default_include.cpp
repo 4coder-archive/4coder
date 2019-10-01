@@ -17,7 +17,7 @@
 #include "4coder_table.h"
 #include "4coder_token.h"
 
-#include "languages/generated_lexer_cpp.h"
+#include "generated/lexer_cpp.h"
 #include "4coder_string_match.h"
 #include "4coder_helper.h"
 #include "4coder_insertion.h"
@@ -44,7 +44,7 @@
 #include "4coder_buffer_seek_constructors.cpp"
 
 #include "4coder_token.cpp"
-#include "languages/generated_lexer_cpp.cpp"
+#include "generated/lexer_cpp.cpp"
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_helper.cpp"
 #include "4coder_fancy.cpp"

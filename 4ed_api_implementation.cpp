@@ -9,12 +9,12 @@
 
 // TOP
 
-internal b32
+function b32
 access_test(u32 lock_flags, u32 access_flags){
     return((lock_flags & ~access_flags) == 0);
 }
 
-internal b32
+function b32
 api_check_panel(Panel *panel){
     b32 result = false;
     if (panel != 0 && panel->kind != PanelKind_Unused){
@@ -23,27 +23,27 @@ api_check_panel(Panel *panel){
     return(result);
 }
 
-internal b32
+function b32
 api_check_buffer(Editing_File *file){
     return(file != 0);
 }
 
-internal b32
+function b32
 api_check_buffer(Editing_File *file, Access_Flag access){
     return(api_check_buffer(file) && access_test(file_get_access_flags(file), access));
 }
 
-internal b32
+function b32
 api_check_view(View *view){
     return(view != 0 && view->in_use);
 }
 
-internal b32
+function b32
 api_check_view(View *view, Access_Flag access){
     return(api_check_view(view) && access_test(view_get_access_flags(view), access));
 }
 
-internal b32
+function b32
 is_running_coroutine(Application_Links *app){
     return(app->current_coroutine != 0);
 }
@@ -986,7 +986,7 @@ Get_File_Attributes(Application_Links *app, String_Const_u8 file_name)
     return(models->system->quick_file_attributes(scratch, file_name));
 }
 
-internal View*
+function View*
 get_view_next__inner(Layout *layout, View *view){
     if (view != 0){
         Panel *panel = view->panel;
@@ -1005,7 +1005,7 @@ get_view_next__inner(Layout *layout, View *view){
     return(view);
 }
 
-internal View*
+function View*
 get_view_prev__inner(Layout *layout, View *view){
     if (view != 0){
         Panel *panel = view->panel;
@@ -1727,7 +1727,7 @@ View_Get_Quit_UI_Handler(Application_Links *app, View_ID view_id, UI_Quit_Functi
     return(result);
 }
 
-internal Dynamic_Workspace*
+function Dynamic_Workspace*
 get_dynamic_workspace(Models *models, Managed_Scope handle){
     Dynamic_Workspace *result = 0;
     Table_Lookup lookup = table_lookup(&models->lifetime_allocator.scope_id_to_scope_ptr_table, handle);
@@ -1770,7 +1770,7 @@ Get_Global_Managed_Scope(Application_Links *app)
     return((Managed_Scope)models->dynamic_workspace.scope_id);
 }
 
-internal Lifetime_Object*
+function Lifetime_Object*
 get_lifetime_object_from_workspace(Dynamic_Workspace *workspace){
     Lifetime_Object *result = 0;
     switch (workspace->user_type){
@@ -1992,7 +1992,7 @@ Alloc_Buffer_Markers_On_Buffer(Application_Links *app, Buffer_ID buffer_id, i32 
     return(result);
 }
 
-internal Managed_Object_Ptr_And_Workspace
+function Managed_Object_Ptr_And_Workspace
 get_dynamic_object_ptrs(Models *models, Managed_Object object){
     Managed_Object_Ptr_And_Workspace result = {};
     u32 hi_id = (object >> 32)&max_u32;
@@ -2268,7 +2268,7 @@ Buffer_History_Get_Max_Record_Index(Application_Links *app, Buffer_ID buffer_id)
     return(result);
 }
 
-internal void
+function void
 buffer_history__fill_record_info(Record *record, Record_Info *out){
     out->kind = record->kind;
     out->edit_number = record->edit_number;
@@ -2713,7 +2713,7 @@ Get_Microseconds_Timestamp(Application_Links *app)
     return(system->now_time());
 }
 
-internal Vec2
+function Vec2
 models_get_coordinate_center(Models *models){
     Vec2 result = {};
     if (models->coordinate_center_stack_top > 0){
@@ -2722,13 +2722,13 @@ models_get_coordinate_center(Models *models){
     return(result);
 }
 
-internal Vec2
+function Vec2
 draw_helper__models_space_to_screen_space(Models *models, Vec2 point){
     Vec2 c = models_get_coordinate_center(models);
     return(point + c);
 }
 
-internal f32_Rect
+function f32_Rect
 draw_helper__models_space_to_screen_space(Models *models, f32_Rect rect){
     Vec2 c = models_get_coordinate_center(models);
     rect.p0 += c;
