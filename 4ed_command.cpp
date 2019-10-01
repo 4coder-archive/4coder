@@ -161,12 +161,10 @@ map_init(Command_Map *map, Cursor *cursor, i32 max, i32 parent){
     Assert(max >= 6);
     Assert(map->commands == 0);
     map->parent = parent;
-    map->commands = push_array(cursor, Command_Binding, max);
+    map->commands = push_array_zero(cursor, Command_Binding, max);
     map->count = 0;
     map->max = max;
-    
-    memset(map->commands, 0, max*sizeof(*map->commands));
-    memset(map->vanilla_keyboard_default, 0, sizeof(map->vanilla_keyboard_default));
+    block_zero_array(map->vanilla_keyboard_default);
 }
 
 internal b32

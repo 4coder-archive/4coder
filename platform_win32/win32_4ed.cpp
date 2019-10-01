@@ -24,8 +24,6 @@
 #include "4coder_table.h"
 #include "api/4coder_version.h"
 
-#include <string.h>
-
 #if defined(FRED_SUPER)
 # include "api/4coder_keycodes.h"
 # include "api/4coder_default_colors.h"
@@ -1500,19 +1498,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     i32 argc = __argc;
     char **argv = __argv;
     
-    //
-    // System Linkage
-    //
-    
+    // NOTE(allen): link
     sysfunc.font_make_face = ft__font_make_face;
     sysfunc.get_texture = gl__get_texture;
     sysfunc.fill_texture = gl__fill_texture;
     link_system_code();
     
-    //
-    // Memory init
-    //
-    
+    // NOTE(allen): memory
     Thread_Context _tctx = {};
     thread_ctx_init(&_tctx, get_base_allocator_system(&sysfunc));
     
@@ -1522,11 +1514,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // TODO(allen): *arena;
     target.arena = make_arena_system(&sysfunc);
     
-    memset(&plat_settings, 0, sizeof(plat_settings));
+    block_zero_struct(&plat_settings);
     
-    memset(&libraries, 0, sizeof(libraries));
-    memset(&app, 0, sizeof(app));
-    memset(&custom_api, 0, sizeof(custom_api));
+    block_zero_struct(&libraries);
+    block_zero_struct(&app);
+    block_zero_struct(&custom_api);
     
     win32vars.cursor_show = MouseCursorShow_Always;
     win32vars.prev_cursor_show = MouseCursorShow_Always;

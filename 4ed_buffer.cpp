@@ -112,19 +112,19 @@ eol_convert_in(char *dest, char *src, i32 size){
     i32 k = 0;
     
     for (; j < size && src[j] != '\r'; ++j);
-    memcpy(dest, src, j);
+    block_copy(dest, src, j);
     
     if (j < size){
         k = 1;
         ++j;
         for (i = j; i < size; ++i){
             if (src[i] == '\r'){
-                memcpy(dest + j - k, src + j, i - j);
+                block_copy(dest + j - k, src + j, i - j);
                 ++k;
                 j = i+1;
             }
         }
-        memcpy(dest + j - k, src + j, i - j);
+        block_copy(dest + j - k, src + j, i - j);
         j = i - k;
     }
     
@@ -144,12 +144,12 @@ eol_in_place_convert_in(char *data, i32 size){
         ++j;
         for (i = j; i < size; ++i){
             if (data[i] == '\r'){
-                memmove(data + j - k, data + j, i - j);
+                block_copy(data + j - k, data + j, i - j);
                 ++k;
                 j = i+1;
             }
         }
-        memmove(data + j - k, data + j, i - j);
+        block_copy(data + j - k, data + j, i - j);
         j = i - k;
     }
     
@@ -182,7 +182,7 @@ eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
     
     for (; i < size; ++i){
         if (data[i] == '\n'){
-            memmove(data + i + 1, data + i, size - i);
+            block_copy(data + i + 1, data + i, size - i);
             data[i] = '\r';
             ++i;
             ++size;

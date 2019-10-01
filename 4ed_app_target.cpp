@@ -11,9 +11,6 @@
 
 #define REMOVE_OLD_STRING
 
-// TODO(allen): get away from string.h
-#include <string.h>
-
 #include "api/4coder_custom.h"
 
 #include "4coder_base_types.h"

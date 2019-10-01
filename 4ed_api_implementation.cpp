@@ -2092,7 +2092,7 @@ Managed_Object_Store_Data(Application_Links *app, Managed_Object object, u32 fir
         u32 item_count = object_ptrs.header->count;
         if (0 <= first_index && first_index + count <= item_count){
             u32 item_size = object_ptrs.header->item_size;
-            memcpy(ptr + first_index*item_size, mem, count*item_size);
+            block_copy(ptr + first_index*item_size, mem, count*item_size);
             heap_assert_good(&object_ptrs.workspace->heap);
             result = true;
         }
@@ -2111,7 +2111,7 @@ Managed_Object_Load_Data(Application_Links *app, Managed_Object object, u32 firs
         u32 item_count = object_ptrs.header->count;
         if (0 <= first_index && first_index + count <= item_count){
             u32 item_size = object_ptrs.header->item_size;
-            memcpy(mem_out, ptr + first_index*item_size, count*item_size);
+            block_copy(mem_out, ptr + first_index*item_size, count*item_size);
             heap_assert_good(&object_ptrs.workspace->heap);
             result = true;
         }

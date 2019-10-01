@@ -190,10 +190,9 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         
         // Initialize Table and User Maps in Temp Buffer
         new_mapping.map_id_table = push_array(scratch, i32, user_map_count);
-        memset(new_mapping.map_id_table, -1, user_map_count*sizeof(i32));
+        block_fill_u32(new_mapping.map_id_table, user_map_count*sizeof(i32), (u32)(-1));
         
-        new_mapping.user_maps = push_array(scratch, Command_Map, user_map_count);
-        memset(new_mapping.user_maps, 0, user_map_count*sizeof(Command_Map));
+        new_mapping.user_maps = push_array_zero(scratch, Command_Map, user_map_count);
         
         // Find the Size of Each Map
         for (++unit; unit < end; ++unit){
@@ -271,12 +270,12 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         // Move ID Table Memory and Pointer
         i32 *old_table = new_mapping.map_id_table;
         new_mapping.map_id_table = push_array(&local_cursor, i32, user_map_count);
-        memmove(new_mapping.map_id_table, old_table, map_id_table_memsize);
+        block_copy(new_mapping.map_id_table, old_table, map_id_table_memsize);
         
         // Move User Maps Memory and Pointer
         Command_Map *old_maps = new_mapping.user_maps;
         new_mapping.user_maps = push_array(&local_cursor, Command_Map, user_map_count);
-        memmove(new_mapping.user_maps, old_maps, user_maps_memsize);
+        block_copy(new_mapping.user_maps, old_maps, user_maps_memsize);
         
         // Fill in Command Maps
         unit = (Binding_Unit*)buffer;
@@ -411,7 +410,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                                 {
                                     models->clipboard_change = (Clipboard_Change_Hook_Function*)unit->hook.func;
                                 }break;
-								
+                                
                                 case special_hook_get_view_buffer_region:
                                 {
                                     models->get_view_buffer_region = (Get_View_Buffer_Region_Function*)unit->hook.func;
