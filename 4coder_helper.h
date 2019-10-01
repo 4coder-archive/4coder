@@ -40,6 +40,12 @@ enum{
     PositionWithinLine_End,
 };
 
+typedef u32 Buffer_Seek_String_Flags;
+enum{
+    BufferSeekString_Backward = 1,
+    BufferSeekString_CaseInsensitive = 2,
+};
+
 ////////////////////////////////
 
 typedef b8 Character_Predicate_Function(u8 c);

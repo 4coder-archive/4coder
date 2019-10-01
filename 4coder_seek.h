@@ -4,11 +4,7 @@
 #if !defined(FCODER_SEEK_H)
 #define FCODER_SEEK_H
 
-typedef u32 Buffer_Seek_String_Flags;
-enum{
-    BufferSeekString_Backward = 1,
-    BufferSeekString_CaseInsensitive = 2,
-};
+#error Get rid of this file
 
 #endif
 

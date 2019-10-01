@@ -395,6 +395,7 @@ seek_blank_line(Application_Links *app, Scan_Direction direction, Position_Withi
             new_pos = get_line_side_pos_from_pos(app, buffer, new_pos, Side_Max);
         }break;
     }
+    new_pos = view_get_character_legal_pos_from_pos(app, view, new_pos);
     view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
     no_mark_snap_to_cursor_if_shift(app, view);
 }
@@ -548,17 +549,6 @@ CUSTOM_DOC("Seek left for boundary between alphanumeric characters or camel case
     current_view_scan_move(app, Scan_Backward,
                            push_boundary_list(scratch, boundary_alpha_numeric_camel));
 }
-
-#define seek_whitespace_right            move_right_whitespace_boundary
-#define seek_whitespace_left             move_left_whitespace_boundary
-#define seek_token_right                 move_right_token_boundary
-#define seek_token_left                  move_left_token_boundary
-#define seek_white_or_token_right        move_right_whitespace_or_token_boundary
-#define seek_white_or_token_left         move_left_whitespace_or_token_boundary
-#define seek_alphanumeric_right          move_right_alpha_numeric_boundary
-#define seek_alphanumeric_left           move_left_alpha_numeric_boundary
-#define seek_alphanumeric_or_camel_right move_right_alpha_numeric_or_camel_boundary 
-#define seek_alphanumeric_or_camel_left  move_left_alpha_numeric_or_camel_boundary
 
 ////////////////////////////////
 
