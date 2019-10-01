@@ -2619,21 +2619,25 @@ scratch_block__init(Scratch_Block *block, Arena *arena){
     block->arena = arena;
     block->temp = begin_temp(arena);
     block->do_full_clear = false;
+    block->tctx = 0;
+    block->sharable_restore = 0;
 }
 
 internal void
 scratch_block__init(Scratch_Block *block, Thread_Context *tctx, Scratch_Share_Code share){
-    block->tctx = tctx;
     Arena *arena = tctx->sharable_scratch;
     if (arena != 0){
+        block->arena = arena;
         block->temp = begin_temp(arena);
         block->do_full_clear = false;
     }
     else{
         arena = reserve_arena(tctx);
+        block->arena = arena;
+        block_zero_struct(&block->temp);
         block->do_full_clear = true;
     }
-    block->arena = arena;
+    block->tctx = tctx;
     block->sharable_restore = tctx->sharable_scratch;
     if (share == Scratch_Share){
         tctx->sharable_scratch = arena;
