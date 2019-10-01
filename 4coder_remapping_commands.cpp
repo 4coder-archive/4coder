@@ -51,31 +51,23 @@ CUSTOM_DOC("Remap keybindings using the 'choose' mapping rule.")
 CUSTOM_COMMAND_SIG(set_bindings_default)
 CUSTOM_DOC("Remap keybindings using the 'default' mapping rule.")
 {
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
-    
+    Scratch_Block scratch(app, Scratch_Share);
     Bind_Helper context = get_context_on_arena(scratch);
     set_all_default_hooks(&context);
     default_keys(&context);
     Bind_Buffer result = end_bind_helper_get_buffer(&context);
     global_set_mapping(app, result.data, result.size);
-    
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(set_bindings_mac_default)
 CUSTOM_DOC("Remap keybindings using the 'mac-default' mapping rule.")
 {
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
-    
+    Scratch_Block scratch(app, Scratch_Share);
     Bind_Helper context = get_context_on_arena(scratch);
     set_all_default_hooks(&context);
     mac_default_keys(&context);
     Bind_Buffer result = end_bind_helper_get_buffer(&context);
     global_set_mapping(app, result.data, result.size);
-    
-    end_temp(temp);
 }
 
 #endif

@@ -1097,14 +1097,41 @@ struct Temp_Memory{
     };
 };
 
+////////////////////////////////
+
+union Arena_Node{
+    Arena_Node *next;
+    Arena arena;
+};
+struct Thread_Context{
+    Base_Allocator *allocator;
+    Arena node_arena;
+    Arena_Node *free_arenas;
+    Arena *sharable_scratch;
+};
+
+typedef i32 Scratch_Share_Code;
+enum{
+    Scratch_DontShare,
+    Scratch_Share,
+};
+
 struct Scratch_Block{
+    Arena *arena;
+    Temp_Memory temp;
+    b32 do_full_clear;
+    Thread_Context *tctx;
+    Arena *sharable_restore;
+    
     Scratch_Block(Temp_Memory temp);
     Scratch_Block(Arena *arena);
+    Scratch_Block(struct Thread_Context *tctx, Scratch_Share_Code share);
+    Scratch_Block(struct Thread_Context *tctx);
+    Scratch_Block(struct Application_Links *app, Scratch_Share_Code share);
     Scratch_Block(struct Application_Links *app);
     ~Scratch_Block();
     operator Arena*();
     void restore(void);
-    Temp_Memory temp;
 };
 
 ////////////////////////////////
@@ -1126,7 +1153,8 @@ struct Heap_Node{
 };
 
 struct Heap{
-    Arena arena;
+    Arena arena_;
+    Arena *arena;
     Heap_Basic_Node in_order;
     Heap_Basic_Node free_nodes;
     umem used_space;

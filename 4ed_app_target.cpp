@@ -32,12 +32,6 @@
 
 #include "4coder_lib/4coder_utf8.h"
 
-// TODO(allen): stop this nonsense
-struct Mem_Options{
-    Arena arena;
-    Heap heap;
-};
-
 #include "4ed_render_target.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"

@@ -129,10 +129,11 @@ global_history_adjust_edit_grouping_counter(Global_History *global_history, i32 
 }
 
 internal void
-history_init(Application_Links *app, History *history){
+history_init(Models *models, History *history){
     history->activated = true;
-    history->arena = make_arena_app_links(app, KB(32));
-    heap_init(&history->heap, history->arena.base_allocator);
+    Thread_Context *tctx = models->tctx;
+    history->arena = reserve_arena(tctx, KB(32));
+    heap_init(&history->heap, tctx->allocator);
     history->heap_wrapper = base_allocator_on_heap(&history->heap);
     dll_init_sentinel(&history->free_records);
     dll_init_sentinel(&history->records);
@@ -146,9 +147,9 @@ history_is_activated(History *history){
 }
 
 internal void
-history_free(History *history){
+history_free(Models *models, History *history){
     if (history->activated){
-        linalloc_clear(&history->arena);
+        release_arena(models, history->arena);
         heap_free_all(&history->heap);
         block_zero_struct(history);
     }
@@ -248,13 +249,13 @@ history_record_edit(Global_History *global_history, History *history, Gap_Buffer
         Record *new_record = history__allocate_record(history);
         history__stash_record(history, new_record);
         
-        new_record->restore_point = begin_temp(&history->arena);
+        new_record->restore_point = begin_temp(history->arena);
         new_record->edit_number = global_history_get_edit_number(global_history);
         
         new_record->kind = RecordKind_Single;
         
-        new_record->single.forward_text = push_string_copy(&history->arena, edit.text);
-        new_record->single.backward_text = buffer_stringify(&history->arena, buffer, edit.range);
+        new_record->single.forward_text = push_string_copy(history->arena, edit.text);
+        new_record->single.backward_text = buffer_stringify(history->arena, buffer, edit.range);
         new_record->single.first = edit.range.first;
         
         Assert(history->record_lookup.count == history->record_count);
@@ -340,8 +341,8 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
                 end_temp(left->restore_point);
                 
                 left->edit_number = right->edit_number;
-                left->single.forward_text  = push_string_copy(&history->arena, merged_forward);
-                left->single.backward_text = push_string_copy(&history->arena, merged_backward);
+                left->single.forward_text  = push_string_copy(history->arena, merged_forward);
+                left->single.backward_text = push_string_copy(history->arena, merged_backward);
                 
                 history__free_single_node(history, &right->node);
                 record->group.count -= 1;

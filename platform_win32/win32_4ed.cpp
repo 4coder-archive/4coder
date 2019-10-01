@@ -150,7 +150,7 @@ struct Win32_Object{
 };
 
 struct Win32_Vars{
-    Arena arena;
+    Thread_Context *tctx;
     
     Win32_Input_Chunk input_chunk;
     b8 lctrl_lalt_is_altgr;
@@ -201,7 +201,6 @@ struct Win32_Vars{
 
 global Win32_Vars win32vars;
 global Render_Target target;
-global Application_Memory memory_vars;
 global Plat_Settings plat_settings;
 
 global Libraries libraries;
@@ -1026,7 +1025,7 @@ Sys_Condition_Variable_Free_Sig(system_condition_variable_free){
 internal LRESULT
 win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     LRESULT result = 0;
-    Arena *scratch = &win32vars.arena;
+    Scratch_Block scratch(win32vars.tctx);
     
     switch (uMsg){
         case WM_MENUCHAR:break;
@@ -1538,19 +1537,20 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // Memory init
     //
     
+    Thread_Context _tctx = {};
+    thread_ctx_init(&_tctx, get_base_allocator_system(&sysfunc));
     
-    memset(&win32vars, 0, sizeof(win32vars));
-    memset(&target, 0, sizeof(target));
-    memset(&memory_vars, 0, sizeof(memory_vars));
+    block_zero_struct(&win32vars);
+    win32vars.tctx = &_tctx;
+    
+    // TODO(allen): *arena;
+    target.arena = make_arena_system(&sysfunc);
+    
     memset(&plat_settings, 0, sizeof(plat_settings));
-    
-	win32vars.arena = make_arena_system(&sysfunc);
     
     memset(&libraries, 0, sizeof(libraries));
     memset(&app, 0, sizeof(app));
     memset(&custom_api, 0, sizeof(custom_api));
-    
-    memory_init(&win32vars.arena);
     
     win32vars.cursor_show = MouseCursorShow_Always;
     win32vars.prev_cursor_show = MouseCursorShow_Always;
@@ -1568,16 +1568,16 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     init_shared_vars();
     
-    load_app_code(&win32vars.arena);
+    load_app_code(win32vars.tctx);
     win32vars.log_string = app.get_logger(&sysfunc);
-    read_command_line(&win32vars.arena, argc, argv);
+    void *base_ptr = read_command_line(win32vars.tctx, argc, argv);
     
     //
     // Load Custom Code
     //
     
 #if defined(FRED_SUPER)
-    load_custom_code(&win32vars.arena);
+    load_custom_code(win32vars.tctx);
 #else
     custom_api.get_bindings = get_bindings;
 #endif
@@ -1630,7 +1630,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     if (!AddClipboardFormatListener(win32vars.window_handle)){
-        win32_output_error_string(&win32vars.arena, ErrorString_UseLog);
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        win32_output_error_string(scratch, ErrorString_UseLog);
     }
     
     win32vars.clip_max = KB(16);
@@ -1638,7 +1639,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     if (win32vars.clipboard_sequence == 0){
-        win32_post_clipboard(&win32vars.arena, "", 0);
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        win32_post_clipboard(scratch, "", 0);
         
         win32vars.clipboard_sequence = GetClipboardSequenceNumber();
         win32vars.next_clipboard_is_self = 0;
@@ -1648,7 +1650,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     else{
-        win32_read_clipboard_contents(&win32vars.arena);
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        win32_read_clipboard_contents(scratch);
     }
     
     win32_keycode_init();
@@ -1673,11 +1676,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     {
-        Temp_Memory temp = begin_temp(&win32vars.arena);
-        String_Const_u8 curdir = sysfunc.get_current_path(&win32vars.arena);
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        String_Const_u8 curdir = sysfunc.get_current_path(scratch);
         curdir = string_mod_replace_character(curdir, '\\', '/');
-        app.init(&sysfunc, &target, &memory_vars, win32vars.clipboard_contents, curdir, custom_api);
-        end_temp(temp);
+        app.init(&sysfunc, &target, base_ptr, win32vars.clipboard_contents, curdir, custom_api);
     }
     
     //
@@ -1863,7 +1865,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 }
                 else{
                     for (i32 R = 0; R < 4; ++R){
-                        if (win32_read_clipboard_contents(&win32vars.arena)){
+                        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+                        if (win32_read_clipboard_contents(scratch)){
                             input.clipboard_changed = true;
                             break;
                         }
@@ -1880,7 +1883,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Application Core Update
         Application_Step_Result result = {};
         if (app.step != 0){
-            result = app.step(&sysfunc, &target, &memory_vars, &input);
+            result = app.step(&sysfunc, &target, base_ptr, &input);
         }
         else{
             //LOG("app.step == 0 -- skipping\n");
@@ -1893,12 +1896,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): Post New Clipboard Content
         if (win32vars.clip_post.size > 0){
-            win32_post_clipboard(&win32vars.arena, (char*)win32vars.clip_post.str, (i32)win32vars.clip_post.size);
+            Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+            win32_post_clipboard(scratch, (char*)win32vars.clip_post.str, (i32)win32vars.clip_post.size);
         }
         
         // NOTE(allen): Switch to New Title
         if (result.has_new_title){
-            SetWindowText_utf8(&win32vars.arena, win32vars.window_handle, (u8*)result.title_string);
+            Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+            SetWindowText_utf8(scratch, win32vars.window_handle, (u8*)result.title_string);
         }
         
         // NOTE(allen): Switch to New Cursor

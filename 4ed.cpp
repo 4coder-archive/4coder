@@ -161,9 +161,8 @@ internal b32
 interpret_binding_buffer(Models *models, void *buffer, i32 size){
     b32 result = true;
     
-    Heap *gen = &models->mem.heap;
-    Arena *scratch = &models->mem.arena;
-    Temp_Memory temp = begin_temp(scratch);
+    Heap *gen = &models->heap;
+    Scratch_Block scratch(models->tctx, Scratch_Share);
     
     Mapping new_mapping = {};
     
@@ -454,7 +453,6 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     }
     
     models->mapping = new_mapping;
-    end_temp(temp);
     
     return(result);
 }
@@ -476,9 +474,7 @@ command_caller(Coroutine *coroutine){
 }
 
 internal void
-app_links_init(System_Functions *system, Application_Links *app_links, void *data, i32 size){
-    app_links->memory = data;
-    app_links->memory_size = size;
+app_links_init(System_Functions *system, Application_Links *app_links){
     FillAppLinksAPI(app_links);
     app_links->current_coroutine = 0;
     app_links->system_links = system;
@@ -539,10 +535,9 @@ fill_hardcode_default_style(Color_Table color_table){
 
 internal void
 app_hardcode_default_style(Models *models){
-    Arena *arena = &models->mem.arena;
     Color_Table color_table = {};
     color_table.count = Stag_COUNT;
-    color_table.vals = push_array(arena, u32, color_table.count);
+    color_table.vals = push_array(models->arena, u32, color_table.count);
     fill_hardcode_default_style(color_table);
     models->fallback_color_table = color_table;
 }
@@ -718,12 +713,12 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
 ////////////////////////////////
 
 internal Models*
-app_setup_memory(System_Functions *system, Application_Memory *memory){
-    Cursor cursor = make_cursor(memory->vars_memory, memory->vars_memory_size);
-    Models *models = push_array_zero(&cursor, Models, 1);
-    models->mem.arena = make_arena_system(system);
-    models->base_allocator = models->mem.arena.base_allocator;
-    heap_init(&models->mem.heap, models->base_allocator);
+models_init(Thread_Context *tctx){
+    Arena *arena = reserve_arena(tctx);
+    Models *models = push_array_zero(arena, Models, 1);
+    models->tctx = tctx;
+    models->arena = arena;
+    heap_init(&models->heap, tctx->allocator);
     return(models);
 }
 
@@ -811,8 +806,8 @@ app_get_logger(System_Functions *system){
 }
 
 App_Read_Command_Line_Sig(app_read_command_line){
-    i32 out_size = 0;
-    Models *models = app_setup_memory(system, memory);
+    Models *models = models_init(tctx);
+    models->system = system;
     App_Settings *settings = &models->settings;
     block_zero_struct(settings);
     if (argc > 1){
@@ -820,21 +815,19 @@ App_Read_Command_Line_Sig(app_read_command_line){
     }
     *files = models->settings.init_files;
     *file_count = &models->settings.init_files_count;
-    return(out_size);
+    return(models);
 }
 
 App_Init_Sig(app_init){
-    Models *models = (Models*)memory->vars_memory;
-    models->system = system;
+    Models *models = (Models*)base_ptr;
     models->keep_playing = true;
     
-    app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
-    models->custom_layer_arena = make_arena_models(models);
+    app_links_init(system, &models->app_links);
     
     models->config_api = api;
     models->app_links.cmd_context = models;
     
-    Arena *arena = &models->mem.arena;
+    Arena *arena = models->arena;
     
     // NOTE(allen): coroutines
     coroutine_system_init(system, &models->coroutines);
@@ -865,14 +858,15 @@ App_Init_Sig(app_init){
     
     {
         Assert(models->config_api.get_bindings != 0);
-        i32 wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
-        Assert(wanted_size <= models->app_links.memory_size);
-        interpret_binding_buffer(models, models->app_links.memory, wanted_size);
-        memset(models->app_links.memory, 0, wanted_size);
+        Scratch_Block scratch(models->tctx);
+        u8 *memory = push_array(scratch, u8, KB(64));
+        i32 wanted_size = models->config_api.get_bindings(memory, KB(64));
+        Assert(wanted_size <= KB(64));
+        interpret_binding_buffer(models, memory, wanted_size);
     }
     
-    managed_ids_init(models->base_allocator, &models->managed_id_set);
-    lifetime_allocator_init(models->base_allocator, &models->lifetime_allocator);
+    managed_ids_init(models->tctx->allocator, &models->managed_id_set);
+    lifetime_allocator_init(models->tctx->allocator, &models->lifetime_allocator);
     dynamic_workspace_init(&models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
@@ -892,7 +886,7 @@ App_Init_Sig(app_init){
     
     // TODO(allen): do(better clipboard allocation)
     if (clipboard.str != 0){
-        String_Const_u8 *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
+        String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
         block_copy(dest->str, clipboard.str, clipboard.size);
     }
     
@@ -920,7 +914,7 @@ App_Init_Sig(app_init){
         { string_u8_litinit("*log*")     , &models->log_buffer    , true , },
     };
     
-    Heap *heap = &models->mem.heap;
+    Heap *heap = &models->heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_allocate_file(&models->working_set, &models->lifetime_allocator);
         buffer_bind_name(models, arena, &models->working_set, file, init_files[i].name);
@@ -933,7 +927,7 @@ App_Init_Sig(app_init){
         file_create_from_string(models, file, SCu8(), attributes);
         if (init_files[i].read_only){
             file->settings.read_only = true;
-            history_free(&file->state.history);
+            history_free(models, &file->state.history);
         }
         
         file->settings.never_kill = true;
@@ -949,14 +943,14 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): miscellaneous init
     hot_directory_init(system, arena, &models->hot_directory, current_directory);
-    child_process_container_init(models->base_allocator, &models->child_processes);
+    child_process_container_init(models->tctx->allocator, &models->child_processes);
     models->user_up_key = key_up;
     models->user_down_key = key_down;
     models->period_wakeup_timer = system->wake_up_timer_create();
 }
 
 App_Step_Sig(app_step){
-    Models *models = (Models*)memory->vars_memory;
+    Models *models = (Models*)base_ptr;
     
     Mutex_Lock file_order_lock(system, models->working_set.mutex);
     
@@ -971,7 +965,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): OS clipboard event handling
     String_Const_u8 clipboard = input->clipboard;
     if (clipboard.str != 0){
-        String_Const_u8 *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, clipboard.size);
+        String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in((char*)dest->str, (char*)clipboard.str, (i32)clipboard.size);
         if (input->clipboard_changed && models->clipboard_change != 0){
             models->clipboard_change(&models->app_links, *dest, ClipboardFlag_FromOS);
@@ -986,10 +980,9 @@ App_Step_Sig(app_step){
     // NOTE(allen): update child processes
     f32 dt = input->dt;
     if (dt > 0){
-        Arena *scratch = &models->mem.arena;
+        Scratch_Block scratch(models->tctx, Scratch_Share);
         Child_Process_Container *child_processes = &models->child_processes;
         
-        Temp_Memory temp = begin_temp(scratch);
         Child_Process **processes_to_free = push_array(scratch, Child_Process*, child_processes->active_child_process_count);
         i32 processes_to_free_count = 0;
         
@@ -1035,8 +1028,6 @@ App_Step_Sig(app_step){
         for (i32 i = 0; i < processes_to_free_count; ++i){
             child_process_free(child_processes, processes_to_free[i]->id);
         }
-        
-        end_temp(temp);
     }
     
     // NOTE(allen): input filter and simulated events

@@ -98,8 +98,8 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
     }
     cursor_max += total_marker_count;
     
-    Arena *scratch = &models->mem.arena;
-    Temp_Memory cursor_temp = begin_temp(scratch);
+    Scratch_Block scratch(models->tctx, Scratch_Share);
+    
     Cursor_With_Index *cursors = push_array(scratch, Cursor_With_Index, cursor_max);
     Cursor_With_Index *r_cursors = push_array(scratch, Cursor_With_Index, cursor_max);
     i32 cursor_count = 0;
@@ -174,8 +174,6 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
             key_index += count;
         }
     }
-    
-    end_temp(cursor_temp);
 }
 
 internal void
@@ -189,8 +187,7 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     Assert(edit.range.first <= edit.range.one_past_last);
     Assert(edit.range.one_past_last <= buffer_size(buffer));
     
-    Arena *scratch = &models->mem.arena;
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(models->tctx, Scratch_Share);
     
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
@@ -232,8 +229,6 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
         Interval_i64 new_range = Ii64(edit.range.first, edit.range.first + edit.text.size);
         models->hook_file_edit_range(&models->app_links, file->id, new_range, original_text);
     }
-    
-    end_temp(temp);
 }
 
 internal void
@@ -375,7 +370,8 @@ edit_merge_history_range(Models *models, Editing_File *file, History_Record_Inde
                         }break;
                     }
                 }
-                history_merge_records(&models->mem.arena, history, first_index, last_index);
+                Scratch_Block scratch(models->tctx, Scratch_Share);
+                history_merge_records(scratch, history, first_index, last_index);
                 if (current_index >= last_index){
                     current_index -= (last_index - first_index);
                 }
@@ -437,10 +433,9 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
     if (file_name.size > 0){
         System_Functions *system = models->system;
         Working_Set *working_set = &models->working_set;
-        Heap *heap = &models->mem.heap;
+        Heap *heap = &models->heap;
         
-        Arena *scratch = &models->mem.arena;
-        Temp_Memory temp = begin_temp(scratch);
+        Scratch_Block scratch(models->tctx);
         
         Editing_File *file = 0;
         b32 do_empty_buffer = false;
@@ -555,8 +550,6 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
             models->hook_new_file != 0){
             models->hook_new_file(&models->app_links, file->id);
         }
-        
-        end_temp(temp);
     }
     
     return(result);

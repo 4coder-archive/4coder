@@ -14,18 +14,6 @@
 
 #define MAX_VIEWS 16
 
-// TODO(allen): This is DONE! GET RID OF IT NAO!
-struct Application_Memory{
-    void *vars_memory;
-    i32 vars_memory_size;
-    void *target_memory;
-    i32 target_memory_size;
-    void *user_memory;
-    i32 user_memory_size;
-    void *debug_memory;
-    i32 debug_memory_size;
-};
-
 // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
 // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
 // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
@@ -68,7 +56,7 @@ struct Plat_Settings{
 };
 
 #define App_Read_Command_Line_Sig(name)             \
-i32 name(System_Functions *system, Application_Memory *memory, String_Const_u8 current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, i32  argc, char **argv)
+void *name(Thread_Context *tctx, System_Functions *system, String_Const_u8 current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, i32 argc, char **argv)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
@@ -78,7 +66,7 @@ struct Custom_API{
 };
 
 #define App_Init_Sig(name) \
-void name(System_Functions *system, Render_Target *target, Application_Memory *memory, String_Const_u8 clipboard, String_Const_u8 current_directory, Custom_API api)
+void name(System_Functions *system, Render_Target *target, void *base_ptr, String_Const_u8 clipboard, String_Const_u8 current_directory, Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 
@@ -106,7 +94,7 @@ struct Application_Step_Input{
 #define App_Step_Sig(name) Application_Step_Result \
 name(System_Functions *system,             \
 Render_Target *target,                \
-Application_Memory *memory,           \
+void *base_ptr,                       \
 Application_Step_Input *input)
 
 typedef App_Step_Sig(App_Step);

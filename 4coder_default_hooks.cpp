@@ -962,7 +962,7 @@ BUFFER_HOOK_SIG(default_file_settings){
     
     String_Const_u8_Array extensions = global_config.code_exts;
     
-    Scratch_Block scratch = context_get_arena(app);
+    Scratch_Block scratch(app);
     
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
     

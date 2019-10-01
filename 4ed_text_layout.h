@@ -15,7 +15,7 @@
 union Text_Layout{
     Text_Layout *next;
     struct{
-        Arena arena;
+        Arena *arena;
         Buffer_ID buffer_id;
         Buffer_Point point;
         Interval_i64 visible_range;
@@ -26,7 +26,7 @@ union Text_Layout{
 };
 
 struct Text_Layout_Container{
-    Arena node_arena;
+    Arena *node_arena;
     Text_Layout *free_nodes;
     Table_u64_u64 table;
     Text_Layout_ID id_counter;

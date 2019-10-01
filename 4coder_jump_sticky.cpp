@@ -103,8 +103,7 @@ parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_ID buffe
 
 internal void
 init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_List *list){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     
     Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);
     Range_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch, &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps), jumps.count);
@@ -182,8 +181,6 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     list->jump_count = jumps.count;
     list->previous_size = (i32)buffer_get_size(app, buffer);
     list->buffer_id = buffer;
-    
-    end_temp(temp);
 }
 
 internal void
@@ -321,13 +318,11 @@ internal i32
 get_index_nearest_from_list(Application_Links *app, Marker_List *list, i64 line){
     i32 result = -1;
     if (list != 0){
-        Arena *scratch = context_get_arena(app);
-        Temp_Memory temp = begin_temp(scratch);
+        Scratch_Block scratch(app);
         Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
         if (stored != 0){
             result = binary_search((i64*)&stored->list_line, sizeof(*stored), list->jump_count, line);
         }
-        end_temp(temp);
     }
     return(result);
 }
@@ -336,8 +331,7 @@ internal i32
 get_index_exact_from_list(Application_Links *app, Marker_List *list, i64 line){
     i32 result = -1;
     if (list != 0){
-        Arena *scratch = context_get_arena(app);
-        Temp_Memory temp = begin_temp(scratch);
+        Scratch_Block scratch(app);
         Sticky_Jump_Stored *stored = get_all_stored_jumps_from_list(app, scratch, list);
         if (stored != 0){
             i32 index = binary_search((i64*)&stored->list_line, sizeof(*stored), list->jump_count, line);
@@ -345,7 +339,6 @@ get_index_exact_from_list(Application_Links *app, Marker_List *list, i64 line){
                 result = index;
             }
         }
-        end_temp(temp);
     }
     return(result);
 }

@@ -5,7 +5,7 @@
 // TOP
 
 static Project current_project = {};
-static Arena current_project_arena = {};
+static Arena *current_project_arena = {};
 
 ///////////////////////////////
 
@@ -707,13 +707,13 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
     Scratch_Block scratch(app);
     
     if (parsed != 0 && project != 0){
-        if (current_project_arena.base_allocator == 0){
-            current_project_arena = make_arena_app_links(app, KB(64));
+        if (current_project_arena == 0){
+            current_project_arena = reserve_arena(app);
         }
         
         // Copy project to current_project
-        linalloc_clear(&current_project_arena);
-        Project new_project = project_deep_copy(&current_project_arena, project);
+        linalloc_clear(current_project_arena);
+        Project new_project = project_deep_copy(current_project_arena, project);
         if (new_project.loaded){
             current_project = new_project;
             
@@ -803,20 +803,16 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
 
 static void
 set_current_project_from_data(Application_Links *app, String_Const_u8 file_name, Data data, String_Const_u8 file_dir){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app, Scratch_Share);
     Project_Parse_Result project_parse = parse_project__data(scratch, file_name, data, file_dir);
     set_current_project(app, project_parse.project, project_parse.parsed);
-    end_temp(temp);
 }
 
 static void
 set_current_project_from_nearest_project_file(Application_Links *app){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app, Scratch_Share);
     Project_Parse_Result project_parse = parse_project__nearest_file(app, scratch);
     set_current_project(app, project_parse.project, project_parse.parsed);
-    end_temp(temp);
 }
 
 static void
@@ -1200,8 +1196,7 @@ project_generate_project_4coder_file(Arena *scratch, String_Const_u8 script_path
 
 static void
 project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 do_bat_script, b32 do_sh_script){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     String_Const_u8 script_path = push_hot_directory(app, scratch);
     
     b32 needs_to_do_work = false;
@@ -1299,8 +1294,6 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
             print_message(app, string_u8_litexpr("project already setup, no changes made\n"));
         }
     }
-    
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(setup_new_project)
@@ -1341,11 +1334,10 @@ CUSTOM_COMMAND_SIG(project_command_lister)
 CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
 {
     if (current_project.loaded){
-        Arena *scratch = context_get_arena(app);
+        Scratch_Block scratch(app, Scratch_Share);
         
         View_ID view = get_active_view(app, AccessAll);
         view_end_ui_mode(app, view);
-        Temp_Memory temp = begin_temp(scratch);
         i32 option_count = current_project.command_array.count;
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);
         for (i32 i = 0;
@@ -1356,7 +1348,6 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
             options[i].user_data = IntAsPtr(i);
         }
         begin_integrated_lister__basic_list(app, "Command:", activate_project_command, 0, 0, options, option_count, 0, view);
-        end_temp(temp);
     }
 }
 

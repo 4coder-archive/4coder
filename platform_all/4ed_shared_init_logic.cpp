@@ -10,44 +10,10 @@
 // TOP
 
 internal void
-memory_init(Arena *scratch){
-#if defined(FRED_INTERNAL)
-# if ARCH_64BIT
-    void *bases[] = { (void*)TB(1), (void*)TB(2), };
-# else
-    void *bases[] = { (void*)MB(96), (void*)MB(512), };
-# endif
-#else
-    void *bases[] = { (void*)0, (void*)0, };
-#endif
-    
-    memory_vars.vars_memory_size = MB(128);
-    memory_vars.vars_memory = system_memory_allocate_extended(bases[0], memory_vars.vars_memory_size);
-    memory_vars.target_memory_size = MB(512);
-    memory_vars.target_memory = system_memory_allocate_extended(bases[1], memory_vars.target_memory_size);
-    memory_vars.user_memory_size = MB(32);
-    memory_vars.user_memory = system_memory_allocate_extended(0, memory_vars.user_memory_size);
-    memory_vars.debug_memory_size = MB(512);
-    memory_vars.debug_memory = system_memory_allocate_extended(0, memory_vars.debug_memory_size);
-    
-    i32 render_memsize = MB(1);
-    target.arena = make_arena_system(&sysfunc);
-    
-    b32 alloc_success = true;
-    if (memory_vars.vars_memory == 0 || memory_vars.target_memory == 0 || memory_vars.user_memory == 0){
-        alloc_success = false;
-    }
-    
-    if (!alloc_success){
-        char msg[] = "Could not allocate sufficient memory. Please make sure you have atleast 512Mb of RAM free. (This requirement will be relaxed in the future).";
-        system_error_box(scratch, msg);
-    }
-}
-
-internal void
-load_app_code(Arena *scratch){
+load_app_code(Thread_Context *tctx){
     App_Get_Functions *get_funcs = 0;
     
+    Scratch_Block scratch(tctx, Scratch_Share);
     if (system_load_library(scratch, &libraries.app_code, "4ed_app", LoadLibrary_BinaryDirectory)){
         get_funcs = (App_Get_Functions*)system_get_proc(&libraries.app_code, "app_get_functions");
     }
@@ -70,7 +36,8 @@ global char custom_fail_version_msg[] = "Failed to load custom code due to missi
 global char custom_fail_missing_get_bindings_msg[] = "Failed to load custom code due to missing 'get_bindings' symbol.  Try rebuilding with buildsuper.";
 
 internal void
-load_custom_code(Arena *scratch){
+load_custom_code(Thread_Context *tctx){
+    Scratch_Block scratch(tctx, Scratch_Share);
     local_persist char *default_file = "custom_4coder";
     local_persist Load_Library_Location locations[] = {
         LoadLibrary_CurrentDirectory,
@@ -121,17 +88,17 @@ load_custom_code(Arena *scratch){
     //LOGF("Loaded custom file: %s\n", success_file);
 }
 
-internal void
-read_command_line(Arena *scratch, i32 argc, char **argv){
-    Temp_Memory temp = begin_temp(scratch);
+internal void*
+read_command_line(Thread_Context *tctx, i32 argc, char **argv){
+    Scratch_Block scratch(tctx, Scratch_Share);
     String_Const_u8 curdir = sysfunc.get_current_path(scratch);
     curdir = string_mod_replace_character(curdir, '\\', '/');
     
     char **files = 0;
     i32 *file_count = 0;
-    app.read_command_line(&sysfunc, &memory_vars, curdir, &plat_settings, &files, &file_count, argc, argv);
+    void *result = app.read_command_line(tctx, &sysfunc, curdir, &plat_settings, &files, &file_count, argc, argv);
     sysshared_filter_real_files(scratch, files, file_count);
-    end_temp(temp);
+    return(result);
 }
 
 // BOTTOM

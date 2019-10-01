@@ -148,7 +148,6 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
     }
     
     if (file_name != 0){
-        Mem_Options *mem = &models->mem;
         if (models->hook_save_file != 0){
             models->hook_save_file(&models->app_links, file->id);
         }
@@ -156,7 +155,8 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         Gap_Buffer *buffer = &file->state.buffer;
         b32 dos_write_mode = file->settings.dos_write_mode;
         
-        Arena *scratch = &mem->arena;
+        Scratch_Block scratch(models->tctx, Scratch_Share);
+        
         if (!using_actual_file_name){
             String_Const_u8 s_file_name = SCu8(file_name);
             String_Const_u8 canonical_file_name = system->get_canonical(scratch, s_file_name);
@@ -165,7 +165,6 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
             }
         }
         
-        Temp_Memory temp = begin_temp(scratch);
         String_Const_u8 saveable_string = buffer_stringify(scratch, buffer, Ii64(0, buffer_size(buffer)));
         
         File_Attributes new_attributes = system->save_file(scratch, (char*)file_name, saveable_string);
@@ -179,7 +178,6 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
                   "save file [last_write_time=0x%llx]", new_attributes.last_write_time);
         
         file_clear_dirty_flags(file);
-        end_temp(temp);
     }
     
     return(result);
@@ -213,10 +211,10 @@ file_compute_cursor(Editing_File *file, Buffer_Seek seek){
 internal void
 file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
     System_Functions *system = models->system;
-    Arena *scratch = &models->mem.arena;
-    Application_Links *app_links = &models->app_links;
-    Base_Allocator *allocator = models->base_allocator;
+    Thread_Context *tctx = models->tctx;
+    Scratch_Block scratch(tctx, Scratch_Share);
     
+    Base_Allocator *allocator = tctx->allocator;
     block_zero_struct(&file->state);
     buffer_init(&file->state.buffer, val.str, val.size, allocator);
     
@@ -231,7 +229,7 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     buffer_measure_starts(scratch, &file->state.buffer);
     
     file->lifetime_object = lifetime_alloc_object(&models->lifetime_allocator, DynamicWorkspace_Buffer, file);
-    history_init(&models->app_links, &file->state.history);
+    history_init(models, &file->state.history);
     
     file->state.cached_layouts_arena = make_arena(allocator);
     file->state.line_layout_table = make_table_Data_u64(allocator, 500);
@@ -252,12 +250,15 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     
     Buffer_Hook_Function *hook_open_file = models->hook_open_file;
     if (hook_open_file != 0){
-        hook_open_file(app_links, file->id);
+        hook_open_file(&models->app_links, file->id);
     }
 }
 
 internal void
-file_free(System_Functions *system, Lifetime_Allocator *lifetime_allocator, Working_Set *working_set, Editing_File *file){
+file_free(Models *models, Editing_File *file){
+    Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
+    Working_Set *working_set = &models->working_set;
+    
     lifetime_free_object(lifetime_allocator, file->lifetime_object);
     
     Gap_Buffer *buffer = &file->state.buffer;
@@ -266,7 +267,7 @@ file_free(System_Functions *system, Lifetime_Allocator *lifetime_allocator, Work
         base_free(buffer->allocator, buffer->line_starts);
     }
     
-    history_free(&file->state.history);
+    history_free(models, &file->state.history);
     
     linalloc_clear(&file->state.cached_layouts_arena);
     table_free(&file->state.line_layout_table);
@@ -316,7 +317,7 @@ file_get_line_layout(Models *models, Editing_File *file, f32 width, Face *face, 
         else{
             list = push_array(&file->state.cached_layouts_arena, Buffer_Layout_Item_List, 1);
             Interval_i64 line_range = buffer_get_pos_range_from_line_number(&file->state.buffer, line_number);
-            *list = buffer_layout(&models->mem.arena, &file->state.cached_layouts_arena,
+            *list = buffer_layout(models->tctx, &file->state.cached_layouts_arena,
                                   &file->state.buffer, line_range, face, width);
             key_data = push_data_copy(&file->state.cached_layouts_arena, key_data);
             table_insert(&file->state.line_layout_table, key_data, (u64)PtrAsInt(list));

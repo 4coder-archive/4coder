@@ -115,7 +115,7 @@ struct Lister_Data{
 };
 
 struct Lister{
-    Arena arena;
+    Arena *arena;
     Lister_Data data;
 };
 

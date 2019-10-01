@@ -1437,8 +1437,7 @@ config_feedback_int(Arena *arena, List_String_Const_u8 *list, char *name, i32 va
 
 static void
 load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *config, i32 override_font_size, b32 override_hinting){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     
     linalloc_clear(out_arena);
     Config *parsed = config_parse__file_name(app, out_arena, "config.4coder", config);
@@ -1534,8 +1533,6 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
             modify_global_face_by_description(app, description);
         }
     }
-    
-    end_temp(temp);
 }
 
 #if 0

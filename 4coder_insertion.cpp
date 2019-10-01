@@ -88,14 +88,12 @@ insert_string(Buffer_Insertion *insertion, String_Const_u8 string){
 
 static umem
 insertf(Buffer_Insertion *insertion, char *format, ...){
-    Arena *scratch = context_get_arena(insertion->app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(insertion->app);
     va_list args;
     va_start(args, format);
     String_Const_u8 string = push_u8_stringfv(scratch, format, args);
     va_end(args);
     insert_string(insertion, string);
-    end_temp(temp);
     return(string.size);
 }
 

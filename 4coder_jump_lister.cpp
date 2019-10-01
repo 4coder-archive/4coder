@@ -68,8 +68,7 @@ open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID 
     if (list != 0){
         i32 estimated_string_space_size = 0;
         view_end_ui_mode(app, ui_view);
-        Arena *scratch = context_get_arena(app);
-        Temp_Memory temp = begin_temp(scratch);
+        Scratch_Block scratch(app);
         i32 option_count = list->jump_count;
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);
         Managed_Object stored_jumps = list->jump_array;
@@ -97,7 +96,6 @@ open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID 
                                             options, option_count,
                                             estimated_string_space_size,
                                             ui_view);
-        end_temp(temp);
     }
 }
 

@@ -36,8 +36,10 @@ enum App_State{
 
 struct Models{
     System_Functions *system;
-    Base_Allocator *base_allocator;
-    Mem_Options mem;
+    Thread_Context *tctx;
+    
+    Arena *arena;
+    Heap heap;
     
     App_Settings settings;
     App_State state;
@@ -113,8 +115,6 @@ struct Models{
     i32 frame_counter;
     u32 next_animate_delay;
     b32 animate_next_frame;
-    
-    Arena custom_layer_arena;
     
     // Last frame state
     Vec2_i32 prev_p;

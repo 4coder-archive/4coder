@@ -2416,7 +2416,7 @@ make_arena(Base_Allocator *allocator, umem chunk_size){
 }
 internal Arena
 make_arena(Base_Allocator *allocator){
-    return(make_arena(allocator, KB(16), 8));
+    return(make_arena(allocator, KB(64), 8));
 }
 internal Cursor_Node*
 arena__new_node(Arena *arena, umem min_size){
@@ -2575,6 +2575,120 @@ end_temp(Temp_Memory temp){
 
 ////////////////////////////////
 
+internal void
+thread_ctx_init(Thread_Context *tctx, Base_Allocator *allocator){
+    block_zero_struct(tctx);
+    tctx->allocator = allocator;
+    tctx->node_arena = make_arena(allocator, KB(4), 8);
+}
+
+internal Arena*
+reserve_arena(Thread_Context *tctx, umem chunk_size, umem align){
+    Arena_Node *node = tctx->free_arenas;
+    if (node != 0){
+        sll_stack_pop(tctx->free_arenas);
+    }
+    else{
+        node = push_array_zero(&tctx->node_arena, Arena_Node, 1);
+    }
+    node->arena = make_arena(tctx->allocator, chunk_size, align);
+    return(&node->arena);
+}
+
+internal Arena*
+reserve_arena(Thread_Context *tctx, umem chunk_size){
+    return(reserve_arena(tctx, chunk_size, 8));
+}
+
+internal Arena*
+reserve_arena(Thread_Context *tctx){
+    return(reserve_arena(tctx, KB(64), 8));
+}
+
+internal void
+release_arena(Thread_Context *tctx, Arena *arena){
+    Arena_Node *node = CastFromMember(Arena_Node, arena, arena);
+    linalloc_clear(arena);
+    sll_stack_push(tctx->free_arenas, node);
+}
+
+////////////////////////////////
+
+internal void
+scratch_block__init(Scratch_Block *block, Arena *arena){
+    block->arena = arena;
+    block->temp = begin_temp(arena);
+    block->do_full_clear = false;
+}
+
+internal void
+scratch_block__init(Scratch_Block *block, Thread_Context *tctx, Scratch_Share_Code share){
+    block->tctx = tctx;
+    Arena *arena = tctx->sharable_scratch;
+    if (arena != 0){
+        block->temp = begin_temp(arena);
+        block->do_full_clear = false;
+    }
+    else{
+        arena = reserve_arena(tctx);
+        block->do_full_clear = true;
+    }
+    block->arena = arena;
+    block->sharable_restore = tctx->sharable_scratch;
+    if (share == Scratch_Share){
+        tctx->sharable_scratch = arena;
+    }
+    else{
+        tctx->sharable_scratch = 0;
+    }
+}
+
+Scratch_Block::Scratch_Block(Temp_Memory t){
+    this->temp = t;
+}
+
+Scratch_Block::Scratch_Block(Arena *arena){
+    scratch_block__init(this, arena);
+}
+
+global_const Scratch_Share_Code share_code_default = Scratch_DontShare;
+
+Scratch_Block::Scratch_Block(Thread_Context *tctx, Scratch_Share_Code share){
+    scratch_block__init(this, tctx, share);
+}
+
+Scratch_Block::Scratch_Block(Thread_Context *tctx){
+    scratch_block__init(this, tctx, share_code_default);
+}
+
+Scratch_Block::~Scratch_Block(){
+    if (this->do_full_clear){
+        Assert(this->tctx != 0);
+        release_arena(this->tctx, this->arena);
+    }
+    else{
+        end_temp(this->temp);
+    }
+    if (this->tctx != 0){
+        this->tctx->sharable_scratch = this->sharable_restore;
+    }
+}
+
+Scratch_Block::operator Arena*(){
+    return(this->arena);
+}
+
+void Scratch_Block::restore(void){
+    if (this->do_full_clear){
+        linalloc_clear(this->arena);
+    }
+    else{
+        end_temp(this->temp);
+    }
+}
+
+////////////////////////////////
+
 #define heap__sent_init(s) (s)->next=(s)->prev=(s)
 #define heap__insert_next(p,n) ((n)->next=(p)->next,(n)->prev=(p),(n)->next->prev=(n),(p)->next=(n))
 #define heap__insert_prev(p,n) ((n)->prev=(p)->prev,(n)->next=(p),(n)->prev->next=(n),(p)->prev=(n))
@@ -2611,7 +2725,8 @@ heap_assert_good(Heap *heap){
 
 internal void
 heap_init(Heap *heap, Base_Allocator *allocator){
-    heap->arena = make_arena(allocator, KB(64), KB(8));
+    heap->arena_ = make_arena(allocator);
+    heap->arena = &heap->arena_;
     heap__sent_init(&heap->in_order);
     heap__sent_init(&heap->free_nodes);
     heap->used_space = 0;
@@ -2619,11 +2734,14 @@ heap_init(Heap *heap, Base_Allocator *allocator){
 }
 
 internal Base_Allocator*
+heap_get_base_allocator(Heap *heap){
+    return(heap->arena->base_allocator);
+}
+
+internal void
 heap_free_all(Heap *heap){
-    Base_Allocator *allocator = heap->arena.base_allocator;
-    linalloc_clear(&heap->arena);
+    linalloc_clear(heap->arena);
     block_zero_struct(heap);
-    return(allocator);
 }
 
 internal void
@@ -2641,7 +2759,7 @@ heap__extend(Heap *heap, void *memory, umem size){
 
 internal void
 heap__extend_automatic(Heap *heap, umem size){
-    void *memory = push_array(&heap->arena, u8, size);
+    void *memory = push_array(heap->arena, u8, size);
     heap__extend(heap, memory, size);
 }
 

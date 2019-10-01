@@ -70,43 +70,41 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
             }
             total_size -= 1;
             
-            if (total_size <= app->memory_size){
-                i32 first = paste_count - 1;
-                i32 one_past_last = -1;
-                i32 step = -1;
-                if (!old_to_new){
-                    first = 0;
-                    one_past_last = paste_count;
-                    step = 1;
-                }
-                
-                List_String_Const_u8 list = {};
-                
-                for (i32 paste_index = first; paste_index != one_past_last; paste_index += step){
-                    if (paste_index != first){
-                        string_list_push(scratch, &list, SCu8("\n", 1));
-                    }
-                    String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
-                    if (string.size > 0){
-                        string_list_push(scratch, &list, string);
-                    }
-                }
-                
-                String_Const_u8 flattened = string_list_flatten(scratch, list);
-                
-                buffer_replace_range(app, buffer, range, flattened);
-                i64 pos = range.min;
-                finish_range.min = pos;
-                finish_range.max = pos + total_size;
-                view_set_mark(app, view, seek_pos(finish_range.min));
-                view_set_cursor_and_preferred_x(app, view, seek_pos(finish_range.max));
-                
-                // TODO(allen): Send this to all views.
-                Theme_Color paste;
-                paste.tag = Stag_Paste;
-                get_theme_colors(app, &paste, 1);
-                view_post_fade(app, view, 0.667f, finish_range, paste.color);
+            i32 first = paste_count - 1;
+            i32 one_past_last = -1;
+            i32 step = -1;
+            if (!old_to_new){
+                first = 0;
+                one_past_last = paste_count;
+                step = 1;
             }
+            
+            List_String_Const_u8 list = {};
+            
+            for (i32 paste_index = first; paste_index != one_past_last; paste_index += step){
+                if (paste_index != first){
+                    string_list_push(scratch, &list, SCu8("\n", 1));
+                }
+                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                if (string.size > 0){
+                    string_list_push(scratch, &list, string);
+                }
+            }
+            
+            String_Const_u8 flattened = string_list_flatten(scratch, list);
+            
+            buffer_replace_range(app, buffer, range, flattened);
+            i64 pos = range.min;
+            finish_range.min = pos;
+            finish_range.max = pos + total_size;
+            view_set_mark(app, view, seek_pos(finish_range.min));
+            view_set_cursor_and_preferred_x(app, view, seek_pos(finish_range.max));
+            
+            // TODO(allen): Send this to all views.
+            Theme_Color paste;
+            paste.tag = Stag_Paste;
+            get_theme_colors(app, &paste, 1);
+            view_post_fade(app, view, 0.667f, finish_range, paste.color);
         }
     }
     return(finish_range);

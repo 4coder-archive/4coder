@@ -12,15 +12,15 @@
 internal void
 text_layout_init(Models *models, Text_Layout_Container *container){
     block_zero_struct(container);
-    container->node_arena = make_arena_models(models);
-    container->table = make_table_u64_u64(models->base_allocator, 20);
+    container->node_arena = reserve_arena(models->tctx);
+    container->table = make_table_u64_u64(models->tctx->allocator, 20);
 }
 
 internal Text_Layout*
 text_layout_new__alloc_layout(Text_Layout_Container *container){
     Text_Layout *node = container->free_nodes;
     if (node == 0){
-        node = push_array(&container->node_arena, Text_Layout, 1);
+        node = push_array(container->node_arena, Text_Layout, 1);
     }
     else{
         sll_stack_pop(container->free_nodes);
@@ -29,13 +29,13 @@ text_layout_new__alloc_layout(Text_Layout_Container *container){
 }
 
 internal void
-text_layout_release(Text_Layout_Container *container, Text_Layout *layout){
-    linalloc_clear(&layout->arena);
+text_layout_release(Models *models, Text_Layout_Container *container, Text_Layout *layout){
+    release_arena(models->tctx, layout->arena);
     sll_stack_push(container->free_nodes, layout);
 }
 
 internal Text_Layout_ID
-text_layout_new(Text_Layout_Container *container, Arena arena,
+text_layout_new(Text_Layout_Container *container, Arena *arena,
                 Buffer_ID buffer_id, Buffer_Point point,
                 Interval_i64 visible_range, Interval_i64 visible_line_number_range,
                 Rect_f32 rect, int_color *item_colors){
@@ -65,14 +65,14 @@ text_layout_get(Text_Layout_Container *container, Text_Layout_ID id){
 }
 
 internal b32
-text_layout_erase(Text_Layout_Container *container, Text_Layout_ID id){
+text_layout_erase(Models *models, Text_Layout_Container *container, Text_Layout_ID id){
     b32 result = false;
     Table_Lookup lookup = table_lookup(&container->table, id);
     if (lookup.found_match){
         u64 ptr_val = 0;
         table_read(&container->table, lookup, &ptr_val);
         Text_Layout *ptr = (Text_Layout*)IntAsPtr(ptr_val);
-        text_layout_release(container, ptr);
+        text_layout_release(models, container, ptr);
         table_erase(&container->table, lookup);
         result = true;
     }
@@ -85,7 +85,6 @@ internal void
 text_layout_render(Models *models, Text_Layout *layout){
     Editing_File *file = imp_get_file(models, layout->buffer_id);
     if (file != 0){
-        Arena *scratch = &models->mem.arena;
         Render_Target *target = models->target;
         Color_Table color_table = models->color_table;
         Face *face = file_get_face(models, file);

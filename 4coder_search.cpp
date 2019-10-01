@@ -252,7 +252,8 @@ string_match_list_enclose_all(Application_Links *app, String_Match_List list, En
 internal List_String_Const_u8
 string_match_list_deduplicated_strings(Application_Links *app, Arena *arena, String_Match_List list){
     List_String_Const_u8 extension_list = {};
-    Table_Data_u64 table = make_table_Data_u64(context_get_base_allocator(app), 128);
+    Thread_Context *tctx = get_thread_context(app);
+    Table_Data_u64 table = make_table_Data_u64(tctx->allocator, 128);
     for (String_Match *node = list.first;
          node != 0;
          node = node->next){
@@ -272,8 +273,9 @@ string_match_list_deduplicated_strings(Application_Links *app, Arena *arena, Str
 internal void
 string_match_list_deduplicate(Application_Links *app, String_Match_List *list){
     String_Match_List new_list = {};
-    Scratch_Block scratch(app);
-    Table_Data_u64 table = make_table_Data_u64(context_get_base_allocator(app), 128);
+    Thread_Context *tctx = get_thread_context(app);
+    Scratch_Block scratch(tctx);
+    Table_Data_u64 table = make_table_Data_u64(tctx->allocator, 128);
     for (String_Match *node = list->first, *next = 0;
          node != 0;
          node = next){
@@ -388,20 +390,20 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         }
         *rewrite = Rewrite_WordComplete;
         
-        local_persist Arena completion_arena = {};
-        if (completion_arena.base_allocator == 0){
-            completion_arena = make_arena_app_links(app);
+        local_persist Arena *completion_arena = {};
+        if (completion_arena == 0){
+            completion_arena = reserve_arena(app);
         }
         local_persist Word_Complete_State state = {};
         
         if (first_completion || !state.initialized){
             block_zero_struct(&state);
-            linalloc_clear(&completion_arena);
+            linalloc_clear(completion_arena);
             
             i64 pos = view_get_cursor_pos(app, view);
             Range_i64 needle_range = get_word_complete_needle_range(app, buffer, pos);
             if (range_size(needle_range) > 0){
-                state = get_word_complete_state(app, &completion_arena, buffer, needle_range);
+                state = get_word_complete_state(app, completion_arena, buffer, needle_range);
             }
         }
         

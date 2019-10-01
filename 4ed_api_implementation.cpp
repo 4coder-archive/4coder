@@ -80,16 +80,10 @@ Global_Get_Screen_Rectangle(Application_Links *app){
     return(Rf32(V2(0, 0), V2(layout_get_root_size(&models->layout))));
 }
 
-API_EXPORT Arena*
-Context_Get_Arena(Application_Links *app){
+API_EXPORT Thread_Context*
+Get_Thread_Context(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
-    return(&models->custom_layer_arena);
-}
-
-API_EXPORT Base_Allocator*
-Context_Get_Base_Allocator(Application_Links *app){
-    Models *models = (Models*)app->cmd_context;
-    return(models->base_allocator);
+    return(models->tctx);
 }
 
 API_EXPORT b32
@@ -143,7 +137,7 @@ API_EXPORT b32
 Clipboard_Post(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
 {
     Models *models = (Models*)app->cmd_context;
-    String_Const_u8 *dest = working_set_next_clipboard_string(&models->mem.heap, &models->working_set, (i32)string.size);
+    String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, (i32)string.size);
     block_copy(dest->str, string.str, string.size);
     models->system->post_clipboard(*dest);
     return(true);
@@ -760,12 +754,12 @@ Buffer_Set_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
             {
                 if (value){
                     if (!history_is_activated(&file->state.history)){
-                        history_init(app, &file->state.history);
+                        history_init(models, &file->state.history);
                     }
                 }
                 else{
                     if (history_is_activated(&file->state.history)){
-                        history_free(&file->state.history);
+                        history_free(models, &file->state.history);
                     }
                 }
             }break;
@@ -834,11 +828,9 @@ Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_na
         }
         
         if (!skip_save){
-            Arena *scratch = &models->mem.arena;
-            Temp_Memory temp = begin_temp(scratch);
+            Scratch_Block scratch(models->tctx, Scratch_Share);
             String_Const_u8 name = push_string_copy(scratch, file_name);
             save_file_to_name(system, models, file, name.str);
-            end_temp(temp);
             result = true;
         }
     }
@@ -866,8 +858,8 @@ Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
                 if (file->canon.name_size != 0){
                     buffer_unbind_file(system, working_set, file);
                 }
-                file_free(system, &models->lifetime_allocator, working_set, file);
-                working_set_free_file(&models->mem.heap, working_set, file);
+                file_free(models, file);
+                working_set_free_file(&models->heap, working_set, file);
                 
                 Layout *layout = &models->layout;
                 
@@ -908,17 +900,16 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    Arena *arena = &models->mem.arena;
+    Scratch_Block scratch(models->tctx, Scratch_Share);
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Reopen_Result result = BufferReopenResult_Failed;
     if (api_check_buffer(file)){
         if (file->canon.name_size > 0){
             Plat_Handle handle = {};
-            if (system->load_handle(arena, (char*)file->canon.name_space, &handle)){
+            if (system->load_handle(scratch, (char*)file->canon.name_space, &handle)){
                 File_Attributes attributes = system->load_attributes(handle);
                 
-                Temp_Memory temp = begin_temp(arena);
-                char *file_memory = push_array(arena, char, (i32)attributes.size);
+                char *file_memory = push_array(scratch, char, (i32)attributes.size);
                 
                 if (file_memory != 0){
                     if (system->load_file(handle, file_memory, (i32)attributes.size)){
@@ -948,7 +939,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         }
                         
                         Working_Set *working_set = &models->working_set;
-                        file_free(system, &models->lifetime_allocator, working_set, file);
+                        file_free(models, file);
                         working_set_file_default_settings(working_set, file);
                         file_create_from_string(models, file, SCu8(file_memory, attributes.size), attributes);
                         
@@ -970,8 +961,6 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                 else{
                     system->load_close(handle);
                 }
-                
-                end_temp(temp);
             }
         }
     }
@@ -994,8 +983,8 @@ API_EXPORT File_Attributes
 Get_File_Attributes(Application_Links *app, String_Const_u8 file_name)
 {
     Models *models = (Models*)app->cmd_context;
-    Arena *arena = &models->mem.arena;
-    return(models->system->quick_file_attributes(arena, file_name));
+    Scratch_Block scratch(models->tctx, Scratch_Share);
+    return(models->system->quick_file_attributes(scratch, file_name));
 }
 
 internal View*
@@ -1813,9 +1802,8 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
 {
     Models *models = (Models*)app->cmd_context;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
-    Arena *scratch = &models->mem.arena;
     
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(models->tctx, Scratch_Share);
     
     // TODO(allen): revisit this
     struct Node_Ptr{
@@ -1889,8 +1877,6 @@ Get_Managed_Scope_With_Multiple_Dependencies(Application_Links *app, Managed_Sco
         Lifetime_Key *key = lifetime_get_or_create_intersection_key(lifetime_allocator, object_ptr_array, member_count);
         result = (Managed_Scope)key->dynamic_workspace.scope_id;
     }
-    
-    end_temp(temp);
     
     return(result);
 }
@@ -2843,7 +2829,7 @@ Text_Layout_Create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
     Text_Layout_ID result = {};
     if (api_check_buffer(file)){
         Scratch_Block scratch(app);
-        Arena arena = make_arena_models(models);
+        Arena *arena = reserve_arena(models->tctx);
         Face *face = file_get_face(models, file);
         
         Gap_Buffer *buffer = &file->state.buffer;
@@ -2868,7 +2854,7 @@ Text_Layout_Create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
                                           buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
         
         i64 item_count = range_size_inclusive(visible_range);
-        int_color *colors_array = push_array(&arena, int_color, item_count);
+        int_color *colors_array = push_array(arena, int_color, item_count);
         for (i64 i = 0; i < item_count; i += 1){
             colors_array[i] = Stag_Default;
         }
@@ -3018,7 +3004,7 @@ Paint_Text_Color(Application_Links *app, Text_Layout_ID layout_id, Interval_i64 
 API_EXPORT b32
 Text_Layout_Free(Application_Links *app, Text_Layout_ID text_layout_id){
     Models *models = (Models*)app->cmd_context;
-    return(text_layout_erase(&models->text_layouts, text_layout_id));
+    return(text_layout_erase(models, &models->text_layouts, text_layout_id));
 }
 
 API_EXPORT void

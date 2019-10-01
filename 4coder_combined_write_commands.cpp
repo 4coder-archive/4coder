@@ -219,8 +219,7 @@ snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_arra
     
     View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app, Scratch_Share);
     i32 option_count = snippet_array.count;
     Lister_Option *options = push_array(scratch, Lister_Option, option_count);
     for (i32 i = 0; i < snippet_array.count; i += 1){
@@ -229,7 +228,6 @@ snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_arra
         options[i].user_data = IntAsPtr(i);
     }
     begin_integrated_lister__basic_list(app, "Snippet:", activate_snippet, &snippet_array, sizeof(snippet_array), options, option_count, 0, view);
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(snippet_lister)

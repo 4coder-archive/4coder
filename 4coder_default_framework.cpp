@@ -29,11 +29,9 @@ lock_jump_buffer(Application_Links *app, char *name, i32 size){
 
 static void
 lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
     lock_jump_buffer(app, buffer_name);
-    end_temp(temp);
 }
 
 static View_ID
@@ -147,8 +145,7 @@ get_next_view_after_active(Application_Links *app, Access_Flag access){
 static void
 view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
     if (count > 0){
-        Arena *arena = context_get_arena(app);
-        Temp_Memory temp = begin_temp(arena);
+        Scratch_Block scratch(app, Scratch_Share);
         
         struct View_Node{
             View_Node *next;
@@ -167,7 +164,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
         View_Node *primary_view_last = 0;
         i32 available_view_count = 0;
         
-        primary_view_first = primary_view_last = push_array(arena, View_Node, 1);
+        primary_view_first = primary_view_last = push_array(scratch, View_Node, 1);
         primary_view_last->next = 0;
         primary_view_last->view_id = view_id;
         available_view_count += 1;
@@ -176,7 +173,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
             if (view_id == first_view_id){
                 break;
             }
-            View_Node *node = push_array(arena, View_Node, 1);
+            View_Node *node = push_array(scratch, View_Node, 1);
             primary_view_last->next = node;
             node->next = 0;
             node->view_id = view_id;
@@ -191,8 +188,6 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
                 view_set_cursor_and_preferred_x(app, node->view_id, seek_pos(positions[i]));
             }
         }
-        
-        end_temp(temp);
     }
 }
 
@@ -363,8 +358,8 @@ CUSTOM_DOC("Switch to a named key binding map.")
 
 static void
 default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count, i32 override_font_size, b32 override_hinting){
-    Base_Allocator *allocator = context_get_base_allocator(app);
-    heap_init(&global_heap, allocator);
+    Thread_Context *tctx = get_thread_context(app);
+    heap_init(&global_heap, tctx->allocator);
     
 #define M \
     "Welcome to " VERSION "\n" \
@@ -379,8 +374,8 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
 #if 0
     load_folder_of_themes_into_live_set(app, &global_part, "themes");
 #endif
-    global_config_arena = make_arena_app_links(app);
-    load_config_and_apply(app, &global_config_arena, &global_config, override_font_size, override_hinting);
+    global_config_arena = reserve_arena(app);
+    load_config_and_apply(app, global_config_arena, &global_config, override_font_size, override_hinting);
     
     view_rewrite_loc          = managed_id_declare(app, SCu8("DEFAULT.rewrite"       ));
     view_next_rewrite_loc     = managed_id_declare(app, SCu8("DEFAULT.next_rewrite"  ));
@@ -395,8 +390,7 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     attachment_tokens         = managed_id_declare(app, SCu8("DEFAULT.tokens"));
     
     // open command line files
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     String_Const_u8 hot_directory = push_hot_directory(app, scratch);
     for (i32 i = 0; i < file_count; i += 1){
         Temp_Memory temp2 = begin_temp(scratch);
@@ -408,7 +402,6 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
         }
         end_temp(temp2);
     }
-    end_temp(temp);
 }
 
 static void

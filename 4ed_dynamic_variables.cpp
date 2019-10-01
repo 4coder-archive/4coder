@@ -99,7 +99,8 @@ dynamic_workspace_free(Lifetime_Allocator *lifetime_allocator, Dynamic_Workspace
 
 internal void
 dynamic_workspace_clear_contents(Dynamic_Workspace *workspace){
-    Base_Allocator *base_allocator = heap_free_all(&workspace->heap);
+    Base_Allocator *base_allocator = heap_get_base_allocator(&workspace->heap);
+    heap_free_all(&workspace->heap);
     heap_init(&workspace->heap, base_allocator);
     workspace->heap_wrapper = base_allocator_on_heap(&workspace->heap);
     workspace->object_id_to_object_ptr = make_table_u64_u64(&workspace->heap_wrapper, 10);

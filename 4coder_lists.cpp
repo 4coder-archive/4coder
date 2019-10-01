@@ -456,11 +456,9 @@ generate_all_buffers_list__output_buffer(Application_Links *app, Lister *lister,
         case DirtyState_UnloadedChanges: status = string_u8_litexpr("!"); break;
         case DirtyState_UnsavedChangesAndUnloadedChanges: status = string_u8_litexpr("*!"); break;
     }
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     lister_add_item(lister, buffer_name, status, IntAsPtr(buffer), 0);
-    end_temp(temp);
 }
 
 static void
@@ -528,10 +526,10 @@ static void
 generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     Scratch_Block scratch(app);
     
-    Temp_Memory temp = begin_temp(&lister->arena);
-    String_Const_u8 hot = push_hot_directory(app, &lister->arena);
+    Temp_Memory temp = begin_temp(lister->arena);
+    String_Const_u8 hot = push_hot_directory(app, lister->arena);
     if (!character_is_slash(string_get_character(hot, hot.size - 1))){
-        hot = push_u8_stringf(&lister->arena, "%.*s/", string_expand(hot));
+        hot = push_u8_stringf(lister->arena, "%.*s/", string_expand(hot));
     }
     lister_set_text_field(lister, hot);
     lister_set_key(lister, string_front_of_path(hot));
@@ -543,8 +541,8 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     
     lister_begin_new_item_set(app, lister);
     
-    hot = push_hot_directory(app, &lister->arena);
-    push_align(&lister->arena, 8);
+    hot = push_hot_directory(app, lister->arena);
+    push_align(lister->arena, 8);
     if (hot.str != 0){
         String_Const_u8 empty_string = string_u8_litexpr("");
         Lister_Prealloced_String empty_string_prealloced = lister_prealloced(empty_string);
@@ -552,7 +550,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
              info < one_past_last;
              info += 1){
             if (!HasFlag((**info).attributes.flags, FileAttribute_IsDirectory)) continue;
-            String_Const_u8 file_name = push_u8_stringf(&lister->arena, "%.*s/",
+            String_Const_u8 file_name = push_u8_stringf(lister->arena, "%.*s/",
                                                         string_expand((**info).file_name));
             lister_add_item(lister, lister_prealloced(file_name), empty_string_prealloced, file_name.str, 0);
         }
@@ -561,18 +559,18 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
              info < one_past_last;
              info += 1){
             if (HasFlag((**info).attributes.flags, FileAttribute_IsDirectory)) continue;
-            String_Const_u8 file_name = push_string_copy(&lister->arena, (**info).file_name);
+            String_Const_u8 file_name = push_string_copy(lister->arena, (**info).file_name);
             char *is_loaded = "";
             char *status_flag = "";
             
             Buffer_ID buffer = {};
             
             {
-                Temp_Memory path_temp = begin_temp(&lister->arena);
+                Temp_Memory path_temp = begin_temp(lister->arena);
                 List_String_Const_u8 list = {};
-                string_list_push(&lister->arena, &list, hot);
-                string_list_push_overlap(&lister->arena, &list, '/', (**info).file_name);
-                String_Const_u8 full_file_path = string_list_flatten(&lister->arena, list);
+                string_list_push(lister->arena, &list, hot);
+                string_list_push_overlap(lister->arena, &list, '/', (**info).file_name);
+                String_Const_u8 full_file_path = string_list_flatten(lister->arena, list);
                 buffer = get_buffer_by_file_name(app, full_file_path, AccessAll);
                 end_temp(path_temp);
             }
@@ -586,7 +584,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                     case DirtyState_UnsavedChangesAndUnloadedChanges: status_flag = " *!"; break;
                 }
             }
-            String_Const_u8 status = push_u8_stringf(&lister->arena, "%s%s", is_loaded, status_flag);
+            String_Const_u8 status = push_u8_stringf(lister->arena, "%s%s", is_loaded, status_flag);
             lister_add_item(lister, lister_prealloced(file_name), lister_prealloced(status), file_name.str, 0);
         }
     }
@@ -636,8 +634,7 @@ activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_S
         
         case SureToKill_Save:
         {
-            Arena *scratch = context_get_arena(app);
-            Temp_Memory temp = begin_temp(scratch);
+            Scratch_Block scratch(app);
             String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
             if (buffer_save(app, buffer_id, file_name, BufferSave_IgnoreDirtyFlag)){
                 buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
@@ -647,8 +644,6 @@ activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_S
                                                       string_expand(file_name));
                 print_message(app, str);
             }
-            
-            end_temp(temp);
         }break;
     }
     lister_default(app, heap, view, state, ListerActivation_Finished);
@@ -760,8 +755,7 @@ activate_open_or_new__generic(Application_Links *app, View_ID view,
         result = ListerActivation_Finished;
     }
     else{
-        Arena *scratch = context_get_arena(app);
-        Temp_Memory temp = begin_temp(scratch);
+        Scratch_Block scratch(app, Scratch_Share);
         String_Const_u8 full_file_name = {};
         if (character_is_slash(string_get_character(path, path.size - 1))){
             path = string_chop(path, 1);
@@ -778,7 +772,6 @@ activate_open_or_new__generic(Application_Links *app, View_ID view,
             }
             result = ListerActivation_Finished;
         }
-        end_temp(temp);
     }
     
     return(result);
@@ -947,10 +940,9 @@ launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 comma
         command_id_count = command_one_past_last_id;
     }
     
-    Arena *scratch = context_get_arena(app);
+    Scratch_Block scratch(app, Scratch_Share);
     View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
-    Temp_Memory temp = begin_temp(scratch);
     Lister_Option *options = push_array(scratch, Lister_Option, command_id_count);
     for (i32 i = 0; i < command_id_count; i += 1){
         i32 j = i;
@@ -963,7 +955,6 @@ launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 comma
         options[i].user_data = (void*)fcoder_metacmd_table[j].proc;
     }
     begin_integrated_lister__basic_list(app, "Command:", activate_command, 0, 0, options, command_id_count, 0, view);
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(command_lister)

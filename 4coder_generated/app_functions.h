@@ -2,8 +2,7 @@ struct Application_Links;
 #define GLOBAL_SET_SETTING_SIG(n) b32 n(Application_Links *app, Global_Setting_ID setting, i32 value)
 #define GLOBAL_SET_MAPPING_SIG(n) b32 n(Application_Links *app, void *data, i32 size)
 #define GLOBAL_GET_SCREEN_RECTANGLE_SIG(n) Rect_f32 n(Application_Links *app)
-#define CONTEXT_GET_ARENA_SIG(n) Arena* n(Application_Links *app)
-#define CONTEXT_GET_BASE_ALLOCATOR_SIG(n) Base_Allocator* n(Application_Links *app)
+#define GET_THREAD_CONTEXT_SIG(n) Thread_Context* n(Application_Links *app)
 #define CREATE_CHILD_PROCESS_SIG(n) b32 n(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out)
 #define CHILD_PROCESS_SET_TARGET_BUFFER_SIG(n) b32 n(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags)
 #define BUFFER_GET_ATTACHED_CHILD_PROCESS_SIG(n) Child_Process_ID n(Application_Links *app, Buffer_ID buffer_id)
@@ -184,8 +183,7 @@ struct Application_Links;
 typedef GLOBAL_SET_SETTING_SIG(Global_Set_Setting_Function);
 typedef GLOBAL_SET_MAPPING_SIG(Global_Set_Mapping_Function);
 typedef GLOBAL_GET_SCREEN_RECTANGLE_SIG(Global_Get_Screen_Rectangle_Function);
-typedef CONTEXT_GET_ARENA_SIG(Context_Get_Arena_Function);
-typedef CONTEXT_GET_BASE_ALLOCATOR_SIG(Context_Get_Base_Allocator_Function);
+typedef GET_THREAD_CONTEXT_SIG(Get_Thread_Context_Function);
 typedef CREATE_CHILD_PROCESS_SIG(Create_Child_Process_Function);
 typedef CHILD_PROCESS_SET_TARGET_BUFFER_SIG(Child_Process_Set_Target_Buffer_Function);
 typedef BUFFER_GET_ATTACHED_CHILD_PROCESS_SIG(Buffer_Get_Attached_Child_Process_Function);
@@ -367,8 +365,7 @@ struct Application_Links{
     Global_Set_Setting_Function *global_set_setting_;
     Global_Set_Mapping_Function *global_set_mapping_;
     Global_Get_Screen_Rectangle_Function *global_get_screen_rectangle_;
-    Context_Get_Arena_Function *context_get_arena_;
-    Context_Get_Base_Allocator_Function *context_get_base_allocator_;
+    Get_Thread_Context_Function *get_thread_context_;
     Create_Child_Process_Function *create_child_process_;
     Child_Process_Set_Target_Buffer_Function *child_process_set_target_buffer_;
     Buffer_Get_Attached_Child_Process_Function *buffer_get_attached_child_process_;
@@ -546,8 +543,6 @@ struct Application_Links{
     Open_Color_Picker_Function *open_color_picker_;
     Animate_In_N_Milliseconds_Function *animate_in_n_milliseconds_;
     Buffer_Find_All_Matches_Function *buffer_find_all_matches_;
-    void *memory;
-    int32_t memory_size;
     void *cmd_context;
     void *system_links;
     void *current_coroutine;
@@ -557,8 +552,7 @@ struct Application_Links{
     app_links->global_set_setting_ = Global_Set_Setting;\
     app_links->global_set_mapping_ = Global_Set_Mapping;\
     app_links->global_get_screen_rectangle_ = Global_Get_Screen_Rectangle;\
-    app_links->context_get_arena_ = Context_Get_Arena;\
-    app_links->context_get_base_allocator_ = Context_Get_Base_Allocator;\
+    app_links->get_thread_context_ = Get_Thread_Context;\
     app_links->create_child_process_ = Create_Child_Process;\
     app_links->child_process_set_target_buffer_ = Child_Process_Set_Target_Buffer;\
     app_links->buffer_get_attached_child_process_ = Buffer_Get_Attached_Child_Process;\
@@ -740,8 +734,7 @@ struct Application_Links{
 static b32 global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value){return(app->global_set_setting_(app, setting, value));}
 static b32 global_set_mapping(Application_Links *app, void *data, i32 size){return(app->global_set_mapping_(app, data, size));}
 static Rect_f32 global_get_screen_rectangle(Application_Links *app){return(app->global_get_screen_rectangle_(app));}
-static Arena* context_get_arena(Application_Links *app){return(app->context_get_arena_(app));}
-static Base_Allocator* context_get_base_allocator(Application_Links *app){return(app->context_get_base_allocator_(app));}
+static Thread_Context* get_thread_context(Application_Links *app){return(app->get_thread_context_(app));}
 static b32 create_child_process(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out){return(app->create_child_process_(app, path, command, child_process_id_out));}
 static b32 child_process_set_target_buffer(Application_Links *app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags){return(app->child_process_set_target_buffer_(app, child_process_id, buffer_id, flags));}
 static Child_Process_ID buffer_get_attached_child_process(Application_Links *app, Buffer_ID buffer_id){return(app->buffer_get_attached_child_process_(app, buffer_id));}

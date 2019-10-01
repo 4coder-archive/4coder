@@ -9,19 +9,28 @@
 
 // TOP
 
-internal Arena
-make_arena_models(Models *models, umem chunk_size, umem align){
-    return(make_arena(models->base_allocator, chunk_size, align));
+internal Arena*
+reserve_arena(Models *models, umem chunk_size, umem align){
+    Thread_Context *tctx = models->tctx;
+    return(reserve_arena(tctx, chunk_size, align));
 }
 
-internal Arena
-make_arena_models(Models *models, umem chunk_size){
-    return(make_arena(models->base_allocator, chunk_size, 8));
+internal Arena*
+reserve_arena(Models *models, umem chunk_size){
+    Thread_Context *tctx = models->tctx;
+    return(reserve_arena(tctx, chunk_size));
 }
 
-internal Arena
-make_arena_models(Models *models){
-    return(make_arena(models->base_allocator, KB(16), 8));
+internal Arena*
+reserve_arena(Models *models){
+    Thread_Context *tctx = models->tctx;
+    return(reserve_arena(tctx));
+}
+
+internal void
+release_arena(Models *models, Arena *arena){
+    Thread_Context *tctx = models->tctx;
+    release_arena(tctx, arena);
 }
 
 // BOTTOM

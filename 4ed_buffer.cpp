@@ -694,8 +694,8 @@ buffer_layout__write(Arena *arena, Buffer_Layout_Item_List *list, i64 index, u32
 }
 
 internal Buffer_Layout_Item_List
-buffer_layout(Arena *scratch, Arena *arena, Gap_Buffer *buffer, Interval_i64 range, Face *face, f32 width){
-    Temp_Memory temp = begin_temp(scratch);
+buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i64 range, Face *face, f32 width){
+    Scratch_Block scratch(tctx);
     
     Buffer_Layout_Item_List list = {};
     list.index_range.first = range.first;
@@ -821,8 +821,6 @@ buffer_layout(Arena *scratch, Arena *arena, Gap_Buffer *buffer, Interval_i64 ran
             }
         }
     }
-    
-    end_temp(temp);
     
     return(list);
 }

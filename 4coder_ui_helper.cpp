@@ -292,8 +292,7 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
     f32 block_height = lister_get_block_height(line_height, is_theme_list);
     f32 text_field_height = lister_get_text_field_height(metrics.line_height);
     
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory full_temp = begin_temp(scratch);
+    Scratch_Block scratch(app, Scratch_Share);
     
     Rect_f32 region = view_get_buffer_region(app, view);
     Vec2_f32 view_m = get_mouse_position_in_panel_space(app, region.p0);
@@ -481,8 +480,6 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
         //UI_Control control = ui_list_to_ui_control(scratch, &list);
         view_set_quit_ui_handler(app, view, lister_quit_function);
     }
-    
-    end_temp(full_temp);
 }
 
 static Lister_Prealloced_String
@@ -494,19 +491,18 @@ lister_prealloced(String_Const_u8 string){
 
 static void
 lister_first_init(Application_Links *app, Lister *lister, void *user_data, i32 user_data_size){
-	if (lister->arena.base_allocator == 0) {
-		lister->arena = make_arena_app_links(app, KB(16));
+	if (lister->arena == 0) {
+		lister->arena = reserve_arena(app, KB(16));
 	}
 	else{
-		linalloc_clear(&lister->arena);
+		linalloc_clear(lister->arena);
 	}
 	block_zero_struct(&lister->data);
     lister->data.query = Su8(lister->data.query_space, 0, sizeof(lister->data.query_space));
     lister->data.text_field = Su8(lister->data.text_field_space, 0, sizeof(lister->data.text_field_space));
     lister->data.key_string = Su8(lister->data.key_string_space, 0, sizeof(lister->data.key_string_space));
-    lister->data.user_data = push_array(&lister->arena, char, user_data_size);
+    lister->data.user_data = push_array(lister->arena, char, user_data_size);
     lister->data.user_data_size = user_data_size;
-    push_align(&lister->arena, 8);
     if (user_data != 0){
         block_copy(lister->data.user_data, user_data, user_data_size);
     }
@@ -514,14 +510,14 @@ lister_first_init(Application_Links *app, Lister *lister, void *user_data, i32 u
 
 static void
 lister_begin_new_item_set(Application_Links *app, Lister *lister){
-    linalloc_clear(&lister->arena);
+    linalloc_clear(lister->arena);
     block_zero_struct(&lister->data.options);
 }
 
 static void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status,
                 void *user_data, umem extra_space){
-    void *base_memory = push_array(&lister->arena, u8, sizeof(Lister_Node) + extra_space);
+    void *base_memory = push_array(lister->arena, u8, sizeof(Lister_Node) + extra_space);
     Lister_Node *node = (Lister_Node*)base_memory;
     node->string = string.string;
     node->status = status.string;
@@ -536,22 +532,22 @@ lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloc
 static void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, String_Const_u8 status,
                 void *user_data, umem  extra_space){
-    return(lister_add_item(lister, string, lister_prealloced(push_string_copy(&lister->arena, status)),
+    return(lister_add_item(lister, string, lister_prealloced(push_string_copy(lister->arena, status)),
                            user_data, extra_space));
 }
 
 static void*
 lister_add_item(Lister *lister, String_Const_u8 string, Lister_Prealloced_String status,
                 void *user_data, umem extra_space){
-    return(lister_add_item(lister, lister_prealloced(push_string_copy(&lister->arena, string)), status,
+    return(lister_add_item(lister, lister_prealloced(push_string_copy(lister->arena, string)), status,
                            user_data, extra_space));
 }
 
 static void*
 lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, void *user_data, umem extra_space){
     return(lister_add_item(lister,
-                           lister_prealloced(push_string_copy(&lister->arena, string)),
-                           lister_prealloced(push_string_copy(&lister->arena, status)),
+                           lister_prealloced(push_string_copy(lister->arena, string)),
+                           lister_prealloced(push_string_copy(lister->arena, status)),
                            user_data, extra_space));
 }
 
@@ -559,22 +555,22 @@ static void*
 lister_add_theme_item(Lister *lister,
                       Lister_Prealloced_String string, i32 index,
                       void *user_data, i32 extra_space){
-    Lister_Node *node = push_array(&lister->arena, Lister_Node, 1);
+    Lister_Node *node = push_array(lister->arena, Lister_Node, 1);
     node->string = string.string;
     node->index = index;
     node->user_data = user_data;
     node->raw_index = lister->data.options.count;
     zdll_push_back(lister->data.options.first, lister->data.options.last, node);
     lister->data.options.count += 1;
-    void *result = push_array(&lister->arena, char, extra_space);
-    push_align(&lister->arena, 8);
+    void *result = push_array(lister->arena, char, extra_space);
+    push_align(lister->arena, 8);
     return(result);
 }
 
 static void*
 lister_add_theme_item(Lister *lister, String_Const_u8 string, i32 index,
                       void *user_data, i32 extra_space){
-    return(lister_add_theme_item(lister, lister_prealloced(push_string_copy(&lister->arena, string)), index,
+    return(lister_add_theme_item(lister, lister_prealloced(push_string_copy(lister->arena, string)), index,
                                  user_data, extra_space));
 }
 
@@ -609,7 +605,7 @@ lister_default(Application_Links *app, Heap *heap, View_ID view, Lister_State *s
         {
             view_end_ui_mode(app, view);
             state->initialized = false;
-            linalloc_clear(&state->lister.arena);
+            linalloc_clear(state->lister.arena);
         }break;
         
         case ListerActivation_Continue:

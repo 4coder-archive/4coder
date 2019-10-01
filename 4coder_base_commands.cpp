@@ -1232,7 +1232,7 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 
 static void
 save_all_dirty_buffers_with_postfix(Application_Links *app, String_Const_u8 postfix){
-    Arena *scratch = context_get_arena(app);
+    Scratch_Block scratch(app);
     for (Buffer_ID buffer = get_buffer_next(app, 0, AccessOpen);
          buffer != 0;
          buffer = get_buffer_next(app, buffer, AccessOpen)){
@@ -1317,8 +1317,7 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
     View_ID view = get_active_view(app, AccessAll);
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     
     // Query the user
@@ -1342,8 +1341,6 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
             }
         }
     }
-    
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(rename_file_query)
@@ -1352,8 +1349,7 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
     View_ID view = get_active_view(app, AccessAll);
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     if (file_name.size > 0){
@@ -1382,8 +1378,6 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
         }
         
     }
-    
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(make_directory_query)
@@ -1616,11 +1610,9 @@ CUSTOM_DOC("Saves the current buffer.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
-    Arena *scratch = context_get_arena(app);
-    Temp_Memory temp = begin_temp(scratch);
+    Scratch_Block scratch(app);
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     buffer_save(app, buffer, file_name, 0);
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(reopen)
@@ -1711,7 +1703,7 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 CUSTOM_COMMAND_SIG(undo_all_buffers)
 CUSTOM_DOC("Advances backward through the undo history in the buffer containing the most recent regular edit.")
 {
-    Arena *scratch = context_get_arena(app);
+    Scratch_Block scratch(app, Scratch_Share);
     i32 highest_edit_number = -1;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
@@ -1738,7 +1730,6 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
         }
     }
     
-    Temp_Memory temp = begin_temp(scratch);
     Buffer_ID *match_buffers = push_array(scratch, Buffer_ID, match_count);
     i32 *new_positions = push_array(scratch, i32, match_count);
     match_count = 0;
@@ -1778,14 +1769,13 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
     }
     
     view_buffer_set(app, match_buffers, new_positions, match_count);
-    
-    end_temp(temp);
 }
 
 CUSTOM_COMMAND_SIG(redo_all_buffers)
 CUSTOM_DOC("Advances forward through the undo history in the buffer containing the most recent regular edit.")
 {
-    Arena *scratch = context_get_arena(app);
+    Scratch_Block scratch(app, Scratch_Share);
+    
     i32 lowest_edit_number = 0x7FFFFFFF;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
@@ -1813,7 +1803,6 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
         }
     }
     
-    Temp_Memory temp = begin_temp(scratch);
     Buffer_ID *match_buffers = push_array(scratch, Buffer_ID, match_count);
     i32 *new_positions = push_array(scratch, i32, match_count);
     match_count = 0;
@@ -1854,8 +1843,6 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
     }
     
     view_buffer_set(app, match_buffers, new_positions, match_count);
-    
-    end_temp(temp);
 }
 
 ////////////////////////////////
