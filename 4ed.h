@@ -56,7 +56,14 @@ struct Plat_Settings{
 };
 
 #define App_Read_Command_Line_Sig(name)             \
-void *name(Thread_Context *tctx, System_Functions *system, String_Const_u8 current_directory, Plat_Settings *plat_settings, char ***files, i32 **file_count, i32 argc, char **argv)
+void *name(Thread_Context *tctx,     \
+           System_Functions *system, \
+           String_Const_u8 current_directory,\
+           Plat_Settings *plat_settings,\
+           char ***files,   \
+           i32 **file_count,\
+           i32 argc,        \
+           char **argv)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
@@ -66,7 +73,12 @@ struct Custom_API{
 };
 
 #define App_Init_Sig(name) \
-void name(System_Functions *system, Render_Target *target, void *base_ptr, String_Const_u8 clipboard, String_Const_u8 current_directory, Custom_API api)
+void name(System_Functions *system, \
+          Render_Target *target,    \
+          void *base_ptr,           \
+          String_Const_u8 clipboard,\
+          String_Const_u8 current_directory,\
+          Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 

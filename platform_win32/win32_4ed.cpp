@@ -24,19 +24,15 @@
 #include "4coder_table.h"
 #include "api/4coder_version.h"
 
-#if defined(FRED_SUPER)
-# include "api/4coder_keycodes.h"
-# include "api/4coder_default_colors.h"
-# include "api/4coder_types.h"
+#include "api/4coder_keycodes.h"
+#include "api/4coder_default_colors.h"
+#include "api/4coder_types.h"
 
-# include "4coder_base_types.cpp"
-# include "4coder_stringf.cpp"
-# include "4coder_hash_functions.cpp"
-# include "4coder_table.cpp"
-# include "4coder_log.cpp"
-#else
-# include "4coder_default_bindings.cpp"
-#endif
+#include "4coder_base_types.cpp"
+#include "4coder_stringf.cpp"
+#include "4coder_hash_functions.cpp"
+#include "4coder_table.cpp"
+#include "4coder_log.cpp"
 
 #include "4ed_font_interface.h"
 #include "4ed_font_set.h"
@@ -107,7 +103,6 @@ global System_Functions sysfunc;
 #include "4ed_shared_library_constants.h"
 #include "win32_library_wrapper.h"
 
-#include "4ed_standard_libraries.cpp"
 #include "4ed_font_face.cpp"
 
 #include "4ed_mem.cpp"
@@ -195,17 +190,11 @@ struct Win32_Vars{
 
 global Win32_Vars win32vars;
 global Render_Target target;
-global Plat_Settings plat_settings;
-
-global Libraries libraries;
-global App_Functions app;
-global Custom_API custom_api;
 
 ////////////////////////////////
 
 internal void
 system_error_box(Arena *scratch, char *msg, b32 shutdown = true){
-    //LOGF("error box: %s\n", msg);
     MessageBox_utf8(scratch, 0, (u8*)msg, (u8*)"Error", 0);
     if (shutdown){
         exit(1);
@@ -1271,11 +1260,6 @@ global wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
 global wglGetExtensionsStringEXT_Function *wglGetExtensionsStringEXT = 0;
 global wglSwapIntervalEXT_Function *wglSwapIntervalEXT = 0;
 
-// TODO(allen): This requires all windows to be handled on a single thread.
-// We would need a platform side thread context to get around this which would
-// probably mean thread local storage would have to get involved.
-global HWND win32_current_gl_window = 0;
-
 internal b32
 win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect){
     HINSTANCE this_instance = GetModuleHandle(0);
@@ -1462,7 +1446,6 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
             }
             
             wglMakeCurrent(dc, context);
-            win32_current_gl_window = wnd;
             if (wglSwapIntervalEXT != 0){
                 wglSwapIntervalEXT(1);
             }
@@ -1486,7 +1469,6 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
 ////////////////////////////////
 
 #include "4ed_link_system_functions.cpp"
-#include "4ed_shared_init_logic.cpp"
 
 int CALL_CONVENTION
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
@@ -1509,12 +1491,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // TODO(allen): *arena;
     target.arena = make_arena_system(&sysfunc);
     
-    block_zero_struct(&plat_settings);
-    
-    block_zero_struct(&libraries);
-    block_zero_struct(&app);
-    block_zero_struct(&custom_api);
-    
     win32vars.cursor_show = MouseCursorShow_Always;
     win32vars.prev_cursor_show = MouseCursorShow_Always;
     
@@ -1535,20 +1511,100 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         ReleaseDC(0, dc);
     }
     
-    // TODO(allen): 
-    load_app_code(win32vars.tctx);
+    // NOTE(allen): load core
+    Library core_library = {};
+    App_Functions app = {};
+    {
+        App_Get_Functions *get_funcs = 0;
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        if (system_load_library(scratch, &core_library, "4ed_app", LoadLibrary_BinaryDirectory)){
+            get_funcs = (App_Get_Functions*)system_get_proc(&core_library, "app_get_functions");
+            if (get_funcs != 0){
+                app = get_funcs();
+            }
+            else{
+                char msg[] = "Failed to get application code from '4ed_app.dll'.";
+                system_error_box(scratch, msg);
+            }
+        }
+        else{
+            char msg[] = "Could not load '4ed_app.dll'. This file should be in the same directory as the main '4ed' executable.";
+            system_error_box(scratch, msg);
+        }
+    }
     win32vars.log_string = app.get_logger(&sysfunc);
-    void *base_ptr = read_command_line(win32vars.tctx, argc, argv);
     
-    //
-    // Load Custom Code
-    //
+    // NOTE(allen): init & command line parameters
+    Plat_Settings plat_settings = {};
+    void *base_ptr = 0;
+    {
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        String_Const_u8 curdir = sysfunc.get_current_path(scratch);
+        curdir = string_mod_replace_character(curdir, '\\', '/');
+        char **files = 0;
+        i32 *file_count = 0;
+        base_ptr = app.read_command_line(win32vars.tctx, &sysfunc, curdir, &plat_settings, &files, &file_count, argc, argv);
+        {
+            i32 end = *file_count;
+            i32 i = 0, j = 0;
+            for (; i < end; ++i){
+                if (system_file_can_be_made(scratch, (u8*)files[i])){
+                    files[j] = files[i];
+                    ++j;
+                }
+            }
+            *file_count = j;
+        }
+    }
     
-#if defined(FRED_SUPER)
-    load_custom_code(win32vars.tctx);
-#else
-    custom_api.get_bindings = get_bindings;
-#endif
+    // NOTE(allen): load custom layer
+    Library custom_library = {};
+    Custom_API custom = {};
+    {
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        char *default_file = "custom_4coder";
+        Load_Library_Location locations[] = {
+            LoadLibrary_CurrentDirectory,
+            LoadLibrary_BinaryDirectory,
+        };
+        char custom_not_found_msg[] = "Did not find a library for the custom layer.";
+        char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
+        char custom_fail_missing_get_bindings_msg[] = "Failed to load custom code due to missing 'get_bindings' symbol.  Try rebuilding with buildsuper.";
+        
+        char *custom_files[3] = {};
+        if (plat_settings.custom_dll != 0){
+            custom_files[0] = plat_settings.custom_dll;
+            if (!plat_settings.custom_dll_is_strict){
+                custom_files[1] = default_file;
+            }
+        }
+        else{
+            custom_files[0] = default_file;
+        }
+        char success_file[4096];
+        b32 has_library = false;
+        for (u32 i = 0; custom_files[i] != 0 && !has_library; ++i){
+            char *file = custom_files[i];
+            for (u32 j = 0; j < ArrayCount(locations) && !has_library; ++j){
+                if (system_load_library(scratch, &custom_library, file, locations[j], success_file, sizeof(success_file))){
+                    has_library = true;
+                    success_file[sizeof(success_file) - 1] = 0;
+                }
+            }
+        }
+        
+        if (!has_library){
+            system_error_box(scratch, custom_not_found_msg);
+        }
+        custom.get_alpha_4coder_version = (_Get_Version_Function*)system_get_proc(&custom_library, "get_alpha_4coder_version");
+        if (custom.get_alpha_4coder_version == 0 || custom.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+            system_error_box(scratch, custom_fail_version_msg);
+        }
+        custom.get_bindings = (Get_Binding_Data_Function*)system_get_proc(&custom_library, "get_bindings");
+        if (custom.get_bindings == 0){
+            system_error_box(scratch, custom_fail_missing_get_bindings_msg);
+        }
+    }
     
     //
     // Window and GL Initialization
@@ -1563,10 +1619,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         window_rect.right = 800;
         window_rect.bottom = 600;
     }
-    
-    if (!AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)){
-        //LOG("Could not get adjusted window.\n");
-    }
+    AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false);
     
     i32 window_style = WS_OVERLAPPEDWINDOW;
     if (!plat_settings.fullscreen_window && plat_settings.maximize_window){
@@ -1634,7 +1687,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         String_Const_u8 curdir = sysfunc.get_current_path(scratch);
         curdir = string_mod_replace_character(curdir, '\\', '/');
-        app.init(&sysfunc, &target, base_ptr, win32vars.clipboard_contents, curdir, custom_api);
+        app.init(&sysfunc, &target, base_ptr, win32vars.clipboard_contents, curdir, custom);
     }
     
     //

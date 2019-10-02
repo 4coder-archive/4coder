@@ -9,10 +9,7 @@
 
 // TOP
 
-struct Libraries{
-    Library app_code;
-    Library custom;
-};
+#error Remove this file
 
 // BOTTOM
 
