@@ -9,14 +9,6 @@
 
 // TOP
 
-#define IS_PLAT_LAYER
-
-//
-// Program setup
-//
-
-#define UNICODE
-
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
@@ -41,6 +33,7 @@
 #include "4ed.h"
 
 #undef function
+#define UNICODE
 #include <Windows.h>
 #define function static
 
