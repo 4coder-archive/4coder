@@ -53,30 +53,30 @@ hot_directory_fixup(Hot_Directory *hot_directory){
 }
 
 internal void
-hot_directory_set(System_Functions *system, Hot_Directory *hot_directory, String_Const_u8 str){
+hot_directory_set(Hot_Directory *hot_directory, String_Const_u8 str){
     linalloc_clear(&hot_directory->arena);
     hot_directory->string = push_string_copy(&hot_directory->arena, str);
-    hot_directory->canonical = system->get_canonical(&hot_directory->arena, str);
-    hot_directory->file_list = system->get_file_list(&hot_directory->arena, hot_directory->canonical);
+    hot_directory->canonical = system_get_canonical(&hot_directory->arena, str);
+    hot_directory->file_list = system_get_file_list(&hot_directory->arena, hot_directory->canonical);
 }
 
 internal void
-hot_directory_reload(System_Functions *system, Arena *scratch, Hot_Directory *hot_directory){
+hot_directory_reload(Arena *scratch, Hot_Directory *hot_directory){
     Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 string = push_string_copy(scratch, hot_directory->string);
-    hot_directory_set(system, hot_directory, string);
+    hot_directory_set(hot_directory, string);
     end_temp(temp);
 }
 
 internal void
-hot_directory_init(System_Functions *system, Arena *scratch, Hot_Directory *hot_directory, String_Const_u8 directory){
-    hot_directory->arena = make_arena_system(system);
+hot_directory_init(Arena *scratch, Hot_Directory *hot_directory, String_Const_u8 directory){
+    hot_directory->arena = make_arena_system();
     Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 dir = directory;
     if (!character_is_slash(string_get_character(directory, directory.size - 1))){
         dir = push_u8_stringf(scratch, "%.*s/", string_expand(directory));
     }
-    hot_directory_set(system, hot_directory, dir);
+    hot_directory_set(hot_directory, dir);
     end_temp(temp);
 }
 

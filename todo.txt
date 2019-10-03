@@ -1,4 +1,10 @@
 
+usability:
+[] paste-next broken
+[] select scope broken
+[] auto-indent broken
+[] cursor in wrong spot after build
+
 Long Term
 {
     Features

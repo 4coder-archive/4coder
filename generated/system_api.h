@@ -1,3 +1,4 @@
+#define system_get_path_sig() String_Const_u8 system_get_path(Arena* arena, System_Path_Code path_code)
 #define system_get_canonical_sig() String_Const_u8 system_get_canonical(Arena* arena, String_Const_u8 name)
 #define system_get_file_list_sig() File_List system_get_file_list(Arena* arena, String_Const_u8 directory)
 #define system_quick_file_attributes_sig() File_Attributes system_quick_file_attributes(Arena* scratch, String_Const_u8 file_name)
@@ -8,7 +9,7 @@
 #define system_save_file_sig() File_Attributes system_save_file(Arena* scratch, char* file_name, String_Const_u8 data)
 #define system_load_library_sig() b32 system_load_library(Arena* scratch, String_Const_u8 file_name, System_Library* out)
 #define system_release_library_sig() b32 system_release_library(System_Library handle)
-#define system_get_proc_sig() Void_Func system_get_proc(System_Library handle, char* proc_name)
+#define system_get_proc_sig() Void_Func* system_get_proc(System_Library handle, char* proc_name)
 #define system_now_time_sig() u64 system_now_time(void)
 #define system_wake_up_timer_create_sig() Plat_Handle system_wake_up_timer_create(void)
 #define system_wake_up_timer_release_sig() void system_wake_up_timer_release(Plat_Handle handle)
@@ -40,6 +41,7 @@
 #define system_show_mouse_cursor_sig() void system_show_mouse_cursor(i32 show)
 #define system_set_fullscreen_sig() b32 system_set_fullscreen(b32 full_screen)
 #define system_is_fullscreen_sig() b32 system_is_fullscreen(void)
+typedef String_Const_u8 system_get_path_type(Arena* arena, System_Path_Code path_code);
 typedef String_Const_u8 system_get_canonical_type(Arena* arena, String_Const_u8 name);
 typedef File_List system_get_file_list_type(Arena* arena, String_Const_u8 directory);
 typedef File_Attributes system_quick_file_attributes_type(Arena* scratch, String_Const_u8 file_name);
@@ -50,7 +52,7 @@ typedef b32 system_load_close_type(Plat_Handle handle);
 typedef File_Attributes system_save_file_type(Arena* scratch, char* file_name, String_Const_u8 data);
 typedef b32 system_load_library_type(Arena* scratch, String_Const_u8 file_name, System_Library* out);
 typedef b32 system_release_library_type(System_Library handle);
-typedef Void_Func system_get_proc_type(System_Library handle, char* proc_name);
+typedef Void_Func* system_get_proc_type(System_Library handle, char* proc_name);
 typedef u64 system_now_time_type(void);
 typedef Plat_Handle system_wake_up_timer_create_type(void);
 typedef void system_wake_up_timer_release_type(Plat_Handle handle);
@@ -83,6 +85,7 @@ typedef void system_show_mouse_cursor_type(i32 show);
 typedef b32 system_set_fullscreen_type(b32 full_screen);
 typedef b32 system_is_fullscreen_type(void);
 struct API_VTable_system{
+system_get_path_type *get_path;
 system_get_canonical_type *get_canonical;
 system_get_file_list_type *get_file_list;
 system_quick_file_attributes_type *quick_file_attributes;
@@ -127,6 +130,7 @@ system_set_fullscreen_type *set_fullscreen;
 system_is_fullscreen_type *is_fullscreen;
 };
 #if defined(STATIC_LINK_API)
+internal String_Const_u8 system_get_path(Arena* arena, System_Path_Code path_code);
 internal String_Const_u8 system_get_canonical(Arena* arena, String_Const_u8 name);
 internal File_List system_get_file_list(Arena* arena, String_Const_u8 directory);
 internal File_Attributes system_quick_file_attributes(Arena* scratch, String_Const_u8 file_name);
@@ -137,7 +141,7 @@ internal b32 system_load_close(Plat_Handle handle);
 internal File_Attributes system_save_file(Arena* scratch, char* file_name, String_Const_u8 data);
 internal b32 system_load_library(Arena* scratch, String_Const_u8 file_name, System_Library* out);
 internal b32 system_release_library(System_Library handle);
-internal Void_Func system_get_proc(System_Library handle, char* proc_name);
+internal Void_Func* system_get_proc(System_Library handle, char* proc_name);
 internal u64 system_now_time(void);
 internal Plat_Handle system_wake_up_timer_create(void);
 internal void system_wake_up_timer_release(Plat_Handle handle);
@@ -171,6 +175,7 @@ internal b32 system_set_fullscreen(b32 full_screen);
 internal b32 system_is_fullscreen(void);
 #undef STATIC_LINK_API
 #elif defined(DYNAMIC_LINK_API)
+global system_get_path_type *system_get_path = 0;
 global system_get_canonical_type *system_get_canonical = 0;
 global system_get_file_list_type *system_get_file_list = 0;
 global system_quick_file_attributes_type *system_quick_file_attributes = 0;

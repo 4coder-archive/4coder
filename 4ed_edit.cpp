@@ -11,7 +11,6 @@
 
 internal void
 edit_pre_state_change(Models *models, Editing_File *file){
-    System_Functions *system = models->system;
     file_add_dirty_flag(file, DirtyState_UnsavedChanges);
 }
 
@@ -242,7 +241,7 @@ file_end_file(Models *models, Editing_File *file){
 }
 
 internal void
-edit__apply_record_forward(System_Functions *system, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
+edit__apply_record_forward(Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
     // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
     // Whenever you change this also change the backward version!
     
@@ -261,7 +260,7 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
                  node != sentinel;
                  node = node->next){
                 Record *sub_record = CastFromMember(Record, node, node);
-                edit__apply_record_forward(system, models, file, sub_record, behaviors_prototype);
+                edit__apply_record_forward(models, file, sub_record, behaviors_prototype);
             }
         }break;
         
@@ -273,7 +272,7 @@ edit__apply_record_forward(System_Functions *system, Models *models, Editing_Fil
 }
 
 internal void
-edit__apply_record_backward(System_Functions *system, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
+edit__apply_record_backward(Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
     // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
     // Whenever you change this also change the forward version!
     
@@ -292,7 +291,7 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
                  node != sentinel;
                  node = node->prev){
                 Record *sub_record = CastFromMember(Record, node, node);
-                edit__apply_record_backward(system, models, file, sub_record, behaviors_prototype);
+                edit__apply_record_backward(models, file, sub_record, behaviors_prototype);
             }
         }break;
         
@@ -304,7 +303,7 @@ edit__apply_record_backward(System_Functions *system, Models *models, Editing_Fi
 }
 
 internal void
-edit_change_current_history_state(System_Functions *system, Models *models, Editing_File *file, i32 target_index){
+edit_change_current_history_state(Models *models, Editing_File *file, i32 target_index){
     History *history = &file->state.history;
     if (history->activated && file->state.current_record_index != target_index){
         Assert(0 <= target_index && target_index <= history->record_count);
@@ -322,13 +321,13 @@ edit_change_current_history_state(System_Functions *system, Models *models, Edit
                 current += 1;
                 record = CastFromMember(Record, node, record->node.next);
                 Assert(record != dummy_record);
-                edit__apply_record_forward(system, models, file, record, behaviors_prototype);
+                edit__apply_record_forward(models, file, record, behaviors_prototype);
             } while (current != target_index);
         }
         else{
             do{
                 Assert(record != dummy_record);
-                edit__apply_record_backward(system, models, file, record, behaviors_prototype);
+                edit__apply_record_backward(models, file, record, behaviors_prototype);
                 current -= 1;
                 record = CastFromMember(Record, node, record->node.prev);
             } while (current != target_index);
@@ -349,18 +348,17 @@ edit_merge_history_range(Models *models, Editing_File *file, History_Record_Inde
             if (first_index < last_index){
                 i32 current_index = file->state.current_record_index;
                 if (first_index <= current_index && current_index < last_index){
-                    System_Functions *system = models->system;
                     u32 in_range_handler = (flags & bitmask_2);
                     switch (in_range_handler){
                         case RecordMergeFlag_StateInRange_MoveStateForward:
                         {
-                            edit_change_current_history_state(system, models, file, last_index);
+                            edit_change_current_history_state(models, file, last_index);
                             current_index = last_index;
                         }break;
                         
                         case RecordMergeFlag_StateInRange_MoveStateBackward:
                         {
-                            edit_change_current_history_state(system, models, file, first_index);
+                            edit_change_current_history_state(models, file, first_index);
                             current_index = first_index;
                         }break;
                         
@@ -431,7 +429,6 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
     Editing_File *result = 0;
     
     if (file_name.size > 0){
-        System_Functions *system = models->system;
         Working_Set *working_set = &models->working_set;
         Heap *heap = &models->heap;
         
@@ -445,7 +442,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
         
         // NOTE(allen): Try to get the file by canon name.
         if (HasFlag(flags, BufferCreate_NeverAttachToFile) == 0){
-            if (get_canon_name(system, scratch, file_name, &canon)){
+            if (get_canon_name(scratch, file_name, &canon)){
                 has_canon_name = true;
                 file = working_set_contains_canon(working_set, string_from_file_name(&canon));
             }
@@ -471,7 +468,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     do_empty_buffer = true;
                 }
                 else{
-                    if (!system->load_handle(scratch, (char*)canon.name_space, &handle)){
+                    if (!system_load_handle(scratch, (char*)canon.name_space, &handle)){
                         do_empty_buffer = true;
                     }
                 }
@@ -485,7 +482,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     file = working_set_allocate_file(working_set, &models->lifetime_allocator);
                     if (file != 0){
                         if (has_canon_name){
-                            file_bind_file_name(system, working_set, file, string_from_file_name(&canon));
+                            file_bind_file_name(working_set, file, string_from_file_name(&canon));
                         }
                         String_Const_u8 front = string_front_of_path(file_name);
                         buffer_bind_name(models, scratch, working_set, file, front);
@@ -496,7 +493,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                 }
             }
             else{
-                File_Attributes attributes = system->load_attributes(handle);
+                File_Attributes attributes = system_load_attributes(handle);
                 b32 in_heap_mem = false;
                 char *buffer = push_array(scratch, char, (i32)attributes.size);
                 
@@ -506,11 +503,11 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     in_heap_mem = true;
                 }
                 
-                if (system->load_file(handle, buffer, (i32)attributes.size)){
-                    system->load_close(handle);
+                if (system_load_file(handle, buffer, (i32)attributes.size)){
+                    system_load_close(handle);
                     file = working_set_allocate_file(working_set, &models->lifetime_allocator);
                     if (file != 0){
-                        file_bind_file_name(system, working_set, file, string_from_file_name(&canon));
+                        file_bind_file_name(working_set, file, string_from_file_name(&canon));
                         String_Const_u8 front = string_front_of_path(file_name);
                         buffer_bind_name(models, scratch, working_set, file, front);
                         file_create_from_string(models, file, SCu8(buffer, (i32)attributes.size), attributes);
@@ -518,7 +515,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     }
                 }
                 else{
-                    system->load_close(handle);
+                    system_load_close(handle);
                 }
                 
                 if (in_heap_mem){

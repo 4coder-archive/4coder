@@ -369,7 +369,7 @@ view_post_paste_effect(View *view, f32 seconds, i64 start, i64 size, u32 color){
 ////////////////////////////////
 
 internal void
-view_set_file(System_Functions *system, Models *models, View *view, Editing_File *file){
+view_set_file(Models *models, View *view, Editing_File *file){
     Assert(file != 0);
     
     Editing_File *old_file = view->file;
@@ -408,7 +408,7 @@ file_is_viewed(Layout *layout, Editing_File *file){
 }
 
 internal void
-adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *models, Editing_File *file){
+adjust_views_looking_at_file_to_new_cursor(Models *models, Editing_File *file){
     Layout *layout = &models->layout;
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
@@ -422,7 +422,7 @@ adjust_views_looking_at_file_to_new_cursor(System_Functions *system, Models *mod
 }
 
 internal void
-global_set_font_and_update_files(System_Functions *system, Models *models, Face *new_global_face){
+global_set_font_and_update_files(Models *models, Face *new_global_face){
     for (Node *node = models->working_set.active_file_sentinel.next;
          node != &models->working_set.active_file_sentinel;
          node = node->next){
@@ -433,7 +433,7 @@ global_set_font_and_update_files(System_Functions *system, Models *models, Face 
 }
 
 internal b32
-release_font_and_update(System_Functions *system, Models *models, Face *face, Face *replacement_face){
+release_font_and_update(Models *models, Face *face, Face *replacement_face){
     b32 success = false;
     Assert(replacement_face != 0 && replacement_face != face);
     if (font_set_release_face(&models->font_set, face->id)){
@@ -465,7 +465,7 @@ finalize_color(Color_Table color_table, int_color color){
 }
 
 internal void
-view_quit_ui(System_Functions *system, Models *models, View *view){
+view_quit_ui(Models *models, View *view){
     Assert(view != 0);
     view->ui_mode = false;
     if (view->ui_quit != 0){
@@ -489,113 +489,6 @@ imp_get_view(Models *models, View_ID view_id){
     }
     return(view);
 }
-
-////////////////////////////////
-
-#if 0
-internal void
-render_loaded_file_in_view__inner(Models *models, Render_Target *target, View *view,
-                                  Rect_i32 rect,
-                                  Full_Cursor render_cursor,
-                                  Interval_i64 on_screen_range,
-                                  Buffer_Layout_Item_List list,
-                                  int_color *item_colors){
-    Cpp_Token_Array token_array = file->state.token_array;
-    b32 tokens_use = (token_array.tokens != 0);
-    i64 token_i = 0;
-    
-    u32 main_color    = color_table.vals[Stag_Default];
-    u32 special_color = color_table.vals[Stag_Special_Character];
-    u32 ghost_color   = color_table.vals[Stag_Ghost_Character];
-    if (tokens_use){
-        Cpp_Get_Token_Result result = cpp_get_token(token_array, (i32)items->index);
-        main_color = get_token_color(color_table, token_array.tokens[result.token_index]);
-        token_i = result.token_index + 1;
-    }
-    
-    {
-        i64 ind = item->index;
-        
-        // NOTE(allen): Token scanning
-        u32 highlight_this_color = 0;
-        if (tokens_use && ind != prev_ind){
-            Token current_token = token_array.tokens[token_i-1];
-            
-            if (token_i < token_array.count){
-                if (ind >= token_array.tokens[token_i].start){
-                    for (;token_i < token_array.count && ind >= token_array.tokens[token_i].start; ++token_i){
-                        main_color = get_token_color(color_table, token_array.tokens[token_i]);
-                        current_token = token_array.tokens[token_i];
-                    }
-                }
-                else if (ind >= current_token.start + current_token.size){
-                    main_color = color_table.vals[Stag_Default];
-                }
-            }
-            
-            if (current_token.type == CPP_TOKEN_JUNK && ind >= current_token.start && ind < current_token.start + current_token.size){
-                highlight_color = color_table.vals[Stag_Highlight_Junk];
-            }
-            else{
-                highlight_color = 0;
-            }
-        }
-        
-        u32 char_color = main_color;
-        if (on_screen_range.min <= ind && ind < on_screen_range.max){
-            i64 index_shifted = ind - on_screen_range.min;
-            if (item_colors[index_shifted] != 0){
-                char_color = finalize_color(color_table, item_colors[index_shifted]);
-            }
-        }
-        if (HasFlag(item->flags, BRFlag_Special_Character)){
-            char_color = special_color;
-        }
-        else if (HasFlag(item->flags, BRFlag_Ghost_Character)){
-            char_color = ghost_color;
-        }
-        
-        if (view->show_whitespace && highlight_color == 0 && codepoint_is_whitespace(item->codepoint)){
-            highlight_this_color = color_table.vals[Stag_Highlight_White];
-        }
-        else{
-            highlight_this_color = highlight_color;
-        }
-        
-        // NOTE(allen): Perform highlight, wireframe, and ibar renders
-        u32 color_highlight = 0;
-        u32 color_wireframe = 0;
-        u32 color_ibar = 0;
-        
-        if (highlight_this_color != 0){
-            if (color_highlight == 0){
-                color_highlight = highlight_this_color;
-            }
-        }
-        
-        if (color_highlight != 0){
-            draw_rectangle(target, char_rect, color_highlight);
-        }
-        
-        u32 fade_color = 0xFFFF00FF;
-        f32 fade_amount = 0.f;
-        if (file->state.paste_effect.seconds_down > 0.f &&
-            file->state.paste_effect.start <= ind &&
-            ind < file->state.paste_effect.end){
-            fade_color = file->state.paste_effect.color;
-            fade_amount = file->state.paste_effect.seconds_down;
-            fade_amount /= file->state.paste_effect.seconds_max;
-        }
-        char_color = color_blend(char_color, fade_amount, fade_color);
-        
-        if (color_wireframe != 0){
-            draw_rectangle_outline(target, char_rect, color_wireframe);
-        }
-    }
-    
-}
-
-#endif
 
 // BOTTOM
 

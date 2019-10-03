@@ -1,5 +1,6 @@
 function void
 system_api_fill_vtable(API_VTable_system *vtable){
+vtable->get_path = system_get_path;
 vtable->get_canonical = system_get_canonical;
 vtable->get_file_list = system_get_file_list;
 vtable->quick_file_attributes = system_quick_file_attributes;
@@ -46,6 +47,7 @@ vtable->is_fullscreen = system_is_fullscreen;
 #if defined(DYNAMIC_LINK_API)
 function void
 system_api_read_vtable(API_VTable_system *vtable){
+system_get_path = vtable->get_path;
 system_get_canonical = vtable->get_canonical;
 system_get_file_list = vtable->get_file_list;
 system_quick_file_attributes = vtable->quick_file_attributes;

@@ -28,7 +28,6 @@ union Font_Face_Slot{
 };
 
 struct Font_Set{
-    struct System_Functions *system;
     Arena arena;
     Face_ID next_id_counter;
     Font_Face_ID_Node *free_ids;

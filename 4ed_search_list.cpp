@@ -21,12 +21,12 @@ search_list_add_path(Arena *arena, Path_Search_List *list, String_Const_u8 path)
 }
 
 function void
-search_list_add_system_path(System_Functions *system, Arena *arena, Path_Search_List *list, System_Path_Code path){
-    search_list_add_path__inner(arena, list, system->get_path(arena, path));
+search_list_add_system_path(Arena *arena, Path_Search_List *list, System_Path_Code path){
+    search_list_add_path__inner(arena, list, system_get_path(arena, path));
 }
 
 function String_Const_u8
-get_full_path(System_Functions *system, Arena *arena, Path_Search_List *search_list, String_Const_u8 relative){
+get_full_path(Arena *arena, Path_Search_List *search_list, String_Const_u8 relative){
     String_Const_u8 result = {};
     Temp_Memory restore_point = begin_temp(arena);
     umem buffer_cap = search_list->max_member_length + relative.size + 1;
@@ -42,7 +42,7 @@ get_full_path(System_Functions *system, Arena *arena, Path_Search_List *search_l
         u8 *path_base = relative_base - node_size;
         block_copy(path_base, node->string.str, node_size);
         String_Const_u8 name = SCu8(path_base, opl);
-        File_Attributes attribs = system->quick_file_attributes(arena, name);
+        File_Attributes attribs = system_quick_file_attributes(arena, name);
         if (attribs.size > 0){
             result = name;
             break;

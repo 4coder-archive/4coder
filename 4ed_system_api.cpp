@@ -16,6 +16,12 @@ define_api(Arena *arena){
     API_Definition *api = begin_api(arena, "system");
     
     {
+        API_Call *call = api_call(arena, api, "get_path", "String_Const_u8");
+        api_param(arena, call, "Arena*", "arena");
+        api_param(arena, call, "System_Path_Code", "path_code");
+    }
+    
+    {
         API_Call *call = api_call(arena, api, "get_canonical", "String_Const_u8");
         api_param(arena, call, "Arena*", "arena");
         api_param(arena, call, "String_Const_u8", "name");
@@ -77,7 +83,7 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "get_proc", "Void_Func");
+        API_Call *call = api_call(arena, api, "get_proc", "Void_Func*");
         api_param(arena, call, "System_Library", "handle");
         api_param(arena, call, "char*", "proc_name");
     }

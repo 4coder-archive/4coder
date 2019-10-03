@@ -143,8 +143,7 @@ begin_frame(Render_Target *target, void *font_set){
 }
 
 internal void
-begin_render_section(Render_Target *target, System_Functions *system,
-                     i32 frame_index, f32 literal_dt, f32 animation_dt){
+begin_render_section(Render_Target *target, i32 frame_index, f32 literal_dt, f32 animation_dt){
     target->clip_top = -1;
     
     i32_Rect clip;
@@ -160,7 +159,7 @@ begin_render_section(Render_Target *target, System_Functions *system,
 }
 
 internal void
-end_render_section(Render_Target *target, System_Functions *system){
+end_render_section(Render_Target *target){
     Assert(target->clip_top == 0);
 }
 

@@ -67,19 +67,18 @@ font_set__free_face_slot(Font_Set *set, Font_Face_Slot *slot){
 }
 
 internal void
-font_set_init(System_Functions *system, Font_Set *set){
+font_set_init(Font_Set *set){
     block_zero_struct(set);
-    set->system = system;
-    set->arena = make_arena_system(system);
+    set->arena = make_arena_system();
     set->next_id_counter = 1;
     set->id_to_slot_table = make_table_u64_u64(set->arena.base_allocator, 40);
-    set->scale_factor = system->get_screen_scale_factor();
+    set->scale_factor = system_get_screen_scale_factor();
 }
 
 internal Face*
 font_set_new_face(Font_Set *set, Face_Description *description){
-    Arena arena = make_arena_system(set->system);
-    Face *face = set->system->font_make_face(&arena, description, set->scale_factor);
+    Arena arena = make_arena_system();
+    Face *face = font_make_face(&arena, description, set->scale_factor);
     if (face != 0){
         Font_Face_Slot *slot = font_set__alloc_face_slot(set);
         slot->arena = arena;
@@ -150,8 +149,8 @@ font_set_modify_face(Font_Set *set, Face_ID id, Face_Description *description){
     Font_Face_Slot *slot = font_set__get_face_slot(set, id);
     if (slot != 0){
         i32 version_number = slot->face->version_number;
-        Arena arena = make_arena_system(set->system);
-        Face *face = set->system->font_make_face(&arena, description, set->scale_factor);
+        Arena arena = make_arena_system();
+        Face *face = font_make_face(&arena, description, set->scale_factor);
         if (face != 0){
             linalloc_clear(&slot->arena);
             slot->arena = arena;

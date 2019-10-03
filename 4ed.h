@@ -57,13 +57,12 @@ struct Plat_Settings{
 
 #define App_Read_Command_Line_Sig(name)             \
 void *name(Thread_Context *tctx,     \
-           System_Functions *system, \
-           String_Const_u8 current_directory,\
-           Plat_Settings *plat_settings,\
-           char ***files,   \
-           i32 **file_count,\
-           i32 argc,        \
-           char **argv)
+String_Const_u8 current_directory,\
+Plat_Settings *plat_settings,\
+char ***files,   \
+i32 **file_count,\
+i32 argc,        \
+char **argv)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
@@ -73,12 +72,11 @@ struct Custom_API{
 };
 
 #define App_Init_Sig(name) \
-void name(System_Functions *system, \
-          Render_Target *target,    \
-          void *base_ptr,           \
-          String_Const_u8 clipboard,\
-          String_Const_u8 current_directory,\
-          Custom_API api)
+void name(Render_Target *target,    \
+void *base_ptr,           \
+String_Const_u8 clipboard,\
+String_Const_u8 current_directory,\
+Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 
@@ -104,17 +102,20 @@ struct Application_Step_Input{
 };
 
 #define App_Step_Sig(name) Application_Step_Result \
-name(System_Functions *system,             \
-Render_Target *target,                \
+name(Render_Target *target,                \
 void *base_ptr,                       \
 Application_Step_Input *input)
 
 typedef App_Step_Sig(App_Step);
 
 typedef b32 Log_Function(String_Const_u8 str);
-typedef Log_Function *App_Get_Logger(System_Functions *system);
+typedef Log_Function *App_Get_Logger(void);
+typedef void App_Load_VTables(API_VTable_system *vtable_system,
+                              API_VTable_font *vtable_font,
+                              API_VTable_graphics *vtable_graphics);
 
 struct App_Functions{
+    App_Load_VTables *load_vtables;
     App_Get_Logger *get_logger;
     App_Read_Command_Line *read_command_line;
     App_Init *init;

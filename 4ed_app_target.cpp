@@ -15,8 +15,16 @@
 
 #include "4coder_base_types.h"
 #include "4coder_table.h"
+
 #include "4ed_font_interface.h"
-#include "4ed_system.h"
+#include "4ed_system_types.h"
+#define DYNAMIC_LINK_API
+#include "generated/system_api.h"
+#define DYNAMIC_LINK_API
+#include "generated/graphics_api.h"
+#define DYNAMIC_LINK_API
+#include "generated/font_api.h"
+
 #include "4coder_string_match.h"
 
 #include "4coder_base_types.cpp"
@@ -54,6 +62,13 @@
 #include "4ed_font_set.h"
 #include "4ed_log.h"
 #include "4ed_app_models.h"
+
+#define DYNAMIC_LINK_API
+#include "generated/system_api.cpp"
+#define DYNAMIC_LINK_API
+#include "generated/graphics_api.cpp"
+#define DYNAMIC_LINK_API
+#include "generated/font_api.cpp"
 
 #include "4ed_allocator_models.cpp"
 #include "4ed_log.cpp"

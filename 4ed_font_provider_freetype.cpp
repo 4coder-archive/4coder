@@ -164,7 +164,7 @@ internal Face*
 ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor){
     String_Const_u8 file_name = {};
     if (description->font.in_4coder_font_folder){
-        String_Const_u8 binary_path = sysfunc.get_path(arena, SystemPath_Binary);
+        String_Const_u8 binary_path = system_get_path(arena, SystemPath_Binary);
         binary_path = string_mod_replace_character(binary_path, '\\', '/');
         file_name = push_u8_stringf(arena, "%.*sfonts/%.*s", string_expand(binary_path),
                                     string_expand(description->font.file_name));
@@ -296,7 +296,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         ft__bad_rect_store_finish(&pack);
         
         Texture_Kind texture_kind = TextureKind_Mono;
-        u32 texture = sysfunc.get_texture(pack.dim, texture_kind);
+        u32 texture = graphics_get_texture(pack.dim, texture_kind);
         face->texture_kind = texture_kind;
         face->texture = texture;
         
@@ -306,7 +306,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         {
             Vec3_i32 p = V3i32((i32)face->white.uv.x0, (i32)face->white.uv.y0, (i32)face->white.w);
             Vec3_i32 dim = V3i32(white.dim.x, white.dim.y, 1);
-            sysfunc.fill_texture(texture_kind, texture, p, dim, white.data);
+            graphics_fill_texture(texture_kind, texture, p, dim, white.data);
             face->white.uv.x1 = (face->white.uv.x0 + face->white.uv.x1)/texture_dim.x;
             face->white.uv.y1 = (face->white.uv.y0 + face->white.uv.y1)/texture_dim.y;
             face->white.uv.x0 =  face->white.uv.x0/texture_dim.x;
@@ -317,7 +317,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         for (u16 i = 0; i < index_count; i += 1){
             Vec3_i32 p = V3i32((i32)face->bounds[i].uv.x0, (i32)face->bounds[i].uv.y0, (i32)face->bounds[i].w);
             Vec3_i32 dim = V3i32(glyph_bitmaps[i].dim.x, glyph_bitmaps[i].dim.y, 1);
-            sysfunc.fill_texture(texture_kind, texture, p, dim, glyph_bitmaps[i].data);
+            graphics_fill_texture(texture_kind, texture, p, dim, glyph_bitmaps[i].data);
             face->bounds[i].uv.x1 = (face->bounds[i].uv.x0 + face->bounds[i].uv.x1)/texture_dim.x;
             face->bounds[i].uv.y1 = (face->bounds[i].uv.y0 + face->bounds[i].uv.y1)/texture_dim.y;
             face->bounds[i].uv.x0 =  face->bounds[i].uv.x0/texture_dim.x;

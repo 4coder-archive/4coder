@@ -15,15 +15,13 @@ coroutine__pass_control(Coroutine *me, Coroutine *other,
     Assert(me->state == CoroutineState_Active);
     Assert(me->sys == other->sys);
     
-    System_Functions *system = me->system;
-    
     me->state = my_new_state;
     other->state = CoroutineState_Active;
     me->sys->active = other;
-    system->condition_variable_signal(other->cv);
+    system_condition_variable_signal(other->cv);
     if (control == CoroutinePassControl_BlockMe){
         for (;me->state != CoroutineState_Active;){
-            system->condition_variable_wait(me->cv, me->sys->lock);
+            system_condition_variable_wait(me->cv, me->sys->lock);
         }
     }
 }
@@ -31,18 +29,17 @@ coroutine__pass_control(Coroutine *me, Coroutine *other,
 internal void
 coroutine_main(void *ptr){
     Coroutine *me = (Coroutine*)ptr;
-    System_Functions *system = me->system;
     
     // NOTE(allen): Init handshake
     Assert(me->state == CoroutineState_Dead);
-    system->mutex_acquire(me->sys->lock);
+    system_mutex_acquire(me->sys->lock);
     me->sys->did_init = true;
-    system->condition_variable_signal(me->sys->init_cv);
+    system_condition_variable_signal(me->sys->init_cv);
     
     for (;;){
         // NOTE(allen): Wait until someone wakes us up, then go into our procedure.
         for (;me->state != CoroutineState_Active;){
-            system->condition_variable_wait(me->cv, me->sys->lock);
+            system_condition_variable_wait(me->cv, me->sys->lock);
         }
         Assert(me->type != CoroutineType_Root);
         Assert(me->yield_ctx != 0);
@@ -62,41 +59,37 @@ coroutine_main(void *ptr){
 
 internal void
 coroutine_sub_init(Coroutine *co, Coroutine_Group *sys){
-    System_Functions *system = sys->system;
     block_zero_struct(co);
-    co->system = system;
     co->sys = sys;
     co->state = CoroutineState_Dead;
     co->type = CoroutineType_Sub;
-    co->cv = system->condition_variable_make();
+    co->cv = system_condition_variable_make();
     sys->did_init = false;
-    co->thread = system->thread_launch(coroutine_main, co);
+    co->thread = system_thread_launch(coroutine_main, co);
     for (;!sys->did_init;){
-        system->condition_variable_wait(sys->init_cv, sys->lock);
+        system_condition_variable_wait(sys->init_cv, sys->lock);
     }
 }
 
 internal void
-coroutine_system_init(System_Functions *system, Coroutine_Group *sys){
-    sys->arena = make_arena_system(system);
-    sys->system = system;
+coroutine_system_init(Coroutine_Group *sys){
+    sys->arena = make_arena_system();
     
     Coroutine *root = &sys->root;
     
-    sys->lock = system->mutex_make();
-    sys->init_cv = system->condition_variable_make();
+    sys->lock = system_mutex_make();
+    sys->init_cv = system_condition_variable_make();
     sys->active = root;
     
     block_zero_struct(root);
-    root->system = system;
     root->sys = sys;
     root->state = CoroutineState_Active;
     root->type = CoroutineType_Root;
-    root->cv = system->condition_variable_make();
+    root->cv = system_condition_variable_make();
     
     sys->unused = 0;
     
-    system->mutex_acquire(sys->lock);
+    system_mutex_acquire(sys->lock);
 }
 
 internal Coroutine*

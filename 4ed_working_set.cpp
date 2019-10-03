@@ -17,17 +17,17 @@ working_set_file_default_settings(Working_Set *working_set, Editing_File *file){
 ////////////////////////////////
 
 internal void
-file_change_notification_check(System_Functions *system, Arena *scratch, Working_Set *working_set, Editing_File *file){
+file_change_notification_check(Arena *scratch, Working_Set *working_set, Editing_File *file){
     if (file->canon.name_size > 0 && !file->settings.unimportant){
         String_Const_u8 name = SCu8(file->canon.name_space, file->canon.name_size);
-        File_Attributes attributes = system->quick_file_attributes(scratch, name);
+        File_Attributes attributes = system_quick_file_attributes(scratch, name);
         if (attributes.last_write_time > file->attributes.last_write_time){
             file_add_dirty_flag(file, DirtyState_UnloadedChanges);
             if (file->external_mod_node.next == 0){
-                LogEventF(log_string(M), &working_set->arena, file->id, 0, system->thread_get_id(),
+                LogEventF(log_string(M), &working_set->arena, file->id, 0, system_thread_get_id(),
                           "external modification [lwt=0x%llx]", attributes.last_write_time);
                 dll_insert_back(&working_set->has_external_mod_sentinel, &file->external_mod_node);
-                system->signal_step(0);
+                system_signal_step(0);
             }
         }
         file->attributes = attributes;
@@ -37,12 +37,11 @@ file_change_notification_check(System_Functions *system, Arena *scratch, Working
 internal void
 file_change_notification_thread_main(void *ptr){
     Models *models = (Models*)ptr;
-    System_Functions *system = models->system;
-    Arena arena = make_arena_system(system);
+    Arena arena = make_arena_system();
     Working_Set *working_set = &models->working_set;
     for (;;){
-        system->sleep(Thousand(250));
-        Mutex_Lock lock(system, working_set->mutex);
+        system_sleep(Thousand(250));
+        Mutex_Lock lock(working_set->mutex);
         if (working_set->active_file_count > 0){
             i32 check_count = working_set->active_file_count/16;
             check_count = clamp(1, check_count, 100);
@@ -57,7 +56,7 @@ file_change_notification_thread_main(void *ptr){
                 if (node == used){
                     node = node->next;
                 }
-                file_change_notification_check(system, &arena, working_set, file);
+                file_change_notification_check(&arena, working_set, file);
             }
             working_set->sync_check_iterator = node;
         }
@@ -117,8 +116,7 @@ working_set_get_file(Working_Set *working_set, Buffer_ID id){
 internal void
 working_set_init(Models *models, Working_Set *working_set){
     block_zero_struct(working_set);
-    System_Functions *system = models->system;
-    working_set->arena = make_arena_system(system);
+    working_set->arena = make_arena_system();
     
     working_set->id_counter = 1;
     
@@ -126,14 +124,14 @@ working_set_init(Models *models, Working_Set *working_set){
     dll_init_sentinel(&working_set->touch_order_sentinel);
     
     local_const i32 slot_count = 128;
-    Base_Allocator *allocator = get_base_allocator_system(system);
+    Base_Allocator *allocator = get_base_allocator_system();
     working_set->id_to_ptr_table = make_table_u64_u64(allocator, slot_count);
     working_set->canon_table = make_table_Data_u64(allocator, slot_count);
     working_set->name_table = make_table_Data_u64(allocator, slot_count);
     
     dll_init_sentinel(&working_set->has_external_mod_sentinel);
-    working_set->mutex = system->mutex_make();
-    working_set->file_change_thread = system->thread_launch(file_change_notification_thread_main, models);
+    working_set->mutex = system_mutex_make();
+    working_set->file_change_thread = system_thread_launch(file_change_notification_thread_main, models);
 }
 
 internal Editing_File*
@@ -187,7 +185,7 @@ working_set_remove_name(Working_Set *working_set, String_Const_u8 name){
 }
 
 internal Editing_File*
-get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
+get_file_from_identifier(Working_Set *working_set, Buffer_Identifier buffer){
     Editing_File *file = 0;
     if (buffer.id != 0){
         file = working_set_get_file(working_set, buffer.id);
@@ -269,9 +267,9 @@ working_set_clipboard_roll_down(Working_Set *working){
 
 // TODO(allen): get rid of this???
 internal b32
-get_canon_name(System_Functions *system, Arena *scratch, String_Const_u8 file_name, Editing_File_Name *canon_name){
+get_canon_name(Arena *scratch, String_Const_u8 file_name, Editing_File_Name *canon_name){
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 canonical = system->get_canonical(scratch, file_name);
+    String_Const_u8 canonical = system_get_canonical(scratch, file_name);
     umem size = Min(sizeof(canon_name->name_space), canonical.size);
     block_copy(canon_name->name_space, canonical.str, size);
     canon_name->name_size = size;
@@ -281,7 +279,7 @@ get_canon_name(System_Functions *system, Arena *scratch, String_Const_u8 file_na
 }
 
 internal void
-file_bind_file_name(System_Functions *system, Working_Set *working_set, Editing_File *file, String_Const_u8 canon_file_name){
+file_bind_file_name(Working_Set *working_set, Editing_File *file, String_Const_u8 canon_file_name){
     Assert(file->unique_name.name_size == 0);
     Assert(file->canon.name_size == 0);
     umem size = canon_file_name.size;
@@ -294,7 +292,7 @@ file_bind_file_name(System_Functions *system, Working_Set *working_set, Editing_
 }
 
 internal void
-buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
+buffer_unbind_file(Working_Set *working_set, Editing_File *file){
     Assert(file->unique_name.name_size == 0);
     Assert(file->canon.name_size != 0);
     working_set_canon_remove(working_set, string_from_file_name(&file->canon));

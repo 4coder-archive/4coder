@@ -137,7 +137,7 @@ file_name_terminate(Editing_File_Name *name){
 
 // TODO(allen): file_name should be String_Const_u8
 internal b32
-save_file_to_name(System_Functions *system, Models *models, Editing_File *file, u8 *file_name){
+save_file_to_name(Models *models, Editing_File *file, u8 *file_name){
     b32 result = false;
     b32 using_actual_file_name = false;
     
@@ -159,7 +159,7 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         
         if (!using_actual_file_name){
             String_Const_u8 s_file_name = SCu8(file_name);
-            String_Const_u8 canonical_file_name = system->get_canonical(scratch, s_file_name);
+            String_Const_u8 canonical_file_name = system_get_canonical(scratch, s_file_name);
             if (string_match(canonical_file_name, string_from_file_name(&file->canon))){
                 using_actual_file_name = true;
             }
@@ -167,14 +167,14 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
         
         String_Const_u8 saveable_string = buffer_stringify(scratch, buffer, Ii64(0, buffer_size(buffer)));
         
-        File_Attributes new_attributes = system->save_file(scratch, (char*)file_name, saveable_string);
+        File_Attributes new_attributes = system_save_file(scratch, (char*)file_name, saveable_string);
         if (new_attributes.last_write_time > 0){
             if (using_actual_file_name){
                 file->state.ignore_behind_os = 1;
             }
             file->attributes = new_attributes;
         }
-        LogEventF(log_string(M), scratch, file->id, 0, system->thread_get_id(),
+        LogEventF(log_string(M), scratch, file->id, 0, system_thread_get_id(),
                   "save file [last_write_time=0x%llx]", new_attributes.last_write_time);
         
         file_clear_dirty_flags(file);
@@ -184,8 +184,8 @@ save_file_to_name(System_Functions *system, Models *models, Editing_File *file, 
 }
 
 internal b32
-save_file(System_Functions *system, Models *models, Editing_File *file){
-    return(save_file_to_name(system, models, file, 0));
+save_file(Models *models, Editing_File *file){
+    return(save_file_to_name(models, file, 0));
 }
 
 ////////////////////////////////
@@ -210,7 +210,6 @@ file_compute_cursor(Editing_File *file, Buffer_Seek seek){
 
 internal void
 file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
-    System_Functions *system = models->system;
     Thread_Context *tctx = models->tctx;
     Scratch_Block scratch(tctx, Scratch_Share);
     
@@ -240,7 +239,7 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
         Temp_Memory temp = begin_temp(scratch);
         String_Const_u8 name = SCu8(file->unique_name.name_space, file->unique_name.name_size);
         name = string_escape(scratch, name);
-        LogEventF(log_string(M), scratch, file->id, 0, system->thread_get_id(),
+        LogEventF(log_string(M), scratch, file->id, 0, system_thread_get_id(),
                   "init file [lwt=0x%llx] [name=\"%.*s\"]",
                   attributes.last_write_time, string_expand(name));
         end_temp(temp);

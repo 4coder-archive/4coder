@@ -33,7 +33,6 @@ struct Coroutine{
     Coroutine *next;
     void *in;
     void *out;
-    System_Functions *system;
     System_Thread thread;
     System_Condition_Variable cv;
     struct Coroutine_Group *sys;
@@ -45,7 +44,6 @@ struct Coroutine{
 
 struct Coroutine_Group{
     Arena arena;
-    System_Functions *system;
     System_Mutex lock;
     System_Condition_Variable init_cv;
     b32 did_init;

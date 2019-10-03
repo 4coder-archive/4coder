@@ -9,14 +9,13 @@
 
 // TOP
 
-Mutex_Lock::Mutex_Lock(System_Functions *s, System_Mutex m){
-    s->mutex_acquire(m);
-    this->system = s;
+Mutex_Lock::Mutex_Lock(System_Mutex m){
+    system_mutex_acquire(m);
     this->mutex = m;
 }
 
 Mutex_Lock::~Mutex_Lock(){
-    this->system->mutex_release(this->mutex);
+    system_mutex_release(this->mutex);
 }
 
 Mutex_Lock::operator System_Mutex(){
@@ -42,7 +41,6 @@ restore_state(Application_Links *app, App_Coroutine_State state){
 internal Coroutine*
 app_coroutine_handle_request(Models *models, Coroutine *co, u32 *vals){
     Coroutine *result = 0;
-    System_Functions *system = models->system;
     switch (vals[2]){
         case AppCoroutineRequest_NewFontFace:
         {
@@ -86,7 +84,7 @@ output_file_append(Models *models, Editing_File *file, String_Const_u8 value){
 }
 
 internal void
-file_cursor_to_end(System_Functions *system, Models *models, Editing_File *file){
+file_cursor_to_end(Models *models, Editing_File *file){
     Assert(file != 0);
     i64 pos = buffer_size(&file->state.buffer);
     Layout *layout = &models->layout;
@@ -473,10 +471,9 @@ command_caller(Coroutine *coroutine){
 }
 
 internal void
-app_links_init(System_Functions *system, Application_Links *app_links){
+app_links_init(Application_Links *app_links){
     FillAppLinksAPI(app_links);
     app_links->current_coroutine = 0;
-    app_links->system_links = system;
 }
 
 // App Functions
@@ -753,7 +750,7 @@ get_event_flags(Key_Code keycode){
 }
 
 internal void
-force_abort_coroutine(System_Functions *system, Models *models, View *view){
+force_abort_coroutine(Models *models, View *view){
     User_Input user_in = {};
     user_in.abort = true;
     for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
@@ -767,7 +764,7 @@ force_abort_coroutine(System_Functions *system, Models *models, View *view){
 }
 
 internal void
-launch_command_via_event(System_Functions *system, Models *models, View *view, Key_Event_Data event){
+launch_command_via_event(Models *models, View *view, Key_Event_Data event){
     models->key = event;
     
     i32 map = view_get_map(view);
@@ -792,21 +789,29 @@ launch_command_via_event(System_Functions *system, Models *models, View *view, K
 }
 
 internal void
-launch_command_via_keycode(System_Functions *system, Models *models, View *view, Key_Code keycode){
+launch_command_via_keycode(Models *models, View *view, Key_Code keycode){
     Key_Event_Data event = {};
     event.keycode = keycode;
-    launch_command_via_event(system, models, view, event);
+    launch_command_via_event(models, view, event);
+}
+
+internal void
+app_load_vtables(API_VTable_system *vtable_system,
+                 API_VTable_font *vtable_font,
+                 API_VTable_graphics *vtable_graphics){
+    system_api_read_vtable(vtable_system);
+    font_api_read_vtable(vtable_font);
+    graphics_api_read_vtable(vtable_graphics);
 }
 
 internal Log_Function*
-app_get_logger(System_Functions *system){
-    log_init(system);
+app_get_logger(void){
+    log_init();
     return(log_string);
 }
 
 App_Read_Command_Line_Sig(app_read_command_line){
     Models *models = models_init(tctx);
-    models->system = system;
     App_Settings *settings = &models->settings;
     block_zero_struct(settings);
     if (argc > 1){
@@ -821,7 +826,7 @@ App_Init_Sig(app_init){
     Models *models = (Models*)base_ptr;
     models->keep_playing = true;
     
-    app_links_init(system, &models->app_links);
+    app_links_init(&models->app_links);
     
     models->config_api = api;
     models->app_links.cmd_context = models;
@@ -829,10 +834,10 @@ App_Init_Sig(app_init){
     Arena *arena = models->arena;
     
     // NOTE(allen): coroutines
-    coroutine_system_init(system, &models->coroutines);
+    coroutine_system_init(&models->coroutines);
     
     // NOTE(allen): font set
-    font_set_init(system, &models->font_set);
+    font_set_init(&models->font_set);
     
     // NOTE(allen): live set
     {
@@ -871,7 +876,7 @@ App_Init_Sig(app_init){
     // NOTE(allen): file setup
     working_set_init(models, &models->working_set);
     
-    Mutex_Lock file_order_lock(system, models->working_set.mutex);
+    Mutex_Lock file_order_lock(models->working_set.mutex);
     
     // NOTE(allen): 
     global_history_init(&models->global_history);
@@ -937,21 +942,21 @@ App_Init_Sig(app_init){
     {
         Panel *panel = layout_initialize(arena, &models->layout);
         View *new_view = live_set_alloc_view(&models->lifetime_allocator, &models->live_set, panel);
-        view_set_file(system, models, new_view, models->scratch_buffer);
+        view_set_file(models, new_view, models->scratch_buffer);
     }
     
     // NOTE(allen): miscellaneous init
-    hot_directory_init(system, arena, &models->hot_directory, current_directory);
+    hot_directory_init(arena, &models->hot_directory, current_directory);
     child_process_container_init(models->tctx->allocator, &models->child_processes);
     models->user_up_key = key_up;
     models->user_down_key = key_down;
-    models->period_wakeup_timer = system->wake_up_timer_create();
+    models->period_wakeup_timer = system_wake_up_timer_create();
 }
 
 App_Step_Sig(app_step){
     Models *models = (Models*)base_ptr;
     
-    Mutex_Lock file_order_lock(system, models->working_set.mutex);
+    Mutex_Lock file_order_lock(models->working_set.mutex);
     
     models->next_animate_delay = max_u32;
     models->animate_next_frame = false;
@@ -1000,8 +1005,8 @@ App_Step_Sig(app_step){
             
             b32 edited_file = false;
             u32 amount = 0;
-            system->cli_begin_update(cli);
-            if (system->cli_update_step(cli, dest, max, &amount)){
+            system_cli_begin_update(cli);
+            if (system_cli_update_step(cli, dest, max, &amount)){
                 if (file != 0 && amount > 0){
                     amount = eol_in_place_convert_in(dest, amount);
                     output_file_append(models, file, SCu8(dest, amount));
@@ -1009,7 +1014,7 @@ App_Step_Sig(app_step){
                 }
             }
             
-            if (system->cli_end_update(cli)){
+            if (system_cli_end_update(cli)){
                 if (file != 0){
                     String_Const_u8 str = push_u8_stringf(scratch, "exited with code %d", cli->exit);
                     output_file_append(models, file, str);
@@ -1020,7 +1025,7 @@ App_Step_Sig(app_step){
             }
             
             if (child_process->cursor_at_end && file != 0){
-                file_cursor_to_end(system, models, file);
+                file_cursor_to_end(models, file);
             }
         }
         
@@ -1150,15 +1155,15 @@ App_Step_Sig(app_step){
                     {
                         // NOTE(allen): kill coroutine if we have one
                         if (models->command_coroutine != 0){
-                            force_abort_coroutine(system, models, view);
+                            force_abort_coroutine(models, view);
                         }
                         
                         // NOTE(allen): run deactivate command
-                        launch_command_via_keycode(system, models, view, key_click_deactivate_view);
+                        launch_command_via_keycode(models, view, key_click_deactivate_view);
                         
                         // NOTE(allen): kill coroutine if we have one (again because we just launched a command)
                         if (models->command_coroutine != 0){
-                            force_abort_coroutine(system, models, view);
+                            force_abort_coroutine(models, view);
                         }
                         
                         layout->active_panel = mouse_panel;
@@ -1167,7 +1172,7 @@ App_Step_Sig(app_step){
                         view = active_panel->view;
                         
                         // NOTE(allen): run activate command
-                        launch_command_via_keycode(system, models, view, key_click_activate_view);
+                        launch_command_via_keycode(models, view, key_click_activate_view);
                     }break;
                     
                     case EventConsume_Command:
@@ -1203,7 +1208,7 @@ App_Step_Sig(app_step){
                         
                         // NOTE(allen): launch command
                         else{
-                            launch_command_via_event(system, models, view, *key_ptr);
+                            launch_command_via_event(models, view, *key_ptr);
                         }
                     }break;
                 }
@@ -1240,7 +1245,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): dt
     f32 literal_dt = 0.f;
-    u64 now_usecond_stamp = system->now_time();
+    u64 now_usecond_stamp = system_now_time();
     if (!input->first_step){
         u64 elapsed_useconds = now_usecond_stamp - models->last_render_usecond_stamp;
         literal_dt = (f32)((f64)(elapsed_useconds)/1000000.f);
@@ -1363,7 +1368,7 @@ App_Step_Sig(app_step){
             models->color_table = color_table;
         }
         
-        begin_render_section(target, system, models->frame_counter, literal_dt, animation_dt);
+        begin_render_section(target, models->frame_counter, literal_dt, animation_dt);
         models->in_render_mode = true;
         
         if (models->render_caller != 0){
@@ -1371,7 +1376,7 @@ App_Step_Sig(app_step){
         }
         
         models->in_render_mode = false;
-        end_render_section(target, system);
+        end_render_section(target);
     }
     
     // NOTE(allen): flush the log
@@ -1411,11 +1416,11 @@ App_Step_Sig(app_step){
     app_result.animating = models->animate_next_frame;
     if (models->animate_next_frame){
         // NOTE(allen): Silence the timer, because we're going to do another frame right away anyways.
-        system->wake_up_timer_set(models->period_wakeup_timer, max_u32);
+        system_wake_up_timer_set(models->period_wakeup_timer, max_u32);
     }
     else{
         // NOTE(allen): Set the timer's wakeup period, possibly to max_u32 thus effectively silencing it.
-        system->wake_up_timer_set(models->period_wakeup_timer, models->next_animate_delay);
+        system_wake_up_timer_set(models->period_wakeup_timer, models->next_animate_delay);
     }
     
     // NOTE(allen): Update Frame to Frame States
@@ -1430,6 +1435,7 @@ App_Step_Sig(app_step){
 extern "C" App_Get_Functions_Sig(app_get_functions){
     App_Functions result = {};
     
+    result.load_vtables = app_load_vtables;
     result.get_logger = app_get_logger;
     result.read_command_line = app_read_command_line;
     result.init = app_init;

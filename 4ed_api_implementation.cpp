@@ -89,8 +89,7 @@ Get_Thread_Context(Application_Links *app){
 api(custom) function b32
 Create_Child_Process(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out){
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    return(child_process_call(models, system, path, command, child_process_id_out));
+    return(child_process_call(models, path, command, child_process_id_out));
 }
 
 api(custom) function b32
@@ -139,7 +138,7 @@ Clipboard_Post(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
     Models *models = (Models*)app->cmd_context;
     String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, (i32)string.size);
     block_copy(dest->str, string.str, string.size);
-    models->system->post_clipboard(*dest);
+    system_post_clipboard(*dest);
     return(true);
 }
 
@@ -204,11 +203,10 @@ api(custom) function Buffer_ID
 Get_Buffer_By_File_Name(Application_Links *app, String_Const_u8 file_name, Access_Flag access)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     Editing_File_Name canon = {};
     Buffer_ID result = false;
     Scratch_Block scratch(app);
-    if (get_canon_name(system, scratch, file_name, &canon)){
+    if (get_canon_name(scratch, file_name, &canon)){
         Working_Set *working_set = &models->working_set;
         Editing_File *file = working_set_contains_canon(working_set, string_from_file_name(&canon));
         if (api_check_buffer(file, access)){
@@ -672,7 +670,6 @@ api(custom) function b32
 Buffer_Set_Setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
@@ -814,7 +811,6 @@ api(custom) function b32
 Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_name, Buffer_Save_Flag flags)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     Editing_File *file = imp_get_file(models, buffer_id);
     
     b32 result = false;
@@ -829,7 +825,7 @@ Buffer_Save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_na
         if (!skip_save){
             Scratch_Block scratch(models->tctx, Scratch_Share);
             String_Const_u8 name = push_string_copy(scratch, file_name);
-            save_file_to_name(system, models, file, name.str);
+            save_file_to_name(models, file, name.str);
             result = true;
         }
     }
@@ -841,7 +837,6 @@ api(custom) function Buffer_Kill_Result
 Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     Working_Set *working_set = &models->working_set;
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Kill_Result result = BufferKillResult_DoesNotExist;
@@ -855,7 +850,7 @@ Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
                 
                 buffer_unbind_name_low_level(working_set, file);
                 if (file->canon.name_size != 0){
-                    buffer_unbind_file(system, working_set, file);
+                    buffer_unbind_file(working_set, file);
                 }
                 file_free(models, file);
                 working_set_free_file(&models->heap, working_set, file);
@@ -872,7 +867,7 @@ Buffer_Kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
                         Assert(file_node != order);
                         view->file = 0;
                         Editing_File *new_file = CastFromMember(Editing_File, touch_node, file_node);
-                        view_set_file(system, models, view, new_file);
+                        view_set_file(models, view, new_file);
                         file_node = file_node->next;
                         if (file_node == order){
                             file_node = file_node->next;
@@ -898,21 +893,20 @@ api(custom) function Buffer_Reopen_Result
 Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     Scratch_Block scratch(models->tctx, Scratch_Share);
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Reopen_Result result = BufferReopenResult_Failed;
     if (api_check_buffer(file)){
         if (file->canon.name_size > 0){
             Plat_Handle handle = {};
-            if (system->load_handle(scratch, (char*)file->canon.name_space, &handle)){
-                File_Attributes attributes = system->load_attributes(handle);
+            if (system_load_handle(scratch, (char*)file->canon.name_space, &handle)){
+                File_Attributes attributes = system_load_attributes(handle);
                 
                 char *file_memory = push_array(scratch, char, (i32)attributes.size);
                 
                 if (file_memory != 0){
-                    if (system->load_file(handle, file_memory, (i32)attributes.size)){
-                        system->load_close(handle);
+                    if (system_load_file(handle, file_memory, (i32)attributes.size)){
+                        system_load_close(handle);
                         
                         // TODO(allen): try(perform a diff maybe apply edits in reopen)
                         
@@ -943,7 +937,7 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         file_create_from_string(models, file, SCu8(file_memory, attributes.size), attributes);
                         
                         for (i32 i = 0; i < vptr_count; ++i){
-                            view_set_file(system, models, vptrs[i], file);
+                            view_set_file(models, vptrs[i], file);
                             
                             vptrs[i]->file = file;
                             i64 line = line_numbers[i];
@@ -954,11 +948,11 @@ Buffer_Reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         result = BufferReopenResult_Reopened;
                     }
                     else{
-                        system->load_close(handle);
+                        system_load_close(handle);
                     }
                 }
                 else{
-                    system->load_close(handle);
+                    system_load_close(handle);
                 }
             }
         }
@@ -983,7 +977,7 @@ Get_File_Attributes(Application_Links *app, String_Const_u8 file_name)
 {
     Models *models = (Models*)app->cmd_context;
     Scratch_Block scratch(models->tctx, Scratch_Share);
-    return(models->system->quick_file_attributes(scratch, file_name));
+    return(system_quick_file_attributes(scratch, file_name));
 }
 
 function View*
@@ -1232,7 +1226,7 @@ Panel_Split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation o
         if (layout_split_panel(layout, panel, (orientation == PanelSplit_LeftAndRight), &new_panel)){
             Live_Views *live_set = &models->live_set;
             View *new_view = live_set_alloc_view(&models->lifetime_allocator, live_set, new_panel);
-            view_set_file(models->system, models, new_view, models->scratch_buffer);
+            view_set_file(models, new_view, models->scratch_buffer);
             result = true;
         }
     }
@@ -1634,9 +1628,9 @@ View_Set_Buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Se
         Editing_File *file = working_set_get_file(&models->working_set, buffer_id);
         if (api_check_buffer(file)){
             if (file != view->file){
-                view_set_file(models->system, models, view, file);
+                view_set_file(models, view, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    view_quit_ui(models->system, models, view);
+                    view_quit_ui(models, view);
                 }
             }
             result = true;
@@ -1683,7 +1677,7 @@ View_End_UI_Mode(Application_Links *app, View_ID view_id)
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view) && view->ui_mode){
-        view_quit_ui(models->system, models, view);
+        view_quit_ui(models, view);
         view->ui_mode = false;
         result = true;
     }
@@ -2123,7 +2117,6 @@ api(custom) function User_Input
 Get_User_Input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     User_Input result = {};
     if (app->type_coroutine == Co_Command){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
@@ -2212,7 +2205,7 @@ Print_Message(Application_Links *app, String_Const_u8 message)
     b32 result = false;
     if (file != 0){
         output_file_append(models, file, message);
-        file_cursor_to_end(models->system, models, file);
+        file_cursor_to_end(models, file);
         result = true;
     }
     return(result);
@@ -2226,7 +2219,7 @@ Log_String(Application_Links *app, String_Const_u8 str){
 api(custom) function i32
 Thread_Get_ID(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
-    return(models->system->thread_get_id());
+    return(system_thread_get_id());
 }
 
 api(custom) function Face_ID
@@ -2240,13 +2233,12 @@ api(custom) function b32
 Set_Global_Face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     
     b32 did_change = false;
     Face *face = font_set_face_from_id(&models->font_set, id);
     if (face != 0){
         if (apply_to_all_buffers){
-            global_set_font_and_update_files(system, models, face);
+            global_set_font_and_update_files(models, face);
         }
         else{
             models->global_face_id = face->id;
@@ -2384,8 +2376,7 @@ Buffer_History_Set_Current_State_Index(Application_Links *app, Buffer_ID buffer_
     if (api_check_buffer(file) && history_is_activated(&file->state.history)){
         i32 max_index = history_get_record_count(&file->state.history);
         if (0 <= index && index <= max_index){
-            System_Functions *system = models->system;
-            edit_change_current_history_state(system, models, file, index);
+            edit_change_current_history_state(models, file, index);
             result = true;
         }
     }
@@ -2465,7 +2456,6 @@ Get_Face_Description(Application_Links *app, Face_ID face_id)
 api(custom) function Face_Metrics
 Get_Face_Metrics(Application_Links *app, Face_ID face_id){
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     Face_Metrics result = {};
     if (face_id != 0){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
@@ -2500,7 +2490,6 @@ Try_Create_New_Face(Application_Links *app, Face_Description *description)
     Models *models = (Models*)app->cmd_context;
     Face_ID result = 0;
     if (is_running_coroutine(app)){
-        System_Functions *system = models->system;
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
         ((Face_Description**)coroutine->out)[0] = description;
@@ -2521,7 +2510,6 @@ Try_Modify_Face(Application_Links *app, Face_ID id, Face_Description *descriptio
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
     if (is_running_coroutine(app)){
-        System_Functions *system = models->system;
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
         ((Face_Description**)coroutine->out)[0] = description;
@@ -2543,7 +2531,7 @@ Try_Release_Face(Application_Links *app, Face_ID id, Face_ID replacement_id)
     Font_Set *font_set = &models->font_set;
     Face *face = font_set_face_from_id(font_set, id);
     Face *replacement = font_set_face_from_id(font_set, replacement_id);
-    return(release_font_and_update(models->system, models, face, replacement));
+    return(release_font_and_update(models, face, replacement));
 }
 
 api(custom) function void
@@ -2595,18 +2583,17 @@ Set_Hot_Directory(Application_Links *app, String_Const_u8 string)
 {
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
-    hot_directory_set(models->system, hot, string);
+    hot_directory_set(hot, string);
     return(true);
 }
 
 api(custom) function File_List
 Get_File_List(Application_Links *app, Arena *arena, String_Const_u8 directory){
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    String_Const_u8 canonical_directory = system->get_canonical(arena, directory);
+    String_Const_u8 canonical_directory = system_get_canonical(arena, directory);
     File_List list = {};
     if (canonical_directory.str != 0){
-        list = system->get_file_list(arena, canonical_directory);
+        list = system_get_file_list(arena, canonical_directory);
     }
     return(list);
 }
@@ -2625,7 +2612,7 @@ api(custom) function void*
 Memory_Allocate(Application_Links *app, i32 size)
 {
     Models *models = (Models*)app->cmd_context;
-    void *result = models->system->memory_allocate(size);
+    void *result = system_memory_allocate(size);
     return(result);
 }
 
@@ -2633,22 +2620,21 @@ api(custom) function b32
 Memory_Set_Protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags)
 {
     Models *models = (Models*)app->cmd_context;
-    return(models->system->memory_set_protection(ptr, size, flags));
+    return(system_memory_set_protection(ptr, size, flags));
 }
 
 api(custom) function void
 Memory_Free(Application_Links *app, void *ptr, i32 size)
 {
     Models *models = (Models*)app->cmd_context;
-    models->system->memory_free(ptr, size);
+    system_memory_free(ptr, size);
 }
 
 api(custom) function String_Const_u8
 Push_4ed_Path(Application_Links *app, Arena *arena)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    return(system->get_path(arena, SystemPath_Binary));
+    return(system_get_path(arena, SystemPath_Binary));
 }
 
 // TODO(allen): do(add a "shown but auto-hides on timer" setting for cursor show type)
@@ -2656,7 +2642,7 @@ api(custom) function void
 Show_Mouse_Cursor(Application_Links *app, Mouse_Cursor_Show_Type show)
 {
     Models *models = (Models*)app->cmd_context;
-    models->system->show_mouse_cursor(show);
+    system_show_mouse_cursor(show);
 }
 
 api(custom) function b32
@@ -2670,7 +2656,7 @@ api(custom) function b32
 Set_Fullscreen(Application_Links *app, b32 full_screen)
 {
     Models *models = (Models*)app->cmd_context;
-    b32 success = models->system->set_fullscreen(full_screen);
+    b32 success = system_set_fullscreen(full_screen);
     if (!success){
         print_message(app, string_u8_litexpr("ERROR: Failed to go fullscreen.\n"));
     }
@@ -2681,7 +2667,7 @@ api(custom) function b32
 Is_Fullscreen(Application_Links *app)
 {
     Models *models = (Models*)app->cmd_context;
-    b32 result = models->system->is_fullscreen();
+    b32 result = system_is_fullscreen();
     return(result);
 }
 
@@ -2709,8 +2695,7 @@ Get_Microseconds_Timestamp(Application_Links *app)
 {
     // TODO(allen): do(decrease indirection in API calls)
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
-    return(system->now_time());
+    return(system_now_time());
 }
 
 function Vec2
@@ -2939,6 +2924,8 @@ Text_Layout_Character_On_Screen(Application_Links *app, Text_Layout_ID layout_id
             f32 width = rect_width(rect);
             Face *face = file_get_face(models, file);
             
+            Assert(layout->visible_line_number_range.first <= line_number);
+            
             f32 y = 0.f;
             Buffer_Layout_Item_List line = {};
             for (i64 line_number_it = layout->visible_line_number_range.first;;
@@ -3019,11 +3006,10 @@ api(custom) function void
 Open_Color_Picker(Application_Links *app, Color_Picker *picker)
 {
     Models *models = (Models*)app->cmd_context;
-    System_Functions *system = models->system;
     if (picker->finished){
         *picker->finished = false;
     }
-    system->open_color_picker(picker);
+    system_open_color_picker(picker);
 }
 
 api(custom) function void

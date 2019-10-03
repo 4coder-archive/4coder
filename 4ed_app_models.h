@@ -35,7 +35,6 @@ enum App_State{
 };
 
 struct Models{
-    System_Functions *system;
     Thread_Context *tctx;
     
     Arena *arena;
@@ -212,10 +211,9 @@ enum{
 ////////////////////////////////
 
 struct Mutex_Lock{
-    Mutex_Lock(System_Functions *system, System_Mutex mutex);
+    Mutex_Lock(System_Mutex mutex);
     ~Mutex_Lock();
     operator System_Mutex();
-    System_Functions *system;
     System_Mutex mutex;
 };
 

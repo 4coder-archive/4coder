@@ -21,11 +21,22 @@
 #include "api/4coder_types.h"
 
 #include "4ed_font_interface.h"
+#include "4ed_system_types.h"
+#define STATIC_LINK_API
+#include "generated/system_api.h"
+#define STATIC_LINK_API
+#include "generated/graphics_api.h"
+#define STATIC_LINK_API
+#include "generated/font_api.h"
+
 #include "4ed_font_set.h"
-#include "4ed_system.h"
 #include "4ed_render_target.h"
 #include "4ed_search_list.h"
 #include "4ed.h"
+
+#include "generated/system_api.cpp"
+#include "generated/graphics_api.cpp"
+#include "generated/font_api.cpp"
 
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
@@ -104,8 +115,6 @@ struct Win32_Input_Chunk{
 #include "4ed_font_set.cpp"
 
 ////////////////////////////////
-
-global System_Functions sysfunc = {};
 
 typedef i32 Win32_Object_Kind;
 enum{
@@ -247,7 +256,7 @@ handle_type_ptr(void *ptr){
 ////////////////////////////////
 
 internal
-Sys_Load_Library_Sig(system_load_library){
+system_load_library_sig(){
     HMODULE lib = LoadLibrary_utf8String(scratch, file_name);
     b32 result = false;
     if (lib != 0){
@@ -258,13 +267,13 @@ Sys_Load_Library_Sig(system_load_library){
 }
 
 internal
-Sys_Release_Library_Sig(system_release_library){
+system_release_library_sig(){
     HMODULE lib = (HMODULE)handle_type(handle);
     return(FreeLibrary(lib));
 }
 
 internal
-Sys_Get_Proc_Sig(system_get_proc){
+system_get_proc_sig(){
     HMODULE lib = (HMODULE)handle_type(handle);
     return((Void_Func*)(GetProcAddress(lib, proc_name)));
 }
@@ -307,12 +316,12 @@ win32_toggle_fullscreen(){
 
 // TODO(allen): add a "shown but auto-hides on timer" setting here.
 internal
-Sys_Show_Mouse_Cursor_Sig(system_show_mouse_cursor){
+system_show_mouse_cursor_sig(){
     win32vars.cursor_show = show;
 }
 
 internal
-Sys_Set_Fullscreen_Sig(system_set_fullscreen){
+system_set_fullscreen_sig(){
     // NOTE(allen): If the new value of full_screen does not match the current value,
     // set toggle to true.
     win32vars.do_toggle = (win32vars.full_screen != full_screen);
@@ -321,10 +330,10 @@ Sys_Set_Fullscreen_Sig(system_set_fullscreen){
 }
 
 internal
-Sys_Is_Fullscreen_Sig(system_is_fullscreen){
-    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the next frame.
-    // That is, take into account all fullscreen toggle requests that have come in already this frame.
-    // Read: "full_screen XOR do_toggle"
+system_is_fullscreen_sig(){
+    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the 
+    // next frame. That is, take into account all fullscreen toggle requests that have come in
+    // already this frame. Read: "full_screen XOR do_toggle"
     b32 result = (win32vars.full_screen != win32vars.do_toggle);
     return(result);
 }
@@ -353,10 +362,10 @@ win32_post_clipboard(Arena *scratch, char *text, i32 len){
 }
 
 internal
-Sys_Post_Clipboard_Sig(system_post_clipboard){
+system_post_clipboard_sig(){
     Arena *arena = &win32vars.clip_post_arena;
     if (arena->base_allocator == 0){
-        *arena = make_arena_system(&sysfunc);
+        *arena = make_arena_system();
     }
     else{
         linalloc_clear(arena);
@@ -432,14 +441,14 @@ win32_read_clipboard_contents(Arena *scratch){
 //
 
 internal
-Sys_CLI_Call_Sig(system_cli_call, scratch, path, script_name, cli_out){
+system_cli_call_sig(){
     Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
     
     char cmd[] = "c:\\windows\\system32\\cmd.exe";
     char *env_variables = 0;
     
     Temp_Memory temp = begin_temp(scratch);
-    String_Const_u8 s = push_u8_stringf(scratch, "/C %s", script_name);
+    String_Const_u8 s = push_u8_stringf(scratch, "/C %s", script);
     
     b32 success = false;
     
@@ -504,14 +513,14 @@ struct CLI_Loop_Control{
 };
 
 internal
-Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
+system_cli_begin_update_sig(){
     Assert(sizeof(cli->scratch_space) >= sizeof(CLI_Loop_Control));
     CLI_Loop_Control *loop = (CLI_Loop_Control*)cli->scratch_space;
     loop->remaining_amount = 0;
 }
 
 internal
-Sys_CLI_Update_Step_Sig(system_cli_update_step){
+system_cli_update_step_sig(){
     HANDLE handle = *(HANDLE*)&cli->out_read;
     CLI_Loop_Control *loop = (CLI_Loop_Control*)cli->scratch_space;
     b32 has_more = 0;
@@ -547,7 +556,7 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
 }
 
 internal
-Sys_CLI_End_Update_Sig(system_cli_end_update){
+system_cli_end_update_sig(){
     b32 close_me = false;
     HANDLE proc = *(HANDLE*)&cli->proc;
     DWORD result = 0;
@@ -582,6 +591,21 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include <GL/gl.h>
 #include "opengl/4ed_opengl_render.cpp"
+
+internal
+graphics_get_texture_sig(){
+    return(gl__get_texture(dim, texture_kind));
+}
+
+internal
+graphics_fill_texture_sig(){
+    return(gl__fill_texture(texture_kind, texture, p, dim, data));
+}
+
+internal
+font_make_face_sig(){
+    return(ft__font_make_face(arena, description, scale_factor));
+}
 
 //
 // Helpers
@@ -834,7 +858,7 @@ win32_free_object(Win32_Object *object){
 ////////////////////////////////
 
 internal
-Sys_Now_Time_Sig(system_now_time){
+system_now_time_sig(){
     u64 result = 0;
     LARGE_INTEGER t;
     if (QueryPerformanceCounter(&t)){
@@ -844,7 +868,7 @@ Sys_Now_Time_Sig(system_now_time){
 }
 
 internal
-Sys_Wake_Up_Timer_Create_Sig(system_wake_up_timer_create){
+system_wake_up_timer_create_sig(){
     Win32_Object *object = win32_alloc_object(Win32ObjectKind_Timer);
     dll_insert(&win32vars.timer_objects, &object->node);
     object->timer.id = ++win32vars.timer_counter;
@@ -852,7 +876,7 @@ Sys_Wake_Up_Timer_Create_Sig(system_wake_up_timer_create){
 }
 
 internal
-Sys_Wake_Up_Timer_Release_Sig(system_wake_up_timer_release){
+system_wake_up_timer_release_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(handle);
     if (object->kind == Win32ObjectKind_Timer){
         KillTimer(win32vars.window_handle, object->timer.id);
@@ -861,7 +885,7 @@ Sys_Wake_Up_Timer_Release_Sig(system_wake_up_timer_release){
 }
 
 internal
-Sys_Wake_Up_Timer_Set_Sig(system_wake_up_timer_set){
+system_wake_up_timer_set_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(handle);
     if (object->kind == Win32ObjectKind_Timer){
         object->timer.id = SetTimer(win32vars.window_handle, object->timer.id, time_milliseconds, 0);
@@ -869,12 +893,12 @@ Sys_Wake_Up_Timer_Set_Sig(system_wake_up_timer_set){
 }
 
 internal
-Sys_Signal_Step_Sig(system_signal_step){
+system_signal_step_sig(){
     system_schedule_step(code);
 }
 
 internal
-Sys_Sleep_Sig(system_sleep){
+system_sleep_sig(){
     u32 milliseconds = (u32)(microseconds/Thousand(1));
     Sleep(milliseconds);
 }
@@ -895,7 +919,7 @@ win32_thread_wrapper(void *ptr){
 }
 
 internal
-Sys_Thread_Launch_Sig(system_thread_launch){
+system_thread_launch_sig(){
     Win32_Object *object = win32_alloc_object(Win32ObjectKind_Thread);
     object->thread.proc = proc;
     object->thread.ptr = ptr;
@@ -910,7 +934,7 @@ Sys_Thread_Launch_Sig(system_thread_launch){
 }
 
 internal
-Sys_Thread_Join_Sig(system_thread_join){
+system_thread_join_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(thread);
     if (object->kind == Win32ObjectKind_Thread){
         WaitForSingleObject(object->thread.thread, INFINITE);
@@ -918,7 +942,7 @@ Sys_Thread_Join_Sig(system_thread_join){
 }
 
 internal
-Sys_Thread_Free_Sig(system_thread_free){
+system_thread_free_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(thread);
     if (object->kind == Win32ObjectKind_Thread){
         CloseHandle(object->thread.thread);
@@ -927,20 +951,20 @@ Sys_Thread_Free_Sig(system_thread_free){
 }
 
 internal
-Sys_Thread_Get_ID_Sig(system_thread_get_id){
+system_thread_get_id_sig(){
     DWORD result = GetCurrentThreadId();
     return((i32)result);
 }
 
 internal
-Sys_Mutex_Make_Sig(system_mutex_make){
+system_mutex_make_sig(){
     Win32_Object *object = win32_alloc_object(Win32ObjectKind_Mutex);
     InitializeCriticalSection(&object->mutex);
     return(handle_type(object));
 }
 
 internal
-Sys_Mutex_Acquire_Sig(system_mutex_acquire){
+system_mutex_acquire_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(mutex);
     if (object->kind == Win32ObjectKind_Mutex){
         EnterCriticalSection(&object->mutex);
@@ -948,7 +972,7 @@ Sys_Mutex_Acquire_Sig(system_mutex_acquire){
 }
 
 internal
-Sys_Mutex_Release_Sig(system_mutex_release){
+system_mutex_release_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(mutex);
     if (object->kind == Win32ObjectKind_Mutex){
         LeaveCriticalSection(&object->mutex);
@@ -956,7 +980,7 @@ Sys_Mutex_Release_Sig(system_mutex_release){
 }
 
 internal
-Sys_Mutex_Free_Sig(system_mutex_free){
+system_mutex_free_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(mutex);
     if (object->kind == Win32ObjectKind_Mutex){
         DeleteCriticalSection(&object->mutex);
@@ -965,14 +989,14 @@ Sys_Mutex_Free_Sig(system_mutex_free){
 }
 
 internal
-Sys_Condition_Variable_Make_Sig(system_condition_variable_make){
+system_condition_variable_make_sig(){
     Win32_Object *object = win32_alloc_object(Win32ObjectKind_CV);
     InitializeConditionVariable(&object->cv);
     return(handle_type(object));
 }
 
 internal
-Sys_Condition_Variable_Wait_Sig(system_condition_variable_wait){
+system_condition_variable_wait_sig(){
     Win32_Object *object_cv = (Win32_Object*)handle_type_ptr(cv);
     Win32_Object *object_mutex = (Win32_Object*)handle_type_ptr(mutex);
     if (object_cv->kind == Win32ObjectKind_CV &&
@@ -982,7 +1006,7 @@ Sys_Condition_Variable_Wait_Sig(system_condition_variable_wait){
 }
 
 internal
-Sys_Condition_Variable_Signal_Sig(system_condition_variable_signal){
+system_condition_variable_signal_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(cv);
     if (object->kind == Win32ObjectKind_CV){
         WakeConditionVariable(&object->cv);
@@ -990,7 +1014,7 @@ Sys_Condition_Variable_Signal_Sig(system_condition_variable_signal){
 }
 
 internal
-Sys_Condition_Variable_Free_Sig(system_condition_variable_free){
+system_condition_variable_free_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(cv);
     if (object->kind == Win32ObjectKind_CV){
         win32_free_object(object);
@@ -1487,28 +1511,29 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
 
 ////////////////////////////////
 
-#include "4ed_link_system_functions.cpp"
-
 int CALL_CONVENTION
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
     i32 argc = __argc;
     char **argv = __argv;
     
-    // NOTE(allen): link
-    sysfunc.font_make_face = ft__font_make_face;
-    sysfunc.get_texture = gl__get_texture;
-    sysfunc.fill_texture = gl__fill_texture;
-    link_system_code();
-    
     // NOTE(allen): memory
     Thread_Context _tctx = {};
-    thread_ctx_init(&_tctx, get_base_allocator_system(&sysfunc));
+    thread_ctx_init(&_tctx, get_base_allocator_system());
     
     block_zero_struct(&win32vars);
     win32vars.tctx = &_tctx;
     
+    API_VTable_system system_vtable = {};
+    system_api_fill_vtable(&system_vtable);
+    
+    API_VTable_graphics graphics_vtable = {};
+    graphics_api_fill_vtable(&graphics_vtable);
+    
+    API_VTable_font font_vtable = {};
+    font_api_fill_vtable(&font_vtable);
+    
     // TODO(allen): *arena;
-    target.arena = make_arena_system(&sysfunc);
+    target.arena = make_arena_system();
     
     win32vars.cursor_show = MouseCursorShow_Always;
     win32vars.prev_cursor_show = MouseCursorShow_Always;
@@ -1537,9 +1562,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         App_Get_Functions *get_funcs = 0;
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         Path_Search_List search_list = {};
-        search_list_add_system_path(&sysfunc, scratch, &search_list, SystemPath_Binary);
+        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
-        String_Const_u8 core_path = get_full_path(&sysfunc, scratch, &search_list, SCu8("4ed_app.dll"));
+        String_Const_u8 core_path = get_full_path(scratch, &search_list, SCu8("4ed_app.dll"));
         if (system_load_library(scratch, core_path, &core_library)){
             get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
             if (get_funcs != 0){
@@ -1555,18 +1580,21 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             system_error_box(scratch, msg);
         }
     }
-    win32vars.log_string = app.get_logger(&sysfunc);
+    
+    // NOTE(allen): send system vtable to core
+    app.load_vtables(&system_vtable, &font_vtable, &graphics_vtable);
+    win32vars.log_string = app.get_logger();
     
     // NOTE(allen): init & command line parameters
     Plat_Settings plat_settings = {};
     void *base_ptr = 0;
     {
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-        String_Const_u8 curdir = sysfunc.get_path(scratch, SystemPath_CurrentDirectory);
+        String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
         char **files = 0;
         i32 *file_count = 0;
-        base_ptr = app.read_command_line(win32vars.tctx, &sysfunc, curdir, &plat_settings, &files, &file_count, argc, argv);
+        base_ptr = app.read_command_line(win32vars.tctx, curdir, &plat_settings, &files, &file_count, argc, argv);
         {
             i32 end = *file_count;
             i32 i = 0, j = 0;
@@ -1591,8 +1619,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.dll");
         Path_Search_List search_list = {};
-        search_list_add_system_path(&sysfunc, scratch, &search_list, SystemPath_CurrentDirectory);
-        search_list_add_system_path(&sysfunc, scratch, &search_list, SystemPath_Binary);
+        search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
+        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         String_Const_u8 custom_file_names[2] = {};
         i32 custom_file_count = 1;
         if (plat_settings.custom_dll != 0){
@@ -1607,7 +1635,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         String_Const_u8 custom_file_name = {};
         for (i32 i = 0; i < custom_file_count; i += 1){
-            custom_file_name = get_full_path(&sysfunc, scratch, &search_list, custom_file_names[i]);
+            custom_file_name = get_full_path(scratch, &search_list, custom_file_names[i]);
             if (custom_file_name.size > 0){
                 break;
             }
@@ -1711,9 +1739,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     {
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-        String_Const_u8 curdir = sysfunc.get_path(scratch, SystemPath_CurrentDirectory);
+        String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
-        app.init(&sysfunc, &target, base_ptr, win32vars.clipboard_contents, curdir, custom);
+        app.init(&target, base_ptr, win32vars.clipboard_contents, curdir, custom);
     }
     
     //
@@ -1917,7 +1945,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Application Core Update
         Application_Step_Result result = {};
         if (app.step != 0){
-            result = app.step(&sysfunc, &target, base_ptr, &input);
+            result = app.step(&target, base_ptr, &input);
         }
         else{
             //LOG("app.step == 0 -- skipping\n");

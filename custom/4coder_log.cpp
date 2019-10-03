@@ -13,8 +13,7 @@
 #define FCODER_LOG_CPP
 
 internal String_Const_u8
-log_event(Arena *arena, String_Const_u8 event_name, String_Const_u8 src_name, i32 line_number,
-          i32 buffer, i32 view, i32 thread_id){
+log_event(Arena *arena, String_Const_u8 event_name, String_Const_u8 src_name, i32 line_number, i32 buffer, i32 view, i32 thread_id){
     List_String_Const_u8 list = {};
     string_list_pushf(arena, &list, "%.*s:%d: %.*s",
                       string_expand(src_name), line_number, string_expand(event_name));

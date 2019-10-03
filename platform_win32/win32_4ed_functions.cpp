@@ -25,18 +25,18 @@ system_file_can_be_made(Arena *scratch, u8 *filename){
 //
 
 internal void*
-system_memory_allocate_extended(void *base, umem size){
+win32_memory_allocate_extended(void *base, umem size){
     void *result = VirtualAlloc(base, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     return(result);
 }
 
 internal
-Sys_Memory_Allocate_Sig(system_memory_allocate){
-    return(system_memory_allocate_extended(0, size));
+system_memory_allocate_sig(){
+    return(win32_memory_allocate_extended(0, size));
 }
 
 internal
-Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
+system_memory_set_protection_sig(){
     b32 result = false;
     DWORD old_protect = 0;
     DWORD protect = 0;
@@ -57,7 +57,7 @@ Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
 }
 
 internal
-Sys_Memory_Free_Sig(system_memory_free){
+system_memory_free_sig(){
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
@@ -66,9 +66,9 @@ Sys_Memory_Free_Sig(system_memory_free){
 //
 
 internal
-Sys_Get_Path_Sig(system_get_path){
+system_get_path_sig(){
     String_Const_u8 result = {};
-    switch (code){
+    switch (path_code){
         case SystemPath_CurrentDirectory:
         {
             DWORD size = GetCurrentDirectory_utf8(arena, 0, 0);
@@ -122,7 +122,7 @@ win32_remove_unc_prefix_characters(String_Const_u8 path){
 }
 
 internal
-Sys_Get_Canonical_Sig(system_get_canonical){
+system_get_canonical_sig(){
     String_Const_u8 result = {};
     if ((character_is_alpha(string_get_character(name, 0)) &&
          string_get_character(name, 1) == ':') ||
@@ -207,7 +207,7 @@ win32_file_attributes_from_HANDLE(HANDLE file){
 }
 
 internal
-Sys_Get_File_List_Sig(system_get_file_list){
+system_get_file_list_sig(){
     File_List result = {};
     String_Const_u8 search_pattern = {};
     if (character_is_slash(string_get_character(directory, directory.size - 1))){
@@ -262,7 +262,7 @@ Sys_Get_File_List_Sig(system_get_file_list){
 }
 
 internal
-Sys_Quick_File_Attributes_Sig(system_quick_file_attributes){
+system_quick_file_attributes_sig(){
     WIN32_FILE_ATTRIBUTE_DATA info = {};
     File_Attributes result = {};
     if (GetFileAttributesEx_utf8String(scratch, file_name, GetFileExInfoStandard, &info)){
@@ -274,24 +274,24 @@ Sys_Quick_File_Attributes_Sig(system_quick_file_attributes){
 }
 
 internal
-Sys_Load_Handle_Sig(system_load_handle){
+system_load_handle_sig(){
     b32 result = false;
-    HANDLE file = CreateFile_utf8(scratch, (u8*)filename, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile_utf8(scratch, (u8*)file_name, GENERIC_READ, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (file != INVALID_HANDLE_VALUE){
-        *(HANDLE*)handle_out = file;
+        *(HANDLE*)out = file;
         result = true;
     }
     return(result);
 }
 
 internal
-Sys_Load_Attributes_Sig(system_load_attributes){
+system_load_attributes_sig(){
     HANDLE file = *(HANDLE*)(&handle);
     return(win32_file_attributes_from_HANDLE(file));
 }
 
 internal
-Sys_Load_File_Sig(system_load_file){
+system_load_file_sig(){
     HANDLE file = *(HANDLE*)(&handle);
     DWORD read_size = 0;
     b32 result = false;
@@ -304,7 +304,7 @@ Sys_Load_File_Sig(system_load_file){
 }
 
 internal
-Sys_Load_Close_Sig(system_load_close){
+system_load_close_sig(){
     b32 result = false;
     HANDLE file = *(HANDLE*)(&handle);
     if (CloseHandle(file)){
@@ -314,10 +314,10 @@ Sys_Load_Close_Sig(system_load_close){
 }
 
 internal
-Sys_Save_File_Sig(system_save_file){
+system_save_file_sig(){
     File_Attributes result = {};
     
-    HANDLE file = CreateFile_utf8(scratch, (u8*)filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE file = CreateFile_utf8(scratch, (u8*)file_name, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
     if (file != INVALID_HANDLE_VALUE){
         u64 written_total = 0;
@@ -364,9 +364,6 @@ int_color_from_colorref(COLORREF ref, int_color alpha_from){
     return(result);
 }
 
-internal void
-system_schedule_step(u32 code);
-
 internal UINT_PTR CALLBACK
 color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
     UINT_PTR result = 0;
@@ -410,7 +407,7 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
                     if(*picker->dest != new_color)
                     {
                         *picker->dest = new_color;
-                        system_schedule_step(0);
+                        system_signal_step(0);
                     }
                 }
             }
@@ -475,12 +472,12 @@ color_picker_thread(LPVOID Param)
 }
 
 internal
-Sys_Open_Color_Picker_Sig(system_open_color_picker){
+system_open_color_picker_sig(){
     // TODO(allen): review
-    // NOTE(casey): Because this is going to be used by a semi-permanent thread, we need to copy
-    // it to system memory where it can live as long as it wants, no matter what we do over here
-    // on the 4coder threads.
-    Color_Picker *perm = (Color_Picker*)system_memory_allocate_extended(0, sizeof(Color_Picker));
+    // NOTE(casey): Because this is going to be used by a semi-permanent thread, we need to
+    // copy it to system memory where it can live as long as it wants, no matter what we do 
+    // over here on the 4coder threads.
+    Color_Picker *perm = (Color_Picker*)system_memory_allocate(sizeof(Color_Picker));
     *perm = *picker;
     
     HANDLE ThreadHandle = CreateThread(0, 0, color_picker_thread, perm, 0, 0);
@@ -488,7 +485,7 @@ Sys_Open_Color_Picker_Sig(system_open_color_picker){
 }
 
 internal
-Sys_Get_Screen_Scale_Factor_Sig(system_get_screen_scale_factor){
+system_get_screen_scale_factor_sig(){
     return(win32vars.screen_scale_factor);
 }
 
