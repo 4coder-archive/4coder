@@ -56,10 +56,14 @@ command_list = {
  { .name = "build graphics api",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
    .cmd = { { "custom\\bin\\build_one_time 4ed_graphics_api.cpp ..\\build", .os = "win" }, }, },
+
+ { .name = "build api parser",
+   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
+   .cmd = { { "custom\\bin\\build_one_time 4ed_api_parser.cpp ..\\build", .os = "win" }, }, },
 };
 
 fkey_command[1] = "build x64";
-fkey_command[2] = "build graphics api";
+fkey_command[2] = "build api parser";
 fkey_command[4] = "run one time";
 fkey_command[5] = "build C++ lexer generator";
 fkey_command[6] = "build token tester";

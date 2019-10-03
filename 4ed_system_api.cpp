@@ -9,7 +9,7 @@
 
 // TOP
 
-#include "4ed_api_definition.cpp"
+#include "4ed_api_definition_main.cpp"
 
 function API_Definition*
 define_api(Arena *arena){
