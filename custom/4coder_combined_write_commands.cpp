@@ -39,7 +39,7 @@ long_braces(Application_Links *app, char *text, i32 size){
     i64 pos = view_get_cursor_pos(app, view);
     buffer_replace_range(app, buffer, Ii64(pos), SCu8(text, size));
     view_set_cursor_and_preferred_x(app, view, seek_pos(pos + 2));
-    buffer_auto_indent(app, buffer, pos, pos + size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+    auto_indent_buffer(app, buffer, Ii64_size(pos, size));
     move_past_lead_whitespace(app, view, buffer);
 }
 

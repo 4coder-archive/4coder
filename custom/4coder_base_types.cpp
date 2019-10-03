@@ -1741,6 +1741,23 @@ If32(f32 a){
     return(interval);
 }
 
+internal b32
+operator==(Interval_i32 a, Interval_i32 b){
+    return(a.min == b.min && a.max == b.max);
+}
+internal b32
+operator==(Interval_i64 a, Interval_i64 b){
+    return(a.min == b.min && a.max == b.max);
+}
+internal b32
+operator==(Interval_u64 a, Interval_u64 b){
+    return(a.min == b.min && a.max == b.max);
+}
+internal b32
+operator==(Interval_f32 a, Interval_f32 b){
+    return(a.min == b.min && a.max == b.max);
+}
+
 #define make_range     Ii32
 #define make_range_i32 Ii32
 #define make_range_i64 Ii64

@@ -280,7 +280,7 @@ token_iterator_index(u64 user_id, Token_List *list, i64 index){
                 block = node;
                 break;
             }
-            base_index += block->count;
+            base_index += node->count;
         }
         Assert(block != 0);
         it.user_id = user_id;
@@ -320,7 +320,7 @@ token_iterator_pos(u64 user_id, Token_List *list, i64 pos){
                 block = node;
                 break;
             }
-            base_index += block->count;
+            base_index += node->count;
         }
         Assert(block != 0);
         i64 sub_index = token_index_from_pos(block->tokens, block->count, pos);

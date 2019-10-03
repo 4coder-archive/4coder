@@ -165,13 +165,6 @@ ENUM(u32, Command_Line_Interface_Flag){
     CLI_SendEndSignal       = 0x8,
 };
 
-ENUM(u32, Auto_Indent_Flag){
-    AutoIndent_ClearLine = 0x1,
-    AutoIndent_UseTab    = 0x2,
-    AutoIndent_ExactAlignBlock = 0x4,
-    AutoIndent_FullTokens = 0x8,
-};
-
 ENUM(u32, Set_Buffer_Flag){
     SetBuffer_KeepOriginalGUI = 0x1
 };

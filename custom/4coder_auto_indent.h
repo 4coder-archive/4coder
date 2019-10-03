@@ -7,24 +7,22 @@
 #if !defined(FCODER_AUTO_INDENT_H)
 #define FCODER_AUTO_INDENT_H
 
-struct Indent_Options{
-    b32 empty_blank_lines;
-    b32 use_tabs;
-    i32 tab_width;
+typedef u32 Indent_Flag;
+enum{
+    Indent_ClearLine = 0x1,
+    Indent_UseTab    = 0x2,
+    Indent_ExactAlignBlock = 0x4,
+    Indent_FullTokens = 0x8,
 };
 
-struct Indent_Parse_State{
-    i64 current_indent;
-    i64 previous_line_indent;
-    i64 paren_nesting;
-    i64 paren_anchor_indent[16];
-    i64 comment_shift;
-    i64 previous_comment_indent;
+struct Nest{
+    Nest *next;
+    Token_Base_Kind kind;
+    i64 indent;
 };
 
-struct Indent_Anchor_Position{
-    Token *token;
-    i32 indentation;
+struct Nest_Alloc{
+    Nest *free_nest;
 };
 
 #endif

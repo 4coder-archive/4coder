@@ -789,14 +789,12 @@ internal i64
 boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Direction direction, i64 pos){
     i64 result = boundary_non_whitespace(app, buffer, side, direction, pos);
     Token_Array tokens = get_token_array_from_buffer(app, buffer);
-    if (tokens.tokens == 0){
-        result = boundary_non_whitespace(app, buffer, side, direction, pos);
-    }
-    else{
+    if (tokens.tokens != 0){
         switch (direction){
             case Scan_Forward:
             {
                 i64 buffer_size = buffer_get_size(app, buffer);
+                result = buffer_size;
                 if (tokens.count > 0){
                     Token_Iterator_Array it = token_iterator_pos(0, &tokens, pos);
                     Token *token = token_it_read(&it);
@@ -809,79 +807,44 @@ boundary_token(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directi
                             result = token->pos + token->size;
                         }
                         else{
-                            if (token->pos > pos){
-                                result = token->pos;
+                            if (token->pos <= pos){
+                                token_it_inc_non_whitespace(&it);
+                                token = token_it_read(&it);
                             }
-                            else{
-                                token += 1;
-                                if (token < tokens.tokens + tokens.count){
-                                    result = token->pos;
-                                }
-                                else{
-                                    result = buffer_size;
-                                }
+                            if (token != 0){
+                                result = token->pos;
                             }
                         }
                     }
-                    else{
-                        result = buffer_size;
-                    }
-                }
-                else{
-                    result = buffer_size;
                 }
             }break;
             
             case Scan_Backward:
             {
+                result = 0;
                 if (tokens.count > 0){
-                    Token_Iterator_Array it = token_iterator_pos(0, &tokens, pos - 1);
+                    Token_Iterator_Array it = token_iterator_pos(0, &tokens, pos);
                     Token *token = token_it_read(&it);
                     if (token->kind == TokenBaseKind_Whitespace){
                         token_it_dec_non_whitespace(&it);
                         token = token_it_read(&it);
                     }
-                    if (side == Side_Min){
-                        if (token == 0){
-                            token = tokens.tokens + tokens.count - 1;
+                    if (token != 0){
+                        if (side == Side_Min){
+                            if (token->pos >= pos){
+                                token_it_dec_non_whitespace(&it);
+                                token = token_it_read(&it);
+                            }
                             result = token->pos;
                         }
                         else{
-                            if (token->pos < pos){
-                                result = token->pos;
+                            if (token->pos + token->size >= pos){
+                                token_it_dec_non_whitespace(&it);
+                                token = token_it_read(&it);
                             }
-                            else{
-                                token -= 1;
-                                if (token >= tokens.tokens){
-                                    result = token->pos;
-                                }
-                                else{
-                                    result = 0;
-                                }
-                            }
-                        }
-                    }
-                    else{
-                        if (token == 0){
-                            token = tokens.tokens + tokens.count - 1;
                             result = token->pos + token->size;
                         }
-                        else{
-                            token -= 1;
-                            if (token >= tokens.tokens && token->pos + token->size == pos){
-                                token -= 1;
-                            }
-                            if (token >= tokens.tokens){
-                                result = token->pos + token->size;
-                            }
-                            else{
-                                result = 0;
-                            }
-                        }
                     }
-                }
-                else{
-                    result = 0;
                 }
             }break;
         }
@@ -1387,7 +1350,7 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range,
         if (!character_is_whitespace(c)){
             info.is_blank = false;
             info.all_space = false;
-            info.first_char_pos = range.start + (i32)i;
+            info.first_char_pos = range.start + (i64)i;
             break;
         }
         if (c != ' '){

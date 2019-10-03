@@ -9,23 +9,23 @@
 
 typedef i16 Token_Base_Kind;
 enum{
-    TokenBaseKind_EOF,
-    TokenBaseKind_Whitespace,
-    TokenBaseKind_LexError,
-    TokenBaseKind_Comment,
-    TokenBaseKind_Keyword,
-    TokenBaseKind_Preprocessor,
-    TokenBaseKind_Identifier,
-    TokenBaseKind_Operator,
-    TokenBaseKind_LiteralInteger,
-    TokenBaseKind_LiteralFloat,
-    TokenBaseKind_LiteralString,
-    TokenBaseKind_ScopeOpen,
-    TokenBaseKind_ScopeClose,
-    TokenBaseKind_ParentheticalOpen,
-    TokenBaseKind_ParentheticalClose,
+    TokenBaseKind_EOF = 0,
+    TokenBaseKind_Whitespace = 1,
+    TokenBaseKind_LexError = 2,
+    TokenBaseKind_Comment = 3,
+    TokenBaseKind_Keyword = 4,
+    TokenBaseKind_Preprocessor = 5,
+    TokenBaseKind_Identifier = 6,
+    TokenBaseKind_Operator = 7,
+    TokenBaseKind_LiteralInteger = 8,
+    TokenBaseKind_LiteralFloat = 9,
+    TokenBaseKind_LiteralString = 10,
+    TokenBaseKind_ScopeOpen = 11,
+    TokenBaseKind_ScopeClose = 12,
+    TokenBaseKind_ParentheticalOpen = 13,
+    TokenBaseKind_ParentheticalClose = 14,
     
-    TokenBaseKind_COUNT,
+    TokenBaseKind_COUNT = 15,
 };
 
 char *token_base_kind_names[] ={

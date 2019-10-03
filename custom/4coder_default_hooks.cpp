@@ -1103,8 +1103,7 @@ BUFFER_HOOK_SIG(default_file_save){
     if (global_config.automatically_indent_text_on_save &&
         buffer_get_setting(app, buffer_id, BufferSetting_VirtualWhitespace, &is_virtual)){ 
         if (is_virtual){
-            i64 buffer_size = buffer_get_size(app, buffer_id);
-            buffer_auto_indent(app, buffer_id, 0, buffer_size, DEF_TAB_WIDTH, DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
+            auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
         }
     }
     // no meaning for return
