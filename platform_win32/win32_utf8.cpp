@@ -156,6 +156,15 @@ GetFileAttributesEx_utf8String(Arena *scratch, String_Const_u8 file_name, GET_FI
     return(result);
 }
 
+function HMODULE
+LoadLibrary_utf8String(Arena *scratch, String_Const_u8 name){
+    Temp_Memory temp = begin_temp(scratch);
+    String_u16 string_16 = string_u16_from_string_u8(scratch, name, StringFill_NullTerminate);
+    HMODULE result = LoadLibraryW((LPWSTR)string_16.str);
+    end_temp(temp);
+    return(result);
+}
+
 #endif
 
 // BOTTOM

@@ -24,6 +24,10 @@ link_system_code(void){
     SYSLINK(load_close);
     SYSLINK(save_file);
     
+    SYSLINK(load_library);
+    SYSLINK(release_library);
+    SYSLINK(get_proc);
+    
     SYSLINK(now_time);
     SYSLINK(wake_up_timer_create);
     SYSLINK(wake_up_timer_release);
@@ -58,8 +62,7 @@ link_system_code(void){
     SYSLINK(memory_set_protection);
     SYSLINK(memory_free);
     
-    SYSLINK(get_current_path);
-    SYSLINK(get_4ed_path);
+    SYSLINK(get_path);
     
     SYSLINK(set_fullscreen);
     SYSLINK(is_fullscreen);

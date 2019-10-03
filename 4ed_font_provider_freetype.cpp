@@ -164,7 +164,7 @@ internal Face*
 ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor){
     String_Const_u8 file_name = {};
     if (description->font.in_4coder_font_folder){
-        String_Const_u8 binary_path = sysfunc.get_4ed_path(arena);
+        String_Const_u8 binary_path = sysfunc.get_path(arena, SystemPath_Binary);
         binary_path = string_mod_replace_character(binary_path, '\\', '/');
         file_name = push_u8_stringf(arena, "%.*sfonts/%.*s", string_expand(binary_path),
                                     string_expand(description->font.file_name));

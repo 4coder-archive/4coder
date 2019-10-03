@@ -42,6 +42,9 @@ SetWindowText_utf8(Arena *scratch, HWND window, u8 *string);
 function BOOL
 GetFileAttributesEx_utf8String(Arena *scratch, String_Const_u8 file_name, GET_FILEEX_INFO_LEVELS info_level_id, LPVOID file_info);
 
+function HMODULE
+LoadLibrary_utf8String(Arena *scratch, String_Const_u8 file_name);
+
 #endif
 
 // BOTTOM

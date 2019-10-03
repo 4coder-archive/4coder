@@ -20,17 +20,20 @@
 #include "api/4coder_default_colors.h"
 #include "api/4coder_types.h"
 
+#include "4ed_font_interface.h"
+#include "4ed_font_set.h"
+#include "4ed_system.h"
+#include "4ed_render_target.h"
+#include "4ed_search_list.h"
+#include "4ed.h"
+
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"
 
-#include "4ed_font_interface.h"
-#include "4ed_font_set.h"
-#include "4ed_system.h"
-#include "4ed_render_target.h"
-#include "4ed.h"
+#include "4ed_search_list.cpp"
 
 #undef function
 #define UNICODE
@@ -92,10 +95,6 @@ struct Win32_Input_Chunk{
 #define SLASH '\\'
 #define DLL "dll"
 
-global System_Functions sysfunc;
-#include "4ed_shared_library_constants.h"
-#include "win32_library_wrapper.h"
-
 #include "4ed_font_face.cpp"
 
 #include "4ed_mem.cpp"
@@ -105,6 +104,8 @@ global System_Functions sysfunc;
 #include "4ed_font_set.cpp"
 
 ////////////////////////////////
+
+global System_Functions sysfunc = {};
 
 typedef i32 Win32_Object_Kind;
 enum{
@@ -242,6 +243,31 @@ handle_type_ptr(void *ptr){
 ////////////////////////////////
 
 #include "win32_4ed_functions.cpp"
+
+////////////////////////////////
+
+internal
+Sys_Load_Library_Sig(system_load_library){
+    HMODULE lib = LoadLibrary_utf8String(scratch, file_name);
+    b32 result = false;
+    if (lib != 0){
+        result = true;
+        *out = handle_type(lib);
+    }
+    return(result);
+}
+
+internal
+Sys_Release_Library_Sig(system_release_library){
+    HMODULE lib = (HMODULE)handle_type(handle);
+    return(FreeLibrary(lib));
+}
+
+internal
+Sys_Get_Proc_Sig(system_get_proc){
+    HMODULE lib = (HMODULE)handle_type(handle);
+    return((Void_Func*)(GetProcAddress(lib, proc_name)));
+}
 
 ////////////////////////////////
 
@@ -1505,13 +1531,17 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     // NOTE(allen): load core
-    Library core_library = {};
+    System_Library core_library = {};
     App_Functions app = {};
     {
         App_Get_Functions *get_funcs = 0;
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-        if (system_load_library(scratch, &core_library, "4ed_app", LoadLibrary_BinaryDirectory)){
-            get_funcs = (App_Get_Functions*)system_get_proc(&core_library, "app_get_functions");
+        Path_Search_List search_list = {};
+        search_list_add_system_path(&sysfunc, scratch, &search_list, SystemPath_Binary);
+        
+        String_Const_u8 core_path = get_full_path(&sysfunc, scratch, &search_list, SCu8("4ed_app.dll"));
+        if (system_load_library(scratch, core_path, &core_library)){
+            get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
             if (get_funcs != 0){
                 app = get_funcs();
             }
@@ -1532,7 +1562,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     void *base_ptr = 0;
     {
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-        String_Const_u8 curdir = sysfunc.get_current_path(scratch);
+        String_Const_u8 curdir = sysfunc.get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
         char **files = 0;
         i32 *file_count = 0;
@@ -1551,49 +1581,52 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     }
     
     // NOTE(allen): load custom layer
-    Library custom_library = {};
+    System_Library custom_library = {};
     Custom_API custom = {};
     {
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-        char *default_file = "custom_4coder";
-        Load_Library_Location locations[] = {
-            LoadLibrary_CurrentDirectory,
-            LoadLibrary_BinaryDirectory,
-        };
         char custom_not_found_msg[] = "Did not find a library for the custom layer.";
         char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
         char custom_fail_missing_get_bindings_msg[] = "Failed to load custom code due to missing 'get_bindings' symbol.  Try rebuilding with buildsuper.";
         
-        char *custom_files[3] = {};
+        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.dll");
+        Path_Search_List search_list = {};
+        search_list_add_system_path(&sysfunc, scratch, &search_list, SystemPath_CurrentDirectory);
+        search_list_add_system_path(&sysfunc, scratch, &search_list, SystemPath_Binary);
+        String_Const_u8 custom_file_names[2] = {};
+        i32 custom_file_count = 1;
         if (plat_settings.custom_dll != 0){
-            custom_files[0] = plat_settings.custom_dll;
+            custom_file_names[0] = SCu8(plat_settings.custom_dll);
             if (!plat_settings.custom_dll_is_strict){
-                custom_files[1] = default_file;
+                custom_file_names[1] = default_file_name;
+                custom_file_count += 1;
             }
         }
         else{
-            custom_files[0] = default_file;
+            custom_file_names[0] = default_file_name;
         }
-        char success_file[4096];
+        String_Const_u8 custom_file_name = {};
+        for (i32 i = 0; i < custom_file_count; i += 1){
+            custom_file_name = get_full_path(&sysfunc, scratch, &search_list, custom_file_names[i]);
+            if (custom_file_name.size > 0){
+                break;
+            }
+        }
         b32 has_library = false;
-        for (u32 i = 0; custom_files[i] != 0 && !has_library; ++i){
-            char *file = custom_files[i];
-            for (u32 j = 0; j < ArrayCount(locations) && !has_library; ++j){
-                if (system_load_library(scratch, &custom_library, file, locations[j], success_file, sizeof(success_file))){
-                    has_library = true;
-                    success_file[sizeof(success_file) - 1] = 0;
-                }
+        if (custom_file_name.size > 0){
+            if (system_load_library(scratch, custom_file_name, &custom_library)){
+                has_library = true;
             }
         }
         
         if (!has_library){
             system_error_box(scratch, custom_not_found_msg);
         }
-        custom.get_alpha_4coder_version = (_Get_Version_Function*)system_get_proc(&custom_library, "get_alpha_4coder_version");
+        custom.get_alpha_4coder_version = (_Get_Version_Function*)system_get_proc(custom_library, "get_alpha_4coder_version");
         if (custom.get_alpha_4coder_version == 0 || custom.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
             system_error_box(scratch, custom_fail_version_msg);
         }
-        custom.get_bindings = (Get_Binding_Data_Function*)system_get_proc(&custom_library, "get_bindings");
+        custom.get_bindings = (Get_Binding_Data_Function*)system_get_proc(custom_library, "get_bindings");
         if (custom.get_bindings == 0){
             system_error_box(scratch, custom_fail_missing_get_bindings_msg);
         }
@@ -1678,7 +1711,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     {
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-        String_Const_u8 curdir = sysfunc.get_current_path(scratch);
+        String_Const_u8 curdir = sysfunc.get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
         app.init(&sysfunc, &target, base_ptr, win32vars.clipboard_contents, curdir, custom);
     }

@@ -66,27 +66,34 @@ Sys_Memory_Free_Sig(system_memory_free){
 //
 
 internal
-Sys_Get_Current_Path_Sig(system_get_current_path){
-    DWORD size = GetCurrentDirectory_utf8(arena, 0, 0);
-    u8 *out = push_array(arena, u8, size);
-    GetCurrentDirectory_utf8(arena, size, out);
-    return(SCu8(out, size - 1));
-}
-
-internal
-Sys_Get_4ed_Path_Sig(system_get_4ed_path){
-    local_persist b32 has_stashed_4ed_path = false;
-    if (!has_stashed_4ed_path){
-        has_stashed_4ed_path = true;
-        local_const i32 binary_path_capacity = KB(32);
-        u8 *memory = (u8*)system_memory_allocate(binary_path_capacity);
-        i32 size = GetModuleFileName_utf8(arena, 0, memory, binary_path_capacity);
-        Assert(size <= binary_path_capacity - 1);
-        win32vars.binary_path = SCu8(memory, size);
-        win32vars.binary_path = string_remove_last_folder(win32vars.binary_path);
-        win32vars.binary_path.str[win32vars.binary_path.size] = 0;
+Sys_Get_Path_Sig(system_get_path){
+    String_Const_u8 result = {};
+    switch (code){
+        case SystemPath_CurrentDirectory:
+        {
+            DWORD size = GetCurrentDirectory_utf8(arena, 0, 0);
+            u8 *out = push_array(arena, u8, size);
+            size = GetCurrentDirectory_utf8(arena, size, out);
+            result = SCu8(out, size);
+        }break;
+        
+        case SystemPath_Binary:
+        {
+            local_persist b32 has_stashed_4ed_path = false;
+            if (!has_stashed_4ed_path){
+                has_stashed_4ed_path = true;
+                local_const i32 binary_path_capacity = KB(32);
+                u8 *memory = (u8*)system_memory_allocate(binary_path_capacity);
+                i32 size = GetModuleFileName_utf8(arena, 0, memory, binary_path_capacity);
+                Assert(size <= binary_path_capacity - 1);
+                win32vars.binary_path = SCu8(memory, size);
+                win32vars.binary_path = string_remove_last_folder(win32vars.binary_path);
+                win32vars.binary_path.str[win32vars.binary_path.size] = 0;
+            }
+            result = push_string_copy(arena, win32vars.binary_path);
+        }break;
     }
-    return(push_string_copy(arena, win32vars.binary_path));
+    return(result);
 }
 
 //
@@ -339,9 +346,7 @@ Sys_Save_File_Sig(system_save_file){
     return(result);
 }
 
-//
-// Color picker
-//
+////////////////////////////////
 
 internal int_color
 swap_r_and_b(int_color a){

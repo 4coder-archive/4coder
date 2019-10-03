@@ -9,6 +9,9 @@
 
 // TOP
 
+#error remove this file
+
+#if 0
 #if !defined(FRED_SHARED_LIBRARY_CONSTANTS_H)
 #define FRED_SHARED_LIBRARY_CONSTANTS_H
 
@@ -87,6 +90,7 @@ system_load_library(Arena *scratch, Library *library, char *name, Load_Library_L
     return(system_load_library(scratch, library, name, location, 0, 0));
 }
 
+#endif
 #endif
 
 // BOTTOM

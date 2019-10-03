@@ -18,6 +18,26 @@
 struct Plat_Handle{
     u32 d[4];
 };
+typedef Plat_Handle System_Library;
+typedef Plat_Handle System_Thread;
+typedef Plat_Handle System_Mutex;
+typedef Plat_Handle System_Condition_Variable;
+typedef void Thread_Function(void *ptr);
+struct CLI_Handles{
+    Plat_Handle proc;
+    Plat_Handle out_read;
+    Plat_Handle out_write;
+    Plat_Handle in_read;
+    Plat_Handle in_write;
+    u32 scratch_space[4];
+    i32 exit;
+};
+
+typedef i32 System_Path_Code;
+enum{
+    SystemPath_CurrentDirectory,
+    SystemPath_Binary,
+};
 
 // files
 #define Sys_Get_Canonical_Sig(n) String_Const_u8 n(Arena *arena, String_Const_u8 name)
@@ -42,8 +62,20 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
 typedef Sys_Load_Close_Sig(System_Load_Close);
 
-#define Sys_Save_File_Sig(name) File_Attributes name(Arena *scratch, char *filename, String_Const_u8 data)
+#define Sys_Save_File_Sig(name) \
+File_Attributes name(Arena *scratch, char *filename, String_Const_u8 data)
 typedef Sys_Save_File_Sig(System_Save_File);
+
+// library
+#define Sys_Load_Library_Sig(name) \
+b32 name(Arena *scratch, String_Const_u8 file_name, System_Library *out)
+typedef Sys_Load_Library_Sig(System_Load_Library);
+
+#define Sys_Release_Library_Sig(name) b32 name(System_Library handle)
+typedef Sys_Release_Library_Sig(System_Release_Library);
+
+#define Sys_Get_Proc_Sig(name) Void_Func *name(System_Library handle, char *proc_name)
+typedef Sys_Get_Proc_Sig(System_Get_Proc);
 
 // time
 #define Sys_Now_Time_Sig(name) u64 name()
@@ -72,17 +104,8 @@ typedef Sys_Sleep_Sig(System_Sleep);
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
 
 // cli
-struct CLI_Handles{
-    Plat_Handle proc;
-    Plat_Handle out_read;
-    Plat_Handle out_write;
-    Plat_Handle in_read;
-    Plat_Handle in_write;
-    u32 scratch_space[4];
-    i32 exit;
-};
-
-#define Sys_CLI_Call_Sig(n, scratch, path, script, cli_out) b32 n(Arena *scratch, char *path, char *script, CLI_Handles *cli_out)
+#define Sys_CLI_Call_Sig(n, scratch, path, script, cli_out) \
+b32 n(Arena *scratch, char *path, char *script, CLI_Handles *cli_out)
 typedef Sys_CLI_Call_Sig(System_CLI_Call, scratch, path, script, cli_out);
 
 #define Sys_CLI_Begin_Update_Sig(name) void name(CLI_Handles *cli)
@@ -95,7 +118,6 @@ typedef Sys_CLI_Update_Step_Sig(System_CLI_Update_Step);
 typedef Sys_CLI_End_Update_Sig(System_CLI_End_Update);
 
 //
-
 #define Sys_Open_Color_Picker_Sig(name) void name(Color_Picker *picker)
 typedef Sys_Open_Color_Picker_Sig(System_Open_Color_Picker);
 
@@ -103,12 +125,8 @@ typedef Sys_Open_Color_Picker_Sig(System_Open_Color_Picker);
 typedef Sys_Get_Screen_Scale_Factor_Sig(System_Get_Screen_Scale_Factor);
 
 // thread
-typedef Plat_Handle System_Thread;
-typedef Plat_Handle System_Mutex;
-typedef Plat_Handle System_Condition_Variable;
-typedef void Thread_Function(void *ptr);
-
-#define Sys_Thread_Launch_Sig(name) System_Thread name(Thread_Function *proc, void *ptr)
+#define Sys_Thread_Launch_Sig(name) \
+System_Thread name(Thread_Function *proc, void *ptr)
 typedef Sys_Thread_Launch_Sig(System_Thread_Launch);
 
 #define Sys_Thread_Join_Sig(name) void name(System_Thread thread)
@@ -155,11 +173,8 @@ typedef Sys_Memory_Set_Protection_Sig(System_Memory_Set_Protection);
 typedef Sys_Memory_Free_Sig(System_Memory_Free);
 
 // file system
-#define Sys_Get_Current_Path_Sig(name) String_Const_u8 name(Arena *arena)
-typedef Sys_Get_Current_Path_Sig(System_Get_Current_Path);
-
-#define Sys_Get_4ed_Path_Sig(name) String_Const_u8 name(Arena *arena)
-typedef Sys_Get_4ed_Path_Sig(System_Get_4ed_Path);
+#define Sys_Get_Path_Sig(name) String_Const_u8 name(Arena *arena, System_Path_Code code)
+typedef Sys_Get_Path_Sig(System_Get_Path);
 
 // behavior and appearance options
 #define Sys_Show_Mouse_Cursor_Sig(name) void name(i32 show)
@@ -185,6 +200,11 @@ struct System_Functions{
     System_Load_File             *load_file;
     System_Load_Close            *load_close;
     System_Save_File             *save_file;
+    
+    // library
+    System_Load_Library    *load_library;
+    System_Release_Library *release_library;
+    System_Get_Proc        *get_proc;
     
     // time
     System_Now_Time *now_time;
@@ -226,8 +246,7 @@ struct System_Functions{
     System_Memory_Set_Protection  *memory_set_protection;
     System_Memory_Free            *memory_free;
     
-    System_Get_Current_Path       *get_current_path;
-    System_Get_4ed_Path           *get_4ed_path;
+    System_Get_Path               *get_path;
     
     System_Show_Mouse_Cursor      *show_mouse_cursor;
     System_Set_Fullscreen         *set_fullscreen;

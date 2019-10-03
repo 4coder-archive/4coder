@@ -2648,7 +2648,7 @@ Push_4ed_Path(Application_Links *app, Arena *arena)
 {
     Models *models = (Models*)app->cmd_context;
     System_Functions *system = models->system;
-    return(system->get_4ed_path(arena));
+    return(system->get_path(arena, SystemPath_Binary));
 }
 
 // TODO(allen): do(add a "shown but auto-hides on timer" setting for cursor show type)
