@@ -212,13 +212,6 @@ int
 main(int argc, char **argv){
     Arena arena = make_arena_malloc();
     
-    char *hack[] = {
-        "nothing",
-        "../code/4ed_api_implementation.cpp"
-    };
-    argv = hack;
-    argc = 2;
-    
     if (argc < 2){
         printf("usage: <script> <source> {<source>}\n"
                " source : file to load and parse into the output list\n");

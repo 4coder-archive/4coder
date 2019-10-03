@@ -73,11 +73,11 @@ api_get_api(Arena *arena, API_Definition_List *list, String_Const_u8 name){
 
 function void
 generate_api_master_list(Arena *scratch, API_Definition *api, FILE *out){
-    fprintf(out, "// %.*s\n", string_expand(api->name));
     for (API_Call *call = api->first;
          call != 0;
          call = call->next){
-        fprintf(out, "%.*s %.*s(",
+        fprintf(out, "api(%.*s) function %.*s %.*s(",
+                string_expand(api->name),
                 string_expand(call->return_type),
                 string_expand(call->name));
         if (call->params.count == 0){

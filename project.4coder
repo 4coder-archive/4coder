@@ -59,7 +59,7 @@ command_list = {
 
  { .name = "build api parser",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_api_parser.cpp ..\\build", .os = "win" }, }, },
+   .cmd = { { "custom\\bin\\build_one_time 4ed_api_parser.cpp ..\\build & copy /B one_time.exe api_parser.exe", .os = "win" }, }, },
 };
 
 fkey_command[1] = "build x64";

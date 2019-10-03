@@ -63,42 +63,46 @@ set_line_indents(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i
 
 internal Token*
 find_anchor_token(Application_Links *app, Buffer_ID buffer, Token_Array *tokens, i64 invalid_line){
-    Token *result = tokens->tokens;
-    i64 invalid_pos = get_line_start_pos(app, buffer, invalid_line);
+    Token *result = 0;
     
-    i32 scope_counter = 0;
-    i32 paren_counter = 0;
-    Token *token = tokens->tokens;
-    for (;;token += 1){
-        if (token->pos + token->size > invalid_pos){
-            break;
-        }
-        if (!HasFlag(token->flags,  TokenBaseFlag_PreprocessorBody)){
-            if (scope_counter == 0 && paren_counter == 0){
-                result = token;
+    if (tokens != 0 && tokens->tokens != 0){
+        result = tokens->tokens;
+        i64 invalid_pos = get_line_start_pos(app, buffer, invalid_line);
+        
+        i32 scope_counter = 0;
+        i32 paren_counter = 0;
+        Token *token = tokens->tokens;
+        for (;;token += 1){
+            if (token->pos + token->size > invalid_pos){
+                break;
             }
-            switch (token->kind){
-                case TokenBaseKind_ScopeOpen:
-                {
-                    scope_counter += 1;
-                }break;
-                case TokenBaseKind_ScopeClose:
-                {
-                    paren_counter = 0;
-                    if (scope_counter > 0){
-                        scope_counter -= 1;
-                    }
-                }break;
-                case TokenBaseKind_ParentheticalOpen:
-                {
-                    paren_counter += 1;
-                }break;
-                case TokenBaseKind_ParentheticalClose:
-                {
-                    if (paren_counter > 0){
-                        paren_counter -= 1;
-                    }
-                }break;
+            if (!HasFlag(token->flags,  TokenBaseFlag_PreprocessorBody)){
+                if (scope_counter == 0 && paren_counter == 0){
+                    result = token;
+                }
+                switch (token->kind){
+                    case TokenBaseKind_ScopeOpen:
+                    {
+                        scope_counter += 1;
+                    }break;
+                    case TokenBaseKind_ScopeClose:
+                    {
+                        paren_counter = 0;
+                        if (scope_counter > 0){
+                            scope_counter -= 1;
+                        }
+                    }break;
+                    case TokenBaseKind_ParentheticalOpen:
+                    {
+                        paren_counter += 1;
+                    }break;
+                    case TokenBaseKind_ParentheticalClose:
+                    {
+                        if (paren_counter > 0){
+                            paren_counter -= 1;
+                        }
+                    }break;
+                }
             }
         }
     }
@@ -257,7 +261,7 @@ auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos, Inde
     Token_Array *tokens = scope_attachment(app, scope, attachment_tokens, Token_Array);
     
     b32 result = false;
-    if (tokens != 0){
+    if (tokens != 0 && tokens->tokens != 0){
         result = true;
         
         Scratch_Block scratch(app);
