@@ -68,7 +68,6 @@ find_anchor_token(Application_Links *app, Buffer_ID buffer, Token_Array *tokens,
     if (tokens != 0 && tokens->tokens != 0){
         result = tokens->tokens;
         i64 invalid_pos = get_line_start_pos(app, buffer, invalid_line);
-        
         i32 scope_counter = 0;
         i32 paren_counter = 0;
         Token *token = tokens->tokens;
@@ -164,6 +163,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                 current_indent = nest->indent;
             }
             i64 this_indent = current_indent;
+            i64 following_indent = current_indent;
             
             if (HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
                 this_indent = 0;
@@ -176,6 +176,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         sll_stack_push(nest, new_nest);
                         nest->kind = TokenBaseKind_ScopeOpen;
                         nest->indent = current_indent + indent_width;
+                        following_indent = nest->indent;
                     }break;
                     
                     case TokenBaseKind_ScopeClose:
@@ -194,6 +195,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         if (nest != 0){
                             this_indent = nest->indent;
                         }
+                        following_indent = this_indent;
                     }break;
                     
                     case TokenBaseKind_ParentheticalOpen:
@@ -202,6 +204,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         sll_stack_push(nest, new_nest);
                         nest->kind = TokenBaseKind_ParentheticalOpen;
                         nest->indent = line_indent_info.indent_pos + (token->pos - line_indent_info.first_char_pos) + 1;
+                        following_indent = nest->indent;
                     }break;
                     
                     case TokenBaseKind_ParentheticalClose:
@@ -210,6 +213,10 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                             Nest *n = nest;
                             sll_stack_pop(nest);
                             indent__free_nest(&nest_alloc, n);
+                        }
+                        following_indent = 0;
+                        if (nest != 0){
+                            following_indent = nest->indent;
                         }
                     }break;
                 }
@@ -224,7 +231,6 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                 line_it += 1;
                 if (line_it == line_where_token_starts){
                     EMIT(this_indent);
-                    last_indent = this_indent;
                 }
                 else{
                     EMIT(last_indent);
@@ -243,6 +249,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
             }
 #undef EMIT
             
+            last_indent = following_indent;
             line_last_indented = line_it;
             
             if (!token_it_inc_non_whitespace(&token_it)){
