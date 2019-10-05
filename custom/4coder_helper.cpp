@@ -877,7 +877,7 @@ boundary_line(Application_Links *app, Buffer_ID buffer, Side side, Scan_Directio
 
 // TODO(allen): these need a little more rewrite
 internal void
-buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 end, String_Const_u8 needle, i64 *result){
+seek_string_forward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 end, String_Const_u8 needle, i64 *result){
     if (end == 0){
         end = (i32)buffer_get_size(app, buffer);
     }
@@ -897,7 +897,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_ID buffer, i64 pos, i6
 }
 
 internal void
-buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 min, String_Const_u8 needle, i64 *result){
+seek_string_backward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 min, String_Const_u8 needle, i64 *result){
     String_Match match = {};
     match.range.first = pos;
     for (;;){
@@ -914,7 +914,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_ID buffer, i64 pos, i
 }
 
 internal void
-buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 end, String_Const_u8 needle, i64 *result){
+seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 end, String_Const_u8 needle, i64 *result){
     if (end == 0){
         end = (i32)buffer_get_size(app, buffer);
     }
@@ -928,7 +928,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_ID buffer,
 }
 
 internal void
-buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 min, String_Const_u8 needle, i64 *result){
+seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer, i64 pos, i64 min, String_Const_u8 needle, i64 *result){
     String_Match match = buffer_seek_string(app, buffer, needle, Scan_Backward, pos);
     if (match.range.first >= min && match.buffer == buffer){
         *result = match.range.first;
@@ -939,26 +939,26 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_ID buffer
 }
 
 internal void
-buffer_seek_string(Application_Links *app, Buffer_ID buffer_id, i64 pos, i64 end, i64 min, String_Const_u8 str, i64 *result, Buffer_Seek_String_Flags flags){
+seek_string(Application_Links *app, Buffer_ID buffer_id, i64 pos, i64 end, i64 min, String_Const_u8 str, i64 *result, Buffer_Seek_String_Flags flags){
     switch (flags & 3){
         case 0:
         {
-            buffer_seek_string_forward(app, buffer_id, pos, end, str, result);
+            seek_string_forward(app, buffer_id, pos, end, str, result);
         }break;
         
         case BufferSeekString_Backward:
         {
-            buffer_seek_string_backward(app, buffer_id, pos, min, str, result);
+            seek_string_backward(app, buffer_id, pos, min, str, result);
         }break;
         
         case BufferSeekString_CaseInsensitive:
         {
-            buffer_seek_string_insensitive_forward(app, buffer_id, pos, end, str, result);
+            seek_string_insensitive_forward(app, buffer_id, pos, end, str, result);
         }break;
         
         case BufferSeekString_Backward|BufferSeekString_CaseInsensitive:
         {
-            buffer_seek_string_insensitive_backward(app, buffer_id, pos, min, str, result);
+            seek_string_insensitive_backward(app, buffer_id, pos, min, str, result);
         }break;
     }
 }
@@ -1399,14 +1399,14 @@ replace_in_range(Application_Links *app, Buffer_ID buffer, Range_i64 range, Stri
     History_Group group = history_group_begin(app, buffer);
     i64 pos = range.min - 1;
     i64 new_pos = 0;
-    buffer_seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
+    seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
     i64 shift = replace_range_shift(needle.size, string.size);
     for (; new_pos + (imem)needle.size <= range.end;){
         Range_i64 needle_range = Ii64(new_pos, new_pos + (i32)needle.size);
         buffer_replace_range(app, buffer, needle_range, string);
         range.end += shift;
         pos = new_pos + (i32)string.size - 1;
-        buffer_seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
+        seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
     }
     history_group_end(group);
 }
@@ -2211,7 +2211,7 @@ get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_In
 
 internal Vec2
 draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec2 p, int_color color){
-    return(draw_string(app, font_id, string, p, color, 0, V2(1.f, 0.f)));
+    return(draw_string_oriented(app, font_id, string, p, color, 0, V2(1.f, 0.f)));
 }
 
 internal void
@@ -2271,7 +2271,7 @@ draw_line_highlight(Application_Links *app, Text_Layout_ID layout, i64 line, int
 }
 
 internal void
-paint_text_color(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
+paint_text_color_pos(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
     paint_text_color(app, layout, Ii64(pos, pos + 1), color);
 }
 

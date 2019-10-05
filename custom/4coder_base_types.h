@@ -166,6 +166,12 @@ typedef double f64;
 
 typedef void Void_Func(void);
 
+typedef i32 Generated_Group;
+enum{
+    GeneratedGroup_Core,
+    GeneratedGroup_Custom
+};
+
 #define glue_(a,b) a##b
 #define glue(a,b) glue_(a,b)
 

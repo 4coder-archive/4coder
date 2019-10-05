@@ -214,7 +214,7 @@ draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
         Face_Metrics metrics = get_face_metrics(app, font_id);
         
         P += (string->pre_margin*metrics.typical_character_width)*dP;
-        draw_string(app, use_font_id, string->value, P, use_fore, flags, dP);
+        draw_string_oriented(app, use_font_id, string->value, P, use_fore, flags, dP);
         P += (adv + string->post_margin*metrics.typical_character_width)*dP;
     }
     return(P);
@@ -240,7 +240,7 @@ get_fancy_string_advance(Application_Links *app, Face_ID font_id, Fancy_String *
 }
 
 static void
-draw_rectangle(Application_Links *app, Rect_f32 rect, Fancy_Color fancy_color){
+draw_rectangle_fancy(Application_Links *app, Rect_f32 rect, Fancy_Color fancy_color){
     int_color color = int_color_from(app, fancy_color);
     draw_rectangle(app, rect, color);
 }

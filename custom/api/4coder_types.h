@@ -13,6 +13,16 @@
 
 #endif
 
+struct Application_Links{
+    void *cmd_context;
+    void *current_coroutine;
+    i32 type_coroutine;
+};
+typedef b32 _Get_Version_Function(i32 maj, i32 min, i32 patch);
+typedef void _Init_APIs(struct API_VTable_custom *custom_vtable);
+
+////////////////////////////////
+
 TYPEDEF u32 argb_color;
 
 TYPEDEF u32 int_color;
@@ -617,9 +627,6 @@ STRUCT Binding_Unit{
         STRUCT{ i32 hook_id; void *func; } hook;
     };
 };
-
-typedef i32 _Get_Version_Function(i32 maj, i32 min, i32 patch);
-#define _GET_VERSION_SIG(n) i32 n(i32 maj, i32 min, i32 patch)
 
 STRUCT Color_Picker{
     String_Const_u8 title;

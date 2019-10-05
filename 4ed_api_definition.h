@@ -47,6 +47,11 @@ struct API_Definition_List{
     i32 count;
 };
 
+typedef u32 API_Generation_Flag;
+enum{
+    APIGeneration_NoAPINameOnCallables = 1,
+};
+
 #endif
 
 // BOTTOM

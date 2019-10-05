@@ -4,6 +4,9 @@
 
 // TOP
 
+#if !defined(FCODER_STRINGF_CPP)
+#define FCODER_STRINGF_CPP
+
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -67,6 +70,8 @@ string_list_pushf(Arena *arena, List_String_Const_u8 *list, char *format, ...){
     string_list_pushfv(arena, list, format, args);
     va_end(args);
 }
+
+#endif
 
 // BOTTOM
 

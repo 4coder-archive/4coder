@@ -55,29 +55,30 @@ struct Plat_Settings{
     b8 use_hinting;
 };
 
-#define App_Read_Command_Line_Sig(name)             \
-void *name(Thread_Context *tctx,     \
-String_Const_u8 current_directory,\
-Plat_Settings *plat_settings,\
-char ***files,   \
-i32 **file_count,\
-i32 argc,        \
-char **argv)
-
+#define App_Read_Command_Line_Sig(name) \
+void *name(Thread_Context *tctx,\
+           String_Const_u8 current_directory,\
+           Plat_Settings *plat_settings,\
+           char ***files,   \
+           i32 **file_count,\
+           i32 argc,        \
+           char **argv)
+           
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
 struct Custom_API{
     Get_Binding_Data_Function *get_bindings;
-    _Get_Version_Function *get_alpha_4coder_version;
+    _Get_Version_Function *get_version;
+    _Init_APIs *init_apis;
 };
 
 #define App_Init_Sig(name) \
 void name(Render_Target *target,    \
-void *base_ptr,           \
-String_Const_u8 clipboard,\
-String_Const_u8 current_directory,\
-Custom_API api)
-
+          void *base_ptr,           \
+          String_Const_u8 clipboard,\
+          String_Const_u8 current_directory,\
+          Custom_API api)
+          
 typedef App_Init_Sig(App_Init);
 
 #include "4ed_cursor_codes.h"

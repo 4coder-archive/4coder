@@ -1615,6 +1615,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         char custom_not_found_msg[] = "Did not find a library for the custom layer.";
         char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
         char custom_fail_missing_get_bindings_msg[] = "Failed to load custom code due to missing 'get_bindings' symbol.  Try rebuilding with buildsuper.";
+        char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
         
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.dll");
@@ -1650,13 +1651,17 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         if (!has_library){
             system_error_box(scratch, custom_not_found_msg);
         }
-        custom.get_alpha_4coder_version = (_Get_Version_Function*)system_get_proc(custom_library, "get_alpha_4coder_version");
-        if (custom.get_alpha_4coder_version == 0 || custom.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+        custom.get_version = (_Get_Version_Function*)system_get_proc(custom_library, "get_version");
+        if (custom.get_version == 0 || custom.get_version(MAJOR, MINOR, PATCH) == 0){
             system_error_box(scratch, custom_fail_version_msg);
         }
         custom.get_bindings = (Get_Binding_Data_Function*)system_get_proc(custom_library, "get_bindings");
         if (custom.get_bindings == 0){
             system_error_box(scratch, custom_fail_missing_get_bindings_msg);
+        }
+        custom.init_apis = (_Init_APIs*)system_get_proc(custom_library, "init_apis");
+        if (custom.init_apis == 0){
+            system_error_box(scratch, custom_fail_init_apis);
         }
     }
     

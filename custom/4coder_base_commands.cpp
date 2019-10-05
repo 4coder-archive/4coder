@@ -908,7 +908,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
                 case Scan_Forward:
                 {
                     i64 new_pos = 0;
-                    buffer_seek_string_insensitive_forward(app, buffer, pos - 1, 0, bar.string, &new_pos);
+                    seek_string_insensitive_forward(app, buffer, pos - 1, 0, bar.string, &new_pos);
                     if (new_pos < buffer_size){
                         pos = new_pos;
                         match_size = bar.string.size;
@@ -918,7 +918,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
                 case Scan_Backward:
                 {
                     i64 new_pos = 0;
-                    buffer_seek_string_insensitive_backward(app, buffer, pos + 1, 0, bar.string, &new_pos);
+                    seek_string_insensitive_backward(app, buffer, pos + 1, 0, bar.string, &new_pos);
                     if (new_pos >= 0){
                         pos = new_pos;
                         match_size = bar.string.size;
@@ -932,7 +932,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
                 case Scan_Forward:
                 {
                     i64 new_pos = 0;
-                    buffer_seek_string_insensitive_forward(app, buffer, pos, 0, bar.string, &new_pos);
+                    seek_string_insensitive_forward(app, buffer, pos, 0, bar.string, &new_pos);
                     if (new_pos < buffer_size){
                         pos = new_pos;
                         match_size = bar.string.size;
@@ -942,7 +942,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
                 case Scan_Backward:
                 {
                     i64 new_pos = 0;
-                    buffer_seek_string_insensitive_backward(app, buffer, pos, 0, bar.string, &new_pos);
+                    seek_string_insensitive_backward(app, buffer, pos, 0, bar.string, &new_pos);
                     if (new_pos >= 0){
                         pos = new_pos;
                         match_size = bar.string.size;
@@ -1076,7 +1076,7 @@ CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of
 static void
 query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i64 pos, String_Const_u8 r, String_Const_u8 w){
     i64 new_pos = 0;
-    buffer_seek_string_forward(app, buffer_id, pos - 1, 0, r, &new_pos);
+    seek_string_forward(app, buffer_id, pos - 1, 0, r, &new_pos);
     
     cursor_is_hidden = true;
     
@@ -1099,7 +1099,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
             pos = match.max;
         }
         
-        buffer_seek_string_forward(app, buffer_id, pos, 0, r, &new_pos);
+        seek_string_forward(app, buffer_id, pos, 0, r, &new_pos);
     }
     
     view_disable_highlight_range(app, view);

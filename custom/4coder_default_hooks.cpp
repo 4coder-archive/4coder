@@ -475,7 +475,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             {
                 if (is_active_view){
                     draw_character_block(app, text_layout_id, cursor_pos, Stag_Cursor);
-                    paint_text_color(app, text_layout_id, cursor_pos, Stag_At_Cursor);
+                    paint_text_color_pos(app, text_layout_id, cursor_pos, Stag_At_Cursor);
                     draw_character_wire_frame(app, text_layout_id, mark_pos, Stag_Mark);
                 }
                 else{

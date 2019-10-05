@@ -7,6 +7,7 @@
 #if !defined(FCODER_DEFAULT_INCLUDE_CPP)
 #define FCODER_DEFAULT_INCLUDE_CPP
 
+#include "4coder_base_types.h"
 #include "api/4coder_custom.h"
 #include "generated/command_metadata.h"
 
@@ -37,6 +38,7 @@
 #include "4coder_combined_write_commands.h"
 #include "4coder_log_parser.h"
 
+#include "api/4coder_custom.cpp"
 #include "4coder_log.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"

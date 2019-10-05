@@ -59,7 +59,11 @@ command_list = {
 
  { .name = "build api parser",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_api_parser.cpp ..\\build & copy /B one_time.exe api_parser.exe", .os = "win" }, }, },
+   .cmd = { { "custom\\bin\\build_one_time 4ed_api_parser.cpp ..\\build & copy /B ..\\build\\one_time.exe ..\\build\\api_parser.exe", .os = "win" }, }, },
+ 
+ { .name = "generate custom api master list",
+   .out = "*run*", .footer_panel = false, .save_dirty_files = false,
+   .cmd = { { "..\\build\\api_parser 4ed_api_implementation.cpp", .os = "win"   }, }, },
 };
 
 fkey_command[1] = "build x64";

@@ -11,9 +11,14 @@
 
 #define REMOVE_OLD_STRING
 
-#include "api/4coder_custom.h"
-
 #include "4coder_base_types.h"
+#include "api/4coder_version.h"
+#include "api/4coder_keycodes.h"
+#include "api/4coder_default_colors.h"
+#include "api/4coder_types.h"
+#define STATIC_LINK_API
+#include "generated/custom_api.h"
+
 #include "4coder_table.h"
 
 #include "4ed_font_interface.h"
@@ -63,6 +68,7 @@
 #include "4ed_log.h"
 #include "4ed_app_models.h"
 
+#include "generated/custom_api.cpp"
 #define DYNAMIC_LINK_API
 #include "generated/system_api.cpp"
 #define DYNAMIC_LINK_API

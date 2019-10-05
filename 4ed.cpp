@@ -470,12 +470,6 @@ command_caller(Coroutine *coroutine){
     }
 }
 
-internal void
-app_links_init(Application_Links *app_links){
-    FillAppLinksAPI(app_links);
-    app_links->current_coroutine = 0;
-}
-
 // App Functions
 
 internal void
@@ -826,12 +820,12 @@ App_Init_Sig(app_init){
     Models *models = (Models*)base_ptr;
     models->keep_playing = true;
     
-    app_links_init(&models->app_links);
-    
     models->config_api = api;
     models->app_links.cmd_context = models;
     
-    Arena *arena = models->arena;
+    API_VTable_custom custom_vtable = {};
+    custom_api_fill_vtable(&custom_vtable);
+    api.init_apis(&custom_vtable);
     
     // NOTE(allen): coroutines
     coroutine_system_init(&models->coroutines);
@@ -840,6 +834,7 @@ App_Init_Sig(app_init){
     font_set_init(&models->font_set);
     
     // NOTE(allen): live set
+    Arena *arena = models->arena;
     {
         models->live_set.count = 0;
         models->live_set.max = MAX_VIEWS;

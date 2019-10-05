@@ -10,17 +10,17 @@
 // TOP
 
 #include "4coder_base_types.h"
-#include "4ed_api_definition.h"
 #include "4coder_token.h"
 #include "generated/lexer_cpp.h"
+#include "4ed_api_definition.h"
 
 #include "4coder_base_types.cpp"
-#include "4ed_api_definition.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_malloc_allocator.cpp"
 #include "4coder_token.cpp"
 #include "generated/lexer_cpp.cpp"
 #include "4coder_file.cpp"
+#include "4ed_api_definition.cpp"
 
 ////////////////////////////////
 
@@ -237,7 +237,7 @@ main(int argc, char **argv){
     for (API_Definition *node = list.first;
          node != 0;
          node = node->next){
-        generate_api_master_list(&arena, node, stdout);
+        api_definition_generate_api_includes(&arena, node, GeneratedGroup_Custom, APIGeneration_NoAPINameOnCallables);
     }
 }
 

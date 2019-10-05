@@ -17,7 +17,7 @@ set opts=%opts% /GR- /nologo /FC
 set debug=/Zi
 set release=/O2 /Zi
 set build_dll=/LD /link /INCREMENTAL:NO /OPT:REF
-set exports=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
+set build_dll=%build_dll% /EXPORT:get_bindings /EXPORT:get_version /EXPORT:init_apis
 
 set mode=%debug%
 if "%2" == "release" (set mode=%release%)

@@ -706,8 +706,8 @@ log_graph_render(Application_Links *app, View_ID view, Frame_Info frame_info, Re
                 margin_color = light_gray;
             }
             
-            draw_rectangle(app, box      , margin_color);
-            draw_rectangle(app, box_inner, black       );
+            draw_rectangle_fancy(app, box      , margin_color);
+            draw_rectangle_fancy(app, box_inner, black       );
             
             Log_Event *event = box_node->event;
             
@@ -744,8 +744,8 @@ log_graph_render(Application_Links *app, View_ID view, Frame_Info frame_info, Re
             Log_Graph_List_Tab current_tab = log_graph.tab;
             Log_Filter_Set *viewing_filter_set = log_filter_set_from_tab(current_tab);
             
-            draw_rectangle(app, box      , dark_gray);
-            draw_rectangle(app, box_inner, black    );
+            draw_rectangle_fancy(app, box      , dark_gray);
+            draw_rectangle_fancy(app, box_inner, black    );
             
             {
                 f32 y_cursor = box_inner.y0 + 3.f;
