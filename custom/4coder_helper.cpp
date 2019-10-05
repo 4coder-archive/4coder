@@ -2333,16 +2333,6 @@ get_margin_color(i32 level){
 
 ////////////////////////////////
 
-internal f32
-get_dpi_scaling_value(Application_Links *app){
-    // TODO(casey): Allen, this should return the multiplier for the display relative to whatever 4coder
-    // gets tuned to.
-    f32 result = 2.0f;
-    return(result);
-}
-
-////////////////////////////////
-
 UI_QUIT_FUNCTION(ui_quit_clear_render_hook){
     Managed_Scope scope = view_get_managed_scope(app, view);
     View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
@@ -2391,6 +2381,7 @@ exec_system_command(Application_Links *app, View_ID view, Buffer_Identifier buff
             if (set_buffer_system_command(app, child_process_id, buffer_attach_id, flags)){
                 if (view != 0){
                     view_set_buffer(app, view, buffer_attach_id, 0);
+                    view_set_cursor(app, view, seek_pos(0));
                 }
             }
         }

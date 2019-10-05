@@ -133,6 +133,7 @@ child_process_set_target_buffer(Models *models, Child_Process *child_process, Ed
             }
         }
         child_process->out_file = file;
+        child_process->cursor_at_end = HasFlag(flags, ChildProcessSet_CursorAtEnd);
         file->state.attached_child_process = child_process->id;
         result = true;
     }
