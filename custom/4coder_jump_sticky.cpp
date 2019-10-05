@@ -52,7 +52,7 @@ parse_buffer_to_jump_array(Application_Links *app, Arena *arena, Buffer_ID buffe
         i64 out_pos = 0;
         
         {
-            Scratch_Block line_auto_closer(arena);
+            Temp_Memory_Block line_auto_closer(arena);
             if (is_valid_line(app, buffer, line)){
                 String_Const_u8 line_str = push_buffer_line(app, arena, buffer, line);
                 Parsed_Jump parsed_jump = parse_jump_location(line_str);

@@ -852,7 +852,7 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                 block_copy(conflict->unique_name_in_out, conflict->base_name.str, size);
                 
                 if (conflict->file_name.str != 0){
-                    Scratch_Block per_file_closer(scratch);
+                    Temp_Memory_Block temp(scratch);
                     String_Const_u8 uniqueifier = {};
                     
                     String_Const_u8 file_name = string_remove_last_folder(conflict->file_name);

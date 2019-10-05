@@ -1136,14 +1136,20 @@ struct Scratch_Block{
     Thread_Context *tctx;
     Arena *sharable_restore;
     
-    Scratch_Block(Temp_Memory temp);
-    Scratch_Block(Arena *arena);
     Scratch_Block(struct Thread_Context *tctx, Scratch_Share_Code share);
     Scratch_Block(struct Thread_Context *tctx);
     Scratch_Block(struct Application_Links *app, Scratch_Share_Code share);
     Scratch_Block(struct Application_Links *app);
     ~Scratch_Block();
     operator Arena*();
+    void restore(void);
+};
+
+struct Temp_Memory_Block{
+    Temp_Memory temp;
+    Temp_Memory_Block(Temp_Memory temp);
+    Temp_Memory_Block(Arena *arena);
+    ~Temp_Memory_Block();
     void restore(void);
 };
 

@@ -2632,15 +2632,6 @@ release_arena(Thread_Context *tctx, Arena *arena){
 ////////////////////////////////
 
 internal void
-scratch_block__init(Scratch_Block *block, Arena *arena){
-    block->arena = arena;
-    block->temp = begin_temp(arena);
-    block->do_full_clear = false;
-    block->tctx = 0;
-    block->sharable_restore = 0;
-}
-
-internal void
 scratch_block__init(Scratch_Block *block, Thread_Context *tctx, Scratch_Share_Code share){
     Arena *arena = tctx->sharable_scratch;
     if (arena != 0){
@@ -2662,14 +2653,6 @@ scratch_block__init(Scratch_Block *block, Thread_Context *tctx, Scratch_Share_Co
     else{
         tctx->sharable_scratch = 0;
     }
-}
-
-Scratch_Block::Scratch_Block(Temp_Memory t){
-    this->temp = t;
-}
-
-Scratch_Block::Scratch_Block(Arena *arena){
-    scratch_block__init(this, arena);
 }
 
 global_const Scratch_Share_Code share_code_default = Scratch_DontShare;
@@ -2699,13 +2682,31 @@ Scratch_Block::operator Arena*(){
     return(this->arena);
 }
 
-void Scratch_Block::restore(void){
+void
+Scratch_Block::restore(void){
     if (this->do_full_clear){
         linalloc_clear(this->arena);
     }
     else{
         end_temp(this->temp);
     }
+}
+
+Temp_Memory_Block::Temp_Memory_Block(Temp_Memory t){
+    this->temp = t;
+}
+
+Temp_Memory_Block::Temp_Memory_Block(Arena *arena){
+    this->temp = begin_temp(arena);
+}
+
+Temp_Memory_Block::~Temp_Memory_Block(){
+    end_temp(this->temp);
+}
+
+void
+Temp_Memory_Block::restore(void){
+    end_temp(this->temp);
 }
 
 ////////////////////////////////
