@@ -7,6 +7,13 @@
 #if !defined(FCODER_SCOPE_COMMANDS_H)
 #define FCODER_SCOPE_COMMANDS_H
 
+typedef i32 Nest_Delimiter_Kind;
+enum{
+    NestDelimiterKind_None = 0,
+    NestDelimiterKind_Open = 1,
+    NestDelimiterKind_Close = 2,
+};
+
 typedef u32 Find_Scope_Flag;
 enum{
     FindScope_Parent = 1,
@@ -14,13 +21,6 @@ enum{
     FindScope_EndOfToken = 4,
     FindScope_Scope = 8,
     FindScope_Paren = 16,
-};
-
-typedef i32 Find_Scope_Token_Type;
-enum{
-    FindScopeTokenType_None = 0,
-    FindScopeTokenType_Open = 1,
-    FindScopeTokenType_Close = 2,
 };
 
 #endif

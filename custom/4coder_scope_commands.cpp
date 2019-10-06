@@ -4,34 +4,36 @@
 
 // TOP
 
-static Find_Scope_Token_Type
-find_scope_get_token_type(Find_Scope_Flag flags, Token_Base_Kind kind){
-    Find_Scope_Token_Type type = FindScopeTokenType_None;
-    if (flags & FindScope_Scope){
-        switch (kind){
-            case TokenBaseKind_ScopeOpen:
-            {
-                type = FindScopeTokenType_Open;
-            }break;
-            case TokenBaseKind_ScopeClose:
-            {
-                type = FindScopeTokenType_Close;
-            }break;
-        }
+function Nest_Delimiter_Kind
+get_nest_delimiter_kind(Token_Base_Kind kind, Find_Scope_Flag flags){
+    Nest_Delimiter_Kind result = NestDelimiterKind_None;
+    switch (kind){
+        case TokenBaseKind_ScopeOpen:
+        {
+            if (HasFlag(flags, FindScope_Scope)){
+                result = NestDelimiterKind_Open;
+            }
+        }break;
+        case TokenBaseKind_ScopeClose:
+        {
+            if (HasFlag(flags, FindScope_Scope)){
+                result = NestDelimiterKind_Close;
+            }
+        }break;
+        case TokenBaseKind_ParentheticalOpen:
+        {
+            if (HasFlag(flags, FindScope_Paren)){
+                result = NestDelimiterKind_Open;
+            }
+        }break;
+        case TokenBaseKind_ParentheticalClose:
+        {
+            if (HasFlag(flags, FindScope_Paren)){
+                result = NestDelimiterKind_Close;
+            }
+        }break;
     }
-    else if (flags & FindScope_Paren){
-        switch (kind){
-            case TokenBaseKind_ParentheticalOpen:
-            {
-                type = FindScopeTokenType_Open;
-            }break;
-            case TokenBaseKind_ParentheticalClose:
-            {
-                type = FindScopeTokenType_Close;
-            }break;
-        }
-    }
-    return(type);
+    return(result);
 }
 
 static b32
@@ -49,9 +51,9 @@ find_scope_top(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flag
         i32 nest_level = 0;
         for (;good_status;){
             Token *token = token_it_read(&it);
-            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
-            switch (type){
-                case FindScopeTokenType_Open:
+            Nest_Delimiter_Kind delim = get_nest_delimiter_kind(token->kind, flags);
+            switch (delim){
+                case NestDelimiterKind_Open:
                 {
                     if (nest_level == 0){
                         success = true;
@@ -65,7 +67,7 @@ find_scope_top(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 flag
                         --nest_level;
                     }
                 }break;
-                case FindScopeTokenType_Close:
+                case NestDelimiterKind_Close:
                 {
                     ++nest_level;
                 }break;
@@ -94,13 +96,13 @@ find_scope_bottom(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 f
         i32 nest_level = 0;
         for (;good_status;){
             Token *token = token_it_read(&it);
-            Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
-            switch (type){
-                case FindScopeTokenType_Open:
+            Nest_Delimiter_Kind delim = get_nest_delimiter_kind(token->kind, flags);
+            switch (delim){
+                case NestDelimiterKind_Open:
                 {
                     ++nest_level;
                 }break;
-                case FindScopeTokenType_Close:
+                case NestDelimiterKind_Close:
                 {
                     if (nest_level == 0){
                         success = true;
@@ -137,9 +139,9 @@ find_next_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
             i32 nest_level = 1;
             for (;good_status;){
                 Token *token = token_it_read(&it);
-                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
-                switch (type){
-                    case FindScopeTokenType_Open:
+                Nest_Delimiter_Kind delim = get_nest_delimiter_kind(token->kind, flags);
+                switch (delim){
+                    case NestDelimiterKind_Open:
                     {
                         if (nest_level == 0){
                             success = true;
@@ -153,7 +155,7 @@ find_next_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
                             ++nest_level;
                         }
                     }break;
-                    case FindScopeTokenType_Close:
+                    case NestDelimiterKind_Close:
                     {
                         --nest_level;
                         if (nest_level == -1){
@@ -169,8 +171,8 @@ find_next_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
             b32 good_status = true;
             for (;good_status;){
                 Token *token = token_it_read(&it);
-                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
-                if (type == FindScopeTokenType_Open){
+                Nest_Delimiter_Kind delim = get_nest_delimiter_kind(token->kind, flags);
+                if (delim == NestDelimiterKind_Open){
                     success = true;
                     position = token->pos;
                     if (flags & FindScope_EndOfToken){
@@ -200,9 +202,9 @@ find_prev_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
             i32 nest_level = -1;
             for (;status_good;){
                 Token *token = token_it_read(&it);
-                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
-                switch (type){
-                    case FindScopeTokenType_Open:
+                Nest_Delimiter_Kind delim = get_nest_delimiter_kind(token->kind, flags);
+                switch (delim){
+                    case NestDelimiterKind_Open:
                     {
                         if (nest_level == -1){
                             position = start_pos;
@@ -220,7 +222,7 @@ find_prev_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
                             --nest_level;
                         }
                     }break;
-                    case FindScopeTokenType_Close:
+                    case NestDelimiterKind_Close:
                     {
                         ++nest_level;
                     }break;
@@ -232,8 +234,8 @@ find_prev_scope(Application_Links *app, Buffer_ID buffer, i64 start_pos, u32 fla
             b32 status_good = token_it_dec(&it);
             for (;status_good;){
                 Token *token = token_it_read(&it);
-                Find_Scope_Token_Type type = find_scope_get_token_type(flags, token->kind);
-                if (type == FindScopeTokenType_Open){
+                Nest_Delimiter_Kind delim = get_nest_delimiter_kind(token->kind, flags);
+                if (delim == NestDelimiterKind_Open){
                     success = true;
                     position = token->pos;
                     if (HasFlag(flags, FindScope_EndOfToken)){
