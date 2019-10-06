@@ -151,6 +151,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
         
         i64 line_last_indented = line - 1;
         i64 last_indent = 0;
+        i64 actual_indent = 0;
         
         for (;;){
             Token *token = token_it_read(&token_it);
@@ -203,7 +204,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         Nest *new_nest = indent__new_nest(arena, &nest_alloc);
                         sll_stack_push(nest, new_nest);
                         nest->kind = TokenBaseKind_ParentheticalOpen;
-                        nest->indent = line_indent_info.indent_pos + (token->pos - line_indent_info.first_char_pos) + 1;
+                        nest->indent = actual_indent + (token->pos - line_indent_info.first_char_pos) + 1;
                         following_indent = nest->indent;
                     }break;
                     
@@ -224,7 +225,8 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
             
 #define EMIT(N) \
             Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
-            if (line_it == lines.end){goto finished;} )
+                  if (line_it == lines.end){goto finished;} \
+                  actual_indent = N; )
             
             i64 line_it = line_last_indented;
             for (;line_it < line_where_token_starts;){
