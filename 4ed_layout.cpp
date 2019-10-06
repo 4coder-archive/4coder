@@ -51,7 +51,7 @@ layout__free_panel(Layout *layout, Panel *panel){
 }
 
 internal void
-layout__set_panel_rectangle(Layout *layout, Panel *panel, i32_Rect rect){
+layout__set_panel_rectangle(Layout *layout, Panel *panel, Rect_i32 rect){
     panel->rect_full = rect;
     panel->rect_inner = rect_inner(rect, layout->margin);
 }
@@ -86,8 +86,8 @@ layout_propogate_sizes_down_from_node(Layout *layout, Panel *panel){
         Panel *tl_panel = panel->tl_panel;
         Panel *br_panel = panel->br_panel;
         
-        i32_Rect r1 = panel->rect_full;
-        i32_Rect r2 = panel->rect_full;
+        Rect_i32 r1 = panel->rect_full;
+        Rect_i32 r2 = panel->rect_full;
         
         if (panel->vertical_split){
             i32 x_pos = layout__evaluate_split(panel->split, r1.x0, r1.x1);
@@ -299,7 +299,7 @@ internal void
 layout_set_margin(Layout *layout, i32 margin){
     if (layout->margin != margin){
         layout->margin = margin;
-        layout__set_panel_rectangle(layout, layout->root, i32R(0, 0, layout->full_dim.x, layout->full_dim.y));
+        layout__set_panel_rectangle(layout, layout->root, Ri32(0, 0, layout->full_dim.x, layout->full_dim.y));
         layout_propogate_sizes_down_from_node(layout, layout->root);
         layout->panel_state_dirty = true;
     }
@@ -309,7 +309,7 @@ internal void
 layout_set_root_size(Layout *layout, Vec2_i32 dim){
     if (layout->full_dim != dim){
         layout->full_dim = dim;
-        layout__set_panel_rectangle(layout, layout->root, i32R(0, 0, dim.x, dim.y));
+        layout__set_panel_rectangle(layout, layout->root, Ri32(0, 0, dim.x, dim.y));
         layout_propogate_sizes_down_from_node(layout, layout->root);
         layout->panel_state_dirty = true;
     }
@@ -423,7 +423,7 @@ layout__reverse_evaluate_panel_split(Panel *panel, i32 position){
 internal void
 layout__set_split_absolute_position_inner(Panel *panel){
     if (panel->kind == PanelKind_Intermediate){
-        i32_Rect r = panel->rect_full;
+        Rect_i32 r = panel->rect_full;
         i32 position = 0;
         if (panel->vertical_split){
             position = layout__evaluate_split(panel->split, r.x0, r.x1);

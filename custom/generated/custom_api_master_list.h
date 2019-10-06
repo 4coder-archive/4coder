@@ -165,13 +165,14 @@ api(custom) function f32 get_string_advance(Application_Links* app, Face_ID font
 api(custom) function void draw_rectangle(Application_Links* app, Rect_f32 rect, int_color color);
 api(custom) function void draw_rectangle_outline(Application_Links* app, Rect_f32 rect, int_color color);
 api(custom) function void draw_clip_push(Application_Links* app, Rect_f32 clip_box);
-api(custom) function f32_Rect draw_clip_pop(Application_Links* app);
+api(custom) function Rect_f32 draw_clip_pop(Application_Links* app);
 api(custom) function void draw_coordinate_center_push(Application_Links* app, Vec2 point);
 api(custom) function Vec2 draw_coordinate_center_pop(Application_Links* app);
 api(custom) function Text_Layout_ID text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
-api(custom) function b32 text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id, Buffer_ID* buffer_id_out);
+api(custom) function Rect_f32 text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id);
+api(custom) function Buffer_ID text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id);
 api(custom) function Interval_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
-api(custom) function Rect_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
+api(custom) function Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 api(custom) function Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 api(custom) function void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, int_color color);
 api(custom) function b32 text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id);

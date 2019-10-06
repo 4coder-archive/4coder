@@ -2325,7 +2325,7 @@ draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec
 }
 
 internal void
-draw_margin(Application_Links *app, f32_Rect outer, f32_Rect inner, int_color color){
+draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, int_color color){
     draw_rectangle(app, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), color);
     draw_rectangle(app, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), color);
     draw_rectangle(app, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), color);
@@ -2367,12 +2367,13 @@ draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos, int
 
 internal void
 draw_line_highlight(Application_Links *app, Text_Layout_ID layout, Range_i64 line_range, int_color color){
-    Rect_f32 rect = text_layout_line_on_screen(app, layout, line_range.min);
-    for (i64 i = line_range.min + 1; i <= line_range.max; i += 1){
-        Rect_f32 r = text_layout_line_on_screen(app, layout, i);
-        rect = rect_union(rect, r);
+    Range_f32 y1 = text_layout_line_on_screen(app, layout, line_range.min);
+    Range_f32 y2 = text_layout_line_on_screen(app, layout, line_range.max);
+    Range_f32 y = range_union(y1, y2);
+    if (range_size(y) > 0.f){
+        Rect_f32 region = text_layout_region(app, layout);
+        draw_rectangle(app, Rf32(rect_range_x(region), y), color);
     }
-    draw_rectangle(app, rect, color);
 }
 
 internal void
@@ -2387,20 +2388,20 @@ paint_text_color_pos(Application_Links *app, Text_Layout_ID layout, i64 pos, int
 
 ////////////////////////////////
 
-internal f32_Rect_Pair
-split_rect(f32_Rect rect, View_Split_Kind kind, Coordinate coord, Side from_side, f32 t){
-    f32_Rect_Pair result = {};
+internal Rect_f32_Pair
+split_rect(Rect_f32 rect, View_Split_Kind kind, Coordinate coord, Side from_side, f32 t){
+    Rect_f32_Pair result = {};
     if (kind == ViewSplitKind_FixedPixels){
-        result.E[0] = rect;
-        result.E[1] = rect;
+        result.e[0] = rect;
+        result.e[1] = rect;
         if (coord == Coordinate_X){
-            result.E[0].x1 = (from_side == Side_Max) ? (rect.x1 - t) : (rect.x0 + t);
-            result.E[1].x0 = result.E[0].x1;
+            result.e[0].x1 = (from_side == Side_Max) ? (rect.x1 - t) : (rect.x0 + t);
+            result.e[1].x0 = result.e[0].x1;
         }
         else{
             Assert(coord == Coordinate_Y);
-            result.E[0].y1 = (from_side == Side_Max) ? (rect.y1 - t) : (rect.y0 + t);
-            result.E[1].y0 = result.E[0].y1;
+            result.e[0].y1 = (from_side == Side_Max) ? (rect.y1 - t) : (rect.y0 + t);
+            result.e[1].y0 = result.e[0].y1;
         }
     }
     else{

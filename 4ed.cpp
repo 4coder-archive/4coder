@@ -1058,8 +1058,8 @@ App_Step_Sig(app_step){
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     if (input->mouse.p != models->prev_p){
-        b32 was_in_window = rect_contains_point(i32R(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
-        b32 is_in_window  = rect_contains_point(i32R(0, 0, current_dim.x, current_dim.y), input->mouse.p);
+        b32 was_in_window = rect_contains_point(Ri32(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
+        b32 is_in_window  = rect_contains_point(Ri32(0, 0, current_dim.x, current_dim.y), input->mouse.p);
         if (is_in_window || was_in_window){
             mouse_event.keycode = key_mouse_move;
             input->keys.keys[input->keys.count++] = mouse_event;

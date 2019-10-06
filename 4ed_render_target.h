@@ -41,11 +41,11 @@ struct Render_Group{
     Render_Vertex_List vertex_list;
     // parameters
     Face_ID face_id;
-    i32_Rect clip_box;
+    Rect_i32 clip_box;
 };
 
 struct Render_Target{
-    i32_Rect clip_boxes[5];
+    Rect_i32 clip_boxes[5];
     i32 clip_top;
     b8 clip_all;
     i32 width;

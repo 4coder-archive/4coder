@@ -25,7 +25,7 @@ internal void
 string_match_list_push(Arena *arena, String_Match_List *list,
                        Buffer_ID buffer, i32 string_id, String_Match_Flag flags, i64 start, i64 length){
     string_match_list_push(arena, list, buffer, string_id, flags,
-                           make_range_i64(start, start + length));
+                           Ii64(start, start + length));
 }
 
 internal String_Match_List
@@ -138,7 +138,7 @@ string_match_list_merge_nearest(String_Match_List *a, String_Match_List *b, Rang
 
 internal String_Match_List
 string_match_list_merge_front_to_back(String_Match_List *a, String_Match_List *b){
-    return(string_match_list_merge_nearest(a, b, make_range_i64(0)));
+    return(string_match_list_merge_nearest(a, b, Ii64(0)));
 }
 
 // BOTTOM

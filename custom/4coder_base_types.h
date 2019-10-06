@@ -756,14 +756,9 @@ typedef Vec2_f32 Vec2;
 typedef Vec3_f32 Vec3;
 typedef Vec4_f32 Vec4;
 
-typedef Rect_f32 f32_Rect;
-typedef Rect_i32 i32_Rect;
-
-struct f32_Rect_Pair{
-    f32_Rect E[2];
+struct Rect_f32_Pair{
+    Rect_f32 e[2];
 };
-
-typedef f32_Rect_Pair Rect_f32_Pair;
 
 ////////////////////////////////
 

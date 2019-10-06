@@ -272,7 +272,7 @@ buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
     if (api_check_buffer(file)){
         if (needle.size == 0){
             result.flags = StringMatch_CaseSensitive;
-            result.range = make_range_i64(start_pos);
+            result.range = Ii64(start_pos);
         }
         else{
             Scratch_Block scratch(app);
@@ -283,12 +283,12 @@ buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
             if (direction == Scan_Forward){
                 i64 adjusted_pos = start_pos + 1;
                 start_pos = clamp_top(adjusted_pos, size);
-                range = make_range_i64(adjusted_pos, size);
+                range = Ii64(adjusted_pos, size);
             }
             else{
                 i64 adjusted_pos = start_pos - 1 + needle.size;
                 start_pos = clamp_bot(0, adjusted_pos);
-                range = make_range_i64(0, adjusted_pos);
+                range = Ii64(0, adjusted_pos);
             }
             buffer_chunks_clamp(&chunks, range);
             if (chunks.first != 0){
@@ -348,13 +348,13 @@ buffer_seek_character_class(Application_Links *app, Buffer_ID buffer, Character_
                     break;
                 }
                 else if (past_end == 1){
-                    result.range = make_range_i64(size);
+                    result.range = Ii64(size);
                     break;
                 }
                 u8 v = chunks.vals[pos.chunk_index].str[pos.chunk_pos];
                 if (character_predicate_check_character(*predicate, v)){
                     result.buffer = buffer;
-                    result.range = make_range_i64(pos.real_pos, pos.real_pos + 1);
+                    result.range = Ii64(pos.real_pos, pos.real_pos + 1);
                     break;
                 }
             }
@@ -1156,7 +1156,7 @@ view_get_screen_rect(Application_Links *app, View_ID view_id){
     Rect_f32 result = {};
     View *view = imp_get_view(models, view_id);
     if (api_check_view(view)){
-        result = f32R(view->panel->rect_full);
+        result = Rf32(view->panel->rect_full);
     }
     return(result);
 }
@@ -2713,8 +2713,8 @@ draw_helper__models_space_to_screen_space(Models *models, Vec2 point){
     return(point + c);
 }
 
-function f32_Rect
-draw_helper__models_space_to_screen_space(Models *models, f32_Rect rect){
+function Rect_f32
+draw_helper__models_space_to_screen_space(Models *models, Rect_f32 rect){
     Vec2 c = models_get_coordinate_center(models);
     rect.p0 += c;
     rect.p1 += c;
@@ -2779,7 +2779,7 @@ draw_clip_push(Application_Links *app, Rect_f32 clip_box){
     draw_push_clip(models->target, Ri32(clip_box));
 }
 
-api(custom) function f32_Rect
+api(custom) function Rect_f32
 draw_clip_pop(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
     return(Rf32(draw_pop_clip(models->target)));
@@ -2848,14 +2848,24 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
     return(result);
 }
 
-api(custom) function b32
-text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID *buffer_id_out){
+api(custom) function Rect_f32
+text_layout_region(Application_Links *app, Text_Layout_ID text_layout_id){
     Models *models = (Models*)app->cmd_context;
-    b32 result = false;
+    Rect_f32 result = {};
     Text_Layout *layout = text_layout_get(&models->text_layouts, text_layout_id);
     if (layout != 0){
-        *buffer_id_out = layout->buffer_id;
-        result = true;
+        result = layout->rect;
+    }
+    return(result);
+}
+
+api(custom) function Buffer_ID
+text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id){
+    Models *models = (Models*)app->cmd_context;
+    Buffer_ID result = 0;
+    Text_Layout *layout = text_layout_get(&models->text_layouts, text_layout_id);
+    if (layout != 0){
+        result = layout->buffer_id;
     }
     return(result);
 }
@@ -2871,40 +2881,42 @@ text_layout_get_visible_range(Application_Links *app, Text_Layout_ID text_layout
     return(result);
 }
 
-api(custom) function Rect_f32
+api(custom) function Range_f32
 text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64 line_number){
     Models *models = (Models*)app->cmd_context;
-    Rect_f32 result = {};
+    Range_f32 result = {};
     Text_Layout *layout = text_layout_get(&models->text_layouts, layout_id);
-    if (layout != 0 && range_contains_inclusive(layout->visible_line_number_range, line_number)){
+    if (layout == 0){
+        return(result);
+    }
+    Rect_f32 rect = layout->rect;
+    if (range_contains_inclusive(layout->visible_line_number_range, line_number)){
         Editing_File *file = imp_get_file(models, layout->buffer_id);
         if (api_check_buffer(file)){
-            Rect_f32 rect = layout->rect;
             f32 width = rect_width(rect);
             Face *face = file_get_face(models, file);
             
-            f32 top = 0.f;
-            f32 bot = 0.f;
             for (i64 line_number_it = layout->visible_line_number_range.first;;
                  line_number_it += 1){
                 Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number_it);
-                bot += line.height;
+                result.max += line.height;
                 if (line_number_it == line_number){
                     break;
                 }
-                top = bot;
+                result.min = result.max;
             }
             
-            top -= layout->point.pixel_shift.y;
-            bot -= layout->point.pixel_shift.y;
-            
-            result = Rf32(rect.x0, rect.y0 + top, rect.x1, rect.y0 + bot);
-            result = rect_intersect(rect, result);
-            
+            result -= layout->point.pixel_shift.y;
+            result = range_intersect(result, rect_range_y(rect));
             Vec2_f32 coordinate_center = models_get_coordinate_center(models);
-            result.p0 -= coordinate_center;
-            result.p1 -= coordinate_center;
+            result -= coordinate_center.y;
         }
+    }
+    else if (line_number < layout->visible_line_number_range.min){
+        result = If32(rect.y0, rect.y0);
+    }
+    else if (line_number > layout->visible_line_number_range.max){
+        result = If32(rect.y1, rect.y1);
     }
     return(result);
 }

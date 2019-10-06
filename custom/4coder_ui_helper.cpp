@@ -83,34 +83,10 @@ ui_list_add_item(Arena *arena, UI_List *list, UI_Item item){
     return(node);
 }
 
-static i32_Rect
-ui__rect_union(i32_Rect a, i32_Rect b){
-    if (b.x1 > b.x0 && b.y1 > b.y0){
-        if (a.x0 > b.x0){
-            a.x0 = b.x0;
-        }
-        if (a.x1 < b.x1){
-            a.x1 = b.x1;
-        }
-        if (a.y0 > b.y0){
-            a.y0 = b.y0;
-        }
-        if (a.y1 < b.y1){
-            a.y1 = b.y1;
-        }
-    }
-    return(a);
-}
-
 static void
 ui_data_compute_bounding_boxes(UI_Data *ui_data){
-    i32_Rect neg_inf_rect = {};
-    neg_inf_rect.x0 = INT32_MAX;
-    neg_inf_rect.y0 = INT32_MAX;
-    neg_inf_rect.x1 = INT32_MIN;
-    neg_inf_rect.y1 = INT32_MIN;
     for (u32 i = 0; i < UICoordinates_COUNT; ++i){
-        ui_data->bounding_box[i] = neg_inf_rect;
+        ui_data->bounding_box[i] = Ri32_negative_infinity;
     }
     for (UI_Item *item = ui_data->list.first;
          item != 0;
@@ -119,7 +95,7 @@ ui_data_compute_bounding_boxes(UI_Data *ui_data){
             item->coordinates = UICoordinates_ViewSpace;
         }
         Rect_i32 *box = &ui_data->bounding_box[item->coordinates];
-        *box = ui__rect_union(*box, item->rect_outer);
+        *box = rect_union(*box, item->rect_outer);
     }
 }
 
@@ -448,7 +424,7 @@ lister_update_ui(Application_Links *app, View_ID view, Lister_State *state){
         
         {
             // TODO(allen): switch to float
-            i32_Rect item_rect = {};
+            Rect_i32 item_rect = {};
             item_rect.x0 = (i32)x0;
             item_rect.y0 = 0;
             item_rect.x1 = (i32)x1;

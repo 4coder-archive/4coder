@@ -1858,26 +1858,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         POINT mouse_point;
         if (GetCursorPos(&mouse_point) &&
             ScreenToClient(win32vars.window_handle, &mouse_point)){
-            
-            i32_Rect screen;
-            screen.x0 = 0;
-            screen.y0 = 0;
-            screen.x1 = target.width;
-            screen.y1 = target.height;
-            
-            i32 mx = mouse_point.x;
-            i32 my = mouse_point.y;
-            
-            b32 is_hit = false;
-            if (mx >= screen.x0 && mx < screen.x1 && my >= screen.y0 && my < screen.y1){
-                is_hit = true;
-            }
-            
-            if (!is_hit){
-                win32vars.input_chunk.trans.out_of_window = true;
-            }
-            
-            win32vars.input_chunk.pers.mouse = V2i32(mouse_point.x, mouse_point.y);
+            Rect_i32 screen = Ri32(0, 0, target.width, target.height);
+            Vec2_i32 mp = V2i32(mouse_point.x, mouse_point.y);
+            win32vars.input_chunk.trans.out_of_window = (!rect_contains_point(screen, mp));
+            win32vars.input_chunk.pers.mouse = mp;
         }
         else{
             win32vars.input_chunk.trans.out_of_window = true;

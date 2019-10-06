@@ -165,13 +165,14 @@
 #define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, int_color color)
 #define custom_draw_rectangle_outline_sig() void custom_draw_rectangle_outline(Application_Links* app, Rect_f32 rect, int_color color)
 #define custom_draw_clip_push_sig() void custom_draw_clip_push(Application_Links* app, Rect_f32 clip_box)
-#define custom_draw_clip_pop_sig() f32_Rect custom_draw_clip_pop(Application_Links* app)
+#define custom_draw_clip_pop_sig() Rect_f32 custom_draw_clip_pop(Application_Links* app)
 #define custom_draw_coordinate_center_push_sig() void custom_draw_coordinate_center_push(Application_Links* app, Vec2 point)
 #define custom_draw_coordinate_center_pop_sig() Vec2 custom_draw_coordinate_center_pop(Application_Links* app)
 #define custom_text_layout_create_sig() Text_Layout_ID custom_text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point)
-#define custom_text_layout_get_buffer_sig() b32 custom_text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id, Buffer_ID* buffer_id_out)
+#define custom_text_layout_region_sig() Rect_f32 custom_text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id)
+#define custom_text_layout_get_buffer_sig() Buffer_ID custom_text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_text_layout_get_visible_range_sig() Interval_i64 custom_text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id)
-#define custom_text_layout_line_on_screen_sig() Rect_f32 custom_text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number)
+#define custom_text_layout_line_on_screen_sig() Range_f32 custom_text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number)
 #define custom_text_layout_character_on_screen_sig() Rect_f32 custom_text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos)
 #define custom_paint_text_color_sig() void custom_paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, int_color color)
 #define custom_text_layout_free_sig() b32 custom_text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id)
@@ -346,13 +347,14 @@ typedef f32 custom_get_string_advance_type(Application_Links* app, Face_ID font_
 typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, int_color color);
 typedef void custom_draw_rectangle_outline_type(Application_Links* app, Rect_f32 rect, int_color color);
 typedef void custom_draw_clip_push_type(Application_Links* app, Rect_f32 clip_box);
-typedef f32_Rect custom_draw_clip_pop_type(Application_Links* app);
+typedef Rect_f32 custom_draw_clip_pop_type(Application_Links* app);
 typedef void custom_draw_coordinate_center_push_type(Application_Links* app, Vec2 point);
 typedef Vec2 custom_draw_coordinate_center_pop_type(Application_Links* app);
 typedef Text_Layout_ID custom_text_layout_create_type(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
-typedef b32 custom_text_layout_get_buffer_type(Application_Links* app, Text_Layout_ID text_layout_id, Buffer_ID* buffer_id_out);
+typedef Rect_f32 custom_text_layout_region_type(Application_Links* app, Text_Layout_ID text_layout_id);
+typedef Buffer_ID custom_text_layout_get_buffer_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef Interval_i64 custom_text_layout_get_visible_range_type(Application_Links* app, Text_Layout_ID text_layout_id);
-typedef Rect_f32 custom_text_layout_line_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
+typedef Range_f32 custom_text_layout_line_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 typedef Rect_f32 custom_text_layout_character_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 typedef void custom_paint_text_color_type(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, int_color color);
 typedef b32 custom_text_layout_free_type(Application_Links* app, Text_Layout_ID text_layout_id);
@@ -532,6 +534,7 @@ custom_draw_clip_pop_type *draw_clip_pop;
 custom_draw_coordinate_center_push_type *draw_coordinate_center_push;
 custom_draw_coordinate_center_pop_type *draw_coordinate_center_pop;
 custom_text_layout_create_type *text_layout_create;
+custom_text_layout_region_type *text_layout_region;
 custom_text_layout_get_buffer_type *text_layout_get_buffer;
 custom_text_layout_get_visible_range_type *text_layout_get_visible_range;
 custom_text_layout_line_on_screen_type *text_layout_line_on_screen;
@@ -711,13 +714,14 @@ internal f32 get_string_advance(Application_Links* app, Face_ID font_id, String_
 internal void draw_rectangle(Application_Links* app, Rect_f32 rect, int_color color);
 internal void draw_rectangle_outline(Application_Links* app, Rect_f32 rect, int_color color);
 internal void draw_clip_push(Application_Links* app, Rect_f32 clip_box);
-internal f32_Rect draw_clip_pop(Application_Links* app);
+internal Rect_f32 draw_clip_pop(Application_Links* app);
 internal void draw_coordinate_center_push(Application_Links* app, Vec2 point);
 internal Vec2 draw_coordinate_center_pop(Application_Links* app);
 internal Text_Layout_ID text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
-internal b32 text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id, Buffer_ID* buffer_id_out);
+internal Rect_f32 text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id);
+internal Buffer_ID text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id);
 internal Interval_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
-internal Rect_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
+internal Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 internal Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 internal void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, int_color color);
 internal b32 text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id);
@@ -898,6 +902,7 @@ global custom_draw_clip_pop_type *draw_clip_pop = 0;
 global custom_draw_coordinate_center_push_type *draw_coordinate_center_push = 0;
 global custom_draw_coordinate_center_pop_type *draw_coordinate_center_pop = 0;
 global custom_text_layout_create_type *text_layout_create = 0;
+global custom_text_layout_region_type *text_layout_region = 0;
 global custom_text_layout_get_buffer_type *text_layout_get_buffer = 0;
 global custom_text_layout_get_visible_range_type *text_layout_get_visible_range = 0;
 global custom_text_layout_line_on_screen_type *text_layout_line_on_screen = 0;

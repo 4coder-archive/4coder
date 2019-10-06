@@ -118,9 +118,9 @@ draw_push_clip(Render_Target *target, Rect_i32 clip_box){
 internal Rect_i32
 draw_pop_clip(Render_Target *target){
     Assert(target->clip_top > 0);
-    i32_Rect result = target->clip_boxes[target->clip_top];
+    Rect_i32 result = target->clip_boxes[target->clip_top];
     --target->clip_top;
-    i32_Rect clip_box = target->clip_boxes[target->clip_top];
+    Rect_i32 clip_box = target->clip_boxes[target->clip_top];
     draw__set_clip_box(target, clip_box);
     return(result);
 }
@@ -145,14 +145,8 @@ begin_frame(Render_Target *target, void *font_set){
 internal void
 begin_render_section(Render_Target *target, i32 frame_index, f32 literal_dt, f32 animation_dt){
     target->clip_top = -1;
-    
-    i32_Rect clip;
-    clip.x0 = 0;
-    clip.y0 = 0;
-    clip.x1 = target->width;
-    clip.y1 = target->height;
+    Rect_i32 clip = Ri32(0, 0, target->width, target->height);
     draw_push_clip(target, clip);
-    
     target->frame_index = frame_index;
     target->literal_dt = literal_dt;
     target->animation_dt = animation_dt;
@@ -196,7 +190,7 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
     
     Render_Vertex vertices[6] = {};
     if (!HasFlag(flags, GlyphFlag_Rotate90)){
-        f32_Rect xy = Rf32(x + bounds.xy_off.x0, y + bounds.xy_off.y0,
+        Rect_f32 xy = Rf32(x + bounds.xy_off.x0, y + bounds.xy_off.y0,
                            x + bounds.xy_off.x1, y + bounds.xy_off.y1);
         
         vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x0, uv.y1, bounds.w);
@@ -205,7 +199,7 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
         vertices[5].xy = V2(xy.x1, xy.y0); vertices[5].uvw = V3(uv.x1, uv.y0, bounds.w);
     }
     else{
-        f32_Rect xy = Rf32(x - bounds.xy_off.y1, y + bounds.xy_off.x0,
+        Rect_f32 xy = Rf32(x - bounds.xy_off.y1, y + bounds.xy_off.x0,
                            x - bounds.xy_off.y0, y + bounds.xy_off.x1);
         
         vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x1, uv.y1, bounds.w);
@@ -228,7 +222,7 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
 ////////////////////////////////
 
 internal void
-draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
+draw_rectangle_outline(Render_Target *target, Rect_f32 rect, u32 color){
     draw_rectangle(target, Rf32(rect.x0, rect.y0, rect.x1, rect.y0 + 1), color);
     draw_rectangle(target, Rf32(rect.x1 - 1, rect.y0, rect.x1, rect.y1), color);
     draw_rectangle(target, Rf32(rect.x0, rect.y1 - 1, rect.x1, rect.y1), color);
@@ -238,40 +232,40 @@ draw_rectangle_outline(Render_Target *target, f32_Rect rect, u32 color){
 ////////////////////////////////
 
 internal void
-draw_rectangle(Render_Target *target, i32_Rect rect, u32 color){
-    draw_rectangle(target, f32R(rect), color);
+draw_rectangle(Render_Target *target, Rect_i32 rect, u32 color){
+    draw_rectangle(target, Rf32(rect), color);
 }
 
 internal void
-draw_rectangle_outline(Render_Target *target, i32_Rect rect, u32 color){
-    draw_rectangle_outline(target, f32R(rect), color);
+draw_rectangle_outline(Render_Target *target, Rect_i32 rect, u32 color){
+    draw_rectangle_outline(target, Rf32(rect), color);
 }
 
 internal void
-draw_margin(Render_Target *target, f32_Rect outer, f32_Rect inner, u32 color){
-    draw_rectangle(target, f32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
-    draw_rectangle(target, f32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    draw_rectangle(target, f32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
-    draw_rectangle(target, f32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+draw_margin(Render_Target *target, Rect_f32 outer, Rect_f32 inner, u32 color){
+    draw_rectangle(target, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), color);
+    draw_rectangle(target, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    draw_rectangle(target, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), color);
+    draw_rectangle(target, Rf32(inner.x1, inner.y0, outer.x1, inner.y1), color);
 }
 
 internal void
-draw_margin(Render_Target *target, f32_Rect outer, f32 width, u32 color){
-    f32_Rect inner = rect_inner(outer, width);
+draw_margin(Render_Target *target, Rect_f32 outer, f32 width, u32 color){
+    Rect_f32 inner = rect_inner(outer, width);
     draw_margin(target, outer, inner, color);
 }
 
 internal void
-draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
-    draw_rectangle(target, i32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
-    draw_rectangle(target, i32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    draw_rectangle(target, i32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
-    draw_rectangle(target, i32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
+draw_margin(Render_Target *target, Rect_i32 outer, Rect_i32 inner, u32 color){
+    draw_rectangle(target, Ri32(outer.x0, outer.y0, outer.x1, inner.y0), color);
+    draw_rectangle(target, Ri32(outer.x0, inner.y1, outer.x1, outer.y1), color);
+    draw_rectangle(target, Ri32(outer.x0, inner.y0, inner.x0, inner.y1), color);
+    draw_rectangle(target, Ri32(inner.x1, inner.y0, outer.x1, inner.y1), color);
 }
 
 internal void
-draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
-    i32_Rect inner = rect_inner(outer, width);
+draw_margin(Render_Target *target, Rect_i32 outer, i32 width, u32 color){
+    Rect_i32 inner = rect_inner(outer, width);
     draw_margin(target, outer, inner, color);
 }
 

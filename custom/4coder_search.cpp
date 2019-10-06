@@ -235,7 +235,7 @@ get_word_complete_needle_range(Application_Links *app, Buffer_ID buffer, i64 pos
     needle_range.min = scan(app, boundary_alpha_numeric_underscore_utf8, buffer, Scan_Backward, pos);
     i64 e = scan(app, boundary_alpha_numeric_underscore_utf8, buffer, Scan_Forward, needle_range.min);
     if (needle_range.max > e){
-        needle_range = make_range_i64(pos);
+        needle_range = Ii64(pos);
     }
     return(needle_range);
 }
@@ -306,10 +306,10 @@ get_word_complete_match_list__unreduced(Application_Links *app, Arena *arena, Bu
     
     i64 size = buffer_get_size(app, buffer);
     String_Match_List up = buffer_find_all_matches(app, arena, buffer, 0,
-                                                   make_range_i64(0, needle_range.min),
+                                                   Ii64(0, needle_range.min),
                                                    needle, pred, Scan_Backward);
     String_Match_List down = buffer_find_all_matches(app, arena, buffer, 0,
-                                                     make_range_i64(needle_range.max, size),
+                                                     Ii64(needle_range.max, size),
                                                      needle, pred, Scan_Forward);
     
     string_match_list_filter_flags(&up, word_complete_must, word_complete_must_not);

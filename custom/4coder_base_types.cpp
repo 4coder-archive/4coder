@@ -1758,11 +1758,81 @@ operator==(Interval_f32 a, Interval_f32 b){
     return(a.min == b.min && a.max == b.max);
 }
 
-#define make_range     Ii32
-#define make_range_i32 Ii32
-#define make_range_i64 Ii64
-#define make_range_u64 Iu64
-#define make_range_f32 If32
+function Interval_i32
+operator+(Interval_i32 r, i32 s){
+    return(Ii32(r.min + s, r.max + s));
+}
+function Interval_i64
+operator+(Interval_i64 r, i64 s){
+    return(Ii64(r.min + s, r.max + s));
+}
+function Interval_u64
+operator+(Interval_u64 r, u64 s){
+    return(Iu64(r.min + s, r.max + s));
+}
+function Interval_f32
+operator+(Interval_f32 r, f32 s){
+    return(If32(r.min + s, r.max + s));
+}
+
+function Interval_i32
+operator-(Interval_i32 r, i32 s){
+    return(Ii32(r.min - s, r.max - s));
+}
+function Interval_i64
+operator-(Interval_i64 r, i64 s){
+    return(Ii64(r.min - s, r.max - s));
+}
+function Interval_u64
+operator-(Interval_u64 r, u64 s){
+    return(Iu64(r.min - s, r.max - s));
+}
+function Interval_f32
+operator-(Interval_f32 r, f32 s){
+    return(If32(r.min - s, r.max - s));
+}
+
+function Interval_i32&
+operator+=(Interval_i32 &r, i32 s){
+    r = r + s;
+    return(r);
+}
+function Interval_i64&
+operator+=(Interval_i64 &r, i64 s){
+    r = r + s;
+    return(r);
+}
+function Interval_u64&
+operator+=(Interval_u64 &r, u64 s){
+    r = r + s;
+    return(r);
+}
+function Interval_f32&
+operator+=(Interval_f32 &r, f32 s){
+    r = r + s;
+    return(r);
+}
+
+function Interval_i32&
+operator-=(Interval_i32 &r, i32 s){
+    r = r - s;
+    return(r);
+}
+function Interval_i64&
+operator-=(Interval_i64 &r, i64 s){
+    r = r - s;
+    return(r);
+}
+function Interval_u64&
+operator-=(Interval_u64 &r, u64 s){
+    r = r - s;
+    return(r);
+}
+function Interval_f32&
+operator-=(Interval_f32 &r, f32 s){
+    r = r - s;
+    return(r);
+}
 
 internal Interval_i32
 range_margin(Interval_i32 range, i32 margin){
@@ -1804,6 +1874,56 @@ range_overlap(Interval_u64 a, Interval_u64 b){
 internal b32
 range_overlap(Interval_f32 a, Interval_f32 b){
     return(a.min < b.max && b.min < a.max);
+}
+
+internal Interval_i32
+range_intersect(Interval_i32 a, Interval_i32 b){
+    Interval_i32 result = {};
+    if (range_overlap(a, b)){
+        result = Ii32(max(a.min, b.min), min(a.max, b.max));
+    }
+    return(result);
+}
+internal Interval_i64
+range_intersect(Interval_i64 a, Interval_i64 b){
+    Interval_i64 result = {};
+    if (range_overlap(a, b)){
+        result = Ii64(max(a.min, b.min), min(a.max, b.max));
+    }
+    return(result);
+}
+internal Interval_u64
+range_intersect(Interval_u64 a, Interval_u64 b){
+    Interval_u64 result = {};
+    if (range_overlap(a, b)){
+        result = Iu64(max(a.min, b.min), min(a.max, b.max));
+    }
+    return(result);
+}
+internal Interval_f32
+range_intersect(Interval_f32 a, Interval_f32 b){
+    Interval_f32 result = {};
+    if (range_overlap(a, b)){
+        result = If32(max(a.min, b.min), min(a.max, b.max));
+    }
+    return(result);
+}
+
+internal Interval_i32
+range_union(Interval_i32 a, Interval_i32 b){
+    return(Ii32(min(a.min, b.min), max(a.max, b.max)));
+}
+internal Interval_i64
+range_union(Interval_i64 a, Interval_i64 b){
+    return(Ii64(min(a.min, b.min), max(a.max, b.max)));
+}
+internal Interval_u64
+range_union(Interval_u64 a, Interval_u64 b){
+    return(Iu64(min(a.min, b.min), max(a.max, b.max)));
+}
+internal Interval_f32
+range_union(Interval_f32 a, Interval_f32 b){
+    return(If32(min(a.min, b.min), max(a.max, b.max)));
 }
 
 internal b32
@@ -2093,9 +2213,6 @@ Rf32(Rect_i32 o){
     return(rect);
 }
 
-#define i32R Ri32
-#define f32R Rf32
-
 internal Rect_i32
 Ri32_xy_wh(i32 x0, i32 y0, i32 w, i32 h){
     Rect_i32 rect = {x0, y0, x0 + w, y0 + h};
@@ -2118,11 +2235,20 @@ Rf32_xy_wh(Vec2_f32 p0, Vec2_f32 d){
     return(rect);
 }
 
-#define i32R_xy_wh
-#define f32R_xy_wh
+function Rect_i32
+Ri32(Interval_i32 x, Interval_i32 y){
+    return(Ri32(x.min, y.min, x.max, y.max));
+}
+function Rect_f32
+Rf32(Interval_f32 x, Interval_f32 y){
+    return(Rf32(x.min, y.min, x.max, y.max));
+}
 
 global_const Rect_f32 Rf32_infinity          = {-max_f32, -max_f32,  max_f32,  max_f32};
 global_const Rect_f32 Rf32_negative_infinity = { max_f32,  max_f32, -max_f32, -max_f32};
+
+global_const Rect_i32 Ri32_infinity          = {-max_i32, -max_i32,  max_i32,  max_i32};
+global_const Rect_i32 Ri32_negative_infinity = { max_i32,  max_i32, -max_i32, -max_i32};
 
 internal b32
 rect_equals(Rect_i32 a, Rect_i32 b){

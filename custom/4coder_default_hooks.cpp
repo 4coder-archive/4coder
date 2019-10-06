@@ -101,7 +101,6 @@ internal void
 draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer,
                 i64 pos, u32 flags, Range_Highlight_Kind kind,
                 int_color *back_colors, int_color *fore_colors, i32 color_count){
-#if 0
     Scratch_Block scratch(app);
     Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
@@ -148,14 +147,13 @@ draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID
                 draw_character_block(app, text_layout_id, range.max - 1, back_colors[color_index]);
             }
             if (fore_colors != 0){
-                paint_text_color(app, text_layout_id, range.min, fore_colors[color_index]);
-                paint_text_color(app, text_layout_id, range.max - 1, fore_colors[color_index]);
+                paint_text_color_pos(app, text_layout_id, range.min, fore_colors[color_index]);
+                paint_text_color_pos(app, text_layout_id, range.max - 1, fore_colors[color_index]);
             }
         }
         color_index += 1;
         color_index = (color_index%color_count);
     }
-#endif
 }
 
 static argb_color default_colors[Stag_COUNT] = {};
@@ -674,8 +672,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(visible_range.first));
         for (;cursor.pos <= visible_range.one_past_last;){
-            Rect_f32 line_rect = text_layout_line_on_screen(app, text_layout_id, cursor.line);
-            Vec2_f32 p = V2f32(left_margin.x1, line_rect.y0);
+            Range_f32 line_y = text_layout_line_on_screen(app, text_layout_id, cursor.line);
+            Vec2_f32 p = V2f32(left_margin.x1, line_y.min);
             Temp_Memory temp = begin_temp(scratch);
             Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, cursor.line);
             draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
@@ -701,7 +699,7 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
         for (UI_Item *item = ui_data->list.first;
              item != 0;
              item = item->next){
-            Rect_f32 item_rect = f32R(item->rect_outer);
+            Rect_f32 item_rect = Rf32(item->rect_outer);
             
             switch (item->coordinates){
                 case UICoordinates_ViewSpace:
