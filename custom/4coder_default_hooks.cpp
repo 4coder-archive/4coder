@@ -76,7 +76,7 @@ get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64
     array.ranges = push_array(arena, Range_i64, max);
     for (;;){
         Range_i64 range = {};
-        if (find_scope_range(app, buffer, pos, &range, flags)){
+        if (find_surrounding_nest(app, buffer, pos, flags, &range)){
             array.ranges[array.count] = range;
             array.count += 1;
             pos = range.first;
@@ -390,7 +390,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             colors[i] = Stag_Back_Cycle_1 + i;
         }
         draw_enclosures(app, text_layout_id, buffer,
-                        cursor_pos, FindScope_Scope, RangeHighlightKind_LineHighlight,
+                        cursor_pos, FindNest_Scope, RangeHighlightKind_LineHighlight,
                         colors, 0, color_count);
     }
     
@@ -435,7 +435,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             colors[i] = Stag_Text_Cycle_1 + i;
         }
         draw_enclosures(app, text_layout_id, buffer,
-                        cursor_pos, FindScope_Paren, RangeHighlightKind_CharacterHighlight,
+                        cursor_pos, FindNest_Paren, RangeHighlightKind_CharacterHighlight,
                         0, colors, color_count);
     }
     

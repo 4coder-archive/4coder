@@ -1694,6 +1694,63 @@ buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identif
 
 ////////////////////////////////
 
+function void
+place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end){
+    View_ID view = get_active_view(app, AccessOpen);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    
+    Range_i64 range = get_view_range(app, view);
+    Range_i64 lines = get_line_range_from_pos_range(app, buffer, range);
+    range = get_pos_range_from_line_range(app, buffer, lines);
+    
+    Scratch_Block scratch(app);
+    
+    b32 min_line_blank = line_is_valid_and_blank(app, buffer, lines.min);
+    b32 max_line_blank = line_is_valid_and_blank(app, buffer, lines.max);
+    
+    if ((lines.min < lines.max) || (!min_line_blank)){
+        String_Const_u8 begin_str = {};
+        String_Const_u8 end_str = {};
+        
+        i64 min_adjustment = 0;
+        i64 max_adjustment = 0;
+        
+        if (min_line_blank){
+            begin_str = push_u8_stringf(scratch, "\n%s", begin);
+            min_adjustment += 1;
+        }
+        else{
+            begin_str = push_u8_stringf(scratch, "%s\n", begin);
+        }
+        if (max_line_blank){
+            end_str = push_u8_stringf(scratch, "%s\n", end);
+        }
+        else{
+            end_str = push_u8_stringf(scratch, "\n%s", end);
+            max_adjustment += 1;
+        }
+        
+        max_adjustment += begin_str.size;
+        Range_i64 new_pos = Ii64(range.min + min_adjustment, range.max + max_adjustment);
+        
+        History_Group group = history_group_begin(app, buffer);
+        buffer_replace_range(app, buffer, Ii64(range.min), begin_str);
+        buffer_replace_range(app, buffer, Ii64(range.max + begin_str.size), end_str);
+        history_group_end(group);
+        
+        set_view_range(app, view, new_pos);
+    }
+    else{
+        String_Const_u8 str = push_u8_stringf(scratch, "%s\n\n%s", begin, end);
+        buffer_replace_range(app, buffer, range, str);
+        i64 center_pos = range.min + cstring_length(begin) + 1;
+        view_set_cursor_and_preferred_x(app, view, seek_pos(center_pos));
+        view_set_mark(app, view, seek_pos(center_pos));
+    }
+}
+
+////////////////////////////////
+
 internal View_ID
 open_view(Application_Links *app, View_ID view_location, View_Split_Position position){
     View_ID result = 0;
@@ -1796,6 +1853,59 @@ view_set_highlight_range(Application_Links *app, View_ID view, Range_i64 range){
     managed_object_store_data(app, *highlight, 0, 2, markers);
     Buffer_ID *highlight_buffer = scope_attachment(app, scope, view_highlight_buffer, Buffer_ID);
     *highlight_buffer = buffer;
+}
+
+function void
+view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 minor_pos){
+    Range_i64 range = Ii64(major_pos, minor_pos);
+    b32 bottom_major = false;
+    if (major_pos == range.max){
+        bottom_major = true;
+    }
+    
+    Buffer_Cursor top = view_compute_cursor(app, view, seek_pos(range.min));
+    if (top.line > 0){
+        Buffer_Cursor bottom = view_compute_cursor(app, view, seek_pos(range.max));
+        if (bottom.line > 0){
+            Rect_f32 region = view_get_buffer_region(app, view);
+            f32 view_height = rect_height(region);
+            f32 skirt_height = view_height*.1f;
+            Interval_f32 acceptable_y = If32(skirt_height, view_height*.9f);
+            
+            f32 target_height = view_line_y_difference(app, view, bottom.line, top.line);
+            
+            if (target_height > view_height){
+                i64 major_line = bottom.line;
+                if (range.min == major_pos){
+                    major_line = top.line;
+                }
+                
+                Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+                scroll.target.line_number = major_line;
+                scroll.target.pixel_shift.y = -skirt_height;
+                view_set_buffer_scroll(app, view, scroll);
+            }
+            else{
+                Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+                Vec2_f32 top_p = view_relative_xy_of_pos(app, view, scroll.position.line_number, range.min);
+                top_p -= scroll.position.pixel_shift;
+                if (top_p.y < acceptable_y.min){
+                    scroll.target.line_number = top.line;
+                    scroll.target.pixel_shift.y = -skirt_height;
+                    view_set_buffer_scroll(app, view, scroll);
+                }
+                else{
+                    Vec2_f32 bot_p = view_relative_xy_of_pos(app, view, scroll.position.line_number, range.max);
+                    bot_p -= scroll.position.pixel_shift;
+                    if (bot_p.y > acceptable_y.max){
+                        scroll.target.line_number = bottom.line;
+                        scroll.target.pixel_shift.y = skirt_height - view_height;
+                        view_set_buffer_scroll(app, view, scroll);
+                    }
+                }
+            }
+        }
+    }
 }
 
 ////////////////////////////////

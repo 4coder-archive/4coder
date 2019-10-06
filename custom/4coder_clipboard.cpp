@@ -45,8 +45,8 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         if_view_has_highlighted_range_delete_range(app, view);
         
         Managed_Scope scope = view_get_managed_scope(app, view);
-        Rewrite_Type *rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-        *rewrite = Rewrite_Paste;
+        Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+        *next_rewrite = Rewrite_Paste;
         i32 *paste_index = scope_attachment(app, scope, view_paste_index_loc, i32);
         *paste_index = 0;
         
@@ -81,11 +81,11 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
         Managed_Scope scope = view_get_managed_scope(app, view);
         no_mark_snap_to_cursor(app, scope);
         
-        Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-        *next_rewrite = Rewrite_Paste;
-        
         Rewrite_Type *rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
         if (*rewrite == Rewrite_Paste){
+            Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+            *next_rewrite = Rewrite_Paste;
+            
             i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
             i32 paste_index = (*paste_index_ptr) + 1;
             *paste_index_ptr = paste_index;

@@ -9,18 +9,17 @@
 
 typedef i32 Nest_Delimiter_Kind;
 enum{
-    NestDelimiterKind_None = 0,
-    NestDelimiterKind_Open = 1,
-    NestDelimiterKind_Close = 2,
+    NestDelim_None = 0,
+    NestDelim_Open = 1,
+    NestDelim_Close = 2,
 };
 
-typedef u32 Find_Scope_Flag;
+typedef u32 Find_Nest_Flag;
 enum{
-    FindScope_Parent = 1,
-    FindScope_NextSibling = 2,
-    FindScope_EndOfToken = 4,
-    FindScope_Scope = 8,
-    FindScope_Paren = 16,
+    FindNest_Scope = 1,
+    FindNest_Paren = 2,
+    FindNest_EndOfToken = 4,
+    FindNest_Balanced = 8,
 };
 
 #endif
