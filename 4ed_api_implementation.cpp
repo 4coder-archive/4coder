@@ -2855,6 +2855,9 @@ text_layout_region(Application_Links *app, Text_Layout_ID text_layout_id){
     Text_Layout *layout = text_layout_get(&models->text_layouts, text_layout_id);
     if (layout != 0){
         result = layout->rect;
+        Vec2_f32 coordinate_center = models_get_coordinate_center(models);
+        result.p0 -= coordinate_center;
+        result.p1 -= coordinate_center;
     }
     return(result);
 }
@@ -2906,7 +2909,7 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
                 result.min = result.max;
             }
             
-            result -= layout->point.pixel_shift.y;
+            result += rect.y0 - layout->point.pixel_shift.y;
             result = range_intersect(result, rect_range_y(rect));
             Vec2_f32 coordinate_center = models_get_coordinate_center(models);
             result -= coordinate_center.y;
