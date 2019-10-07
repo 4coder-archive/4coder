@@ -319,11 +319,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     
     f32 line_height = face_metrics.line_height;
     
-    Rect_f32 sub_region = Rf32(V2(0, 0), rect_dim(view_inner_rect));
-    sub_region = default_view_buffer_region(app, view_id, sub_region);
-    Rect_f32 buffer_rect = Rf32(V2(view_inner_rect.p0 + sub_region.p0),
-                                V2(view_inner_rect.p0 + sub_region.p1));
-    buffer_rect = rect_intersect(buffer_rect, view_inner_rect);
+    Rect_f32 sub_region = default_view_buffer_region(app, view_id, view_inner_rect);
+    Rect_f32 buffer_rect = rect_intersect(sub_region, view_inner_rect);
     
     Buffer_Scroll scroll = view_get_buffer_scroll(app, view_id);
     Buffer_Point buffer_point = scroll.position;
@@ -496,7 +493,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     
     draw_clip_push(app, buffer_rect);
     draw_text_layout(app, text_layout_id);
-    text_layout_free(app, text_layout_id);
     draw_clip_pop(app);
     
     // NOTE(allen): FPS HUD
@@ -512,8 +508,6 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         history_frame_index[wrapped_index]  = frame_info.index;
         
         Rect_f32 hud_rect = view_get_screen_rect(app, view_id);
-        hud_rect.p1 -= hud_rect.p0;
-        hud_rect.p0 = V2(0.f, 0.f);
         hud_rect.y0 = hud_rect.y1 - line_height*(f32)(history_depth);
         draw_rectangle(app, hud_rect, 0xFF000000);
         draw_rectangle_outline(app, hud_rect, 0xFFFFFFFF);
@@ -558,9 +552,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     // NOTE(allen): Frame
-    Rect_f32 r_cursor = view_get_screen_rect(app, view_id);
-    r_cursor.p1 -= r_cursor.p0;
-    r_cursor.p0 = V2(0.f,0.f);
+    Rect_f32 r_cursor = view_inner_rect;
     
     // NOTE(allen): Filebar
     b32 showing_file_bar = false;
@@ -651,46 +643,45 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     
     // NOTE(allen): Line Numbers
     if (global_config.show_line_number_margins){
-        i32 line_count = (i32)buffer_get_line_count(app, buffer);
-        i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
+        i64 line_count = buffer_get_line_count(app, buffer);
+        i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
         // TODO(allen): I need a "digit width"
         f32 zero = get_string_advance(app, face_id, string_u8_litexpr("0"));
-        f32 margin_width = (f32)line_count_digit_count*zero;
+        f32 margin_width = ((f32)line_count_digit_count)*zero;
         
         Rect_f32 left_margin = r_cursor;
-        left_margin.x1 = left_margin.x0 + margin_width + 2;
+        left_margin.x1 = left_margin.x0 + margin_width + 2.f;
         r_cursor.x0 = left_margin.x1;
         
         draw_rectangle(app, left_margin, Stag_Line_Numbers_Back);
         
         Rect_f32 clip_region = left_margin;
-        clip_region.p0 += view_inner_rect.p0;
-        clip_region.p1 += view_inner_rect.p0;
         draw_clip_push(app, clip_region);
         
         Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
         
         Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(visible_range.first));
+        i64 line_number = cursor.line;
         for (;cursor.pos <= visible_range.one_past_last;){
-            Range_f32 line_y = text_layout_line_on_screen(app, text_layout_id, cursor.line);
-            Vec2_f32 p = V2f32(left_margin.x1, line_y.min);
-            Temp_Memory temp = begin_temp(scratch);
-            Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, cursor.line);
-            draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
-            end_temp(temp);
-            i64 next_line = cursor.line + 1;
-            cursor = view_compute_cursor(app, view_id, seek_line_col(next_line, 1));
-            if (cursor.line < next_line){
+            if (line_number > line_count){
                 break;
             }
+            Range_f32 line_y = text_layout_line_on_screen(app, text_layout_id, line_number);
+            Vec2_f32 p = V2f32(left_margin.x0, line_y.min);
+            Temp_Memory_Block temp(scratch);
+            Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, line_number);
+            draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
+            line_number += 1;
         }
         
         draw_clip_pop(app);
     }
+    
+    text_layout_free(app, text_layout_id);
 }
 
 internal void
-default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32, Face_ID face_id){
+default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect, Face_ID face_id){
     UI_Data *ui_data = 0;
     Arena *ui_arena = 0;
     if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
@@ -700,6 +691,8 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
              item != 0;
              item = item->next){
             Rect_f32 item_rect = Rf32(item->rect_outer);
+            item_rect.p0 += rect.p0;
+            item_rect.p1 += rect.p0;
             
             switch (item->coordinates){
                 case UICoordinates_ViewSpace:
@@ -711,7 +704,7 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
                 {}break;
             }
             
-            if (rect_overlap(item_rect, rect_f32)){
+            if (rect_overlap(item_rect, rect)){
                 Rect_f32 inner = rect_inner(item_rect, (f32)item->inner_margin);
                 
                 Face_Metrics metrics = get_face_metrics(app, face_id);
@@ -732,23 +725,7 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_
     }
 }
 internal void
-default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect_f32){
-    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
-    Face_ID face_id = get_face_id(app, buffer);
-    default_ui_render_caller(app, view_id, rect_f32, face_id);
-}
-internal void
-default_ui_render_caller(Application_Links *app, View_ID view_id, Face_ID face_id){
-    Rect_f32 rect = view_get_screen_rect(app, view_id);
-    rect.p1 -= rect.p0;
-    rect.p0 = V2(0.f,0.f);
-    default_ui_render_caller(app, view_id, rect, face_id);
-}
-internal void
-default_ui_render_caller(Application_Links *app, View_ID view){
-    Rect_f32 rect = view_get_screen_rect(app, view);
-    rect.p1 -= rect.p0;
-    rect.p0 = V2(0.f,0.f);
+default_ui_render_caller(Application_Links *app, View_ID view, Rect_f32 rect){
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     default_ui_render_caller(app, view, rect, face_id);
@@ -761,14 +738,13 @@ default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view,
     draw_rectangle(app, view_rect, get_margin_color(is_active?UIActivation_Active:UIActivation_None));
     draw_rectangle(app, inner, Stag_Back);
     draw_clip_push(app, inner);
-    draw_coordinate_center_push(app, inner.p0);
     
     Managed_Scope scope = view_get_managed_scope(app, view);
     View_Render_Hook **hook_ptr = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
     
     if (*hook_ptr == 0){
         if (view_is_in_ui_mode(app, view)){
-            default_ui_render_caller(app, view);
+            default_ui_render_caller(app, view, inner);
         }
         else{
             default_buffer_render_caller(app, frame_info, view, inner);
@@ -780,7 +756,6 @@ default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view,
     }
     
     draw_clip_pop(app);
-    draw_coordinate_center_pop(app);
 }
 
 RENDER_CALLER_SIG(default_render_caller){
@@ -794,7 +769,6 @@ RENDER_CALLER_SIG(default_render_caller){
 
 HOOK_SIG(default_exit){
     // If this returns false it cancels the exit.
-    
     b32 result = true;
     
     if (!allow_immediate_close_without_checking_for_changes){

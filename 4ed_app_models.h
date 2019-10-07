@@ -127,9 +127,6 @@ struct Models{
     
     Render_Target *target;
     b32 in_render_mode;
-    // TODO(allen): endless stack?
-    Vec2 coordinate_center_stack[32];
-    i32 coordinate_center_stack_top;
 };
 
 ////////////////////////////////

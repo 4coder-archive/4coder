@@ -2698,29 +2698,6 @@ get_microseconds_timestamp(Application_Links *app)
     return(system_now_time());
 }
 
-function Vec2
-models_get_coordinate_center(Models *models){
-    Vec2 result = {};
-    if (models->coordinate_center_stack_top > 0){
-        result = models->coordinate_center_stack[models->coordinate_center_stack_top - 1];
-    }
-    return(result);
-}
-
-function Vec2
-draw_helper__models_space_to_screen_space(Models *models, Vec2 point){
-    Vec2 c = models_get_coordinate_center(models);
-    return(point + c);
-}
-
-function Rect_f32
-draw_helper__models_space_to_screen_space(Models *models, Rect_f32 rect){
-    Vec2 c = models_get_coordinate_center(models);
-    rect.p0 += c;
-    rect.p1 += c;
-    return(rect);
-}
-
 api(custom) function Vec2
 draw_string_oriented(Application_Links *app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 {
@@ -2733,7 +2710,6 @@ draw_string_oriented(Application_Links *app, Face_ID font_id, String_Const_u8 st
     }
     else{
         Color_Table color_table = models->color_table;
-        point = draw_helper__models_space_to_screen_space(models, point);
         u32 actual_color = finalize_color(color_table, color);
         f32 width = draw_string(models->target, face, str, point, actual_color, flags, delta);
         result += delta*width;
@@ -2754,7 +2730,6 @@ draw_rectangle(Application_Links *app, Rect_f32 rect, int_color color){
     Models *models = (Models*)app->cmd_context;
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
-        rect = draw_helper__models_space_to_screen_space(models, rect);
         u32 actual_color = finalize_color(color_table, color);
         draw_rectangle(models->target, rect, actual_color);
     }
@@ -2766,7 +2741,6 @@ draw_rectangle_outline(Application_Links *app, Rect_f32 rect, int_color color)
     Models *models = (Models*)app->cmd_context;
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
-        rect = draw_helper__models_space_to_screen_space(models, rect);
         u32 actual_color = finalize_color(color_table, color);
         draw_rectangle_outline(models->target, rect, actual_color);
     }
@@ -2783,27 +2757,6 @@ api(custom) function Rect_f32
 draw_clip_pop(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
     return(Rf32(draw_pop_clip(models->target)));
-}
-
-api(custom) function void
-draw_coordinate_center_push(Application_Links *app, Vec2 point){
-    Models *models = (Models*)app->cmd_context;
-    if (models->coordinate_center_stack_top < ArrayCount(models->coordinate_center_stack)){
-        point = draw_helper__models_space_to_screen_space(models, point);
-        models->coordinate_center_stack[models->coordinate_center_stack_top] = point;
-        models->coordinate_center_stack_top += 1;
-    }
-}
-
-api(custom) function Vec2
-draw_coordinate_center_pop(Application_Links *app){
-    Models *models = (Models*)app->cmd_context;
-    Vec2 result = {};
-    if (models->coordinate_center_stack_top > 0){
-        models->coordinate_center_stack_top -= 1;
-        result = models->coordinate_center_stack[models->coordinate_center_stack_top];
-    }
-    return(result);
 }
 
 api(custom) function Text_Layout_ID
@@ -2855,9 +2808,6 @@ text_layout_region(Application_Links *app, Text_Layout_ID text_layout_id){
     Text_Layout *layout = text_layout_get(&models->text_layouts, text_layout_id);
     if (layout != 0){
         result = layout->rect;
-        Vec2_f32 coordinate_center = models_get_coordinate_center(models);
-        result.p0 -= coordinate_center;
-        result.p1 -= coordinate_center;
     }
     return(result);
 }
@@ -2911,8 +2861,6 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
             
             result += rect.y0 - layout->point.pixel_shift.y;
             result = range_intersect(result, rect_range_y(rect));
-            Vec2_f32 coordinate_center = models_get_coordinate_center(models);
-            result -= coordinate_center.y;
         }
     }
     else if (line_number < layout->visible_line_number_range.min){
@@ -2976,10 +2924,6 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
             result.p0 += shift;
             result.p1 += shift;
             result = rect_intersect(rect, result);
-            
-            Vec2_f32 coordinate_center = models_get_coordinate_center(models);
-            result.p0 -= coordinate_center;
-            result.p1 -= coordinate_center;
         }
     }
     return(result);
