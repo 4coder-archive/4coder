@@ -1,9 +1,0 @@
-mouse_xy 20 20
-key P MDFR_CTRL
-basewait 1
-key i MDFR_CTRL
-type 1 *messages*
-key key_newline MDFR_NONE
-key L MDFR_CTRL
-key s MDFR_CTRL
-exit
