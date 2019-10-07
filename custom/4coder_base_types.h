@@ -301,8 +301,8 @@ global_const f32 epsilon_f32 = 5.96046448e-8f;
 #define clamp_unsigned_to_u32(x) (u32)(clamp_top((u64)(x), (u64)u32_max))
 #define clamp_unsigned_to_u64(x) (u64)(clamp_top((u64)(x), (u64)u64_max))
 
-#define LINE_STR stringify(__LINE__)
-#define FNLN __FILE__ ":" LINE_STR ":"
+#define LINE_STR__ stringify(__LINE__)
+#define file_name_line_number __FILE__ ":" LINE_STR__ ":"
 
 #define require(c) Stmnt( if (!(c)){ return(0); } )
 

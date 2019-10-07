@@ -28,6 +28,7 @@ struct API_Call{
     API_Call *next;
     String_Const_u8 name;
     String_Const_u8 return_type;
+    String_Const_u8 location_string;
     API_Param_List params;
 };
 
@@ -50,6 +51,16 @@ struct API_Definition_List{
 typedef u32 API_Generation_Flag;
 enum{
     APIGeneration_NoAPINameOnCallables = 1,
+};
+
+typedef u32 API_Check_Flag;
+enum{
+    APICheck_ReportMissingAPI = 1,
+    APICheck_ReportExtraAPI = 2,
+    APICheck_ReportMismatchAPI = 4,
+};
+enum{
+    APICheck_ReportAll = APICheck_ReportMissingAPI|APICheck_ReportExtraAPI|APICheck_ReportMismatchAPI,
 };
 
 #endif

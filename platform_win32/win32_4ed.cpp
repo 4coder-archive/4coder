@@ -678,7 +678,7 @@ internal void
 win32_init_gl(HDC hdc){
     //LOG("trying to load wgl extensions...\n");
     
-#define GLInitFail(s) system_error_box(FNLN "\nOpenGL init fail - " s )
+#define GLInitFail(s) system_error_box(file_name_line_number "\nOpenGL init fail - " s )
     
     // Init First Context
     WNDCLASSA wglclass = {};

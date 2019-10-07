@@ -17,19 +17,24 @@ begin_api(Arena *arena, char *name){
 }
 
 function API_Call*
-api_call(Arena *arena, API_Definition *api, String_Const_u8 name, String_Const_u8 return_type){
+api_call_with_location(Arena *arena, API_Definition *api, String_Const_u8 name, String_Const_u8 type,
+                       String_Const_u8 location){
     API_Call *call = push_array_zero(arena, API_Call, 1);
     sll_queue_push(api->first, api->last, call);
     api->count += 1;
     call->name = name;
-    call->return_type = return_type;
+    call->return_type = type;
+    call->location_string = location;
     return(call);
 }
 
 function API_Call*
-api_call(Arena *arena, API_Definition *api, char *name, char *return_type){
-    return(api_call(arena, api, SCu8(name), SCu8(return_type)));
+api_call_with_location(Arena *arena, API_Definition *api, char *name, char *type, char *location){
+    return(api_call_with_location(arena, api, SCu8(name), SCu8(type), SCu8(location)));
 }
+
+#define api_call(arena, api, name, type) \
+api_call_with_location((arena), (api), (name), (type), file_name_line_number)
 
 function API_Param*
 api_param(Arena *arena, API_Call *call, char *type_name, char *name){
@@ -47,7 +52,7 @@ api_set_param_list(API_Call *call, API_Param_List list){
 }
 
 function API_Definition*
-api_get_api(Arena *arena, API_Definition_List *list, String_Const_u8 name){
+api_get_api(API_Definition_List *list, String_Const_u8 name){
     API_Definition *result = 0;
     for (API_Definition *node = list->first;
          node != 0;
@@ -57,11 +62,50 @@ api_get_api(Arena *arena, API_Definition_List *list, String_Const_u8 name){
             break;
         }
     }
+    return(result);
+}
+
+function API_Definition*
+api_get_api(Arena *arena, API_Definition_List *list, String_Const_u8 name){
+    API_Definition *result = api_get_api(list, name);
     if (result == 0){
         result = push_array_zero(arena, API_Definition, 1);
         sll_queue_push(list->first, list->last, result);
         list->count += 1;
         result->name = name;
+    }
+    return(result);
+}
+
+function API_Call*
+api_get_call(API_Definition *api, String_Const_u8 name){
+    API_Call *result = 0;
+    for (API_Call *call = api->first;
+         call != 0;
+         call = call->next){
+        if (string_match(name, call->name)){
+            result = call;
+            break;
+        }
+    }
+    return(result);
+}
+
+function b32
+api_call_match_sigs(API_Call *a, API_Call *b){
+    b32 result = false;
+    if (a->params.count == b->params.count &&
+        string_match(a->return_type, b->return_type)){
+        result = true;
+        for (API_Param *a_param = a->params.first, *b_param = b->params.first;
+             a_param != 0 && b_param != 0;
+             a_param = a_param->next, b_param = b_param->next){
+            if (!string_match(a_param->name, b_param->name) ||
+                !string_match(a_param->type_name, b_param->type_name)){
+                result = false;
+                break;
+            }
+        }
     }
     return(result);
 }
@@ -333,6 +377,142 @@ api_definition_generate_api_includes(Arena *arena, API_Definition *api, Generate
     fclose(out_file_h);
     fclose(out_file_cpp);
     return(true);
+}
+
+////////////////////////////////
+
+function void
+api_definition_error(Arena *arena, List_String_Const_u8 *list,
+                     char *e1, API_Call *c1, char *e2, API_Call *c2){
+    Assert(e1 != 0);
+    Assert(c1 != 0);
+    string_list_pushf(arena, list,
+                      "%.*s error: %s '%.*s'",
+                      string_expand(c1->location_string),
+                      e1, string_expand(c1->name));
+    if (e2 != 0){
+        string_list_pushf(arena, list, " %s", e2);
+        if (c2 != 0){
+            string_list_pushf(arena, list, " '%.*s'", string_expand(c2->name));
+        }
+    }
+    string_list_push(arena, list, string_u8_litexpr("\n"));
+    if (c2 != 0){
+        string_list_push(arena, list, c2->location_string);
+        string_list_pushf(arena, list, " note: see declaration of '%.*s'\n", string_expand(c2->name));
+    }
+}
+
+function void
+api_definition_error(Arena *arena, List_String_Const_u8 *list,
+                     char *e1, API_Call *c1, char *e2){
+    api_definition_error(arena, list, e1, c1, e2, 0);
+}
+
+function void
+api_definition_error(Arena *arena, List_String_Const_u8 *list,
+                     char *e1, API_Call *c1){
+    api_definition_error(arena, list, e1, c1, 0, 0);
+}
+
+function void
+api_definition_error(Arena *arena, List_String_Const_u8 *list,
+                     char *e1, API_Definition *api1, char *e2){
+    Assert(e1 != 0);
+    Assert(api1 != 0);
+    string_list_pushf(arena, list, "error: %s '%.*s'",
+                      e1, string_expand(api1->name));
+    if (e2 != 0){
+        string_list_pushf(arena, list, " %s", e2);
+    }
+    string_list_push(arena, list, string_u8_litexpr("\n"));
+}
+
+function void
+api_definition_error(Arena *arena, List_String_Const_u8 *list,
+                     char *e1, API_Definition *api1){
+    api_definition_error(arena, list, e1, api1, 0);
+}
+
+function void
+api_definition_check(Arena *arena, API_Definition *correct, API_Definition *remote, API_Check_Flag flags, List_String_Const_u8 *error_list){
+    b32 report_missing = HasFlag(flags, APICheck_ReportMissingAPI);
+    b32 report_extra = HasFlag(flags, APICheck_ReportExtraAPI);
+    b32 report_mismatch = HasFlag(flags, APICheck_ReportMismatchAPI);
+    
+    b32 iterate_correct = (report_missing || report_mismatch);
+    if (iterate_correct){
+        for (API_Call *call = correct->first;
+             call != 0;
+             call = call->next){
+            API_Call *remote_call = api_get_call(remote, call->name);
+            if (remote_call == 0 && report_missing){
+                api_definition_error(arena, error_list,
+                                     "no remote call for", call);
+            }
+            if (remote_call != 0 && !api_call_match_sigs(call, remote_call) && report_mismatch){
+                api_definition_error(arena, error_list,
+                                     "remote call", remote_call,
+                                     "does not match signature for", call);
+            }
+        }
+    }
+    
+    b32 iterate_remote = (report_extra);
+    if (iterate_remote){
+        for (API_Call *call = remote->first;
+             call != 0;
+             call = call->next){
+            API_Call *correct_call = api_get_call(correct, call->name);
+            if (correct_call == 0 && report_extra){
+                api_definition_error(arena, error_list,
+                                     "remote call", call, 
+                                     "does not exist in api master");
+            }
+        }
+    }
+}
+
+function void
+api_list_check(Arena *arena, API_Definition_List *correct, API_Definition_List *remote, API_Check_Flag flags, List_String_Const_u8 *error_list){
+    b32 report_missing = HasFlag(flags, APICheck_ReportMissingAPI);
+    b32 report_extra = HasFlag(flags, APICheck_ReportExtraAPI);
+    
+    b32 iterate_correct = (report_missing);
+    if (iterate_correct){
+        for (API_Definition *api = correct->first;
+             api != 0;
+             api = api->next){
+            API_Definition *remote_api = api_get_api(remote, api->name);
+            if (remote_api == 0 && report_missing){
+                api_definition_error(arena, error_list,
+                                     "no remote api for", api);
+            }
+        }
+    }
+    
+    b32 iterate_remote = (report_extra);
+    if (iterate_remote){
+        for (API_Definition *api = remote->first;
+             api != 0;
+             api = api->next){
+            API_Definition *correct_api = api_get_api(correct, api->name);
+            if (correct_api == 0 && report_extra){
+                api_definition_error(arena, error_list,
+                                     "remote api", api,
+                                     "does not have a master");
+            }
+        }
+    }
+    
+    for (API_Definition *api = correct->first;
+         api != 0;
+         api = api->next){
+        API_Definition *remote_api = api_get_api(remote, api->name);
+        if (remote_api != 0){
+            api_definition_check(arena, api, remote_api, flags, error_list);
+        }
+    }
 }
 
 #endif

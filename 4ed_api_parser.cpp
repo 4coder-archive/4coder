@@ -9,21 +9,6 @@
 
 // TOP
 
-#include "4coder_base_types.h"
-#include "4coder_token.h"
-#include "generated/lexer_cpp.h"
-#include "4ed_api_definition.h"
-
-#include "4coder_base_types.cpp"
-#include "4coder_stringf.cpp"
-#include "4coder_malloc_allocator.cpp"
-#include "4coder_token.cpp"
-#include "generated/lexer_cpp.cpp"
-#include "4coder_file.cpp"
-#include "4ed_api_definition.cpp"
-
-////////////////////////////////
-
 /*
 function:
 api ( <identifier> ) function <identifier> {*} <identifier> ( <param_list> )
@@ -103,15 +88,41 @@ api_parse_add_param(Arena *arena, API_Param_List *list, String_Const_u8 type, i3
 }
 
 function void
-api_parse_add_function(Arena *arena, API_Definition_List *list, String_Const_u8 api_name, String_Const_u8 func_name, String_Const_u8 type, i32 star_counter, API_Param_List param_list){
+api_parse_add_function(Arena *arena, API_Definition_List *list,
+                       String_Const_u8 api_name, String_Const_u8 func_name,
+                       String_Const_u8 type, i32 star_counter, API_Param_List param_list,
+                       String_Const_u8 location){
     API_Definition *api = api_get_api(arena, list, api_name);
     type = api_parse__type_name_with_stars(arena, type, star_counter);
-    API_Call *call = api_call(arena, api, func_name, type);
+    API_Call *call = api_call_with_location(arena, api, func_name, type, location);
     api_set_param_list(call, param_list);
 }
 
+function String_Const_u8
+api_parse_location(Arena *arena, String_Const_u8 source_name, String_Const_u8 source, u8 *pos){
+    i32 line_number = 1;
+    i32 col_number = 1;
+    if (source.str <= pos && pos < source.str + source.size){
+        for (u8 *ptr = source.str;;){
+            if (ptr == pos){
+                break;
+            }
+            if (*ptr == '\n'){
+                line_number += 1;
+                col_number = 1;
+            }
+            else{
+                col_number += 1;
+            }
+            ptr += 1;
+        }
+    }
+    return(push_u8_stringf(arena, "%.*s:%d:%d:", string_expand(source_name), line_number, col_number));
+}
+
 function void
-api_parse_source_add_to_list(Arena *arena, String_Const_u8 source, API_Definition_List *list){
+api_parse_source_add_to_list(Arena *arena, String_Const_u8 source_name, String_Const_u8 source,
+                             API_Definition_List *list){
     Token_List token_list = lex_full_input_cpp(arena, source);
     Token_Iterator token_it = token_iterator(token_iterator(0, &token_list));
     
@@ -187,7 +198,10 @@ api_parse_source_add_to_list(Arena *arena, String_Const_u8 source, API_Definitio
             }
             
             if (success){
-                api_parse_add_function(arena, list, api_name, func_name, ret_type, ret_type_star_counter, param_list);
+                String_Const_u8 location = api_parse_location(arena, source_name, source, func_name.str);
+                api_parse_add_function(arena, list, api_name, func_name,
+                                       ret_type, ret_type_star_counter, param_list,
+                                       location);
             }
         }
         else{
@@ -196,49 +210,13 @@ api_parse_source_add_to_list(Arena *arena, String_Const_u8 source, API_Definitio
             }
         }
     }
-    
 }
 
 function API_Definition_List
-api_parse_source(Arena *arena, String_Const_u8 source){
+api_parse_source(Arena *arena, String_Const_u8 source_name, String_Const_u8 source){
     API_Definition_List list = {};
-    api_parse_source_add_to_list(arena, source, &list);
+    api_parse_source_add_to_list(arena, source_name, source, &list);
     return(list);
-}
-
-////////////////////////////////
-
-int
-main(int argc, char **argv){
-    Arena arena = make_arena_malloc();
-    
-    if (argc < 2){
-        printf("usage: <script> <source> {<source>}\n"
-               " source : file to load and parse into the output list\n");
-        exit(1);
-    }
-    
-    API_Definition_List list = {};
-    for (i32 i = 1; i < argc; i += 1){
-        FILE *file = fopen(argv[i], "rb");
-        if (file == 0){
-            printf("error: could not open input file: '%s'\n", argv[i]);
-            continue;
-        }
-        
-        String_Const_u8 text = file_load_all(&arena, file);
-        fclose(file);
-        
-        if (text.size > 0){
-            api_parse_source_add_to_list(&arena, text, &list);
-        }
-    }
-    
-    for (API_Definition *node = list.first;
-         node != 0;
-         node = node->next){
-        api_definition_generate_api_includes(&arena, node, GeneratedGroup_Custom, APIGeneration_NoAPINameOnCallables);
-    }
 }
 
 // BOTTOM
