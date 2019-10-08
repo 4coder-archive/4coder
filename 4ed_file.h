@@ -50,6 +50,12 @@ struct Line_Layout_Key{
     i64 line_number;
 };
 
+typedef i32 File_Save_State;
+enum{
+    FileSaveState_Normal,
+    FileSaveState_SavedWaitingForNotification,
+};
+
 struct Editing_File_State{
     Gap_Buffer buffer;
     
@@ -59,7 +65,7 @@ struct Editing_File_State{
     Text_Effect paste_effect;
     
     Dirty_State dirty;
-    u32 ignore_behind_os;
+    File_Save_State save_state;
     
     File_Edit_Positions edit_pos_most_recent;
     File_Edit_Positions edit_pos_stack[16];

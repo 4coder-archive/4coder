@@ -168,16 +168,13 @@ save_file_to_name(Models *models, Editing_File *file, u8 *file_name){
         String_Const_u8 saveable_string = buffer_stringify(scratch, buffer, Ii64(0, buffer_size(buffer)));
         
         File_Attributes new_attributes = system_save_file(scratch, (char*)file_name, saveable_string);
-        if (new_attributes.last_write_time > 0){
-            if (using_actual_file_name){
-                file->state.ignore_behind_os = 1;
-            }
-            file->attributes = new_attributes;
+        if (new_attributes.last_write_time > 0 &&
+            using_actual_file_name){
+            file->state.save_state = FileSaveState_SavedWaitingForNotification;
+            file_clear_dirty_flags(file);
         }
         LogEventF(log_string(M), scratch, file->id, 0, system_thread_get_id(),
                   "save file [last_write_time=0x%llx]", new_attributes.last_write_time);
-        
-        file_clear_dirty_flags(file);
     }
     
     return(result);

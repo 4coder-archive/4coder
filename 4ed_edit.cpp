@@ -528,7 +528,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
         }
         
         if (file != 0 && HasFlag(flags, BufferCreate_JustChangedFile)){
-            file->state.ignore_behind_os = 1;
+            file->state.save_state = FileSaveState_SavedWaitingForNotification;
         }
         
         if (file != 0 && HasFlag(flags, BufferCreate_AlwaysNew)){

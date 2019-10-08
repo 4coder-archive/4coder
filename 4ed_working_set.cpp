@@ -22,12 +22,18 @@ file_change_notification_check(Arena *scratch, Working_Set *working_set, Editing
         String_Const_u8 name = SCu8(file->canon.name_space, file->canon.name_size);
         File_Attributes attributes = system_quick_file_attributes(scratch, name);
         if (attributes.last_write_time > file->attributes.last_write_time){
-            file_add_dirty_flag(file, DirtyState_UnloadedChanges);
-            if (file->external_mod_node.next == 0){
-                LogEventF(log_string(M), &working_set->arena, file->id, 0, system_thread_get_id(),
-                          "external modification [lwt=0x%llx]", attributes.last_write_time);
-                dll_insert_back(&working_set->has_external_mod_sentinel, &file->external_mod_node);
-                system_signal_step(0);
+            if (file->state.save_state == FileSaveState_SavedWaitingForNotification){
+                file->state.save_state = FileSaveState_Normal;
+                file->attributes = attributes;
+            }
+            else{
+                file_add_dirty_flag(file, DirtyState_UnloadedChanges);
+                if (file->external_mod_node.next == 0){
+                    LogEventF(log_string(M), &working_set->arena, file->id, 0, system_thread_get_id(),
+                              "external modification [lwt=0x%llx]", attributes.last_write_time);
+                    dll_insert_back(&working_set->has_external_mod_sentinel, &file->external_mod_node);
+                    system_signal_step(0);
+                }
             }
         }
         file->attributes = attributes;
