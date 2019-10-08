@@ -154,7 +154,7 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
                 i64 cursor_pos = cursors[cursor_count++].pos;
                 view->mark = cursors[cursor_count++].pos;
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
-                view_set_cursor_and_scroll(models, view, cursor_pos, true, edit_pos.scroll);
+                view_set_cursor_and_scroll(models, view, cursor_pos, edit_pos.scroll);
             }
         }
         

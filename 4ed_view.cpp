@@ -347,10 +347,12 @@ view_set_scroll(Models *models, View *view, Buffer_Scroll scroll){
 }
 
 internal void
-view_set_cursor_and_scroll(Models *models, View *view, i64 pos, b32 set_preferred_x, Buffer_Scroll scroll){
+view_set_cursor_and_scroll(Models *models, View *view, i64 pos, Buffer_Scroll scroll){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     file_edit_positions_set_cursor(&edit_pos, pos);
-    view->preferred_x = 0.f;
+    Buffer_Cursor cursor = view_compute_cursor(view, seek_pos(pos));
+    Vec2_f32 p = view_relative_xy_of_pos(models, view, cursor.line, pos);
+    view->preferred_x = p.x;
     file_edit_positions_set_scroll(&edit_pos, scroll);
     edit_pos.last_set_type = EditPos_None;
     view_set_edit_pos(view, edit_pos);

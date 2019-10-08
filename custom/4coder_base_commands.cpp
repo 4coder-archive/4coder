@@ -5,7 +5,7 @@ moving the cursor, which work even without the default 4coder framework.
 
 // TOP
 
-static void
+function void
 write_character_parameter(Application_Links *app, u8 *character, u32 length){
     if (length != 0){
         View_ID view = get_active_view(app, AccessOpen);
