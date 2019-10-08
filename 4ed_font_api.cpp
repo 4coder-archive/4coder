@@ -25,5 +25,10 @@ define_api(Arena *arena){
     return(api);
 }
 
+function Generated_Group
+get_api_group(void){
+    return(GeneratedGroup_Core);
+}
+
 // BOTTOM
 
