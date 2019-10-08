@@ -127,10 +127,13 @@ void fill_keys_default(Bind_Helper *context){
     end_map(context);
     begin_map(context, default_code_map);
     inherit_map(context, mapid_file);
-    bind(context, key_left, MDFR_CTRL, move_left_alpha_numeric_or_camel_boundary);
-    bind(context, key_right, MDFR_CTRL, move_right_alpha_numeric_or_camel_boundary);
-    bind(context, key_left, MDFR_ALT, move_left_alpha_numeric_boundary);
-    bind(context, key_right, MDFR_ALT, move_right_alpha_numeric_boundary);
+    bind(context, key_left, MDFR_CTRL, move_left_alpha_numeric_boundary);
+    bind(context, key_left, MDFR_CTRL|MDFR_SHIFT, move_left_alpha_numeric_boundary);
+    bind(context, key_right, MDFR_CTRL, move_right_alpha_numeric_boundary);
+    bind(context, key_right, MDFR_CTRL|MDFR_SHIFT, move_right_alpha_numeric_boundary);
+    bind(context, key_left, MDFR_ALT, move_left_alpha_numeric_or_camel_boundary);
+    bind(context, key_left, MDFR_ALT|MDFR_SHIFT, move_left_alpha_numeric_or_camel_boundary);
+    bind(context, key_right, MDFR_ALT|MDFR_SHIFT, move_right_alpha_numeric_or_camel_boundary);
     bind(context, '\n', MDFR_NONE, write_and_auto_tab);
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, '}', MDFR_NONE, write_and_auto_tab);
