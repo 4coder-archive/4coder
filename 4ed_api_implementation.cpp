@@ -716,36 +716,6 @@ buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
                 }
             }break;
             
-            case BufferSetting_VirtualWhitespace:
-            {
-#if 0
-                b32 full_remeasure = false;
-                if (value){
-                    if (!file->settings.virtual_white){
-                        if (!file->settings.tokens_exist){
-                            file_first_lex_serial(system, models, file);
-                        }
-                        file->settings.virtual_white = true;
-                        full_remeasure = true;
-                    }
-                }
-                else{
-                    if (file->settings.virtual_white){
-                        file->settings.virtual_white = false;
-                        full_remeasure = true;
-                    }
-                }
-                
-                if (full_remeasure){
-                    Face *face = font_set_face_from_id(&models->font_set, file->settings.font_id);
-                    file_allocate_character_starts_as_needed(&models->mem.heap, file);
-                    buffer_measure_character_starts(system, &file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(system, &models->mem, file, face);
-                    adjust_views_looking_at_file_to_new_cursor(system, models, file);
-                }
-#endif
-            }break;
-            
             case BufferSetting_RecordsHistory:
             {
                 if (value){
@@ -2587,17 +2557,6 @@ set_hot_directory(Application_Links *app, String_Const_u8 string)
     return(true);
 }
 
-api(custom) function File_List
-get_file_list(Application_Links *app, Arena *arena, String_Const_u8 directory){
-    Models *models = (Models*)app->cmd_context;
-    String_Const_u8 canonical_directory = system_get_canonical(arena, directory);
-    File_List list = {};
-    if (canonical_directory.str != 0){
-        list = system_get_file_list(arena, canonical_directory);
-    }
-    return(list);
-}
-
 api(custom) function void
 set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
 {
@@ -2608,67 +2567,11 @@ set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_ke
     models->user_down_key_modifier = down_key_modifier;
 }
 
-api(custom) function void*
-memory_allocate(Application_Links *app, i32 size)
-{
-    Models *models = (Models*)app->cmd_context;
-    void *result = system_memory_allocate(size);
-    return(result);
-}
-
-api(custom) function b32
-memory_set_protection(Application_Links *app, void *ptr, i32 size, Memory_Protect_Flags flags)
-{
-    Models *models = (Models*)app->cmd_context;
-    return(system_memory_set_protection(ptr, size, flags));
-}
-
-api(custom) function void
-memory_free(Application_Links *app, void *ptr, i32 size)
-{
-    Models *models = (Models*)app->cmd_context;
-    system_memory_free(ptr, size);
-}
-
-api(custom) function String_Const_u8
-push_4ed_path(Application_Links *app, Arena *arena)
-{
-    Models *models = (Models*)app->cmd_context;
-    return(system_get_path(arena, SystemPath_Binary));
-}
-
-// TODO(allen): do(add a "shown but auto-hides on timer" setting for cursor show type)
-api(custom) function void
-show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show)
-{
-    Models *models = (Models*)app->cmd_context;
-    system_show_mouse_cursor(show);
-}
-
 api(custom) function b32
 set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){
     Models *models = (Models*)app->cmd_context;
     models->edit_finished_hook_repeat_speed = milliseconds;
     return(true);
-}
-
-api(custom) function b32
-set_fullscreen(Application_Links *app, b32 full_screen)
-{
-    Models *models = (Models*)app->cmd_context;
-    b32 success = system_set_fullscreen(full_screen);
-    if (!success){
-        print_message(app, string_u8_litexpr("ERROR: Failed to go fullscreen.\n"));
-    }
-    return(success);
-}
-
-api(custom) function b32
-is_fullscreen(Application_Links *app)
-{
-    Models *models = (Models*)app->cmd_context;
-    b32 result = system_is_fullscreen();
-    return(result);
 }
 
 api(custom) function void
@@ -2688,14 +2591,6 @@ set_window_title(Application_Links *app, String_Const_u8 title)
     block_copy(models->title_space, title.str, copy_size);
     models->title_space[copy_size] = 0;
     return(true);
-}
-
-api(custom) function Microsecond_Time_Stamp
-get_microseconds_timestamp(Application_Links *app)
-{
-    // TODO(allen): do(decrease indirection in API calls)
-    Models *models = (Models*)app->cmd_context;
-    return(system_now_time());
 }
 
 api(custom) function Vec2
@@ -2965,7 +2860,7 @@ api(custom) function void
 open_color_picker(Application_Links *app, Color_Picker *picker)
 {
     Models *models = (Models*)app->cmd_context;
-    if (picker->finished){
+    if (picker->finished != 0){
         *picker->finished = false;
     }
     system_open_color_picker(picker);

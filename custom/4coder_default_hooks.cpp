@@ -1016,17 +1016,9 @@ BUFFER_HOOK_SIG(default_file_settings){
     buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
     Assert(map_id_query == default_lister_ui_map);
     
-    // TODO(allen): kill all concepts of wrap width as settings
-#if 0
-    buffer_set_setting(app, buffer_id, BufferSetting_WrapPosition, global_config.default_wrap_width);
-    buffer_set_setting(app, buffer_id, BufferSetting_MinimumBaseWrapPosition, global_config.default_min_base_width);
-#endif
     buffer_set_setting(app, buffer_id, BufferSetting_MapID, map_id);
     buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
     Assert(map_id_query == map_id);
-#if 0
-    buffer_set_setting(app, buffer_id, BufferSetting_ParserContext, parse_context_id);
-#endif
     
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
@@ -1047,19 +1039,6 @@ BUFFER_HOOK_SIG(default_file_settings){
         do_full_lex(app, buffer_id);
     }
     
-#if 0
-    // NOTE(allen|a4.0.12): There is a little bit of grossness going on here.
-    // If we set BufferSetting_Lex to true, it will launch a lexing job.
-    // If a lexing job is active when we set BufferSetting_VirtualWhitespace, the call can fail.
-    // Unfortunantely without tokens virtual whitespace doesn't really make sense.
-    // So for now I have it automatically turning on lexing when virtual whitespace is turned on.
-    // Cleaning some of that up is a goal for future versions.
-    buffer_set_setting(app, buffer_id, BufferSetting_LexWithoutStrings, lex_without_strings);
-    buffer_set_setting(app, buffer_id, BufferSetting_WrapLine, wrap_lines);
-    buffer_set_setting(app, buffer_id, BufferSetting_VirtualWhitespace, use_virtual_whitespace);
-    buffer_set_setting(app, buffer_id, BufferSetting_Lex, use_lexer);
-#endif
-    
     // no meaning for return
     return(0);
 }
@@ -1073,10 +1052,8 @@ BUFFER_HOOK_SIG(default_new_file){
 BUFFER_HOOK_SIG(default_file_save){
     b32 is_virtual = false;
     if (global_config.automatically_indent_text_on_save &&
-        buffer_get_setting(app, buffer_id, BufferSetting_VirtualWhitespace, &is_virtual)){ 
-        if (is_virtual){
-            auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
-        }
+        is_virtual){ 
+        auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
     }
     // no meaning for return
     return(0);

@@ -12,19 +12,20 @@
 #define REMOVE_OLD_STRING
 
 #include "4coder_base_types.h"
-#include "api/4coder_version.h"
-#include "api/4coder_keycodes.h"
-#include "api/4coder_default_colors.h"
-#include "api/4coder_types.h"
+#include "4coder_version.h"
+#include "4coder_keycodes.h"
+#include "4coder_default_colors.h"
+#include "4coder_types.h"
 #define STATIC_LINK_API
 #include "generated/custom_api.h"
 
 #include "4coder_table.h"
 
-#include "4ed_font_interface.h"
-#include "4ed_system_types.h"
+#include "4coder_system_types.h"
 #define DYNAMIC_LINK_API
 #include "generated/system_api.h"
+
+#include "4ed_font_interface.h"
 #define DYNAMIC_LINK_API
 #include "generated/graphics_api.h"
 #define DYNAMIC_LINK_API
@@ -36,7 +37,7 @@
 #include "4coder_string_match.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
-#include "4ed_system_allocator.cpp"
+#include "4coder_system_allocator.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 
@@ -76,6 +77,7 @@
 #define DYNAMIC_LINK_API
 #include "generated/font_api.cpp"
 
+#include "4coder_system_helpers.cpp"
 #include "4ed_allocator_models.cpp"
 #include "4ed_log.cpp"
 #include "4coder_log.cpp"

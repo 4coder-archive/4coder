@@ -1,10 +1,5 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 21.01.2015
- *
- * System API types.
- *
+ * 4coder_system_types.h - Types relating to the system api.
  */
 
 // TOP
@@ -34,6 +29,13 @@ typedef i32 System_Path_Code;
 enum{
     SystemPath_CurrentDirectory,
     SystemPath_Binary,
+};
+
+struct Mutex_Lock{
+    Mutex_Lock(System_Mutex mutex);
+    ~Mutex_Lock();
+    operator System_Mutex();
+    System_Mutex mutex;
 };
 
 #endif

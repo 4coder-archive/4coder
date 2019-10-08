@@ -710,8 +710,8 @@ CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
 CUSTOM_COMMAND_SIG(mouse_wheel_change_face_size)
 CUSTOM_DOC("Reads the state of the mouse wheel and uses it to either increase or decrease the face size.")
 {
-    static Microsecond_Time_Stamp next_resize_time = 0;
-    Microsecond_Time_Stamp now = get_microseconds_timestamp(app);
+    static u64 next_resize_time = 0;
+    u64 now = system_now_time();
     if (now >= next_resize_time){
         next_resize_time = now + 50*1000;
         Mouse_State mouse = get_mouse_state(app);
@@ -729,9 +729,8 @@ CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
-    i32 vwhite = 0;
-    buffer_get_setting(app, buffer, BufferSetting_VirtualWhitespace, &vwhite);
-    buffer_set_setting(app, buffer, BufferSetting_VirtualWhitespace, !vwhite);
+    (void)buffer;
+    NotImplemented;
 }
 
 CUSTOM_COMMAND_SIG(toggle_show_whitespace)

@@ -12,7 +12,7 @@
 //#define FM_PRINT_COMMANDS
 
 #include "4coder_base_types.h"
-#include "api/4coder_version.h"
+#include "4coder_version.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_malloc_allocator.cpp"

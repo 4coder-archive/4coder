@@ -2052,7 +2052,7 @@ open_file_try_current_path_then_binary_path(Application_Links *app, char *file_n
     if (file == 0){
         Scratch_Block scratch(app);
         List_String_Const_u8 list = {};
-        string_list_push(scratch, &list, push_4ed_path(app, scratch));
+        string_list_push(scratch, &list, system_get_path(scratch, SystemPath_Binary));
         string_list_push_overlap(scratch, &list, '/', SCu8(file_name));
         String_Const_u8 str = string_list_flatten(scratch, list, StringFill_NullTerminate);
         file = fopen((char*)str.str, "rb");

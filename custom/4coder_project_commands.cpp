@@ -91,7 +91,7 @@ open_all_files_in_directory_pattern_match__recursive(Application_Links *app,
                                                      Project_File_Pattern_Array blacklist,
                                                      u32 flags){
     Scratch_Block scratch(app);
-    File_List list = get_file_list(app, scratch, path);
+    File_List list = system_get_file_list(scratch, path);
     
     File_Info **info = list.infos;
     for (u32 i = 0; i < list.count; ++i, ++info){

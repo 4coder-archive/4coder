@@ -534,7 +534,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     lister_set_text_field(lister, hot);
     lister_set_key(lister, string_front_of_path(hot));
     
-    File_List file_list = get_file_list(app, scratch, hot);
+    File_List file_list = system_get_file_list(scratch, hot);
     end_temp(temp);
     
     File_Info **one_past_last = file_list.infos + file_list.count;

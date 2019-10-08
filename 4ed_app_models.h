@@ -205,15 +205,6 @@ enum{
     AppCoroutineRequest_ModifyFace = 2,
 };
 
-////////////////////////////////
-
-struct Mutex_Lock{
-    Mutex_Lock(System_Mutex mutex);
-    ~Mutex_Lock();
-    operator System_Mutex();
-    System_Mutex mutex;
-};
-
 #endif
 
 // BOTTOM

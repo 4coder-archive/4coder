@@ -147,19 +147,10 @@
 #define custom_finalize_color_sig() argb_color custom_finalize_color(Application_Links* app, int_color color)
 #define custom_push_hot_directory_sig() String_Const_u8 custom_push_hot_directory(Application_Links* app, Arena* arena)
 #define custom_set_hot_directory_sig() b32 custom_set_hot_directory(Application_Links* app, String_Const_u8 string)
-#define custom_get_file_list_sig() File_List custom_get_file_list(Application_Links* app, Arena* arena, String_Const_u8 directory)
 #define custom_set_gui_up_down_keys_sig() void custom_set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
-#define custom_memory_allocate_sig() void* custom_memory_allocate(Application_Links* app, i32 size)
-#define custom_memory_set_protection_sig() b32 custom_memory_set_protection(Application_Links* app, void* ptr, i32 size, Memory_Protect_Flags flags)
-#define custom_memory_free_sig() void custom_memory_free(Application_Links* app, void* ptr, i32 size)
-#define custom_push_4ed_path_sig() String_Const_u8 custom_push_4ed_path(Application_Links* app, Arena* arena)
-#define custom_show_mouse_cursor_sig() void custom_show_mouse_cursor(Application_Links* app, Mouse_Cursor_Show_Type show)
 #define custom_set_edit_finished_hook_repeat_speed_sig() b32 custom_set_edit_finished_hook_repeat_speed(Application_Links* app, u32 milliseconds)
-#define custom_set_fullscreen_sig() b32 custom_set_fullscreen(Application_Links* app, b32 full_screen)
-#define custom_is_fullscreen_sig() b32 custom_is_fullscreen(Application_Links* app)
 #define custom_send_exit_signal_sig() void custom_send_exit_signal(Application_Links* app)
 #define custom_set_window_title_sig() b32 custom_set_window_title(Application_Links* app, String_Const_u8 title)
-#define custom_get_microseconds_timestamp_sig() Microsecond_Time_Stamp custom_get_microseconds_timestamp(Application_Links* app)
 #define custom_draw_string_oriented_sig() Vec2 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 #define custom_get_string_advance_sig() f32 custom_get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str)
 #define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, int_color color)
@@ -327,19 +318,10 @@ typedef void custom_get_theme_colors_type(Application_Links* app, Theme_Color* c
 typedef argb_color custom_finalize_color_type(Application_Links* app, int_color color);
 typedef String_Const_u8 custom_push_hot_directory_type(Application_Links* app, Arena* arena);
 typedef b32 custom_set_hot_directory_type(Application_Links* app, String_Const_u8 string);
-typedef File_List custom_get_file_list_type(Application_Links* app, Arena* arena, String_Const_u8 directory);
 typedef void custom_set_gui_up_down_keys_type(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
-typedef void* custom_memory_allocate_type(Application_Links* app, i32 size);
-typedef b32 custom_memory_set_protection_type(Application_Links* app, void* ptr, i32 size, Memory_Protect_Flags flags);
-typedef void custom_memory_free_type(Application_Links* app, void* ptr, i32 size);
-typedef String_Const_u8 custom_push_4ed_path_type(Application_Links* app, Arena* arena);
-typedef void custom_show_mouse_cursor_type(Application_Links* app, Mouse_Cursor_Show_Type show);
 typedef b32 custom_set_edit_finished_hook_repeat_speed_type(Application_Links* app, u32 milliseconds);
-typedef b32 custom_set_fullscreen_type(Application_Links* app, b32 full_screen);
-typedef b32 custom_is_fullscreen_type(Application_Links* app);
 typedef void custom_send_exit_signal_type(Application_Links* app);
 typedef b32 custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
-typedef Microsecond_Time_Stamp custom_get_microseconds_timestamp_type(Application_Links* app);
 typedef Vec2 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
 typedef f32 custom_get_string_advance_type(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, int_color color);
@@ -508,19 +490,10 @@ custom_get_theme_colors_type *get_theme_colors;
 custom_finalize_color_type *finalize_color;
 custom_push_hot_directory_type *push_hot_directory;
 custom_set_hot_directory_type *set_hot_directory;
-custom_get_file_list_type *get_file_list;
 custom_set_gui_up_down_keys_type *set_gui_up_down_keys;
-custom_memory_allocate_type *memory_allocate;
-custom_memory_set_protection_type *memory_set_protection;
-custom_memory_free_type *memory_free;
-custom_push_4ed_path_type *push_4ed_path;
-custom_show_mouse_cursor_type *show_mouse_cursor;
 custom_set_edit_finished_hook_repeat_speed_type *set_edit_finished_hook_repeat_speed;
-custom_set_fullscreen_type *set_fullscreen;
-custom_is_fullscreen_type *is_fullscreen;
 custom_send_exit_signal_type *send_exit_signal;
 custom_set_window_title_type *set_window_title;
-custom_get_microseconds_timestamp_type *get_microseconds_timestamp;
 custom_draw_string_oriented_type *draw_string_oriented;
 custom_get_string_advance_type *get_string_advance;
 custom_draw_rectangle_type *draw_rectangle;
@@ -690,19 +663,10 @@ internal void get_theme_colors(Application_Links* app, Theme_Color* colors, i32 
 internal argb_color finalize_color(Application_Links* app, int_color color);
 internal String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
 internal b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
-internal File_List get_file_list(Application_Links* app, Arena* arena, String_Const_u8 directory);
 internal void set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
-internal void* memory_allocate(Application_Links* app, i32 size);
-internal b32 memory_set_protection(Application_Links* app, void* ptr, i32 size, Memory_Protect_Flags flags);
-internal void memory_free(Application_Links* app, void* ptr, i32 size);
-internal String_Const_u8 push_4ed_path(Application_Links* app, Arena* arena);
-internal void show_mouse_cursor(Application_Links* app, Mouse_Cursor_Show_Type show);
 internal b32 set_edit_finished_hook_repeat_speed(Application_Links* app, u32 milliseconds);
-internal b32 set_fullscreen(Application_Links* app, b32 full_screen);
-internal b32 is_fullscreen(Application_Links* app);
 internal void send_exit_signal(Application_Links* app);
 internal b32 set_window_title(Application_Links* app, String_Const_u8 title);
-internal Microsecond_Time_Stamp get_microseconds_timestamp(Application_Links* app);
 internal Vec2 draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
 internal f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 internal void draw_rectangle(Application_Links* app, Rect_f32 rect, int_color color);
@@ -872,19 +836,10 @@ global custom_get_theme_colors_type *get_theme_colors = 0;
 global custom_finalize_color_type *finalize_color = 0;
 global custom_push_hot_directory_type *push_hot_directory = 0;
 global custom_set_hot_directory_type *set_hot_directory = 0;
-global custom_get_file_list_type *get_file_list = 0;
 global custom_set_gui_up_down_keys_type *set_gui_up_down_keys = 0;
-global custom_memory_allocate_type *memory_allocate = 0;
-global custom_memory_set_protection_type *memory_set_protection = 0;
-global custom_memory_free_type *memory_free = 0;
-global custom_push_4ed_path_type *push_4ed_path = 0;
-global custom_show_mouse_cursor_type *show_mouse_cursor = 0;
 global custom_set_edit_finished_hook_repeat_speed_type *set_edit_finished_hook_repeat_speed = 0;
-global custom_set_fullscreen_type *set_fullscreen = 0;
-global custom_is_fullscreen_type *is_fullscreen = 0;
 global custom_send_exit_signal_type *send_exit_signal = 0;
 global custom_set_window_title_type *set_window_title = 0;
-global custom_get_microseconds_timestamp_type *get_microseconds_timestamp = 0;
 global custom_draw_string_oriented_type *draw_string_oriented = 0;
 global custom_get_string_advance_type *get_string_advance = 0;
 global custom_draw_rectangle_type *draw_rectangle = 0;

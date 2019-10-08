@@ -9,21 +9,6 @@
 
 // TOP
 
-Mutex_Lock::Mutex_Lock(System_Mutex m){
-    system_mutex_acquire(m);
-    this->mutex = m;
-}
-
-Mutex_Lock::~Mutex_Lock(){
-    system_mutex_release(this->mutex);
-}
-
-Mutex_Lock::operator System_Mutex(){
-    return(this->mutex);
-}
-
-////////////////////////////////
-
 internal App_Coroutine_State
 get_state(Application_Links *app){
     App_Coroutine_State state = {};
@@ -825,7 +810,9 @@ App_Init_Sig(app_init){
     
     API_VTable_custom custom_vtable = {};
     custom_api_fill_vtable(&custom_vtable);
-    api.init_apis(&custom_vtable);
+    API_VTable_system system_vtable = {};
+    system_api_fill_vtable(&system_vtable);
+    api.init_apis(&custom_vtable, &system_vtable);
     
     // NOTE(allen): coroutines
     coroutine_system_init(&models->coroutines);

@@ -19,7 +19,8 @@ struct Application_Links{
     i32 type_coroutine;
 };
 typedef b32 _Get_Version_Function(i32 maj, i32 min, i32 patch);
-typedef void _Init_APIs(struct API_VTable_custom *custom_vtable);
+typedef void _Init_APIs(struct API_VTable_custom *custom_vtable,
+                        struct API_VTable_system *system_vtable);
 
 ////////////////////////////////
 
@@ -106,7 +107,6 @@ ENUM(i32, Buffer_Setting_ID){
     BufferSetting_Eol,
     BufferSetting_Unimportant,
     BufferSetting_ReadOnly,
-    BufferSetting_VirtualWhitespace,
     BufferSetting_RecordsHistory,
 };
 
@@ -256,8 +256,6 @@ STRUCT Parser_String_And_Type{
     u32 length;
     u32 type;
 };
-
-TYPEDEF u64 Microsecond_Time_Stamp;
 
 ENUM(u32, File_Attribute_Flag){
     FileAttribute_IsDirectory = 1,

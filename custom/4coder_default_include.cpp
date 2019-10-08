@@ -8,7 +8,15 @@
 #define FCODER_DEFAULT_INCLUDE_CPP
 
 #include "4coder_base_types.h"
-#include "api/4coder_custom.h"
+#include "4coder_version.h"
+#include "4coder_keycodes.h"
+#include "4coder_default_colors.h"
+#include "4coder_types.h"
+#define DYNAMIC_LINK_API
+#include "generated/custom_api.h"
+#include "4coder_system_types.h"
+#define DYNAMIC_LINK_API
+#include "generated/system_api.h"
 #include "generated/command_metadata.h"
 
 #include "4coder_base_types.cpp"
@@ -38,7 +46,14 @@
 #include "4coder_combined_write_commands.h"
 #include "4coder_log_parser.h"
 
-#include "api/4coder_custom.cpp"
+////////////////////////////////
+
+#define DYNAMIC_LINK_API
+#include "generated/custom_api.cpp"
+#define DYNAMIC_LINK_API
+#include "generated/system_api.cpp"
+#include "4coder_system_helpers.cpp"
+#include "4coder_custom.cpp"
 #include "4coder_log.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
@@ -64,7 +79,7 @@
 #include "4coder_jump_lister.cpp"
 #include "4coder_log_parser.cpp"
 #include "4coder_clipboard.cpp"
-#include "4coder_system_command.cpp"
+#include "4coder_cli_command.cpp"
 #include "4coder_build_commands.cpp"
 #include "4coder_project_commands.cpp"
 #include "4coder_function_list.cpp"

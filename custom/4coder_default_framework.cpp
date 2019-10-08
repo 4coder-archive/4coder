@@ -274,34 +274,34 @@ create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Cons
 
 ////////////////////////////////
 
-static void
-set_mouse_suppression(Application_Links *app, b32 suppress){
+function void
+set_mouse_suppression(b32 suppress){
     if (suppress){
         suppressing_mouse = true;
-        show_mouse_cursor(app, MouseCursorShow_Never);
+        system_show_mouse_cursor(MouseCursorShow_Never);
     }
     else{
         suppressing_mouse = false;
-        show_mouse_cursor(app, MouseCursorShow_Always);
+        system_show_mouse_cursor(MouseCursorShow_Always);
     }
 }
 
 CUSTOM_COMMAND_SIG(suppress_mouse)
 CUSTOM_DOC("Hides the mouse and causes all mosue input (clicks, position, wheel) to be ignored.")
 {
-    set_mouse_suppression(app, true);
+    set_mouse_suppression(true);
 }
 
 CUSTOM_COMMAND_SIG(allow_mouse)
 CUSTOM_DOC("Shows the mouse and causes all mouse input to be processed normally.")
 {
-    set_mouse_suppression(app, false);
+    set_mouse_suppression(false);
 }
 
 CUSTOM_COMMAND_SIG(toggle_mouse)
 CUSTOM_DOC("Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.")
 {
-    set_mouse_suppression(app, !suppressing_mouse);
+    set_mouse_suppression(!suppressing_mouse);
 }
 
 CUSTOM_COMMAND_SIG(set_mode_to_original)
@@ -337,7 +337,7 @@ CUSTOM_DOC("In code files matching parentheses pairs are colored with distinguis
 CUSTOM_COMMAND_SIG(toggle_fullscreen)
 CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.")
 {
-    set_fullscreen(app, !is_fullscreen(app));
+    system_set_fullscreen(!system_is_fullscreen());
 }
 
 ////////////////////////////////

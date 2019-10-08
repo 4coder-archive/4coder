@@ -14,16 +14,17 @@
 
 #include "4coder_base_types.h"
 #include "4coder_table.h"
-#include "api/4coder_version.h"
+#include "4coder_version.h"
 
-#include "api/4coder_keycodes.h"
-#include "api/4coder_default_colors.h"
-#include "api/4coder_types.h"
+#include "4coder_keycodes.h"
+#include "4coder_default_colors.h"
+#include "4coder_types.h"
 
-#include "4ed_font_interface.h"
-#include "4ed_system_types.h"
+#include "4coder_system_types.h"
 #define STATIC_LINK_API
 #include "generated/system_api.h"
+
+#include "4ed_font_interface.h"
 #define STATIC_LINK_API
 #include "generated/graphics_api.h"
 #define STATIC_LINK_API
@@ -106,12 +107,11 @@ struct Win32_Input_Chunk{
 #define SLASH '\\'
 #define DLL "dll"
 
-#include "4ed_font_face.cpp"
-
-#include "4ed_mem.cpp"
 #include "4coder_hash_functions.cpp"
+#include "4coder_system_allocator.cpp"
 
-#include "4ed_system_allocator.cpp"
+#include "4ed_font_face.cpp"
+#include "4ed_mem.cpp"
 #include "4ed_font_set.cpp"
 
 ////////////////////////////////
