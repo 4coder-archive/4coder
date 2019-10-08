@@ -1016,19 +1016,27 @@ buffer_layout_character_from_pos(Buffer_Layout_Item_List list, i64 index){
     i64 result = 0;
     i64 character_count = 0;
     i64 prev_index = -1;
-    for (Buffer_Layout_Item_Block *node = list.first;
-         node != 0;
-         node = node->next){
-        Buffer_Layout_Item *item = node->items;
-        i64 count = node->count;
-        for (i64 i = 0; i < count; i += 1, item += 1){
-            if (item->index == index){
-                result = character_count;
-                goto double_break;
-            }
-            if (item->index != prev_index){
-                prev_index = item->index;
-                character_count += 1;
+    if (index <= list.index_range.first){
+        result = 0;
+    }
+    else if (index > list.index_range.one_past_last){
+        result = list.character_count - 1;
+    }
+    else{
+        for (Buffer_Layout_Item_Block *node = list.first;
+             node != 0;
+             node = node->next){
+            Buffer_Layout_Item *item = node->items;
+            i64 count = node->count;
+            for (i64 i = 0; i < count; i += 1, item += 1){
+                if (item->index == index){
+                    result = character_count;
+                    goto double_break;
+                }
+                if (item->index != prev_index){
+                    prev_index = item->index;
+                    character_count += 1;
+                }
             }
         }
     }
