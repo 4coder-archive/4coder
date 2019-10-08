@@ -78,10 +78,10 @@ smooth out float half_thickness;
 void main(void)
 {
 gl_Position = vec4(view_m*(vertex_p - view_t), 0.0, 1.0);
- fragment_color.b = ((vertex_c    )&0xFF)/255.0;
-fragment_color.g = ((vertex_c>> 8)&0xFF)/255.0;
-fragment_color.r = ((vertex_c>>16)&0xFF)/255.0;
-fragment_color.a = ((vertex_c>>24)&0xFF)/255.0;
+ fragment_color.b = (float((vertex_c     )&0xFFu))/255.0;
+fragment_color.g = (float((vertex_c>> 8u)&0xFFu))/255.0;
+fragment_color.r = (float((vertex_c>>16u)&0xFFu))/255.0;
+fragment_color.a = (float((vertex_c>>24u)&0xFFu))/255.0;
 uvw = vertex_t;
 vec2 center = vertex_t.xy;
 vec2 half_dim = abs(vertex_p - center);
@@ -216,7 +216,7 @@ gl_render(Render_Target *t){
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, 0, false);
-        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_LOW, 0, 0, true);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_LOW, 0, 0, false);
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_MEDIUM, 0, 0, true);
         glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0, 0, true);
         glDebugMessageCallback(gl__error_callback, 0);
