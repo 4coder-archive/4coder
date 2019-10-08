@@ -516,10 +516,10 @@ buffer_get_character_legal_pos_from_pos(Application_Links *app, Buffer_ID buffer
 }
 
 internal i64
-view_get_character_legal_pos_from_pos(Application_Links *app, Buffer_ID buffer, i64 pos){
-    Buffer_Cursor cursor = buffer_compute_cursor(app, buffer, seek_pos(pos));
-    i64 character = view_relative_character_from_pos(app, buffer, cursor.line, pos);
-    return(view_pos_from_relative_character(app, buffer, cursor.line, character));
+view_get_character_legal_pos_from_pos(Application_Links *app, View_ID view, i64 pos){
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    i64 character = view_relative_character_from_pos(app, view, cursor.line, pos);
+    return(view_pos_from_relative_character(app, view, cursor.line, character));
 }
 
 internal Buffer_Cursor
