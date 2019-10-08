@@ -68,32 +68,68 @@ uniform vec2 view_t;
 uniform mat2x2 view_m;
 in vec2 vertex_p;
 in vec3 vertex_t;
-in vec4 vertex_c;
+in uint vertex_c;
+in float vertex_ht;
 smooth out vec4 fragment_color;
 smooth out vec3 uvw;
+smooth out vec2 xy;
+smooth out vec2 adjusted_half_dim;
+smooth out float half_thickness;
 void main(void)
 {
-gl_Position = vec4(view_m*(vertex_p - view_t), 0.f, 1.f);
-fragment_color = vertex_c;
+gl_Position = vec4(view_m*(vertex_p - view_t), 0.0, 1.0);
+ fragment_color.b = ((vertex_c    )&0xFF)/255.0;
+fragment_color.g = ((vertex_c>> 8)&0xFF)/255.0;
+fragment_color.r = ((vertex_c>>16)&0xFF)/255.0;
+fragment_color.a = ((vertex_c>>24)&0xFF)/255.0;
 uvw = vertex_t;
+vec2 center = vertex_t.xy;
+vec2 half_dim = abs(vertex_p - center);
+adjusted_half_dim = half_dim - vertex_t.zz + vec2(0.5, 0.5);
+half_thickness = vertex_ht;
+xy = vertex_p;
 }
 )foo";
 
 char *gl__fragment = R"foo(
 smooth in vec4 fragment_color;
 smooth in vec3 uvw;
+smooth in vec2 xy;
+smooth in vec2 adjusted_half_dim;
+smooth in float half_thickness;
 uniform sampler2DArray sampler;
 out vec4 out_color;
+
+float rectangle_sd(vec2 p, vec2 b){
+vec2 d = abs(p) - b;
+return(length(max(d, vec2(0.0, 0.0))) + min(max(d.x, d.y), 0.0));
+}
+
 void main(void)
 {
-out_color = vec4(fragment_color.xyz, fragment_color.a*texture(sampler, uvw).r);
+float has_thickness = (step(0.49, half_thickness));
+float does_not_have_thickness = 1.0 - has_thickness;
+
+float sample_value = texture(sampler, uvw).r;
+sample_value *= does_not_have_thickness;
+
+vec2 center = uvw.xy;
+float roundness = uvw.z;
+float sd = rectangle_sd(xy - center, adjusted_half_dim);
+sd = sd - roundness;
+sd = abs(sd + half_thickness) - half_thickness;
+float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
+shape_value *= has_thickness;
+
+out_color = vec4(fragment_color.xyz, fragment_color.a*(sample_value + shape_value));
 }
 )foo";
 
 #define AttributeList(X) \
 X(vertex_p) \
 X(vertex_t) \
-X(vertex_c)
+X(vertex_c) \
+X(vertex_ht)
 
 #define UniformList(X) \
 X(view_t) \
@@ -265,9 +301,16 @@ gl_render(Render_Target *t){
             glEnableVertexAttribArray(gpu_program.vertex_p);
             glEnableVertexAttribArray(gpu_program.vertex_t);
             glEnableVertexAttribArray(gpu_program.vertex_c);
-            glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(Render_Vertex), GLOffset(Render_Vertex, xy));
-            glVertexAttribPointer(gpu_program.vertex_t, 3, GL_FLOAT, true, sizeof(Render_Vertex), GLOffset(Render_Vertex, uvw));
-            glVertexAttribPointer(gpu_program.vertex_c, 4, GL_FLOAT, true, sizeof(Render_Vertex), GLOffset(Render_Vertex, color));
+            glEnableVertexAttribArray(gpu_program.vertex_ht);
+            
+            glVertexAttribPointer(gpu_program.vertex_p, 2, GL_FLOAT, true, sizeof(Render_Vertex),
+                                  GLOffset(Render_Vertex, xy));
+            glVertexAttribPointer(gpu_program.vertex_t, 3, GL_FLOAT, true, sizeof(Render_Vertex),
+                                  GLOffset(Render_Vertex, uvw));
+            glVertexAttribIPointer(gpu_program.vertex_c, 1, GL_UNSIGNED_INT, sizeof(Render_Vertex),
+                                   GLOffset(Render_Vertex, color));
+            glVertexAttribPointer(gpu_program.vertex_ht, 1, GL_FLOAT, true, sizeof(Render_Vertex),
+                                  GLOffset(Render_Vertex, half_thickness));
             
             glUniform2f(gpu_program.view_t, width/2.f, height/2.f);
             f32 m[4] = {
@@ -281,6 +324,7 @@ gl_render(Render_Target *t){
             glDisableVertexAttribArray(gpu_program.vertex_p);
             glDisableVertexAttribArray(gpu_program.vertex_t);
             glDisableVertexAttribArray(gpu_program.vertex_c);
+            glDisableVertexAttribArray(gpu_program.vertex_ht);
         }
     }
     

@@ -18,9 +18,10 @@ struct Render_Free_Texture{
 };
 
 struct Render_Vertex{
-    Vec2 xy;
-    Vec3 uvw;
-    Vec4 color;
+    Vec2_f32 xy;
+    Vec3_f32 uvw;
+    u32 color;
+    f32 half_thickness;
 };
 
 struct Render_Vertex_Array_Node{

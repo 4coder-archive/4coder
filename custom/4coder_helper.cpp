@@ -2340,6 +2340,34 @@ draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos, f32
 
 internal void
 draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, int_color color){
+    if (range.first < range.one_past_last){
+        i64 i = range.first;
+        Rect_f32 first_rect = text_layout_character_on_screen(app, layout, i);
+        i += 1;
+        Range_f32 y = rect_range_y(first_rect);
+        Range_f32 x = rect_range_x(first_rect);
+        for (;i < range.one_past_last; i += 1){
+            Rect_f32 rect = text_layout_character_on_screen(app, layout, i);
+            if (rect.x0 < rect.x1 && rect.y0 < rect.y1){
+                Range_f32 new_y = rect_range_y(rect);
+                Range_f32 new_x = rect_range_x(rect);
+                b32 joinable = false;
+                if (new_y == y && (range_overlap(x, new_x) || x.max == new_x.min || new_x.max == x.min)){
+                    joinable = true;
+                }
+                
+                if (!joinable){
+                    draw_rectangle(app, Rf32(x, y), roundness, color);
+                    y = new_y;
+                    x = new_x;
+                }
+                else{
+                    x = range_union(x, new_x);
+                }
+            }
+        }
+        draw_rectangle(app, Rf32(x, y), roundness, color);
+    }
     for (i64 i = range.first; i < range.one_past_last; i += 1){
         draw_character_block(app, layout, i, roundness, color);
     }

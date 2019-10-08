@@ -441,8 +441,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     // NOTE(allen): Roundness
-    f32 cursor_roundness = 0.f;
-    f32 mark_thickness = 0.f;
+    f32 cursor_roundness = 4.f;
+    f32 mark_thickness = 2.f;
     
     // NOTE(allen): Highlight range
     b32 has_highlight_range = false;

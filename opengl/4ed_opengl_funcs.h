@@ -51,6 +51,7 @@ GL_FUNC(glDisableVertexAttribArray, void, (GLuint index))
 GL_FUNC(glEnableVertexAttribArray, void, (GLuint index))
 
 GL_FUNC(glVertexAttribPointer, void, (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer))
+GL_FUNC(glVertexAttribIPointer, void, (GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer))
 
 GL_FUNC(glUniform1f, void, (GLint location, GLfloat v0))
 GL_FUNC(glUniform2f, void, (GLint location, GLfloat v0, GLfloat v1))
