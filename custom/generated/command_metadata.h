@@ -2,7 +2,7 @@
 #define command_id(c) (fcoder_metacmd_ID_##c)
 #define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])
 #define command_metadata_by_id(id) (&fcoder_metacmd_table[id])
-#define command_one_past_last_id 226
+#define command_one_past_last_id 227
 #if defined(CUSTOM_COMMAND_SIG)
 #define PROC_LINKS(x,y) x
 #else
@@ -211,6 +211,7 @@ CUSTOM_COMMAND_SIG(list_all_functions_all_buffers);
 CUSTOM_COMMAND_SIG(list_all_functions_all_buffers_lister);
 CUSTOM_COMMAND_SIG(select_surrounding_scope);
 CUSTOM_COMMAND_SIG(select_next_scope_absolute);
+CUSTOM_COMMAND_SIG(select_next_scope_after_current);
 CUSTOM_COMMAND_SIG(select_prev_scope_absolute);
 CUSTOM_COMMAND_SIG(place_in_scope);
 CUSTOM_COMMAND_SIG(delete_current_scope);
@@ -246,7 +247,7 @@ char *source_name;
 i32 source_name_len;
 i32 line_number;
 };
-static Command_Metadata fcoder_metacmd_table[226] = {
+static Command_Metadata fcoder_metacmd_table[227] = {
 { PROC_LINKS(set_bindings_mac_default, 0), "set_bindings_mac_default", 24,  "Remap keybindings using the 'mac-default' mapping rule.", 55, "c:\\4ed\\code\\custom\\4coder_remapping_commands.cpp", 48, 62 },
 { PROC_LINKS(seek_beginning_of_textual_line, 0), "seek_beginning_of_textual_line", 30,  "Seeks the cursor to the beginning of the line across all text.", 62, "c:\\4ed\\code\\custom\\4coder_helper.cpp", 36, 2233 },
 { PROC_LINKS(seek_end_of_textual_line, 0), "seek_end_of_textual_line", 24,  "Seeks the cursor to the end of the line across all text.", 56, "c:\\4ed\\code\\custom\\4coder_helper.cpp", 36, 2239 },
@@ -448,10 +449,11 @@ static Command_Metadata fcoder_metacmd_table[226] = {
 { PROC_LINKS(list_all_functions_all_buffers, 0), "list_all_functions_all_buffers", 30,  "Creates a jump list of lines from all buffers that appear to define or declare functions.", 89, "c:\\4ed\\code\\custom\\4coder_function_list.cpp", 43, 289 },
 { PROC_LINKS(list_all_functions_all_buffers_lister, 0), "list_all_functions_all_buffers_lister", 37,  "Creates a lister of locations that look like function definitions and declarations all buffers.", 95, "c:\\4ed\\code\\custom\\4coder_function_list.cpp", 43, 295 },
 { PROC_LINKS(select_surrounding_scope, 0), "select_surrounding_scope", 24,  "Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.", 107, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 128 },
-{ PROC_LINKS(select_next_scope_absolute, 0), "select_next_scope_absolute", 26,  "Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.", 102, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 140 },
-{ PROC_LINKS(select_prev_scope_absolute, 0), "select_prev_scope_absolute", 26,  "Finds the first scope started by '{' before the cursor and puts the cursor and mark on the '{' and '}'.", 103, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 157 },
-{ PROC_LINKS(place_in_scope, 0), "place_in_scope", 14,  "Wraps the code contained in the range between cursor and mark with a new curly brace scope.", 91, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 174 },
-{ PROC_LINKS(delete_current_scope, 0), "delete_current_scope", 20,  "Deletes the braces surrounding the currently selected scope.  Leaves the contents within the scope.", 99, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 180 },
+{ PROC_LINKS(select_next_scope_absolute, 0), "select_next_scope_absolute", 26,  "Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.", 102, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 153 },
+{ PROC_LINKS(select_next_scope_after_current, 0), "select_next_scope_after_current", 31,  "Finds the first scope started by '{' after the mark and puts the cursor and mark on the '{' and '}'.  This command is meant to be used after a scope is already selected so that it will have the effect of selecting the next scope after the current scope.", 253, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 162 },
+{ PROC_LINKS(select_prev_scope_absolute, 0), "select_prev_scope_absolute", 26,  "Finds the first scope started by '{' before the cursor and puts the cursor and mark on the '{' and '}'.", 103, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 171 },
+{ PROC_LINKS(place_in_scope, 0), "place_in_scope", 14,  "Wraps the code contained in the range between cursor and mark with a new curly brace scope.", 91, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 188 },
+{ PROC_LINKS(delete_current_scope, 0), "delete_current_scope", 20,  "Deletes the braces surrounding the currently selected scope.  Leaves the contents within the scope.", 99, "c:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 194 },
 { PROC_LINKS(open_long_braces, 0), "open_long_braces", 16,  "At the cursor, insert a '{' and '}' separated by a blank line.", 62, "c:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 46 },
 { PROC_LINKS(open_long_braces_semicolon, 0), "open_long_braces_semicolon", 26,  "At the cursor, insert a '{' and '};' separated by a blank line.", 63, "c:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 54 },
 { PROC_LINKS(open_long_braces_break, 0), "open_long_braces_break", 22,  "At the cursor, insert a '{' and '}break;' separated by a blank line.", 68, "c:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 62 },
@@ -676,28 +678,29 @@ static i32 fcoder_metacmd_ID_list_all_functions_all_buffers = 198;
 static i32 fcoder_metacmd_ID_list_all_functions_all_buffers_lister = 199;
 static i32 fcoder_metacmd_ID_select_surrounding_scope = 200;
 static i32 fcoder_metacmd_ID_select_next_scope_absolute = 201;
-static i32 fcoder_metacmd_ID_select_prev_scope_absolute = 202;
-static i32 fcoder_metacmd_ID_place_in_scope = 203;
-static i32 fcoder_metacmd_ID_delete_current_scope = 204;
-static i32 fcoder_metacmd_ID_open_long_braces = 205;
-static i32 fcoder_metacmd_ID_open_long_braces_semicolon = 206;
-static i32 fcoder_metacmd_ID_open_long_braces_break = 207;
-static i32 fcoder_metacmd_ID_if0_off = 208;
-static i32 fcoder_metacmd_ID_write_todo = 209;
-static i32 fcoder_metacmd_ID_write_hack = 210;
-static i32 fcoder_metacmd_ID_write_note = 211;
-static i32 fcoder_metacmd_ID_write_block = 212;
-static i32 fcoder_metacmd_ID_write_zero_struct = 213;
-static i32 fcoder_metacmd_ID_comment_line = 214;
-static i32 fcoder_metacmd_ID_uncomment_line = 215;
-static i32 fcoder_metacmd_ID_comment_line_toggle = 216;
-static i32 fcoder_metacmd_ID_snippet_lister = 217;
-static i32 fcoder_metacmd_ID_miblo_increment_basic = 218;
-static i32 fcoder_metacmd_ID_miblo_decrement_basic = 219;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 220;
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 221;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 222;
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 223;
-static i32 fcoder_metacmd_ID_set_bindings_choose = 224;
-static i32 fcoder_metacmd_ID_set_bindings_default = 225;
+static i32 fcoder_metacmd_ID_select_next_scope_after_current = 202;
+static i32 fcoder_metacmd_ID_select_prev_scope_absolute = 203;
+static i32 fcoder_metacmd_ID_place_in_scope = 204;
+static i32 fcoder_metacmd_ID_delete_current_scope = 205;
+static i32 fcoder_metacmd_ID_open_long_braces = 206;
+static i32 fcoder_metacmd_ID_open_long_braces_semicolon = 207;
+static i32 fcoder_metacmd_ID_open_long_braces_break = 208;
+static i32 fcoder_metacmd_ID_if0_off = 209;
+static i32 fcoder_metacmd_ID_write_todo = 210;
+static i32 fcoder_metacmd_ID_write_hack = 211;
+static i32 fcoder_metacmd_ID_write_note = 212;
+static i32 fcoder_metacmd_ID_write_block = 213;
+static i32 fcoder_metacmd_ID_write_zero_struct = 214;
+static i32 fcoder_metacmd_ID_comment_line = 215;
+static i32 fcoder_metacmd_ID_uncomment_line = 216;
+static i32 fcoder_metacmd_ID_comment_line_toggle = 217;
+static i32 fcoder_metacmd_ID_snippet_lister = 218;
+static i32 fcoder_metacmd_ID_miblo_increment_basic = 219;
+static i32 fcoder_metacmd_ID_miblo_decrement_basic = 220;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 221;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 222;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 223;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 224;
+static i32 fcoder_metacmd_ID_set_bindings_choose = 225;
+static i32 fcoder_metacmd_ID_set_bindings_default = 226;
 #endif

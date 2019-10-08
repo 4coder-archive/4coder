@@ -137,12 +137,8 @@ CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts 
     }
 }
 
-CUSTOM_COMMAND_SIG(select_next_scope_absolute)
-CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.")
-{
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
-    i64 pos = view_get_cursor_pos(app, view);
+function void
+select_next_scope_after_pos(Application_Links *app, View_ID view, Buffer_ID buffer, i64 pos){
     Find_Nest_Flag flags = FindNest_Scope;
     Range_i64 range = {};
     if (find_nest_side(app, buffer, pos + 1,
@@ -152,6 +148,24 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
                        NestDelim_Close, &range.end)){
         select_scope(app, view, range);
     }
+}
+
+CUSTOM_COMMAND_SIG(select_next_scope_absolute)
+CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the cursor and mark on the '{' and '}'.")
+{
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i64 pos = view_get_cursor_pos(app, view);
+    select_next_scope_after_pos(app, view, buffer, pos);
+}
+
+CUSTOM_COMMAND_SIG(select_next_scope_after_current)
+CUSTOM_DOC("Finds the first scope started by '{' after the mark and puts the cursor and mark on the '{' and '}'.  This command is meant to be used after a scope is already selected so that it will have the effect of selecting the next scope after the current scope.")
+{
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    i64 pos = view_get_mark_pos(app, view);
+    select_next_scope_after_pos(app, view, buffer, pos);
 }
 
 CUSTOM_COMMAND_SIG(select_prev_scope_absolute)

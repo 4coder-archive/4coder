@@ -156,6 +156,7 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, '[', MDFR_ALT, select_surrounding_scope);
     bind(context, ']', MDFR_ALT, select_prev_scope_absolute);
     bind(context, '\'', MDFR_ALT, select_next_scope_absolute);
+    bind(context, '\'', MDFR_ALT|MDFR_SHIFT, select_next_scope_after_current);
     bind(context, '/', MDFR_ALT, place_in_scope);
     bind(context, '-', MDFR_ALT, delete_current_scope);
     bind(context, 'i', MDFR_ALT, if0_off);
