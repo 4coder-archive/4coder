@@ -9,8 +9,6 @@
 
 // TOP
 
-//#define GL_FUNC(N,R,P) typedef R (N##_Function) P; N##_Function *P = 0;
-//#include "4ed_opengl_funcs.h"
 #include "4ed_opengl_defines.h"
 
 internal void
@@ -241,7 +239,7 @@ gl_render(Render_Target *t){
     for (Render_Group *group = t->group_first;
          group != 0;
          group = group->next){
-        Rect_i32 box = group->clip_box;
+        Rect_i32 box = Ri32(group->clip_box);
         glScissor(box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0);
         
         i32 vertex_count = group->vertex_list.vertex_count;

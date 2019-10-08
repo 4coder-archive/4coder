@@ -78,14 +78,6 @@ draw__write_vertices_in_current_group(Render_Target *target, Render_Vertex *vert
 }
 
 internal void
-draw__set_clip_box(Render_Target *target, Rect_i32 clip_box){
-    if (target->current_clip_box != clip_box){
-        target->current_clip_box = clip_box;
-        draw__begin_new_group(target);
-    }
-}
-
-internal void
 draw__set_face_id(Render_Target *target, Face_ID face_id){
     if (target->current_face_id != face_id){
         if (target->current_face_id != 0){
@@ -105,31 +97,14 @@ draw__set_face_id(Render_Target *target, Face_ID face_id){
 
 ////////////////////////////////
 
-internal void
-draw_push_clip(Render_Target *target, Rect_i32 clip_box){
-    if (target->clip_top != -1){
-        clip_box = intersection_of(clip_box, target->clip_boxes[target->clip_top]);
+internal Rect_f32
+draw_set_clip(Render_Target *target, Rect_f32 clip_box){
+    Rect_f32 result = target->current_clip_box;
+    if (target->current_clip_box != clip_box){
+        target->current_clip_box = clip_box;
+        draw__begin_new_group(target);
     }
-    Assert(target->clip_top + 1 < ArrayCount(target->clip_boxes));
-    target->clip_boxes[++target->clip_top] = clip_box;
-    draw__set_clip_box(target, clip_box);
-}
-
-internal Rect_i32
-draw_pop_clip(Render_Target *target){
-    Assert(target->clip_top > 0);
-    Rect_i32 result = target->clip_boxes[target->clip_top];
-    --target->clip_top;
-    Rect_i32 clip_box = target->clip_boxes[target->clip_top];
-    draw__set_clip_box(target, clip_box);
     return(result);
-}
-
-internal void
-draw_change_clip(Render_Target *target, Rect_i32 clip_box){
-    Assert(target->clip_top > -1);
-    target->clip_boxes[target->clip_top] = clip_box;
-    draw__set_clip_box(target, clip_box);
 }
 
 internal void
@@ -138,15 +113,12 @@ begin_frame(Render_Target *target, void *font_set){
     target->group_first = 0;
     target->group_last = 0;
     target->current_face_id = 0;
-    target->current_clip_box = Ri32(0, 0, target->width, target->height);
+    target->current_clip_box = Rf32(0, 0, (f32)target->width, (f32)target->height);
     target->font_set = font_set;
 }
 
 internal void
 begin_render_section(Render_Target *target, i32 frame_index, f32 literal_dt, f32 animation_dt){
-    target->clip_top = -1;
-    Rect_i32 clip = Ri32(0, 0, target->width, target->height);
-    draw_push_clip(target, clip);
     target->frame_index = frame_index;
     target->literal_dt = literal_dt;
     target->animation_dt = animation_dt;
@@ -154,13 +126,12 @@ begin_render_section(Render_Target *target, i32 frame_index, f32 literal_dt, f32
 
 internal void
 end_render_section(Render_Target *target){
-    Assert(target->clip_top == 0);
 }
 
 ////////////////////////////////
 
 internal void
-draw_rectangle(Render_Target *target, Rect_f32 rect, u32 color){
+draw_rectangle_sharp(Render_Target *target, Rect_f32 rect, u32 color){
     Render_Vertex vertices[6] = {};
     vertices[0].xy = V2(rect.x0, rect.y0);
     vertices[1].xy = V2(rect.x1, rect.y0);
@@ -168,11 +139,245 @@ draw_rectangle(Render_Target *target, Rect_f32 rect, u32 color){
     vertices[3].xy = V2(rect.x1, rect.y0);
     vertices[4].xy = V2(rect.x0, rect.y1);
     vertices[5].xy = V2(rect.x1, rect.y1);
-    Vec4 c = unpack_color4(color);
+	Vec4_f32 c = unpack_color4(color);
     for (i32 i = 0; i < 6; i += 1){
         vertices[i].color = c;
     }
     draw__write_vertices_in_current_group(target, vertices, 6);
+}
+
+global b32 filled_round_corner = false;
+global_const i32 baked_tri_count = 12;
+global Vec2_f32 baked_round_corner[baked_tri_count + 1] = {};
+
+internal void
+bake_round_corner(void){
+    if (!filled_round_corner){
+        filled_round_corner = true;
+        Range_f32 theta = If32(0.f, half_pi_f32);
+        for (i32 k = 0; k < baked_tri_count + 1; k += 1){
+            f32 t = ((f32)k)/((f32)baked_tri_count);
+            f32 theta1 = lerp(t, theta);
+            baked_round_corner[k] = V2f32(cos_f32(theta1), sin_f32(theta1));
+        }
+    }
+}
+
+internal void
+draw_round_corners(Render_Target *target, Rect_f32 mid, f32 roundness, u32 color){
+    bake_round_corner();
+    
+    for (i32 i = 0; i < 2; i += 1){
+        for (i32 j = 0; j < 2; j += 1){
+            Vec2_f32 d = {};
+            Vec2_f32 p = {};
+            if (i == 0){
+                if (j == 0){
+                    p = V2f32(mid.x0, mid.y0);
+                    d = V2f32(-1.f, -1.f);
+                }
+                else{
+                    p = V2f32(mid.x1, mid.y0);
+                    d = V2f32( 1.f, -1.f);
+                }
+            }
+            else{
+                if (j == 0){
+                    p = V2f32(mid.x0, mid.y1);
+                    d = V2f32(-1.f,  1.f);
+                }
+                else{
+                    p = V2f32(mid.x1, mid.y1);
+                    d = V2f32( 1.f,  1.f);
+                }
+            }
+            d *= roundness;
+            
+            Render_Vertex vertices[baked_tri_count*3] = {};
+            i32 m = 0;
+            for (i32 k = 0; k < baked_tri_count; k += 1){
+                Vec2_f32 p0 = baked_round_corner[k + 0];
+                Vec2_f32 p1 = baked_round_corner[k + 1];
+                vertices[m].xy = p;
+                m += 1;
+                vertices[m].xy = p + hadamard(p0, d);
+                m += 1;
+                vertices[m].xy = p + hadamard(p1, d);
+                m += 1;
+            }
+			Vec4_f32 c = unpack_color4(color);
+            for (i32 k = 0; k < ArrayCount(vertices); k += 1){
+                vertices[k].color = c;
+            }
+            draw__write_vertices_in_current_group(target, vertices, ArrayCount(vertices));
+        }   
+    }
+}
+
+internal void
+draw_rectangle(Render_Target *target, Rect_f32 rect, f32 roundness, u32 color){
+    if (roundness < epsilon_f32){
+        draw_rectangle_sharp(target, rect, color);
+    }
+    else{
+        Vec2_f32 dim = rect_dim(rect);
+        Vec2_f32 half_dim = dim*0.5f;
+        roundness = min(roundness, half_dim.x);
+        roundness = min(roundness, half_dim.y);
+        
+        Rect_f32 mid = rect_inner(rect, roundness);
+        b32 has_x = (mid.x1 > mid.x0);
+        b32 has_y = (mid.y1 > mid.y0);
+        
+        if (has_x && has_y){
+            draw_rectangle_sharp(target, mid, color);
+        }
+        if (has_x){
+            draw_rectangle_sharp(target,
+                                 Rf32(mid.x0, rect.y0, mid.x1, mid.y0),
+                                 color);
+            draw_rectangle_sharp(target,
+                                 Rf32(mid.x0, mid.y0, mid.x1, rect.y1),
+                                 color);
+        }
+        if (has_y){
+            draw_rectangle_sharp(target,
+                                 Rf32(rect.x0, mid.y0, mid.x0, mid.y1),
+                                 color);
+            draw_rectangle_sharp(target,
+                                 Rf32(mid.x1, mid.y0, rect.x1, mid.y1),
+                                 color);
+        }
+        
+        draw_round_corners(target, mid, roundness, color);
+    }
+}
+
+internal void
+draw_rectangle_outline(Render_Target *target, Rect_f32 rect, f32 roundness, f32 thickness, u32 color){
+    Vec2_f32 dim = rect_dim(rect);
+    Vec2_f32 half_dim = dim*0.5f;
+    f32 max_thickness = min(half_dim.x, half_dim.y);
+    thickness = clamp(1.f, thickness, max_thickness);
+    Rect_f32 inner = rect_inner(rect, thickness);
+    
+    if (roundness < epsilon_f32){
+        Render_Vertex vertices[24] = {};
+        vertices[ 0].xy = V2(rect.x0, rect.y0);
+        vertices[ 1].xy = V2(inner.x0, inner.y0);
+        vertices[ 2].xy = V2(rect.x1, rect.y0);
+        vertices[ 3].xy = V2(inner.x0, inner.y0);
+        vertices[ 4].xy = V2(rect.x1, rect.y0);
+        vertices[ 5].xy = V2(inner.x1, inner.y0);
+        vertices[ 6].xy = V2(rect.x1, rect.y0);
+        vertices[ 7].xy = V2(inner.x1, inner.y0);
+        vertices[ 8].xy = V2(rect.x1, rect.y1);
+        vertices[ 9].xy = V2(inner.x1, inner.y0);
+        vertices[10].xy = V2(rect.x1, rect.y1);
+        vertices[11].xy = V2(inner.x1, inner.y1);
+        vertices[12].xy = V2(rect.x1, rect.y1);
+        vertices[13].xy = V2(inner.x1, inner.y1);
+        vertices[14].xy = V2(rect.x0, rect.y1);
+        vertices[15].xy = V2(inner.x1, inner.y1);
+        vertices[16].xy = V2(rect.x0, rect.y1);
+        vertices[17].xy = V2(inner.x0, inner.y1);
+        vertices[18].xy = V2(rect.x0, rect.y1);
+        vertices[19].xy = V2(inner.x0, inner.y1);
+        vertices[20].xy = V2(rect.x0, rect.y0);
+        vertices[21].xy = V2(inner.x0, inner.y1);
+        vertices[22].xy = V2(rect.x0, rect.y0);
+        vertices[23].xy = V2(inner.x0, inner.y0);
+		Vec4_f32 c = unpack_color4(color);
+        for (i32 i = 0; i < ArrayCount(vertices); i += 1){
+            vertices[i].color = c;
+        }
+        draw__write_vertices_in_current_group(target, vertices, ArrayCount(vertices));
+    }
+    else{
+        roundness = min(roundness, half_dim.x);
+        roundness = min(roundness, half_dim.y);
+        
+        Rect_f32 mid = rect_inner(rect, roundness);
+        b32 has_x = (mid.x1 > mid.x0);
+        b32 has_y = (mid.y1 > mid.y0);
+        
+        if (has_x){
+            draw_rectangle_sharp(target,
+                                 Rf32(mid.x0, rect.y0, mid.x1, inner.y0),
+                                 color);
+            draw_rectangle_sharp(target,
+                                 Rf32(mid.x0, inner.y1, mid.x1, rect.y1),
+                                 color);
+        }
+        if (has_y){
+            draw_rectangle_sharp(target,
+                                 Rf32(rect.x0, mid.y0, inner.x0, mid.y1),
+                                 color);
+            draw_rectangle_sharp(target,
+                                 Rf32(inner.x1, mid.y0, rect.x1, mid.y1),
+                                 color);
+        }
+        
+        if (roundness <= thickness){
+            draw_round_corners(target, mid, roundness, color);
+        }
+        else{
+            bake_round_corner();
+            
+            for (i32 i = 0; i < 2; i += 1){
+                for (i32 j = 0; j < 2; j += 1){
+                    Vec2_f32 d = {};
+                    Vec2_f32 p = {};
+                    if (i == 0){
+                        if (j == 0){
+                            p = V2f32(mid.x0, mid.y0);
+                            d = V2f32(-1.f, -1.f);
+                        }
+                        else{
+                            p = V2f32(mid.x1, mid.y0);
+                            d = V2f32( 1.f, -1.f);
+                        }
+                    }
+                    else{
+                        if (j == 0){
+                            p = V2f32(mid.x0, mid.y1);
+                            d = V2f32(-1.f,  1.f);
+                        }
+                        else{
+                            p = V2f32(mid.x1, mid.y1);
+                            d = V2f32( 1.f,  1.f);
+                        }
+                    }
+                    Vec2_f32 d1 = d*roundness;
+                    Vec2_f32 d2 = d*(roundness - thickness);
+                    
+                    Render_Vertex vertices[baked_tri_count*6] = {};
+                    i32 m = 0;
+                    for (i32 k = 0; k < baked_tri_count; k += 1){
+                        Vec2_f32 p0 = baked_round_corner[k + 0];
+                        Vec2_f32 p1 = baked_round_corner[k + 1];
+                        vertices[m].xy = p + hadamard(p0, d1);
+                        m += 1;
+                        vertices[m].xy = p + hadamard(p0, d2);
+                        m += 1;
+                        vertices[m].xy = p + hadamard(p1, d1);
+                        m += 1;
+                        vertices[m].xy = p + hadamard(p0, d2);
+                        m += 1;
+                        vertices[m].xy = p + hadamard(p1, d1);
+                        m += 1;
+                        vertices[m].xy = p + hadamard(p1, d2);
+                        m += 1;
+                    }
+					Vec4_f32 c = unpack_color4(color);
+                    for (i32 k = 0; k < ArrayCount(vertices); k += 1){
+                        vertices[k].color = c;
+                    }
+                    draw__write_vertices_in_current_group(target, vertices, ArrayCount(vertices));
+                }   
+            }
+        }
+    }
 }
 
 internal void
@@ -220,54 +425,6 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
 }
 
 ////////////////////////////////
-
-internal void
-draw_rectangle_outline(Render_Target *target, Rect_f32 rect, u32 color){
-    draw_rectangle(target, Rf32(rect.x0, rect.y0, rect.x1, rect.y0 + 1), color);
-    draw_rectangle(target, Rf32(rect.x1 - 1, rect.y0, rect.x1, rect.y1), color);
-    draw_rectangle(target, Rf32(rect.x0, rect.y1 - 1, rect.x1, rect.y1), color);
-    draw_rectangle(target, Rf32(rect.x0, rect.y0, rect.x0 + 1, rect.y1), color);
-}
-
-////////////////////////////////
-
-internal void
-draw_rectangle(Render_Target *target, Rect_i32 rect, u32 color){
-    draw_rectangle(target, Rf32(rect), color);
-}
-
-internal void
-draw_rectangle_outline(Render_Target *target, Rect_i32 rect, u32 color){
-    draw_rectangle_outline(target, Rf32(rect), color);
-}
-
-internal void
-draw_margin(Render_Target *target, Rect_f32 outer, Rect_f32 inner, u32 color){
-    draw_rectangle(target, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), color);
-    draw_rectangle(target, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    draw_rectangle(target, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), color);
-    draw_rectangle(target, Rf32(inner.x1, inner.y0, outer.x1, inner.y1), color);
-}
-
-internal void
-draw_margin(Render_Target *target, Rect_f32 outer, f32 width, u32 color){
-    Rect_f32 inner = rect_inner(outer, width);
-    draw_margin(target, outer, inner, color);
-}
-
-internal void
-draw_margin(Render_Target *target, Rect_i32 outer, Rect_i32 inner, u32 color){
-    draw_rectangle(target, Ri32(outer.x0, outer.y0, outer.x1, inner.y0), color);
-    draw_rectangle(target, Ri32(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    draw_rectangle(target, Ri32(outer.x0, inner.y0, inner.x0, inner.y1), color);
-    draw_rectangle(target, Ri32(inner.x1, inner.y0, outer.x1, inner.y1), color);
-}
-
-internal void
-draw_margin(Render_Target *target, Rect_i32 outer, i32 width, u32 color){
-    Rect_i32 inner = rect_inner(outer, width);
-    draw_margin(target, outer, inner, color);
-}
 
 internal Vec2
 snap_point_to_boundary(Vec2 point){

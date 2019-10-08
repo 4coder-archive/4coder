@@ -242,7 +242,7 @@ get_fancy_string_advance(Application_Links *app, Face_ID font_id, Fancy_String *
 static void
 draw_rectangle_fancy(Application_Links *app, Rect_f32 rect, Fancy_Color fancy_color){
     int_color color = int_color_from(app, fancy_color);
-    draw_rectangle(app, rect, color);
+    draw_rectangle(app, rect, 0.f, color);
 }
 
 ////////////////////////////////

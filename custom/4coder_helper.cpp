@@ -2326,35 +2326,35 @@ draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec
 
 internal void
 draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, int_color color){
-    draw_rectangle(app, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), color);
-    draw_rectangle(app, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    draw_rectangle(app, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), color);
-    draw_rectangle(app, Rf32(inner.x1, inner.y0, outer.x1, inner.y1), color);
+    draw_rectangle(app, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), 0.f, color);
+    draw_rectangle(app, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), 0.f, color);
+    draw_rectangle(app, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), 0.f, color);
+    draw_rectangle(app, Rf32(inner.x1, inner.y0, outer.x1, inner.y1), 0.f, color);
 }
 
 internal void
-draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
+draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, int_color color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
-    draw_rectangle(app, rect, color);
+    draw_rectangle(app, rect, roundness, color);
 }
 
 internal void
-draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, int_color color){
+draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, int_color color){
     for (i64 i = range.first; i < range.one_past_last; i += 1){
-        draw_character_block(app, layout, i, color);
+        draw_character_block(app, layout, i, roundness, color);
     }
 }
 
 internal void
-draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
+draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, f32 thickness, int_color color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
-    draw_rectangle_outline(app, rect, color);
+    draw_rectangle_outline(app, rect, roundness, thickness, color);
 }
 
 internal void
-draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, Range_i64 range, int_color color){
+draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, f32 thickness,  int_color color){
     for (i64 i = range.first; i < range.one_past_last; i += 1){
-        draw_character_wire_frame(app, layout, i, color);
+        draw_character_wire_frame(app, layout, i, roundness, thickness, color);
     }
 }
 
@@ -2362,7 +2362,7 @@ internal void
 draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
     rect.x1 = rect.x0 + 1.f;
-    draw_rectangle(app, rect, color);
+    draw_rectangle(app, rect, 0.f, color);
 }
 
 internal void
@@ -2372,7 +2372,7 @@ draw_line_highlight(Application_Links *app, Text_Layout_ID layout, Range_i64 lin
     Range_f32 y = range_union(y1, y2);
     if (range_size(y) > 0.f){
         Rect_f32 region = text_layout_region(app, layout);
-        draw_rectangle(app, Rf32(rect_range_x(region), y), color);
+        draw_rectangle(app, Rf32(rect_range_x(region), y), 0.f, color);
     }
 }
 

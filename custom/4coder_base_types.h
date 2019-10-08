@@ -284,6 +284,9 @@ global_const f32 min_f32 = -max_f32;
 global_const f32 smallest_positive_f32 = 1.1754943508e-38f;
 global_const f32 epsilon_f32 = 5.96046448e-8f;
 
+global_const f32 pi_f32 = 3.14159265359f;
+global_const f32 half_pi_f32 = 1.5707963267f;
+
 #define clamp_signed_to_i8(x) (i8)(clamp((i64)i8_min, (i64)(x), (i64)i8_max))
 #define clamp_signed_to_i16(x) (i16)(clamp((i64)i16_min, (i64)(x), (i64)i16_max))
 #define clamp_signed_to_i32(x) (i32)(clamp((i64)i32_min, (i64)(x), (i64)i32_max))

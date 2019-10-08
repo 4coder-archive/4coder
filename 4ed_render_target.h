@@ -41,12 +41,10 @@ struct Render_Group{
     Render_Vertex_List vertex_list;
     // parameters
     Face_ID face_id;
-    Rect_i32 clip_box;
+    Rect_f32 clip_box;
 };
 
 struct Render_Target{
-    Rect_i32 clip_boxes[5];
-    i32 clip_top;
     b8 clip_all;
     i32 width;
     i32 height;
@@ -66,7 +64,7 @@ struct Render_Target{
     i32 group_count;
     
     Face_ID current_face_id;
-    Rect_i32 current_clip_box;
+    Rect_f32 current_clip_box;
     void *font_set;
     u32 fallback_texture_id;
 };

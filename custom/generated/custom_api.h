@@ -153,10 +153,9 @@
 #define custom_set_window_title_sig() b32 custom_set_window_title(Application_Links* app, String_Const_u8 title)
 #define custom_draw_string_oriented_sig() Vec2 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta)
 #define custom_get_string_advance_sig() f32 custom_get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str)
-#define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, int_color color)
-#define custom_draw_rectangle_outline_sig() void custom_draw_rectangle_outline(Application_Links* app, Rect_f32 rect, int_color color)
-#define custom_draw_clip_push_sig() void custom_draw_clip_push(Application_Links* app, Rect_f32 clip_box)
-#define custom_draw_clip_pop_sig() Rect_f32 custom_draw_clip_pop(Application_Links* app)
+#define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, int_color color)
+#define custom_draw_rectangle_outline_sig() void custom_draw_rectangle_outline(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, int_color color)
+#define custom_draw_set_clip_sig() Rect_f32 custom_draw_set_clip(Application_Links* app, Rect_f32 new_clip)
 #define custom_text_layout_create_sig() Text_Layout_ID custom_text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point)
 #define custom_text_layout_region_sig() Rect_f32 custom_text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_text_layout_get_buffer_sig() Buffer_ID custom_text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id)
@@ -324,10 +323,9 @@ typedef void custom_send_exit_signal_type(Application_Links* app);
 typedef b32 custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
 typedef Vec2 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
 typedef f32 custom_get_string_advance_type(Application_Links* app, Face_ID font_id, String_Const_u8 str);
-typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, int_color color);
-typedef void custom_draw_rectangle_outline_type(Application_Links* app, Rect_f32 rect, int_color color);
-typedef void custom_draw_clip_push_type(Application_Links* app, Rect_f32 clip_box);
-typedef Rect_f32 custom_draw_clip_pop_type(Application_Links* app);
+typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, f32 roundness, int_color color);
+typedef void custom_draw_rectangle_outline_type(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, int_color color);
+typedef Rect_f32 custom_draw_set_clip_type(Application_Links* app, Rect_f32 new_clip);
 typedef Text_Layout_ID custom_text_layout_create_type(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
 typedef Rect_f32 custom_text_layout_region_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef Buffer_ID custom_text_layout_get_buffer_type(Application_Links* app, Text_Layout_ID text_layout_id);
@@ -498,8 +496,7 @@ custom_draw_string_oriented_type *draw_string_oriented;
 custom_get_string_advance_type *get_string_advance;
 custom_draw_rectangle_type *draw_rectangle;
 custom_draw_rectangle_outline_type *draw_rectangle_outline;
-custom_draw_clip_push_type *draw_clip_push;
-custom_draw_clip_pop_type *draw_clip_pop;
+custom_draw_set_clip_type *draw_set_clip;
 custom_text_layout_create_type *text_layout_create;
 custom_text_layout_region_type *text_layout_region;
 custom_text_layout_get_buffer_type *text_layout_get_buffer;
@@ -669,10 +666,9 @@ internal void send_exit_signal(Application_Links* app);
 internal b32 set_window_title(Application_Links* app, String_Const_u8 title);
 internal Vec2 draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
 internal f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
-internal void draw_rectangle(Application_Links* app, Rect_f32 rect, int_color color);
-internal void draw_rectangle_outline(Application_Links* app, Rect_f32 rect, int_color color);
-internal void draw_clip_push(Application_Links* app, Rect_f32 clip_box);
-internal Rect_f32 draw_clip_pop(Application_Links* app);
+internal void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, int_color color);
+internal void draw_rectangle_outline(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, int_color color);
+internal Rect_f32 draw_set_clip(Application_Links* app, Rect_f32 new_clip);
 internal Text_Layout_ID text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
 internal Rect_f32 text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id);
 internal Buffer_ID text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id);
@@ -844,8 +840,7 @@ global custom_draw_string_oriented_type *draw_string_oriented = 0;
 global custom_get_string_advance_type *get_string_advance = 0;
 global custom_draw_rectangle_type *draw_rectangle = 0;
 global custom_draw_rectangle_outline_type *draw_rectangle_outline = 0;
-global custom_draw_clip_push_type *draw_clip_push = 0;
-global custom_draw_clip_pop_type *draw_clip_pop = 0;
+global custom_draw_set_clip_type *draw_set_clip = 0;
 global custom_text_layout_create_type *text_layout_create = 0;
 global custom_text_layout_region_type *text_layout_region = 0;
 global custom_text_layout_get_buffer_type *text_layout_get_buffer = 0;

@@ -2621,37 +2621,35 @@ get_string_advance(Application_Links *app, Face_ID font_id, String_Const_u8 str)
 }
 
 api(custom) function void
-draw_rectangle(Application_Links *app, Rect_f32 rect, int_color color){
+draw_rectangle(Application_Links *app, Rect_f32 rect, f32 roundness, int_color color){
     Models *models = (Models*)app->cmd_context;
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
         u32 actual_color = finalize_color(color_table, color);
-        draw_rectangle(models->target, rect, actual_color);
+        f32 scale = system_get_screen_scale_factor();
+        roundness *= scale;
+        draw_rectangle(models->target, rect, roundness, actual_color);
     }
 }
 
 api(custom) function void
-draw_rectangle_outline(Application_Links *app, Rect_f32 rect, int_color color)
+draw_rectangle_outline(Application_Links *app, Rect_f32 rect, f32 roundness, f32 thickness, int_color color)
 {
     Models *models = (Models*)app->cmd_context;
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
         u32 actual_color = finalize_color(color_table, color);
-        draw_rectangle_outline(models->target, rect, actual_color);
+        f32 scale = system_get_screen_scale_factor();
+        roundness *= scale;
+        thickness *= scale;
+        draw_rectangle_outline(models->target, rect, roundness, thickness, actual_color);
     }
 }
 
-api(custom) function void
-draw_clip_push(Application_Links *app, Rect_f32 clip_box){
-    Models *models = (Models*)app->cmd_context;
-    //clip_box = draw_helper__models_space_to_screen_space(models, clip_box);
-    draw_push_clip(models->target, Ri32(clip_box));
-}
-
 api(custom) function Rect_f32
-draw_clip_pop(Application_Links *app){
+draw_set_clip(Application_Links *app, Rect_f32 new_clip){
     Models *models = (Models*)app->cmd_context;
-    return(Rf32(draw_pop_clip(models->target)));
+    return(draw_set_clip(models->target, new_clip));
 }
 
 api(custom) function Text_Layout_ID

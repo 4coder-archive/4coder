@@ -322,6 +322,16 @@ mod_f32(f32 x, i32 m){
     f32 r = ((i32)(whole) % m) + frac;
     return(r);
 }
+
+internal f32
+sin_f32(f32 x){
+    return(sinf(x));
+}
+
+internal f32
+cos_f32(f32 x){
+    return(cosf(x));
+}
 #endif
 
 ////////////////////////////////
@@ -1480,24 +1490,17 @@ near_zero(Vec3_f32 p){ return(near_zero(p, epsilon_f32)); }
 internal b32
 near_zero(Vec4_f32 p){ return(near_zero(p, epsilon_f32)); }
 
-////////////////////////////////
-
-internal b32
-operator==(Rect_i32 a, Rect_i32 b){
-    return(a.p0 == b.p0 && a.p1 == b.p1);
+internal Vec2_f32
+hadamard(Vec2_f32 a, Vec2_f32 b){
+    return(V2f32(a.x*b.x, a.y*b.y));
 }
-internal b32
-operator==(Rect_f32 a, Rect_f32 b){
-    return(a.p0 == b.p0 && a.p1 == b.p1);
+internal Vec3_f32
+hadamard(Vec3_f32 a, Vec3_f32 b){
+    return(V3f32(a.x*b.x, a.y*b.y, a.z*b.z));
 }
-
-internal b32
-operator!=(Rect_i32 a, Rect_i32 b){
-    return(!(a == b));
-}
-internal b32
-operator!=(Rect_f32 a, Rect_f32 b){
-    return(!(a == b));
+internal Vec4_f32
+hadamard(Vec4_f32 a, Vec4_f32 b){
+    return(V4f32(a.x*b.x, a.y*b.y, a.z*b.z, a.w*b.w));
 }
 
 ////////////////////////////////
@@ -1505,6 +1508,11 @@ operator!=(Rect_f32 a, Rect_f32 b){
 internal f32
 lerp(f32 a, f32 t, f32 b){
     return(a + (b-a)*t);
+}
+
+internal f32
+lerp(f32 t, Interval_f32 x){
+    return(x.min + (x.max - x.min)*t);
 }
 
 internal i32
@@ -1534,6 +1542,26 @@ unlerp(f32 a, f32 x, f32 b){
         r = (x - a)/(b - a);
     }
     return(r);
+}
+
+////////////////////////////////
+
+internal b32
+operator==(Rect_i32 a, Rect_i32 b){
+    return(a.p0 == b.p0 && a.p1 == b.p1);
+}
+internal b32
+operator==(Rect_f32 a, Rect_f32 b){
+    return(a.p0 == b.p0 && a.p1 == b.p1);
+}
+
+internal b32
+operator!=(Rect_i32 a, Rect_i32 b){
+    return(!(a == b));
+}
+internal b32
+operator!=(Rect_f32 a, Rect_f32 b){
+    return(!(a == b));
 }
 
 ////////////////////////////////

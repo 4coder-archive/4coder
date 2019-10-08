@@ -143,8 +143,8 @@ draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID
         }
         else{
             if (back_colors != 0){
-                draw_character_block(app, text_layout_id, range.min, back_colors[color_index]);
-                draw_character_block(app, text_layout_id, range.max - 1, back_colors[color_index]);
+                draw_character_block(app, text_layout_id, range.min, 0.f, back_colors[color_index]);
+                draw_character_block(app, text_layout_id, range.max - 1, 0.f, back_colors[color_index]);
             }
             if (fore_colors != 0){
                 paint_text_color_pos(app, text_layout_id, range.min, fore_colors[color_index]);
@@ -440,6 +440,10 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         draw_line_highlight(app, text_layout_id, line_number, Stag_Highlight_Cursor_Line);
     }
     
+    // NOTE(allen): Roundness
+    f32 cursor_roundness = 0.f;
+    f32 mark_thickness = 0.f;
+    
     // NOTE(allen): Highlight range
     b32 has_highlight_range = false;
     {
@@ -455,7 +459,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
                 Marker marker_range[2];
                 if (managed_object_load_data(app, *highlight, 0, 2, marker_range)){
                     Range_i64 range = Ii64(marker_range[0].pos, marker_range[1].pos);
-                    draw_character_block(app, text_layout_id, range, Stag_Highlight);
+                    draw_character_block(app, text_layout_id, range, cursor_roundness, Stag_Highlight);
                     paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
                 }
             }
@@ -469,13 +473,21 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             case FCoderMode_Original:
             {
                 if (is_active_view){
-                    draw_character_block(app, text_layout_id, cursor_pos, Stag_Cursor);
-                    paint_text_color_pos(app, text_layout_id, cursor_pos, Stag_At_Cursor);
-                    draw_character_wire_frame(app, text_layout_id, mark_pos, Stag_Mark);
+                    draw_character_block(app, text_layout_id, cursor_pos,
+                                         cursor_roundness, Stag_Cursor);
+                    paint_text_color_pos(app, text_layout_id, cursor_pos,
+                                         Stag_At_Cursor);
+                    draw_character_wire_frame(app, text_layout_id, mark_pos,
+                                              cursor_roundness, mark_thickness,
+                                              Stag_Mark);
                 }
                 else{
-                    draw_character_wire_frame(app, text_layout_id, mark_pos, Stag_Mark);
-                    draw_character_wire_frame(app, text_layout_id, cursor_pos, Stag_Cursor);
+                    draw_character_wire_frame(app, text_layout_id, mark_pos,
+                                              cursor_roundness, mark_thickness,
+                                              Stag_Mark);
+                    draw_character_wire_frame(app, text_layout_id, cursor_pos,
+                                              cursor_roundness, mark_thickness,
+                                              Stag_Cursor);
                 }
             }break;
             
@@ -483,7 +495,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             {
                 if (cursor_pos != mark_pos){
                     Range_i64 range = Ii64(cursor_pos, mark_pos);
-                    draw_character_block(app, text_layout_id, range, Stag_Highlight);
+                    draw_character_block(app, text_layout_id, range,
+                                         cursor_roundness, Stag_Highlight);
                     paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
                 }
                 draw_character_i_bar(app, text_layout_id, cursor_pos, Stag_Cursor);
@@ -491,9 +504,11 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         }
     }
     
-    draw_clip_push(app, buffer_rect);
-    draw_text_layout(app, text_layout_id);
-    draw_clip_pop(app);
+    {
+        Rect_f32 prev_clip = draw_set_clip(app, buffer_rect);
+        draw_text_layout(app, text_layout_id);
+        draw_set_clip(app, prev_clip);
+    }
     
     // NOTE(allen): FPS HUD
     if (show_fps_hud){
@@ -509,8 +524,8 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         
         Rect_f32 hud_rect = view_get_screen_rect(app, view_id);
         hud_rect.y0 = hud_rect.y1 - line_height*(f32)(history_depth);
-        draw_rectangle(app, hud_rect, 0xFF000000);
-        draw_rectangle_outline(app, hud_rect, 0xFFFFFFFF);
+        draw_rectangle(app, hud_rect, 0.f, 0xFF000000);
+        draw_rectangle_outline(app, hud_rect, 0.f, 1.f, 0xFFFFFFFF);
         
         Vec2 p = hud_rect.p0;
         
@@ -561,7 +576,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         bar.y1 = bar.y0 + line_height + 2.f;
         r_cursor.y0 = bar.y1;
         
-        draw_rectangle(app, bar, Stag_Bar);
+        draw_rectangle(app, bar, 0.f, Stag_Bar);
         
         Fancy_Color base_color = fancy_id(Stag_Base);
         Fancy_Color pop2_color = fancy_id(Stag_Pop2);
@@ -653,10 +668,9 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         left_margin.x1 = left_margin.x0 + margin_width + 2.f;
         r_cursor.x0 = left_margin.x1;
         
-        draw_rectangle(app, left_margin, Stag_Line_Numbers_Back);
+        draw_rectangle(app, left_margin, 0.f, Stag_Line_Numbers_Back);
         
-        Rect_f32 clip_region = left_margin;
-        draw_clip_push(app, clip_region);
+        Rect_f32 prev_clip = draw_set_clip(app, left_margin);
         
         Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
         
@@ -674,7 +688,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
             line_number += 1;
         }
         
-        draw_clip_pop(app);
+        draw_set_clip(app, prev_clip);
     }
     
     text_layout_free(app, text_layout_id);
@@ -711,8 +725,8 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect,
                 f32 line_height = metrics.line_height;
                 f32 info_height = (f32)item->line_count*line_height;
                 
-                draw_rectangle(app, inner, Stag_Back);
-                Vec2 p = V2(inner.x0 + 3.f, (f32)(round32((inner.y0 + inner.y1 - info_height)*0.5f)));
+                draw_rectangle(app, inner, 0.f, Stag_Back);
+                Vec2_f32 p = V2f32(inner.x0 + 3.f, (f32)(round32((inner.y0 + inner.y1 - info_height)*0.5f)));
                 for (i32 i = 0; i < item->line_count; i += 1){
                     draw_fancy_string(app, face_id, item->lines[i].first, p, Stag_Default, 0, 0, V2(1.f, 0));
                     p.y += line_height;
@@ -735,9 +749,9 @@ internal void
 default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view, b32 is_active){
     Rect_f32 view_rect = view_get_screen_rect(app, view);
     Rect_f32 inner = rect_inner(view_rect, 3);
-    draw_rectangle(app, view_rect, get_margin_color(is_active?UIActivation_Active:UIActivation_None));
-    draw_rectangle(app, inner, Stag_Back);
-    draw_clip_push(app, inner);
+    draw_rectangle(app, view_rect, 0.f, get_margin_color(is_active?UIActivation_Active:UIActivation_None));
+    draw_rectangle(app, inner, 0.f, Stag_Back);
+    Rect_f32 prev_clip = draw_set_clip(app, inner);
     
     Managed_Scope scope = view_get_managed_scope(app, view);
     View_Render_Hook **hook_ptr = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
@@ -755,7 +769,7 @@ default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view,
         hook(app, view, frame_info, inner);
     }
     
-    draw_clip_pop(app);
+    draw_set_clip(app, prev_clip);
 }
 
 RENDER_CALLER_SIG(default_render_caller){
