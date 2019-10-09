@@ -2781,48 +2781,48 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
             Gap_Buffer *buffer = &file->state.buffer;
             i64 line_number = buffer_get_line_index(buffer, pos) + 1;
             
-            Rect_f32 rect = layout->rect;
-            f32 width = rect_width(rect);
-            Face *face = file_get_face(models, file);
-            
-            Assert(layout->visible_line_number_range.first <= line_number);
-            
-            f32 y = 0.f;
-            Buffer_Layout_Item_List line = {};
-            for (i64 line_number_it = layout->visible_line_number_range.first;;
-                 line_number_it += 1){
-                line = file_get_line_layout(models, file, width, face, line_number_it);
-                if (line_number_it == line_number){
-                    break;
-                }
-                y += line.height;
-            }
-            
-            // TODO(allen): optimization: This is some fairly heavy computation.  We really 
-            // need to accelerate the (pos -> item) lookup within a single
-            // Buffer_Layout_Item_List.
-            b32 is_first_item = true;
-            result = Rf32_negative_infinity;
-            for (Buffer_Layout_Item_Block *block = line.first;
-                 block != 0;
-                 block = block->next){
-                Buffer_Layout_Item *item_ptr = block->items;
-                i64 count = block->count;
-                for (i32 i = 0; i < count; i += 1, item_ptr += 1){
-                    i64 index = item_ptr->index;
-                    if (index == pos){
-                        result = rect_union(result, item_ptr->rect);
-                    }
-                    else if (index > pos){
+            if (range_contains_inclusive(layout->visible_line_number_range, line_number)){
+                Rect_f32 rect = layout->rect;
+                f32 width = rect_width(rect);
+                Face *face = file_get_face(models, file);
+                
+                f32 y = 0.f;
+                Buffer_Layout_Item_List line = {};
+                for (i64 line_number_it = layout->visible_line_number_range.first;;
+                     line_number_it += 1){
+                    line = file_get_line_layout(models, file, width, face, line_number_it);
+                    if (line_number_it == line_number){
                         break;
                     }
+                    y += line.height;
                 }
+                
+                // TODO(allen): optimization: This is some fairly heavy computation.  We really 
+                // need to accelerate the (pos -> item) lookup within a single
+                // Buffer_Layout_Item_List.
+                b32 is_first_item = true;
+                result = Rf32_negative_infinity;
+                for (Buffer_Layout_Item_Block *block = line.first;
+                     block != 0;
+                     block = block->next){
+                    Buffer_Layout_Item *item_ptr = block->items;
+                    i64 count = block->count;
+                    for (i32 i = 0; i < count; i += 1, item_ptr += 1){
+                        i64 index = item_ptr->index;
+                        if (index == pos){
+                            result = rect_union(result, item_ptr->rect);
+                        }
+                        else if (index > pos){
+                            break;
+                        }
+                    }
+                }
+                
+                Vec2_f32 shift = V2f32(rect.x0, rect.y0 + y) - layout->point.pixel_shift;
+                result.p0 += shift;
+                result.p1 += shift;
+                result = rect_intersect(rect, result);
             }
-            
-            Vec2_f32 shift = V2f32(rect.x0, rect.y0 + y) - layout->point.pixel_shift;
-            result.p0 += shift;
-            result.p1 += shift;
-            result = rect_intersect(rect, result);
         }
     }
     return(result);
