@@ -62,11 +62,11 @@ layout__evaluate_split(Panel_Split split, i32 v0, i32 v1){
     switch (split.kind){
         case PanelSplitKind_Ratio_Min:
         {
-            v = round32(lerp((f32)v0, split.v_f32, (f32)v1));
+            v = i32_round32(lerp((f32)v0, split.v_f32, (f32)v1));
         }break;
         case PanelSplitKind_Ratio_Max:
         {
-            v = round32(lerp((f32)v1, split.v_f32, (f32)v0));
+            v = i32_round32(lerp((f32)v1, split.v_f32, (f32)v0));
         }break;
         case PanelSplitKind_FixedPixels_Min:
         {

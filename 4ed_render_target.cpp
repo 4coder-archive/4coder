@@ -208,9 +208,9 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
 ////////////////////////////////
 
 internal Vec2
-snap_point_to_boundary(Vec2 point){
-    point.x = (f32)(floor32(point.x));
-    point.y = (f32)(floor32(point.y));
+floor32(Vec2 point){
+    point.x = f32_floor32(point.x);
+    point.y = f32_floor32(point.y);
     return(point);
 }
 
@@ -218,7 +218,7 @@ internal f32
 draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
     f32 total_delta = 0.f;
     if (face != 0){
-        point = snap_point_to_boundary(point);
+        point = floor32(point);
         
         f32 byte_advance = face->byte_advance;
         f32 *byte_sub_advances = face->byte_sub_advances;

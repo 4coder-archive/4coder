@@ -771,7 +771,7 @@ log_graph_render(Application_Links *app, View_ID view, Frame_Info frame_info, Re
                         f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
                         draw_fancy_string(app, log_graph.face_id, line.first, p,
                                           Stag_Default, Stag_Back, 0, V2f32(1.f, 0.f));
-                        x_cursor += advance + metrics.typical_character_width;
+                        x_cursor += advance + metrics.normal_advance;
                         
                         if (log_graph.has_unused_click){
                             Rect_f32 click_rect = Rf32(p.x, p.y, p.x + advance, p.y + line_height);

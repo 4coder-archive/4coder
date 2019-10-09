@@ -1222,7 +1222,7 @@ panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind
                 case PanelSplitKind_FixedPixels_Max:
                 case PanelSplitKind_FixedPixels_Min:
                 {
-                    panel->split.v_i32 = round32(t);
+                    panel->split.v_i32 = i32_round32(t);
                 }break;
                 
                 default:
@@ -2430,8 +2430,13 @@ get_face_metrics(Application_Links *app, Face_ID face_id){
     if (face_id != 0){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result.line_height = (f32)face->height;
-            result.typical_character_width = face->byte_sub_advances[1];
+            result.text_height = face->text_height;
+            result.line_height = face->line_height;
+            result.max_advance = face->max_advance;
+            result.normal_advance = face->typical_advance;
+            result.space_advance = face->space_advance;
+            result.decimal_digit_advance = face->digit_advance;
+            result.hex_digit_advance = face->hex_advance;
         }
     }
     return(result);
@@ -2793,8 +2798,9 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                 y += line.height;
             }
             
-            // TODO(allen): optimization: This is some fairly heavy computation.  We really need
-            // to accelerate the (pos -> item) lookup within a single Buffer_Layout_Item_List.
+            // TODO(allen): optimization: This is some fairly heavy computation.  We really 
+            // need to accelerate the (pos -> item) lookup within a single
+            // Buffer_Layout_Item_List.
             b32 is_first_item = true;
             result = Rf32_negative_infinity;
             for (Buffer_Layout_Item_Block *block = line.first;

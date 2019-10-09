@@ -194,19 +194,20 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         face->description = *description;
         face->description.font.file_name = file_name;
         
+        face->max_advance = f32_ceil32(ft_face->size->metrics.max_advance/64.f);
         face->ascent      = f32_ceil32(ft_face->size->metrics.ascender/64.f);
         face->descent     = f32_floor32(ft_face->size->metrics.descender/64.f);
-        face->max_advance = f32_ceil32(ft_face->size->metrics.max_advance/64.f);
-        face->height      = f32_ceil32(ft_face->size->metrics.height/64.f);
-        face->line_skip   = face->height - (face->ascent - face->descent);
-        face->height     -= face->line_skip;
+        face->text_height = f32_ceil32(ft_face->size->metrics.height/64.f);
+        face->line_skip   = face->text_height - face->ascent + face->descent;
+        face->line_skip   = clamp_bot(1.f, face->line_skip);
+        face->line_height = face->text_height + face->line_skip;
         
         {
-            f32 real_over_notional = (f32)face->height/(f32)ft_face->height;
+            f32 real_over_notional = face->line_height/(f32)ft_face->height;
             f32 relative_center = -1.f*real_over_notional*ft_face->underline_position;
             f32 relative_thickness = real_over_notional*ft_face->underline_thickness;
             
-            f32 center    = (f32)floor32(face->ascent + relative_center);
+            f32 center    = f32_floor32(face->ascent + relative_center);
             f32 thickness = clamp_bot(1.f, relative_thickness);
             
             face->underline_yoff1 = center - thickness*0.5f;
@@ -271,7 +272,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                     }break;
                 }
                 
-                face->advance[i] = (f32)ceil32(ft_glyph->advance.x/64.0f);
+                face->advance[i] = f32_ceil32(ft_glyph->advance.x/64.0f);
             }
         }
         

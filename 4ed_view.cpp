@@ -262,7 +262,7 @@ view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
                                          edit_pos.cursor_pos);
     p -= scroll->target.pixel_shift;
     
-    f32 line_height = face->height;
+    f32 line_height = face->line_height;
     f32 typical_advance = face->typical_advance;
     Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
     Vec2_f32 safety = view_safety_margin(view_dim.x, range_size(acceptable_y), line_height, typical_advance);
@@ -298,7 +298,7 @@ view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *
     Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face, scroll.target.line_number, *pos_in_out);
     p -= scroll.target.pixel_shift;
     
-    f32 line_height = face->height;
+    f32 line_height = face->line_height;
     Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
     Vec2_f32 safety = view_safety_margin(view_dim.x, range_size(acceptable_y),
                                          line_height, face->typical_advance);

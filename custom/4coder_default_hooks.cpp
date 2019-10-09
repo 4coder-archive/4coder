@@ -222,7 +222,7 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics metrics = get_face_metrics(app, face_id);
-    i32 line_height = ceil32(metrics.line_height);
+    i32 line_height = i32_ceil32(metrics.line_height);
     
     // file bar
     {
@@ -247,9 +247,9 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     
     // line number margins
     if (global_config.show_line_number_margins){
-        i32 line_count = (i32)buffer_get_line_count(app, buffer);
-        i32 line_count_digit_count = (i32)digit_count_from_integer(line_count, 10);
-        i32 margin_width = ceil32((f32)line_count_digit_count*metrics.typical_character_width);
+        i64 line_count = buffer_get_line_count(app, buffer);
+        i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
+        i32 margin_width = i32_ceil32((f32)line_count_digit_count*metrics.normal_advance);
         sub_region.x0 += margin_width + 2;
     }
     
@@ -726,7 +726,7 @@ default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect,
                 f32 info_height = (f32)item->line_count*line_height;
                 
                 draw_rectangle(app, inner, 0.f, Stag_Back);
-                Vec2_f32 p = V2f32(inner.x0 + 3.f, (f32)(round32((inner.y0 + inner.y1 - info_height)*0.5f)));
+                Vec2_f32 p = V2f32(inner.x0 + 3.f, f32_round32((inner.y0 + inner.y1 - info_height)*0.5f));
                 for (i32 i = 0; i < item->line_count; i += 1){
                     draw_fancy_string(app, face_id, item->lines[i].first, p, Stag_Default, 0, 0, V2(1.f, 0));
                     p.y += line_height;

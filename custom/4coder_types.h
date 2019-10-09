@@ -418,8 +418,13 @@ STRUCT Face_Description{
 };
 
 STRUCT Face_Metrics{
+    f32 text_height;
     f32 line_height;
-    f32 typical_character_width;
+    f32 max_advance;
+    f32 normal_advance;
+    f32 space_advance;
+    f32 decimal_digit_advance;
+    f32 hex_digit_advance;
 };
 
 STRUCT Edit{

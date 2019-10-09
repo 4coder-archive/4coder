@@ -10,33 +10,33 @@
 #define C_MATH 1
 
 internal i32
-ceil32(f32 v){
+i32_ceil32(f32 v){
     return(((v)>0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)+1.f)) ):( ((i32)(v)) ));
 }
 
 internal i32
-floor32(f32 v){
+i32_floor32(f32 v){
     return(((v)<0)?( (v == (i32)(v))?((i32)(v)):((i32)((v)-1.f)) ):( ((i32)(v)) ));
 }
 
 internal i32
-round32(f32 v){
-    return(floor32(v + 0.5f));
+i32_round32(f32 v){
+    return(i32_floor32(v + 0.5f));
 }
 
 internal f32
 f32_ceil32(f32 v){
-    return((f32)ceil32(v));
+    return((f32)i32_ceil32(v));
 }
 
 internal f32
 f32_floor32(f32 v){
-    return((f32)floor32(v));
+    return((f32)i32_floor32(v));
 }
 
 internal f32
 f32_round32(f32 v){
-    return((f32)round32(v));
+    return((f32)i32_round32(v));
 }
 
 internal i8
@@ -1667,15 +1667,15 @@ rgba_to_hsla(Vec4 rgba){
     return(hsla);
 }
 
-internal Vec4
-hsla_to_rgba(Vec4 hsla){
+internal Vec4_f32
+hsla_to_rgba(Vec4_f32 hsla){
     if (hsla.h >= 1.f){
         hsla.h = 0.f;
     }
     f32 C = (1.f - abs_f32(2*hsla.z - 1.f))*hsla.y;
     f32 X = C*(1.f-abs_f32(mod_f32(hsla.x*6.f, 2)-1.f));
     f32 m = hsla.z - C*.5f;
-    i32 H = floor32(hsla.x*6.f);
+    i32 H = i32_floor32(hsla.x*6.f);
     Vec4 rgba = {};
     rgba.a = hsla.a;
     switch (H){

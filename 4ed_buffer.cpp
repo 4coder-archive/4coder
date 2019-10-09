@@ -707,16 +707,20 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
     List_String_Const_u8 chunks = buffer_get_chunks(scratch, buffer);
     buffer_chunks_clamp(&chunks, range);
     
-    f32 line_height = face->height;
+    f32 line_height = face->line_height;
+    f32 text_height = face->text_height;
+    f32 line_to_text_shift = text_height - line_height;
     f32 space_advance = face->space_advance;
     
     if (chunks.node_count == 0){
         f32 next_x = space_advance;
-        buffer_layout__write(arena, &list, range.first, ' ', 0,  Rf32(V2(0.f, 0.f), V2f32(next_x, line_height)));
+        buffer_layout__write(arena, &list, range.first, ' ', 0, 
+                             Rf32(V2(0.f, 0.f), V2f32(next_x, text_height)));
     }
     else{
         Vec2_f32 p = {};
         f32 line_y = line_height;
+        f32 text_y = text_height;
         
         String_Const_u8 text = {};
         if (chunks.node_count == 1){
@@ -753,10 +757,11 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
                         p.y = line_y;
                         p.x = 0.f;
                         line_y += line_height;
+                        text_y = line_y + line_to_text_shift;
                         next_x = p.x + advance;
                     }
                     buffer_layout__write(arena, &list, index, render_codepoint, 0, 
-                                         Rf32(p, V2f32(next_x, line_y)));
+                                         Rf32(p, V2f32(next_x, text_y)));
                     p.x = next_x;
                     ptr += consume.inc;
                     index += consume.inc;
@@ -791,6 +796,7 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
                         p.y = line_y;
                         p.x = 0.f;
                         line_y += line_height;
+                        text_y = line_y + line_to_text_shift;
                         next_x = p.x + face->byte_advance;
                     }
                     u32 v = *ptr;
@@ -798,15 +804,15 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
                     u32 hi = (v >> 4)&0xF;
                     f32 advance = face->byte_sub_advances[0];
                     buffer_layout__write(arena, &list, index, '\\', 0,
-                                         Rf32(p, V2f32(p.x + advance, line_y)));
+                                         Rf32(p, V2f32(p.x + advance, text_y)));
                     p.x += advance;
                     advance = face->byte_sub_advances[1];
                     buffer_layout__write(arena, &list, index, integer_symbols[lo], 0,
-                                         Rf32(p, V2f32(p.x + advance, line_y)));
+                                         Rf32(p, V2f32(p.x + advance, text_y)));
                     p.x += advance;
                     face->byte_sub_advances[2];
                     buffer_layout__write(arena, &list, index, integer_symbols[hi], 0,
-                                         Rf32(p, V2f32(p.x + advance, line_y)));
+                                         Rf32(p, V2f32(p.x + advance, text_y)));
                     p.x = next_x;
                     ptr += 1;
                     index += 1;
@@ -816,19 +822,22 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
             prev_did_emit_newline = false;
             if (emit_newline){
                 f32 next_x = p.x + space_advance;
-                buffer_layout__write(arena, &list, newline_character_index, ' ', 0,  Rf32(p, V2f32(next_x, line_y)));
+                buffer_layout__write(arena, &list, newline_character_index, ' ', 0,
+                                     Rf32(p, V2f32(next_x, text_y)));
                 p.y = line_y;
                 p.x = 0.f;
                 line_y += line_height;
+                text_y = line_y + line_to_text_shift;
                 first_of_the_line = true;
                 prev_did_emit_newline = true;
             }
         }
         if (!prev_did_emit_newline){
             f32 next_x = p.x + space_advance;
-            buffer_layout__write(arena, &list, index, ' ', 0,  Rf32(p, V2f32(next_x, line_y)));
+            buffer_layout__write(arena, &list, index, ' ', 0,  Rf32(p, V2f32(next_x, text_y)));
         }
     }
+    list.height -= line_to_text_shift;
     
     return(list);
 }

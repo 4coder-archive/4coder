@@ -213,9 +213,9 @@ draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
         
         Face_Metrics metrics = get_face_metrics(app, font_id);
         
-        P += (string->pre_margin*metrics.typical_character_width)*dP;
+        P += (string->pre_margin*metrics.normal_advance)*dP;
         draw_string_oriented(app, use_font_id, string->value, P, use_fore, flags, dP);
-        P += (adv + string->post_margin*metrics.typical_character_width)*dP;
+        P += (adv + string->post_margin*metrics.normal_advance)*dP;
     }
     return(P);
 }
@@ -234,7 +234,7 @@ get_fancy_string_advance(Application_Links *app, Face_ID font_id, Fancy_String *
         Face_ID use_font_id = (string->font_id) ? string->font_id : font_id;
         f32 adv = get_string_advance(app, use_font_id, string->value);
         Face_Metrics metrics = get_face_metrics(app, font_id);
-        advance += (string->pre_margin + string->post_margin)*metrics.typical_character_width + adv;
+        advance += (string->pre_margin + string->post_margin)*metrics.normal_advance + adv;
     }
     return(advance);
 }

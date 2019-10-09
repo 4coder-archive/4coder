@@ -43,7 +43,8 @@ struct Face{
     i32 version_number;
     
     // NOTE(allen): Metrics
-    f32 height;
+    f32 text_height;
+    f32 line_height;
     f32 ascent;
     f32 descent;
     f32 line_skip;
