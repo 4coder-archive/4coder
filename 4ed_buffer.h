@@ -67,6 +67,7 @@ struct Buffer_Layout_Item_List{
     i32 node_count;
     i32 total_count;
     f32 height;
+    f32 bottom_extension;
     i64 character_count;
     Interval_i64 index_range;
 };

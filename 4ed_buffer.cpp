@@ -837,7 +837,8 @@ buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i
             buffer_layout__write(arena, &list, index, ' ', 0,  Rf32(p, V2f32(next_x, text_y)));
         }
     }
-    list.height -= line_to_text_shift;
+    list.bottom_extension = -line_to_text_shift;
+    list.height += list.bottom_extension;
     
     return(list);
 }
@@ -853,6 +854,7 @@ buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
     }
     else{
         if (0.f < p.x && p.x < max_f32){
+            f32 bottom_extension = list.bottom_extension;
             f32 closest_x = -max_f32;
             for (Buffer_Layout_Item_Block *block = list.first;
                  block != 0;
@@ -864,7 +866,7 @@ buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
                     if (p.y < item->rect.y0){
                         goto double_break;
                     }
-                    if (item->rect.y1 <= p.y){
+                    if (item->rect.y1 + bottom_extension <= p.y){
                         continue;
                     }
                     f32 dist0 = p.x - item->rect.x0;
