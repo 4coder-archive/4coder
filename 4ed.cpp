@@ -159,6 +159,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                     }
                     
                     Command_Map *map = mapping_get_or_make_map(&new_mapping, mapid);
+                    map_set_parent(&new_mapping, map, mapid_global);
                     if (unit->map_begin.replace){
                         map->real_beginning = unit;
                     }
@@ -197,7 +198,12 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 case unit_inherit:
                 {
                     if (map_ptr != 0){
-                        map_set_parent(&new_mapping, map_ptr, unit->map_inherit.mapid);
+                        if (unit->map_inherit.mapid == mapid_nomap){
+                            map_null_parent(map_ptr);
+                        }
+                        else{
+                            map_set_parent(&new_mapping, map_ptr, unit->map_inherit.mapid);
+                        }
                     }
                 }break;
                 
@@ -581,14 +587,17 @@ force_abort_coroutine(Models *models, View *view){
     init_query_set(&view->query_set);
 }
 
-internal void
+internal b32
 launch_command_via_event(Models *models, View *view, Input_Event *event){
-    block_copy_struct(&models->event, event);
+    b32 result = false;
     
     Command_Map_ID map = view_get_map(view);
     Command_Binding cmd_bind = map_get_binding_recursive(&models->mapping, map, event);
     
     if (cmd_bind.custom != 0){
+        result = true;
+        block_copy_struct(&models->event, event);
+        
         Assert(models->command_coroutine == 0);
         Coroutine *command_coroutine = coroutine_create(&models->coroutines, command_caller);
         models->command_coroutine = command_coroutine;
@@ -597,13 +606,19 @@ launch_command_via_event(Models *models, View *view, Input_Event *event){
         cmd_in.models = models;
         cmd_in.bind = cmd_bind;
         
+        models->event_unhandled = false;
         models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
+        if (models->event_unhandled){
+            result = false;
+        }
         
         models->prev_command = cmd_bind;
         if (match_core_code(event,  CoreCode_Animate)){
             models->animate_next_frame = true;
         }
     }
+    
+    return(result);
 }
 
 internal void
@@ -964,7 +979,13 @@ App_Step_Sig(app_step){
     for (Input_Event_Node *node = input_list.first;
          node != 0;
          node = node->next){
+        b32 event_was_handled = false;
         Input_Event *event = &node->event;
+        
+        if (event->kind == InputEventKind_TextInsert &&
+            event->text.blocked){
+            continue;
+        }
         
         Panel *active_panel = layout_get_active_panel(layout);
         View *view = active_panel->view;
@@ -995,6 +1016,7 @@ App_Step_Sig(app_step){
                     {
                         models->state = APP_STATE_RESIZING;
                         models->resizing_intermediate_panel = divider_panel;
+                        event_was_handled = true;
                     }break;
                     
                     case EventConsume_ClickChangeView:
@@ -1019,6 +1041,8 @@ App_Step_Sig(app_step){
                         
                         // NOTE(allen): run activate command
                         launch_command_via_core_event(models, view, CoreCode_ClickActivateView);
+                        
+                        event_was_handled = true;
                     }break;
                     
                     case EventConsume_CustomCommand:
@@ -1033,6 +1057,8 @@ App_Step_Sig(app_step){
                             
                             Event_Property event_flags = get_event_properties(event);
                             if ((get_flags & event_flags) != 0){
+                                event_was_handled = true;
+                                
                                 Command_Map_ID map = view_get_map(view);
                                 Command_Binding cmd_bind = map_get_binding_recursive(&models->mapping, map, event);
                                 
@@ -1040,7 +1066,12 @@ App_Step_Sig(app_step){
                                 user_in.event = *event;
                                 user_in.command = cmd_bind.custom;
                                 user_in.abort = ((abort_flags & event_flags) != 0);
+                                
+                                models->event_unhandled = false;
                                 models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
+                                if (models->event_unhandled){
+                                    event_was_handled = false;
+                                }
                                 
                                 if (!HasFlag(event_flags, EventProperty_Animate)){
                                     models->animate_next_frame = true;
@@ -1052,7 +1083,9 @@ App_Step_Sig(app_step){
                             }
                         }
                         else{
-                            launch_command_via_event(models, view, event);
+                            if (launch_command_via_event(models, view, event)){
+                                event_was_handled = true;
+                            }
                         }
                     }break;
                 }
@@ -1078,6 +1111,15 @@ App_Step_Sig(app_step){
                     }
                 }
             }break;
+        }
+        
+        if (event_was_handled && event->kind == InputEventKind_KeyStroke){
+            for (Input_Event *dependent_text = event->key.first_dependent_text;
+                 dependent_text != 0;
+                 dependent_text = dependent_text->text.next_text){
+                Assert(dependent_text->kind == InputEventKind_TextInsert);
+                dependent_text->text.blocked = true;
+            }
         }
     }
     

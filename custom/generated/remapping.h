@@ -22,7 +22,6 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_X, MDFR_ALT, command_lister);
     bind(context, KeyCode_X, MDFR_ALT|MDFR_SHIFT, project_command_lister);
     bind(context, KeyCode_I, MDFR_CTRL|MDFR_SHIFT, list_all_functions_all_buffers_lister);
-    bind(context, KeyCode_F4, MDFR_ALT, exit_4coder);
     bind(context, KeyCode_F1, MDFR_NONE, project_fkey_command);
     bind(context, KeyCode_F2, MDFR_NONE, project_fkey_command);
     bind(context, KeyCode_F3, MDFR_NONE, project_fkey_command);
@@ -39,6 +38,7 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_F14, MDFR_NONE, project_fkey_command);
     bind(context, KeyCode_F15, MDFR_NONE, project_fkey_command);
     bind(context, KeyCode_F16, MDFR_NONE, project_fkey_command);
+    bind(context, KeyCode_F4, MDFR_ALT, exit_4coder);
     //bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, mouse_wheel_scroll);
     //bind(context, KeyCodeExt_MouseWheel, MDFR_CTRL, mouse_wheel_change_face_size);
     end_map(context);
@@ -120,7 +120,6 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_Return, MDFR_NONE, if_read_only_goto_position);
     bind(context, KeyCode_Return, MDFR_SHIFT, if_read_only_goto_position_same_panel);
     bind(context, KeyCode_Period, MDFR_CTRL|MDFR_SHIFT, view_jump_list_with_lister);
-    bind(context, KeyCode_Space, MDFR_SHIFT, write_space);
     end_map(context);
     begin_map(context, default_code_map);
     inherit_map(context, mapid_file);

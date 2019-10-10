@@ -124,9 +124,10 @@ struct Models{
     // Event Context
     Application_Step_Input *input;
     Input_Event event;
+    b8 event_unhandled;
     
+    b8 in_render_mode;
     Render_Target *target;
-    b32 in_render_mode;
 };
 
 ////////////////////////////////

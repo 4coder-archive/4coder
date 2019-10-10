@@ -571,6 +571,9 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
             lock_jump_buffer(app, buffer);
         }
     }
+    else{
+        leave_command_input_unhandled(app);
+    }
 }
 
 CUSTOM_COMMAND_SIG(if_read_only_goto_position_same_panel)
@@ -584,6 +587,9 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
             goto_jump_at_cursor_same_panel(app);
             lock_jump_buffer(app, buffer);
         }
+    }
+    else{
+        leave_command_input_unhandled(app);
     }
 }
 

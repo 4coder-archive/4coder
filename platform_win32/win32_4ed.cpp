@@ -146,6 +146,8 @@ struct Win32_Vars{
     Thread_Context *tctx;
     
     Arena *frame_arena;
+    Input_Event *active_key_stroke;
+    Input_Event *active_text_input;
     Win32_Input_Chunk input_chunk;
     b8 lctrl_lalt_is_altgr;
     b8 got_useful_event;
@@ -999,42 +1001,69 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 Key_Code key = keycode_lookup_table[(u8)wParam];
                 if (key != 0){
                     Key_Modifiers modifiers = system_get_keyboard_modifiers();
-                    Input_Event event = {};
-                    event.kind = InputEventKind_KeyStroke;
-                    event.key.code = key;
-                    block_copy_struct(&event.key.modifiers, &modifiers);
-                    push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list, &event);
+                    Input_Event *event = push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
+                    event->kind = InputEventKind_KeyStroke;
+                    event->key.code = key;
+                    block_copy_struct(&event->key.modifiers, &modifiers);
+                    win32vars.active_key_stroke = event;
                     
                     win32vars.got_useful_event = true;
                 }
             }
+            else{
+                win32vars.active_key_stroke = 0;
+                win32vars.active_text_input = 0;
+                
+                win32vars.got_useful_event = true;
+            }
         }break;
         
-        case WM_CHAR: case WM_SYSCHAR: case WM_UNICHAR:
+        case WM_CHAR:
         {
-            u16 character = (u16)wParam;
-            
-            if (character == '\r'){
-                character = '\n';
+            u16 c = wParam & bitmask_16;
+            if (c == '\r'){
+                c = '\n';
             }
-            else if (character == '\t'){
-                // Do nothing
+            if (c > 127 || (' ' <= c && c <= '~') || c == '\t' || c == '\n'){
+                String_Const_u16 str_16 = SCu16(&c, 1);
+                String_Const_u8 str_8 = string_u8_from_string_u16(win32vars.frame_arena, str_16).string;
+                Input_Event *event = push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
+                event->kind = InputEventKind_TextInsert;
+                event->text.string = str_8;
+                event->text.next_text = 0;
+                event->text.blocked = false;
+                if (win32vars.active_text_input != 0){
+                    win32vars.active_text_input->text.next_text = event;
+                }
+                else if (win32vars.active_key_stroke != 0){
+                    win32vars.active_key_stroke->key.first_dependent_text = event;
+                }
+                win32vars.active_text_input = event;
+                
+                win32vars.got_useful_event = true;
             }
-            else if (character < 32 || character == 127){
-                break;
+        }break;
+        
+        case WM_UNICHAR:
+        {
+            if (wParam == UNICODE_NOCHAR){
+                result = true;
             }
-            
-            String_Const_u16 str_16 = SCu16(&character, 1);
-            String_Const_u8 str_8 = string_u8_from_string_u16(win32vars.frame_arena, str_16).string;
-            
-            Key_Modifiers modifiers = system_get_keyboard_modifiers();
-            Input_Event event = {};
-            event.kind = InputEventKind_TextInsert;
-            event.text.string = str_8;
-            block_copy_struct(&event.text.modifiers, &modifiers);
-            push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list, &event);
-            
-            win32vars.got_useful_event = true;
+            else{
+                u32 c = (u32)wParam;
+                if (c == '\r'){
+                    c= '\n';
+                }
+                if (c > 127 || (' ' <= c && c <= '~') || c == '\t' || c == '\n'){
+                    String_Const_u32 str_32 = SCu32(&c, 1);
+                    String_Const_u8 str_8 = string_u8_from_string_u32(win32vars.frame_arena, str_32).string;
+                    Input_Event event = {};
+                    event.kind = InputEventKind_TextInsert;
+                    event.text.string = str_8;
+                    push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list, &event);
+                    win32vars.got_useful_event = true;
+                }
+            }
         }break;
         
         case WM_MOUSEMOVE:
@@ -1096,6 +1125,8 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 win32vars.input_chunk.pers.control_keys[i] = false;
             }
             block_zero_struct(&win32vars.input_chunk.pers.controls);
+            win32vars.active_key_stroke = 0;
+            win32vars.active_text_input = 0;
         }break;
         
         case WM_SIZE:
@@ -1659,6 +1690,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     for (;keep_running;){
         linalloc_clear(win32vars.frame_arena);
         block_zero_struct(&win32vars.input_chunk.trans);
+        win32vars.active_key_stroke = 0;
+        win32vars.active_text_input = 0;
         
         // TODO(allen): Find a good way to wait on a pipe
         // without interfering with the reading process.
@@ -1694,8 +1727,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                         }
                         
                         if (treat_normally){
-                            TranslateMessage(&msg);
                             DispatchMessage(&msg);
+                            TranslateMessage(&msg);
                         }
                         else{
                             Control_Keys *controls = &win32vars.input_chunk.pers.controls;

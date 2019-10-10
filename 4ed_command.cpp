@@ -104,7 +104,6 @@ mapping_release(Thread_Context *tctx, Mapping *mapping){
     }
 }
 
-#if 0
 internal Command_Map*
 mapping_begin_new_map(Mapping *mapping){
     Command_Map *map = mapping__alloc_map(mapping);
@@ -115,7 +114,6 @@ mapping_begin_new_map(Mapping *mapping){
     table_insert(&mapping->id_to_map, map->id, (u64)PtrAsInt(map));
     return(map);
 }
-#endif
 
 internal Command_Map*
 mapping_get_map(Mapping *mapping, Command_Map_ID id){
@@ -234,6 +232,11 @@ map_set_parent(Command_Map *map, Command_Map *parent){
 }
 
 internal void
+map_null_parent(Command_Map *map){
+    map->parent = 0;
+}
+
+internal void
 map_set_binding_text_input(Command_Map *map, Custom_Command_Function *custom){
     if (map != 0){
         map->text_input_command.custom = custom;
@@ -282,6 +285,12 @@ internal void
 map_set_parent(Mapping *mapping, Command_Map *map, Command_Map_ID parent_id){
     Command_Map *parent = mapping_get_map(mapping, parent_id);
     map_set_parent(map, parent);
+}
+
+internal void
+map_null_parent(Mapping *mapping, Command_Map_ID map_id){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    map_null_parent(map);
 }
 
 internal void

@@ -2107,6 +2107,12 @@ set_command_input(Application_Links *app, Input_Event *event)
     models->event = *event;
 }
 
+api(custom) function void
+leave_command_input_unhandled(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    models->event_unhandled = true;
+}
+
 api(custom) function Mouse_State
 get_mouse_state(Application_Links *app)
 {

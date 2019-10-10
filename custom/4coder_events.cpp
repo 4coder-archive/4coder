@@ -18,10 +18,6 @@ internal b32
 is_modified(Input_Event *event){
     b8 *mods = 0;
     switch (event->kind){
-        case InputEventKind_TextInsert:
-        {
-            mods = event->text.modifiers.modifiers;
-        }break;
         case InputEventKind_KeyStroke:
         {
             mods = event->key.modifiers.modifiers;
@@ -138,6 +134,14 @@ get_event_properties(Input_Event *event){
     }
     
     return(flags);
+}
+
+internal Input_Event*
+push_input_event(Arena *arena, Input_List *list){
+    Input_Event_Node *node = push_array_zero(arena, Input_Event_Node, 1);
+    sll_queue_push(list->first, list->last, node);
+    list->count += 1;
+    return(&node->event);
 }
 
 internal Input_Event*

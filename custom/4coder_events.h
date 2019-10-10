@@ -46,11 +46,17 @@ struct Input_Event{
     union{
         struct{
             String_Const_u8 string;
-            Key_Modifiers modifiers;
+            
+            // used internally
+            Input_Event *next_text;
+            b32 blocked;
         } text;
         struct{
             Key_Code code;
             Key_Modifiers modifiers;
+            
+            // used internally
+            Input_Event *first_dependent_text;
         } key;
         struct{
             Mouse_Code code;
