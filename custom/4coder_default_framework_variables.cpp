@@ -5,9 +5,6 @@ the default 4coder behavior.
 
 // TOP
 
-global Named_Mapping *named_maps = 0;
-global i32 named_map_count = 0;
-
 global b32 allow_immediate_close_without_checking_for_changes = false;
 
 global char *default_extensions[] = {
@@ -44,6 +41,8 @@ global Managed_ID view_highlight_range = 0;
 global Managed_ID view_highlight_buffer = 0;
 global Managed_ID view_render_hook = 0;
 
+global Managed_ID buffer_map_id = 0;
+
 global Managed_ID sticky_jump_marker_handle = 0;
 
 global Managed_ID attachment_tokens = 0;
@@ -79,6 +78,17 @@ global Arena *global_config_arena = {};
 global Config_Data global_config = {};
 
 global char previous_isearch_query[256] = {};
+
+global Mapping framework_mapping = {};
+
+enum{
+    mapid_global = 1,
+    mapid_file,
+    default_code_map,
+    default_lister_ui_map,
+    default_log_graph_map,
+    default_maps_count,
+};
 
 // BOTTOM
 

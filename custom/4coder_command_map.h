@@ -12,7 +12,7 @@
 #if !defined(FRED_COMMAND_H)
 #define FRED_COMMAND_H
 
-union Command_Binding{
+struct Command_Binding{
     Custom_Command_Function *custom;
 };
 

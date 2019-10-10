@@ -1,5 +1,4 @@
 api(custom) function b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value);
-api(custom) function b32 global_set_mapping(Application_Links* app, void* data, i32 size);
 api(custom) function Rect_f32 global_get_screen_rectangle(Application_Links* app);
 api(custom) function Thread_Context* get_thread_context(Application_Links* app);
 api(custom) function b32 create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out);
@@ -118,6 +117,7 @@ api(custom) function User_Input get_user_input(Application_Links* app, Event_Pro
 api(custom) function User_Input get_command_input(Application_Links* app);
 api(custom) function void set_command_input(Application_Links* app, Input_Event* event);
 api(custom) function void leave_command_input_unhandled(Application_Links* app);
+api(custom) function void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
 api(custom) function Mouse_State get_mouse_state(Application_Links* app);
 api(custom) function b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 api(custom) function b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -149,7 +149,6 @@ api(custom) function argb_color finalize_color(Application_Links* app, int_color
 api(custom) function String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
 api(custom) function b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
 api(custom) function void set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
-api(custom) function b32 set_edit_finished_hook_repeat_speed(Application_Links* app, u32 milliseconds);
 api(custom) function void send_exit_signal(Application_Links* app);
 api(custom) function b32 set_window_title(Application_Links* app, String_Const_u8 title);
 api(custom) function Vec2 draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);

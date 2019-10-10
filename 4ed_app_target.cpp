@@ -20,31 +20,28 @@
 #include "generated/custom_api.h"
 
 #include "4coder_table.h"
+#include "4coder_string_match.h"
+#include "4coder_token.h"
+#include "4coder_command_map.h"
 
 #include "4coder_system_types.h"
 #define DYNAMIC_LINK_API
 #include "generated/system_api.h"
-
 #include "4ed_font_interface.h"
 #define DYNAMIC_LINK_API
 #include "generated/graphics_api.h"
 #define DYNAMIC_LINK_API
 #include "generated/font_api.h"
 
-#include "4coder_string_match.h"
-
 #include "4ed_render_target.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"
 #include "4ed_coroutine.h"
 
-#include "4coder_token.h"
-
 #include "4ed_dynamic_variables.h"
 
 #include "4ed_buffer_model.h"
 #include "4ed_translation.h"
-#include "4ed_command.h"
 #include "4ed_buffer.h"
 #include "4ed_history.h"
 #include "4ed_file.h"
@@ -74,6 +71,7 @@
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
+#include "4coder_command_map.cpp"
 
 #include "generated/custom_api.cpp"
 #define DYNAMIC_LINK_API
@@ -92,7 +90,6 @@
 #include "4ed_font_set.cpp"
 #include "4ed_translation.cpp"
 #include "4ed_render_target.cpp"
-#include "4ed_command.cpp"
 #include "4ed_buffer.cpp"
 #include "4ed_string_matching.cpp"
 #include "4ed_history.cpp"

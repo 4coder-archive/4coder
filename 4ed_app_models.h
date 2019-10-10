@@ -45,9 +45,6 @@ struct Models{
     
     Face_ID global_face_id;
     
-    Mapping mapping;
-    Command_Binding prev_command;
-    
     Coroutine_Group coroutines;
     Coroutine *command_coroutine;
     u32 command_coroutine_flags[2];
@@ -57,10 +54,12 @@ struct Models{
     
     Application_Links app_links;
     
-    Hook_Function *hooks[hook_type_count];
-    Start_Hook_Function *hook_start;
-    Buffer_Hook_Function *hook_open_file;
+    Hook_Function *file_out_of_sync;
+    Hook_Function *exit;
+    Hook_Function *buffer_viewer_update;
+    Delta_Rule_Function *scroll_rule;
     Buffer_Hook_Function *hook_new_file;
+    Buffer_Hook_Function *hook_open_file;
     Buffer_Hook_Function *hook_save_file;
     Buffer_Hook_Function *hook_end_file;
     File_Edit_Range_Function *hook_file_edit_range;
@@ -68,7 +67,7 @@ struct Models{
     Command_Caller_Hook_Function *command_caller;
     Render_Caller_Function *render_caller;
     Input_Filter_Function *input_filter;
-    Delta_Rule_Function *scroll_rule;
+    Start_Hook_Function *hook_start;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
     Modify_Color_Table_Function *modify_color_table;
     Clipboard_Change_Hook_Function *clipboard_change;
@@ -107,8 +106,6 @@ struct Models{
     i32 title_capacity;
     
     Panel *resizing_intermediate_panel;
-    
-    u32 edit_finished_hook_repeat_speed;
     
     Plat_Handle period_wakeup_timer;
     i32 frame_counter;
@@ -168,7 +165,6 @@ struct App_Coroutine_State{
 
 struct Command_In{
     Models *models;
-    Command_Binding bind;
 };
 
 struct File_Init{

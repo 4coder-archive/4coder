@@ -1,7 +1,6 @@
 function void
 custom_api_fill_vtable(API_VTable_custom *vtable){
 vtable->global_set_setting = global_set_setting;
-vtable->global_set_mapping = global_set_mapping;
 vtable->global_get_screen_rectangle = global_get_screen_rectangle;
 vtable->get_thread_context = get_thread_context;
 vtable->create_child_process = create_child_process;
@@ -120,6 +119,7 @@ vtable->get_user_input = get_user_input;
 vtable->get_command_input = get_command_input;
 vtable->set_command_input = set_command_input;
 vtable->leave_command_input_unhandled = leave_command_input_unhandled;
+vtable->set_custom_hook = set_custom_hook;
 vtable->get_mouse_state = get_mouse_state;
 vtable->get_active_query_bars = get_active_query_bars;
 vtable->start_query_bar = start_query_bar;
@@ -151,7 +151,6 @@ vtable->finalize_color = finalize_color;
 vtable->push_hot_directory = push_hot_directory;
 vtable->set_hot_directory = set_hot_directory;
 vtable->set_gui_up_down_keys = set_gui_up_down_keys;
-vtable->set_edit_finished_hook_repeat_speed = set_edit_finished_hook_repeat_speed;
 vtable->send_exit_signal = send_exit_signal;
 vtable->set_window_title = set_window_title;
 vtable->draw_string_oriented = draw_string_oriented;
@@ -176,7 +175,6 @@ vtable->buffer_find_all_matches = buffer_find_all_matches;
 function void
 custom_api_read_vtable(API_VTable_custom *vtable){
 global_set_setting = vtable->global_set_setting;
-global_set_mapping = vtable->global_set_mapping;
 global_get_screen_rectangle = vtable->global_get_screen_rectangle;
 get_thread_context = vtable->get_thread_context;
 create_child_process = vtable->create_child_process;
@@ -295,6 +293,7 @@ get_user_input = vtable->get_user_input;
 get_command_input = vtable->get_command_input;
 set_command_input = vtable->set_command_input;
 leave_command_input_unhandled = vtable->leave_command_input_unhandled;
+set_custom_hook = vtable->set_custom_hook;
 get_mouse_state = vtable->get_mouse_state;
 get_active_query_bars = vtable->get_active_query_bars;
 start_query_bar = vtable->start_query_bar;
@@ -326,7 +325,6 @@ finalize_color = vtable->finalize_color;
 push_hot_directory = vtable->push_hot_directory;
 set_hot_directory = vtable->set_hot_directory;
 set_gui_up_down_keys = vtable->set_gui_up_down_keys;
-set_edit_finished_hook_repeat_speed = vtable->set_edit_finished_hook_repeat_speed;
 send_exit_signal = vtable->send_exit_signal;
 set_window_title = vtable->set_window_title;
 draw_string_oriented = vtable->draw_string_oriented;

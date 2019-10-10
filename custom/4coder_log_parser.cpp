@@ -1021,15 +1021,16 @@ CUSTOM_DOC("Jump to the code that logged the event record at the mouse point in 
 }
 
 internal void
-fill_log_graph_command_map(Bind_Helper *context){
-    begin_map(context, default_log_graph_map);
-    bind(context, KeyCode_Escape, MDFR_NONE, log_graph__escape);
-    //bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, log_graph__scroll_wheel);
-    //bind(context, KeyCodeExt_MouseLeft, MDFR_NONE, log_graph__click_jump_to_event_source);
-    //bind(context, KeyCodeExt_MouseRight, MDFR_NONE, log_graph__click_select_event);
-    bind(context, KeyCode_PageUp, MDFR_NONE, log_graph__page_up);
-    bind(context, KeyCode_PageDown, MDFR_NONE, log_graph__page_down);
-    end_map(context);
+fill_log_graph_command_map(Mapping *mapping){
+    MappingScope();
+    SelectMapping(mapping);
+    SelectMap(default_log_graph_map);
+    Bind(log_graph__escape, KeyCode_Escape);
+    //Bind(KeyCodeExt_MouseWheel, MDFR_NONE, log_graph__scroll_wheel);
+    //Bind(KeyCodeExt_MouseLeft, MDFR_NONE, log_graph__click_jump_to_event_source);
+    //Bind(KeyCodeExt_MouseRight, MDFR_NONE, log_graph__click_select_event);
+    Bind(log_graph__page_up, KeyCode_PageUp);
+    Bind(log_graph__page_down, KeyCode_PageDown);
 }
 
 CUSTOM_COMMAND_SIG(show_the_log_graph)

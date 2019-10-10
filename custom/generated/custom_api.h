@@ -1,5 +1,4 @@
 #define custom_global_set_setting_sig() b32 custom_global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value)
-#define custom_global_set_mapping_sig() b32 custom_global_set_mapping(Application_Links* app, void* data, i32 size)
 #define custom_global_get_screen_rectangle_sig() Rect_f32 custom_global_get_screen_rectangle(Application_Links* app)
 #define custom_get_thread_context_sig() Thread_Context* custom_get_thread_context(Application_Links* app)
 #define custom_create_child_process_sig() b32 custom_create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out)
@@ -118,6 +117,7 @@
 #define custom_get_command_input_sig() User_Input custom_get_command_input(Application_Links* app)
 #define custom_set_command_input_sig() void custom_set_command_input(Application_Links* app, Input_Event* event)
 #define custom_leave_command_input_unhandled_sig() void custom_leave_command_input_unhandled(Application_Links* app)
+#define custom_set_custom_hook_sig() void custom_set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr)
 #define custom_get_mouse_state_sig() Mouse_State custom_get_mouse_state(Application_Links* app)
 #define custom_get_active_query_bars_sig() b32 custom_get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out)
 #define custom_start_query_bar_sig() b32 custom_start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
@@ -149,7 +149,6 @@
 #define custom_push_hot_directory_sig() String_Const_u8 custom_push_hot_directory(Application_Links* app, Arena* arena)
 #define custom_set_hot_directory_sig() b32 custom_set_hot_directory(Application_Links* app, String_Const_u8 string)
 #define custom_set_gui_up_down_keys_sig() void custom_set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
-#define custom_set_edit_finished_hook_repeat_speed_sig() b32 custom_set_edit_finished_hook_repeat_speed(Application_Links* app, u32 milliseconds)
 #define custom_send_exit_signal_sig() void custom_send_exit_signal(Application_Links* app)
 #define custom_set_window_title_sig() b32 custom_set_window_title(Application_Links* app, String_Const_u8 title)
 #define custom_draw_string_oriented_sig() Vec2 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta)
@@ -170,7 +169,6 @@
 #define custom_animate_in_n_milliseconds_sig() void custom_animate_in_n_milliseconds(Application_Links* app, u32 n)
 #define custom_buffer_find_all_matches_sig() String_Match_List custom_buffer_find_all_matches(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction)
 typedef b32 custom_global_set_setting_type(Application_Links* app, Global_Setting_ID setting, i64 value);
-typedef b32 custom_global_set_mapping_type(Application_Links* app, void* data, i32 size);
 typedef Rect_f32 custom_global_get_screen_rectangle_type(Application_Links* app);
 typedef Thread_Context* custom_get_thread_context_type(Application_Links* app);
 typedef b32 custom_create_child_process_type(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out);
@@ -289,6 +287,7 @@ typedef User_Input custom_get_user_input_type(Application_Links* app, Event_Prop
 typedef User_Input custom_get_command_input_type(Application_Links* app);
 typedef void custom_set_command_input_type(Application_Links* app, Input_Event* event);
 typedef void custom_leave_command_input_unhandled_type(Application_Links* app);
+typedef void custom_set_custom_hook_type(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
 typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
 typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 typedef b32 custom_start_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -320,7 +319,6 @@ typedef argb_color custom_finalize_color_type(Application_Links* app, int_color 
 typedef String_Const_u8 custom_push_hot_directory_type(Application_Links* app, Arena* arena);
 typedef b32 custom_set_hot_directory_type(Application_Links* app, String_Const_u8 string);
 typedef void custom_set_gui_up_down_keys_type(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
-typedef b32 custom_set_edit_finished_hook_repeat_speed_type(Application_Links* app, u32 milliseconds);
 typedef void custom_send_exit_signal_type(Application_Links* app);
 typedef b32 custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
 typedef Vec2 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
@@ -342,7 +340,6 @@ typedef void custom_animate_in_n_milliseconds_type(Application_Links* app, u32 n
 typedef String_Match_List custom_buffer_find_all_matches_type(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction);
 struct API_VTable_custom{
 custom_global_set_setting_type *global_set_setting;
-custom_global_set_mapping_type *global_set_mapping;
 custom_global_get_screen_rectangle_type *global_get_screen_rectangle;
 custom_get_thread_context_type *get_thread_context;
 custom_create_child_process_type *create_child_process;
@@ -461,6 +458,7 @@ custom_get_user_input_type *get_user_input;
 custom_get_command_input_type *get_command_input;
 custom_set_command_input_type *set_command_input;
 custom_leave_command_input_unhandled_type *leave_command_input_unhandled;
+custom_set_custom_hook_type *set_custom_hook;
 custom_get_mouse_state_type *get_mouse_state;
 custom_get_active_query_bars_type *get_active_query_bars;
 custom_start_query_bar_type *start_query_bar;
@@ -492,7 +490,6 @@ custom_finalize_color_type *finalize_color;
 custom_push_hot_directory_type *push_hot_directory;
 custom_set_hot_directory_type *set_hot_directory;
 custom_set_gui_up_down_keys_type *set_gui_up_down_keys;
-custom_set_edit_finished_hook_repeat_speed_type *set_edit_finished_hook_repeat_speed;
 custom_send_exit_signal_type *send_exit_signal;
 custom_set_window_title_type *set_window_title;
 custom_draw_string_oriented_type *draw_string_oriented;
@@ -515,7 +512,6 @@ custom_buffer_find_all_matches_type *buffer_find_all_matches;
 };
 #if defined(STATIC_LINK_API)
 internal b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value);
-internal b32 global_set_mapping(Application_Links* app, void* data, i32 size);
 internal Rect_f32 global_get_screen_rectangle(Application_Links* app);
 internal Thread_Context* get_thread_context(Application_Links* app);
 internal b32 create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out);
@@ -634,6 +630,7 @@ internal User_Input get_user_input(Application_Links* app, Event_Property get_pr
 internal User_Input get_command_input(Application_Links* app);
 internal void set_command_input(Application_Links* app, Input_Event* event);
 internal void leave_command_input_unhandled(Application_Links* app);
+internal void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
 internal Mouse_State get_mouse_state(Application_Links* app);
 internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 internal b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -665,7 +662,6 @@ internal argb_color finalize_color(Application_Links* app, int_color color);
 internal String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
 internal b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
 internal void set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
-internal b32 set_edit_finished_hook_repeat_speed(Application_Links* app, u32 milliseconds);
 internal void send_exit_signal(Application_Links* app);
 internal b32 set_window_title(Application_Links* app, String_Const_u8 title);
 internal Vec2 draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
@@ -688,7 +684,6 @@ internal String_Match_List buffer_find_all_matches(Application_Links* app, Arena
 #undef STATIC_LINK_API
 #elif defined(DYNAMIC_LINK_API)
 global custom_global_set_setting_type *global_set_setting = 0;
-global custom_global_set_mapping_type *global_set_mapping = 0;
 global custom_global_get_screen_rectangle_type *global_get_screen_rectangle = 0;
 global custom_get_thread_context_type *get_thread_context = 0;
 global custom_create_child_process_type *create_child_process = 0;
@@ -807,6 +802,7 @@ global custom_get_user_input_type *get_user_input = 0;
 global custom_get_command_input_type *get_command_input = 0;
 global custom_set_command_input_type *set_command_input = 0;
 global custom_leave_command_input_unhandled_type *leave_command_input_unhandled = 0;
+global custom_set_custom_hook_type *set_custom_hook = 0;
 global custom_get_mouse_state_type *get_mouse_state = 0;
 global custom_get_active_query_bars_type *get_active_query_bars = 0;
 global custom_start_query_bar_type *start_query_bar = 0;
@@ -838,7 +834,6 @@ global custom_finalize_color_type *finalize_color = 0;
 global custom_push_hot_directory_type *push_hot_directory = 0;
 global custom_set_hot_directory_type *set_hot_directory = 0;
 global custom_set_gui_up_down_keys_type *set_gui_up_down_keys = 0;
-global custom_set_edit_finished_hook_repeat_speed_type *set_edit_finished_hook_repeat_speed = 0;
 global custom_send_exit_signal_type *send_exit_signal = 0;
 global custom_set_window_title_type *set_window_title = 0;
 global custom_draw_string_oriented_type *draw_string_oriented = 0;

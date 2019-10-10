@@ -8,25 +8,20 @@
 #define FCODER_DEFAULT_BINDINGS_CPP
 
 #include "4coder_default_include.cpp"
+#include "generated/remapping.h"
 
 // NOTE(allen|a4.0.22): This no longer serves as very good example code.
 // Good example code will be coming soon, but in the mean time you can go
 // to 4coder_remapping_commands.cpp for examples of what binding code looks like.
 
 #if !defined(NO_BINDING)
-extern "C" i32
-get_bindings(void *data, i32 size){
-    Bind_Helper context_ = begin_bind_helper(data, size);
-    Bind_Helper *context = &context_;
-    
-    set_all_default_hooks(context);
-#if defined(__APPLE__) && defined(__MACH__)
-    mac_default_keys(context);
-#else
-    default_keys(context);
-#endif
-    
-    return(end_bind_helper(context));
+void
+custom_layer_init(Application_Links *app){
+    set_all_default_hooks(app);
+    Thread_Context *tctx = get_thread_context(app);
+    mapping_init(tctx, &framework_mapping);
+    setup_default_mapping(&framework_mapping);
+    fill_log_graph_command_map(&framework_mapping);
 }
 #endif //NO_BINDING
 

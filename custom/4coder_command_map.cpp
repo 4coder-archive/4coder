@@ -324,5 +324,42 @@ map_get_binding_recursive(Mapping *mapping, Command_Map_ID map_id, Input_Event *
     return(map_get_binding_recursive(mapping, map, event));
 }
 
+////////////////////////////////
+
+internal void
+map_set_binding_key__wrapperv(Mapping *mapping, Command_Map *map,
+                              Custom_Command_Function *custom, Key_Code code, va_list args){
+    u32 flags = 0;
+    for (;;){
+        i32 v = va_arg(args, i32);
+        if (v <= 0){
+            break;
+        }
+        flags |= v;
+    }
+    Key_Modifiers mod = {};
+    mod.modifiers[MDFR_SHIFT_INDEX] = HasFlag(flags, MDFR_SHIFT);
+    mod.modifiers[MDFR_CONTROL_INDEX] = HasFlag(flags, MDFR_CTRL);
+    mod.modifiers[MDFR_ALT_INDEX] = HasFlag(flags, MDFR_ALT);
+    mod.modifiers[MDFR_COMMAND_INDEX] = HasFlag(flags, MDFR_CMND);
+    return(map_set_binding_key(mapping, map, custom, code, &mod));
+}
+internal void
+map_set_binding_key__wrapper(Mapping *mapping, Command_Map *map,
+                             Custom_Command_Function *custom, Key_Code code, ...){
+    va_list args;
+    va_start(args, code);
+    map_set_binding_key__wrapperv(mapping, map, custom, code, args);
+    va_end(args);
+}
+
+#define MappingScope() Mapping *m = 0; Command_Map *map = 0
+#define SelectMapping(N) m = (N)
+#define SelectMap(ID) map = mapping_get_or_make_map(m, (ID))
+#define ParentMap(ID) map_set_parent(m, map, (ID))
+#define BindTextInput(F) map_set_binding_text_input(map, (F))
+// TODO(allen): detect compiler and apply va args extensions correctly
+#define Bind(F, K, ...) map_set_binding_key__wrapper(m, map, (F), (K), __VA_ARGS__, 0)
+
 // BOTTOM
 

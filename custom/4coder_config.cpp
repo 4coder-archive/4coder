@@ -1126,21 +1126,6 @@ typed_array_reference_list(Arena *arena, Config *parsed, Config_Compound *compou
 ////////////////////////////////
 
 static void
-change_mapping(Application_Links *app, String_Const_u8 mapping){
-    b32 did_remap = false;
-    for (i32 i = 0; i < named_map_count; ++i){
-        if (string_match(mapping, named_maps[i].name)){
-            did_remap = true;
-            named_maps[i].remap_command(app);
-            break;
-        }
-    }
-    if (!did_remap){
-        print_message(app, string_u8_litexpr("Leaving bindings unaltered.\n"));
-    }
-}
-
-static void
 change_mode(Application_Links *app, String_Const_u8 mode){
     fcoder_mode = FCoderMode_Original;
     if (string_match(mode, string_u8_litexpr("4coder"))){
@@ -1184,7 +1169,6 @@ config_init_default(Config_Data *config){
     
     block_zero_struct(&config->code_exts);
     
-    config->current_mapping = SCu8(config->current_mapping_space, (umem)0);
     config->mode = SCu8(config->mode_space, (umem)0);
     
     config->use_scroll_bars = false;
@@ -1247,9 +1231,6 @@ config_parse__data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data
         if (config_string_var(parsed, "treat_as_code", 0, &str)){
             config->code_exts = parse_extension_line_to_extension_list(arena, str);
         }
-        
-        config_fixed_string_var(parsed, "mapping", 0,
-                                &config->current_mapping, config->current_mapping_space);
         
         config_fixed_string_var(parsed, "mode", 0,
                                 &config->mode, config->mode_space);
@@ -1460,7 +1441,6 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         {
             config_feedback_string(scratch, &list, "user_name", config->user_name);
             config_feedback_extension_list(scratch, &list, "treat_as_code", &config->code_exts);
-            config_feedback_string(scratch, &list, "current_mapping", config->current_mapping);
             
             config_feedback_string(scratch, &list, "mode", config->mode);
             
@@ -1507,7 +1487,6 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         end_temp(temp2);
         
         // Apply config
-        change_mapping(app, config->current_mapping);
         change_mode(app, config->mode);
         highlight_line_at_cursor = config->use_line_highlight;
         do_matching_enclosure_highlight = config->use_scope_highlight;

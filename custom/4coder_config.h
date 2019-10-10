@@ -185,9 +185,6 @@ struct Config_Data{
     
     String_Const_u8_Array code_exts;
     
-    u8 current_mapping_space[256];
-    String_Const_u8 current_mapping;
-    
     u8 mode_space[64];
     String_Const_u8 mode;
     

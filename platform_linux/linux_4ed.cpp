@@ -1950,7 +1950,7 @@ main(int argc, char **argv){
 #if defined(FRED_SUPER)
     load_custom_code();
 #else
-    custom_api.get_bindings = get_bindings;
+    DontCompile;
 #endif
     
     //

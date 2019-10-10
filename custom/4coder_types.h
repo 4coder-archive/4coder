@@ -18,9 +18,12 @@ struct Application_Links{
     void *current_coroutine;
     i32 type_coroutine;
 };
-typedef b32 _Get_Version_Function(i32 maj, i32 min, i32 patch);
-typedef void _Init_APIs(struct API_VTable_custom *custom_vtable,
-                        struct API_VTable_system *system_vtable);
+typedef void Custom_Layer_Init_Type(Application_Links *app);
+void custom_layer_init(Application_Links *app);
+
+typedef b32 _Get_Version_Type(i32 maj, i32 min, i32 patch);
+typedef Custom_Layer_Init_Type *_Init_APIs_Type(struct API_VTable_custom *custom_vtable,
+                                                struct API_VTable_system *system_vtable);
 
 ////////////////////////////////
 
@@ -89,7 +92,6 @@ ENUM(i32, Global_Setting_ID){
 
 ENUM(i32, Buffer_Setting_ID){
     BufferSetting_Null,
-    BufferSetting_MapID,
     BufferSetting_Eol,
     BufferSetting_Unimportant,
     BufferSetting_ReadOnly,
@@ -455,9 +457,9 @@ TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 #define CUSTOM_ALIAS(x) CUSTOM_ALIAS(x)
 #endif
 
+// TODO(allen): rename
 STRUCT User_Input{
     Input_Event event;
-    Custom_Command_Function *command;
     b32 abort;
 };
 
@@ -469,41 +471,36 @@ STRUCT Frame_Info{
 
 TYPEDEF_FUNC void Render_Callback(struct Application_Links *app);
 
-ENUM(i32, Hook_ID){
-    hook_file_out_of_sync,
-    hook_exit,
-    hook_buffer_viewer_update,
-    // never below this
-    hook_type_count
+typedef i32 Hook_ID;
+enum{
+    HookID_FileOutOfSync,
+    HookID_Exit,
+    HookID_BufferViewerUpdate,
+    HookID_ScrollRule,
+    HookID_NewFile,
+    HookID_OpenFile,
+    HookID_SaveFile,
+    HookID_EndFile,
+    HookID_FileEditRange,
+    HookID_FileExternallyModified,
+    HookID_CommandCaller,
+    HookID_RenderCaller,
+    HookID_InputFilter,
+    HookID_Start,
+    HookID_BufferNameResolver,
+    HookID_ModifyColorTable,
+    HookID_ClipboardChange,
+    HookID_GetViewBufferRegion,
 };
-
-ENUM(i32, Special_Hook_ID){
-    special_hook_scroll_rule = hook_type_count,
-    special_hook_new_file,
-    special_hook_open_file,
-    special_hook_save_file,
-    special_hook_end_file,
-    special_hook_file_edit_range,
-    special_hook_file_edit_finished,
-    special_hook_file_externally_modified,
-    special_hook_command_caller,
-    special_hook_render_caller,
-    special_hook_input_filter,
-    special_hook_start,
-    special_hook_buffer_name_resolver,
-    special_hook_modify_color_table,
-    special_hook_clipboard_change,
-    special_hook_get_view_buffer_region,
-};
-
-TYPEDEF_FUNC i32 Command_Caller_Hook_Function(struct Application_Links *app, Custom_Command_Function *cmd);
-#define COMMAND_CALLER_HOOK(name) i32 name(struct Application_Links *app, Custom_Command_Function *cmd)
-
-TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, Frame_Info frame_info);
-#define RENDER_CALLER_SIG(name) void name(struct Application_Links *app, Frame_Info frame_info)
 
 TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) i32 name(struct Application_Links *app)
+
+TYPEDEF_FUNC i32 Command_Caller_Hook_Function(struct Application_Links *app);
+#define COMMAND_CALLER_HOOK(name) i32 name(struct Application_Links *app)
+
+TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, Frame_Info frame_info);
+#define RENDER_CALLER_SIG(name) void name(struct Application_Links *app, Frame_Info frame_info)
 
 TYPEDEF_FUNC i32 Buffer_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define BUFFER_HOOK_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
@@ -559,36 +556,6 @@ TYPEDEF_FUNC i32 Get_Binding_Data_Function(void *data, i32 size);
 #define GET_BINDING_DATA(name) i32 name(void *data, i32 size)
 
 typedef i64 Command_Map_ID;
-
-// NOTE(allen): Definitions for the format that Get_Binding_Data uses to launch 4coder.
-// TODO(allen): Transition to a more dynamic Command_Map system.
-
-
-ENUM(i32, Binding_Unit_Type){
-    unit_header,
-    unit_map_begin,
-    unit_callback,
-    unit_inherit,
-    unit_hook
-};
-
-ENUM(i32, Map_ID){
-    mapid_global = (1 << 24),
-    mapid_file,
-    mapid_nomap
-};
-
-
-STRUCT Binding_Unit{
-    Binding_Unit_Type type;
-    UNION{
-        STRUCT{ i32 total_size; i32 user_map_count; i32 error; } header;
-        STRUCT{ i32 mapid; i32 replace; i32 bind_count; } map_begin;
-        STRUCT{ i32 mapid; } map_inherit;
-        STRUCT{ Key_Code code; uint8_t modifiers; Custom_Command_Function *func; } callback;
-        STRUCT{ i32 hook_id; void *func; } hook;
-    };
-};
 
 STRUCT Color_Picker{
     String_Const_u8 title;

@@ -844,7 +844,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
         }
         isearch__update_highlight(app, view, Ii64_size(pos, match_size));
         
-        in = get_user_input(app, EventProperty_AnyKey, EventProperty_Escape);
+        in = get_user_input(app, EventPropertyGroup_AnyKeyboardEvent, EventProperty_Escape);
         if (in.abort){
             break;
         }
@@ -887,25 +887,29 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
             }
         }
         
+        // TODO(allen): how to detect if the input corresponds to
+        // a search or rsearch command, a scroll wheel command?
+        
         b32 do_scan_action = false;
+        b32 do_scroll_wheel = false;
         Scan_Direction change_scan = scan;
         if (!string_change){
-            if (in.command == search ||
-                match_key_code(&in, KeyCode_PageDown) ||
+            if (match_key_code(&in, KeyCode_PageDown) ||
                 match_key_code(&in, KeyCode_Down)){
                 change_scan = Scan_Forward;
                 do_scan_action = true;
             }
-            if (in.command == reverse_search ||
-                match_key_code(&in, KeyCode_PageUp) ||
+            if (match_key_code(&in, KeyCode_PageUp) ||
                 match_key_code(&in, KeyCode_Up)){
                 change_scan = Scan_Backward;
                 do_scan_action = true;
             }
             
+#if 0
             if (in.command == mouse_wheel_scroll){
-                mouse_wheel_scroll(app);
+                do_scroll_wheel = true;
             }
+#endif
         }
         
         if (string_change){
@@ -954,6 +958,12 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
                     }
                 }break;
             }
+        }
+        else if (do_scroll_wheel){
+            mouse_wheel_scroll(app);
+        }
+        else{
+            leave_command_input_unhandled(app);
         }
     }
     
@@ -1264,24 +1274,29 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
             b32 cancelled = false;
             for (;!cancelled;){
                 User_Input in = get_user_input(app, EventProperty_AnyKey, 0);
-                switch (in.event.key.code){
-                    case KeyCode_Y:
-                    {
-                        delete_file_base(app, file_name, buffer);
-                        cancelled = true;
-                    }break;
-                    
-                    case KeyCode_Shift:
-                    case KeyCode_Control:
-                    case KeyCode_Alt:
-                    case KeyCode_Command:
-                    case KeyCode_CapsLock:
-                    {}break;
-                    
-                    default:
-                    {
-                        cancelled = true;
-                    }break;
+                if (in.abort){
+                    cancelled = true;
+                }
+                else{
+                    switch (in.event.key.code){
+                        case KeyCode_Y:
+                        {
+                            delete_file_base(app, file_name, buffer);
+                            cancelled = true;
+                        }break;
+                        
+                        case KeyCode_Shift:
+                        case KeyCode_Control:
+                        case KeyCode_Alt:
+                        case KeyCode_Command:
+                        case KeyCode_CapsLock:
+                        {}break;
+                        
+                        default:
+                        {
+                            cancelled = true;
+                        }break;
+                    }
                 }
             }
         }

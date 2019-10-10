@@ -66,14 +66,6 @@ global_set_setting(Application_Links *app, Global_Setting_ID setting, i64 value)
     return(result);
 }
 
-api(custom) function b32
-global_set_mapping(Application_Links *app, void *data, i32 size)
-{
-    Models *models = (Models*)app->cmd_context;
-    b32 result = interpret_binding_buffer(models, data, size);
-    return(result);
-}
-
 api(custom) function Rect_f32
 global_get_screen_rectangle(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
@@ -632,10 +624,12 @@ buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
     if (api_check_buffer(file)){
         result = true;
         switch (setting){
+#if 0
             case BufferSetting_MapID:
             {
                 *value_out = file->settings.base_map_id;
             }break;
+#endif
             
             case BufferSetting_Eol:
             {
@@ -675,6 +669,7 @@ buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
     if (api_check_buffer(file)){
         result = true;
         switch (setting){
+#if 0
             case BufferSetting_MapID:
             {
                 Command_Map_ID id = mapping_validate_id(&models->mapping, value);
@@ -682,6 +677,7 @@ buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
                     file->settings.base_map_id = id;
                 }
             }break;
+#endif
             
             case BufferSetting_Eol:
             {
@@ -1384,7 +1380,7 @@ view_set_active(Application_Links *app, View_ID view_id)
 }
 
 api(custom) function b32
-view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i64  *value_out)
+view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i64 *value_out)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
@@ -1899,6 +1895,7 @@ managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Manage
 #define M \
             "ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
             print_message(app, string_u8_litexpr(M));
+#undef M
         }
     }
     return(result);
@@ -2111,6 +2108,85 @@ api(custom) function void
 leave_command_input_unhandled(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
     models->event_unhandled = true;
+}
+
+api(custom) function void
+set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
+    Models *models = (Models*)app->cmd_context;
+    switch (hook_id){
+        case HookID_FileOutOfSync:
+        {
+            models->file_out_of_sync = (Hook_Function*)func_ptr;
+        }break;
+        case HookID_Exit:
+        {
+            models->exit = (Hook_Function*)func_ptr;
+        }break;
+        case HookID_BufferViewerUpdate:
+        {
+            models->buffer_viewer_update = (Hook_Function*)func_ptr;
+        }break;
+        case HookID_ScrollRule:
+        {
+            models->scroll_rule = (Delta_Rule_Function*)func_ptr;
+        }break;
+        case HookID_NewFile:
+        {
+            models->hook_new_file = (Buffer_Hook_Function*)func_ptr;
+        }break;
+        case HookID_OpenFile:
+        {
+            models->hook_open_file = (Buffer_Hook_Function*)func_ptr;
+        }break;
+        case HookID_SaveFile:
+        {
+            models->hook_save_file = (Buffer_Hook_Function*)func_ptr;
+        }break;
+        case HookID_EndFile:
+        {
+            models->hook_end_file = (Buffer_Hook_Function*)func_ptr;
+        }break;
+        case HookID_FileEditRange:
+        {
+            models->hook_file_edit_range = (File_Edit_Range_Function*)func_ptr;
+        }break;
+        case HookID_FileExternallyModified:
+        {
+            models->hook_file_externally_modified = (File_Externally_Modified_Function*)func_ptr;
+        }break;
+        case HookID_CommandCaller:
+        {
+            models->command_caller = (Command_Caller_Hook_Function*)func_ptr;
+        }break;
+        case HookID_RenderCaller:
+        {
+            models->render_caller = (Render_Caller_Function*)func_ptr;
+        }break;
+        case HookID_InputFilter:
+        {
+            models->input_filter = (Input_Filter_Function*)func_ptr;
+        }break;
+        case HookID_Start:
+        {
+            models->hook_start = (Start_Hook_Function*)func_ptr;
+        }break;
+        case HookID_BufferNameResolver:
+        {
+            models->buffer_name_resolver = (Buffer_Name_Resolver_Function*)func_ptr;
+        }break;
+        case HookID_ModifyColorTable:
+        {
+            models->modify_color_table = (Modify_Color_Table_Function*)func_ptr;
+        }break;
+        case HookID_ClipboardChange:
+        {
+            models->clipboard_change = (Clipboard_Change_Hook_Function*)func_ptr;
+        }break;
+        case HookID_GetViewBufferRegion:
+        {
+            models->get_view_buffer_region = (Get_View_Buffer_Region_Function*)func_ptr;
+        }break;
+    }
 }
 
 api(custom) function Mouse_State
@@ -2568,13 +2644,6 @@ set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_ke
     models->user_up_key_modifier = up_key_modifier;
     models->user_down_key = down_key;
     models->user_down_key_modifier = down_key_modifier;
-}
-
-api(custom) function b32
-set_edit_finished_hook_repeat_speed(Application_Links *app, u32 milliseconds){
-    Models *models = (Models*)app->cmd_context;
-    models->edit_finished_hook_repeat_speed = milliseconds;
-    return(true);
 }
 
 api(custom) function void

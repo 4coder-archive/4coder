@@ -7,25 +7,6 @@
 #if !defined(FCODER_HELPER_H)
 #define FCODER_HELPER_H
 
-struct Bind_Helper{
-    Binding_Unit *cursor, *start, *end;
-    Binding_Unit *header, *group;
-    i32 write_total;
-    i32 error;
-};
-
-#define BH_ERR_NONE 0
-#define BH_ERR_MISSING_END 1
-#define BH_ERR_MISSING_BEGIN 2
-#define BH_ERR_OUT_OF_MEMORY 3
-
-struct Bind_Buffer{
-    void *data;
-    i32 size;
-};
-
-////////////////////////////////
-
 struct File_Name_Data{
     String_Const_u8 file_name;
     Data data;

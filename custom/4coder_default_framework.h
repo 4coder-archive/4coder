@@ -7,13 +7,6 @@
 #if !defined(FCODER_DEFAULT_FRAMEWORK_H)
 #define FCODER_DEFAULT_FRAMEWORK_H
 
-enum Default_Maps{
-    default_code_map = 1,
-    default_lister_ui_map,
-    default_log_graph_map,
-    default_maps_count,
-};
-
 ////////////////////////////////
 
 typedef i64 Rewrite_Type;

@@ -342,20 +342,6 @@ CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect 
 
 ////////////////////////////////
 
-CUSTOM_COMMAND_SIG(remap_interactive)
-CUSTOM_DOC("Switch to a named key binding map.")
-{
-    Query_Bar bar = {};
-    u8 space[1024];
-    bar.prompt = string_u8_litexpr("Map Name: ");
-    bar.string = SCu8(space, (umem)0);
-    bar.string_capacity = sizeof(space);
-    if (!query_user_string(app, &bar)) return;
-    change_mapping(app, bar.string);
-}
-
-////////////////////////////////
-
 static void
 default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count, i32 override_font_size, b32 override_hinting){
     Thread_Context *tctx = get_thread_context(app);
@@ -386,8 +372,11 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     view_highlight_range      = managed_id_declare(app, SCu8("DEFAULT.highlight"     ));
     view_highlight_buffer     = managed_id_declare(app, SCu8("DEFAULT.highlight_buf" ));
     view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render" ));
+    
+    buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
+    
     sticky_jump_marker_handle = managed_id_declare(app, SCu8("DEFAULT.sticky_jump_marker_handle"));
-    attachment_tokens         = managed_id_declare(app, SCu8("DEFAULT.tokens"));
+    attachment_tokens = managed_id_declare(app, SCu8("DEFAULT.tokens"));
     
     // open command line files
     Scratch_Block scratch(app);

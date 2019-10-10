@@ -42,9 +42,8 @@ char **argv)
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
 struct Custom_API{
-    Get_Binding_Data_Function *get_bindings;
-    _Get_Version_Function *get_version;
-    _Init_APIs *init_apis;
+    _Get_Version_Type *get_version;
+    _Init_APIs_Type *init_apis;
 };
 
 #define App_Init_Sig(name) \

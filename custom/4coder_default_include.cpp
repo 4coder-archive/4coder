@@ -25,8 +25,8 @@
 
 #include "4coder_table.h"
 #include "4coder_token.h"
-
 #include "generated/lexer_cpp.h"
+#include "4coder_command_map.h"
 #include "4coder_string_match.h"
 #include "4coder_helper.h"
 #include "4coder_insertion.h"
@@ -63,6 +63,7 @@
 
 #include "4coder_token.cpp"
 #include "generated/lexer_cpp.cpp"
+#include "4coder_command_map.cpp"
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_helper.cpp"
 #include "4coder_fancy.cpp"
@@ -89,7 +90,6 @@
 #include "4coder_miblo_numbers.cpp"
 
 #include "4coder_default_hooks.cpp"
-#include "4coder_remapping_commands.cpp"
 
 #endif
 

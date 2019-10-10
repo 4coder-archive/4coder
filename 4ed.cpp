@@ -111,6 +111,7 @@ DELTA_RULE_SIG(fallback_scroll_rule){
     return(pending_delta);
 }
 
+#if 0
 #define DEFAULT_MAP_SIZE 10
 #define DEFAULT_UI_MAP_SIZE 32
 
@@ -331,6 +332,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     
     return(result);
 }
+#endif
 
 #include "4ed_api_implementation.cpp"
 
@@ -338,12 +340,8 @@ internal void
 command_caller(Coroutine *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Models *models = cmd_in->models;
-    if (models->command_caller != 0){
-        models->command_caller(&models->app_links, cmd_in->bind.custom);
-    }
-    else{
-        cmd_in->bind.custom(&models->app_links);
-    }
+    Assert(models->command_caller != 0);
+    models->command_caller(&models->app_links);
 }
 
 // App Functions
@@ -581,7 +579,9 @@ force_abort_coroutine(Models *models, View *view){
         models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
     }
     if (models->command_coroutine != 0){
-        // TODO(allen): post grave warning
+#define M "SERIOUS ERROR: command did not terminate when passed an abort"
+        print_message(&models->app_links, string_u8_litexpr(M));
+#undef M
         models->command_coroutine = 0;
     }
     init_query_set(&view->query_set);
@@ -589,6 +589,21 @@ force_abort_coroutine(Models *models, View *view){
 
 internal b32
 launch_command_via_event(Models *models, View *view, Input_Event *event){
+    block_copy_struct(&models->event, event);
+    Assert(models->command_coroutine == 0);
+    Coroutine *command_coroutine = coroutine_create(&models->coroutines, command_caller);
+    models->command_coroutine = command_coroutine;
+    Command_In cmd_in = {models};
+    models->event_unhandled = false;
+    models->command_coroutine = app_coroutine_run(models,
+                                                  Co_Command, models->command_coroutine,
+                                                  &cmd_in, models->command_coroutine_flags);
+    if (match_core_code(event,  CoreCode_Animate)){
+        models->animate_next_frame = true;
+    }
+    return(!models->event_unhandled);
+    
+#if 0
     b32 result = false;
     
     Command_Map_ID map = view_get_map(view);
@@ -612,13 +627,13 @@ launch_command_via_event(Models *models, View *view, Input_Event *event){
             result = false;
         }
         
-        models->prev_command = cmd_bind;
         if (match_core_code(event,  CoreCode_Animate)){
             models->animate_next_frame = true;
         }
     }
     
     return(result);
+#endif
 }
 
 internal void
@@ -667,7 +682,9 @@ App_Init_Sig(app_init){
     custom_api_fill_vtable(&custom_vtable);
     API_VTable_system system_vtable = {};
     system_api_fill_vtable(&system_vtable);
-    api.init_apis(&custom_vtable, &system_vtable);
+    Custom_Layer_Init_Type *custom_init = api.init_apis(&custom_vtable, &system_vtable);
+    Assert(custom_init != 0);
+    custom_init(&models->app_links);
     
     // NOTE(allen): coroutines
     coroutine_system_init(&models->coroutines);
@@ -695,15 +712,6 @@ App_Init_Sig(app_init){
             models->live_set.free_sentinel.next = view;
             view->next->prev = view;
         }
-    }
-    
-    {
-        Assert(models->config_api.get_bindings != 0);
-        Scratch_Block scratch(models->tctx, Scratch_Share);
-        u8 *memory = push_array(scratch, u8, KB(64));
-        i32 wanted_size = models->config_api.get_bindings(memory, KB(64));
-        Assert(wanted_size <= KB(64));
-        interpret_binding_buffer(models, memory, wanted_size);
     }
     
     managed_ids_init(models->tctx->allocator, &models->managed_id_set);
@@ -1057,35 +1065,23 @@ App_Step_Sig(app_step){
                             
                             Event_Property event_flags = get_event_properties(event);
                             if ((get_flags & event_flags) != 0){
-                                event_was_handled = true;
-                                
-                                Command_Map_ID map = view_get_map(view);
-                                Command_Binding cmd_bind = map_get_binding_recursive(&models->mapping, map, event);
-                                
                                 User_Input user_in = {};
                                 user_in.event = *event;
-                                user_in.command = cmd_bind.custom;
                                 user_in.abort = ((abort_flags & event_flags) != 0);
                                 
                                 models->event_unhandled = false;
                                 models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
-                                if (models->event_unhandled){
-                                    event_was_handled = false;
-                                }
-                                
                                 if (!HasFlag(event_flags, EventProperty_Animate)){
                                     models->animate_next_frame = true;
                                 }
-                                
                                 if (models->command_coroutine == 0){
                                     init_query_set(&view->query_set);
                                 }
+                                event_was_handled = !models->event_unhandled;
                             }
                         }
                         else{
-                            if (launch_command_via_event(models, view, event)){
-                                event_was_handled = true;
-                            }
+                            event_was_handled = launch_command_via_event(models, view, event);
                         }
                     }break;
                 }
@@ -1124,9 +1120,11 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): send panel size update
-    if (models->layout.panel_state_dirty && models->hooks[hook_buffer_viewer_update] != 0){
+    if (models->layout.panel_state_dirty){
         models->layout.panel_state_dirty = false;
-        models->hooks[hook_buffer_viewer_update](&models->app_links);
+        if (models->buffer_viewer_update != 0){
+            models->buffer_viewer_update(&models->app_links);
+        }
     }
     
     // NOTE(allen): dt
@@ -1226,7 +1224,7 @@ App_Step_Sig(app_step){
         models->keep_playing = false;
     }
     if (!models->keep_playing){
-        Hook_Function *exit_func = models->hooks[hook_exit];
+        Hook_Function *exit_func = models->exit;
         if (exit_func != 0){
             if (exit_func(&models->app_links) == 0){
                 models->animate_next_frame = true;

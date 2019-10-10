@@ -4,17 +4,7 @@
 
 // TOP
 
-CUSTOM_COMMAND_SIG(set_bindings_choose);
-CUSTOM_COMMAND_SIG(set_bindings_default);
-
-global Named_Mapping named_maps_values[] = {
-    {string_u8_litexpr("choose")         , set_bindings_choose         },
-    {string_u8_litexpr("default")        , set_bindings_default        },
-};
-
 START_HOOK_SIG(default_start){
-    named_maps = named_maps_values;
-    named_map_count = ArrayCount(named_maps_values);
     default_4coder_initialize(app, files, file_count);
     default_4coder_side_by_side_panels(app, files, file_count);
     if (global_config.automatically_load_project){
@@ -24,48 +14,74 @@ START_HOOK_SIG(default_start){
     return(0);
 }
 
-// NOTE(allen|a4.0.9): All command calls can now go through this hook
-// If this hook is not implemented a default behavior of calling the
-// command is used.  It is important to note that paste_next does not
-// work without this hook.
-// NOTE(allen|a4.0.10): As of this version the word_complete command
-// also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
-    // app, cmd
+    // app
     
+    // NOTE(allen): Get the binding from the buffer's current map
+    User_Input input = get_command_input(app);
     View_ID view = get_active_view(app, AccessAll);
-    Managed_Scope scope = view_get_managed_scope(app, view);
-    Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-    *next_rewrite = Rewrite_None;
-    if (fcoder_mode == FCoderMode_NotepadLike){
-        for (View_ID view_it = get_view_next(app, 0, AccessAll);
-             view_it != 0;
-             view_it = get_view_next(app, view_it, AccessAll)){
-            Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-            b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
-            *snap_mark_to_cursor = true;
+    
+    Command_Map_ID map_id = 0;
+    if (view_is_in_ui_mode(app, view)){
+        view_get_setting(app, view, ViewSetting_UICommandMap, &map_id);
+    }
+    else{
+        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+        Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
+        Command_Map_ID *map_id_ptr =
+            scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
+        if (*map_id_ptr == 0){
+            *map_id_ptr = mapid_file;
         }
+        map_id = *map_id_ptr;
     }
     
-    cmd(app);
+    Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
     
-    next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-    if (next_rewrite != 0){
-        Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
-        *rewrite = *next_rewrite;
+    if (binding.custom == 0){
+        // NOTE(allen): we don't have anything to do with this input,
+        // leave it marked unhandled so that if there's a follow up
+        // event it is not blocked.
+        leave_command_input_unhandled(app);
+    }
+    else{
+        // NOTE(allen): before the command is called do some book keeping
+        Managed_Scope scope = view_get_managed_scope(app, view);
+        Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+        *next_rewrite = Rewrite_None;
         if (fcoder_mode == FCoderMode_NotepadLike){
             for (View_ID view_it = get_view_next(app, 0, AccessAll);
                  view_it != 0;
                  view_it = get_view_next(app, view_it, AccessAll)){
                 Managed_Scope scope_it = view_get_managed_scope(app, view_it);
                 b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
-                if (*snap_mark_to_cursor){
-                    i64 pos = view_get_cursor_pos(app, view_it);
-                    view_set_mark(app, view_it, seek_pos(pos));
+                *snap_mark_to_cursor = true;
+            }
+        }
+        
+        // NOTE(allen): call the command
+        binding.custom(app);
+        
+        // NOTE(allen): after the command is called do some book keeping
+        next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+        if (next_rewrite != 0){
+            Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
+            *rewrite = *next_rewrite;
+            if (fcoder_mode == FCoderMode_NotepadLike){
+                for (View_ID view_it = get_view_next(app, 0, AccessAll);
+                     view_it != 0;
+                     view_it = get_view_next(app, view_it, AccessAll)){
+                    Managed_Scope scope_it = view_get_managed_scope(app, view_it);
+                    b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
+                    if (*snap_mark_to_cursor){
+                        i64 pos = view_get_cursor_pos(app, view_it);
+                        view_set_mark(app, view_it, seek_pos(pos));
+                    }
                 }
             }
         }
     }
+    
     return(0);
 }
 
@@ -1024,15 +1040,9 @@ BUFFER_HOOK_SIG(default_file_settings){
     }
     
     Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
-    Command_Map_ID map_id_query = 0;
-    
-    buffer_set_setting(app, buffer_id, BufferSetting_MapID, default_lister_ui_map);
-    buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
-    Assert(map_id_query == default_lister_ui_map);
-    
-    buffer_set_setting(app, buffer_id, BufferSetting_MapID, map_id);
-    buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);
-    Assert(map_id_query == map_id);
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+    Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
+    *map_id_ptr = map_id;
     
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
@@ -1274,26 +1284,25 @@ DELTA_RULE_SIG(smooth_scroll_rule){
 }
 
 internal void
-set_all_default_hooks(Bind_Helper *context){
-    set_hook(context, hook_exit, default_exit);
-    set_hook(context, hook_buffer_viewer_update, default_view_adjust);
+set_all_default_hooks(Application_Links *app){
+    set_custom_hook(app, HookID_Exit, default_exit);
+    set_custom_hook(app, HookID_BufferViewerUpdate, default_view_adjust);
     
-    set_start_hook(context, default_start);
-    set_open_file_hook(context, default_file_settings);
-    set_new_file_hook(context, default_new_file);
-    set_save_file_hook(context, default_file_save);
-    set_file_edit_range_hook(context, default_file_edit_range);
-    set_file_externally_modified_hook(context, default_file_externally_modified);
+    set_custom_hook(app, HookID_Start, default_start);
+    set_custom_hook(app, HookID_OpenFile, default_file_settings);
+    set_custom_hook(app, HookID_NewFile, default_new_file);
+    set_custom_hook(app, HookID_SaveFile, default_file_save);
+    set_custom_hook(app, HookID_FileEditRange, default_file_edit_range);
+    set_custom_hook(app, HookID_FileExternallyModified, default_file_externally_modified);
+    set_custom_hook(app, HookID_EndFile, end_file_close_jump_list);
     
-    set_end_file_hook(context, end_file_close_jump_list);
-    
-    set_command_caller(context, default_command_caller);
-    set_render_caller(context, default_render_caller);
-    set_input_filter(context, default_suppress_mouse_filter);
-    set_scroll_rule(context, smooth_scroll_rule);
-    set_buffer_name_resolver(context, default_buffer_name_resolution);
-    set_modify_color_table_hook(context, default_modify_color_table);
-    set_get_view_buffer_region_hook(context, default_view_buffer_region);
+    set_custom_hook(app, HookID_CommandCaller, default_command_caller);
+    set_custom_hook(app, HookID_RenderCaller, default_render_caller);
+    set_custom_hook(app, HookID_InputFilter, default_suppress_mouse_filter);
+    set_custom_hook(app, HookID_ScrollRule, smooth_scroll_rule);
+    set_custom_hook(app, HookID_BufferNameResolver, default_buffer_name_resolution);
+    set_custom_hook(app, HookID_ModifyColorTable, default_modify_color_table);
+    set_custom_hook(app, HookID_GetViewBufferRegion, default_view_buffer_region);
 }
 
 // BOTTOM
