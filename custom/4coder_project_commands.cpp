@@ -947,8 +947,8 @@ CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determin
     User_Input input = get_command_input(app);
     b32 got_ind = false;
     i32 ind = 0;
-    if (input.key.keycode >= key_f1 && input.key.keycode <= key_f16){
-        ind = (input.key.keycode - key_f1);
+    if (input.key.keycode >= KeyCode_F1 && input.key.keycode <= KeyCode_F16){
+        ind = (input.key.keycode - KeyCode_F1);
         got_ind = true;
     }
     else if (input.key.character_no_caps_lock >= '1' && input.key.character_no_caps_lock >= '9'){

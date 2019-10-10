@@ -6,10 +6,8 @@
 
 CUSTOM_COMMAND_SIG(set_bindings_choose);
 CUSTOM_COMMAND_SIG(set_bindings_default);
-CUSTOM_COMMAND_SIG(set_bindings_mac_default);
 
 global Named_Mapping named_maps_values[] = {
-    {string_u8_litexpr("mac-default")    , set_bindings_mac_default    },
     {string_u8_litexpr("choose")         , set_bindings_choose         },
     {string_u8_litexpr("default")        , set_bindings_default        },
 };

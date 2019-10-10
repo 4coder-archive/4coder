@@ -123,7 +123,7 @@ struct Models{
     
     // Event Context
     Application_Step_Input *input;
-    Key_Event_Data key;
+    Input_Event event;
     
     Render_Target *target;
     b32 in_render_mode;
@@ -188,8 +188,6 @@ enum Command_Line_Action{
     CLAct_WindowFullscreen,
     CLAct_FontSize,
     CLAct_FontUseHinting,
-    CLAct_LogStdout,
-    CLAct_LogFile,
     //
     CLAct_COUNT,
 };

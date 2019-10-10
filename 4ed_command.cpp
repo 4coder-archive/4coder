@@ -60,9 +60,6 @@ get_map_base(Mapping *mapping, i32 mapid, b32 add){
     else if (mapid == mapid_file){
         map = &mapping->map_file;
     }
-    else if (mapid == mapid_ui){
-        map = &mapping->map_ui;
-    }
     return(map);
 }
 

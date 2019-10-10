@@ -249,6 +249,10 @@ define_api(Arena *arena){
         API_Call *call = api_call(arena, api, "is_fullscreen", "b32");
     }
     
+    {
+        API_Call *call = api_call(arena, api, "get_keyboard_modifiers", "Key_Modifiers");
+    }
+    
     return(api);
 }
 

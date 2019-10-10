@@ -14,35 +14,10 @@
 
 #define MAX_VIEWS 16
 
-// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-// TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): // TODO(allen): 
-// TODO(allen): Fix this nonsense
-#define KEY_INPUT_BUFFER_SIZE 8
-#define KEY_EXTRA_SIZE 5
-
-struct Key_Input_Data{
-    Key_Event_Data keys[KEY_INPUT_BUFFER_SIZE + KEY_EXTRA_SIZE];
-    i32 count;
-    b8 modifiers[MDFR_INDEX_COUNT];
-};
-
-typedef u8 Log_To_Type;
-enum{
-    LogTo_Nothing,
-    LogTo_Stdout,
-    LogTo_LogFile,
-    LogTo_COUNT
-};
-
 struct Plat_Settings{
     char *custom_dll;
     b8 custom_dll_is_strict;
     b8 fullscreen_window;
-    
-    u8 use_log;
     
     i32 window_w;
     i32 window_h;
@@ -57,13 +32,13 @@ struct Plat_Settings{
 
 #define App_Read_Command_Line_Sig(name) \
 void *name(Thread_Context *tctx,\
-           String_Const_u8 current_directory,\
-           Plat_Settings *plat_settings,\
-           char ***files,   \
-           i32 **file_count,\
-           i32 argc,        \
-           char **argv)
-           
+String_Const_u8 current_directory,\
+Plat_Settings *plat_settings,\
+char ***files,   \
+i32 **file_count,\
+i32 argc,        \
+char **argv)
+
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
 struct Custom_API{
@@ -74,11 +49,11 @@ struct Custom_API{
 
 #define App_Init_Sig(name) \
 void name(Render_Target *target,    \
-          void *base_ptr,           \
-          String_Const_u8 clipboard,\
-          String_Const_u8 current_directory,\
-          Custom_API api)
-          
+void *base_ptr,           \
+String_Const_u8 clipboard,\
+String_Const_u8 current_directory,\
+Custom_API api)
+
 typedef App_Init_Sig(App_Init);
 
 #include "4ed_cursor_codes.h"
@@ -95,8 +70,8 @@ struct Application_Step_Result{
 struct Application_Step_Input{
     b32 first_step;
     f32 dt;
-    Key_Input_Data keys;
     Mouse_State mouse;
+    Input_List inputs;
     String_Const_u8 clipboard;
     b32 clipboard_changed;
     b32 trying_to_kill;

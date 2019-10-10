@@ -2104,15 +2104,15 @@ get_command_input(Application_Links *app)
 {
     Models *models = (Models*)app->cmd_context;
     User_Input result = {};
-    result.key = models->key;
+    result.event = models->event;
     return(result);
 }
 
 api(custom) function void
-set_command_input(Application_Links *app, Key_Event_Data key_data)
+set_command_input(Application_Links *app, Input_Event *event)
 {
     Models *models = (Models*)app->cmd_context;
-    models->key = key_data;
+    models->event = *event;
 }
 
 api(custom) function Mouse_State

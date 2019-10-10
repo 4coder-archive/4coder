@@ -20,13 +20,6 @@ default_keys(Bind_Helper *context){
     fill_log_graph_command_map(context);
 }
 
-void
-mac_default_keys(Bind_Helper *context){
-    fill_keys_mac_default(context);
-    fill_log_graph_command_map(context);
-}
-
-
 //
 // Remapping Commands
 //
@@ -55,17 +48,6 @@ CUSTOM_DOC("Remap keybindings using the 'default' mapping rule.")
     Bind_Helper context = get_context_on_arena(scratch);
     set_all_default_hooks(&context);
     default_keys(&context);
-    Bind_Buffer result = end_bind_helper_get_buffer(&context);
-    global_set_mapping(app, result.data, result.size);
-}
-
-CUSTOM_COMMAND_SIG(set_bindings_mac_default)
-CUSTOM_DOC("Remap keybindings using the 'mac-default' mapping rule.")
-{
-    Scratch_Block scratch(app, Scratch_Share);
-    Bind_Helper context = get_context_on_arena(scratch);
-    set_all_default_hooks(&context);
-    mac_default_keys(&context);
     Bind_Buffer result = end_bind_helper_get_buffer(&context);
     global_set_mapping(app, result.data, result.size);
 }

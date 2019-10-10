@@ -31,7 +31,6 @@ struct Mapping{
     
     Command_Map map_top;
     Command_Map map_file;
-    Command_Map map_ui;
     
     i32 *map_id_table;
     Command_Map *user_maps;

@@ -1516,27 +1516,27 @@ exec_command(Application_Links *app, Generic_Command cmd){
 }
 
 internal b32
-key_is_unmodified(Key_Event_Data *key){
-    b8 *mods = key->modifiers;
-    return(!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
+is_unmodified_key(Input_Event *event){
+    b32 result = false;
+    if (event->kind == InputEventKind_KeyStroke){
+        b8 *mods = event->key.modifiers.modifiers;
+        result = (!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
+    }
+    return(result);
 }
 
-internal u32
-to_writable_character(User_Input in, u8 *space){
-    u32 inc = 0;
-    if (in.key.character != 0){
-        inc = utf8_write(space, in.key.character);
+internal String_Const_u8
+to_writable(Input_Event *event){
+    String_Const_u8 result = {};
+    if (event->kind != InputEventKind_TextInsert){
+        result = event->text.string;
     }
-    return(inc);
+    return(result);
 }
 
-internal u32
-to_writable_character(Key_Event_Data key, u8 *space){
-    u32 inc = 0;
-    if (key.character != 0){
-        inc = utf8_write(space, key.character);
-    }
-    return(inc);
+internal String_Const_u8
+to_writable(User_Input *in){
+    return(to_writable(&in->event));
 }
 
 internal String_Const_u8
@@ -1580,36 +1580,40 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
             break;
         }
         
-        u8 character[4];
-        u32 length = 0;
-        b32 good_character = false;
-        if (key_is_unmodified(&in.key)){
+        Scratch_Block scratch(app);
+        b32 good_insert = false;
+        String_Const_u8 insert_string = to_writable(&in);
+        if (insert_string.str != 0 && insert_string.size > 0){
+            insert_string = string_replace(scratch, insert_string,
+                                           string_u8_litexpr("\n"),
+                                           string_u8_litexpr(""));
+            insert_string = string_replace(scratch, insert_string,
+                                           string_u8_litexpr("\t"),
+                                           string_u8_litexpr(""));
             if (force_number){
-                if (in.key.character >= '0' && in.key.character <= '9'){
-                    good_character = true;
-                    length = to_writable_character(in, character);
+                if (string_is_integer(insert_string, 10)){
+                    good_insert = true;
                 }
             }
             else{
-                length = to_writable_character(in, character);
-                if (length != 0){
-                    good_character = true;
-                }
+                good_insert = true;
             }
         }
         
         // NOTE(allen|a3.4.4): All we have to do to update the query bar is edit our
         // local Query_Bar struct!  This is handy because it means our Query_Bar
         // is always correct for typical use without extra work updating the bar.
-        if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+        if (in.event.kind == InputEventKind_KeyStroke &&
+            (in.event.key.code == KeyCode_Return || in.event.key.code == KeyCode_Tab)){
             break;
         }
-        else if (in.key.keycode == key_back){
+        else if (in.event.kind == InputEventKind_KeyStroke &&
+                 in.event.key.code == KeyCode_Backspace){
             bar->string = backspace_utf8(bar->string);
         }
-        else if (good_character){
+        else if (good_insert){
             String_u8 string = Su8(bar->string.str, bar->string.size, bar->string_capacity);
-            string_append(&string, SCu8(character, length));
+            string_append(&string, insert_string);
             bar->string = string.string;
         }
     }
@@ -2166,8 +2170,8 @@ no_mark_snap_to_cursor(Application_Links *app, View_ID view_id){
 
 internal void
 no_mark_snap_to_cursor_if_shift(Application_Links *app, View_ID view_id){
-    User_Input in = get_command_input(app);
-    if (in.key.modifiers[MDFR_SHIFT_INDEX]){
+    Key_Modifiers mods = system_get_keyboard_modifiers();
+    if (mods.modifiers[MDFR_SHIFT_INDEX]){
         no_mark_snap_to_cursor(app, view_id);
     }
 }

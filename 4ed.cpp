@@ -115,21 +115,6 @@ DELTA_RULE_SIG(fallback_scroll_rule){
 #define DEFAULT_UI_MAP_SIZE 32
 
 internal void
-setup_ui_commands(Command_Map *commands, Cursor *cursor, i32 parent){
-    map_init(commands, cursor, DEFAULT_UI_MAP_SIZE, parent);
-    // TODO(allen): do(fix the weird built-in-ness of the ui map)
-    u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
-    for (i32 i = 0; i < 4; ++i){
-        u8 mdfr = mdfr_array[i];
-        map_add(commands, key_left , mdfr, (Custom_Command_Function*)0);
-        map_add(commands, key_right, mdfr, (Custom_Command_Function*)0);
-        map_add(commands, key_up   , mdfr, (Custom_Command_Function*)0);
-        map_add(commands, key_down , mdfr, (Custom_Command_Function*)0);
-        map_add(commands, key_back , mdfr, (Custom_Command_Function*)0);
-    }
-}
-
-internal void
 setup_file_commands(Command_Map *commands, Cursor *cursor, i32 parent){
     map_init(commands, cursor, DEFAULT_MAP_SIZE, parent);
 }
@@ -184,7 +169,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 {
                     i32 mapid = unit->map_begin.mapid;
                     
-                    if (mapid == mapid_ui || mapid == mapid_nomap){
+                    if (mapid == mapid_nomap){
                         break;
                     }
                     else if (mapid == mapid_global){
@@ -268,7 +253,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 {
                     i32 mapid = unit->map_begin.mapid;
                     
-                    if (mapid == mapid_ui || mapid == mapid_nomap){
+                    if (mapid == mapid_nomap){
                         map_ptr = 0;
                         break;
                     }
@@ -421,7 +406,6 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         if (!did_file){
             setup_file_commands(&new_mapping.map_file, &local_cursor, mapid_global);
         }
-        setup_ui_commands(&new_mapping.map_ui, &local_cursor, mapid_global);
     }
     else{
         // TODO(allen): do(Error report: bad binding units map.)
@@ -563,9 +547,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 
                                 case 'f': action = CLAct_FontSize;                      break;
                                 case 'h': action = CLAct_FontUseHinting; --i;           break;
-                                
-                                case 'l': action = CLAct_LogStdout; --i;                break;
-                                case 'L': action = CLAct_LogFile; --i;                  break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -659,18 +640,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         settings->use_hinting = plat_settings->use_hinting;
                         action = CLAct_Nothing;
                     }break;
-                    
-                    case CLAct_LogStdout:
-                    {
-                        plat_settings->use_log = LogTo_Stdout;
-                        action = CLAct_Nothing;
-                    }break;
-                    
-                    case CLAct_LogFile:
-                    {
-                        plat_settings->use_log = LogTo_LogFile;
-                        action = CLAct_Nothing;
-                    }break;
                 }
             }break;
             
@@ -700,26 +669,29 @@ models_init(Thread_Context *tctx){
 internal u32
 get_event_flags(Key_Code keycode){
     u32 event_flags = 0;
-    if (keycode == key_esc){
+    if (keycode == KeyCode_Escape){
         event_flags |= EventOnEsc;
         event_flags |= EventOnAnyKey;
     }
-    else if (keycode == key_mouse_left || keycode == key_mouse_left_release){
+    else if (keycode == KeyCodeExt_MouseLeft ||
+             keycode == KeyCodeExt_MouseLeftRelease){
         event_flags |= EventOnMouseLeftButton;
     }
-    else if (keycode == key_mouse_right || keycode == key_mouse_right_release){
+    else if (keycode == KeyCodeExt_MouseRight ||
+             keycode == KeyCodeExt_MouseRightRelease){
         event_flags |= EventOnMouseRightButton;
     }
-    else if (keycode == key_mouse_wheel){
+    else if (keycode == KeyCodeExt_MouseWheel){
         event_flags |= EventOnMouseWheel;
     }
-    else if (keycode == key_mouse_move){
+    else if (keycode == KeyCodeExt_MouseMove){
         event_flags |= EventOnMouseMove;
     }
-    else if (keycode == key_animate){
+    else if (keycode == KeyCodeExt_Animate){
         event_flags |= EventOnAnimate;
     }
-    else if (keycode == key_click_activate_view || keycode == key_click_deactivate_view){
+    else if (keycode == KeyCodeExt_ClickActivateView ||
+             keycode == KeyCodeExt_ClickDeactivateView){
         event_flags |= EventOnViewActivation;
     }
     else{
@@ -761,7 +733,7 @@ launch_command_via_event(Models *models, View *view, Key_Event_Data event){
         models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
         
         models->prev_command = cmd_bind;
-        if (event.keycode != key_animate){
+        if (event.keycode != KeyCodeExt_Animate){
             models->animate_next_frame = true;
         }
     }
@@ -930,8 +902,8 @@ App_Init_Sig(app_init){
     // NOTE(allen): miscellaneous init
     hot_directory_init(arena, &models->hot_directory, current_directory);
     child_process_container_init(models->tctx->allocator, &models->child_processes);
-    models->user_up_key = key_up;
-    models->user_down_key = key_down;
+    models->user_up_key = KeyCode_Up;
+    models->user_down_key = KeyCode_Down;
     models->period_wakeup_timer = system_wake_up_timer_create();
 }
 
@@ -1021,39 +993,39 @@ App_Step_Sig(app_step){
         models->input_filter(&input->mouse);
     }
     
-    Key_Event_Data mouse_event = {};
-    block_copy(mouse_event.modifiers, input->keys.modifiers, sizeof(mouse_event.modifiers));
+    
+    Key_Modifiers modifiers = system_get_modifiers();
     
     if (input->mouse.press_l){
-        mouse_event.keycode = key_mouse_left;
+        mouse_event.keycode = KeyCodeExt_MouseLeft;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     else if (input->mouse.release_l){
-        mouse_event.keycode = key_mouse_left_release;
+        mouse_event.keycode = KeyCodeExt_MouseLeftRelease;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     if (input->mouse.press_r){
-        mouse_event.keycode = key_mouse_right;
+        mouse_event.keycode = KeyCodeExt_MouseRight;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     else if (input->mouse.release_r){
-        mouse_event.keycode = key_mouse_right_release;
+        mouse_event.keycode = KeyCodeExt_MouseRightRelease;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     if (input->mouse.wheel != 0){
-        mouse_event.keycode = key_mouse_wheel;
+        mouse_event.keycode = KeyCodeExt_MouseWheel;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     if (input->mouse.p != models->prev_p){
         b32 was_in_window = rect_contains_point(Ri32(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
         b32 is_in_window  = rect_contains_point(Ri32(0, 0, current_dim.x, current_dim.y), input->mouse.p);
         if (is_in_window || was_in_window){
-            mouse_event.keycode = key_mouse_move;
+            mouse_event.keycode = KeyCodeExt_MouseMove;
             input->keys.keys[input->keys.count++] = mouse_event;
         }
     }
     if (models->animated_last_frame){
-        mouse_event.keycode = key_animate;
+        mouse_event.keycode = KeyCodeExt_Animate;
         input->keys.keys[input->keys.count++] = mouse_event;
     }
     
@@ -1119,10 +1091,10 @@ App_Step_Sig(app_step){
                     EventConsume_Command,
                 };
                 i32 event_consume_mode = EventConsume_Command;
-                if (keycode == key_mouse_left && input->mouse.press_l && (divider_panel != 0)){
+                if (keycode == KeyCodeExt_MouseLeft && input->mouse.press_l && (divider_panel != 0)){
                     event_consume_mode = EventConsume_BeginResize;
                 }
-                else if (keycode == key_mouse_left && input->mouse.press_l && mouse_panel != 0 && mouse_panel != active_panel){
+                else if (keycode == KeyCodeExt_MouseLeft && input->mouse.press_l && mouse_panel != 0 && mouse_panel != active_panel){
                     event_consume_mode = EventConsume_ClickChangeView;
                 }
                 
@@ -1141,7 +1113,7 @@ App_Step_Sig(app_step){
                         }
                         
                         // NOTE(allen): run deactivate command
-                        launch_command_via_keycode(models, view, key_click_deactivate_view);
+                        launch_command_via_keycode(models, view, KeyCodeExt_ClickDeactivateView);
                         
                         // NOTE(allen): kill coroutine if we have one (again because we just launched a command)
                         if (models->command_coroutine != 0){
@@ -1154,7 +1126,7 @@ App_Step_Sig(app_step){
                         view = active_panel->view;
                         
                         // NOTE(allen): run activate command
-                        launch_command_via_keycode(models, view, key_click_activate_view);
+                        launch_command_via_keycode(models, view, KeyCodeExt_ClickActivateView);
                     }break;
                     
                     case EventConsume_Command:
@@ -1178,7 +1150,7 @@ App_Step_Sig(app_step){
                                 user_in.abort = ((abort_flags & event_flags) != 0);
                                 models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                                 
-                                if (user_in.key.keycode != key_animate){
+                                if (user_in.key.keycode != KeyCodeExt_Animate){
                                     models->animate_next_frame = true;
                                 }
                                 
@@ -1200,10 +1172,10 @@ App_Step_Sig(app_step){
             {
                 Key_Code keycode = key_ptr->keycode;
                 u32 event_flags = get_event_flags(keycode);
-                if (event_flags & EventOnAnyKey || keycode == key_mouse_left_release){
+                if (event_flags & EventOnAnyKey || keycode == KeyCodeExt_MouseLeftRelease){
                     models->state = APP_STATE_EDIT;
                 }
-                else if (keycode == key_mouse_move){
+                else if (keycode == KeyCodeExt_MouseMove){
                     if (input->mouse.l){
                         Panel *split = models->resizing_intermediate_panel;
                         Range limits = layout_get_limiting_range_on_split(layout, split);

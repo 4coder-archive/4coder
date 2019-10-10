@@ -65,13 +65,17 @@ command_list = {
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
    .cmd = { { "custom\\bin\\build_one_time 4ed_api_check.cpp ..\\build & copy /B ..\\build\\one_time.exe ..\\build\\api_checker.exe", .os = "win" }, }, },
  
+ { .name = "build keycode generator",
+   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
+   .cmd = { { "custom\\bin\\build_one_time 4ed_generate_keycodes.cpp ..\\build", .os = "win" }, }, },
+ 
  { .name = "generate custom api master list",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,
    .cmd = { { "..\\build\\api_parser 4ed_api_implementation.cpp", .os = "win"   }, }, },
 };
 
 fkey_command[1] = "build x64";
-fkey_command[2] = "build api checker";
+fkey_command[2] = "build keycode generator";
 fkey_command[4] = "run one time";
 fkey_command[5] = "build C++ lexer generator";
 fkey_command[6] = "build token tester";

@@ -1,3 +1,4 @@
+
 /*
  * Mr. 4th Dimention - Allen Webster
  *
@@ -16,7 +17,8 @@
 #include "4coder_table.h"
 #include "4coder_version.h"
 
-#include "4coder_keycodes.h"
+#include "generated/4coder_keycodes.h"
+#include "4coder_keycode_extension.h"
 #include "4coder_default_colors.h"
 #include "4coder_types.h"
 
@@ -615,54 +617,78 @@ global Key_Code keycode_lookup_table[255];
 
 internal void
 win32_keycode_init(void){
-    keycode_lookup_table[VK_BACK] = key_back;
-    keycode_lookup_table[VK_DELETE] = key_del;
-    keycode_lookup_table[VK_UP] = key_up;
-    keycode_lookup_table[VK_DOWN] = key_down;
-    keycode_lookup_table[VK_LEFT] = key_left;
-    keycode_lookup_table[VK_RIGHT] = key_right;
-    keycode_lookup_table[VK_INSERT] = key_insert;
-    keycode_lookup_table[VK_HOME] = key_home;
-    keycode_lookup_table[VK_END] = key_end;
-    keycode_lookup_table[VK_PRIOR] = key_page_up;
-    keycode_lookup_table[VK_NEXT] = key_page_down;
-    keycode_lookup_table[VK_ESCAPE] = key_esc;
+    for (u32 i = 'A'; i <= 'z'; i += 1){
+        keycode_lookup_table[i] = KeyCode_A + i - 'A';
+    }
+    for (u32 i = '0'; i <= '9'; i += 1){
+        keycode_lookup_table[i] = KeyCode_0 + i - '0';
+    }
     
-    keycode_lookup_table[VK_CONTROL] = key_ctrl;
-    keycode_lookup_table[VK_LCONTROL] = key_ctrl;
-    keycode_lookup_table[VK_RCONTROL] = key_ctrl;
+    keycode_lookup_table[VK_SPACE] = KeyCode_Space;
+    keycode_lookup_table[VK_OEM_3] = KeyCode_Tick;
+    keycode_lookup_table[VK_OEM_MINUS] = KeyCode_Minus;
+    keycode_lookup_table[VK_OEM_4] = KeyCode_LeftBracket;
+    keycode_lookup_table[VK_OEM_6] = KeyCode_RightBracket;
+    keycode_lookup_table[VK_OEM_1] = KeyCode_Semicolon;
+    keycode_lookup_table[VK_OEM_7] = KeyCode_Quote;
+    keycode_lookup_table[VK_OEM_COMMA] = KeyCode_Comma;
+    keycode_lookup_table[VK_OEM_PERIOD] = KeyCode_Period;
+    keycode_lookup_table[VK_OEM_2] = KeyCode_ForwardSlash;
+    keycode_lookup_table[VK_OEM_5] = KeyCode_BackwardSlash;
     
-    keycode_lookup_table[VK_MENU] = key_alt;
-    keycode_lookup_table[VK_LMENU] = key_alt;
-    keycode_lookup_table[VK_RMENU] = key_alt;
+    keycode_lookup_table[VK_TAB] = KeyCode_Tab;
+    keycode_lookup_table[VK_PAUSE] = KeyCode_Pause;
+    keycode_lookup_table[VK_ESCAPE] = KeyCode_Escape;
     
-    keycode_lookup_table[VK_SHIFT] = key_shift;
-    keycode_lookup_table[VK_LSHIFT] = key_shift;
-    keycode_lookup_table[VK_RSHIFT] = key_shift;
+    keycode_lookup_table[VK_UP] = KeyCode_Up;
+    keycode_lookup_table[VK_DOWN] = KeyCode_Down;
+    keycode_lookup_table[VK_LEFT] = KeyCode_Left;
+    keycode_lookup_table[VK_RIGHT] = KeyCode_Right;
     
-    keycode_lookup_table[VK_PAUSE] = key_pause;
-    keycode_lookup_table[VK_CAPITAL] = key_caps;
-    keycode_lookup_table[VK_NUMLOCK] = key_num_lock;
-    keycode_lookup_table[VK_SCROLL] = key_scroll_lock;
-    keycode_lookup_table[VK_APPS] = key_menu;
+    keycode_lookup_table[VK_BACK] = KeyCode_Backspace;
+    keycode_lookup_table[VK_RETURN] = KeyCode_Return;
     
-    keycode_lookup_table[VK_F1] = key_f1;
-    keycode_lookup_table[VK_F2] = key_f2;
-    keycode_lookup_table[VK_F3] = key_f3;
-    keycode_lookup_table[VK_F4] = key_f4;
-    keycode_lookup_table[VK_F5] = key_f5;
-    keycode_lookup_table[VK_F6] = key_f6;
-    keycode_lookup_table[VK_F7] = key_f7;
-    keycode_lookup_table[VK_F8] = key_f8;
-    keycode_lookup_table[VK_F9] = key_f9;
+    keycode_lookup_table[VK_DELETE] = KeyCode_Delete;
+    keycode_lookup_table[VK_INSERT] = KeyCode_Insert;
+    keycode_lookup_table[VK_HOME] = KeyCode_Home;
+    keycode_lookup_table[VK_END] = KeyCode_End;
+    keycode_lookup_table[VK_PRIOR] = KeyCode_PageUp;
+    keycode_lookup_table[VK_NEXT] = KeyCode_PageDown;
     
-    keycode_lookup_table[VK_F10] = key_f10;
-    keycode_lookup_table[VK_F11] = key_f11;
-    keycode_lookup_table[VK_F12] = key_f12;
-    keycode_lookup_table[VK_F13] = key_f13;
-    keycode_lookup_table[VK_F14] = key_f14;
-    keycode_lookup_table[VK_F15] = key_f15;
-    keycode_lookup_table[VK_F16] = key_f16;
+    keycode_lookup_table[VK_CAPITAL] = KeyCode_CapsLock;
+    keycode_lookup_table[VK_NUMLOCK] = KeyCode_NumLock;
+    keycode_lookup_table[VK_SCROLL] = KeyCode_ScrollLock;
+    keycode_lookup_table[VK_APPS] = KeyCode_Menu;
+    
+    keycode_lookup_table[VK_SHIFT] = KeyCode_Shift;
+    keycode_lookup_table[VK_LSHIFT] = KeyCode_Shift;
+    keycode_lookup_table[VK_RSHIFT] = KeyCode_Shift;
+    
+    keycode_lookup_table[VK_CONTROL] = KeyCode_Control;
+    keycode_lookup_table[VK_LCONTROL] = KeyCode_Control;
+    keycode_lookup_table[VK_RCONTROL] = KeyCode_Control;
+    
+    keycode_lookup_table[VK_MENU] = KeyCode_Alt;
+    keycode_lookup_table[VK_LMENU] = KeyCode_Alt;
+    keycode_lookup_table[VK_RMENU] = KeyCode_Alt;
+    
+    keycode_lookup_table[VK_F1] = KeyCode_F1;
+    keycode_lookup_table[VK_F2] = KeyCode_F2;
+    keycode_lookup_table[VK_F3] = KeyCode_F3;
+    keycode_lookup_table[VK_F4] = KeyCode_F4;
+    keycode_lookup_table[VK_F5] = KeyCode_F5;
+    keycode_lookup_table[VK_F6] = KeyCode_F6;
+    keycode_lookup_table[VK_F7] = KeyCode_F7;
+    keycode_lookup_table[VK_F8] = KeyCode_F8;
+    keycode_lookup_table[VK_F9] = KeyCode_F9;
+    
+    keycode_lookup_table[VK_F10] = KeyCode_F10;
+    keycode_lookup_table[VK_F11] = KeyCode_F11;
+    keycode_lookup_table[VK_F12] = KeyCode_F12;
+    keycode_lookup_table[VK_F13] = KeyCode_F13;
+    keycode_lookup_table[VK_F14] = KeyCode_F14;
+    keycode_lookup_table[VK_F15] = KeyCode_F15;
+    keycode_lookup_table[VK_F16] = KeyCode_F16;
 }
 
 internal void

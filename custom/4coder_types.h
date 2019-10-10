@@ -220,27 +220,79 @@ ENUM(i32, Panel_Child){
     PanelChild_Max = 1,
 };
 
-TYPEDEF u32 Key_Code;
+typedef u32 Key_Code;
+typedef u32 Mouse_Code;
+typedef u32 Core_Event_Code;
+enum{
+    CoreEventCode_Animate,
+    CoreEventCode_ClickActivateView,
+    CoreEventCode_ClickDeactivateView,
+};
+
+typedef i32 Input_Event_Kind;
+enum{
+    InputEventKind_TextInsert,
+    InputEventKind_KeyStroke,
+    InputEventKind_MouseButton,
+    InputEventKind_MouseWheel,
+    InputEventKind_MouseMove,
+    InputEventKind_Core,
+};
+
+struct Key_Modifiers{
+    b8 modifiers[MDFR_INDEX_COUNT];
+};
+
+struct Input_Event{
+    Input_Event_Kind kind;
+    union{
+        struct{
+            String_Const_u8 string;
+            Key_Modifiers modifiers;
+        } text;
+        struct{
+            Key_Code code;
+            Key_Modifiers modifiers;
+        } key;
+        struct{
+            Key_Code code;
+            Key_Modifiers modifiers;
+            Vec2_i32 p;
+        } mouse;
+        struct{
+            f32 value;
+            Vec2_i32 p;
+        } mouse_wheel;
+        struct{
+            Vec2_i32 p;
+        } mouse_move;
+        struct{
+            Core_Event_Code code;
+        } core;
+    };
+};
+
+struct Input_Event_Node{
+    Input_Event_Node *next;
+    Input_Event event;
+};
+
+struct Input_List{
+    Input_Event_Node *first;
+    Input_Event_Node *last;
+    i32 count;
+};
 
 TYPEDEF u8 Key_Modifier;
 
-STRUCT Key_Event_Data{
-    Key_Code keycode;
-    Key_Code character;
-    Key_Code character_no_caps_lock;
-    i8 modifiers[MDFR_INDEX_COUNT];
-};
-
-GLOBAL_VAR Key_Event_Data null_key_event_data = {};
-
 STRUCT Mouse_State{
-    int8_t l;
-    int8_t r;
-    int8_t press_l;
-    int8_t press_r;
-    int8_t release_l;
-    int8_t release_r;
-    int8_t out_of_window;
+    b8 l;
+    b8 r;
+    b8 press_l;
+    b8 press_r;
+    b8 release_l;
+    b8 release_r;
+    b8 out_of_window;
     i32 wheel;
     UNION{
         STRUCT{
@@ -498,7 +550,7 @@ UNION Generic_Command{
 
 
 STRUCT User_Input{
-    Key_Event_Data key;
+    Input_Event event;
     Generic_Command command;
     b32 abort;
 };
@@ -615,7 +667,6 @@ ENUM(i32, Binding_Unit_Type){
 ENUM(i32, Map_ID){
     mapid_global = (1 << 24),
     mapid_file,
-    mapid_ui,
     mapid_nomap
 };
 

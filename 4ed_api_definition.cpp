@@ -330,17 +330,17 @@ api_definition_generate_api_includes(Arena *arena, API_Definition *api, Generate
                                string_expand(path_to_self),
                                string_expand(root),
                                string_expand(api->name));
-                               
+    
     fname_h = push_u8_stringf(arena, "%.*s%.*s%.*s_api.h",
                               string_expand(path_to_self),
                               string_expand(root),
                               string_expand(api->name));
-                              
+    
     fname_cpp = push_u8_stringf(arena, "%.*s%.*s%.*s_api.cpp",
                                 string_expand(path_to_self),
                                 string_expand(root),
                                 string_expand(api->name));
-                                
+    
     FILE *out_file_ml = fopen((char*)fname_ml.str, "wb");
     if (out_file_ml == 0){
         printf("could not open output file: '%s'\n", fname_ml.str);

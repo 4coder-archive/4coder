@@ -6,8 +6,8 @@ moving the cursor, which work even without the default 4coder framework.
 // TOP
 
 function void
-write_character_parameter(Application_Links *app, u8 *character, u32 length){
-    if (length != 0){
+write_character_parameter(Application_Links *app, String_Const_u8 insert){
+    if (insert.str != 0 && insert.size > 0){
         View_ID view = get_active_view(app, AccessOpen);
         if_view_has_highlighted_range_delete_range(app, view);
         
@@ -19,7 +19,7 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         // NOTE(allen): consecutive inserts merge logic
         History_Record_Index first_index = buffer_history_get_current_state_index(app, buffer);
         b32 do_merge = false;
-        if (character[0] != '\n'){
+        if (insert.str[0] != '\n'){
             Record_Info record = get_single_record(app, buffer, first_index);
             if (record.error == RecordError_NoError && record.kind == RecordKind_Single){
                 String_Const_u8 string = record.single.string_forward;
@@ -27,10 +27,11 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
                 if (last_end == pos && string.size > 0){
                     char c = string.str[string.size - 1];
                     if (c != '\n'){
-                        if (character_is_whitespace(character[0]) && character_is_whitespace(c)){
+                        if (character_is_whitespace(insert.str[0]) &&
+                            character_is_whitespace(c)){
                             do_merge = true;
                         }
-                        else if (character_is_alpha_numeric(character[0]) && character_is_alpha_numeric(c)){
+                        else if (character_is_alpha_numeric(insert.str[0]) && character_is_alpha_numeric(c)){
                             do_merge = true;
                         }
                     }
@@ -39,7 +40,7 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         }
         
         // NOTE(allen): perform the edit
-        b32 edit_success = buffer_replace_range(app, buffer, Ii64(pos), SCu8(character, length));
+        b32 edit_success = buffer_replace_range(app, buffer, Ii64(pos), insert);
         
         // NOTE(allen): finish merging records if necessary
         if (do_merge){
@@ -49,25 +50,29 @@ write_character_parameter(Application_Links *app, u8 *character, u32 length){
         
         // NOTE(allen): finish updating the cursor
         if (edit_success){
-            view_set_cursor_and_preferred_x(app, view, seek_pos(pos + length));
+            view_set_cursor_and_preferred_x(app, view, seek_pos(pos + insert.size));
         }
     }
 }
 
-CUSTOM_COMMAND_SIG(write_character)
+CUSTOM_COMMAND_SIG(write_text_input)
 CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
 {
     User_Input in = get_command_input(app);
-    u8 character[4];
-    u32 length = to_writable_character(in, character);
-    write_character_parameter(app, character, length);
+    String_Const_u8 insert = to_writable(&in);
+    write_character_parameter(app, insert);
+}
+
+CUSTOM_COMMAND_SIG(write_space)
+CUSTOM_DOC("Inserts an underscore.")
+{
+    write_character_parameter(app, string_u8_litexpr(" "));
 }
 
 CUSTOM_COMMAND_SIG(write_underscore)
 CUSTOM_DOC("Inserts an underscore.")
 {
-    u8 character = '_';
-    write_character_parameter(app, &character, 1);
+    write_character_parameter(app, string_u8_litexpr("_"));
 }
 
 CUSTOM_COMMAND_SIG(delete_char)
@@ -844,11 +849,12 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
             break;
         }
         
-        u8 character[4];
-        u32 length = to_writable_character(in, character);
+        String_Const_u8 string = to_writable(&in);
+        
         
         b32 string_change = false;
-        if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+        if (input_match_key_code(&in, KeyCode_Return) ||
+            input_match_key_code(&in, KeyCode_Tab)){
             if (in.key.modifiers[MDFR_CONTROL_INDEX]){
                 bar.string.size = cstring_length(previous_isearch_query);
                 block_copy(bar.string.str, previous_isearch_query, bar.string.size);
@@ -867,7 +873,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
             bar.string = string.string;
             string_change = true;
         }
-        else if (in.key.keycode == key_back){
+        else if (in.key.keycode == KeyCode_Backspace){
             if (key_is_unmodified(&in.key)){
                 umem old_bar_string_size = bar.string.size;
                 bar.string = backspace_utf8(bar.string);
@@ -885,14 +891,14 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
         Scan_Direction change_scan = scan;
         if (!string_change){
             if (in.command.command == search ||
-                in.key.keycode == key_page_down ||
-                in.key.keycode == key_down){
+                in.key.keycode == KeyCode_PageDown ||
+                in.key.keycode == KeyCode_Down){
                 change_scan = Scan_Forward;
                 do_scan_action = true;
             }
             if (in.command.command == reverse_search ||
-                in.key.keycode == key_page_up ||
-                in.key.keycode == key_up){
+                in.key.keycode == KeyCode_PageUp ||
+                in.key.keycode == KeyCode_Up){
                 change_scan = Scan_Backward;
                 do_scan_action = true;
             }
@@ -1087,7 +1093,9 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
         isearch__update_highlight(app, view, match);
         
         in = get_user_input(app, EventOnAnyKey, EventOnMouseLeftButton|EventOnMouseRightButton);
-        if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key)) break;
+        if (in.abort ||
+            in.key.keycode == KeyCode_Escape ||
+            !key_is_unmodified(&in.key)) break;
         
         if (in.key.character == 'y' || in.key.character == 'Y' ||
             in.key.character == '\n' || in.key.character == '\t'){
@@ -1254,17 +1262,17 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
             for (;!cancelled;){
                 User_Input in = get_user_input(app, EventOnAnyKey, 0);
                 switch (in.key.keycode){
-                    case 'Y':
+                    case KeyCode_Y:
                     {
                         delete_file_base(app, file_name, buffer);
                         cancelled = true;
                     }break;
                     
-                    case key_shift:
-                    case key_ctrl:
-                    case key_alt:
-                    case key_cmnd:
-                    case key_caps:
+                    case KeyCode_Shift:
+                    case KeyCode_Control:
+                    case KeyCode_Alt:
+                    case KeyCode_Command:
+                    case KeyCode_CapsLock:
                     {}break;
                     
                     default:
@@ -1702,23 +1710,23 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
         if (in.abort) break;
         
         b32 did_modify = false;
-        if (in.key.keycode == key_up){
+        if (in.key.keycode == KeyCode_Up){
             if (paste_count > 1){
                 --paste_count;
                 did_modify = true;
             }
         }
-        else if (in.key.keycode == key_down){
+        else if (in.key.keycode == KeyCode_Down){
             if (paste_count < clip_count){
                 ++paste_count;
                 did_modify = true;
             }
         }
-        else if (in.key.keycode == 'r' || in.key.keycode == 'R'){
+        else if (in.key.keycode == KeyCode_R){
             old_to_new = !old_to_new;
             did_modify = true;
         }
-        else if (in.key.keycode == '\n'){
+        else if (in.key.keycode == KeyCode_Return){
             break;
         }
         

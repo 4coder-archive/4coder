@@ -116,7 +116,7 @@ api(custom) function b32 managed_object_store_data(Application_Links* app, Manag
 api(custom) function b32 managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
 api(custom) function User_Input get_user_input(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type);
 api(custom) function User_Input get_command_input(Application_Links* app);
-api(custom) function void set_command_input(Application_Links* app, Key_Event_Data key_data);
+api(custom) function void set_command_input(Application_Links* app, Input_Event* event);
 api(custom) function Mouse_State get_mouse_state(Application_Links* app);
 api(custom) function b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 api(custom) function b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);

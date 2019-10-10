@@ -116,7 +116,7 @@
 #define custom_managed_object_load_data_sig() b32 custom_managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out)
 #define custom_get_user_input_sig() User_Input custom_get_user_input(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
 #define custom_get_command_input_sig() User_Input custom_get_command_input(Application_Links* app)
-#define custom_set_command_input_sig() void custom_set_command_input(Application_Links* app, Key_Event_Data key_data)
+#define custom_set_command_input_sig() void custom_set_command_input(Application_Links* app, Input_Event* event)
 #define custom_get_mouse_state_sig() Mouse_State custom_get_mouse_state(Application_Links* app)
 #define custom_get_active_query_bars_sig() b32 custom_get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out)
 #define custom_start_query_bar_sig() b32 custom_start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
@@ -286,7 +286,7 @@ typedef b32 custom_managed_object_store_data_type(Application_Links* app, Manage
 typedef b32 custom_managed_object_load_data_type(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
 typedef User_Input custom_get_user_input_type(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type);
 typedef User_Input custom_get_command_input_type(Application_Links* app);
-typedef void custom_set_command_input_type(Application_Links* app, Key_Event_Data key_data);
+typedef void custom_set_command_input_type(Application_Links* app, Input_Event* event);
 typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
 typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 typedef b32 custom_start_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -629,7 +629,7 @@ internal b32 managed_object_store_data(Application_Links* app, Managed_Object ob
 internal b32 managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
 internal User_Input get_user_input(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type);
 internal User_Input get_command_input(Application_Links* app);
-internal void set_command_input(Application_Links* app, Key_Event_Data key_data);
+internal void set_command_input(Application_Links* app, Input_Event* event);
 internal Mouse_State get_mouse_state(Application_Links* app);
 internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 internal b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);

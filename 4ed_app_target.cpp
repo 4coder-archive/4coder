@@ -13,7 +13,8 @@
 
 #include "4coder_base_types.h"
 #include "4coder_version.h"
-#include "4coder_keycodes.h"
+#include "generated/4coder_keycodes.h"
+#include "4coder_keycode_extension.h"
 #include "4coder_default_colors.h"
 #include "4coder_types.h"
 #define STATIC_LINK_API

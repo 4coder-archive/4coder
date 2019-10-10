@@ -43,6 +43,7 @@ vtable->memory_free = system_memory_free;
 vtable->show_mouse_cursor = system_show_mouse_cursor;
 vtable->set_fullscreen = system_set_fullscreen;
 vtable->is_fullscreen = system_is_fullscreen;
+vtable->get_keyboard_modifiers = system_get_keyboard_modifiers;
 }
 #if defined(DYNAMIC_LINK_API)
 function void
@@ -90,6 +91,7 @@ system_memory_free = vtable->memory_free;
 system_show_mouse_cursor = vtable->show_mouse_cursor;
 system_set_fullscreen = vtable->set_fullscreen;
 system_is_fullscreen = vtable->is_fullscreen;
+system_get_keyboard_modifiers = vtable->get_keyboard_modifiers;
 }
 #undef DYNAMIC_LINK_API
 #endif
