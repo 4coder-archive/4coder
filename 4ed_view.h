@@ -28,7 +28,7 @@ struct View{
     b8 new_scroll_target;
     
     b8 ui_mode;
-    i32 ui_map_id;
+    Command_Map_ID ui_map_id;
     Basic_Scroll ui_scroll;
     UI_Quit_Function_Type *ui_quit;
     

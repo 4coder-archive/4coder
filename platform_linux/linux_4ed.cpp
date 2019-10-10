@@ -19,7 +19,6 @@
 #include "4coder_lib/4coder_utf8.h"
 
 #if defined(FRED_SUPER)
-# include "4coder_API/4coder_keycodes.h"
 #include "4coder_keycode_extension.h"
 # include "4coder_API/4coder_style.h"
 

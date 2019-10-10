@@ -31,6 +31,8 @@ START_HOOK_SIG(default_start){
 // NOTE(allen|a4.0.10): As of this version the word_complete command
 // also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
+    // app, cmd
+    
     View_ID view = get_active_view(app, AccessAll);
     Managed_Scope scope = view_get_managed_scope(app, view);
     Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
@@ -45,7 +47,7 @@ COMMAND_CALLER_HOOK(default_command_caller){
         }
     }
     
-    cmd.command(app);
+    cmd(app);
     
     next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
     if (next_rewrite != 0){
@@ -224,7 +226,7 @@ GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
     
     // file bar
     {
-        b32 showing_file_bar = false;
+        b64 showing_file_bar = false;
         if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
             if (showing_file_bar){
                 sub_region.y0 += line_height + 2;
@@ -568,7 +570,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     Rect_f32 r_cursor = view_inner_rect;
     
     // NOTE(allen): Filebar
-    b32 showing_file_bar = false;
+    b64 showing_file_bar = false;
     if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) && showing_file_bar){
         Rect_f32 bar = r_cursor;
         bar.y1 = bar.y0 + line_height + 2.f;
@@ -589,7 +591,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
         push_fancy_string(scratch, &list, base_color, unique_name);
         push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.col);
         
-        b32 is_dos_mode = false;
+        b64 is_dos_mode = false;
         if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
             if (is_dos_mode){
                 push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
@@ -1021,8 +1023,8 @@ BUFFER_HOOK_SIG(default_file_settings){
         }
     }
     
-    i32 map_id = (treat_as_code)?((i32)default_code_map):((i32)mapid_file);
-    i32 map_id_query = 0;
+    Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
+    Command_Map_ID map_id_query = 0;
     
     buffer_set_setting(app, buffer_id, BufferSetting_MapID, default_lister_ui_map);
     buffer_get_setting(app, buffer_id, BufferSetting_MapID, &map_id_query);

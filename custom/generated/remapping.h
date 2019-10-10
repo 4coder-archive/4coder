@@ -39,15 +39,15 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_F14, MDFR_NONE, project_fkey_command);
     bind(context, KeyCode_F15, MDFR_NONE, project_fkey_command);
     bind(context, KeyCode_F16, MDFR_NONE, project_fkey_command);
-    bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, mouse_wheel_scroll);
-    bind(context, KeyCodeExt_MouseWheel, MDFR_CTRL, mouse_wheel_change_face_size);
+    //bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, mouse_wheel_scroll);
+    //bind(context, KeyCodeExt_MouseWheel, MDFR_CTRL, mouse_wheel_change_face_size);
     end_map(context);
     begin_map(context, mapid_file);
-    bind_vanilla_keys(context, write_character);
-    bind(context, KeyCodeExt_MouseLeft, MDFR_NONE, click_set_cursor_and_mark);
-    bind(context, KeyCodeExt_ClickActivateView, MDFR_NONE, click_set_cursor_and_mark);
-    bind(context, KeyCodeExt_MouseLeftRelease, MDFR_NONE, click_set_cursor);
-    bind(context, KeyCodeExt_MouseMove, MDFR_NONE, click_set_cursor_if_lbutton);
+    bind_text_input(context, write_text_input);
+    //bind(context, KeyCodeExt_MouseLeft, MDFR_NONE, click_set_cursor_and_mark);
+    //bind(context, KeyCodeExt_ClickActivateView, MDFR_NONE, click_set_cursor_and_mark);
+    //bind(context, KeyCodeExt_MouseLeftRelease, MDFR_NONE, click_set_cursor);
+    //bind(context, KeyCodeExt_MouseMove, MDFR_NONE, click_set_cursor_if_lbutton);
     bind(context, KeyCode_Delete, MDFR_NONE, delete_char);
     bind(context, KeyCode_Delete, MDFR_SHIFT, delete_char);
     bind(context, KeyCode_Backspace, MDFR_NONE, backspace_char);
@@ -117,13 +117,14 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_Z, MDFR_CTRL, undo);
     bind(context, KeyCode_1, MDFR_CTRL, view_buffer_other_panel);
     bind(context, KeyCode_2, MDFR_CTRL, swap_buffers_between_panels);
-    bind(context, KeyCode_Return, MDFR_NONE, newline_or_goto_position);
-    bind(context, KeyCode_Return, MDFR_SHIFT, newline_or_goto_position_same_panel);
+    bind(context, KeyCode_Return, MDFR_NONE, if_read_only_goto_position);
+    bind(context, KeyCode_Return, MDFR_SHIFT, if_read_only_goto_position_same_panel);
     bind(context, KeyCode_Period, MDFR_CTRL|MDFR_SHIFT, view_jump_list_with_lister);
     bind(context, KeyCode_Space, MDFR_SHIFT, write_space);
     end_map(context);
     begin_map(context, default_code_map);
     inherit_map(context, mapid_file);
+    bind_text_input(context, write_text_and_auto_indent);
     bind(context, KeyCode_Left, MDFR_CTRL, move_left_alpha_numeric_boundary);
     bind(context, KeyCode_Left, MDFR_CTRL|MDFR_SHIFT, move_left_alpha_numeric_boundary);
     bind(context, KeyCode_Right, MDFR_CTRL, move_right_alpha_numeric_boundary);
@@ -131,17 +132,10 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_Left, MDFR_ALT, move_left_alpha_numeric_or_camel_boundary);
     bind(context, KeyCode_Left, MDFR_ALT|MDFR_SHIFT, move_left_alpha_numeric_or_camel_boundary);
     bind(context, KeyCode_Right, MDFR_ALT|MDFR_SHIFT, move_right_alpha_numeric_or_camel_boundary);
-    bind(context, KeyCode_Return, MDFR_NONE, write_and_auto_tab);
-    bind(context, KeyCode_Return, MDFR_SHIFT, write_and_auto_tab);
-    bind(context, KeyCode_RightBracket, MDFR_SHIFT, write_and_auto_tab);
-    bind(context, KeyCode_0, MDFR_SHIFT, write_and_auto_tab);
-    bind(context, KeyCode_RightBracket, MDFR_NONE, write_and_auto_tab);
-    bind(context, KeyCode_Semicolon, MDFR_NONE, write_and_auto_tab);
-    bind(context, KeyCode_3, MDFR_SHIFT, write_and_auto_tab);
     bind(context, KeyCode_Semicolon, MDFR_CTRL, comment_line_toggle);
     bind(context, KeyCode_Tab, MDFR_NONE, word_complete);
-    bind(context, KeyCode_Tab, MDFR_CTRL, auto_tab_range);
-    bind(context, KeyCode_Tab, MDFR_SHIFT, auto_tab_line_at_cursor);
+    bind(context, KeyCode_Tab, MDFR_CTRL, auto_indent_range);
+    bind(context, KeyCode_Tab, MDFR_SHIFT, auto_indent_line_at_cursor);
     bind(context, KeyCode_R, MDFR_ALT, write_block);
     bind(context, KeyCode_T, MDFR_ALT, write_todo);
     bind(context, KeyCode_Y, MDFR_ALT, write_note);
@@ -162,7 +156,7 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_0, MDFR_CTRL, write_zero_struct);
     end_map(context);
     begin_map(context, default_lister_ui_map);
-    bind_vanilla_keys(context, lister__write_character);
+    bind_text_input(context, lister__write_character);
     bind(context, KeyCode_Escape, MDFR_NONE, lister__quit);
     bind(context, KeyCode_Return, MDFR_NONE, lister__activate);
     bind(context, KeyCode_Tab, MDFR_NONE, lister__activate);
@@ -180,11 +174,11 @@ void fill_keys_default(Bind_Helper *context){
     bind(context, KeyCode_Down, MDFR_NONE, lister__move_down);
     bind(context, KeyCode_J, MDFR_ALT, lister__move_down);
     bind(context, KeyCode_PageDown, MDFR_NONE, lister__move_down);
-    bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, lister__wheel_scroll);
-    bind(context, KeyCodeExt_MouseLeft, MDFR_NONE, lister__mouse_press);
-    bind(context, KeyCodeExt_MouseLeftRelease, MDFR_NONE, lister__mouse_release);
-    bind(context, KeyCodeExt_MouseMove, MDFR_NONE, lister__repaint);
-    bind(context, KeyCodeExt_Animate, MDFR_NONE, lister__repaint);
+    //bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, lister__wheel_scroll);
+    //bind(context, KeyCodeExt_MouseLeft, MDFR_NONE, lister__mouse_press);
+    //bind(context, KeyCodeExt_MouseLeftRelease, MDFR_NONE, lister__mouse_release);
+    //bind(context, KeyCodeExt_MouseMove, MDFR_NONE, lister__repaint);
+    //bind(context, KeyCodeExt_Animate, MDFR_NONE, lister__repaint);
     end_map(context);
 }
 #endif
@@ -266,7 +260,7 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_global[43] = {
     {0, 55321, 1, "mouse_wheel_change_face_size", 28, LINK_PROCS(mouse_wheel_change_face_size)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
-    {1, 0, 0, "write_character", 15, LINK_PROCS(write_character)},
+    {1, 0, 0, "write_text_input", 15, LINK_PROCS(write_text_input)},
     {0, 55317, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
     {0, 55324, 0, "click_set_cursor_and_mark", 25, LINK_PROCS(click_set_cursor_and_mark)},
     {0, 55319, 0, "click_set_cursor", 16, LINK_PROCS(click_set_cursor)},
@@ -340,27 +334,27 @@ static Meta_Key_Bind fcoder_binds_for_default_mapid_file[78] = {
     {0, 122, 1, "undo", 4, LINK_PROCS(undo)},
     {0, 49, 1, "view_buffer_other_panel", 23, LINK_PROCS(view_buffer_other_panel)},
     {0, 50, 1, "swap_buffers_between_panels", 27, LINK_PROCS(swap_buffers_between_panels)},
-    {0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(newline_or_goto_position)},
-    {0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(newline_or_goto_position_same_panel)},
+    {0, 10, 0, "newline_or_goto_position", 24, LINK_PROCS(if_read_only_goto_position)},
+    {0, 10, 8, "newline_or_goto_position_same_panel", 35, LINK_PROCS(if_read_only_goto_position_same_panel)},
     {0, 62, 1, "view_jump_list_with_lister", 26, LINK_PROCS(view_jump_list_with_lister)},
-    {0, 32, 8, "write_character", 15, LINK_PROCS(write_character)},
+    {0, 32, 8, "write_text_input", 15, LINK_PROCS(write_text_input)},
 };
 static Meta_Key_Bind fcoder_binds_for_default_default_code_map[33] = {
     {0, 55299, 1, "move_left_alpha_numeric_or_camel_boundary", 41, LINK_PROCS(move_left_alpha_numeric_or_camel_boundary)},
     {0, 55300, 1, "move_right_alpha_numeric_or_camel_boundary", 42, LINK_PROCS(move_right_alpha_numeric_or_camel_boundary)},
     {0, 55299, 2, "move_left_alpha_numeric_boundary", 32, LINK_PROCS(move_left_alpha_numeric_boundary)},
     {0, 55300, 2, "move_right_alpha_numeric_boundary", 33, LINK_PROCS(move_right_alpha_numeric_boundary)},
-    {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
-    {0, 10, 8, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
-    {0, 125, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
-    {0, 41, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
-    {0, 93, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
-    {0, 59, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
-    {0, 35, 0, "write_and_auto_tab", 18, LINK_PROCS(write_and_auto_tab)},
+    {0, 10, 0, "write_and_auto_tab", 18, LINK_PROCS(write_text_and_auto_indent)},
+    {0, 10, 8, "write_and_auto_tab", 18, LINK_PROCS(write_text_and_auto_indent)},
+    {0, 125, 0, "write_text_and_auto_indent", 18, LINK_PROCS(write_text_and_auto_indent)},
+    {0, 41, 0, "write_text_and_auto_indent", 18, LINK_PROCS(write_text_and_auto_indent)},
+    {0, 93, 0, "write_text_and_auto_indent", 18, LINK_PROCS(write_text_and_auto_indent)},
+    {0, 59, 0, "write_text_and_auto_indent", 18, LINK_PROCS(write_text_and_auto_indent)},
+    {0, 35, 0, "write_text_and_auto_indent", 18, LINK_PROCS(write_text_and_auto_indent)},
     {0, 59, 1, "comment_line_toggle", 19, LINK_PROCS(comment_line_toggle)},
     {0, 9, 0, "word_complete", 13, LINK_PROCS(word_complete)},
-    {0, 9, 1, "auto_tab_range", 14, LINK_PROCS(auto_tab_range)},
-    {0, 9, 8, "auto_tab_line_at_cursor", 23, LINK_PROCS(auto_tab_line_at_cursor)},
+    {0, 9, 1, "auto_tab_range", 14, LINK_PROCS(auto_indent_range)},
+    {0, 9, 8, "auto_tab_line_at_cursor", 23, LINK_PROCS(auto_indent_line_at_cursor)},
     {0, 114, 2, "write_block", 11, LINK_PROCS(write_block)},
     {0, 116, 2, "write_todo", 10, LINK_PROCS(write_todo)},
     {0, 121, 2, "write_note", 10, LINK_PROCS(write_note)},

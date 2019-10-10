@@ -679,7 +679,7 @@ CUSTOM_COMMAND_SIG(toggle_filebar)
 CUSTOM_DOC("Toggles the visibility status of the current view's filebar.")
 {
     View_ID view = get_active_view(app, AccessAll);
-    b32 value = false;
+    b64 value = false;
     view_get_setting(app, view, ViewSetting_ShowFileBar, &value);
     view_set_setting(app, view, ViewSetting_ShowFileBar, !value);
 }
@@ -742,7 +742,7 @@ CUSTOM_COMMAND_SIG(toggle_show_whitespace)
 CUSTOM_DOC("Toggles the current buffer's whitespace visibility status.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    b32 show_whitespace;
+    b64 show_whitespace = false;
     view_get_setting(app, view, ViewSetting_ShowWhitespace, &show_whitespace);
     view_set_setting(app, view, ViewSetting_ShowWhitespace, !show_whitespace);
 }
@@ -844,18 +844,18 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
         }
         isearch__update_highlight(app, view, Ii64_size(pos, match_size));
         
-        in = get_user_input(app, EventOnAnyKey, EventOnEsc);
+        in = get_user_input(app, EventProperty_AnyKey, EventProperty_Escape);
         if (in.abort){
             break;
         }
         
         String_Const_u8 string = to_writable(&in);
         
-        
         b32 string_change = false;
-        if (input_match_key_code(&in, KeyCode_Return) ||
-            input_match_key_code(&in, KeyCode_Tab)){
-            if (in.key.modifiers[MDFR_CONTROL_INDEX]){
+        if (match_key_code(&in, KeyCode_Return) ||
+            match_key_code(&in, KeyCode_Tab)){
+            Key_Modifiers *mods = &in.event.key.modifiers;
+            if (mods->modifiers[MDFR_CONTROL_INDEX]){
                 bar.string.size = cstring_length(previous_isearch_query);
                 block_copy(bar.string.str, previous_isearch_query, bar.string.size);
             }
@@ -867,19 +867,19 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
                 break;
             }
         }
-        else if (length != 0 && key_is_unmodified(&in.key)){
-            String_u8 string = Su8(bar.string, sizeof(bar_string_space));
-            string_append(&string, SCu8(character, length));
-            bar.string = string.string;
+        else if (string.str != 0 && string.size > 0){
+            String_u8 bar_string = Su8(bar.string, sizeof(bar_string_space));
+            string_append(&bar_string, string);
+            bar.string = bar_string.string;
             string_change = true;
         }
-        else if (in.key.keycode == KeyCode_Backspace){
-            if (key_is_unmodified(&in.key)){
+        else if (match_key_code(&in, KeyCode_Backspace)){
+            if (is_unmodified_key(&in.event)){
                 umem old_bar_string_size = bar.string.size;
                 bar.string = backspace_utf8(bar.string);
                 string_change = (bar.string.size < old_bar_string_size);
             }
-            else if (in.key.modifiers[MDFR_CONTROL_INDEX]){
+            else if (in.event.key.modifiers.modifiers[MDFR_CONTROL_INDEX]){
                 if (bar.string.size > 0){
                     string_change = true;
                     bar.string.size = 0;
@@ -890,20 +890,20 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
         b32 do_scan_action = false;
         Scan_Direction change_scan = scan;
         if (!string_change){
-            if (in.command.command == search ||
-                in.key.keycode == KeyCode_PageDown ||
-                in.key.keycode == KeyCode_Down){
+            if (in.command == search ||
+                match_key_code(&in, KeyCode_PageDown) ||
+                match_key_code(&in, KeyCode_Down)){
                 change_scan = Scan_Forward;
                 do_scan_action = true;
             }
-            if (in.command.command == reverse_search ||
-                in.key.keycode == KeyCode_PageUp ||
-                in.key.keycode == KeyCode_Up){
+            if (in.command == reverse_search ||
+                match_key_code(&in, KeyCode_PageUp) ||
+                match_key_code(&in, KeyCode_Up)){
                 change_scan = Scan_Backward;
                 do_scan_action = true;
             }
             
-            if (in.command.command == mouse_wheel_scroll){
+            if (in.command == mouse_wheel_scroll){
                 mouse_wheel_scroll(app);
             }
         }
@@ -1092,13 +1092,16 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
         Range_i64 match = Ii64(new_pos, new_pos + r.size);
         isearch__update_highlight(app, view, match);
         
-        in = get_user_input(app, EventOnAnyKey, EventOnMouseLeftButton|EventOnMouseRightButton);
-        if (in.abort ||
-            in.key.keycode == KeyCode_Escape ||
-            !key_is_unmodified(&in.key)) break;
+        in = get_user_input(app, EventProperty_AnyKey,
+                            EventProperty_MouseLeft|
+                            EventProperty_MouseRight);
+        if (in.abort || match_key_code(&in, KeyCode_Escape) || !is_unmodified_key(&in.event)){
+            break;
+        }
         
-        if (in.key.character == 'y' || in.key.character == 'Y' ||
-            in.key.character == '\n' || in.key.character == '\t'){
+        if (match_key_code(&in, KeyCode_Y) ||
+            match_key_code(&in, KeyCode_Return) ||
+            match_key_code(&in, KeyCode_Tab)){
             buffer_replace_range(app, buffer_id, match, w);
             pos = match.start + w.size;
         }
@@ -1260,8 +1263,8 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
         if (start_query_bar(app, &bar, 0) != 0){
             b32 cancelled = false;
             for (;!cancelled;){
-                User_Input in = get_user_input(app, EventOnAnyKey, 0);
-                switch (in.key.keycode){
+                User_Input in = get_user_input(app, EventProperty_AnyKey, 0);
+                switch (in.event.key.code){
                     case KeyCode_Y:
                     {
                         delete_file_base(app, file_name, buffer);
@@ -1706,27 +1709,27 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     
     User_Input in = {};
     for (;;){
-        in = get_user_input(app, EventOnAnyKey, EventOnEsc);
+        in = get_user_input(app, EventProperty_AnyKey, EventProperty_Escape);
         if (in.abort) break;
         
         b32 did_modify = false;
-        if (in.key.keycode == KeyCode_Up){
+        if (match_key_code(&in, KeyCode_Up)){
             if (paste_count > 1){
                 --paste_count;
                 did_modify = true;
             }
         }
-        else if (in.key.keycode == KeyCode_Down){
+        else if (match_key_code(&in, KeyCode_Down)){
             if (paste_count < clip_count){
                 ++paste_count;
                 did_modify = true;
             }
         }
-        else if (in.key.keycode == KeyCode_R){
+        else if (match_key_code(&in, KeyCode_R)){
             old_to_new = !old_to_new;
             did_modify = true;
         }
-        else if (in.key.keycode == KeyCode_Return){
+        else if (match_key_code(&in, KeyCode_Return)){
             break;
         }
         

@@ -2909,6 +2909,15 @@ heap_init(Heap *heap, Base_Allocator *allocator){
     heap->total_space = 0;
 }
 
+internal void
+heap_init(Heap *heap, Arena *arena){
+    heap->arena = arena;
+    heap__sent_init(&heap->in_order);
+    heap__sent_init(&heap->free_nodes);
+    heap->used_space = 0;
+    heap->total_space = 0;
+}
+
 internal Base_Allocator*
 heap_get_base_allocator(Heap *heap){
     return(heap->arena->base_allocator);
@@ -2916,7 +2925,9 @@ heap_get_base_allocator(Heap *heap){
 
 internal void
 heap_free_all(Heap *heap){
-    linalloc_clear(heap->arena);
+    if (heap->arena == &heap->arena_){
+        linalloc_clear(heap->arena);
+    }
     block_zero_struct(heap);
 }
 
@@ -6398,51 +6409,51 @@ string_u16_from_string_u32(Arena *arena, String_Const_u32 string, String_Fill_Te
 
 internal String_char
 string_char_from_string_u8(Arena *arena, String_Const_u8 string){
-    return(string_char_from_string_u8(arena, string, StringFill_NoTerminate));
+    return(string_char_from_string_u8(arena, string, StringFill_NullTerminate));
 }
 internal String_char
 string_char_from_string_u16(Arena *arena, String_Const_u16 string){
-    return(string_char_from_string_u16(arena, string, StringFill_NoTerminate));
+    return(string_char_from_string_u16(arena, string, StringFill_NullTerminate));
 }
 internal String_char
 string_char_from_string_u32(Arena *arena, String_Const_u32 string){
-    return(string_char_from_string_u32(arena, string, StringFill_NoTerminate));
+    return(string_char_from_string_u32(arena, string, StringFill_NullTerminate));
 }
 internal String_u8
 string_u8_from_string_char(Arena *arena, String_Const_char string){
-    return(string_u8_from_string_char(arena, string, StringFill_NoTerminate));
+    return(string_u8_from_string_char(arena, string, StringFill_NullTerminate));
 }
 internal String_u8
 string_u8_from_string_u16(Arena *arena, String_Const_u16 string){
-    return(string_u8_from_string_u16(arena, string, StringFill_NoTerminate));
+    return(string_u8_from_string_u16(arena, string, StringFill_NullTerminate));
 }
 internal String_u8
 string_u8_from_string_u32(Arena *arena, String_Const_u32 string){
-    return(string_u8_from_string_u32(arena, string, StringFill_NoTerminate));
+    return(string_u8_from_string_u32(arena, string, StringFill_NullTerminate));
 }
 internal String_u16
 string_u16_from_string_char(Arena *arena, String_Const_char string){
-    return(string_u16_from_string_char(arena, string, StringFill_NoTerminate));
+    return(string_u16_from_string_char(arena, string, StringFill_NullTerminate));
 }
 internal String_u16
 string_u16_from_string_u8(Arena *arena, String_Const_u8 string){
-    return(string_u16_from_string_u8(arena, string, StringFill_NoTerminate));
+    return(string_u16_from_string_u8(arena, string, StringFill_NullTerminate));
 }
 internal String_u16
 string_u16_from_string_u32(Arena *arena, String_Const_u32 string){
-    return(string_u16_from_string_u32(arena, string, StringFill_NoTerminate));
+    return(string_u16_from_string_u32(arena, string, StringFill_NullTerminate));
 }
 internal String_u32
 string_u32_from_string_char(Arena *arena, String_Const_char string){
-    return(string_u32_from_string_char(arena, string, StringFill_NoTerminate));
+    return(string_u32_from_string_char(arena, string, StringFill_NullTerminate));
 }
 internal String_u32
 string_u32_from_string_u8(Arena *arena, String_Const_u8 string){
-    return(string_u32_from_string_u8(arena, string, StringFill_NoTerminate));
+    return(string_u32_from_string_u8(arena, string, StringFill_NullTerminate));
 }
 internal String_u32
 string_u32_from_string_u16(Arena *arena, String_Const_u16 string){
-    return(string_u32_from_string_u16(arena, string, StringFill_NoTerminate));
+    return(string_u32_from_string_u16(arena, string, StringFill_NullTerminate));
 }
 
 ////////////////////////////////
@@ -6635,19 +6646,19 @@ string_replace(Arena *arena, String_Const_u32 source, String_Const_u32 needle, S
 
 internal String_Const_char
 string_replace(Arena *arena, String_Const_char source, String_Const_char needle, String_Const_char replacement){
-    return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
+    return(string_replace(arena, source, needle, replacement, StringFill_NullTerminate));
 }
 internal String_Const_u8
 string_replace(Arena *arena, String_Const_u8 source, String_Const_u8 needle, String_Const_u8 replacement){
-    return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
+    return(string_replace(arena, source, needle, replacement, StringFill_NullTerminate));
 }
 internal String_Const_u16
 string_replace(Arena *arena, String_Const_u16 source, String_Const_u16 needle, String_Const_u16 replacement){
-    return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
+    return(string_replace(arena, source, needle, replacement, StringFill_NullTerminate));
 }
 internal String_Const_u32
 string_replace(Arena *arena, String_Const_u32 source, String_Const_u32 needle, String_Const_u32 replacement){
-    return(string_replace(arena, source, needle, replacement, StringFill_NoTerminate));
+    return(string_replace(arena, source, needle, replacement, StringFill_NullTerminate));
 }
 
 ////////////////////////////////

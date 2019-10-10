@@ -1,4 +1,4 @@
-api(custom) function b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i32 value);
+api(custom) function b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value);
 api(custom) function b32 global_set_mapping(Application_Links* app, void* data, i32 size);
 api(custom) function Rect_f32 global_get_screen_rectangle(Application_Links* app);
 api(custom) function Thread_Context* get_thread_context(Application_Links* app);
@@ -41,8 +41,8 @@ api(custom) function String_Const_u8 push_buffer_unique_name(Application_Links* 
 api(custom) function String_Const_u8 push_buffer_file_name(Application_Links* app, Arena* arena, Buffer_ID buffer_id);
 api(custom) function Dirty_State buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function b32 buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
-api(custom) function b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32* value_out);
-api(custom) function b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value);
+api(custom) function b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
+api(custom) function b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
 api(custom) function Managed_Scope buffer_get_managed_scope(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function b32 buffer_send_end_signal(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Buffer_ID create_buffer(Application_Links* app, String_Const_u8 file_name, Buffer_Create_Flag flags);
@@ -78,8 +78,8 @@ api(custom) function Rect_f32 view_get_buffer_region(Application_Links* app, Vie
 api(custom) function Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
 api(custom) function Basic_Scroll view_get_basic_scroll(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_set_active(Application_Links* app, View_ID view_id);
-api(custom) function b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32* value_out);
-api(custom) function b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32 value);
+api(custom) function b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
+api(custom) function b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
 api(custom) function Managed_Scope view_get_managed_scope(Application_Links* app, View_ID view_id);
 api(custom) function Buffer_Cursor buffer_compute_cursor(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek);
 api(custom) function Buffer_Cursor view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
@@ -114,7 +114,7 @@ api(custom) function Managed_Scope managed_object_get_containing_scope(Applicati
 api(custom) function b32 managed_object_free(Application_Links* app, Managed_Object object);
 api(custom) function b32 managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 api(custom) function b32 managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-api(custom) function User_Input get_user_input(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type);
+api(custom) function User_Input get_user_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
 api(custom) function User_Input get_command_input(Application_Links* app);
 api(custom) function void set_command_input(Application_Links* app, Input_Event* event);
 api(custom) function Mouse_State get_mouse_state(Application_Links* app);

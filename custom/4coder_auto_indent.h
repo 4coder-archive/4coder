@@ -11,8 +11,7 @@ typedef u32 Indent_Flag;
 enum{
     Indent_ClearLine = 0x1,
     Indent_UseTab    = 0x2,
-    Indent_ExactAlignBlock = 0x4,
-    Indent_FullTokens = 0x8,
+    Indent_FullTokens = 0x4,
 };
 
 struct Nest{

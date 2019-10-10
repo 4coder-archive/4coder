@@ -9,7 +9,7 @@
 
 // TOP
 
-internal i32
+internal Command_Map_ID
 view_get_map(View *view){
     if (view->ui_mode){
         return(view->ui_map_id);

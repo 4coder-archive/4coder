@@ -12,29 +12,47 @@
 #if !defined(FRED_COMMAND_H)
 #define FRED_COMMAND_H
 
-struct Command_Binding{
+union Command_Binding{
     Custom_Command_Function *custom;
-    u64 hash;
+};
+
+struct Command_Modified_Binding{
+    Command_Modified_Binding *next;
+    SNode order_node;
+    Key_Modifiers modifiers;
+    Command_Binding binding;
+};
+
+struct Command_Binding_List{
+    Command_Binding_List *next;
+    SNode *first;
+    SNode *last;
+    i32 count;
 };
 
 struct Command_Map{
-    i32 parent;
-    Command_Binding vanilla_keyboard_default[1 << MDFR_INDEX_BINDABLE_COUNT];
-    Command_Binding *commands;
-    i32 count;
-    i32 max;
-    void *real_beginning;
+    Command_Map *next;
+    Command_Map_ID id;
+    Command_Map_ID parent;
+    Command_Binding text_input_command;
+    Table_u64_u64 key_code_to_binding_list;
+    Command_Modified_Binding *binding_first;
+    Command_Modified_Binding *binding_last;
+    Command_Binding_List *list_first;
+    Command_Binding_List *list_last;
+    
+    struct Binding_Unit *real_beginning;
 };
 
 struct Mapping{
-    void *memory;
-    
-    Command_Map map_top;
-    Command_Map map_file;
-    
-    i32 *map_id_table;
-    Command_Map *user_maps;
-    i32 user_map_count;
+    Arena *node_arena;
+    Heap heap;
+    Base_Allocator heap_wrapper;
+    Table_u64_u64 id_to_map;
+    Command_Map_ID id_counter;
+    Command_Map *free_maps;
+    Command_Modified_Binding *free_bindings;
+    Command_Binding_List *free_lists;
 };
 
 #endif

@@ -71,7 +71,7 @@ struct Application_Step_Input{
     b32 first_step;
     f32 dt;
     Mouse_State mouse;
-    Input_List inputs;
+    Input_List events;
     String_Const_u8 clipboard;
     b32 clipboard_changed;
     b32 trying_to_kill;

@@ -13,8 +13,7 @@
 
 #include "4coder_base_types.h"
 #include "4coder_version.h"
-#include "generated/4coder_keycodes.h"
-#include "4coder_keycode_extension.h"
+#include "4coder_events.h"
 #include "4coder_default_colors.h"
 #include "4coder_types.h"
 #define STATIC_LINK_API
@@ -33,14 +32,6 @@
 #include "generated/font_api.h"
 
 #include "4coder_string_match.h"
-
-#include "4coder_base_types.cpp"
-#include "4coder_string_match.cpp"
-#include "4coder_stringf.cpp"
-#include "4coder_app_links_allocator.cpp"
-#include "4coder_system_allocator.cpp"
-#include "4coder_hash_functions.cpp"
-#include "4coder_table.cpp"
 
 #include "4ed_render_target.h"
 #include "4ed.h"
@@ -70,6 +61,20 @@
 #include "4ed_log.h"
 #include "4ed_app_models.h"
 
+////////////////////////////////
+
+#include "4coder_base_types.cpp"
+#include "4coder_system_helpers.cpp"
+#include "4coder_events.cpp"
+#include "4coder_string_match.cpp"
+#include "4coder_stringf.cpp"
+#include "4coder_app_links_allocator.cpp"
+#include "4coder_system_allocator.cpp"
+#include "4coder_hash_functions.cpp"
+#include "4coder_table.cpp"
+#include "4coder_log.cpp"
+#include "4coder_buffer_seek_constructors.cpp"
+
 #include "generated/custom_api.cpp"
 #define DYNAMIC_LINK_API
 #include "generated/system_api.cpp"
@@ -78,10 +83,8 @@
 #define DYNAMIC_LINK_API
 #include "generated/font_api.cpp"
 
-#include "4coder_system_helpers.cpp"
 #include "4ed_allocator_models.cpp"
 #include "4ed_log.cpp"
-#include "4coder_log.cpp"
 #include "4ed_coroutine.cpp"
 #include "4ed_mem.cpp"
 #include "4ed_dynamic_variables.cpp"
@@ -99,7 +102,6 @@
 #include "4ed_cli.cpp"
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"
-#include "4coder_buffer_seek_constructors.cpp"
 #include "4ed_view.cpp"
 #include "4ed_edit.cpp"
 #include "4ed_text_layout.cpp"

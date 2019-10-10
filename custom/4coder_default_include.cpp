@@ -9,8 +9,7 @@
 
 #include "4coder_base_types.h"
 #include "4coder_version.h"
-#include "generated/4coder_keycodes.h"
-#include "4coder_keycode_extension.h"
+#include "4coder_events.h"
 #include "4coder_default_colors.h"
 #include "4coder_types.h"
 #define DYNAMIC_LINK_API
@@ -54,6 +53,7 @@
 #define DYNAMIC_LINK_API
 #include "generated/system_api.cpp"
 #include "4coder_system_helpers.cpp"
+#include "4coder_events.cpp"
 #include "4coder_custom.cpp"
 #include "4coder_log.cpp"
 #include "4coder_hash_functions.cpp"

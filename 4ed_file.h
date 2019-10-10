@@ -34,9 +34,9 @@ struct Text_Effect{
 };
 
 struct Editing_File_Settings{
-    i32 base_map_id;
-    b32 dos_write_mode;
+    Command_Map_ID base_map_id;
     Face_ID face_id;
+    b8 dos_write_mode;
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;

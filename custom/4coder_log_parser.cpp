@@ -1024,9 +1024,9 @@ internal void
 fill_log_graph_command_map(Bind_Helper *context){
     begin_map(context, default_log_graph_map);
     bind(context, KeyCode_Escape, MDFR_NONE, log_graph__escape);
-    bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, log_graph__scroll_wheel);
-    bind(context, KeyCodeExt_MouseLeft, MDFR_NONE, log_graph__click_jump_to_event_source);
-    bind(context, KeyCodeExt_MouseRight, MDFR_NONE, log_graph__click_select_event);
+    //bind(context, KeyCodeExt_MouseWheel, MDFR_NONE, log_graph__scroll_wheel);
+    //bind(context, KeyCodeExt_MouseLeft, MDFR_NONE, log_graph__click_jump_to_event_source);
+    //bind(context, KeyCodeExt_MouseRight, MDFR_NONE, log_graph__click_select_event);
     bind(context, KeyCode_PageUp, MDFR_NONE, log_graph__page_up);
     bind(context, KeyCode_PageDown, MDFR_NONE, log_graph__page_down);
     end_map(context);

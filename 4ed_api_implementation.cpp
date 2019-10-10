@@ -49,14 +49,14 @@ is_running_coroutine(Application_Links *app){
 }
 
 api(custom) function b32
-global_set_setting(Application_Links *app, Global_Setting_ID setting, i32 value)
+global_set_setting(Application_Links *app, Global_Setting_ID setting, i64 value)
 {
     Models *models = (Models*)app->cmd_context;
     b32 result = true;
     switch (setting){
         case GlobalSetting_LAltLCtrlIsAltGr:
         {
-            models->settings.lctrl_lalt_is_altgr = value;
+            models->settings.lctrl_lalt_is_altgr = (b32)(value != 0);
         }break;
         default:
         {
@@ -624,7 +624,7 @@ buffer_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State 
 }
 
 api(custom) function b32
-buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 *value_out)
+buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 *value_out)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -667,7 +667,7 @@ buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
 }
 
 api(custom) function b32
-buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
+buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -677,23 +677,15 @@ buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
         switch (setting){
             case BufferSetting_MapID:
             {
-                if (value < mapid_global){
-                    i32 new_mapid = get_map_index(&models->mapping, value);
-                    if (new_mapid < models->mapping.user_map_count){
-                        file->settings.base_map_id = value;
-                    }
-                    else{
-                        file->settings.base_map_id = mapid_file;
-                    }
-                }
-                else if (value <= mapid_nomap){
-                    file->settings.base_map_id = value;
+                Command_Map_ID id = mapping_validate_id(&models->mapping, value);
+                if (id != 0){
+                    file->settings.base_map_id = id;
                 }
             }break;
             
             case BufferSetting_Eol:
             {
-                file->settings.dos_write_mode = value;
+                file->settings.dos_write_mode = (b8)(value != 0);
             }break;
             
             case BufferSetting_Unimportant:
@@ -1392,7 +1384,7 @@ view_set_active(Application_Links *app, View_ID view_id)
 }
 
 api(custom) function b32
-view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 *value_out)
+view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i64  *value_out)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
@@ -1431,7 +1423,7 @@ view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID settin
 }
 
 api(custom) function b32
-view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i32 value)
+view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID setting, i64 value)
 {
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
@@ -2084,15 +2076,15 @@ managed_object_load_data(Application_Links *app, Managed_Object object, u32 firs
 }
 
 api(custom) function User_Input
-get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
+get_user_input(Application_Links *app, Event_Property get_properties, Event_Property abort_properties)
 {
     Models *models = (Models*)app->cmd_context;
     User_Input result = {};
     if (app->type_coroutine == Co_Command){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
-        ((u32*)coroutine->out)[0] = get_type;
-        ((u32*)coroutine->out)[1] = abort_type;
+        ((u32*)coroutine->out)[0] = get_properties;
+        ((u32*)coroutine->out)[1] = abort_properties;
         coroutine_yield(coroutine);
         result = *(User_Input*)coroutine->in;
     }

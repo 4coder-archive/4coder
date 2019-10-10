@@ -1,4 +1,4 @@
-#define custom_global_set_setting_sig() b32 custom_global_set_setting(Application_Links* app, Global_Setting_ID setting, i32 value)
+#define custom_global_set_setting_sig() b32 custom_global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value)
 #define custom_global_set_mapping_sig() b32 custom_global_set_mapping(Application_Links* app, void* data, i32 size)
 #define custom_global_get_screen_rectangle_sig() Rect_f32 custom_global_get_screen_rectangle(Application_Links* app)
 #define custom_get_thread_context_sig() Thread_Context* custom_get_thread_context(Application_Links* app)
@@ -41,8 +41,8 @@
 #define custom_push_buffer_file_name_sig() String_Const_u8 custom_push_buffer_file_name(Application_Links* app, Arena* arena, Buffer_ID buffer_id)
 #define custom_buffer_get_dirty_state_sig() Dirty_State custom_buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_set_dirty_state_sig() b32 custom_buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state)
-#define custom_buffer_get_setting_sig() b32 custom_buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32* value_out)
-#define custom_buffer_set_setting_sig() b32 custom_buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value)
+#define custom_buffer_get_setting_sig() b32 custom_buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out)
+#define custom_buffer_set_setting_sig() b32 custom_buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value)
 #define custom_buffer_get_managed_scope_sig() Managed_Scope custom_buffer_get_managed_scope(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_send_end_signal_sig() b32 custom_buffer_send_end_signal(Application_Links* app, Buffer_ID buffer_id)
 #define custom_create_buffer_sig() Buffer_ID custom_create_buffer(Application_Links* app, String_Const_u8 file_name, Buffer_Create_Flag flags)
@@ -78,8 +78,8 @@
 #define custom_view_get_buffer_scroll_sig() Buffer_Scroll custom_view_get_buffer_scroll(Application_Links* app, View_ID view_id)
 #define custom_view_get_basic_scroll_sig() Basic_Scroll custom_view_get_basic_scroll(Application_Links* app, View_ID view_id)
 #define custom_view_set_active_sig() b32 custom_view_set_active(Application_Links* app, View_ID view_id)
-#define custom_view_get_setting_sig() b32 custom_view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32* value_out)
-#define custom_view_set_setting_sig() b32 custom_view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32 value)
+#define custom_view_get_setting_sig() b32 custom_view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out)
+#define custom_view_set_setting_sig() b32 custom_view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value)
 #define custom_view_get_managed_scope_sig() Managed_Scope custom_view_get_managed_scope(Application_Links* app, View_ID view_id)
 #define custom_buffer_compute_cursor_sig() Buffer_Cursor custom_buffer_compute_cursor(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek)
 #define custom_view_compute_cursor_sig() Buffer_Cursor custom_view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek)
@@ -114,7 +114,7 @@
 #define custom_managed_object_free_sig() b32 custom_managed_object_free(Application_Links* app, Managed_Object object)
 #define custom_managed_object_store_data_sig() b32 custom_managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem)
 #define custom_managed_object_load_data_sig() b32 custom_managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out)
-#define custom_get_user_input_sig() User_Input custom_get_user_input(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
+#define custom_get_user_input_sig() User_Input custom_get_user_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties)
 #define custom_get_command_input_sig() User_Input custom_get_command_input(Application_Links* app)
 #define custom_set_command_input_sig() void custom_set_command_input(Application_Links* app, Input_Event* event)
 #define custom_get_mouse_state_sig() Mouse_State custom_get_mouse_state(Application_Links* app)
@@ -168,7 +168,7 @@
 #define custom_open_color_picker_sig() void custom_open_color_picker(Application_Links* app, Color_Picker* picker)
 #define custom_animate_in_n_milliseconds_sig() void custom_animate_in_n_milliseconds(Application_Links* app, u32 n)
 #define custom_buffer_find_all_matches_sig() String_Match_List custom_buffer_find_all_matches(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction)
-typedef b32 custom_global_set_setting_type(Application_Links* app, Global_Setting_ID setting, i32 value);
+typedef b32 custom_global_set_setting_type(Application_Links* app, Global_Setting_ID setting, i64 value);
 typedef b32 custom_global_set_mapping_type(Application_Links* app, void* data, i32 size);
 typedef Rect_f32 custom_global_get_screen_rectangle_type(Application_Links* app);
 typedef Thread_Context* custom_get_thread_context_type(Application_Links* app);
@@ -211,8 +211,8 @@ typedef String_Const_u8 custom_push_buffer_unique_name_type(Application_Links* a
 typedef String_Const_u8 custom_push_buffer_file_name_type(Application_Links* app, Arena* arena, Buffer_ID buffer_id);
 typedef Dirty_State custom_buffer_get_dirty_state_type(Application_Links* app, Buffer_ID buffer_id);
 typedef b32 custom_buffer_set_dirty_state_type(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
-typedef b32 custom_buffer_get_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32* value_out);
-typedef b32 custom_buffer_set_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value);
+typedef b32 custom_buffer_get_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
+typedef b32 custom_buffer_set_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
 typedef Managed_Scope custom_buffer_get_managed_scope_type(Application_Links* app, Buffer_ID buffer_id);
 typedef b32 custom_buffer_send_end_signal_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Buffer_ID custom_create_buffer_type(Application_Links* app, String_Const_u8 file_name, Buffer_Create_Flag flags);
@@ -248,8 +248,8 @@ typedef Rect_f32 custom_view_get_buffer_region_type(Application_Links* app, View
 typedef Buffer_Scroll custom_view_get_buffer_scroll_type(Application_Links* app, View_ID view_id);
 typedef Basic_Scroll custom_view_get_basic_scroll_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_set_active_type(Application_Links* app, View_ID view_id);
-typedef b32 custom_view_get_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32* value_out);
-typedef b32 custom_view_set_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32 value);
+typedef b32 custom_view_get_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
+typedef b32 custom_view_set_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
 typedef Managed_Scope custom_view_get_managed_scope_type(Application_Links* app, View_ID view_id);
 typedef Buffer_Cursor custom_buffer_compute_cursor_type(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek);
 typedef Buffer_Cursor custom_view_compute_cursor_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
@@ -284,7 +284,7 @@ typedef Managed_Scope custom_managed_object_get_containing_scope_type(Applicatio
 typedef b32 custom_managed_object_free_type(Application_Links* app, Managed_Object object);
 typedef b32 custom_managed_object_store_data_type(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 typedef b32 custom_managed_object_load_data_type(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-typedef User_Input custom_get_user_input_type(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type);
+typedef User_Input custom_get_user_input_type(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
 typedef User_Input custom_get_command_input_type(Application_Links* app);
 typedef void custom_set_command_input_type(Application_Links* app, Input_Event* event);
 typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
@@ -511,7 +511,7 @@ custom_animate_in_n_milliseconds_type *animate_in_n_milliseconds;
 custom_buffer_find_all_matches_type *buffer_find_all_matches;
 };
 #if defined(STATIC_LINK_API)
-internal b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i32 value);
+internal b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value);
 internal b32 global_set_mapping(Application_Links* app, void* data, i32 size);
 internal Rect_f32 global_get_screen_rectangle(Application_Links* app);
 internal Thread_Context* get_thread_context(Application_Links* app);
@@ -554,8 +554,8 @@ internal String_Const_u8 push_buffer_unique_name(Application_Links* app, Arena* 
 internal String_Const_u8 push_buffer_file_name(Application_Links* app, Arena* arena, Buffer_ID buffer_id);
 internal Dirty_State buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id);
 internal b32 buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
-internal b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32* value_out);
-internal b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i32 value);
+internal b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
+internal b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
 internal Managed_Scope buffer_get_managed_scope(Application_Links* app, Buffer_ID buffer_id);
 internal b32 buffer_send_end_signal(Application_Links* app, Buffer_ID buffer_id);
 internal Buffer_ID create_buffer(Application_Links* app, String_Const_u8 file_name, Buffer_Create_Flag flags);
@@ -591,8 +591,8 @@ internal Rect_f32 view_get_buffer_region(Application_Links* app, View_ID view_id
 internal Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
 internal Basic_Scroll view_get_basic_scroll(Application_Links* app, View_ID view_id);
 internal b32 view_set_active(Application_Links* app, View_ID view_id);
-internal b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32* value_out);
-internal b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i32 value);
+internal b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
+internal b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
 internal Managed_Scope view_get_managed_scope(Application_Links* app, View_ID view_id);
 internal Buffer_Cursor buffer_compute_cursor(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek);
 internal Buffer_Cursor view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
@@ -627,7 +627,7 @@ internal Managed_Scope managed_object_get_containing_scope(Application_Links* ap
 internal b32 managed_object_free(Application_Links* app, Managed_Object object);
 internal b32 managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 internal b32 managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-internal User_Input get_user_input(Application_Links* app, Input_Type_Flag get_type, Input_Type_Flag abort_type);
+internal User_Input get_user_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
 internal User_Input get_command_input(Application_Links* app);
 internal void set_command_input(Application_Links* app, Input_Event* event);
 internal Mouse_State get_mouse_state(Application_Links* app);

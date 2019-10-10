@@ -114,16 +114,6 @@ DELTA_RULE_SIG(fallback_scroll_rule){
 #define DEFAULT_MAP_SIZE 10
 #define DEFAULT_UI_MAP_SIZE 32
 
-internal void
-setup_file_commands(Command_Map *commands, Cursor *cursor, i32 parent){
-    map_init(commands, cursor, DEFAULT_MAP_SIZE, parent);
-}
-
-internal void
-setup_top_commands(Command_Map *commands, Cursor *cursor, i32 parent){
-    map_init(commands, cursor, DEFAULT_MAP_SIZE, parent);
-}
-
 // TODO(allen): REWRITE REWRITE REWRITE!
 internal b32
 interpret_binding_buffer(Models *models, void *buffer, i32 size){
@@ -133,6 +123,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     Scratch_Block scratch(models->tctx, Scratch_Share);
     
     Mapping new_mapping = {};
+    mapping_init(models->tctx, &new_mapping);
     
     models->scroll_rule = fallback_scroll_rule;
     models->hook_open_file = 0;
@@ -153,14 +144,8 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
     if (unit->type == unit_header && unit->header.error == 0){
         Binding_Unit *end = unit + unit->header.total_size;
         
-        i32 user_map_count = unit->header.user_map_count;
-        new_mapping.user_map_count = user_map_count;
-        
-        // Initialize Table and User Maps in Temp Buffer
-        new_mapping.map_id_table = push_array(scratch, i32, user_map_count);
-        block_fill_u32(new_mapping.map_id_table, user_map_count*sizeof(i32), (u32)(-1));
-        
-        new_mapping.user_maps = push_array_zero(scratch, Command_Map, user_map_count);
+        mapping_get_or_make_map(&new_mapping, mapid_global);
+        mapping_get_or_make_map(&new_mapping, mapid_file);
         
         // Find the Size of Each Map
         for (++unit; unit < end; ++unit){
@@ -172,78 +157,19 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                     if (mapid == mapid_nomap){
                         break;
                     }
-                    else if (mapid == mapid_global){
-                        did_top = true;
-                    }
-                    else if (mapid == mapid_file){
-                        did_file = true;
-                    }
                     
-                    Command_Map *map = get_or_add_map(&new_mapping, mapid);
-                    i32 count = map->count;
-                    i32 new_count = 0;
+                    Command_Map *map = mapping_get_or_make_map(&new_mapping, mapid);
                     if (unit->map_begin.replace){
                         map->real_beginning = unit;
-                        new_count = unit->map_begin.bind_count;
                     }
                     else{
                         if (map->real_beginning == 0){
                             map->real_beginning = unit;
                         }
-                        new_count = unit->map_begin.bind_count + count;
-                    }
-                    
-                    map->count = new_count;
-                    if (map->max < new_count){
-                        map->max = new_count;
                     }
                 }break;
             }
         }
-        
-        // Add up the Map Counts
-        i32 count_global = DEFAULT_MAP_SIZE;
-        if (did_top){
-            count_global = clamp_bot(6, new_mapping.map_top.count*3/2);
-        }
-        
-        i32 count_file = DEFAULT_MAP_SIZE;
-        if (did_file){
-            count_file = clamp_bot(6, new_mapping.map_file.count*3/2);
-        }
-        
-        i32 count_ui = DEFAULT_UI_MAP_SIZE;
-        
-        i32 count_user = 0;
-        for (i32 i = 0; i < user_map_count; ++i){
-            Command_Map *map = &new_mapping.user_maps[i];
-            count_user += clamp_bot(6, map->max*3/2);
-        }
-        
-        i32 binding_memsize = (count_global + count_file + count_ui + count_user)*sizeof(Command_Binding);
-        
-        // Allocate Needed Memory
-        i32 map_id_table_memsize = user_map_count*sizeof(i32);
-        i32 user_maps_memsize = user_map_count*sizeof(Command_Map);
-        
-        i32 map_id_table_rounded_memsize = round_up_i32(map_id_table_memsize, 8);
-        i32 user_maps_rounded_memsize = round_up_i32(user_maps_memsize, 8);
-        
-        i32 binding_rounded_memsize = round_up_i32(binding_memsize, 8);
-        
-        i32 needed_memsize = map_id_table_rounded_memsize + user_maps_rounded_memsize + binding_rounded_memsize;
-        new_mapping.memory = heap_allocate(gen, needed_memsize);
-        Cursor local_cursor = make_cursor(new_mapping.memory, needed_memsize);
-        
-        // Move ID Table Memory and Pointer
-        i32 *old_table = new_mapping.map_id_table;
-        new_mapping.map_id_table = push_array(&local_cursor, i32, user_map_count);
-        block_copy(new_mapping.map_id_table, old_table, map_id_table_memsize);
-        
-        // Move User Maps Memory and Pointer
-        Command_Map *old_maps = new_mapping.user_maps;
-        new_mapping.user_maps = push_array(&local_cursor, Command_Map, user_map_count);
-        block_copy(new_mapping.user_maps, old_maps, user_maps_memsize);
         
         // Fill in Command Maps
         unit = (Binding_Unit*)buffer;
@@ -252,37 +178,18 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 case unit_map_begin:
                 {
                     i32 mapid = unit->map_begin.mapid;
-                    
                     if (mapid == mapid_nomap){
                         map_ptr = 0;
-                        break;
                     }
-                    
-                    Command_Map *map = get_or_add_map(&new_mapping, mapid);
-                    if (unit >= map->real_beginning){
-                        if (mapid == mapid_global){
-                            map_ptr = &new_mapping.map_top;
-                        }
-                        else if (mapid == mapid_file){
-                            map_ptr = &new_mapping.map_file;
-                        }
-                        else if (mapid < mapid_global){
-                            i32 index = get_or_add_map_index(&new_mapping, mapid);
-                            Assert(index < user_map_count);
-                            map_ptr = &new_mapping.user_maps[index];
-                        }
-                        else{
-                            map_ptr = 0;
-                            break;
-                        }
-                        
-                        Assert(map_ptr != 0);
-                        
-                        // NOTE(allen): Map can begin multiple times, only alloc and clear when we first see it.
-                        if (map_ptr->commands == 0){
-                            i32 count = map->max;
-                            i32 table_max = clamp_bot(6, count*3/2);
-                            map_init(map_ptr, &local_cursor, table_max, mapid_global);
+                    else{
+                        Command_Map *map = mapping_get_or_make_map(&new_mapping, mapid);
+                        if (unit >= map->real_beginning){
+                            if (mapid == mapid_file || mapid <= mapid_global){
+                                map_ptr = map;
+                            }
+                            else{
+                                map_ptr = 0;
+                            }
                         }
                     }
                 }break;
@@ -290,7 +197,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 case unit_inherit:
                 {
                     if (map_ptr != 0){
-                        map_ptr->parent = unit->map_inherit.mapid;
+                        map_set_parent(&new_mapping, map_ptr, unit->map_inherit.mapid);
                     }
                 }break;
                 
@@ -299,13 +206,20 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                     if (map_ptr != 0){
                         Custom_Command_Function *custom = unit->callback.func;
                         if (unit->callback.code == 0){
-                            u32 index = 0;
-                            if (map_get_modifiers_hash(unit->callback.modifiers, &index)){
-                                map_ptr->vanilla_keyboard_default[index].custom = custom;
-                            }
+                            map_set_binding_text_input(map_ptr, custom);
                         }
                         else{
-                            map_add(map_ptr, unit->callback.code, unit->callback.modifiers, custom);
+                            Key_Modifiers modifiers = {};
+                            modifiers.modifiers[MDFR_SHIFT_INDEX] =
+                                HasFlag(unit->callback.modifiers, MDFR_SHIFT);
+                            modifiers.modifiers[MDFR_CONTROL_INDEX] =
+                                HasFlag(unit->callback.modifiers, MDFR_CTRL);
+                            modifiers.modifiers[MDFR_ALT_INDEX] =
+                                HasFlag(unit->callback.modifiers, MDFR_ALT);
+                            modifiers.modifiers[MDFR_COMMAND_INDEX] =
+                                HasFlag(unit->callback.modifiers, MDFR_CMND);
+                            map_set_binding_key(&new_mapping, map_ptr, custom,
+                                                unit->callback.code, &modifiers);
                         }
                     }
                 }break;
@@ -399,13 +313,6 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
                 }break;
             }
         }
-        
-        if (!did_top){
-            setup_top_commands(&new_mapping.map_top, &local_cursor, mapid_global);
-        }
-        if (!did_file){
-            setup_file_commands(&new_mapping.map_file, &local_cursor, mapid_global);
-        }
     }
     else{
         // TODO(allen): do(Error report: bad binding units map.)
@@ -413,11 +320,7 @@ interpret_binding_buffer(Models *models, void *buffer, i32 size){
         InvalidPath;
     }
     
-    Mapping old_mapping = models->mapping;
-    if (old_mapping.memory != 0){
-        heap_free(gen, old_mapping.memory);
-    }
-    
+    mapping_release(models->tctx, &models->mapping);
     models->mapping = new_mapping;
     
     return(result);
@@ -430,9 +333,7 @@ command_caller(Coroutine *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Models *models = cmd_in->models;
     if (models->command_caller != 0){
-        Generic_Command generic = {};
-        generic.command = cmd_in->bind.custom;
-        models->command_caller(&models->app_links, generic);
+        models->command_caller(&models->app_links, cmd_in->bind.custom);
     }
     else{
         cmd_in->bind.custom(&models->app_links);
@@ -666,40 +567,6 @@ models_init(Thread_Context *tctx){
     return(models);
 }
 
-internal u32
-get_event_flags(Key_Code keycode){
-    u32 event_flags = 0;
-    if (keycode == KeyCode_Escape){
-        event_flags |= EventOnEsc;
-        event_flags |= EventOnAnyKey;
-    }
-    else if (keycode == KeyCodeExt_MouseLeft ||
-             keycode == KeyCodeExt_MouseLeftRelease){
-        event_flags |= EventOnMouseLeftButton;
-    }
-    else if (keycode == KeyCodeExt_MouseRight ||
-             keycode == KeyCodeExt_MouseRightRelease){
-        event_flags |= EventOnMouseRightButton;
-    }
-    else if (keycode == KeyCodeExt_MouseWheel){
-        event_flags |= EventOnMouseWheel;
-    }
-    else if (keycode == KeyCodeExt_MouseMove){
-        event_flags |= EventOnMouseMove;
-    }
-    else if (keycode == KeyCodeExt_Animate){
-        event_flags |= EventOnAnimate;
-    }
-    else if (keycode == KeyCodeExt_ClickActivateView ||
-             keycode == KeyCodeExt_ClickDeactivateView){
-        event_flags |= EventOnViewActivation;
-    }
-    else{
-        event_flags |= EventOnAnyKey;
-    }
-    return(event_flags);
-}
-
 internal void
 force_abort_coroutine(Models *models, View *view){
     User_Input user_in = {};
@@ -715,11 +582,11 @@ force_abort_coroutine(Models *models, View *view){
 }
 
 internal void
-launch_command_via_event(Models *models, View *view, Key_Event_Data event){
-    models->key = event;
+launch_command_via_event(Models *models, View *view, Input_Event *event){
+    block_copy_struct(&models->event, event);
     
-    i32 map = view_get_map(view);
-    Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, event);
+    Command_Map_ID map = view_get_map(view);
+    Command_Binding cmd_bind = map_get_binding_recursive(&models->mapping, map, event);
     
     if (cmd_bind.custom != 0){
         Assert(models->command_coroutine == 0);
@@ -733,17 +600,18 @@ launch_command_via_event(Models *models, View *view, Key_Event_Data event){
         models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
         
         models->prev_command = cmd_bind;
-        if (event.keycode != KeyCodeExt_Animate){
+        if (match_core_code(event,  CoreCode_Animate)){
             models->animate_next_frame = true;
         }
     }
 }
 
 internal void
-launch_command_via_keycode(Models *models, View *view, Key_Code keycode){
-    Key_Event_Data event = {};
-    event.keycode = keycode;
-    launch_command_via_event(models, view, event);
+launch_command_via_core_event(Models *models, View *view, Core_Code code){
+    Input_Event event = {};
+    event.kind = InputEventKind_Core;
+    event.core.code = code;
+    launch_command_via_event(models, view, &event);
 }
 
 internal void
@@ -816,7 +684,7 @@ App_Init_Sig(app_init){
     
     {
         Assert(models->config_api.get_bindings != 0);
-        Scratch_Block scratch(models->tctx);
+        Scratch_Block scratch(models->tctx, Scratch_Share);
         u8 *memory = push_array(scratch, u8, KB(64));
         i32 wanted_size = models->config_api.get_bindings(memory, KB(64));
         Assert(wanted_size <= KB(64));
@@ -911,6 +779,7 @@ App_Step_Sig(app_step){
     Models *models = (Models*)base_ptr;
     
     Mutex_Lock file_order_lock(models->working_set.mutex);
+    Scratch_Block scratch(models->tctx, Scratch_Share);
     
     models->next_animate_delay = max_u32;
     models->animate_next_frame = false;
@@ -938,9 +807,9 @@ App_Step_Sig(app_step){
     // NOTE(allen): update child processes
     f32 dt = input->dt;
     if (dt > 0){
-        Scratch_Block scratch(models->tctx, Scratch_Share);
-        Child_Process_Container *child_processes = &models->child_processes;
+        Temp_Memory_Block temp(scratch);
         
+        Child_Process_Container *child_processes = &models->child_processes;
         Child_Process **processes_to_free = push_array(scratch, Child_Process*, child_processes->active_child_process_count);
         i32 processes_to_free_count = 0;
         
@@ -993,40 +862,60 @@ App_Step_Sig(app_step){
         models->input_filter(&input->mouse);
     }
     
-    
-    Key_Modifiers modifiers = system_get_modifiers();
-    
+    Input_List input_list = input->events;
+    Key_Modifiers modifiers = system_get_keyboard_modifiers();
     if (input->mouse.press_l){
-        mouse_event.keycode = KeyCodeExt_MouseLeft;
-        input->keys.keys[input->keys.count++] = mouse_event;
+        Input_Event event = {};
+        event.kind = InputEventKind_MouseButton;
+        event.mouse.code = MouseCode_Left;
+        event.mouse.p = input->mouse.p;
+        push_input_event(scratch, &input_list, &event);
     }
     else if (input->mouse.release_l){
-        mouse_event.keycode = KeyCodeExt_MouseLeftRelease;
-        input->keys.keys[input->keys.count++] = mouse_event;
+        Input_Event event = {};
+        event.kind = InputEventKind_MouseButton;
+        event.mouse.code = MouseCode_Left;
+        event.mouse.p = input->mouse.p;
+        event.mouse.release = true;
+        push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.press_r){
-        mouse_event.keycode = KeyCodeExt_MouseRight;
-        input->keys.keys[input->keys.count++] = mouse_event;
+        Input_Event event = {};
+        event.kind = InputEventKind_MouseButton;
+        event.mouse.code = MouseCode_Right;
+        event.mouse.p = input->mouse.p;
+        push_input_event(scratch, &input_list, &event);
     }
     else if (input->mouse.release_r){
-        mouse_event.keycode = KeyCodeExt_MouseRightRelease;
-        input->keys.keys[input->keys.count++] = mouse_event;
+        Input_Event event = {};
+        event.kind = InputEventKind_MouseButton;
+        event.mouse.code = MouseCode_Right;
+        event.mouse.p = input->mouse.p;
+        event.mouse.release = true;
+        push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.wheel != 0){
-        mouse_event.keycode = KeyCodeExt_MouseWheel;
-        input->keys.keys[input->keys.count++] = mouse_event;
+        Input_Event event = {};
+        event.kind = InputEventKind_MouseWheel;
+        event.mouse_wheel.value = (f32)(input->mouse.wheel);
+        event.mouse_wheel.p = input->mouse.p;
+        push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.p != models->prev_p){
         b32 was_in_window = rect_contains_point(Ri32(0, 0, prev_dim.x, prev_dim.y), models->prev_p);
         b32 is_in_window  = rect_contains_point(Ri32(0, 0, current_dim.x, current_dim.y), input->mouse.p);
         if (is_in_window || was_in_window){
-            mouse_event.keycode = KeyCodeExt_MouseMove;
-            input->keys.keys[input->keys.count++] = mouse_event;
+            Input_Event event = {};
+            event.kind = InputEventKind_MouseMove;
+            event.mouse_move.p = input->mouse.p;
+            push_input_event(scratch, &input_list, &event);
         }
     }
     if (models->animated_last_frame){
-        mouse_event.keycode = KeyCodeExt_Animate;
-        input->keys.keys[input->keys.count++] = mouse_event;
+        Input_Event event = {};
+        event.kind = InputEventKind_Core;
+        event.core.code = CoreCode_Animate;
+        push_input_event(scratch, &input_list, &event);
     }
     
     // NOTE(allen): expose layout
@@ -1072,9 +961,11 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): consume event stream
-    Key_Event_Data *key_ptr = input->keys.keys;
-    Key_Event_Data *key_end = key_ptr + input->keys.count;
-    for (;key_ptr < key_end; key_ptr += 1){
+    for (Input_Event_Node *node = input_list.first;
+         node != 0;
+         node = node->next){
+        Input_Event *event = &node->event;
+        
         Panel *active_panel = layout_get_active_panel(layout);
         View *view = active_panel->view;
         Assert(view != 0);
@@ -1082,23 +973,24 @@ App_Step_Sig(app_step){
         switch (models->state){
             case APP_STATE_EDIT:
             {
-                Key_Code keycode = key_ptr->keycode;
-                
+                typedef i32 Event_Consume_Rule;
                 enum{
                     EventConsume_None,
                     EventConsume_BeginResize,
                     EventConsume_ClickChangeView,
-                    EventConsume_Command,
+                    EventConsume_CustomCommand,
                 };
-                i32 event_consume_mode = EventConsume_Command;
-                if (keycode == KeyCodeExt_MouseLeft && input->mouse.press_l && (divider_panel != 0)){
-                    event_consume_mode = EventConsume_BeginResize;
+                
+                Event_Consume_Rule consume_rule = EventConsume_CustomCommand;
+                if (match_mouse_code(event, MouseCode_Left) && (divider_panel != 0)){
+                    consume_rule = EventConsume_BeginResize;
                 }
-                else if (keycode == KeyCodeExt_MouseLeft && input->mouse.press_l && mouse_panel != 0 && mouse_panel != active_panel){
-                    event_consume_mode = EventConsume_ClickChangeView;
+                else if (match_mouse_code(event, MouseCode_Left) &&
+                         mouse_panel != 0 && mouse_panel != active_panel){
+                    consume_rule = EventConsume_ClickChangeView;
                 }
                 
-                switch (event_consume_mode){
+                switch (consume_rule){
                     case EventConsume_BeginResize:
                     {
                         models->state = APP_STATE_RESIZING;
@@ -1113,7 +1005,7 @@ App_Step_Sig(app_step){
                         }
                         
                         // NOTE(allen): run deactivate command
-                        launch_command_via_keycode(models, view, KeyCodeExt_ClickDeactivateView);
+                        launch_command_via_core_event(models, view, CoreCode_ClickDeactivateView);
                         
                         // NOTE(allen): kill coroutine if we have one (again because we just launched a command)
                         if (models->command_coroutine != 0){
@@ -1126,31 +1018,31 @@ App_Step_Sig(app_step){
                         view = active_panel->view;
                         
                         // NOTE(allen): run activate command
-                        launch_command_via_keycode(models, view, KeyCodeExt_ClickActivateView);
+                        launch_command_via_core_event(models, view, CoreCode_ClickActivateView);
                     }break;
                     
-                    case EventConsume_Command:
+                    case EventConsume_CustomCommand:
                     {
                         // NOTE(allen): update command coroutine
                         if (models->command_coroutine != 0){
-                            models->key = *key_ptr;
+                            block_copy_struct(&models->event, event);
                             
                             Coroutine *command_coroutine = models->command_coroutine;
-                            u32 abort_flags = models->command_coroutine_flags[1];
-                            u32 get_flags = models->command_coroutine_flags[0] | abort_flags;
+                            Event_Property abort_flags = models->command_coroutine_flags[1];
+                            Event_Property get_flags = models->command_coroutine_flags[0] | abort_flags;
                             
-                            u32 event_flags = get_event_flags(key_ptr->keycode);
+                            Event_Property event_flags = get_event_properties(event);
                             if ((get_flags & event_flags) != 0){
-                                i32 map = view_get_map(view);
-                                Command_Binding cmd_bind = map_extract_recursive(&models->mapping, map, *key_ptr);
+                                Command_Map_ID map = view_get_map(view);
+                                Command_Binding cmd_bind = map_get_binding_recursive(&models->mapping, map, event);
                                 
                                 User_Input user_in = {};
-                                user_in.key = *key_ptr;
-                                user_in.command.command = cmd_bind.custom;
+                                user_in.event = *event;
+                                user_in.command = cmd_bind.custom;
                                 user_in.abort = ((abort_flags & event_flags) != 0);
                                 models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
                                 
-                                if (user_in.key.keycode != KeyCodeExt_Animate){
+                                if (!HasFlag(event_flags, EventProperty_Animate)){
                                     models->animate_next_frame = true;
                                 }
                                 
@@ -1159,10 +1051,8 @@ App_Step_Sig(app_step){
                                 }
                             }
                         }
-                        
-                        // NOTE(allen): launch command
                         else{
-                            launch_command_via_event(models, view, *key_ptr);
+                            launch_command_via_event(models, view, event);
                         }
                     }break;
                 }
@@ -1170,15 +1060,15 @@ App_Step_Sig(app_step){
             
             case APP_STATE_RESIZING:
             {
-                Key_Code keycode = key_ptr->keycode;
-                u32 event_flags = get_event_flags(keycode);
-                if (event_flags & EventOnAnyKey || keycode == KeyCodeExt_MouseLeftRelease){
+                Event_Property event_flags = get_event_properties(event);
+                if (HasFlag(event_flags, EventProperty_AnyKey) ||
+                    match_mouse_code_release(event, MouseCode_Left)){
                     models->state = APP_STATE_EDIT;
                 }
-                else if (keycode == KeyCodeExt_MouseMove){
+                else if (event->kind == InputEventKind_MouseMove){
                     if (input->mouse.l){
                         Panel *split = models->resizing_intermediate_panel;
-                        Range limits = layout_get_limiting_range_on_split(layout, split);
+                        Range_i32 limits = layout_get_limiting_range_on_split(layout, split);
                         i32 mouse_position = (split->vertical_split)?(mouse.x):(mouse.y);
                         mouse_position = clamp(limits.min, mouse_position, limits.max);
                         layout_set_split_absolute_position(layout, split, mouse_position);

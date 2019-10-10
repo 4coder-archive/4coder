@@ -69,7 +69,7 @@ end_map(Bind_Helper *helper){
 }
 
 internal void
-bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Function *func){
+bind(Bind_Helper *helper, Key_Code code, u8 modifiers, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0){
         helper->error = BH_ERR_MISSING_BEGIN;
     }
@@ -87,17 +87,12 @@ bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Custom_Command_Funct
 }
 
 internal void
-bind(Bind_Helper *helper, Key_Code code, uint8_t modifiers, Generic_Command cmd){
-    bind(helper, code, modifiers, cmd.command);
-}
-
-internal void
-bind_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
+bind_text_input(Bind_Helper *helper, Custom_Command_Function *func){
     bind(helper, 0, 0, func);
 }
 
 internal void
-bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, Custom_Command_Function *func){
+bind_text_input(Bind_Helper *helper, unsigned char modifiers, Custom_Command_Function *func){
     bind(helper, 0, modifiers, func);
 }
 
@@ -1505,38 +1500,24 @@ find_all_matches_all_buffers(Application_Links *app, Arena *arena, String_Const_
 
 ////////////////////////////////
 
-internal void
-exec_command(Application_Links *app, Custom_Command_Function *func){
-    func(app);
-}
-
-internal void
-exec_command(Application_Links *app, Generic_Command cmd){
-    exec_command(app, cmd.command);
-}
-
 internal b32
-is_unmodified_key(Input_Event *event){
-    b32 result = false;
-    if (event->kind == InputEventKind_KeyStroke){
-        b8 *mods = event->key.modifiers.modifiers;
-        result = (!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
-    }
-    return(result);
-}
-
-internal String_Const_u8
-to_writable(Input_Event *event){
-    String_Const_u8 result = {};
-    if (event->kind != InputEventKind_TextInsert){
-        result = event->text.string;
-    }
-    return(result);
+is_modified(User_Input *input){
+    return(is_modified(&input->event));
 }
 
 internal String_Const_u8
 to_writable(User_Input *in){
     return(to_writable(&in->event));
+}
+
+internal b32
+match_key_code(User_Input *in, Key_Code key_code){
+    return(match_key_code(&in->event, key_code));
+}
+
+internal b32
+match_core_code(User_Input *in, Key_Code core_code){
+    return(match_core_code(&in->event, core_code));
 }
 
 internal String_Const_u8
@@ -1571,7 +1552,10 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
         // types specified in the flags.  The first set of flags are inputs you'd like to intercept
         // that you don't want to abort on.  The second set are inputs that you'd like to cause
         // the command to abort.  If an event satisfies both flags, it is treated as an abort.
-        User_Input in = get_user_input(app, EventOnAnyKey, EventOnEsc|EventOnMouseLeftButton|EventOnMouseRightButton);
+        User_Input in = get_user_input(app, EventProperty_AnyKey,
+                                       EventProperty_Escape|
+                                       EventProperty_MouseLeft|
+                                       EventProperty_MouseRight);
         
         // NOTE(allen|a3.4.4): The responsible thing to do on abort is to end the command
         // without waiting on get_user_input again.

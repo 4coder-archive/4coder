@@ -117,18 +117,17 @@ CUSTOM_DOC("A lister mode command that updates the lists UI data.")
     }
 }
 
-CUSTOM_COMMAND_SIG(lister__write_character__default)
+CUSTOM_COMMAND_SIG(lister__write_string__default)
 CUSTOM_DOC("A lister mode command that inserts a new character to the text field.")
 {
     View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         User_Input in = get_command_input(app);
-        u8 character[4];
-        u32 length = to_writable_character(in, character);
-        if (length > 0){
-            lister_append_text_field(&state->lister, SCu8(character, length));
-            lister_append_key(&state->lister, SCu8(character, length));
+        String_Const_u8 string = to_writable(&in);
+        if (string.str != 0 && string.size > 0){
+            lister_append_text_field(&state->lister, string);
+            lister_append_key(&state->lister, string);
             state->item_index = 0;
             view_zero_scroll(app, view);
             lister_update_ui(app, view, state);
@@ -187,13 +186,12 @@ CUSTOM_DOC("A lister mode command that inserts a character into the text field o
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         User_Input in = get_command_input(app);
-        u8 character[4];
-        u32 length = to_writable_character(in, character);
-        if (length > 0){
-            lister_append_text_field(&state->lister, SCu8(character, length));
+        String_Const_u8 string = to_writable(&in);
+        if (string.str != 0 && string.size > 0){
+            lister_append_text_field(&state->lister, string);
             String_Const_u8 front_name = string_front_of_path(state->lister.data.text_field.string);
             lister_set_key(&state->lister, front_name);
-            if (character[0] == '/' || character[0] == '\\'){
+            if (character_is_slash(string.str[0])){
                 String_Const_u8 new_hot = state->lister.data.text_field.string;
                 set_hot_directory(app, new_hot);
                 lister_call_refresh_handler(app, &state->lister);
@@ -214,15 +212,12 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
         if (state->lister.data.text_field.size > 0){
             char last_char = state->lister.data.text_field.str[state->lister.data.text_field.size - 1];
             state->lister.data.text_field.string = backspace_utf8(state->lister.data.text_field.string);
-            if (last_char == '/' || last_char == '\\'){
+            if (character_is_slash(last_char)){
                 User_Input input = get_command_input(app);
                 String_Const_u8 text_field = state->lister.data.text_field.string;
                 String_Const_u8 new_hot = string_remove_last_folder(text_field);
-                b32 is_modified = (input.key.modifiers[MDFR_SHIFT_INDEX] ||
-                                   input.key.modifiers[MDFR_CONTROL_INDEX] ||
-                                   input.key.modifiers[MDFR_ALT_INDEX] ||
-                                   input.key.modifiers[MDFR_COMMAND_INDEX]);
-                b32 whole_word_backspace = (is_modified == global_config.file_lister_per_character_backspace);
+                b32 input_is_modified = is_modified(&input);
+                b32 whole_word_backspace = (input_is_modified == global_config.file_lister_per_character_backspace);
                 if (whole_word_backspace){
                     state->lister.data.text_field.size = new_hot.size;
                 }
@@ -254,9 +249,8 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         User_Input in = get_command_input(app);
-        u8 character[4];
-        u32 length = to_writable_character(in, character);
-        if (length > 0){
+        String_Const_u8 string = to_writable(&in);
+        if (string.str != 0 && string.size > 0){
             void *user_data = 0;
             b32 did_shortcut_key = false;
             for (Lister_Node *node = state->lister.data.options.first;
@@ -264,7 +258,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
                  node = node->next){
                 char *hotkeys = (char*)(node + 1);
                 String_Const_u8 hot_key_string = SCu8(hotkeys);
-                if (string_find_first(hot_key_string, SCu8(character, length)) < hot_key_string.size){
+                if (string_find_first(hot_key_string, string) < hot_key_string.size){
                     user_data = node->user_data;
                     did_shortcut_key = true;
                     break;
@@ -282,7 +276,7 @@ CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill 
 static Lister_Handlers
 lister_get_default_handlers(void){
     Lister_Handlers handlers = {};
-    handlers.write_character = lister__write_character__default;
+    handlers.write_character = lister__write_string__default;
     handlers.backspace       = lister__backspace_text_field__default;
     handlers.navigate_up     = lister__move_up__default;
     handlers.navigate_down   = lister__move_down__default;

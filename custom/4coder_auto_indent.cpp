@@ -225,8 +225,8 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
             
 #define EMIT(N) \
             Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
-                  if (line_it == lines.end){goto finished;} \
-                  actual_indent = N; )
+            if (line_it == lines.end){goto finished;} \
+            actual_indent = N; )
             
             i64 line_it = line_last_indented;
             for (;line_it < line_where_token_starts;){
@@ -319,7 +319,7 @@ auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos){
 
 ////////////////////////////////
 
-CUSTOM_COMMAND_SIG(auto_tab_whole_file)
+CUSTOM_COMMAND_SIG(auto_indent_whole_file)
 CUSTOM_DOC("Audo-indents the entire current buffer.")
 {
     View_ID view = get_active_view(app, AccessOpen);
@@ -328,7 +328,7 @@ CUSTOM_DOC("Audo-indents the entire current buffer.")
     auto_indent_buffer(app, buffer, Ii64(0, buffer_size));
 }
 
-CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor)
+CUSTOM_COMMAND_SIG(auto_indent_line_at_cursor)
 CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 {
     View_ID view = get_active_view(app, AccessOpen);
@@ -338,7 +338,7 @@ CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
     move_past_lead_whitespace(app, view, buffer);
 }
 
-CUSTOM_COMMAND_SIG(auto_tab_range)
+CUSTOM_COMMAND_SIG(auto_indent_range)
 CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
 {
     View_ID view = get_active_view(app, AccessOpen);
@@ -348,20 +348,40 @@ CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
     move_past_lead_whitespace(app, view, buffer);
 }
 
-CUSTOM_COMMAND_SIG(write_and_auto_tab)
-CUSTOM_DOC("Inserts a character and auto-indents the line on which the cursor sits.")
+CUSTOM_COMMAND_SIG(write_text_and_auto_indent)
+CUSTOM_DOC("Inserts text and auto-indents the line on which the cursor sits if any of the text contains 'layout punctuation' such as ;:{}()[]# and new lines.")
 {
-    write_character(app);
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    i64 pos = view_get_cursor_pos(app, view);
-    Indent_Flag flags = 0;
     User_Input in = get_command_input(app);
-    if (in.key.character == '\n'){
-        flags |= Indent_ExactAlignBlock;
+    String_Const_u8 insert = to_writable(&in);
+    if (insert.str != 0 && insert.size > 0){
+        b32 do_auto_indent = false;
+        for (umem i = 0; !do_auto_indent && i < insert.size; i += 1){
+            switch (insert.str[i]){
+                case ';': case ':':
+                case '{': case '}':
+                case '(': case ')':
+                case '[': case ']':
+                case '#':
+                case '\n': case '\t':
+                {
+                    do_auto_indent = true;
+                }break;
+            }
+        }
+        if (do_auto_indent){
+            View_ID view = get_active_view(app, AccessOpen);
+            Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+            Range_i64 pos = {};
+            pos.min = view_get_cursor_pos(app, view);
+            write_text_input(app);
+            pos.max= view_get_cursor_pos(app, view);
+            auto_indent_buffer(app, buffer, pos, 0);
+            move_past_lead_whitespace(app, view, buffer);
+        }
+        else{
+            write_text_input(app);
+        }
     }
-    auto_indent_buffer(app, buffer, Ii64(pos), flags);
-    move_past_lead_whitespace(app, view, buffer);
 }
 
 // BOTTOM

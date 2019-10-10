@@ -62,20 +62,6 @@ ENUM(u32, Child_Process_Set_Target_Flags){
     ChildProcessSet_CursorAtEnd = 4,
 };
 
-ENUM(i32, Key_Modifier_Index){
-    MDFR_SHIFT_INDEX,
-    MDFR_CONTROL_INDEX,
-    MDFR_ALT_INDEX,
-    MDFR_COMMAND_INDEX,
-    
-    MDFR_INDEX_BINDABLE_COUNT,
-    
-    MDFR_CAPS_INDEX = MDFR_INDEX_BINDABLE_COUNT,
-    MDFR_HOLD_INDEX,
-    
-    MDFR_INDEX_COUNT
-};
-
 ENUM(u32, Key_Modifier_Flag){
     MDFR_NONE  = 0x0,
     MDFR_CTRL  = 0x1,
@@ -179,18 +165,6 @@ ENUM(u32, Set_Buffer_Flag){
     SetBuffer_KeepOriginalGUI = 0x1
 };
 
-ENUM(u32, Input_Type_Flag){
-    EventOnAnyKey  = 0x1,
-    EventOnEsc     = 0x2,
-    EventOnMouseLeftButton  = 0x4,
-    EventOnMouseRightButton = 0x8,
-    EventOnMouseWheel       = 0x10,
-    EventOnMouseMove        = 0x20,
-    EventOnAnimate        = 0x40,
-    EventOnViewActivation = 0x80,
-    EventAll = 0xFFFFFFFF,
-};
-
 ENUM(i32, Mouse_Cursor_Show_Type){
     MouseCursorShow_Never,
     MouseCursorShow_Always,
@@ -218,69 +192,6 @@ ENUM(i32, Panel_Split_Orientation){
 ENUM(i32, Panel_Child){
     PanelChild_Min = 0,
     PanelChild_Max = 1,
-};
-
-typedef u32 Key_Code;
-typedef u32 Mouse_Code;
-typedef u32 Core_Event_Code;
-enum{
-    CoreEventCode_Animate,
-    CoreEventCode_ClickActivateView,
-    CoreEventCode_ClickDeactivateView,
-};
-
-typedef i32 Input_Event_Kind;
-enum{
-    InputEventKind_TextInsert,
-    InputEventKind_KeyStroke,
-    InputEventKind_MouseButton,
-    InputEventKind_MouseWheel,
-    InputEventKind_MouseMove,
-    InputEventKind_Core,
-};
-
-struct Key_Modifiers{
-    b8 modifiers[MDFR_INDEX_COUNT];
-};
-
-struct Input_Event{
-    Input_Event_Kind kind;
-    union{
-        struct{
-            String_Const_u8 string;
-            Key_Modifiers modifiers;
-        } text;
-        struct{
-            Key_Code code;
-            Key_Modifiers modifiers;
-        } key;
-        struct{
-            Key_Code code;
-            Key_Modifiers modifiers;
-            Vec2_i32 p;
-        } mouse;
-        struct{
-            f32 value;
-            Vec2_i32 p;
-        } mouse_wheel;
-        struct{
-            Vec2_i32 p;
-        } mouse_move;
-        struct{
-            Core_Event_Code code;
-        } core;
-    };
-};
-
-struct Input_Event_Node{
-    Input_Event_Node *next;
-    Input_Event event;
-};
-
-struct Input_List{
-    Input_Event_Node *first;
-    Input_Event_Node *last;
-    i32 count;
 };
 
 TYPEDEF u8 Key_Modifier;
@@ -544,14 +455,9 @@ TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 #define CUSTOM_ALIAS(x) CUSTOM_ALIAS(x)
 #endif
 
-UNION Generic_Command{
-    Custom_Command_Function *command;
-};
-
-
 STRUCT User_Input{
     Input_Event event;
-    Generic_Command command;
+    Custom_Command_Function *command;
     b32 abort;
 };
 
@@ -590,8 +496,8 @@ ENUM(i32, Special_Hook_ID){
     special_hook_get_view_buffer_region,
 };
 
-TYPEDEF_FUNC i32 Command_Caller_Hook_Function(struct Application_Links *app, Generic_Command cmd);
-#define COMMAND_CALLER_HOOK(name) i32 name(struct Application_Links *app, Generic_Command cmd)
+TYPEDEF_FUNC i32 Command_Caller_Hook_Function(struct Application_Links *app, Custom_Command_Function *cmd);
+#define COMMAND_CALLER_HOOK(name) i32 name(struct Application_Links *app, Custom_Command_Function *cmd)
 
 TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, Frame_Info frame_info);
 #define RENDER_CALLER_SIG(name) void name(struct Application_Links *app, Frame_Info frame_info)
@@ -651,6 +557,8 @@ i32 name(struct Application_Links *app, char **files, i32 file_count, char **fla
 
 TYPEDEF_FUNC i32 Get_Binding_Data_Function(void *data, i32 size);
 #define GET_BINDING_DATA(name) i32 name(void *data, i32 size)
+
+typedef i64 Command_Map_ID;
 
 // NOTE(allen): Definitions for the format that Get_Binding_Data uses to launch 4coder.
 // TODO(allen): Transition to a more dynamic Command_Map system.

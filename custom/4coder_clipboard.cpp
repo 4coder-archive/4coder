@@ -107,7 +107,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
             view_post_fade(app, view, 0.667f, Ii64(pos, pos + string.size), paste.color);
         }
         else{
-            exec_command(app, paste);
+            paste(app);
         }
     }
 }
@@ -116,14 +116,14 @@ CUSTOM_COMMAND_SIG(paste_and_indent)
 CUSTOM_DOC("Paste from the top of clipboard and run auto-indent on the newly pasted text.")
 {
     paste(app);
-    auto_tab_range(app);
+    auto_indent_range(app);
 }
 
 CUSTOM_COMMAND_SIG(paste_next_and_indent)
 CUSTOM_DOC("Paste the next item on the clipboard and run auto-indent on the newly pasted text.")
 {
     paste_next(app);
-    auto_tab_range(app);
+    auto_indent_range(app);
 }
 
 // BOTTOM

@@ -947,20 +947,22 @@ CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determin
     User_Input input = get_command_input(app);
     b32 got_ind = false;
     i32 ind = 0;
-    if (input.key.keycode >= KeyCode_F1 && input.key.keycode <= KeyCode_F16){
-        ind = (input.key.keycode - KeyCode_F1);
-        got_ind = true;
-    }
-    else if (input.key.character_no_caps_lock >= '1' && input.key.character_no_caps_lock >= '9'){
-        ind = (input.key.character_no_caps_lock - '1');
-        got_ind = true;
-    }
-    else if (input.key.character_no_caps_lock == '0'){
-        ind = 9;
-        got_ind = true;
-    }
-    if (got_ind){
-        exec_project_fkey_command(app, ind);
+    if (input.event.kind == InputEventKind_KeyStroke){
+        if (KeyCode_F1 <= input.event.key.code && input.event.key.code <= KeyCode_F16){
+            ind = (input.event.key.code - KeyCode_F1);
+            got_ind = true;
+        }
+        else if (KeyCode_1 <= input.event.key.code && input.event.key.code <= KeyCode_9){
+            ind = (input.event.key.code - '1');
+            got_ind = true;
+        }
+        else if (input.event.key.code == KeyCode_0){
+            ind = 9;
+            got_ind = true;
+        }
+        if (got_ind){
+            exec_project_fkey_command(app, ind);
+        }
     }
 }
 

@@ -559,15 +559,12 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 // Insert Newline or Tigger Jump on Read Only Buffer
 //
 
-CUSTOM_COMMAND_SIG(newline_or_goto_position)
+CUSTOM_COMMAND_SIG(if_read_only_goto_position)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    if (buffer != 0){
-        write_character(app);
-    }
-    else{
+    if (buffer == 0){
         buffer = view_get_buffer(app, view, AccessProtected);
         if (buffer != 0){
             goto_jump_at_cursor(app);
@@ -576,15 +573,12 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
     }
 }
 
-CUSTOM_COMMAND_SIG(newline_or_goto_position_same_panel)
+CUSTOM_COMMAND_SIG(if_read_only_goto_position_same_panel)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    if (buffer != 0){
-        write_character(app);
-    }
-    else{
+    if (buffer == 0){
         buffer = view_get_buffer(app, view, AccessProtected);
         if (buffer != 0){
             goto_jump_at_cursor_same_panel(app);
