@@ -216,8 +216,8 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
                 User_Input input = get_command_input(app);
                 String_Const_u8 text_field = state->lister.data.text_field.string;
                 String_Const_u8 new_hot = string_remove_last_folder(text_field);
-                b32 input_is_modified = is_modified(&input);
-                b32 whole_word_backspace = (input_is_modified == global_config.file_lister_per_character_backspace);
+                b32 is_modified = has_modifier(&input, KeyCode_Control);
+                b32 whole_word_backspace = (is_modified == global_config.lister_whole_word_backspace_when_modified);
                 if (whole_word_backspace){
                     state->lister.data.text_field.size = new_hot.size;
                 }

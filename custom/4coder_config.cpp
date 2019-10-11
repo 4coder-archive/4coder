@@ -665,16 +665,29 @@ config_has_var(Config *config, char *var_name, i32 subscript){
 static b32
 config_bool_var(Config *config, String_Const_u8 var_name, i32 subscript, b32* var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    b32 success = result.success && result.type == ConfigRValueType_Boolean;
+    b32 success = (result.success && result.type == ConfigRValueType_Boolean);
     if (success){
         *var_out = result.boolean;
     }
     return(success);
 }
-
+static b32
+config_bool_var(Config *config, String_Const_u8 var_name, i32 subscript, b8 *var_out){
+    b32 temp = false;
+    b32 success = config_bool_var(config, var_name, subscript, &temp);
+    *var_out = (temp != false);
+    return(success);
+}
 static b32
 config_bool_var(Config *config, char *var_name, i32 subscript, b32* var_out){
     return(config_bool_var(config, SCu8(var_name), subscript, var_out));
+}
+static b32
+config_bool_var(Config *config, char* var_name, i32 subscript, b8 *var_out){
+    b32 temp = false;
+    b32 success = config_bool_var(config, SCu8(var_name), subscript, &temp);
+    *var_out = (temp != false);
+    return(success);
 }
 
 static b32
@@ -1177,7 +1190,7 @@ config_init_default(Config_Data *config){
     config->use_scope_highlight = true;
     config->use_paren_helper = true;
     config->use_comment_keyword = true;
-    config->file_lister_per_character_backspace = false;
+    config->lister_whole_word_backspace_when_modified = false;
     config->show_line_number_margins = false;
     
     config->enable_virtual_whitespace = true;
@@ -1241,7 +1254,7 @@ config_parse__data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data
         config_bool_var(parsed, "use_scope_highlight", 0, &config->use_scope_highlight);
         config_bool_var(parsed, "use_paren_helper", 0, &config->use_paren_helper);
         config_bool_var(parsed, "use_comment_keyword", 0, &config->use_comment_keyword);
-        config_bool_var(parsed, "file_lister_per_character_backspace", 0, &config->file_lister_per_character_backspace);
+        config_bool_var(parsed, "lister_whole_word_backspace_when_modified", 0, &config->lister_whole_word_backspace_when_modified);
         config_bool_var(parsed, "show_line_number_margins", 0, &config->show_line_number_margins);
         
         
@@ -1450,7 +1463,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
             config_feedback_bool(scratch, &list, "use_scope_highlight", config->use_scope_highlight);
             config_feedback_bool(scratch, &list, "use_paren_helper", config->use_paren_helper);
             config_feedback_bool(scratch, &list, "use_comment_keyword", config->use_comment_keyword);
-            config_feedback_bool(scratch, &list, "file_lister_per_character_backspace", config->file_lister_per_character_backspace);
+            config_feedback_bool(scratch, &list, "lister_whole_word_backspace_when_modified", config->lister_whole_word_backspace_when_modified);
             config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
             
             config_feedback_bool(scratch, &list, "enable_virtual_whitespace", config->enable_virtual_whitespace);

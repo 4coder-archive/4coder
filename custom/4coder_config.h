@@ -188,23 +188,23 @@ struct Config_Data{
     u8 mode_space[64];
     String_Const_u8 mode;
     
-    b32 use_scroll_bars;
-    b32 use_file_bars;
-    b32 use_line_highlight;
-    b32 use_scope_highlight;
-    b32 use_paren_helper;
-    b32 use_comment_keyword;
-    b32 file_lister_per_character_backspace;
-    b32 show_line_number_margins;
+    b8 use_scroll_bars;
+    b8 use_file_bars;
+    b8 use_line_highlight;
+    b8 use_scope_highlight;
+    b8 use_paren_helper;
+    b8 use_comment_keyword;
+    b8 lister_whole_word_backspace_when_modified;
+    b8 show_line_number_margins;
     
-    b32 enable_virtual_whitespace;
-    b32 enable_code_wrapping;
-    b32 automatically_indent_text_on_save;
-    b32 automatically_save_changes_on_build;
-    b32 automatically_adjust_wrapping;
-    b32 automatically_load_project;
+    b8 enable_virtual_whitespace;
+    b8 enable_code_wrapping;
+    b8 automatically_indent_text_on_save;
+    b8 automatically_save_changes_on_build;
+    b8 automatically_adjust_wrapping;
+    b8 automatically_load_project;
     
-    b32 indent_with_tabs;
+    b8 indent_with_tabs;
     i32 indent_width;
     
     i32 default_wrap_width;
@@ -213,12 +213,12 @@ struct Config_Data{
     u8 default_theme_name_space[256];
     String_Const_u8 default_theme_name;
     
-    b32 highlight_line_at_cursor;
+    b8 highlight_line_at_cursor;
     
     u8 default_font_name_space[256];
     String_Const_u8 default_font_name;
     i32 default_font_size;
-    b32 default_font_hinting;
+    b8 default_font_hinting;
     
     u8 default_compiler_bat_space[256];
     String_Const_u8 default_compiler_bat;
@@ -232,7 +232,7 @@ struct Config_Data{
     u8 default_flags_sh_space[1024];
     String_Const_u8 default_flags_sh;
     
-    b32 lalt_lctrl_is_altgr;
+    b8 lalt_lctrl_is_altgr;
 };
 
 #if 0

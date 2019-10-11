@@ -1243,6 +1243,16 @@ to_writable(User_Input *in){
 }
 
 internal b32
+has_modifier(User_Input *in, Key_Code key_code){
+    b32 result = false;
+    Input_Modifier_Set *mods = get_modifiers(&in->event);
+    if (mods != 0){
+        result = has_modifier(mods, key_code);
+    }
+    return(result);
+}
+
+internal b32
 match_key_code(User_Input *in, Key_Code key_code){
     return(match_key_code(&in->event, key_code));
 }
