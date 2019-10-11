@@ -12,33 +12,28 @@ typedef u32 Mouse_Code;
 typedef u32 Core_Code;
 #include "generated/4coder_event_codes.h"
 
-typedef i32 Input_Event_Kind;
+typedef u32 Input_Event_Kind;
 enum{
     InputEventKind_TextInsert,
     InputEventKind_KeyStroke,
+    InputEventKind_KeyRelease,
     InputEventKind_MouseButton,
+    InputEventKind_MouseButtonRelease,
     InputEventKind_MouseWheel,
     InputEventKind_MouseMove,
     InputEventKind_Core,
 };
 
-typedef i32 Key_Modifier_Index;
-enum{
-    MDFR_SHIFT_INDEX,
-    MDFR_CONTROL_INDEX,
-    MDFR_ALT_INDEX,
-    MDFR_COMMAND_INDEX,
-    
-    MDFR_INDEX_BINDABLE_COUNT,
-    
-    MDFR_CAPS_INDEX = MDFR_INDEX_BINDABLE_COUNT,
-    MDFR_HOLD_INDEX,
-    
-    MDFR_INDEX_COUNT,
+global_const i32 Input_MaxModifierCount = 8;
+
+struct Input_Modifier_Set{
+    Key_Code *mods;
+    i32 count;
 };
 
-struct Key_Modifiers{
-    b8 modifiers[MDFR_INDEX_COUNT];
+struct Input_Modifier_Set_Fixed{
+    Key_Code mods[Input_MaxModifierCount];
+    i32 count;
 };
 
 struct Input_Event{
@@ -53,23 +48,24 @@ struct Input_Event{
         } text;
         struct{
             Key_Code code;
-            Key_Modifiers modifiers;
+            Input_Modifier_Set modifiers;
             
             // used internally
             Input_Event *first_dependent_text;
         } key;
         struct{
             Mouse_Code code;
-            Key_Modifiers modifiers;
             Vec2_i32 p;
-            b32 release;
+            Input_Modifier_Set modifiers;
         } mouse;
         struct{
             f32 value;
             Vec2_i32 p;
+            Input_Modifier_Set modifiers;
         } mouse_wheel;
         struct{
             Vec2_i32 p;
+            Input_Modifier_Set modifiers;
         } mouse_move;
         struct{
             Core_Code code;

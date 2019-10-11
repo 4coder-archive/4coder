@@ -89,7 +89,8 @@ enum{
     KeyCode_COUNT = 88,
 };
 global char* key_code_name[KeyCode_COUNT] = {
-    "None""A",
+    "None",
+    "A",
     "B",
     "C",
     "D",
@@ -181,9 +182,23 @@ enum{
     MouseCode_Left = 1,
     MouseCode_Middle = 2,
     MouseCode_Right = 3,
+    MouseCode_COUNT = 4,
+};
+global char* mouse_code_name[MouseCode_COUNT] = {
+    "None",
+    "Left",
+    "Middle",
+    "Right",
 };
 enum{
     CoreCode_Animate = 1,
     CoreCode_ClickActivateView = 2,
     CoreCode_ClickDeactivateView = 3,
+    CoreCode_COUNT = 4,
+};
+global char* core_code_name[CoreCode_COUNT] = {
+    "None",
+    "Animate",
+    "ClickActivateView",
+    "ClickDeactivateView",
 };

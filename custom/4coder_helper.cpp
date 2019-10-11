@@ -1889,8 +1889,9 @@ no_mark_snap_to_cursor(Application_Links *app, View_ID view_id){
 
 internal void
 no_mark_snap_to_cursor_if_shift(Application_Links *app, View_ID view_id){
-    Key_Modifiers mods = system_get_keyboard_modifiers();
-    if (mods.modifiers[MDFR_SHIFT_INDEX]){
+    Scratch_Block scratch(app);
+    Input_Modifier_Set mods = system_get_keyboard_modifiers(scratch);
+    if (has_modifier(&mods, KeyCode_Shift)){
         no_mark_snap_to_cursor(app, view_id);
     }
 }

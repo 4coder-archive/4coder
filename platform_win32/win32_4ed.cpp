@@ -92,9 +92,9 @@ struct Win32_Input_Chunk_Transient{
 struct Win32_Input_Chunk_Persistent{
     Vec2_i32 mouse;
     Control_Keys controls;
+    Input_Modifier_Set_Fixed modifiers;
     b8 mouse_l;
     b8 mouse_r;
-    b8 control_keys[MDFR_INDEX_COUNT];
 };
 
 struct Win32_Input_Chunk{
@@ -343,9 +343,7 @@ system_is_fullscreen_sig(){
 
 internal
 system_get_keyboard_modifiers_sig(){
-    Key_Modifiers result = {};
-    block_copy_array(result.modifiers, win32vars.input_chunk.pers.control_keys);
-    return(result);
+    return(copy_modifier_set(arena, &win32vars.input_chunk.pers.modifiers));
 }
 
 //
@@ -951,19 +949,19 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             b8 down = !release;
             b8 is_right = HasFlag(lParam, bit_25);
             
+            Input_Modifier_Set_Fixed *mods = &win32vars.input_chunk.pers.modifiers;
+            
             switch (wParam){
                 case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
                 case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT:
                 {
                     Control_Keys *controls = &win32vars.input_chunk.pers.controls;
-                    b8 *control_keys = win32vars.input_chunk.pers.control_keys;
-                    
                     if (wParam != 255){
                         switch (wParam){
                             case VK_SHIFT:
                             {
-                                control_keys[MDFR_SHIFT_INDEX] = down;
+                                set_modifier(mods, KeyCode_Shift, down);
                             }break;
                             case VK_CONTROL:
                             {
@@ -991,20 +989,21 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                             ctrl = false;
                             alt = false;
                         }
-                        control_keys[MDFR_CONTROL_INDEX] = ctrl;
-                        control_keys[MDFR_ALT_INDEX] = alt;
+                        set_modifier(mods, KeyCode_Control, ctrl);
+                        set_modifier(mods, KeyCode_Alt, alt);
                     }
                 }break;
             }
             
+            Key_Code key = keycode_lookup_table[(u8)wParam];
             if (down){
-                Key_Code key = keycode_lookup_table[(u8)wParam];
                 if (key != 0){
-                    Key_Modifiers modifiers = system_get_keyboard_modifiers();
+                    add_modifier(mods, key);
+                    
                     Input_Event *event = push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
                     event->kind = InputEventKind_KeyStroke;
                     event->key.code = key;
-                    block_copy_struct(&event->key.modifiers, &modifiers);
+                    event->key.modifiers = copy_modifier_set(win32vars.frame_arena, mods);
                     win32vars.active_key_stroke = event;
                     
                     win32vars.got_useful_event = true;
@@ -1013,8 +1012,16 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             else{
                 win32vars.active_key_stroke = 0;
                 win32vars.active_text_input = 0;
-                
                 win32vars.got_useful_event = true;
+                
+                if (key != 0){
+                    Input_Event *event = push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
+                    event->kind = InputEventKind_KeyRelease;
+                    event->key.code = key;
+                    event->key.modifiers = copy_modifier_set(win32vars.frame_arena, mods);
+                    
+                    remove_modifier(mods, key);
+                }
             }
         }break;
         
@@ -1121,10 +1128,8 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.got_useful_event = true;
             win32vars.input_chunk.pers.mouse_l = false;
             win32vars.input_chunk.pers.mouse_r = false;
-            for (i32 i = 0; i < MDFR_INDEX_COUNT; ++i){
-                win32vars.input_chunk.pers.control_keys[i] = false;
-            }
             block_zero_struct(&win32vars.input_chunk.pers.controls);
+            block_zero_struct(&win32vars.input_chunk.pers.modifiers);
             win32vars.active_key_stroke = 0;
             win32vars.active_text_input = 0;
         }break;
@@ -1790,8 +1795,6 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // TODO(allen): CROSS REFERENCE WITH LINUX SPECIAL CODE "TIC898989"
         Win32_Input_Chunk input_chunk = win32vars.input_chunk;
-        
-        input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
         
         Application_Step_Input input = {};
         

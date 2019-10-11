@@ -31,6 +31,7 @@ enum{
 
 struct Coroutine{
     Coroutine *next;
+    Thread_Context *tctx;
     void *in;
     void *out;
     System_Thread thread;

@@ -19,7 +19,7 @@ struct Command_Binding{
 struct Command_Modified_Binding{
     Command_Modified_Binding *next;
     SNode order_node;
-    Key_Modifiers modifiers;
+    Input_Modifier_Set modifiers;
     Command_Binding binding;
 };
 
@@ -35,7 +35,8 @@ struct Command_Map{
     Command_Map_ID id;
     Command_Map_ID parent;
     Command_Binding text_input_command;
-    Table_u64_u64 key_code_to_binding_list;
+    Arena node_arena;
+    Table_u64_u64 event_code_to_binding_list;
     Command_Modified_Binding *binding_first;
     Command_Modified_Binding *binding_last;
     Command_Binding_List *list_first;

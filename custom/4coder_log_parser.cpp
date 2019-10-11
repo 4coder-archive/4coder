@@ -1026,9 +1026,9 @@ fill_log_graph_command_map(Mapping *mapping){
     SelectMapping(mapping);
     SelectMap(default_log_graph_map);
     Bind(log_graph__escape, KeyCode_Escape);
-    //Bind(KeyCodeExt_MouseWheel, MDFR_NONE, log_graph__scroll_wheel);
-    //Bind(KeyCodeExt_MouseLeft, MDFR_NONE, log_graph__click_jump_to_event_source);
-    //Bind(KeyCodeExt_MouseRight, MDFR_NONE, log_graph__click_select_event);
+    BindMouseWheel(log_graph__scroll_wheel);
+    BindMouse(log_graph__click_jump_to_event_source, MouseCode_Left);
+    BindMouse(log_graph__click_select_event, MouseCode_Right);
     Bind(log_graph__page_up, KeyCode_PageUp);
     Bind(log_graph__page_down, KeyCode_PageDown);
 }

@@ -250,7 +250,8 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "get_keyboard_modifiers", "Key_Modifiers");
+        API_Call *call = api_call(arena, api, "get_keyboard_modifiers", "Input_Modifier_Set");
+        api_param(arena, call, "Arena*", "arena");
     }
     
     return(api);

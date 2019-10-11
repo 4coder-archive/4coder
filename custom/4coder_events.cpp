@@ -4,40 +4,126 @@
 
 // TOP
 
-internal b32
+function b32
+has_modifier(Key_Code *mods, i32 count, Key_Code modifier){
+    b32 result = false;
+    for (i32 i = 0; i < count; i += 1){
+        if (mods[i] == modifier){
+            result = true;
+            break;
+        }
+    }
+    return(result);
+}
+
+function b32
+has_modifier(Input_Modifier_Set_Fixed *set, Key_Code modifier){
+    return(has_modifier(set->mods, set->count, modifier));
+}
+
+function b32
+has_modifier(Input_Modifier_Set *set, Key_Code modifier){
+    return(has_modifier(set->mods, set->count, modifier));
+}
+
+function Input_Modifier_Set
+copy_modifier_set(Arena *arena, Input_Modifier_Set_Fixed *set){
+    Input_Modifier_Set result = {};
+    result.count = set->count;
+    if (result.count > 0){
+        result.mods = push_array_write(arena, Key_Code, result.count, set->mods);
+    }
+    return(result);
+}
+
+function void
+add_modifier(Input_Modifier_Set_Fixed *set, Key_Code mod){
+    if (!has_modifier(set, mod)){
+        if (set->count < ArrayCount(set->mods)){
+            set->mods[set->count] = mod;
+            set->count += 1;
+        }
+    }
+}
+
+function void
+remove_modifier(Input_Modifier_Set_Fixed *set, Key_Code mod){
+    i32 count = set->count;
+    Key_Code *mods = set->mods;
+    for (i32 i = 0; i < count; i += 1){
+        if (mods[i] == mod){
+            i32 new_count = count - 1;
+            mods[i] = mods[new_count];
+            set->count = new_count;
+            break;
+        }
+    }
+}
+
+function void
+set_modifier(Input_Modifier_Set_Fixed *set, Key_Code mod, b32 val){
+    if (val){
+        add_modifier(set, mod);
+    }
+    else{
+        remove_modifier(set, mod);
+    }
+}
+
+function Input_Modifier_Set
+copy_modifier_set(Arena *arena, Input_Modifier_Set *set){
+    Input_Modifier_Set result = {};
+    result.count = set->count;
+    if (result.count > 0){
+        result.mods = push_array_write(arena, Key_Code, result.count, set->mods);
+    }
+    return(result);
+}
+
+function b32
 is_unmodified_key(Input_Event *event){
     b32 result = false;
     if (event->kind == InputEventKind_KeyStroke){
-        b8 *mods = event->key.modifiers.modifiers;
-        result = (!mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]);
+        result = (event->key.modifiers.count == 0);
     }
     return(result);
 }
 
-internal b32
-is_modified(Input_Event *event){
-    b8 *mods = 0;
+function Input_Modifier_Set*
+get_modifiers(Input_Event *event){
+    Input_Modifier_Set *result = 0;
     switch (event->kind){
         case InputEventKind_KeyStroke:
         {
-            mods = event->key.modifiers.modifiers;
+            result = &event->key.modifiers;
         }break;
         case InputEventKind_MouseButton:
         {
-            mods = event->mouse.modifiers.modifiers;
+            result = &event->mouse.modifiers;
         }break;
-    }
-    b32 result = false;
-    if (mods != 0){
-        result = (mods[MDFR_CONTROL_INDEX] ||
-                  mods[MDFR_ALT_INDEX] ||
-                  mods[MDFR_SHIFT_INDEX] ||
-                  mods[MDFR_COMMAND_INDEX]);
+        case InputEventKind_MouseWheel:
+        {
+            result = &event->mouse_wheel.modifiers;
+        }break;
+        case InputEventKind_MouseMove:
+        {
+            result = &event->mouse_move.modifiers;
+        }break;
     }
     return(result);
 }
 
-internal String_Const_u8
+function b32
+is_modified(Input_Event *event){
+    Input_Modifier_Set *mods = get_modifiers(event);
+    b32 result = false;
+    if (mods != 0){
+        result = (mods->count > 0);
+    }
+    return(result);
+}
+
+function String_Const_u8
 to_writable(Input_Event *event){
     String_Const_u8 result = {};
     if (event->kind == InputEventKind_TextInsert){
@@ -46,29 +132,27 @@ to_writable(Input_Event *event){
     return(result);
 }
 
-internal b32
+function b32
 match_key_code(Input_Event *event, Key_Code code){
     return(event->kind == InputEventKind_KeyStroke && event->key.code == code);
 }
 
-internal b32
+function b32
 match_mouse_code(Input_Event *event, Mouse_Code code){
-    return(event->kind == InputEventKind_MouseButton &&
-           event->mouse.code == code && !event->mouse.release);
+    return(event->kind == InputEventKind_MouseButton && event->mouse.code == code);
 }
 
-internal b32
+function b32
 match_mouse_code_release(Input_Event *event, Mouse_Code code){
-    return(event->kind == InputEventKind_MouseButton &&
-           event->mouse.code == code && event->mouse.release);
+    return(event->kind == InputEventKind_MouseButtonRelease && event->mouse.code == code);
 }
 
-internal b32
+function b32
 match_core_code(Input_Event *event, Core_Code code){
     return(event->kind == InputEventKind_Core && event->core.code == code);
 }
 
-internal Event_Property
+function Event_Property
 get_event_properties(Input_Event *event){
     Event_Property flags = 0;
     
@@ -136,7 +220,7 @@ get_event_properties(Input_Event *event){
     return(flags);
 }
 
-internal Input_Event*
+function Input_Event*
 push_input_event(Arena *arena, Input_List *list){
     Input_Event_Node *node = push_array_zero(arena, Input_Event_Node, 1);
     sll_queue_push(list->first, list->last, node);
@@ -144,7 +228,7 @@ push_input_event(Arena *arena, Input_List *list){
     return(&node->event);
 }
 
-internal Input_Event*
+function Input_Event*
 push_input_event(Arena *arena, Input_List *list, Input_Event *event){
     Input_Event_Node *node = push_array(arena, Input_Event_Node, 1);
     block_copy_struct(&node->event, event);

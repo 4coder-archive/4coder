@@ -74,8 +74,16 @@ global_get_screen_rectangle(Application_Links *app){
 
 api(custom) function Thread_Context*
 get_thread_context(Application_Links *app){
-    Models *models = (Models*)app->cmd_context;
-    return(models->tctx);
+    Thread_Context *tctx = 0;
+    if (app->current_coroutine == 0){
+        Models *models = (Models*)app->cmd_context;
+        tctx = models->tctx;
+    }
+    else{
+        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+        tctx = coroutine->tctx;
+    }
+    return(tctx);
 }
 
 api(custom) function b32

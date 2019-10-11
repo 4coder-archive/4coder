@@ -65,14 +65,6 @@ ENUM(u32, Child_Process_Set_Target_Flags){
     ChildProcessSet_CursorAtEnd = 4,
 };
 
-ENUM(u32, Key_Modifier_Flag){
-    MDFR_NONE  = 0x0,
-    MDFR_CTRL  = 0x1,
-    MDFR_ALT   = 0x2,
-    MDFR_CMND  = 0x4,
-    MDFR_SHIFT = 0x8,
-};
-
 ENUM(u32, Memory_Protect_Flags){
     MemProtect_Read    = 0x1,
     MemProtect_Write   = 0x2,

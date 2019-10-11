@@ -9,6 +9,11 @@
 
 // TOP
 
+internal u64
+mapping__key(Input_Event_Kind kind, u32 sub_code){
+    return((((u64)kind) << 32) | sub_code);
+}
+
 internal Command_Map*
 mapping__alloc_map(Mapping *mapping){
     Command_Map *result = mapping->free_maps;
@@ -61,25 +66,25 @@ mapping__free_binding_list(Mapping *mapping, Command_Binding_List *binding_list)
 }
 
 internal Command_Binding_List*
-map__get_list(Command_Map *map, Key_Code code){
+map__get_list(Command_Map *map, u64 key){
     Command_Binding_List *result = 0;
-    Table_Lookup lookup = table_lookup(&map->key_code_to_binding_list, code);
+    Table_Lookup lookup = table_lookup(&map->event_code_to_binding_list, key);
     if (lookup.found_match){
         u64 val = 0;
-        table_read(&map->key_code_to_binding_list, lookup, &val);
+        table_read(&map->event_code_to_binding_list, lookup, &val);
         result = (Command_Binding_List*)IntAsPtr(val);
     }
     return(result);
 }
 
 internal Command_Binding_List*
-map__get_or_make_list(Mapping *mapping, Command_Map *map, Key_Code code){
-    Command_Binding_List *result = map__get_list(map, code);
+map__get_or_make_list(Mapping *mapping, Command_Map *map, u64 key){
+    Command_Binding_List *result = map__get_list(map, key);
     if (result == 0){
         result = mapping__alloc_binding_list(mapping);
         block_zero_struct(result);
         sll_queue_push(map->list_first, map->list_last, result);
-        table_insert(&map->key_code_to_binding_list, code, (u64)PtrAsInt(result));
+        table_insert(&map->event_code_to_binding_list, key, (u64)PtrAsInt(result));
     }
     return(result);
 }
@@ -92,7 +97,7 @@ mapping_init(Thread_Context *tctx, Mapping *mapping){
     mapping->node_arena = reserve_arena(tctx);
     heap_init(&mapping->heap, mapping->node_arena);
     mapping->heap_wrapper = base_allocator_on_heap(&mapping->heap);
-    mapping->id_to_map = make_table_u64_u64(tctx->allocator, 100);
+    mapping->id_to_map = make_table_u64_u64(tctx->allocator, 10);
     mapping->id_counter = 1;
 }
 
@@ -104,13 +109,19 @@ mapping_release(Thread_Context *tctx, Mapping *mapping){
     }
 }
 
+internal void
+map__init(Mapping *mapping, Command_Map *map, Command_Map_ID id){
+    block_zero_struct(map);
+    map->id = id;
+    map->node_arena = make_arena(&mapping->heap_wrapper, KB(2));
+    map->event_code_to_binding_list = make_table_u64_u64(&mapping->heap_wrapper, 100);
+}
+
 internal Command_Map*
 mapping_begin_new_map(Mapping *mapping){
     Command_Map *map = mapping__alloc_map(mapping);
-    block_zero_struct(map);
-    map->id = mapping->id_counter;
+    map__init(mapping, map, mapping->id_counter);
     mapping->id_counter += 1;
-    map->key_code_to_binding_list = make_table_u64_u64(&mapping->heap_wrapper, 8);
     table_insert(&mapping->id_to_map, map->id, (u64)PtrAsInt(map));
     return(map);
 }
@@ -141,9 +152,7 @@ mapping_get_or_make_map(Mapping *mapping, Command_Map_ID id){
     Command_Map *result = mapping_get_map(mapping, id);
     if (result == 0){
         result = mapping__alloc_map(mapping);
-        block_zero_struct(result);
-        result->id = id;
-        result->key_code_to_binding_list = make_table_u64_u64(&mapping->heap_wrapper, 8);
+        map__init(mapping, result, id);
         table_insert(&mapping->id_to_map, result->id, (u64)PtrAsInt(result));
     }
     return(result);
@@ -160,7 +169,8 @@ mapping_release_map(Mapping *mapping, Command_Map *map){
         map->list_last->next = mapping->free_lists;
         mapping->free_lists = map->list_first;
     }
-    table_free(&map->key_code_to_binding_list);
+    table_free(&map->event_code_to_binding_list);
+    linalloc_clear(&map->node_arena);
 }
 
 internal Command_Binding
@@ -168,6 +178,10 @@ map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
     Command_Binding result = {};
     
     if (map != 0){
+        b32 do_table_lookup = false;
+        Input_Modifier_Set *mods = 0;
+        u64 key = 0;
+        
         switch (event->kind){
             case InputEventKind_TextInsert:
             {
@@ -176,21 +190,56 @@ map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
             
             case InputEventKind_KeyStroke:
             {
-                Table_Lookup lookup = table_lookup(&map->key_code_to_binding_list, event->key.code);
-                if (lookup.found_match){
-                    u64 val = 0;
-                    table_read(&map->key_code_to_binding_list, lookup, &val);
-                    Command_Binding_List *list = (Command_Binding_List*)IntAsPtr(val);
-                    Key_Modifiers *event_mods = &event->key.modifiers;
+                key = mapping__key(InputEventKind_KeyStroke, event->key.code);
+                do_table_lookup = true;
+                mods = &event->key.modifiers;
+            }break;
+            
+            case InputEventKind_MouseButton:
+            {
+                key = mapping__key(InputEventKind_MouseButton, event->mouse.code);
+                do_table_lookup = true;
+                mods = &event->mouse.modifiers;
+            }break;
+            
+            case InputEventKind_MouseWheel:
+            {
+                key = mapping__key(InputEventKind_MouseWheel, 0);
+                do_table_lookup = true;
+                mods = &event->mouse_wheel.modifiers;
+            }break;
+            
+            case InputEventKind_MouseMove:
+            {
+                key = mapping__key(InputEventKind_MouseMove, 0);
+                do_table_lookup = true;
+                mods = &event->mouse_move.modifiers;
+            }break;
+            
+            case InputEventKind_Core:
+            {
+                key = mapping__key(InputEventKind_Core, event->core.code);
+                do_table_lookup = true;
+            }break;
+        }
+        
+        if (do_table_lookup){
+            Table_Lookup lookup = table_lookup(&map->event_code_to_binding_list, key);
+            if (lookup.found_match){
+                u64 val = 0;
+                table_read(&map->event_code_to_binding_list, lookup, &val);
+                Command_Binding_List *list = (Command_Binding_List*)IntAsPtr(val);
+                if (mods != 0){
                     for (SNode *node = list->first;
                          node != 0;
                          node = node->next){
                         Command_Modified_Binding *mod_binding = CastFromMember(Command_Modified_Binding, order_node, node);
-                        Key_Modifiers *binding_mods = &mod_binding->modifiers;
+                        Input_Modifier_Set *binding_modifiers = &mod_binding->modifiers;
                         b32 is_a_match = true;
-                        for (i32 i = 0; i < ArrayCount(binding_mods->modifiers); i += 1){
-                            if (binding_mods->modifiers[i] &&
-                                !event_mods->modifiers[i]){
+                        i32 binding_mod_count = binding_modifiers->count;
+                        Key_Code *binding_mods = binding_modifiers->mods;
+                        for (i32 i = 0; i < binding_mod_count; i += 1){
+                            if (!has_modifier(mods, binding_mods[i])){
                                 is_a_match = false;
                                 break;
                             }
@@ -200,9 +249,12 @@ map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
                             break;
                         }
                     }
-                    
                 }
-            }break;
+                else{
+                    Command_Modified_Binding *mod_binding = CastFromMember(Command_Modified_Binding, order_node, list->first);
+                    result = mod_binding->binding;
+                }
+            }
         }
     }
     
@@ -237,17 +289,11 @@ map_null_parent(Command_Map *map){
 }
 
 internal void
-map_set_binding_text_input(Command_Map *map, Custom_Command_Function *custom){
+map_set_binding(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
+                u32 code1, u32 code2, Input_Modifier_Set *modifiers){
     if (map != 0){
-        map->text_input_command.custom = custom;
-    }
-}
-
-internal void
-map_set_binding_key(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
-                    Key_Code code, Key_Modifiers *modifiers){
-    if (map != 0){
-        Command_Binding_List *list = map__get_or_make_list(mapping, map, code);
+        u64 key = mapping__key(code1, code2);
+        Command_Binding_List *list = map__get_or_make_list(mapping, map, key);
         Command_Modified_Binding *mod_binding = mapping__alloc_modified_binding(mapping);
         sll_stack_push(map->binding_first, mod_binding);
         if (map->binding_last == 0){
@@ -258,8 +304,33 @@ map_set_binding_key(Mapping *mapping, Command_Map *map, Custom_Command_Function 
             list->last= list->first;
         }
         list->count += 1;
-        block_copy_struct(&mod_binding->modifiers, modifiers);
+        mod_binding->modifiers = copy_modifier_set(&map->node_arena, modifiers);
         mod_binding->binding.custom = custom;
+    }
+}
+
+internal void
+map_set_binding_key(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
+                    Key_Code code, Input_Modifier_Set *modifiers){
+    map_set_binding(mapping, map, custom, InputEventKind_KeyStroke, code, modifiers);
+}
+
+internal void
+map_set_binding_mouse(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
+                      Mouse_Code code, Input_Modifier_Set *modifiers){
+    map_set_binding(mapping, map, custom, InputEventKind_MouseButton, code, modifiers);
+}
+
+internal void
+map_set_binding_core(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
+                     Core_Code code, Input_Modifier_Set *modifiers){
+    map_set_binding(mapping, map, custom, InputEventKind_Core, code, modifiers);
+}
+
+internal void
+map_set_binding_text_input(Command_Map *map, Custom_Command_Function *custom){
+    if (map != 0){
+        map->text_input_command.custom = custom;
     }
 }
 
@@ -267,7 +338,28 @@ internal Command_Binding_List*
 map_get_binding_list_on_key(Command_Map *map, Key_Code code){
     Command_Binding_List *result = 0;
     if (map != 0){
-        result = map__get_list(map, code);
+        u64 key = mapping__key(InputEventKind_KeyStroke, code);
+        result = map__get_list(map, key);
+    }
+    return(result);
+}
+
+internal Command_Binding_List*
+map_get_binding_list_on_mouse_button(Command_Map *map, Mouse_Code code){
+    Command_Binding_List *result = 0;
+    if (map != 0){
+        u64 key = mapping__key(InputEventKind_MouseButton, code);
+        result = map__get_list(map, key);
+    }
+    return(result);
+}
+
+internal Command_Binding_List*
+map_get_binding_list_on_core(Command_Map *map, Core_Code code){
+    Command_Binding_List *result = 0;
+    if (map != 0){
+        u64 key = mapping__key(InputEventKind_Core, code);
+        result = map__get_list(map, key);
     }
     return(result);
 }
@@ -294,16 +386,37 @@ map_null_parent(Mapping *mapping, Command_Map_ID map_id){
 }
 
 internal void
-map_set_binding_text_input(Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom){
+map_set_binding(Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom,
+                u32 code1, u32 code2, Input_Modifier_Set *modifiers){
     Command_Map *map = mapping_get_map(mapping, map_id);
-    map_set_binding_text_input(map, custom);
+    map_set_binding(mapping, map, custom, code1, code2, modifiers);
 }
 
 internal void
 map_set_binding_key(Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom,
-                    Key_Code code, Key_Modifiers *modifiers){
+                    Key_Code code, Input_Modifier_Set *modifiers){
     Command_Map *map = mapping_get_map(mapping, map_id);
     map_set_binding_key(mapping, map, custom, code, modifiers);
+}
+
+internal void
+map_set_binding_mouse(Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom,
+                      Mouse_Code code, Input_Modifier_Set *modifiers){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    map_set_binding_mouse(mapping, map, custom, code, modifiers);
+}
+
+internal void
+map_set_binding_core(Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom,
+                     Core_Code code, Input_Modifier_Set *modifiers){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    map_set_binding_core(mapping, map, custom, code, modifiers);
+}
+
+internal void
+map_set_binding_text_input(Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    map_set_binding_text_input(map, custom);
 }
 
 internal Command_Binding_List*
@@ -327,29 +440,27 @@ map_get_binding_recursive(Mapping *mapping, Command_Map_ID map_id, Input_Event *
 ////////////////////////////////
 
 internal void
-map_set_binding_key__wrapperv(Mapping *mapping, Command_Map *map,
-                              Custom_Command_Function *custom, Key_Code code, va_list args){
-    u32 flags = 0;
-    for (;;){
+map_set_binding_lv(Mapping *mapping, Command_Map *map,
+                   Custom_Command_Function *custom, u32 code1, u32 code2, va_list args){
+    Input_Modifier_Set mods = {};
+    Key_Code mods_array[Input_MaxModifierCount];
+    mods.mods = mods_array;
+    for (;mods.count < ArrayCount(mods_array);){
         i32 v = va_arg(args, i32);
         if (v <= 0){
             break;
         }
-        flags |= v;
+        mods.mods[mods.count] = v;
+        mods.count += 1;
     }
-    Key_Modifiers mod = {};
-    mod.modifiers[MDFR_SHIFT_INDEX] = HasFlag(flags, MDFR_SHIFT);
-    mod.modifiers[MDFR_CONTROL_INDEX] = HasFlag(flags, MDFR_CTRL);
-    mod.modifiers[MDFR_ALT_INDEX] = HasFlag(flags, MDFR_ALT);
-    mod.modifiers[MDFR_COMMAND_INDEX] = HasFlag(flags, MDFR_CMND);
-    return(map_set_binding_key(mapping, map, custom, code, &mod));
+    return(map_set_binding(mapping, map, custom, code1, code2, &mods));
 }
 internal void
-map_set_binding_key__wrapper(Mapping *mapping, Command_Map *map,
-                             Custom_Command_Function *custom, Key_Code code, ...){
+map_set_binding_l(Mapping *mapping, Command_Map *map,
+                  Custom_Command_Function *custom, u32 code1, u32 code2, ...){
     va_list args;
-    va_start(args, code);
-    map_set_binding_key__wrapperv(mapping, map, custom, code, args);
+    va_start(args, code2);
+    map_set_binding_lv(mapping, map, custom, code1, code2, args);
     va_end(args);
 }
 
@@ -359,7 +470,20 @@ map_set_binding_key__wrapper(Mapping *mapping, Command_Map *map,
 #define ParentMap(ID) map_set_parent(m, map, (ID))
 #define BindTextInput(F) map_set_binding_text_input(map, (F))
 // TODO(allen): detect compiler and apply va args extensions correctly
-#define Bind(F, K, ...) map_set_binding_key__wrapper(m, map, (F), (K), __VA_ARGS__, 0)
+#define Bind(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_KeyStroke, (K), __VA_ARGS__, 0)
+#define BindRelease(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_KeyRelease, (K), __VA_ARGS__, 0)
+#define BindMouse(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseButton, (K), __VA_ARGS__, 0)
+#define BindMouseRelease(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseButtonRelease, (K), __VA_ARGS__, 0)
+#define BindMouseWheel(F, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseWheel, 0, __VA_ARGS__, 0)
+#define BindMouseMove(F, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseMove, 0, __VA_ARGS__, 0)
+#define BindCore(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_Core, (K), __VA_ARGS__, 0)
 
 // BOTTOM
 

@@ -2753,6 +2753,17 @@ thread_ctx_init(Thread_Context *tctx, Base_Allocator *allocator){
     tctx->node_arena = make_arena(allocator, KB(4), 8);
 }
 
+internal void
+thread_ctx_release(Thread_Context *tctx){
+    for (Arena_Node *node = tctx->free_arenas;
+         node != 0;
+         node = node->next){
+        linalloc_clear(&node->arena);
+    }
+    linalloc_clear(&tctx->node_arena);
+    block_zero_struct(tctx);
+}
+
 internal Arena*
 reserve_arena(Thread_Context *tctx, umem chunk_size, umem align){
     Arena_Node *node = tctx->free_arenas;

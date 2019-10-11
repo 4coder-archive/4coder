@@ -854,8 +854,8 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
         b32 string_change = false;
         if (match_key_code(&in, KeyCode_Return) ||
             match_key_code(&in, KeyCode_Tab)){
-            Key_Modifiers *mods = &in.event.key.modifiers;
-            if (mods->modifiers[MDFR_CONTROL_INDEX]){
+            Input_Modifier_Set *mods = &in.event.key.modifiers;
+            if (has_modifier(mods, KeyCode_Control)){
                 bar.string.size = cstring_length(previous_isearch_query);
                 block_copy(bar.string.str, previous_isearch_query, bar.string.size);
             }
@@ -879,7 +879,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
                 bar.string = backspace_utf8(bar.string);
                 string_change = (bar.string.size < old_bar_string_size);
             }
-            else if (in.event.key.modifiers.modifiers[MDFR_CONTROL_INDEX]){
+            else if (has_modifier(&in.event.key.modifiers, KeyCode_Control)){
                 if (bar.string.size > 0){
                     string_change = true;
                     bar.string.size = 0;

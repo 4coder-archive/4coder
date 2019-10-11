@@ -111,229 +111,6 @@ DELTA_RULE_SIG(fallback_scroll_rule){
     return(pending_delta);
 }
 
-#if 0
-#define DEFAULT_MAP_SIZE 10
-#define DEFAULT_UI_MAP_SIZE 32
-
-// TODO(allen): REWRITE REWRITE REWRITE!
-internal b32
-interpret_binding_buffer(Models *models, void *buffer, i32 size){
-    b32 result = true;
-    
-    Heap *gen = &models->heap;
-    Scratch_Block scratch(models->tctx, Scratch_Share);
-    
-    Mapping new_mapping = {};
-    mapping_init(models->tctx, &new_mapping);
-    
-    models->scroll_rule = fallback_scroll_rule;
-    models->hook_open_file = 0;
-    models->hook_new_file = 0;
-    models->hook_save_file = 0;
-    models->hook_end_file = 0;
-    models->hook_file_edit_range = 0;
-    models->command_caller = 0;
-    models->render_caller = 0;
-    models->input_filter = 0;
-    
-    b32 did_top = false;
-    b32 did_file = false;
-    
-    Command_Map *map_ptr = 0;
-    
-    Binding_Unit *unit = (Binding_Unit*)buffer;
-    if (unit->type == unit_header && unit->header.error == 0){
-        Binding_Unit *end = unit + unit->header.total_size;
-        
-        mapping_get_or_make_map(&new_mapping, mapid_global);
-        mapping_get_or_make_map(&new_mapping, mapid_file);
-        
-        // Find the Size of Each Map
-        for (++unit; unit < end; ++unit){
-            switch (unit->type){
-                case unit_map_begin:
-                {
-                    i32 mapid = unit->map_begin.mapid;
-                    
-                    if (mapid == mapid_nomap){
-                        break;
-                    }
-                    
-                    Command_Map *map = mapping_get_or_make_map(&new_mapping, mapid);
-                    map_set_parent(&new_mapping, map, mapid_global);
-                    if (unit->map_begin.replace){
-                        map->real_beginning = unit;
-                    }
-                    else{
-                        if (map->real_beginning == 0){
-                            map->real_beginning = unit;
-                        }
-                    }
-                }break;
-            }
-        }
-        
-        // Fill in Command Maps
-        unit = (Binding_Unit*)buffer;
-        for (++unit; unit < end; ++unit){
-            switch (unit->type){
-                case unit_map_begin:
-                {
-                    i32 mapid = unit->map_begin.mapid;
-                    if (mapid == mapid_nomap){
-                        map_ptr = 0;
-                    }
-                    else{
-                        Command_Map *map = mapping_get_or_make_map(&new_mapping, mapid);
-                        if (unit >= map->real_beginning){
-                            if (mapid == mapid_file || mapid <= mapid_global){
-                                map_ptr = map;
-                            }
-                            else{
-                                map_ptr = 0;
-                            }
-                        }
-                    }
-                }break;
-                
-                case unit_inherit:
-                {
-                    if (map_ptr != 0){
-                        if (unit->map_inherit.mapid == mapid_nomap){
-                            map_null_parent(map_ptr);
-                        }
-                        else{
-                            map_set_parent(&new_mapping, map_ptr, unit->map_inherit.mapid);
-                        }
-                    }
-                }break;
-                
-                case unit_callback:
-                {
-                    if (map_ptr != 0){
-                        Custom_Command_Function *custom = unit->callback.func;
-                        if (unit->callback.code == 0){
-                            map_set_binding_text_input(map_ptr, custom);
-                        }
-                        else{
-                            Key_Modifiers modifiers = {};
-                            modifiers.modifiers[MDFR_SHIFT_INDEX] =
-                                HasFlag(unit->callback.modifiers, MDFR_SHIFT);
-                            modifiers.modifiers[MDFR_CONTROL_INDEX] =
-                                HasFlag(unit->callback.modifiers, MDFR_CTRL);
-                            modifiers.modifiers[MDFR_ALT_INDEX] =
-                                HasFlag(unit->callback.modifiers, MDFR_ALT);
-                            modifiers.modifiers[MDFR_COMMAND_INDEX] =
-                                HasFlag(unit->callback.modifiers, MDFR_CMND);
-                            map_set_binding_key(&new_mapping, map_ptr, custom,
-                                                unit->callback.code, &modifiers);
-                        }
-                    }
-                }break;
-                
-                case unit_hook:
-                {
-                    i32 hook_id = unit->hook.hook_id;
-                    if (hook_id >= 0){
-                        if (hook_id < hook_type_count){
-                            models->hooks[hook_id] = (Hook_Function*)unit->hook.func;
-                        }
-                        else{
-                            switch (hook_id){
-                                case special_hook_open_file:
-                                {
-                                    models->hook_open_file = (Buffer_Hook_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_new_file:
-                                {
-                                    models->hook_new_file = (Buffer_Hook_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_save_file:
-                                {
-                                    models->hook_save_file = (Buffer_Hook_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_end_file:
-                                {
-                                    models->hook_end_file = (Buffer_Hook_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_file_edit_range:
-                                {
-                                    models->hook_file_edit_range = (File_Edit_Range_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_file_externally_modified:
-                                {
-                                    models->hook_file_externally_modified = (File_Externally_Modified_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_command_caller:
-                                {
-                                    models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_render_caller:
-                                {
-                                    models->render_caller = (Render_Caller_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_scroll_rule:
-                                {
-                                    models->scroll_rule = (Delta_Rule_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_buffer_name_resolver:
-                                {
-                                    models->buffer_name_resolver = (Buffer_Name_Resolver_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_modify_color_table:
-                                {
-                                    models->modify_color_table = (Modify_Color_Table_Function*)unit->hook.func;
-                                }break;
-                                
-								case special_hook_clipboard_change:
-                                {
-                                    models->clipboard_change = (Clipboard_Change_Hook_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_get_view_buffer_region:
-                                {
-                                    models->get_view_buffer_region = (Get_View_Buffer_Region_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_input_filter:
-                                {
-                                    models->input_filter = (Input_Filter_Function*)unit->hook.func;
-                                }break;
-                                
-                                case special_hook_start:
-                                {
-                                    models->hook_start = (Start_Hook_Function*)unit->hook.func;
-                                }break;
-                            }
-                        }
-                    }
-                }break;
-            }
-        }
-    }
-    else{
-        // TODO(allen): do(Error report: bad binding units map.)
-        // TODO(allen): do(no bindings set recovery plan.)
-        InvalidPath;
-    }
-    
-    mapping_release(models->tctx, &models->mapping);
-    models->mapping = new_mapping;
-    
-    return(result);
-}
-#endif
-
 #include "4ed_api_implementation.cpp"
 
 internal void
@@ -886,20 +663,21 @@ App_Step_Sig(app_step){
     }
     
     Input_List input_list = input->events;
-    Key_Modifiers modifiers = system_get_keyboard_modifiers();
+    Input_Modifier_Set modifiers = system_get_keyboard_modifiers(scratch);
     if (input->mouse.press_l){
         Input_Event event = {};
         event.kind = InputEventKind_MouseButton;
         event.mouse.code = MouseCode_Left;
         event.mouse.p = input->mouse.p;
+        event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
         push_input_event(scratch, &input_list, &event);
     }
     else if (input->mouse.release_l){
         Input_Event event = {};
-        event.kind = InputEventKind_MouseButton;
+        event.kind = InputEventKind_MouseButtonRelease;
         event.mouse.code = MouseCode_Left;
         event.mouse.p = input->mouse.p;
-        event.mouse.release = true;
+        event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
         push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.press_r){
@@ -907,14 +685,15 @@ App_Step_Sig(app_step){
         event.kind = InputEventKind_MouseButton;
         event.mouse.code = MouseCode_Right;
         event.mouse.p = input->mouse.p;
+        event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
         push_input_event(scratch, &input_list, &event);
     }
     else if (input->mouse.release_r){
         Input_Event event = {};
-        event.kind = InputEventKind_MouseButton;
+        event.kind = InputEventKind_MouseButtonRelease;
         event.mouse.code = MouseCode_Right;
         event.mouse.p = input->mouse.p;
-        event.mouse.release = true;
+        event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
         push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.wheel != 0){
@@ -922,6 +701,7 @@ App_Step_Sig(app_step){
         event.kind = InputEventKind_MouseWheel;
         event.mouse_wheel.value = (f32)(input->mouse.wheel);
         event.mouse_wheel.p = input->mouse.p;
+        event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
         push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.p != models->prev_p){
@@ -931,6 +711,7 @@ App_Step_Sig(app_step){
             Input_Event event = {};
             event.kind = InputEventKind_MouseMove;
             event.mouse_move.p = input->mouse.p;
+            event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
             push_input_event(scratch, &input_list, &event);
         }
     }

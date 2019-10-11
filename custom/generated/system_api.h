@@ -41,7 +41,7 @@
 #define system_show_mouse_cursor_sig() void system_show_mouse_cursor(i32 show)
 #define system_set_fullscreen_sig() b32 system_set_fullscreen(b32 full_screen)
 #define system_is_fullscreen_sig() b32 system_is_fullscreen(void)
-#define system_get_keyboard_modifiers_sig() Key_Modifiers system_get_keyboard_modifiers(void)
+#define system_get_keyboard_modifiers_sig() Input_Modifier_Set system_get_keyboard_modifiers(Arena* arena)
 typedef String_Const_u8 system_get_path_type(Arena* arena, System_Path_Code path_code);
 typedef String_Const_u8 system_get_canonical_type(Arena* arena, String_Const_u8 name);
 typedef File_List system_get_file_list_type(Arena* arena, String_Const_u8 directory);
@@ -85,7 +85,7 @@ typedef void system_memory_free_type(void* ptr, umem size);
 typedef void system_show_mouse_cursor_type(i32 show);
 typedef b32 system_set_fullscreen_type(b32 full_screen);
 typedef b32 system_is_fullscreen_type(void);
-typedef Key_Modifiers system_get_keyboard_modifiers_type(void);
+typedef Input_Modifier_Set system_get_keyboard_modifiers_type(Arena* arena);
 struct API_VTable_system{
 system_get_path_type *get_path;
 system_get_canonical_type *get_canonical;
@@ -176,7 +176,7 @@ internal void system_memory_free(void* ptr, umem size);
 internal void system_show_mouse_cursor(i32 show);
 internal b32 system_set_fullscreen(b32 full_screen);
 internal b32 system_is_fullscreen(void);
-internal Key_Modifiers system_get_keyboard_modifiers(void);
+internal Input_Modifier_Set system_get_keyboard_modifiers(Arena* arena);
 #undef STATIC_LINK_API
 #elif defined(DYNAMIC_LINK_API)
 global system_get_path_type *system_get_path = 0;

@@ -41,4 +41,4 @@ api(system) function void memory_free(void* ptr, umem size);
 api(system) function void show_mouse_cursor(i32 show);
 api(system) function b32 set_fullscreen(b32 full_screen);
 api(system) function b32 is_fullscreen(void);
-api(system) function Key_Modifiers get_keyboard_modifiers(void);
+api(system) function Input_Modifier_Set get_keyboard_modifiers(Arena* arena);
