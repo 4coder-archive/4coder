@@ -801,8 +801,9 @@ isearch__update_highlight(Application_Links *app, View_ID view, Range_i64 range)
     view_set_cursor_and_preferred_x(app, view, seek_pos(range.start));
 }
 
-static void
-isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query_init){
+function void
+isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
+        String_Const_u8 query_init){
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
     if (!buffer_exists(app, buffer)){
@@ -817,7 +818,6 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
     }
     
     Scan_Direction scan = start_scan;
-    i64 first_pos = view_get_cursor_pos(app, view);
     i64 pos = first_pos;
     
     u8 bar_string_space[256];
@@ -979,38 +979,53 @@ isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query
     }
 }
 
+function void
+isearch(Application_Links *app, Scan_Direction start_scan, String_Const_u8 query_init){
+    View_ID view = get_active_view(app, AccessProtected);
+    i64 pos = view_get_cursor_pos(app, view);;
+    isearch(app, start_scan, pos, query_init);
+}
+
+function void
+isearch(Application_Links *app, Scan_Direction start_scan){
+    View_ID view = get_active_view(app, AccessProtected);
+    i64 pos = view_get_cursor_pos(app, view);;
+    isearch(app, start_scan, pos, SCu8());
+}
+
+function void
+isearch_identifier(Application_Links *app, Scan_Direction scan){
+    View_ID view = get_active_view(app, AccessProtected);
+    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
+    i64 pos = view_get_cursor_pos(app, view);
+    Scratch_Block scratch(app);
+    Range_i64 range = enclose_pos_alpha_numeric_underscore(app, buffer_id, pos);
+    String_Const_u8 query = push_buffer_range(app, scratch, buffer_id, range);
+    isearch(app, scan, range.first, query);
+}
+
 CUSTOM_COMMAND_SIG(search)
 CUSTOM_DOC("Begins an incremental search down through the current buffer for a user specified string.")
 {
-    isearch(app, Scan_Forward, SCu8());
+    isearch(app, Scan_Forward);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search)
 CUSTOM_DOC("Begins an incremental search up through the current buffer for a user specified string.")
 {
-    isearch(app, Scan_Backward, SCu8());
+    isearch(app, Scan_Backward);
 }
 
 CUSTOM_COMMAND_SIG(search_identifier)
 CUSTOM_DOC("Begins an incremental search down through the current buffer for the word or token under the cursor.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
-    i64 pos = view_get_cursor_pos(app, view);
-    Scratch_Block scratch(app);
-    String_Const_u8 query = push_enclose_range_at_pos(app, scratch, buffer_id, pos, enclose_alpha_numeric_underscore);
-    isearch(app, Scan_Forward, query);
+    isearch_identifier(app, Scan_Forward);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search_identifier)
 CUSTOM_DOC("Begins an incremental search up through the current buffer for the word or token under the cursor.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
-    i64 pos = view_get_cursor_pos(app, view);
-    Scratch_Block scratch(app);
-    String_Const_u8 query = push_enclose_range_at_pos(app, scratch, buffer_id, pos, enclose_alpha_numeric_underscore);
-    isearch(app, Scan_Backward, query);
+    isearch_identifier(app, Scan_Backward);
 }
 
 struct String_Pair{
