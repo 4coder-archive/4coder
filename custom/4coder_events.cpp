@@ -80,15 +80,6 @@ copy_modifier_set(Arena *arena, Input_Modifier_Set *set){
     return(result);
 }
 
-function b32
-is_unmodified_key(Input_Event *event){
-    b32 result = false;
-    if (event->kind == InputEventKind_KeyStroke){
-        result = (event->key.modifiers.count == 0);
-    }
-    return(result);
-}
-
 function Input_Modifier_Set*
 get_modifiers(Input_Event *event){
     Input_Modifier_Set *result = 0;
@@ -109,6 +100,19 @@ get_modifiers(Input_Event *event){
         {
             result = &event->mouse_move.modifiers;
         }break;
+    }
+    return(result);
+}
+
+function b32
+is_unmodified_key(Input_Event *event){
+    b32 result = false;
+    if (event->kind == InputEventKind_KeyStroke){
+        Input_Modifier_Set *set = get_modifiers(event);
+        result = (!has_modifier(set, KeyCode_Control) &&
+                  !has_modifier(set, KeyCode_Alt) &&
+                  !has_modifier(set, KeyCode_Shift) &&
+                  !has_modifier(set, KeyCode_Command));
     }
     return(result);
 }
