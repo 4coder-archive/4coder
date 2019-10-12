@@ -60,10 +60,10 @@ setup_default_mapping(Mapping *mapping){
     BindMouseMove(click_set_cursor_if_lbutton);
     Bind(delete_char,            KeyCode_Delete);
     Bind(backspace_char,         KeyCode_Backspace);
-    Bind(move_up,                KeyCode_V, KeyCode_Up);
-    Bind(move_down,              KeyCode_V, KeyCode_Down);
-    Bind(move_left,              KeyCode_V, KeyCode_Left);
-    Bind(move_right,             KeyCode_V, KeyCode_Right);
+    Bind(move_up,                KeyCode_Up);
+    Bind(move_down,              KeyCode_Down);
+    Bind(move_left,              KeyCode_Left);
+    Bind(move_right,             KeyCode_Right);
     Bind(seek_end_of_line,       KeyCode_End);
     Bind(seek_beginning_of_line, KeyCode_Home);
     Bind(page_up,                KeyCode_PageUp);

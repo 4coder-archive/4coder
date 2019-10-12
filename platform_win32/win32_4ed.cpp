@@ -1,4 +1,3 @@
-
 /*
  * Mr. 4th Dimention - Allen Webster
  *
@@ -951,18 +950,13 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             Input_Modifier_Set_Fixed *mods = &win32vars.input_chunk.pers.modifiers;
             
+            Control_Keys *controls = &win32vars.input_chunk.pers.controls;
             switch (wParam){
                 case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
-                case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT:
                 {
-                    Control_Keys *controls = &win32vars.input_chunk.pers.controls;
                     if (wParam != 255){
                         switch (wParam){
-                            case VK_SHIFT:
-                            {
-                                set_modifier(mods, KeyCode_Shift, down);
-                            }break;
                             case VK_CONTROL:
                             {
                                 if (is_right){
@@ -982,17 +976,22 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                                 }
                             }break;
                         }
-                        
-                        b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
-                        b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
-                        if (win32vars.lctrl_lalt_is_altgr && controls->l_alt && controls->l_ctrl){
-                            ctrl = false;
-                            alt = false;
-                        }
-                        set_modifier(mods, KeyCode_Control, ctrl);
-                        set_modifier(mods, KeyCode_Alt, alt);
                     }
                 }break;
+            }
+            
+            b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
+            b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
+            if (win32vars.lctrl_lalt_is_altgr && controls->l_alt && controls->l_ctrl){
+                ctrl = false;
+                alt = false;
+            }
+            set_modifier(mods, KeyCode_Control, ctrl);
+            set_modifier(mods, KeyCode_Alt, alt);
+            
+            {
+                b8 shift = ((GetKeyState(VK_SHIFT) & bit_16) != 0);
+                set_modifier(mods, KeyCode_Shift, shift);
             }
             
             Key_Code key = keycode_lookup_table[(u8)wParam];
