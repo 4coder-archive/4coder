@@ -369,7 +369,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     // NOTE(allen): Scan for TODOs and NOTEs
-    {
+    if (global_config.use_comment_keyword){
         Temp_Memory temp = begin_temp(scratch);
         String_Const_u8 tail = push_buffer_range(app, scratch, buffer, visible_range);
         i32 index = 0;

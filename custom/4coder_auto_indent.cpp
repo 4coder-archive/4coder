@@ -126,6 +126,28 @@ indent__free_nest(Nest_Alloc *alloc, Nest *nest){
     sll_stack_push(alloc->free_nest, nest);
 }
 
+internal b32
+indent__unfinished_statement(Token *token, Nest *current_nest){
+    b32 result = false;
+    if (current_nest != 0 && current_nest->kind == TokenBaseKind_ScopeOpen){
+        result = true;
+        switch (token->sub_kind){
+            case TokenCppKind_BraceOp:
+            case TokenCppKind_BraceCl:
+            case TokenCppKind_Semicolon:
+            case TokenCppKind_Colon:
+            case TokenCppKind_Comma:
+            {
+                result = false;
+            }break;
+        }
+        if (HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
+            result = false;
+        }
+    }
+    return(result);
+}
+
 internal i64*
 get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 lines, Indent_Flag flags, i32 tab_width, i32 indent_width){
     i64 count = lines.max - lines.min + 1;
@@ -152,6 +174,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
         i64 line_last_indented = line - 1;
         i64 last_indent = 0;
         i64 actual_indent = 0;
+        b32 in_unfinished_statement = false;
         
         for (;;){
             Token *token = token_it_read(&token_it);
@@ -223,6 +246,10 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                 }
             }
             
+            if (in_unfinished_statement){
+                this_indent += indent_width;
+            }
+            
 #define EMIT(N) \
             Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
             if (line_it == lines.end){goto finished;} \
@@ -250,6 +277,13 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                 EMIT(new_indent);
             }
 #undef EMIT
+            
+            if (token->kind != TokenBaseKind_Comment){
+                in_unfinished_statement = indent__unfinished_statement(token, nest);
+                if (in_unfinished_statement){
+                    following_indent += indent_width;
+                }
+            }
             
             last_indent = following_indent;
             line_last_indented = line_it;

@@ -1132,7 +1132,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
     view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
 }
 
-static void
+function void
 query_replace_parameter(Application_Links *app, String_Const_u8 replace_str, i64 start_pos, b32 add_replace_query_bar){
     Query_Bar replace = {};
     replace.prompt = string_u8_litexpr("Replace: ");
