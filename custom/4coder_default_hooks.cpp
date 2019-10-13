@@ -19,7 +19,7 @@ CUSTOM_DOC("Input consumption loop for base view behavior")
 {
     for (;;){
         // NOTE(allen): Get the binding from the buffer's current map
-        User_Input input = get_user_input(app, EventPropertyGroup_All, 0);
+        User_Input input = get_user_input(app, EventPropertyGroup_Any, 0);
         if (input.abort){
             break;
         }

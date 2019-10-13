@@ -5,118 +5,6 @@ such as open file, switch buffer, or kill buffer.
 
 // TOP
 
-CUSTOM_COMMAND_SIG(lister__quit)
-CUSTOM_DOC("A lister mode command that quits the list without executing any actions.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, view);
-}
-
-CUSTOM_COMMAND_SIG(lister__activate)
-CUSTOM_DOC("A lister mode command that activates the list's action on the highlighted item.")
-{
-    Heap *heap = &global_heap;
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->initialized){
-        void *user_data = 0;
-        if (0 <= state->raw_item_index && state->raw_item_index < state->lister.data.options.count){
-            user_data = lister_get_user_data(&state->lister.data, state->raw_item_index);
-        }
-        lister_call_activate_handler(app, heap, view, state, user_data, false);
-    }
-}
-
-CUSTOM_COMMAND_SIG(lister__write_character)
-CUSTOM_DOC("A lister mode command that dispatches to the lister's write character handler.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->lister.data.handlers.write_character != 0){
-        state->lister.data.handlers.write_character(app);
-    }
-}
-
-CUSTOM_COMMAND_SIG(lister__backspace_text_field)
-CUSTOM_DOC("A lister mode command that dispatches to the lister's backspace text field handler.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->lister.data.handlers.backspace != 0){
-        state->lister.data.handlers.backspace(app);
-    }
-}
-
-CUSTOM_COMMAND_SIG(lister__move_up)
-CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate up handler.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->lister.data.handlers.navigate_up != 0){
-        state->lister.data.handlers.navigate_up(app);
-    }
-}
-
-CUSTOM_COMMAND_SIG(lister__move_down)
-CUSTOM_DOC("A lister mode command that dispatches to the lister's navigate down handler.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->lister.data.handlers.navigate_down != 0){
-        state->lister.data.handlers.navigate_down(app);
-    }
-}
-
-CUSTOM_COMMAND_SIG(lister__wheel_scroll)
-CUSTOM_DOC("A lister mode command that scrolls the list in response to the mouse wheel.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    Basic_Scroll scroll = view_get_basic_scroll(app, view);
-    Mouse_State mouse = get_mouse_state(app);
-    scroll.target.y += mouse.wheel;
-    view_set_basic_scroll(app, view, scroll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->initialized){
-        lister_update_ui(app, view, state);
-    }
-}
-
-CUSTOM_COMMAND_SIG(lister__mouse_press)
-CUSTOM_DOC("A lister mode command that beings a click interaction with a list item under the mouse.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->initialized){
-        UI_Item clicked = lister_get_clicked_item(app, view);
-        state->hot_user_data = clicked.user_data;
-    }
-}
-
-CUSTOM_COMMAND_SIG(lister__mouse_release)
-CUSTOM_DOC("A lister mode command that ends a click interaction with a list item under the mouse, possibly activating it.")
-{
-    Heap *heap = &global_heap;
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->initialized && state->hot_user_data != 0){
-        UI_Item clicked = lister_get_clicked_item(app, view);
-        if (state->hot_user_data == clicked.user_data){
-            lister_call_activate_handler(app, heap, view, state, clicked.user_data, true);
-        }
-    }
-    state->hot_user_data = 0;
-}
-
-CUSTOM_COMMAND_SIG(lister__repaint)
-CUSTOM_DOC("A lister mode command that updates the lists UI data.")
-{
-    View_ID view = get_active_view(app, AccessAll);
-    Lister_State *state = view_get_lister_state(view);
-    if (state->initialized){
-        lister_update_ui(app, view, state);
-    }
-}
-
 CUSTOM_COMMAND_SIG(lister__write_string__default)
 CUSTOM_DOC("A lister mode command that inserts a new character to the text field.")
 {
@@ -241,34 +129,191 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
     }
 }
 
-CUSTOM_COMMAND_SIG(lister__write_character__fixed_list)
-CUSTOM_DOC("A lister mode command that handles input for the fixed sure to kill list.")
+function Lister_Activation_Code
+lister__key_stroke__fixed_list(Application_Links *app)
 {
+    Lister_Activation_Code result = ListerActivation_Continue;
     Heap *heap = &global_heap;
     View_ID view = get_active_view(app, AccessAll);
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         User_Input in = get_command_input(app);
-        String_Const_u8 string = to_writable(&in);
-        if (string.str != 0 && string.size > 0){
+        if (in.event.kind == InputEventKind_KeyStroke){
             void *user_data = 0;
             b32 did_shortcut_key = false;
             for (Lister_Node *node = state->lister.data.options.first;
                  node != 0;
                  node = node->next){
-                char *hotkeys = (char*)(node + 1);
-                String_Const_u8 hot_key_string = SCu8(hotkeys);
-                if (string_find_first(hot_key_string, string) < hot_key_string.size){
+                Key_Code *key_code = (Key_Code*)(node + 1);
+                if (*key_code == in.event.key.code){
                     user_data = node->user_data;
                     did_shortcut_key = true;
                     break;
                 }
             }
             if (did_shortcut_key){
-                lister_call_activate_handler(app, heap, view, state, user_data, false);
+                result = lister_call_activate_handler(app, heap, view, state, user_data, false);
             }
         }
     }
+    return(result);
+}
+
+////////////////////////////////
+
+function void
+lister_input_handling_loop(Application_Links *app, View_ID view){
+    Heap *heap = &global_heap;
+    Lister_State *state = view_get_lister_state(view);
+    
+    for (;;){
+        User_Input in = get_user_input(app,
+                                       EventPropertyGroup_Any,
+                                       EventProperty_Escape);
+        if (in.abort){
+            break;
+        }
+        
+        b32 handled = true;
+        switch (in.event.kind){
+            case InputEventKind_TextInsert:
+            {
+                if (state->lister.data.handlers.write_character != 0){
+                    state->lister.data.handlers.write_character(app);
+                }
+            }break;
+            
+            case InputEventKind_KeyStroke:
+            {
+                Lister_Activation_Code result = ListerActivation_Continue;
+                switch (in.event.key.code){
+                    case KeyCode_Return:
+                    case KeyCode_Tab:
+                    {
+                        void *user_data = 0;
+                        if (0 <= state->raw_item_index &&
+                            state->raw_item_index < state->lister.data.options.count){
+                            user_data = lister_get_user_data(&state->lister.data,
+                                                             state->raw_item_index);
+                        }
+                        result = lister_call_activate_handler(app, heap, view, state,
+                                                              user_data, false);
+                    }break;
+                    
+                    case KeyCode_Backspace:
+                    {
+                        if (state->lister.data.handlers.backspace != 0){
+                            state->lister.data.handlers.backspace(app);
+                        }
+                        else if (state->lister.data.handlers.key_stroke != 0){
+                            result = state->lister.data.handlers.key_stroke(app);
+                        }
+                        else{
+                            handled = false;
+                        }
+                    }break;
+                    
+                    case KeyCode_Up:
+                    {
+                        if (state->lister.data.handlers.navigate_up != 0){
+                            state->lister.data.handlers.navigate_up(app);
+                        }
+                        else{
+                            handled = false;
+                        }
+                    }break;
+                    
+                    case KeyCode_Down:
+                    {
+                        if (state->lister.data.handlers.navigate_down != 0){
+                            state->lister.data.handlers.navigate_down(app);
+                        }
+                        else{
+                            handled = false;
+                        }
+                    }break;
+                    
+                    default:
+                    {
+                        if (state->lister.data.handlers.key_stroke != 0){
+                            result = state->lister.data.handlers.key_stroke(app);
+                        }
+                        else{
+                            handled = false;
+                        }
+                    }break;
+                }
+                if (result == ListerActivation_Finished){
+                    goto done;
+                }
+            }break;
+            
+            case InputEventKind_MouseButton:
+            {
+                switch (in.event.mouse.code){
+                    case MouseCode_Left:
+                    {
+                        UI_Item clicked = lister_get_clicked_item(app, view);
+                        state->hot_user_data = clicked.user_data;
+                    }break;
+                    
+                    default:
+                    {
+                        handled = false;
+                    }break;
+                }
+            }break;
+            
+            case InputEventKind_MouseButtonRelease:
+            {
+                switch (in.event.mouse.code){
+                    case MouseCode_Left:
+                    {
+                        if (state->hot_user_data != 0){
+                            UI_Item clicked = lister_get_clicked_item(app, view);
+                            if (state->hot_user_data == clicked.user_data){
+                                lister_call_activate_handler(app, heap, view, state,
+                                                             clicked.user_data, true);
+                            }
+                        }
+                        state->hot_user_data = 0;
+                    }break;
+                    
+                    default:
+                    {
+                        handled = false;
+                    }break;
+                }
+            }break;
+            
+            case InputEventKind_MouseWheel:
+            {
+                Basic_Scroll scroll = view_get_basic_scroll(app, view);
+                Mouse_State mouse = get_mouse_state(app);
+                scroll.target.y += mouse.wheel;
+                view_set_basic_scroll(app, view, scroll);
+                if (state->initialized){
+                    lister_update_ui(app, view, state);
+                }
+            }break;
+            
+            case InputEventKind_MouseMove:
+            case InputEventKind_Core:
+            {
+                lister_update_ui(app, view, state);
+            }break;
+            
+            default:
+            {
+                handled = false;
+            }break;
+        }
+        
+        if (!handled){
+            leave_command_input_unhandled(app);
+        }
+    }
+    done:;
 }
 
 ////////////////////////////////
@@ -286,10 +331,9 @@ lister_get_default_handlers(void){
 static Lister_Handlers
 lister_get_fixed_list_handlers(void){
     Lister_Handlers handlers = {};
-    handlers.write_character = lister__write_character__fixed_list;
-    handlers.backspace       = 0;
     handlers.navigate_up     = lister__move_up__default;
     handlers.navigate_down   = lister__move_down__default;
+    handlers.key_stroke      = lister__key_stroke__fixed_list;
     return(handlers);
 }
 
@@ -300,8 +344,6 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
                                               View_ID view){
     if (handlers.refresh != 0){
         Heap *heap = &global_heap;
-        view_begin_ui_mode(app, view);
-        view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
         Lister_State *state = view_get_lister_state(view);
         init_lister_state(app, state, heap);
         lister_first_init(app, &state->lister, user_data, user_data_size);
@@ -309,6 +351,13 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
         state->lister.data.handlers = handlers;
         handlers.refresh(app, &state->lister);
         lister_update_ui(app, view, state);
+        
+        view_begin_ui_mode(app, view);
+        lister_input_handling_loop(app, view);
+        view_end_ui_mode(app, view);
+        state->initialized = false;
+        linalloc_clear(state->lister.arena);
+        
     }
     else{
         Scratch_Block scratch(app);
@@ -332,14 +381,12 @@ lister__get_arena_size_(i32 option_count, i32 user_data_size,
 
 static void
 begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
-                                    Lister_Activation_Function_Type *activate,
+                                    Lister_Activation_Type *activate,
                                     void *user_data, i32 user_data_size,
                                     Lister_Option *options, i32 option_count,
                                     i32 estimated_string_space_size,
                                     View_ID view){
     Heap *heap = &global_heap;
-    view_begin_ui_mode(app, view);
-    view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
@@ -350,6 +397,12 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
     state->lister.data.handlers = lister_get_default_handlers();
     state->lister.data.handlers.activate = activate;
     lister_update_ui(app, view, state);
+    
+    view_begin_ui_mode(app, view);
+    lister_input_handling_loop(app, view);
+    view_end_ui_mode(app, view);
+    state->initialized = false;
+    linalloc_clear(state->lister.arena);
 }
 
 static void
@@ -360,30 +413,33 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
                                             i32 estimated_string_space_size,
                                             View_ID view){
     Heap *heap = &global_heap;
-    view_begin_ui_mode(app, view);
-    view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
     for (i32 i = 0; i < option_count; i += 1){
-        char *shortcut_chars = options[i].shortcut_chars;
-        umem shortcut_chars_length = cstring_length(shortcut_chars);
+        Key_Code code = options[i].key_code;
         void *extra = lister_add_item(&state->lister,
                                       SCu8(options[i].string),
                                       SCu8(options[i].status),
                                       options[i].user_data,
-                                      shortcut_chars_length + 1);
-        block_copy(extra, shortcut_chars, shortcut_chars_length + 1);
+                                      sizeof(code));
+        block_copy(extra, &code, sizeof(code));
     }
     lister_set_query(&state->lister, query_string);
     state->lister.data.handlers = handlers;
     state->lister.data.handlers.refresh = 0;
     lister_update_ui(app, view, state);
+    
+    view_begin_ui_mode(app, view);
+    lister_input_handling_loop(app, view);
+    view_end_ui_mode(app, view);
+    state->initialized = false;
+    linalloc_clear(state->lister.arena);
 }
 
 static void
 begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_string,
-                                            Lister_Activation_Function_Type *activate,
+                                            Lister_Activation_Type *activate,
                                             void *user_data, i32 user_data_size,
                                             Lister_Fixed_Option *options, i32 option_count,
                                             i32 estimated_string_space_size,
@@ -405,8 +461,6 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
                                     i32 estimated_string_space_size,
                                     View_ID view){
     Heap *heap = &global_heap;
-    view_begin_ui_mode(app, view);
-    view_set_setting(app, view, ViewSetting_UICommandMap, default_lister_ui_map);
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
@@ -421,11 +475,17 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
     state->lister.data.handlers = handlers;
     state->lister.data.handlers.refresh = 0;
     lister_update_ui(app, view, state);
+    
+    view_begin_ui_mode(app, view);
+    lister_input_handling_loop(app, view);
+    view_end_ui_mode(app, view);
+    state->initialized = false;
+    linalloc_clear(state->lister.arena);
 }
 
 static void
 begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
-                                    Lister_Activation_Function_Type *activate,
+                                    Lister_Activation_Type *activate,
                                     void *user_data, i32 user_data_size,
                                     Lister_UI_Option *options, i32 option_count,
                                     i32 estimated_string_space_size,
@@ -585,7 +645,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
 }
 
 static void
-begin_integrated_lister__buffer_list(Application_Links *app, char *query_string, Lister_Activation_Function_Type *activate_procedure,
+begin_integrated_lister__buffer_list(Application_Links *app, char *query_string, Lister_Activation_Type *activate_procedure,
                                      void *user_data, i32 user_data_size, View_ID target_view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate_procedure;
@@ -594,7 +654,7 @@ begin_integrated_lister__buffer_list(Application_Links *app, char *query_string,
 }
 
 static void
-begin_integrated_lister__file_system_list(Application_Links *app, char *query_string, Lister_Activation_Function_Type *activate_procedure,
+begin_integrated_lister__file_system_list(Application_Links *app, char *query_string, Lister_Activation_Type *activate_procedure,
                                           void *user_data, i32 user_data_size, View_ID target_view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate_procedure;
@@ -613,7 +673,7 @@ enum{
     SureToKill_Save = 3,
 };
 
-static void
+static Lister_Activation_Code
 activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_State *state, String_Const_u8 text_field, void *user_data, b32 clicked){
     i32 behavior = (i32)PtrAsInt(user_data);
     Buffer_ID buffer_id = *(Buffer_ID*)(state->lister.data.user_data);
@@ -641,14 +701,15 @@ activate_confirm_kill(Application_Links *app, Heap *heap, View_ID view, Lister_S
         }break;
     }
     lister_default(app, heap, view, state, ListerActivation_Finished);
+    return(ListerActivation_Finished);
 }
 
 static void
 do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
     Lister_Fixed_Option options[] = {
-        {"(N)o"           , "", "Nn", IntAsPtr(SureToKill_No)  },
-        {"(Y)es"          , "", "Yy", IntAsPtr(SureToKill_Yes) },
-        {"(S)ave and Kill", "", "Ss", IntAsPtr(SureToKill_Save)},
+        {"(N)o"           , "", KeyCode_N, IntAsPtr(SureToKill_No)  },
+        {"(Y)es"          , "", KeyCode_Y, IntAsPtr(SureToKill_Yes) },
+        {"(S)ave and Kill", "", KeyCode_S, IntAsPtr(SureToKill_Save)},
     };
     i32 option_count = sizeof(options)/sizeof(options[0]);
     begin_integrated_lister__with_fixed_options(app, "There are unsaved changes, close anyway?",
@@ -657,7 +718,7 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
                                                 view);
 }
 
-static void
+static Lister_Activation_Code
 activate_confirm_close_4coder(Application_Links *app, Heap *heap,
                               View_ID view, Lister_State *state,
                               String_Const_u8 text_field, void *user_data, b32 clicked){
@@ -680,14 +741,15 @@ activate_confirm_close_4coder(Application_Links *app, Heap *heap,
         }break;
     }
     lister_default(app, heap, view, state, ListerActivation_Finished);
+    return(ListerActivation_Finished);
 }
 
 static void
 do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
     Lister_Fixed_Option options[] = {
-        {"(N)o"                , "", "Nn", (void*)SureToKill_No  },
-        {"(Y)es"               , "", "Yy", (void*)SureToKill_Yes },
-        {"(S)ave All and Close", "", "Ss", (void*)SureToKill_Save},
+        {"(N)o"                , "", KeyCode_N, (void*)SureToKill_No  },
+        {"(Y)es"               , "", KeyCode_Y, (void*)SureToKill_Yes },
+        {"(S)ave All and Close", "", KeyCode_S, (void*)SureToKill_Save},
     };
     i32 option_count = sizeof(options)/sizeof(options[0]);
     begin_integrated_lister__with_fixed_options(app, "There are one or more buffers with unsave changes, close anyway?",
@@ -698,7 +760,7 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
 
 ////////////////////////////////
 
-static void
+static Lister_Activation_Code
 activate_switch_buffer(Application_Links *app, Heap *heap,
                        View_ID view, Lister_State *state,
                        String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
@@ -707,6 +769,7 @@ activate_switch_buffer(Application_Links *app, Heap *heap,
         view_set_buffer(app, view, buffer_id, SetBuffer_KeepOriginalGUI);
     }
     lister_default(app, heap, view, state, ListerActivation_Finished);
+    return(ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(interactive_switch_buffer)
@@ -717,7 +780,7 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
     begin_integrated_lister__buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, view);
 }
 
-static void
+static Lister_Activation_Code
 activate_kill_buffer(Application_Links *app, Heap *heap,
                      View_ID view, struct Lister_State *state,
                      String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
@@ -726,6 +789,7 @@ activate_kill_buffer(Application_Links *app, Heap *heap,
         Buffer_ID buffer = (Buffer_ID)(PtrAsInt(user_data));
         try_buffer_kill(app, buffer, view, 0);
     }
+    return(ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(interactive_kill_buffer)
@@ -771,7 +835,7 @@ activate_open_or_new__generic(Application_Links *app, View_ID view,
     return(result);
 }
 
-static void
+static Lister_Activation_Code
 activate_open_or_new(Application_Links *app, Heap *heap,
                      View_ID view, struct Lister_State *state,
                      String_Const_u8 text_field, void *user_data, b32 clicked){
@@ -797,6 +861,7 @@ activate_open_or_new(Application_Links *app, Heap *heap,
         result = activate_open_or_new__generic(app, view, path, file_name, is_folder, flags);
     }
     lister_default(app, heap, view, state, result);
+    return(result);
 }
 
 CUSTOM_COMMAND_SIG(interactive_open_or_new)
@@ -807,7 +872,7 @@ CUSTOM_DOC("Interactively open a file out of the file system.")
     begin_integrated_lister__file_system_list(app, "Open:", activate_open_or_new, 0, 0, view);
 }
 
-static void
+static Lister_Activation_Code
 activate_new(Application_Links *app, Heap *heap,
              View_ID view, struct Lister_State *state,
              String_Const_u8 text_field, void *user_data, b32 clicked){
@@ -836,6 +901,7 @@ activate_new(Application_Links *app, Heap *heap,
         result = activate_open_or_new__generic(app, view, path, file_name, is_folder, flags);
     }
     lister_default(app, heap, view, state, result);
+    return(result);
 }
 
 CUSTOM_COMMAND_SIG(interactive_new)
@@ -846,7 +912,7 @@ CUSTOM_DOC("Interactively creates a new file.")
     begin_integrated_lister__file_system_list(app, "New:", activate_new, 0, 0, view);
 }
 
-static void
+static Lister_Activation_Code
 activate_open(Application_Links *app, Heap *heap,
               View_ID view, struct Lister_State *state,
               String_Const_u8 text_field, void *user_data, b32 clicked){
@@ -869,6 +935,7 @@ activate_open(Application_Links *app, Heap *heap,
         result = activate_open_or_new__generic(app, view, path, file_name, is_folder, flags);
     }
     lister_default(app, heap, view, state, result);
+    return(result);
 }
 
 CUSTOM_COMMAND_SIG(interactive_open)
@@ -917,7 +984,7 @@ CUSTOM_DOC("Opens the 4coder theme selector list.")
 
 ////////////////////////////////
 
-static void
+static Lister_Activation_Code
 activate_command(Application_Links *app, Heap *heap,
                  View_ID view, Lister_State *state,
                  String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
@@ -926,6 +993,7 @@ activate_command(Application_Links *app, Heap *heap,
         Custom_Command_Function *command = (Custom_Command_Function*)user_data;
         command(app);
     }
+    return(ListerActivation_Finished);
 }
 
 static void

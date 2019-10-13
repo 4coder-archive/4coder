@@ -1327,11 +1327,12 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
 
 ///////////////////////////////
 
-static void
+static Lister_Activation_Code
 activate_project_command(Application_Links *app, Heap *heap, View_ID view, Lister_State *state, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     i32 command_index = (i32)PtrAsInt(user_data);
     exec_project_command_by_index(app, command_index);
     lister_default(app, heap, view, state, ListerActivation_Finished);
+    return(ListerActivation_Finished);
 }
 
 CUSTOM_COMMAND_SIG(project_command_lister)

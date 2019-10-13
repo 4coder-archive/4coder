@@ -579,19 +579,14 @@ lister_default(Application_Links *app, Heap *heap, View_ID view, Lister_State *s
     switch (code){
         case ListerActivation_Finished:
         {
-            view_end_ui_mode(app, view);
-            state->initialized = false;
-            linalloc_clear(state->lister.arena);
+            
         }break;
         
         case ListerActivation_Continue:
-        {
-            view_begin_ui_mode(app, view);
-        }break;
+        {}break;
         
         case ListerActivation_ContinueAndRefresh:
         {
-            view_begin_ui_mode(app, view);
             state->item_index = 0;
             lister_call_refresh_handler(app, &state->lister);
             lister_update_ui(app, view, state);
@@ -599,15 +594,17 @@ lister_default(Application_Links *app, Heap *heap, View_ID view, Lister_State *s
     }
 }
 
-static void
+static Lister_Activation_Code
 lister_call_activate_handler(Application_Links *app, Heap *heap, View_ID view, Lister_State *state, void *user_data, b32 activated_by_mouse){
+    Lister_Activation_Code result = ListerActivation_Finished;
     Lister_Data *lister = &state->lister.data;
     if (lister->handlers.activate != 0){
-        lister->handlers.activate(app, heap, view, state, lister->text_field.string, user_data, activated_by_mouse);
+        result = lister->handlers.activate(app, heap, view, state, lister->text_field.string, user_data, activated_by_mouse);
     }
     else{
         lister_default(app, heap, view, state, ListerActivation_Finished);
     }
+    return(result);
 }
 
 static void

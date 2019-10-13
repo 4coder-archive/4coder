@@ -83,7 +83,6 @@ enum{
     mapid_global = 1,
     mapid_file,
     default_code_map,
-    default_lister_ui_map,
     default_maps_count,
 };
 

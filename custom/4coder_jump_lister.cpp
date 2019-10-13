@@ -4,7 +4,7 @@
 
 // TOP
 
-static void
+static Lister_Activation_Code
 activate_jump(Application_Links *app, Heap *heap,
               View_ID view, struct Lister_State *state,
               String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
@@ -59,6 +59,7 @@ activate_jump(Application_Links *app, Heap *heap,
         
     }
     lister_default(app, heap, view, state, result_code);
+    return(result_code);
 }
 
 static void

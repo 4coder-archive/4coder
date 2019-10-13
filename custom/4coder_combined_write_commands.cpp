@@ -195,7 +195,7 @@ static Snippet default_snippets[] = {
 #endif
 };
 
-static void
+static Lister_Activation_Code
 activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister_State *state, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     i32 index = (i32)PtrAsInt(user_data);
     Snippet_Array snippets = *(Snippet_Array*)state->lister.data.user_data;
@@ -211,12 +211,11 @@ activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister
     else{
         lister_default(app, heap, view, state, ListerActivation_Finished);
     }
-    
+    return(ListerActivation_Finished);
 }
 
 static void
 snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_array){
-    
     View_ID view = get_active_view(app, AccessAll);
     view_end_ui_mode(app, view);
     Scratch_Block scratch(app, Scratch_Share);

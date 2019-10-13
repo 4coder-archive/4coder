@@ -59,9 +59,9 @@ enum{
     ListerActivation_ContinueAndRefresh = 2,
 };
 
-typedef void Lister_Activation_Function_Type(Application_Links *app, Heap *heap,
-                                             View_ID view, struct Lister_State *state,
-                                             String_Const_u8 text_field, void *user_data, b32 activated_by_mouse);
+typedef Lister_Activation_Code Lister_Activation_Type(Application_Links *app, Heap *heap,
+                                                      View_ID view, struct Lister_State *state,
+                                                      String_Const_u8 text_field, void *user_data, b32 activated_by_mouse);
 
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, struct Lister *lister);
 
@@ -88,13 +88,16 @@ struct Lister_Node_Ptr_Array{
     i32 count;
 };
 
+typedef Lister_Activation_Code Lister_Key_Stroke_Function(Application_Links *app);
+
 struct Lister_Handlers{
-    Lister_Activation_Function_Type *activate;
+    Lister_Activation_Type *activate;
     Lister_Regenerate_List_Function_Type *refresh;
     Custom_Command_Function *write_character;
     Custom_Command_Function *backspace;
     Custom_Command_Function *navigate_up;
     Custom_Command_Function *navigate_down;
+    Lister_Key_Stroke_Function *key_stroke;
 };
 
 struct Lister_Data{
@@ -150,7 +153,7 @@ struct Lister_Option{
 struct Lister_Fixed_Option{
     char *string;
     char *status;
-    char *shortcut_chars;
+    Key_Code key_code;
     void *user_data;
 };
 

@@ -145,6 +145,7 @@ setup_default_mapping(Mapping *mapping){
     Bind(open_matching_file_cpp,     KeyCode_2, KeyCode_Alt);
     Bind(write_zero_struct,          KeyCode_0, KeyCode_Control);
     
+#if 0
     SelectMap(default_lister_ui_map);
     ParentMap(mapid_global);
     BindTextInput(lister__write_character);
@@ -159,6 +160,7 @@ setup_default_mapping(Mapping *mapping){
     BindMouseRelease(lister__mouse_release, MouseCode_Left);
     BindMouseMove(lister__repaint);
     BindCore(lister__repaint, CoreCode_Animate);
+#endif
 }
 
 #endif
