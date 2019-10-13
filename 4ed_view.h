@@ -12,6 +12,50 @@
 #if !defined(FRED_VIEW_H)
 #define FRED_VIEW_H
 
+struct Co_In{
+    union{
+        struct{
+            struct Models *models;
+            Custom_Command_Function *event_context_base;
+        };
+        User_Input user_input;
+        Face_ID face_id;
+        b32 success;
+    };
+};
+
+typedef i32 Co_Request;
+enum{
+    CoRequest_None = 0,
+    CoRequest_NewFontFace = 1,
+    CoRequest_ModifyFace = 2,
+};
+
+struct Co_Out{
+    Co_Request request;
+    union{
+        struct{
+            Event_Property get_flags;
+            Event_Property abort_flags;
+        };
+        struct{
+            Face_Description *face_description;
+            Face_ID face_id;
+        };
+    };
+};
+
+struct Query_Slot{
+    Query_Slot *next;
+    Query_Bar *query_bar;
+};
+
+struct Query_Set{
+    Query_Slot slots[8];
+    Query_Slot *free_slot;
+    Query_Slot *used_slot;
+};
+
 struct View{
     View *next;
     View *prev;
@@ -27,6 +71,9 @@ struct View{
     
     b8 new_scroll_target;
     
+    Coroutine *co;
+    Co_Out co_out;
+    
     b8 ui_mode;
     Command_Map_ID ui_map_id;
     Basic_Scroll ui_scroll;
@@ -35,8 +82,6 @@ struct View{
     b8 hide_scrollbar;
     b8 hide_file_bar;
     b8 show_whitespace;
-    
-    // misc
     
     Query_Set query_set;
 };

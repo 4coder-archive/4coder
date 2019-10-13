@@ -113,6 +113,10 @@ enum{
     EventPropertyGroup_AnyUserInput =
         EventPropertyGroup_AnyKeyboardEvent|
         EventPropertyGroup_AnyMouseEvent,
+    EventPropertyGroup_All =
+        EventPropertyGroup_AnyUserInput|
+        EventProperty_Animate|
+        EventProperty_ViewActivation,
 };
 
 #endif

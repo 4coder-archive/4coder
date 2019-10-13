@@ -1192,7 +1192,7 @@ panel_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation o
         if (layout_split_panel(layout, panel, (orientation == PanelSplit_LeftAndRight), &new_panel)){
             Live_Views *live_set = &models->live_set;
             View *new_view = live_set_alloc_view(&models->lifetime_allocator, live_set, new_panel);
-            view_set_file(models, new_view, models->scratch_buffer);
+            view_init(models, new_view, models->scratch_buffer, models->view_event_handler);
             result = true;
         }
     }
@@ -1328,10 +1328,7 @@ view_close(Application_Links *app, View_ID view_id)
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view)){
-        if (layout_close_panel(layout, view->panel)){
-            live_set_free_view(&models->lifetime_allocator, &models->live_set, view);
-            result = true;
-        }
+        result = view_close(models, view);
     }
     return(result);
 }
@@ -2085,15 +2082,15 @@ get_user_input(Application_Links *app, Event_Property get_properties, Event_Prop
 {
     Models *models = (Models*)app->cmd_context;
     User_Input result = {};
-    if (app->type_coroutine == Co_Command){
+    if (app->type_coroutine == Co_View){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
-        App_Coroutine_Out *out = (App_Coroutine_Out*)coroutine->out;
-        out->request = AppCoroutineRequest_None;
+        Co_Out *out = (Co_Out*)coroutine->out;
+        out->request = CoRequest_None;
         out->get_flags = get_properties;
         out->abort_flags = abort_properties;
         coroutine_yield(coroutine);
-        App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
+        Co_In *in = (Co_In*)coroutine->in;
         result = in->user_input;
     }
     return(result);
@@ -2165,9 +2162,9 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->hook_file_externally_modified = (File_Externally_Modified_Function*)func_ptr;
         }break;
-        case HookID_CommandCaller:
+        case HookID_ViewEventHandler:
         {
-            models->command_caller = (Command_Caller_Hook_Function*)func_ptr;
+            models->view_event_handler = (Custom_Command_Function*)func_ptr;
         }break;
         case HookID_RenderCaller:
         {
@@ -2213,7 +2210,7 @@ get_active_query_bars(Application_Links *app, View_ID view_id, i32 max_result_co
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
-    if (view != 0){
+    if (api_check_view(view)){
         i32 count = 0;
         Query_Bar **ptrs = array_out->ptrs;
         for (Query_Slot *slot = view->query_set.used_slot;
@@ -2250,6 +2247,15 @@ end_query_bar(Application_Links *app, Query_Bar *bar, u32 flags)
     Panel *active_panel = layout_get_active_panel(&models->layout);
     View *active_view = active_panel->view;
     free_query_slot(&active_view->query_set, bar);
+}
+
+api(custom) function void
+clear_all_query_bars(Application_Links *app, View_ID view_id){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    if (api_check_view(view)){
+        free_all_queries(&view->query_set);
+    }
 }
 
 api(custom) function b32
@@ -2552,11 +2558,11 @@ try_create_new_face(Application_Links *app, Face_Description *description)
     if (is_running_coroutine(app)){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
-        App_Coroutine_Out *out = (App_Coroutine_Out*)coroutine->out;
-        out->request = AppCoroutineRequest_NewFontFace;
+        Co_Out *out = (Co_Out*)coroutine->out;
+        out->request = CoRequest_NewFontFace;
         out->face_description = description;
         coroutine_yield(coroutine);
-        App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
+        Co_In *in = (Co_In*)coroutine->in;
         result = in->face_id;
     }
     else{
@@ -2574,12 +2580,12 @@ try_modify_face(Application_Links *app, Face_ID id, Face_Description *descriptio
     if (is_running_coroutine(app)){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
-        App_Coroutine_Out *out = (App_Coroutine_Out*)coroutine->out;
-        out->request = AppCoroutineRequest_NewFontFace;
+        Co_Out *out = (Co_Out*)coroutine->out;
+        out->request = CoRequest_NewFontFace;
         out->face_description = description;
         out->face_id = id;
         coroutine_yield(coroutine);
-        App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
+        Co_In *in = (Co_In*)coroutine->in;
         result = in->success;
     }
     else{

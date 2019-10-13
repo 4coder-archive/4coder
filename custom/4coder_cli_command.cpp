@@ -22,6 +22,7 @@ CUSTOM_DOC("If the command execute_any_cli has already been used, this will exec
 CUSTOM_COMMAND_SIG(execute_any_cli)
 CUSTOM_DOC("Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer."){
     Scratch_Block scratch(app);
+    Query_Bar_Group group(app);
     
     Query_Bar bar_out = {};
     bar_out.prompt = string_u8_litexpr("Output Buffer: ");

@@ -1276,6 +1276,22 @@ backspace_utf8(String_Const_u8 string){
     return(string);
 }
 
+////////////////////////////////
+
+Query_Bar_Group::Query_Bar_Group(Application_Links *app){
+    this->app = app;
+    this->view = get_active_view(app, AccessAll);
+}
+
+Query_Bar_Group::Query_Bar_Group(Application_Links *app, View_ID view){
+    this->app = app;
+    this->view = view;
+}
+
+Query_Bar_Group::~Query_Bar_Group(){
+    clear_all_query_bars(this->app, this->view);
+}
+
 internal b32
 query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
     // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
@@ -1676,7 +1692,8 @@ try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, B
 
 internal String_Const_u8
 get_query_string(Application_Links *app, char *query_str, u8 *string_space, i32 space_size){
-    Query_Bar bar;
+    Query_Bar_Group group(app);
+    Query_Bar bar = {};
     bar.prompt = SCu8((u8*)query_str);
     bar.string = SCu8(string_space, (umem)0);
     bar.string_capacity = space_size;

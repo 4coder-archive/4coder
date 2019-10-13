@@ -122,6 +122,7 @@ api(custom) function Mouse_State get_mouse_state(Application_Links* app);
 api(custom) function b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 api(custom) function b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
 api(custom) function void end_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
+api(custom) function void clear_all_query_bars(Application_Links* app, View_ID view_id);
 api(custom) function b32 print_message(Application_Links* app, String_Const_u8 message);
 api(custom) function b32 log_string(Application_Links* app, String_Const_u8 str);
 api(custom) function i32 thread_get_id(Application_Links* app);

@@ -34,36 +34,6 @@ enum App_State{
     APP_STATE_COUNT
 };
 
-struct App_Coroutine_In{
-    union{
-        struct Models *models;
-        User_Input user_input;
-        Face_ID face_id;
-        b32 success;
-    };
-};
-
-typedef i32 App_Coroutine_Request;
-enum{
-    AppCoroutineRequest_None = 0,
-    AppCoroutineRequest_NewFontFace = 1,
-    AppCoroutineRequest_ModifyFace = 2,
-};
-
-struct App_Coroutine_Out{
-    App_Coroutine_Request request;
-    union{
-        struct{
-            Event_Property get_flags;
-            Event_Property abort_flags;
-        };
-        struct{
-            Face_Description *face_description;
-            Face_ID face_id;
-        };
-    };
-};
-
 struct Models{
     Thread_Context *tctx;
     
@@ -76,8 +46,6 @@ struct Models{
     Face_ID global_face_id;
     
     Coroutine_Group coroutines;
-    Coroutine *command_coroutine;
-    App_Coroutine_Out coroutine_out;
     
     Child_Process_Container child_processes;
     Custom_API config_api;
@@ -94,7 +62,7 @@ struct Models{
     Buffer_Hook_Function *hook_end_file;
     File_Edit_Range_Function *hook_file_edit_range;
     File_Externally_Modified_Function *hook_file_externally_modified;
-    Command_Caller_Hook_Function *command_caller;
+    Custom_Command_Function *view_event_handler;
     Render_Caller_Function *render_caller;
     Input_Filter_Function *input_filter;
     Start_Hook_Function *hook_start;
@@ -186,7 +154,6 @@ struct Consumption_Record{
 typedef i32 App_Coroutine_Purpose;
 enum{
     Co_View,
-    Co_Command,
 };
 struct App_Coroutine_State{
     void *co;

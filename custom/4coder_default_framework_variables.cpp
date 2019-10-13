@@ -58,8 +58,6 @@ global b32 do_matching_paren_highlight = true;
 global b32 do_colored_comment_keywords = true;
 global b32 suppressing_mouse = false;
 
-global b32 cursor_is_hidden = false;
-
 global b32 show_fps_hud = false;
 
 // TODO(allen): REMOVE THIS!

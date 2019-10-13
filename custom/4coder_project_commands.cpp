@@ -1012,6 +1012,8 @@ project_key_strings_query_user(Application_Links *app,
                                u8 *binary_file_space, i32 binary_file_cap){
     Project_Key_Strings keys = {};
     
+    Query_Bar_Group bar_group(app);
+    
     Query_Bar script_file_bar = {};
     Query_Bar code_file_bar = {};
     Query_Bar output_dir_bar = {};

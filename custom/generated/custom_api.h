@@ -122,6 +122,7 @@
 #define custom_get_active_query_bars_sig() b32 custom_get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out)
 #define custom_start_query_bar_sig() b32 custom_start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
 #define custom_end_query_bar_sig() void custom_end_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
+#define custom_clear_all_query_bars_sig() void custom_clear_all_query_bars(Application_Links* app, View_ID view_id)
 #define custom_print_message_sig() b32 custom_print_message(Application_Links* app, String_Const_u8 message)
 #define custom_log_string_sig() b32 custom_log_string(Application_Links* app, String_Const_u8 str)
 #define custom_thread_get_id_sig() i32 custom_thread_get_id(Application_Links* app)
@@ -292,6 +293,7 @@ typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
 typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 typedef b32 custom_start_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
 typedef void custom_end_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
+typedef void custom_clear_all_query_bars_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_print_message_type(Application_Links* app, String_Const_u8 message);
 typedef b32 custom_log_string_type(Application_Links* app, String_Const_u8 str);
 typedef i32 custom_thread_get_id_type(Application_Links* app);
@@ -463,6 +465,7 @@ custom_get_mouse_state_type *get_mouse_state;
 custom_get_active_query_bars_type *get_active_query_bars;
 custom_start_query_bar_type *start_query_bar;
 custom_end_query_bar_type *end_query_bar;
+custom_clear_all_query_bars_type *clear_all_query_bars;
 custom_print_message_type *print_message;
 custom_log_string_type *log_string;
 custom_thread_get_id_type *thread_get_id;
@@ -635,6 +638,7 @@ internal Mouse_State get_mouse_state(Application_Links* app);
 internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 internal b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
 internal void end_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
+internal void clear_all_query_bars(Application_Links* app, View_ID view_id);
 internal b32 print_message(Application_Links* app, String_Const_u8 message);
 internal b32 log_string(Application_Links* app, String_Const_u8 str);
 internal i32 thread_get_id(Application_Links* app);
@@ -807,6 +811,7 @@ global custom_get_mouse_state_type *get_mouse_state = 0;
 global custom_get_active_query_bars_type *get_active_query_bars = 0;
 global custom_start_query_bar_type *start_query_bar = 0;
 global custom_end_query_bar_type *end_query_bar = 0;
+global custom_clear_all_query_bars_type *clear_all_query_bars = 0;
 global custom_print_message_type *print_message = 0;
 global custom_log_string_type *log_string = 0;
 global custom_thread_get_id_type *thread_get_id = 0;

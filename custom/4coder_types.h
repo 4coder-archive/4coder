@@ -331,15 +331,24 @@ ENUM(u32, Glyph_Flag){
     GlyphFlag_Rotate90 = 0x1,
 };
 
-STRUCT Query_Bar{
+struct Query_Bar{
     String_Const_u8 prompt;
     String_Const_u8 string;
     umem string_capacity;
 };
 
-STRUCT Query_Bar_Ptr_Array{
+struct Query_Bar_Ptr_Array{
     Query_Bar **ptrs;
     i32 count;
+};
+
+struct Query_Bar_Group{
+    Application_Links *app;
+    View_ID view;
+    
+    Query_Bar_Group(Application_Links *app);
+    Query_Bar_Group(Application_Links *app, View_ID view);
+    ~Query_Bar_Group();
 };
 
 TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_ID view);
@@ -475,7 +484,7 @@ enum{
     HookID_EndFile,
     HookID_FileEditRange,
     HookID_FileExternallyModified,
-    HookID_CommandCaller,
+    HookID_ViewEventHandler,
     HookID_RenderCaller,
     HookID_InputFilter,
     HookID_Start,
@@ -487,9 +496,6 @@ enum{
 
 TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) i32 name(struct Application_Links *app)
-
-TYPEDEF_FUNC i32 Command_Caller_Hook_Function(struct Application_Links *app);
-#define COMMAND_CALLER_HOOK(name) i32 name(struct Application_Links *app)
 
 TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, Frame_Info frame_info);
 #define RENDER_CALLER_SIG(name) void name(struct Application_Links *app, Frame_Info frame_info)

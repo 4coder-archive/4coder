@@ -14,75 +14,79 @@ START_HOOK_SIG(default_start){
     return(0);
 }
 
-COMMAND_CALLER_HOOK(default_command_caller){
-    // app
-    
-    // NOTE(allen): Get the binding from the buffer's current map
-    User_Input input = get_command_input(app);
-    View_ID view = get_active_view(app, AccessAll);
-    
-    Command_Map_ID map_id = 0;
-    if (view_is_in_ui_mode(app, view)){
-        view_get_setting(app, view, ViewSetting_UICommandMap, &map_id);
-    }
-    else{
-        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-        Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
-        Command_Map_ID *map_id_ptr =
-            scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
-        if (*map_id_ptr == 0){
-            *map_id_ptr = mapid_file;
+CUSTOM_COMMAND_SIG(default_view_input_handler)
+CUSTOM_DOC("Input consumption loop for base view behavior")
+{
+    for (;;){
+        // NOTE(allen): Get the binding from the buffer's current map
+        User_Input input = get_user_input(app, EventPropertyGroup_All, 0);
+        if (input.abort){
+            break;
         }
-        map_id = *map_id_ptr;
-    }
-    
-    Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
-    
-    if (binding.custom == 0){
-        // NOTE(allen): we don't have anything to do with this input,
-        // leave it marked unhandled so that if there's a follow up
-        // event it is not blocked.
-        leave_command_input_unhandled(app);
-    }
-    else{
-        // NOTE(allen): before the command is called do some book keeping
-        Managed_Scope scope = view_get_managed_scope(app, view);
-        Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-        *next_rewrite = Rewrite_None;
-        if (fcoder_mode == FCoderMode_NotepadLike){
-            for (View_ID view_it = get_view_next(app, 0, AccessAll);
-                 view_it != 0;
-                 view_it = get_view_next(app, view_it, AccessAll)){
-                Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-                b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
-                *snap_mark_to_cursor = true;
+        
+        View_ID view = get_active_view(app, AccessAll);
+        
+        Command_Map_ID map_id = 0;
+        if (view_is_in_ui_mode(app, view)){
+            view_get_setting(app, view, ViewSetting_UICommandMap, &map_id);
+        }
+        else{
+            Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+            Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
+            Command_Map_ID *map_id_ptr =
+                scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
+            if (*map_id_ptr == 0){
+                *map_id_ptr = mapid_file;
             }
+            map_id = *map_id_ptr;
         }
         
-        // NOTE(allen): call the command
-        binding.custom(app);
+        Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
         
-        // NOTE(allen): after the command is called do some book keeping
-        next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-        if (next_rewrite != 0){
-            Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
-            *rewrite = *next_rewrite;
+        if (binding.custom == 0){
+            // NOTE(allen): we don't have anything to do with this input,
+            // leave it marked unhandled so that if there's a follow up
+            // event it is not blocked.
+            leave_command_input_unhandled(app);
+        }
+        else{
+            // NOTE(allen): before the command is called do some book keeping
+            Managed_Scope scope = view_get_managed_scope(app, view);
+            Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+            *next_rewrite = Rewrite_None;
             if (fcoder_mode == FCoderMode_NotepadLike){
                 for (View_ID view_it = get_view_next(app, 0, AccessAll);
                      view_it != 0;
                      view_it = get_view_next(app, view_it, AccessAll)){
                     Managed_Scope scope_it = view_get_managed_scope(app, view_it);
                     b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
-                    if (*snap_mark_to_cursor){
-                        i64 pos = view_get_cursor_pos(app, view_it);
-                        view_set_mark(app, view_it, seek_pos(pos));
+                    *snap_mark_to_cursor = true;
+                }
+            }
+            
+            // NOTE(allen): call the command
+            binding.custom(app);
+            
+            // NOTE(allen): after the command is called do some book keeping
+            next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+            if (next_rewrite != 0){
+                Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
+                *rewrite = *next_rewrite;
+                if (fcoder_mode == FCoderMode_NotepadLike){
+                    for (View_ID view_it = get_view_next(app, 0, AccessAll);
+                         view_it != 0;
+                         view_it = get_view_next(app, view_it, AccessAll)){
+                        Managed_Scope scope_it = view_get_managed_scope(app, view_it);
+                        b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
+                        if (*snap_mark_to_cursor){
+                            i64 pos = view_get_cursor_pos(app, view_it);
+                            view_set_mark(app, view_it, seek_pos(pos));
+                        }
                     }
                 }
             }
         }
     }
-    
-    return(0);
 }
 
 internal Range_i64_Array
@@ -483,8 +487,7 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
     }
     
     // NOTE(allen): Cursor and mark
-    b32 cursor_is_hidden_in_this_view = (cursor_is_hidden && is_active_view);
-    if (!cursor_is_hidden_in_this_view){
+    if (!has_highlight_range){
         switch (fcoder_mode){
             case FCoderMode_Original:
             {
@@ -1296,7 +1299,7 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_FileExternallyModified, default_file_externally_modified);
     set_custom_hook(app, HookID_EndFile, end_file_close_jump_list);
     
-    set_custom_hook(app, HookID_CommandCaller, default_command_caller);
+    set_custom_hook(app, HookID_ViewEventHandler, default_view_input_handler);
     set_custom_hook(app, HookID_RenderCaller, default_render_caller);
     set_custom_hook(app, HookID_InputFilter, default_suppress_mouse_filter);
     set_custom_hook(app, HookID_ScrollRule, smooth_scroll_rule);

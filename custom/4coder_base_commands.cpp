@@ -780,6 +780,7 @@ CUSTOM_DOC("Attempts to close 4coder.")
 CUSTOM_COMMAND_SIG(goto_line)
 CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the corresponding line.")
 {
+    Query_Bar_Group group(app);
     u8 string_space[256];
     Query_Bar bar = {};
     bar.prompt = string_u8_litexpr("Goto Line: ");
@@ -812,6 +813,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
     
     i64 buffer_size = buffer_get_size(app, buffer);
     
+    Query_Bar_Group group(app);
     Query_Bar bar = {};
     if (start_query_bar(app, &bar, 0) == 0){
         return;
@@ -828,7 +830,6 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
     String_Const_u8 rsearch_str = string_u8_litexpr("Reverse-I-Search: ");
     
     umem match_size = bar.string.size;
-    cursor_is_hidden = true;
     
     User_Input in = {};
     for (;;){
@@ -844,7 +845,9 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
         }
         isearch__update_highlight(app, view, Ii64_size(pos, match_size));
         
-        in = get_user_input(app, EventPropertyGroup_AnyKeyboardEvent, EventProperty_Escape);
+        in = get_user_input(app,
+                            EventPropertyGroup_AnyKeyboardEvent,
+                            EventProperty_Escape|EventProperty_ViewActivation);
         if (in.abort){
             break;
         }
@@ -968,7 +971,6 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
     }
     
     view_disable_highlight_range(app, view);
-    cursor_is_hidden = false;
     
     if (in.abort){
         umem size = bar.string.size;
@@ -1062,6 +1064,7 @@ query_user_replace_pair(Application_Links *app, Arena *arena){
 internal void
 replace_in_range_query_user(Application_Links *app, Buffer_ID buffer, Range_i64 range){
     Scratch_Block scratch(app);
+    Query_Bar_Group group(app);
     String_Pair pair = query_user_replace_pair(app, scratch);
     if (pair.valid){
         replace_in_range(app, buffer, range, pair.a, pair.b);
@@ -1092,6 +1095,7 @@ CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of
     global_history_edit_group_begin(app);
     
     Scratch_Block scratch(app);
+    Query_Bar_Group group(app);
     String_Pair pair = query_user_replace_pair(app, scratch);
     for (Buffer_ID buffer = get_buffer_next(app, 0, AccessOpen);
          buffer != 0;
@@ -1107,8 +1111,6 @@ static void
 query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i64 pos, String_Const_u8 r, String_Const_u8 w){
     i64 new_pos = 0;
     seek_string_forward(app, buffer_id, pos - 1, 0, r, &new_pos);
-    
-    cursor_is_hidden = true;
     
     i64 buffer_size = buffer_get_size(app, buffer_id);
     
@@ -1138,7 +1140,6 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
     }
     
     view_disable_highlight_range(app, view);
-    cursor_is_hidden = false;
     
     if (in.abort){
         return;
@@ -1149,6 +1150,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
 
 function void
 query_replace_parameter(Application_Links *app, String_Const_u8 replace_str, i64 start_pos, b32 add_replace_query_bar){
+    Query_Bar_Group group(app);
     Query_Bar replace = {};
     replace.prompt = string_u8_litexpr("Replace: ");
     replace.string = replace_str;
@@ -1185,6 +1187,7 @@ CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every o
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
     if (buffer != 0){
+        Query_Bar_Group group(app);
         Query_Bar replace = {};
         u8 replace_space[1024];
         replace.prompt = string_u8_litexpr("Replace: ");
@@ -1283,6 +1286,7 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
     Scratch_Block scratch(app);
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     if (file_name.size > 0){
+        Query_Bar_Group group(app);
         Query_Bar bar = {};
         bar.prompt = push_u8_stringf(scratch, "Delete '%.*s' (Y)es, (n)o", string_expand(file_name));
         if (start_query_bar(app, &bar, 0) != 0){
@@ -1325,6 +1329,7 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
     Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
     
     Scratch_Block scratch(app);
+    Query_Bar_Group group(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     
     // Query the user
@@ -1361,6 +1366,7 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
     if (file_name.size > 0){
         // Query the user
+        Query_Bar_Group group(app);
         String_Const_u8 front = string_front_of_path(file_name);
         u8 name_space[4096];
         Query_Bar bar = {};
@@ -1395,6 +1401,7 @@ CUSTOM_DOC("Queries the user for a name and creates a new directory with the giv
     String_Const_u8 hot = push_hot_directory(app, scratch);
     
     // Query the user
+    Query_Bar_Group group(app);
     u8 name_space[4096];
     Query_Bar bar = {};
     bar.prompt = push_u8_stringf(scratch, "Make directory at '%.*s': ", string_expand(hot));
@@ -1733,6 +1740,7 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     b32 old_to_new = true;
     Range_i64 range = multi_paste_range(app, view, Ii64(pos), paste_count, old_to_new);
     
+    Query_Bar_Group group(app);
     Query_Bar bar = {};
     bar.prompt = string_u8_litexpr("Up and Down to condense and expand paste stages; R to reverse order; Return to finish; Escape to abort.");
     if (start_query_bar(app, &bar, 0) == 0) return;
@@ -1785,6 +1793,7 @@ CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
     i32 clip_count = clipboard_count(app, 0);
     if (clip_count > 0){
         u8 string_space[256];
+        Query_Bar_Group group(app);
         Query_Bar bar = {};
         bar.prompt = string_u8_litexpr("How Many Slots To Paste: ");
         bar.string = SCu8(string_space, (umem)0);

@@ -9,59 +9,6 @@
 
 // TOP
 
-internal App_Coroutine_State
-get_state(Application_Links *app){
-    App_Coroutine_State state = {};
-    state.co = app->current_coroutine;
-    state.type = app->type_coroutine;
-    return(state);
-}
-
-internal void
-restore_state(Application_Links *app, App_Coroutine_State state){
-    app->current_coroutine = state.co;
-    app->type_coroutine = state.type;
-}
-
-internal Coroutine*
-app_coroutine_handle_request(Models *models, Coroutine *co, App_Coroutine_Out *out){
-    Coroutine *result = 0;
-    switch (out->request){
-        case AppCoroutineRequest_NewFontFace:
-        {
-            Face_Description *description = out->face_description;
-            Face *face = font_set_new_face(&models->font_set, description);
-            App_Coroutine_In in = {};
-            in.face_id = face->id;
-            result = coroutine_run(&models->coroutines, co, &in, out);
-        }break;
-        
-        case AppCoroutineRequest_ModifyFace:
-        {
-            Face_Description *description = out->face_description;
-            Face_ID face_id = out->face_id;
-            App_Coroutine_In in = {};
-            in.success = font_set_modify_face(&models->font_set, face_id, description);
-            result = coroutine_run(&models->coroutines, co, &in, out);
-        }break;
-    }
-    return(result);
-}
-
-internal Coroutine*
-app_coroutine_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co, App_Coroutine_In *in, App_Coroutine_Out *out){
-    Application_Links *app = &models->app_links;
-    App_Coroutine_State prev_state = get_state(app);
-    app->current_coroutine = co;
-    app->type_coroutine = purpose;
-    Coroutine *result = coroutine_run(&models->coroutines, co, in, out);
-    for (;result != 0 && out->request != AppCoroutineRequest_None;){
-        result = app_coroutine_handle_request(models, result, out);
-    }
-    restore_state(app, prev_state);
-    return(result);
-}
-
 internal void
 output_file_append(Models *models, Editing_File *file, String_Const_u8 value){
     i64 end = buffer_size(&file->state.buffer);
@@ -113,14 +60,6 @@ DELTA_RULE_SIG(fallback_scroll_rule){
 }
 
 #include "4ed_api_implementation.cpp"
-
-internal void
-command_caller(Coroutine *coroutine){
-    App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
-    Models *models = in->models;
-    Assert(models->command_caller != 0);
-    models->command_caller(&models->app_links);
-}
 
 // App Functions
 
@@ -350,48 +289,6 @@ models_init(Thread_Context *tctx){
 }
 
 internal void
-force_abort_coroutine(Models *models, View *view){
-    App_Coroutine_In in = {};
-    in.user_input.abort = true;
-    for (u32 j = 0; j < 100 && models->command_coroutine != 0; ++j){
-        models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &in, &models->coroutine_out);
-    }
-    if (models->command_coroutine != 0){
-#define M "SERIOUS ERROR: command did not terminate when passed an abort"
-        print_message(&models->app_links, string_u8_litexpr(M));
-#undef M
-        models->command_coroutine = 0;
-    }
-    init_query_set(&view->query_set);
-}
-
-internal b32
-launch_command_via_event(Models *models, View *view, Input_Event *event){
-    block_copy_struct(&models->event, event);
-    Assert(models->command_coroutine == 0);
-    Coroutine *command_coroutine = coroutine_create(&models->coroutines, command_caller);
-    models->command_coroutine = command_coroutine;
-    App_Coroutine_In in = {};
-    in.models = models;
-    models->event_unhandled = false;
-    models->command_coroutine = app_coroutine_run(models,
-                                                  Co_Command, models->command_coroutine,
-                                                  &in, &models->coroutine_out);
-    if (match_core_code(event, CoreCode_Animate)){
-        models->animate_next_frame = true;
-    }
-    return(!models->event_unhandled);
-}
-
-internal void
-launch_command_via_core_event(Models *models, View *view, Core_Code code){
-    Input_Event event = {};
-    event.kind = InputEventKind_Core;
-    event.core.code = code;
-    launch_command_via_event(models, view, &event);
-}
-
-internal void
 app_load_vtables(API_VTable_system *vtable_system,
                  API_VTable_font *vtable_font,
                  API_VTable_graphics *vtable_graphics){
@@ -534,7 +431,7 @@ App_Init_Sig(app_init){
     {
         Panel *panel = layout_initialize(arena, &models->layout);
         View *new_view = live_set_alloc_view(&models->lifetime_allocator, &models->live_set, panel);
-        view_set_file(models, new_view, models->scratch_buffer);
+        view_init(models, new_view, models->scratch_buffer, models->view_event_handler);
     }
     
     // NOTE(allen): miscellaneous init
@@ -780,18 +677,8 @@ App_Step_Sig(app_step){
                     
                     case EventConsume_ClickChangeView:
                     {
-                        // NOTE(allen): kill coroutine if we have one
-                        if (models->command_coroutine != 0){
-                            force_abort_coroutine(models, view);
-                        }
-                        
                         // NOTE(allen): run deactivate command
-                        launch_command_via_core_event(models, view, CoreCode_ClickDeactivateView);
-                        
-                        // NOTE(allen): kill coroutine if we have one (again because we just launched a command)
-                        if (models->command_coroutine != 0){
-                            force_abort_coroutine(models, view);
-                        }
+                        co_send_core_event(models, view, CoreCode_ClickDeactivateView);
                         
                         layout->active_panel = mouse_panel;
                         models->animate_next_frame = true;
@@ -799,41 +686,14 @@ App_Step_Sig(app_step){
                         view = active_panel->view;
                         
                         // NOTE(allen): run activate command
-                        launch_command_via_core_event(models, view, CoreCode_ClickActivateView);
+                        co_send_core_event(models, view, CoreCode_ClickActivateView);
                         
                         event_was_handled = true;
                     }break;
                     
                     case EventConsume_CustomCommand:
                     {
-                        // NOTE(allen): update command coroutine
-                        if (models->command_coroutine != 0){
-                            block_copy_struct(&models->event, event);
-                            
-                            Coroutine *command_coroutine = models->command_coroutine;
-                            App_Coroutine_Out *co_out = &models->coroutine_out;
-                            Event_Property abort_flags = co_out->abort_flags;
-                            Event_Property get_flags = co_out->get_flags|abort_flags;
-                            
-                            Event_Property event_flags = get_event_properties(event);
-                            if ((get_flags&event_flags) != 0){
-                                App_Coroutine_In in = {};
-                                in.user_input.event = *event;
-                                in.user_input.abort = ((abort_flags & event_flags) != 0);
-                                models->event_unhandled = false;
-                                models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &in, &models->coroutine_out);
-                                if (!HasFlag(event_flags, EventProperty_Animate)){
-                                    models->animate_next_frame = true;
-                                }
-                                if (models->command_coroutine == 0){
-                                    init_query_set(&view->query_set);
-                                }
-                                event_was_handled = !models->event_unhandled;
-                            }
-                        }
-                        else{
-                            event_was_handled = launch_command_via_event(models, view, event);
-                        }
+                        event_was_handled = co_send_event(models, view, event);
                     }break;
                 }
             }break;

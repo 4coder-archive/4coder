@@ -9,6 +9,61 @@
 
 // TOP
 
+internal void
+init_query_set(Query_Set *set){
+    Query_Slot *slot = set->slots;
+    set->free_slot = slot;
+    set->used_slot = 0;
+    for (i32 i = 0; i+1 < ArrayCount(set->slots); ++i, ++slot){
+        slot->next = slot + 1;
+    }
+}
+
+internal Query_Slot*
+alloc_query_slot(Query_Set *set){
+    Query_Slot *slot = set->free_slot;
+    if (slot != 0){
+        set->free_slot = slot->next;
+        slot->next = set->used_slot;
+        set->used_slot = slot;
+    }
+    return(slot);
+}
+
+internal void
+free_query_slot(Query_Set *set, Query_Bar *match_bar){
+    Query_Slot *slot = 0;
+    Query_Slot *prev = 0;
+    
+    for (slot = set->used_slot; slot != 0; slot = slot->next){
+        if (slot->query_bar == match_bar) break;
+        prev = slot;
+    }
+    
+    if (slot){
+        if (prev){
+            prev->next = slot->next;
+        }
+        else{
+            set->used_slot = slot->next;
+        }
+        slot->next = set->free_slot;
+        set->free_slot = slot;
+    }
+}
+
+function void
+free_all_queries(Query_Set *set){
+    for (;set->used_slot != 0;){
+        Query_Slot *slot = set->used_slot;
+        set->used_slot = slot->next;
+        slot->next = set->free_slot;
+        set->free_slot = slot;
+    }
+}
+
+////////////////////////////////
+
 internal Command_Map_ID
 view_get_map(View *view){
     if (view->ui_mode){
@@ -390,6 +445,168 @@ view_set_file(Models *models, View *view, Editing_File *file){
     view->preferred_x = p.x;
     
     models->layout.panel_state_dirty = true;
+}
+
+////////////////////////////////
+
+internal App_Coroutine_State
+get_co_state(Application_Links *app){
+    App_Coroutine_State state = {};
+    state.co = app->current_coroutine;
+    state.type = app->type_coroutine;
+    return(state);
+}
+
+internal void
+restore_co_state(Application_Links *app, App_Coroutine_State state){
+    app->current_coroutine = state.co;
+    app->type_coroutine = state.type;
+}
+
+internal Coroutine*
+co_handle_request(Models *models, Coroutine *co, Co_Out *out){
+    Coroutine *result = 0;
+    switch (out->request){
+        case CoRequest_NewFontFace:
+        {
+            Face_Description *description = out->face_description;
+            Face *face = font_set_new_face(&models->font_set, description);
+            Co_In in = {};
+            in.face_id = face->id;
+            result = coroutine_run(&models->coroutines, co, &in, out);
+        }break;
+        
+        case CoRequest_ModifyFace:
+        {
+            Face_Description *description = out->face_description;
+            Face_ID face_id = out->face_id;
+            Co_In in = {};
+            in.success = font_set_modify_face(&models->font_set, face_id, description);
+            result = coroutine_run(&models->coroutines, co, &in, out);
+        }break;
+    }
+    return(result);
+}
+
+internal Coroutine*
+co_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co,
+       Co_In *in, Co_Out *out){
+    Application_Links *app = &models->app_links;
+    App_Coroutine_State prev_state = get_co_state(app);
+    app->current_coroutine = co;
+    app->type_coroutine = purpose;
+    Coroutine *result = coroutine_run(&models->coroutines, co, in, out);
+    for (;result != 0 && out->request != CoRequest_None;){
+        result = co_handle_request(models, result, out);
+    }
+    restore_co_state(app, prev_state);
+    return(result);
+}
+
+internal void
+view_event_context_base__inner(Coroutine *coroutine){
+    Co_In *in = (Co_In*)coroutine->in;
+    Models *models = in->models;
+    Custom_Command_Function *event_context_base = in->event_context_base;
+    Assert(event_context_base != 0);
+    event_context_base(&models->app_links);
+}
+
+function void
+view_init(Models *models, View *view, Editing_File *initial_buffer,
+          Custom_Command_Function *event_context_base){
+    view_set_file(models, view, initial_buffer);
+    view->co = coroutine_create(&models->coroutines, view_event_context_base__inner);
+    Co_In in = {};
+    in.models = models;
+    in.event_context_base = event_context_base;
+    view->co = co_run(models, Co_View, view->co, &in, &view->co_out);
+    // TODO(allen): deal with this kind of problem!
+    Assert(view->co != 0);
+}
+
+function b32
+view_close(Models *models, View *view){
+    Layout *layout = &models->layout;
+    b32 result = false;
+    if (layout_close_panel(layout, view->panel)){
+        live_set_free_view(&models->lifetime_allocator, &models->live_set, view);
+        result = true;
+    }
+    return(result);
+}
+
+internal void
+view_check_co_exited(Models *models, View *view){
+    if (view->co == 0){
+        b32 result = view_close(models, view);
+        // TODO(allen): Here it looks like the final view has
+        // closed exited from it's event handler.  We should probably
+        // have a failsafe restarter for the event handler when this
+        // happens.
+        Assert(result);
+    }
+}
+
+internal void
+co_single_abort(Models *models, View *view){
+    Coroutine *co = view->co;
+    Co_In in = {};
+    in.user_input.abort = true;
+    view->co = co_run(models, Co_View, co, &in, &view->co_out);
+    view_check_co_exited(models, view);
+}
+
+internal void
+co_full_abort(Models *models, View *view){
+    Coroutine *co = view->co;
+    Co_In in = {};
+    in.user_input.abort = true;
+    for (u32 j = 0; j < 100 && co != 0; ++j){
+        co  = co_run(models, Co_View, co, &in, &view->co_out);
+    }
+    if (co != 0){
+#define M "SERIOUS ERROR: full stack abort did not complete"
+        print_message(&models->app_links, string_u8_litexpr(M));
+#undef M
+    }
+    view->co = 0;
+    init_query_set(&view->query_set);
+}
+
+function b32
+co_send_event(Models *models, View *view, Input_Event *event){
+    b32 event_was_handled = false;
+    
+    Coroutine *co = view->co;
+    Co_Out *co_out = &view->co_out;
+    Event_Property abort_flags = co_out->abort_flags;
+    Event_Property get_flags = co_out->get_flags|abort_flags;
+    
+    Event_Property event_flags = get_event_properties(event);
+    if ((get_flags&event_flags) != 0){
+        models->event_unhandled = false;
+        Co_In in = {};
+        in.user_input.event = *event;
+        in.user_input.abort = ((abort_flags & event_flags) != 0);
+        block_copy_struct(&models->event, &in.user_input.event);
+        view->co = co_run(models, Co_View, view->co, &in, &view->co_out);
+        view_check_co_exited(models, view);
+        if (!HasFlag(event_flags, EventProperty_Animate)){
+            models->animate_next_frame = true;
+        }
+        event_was_handled = !models->event_unhandled;
+    }
+    
+    return(event_was_handled);
+}
+
+function b32
+co_send_core_event(Models *models, View *view, Core_Code code){
+    Input_Event event = {};
+    event.kind = InputEventKind_Core;
+    event.core.code = code;
+    return(co_send_event(models, view, &event));
 }
 
 ////////////////////////////////
