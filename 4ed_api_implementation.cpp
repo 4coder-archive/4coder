@@ -2088,10 +2088,13 @@ get_user_input(Application_Links *app, Event_Property get_properties, Event_Prop
     if (app->type_coroutine == Co_Command){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
-        ((u32*)coroutine->out)[0] = get_properties;
-        ((u32*)coroutine->out)[1] = abort_properties;
+        App_Coroutine_Out *out = (App_Coroutine_Out*)coroutine->out;
+        out->request = AppCoroutineRequest_None;
+        out->get_flags = get_properties;
+        out->abort_flags = abort_properties;
         coroutine_yield(coroutine);
-        result = *(User_Input*)coroutine->in;
+        App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
+        result = in->user_input;
     }
     return(result);
 }
@@ -2549,10 +2552,12 @@ try_create_new_face(Application_Links *app, Face_Description *description)
     if (is_running_coroutine(app)){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
-        ((Face_Description**)coroutine->out)[0] = description;
-        ((u32*)coroutine->out)[2] = AppCoroutineRequest_NewFontFace;
+        App_Coroutine_Out *out = (App_Coroutine_Out*)coroutine->out;
+        out->request = AppCoroutineRequest_NewFontFace;
+        out->face_description = description;
         coroutine_yield(coroutine);
-        result = *(Face_ID*)(coroutine->in);
+        App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
+        result = in->face_id;
     }
     else{
         Face *new_face = font_set_new_face(&models->font_set, description);
@@ -2569,11 +2574,13 @@ try_modify_face(Application_Links *app, Face_ID id, Face_Description *descriptio
     if (is_running_coroutine(app)){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
-        ((Face_Description**)coroutine->out)[0] = description;
-        ((u32*)coroutine->out)[2] = AppCoroutineRequest_ModifyFace;
-        ((u32*)coroutine->out)[3] = id;
+        App_Coroutine_Out *out = (App_Coroutine_Out*)coroutine->out;
+        out->request = AppCoroutineRequest_NewFontFace;
+        out->face_description = description;
+        out->face_id = id;
         coroutine_yield(coroutine);
-        result = *(b32*)(coroutine->in);
+        App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
+        result = in->success;
     }
     else{
         result = font_set_modify_face(&models->font_set, id, description);

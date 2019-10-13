@@ -24,39 +24,40 @@ restore_state(Application_Links *app, App_Coroutine_State state){
 }
 
 internal Coroutine*
-app_coroutine_handle_request(Models *models, Coroutine *co, u32 *vals){
+app_coroutine_handle_request(Models *models, Coroutine *co, App_Coroutine_Out *out){
     Coroutine *result = 0;
-    switch (vals[2]){
+    switch (out->request){
         case AppCoroutineRequest_NewFontFace:
         {
-            Face_Description *description = ((Face_Description**)vals)[0];
+            Face_Description *description = out->face_description;
             Face *face = font_set_new_face(&models->font_set, description);
-            result = coroutine_run(&models->coroutines, co, &face->id, vals);
+            App_Coroutine_In in = {};
+            in.face_id = face->id;
+            result = coroutine_run(&models->coroutines, co, &in, out);
         }break;
         
         case AppCoroutineRequest_ModifyFace:
         {
-            Face_Description *description = ((Face_Description**)vals)[0];
-            Face_ID face_id = ((Face_ID*)vals)[3];
-            b32 success = font_set_modify_face(&models->font_set, face_id, description);
-            result = coroutine_run(&models->coroutines, co, &success, vals);
+            Face_Description *description = out->face_description;
+            Face_ID face_id = out->face_id;
+            App_Coroutine_In in = {};
+            in.success = font_set_modify_face(&models->font_set, face_id, description);
+            result = coroutine_run(&models->coroutines, co, &in, out);
         }break;
     }
     return(result);
 }
 
 internal Coroutine*
-app_coroutine_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co, void *in, u32 *out){
+app_coroutine_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co, App_Coroutine_In *in, App_Coroutine_Out *out){
     Application_Links *app = &models->app_links;
     App_Coroutine_State prev_state = get_state(app);
     app->current_coroutine = co;
     app->type_coroutine = purpose;
-    u32 coroutine_out[4] = {};
-    Coroutine *result = coroutine_run(&models->coroutines, co, in, coroutine_out);
-    for (;result != 0 && coroutine_out[2] != 0;){
-        result = app_coroutine_handle_request(models, result, coroutine_out);
+    Coroutine *result = coroutine_run(&models->coroutines, co, in, out);
+    for (;result != 0 && out->request != AppCoroutineRequest_None;){
+        result = app_coroutine_handle_request(models, result, out);
     }
-    block_copy(out, coroutine_out, sizeof(*out)*2);
     restore_state(app, prev_state);
     return(result);
 }
@@ -115,8 +116,8 @@ DELTA_RULE_SIG(fallback_scroll_rule){
 
 internal void
 command_caller(Coroutine *coroutine){
-    Command_In *cmd_in = (Command_In*)coroutine->in;
-    Models *models = cmd_in->models;
+    App_Coroutine_In *in = (App_Coroutine_In*)coroutine->in;
+    Models *models = in->models;
     Assert(models->command_caller != 0);
     models->command_caller(&models->app_links);
 }
@@ -350,10 +351,10 @@ models_init(Thread_Context *tctx){
 
 internal void
 force_abort_coroutine(Models *models, View *view){
-    User_Input user_in = {};
-    user_in.abort = true;
-    for (u32 j = 0; j < 10 && models->command_coroutine != 0; ++j){
-        models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &user_in, models->command_coroutine_flags);
+    App_Coroutine_In in = {};
+    in.user_input.abort = true;
+    for (u32 j = 0; j < 100 && models->command_coroutine != 0; ++j){
+        models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &in, &models->coroutine_out);
     }
     if (models->command_coroutine != 0){
 #define M "SERIOUS ERROR: command did not terminate when passed an abort"
@@ -370,47 +371,16 @@ launch_command_via_event(Models *models, View *view, Input_Event *event){
     Assert(models->command_coroutine == 0);
     Coroutine *command_coroutine = coroutine_create(&models->coroutines, command_caller);
     models->command_coroutine = command_coroutine;
-    Command_In cmd_in = {models};
+    App_Coroutine_In in = {};
+    in.models = models;
     models->event_unhandled = false;
     models->command_coroutine = app_coroutine_run(models,
                                                   Co_Command, models->command_coroutine,
-                                                  &cmd_in, models->command_coroutine_flags);
-    if (match_core_code(event,  CoreCode_Animate)){
+                                                  &in, &models->coroutine_out);
+    if (match_core_code(event, CoreCode_Animate)){
         models->animate_next_frame = true;
     }
     return(!models->event_unhandled);
-    
-#if 0
-    b32 result = false;
-    
-    Command_Map_ID map = view_get_map(view);
-    Command_Binding cmd_bind = map_get_binding_recursive(&models->mapping, map, event);
-    
-    if (cmd_bind.custom != 0){
-        result = true;
-        block_copy_struct(&models->event, event);
-        
-        Assert(models->command_coroutine == 0);
-        Coroutine *command_coroutine = coroutine_create(&models->coroutines, command_caller);
-        models->command_coroutine = command_coroutine;
-        
-        Command_In cmd_in = {};
-        cmd_in.models = models;
-        cmd_in.bind = cmd_bind;
-        
-        models->event_unhandled = false;
-        models->command_coroutine = app_coroutine_run(models, Co_Command, models->command_coroutine, &cmd_in, models->command_coroutine_flags);
-        if (models->event_unhandled){
-            result = false;
-        }
-        
-        if (match_core_code(event,  CoreCode_Animate)){
-            models->animate_next_frame = true;
-        }
-    }
-    
-    return(result);
-#endif
 }
 
 internal void
@@ -841,17 +811,17 @@ App_Step_Sig(app_step){
                             block_copy_struct(&models->event, event);
                             
                             Coroutine *command_coroutine = models->command_coroutine;
-                            Event_Property abort_flags = models->command_coroutine_flags[1];
-                            Event_Property get_flags = models->command_coroutine_flags[0] | abort_flags;
+                            App_Coroutine_Out *co_out = &models->coroutine_out;
+                            Event_Property abort_flags = co_out->abort_flags;
+                            Event_Property get_flags = co_out->get_flags|abort_flags;
                             
                             Event_Property event_flags = get_event_properties(event);
-                            if ((get_flags & event_flags) != 0){
-                                User_Input user_in = {};
-                                user_in.event = *event;
-                                user_in.abort = ((abort_flags & event_flags) != 0);
-                                
+                            if ((get_flags&event_flags) != 0){
+                                App_Coroutine_In in = {};
+                                in.user_input.event = *event;
+                                in.user_input.abort = ((abort_flags & event_flags) != 0);
                                 models->event_unhandled = false;
-                                models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &user_in, models->command_coroutine_flags);
+                                models->command_coroutine =  app_coroutine_run(models, Co_Command, command_coroutine, &in, &models->coroutine_out);
                                 if (!HasFlag(event_flags, EventProperty_Animate)){
                                     models->animate_next_frame = true;
                                 }

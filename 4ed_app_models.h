@@ -34,6 +34,36 @@ enum App_State{
     APP_STATE_COUNT
 };
 
+struct App_Coroutine_In{
+    union{
+        struct Models *models;
+        User_Input user_input;
+        Face_ID face_id;
+        b32 success;
+    };
+};
+
+typedef i32 App_Coroutine_Request;
+enum{
+    AppCoroutineRequest_None = 0,
+    AppCoroutineRequest_NewFontFace = 1,
+    AppCoroutineRequest_ModifyFace = 2,
+};
+
+struct App_Coroutine_Out{
+    App_Coroutine_Request request;
+    union{
+        struct{
+            Event_Property get_flags;
+            Event_Property abort_flags;
+        };
+        struct{
+            Face_Description *face_description;
+            Face_ID face_id;
+        };
+    };
+};
+
 struct Models{
     Thread_Context *tctx;
     
@@ -47,7 +77,7 @@ struct Models{
     
     Coroutine_Group coroutines;
     Coroutine *command_coroutine;
-    u32 command_coroutine_flags[2];
+    App_Coroutine_Out coroutine_out;
     
     Child_Process_Container child_processes;
     Custom_API config_api;
@@ -163,10 +193,6 @@ struct App_Coroutine_State{
     i32 type;
 };
 
-struct Command_In{
-    Models *models;
-};
-
 struct File_Init{
     String_Const_u8 name;
     Editing_File **ptr;
@@ -192,12 +218,6 @@ enum Command_Line_Action{
 enum Command_Line_Mode{
     CLMode_App,
     CLMode_Custom
-};
-
-enum{
-    AppCoroutineRequest_None = 0,
-    AppCoroutineRequest_NewFontFace = 1,
-    AppCoroutineRequest_ModifyFace = 2,
 };
 
 #endif
