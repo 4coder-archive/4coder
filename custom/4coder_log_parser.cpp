@@ -923,22 +923,6 @@ CUSTOM_DOC("Scrolls the log graph")
     }
 }
 
-CUSTOM_COMMAND_SIG(log_graph__page_up)
-CUSTOM_DOC("Scroll the log graph up one whole page")
-{
-    if (log_view != 0){
-        log_graph.y_scroll -= get_page_jump(app, log_view);
-    }
-}
-
-CUSTOM_COMMAND_SIG(log_graph__page_down)
-CUSTOM_DOC("Scroll the log graph down one whole page")
-{
-    if (log_view != 0){
-        log_graph.y_scroll += get_page_jump(app, log_view);
-    }
-}
-
 internal Log_Graph_Box*
 log_graph__get_box_at_point(Log_Graph *graph, Vec2_f32 p){
     Log_Graph_Box *result = 0;
@@ -965,76 +949,69 @@ log_graph__get_box_at_mouse_point(Application_Links *app, Log_Graph *graph){
     return(log_graph__get_box_at_point(graph, m_p));
 }
 
-CUSTOM_COMMAND_SIG(log_graph__click_select_event)
-CUSTOM_DOC("Select the event record at the mouse point in the log graph")
+function void
+log_graph__click_select_event(Application_Links *app, Vec2_f32 m_p)
 {
-    if (log_view != 0){
-        if (log_graph.holding_temp){
-            Mouse_State mouse = get_mouse_state(app);
-            Vec2_f32 m_p = V2f32(mouse.p) - log_graph.layout_region.p0;
-            Log_Graph_Box *box_node = log_graph__get_box_at_point(&log_graph, m_p);
-            if (box_node != 0){
-                log_graph.selected_event = box_node->event;
-            }
-            else{
-                log_graph.has_unused_click = true;
-                log_graph.unused_click = m_p;
-            }
+    if (log_view != 0 && log_graph.holding_temp){
+        Log_Graph_Box *box_node = log_graph__get_box_at_point(&log_graph, m_p);
+        if (box_node != 0){
+            log_graph.selected_event = box_node->event;
+        }
+        else{
+            log_graph.has_unused_click = true;
+            log_graph.unused_click = m_p;
         }
     }
 }
 
-CUSTOM_COMMAND_SIG(log_graph__click_jump_to_event_source)
-CUSTOM_DOC("Jump to the code that logged the event record at the mouse point in the log graph")
-{
-    if (log_view != 0){
-        if (log_graph.holding_temp){
-            Mouse_State mouse = get_mouse_state(app);
-            Vec2_f32 m_p = V2f32(mouse.p) - log_graph.layout_region.p0;
-            Log_Graph_Box *box_node = log_graph__get_box_at_point(&log_graph, m_p);
-            if (box_node != 0){
-                Log_Event *event = box_node->event;
-                log_graph.selected_event = event;
-                
-                View_ID target_view = get_next_view_looped_primary_panels(app, log_view, AccessProtected);
-                if (target_view != 0){
-                    String_Const_u8 file_name = log_parse__get_string(&log_parse, event->src_file_name);
-                    Buffer_ID target_buffer = get_buffer_by_file_name(app, file_name, AccessAll);
-                    if (target_buffer == 0){
-                        target_buffer = get_buffer_by_name(app, file_name, AccessAll);
+function void
+log_graph__click_jump_to_event_source(Application_Links *app, Vec2_f32 m_p){
+    if (log_view != 0 && log_graph.holding_temp){
+        Log_Graph_Box *box_node = log_graph__get_box_at_point(&log_graph, m_p);
+        if (box_node != 0){
+            Log_Event *event = box_node->event;
+            log_graph.selected_event = event;
+            
+            View_ID target_view = get_next_view_looped_primary_panels(app, log_view, AccessProtected);
+            if (target_view != 0){
+                String_Const_u8 file_name = log_parse__get_string(&log_parse, event->src_file_name);
+                Buffer_ID target_buffer = get_buffer_by_file_name(app, file_name, AccessAll);
+                if (target_buffer == 0){
+                    target_buffer = get_buffer_by_name(app, file_name, AccessAll);
+                }
+                if (target_buffer != 0){
+                    if (target_view == log_view){
+                        view_end_ui_mode(app, target_view);
                     }
-                    if (target_buffer != 0){
-                        if (target_view == log_view){
-                            view_end_ui_mode(app, target_view);
-                        }
-                        set_view_to_location(app, target_view, target_buffer,
-                                             seek_line_col(event->line_number, 1));
-                    }
+                    set_view_to_location(app, target_view, target_buffer,
+                                         seek_line_col(event->line_number, 1));
                 }
             }
-            else{
-                log_graph.has_unused_click = true;
-                log_graph.unused_click = m_p;
-            }
+        }
+        else{
+            log_graph.has_unused_click = true;
+            log_graph.unused_click = m_p;
         }
     }
 }
 
+#if 0
 internal void
 fill_log_graph_command_map(Mapping *mapping){
     MappingScope();
     SelectMapping(mapping);
     SelectMap(default_log_graph_map);
-    Bind(log_graph__escape, KeyCode_Escape);
-    BindMouseWheel(log_graph__scroll_wheel);
-    BindMouse(log_graph__click_jump_to_event_source, MouseCode_Left);
-    BindMouse(log_graph__click_select_event, MouseCode_Right);
+    //Bind(log_graph__escape, KeyCode_Escape);
+    //BindMouseWheel(log_graph__scroll_wheel);
+    //BindMouse(log_graph__click_jump_to_event_source, MouseCode_Left);
+    //BindMouse(log_graph__click_select_event, MouseCode_Right);
     Bind(log_graph__page_up, KeyCode_PageUp);
     Bind(log_graph__page_down, KeyCode_PageDown);
 }
+#endif
 
 CUSTOM_COMMAND_SIG(show_the_log_graph)
-CUSTOM_DOC("Parser *log* and displays the 'log graph' UI")
+CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
 {
     Buffer_ID log_buffer = get_buffer_by_name(app, string_u8_litexpr("*log*"), AccessAll);
     log_parse_fill(app, log_buffer);
@@ -1045,9 +1022,58 @@ CUSTOM_DOC("Parser *log* and displays the 'log graph' UI")
     Managed_Scope scope = view_get_managed_scope(app, log_view);
     View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
     *hook = log_graph_render;
-    view_set_setting(app, log_view, ViewSetting_UICommandMap, default_log_graph_map);
-    view_begin_ui_mode(app, log_view);
-    view_set_quit_ui_handler(app, log_view, ui_quit_clear_render_hook);
+    
+    for (;;){
+        User_Input in = get_user_input(app,
+                                       EventPropertyGroup_AnyUserInput,
+                                       KeyCode_Escape);
+        if (in.abort){
+            log_view = 0;
+            break;
+        }
+        
+        switch (in.event.kind){
+            case InputEventKind_KeyStroke:
+            {
+                switch (in.event.key.code){
+                    case KeyCode_PageUp:
+                    {
+                        log_graph.y_scroll -= get_page_jump(app, log_view);
+                    }break;
+                    
+                    case KeyCode_PageDown:
+                    {
+                        log_graph.y_scroll += get_page_jump(app, log_view);
+                    }break;
+                }
+            }break;
+            
+            case InputEventKind_MouseButton:
+            {
+                Vec2_f32 m_p = V2f32(in.event.mouse.p) - log_graph.layout_region.p0;
+                switch (in.event.mouse.code){
+                    case MouseCode_Left:
+                    {
+                        log_graph__click_jump_to_event_source(app, m_p);
+                    }break;
+                    
+                    case MouseCode_Right:
+                    {
+                        log_graph__click_select_event(app, m_p);
+                    }break;
+                }
+            }break;
+            
+            case InputEventKind_MouseWheel:
+            {
+                f32 value = in.event.mouse_wheel.value;
+                log_graph.y_scroll += f32_round32(value);
+            }break;
+        }
+    }
+    
+    hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
+    *hook = 0;
 }
 
 // BOTTOM

@@ -21,7 +21,6 @@ custom_layer_init(Application_Links *app){
     Thread_Context *tctx = get_thread_context(app);
     mapping_init(tctx, &framework_mapping);
     setup_default_mapping(&framework_mapping);
-    fill_log_graph_command_map(&framework_mapping);
 }
 #endif //NO_BINDING
 

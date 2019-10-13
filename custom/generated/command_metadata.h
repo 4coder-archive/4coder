@@ -2,7 +2,7 @@
 #define command_id(c) (fcoder_metacmd_ID_##c)
 #define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])
 #define command_metadata_by_id(id) (&fcoder_metacmd_table[id])
-#define command_one_past_last_id 225
+#define command_one_past_last_id 221
 #if defined(CUSTOM_COMMAND_SIG)
 #define PROC_LINKS(x,y) x
 #else
@@ -177,10 +177,6 @@ CUSTOM_COMMAND_SIG(if_read_only_goto_position_same_panel);
 CUSTOM_COMMAND_SIG(view_jump_list_with_lister);
 CUSTOM_COMMAND_SIG(log_graph__escape);
 CUSTOM_COMMAND_SIG(log_graph__scroll_wheel);
-CUSTOM_COMMAND_SIG(log_graph__page_up);
-CUSTOM_COMMAND_SIG(log_graph__page_down);
-CUSTOM_COMMAND_SIG(log_graph__click_select_event);
-CUSTOM_COMMAND_SIG(log_graph__click_jump_to_event_source);
 CUSTOM_COMMAND_SIG(show_the_log_graph);
 CUSTOM_COMMAND_SIG(copy);
 CUSTOM_COMMAND_SIG(cut);
@@ -245,7 +241,7 @@ char *source_name;
 i32 source_name_len;
 i32 line_number;
 };
-static Command_Metadata fcoder_metacmd_table[225] = {
+static Command_Metadata fcoder_metacmd_table[221] = {
 { PROC_LINKS(default_view_input_handler, 0), "default_view_input_handler", 26,  "Input consumption loop for base view behavior", 45, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 17 },
 { PROC_LINKS(seek_beginning_of_textual_line, 0), "seek_beginning_of_textual_line", 30,  "Seeks the cursor to the beginning of the line across all text.", 62, "w:\\4ed\\code\\custom\\4coder_helper.cpp", 36, 1984 },
 { PROC_LINKS(seek_end_of_textual_line, 0), "seek_end_of_textual_line", 24,  "Seeks the cursor to the end of the line across all text.", 56, "w:\\4ed\\code\\custom\\4coder_helper.cpp", 36, 1990 },
@@ -414,11 +410,7 @@ static Command_Metadata fcoder_metacmd_table[225] = {
 { PROC_LINKS(view_jump_list_with_lister, 0), "view_jump_list_with_lister", 26,  "When executed on a buffer with jumps, creates a persistent lister for all the jumps", 83, "w:\\4ed\\code\\custom\\4coder_jump_lister.cpp", 41, 102 },
 { PROC_LINKS(log_graph__escape, 0), "log_graph__escape", 17,  "Ends the log grapher", 20, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 906 },
 { PROC_LINKS(log_graph__scroll_wheel, 0), "log_graph__scroll_wheel", 23,  "Scrolls the log graph", 21, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 915 },
-{ PROC_LINKS(log_graph__page_up, 0), "log_graph__page_up", 18,  "Scroll the log graph up one whole page", 38, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 926 },
-{ PROC_LINKS(log_graph__page_down, 0), "log_graph__page_down", 20,  "Scroll the log graph down one whole page", 40, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 934 },
-{ PROC_LINKS(log_graph__click_select_event, 0), "log_graph__click_select_event", 29,  "Select the event record at the mouse point in the log graph", 59, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 968 },
-{ PROC_LINKS(log_graph__click_jump_to_event_source, 0), "log_graph__click_jump_to_event_source", 37,  "Jump to the code that logged the event record at the mouse point in the log graph", 81, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 987 },
-{ PROC_LINKS(show_the_log_graph, 0), "show_the_log_graph", 18,  "Parser *log* and displays the 'log graph' UI", 44, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 1036 },
+{ PROC_LINKS(show_the_log_graph, 0), "show_the_log_graph", 18,  "Parses *log* and displays the 'log graph' UI", 44, "w:\\4ed\\code\\custom\\4coder_log_parser.cpp", 40, 1013 },
 { PROC_LINKS(copy, 0), "copy", 4,  "Copy the text in the range from the cursor to the mark onto the clipboard.", 74, "w:\\4ed\\code\\custom\\4coder_clipboard.cpp", 39, 19 },
 { PROC_LINKS(cut, 0), "cut", 3,  "Cut the text in the range from the cursor to the mark onto the clipboard.", 73, "w:\\4ed\\code\\custom\\4coder_clipboard.cpp", 39, 28 },
 { PROC_LINKS(paste, 0), "paste", 5,  "At the cursor, insert the text at the top of the clipboard.", 59, "w:\\4ed\\code\\custom\\4coder_clipboard.cpp", 39, 39 },
@@ -640,61 +632,57 @@ static i32 fcoder_metacmd_ID_if_read_only_goto_position_same_panel = 164;
 static i32 fcoder_metacmd_ID_view_jump_list_with_lister = 165;
 static i32 fcoder_metacmd_ID_log_graph__escape = 166;
 static i32 fcoder_metacmd_ID_log_graph__scroll_wheel = 167;
-static i32 fcoder_metacmd_ID_log_graph__page_up = 168;
-static i32 fcoder_metacmd_ID_log_graph__page_down = 169;
-static i32 fcoder_metacmd_ID_log_graph__click_select_event = 170;
-static i32 fcoder_metacmd_ID_log_graph__click_jump_to_event_source = 171;
-static i32 fcoder_metacmd_ID_show_the_log_graph = 172;
-static i32 fcoder_metacmd_ID_copy = 173;
-static i32 fcoder_metacmd_ID_cut = 174;
-static i32 fcoder_metacmd_ID_paste = 175;
-static i32 fcoder_metacmd_ID_paste_next = 176;
-static i32 fcoder_metacmd_ID_paste_and_indent = 177;
-static i32 fcoder_metacmd_ID_paste_next_and_indent = 178;
-static i32 fcoder_metacmd_ID_execute_previous_cli = 179;
-static i32 fcoder_metacmd_ID_execute_any_cli = 180;
-static i32 fcoder_metacmd_ID_build_search = 181;
-static i32 fcoder_metacmd_ID_build_in_build_panel = 182;
-static i32 fcoder_metacmd_ID_close_build_panel = 183;
-static i32 fcoder_metacmd_ID_change_to_build_panel = 184;
-static i32 fcoder_metacmd_ID_close_all_code = 185;
-static i32 fcoder_metacmd_ID_open_all_code = 186;
-static i32 fcoder_metacmd_ID_open_all_code_recursive = 187;
-static i32 fcoder_metacmd_ID_load_project = 188;
-static i32 fcoder_metacmd_ID_project_fkey_command = 189;
-static i32 fcoder_metacmd_ID_project_go_to_root_directory = 190;
-static i32 fcoder_metacmd_ID_setup_new_project = 191;
-static i32 fcoder_metacmd_ID_setup_build_bat = 192;
-static i32 fcoder_metacmd_ID_setup_build_sh = 193;
-static i32 fcoder_metacmd_ID_setup_build_bat_and_sh = 194;
-static i32 fcoder_metacmd_ID_project_command_lister = 195;
-static i32 fcoder_metacmd_ID_list_all_functions_current_buffer = 196;
-static i32 fcoder_metacmd_ID_list_all_functions_current_buffer_lister = 197;
-static i32 fcoder_metacmd_ID_list_all_functions_all_buffers = 198;
-static i32 fcoder_metacmd_ID_list_all_functions_all_buffers_lister = 199;
-static i32 fcoder_metacmd_ID_select_surrounding_scope = 200;
-static i32 fcoder_metacmd_ID_select_next_scope_absolute = 201;
-static i32 fcoder_metacmd_ID_select_next_scope_after_current = 202;
-static i32 fcoder_metacmd_ID_select_prev_scope_absolute = 203;
-static i32 fcoder_metacmd_ID_place_in_scope = 204;
-static i32 fcoder_metacmd_ID_delete_current_scope = 205;
-static i32 fcoder_metacmd_ID_open_long_braces = 206;
-static i32 fcoder_metacmd_ID_open_long_braces_semicolon = 207;
-static i32 fcoder_metacmd_ID_open_long_braces_break = 208;
-static i32 fcoder_metacmd_ID_if0_off = 209;
-static i32 fcoder_metacmd_ID_write_todo = 210;
-static i32 fcoder_metacmd_ID_write_hack = 211;
-static i32 fcoder_metacmd_ID_write_note = 212;
-static i32 fcoder_metacmd_ID_write_block = 213;
-static i32 fcoder_metacmd_ID_write_zero_struct = 214;
-static i32 fcoder_metacmd_ID_comment_line = 215;
-static i32 fcoder_metacmd_ID_uncomment_line = 216;
-static i32 fcoder_metacmd_ID_comment_line_toggle = 217;
-static i32 fcoder_metacmd_ID_snippet_lister = 218;
-static i32 fcoder_metacmd_ID_miblo_increment_basic = 219;
-static i32 fcoder_metacmd_ID_miblo_decrement_basic = 220;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 221;
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 222;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 223;
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 224;
+static i32 fcoder_metacmd_ID_show_the_log_graph = 168;
+static i32 fcoder_metacmd_ID_copy = 169;
+static i32 fcoder_metacmd_ID_cut = 170;
+static i32 fcoder_metacmd_ID_paste = 171;
+static i32 fcoder_metacmd_ID_paste_next = 172;
+static i32 fcoder_metacmd_ID_paste_and_indent = 173;
+static i32 fcoder_metacmd_ID_paste_next_and_indent = 174;
+static i32 fcoder_metacmd_ID_execute_previous_cli = 175;
+static i32 fcoder_metacmd_ID_execute_any_cli = 176;
+static i32 fcoder_metacmd_ID_build_search = 177;
+static i32 fcoder_metacmd_ID_build_in_build_panel = 178;
+static i32 fcoder_metacmd_ID_close_build_panel = 179;
+static i32 fcoder_metacmd_ID_change_to_build_panel = 180;
+static i32 fcoder_metacmd_ID_close_all_code = 181;
+static i32 fcoder_metacmd_ID_open_all_code = 182;
+static i32 fcoder_metacmd_ID_open_all_code_recursive = 183;
+static i32 fcoder_metacmd_ID_load_project = 184;
+static i32 fcoder_metacmd_ID_project_fkey_command = 185;
+static i32 fcoder_metacmd_ID_project_go_to_root_directory = 186;
+static i32 fcoder_metacmd_ID_setup_new_project = 187;
+static i32 fcoder_metacmd_ID_setup_build_bat = 188;
+static i32 fcoder_metacmd_ID_setup_build_sh = 189;
+static i32 fcoder_metacmd_ID_setup_build_bat_and_sh = 190;
+static i32 fcoder_metacmd_ID_project_command_lister = 191;
+static i32 fcoder_metacmd_ID_list_all_functions_current_buffer = 192;
+static i32 fcoder_metacmd_ID_list_all_functions_current_buffer_lister = 193;
+static i32 fcoder_metacmd_ID_list_all_functions_all_buffers = 194;
+static i32 fcoder_metacmd_ID_list_all_functions_all_buffers_lister = 195;
+static i32 fcoder_metacmd_ID_select_surrounding_scope = 196;
+static i32 fcoder_metacmd_ID_select_next_scope_absolute = 197;
+static i32 fcoder_metacmd_ID_select_next_scope_after_current = 198;
+static i32 fcoder_metacmd_ID_select_prev_scope_absolute = 199;
+static i32 fcoder_metacmd_ID_place_in_scope = 200;
+static i32 fcoder_metacmd_ID_delete_current_scope = 201;
+static i32 fcoder_metacmd_ID_open_long_braces = 202;
+static i32 fcoder_metacmd_ID_open_long_braces_semicolon = 203;
+static i32 fcoder_metacmd_ID_open_long_braces_break = 204;
+static i32 fcoder_metacmd_ID_if0_off = 205;
+static i32 fcoder_metacmd_ID_write_todo = 206;
+static i32 fcoder_metacmd_ID_write_hack = 207;
+static i32 fcoder_metacmd_ID_write_note = 208;
+static i32 fcoder_metacmd_ID_write_block = 209;
+static i32 fcoder_metacmd_ID_write_zero_struct = 210;
+static i32 fcoder_metacmd_ID_comment_line = 211;
+static i32 fcoder_metacmd_ID_uncomment_line = 212;
+static i32 fcoder_metacmd_ID_comment_line_toggle = 213;
+static i32 fcoder_metacmd_ID_snippet_lister = 214;
+static i32 fcoder_metacmd_ID_miblo_increment_basic = 215;
+static i32 fcoder_metacmd_ID_miblo_decrement_basic = 216;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 217;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 218;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 219;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 220;
 #endif

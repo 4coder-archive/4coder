@@ -84,7 +84,6 @@ enum{
     mapid_file,
     default_code_map,
     default_lister_ui_map,
-    default_log_graph_map,
     default_maps_count,
 };
 
