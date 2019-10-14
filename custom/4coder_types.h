@@ -101,8 +101,17 @@ STRUCT Character_Predicate{
     u8 b[32];
 };
 
+struct Frame_Info{
+    i32 index;
+    f32 literal_dt;
+    f32 animation_dt;
+};
+
+typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
+#define RENDER_CALLER_SIG(name) void name(Application_Links *app, Frame_Info frame_info, View_ID view)
+
 struct View_Context{
-    Void_Func ctx_ptr;
+    Render_Caller_Function *render_caller;
     b32 hides_buffer;
 };
 
@@ -472,14 +481,6 @@ STRUCT User_Input{
     b32 abort;
 };
 
-STRUCT Frame_Info{
-    i32 index;
-    f32 literal_dt;
-    f32 animation_dt;
-};
-
-TYPEDEF_FUNC void Render_Callback(struct Application_Links *app);
-
 typedef i32 Hook_ID;
 enum{
     HookID_FileOutOfSync,
@@ -504,9 +505,6 @@ enum{
 
 TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
 #define HOOK_SIG(name) i32 name(struct Application_Links *app)
-
-TYPEDEF_FUNC void Render_Caller_Function(struct Application_Links *app, Frame_Info frame_info);
-#define RENDER_CALLER_SIG(name) void name(struct Application_Links *app, Frame_Info frame_info)
 
 TYPEDEF_FUNC i32 Buffer_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
 #define BUFFER_HOOK_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)

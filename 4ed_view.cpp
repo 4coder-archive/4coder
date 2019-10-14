@@ -445,6 +445,51 @@ view_set_file(Models *models, View *view, Editing_File *file){
 
 ////////////////////////////////
 
+function View_Context_Node*
+view__alloc_context_node(Live_Views *views){
+    View_Context_Node *node = views->free_nodes;
+    if (node != 0){
+        sll_stack_pop(views->free_nodes); 
+    }
+    else{
+        node = push_array(views->node_arena, View_Context_Node, 1);
+    }
+    return(node);
+}
+
+function void
+view__free_context_node(Live_Views *views, View_Context_Node *node){
+    sll_stack_push(views->free_nodes, node);
+}
+
+function void
+view_push_context(Models *models, View *view, View_Context *ctx){
+    View_Context_Node *node = view__alloc_context_node(&models->live_set);
+    sll_stack_push(view->ctx, node);
+    block_copy_struct(&node->ctx, ctx);
+}
+
+function void
+view_pop_context(Models *models, View *view){
+    View_Context_Node *node = view->ctx;
+    if (node != 0){
+        sll_stack_pop(view->ctx);
+        view__free_context_node(&models->live_set, node);
+    }
+}
+
+function View_Context
+view_current_context(Models *models, View *view){
+    View_Context ctx = {};
+    View_Context_Node *node = view->ctx;
+    if (node != 0){
+        block_copy_struct(&ctx, &node->ctx);
+    }
+    return(ctx);
+}
+
+////////////////////////////////
+
 internal App_Coroutine_State
 get_co_state(Application_Links *app){
     App_Coroutine_State state = {};
@@ -512,6 +557,11 @@ function void
 view_init(Models *models, View *view, Editing_File *initial_buffer,
           Custom_Command_Function *event_context_base){
     view_set_file(models, view, initial_buffer);
+    
+    View_Context first_ctx = {};
+    first_ctx.render_caller = models->render_caller;
+    view_push_context(models, view, &first_ctx);
+    
     view->co = coroutine_create(&models->coroutines, view_event_context_base__inner);
     Co_In in = {};
     in.models = models;
@@ -603,51 +653,6 @@ co_send_core_event(Models *models, View *view, Core_Code code){
     event.kind = InputEventKind_Core;
     event.core.code = code;
     return(co_send_event(models, view, &event));
-}
-
-////////////////////////////////
-
-function View_Context_Node*
-view__alloc_context_node(Live_Views *views){
-    View_Context_Node *node = views->free_nodes;
-    if (node != 0){
-        sll_stack_pop(views->free_nodes); 
-    }
-    else{
-        node = push_array(views->node_arena, View_Context_Node, 1);
-    }
-    return(node);
-}
-
-function void
-view__free_context_node(Live_Views *views, View_Context_Node *node){
-    sll_stack_push(views->free_nodes, node);
-}
-
-function void
-view_push_context(Models *models, View *view, View_Context *ctx){
-    View_Context_Node *node = view__alloc_context_node(&models->live_set);
-    sll_stack_push(view->ctx, node);
-    block_copy_struct(&node->ctx, ctx);
-}
-
-function void
-view_pop_context(Models *models, View *view){
-    View_Context_Node *node = view->ctx;
-    if (node != 0){
-        sll_stack_pop(view->ctx);
-        view__free_context_node(&models->live_set, node);
-    }
-}
-
-function View_Context
-view_current_context(Models *models, View *view){
-    View_Context ctx = {};
-    View_Context_Node *node = view->ctx;
-    if (node != 0){
-        block_copy_struct(&ctx, &node->ctx);
-    }
-    return(ctx);
 }
 
 ////////////////////////////////

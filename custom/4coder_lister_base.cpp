@@ -69,7 +69,7 @@ begin_lister(Application_Links *app, Arena *arena, View_ID view, void *user_data
 }
 
 function void
-lister_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_f32 inner){
+lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Scratch_Block scratch(app);
     
     Lister *lister = view_get_lister(view);
@@ -77,9 +77,20 @@ lister_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_
         return;
     }
     
-    Rect_f32 region = view_get_screen_rect(app, view);
-    // TODO(allen): eliminate this. bad bad bad bad :(
-    region = rect_inner(region, 3.f);
+    ////////////////////////////////
+    View_ID active_view = get_active_view(app, AccessAll);
+    b32 is_active_view = (active_view == view);
+    
+    Rect_f32 view_rect = view_get_screen_rect(app, view);
+    Rect_f32 inner = rect_inner(view_rect, 3);
+    draw_rectangle(app, view_rect, 0.f,
+                   get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None));
+    draw_rectangle(app, inner, 0.f, Stag_Back);
+    
+    Rect_f32 prev_clip = draw_set_clip(app, inner);
+    ////////////////////////////////
+    
+    Rect_f32 region = inner;
     Mouse_State mouse = get_mouse_state(app);
     Vec2_f32 m_p = V2f32(mouse.p);
     
@@ -104,7 +115,7 @@ lister_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_
     }
     
     Range_f32 x = rect_range_x(layout.list_rect);
-    Rect_f32 prev_clip = draw_set_clip(app, layout.list_rect);
+    draw_set_clip(app, layout.list_rect);
     
     i32 count = lister->data.filtered.count;
     Range_f32 scroll_range = If32(0.f, clamp_bot(0.f, count*block_height - block_height));
@@ -341,9 +352,9 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
     lister->data.filter_restore_point = begin_temp(lister->arena);
     lister_update_filtered_list(app, view, lister);
     
-    Managed_Scope scope = view_get_managed_scope(app, view);
-    View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
-    *hook = lister_render;
+    View_Context ctx = view_current_context(app, view);
+    ctx.render_caller = lister_render;
+    view_push_context(app, view, &ctx);
     
     for (;;){
         User_Input in = get_user_input(app, EventPropertyGroup_Any, EventProperty_Escape);
@@ -488,8 +499,7 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
         }
     }
     
-    hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
-    *hook = 0;
+    view_pop_context(app, view);
 }
 
 function Lister_Prealloced_String

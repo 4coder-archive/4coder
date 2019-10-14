@@ -339,6 +339,7 @@ App_Init_Sig(app_init){
     // NOTE(allen): live set
     Arena *arena = models->arena;
     {
+        models->live_set.node_arena = reserve_arena(models->tctx);
         models->live_set.count = 0;
         models->live_set.max = MAX_VIEWS;
         models->live_set.views = push_array(arena, View, models->live_set.max);
@@ -848,8 +849,20 @@ App_Step_Sig(app_step){
         begin_render_section(target, models->frame_counter, literal_dt, animation_dt);
         models->in_render_mode = true;
         
-        if (models->render_caller != 0){
-            models->render_caller(&models->app_links, frame);
+        Live_Views *live_views = &models->live_set;
+        Layout *layout = &models->layout;
+        for (Node *node = layout->open_panels.next;
+             node != &layout->open_panels;
+             node = node->next){
+            Panel *panel = CastFromMember(Panel, node, node);
+            View *view = panel->view;
+            View_Context_Node *ctx = view->ctx;
+            if (ctx != 0){
+                Render_Caller_Function *render_caller = ctx->ctx.render_caller;
+                if (render_caller != 0){
+                    render_caller(&models->app_links, frame, view_get_id(live_views, view));
+                }
+            }
         }
         
         models->in_render_mode = false;

@@ -662,8 +662,21 @@ log_graph_render__tag(Arena *arena, Fancy_String_List *line, Log_Parse *log, Log
 }
 
 internal void
-log_graph_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_f32 inner){
+log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     if (log_parse.arena != 0){
+        ////////////////////////////////
+        View_ID active_view = get_active_view(app, AccessAll);
+        b32 is_active_view = (active_view == view);
+        
+        Rect_f32 view_rect = view_get_screen_rect(app, view);
+        Rect_f32 inner = rect_inner(view_rect, 3);
+        draw_rectangle(app, view_rect, 0.f,
+                       get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None));
+        draw_rectangle(app, inner, 0.f, Stag_Back);
+        
+        Rect_f32 prev_clip = draw_set_clip(app, inner);
+        ////////////////////////////////
+        
         Face_ID face_id = get_face_id(app, 0);
         f32 y_scroll = log_graph.y_scroll;
         Log_Event *selected_event = log_graph.selected_event;
@@ -900,6 +913,7 @@ log_graph_render(Application_Links *app, View_ID view, Frame_Info frame_info, Re
         }
         
         log_graph.has_unused_click = false;
+        draw_set_clip(app, prev_clip);
     }
 }
 
@@ -972,21 +986,6 @@ log_graph__click_jump_to_event_source(Application_Links *app, Vec2_f32 m_p){
     }
 }
 
-#if 0
-internal void
-fill_log_graph_command_map(Mapping *mapping){
-    MappingScope();
-    SelectMapping(mapping);
-    SelectMap(default_log_graph_map);
-    //Bind(log_graph__escape, KeyCode_Escape);
-    //BindMouseWheel(log_graph__scroll_wheel);
-    //BindMouse(log_graph__click_jump_to_event_source, MouseCode_Left);
-    //BindMouse(log_graph__click_select_event, MouseCode_Right);
-    Bind(log_graph__page_up, KeyCode_PageUp);
-    Bind(log_graph__page_down, KeyCode_PageDown);
-}
-#endif
-
 CUSTOM_COMMAND_SIG(show_the_log_graph)
 CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
 {
@@ -996,14 +995,14 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
     if (log_view == 0){
         log_view = get_active_view(app, AccessAll);
     }
-    Managed_Scope scope = view_get_managed_scope(app, log_view);
-    View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
-    *hook = log_graph_render;
+    
+    View_ID view = log_view;
+    View_Context ctx = view_current_context(app, log_view);
+    ctx.render_caller = log_graph_render;
+    view_push_context(app, log_view, &ctx);
     
     for (;;){
-        User_Input in = get_user_input(app,
-                                       EventPropertyGroup_AnyUserInput,
-                                       KeyCode_Escape);
+        User_Input in = get_user_input(app, EventPropertyGroup_AnyUserInput, KeyCode_Escape);
         if (in.abort){
             log_view = 0;
             break;
@@ -1049,8 +1048,7 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
         }
     }
     
-    hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
-    *hook = 0;
+    view_pop_context(app, view);
 }
 
 // BOTTOM
