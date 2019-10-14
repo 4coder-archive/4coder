@@ -18,7 +18,7 @@ CUSTOM_DOC("A lister mode command that inserts a new character to the text field
             lister_append_key(&state->lister, string);
             state->item_index = 0;
             view_zero_scroll(app, view);
-            lister_update_ui(app, view, state);
+            lister_update_filtered_list(app, view, state);
         }
     }
 }
@@ -33,7 +33,7 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
         state->lister.data.key_string.string = backspace_utf8(state->lister.data.key_string.string);
         state->item_index = 0;
         view_zero_scroll(app, view);
-        lister_update_ui(app, view, state);
+        lister_update_filtered_list(app, view, state);
     }
 }
 
@@ -45,10 +45,10 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one up in the 
     if (state->initialized){
         state->item_index = state->item_index - 1;
         if (state->item_index < 0){
-            state->item_index = state->item_count_after_filter - 1;
+            state->item_index = state->filtered.count - 1;
         }
         state->set_view_vertical_focus_to_item = true;
-        lister_update_ui(app, view, state);
+        lister_update_filtered_list(app, view, state);
     }
 }
 
@@ -59,11 +59,11 @@ CUSTOM_DOC("A lister mode command that moves the highlighted item one down in th
     Lister_State *state = view_get_lister_state(view);
     if (state->initialized){
         state->item_index = state->item_index + 1;
-        if (state->item_index > state->item_count_after_filter - 1){
+        if (state->item_index > state->filtered.count - 1){
             state->item_index = 0;
         }
         state->set_view_vertical_focus_to_item = true;
-        lister_update_ui(app, view, state);
+        lister_update_filtered_list(app, view, state);
     }
 }
 
@@ -86,7 +86,7 @@ CUSTOM_DOC("A lister mode command that inserts a character into the text field o
             }
             state->item_index = 0;
             view_zero_scroll(app, view);
-            lister_update_ui(app, view, state);
+            lister_update_filtered_list(app, view, state);
         }
     }
 }
@@ -124,7 +124,7 @@ CUSTOM_DOC("A lister mode command that backspaces one character from the text fi
             
             state->item_index = 0;
             view_zero_scroll(app, view);
-            lister_update_ui(app, view, state);
+            lister_update_filtered_list(app, view, state);
         }
     }
 }
@@ -166,6 +166,10 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
     Heap *heap = &global_heap;
     Lister_State *state = view_get_lister_state(view);
     
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
+    *hook = lister_render;
+    
     for (;;){
         User_Input in = get_user_input(app,
                                        EventPropertyGroup_Any,
@@ -174,6 +178,7 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
             break;
         }
         
+        Lister_Activation_Code result = ListerActivation_Continue;
         b32 handled = true;
         switch (in.event.kind){
             case InputEventKind_TextInsert:
@@ -185,7 +190,6 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
             
             case InputEventKind_KeyStroke:
             {
-                Lister_Activation_Code result = ListerActivation_Continue;
                 switch (in.event.key.code){
                     case KeyCode_Return:
                     case KeyCode_Tab:
@@ -243,9 +247,6 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
                         }
                     }break;
                 }
-                if (result == ListerActivation_Finished){
-                    goto done;
-                }
             }break;
             
             case InputEventKind_MouseButton:
@@ -253,8 +254,9 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
                 switch (in.event.mouse.code){
                     case MouseCode_Left:
                     {
-                        UI_Item clicked = lister_get_clicked_item(app, view);
-                        state->hot_user_data = clicked.user_data;
+                        Vec2_f32 p = V2f32(in.event.mouse.p);
+                        void *clicked = lister_user_data_at_p(app, view, state, p);
+                        state->hot_user_data = clicked;
                     }break;
                     
                     default:
@@ -270,10 +272,11 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
                     case MouseCode_Left:
                     {
                         if (state->hot_user_data != 0){
-                            UI_Item clicked = lister_get_clicked_item(app, view);
-                            if (state->hot_user_data == clicked.user_data){
-                                lister_call_activate_handler(app, heap, view, state,
-                                                             clicked.user_data, true);
+                            Vec2_f32 p = V2f32(in.event.mouse.p);
+                            void *clicked = lister_user_data_at_p(app, view, state, p);
+                            if (state->hot_user_data == clicked){
+                                result = lister_call_activate_handler(app, heap, view, state,
+                                                                      clicked, true);
                             }
                         }
                         state->hot_user_data = 0;
@@ -288,19 +291,17 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
             
             case InputEventKind_MouseWheel:
             {
-                Basic_Scroll scroll = view_get_basic_scroll(app, view);
                 Mouse_State mouse = get_mouse_state(app);
-                scroll.target.y += mouse.wheel;
-                view_set_basic_scroll(app, view, scroll);
+                state->scroll.target.y += mouse.wheel;
                 if (state->initialized){
-                    lister_update_ui(app, view, state);
+                    lister_update_filtered_list(app, view, state);
                 }
             }break;
             
             case InputEventKind_MouseMove:
             case InputEventKind_Core:
             {
-                lister_update_ui(app, view, state);
+                lister_update_filtered_list(app, view, state);
             }break;
             
             default:
@@ -309,11 +310,16 @@ lister_input_handling_loop(Application_Links *app, View_ID view){
             }break;
         }
         
+        if (result == ListerActivation_Finished){
+            break;
+        }
         if (!handled){
             leave_command_input_unhandled(app);
         }
     }
-    done:;
+    
+    hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
+    *hook = 0;
 }
 
 ////////////////////////////////
@@ -350,11 +356,9 @@ begin_integrated_lister__with_refresh_handler(Application_Links *app, char *quer
         lister_set_query(&state->lister, query_string);
         state->lister.data.handlers = handlers;
         handlers.refresh(app, &state->lister);
-        lister_update_ui(app, view, state);
+        lister_update_filtered_list(app, view, state);
         
-        view_begin_ui_mode(app, view);
         lister_input_handling_loop(app, view);
-        view_end_ui_mode(app, view);
         state->initialized = false;
         linalloc_clear(state->lister.arena);
         
@@ -396,11 +400,9 @@ begin_integrated_lister__basic_list(Application_Links *app, char *query_string,
     lister_set_query(&state->lister, query_string);
     state->lister.data.handlers = lister_get_default_handlers();
     state->lister.data.handlers.activate = activate;
-    lister_update_ui(app, view, state);
+    lister_update_filtered_list(app, view, state);
     
-    view_begin_ui_mode(app, view);
     lister_input_handling_loop(app, view);
-    view_end_ui_mode(app, view);
     state->initialized = false;
     linalloc_clear(state->lister.arena);
 }
@@ -428,11 +430,9 @@ begin_integrated_lister__with_fixed_options(Application_Links *app, char *query_
     lister_set_query(&state->lister, query_string);
     state->lister.data.handlers = handlers;
     state->lister.data.handlers.refresh = 0;
-    lister_update_ui(app, view, state);
+    lister_update_filtered_list(app, view, state);
     
-    view_begin_ui_mode(app, view);
     lister_input_handling_loop(app, view);
-    view_end_ui_mode(app, view);
     state->initialized = false;
     linalloc_clear(state->lister.arena);
 }
@@ -464,7 +464,6 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
     Lister_State *state = view_get_lister_state(view);
     init_lister_state(app, state, heap);
     lister_first_init(app, &state->lister, user_data, user_data_size);
-    state->lister.data.theme_list = true;
     for (i32 i = 0; i < option_count; i += 1){
         lister_add_theme_item(&state->lister,
                               SCu8(options[i].string),
@@ -474,11 +473,9 @@ begin_integrated_lister__theme_list(Application_Links *app, char *query_string,
     lister_set_query(&state->lister, query_string);
     state->lister.data.handlers = handlers;
     state->lister.data.handlers.refresh = 0;
-    lister_update_ui(app, view, state);
+    lister_update_filtered_list(app, view, state);
     
-    view_begin_ui_mode(app, view);
     lister_input_handling_loop(app, view);
-    view_end_ui_mode(app, view);
     state->initialized = false;
     linalloc_clear(state->lister.arena);
 }
@@ -776,7 +773,6 @@ CUSTOM_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
     View_ID view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, view);
     begin_integrated_lister__buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, view);
 }
 
@@ -796,7 +792,6 @@ CUSTOM_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
     View_ID view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, view);
     begin_integrated_lister__buffer_list(app, "Kill:", activate_kill_buffer, 0, 0, view);
 }
 
@@ -868,7 +863,6 @@ CUSTOM_COMMAND_SIG(interactive_open_or_new)
 CUSTOM_DOC("Interactively open a file out of the file system.")
 {
     View_ID view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, view);
     begin_integrated_lister__file_system_list(app, "Open:", activate_open_or_new, 0, 0, view);
 }
 
@@ -908,7 +902,6 @@ CUSTOM_COMMAND_SIG(interactive_new)
 CUSTOM_DOC("Interactively creates a new file.")
 {
     View_ID view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, view);
     begin_integrated_lister__file_system_list(app, "New:", activate_new, 0, 0, view);
 }
 
@@ -942,7 +935,6 @@ CUSTOM_COMMAND_SIG(interactive_open)
 CUSTOM_DOC("Interactively opens a file.")
 {
     View_ID view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, view);
     begin_integrated_lister__file_system_list(app, "Open:", activate_open, 0, 0, view);
 }
 
@@ -1004,7 +996,6 @@ launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 comma
     
     Scratch_Block scratch(app, Scratch_Share);
     View_ID view = get_active_view(app, AccessAll);
-    view_end_ui_mode(app, view);
     Lister_Option *options = push_array(scratch, Lister_Option, command_id_count);
     for (i32 i = 0; i < command_id_count; i += 1){
         i32 j = i;

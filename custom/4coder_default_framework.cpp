@@ -248,7 +248,9 @@ create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Cons
         View_ID view_with_buffer_already_open = get_first_view_with_buffer(app, search_buffer);
         if (view_with_buffer_already_open != 0){
             target_view = view_with_buffer_already_open;
-            view_end_ui_mode(app, target_view);
+            // TODO(allen): there needs to be something like
+            // view_exit_to_base_context(app, target_view);
+            //view_end_ui_mode(app, target_view);
         }
         else{
             view_set_buffer(app, target_view, search_buffer, 0);

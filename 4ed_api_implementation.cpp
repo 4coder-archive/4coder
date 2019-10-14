@@ -1350,23 +1350,8 @@ view_get_buffer_scroll(Application_Links *app, View_ID view_id){
     Buffer_Scroll  result = {};
     View *view = imp_get_view(models, view_id);
     if (api_check_view(view)){
-        if (!view->ui_mode){
-            File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            result = edit_pos.scroll;
-        }
-    }
-    return(result);
-}
-
-api(custom) function Basic_Scroll
-view_get_basic_scroll(Application_Links *app, View_ID view_id){
-    Models *models = (Models*)app->cmd_context;
-    Basic_Scroll  result = {};
-    View *view = imp_get_view(models, view_id);
-    if (api_check_view(view)){
-        if (view->ui_mode){
-            result = view->ui_scroll;
-        }
+        File_Edit_Positions edit_pos = view_get_edit_pos(view);
+        result = edit_pos.scroll;
     }
     return(result);
 }
@@ -1409,11 +1394,6 @@ view_get_setting(Application_Links *app, View_ID view_id, View_Setting_ID settin
                 *value_out = !view->hide_file_bar;
             }break;
             
-            case ViewSetting_UICommandMap:
-            {
-                *value_out = view->ui_map_id;
-            }break;
-            
             default:
             {
                 result = false;
@@ -1446,11 +1426,6 @@ view_set_setting(Application_Links *app, View_ID view_id, View_Setting_ID settin
             case ViewSetting_ShowFileBar:
             {
                 view->hide_file_bar = (b8)!value;
-            }break;
-            
-            case ViewSetting_UICommandMap:
-            {
-                view->ui_map_id = value;
             }break;
             
             default:
@@ -1523,36 +1498,16 @@ view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll sc
     b32 result = false;
     View *view = imp_get_view(models, view_id);
     if (api_check_view(view)){
-        if (!view->ui_mode){
-            scroll.position = view_normalize_buffer_point(models, view, scroll.position);
-            scroll.target = view_normalize_buffer_point(models, view, scroll.target);
-            scroll.target.pixel_shift.x = f32_round32(scroll.target.pixel_shift.x);
-            scroll.target.pixel_shift.y = f32_round32(scroll.target.pixel_shift.y);
-            scroll.target.pixel_shift.x = clamp_bot(0.f, scroll.target.pixel_shift.x);
-            Buffer_Layout_Item_List line = view_get_line_layout(models, view, scroll.target.line_number);
-            scroll.target.pixel_shift.y = clamp(0.f, scroll.target.pixel_shift.y, line.height);
-            view_set_scroll(models, view, scroll);
-            view->new_scroll_target = true;
-            result = true;
-        }
-    }
-    return(result);
-}
-
-api(custom) function b32
-view_set_basic_scroll(Application_Links *app, View_ID view_id, Basic_Scroll scroll)
-{
-    Models *models = (Models*)app->cmd_context;
-    b32 result = false;
-    View *view = imp_get_view(models, view_id);
-    if (api_check_view(view)){
-        if (view->ui_mode){
-            scroll.target.x = f32_round32(scroll.target.x);
-            scroll.target.y = f32_round32(scroll.target.y);
-            view->ui_scroll = scroll;
-            view->new_scroll_target = true;
-            result = true;
-        }
+        scroll.position = view_normalize_buffer_point(models, view, scroll.position);
+        scroll.target = view_normalize_buffer_point(models, view, scroll.target);
+        scroll.target.pixel_shift.x = f32_round32(scroll.target.pixel_shift.x);
+        scroll.target.pixel_shift.y = f32_round32(scroll.target.pixel_shift.y);
+        scroll.target.pixel_shift.x = clamp_bot(0.f, scroll.target.pixel_shift.x);
+        Buffer_Layout_Item_List line = view_get_line_layout(models, view, scroll.target.line_number);
+        scroll.target.pixel_shift.y = clamp(0.f, scroll.target.pixel_shift.y, line.height);
+        view_set_scroll(models, view, scroll);
+        view->new_scroll_target = true;
+        result = true;
     }
     return(result);
 }
@@ -1593,7 +1548,8 @@ view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Se
             if (file != view->file){
                 view_set_file(models, view, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    view_quit_ui(models, view);
+                    //view_quit_ui(models, view);
+                    // TODO(allen): back to base context
                 }
             }
             result = true;
@@ -1619,67 +1575,36 @@ view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 r
 }
 
 api(custom) function b32
-view_begin_ui_mode(Application_Links *app, View_ID view_id)
-{
+view_push_context(Application_Links *app, View_ID view_id, View_Context *ctx){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view)){
-        if (!view->ui_mode){
-            view->ui_mode = true;
-            result = true;
-        }
-    }
-    return(result);
-}
-
-api(custom) function b32
-view_end_ui_mode(Application_Links *app, View_ID view_id)
-{
-    Models *models = (Models*)app->cmd_context;
-    View *view = imp_get_view(models, view_id);
-    b32 result = false;
-    if (api_check_view(view) && view->ui_mode){
-        view_quit_ui(models, view);
-        view->ui_mode = false;
+        view_push_context(models, view, ctx);
         result = true;
     }
     return(result);
 }
 
 api(custom) function b32
-view_is_in_ui_mode(Application_Links *app, View_ID view_id){
+view_pop_context(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view)){
-        result = view->ui_mode;
-    }
-    return(result);
-}
-
-api(custom) function b32
-view_set_quit_ui_handler(Application_Links *app, View_ID view_id, UI_Quit_Function_Type *quit_function)
-{
-    Models *models = (Models*)app->cmd_context;
-    View *view = imp_get_view(models, view_id);
-    b32 result = false;
-    if (api_check_view(view)){
-        view->ui_quit = quit_function;
+        view_pop_context(models, view);
         result = true;
     }
     return(result);
 }
 
-api(custom) function b32
-view_get_quit_ui_handler(Application_Links *app, View_ID view_id, UI_Quit_Function_Type **quit_function_out)
-{
+api(custom) function View_Context
+view_current_context(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    b32 result = false;
+    View_Context result = {};
     if (api_check_view(view)){
-        *quit_function_out = view->ui_quit;
-        result = true;
+        result = view_current_context(models, view);
     }
     return(result);
 }

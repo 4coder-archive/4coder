@@ -7,51 +7,6 @@
 #if !defined(FCODER_UI_HELPER_H)
 #define FCODER_UI_HELPER_H
 
-typedef i8 UI_Item_Type;
-enum UI_Activation_Level{
-    UIActivation_None = 0,
-    UIActivation_Hover = 1,
-    UIActivation_Active = 2,
-};
-
-typedef u8 UI_Coordinate_System;
-enum{
-    UICoordinates_ViewSpace = 0,
-    UICoordinates_PanelSpace = 1,
-    UICoordinates_COUNT = 2,
-};
-
-struct UI_Item{
-    UI_Item *next;
-    UI_Item *prev;
-    UI_Activation_Level activation_level;
-    UI_Coordinate_System coordinates;
-    Rect_i32 rect_outer;
-    i32 inner_margin;
-    Fancy_String_List lines[4];
-    i32 line_count;
-    void *user_data;
-};
-
-struct UI_List{
-    UI_Item *first;
-    UI_Item *last;
-    i32 count;
-};
-
-struct UI_Data{
-    UI_List list;
-    Rect_i32 bounding_box[UICoordinates_COUNT];
-};
-
-struct UI_Storage{
-    UI_Data *data;
-    Arena *arena;
-    Temp_Memory temp;
-};
-
-////////////////////////////////
-
 typedef i32 Lister_Activation_Code;
 enum{
     ListerActivation_Finished = 0,
@@ -114,7 +69,6 @@ struct Lister_Data{
 	String_u8 text_field;
 	String_u8 key_string;
     Lister_Option_List options;
-    b32 theme_list;
 };
 
 struct Lister{
@@ -125,21 +79,30 @@ struct Lister{
 struct Lister_State{
     b32 initialized;
     Lister lister;
-    
-    // Action defered to next UI update
     b32 set_view_vertical_focus_to_item;
-    
-    // State set directly by input handlers
+    Lister_Node *highlighted_node;
     void *hot_user_data;
     i32 item_index;
-    
-    // State of UI computed during UI update
     i32 raw_item_index;
-    i32 item_count_after_filter;
+    b32 filter_restore_point_is_set;
+    Temp_Memory filter_restore_point;
+    Lister_Node_Ptr_Array filtered;
+    Basic_Scroll scroll;
 };
 
 struct Lister_Prealloced_String{
     String_Const_u8 string;
+};
+
+struct Lister_Filtered{
+    Lister_Node_Ptr_Array exact_matches;
+    Lister_Node_Ptr_Array before_extension_matches;
+    Lister_Node_Ptr_Array substring_matches;
+};
+
+struct Lister_Top_Level_Layout{
+    Rect_f32 text_field_rect;
+    Rect_f32 list_rect;
 };
 
 ////////////////////////////////

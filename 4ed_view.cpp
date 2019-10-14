@@ -66,18 +66,14 @@ free_all_queries(Query_Set *set){
 
 internal Command_Map_ID
 view_get_map(View *view){
-    if (view->ui_mode){
-        return(view->ui_map_id);
-    }
-    else{
-        return(view->file->settings.base_map_id);
-    }
+    return(view->file->settings.base_map_id);
 }
 
 internal u32
 view_get_access_flags(View *view){
     u32 result = AccessOpen;
-    if (view->ui_mode){
+    View_Context_Node *node = view->ctx;
+    if (node != 0 && node->ctx.hides_buffer){
         result |= AccessHidden;
     }
     result |= file_get_access_flags(view->file);
@@ -611,6 +607,51 @@ co_send_core_event(Models *models, View *view, Core_Code code){
 
 ////////////////////////////////
 
+function View_Context_Node*
+view__alloc_context_node(Live_Views *views){
+    View_Context_Node *node = views->free_nodes;
+    if (node != 0){
+        sll_stack_pop(views->free_nodes); 
+    }
+    else{
+        node = push_array(views->node_arena, View_Context_Node, 1);
+    }
+    return(node);
+}
+
+function void
+view__free_context_node(Live_Views *views, View_Context_Node *node){
+    sll_stack_push(views->free_nodes, node);
+}
+
+function void
+view_push_context(Models *models, View *view, View_Context *ctx){
+    View_Context_Node *node = view__alloc_context_node(&models->live_set);
+    sll_stack_push(view->ctx, node);
+    block_copy_struct(&node->ctx, ctx);
+}
+
+function void
+view_pop_context(Models *models, View *view){
+    View_Context_Node *node = view->ctx;
+    if (node != 0){
+        sll_stack_pop(view->ctx);
+        view__free_context_node(&models->live_set, node);
+    }
+}
+
+function View_Context
+view_current_context(Models *models, View *view){
+    View_Context ctx = {};
+    View_Context_Node *node = view->ctx;
+    if (node != 0){
+        block_copy_struct(&ctx, &node->ctx);
+    }
+    return(ctx);
+}
+
+////////////////////////////////
+
 internal b32
 file_is_viewed(Layout *layout, Editing_File *file){
     b32 is_viewed = false;
@@ -681,16 +722,6 @@ finalize_color(Color_Table color_table, int_color color){
         color_argb = color_table.vals[color % color_table.count];
     }
     return(color_argb);
-}
-
-internal void
-view_quit_ui(Models *models, View *view){
-    Assert(view != 0);
-    view->ui_mode = false;
-    if (view->ui_quit != 0){
-        view->ui_quit(&models->app_links, view_get_id(&models->live_set, view));
-        view->ui_quit = 0;
-    }
 }
 
 ////////////////////////////////

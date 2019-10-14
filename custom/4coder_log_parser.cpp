@@ -903,26 +903,6 @@ log_graph_render(Application_Links *app, View_ID view, Frame_Info frame_info, Re
     }
 }
 
-CUSTOM_COMMAND_SIG(log_graph__escape)
-CUSTOM_DOC("Ends the log grapher")
-{
-    if (log_view != 0){
-        view_end_ui_mode(app, log_view);
-        log_view = 0;
-    }
-}
-
-CUSTOM_COMMAND_SIG(log_graph__scroll_wheel)
-CUSTOM_DOC("Scrolls the log graph")
-{
-    if (log_view != 0){
-        Mouse_State mouse = get_mouse_state(app);
-        if (mouse.wheel != 0){
-            log_graph.y_scroll += mouse.wheel;
-        }
-    }
-}
-
 internal Log_Graph_Box*
 log_graph__get_box_at_point(Log_Graph *graph, Vec2_f32 p){
     Log_Graph_Box *result = 0;
@@ -980,9 +960,6 @@ log_graph__click_jump_to_event_source(Application_Links *app, Vec2_f32 m_p){
                     target_buffer = get_buffer_by_name(app, file_name, AccessAll);
                 }
                 if (target_buffer != 0){
-                    if (target_view == log_view){
-                        view_end_ui_mode(app, target_view);
-                    }
                     set_view_to_location(app, target_view, target_buffer,
                                          seek_line_col(event->line_number, 1));
                 }

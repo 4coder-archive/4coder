@@ -75,7 +75,6 @@ api(custom) function Rect_i32 panel_get_margin(Application_Links* app, Panel_ID 
 api(custom) function b32 view_close(Application_Links* app, View_ID view_id);
 api(custom) function Rect_f32 view_get_buffer_region(Application_Links* app, View_ID view_id);
 api(custom) function Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
-api(custom) function Basic_Scroll view_get_basic_scroll(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_set_active(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
 api(custom) function b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
@@ -84,15 +83,12 @@ api(custom) function Buffer_Cursor buffer_compute_cursor(Application_Links* app,
 api(custom) function Buffer_Cursor view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 api(custom) function b32 view_set_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 api(custom) function b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll);
-api(custom) function b32 view_set_basic_scroll(Application_Links* app, View_ID view_id, Basic_Scroll scroll);
 api(custom) function b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 api(custom) function b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
 api(custom) function b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color);
-api(custom) function b32 view_begin_ui_mode(Application_Links* app, View_ID view_id);
-api(custom) function b32 view_end_ui_mode(Application_Links* app, View_ID view_id);
-api(custom) function b32 view_is_in_ui_mode(Application_Links* app, View_ID view_id);
-api(custom) function b32 view_set_quit_ui_handler(Application_Links* app, View_ID view_id, UI_Quit_Function_Type* quit_function);
-api(custom) function b32 view_get_quit_ui_handler(Application_Links* app, View_ID view_id, UI_Quit_Function_Type** quit_function_out);
+api(custom) function b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);
+api(custom) function b32 view_pop_context(Application_Links* app, View_ID view_id);
+api(custom) function View_Context view_current_context(Application_Links* app, View_ID view_id);
 api(custom) function Managed_Scope create_user_managed_scope(Application_Links* app);
 api(custom) function b32 destroy_user_managed_scope(Application_Links* app, Managed_Scope scope);
 api(custom) function Managed_Scope get_global_managed_scope(Application_Links* app);

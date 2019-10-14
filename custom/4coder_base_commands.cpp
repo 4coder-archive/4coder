@@ -226,50 +226,42 @@ CUSTOM_COMMAND_SIG(click_set_cursor_and_mark)
 CUSTOM_DOC("Sets the cursor position and mark to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    if (!view_is_in_ui_mode(app, view)){
-        Mouse_State mouse = get_mouse_state(app);
-        i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
-        view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
-        view_set_mark(app, view, seek_pos(pos));
-    }
+    Mouse_State mouse = get_mouse_state(app);
+    i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
+    view_set_mark(app, view, seek_pos(pos));
 }
 
 CUSTOM_COMMAND_SIG(click_set_cursor)
 CUSTOM_DOC("Sets the cursor position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    if (!view_is_in_ui_mode(app, view)){
-        Mouse_State mouse = get_mouse_state(app);
-        i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
-        view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
-        no_mark_snap_to_cursor(app, view);
-    }
+    Mouse_State mouse = get_mouse_state(app);
+    i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+    view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
+    no_mark_snap_to_cursor(app, view);
 }
 
 CUSTOM_COMMAND_SIG(click_set_cursor_if_lbutton)
 CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    if (!view_is_in_ui_mode(app, view)){
-        Mouse_State mouse = get_mouse_state(app);
-        if (mouse.l){
-            i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
-            view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
-        }
-        no_mark_snap_to_cursor(app, view);
+    Mouse_State mouse = get_mouse_state(app);
+    if (mouse.l){
+        i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+        view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
     }
+    no_mark_snap_to_cursor(app, view);
 }
 
 CUSTOM_COMMAND_SIG(click_set_mark)
 CUSTOM_DOC("Sets the mark position to the mouse position.")
 {
     View_ID view = get_active_view(app, AccessProtected);
-    if (!view_is_in_ui_mode(app, view)){
-        Mouse_State mouse = get_mouse_state(app);
-        i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
-        view_set_mark(app, view, seek_pos(pos));
-        no_mark_snap_to_cursor(app, view);
-    }
+    Mouse_State mouse = get_mouse_state(app);
+    i64 pos = view_pos_from_xy(app, view, V2(mouse.p));
+    view_set_mark(app, view, seek_pos(pos));
+    no_mark_snap_to_cursor(app, view);
 }
 
 CUSTOM_COMMAND_SIG(mouse_wheel_scroll)
@@ -278,16 +270,9 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
     View_ID view = get_active_view(app, AccessProtected);
     Mouse_State mouse = get_mouse_state(app);
     if (mouse.wheel != 0){
-        if (view_is_in_ui_mode(app, view)){
-            Basic_Scroll scroll = view_get_basic_scroll(app, view);
-            scroll.target.y += mouse.wheel;
-            view_set_basic_scroll(app, view, scroll);
-        }
-        else{
-            Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
-            scroll.target = view_move_buffer_point(app, view, scroll.target, V2f32(0.f, (f32)mouse.wheel));
-            view_set_buffer_scroll(app, view, scroll);
-        }
+        Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+        scroll.target = view_move_buffer_point(app, view, scroll.target, V2f32(0.f, (f32)mouse.wheel));
+        view_set_buffer_scroll(app, view, scroll);
     }
 }
 
@@ -1578,13 +1563,11 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
 CUSTOM_COMMAND_SIG(swap_buffers_between_panels)
 CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
 {
-    View_ID view1 = get_active_view(app, AccessAll);
+    View_ID view1 = get_active_view(app, AccessProtected);
     change_active_panel(app);
-    View_ID view2 = get_active_view(app, AccessAll);
+    View_ID view2 = get_active_view(app, AccessProtected);
     
-    if (view1 != view2 &&
-        !view_is_in_ui_mode(app, view1) &&
-        !view_is_in_ui_mode(app, view2)){
+    if (view1 != view2){
         Buffer_ID buffer1 = view_get_buffer(app, view1, AccessAll);
         Buffer_ID buffer2 = view_get_buffer(app, view2, AccessAll);
         if (buffer1 != buffer2){

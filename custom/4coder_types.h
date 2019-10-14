@@ -43,6 +43,13 @@ TYPEDEF i32 Panel_ID;
 
 TYPEDEF u32 Text_Layout_ID;
 
+typedef i32 UI_Highlight_Level;
+enum{
+    UIHighlight_None,
+    UIHighlight_Hover,
+    UIHighlight_Active,
+};
+
 STRUCT Buffer_Point{
     i64 line_number;
     Vec2 pixel_shift;
@@ -94,12 +101,16 @@ STRUCT Character_Predicate{
     u8 b[32];
 };
 
+struct View_Context{
+    Void_Func ctx_ptr;
+    b32 hides_buffer;
+};
+
 ENUM(i32, View_Setting_ID){
     ViewSetting_Null,
     ViewSetting_ShowWhitespace,
     ViewSetting_ShowScrollbar,
     ViewSetting_ShowFileBar,
-    ViewSetting_UICommandMap
 };
 
 ENUM(u32, Buffer_Create_Flag){
@@ -241,12 +252,12 @@ STRUCT Buffer_Identifier{
     Buffer_ID id;
 };
 
-STRUCT Buffer_Scroll{
+struct Buffer_Scroll{
     Buffer_Point position;
     Buffer_Point target;
 };
 
-STRUCT Basic_Scroll{
+struct Basic_Scroll{
     Vec2_f32 position;
     Vec2_f32 target;
 };
@@ -350,9 +361,6 @@ struct Query_Bar_Group{
     Query_Bar_Group(Application_Links *app, View_ID view);
     ~Query_Bar_Group();
 };
-
-TYPEDEF_FUNC void UI_Quit_Function_Type(struct Application_Links *app, View_ID view);
-#define UI_QUIT_FUNCTION(name) void name(struct Application_Links *app, View_ID view)
 
 STRUCT Theme_Color{
     id_color tag;

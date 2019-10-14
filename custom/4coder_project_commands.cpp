@@ -1342,7 +1342,6 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
         Scratch_Block scratch(app, Scratch_Share);
         
         View_ID view = get_active_view(app, AccessAll);
-        view_end_ui_mode(app, view);
         i32 option_count = current_project.command_array.count;
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);
         for (i32 i = 0;

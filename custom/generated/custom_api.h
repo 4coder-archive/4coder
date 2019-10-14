@@ -75,7 +75,6 @@
 #define custom_view_close_sig() b32 custom_view_close(Application_Links* app, View_ID view_id)
 #define custom_view_get_buffer_region_sig() Rect_f32 custom_view_get_buffer_region(Application_Links* app, View_ID view_id)
 #define custom_view_get_buffer_scroll_sig() Buffer_Scroll custom_view_get_buffer_scroll(Application_Links* app, View_ID view_id)
-#define custom_view_get_basic_scroll_sig() Basic_Scroll custom_view_get_basic_scroll(Application_Links* app, View_ID view_id)
 #define custom_view_set_active_sig() b32 custom_view_set_active(Application_Links* app, View_ID view_id)
 #define custom_view_get_setting_sig() b32 custom_view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out)
 #define custom_view_set_setting_sig() b32 custom_view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value)
@@ -84,15 +83,12 @@
 #define custom_view_compute_cursor_sig() Buffer_Cursor custom_view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek)
 #define custom_view_set_cursor_sig() b32 custom_view_set_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek)
 #define custom_view_set_buffer_scroll_sig() b32 custom_view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll)
-#define custom_view_set_basic_scroll_sig() b32 custom_view_set_basic_scroll(Application_Links* app, View_ID view_id, Basic_Scroll scroll)
 #define custom_view_set_mark_sig() b32 custom_view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek)
 #define custom_view_set_buffer_sig() b32 custom_view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags)
 #define custom_view_post_fade_sig() b32 custom_view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color)
-#define custom_view_begin_ui_mode_sig() b32 custom_view_begin_ui_mode(Application_Links* app, View_ID view_id)
-#define custom_view_end_ui_mode_sig() b32 custom_view_end_ui_mode(Application_Links* app, View_ID view_id)
-#define custom_view_is_in_ui_mode_sig() b32 custom_view_is_in_ui_mode(Application_Links* app, View_ID view_id)
-#define custom_view_set_quit_ui_handler_sig() b32 custom_view_set_quit_ui_handler(Application_Links* app, View_ID view_id, UI_Quit_Function_Type* quit_function)
-#define custom_view_get_quit_ui_handler_sig() b32 custom_view_get_quit_ui_handler(Application_Links* app, View_ID view_id, UI_Quit_Function_Type** quit_function_out)
+#define custom_view_push_context_sig() b32 custom_view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx)
+#define custom_view_pop_context_sig() b32 custom_view_pop_context(Application_Links* app, View_ID view_id)
+#define custom_view_current_context_sig() View_Context custom_view_current_context(Application_Links* app, View_ID view_id)
 #define custom_create_user_managed_scope_sig() Managed_Scope custom_create_user_managed_scope(Application_Links* app)
 #define custom_destroy_user_managed_scope_sig() b32 custom_destroy_user_managed_scope(Application_Links* app, Managed_Scope scope)
 #define custom_get_global_managed_scope_sig() Managed_Scope custom_get_global_managed_scope(Application_Links* app)
@@ -246,7 +242,6 @@ typedef Rect_i32 custom_panel_get_margin_type(Application_Links* app, Panel_ID p
 typedef b32 custom_view_close_type(Application_Links* app, View_ID view_id);
 typedef Rect_f32 custom_view_get_buffer_region_type(Application_Links* app, View_ID view_id);
 typedef Buffer_Scroll custom_view_get_buffer_scroll_type(Application_Links* app, View_ID view_id);
-typedef Basic_Scroll custom_view_get_basic_scroll_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_set_active_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_get_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
 typedef b32 custom_view_set_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
@@ -255,15 +250,12 @@ typedef Buffer_Cursor custom_buffer_compute_cursor_type(Application_Links* app, 
 typedef Buffer_Cursor custom_view_compute_cursor_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 typedef b32 custom_view_set_cursor_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 typedef b32 custom_view_set_buffer_scroll_type(Application_Links* app, View_ID view_id, Buffer_Scroll scroll);
-typedef b32 custom_view_set_basic_scroll_type(Application_Links* app, View_ID view_id, Basic_Scroll scroll);
 typedef b32 custom_view_set_mark_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 typedef b32 custom_view_set_buffer_type(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
 typedef b32 custom_view_post_fade_type(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color);
-typedef b32 custom_view_begin_ui_mode_type(Application_Links* app, View_ID view_id);
-typedef b32 custom_view_end_ui_mode_type(Application_Links* app, View_ID view_id);
-typedef b32 custom_view_is_in_ui_mode_type(Application_Links* app, View_ID view_id);
-typedef b32 custom_view_set_quit_ui_handler_type(Application_Links* app, View_ID view_id, UI_Quit_Function_Type* quit_function);
-typedef b32 custom_view_get_quit_ui_handler_type(Application_Links* app, View_ID view_id, UI_Quit_Function_Type** quit_function_out);
+typedef b32 custom_view_push_context_type(Application_Links* app, View_ID view_id, View_Context* ctx);
+typedef b32 custom_view_pop_context_type(Application_Links* app, View_ID view_id);
+typedef View_Context custom_view_current_context_type(Application_Links* app, View_ID view_id);
 typedef Managed_Scope custom_create_user_managed_scope_type(Application_Links* app);
 typedef b32 custom_destroy_user_managed_scope_type(Application_Links* app, Managed_Scope scope);
 typedef Managed_Scope custom_get_global_managed_scope_type(Application_Links* app);
@@ -418,7 +410,6 @@ custom_panel_get_margin_type *panel_get_margin;
 custom_view_close_type *view_close;
 custom_view_get_buffer_region_type *view_get_buffer_region;
 custom_view_get_buffer_scroll_type *view_get_buffer_scroll;
-custom_view_get_basic_scroll_type *view_get_basic_scroll;
 custom_view_set_active_type *view_set_active;
 custom_view_get_setting_type *view_get_setting;
 custom_view_set_setting_type *view_set_setting;
@@ -427,15 +418,12 @@ custom_buffer_compute_cursor_type *buffer_compute_cursor;
 custom_view_compute_cursor_type *view_compute_cursor;
 custom_view_set_cursor_type *view_set_cursor;
 custom_view_set_buffer_scroll_type *view_set_buffer_scroll;
-custom_view_set_basic_scroll_type *view_set_basic_scroll;
 custom_view_set_mark_type *view_set_mark;
 custom_view_set_buffer_type *view_set_buffer;
 custom_view_post_fade_type *view_post_fade;
-custom_view_begin_ui_mode_type *view_begin_ui_mode;
-custom_view_end_ui_mode_type *view_end_ui_mode;
-custom_view_is_in_ui_mode_type *view_is_in_ui_mode;
-custom_view_set_quit_ui_handler_type *view_set_quit_ui_handler;
-custom_view_get_quit_ui_handler_type *view_get_quit_ui_handler;
+custom_view_push_context_type *view_push_context;
+custom_view_pop_context_type *view_pop_context;
+custom_view_current_context_type *view_current_context;
 custom_create_user_managed_scope_type *create_user_managed_scope;
 custom_destroy_user_managed_scope_type *destroy_user_managed_scope;
 custom_get_global_managed_scope_type *get_global_managed_scope;
@@ -591,7 +579,6 @@ internal Rect_i32 panel_get_margin(Application_Links* app, Panel_ID panel_id);
 internal b32 view_close(Application_Links* app, View_ID view_id);
 internal Rect_f32 view_get_buffer_region(Application_Links* app, View_ID view_id);
 internal Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
-internal Basic_Scroll view_get_basic_scroll(Application_Links* app, View_ID view_id);
 internal b32 view_set_active(Application_Links* app, View_ID view_id);
 internal b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
 internal b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
@@ -600,15 +587,12 @@ internal Buffer_Cursor buffer_compute_cursor(Application_Links* app, Buffer_ID b
 internal Buffer_Cursor view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 internal b32 view_set_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 internal b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll);
-internal b32 view_set_basic_scroll(Application_Links* app, View_ID view_id, Basic_Scroll scroll);
 internal b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 internal b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
 internal b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color);
-internal b32 view_begin_ui_mode(Application_Links* app, View_ID view_id);
-internal b32 view_end_ui_mode(Application_Links* app, View_ID view_id);
-internal b32 view_is_in_ui_mode(Application_Links* app, View_ID view_id);
-internal b32 view_set_quit_ui_handler(Application_Links* app, View_ID view_id, UI_Quit_Function_Type* quit_function);
-internal b32 view_get_quit_ui_handler(Application_Links* app, View_ID view_id, UI_Quit_Function_Type** quit_function_out);
+internal b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);
+internal b32 view_pop_context(Application_Links* app, View_ID view_id);
+internal View_Context view_current_context(Application_Links* app, View_ID view_id);
 internal Managed_Scope create_user_managed_scope(Application_Links* app);
 internal b32 destroy_user_managed_scope(Application_Links* app, Managed_Scope scope);
 internal Managed_Scope get_global_managed_scope(Application_Links* app);
@@ -764,7 +748,6 @@ global custom_panel_get_margin_type *panel_get_margin = 0;
 global custom_view_close_type *view_close = 0;
 global custom_view_get_buffer_region_type *view_get_buffer_region = 0;
 global custom_view_get_buffer_scroll_type *view_get_buffer_scroll = 0;
-global custom_view_get_basic_scroll_type *view_get_basic_scroll = 0;
 global custom_view_set_active_type *view_set_active = 0;
 global custom_view_get_setting_type *view_get_setting = 0;
 global custom_view_set_setting_type *view_set_setting = 0;
@@ -773,15 +756,12 @@ global custom_buffer_compute_cursor_type *buffer_compute_cursor = 0;
 global custom_view_compute_cursor_type *view_compute_cursor = 0;
 global custom_view_set_cursor_type *view_set_cursor = 0;
 global custom_view_set_buffer_scroll_type *view_set_buffer_scroll = 0;
-global custom_view_set_basic_scroll_type *view_set_basic_scroll = 0;
 global custom_view_set_mark_type *view_set_mark = 0;
 global custom_view_set_buffer_type *view_set_buffer = 0;
 global custom_view_post_fade_type *view_post_fade = 0;
-global custom_view_begin_ui_mode_type *view_begin_ui_mode = 0;
-global custom_view_end_ui_mode_type *view_end_ui_mode = 0;
-global custom_view_is_in_ui_mode_type *view_is_in_ui_mode = 0;
-global custom_view_set_quit_ui_handler_type *view_set_quit_ui_handler = 0;
-global custom_view_get_quit_ui_handler_type *view_get_quit_ui_handler = 0;
+global custom_view_push_context_type *view_push_context = 0;
+global custom_view_pop_context_type *view_pop_context = 0;
+global custom_view_current_context_type *view_current_context = 0;
 global custom_create_user_managed_scope_type *create_user_managed_scope = 0;
 global custom_destroy_user_managed_scope_type *destroy_user_managed_scope = 0;
 global custom_get_global_managed_scope_type *get_global_managed_scope = 0;

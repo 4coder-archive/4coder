@@ -68,7 +68,6 @@ open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID 
     Marker_List *list = get_or_make_list_for_buffer(app, heap, list_buffer_id);
     if (list != 0){
         i32 estimated_string_space_size = 0;
-        view_end_ui_mode(app, ui_view);
         Scratch_Block scratch(app);
         i32 option_count = list->jump_count;
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);

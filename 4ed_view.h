@@ -56,6 +56,11 @@ struct Query_Set{
     Query_Slot *used_slot;
 };
 
+struct View_Context_Node{
+    View_Context_Node *next;
+    View_Context ctx;
+};
+
 struct View{
     View *next;
     View *prev;
@@ -74,10 +79,7 @@ struct View{
     Coroutine *co;
     Co_Out co_out;
     
-    b8 ui_mode;
-    Command_Map_ID ui_map_id;
-    Basic_Scroll ui_scroll;
-    UI_Quit_Function_Type *ui_quit;
+    View_Context_Node *ctx;
     
     b8 hide_scrollbar;
     b8 hide_file_bar;
@@ -87,6 +89,8 @@ struct View{
 };
 
 struct Live_Views{
+    Arena *node_arena;
+    View_Context_Node *free_nodes;
     View *views;
     View free_sentinel;
     i32 count;

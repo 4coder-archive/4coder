@@ -26,20 +26,14 @@ CUSTOM_DOC("Input consumption loop for base view behavior")
         
         View_ID view = get_active_view(app, AccessAll);
         
-        Command_Map_ID map_id = 0;
-        if (view_is_in_ui_mode(app, view)){
-            view_get_setting(app, view, ViewSetting_UICommandMap, &map_id);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+        Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
+        Command_Map_ID *map_id_ptr =
+            scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
+        if (*map_id_ptr == 0){
+            *map_id_ptr = mapid_file;
         }
-        else{
-            Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-            Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
-            Command_Map_ID *map_id_ptr =
-                scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
-            if (*map_id_ptr == 0){
-                *map_id_ptr = mapid_file;
-            }
-            map_id = *map_id_ptr;
-        }
+        Command_Map_ID map_id = *map_id_ptr;
         
         Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
         
@@ -714,61 +708,11 @@ default_buffer_render_caller(Application_Links *app, Frame_Info frame_info, View
 }
 
 internal void
-default_ui_render_caller(Application_Links *app, View_ID view_id, Rect_f32 rect, Face_ID face_id){
-    UI_Data *ui_data = 0;
-    Arena *ui_arena = 0;
-    if (view_get_ui_data(app, view_id, ViewGetUIFlag_KeepDataAsIs, &ui_data, &ui_arena)){
-        Basic_Scroll scroll = view_get_basic_scroll(app, view_id);
-        
-        for (UI_Item *item = ui_data->list.first;
-             item != 0;
-             item = item->next){
-            Rect_f32 item_rect = Rf32(item->rect_outer);
-            item_rect.p0 += rect.p0;
-            item_rect.p1 += rect.p0;
-            
-            switch (item->coordinates){
-                case UICoordinates_ViewSpace:
-                {
-                    item_rect.p0 -= scroll.position;
-                    item_rect.p1 -= scroll.position;
-                }break;
-                case UICoordinates_PanelSpace:
-                {}break;
-            }
-            
-            if (rect_overlap(item_rect, rect)){
-                Rect_f32 inner = rect_inner(item_rect, (f32)item->inner_margin);
-                
-                Face_Metrics metrics = get_face_metrics(app, face_id);
-                f32 line_height = metrics.line_height;
-                f32 info_height = (f32)item->line_count*line_height;
-                
-                draw_rectangle(app, inner, 0.f, Stag_Back);
-                Vec2_f32 p = V2f32(inner.x0 + 3.f, f32_round32((inner.y0 + inner.y1 - info_height)*0.5f));
-                for (i32 i = 0; i < item->line_count; i += 1){
-                    draw_fancy_string(app, face_id, item->lines[i].first, p, Stag_Default, 0, 0, V2(1.f, 0));
-                    p.y += line_height;
-                }
-                if (item->inner_margin > 0){
-                    draw_margin(app, item_rect, inner, get_margin_color(item->activation_level));
-                }
-            }
-        }
-    }
-}
-internal void
-default_ui_render_caller(Application_Links *app, View_ID view, Rect_f32 rect){
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
-    Face_ID face_id = get_face_id(app, buffer);
-    default_ui_render_caller(app, view, rect, face_id);
-}
-
-internal void
 default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view, b32 is_active){
     Rect_f32 view_rect = view_get_screen_rect(app, view);
     Rect_f32 inner = rect_inner(view_rect, 3);
-    draw_rectangle(app, view_rect, 0.f, get_margin_color(is_active?UIActivation_Active:UIActivation_None));
+    draw_rectangle(app, view_rect, 0.f,
+                   get_margin_color(is_active?UIHighlight_Active:UIHighlight_None));
     draw_rectangle(app, inner, 0.f, Stag_Back);
     Rect_f32 prev_clip = draw_set_clip(app, inner);
     
@@ -776,12 +720,7 @@ default_render_view(Application_Links *app, Frame_Info frame_info, View_ID view,
     View_Render_Hook **hook_ptr = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
     
     if (*hook_ptr == 0){
-        if (view_is_in_ui_mode(app, view)){
-            default_ui_render_caller(app, view, inner);
-        }
-        else{
-            default_buffer_render_caller(app, frame_info, view, inner);
-        }
+        default_buffer_render_caller(app, frame_info, view, inner);
     }
     else{
         View_Render_Hook *hook = *hook_ptr;

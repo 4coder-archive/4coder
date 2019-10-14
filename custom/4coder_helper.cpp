@@ -166,14 +166,8 @@ view_move_buffer_point(Application_Links *app, View_ID view, Buffer_Point buffer
 
 internal void
 view_zero_scroll(Application_Links *app, View_ID view){
-    if (view_is_in_ui_mode(app, view)){
-        Basic_Scroll scroll = {};
-        view_set_basic_scroll(app, view, scroll);
-    }
-    else{
-        Buffer_Scroll scroll = {};
-        view_set_buffer_scroll(app, view, scroll);
-    }
+    Buffer_Scroll scroll = {};
+    view_set_buffer_scroll(app, view, scroll);
 }
 
 internal void
@@ -2205,28 +2199,20 @@ get_margin_color(i32 level){
     int_color margin = 0;
     switch (level){
         default:
-        case UIActivation_None:
+        case UIHighlight_None:
         {
             margin = Stag_List_Item;
         }break;
-        case UIActivation_Hover:
+        case UIHighlight_Hover:
         {
             margin = Stag_List_Item_Hover;
         }break;
-        case UIActivation_Active:
+        case UIHighlight_Active:
         {
             margin = Stag_List_Item_Active;
         }break;
     }
     return(margin);
-}
-
-////////////////////////////////
-
-UI_QUIT_FUNCTION(ui_quit_clear_render_hook){
-    Managed_Scope scope = view_get_managed_scope(app, view);
-    View_Render_Hook **hook = scope_attachment(app, scope, view_render_hook, View_Render_Hook*);
-    *hook = 0;
 }
 
 ////////////////////////////////
