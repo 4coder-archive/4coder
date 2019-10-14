@@ -196,12 +196,12 @@ static Snippet default_snippets[] = {
 };
 
 static Lister_Activation_Code
-activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister_State *state, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
+activate_snippet(Application_Links *app, View_ID view, Lister *lister, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     i32 index = (i32)PtrAsInt(user_data);
-    Snippet_Array snippets = *(Snippet_Array*)state->lister.data.user_data;
+    Snippet_Array snippets = *(Snippet_Array*)lister->data.user_data;
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
-        lister_default(app, heap, view, state, ListerActivation_Finished);
+        lister_default(app, view, lister, ListerActivation_Finished);
         Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
         i64 pos = view_get_cursor_pos(app, view);
         buffer_replace_range(app, buffer, Ii64(pos), SCu8(snippet.text));
@@ -209,7 +209,7 @@ activate_snippet(Application_Links *app, Heap *heap, View_ID view, struct Lister
         view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
     }
     else{
-        lister_default(app, heap, view, state, ListerActivation_Finished);
+        lister_default(app, view, lister, ListerActivation_Finished);
     }
     return(ListerActivation_Finished);
 }
@@ -225,7 +225,7 @@ snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_arra
         options[i].status = SCu8(snippet_array.snippets[i].text);
         options[i].user_data = IntAsPtr(i);
     }
-    begin_integrated_lister__basic_list(app, "Snippet:", activate_snippet, &snippet_array, sizeof(snippet_array), options, option_count, 0, view);
+    run_lister_with_options_array(app, "Snippet:", activate_snippet, &snippet_array, sizeof(snippet_array), options, option_count, 0, view);
 }
 
 CUSTOM_COMMAND_SIG(snippet_lister)

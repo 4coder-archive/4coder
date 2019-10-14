@@ -1104,9 +1104,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
         Range_i64 match = Ii64(new_pos, new_pos + r.size);
         isearch__update_highlight(app, view, match);
         
-        in = get_user_input(app, EventProperty_AnyKey,
-                            EventProperty_MouseLeft|
-                            EventProperty_MouseRight);
+        in = get_user_input(app, EventProperty_AnyKey, EventProperty_MouseButton);
         if (in.abort || match_key_code(&in, KeyCode_Escape) || !is_unmodified_key(&in.event)){
             break;
         }

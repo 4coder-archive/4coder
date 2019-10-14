@@ -1305,9 +1305,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
         // that you don't want to abort on.  The second set are inputs that you'd like to cause
         // the command to abort.  If an event satisfies both flags, it is treated as an abort.
         User_Input in = get_user_input(app, EventPropertyGroup_AnyKeyboardEvent,
-                                       EventProperty_Escape|
-                                       EventProperty_MouseLeft|
-                                       EventProperty_MouseRight);
+                                       EventProperty_Escape|EventProperty_MouseButton);
         
         // NOTE(allen|a3.4.4): The responsible thing to do on abort is to end the command
         // without waiting on get_user_input again.

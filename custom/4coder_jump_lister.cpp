@@ -5,12 +5,12 @@
 // TOP
 
 static Lister_Activation_Code
-activate_jump(Application_Links *app, Heap *heap,
-              View_ID view, struct Lister_State *state,
+activate_jump(Application_Links *app,
+              View_ID view, Lister *lister,
               String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     Lister_Activation_Code result_code = ListerActivation_Finished;
     i32 list_index = (i32)PtrAsInt(user_data);
-    Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)state->lister.data.user_data;
+    Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)lister->data.user_data;
     Marker_List *list = get_marker_list_for_buffer(params->list_buffer_id);
     if (list != 0){
         View_ID target_view = {};
@@ -58,7 +58,7 @@ activate_jump(Application_Links *app, Heap *heap,
         }
         
     }
-    lister_default(app, heap, view, state, result_code);
+    lister_default(app, view, lister, result_code);
     return(result_code);
 }
 
@@ -91,11 +91,11 @@ open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID 
             jump_lister_params.target_view_id = optional_target_view;
         }
         
-        begin_integrated_lister__basic_list(app, "Jump:", activate_jump,
-                                            &jump_lister_params, sizeof(jump_lister_params),
-                                            options, option_count,
-                                            estimated_string_space_size,
-                                            ui_view);
+        run_lister_with_options_array(app, "Jump:", activate_jump,
+                                      &jump_lister_params, sizeof(jump_lister_params),
+                                      options, option_count,
+                                      estimated_string_space_size,
+                                      ui_view);
     }
 }
 

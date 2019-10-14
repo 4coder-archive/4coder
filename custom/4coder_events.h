@@ -88,9 +88,9 @@ typedef u32 Event_Property;
 enum{
     EventProperty_AnyKey         = 0x1,
     EventProperty_Escape         = 0x2,
-    EventProperty_MouseLeft      = 0x4,
-    EventProperty_MouseMiddle    = 0x8,
-    EventProperty_MouseRight     = 0x10,
+    EventProperty_AnyKeyRelease  = 0x4,
+    EventProperty_MouseButton    = 0x8,
+    EventProperty_MouseRelease   = 0x10,
     EventProperty_MouseWheel     = 0x20,
     EventProperty_MouseMove      = 0x40,
     EventProperty_Animate        = 0x80,
@@ -101,13 +101,11 @@ enum{
     EventPropertyGroup_AnyKeyboardEvent =
         EventProperty_AnyKey|
         EventProperty_Escape|
+        EventProperty_AnyKeyRelease|
         EventProperty_TextInsert,
-    EventPropertyGroup_AnyMouseButton =
-        EventProperty_MouseLeft|
-        EventProperty_MouseMiddle|
-        EventProperty_MouseRight,
     EventPropertyGroup_AnyMouseEvent =
-        EventPropertyGroup_AnyMouseButton|
+        EventProperty_MouseButton|
+        EventProperty_MouseRelease|
         EventProperty_MouseWheel|
         EventProperty_MouseMove,
     EventPropertyGroup_AnyUserInput =

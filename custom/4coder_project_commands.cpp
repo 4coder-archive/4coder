@@ -1328,10 +1328,10 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
 ///////////////////////////////
 
 static Lister_Activation_Code
-activate_project_command(Application_Links *app, Heap *heap, View_ID view, Lister_State *state, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
+activate_project_command(Application_Links *app, View_ID view, Lister *lister, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     i32 command_index = (i32)PtrAsInt(user_data);
     exec_project_command_by_index(app, command_index);
-    lister_default(app, heap, view, state, ListerActivation_Finished);
+    lister_default(app, view, lister, ListerActivation_Finished);
     return(ListerActivation_Finished);
 }
 
@@ -1351,7 +1351,7 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
             options[i].status = push_string_copy(scratch, current_project.command_array.commands[i].cmd);
             options[i].user_data = IntAsPtr(i);
         }
-        begin_integrated_lister__basic_list(app, "Command:", activate_project_command, 0, 0, options, option_count, 0, view);
+        run_lister_with_options_array(app, "Command:", activate_project_command, 0, 0, options, option_count, 0, view);
     }
 }
 

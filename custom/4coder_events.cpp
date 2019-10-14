@@ -174,24 +174,19 @@ get_event_properties(Input_Event *event){
             flags |= EventProperty_AnyKey;
         }break;
         
+        case InputEventKind_KeyRelease:
+        {
+            flags |= EventProperty_AnyKeyRelease;
+        }break;
+        
         case InputEventKind_MouseButton:
         {
-            switch (event->mouse.code){
-                case MouseCode_Left:
-                {
-                    flags |= EventProperty_MouseLeft;
-                }break;
-                
-                case MouseCode_Middle:
-                {
-                    flags |= EventProperty_MouseMiddle;
-                }break;
-                
-                case MouseCode_Right:
-                {
-                    flags |= EventProperty_MouseRight;
-                }break;
-            }
+            flags |= EventProperty_MouseButton;
+        }break;
+        
+        case InputEventKind_MouseButtonRelease:
+        {
+            flags |= EventProperty_MouseRelease;
         }break;
         
         case InputEventKind_MouseWheel:
