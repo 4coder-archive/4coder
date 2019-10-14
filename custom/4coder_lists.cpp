@@ -10,12 +10,12 @@ lister__write_string__default(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
-        User_Input in = get_command_input(app);
+        User_Input in = get_current_input(app);
         String_Const_u8 string = to_writable(&in);
         if (string.str != 0 && string.size > 0){
             lister_append_text_field(lister, string);
             lister_append_key(lister, string);
-            lister->data.item_index = 0;
+            lister->item_index = 0;
             view_zero_scroll(app, view);
             lister_update_filtered_list(app, view, lister);
         }
@@ -27,9 +27,9 @@ lister__backspace_text_field__default(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
-        lister->data.text_field.string = backspace_utf8(lister->data.text_field.string);
-        lister->data.key_string.string = backspace_utf8(lister->data.key_string.string);
-        lister->data.item_index = 0;
+        lister->text_field.string = backspace_utf8(lister->text_field.string);
+        lister->key_string.string = backspace_utf8(lister->key_string.string);
+        lister->item_index = 0;
         view_zero_scroll(app, view);
         lister_update_filtered_list(app, view, lister);
     }
@@ -40,11 +40,11 @@ lister__move_up__default(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
-        lister->data.item_index = lister->data.item_index - 1;
-        if (lister->data.item_index < 0){
-            lister->data.item_index = lister->data.filtered.count - 1;
+        lister->item_index = lister->item_index - 1;
+        if (lister->item_index < 0){
+            lister->item_index = lister->filtered.count - 1;
         }
-        lister->data.set_view_vertical_focus_to_item = true;
+        lister->set_view_vertical_focus_to_item = true;
         lister_update_filtered_list(app, view, lister);
     }
 }
@@ -54,11 +54,11 @@ lister__move_down__default(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
-        lister->data.item_index = lister->data.item_index + 1;
-        if (lister->data.item_index > lister->data.filtered.count - 1){
-            lister->data.item_index = 0;
+        lister->item_index = lister->item_index + 1;
+        if (lister->item_index > lister->filtered.count - 1){
+            lister->item_index = 0;
         }
-        lister->data.set_view_vertical_focus_to_item = true;
+        lister->set_view_vertical_focus_to_item = true;
         lister_update_filtered_list(app, view, lister);
     }
 }
@@ -68,18 +68,18 @@ lister__write_character__file_path(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
-        User_Input in = get_command_input(app);
+        User_Input in = get_current_input(app);
         String_Const_u8 string = to_writable(&in);
         if (string.str != 0 && string.size > 0){
             lister_append_text_field(lister, string);
-            String_Const_u8 front_name = string_front_of_path(lister->data.text_field.string);
+            String_Const_u8 front_name = string_front_of_path(lister->text_field.string);
             lister_set_key(lister, front_name);
             if (character_is_slash(string.str[0])){
-                String_Const_u8 new_hot = lister->data.text_field.string;
+                String_Const_u8 new_hot = lister->text_field.string;
                 set_hot_directory(app, new_hot);
                 lister_call_refresh_handler(app, view, lister);
             }
-            lister->data.item_index = 0;
+            lister->item_index = 0;
             view_zero_scroll(app, view);
             lister_update_filtered_list(app, view, lister);
         }
@@ -91,32 +91,32 @@ lister__backspace_text_field__file_path(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
-        if (lister->data.text_field.size > 0){
-            char last_char = lister->data.text_field.str[lister->data.text_field.size - 1];
-            lister->data.text_field.string = backspace_utf8(lister->data.text_field.string);
+        if (lister->text_field.size > 0){
+            char last_char = lister->text_field.str[lister->text_field.size - 1];
+            lister->text_field.string = backspace_utf8(lister->text_field.string);
             if (character_is_slash(last_char)){
-                User_Input input = get_command_input(app);
-                String_Const_u8 text_field = lister->data.text_field.string;
+                User_Input input = get_current_input(app);
+                String_Const_u8 text_field = lister->text_field.string;
                 String_Const_u8 new_hot = string_remove_last_folder(text_field);
                 b32 is_modified = has_modifier(&input, KeyCode_Control);
                 b32 whole_word_backspace = (is_modified == global_config.lister_whole_word_backspace_when_modified);
                 if (whole_word_backspace){
-                    lister->data.text_field.size = new_hot.size;
+                    lister->text_field.size = new_hot.size;
                 }
                 set_hot_directory(app, new_hot);
                 // TODO(allen): We have to protect against lister_call_refresh_handler changing 
                 // the text_field here. Clean this up.
-                String_u8 dingus = lister->data.text_field;
+                String_u8 dingus = lister->text_field;
                 lister_call_refresh_handler(app, view, lister);
-                lister->data.text_field = dingus;
+                lister->text_field = dingus;
             }
             else{
-                String_Const_u8 text_field = lister->data.text_field.string;
+                String_Const_u8 text_field = lister->text_field.string;
                 String_Const_u8 new_key = string_front_of_path(text_field);
                 lister_set_key(lister, new_key);
             }
             
-            lister->data.item_index = 0;
+            lister->item_index = 0;
             view_zero_scroll(app, view);
             lister_update_filtered_list(app, view, lister);
         }
@@ -129,11 +129,11 @@ lister__key_stroke__fixed_list(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
-        User_Input in = get_command_input(app);
+        User_Input in = get_current_input(app);
         if (in.event.kind == InputEventKind_KeyStroke){
             void *user_data = 0;
             b32 did_shortcut_key = false;
-            for (Lister_Node *node = lister->data.options.first;
+            for (Lister_Node *node = lister->options.first;
                  node != 0;
                  node = node->next){
                 Key_Code *key_code = (Key_Code*)(node + 1);
@@ -180,8 +180,9 @@ run_lister_with_refresh_handler(Application_Links *app, char *query_string,
     if (handlers.refresh != 0){
         Scratch_Block scratch(app);
         Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
+        lister_set_map(lister, &framework_mapping, mapid_global);
         lister_set_query(lister, query_string);
-        lister->data.handlers = handlers;
+        lister->handlers = handlers;
         handlers.refresh(app, lister);
         lister_run(app, view, lister);
     }
@@ -214,12 +215,13 @@ run_lister_with_options_array(Application_Links *app, char *query_string,
                               View_ID view){
     Scratch_Block scratch(app);
     Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
+    lister_set_map(lister, &framework_mapping, mapid_global);
     for (i32 i = 0; i < option_count; i += 1){
         lister_add_item(lister, options[i].string, options[i].status, options[i].user_data, 0);
     }
     lister_set_query(lister, query_string);
-    lister->data.handlers = lister_get_default_handlers();
-    lister->data.handlers.activate = activate;
+    lister->handlers = lister_get_default_handlers();
+    lister->handlers.activate = activate;
     lister_run(app, view, lister);
 }
 
@@ -232,6 +234,7 @@ run_lister_with_fixed_options(Application_Links *app, char *query_string,
                               View_ID view){
     Scratch_Block scratch(app);
     Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
+    lister_set_map(lister, &framework_mapping, mapid_global);
     for (i32 i = 0; i < option_count; i += 1){
         Key_Code code = options[i].key_code;
         void *extra = lister_add_item(lister, SCu8(options[i].string), SCu8(options[i].status),
@@ -239,8 +242,8 @@ run_lister_with_fixed_options(Application_Links *app, char *query_string,
         block_copy(extra, &code, sizeof(code));
     }
     lister_set_query(lister, query_string);
-    lister->data.handlers = handlers;
-    lister->data.handlers.refresh = 0;
+    lister->handlers = handlers;
+    lister->handlers.refresh = 0;
     lister_run(app, view, lister);
 }
 
@@ -434,26 +437,31 @@ enum{
     SureToKill_Save = 3,
 };
 
+struct Confirm_Kill_Data{
+    Buffer_ID id;
+    b32 do_kill;
+};
+
 function Lister_Activation_Code
 activate_confirm_kill(Application_Links *app, View_ID view, Lister *lister, 
                       String_Const_u8 text_field, void *user_data, b32 clicked){
     i32 behavior = (i32)PtrAsInt(user_data);
-    Buffer_ID buffer_id = *(Buffer_ID*)(lister->data.user_data);
+    Confirm_Kill_Data *data = (Confirm_Kill_Data*)(lister->user_data);
     switch (behavior){
         case SureToKill_No:
         {}break;
         
         case SureToKill_Yes:
         {
-            buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
+            data->do_kill = true;
         }break;
         
         case SureToKill_Save:
         {
             Scratch_Block scratch(app);
-            String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
-            if (buffer_save(app, buffer_id, file_name, BufferSave_IgnoreDirtyFlag)){
-                buffer_kill(app, buffer_id, BufferKill_AlwaysKill);
+            String_Const_u8 file_name = push_buffer_file_name(app, scratch, data->id);
+            if (buffer_save(app, data->id, file_name, BufferSave_IgnoreDirtyFlag)){
+                data->do_kill = true;
             }
             else{
                 String_Const_u8 str = push_u8_stringf(scratch, "Did not close '%.*s' because it did not successfully save.",
@@ -466,7 +474,7 @@ activate_confirm_kill(Application_Links *app, View_ID view, Lister *lister,
     return(ListerActivation_Finished);
 }
 
-function void
+function b32
 do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
     Lister_Fixed_Option options[] = {
         {"(N)o"           , "", KeyCode_N, IntAsPtr(SureToKill_No)  },
@@ -474,10 +482,13 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
         {"(S)ave and Kill", "", KeyCode_S, IntAsPtr(SureToKill_Save)},
     };
     i32 option_count = sizeof(options)/sizeof(options[0]);
+    Confirm_Kill_Data data = {};
+    data.id = buffer;
     run_lister_with_fixed_options(app, "There are unsaved changes, close anyway?",
-                                  activate_confirm_kill, &buffer, sizeof(buffer),
+                                  activate_confirm_kill, &data, sizeof(data),
                                   options, option_count, default_string_size_estimation,
                                   view);
+    return(data.do_kill);
 }
 
 function Lister_Activation_Code
@@ -485,6 +496,7 @@ activate_confirm_close_4coder(Application_Links *app,
                               View_ID view, Lister *lister,
                               String_Const_u8 text_field, void *user_data, b32 clicked){
     i32 behavior = (i32)PtrAsInt(user_data);
+    b32 *do_exit = (b32*)user_data;
     switch (behavior){
         case SureToKill_No:
         {}break;
@@ -492,21 +504,21 @@ activate_confirm_close_4coder(Application_Links *app,
         case SureToKill_Yes:
         {
             allow_immediate_close_without_checking_for_changes = true;
-            send_exit_signal(app);
+            *do_exit = true;
         }break;
         
         case SureToKill_Save:
         {
             save_all_dirty_buffers(app);
             allow_immediate_close_without_checking_for_changes = true;
-            send_exit_signal(app);
+            *do_exit = true;
         }break;
     }
     lister_default(app, view, lister, ListerActivation_Finished);
     return(ListerActivation_Finished);
 }
 
-function void
+function b32
 do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
     Lister_Fixed_Option options[] = {
         {"(N)o"                , "", KeyCode_N, (void*)SureToKill_No  },
@@ -514,10 +526,13 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
         {"(S)ave All and Close", "", KeyCode_S, (void*)SureToKill_Save},
     };
     i32 option_count = sizeof(options)/sizeof(options[0]);
+    b32 do_exit = false;
     run_lister_with_fixed_options(app, "There are one or more buffers with unsave changes, close anyway?",
-                                  activate_confirm_close_4coder, 0, 0,
+                                  activate_confirm_close_4coder,
+                                  &do_exit, sizeof(do_exit),
                                   options, option_count, default_string_size_estimation,
                                   view);
+    return(do_exit);
 }
 
 ////////////////////////////////
@@ -611,7 +626,7 @@ activate_open_or_new(Application_Links *app,
         result = ListerActivation_Finished;
     }
     else{
-        String_Const_u8 path = lister->data.text_field.string;
+        String_Const_u8 path = lister->text_field.string;
         if (!character_is_slash(string_get_character(path, path.size - 1))){
             path = string_remove_last_folder(path);
         }
@@ -650,7 +665,7 @@ activate_new(Application_Links *app,
         result = ListerActivation_Finished;
     }
     else{
-        String_Const_u8 path = lister->data.text_field.string;
+        String_Const_u8 path = lister->text_field.string;
         if (character_is_slash(string_get_character(path, path.size - 1))){
             path = string_remove_last_folder(path);
         }
@@ -683,7 +698,7 @@ activate_open(Application_Links *app,
         result = ListerActivation_Finished;
     }
     else{
-        String_Const_u8 path = lister->data.text_field.string;
+        String_Const_u8 path = lister->text_field.string;
         if (!character_is_slash(string_get_character(path, path.size - 1))){
             path = string_remove_last_folder(path);
         }

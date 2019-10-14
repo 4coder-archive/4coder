@@ -58,7 +58,7 @@ write_character_parameter(Application_Links *app, String_Const_u8 insert){
 CUSTOM_COMMAND_SIG(write_text_input)
 CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
 {
-    User_Input in = get_command_input(app);
+    User_Input in = get_current_input(app);
     String_Const_u8 insert = to_writable(&in);
     write_character_parameter(app, insert);
 }
@@ -830,8 +830,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
         }
         isearch__update_highlight(app, view, Ii64_size(pos, match_size));
         
-        in = get_user_input(app,
-                            EventPropertyGroup_AnyKeyboardEvent,
+        in = get_next_input(app, EventPropertyGroup_AnyKeyboardEvent,
                             EventProperty_Escape|EventProperty_ViewActivation);
         if (in.abort){
             break;
@@ -951,7 +950,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
             mouse_wheel_scroll(app);
         }
         else{
-            leave_command_input_unhandled(app);
+            leave_current_input_unhandled(app);
         }
     }
     
@@ -1104,7 +1103,7 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
         Range_i64 match = Ii64(new_pos, new_pos + r.size);
         isearch__update_highlight(app, view, match);
         
-        in = get_user_input(app, EventProperty_AnyKey, EventProperty_MouseButton);
+        in = get_next_input(app, EventProperty_AnyKey, EventProperty_MouseButton);
         if (in.abort || match_key_code(&in, KeyCode_Escape) || !is_unmodified_key(&in.event)){
             break;
         }
@@ -1275,7 +1274,7 @@ CUSTOM_DOC("Deletes the file of the current buffer if 4coder has the appropriate
         if (start_query_bar(app, &bar, 0) != 0){
             b32 cancelled = false;
             for (;!cancelled;){
-                User_Input in = get_user_input(app, EventProperty_AnyKey, 0);
+                User_Input in = get_next_input(app, EventProperty_AnyKey, 0);
                 if (in.abort){
                     cancelled = true;
                 }
@@ -1728,7 +1727,7 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     
     User_Input in = {};
     for (;;){
-        in = get_user_input(app, EventProperty_AnyKey, EventProperty_Escape);
+        in = get_next_input(app, EventProperty_AnyKey, EventProperty_Escape);
         if (in.abort) break;
         
         b32 did_modify = false;
@@ -2043,6 +2042,19 @@ CUSTOM_DOC("Interactively opens a file in the other panel.")
 {
     change_active_panel(app);
     interactive_open_or_new(app);
+}
+
+CUSTOM_COMMAND_SIG(default_file_externally_modified)
+CUSTOM_DOC("Notes the external modification of attached files by printing a message.")
+{
+    User_Input input = get_current_input(app);
+    if (match_core_code(&input, CoreCode_FileExternallyModified)){
+        Scratch_Block scratch(app);
+        Buffer_ID buffer_id = input.event.core.id;
+        String_Const_u8 name = push_buffer_unique_name(app, scratch, buffer_id);
+        String_Const_u8 str = push_u8_stringf(scratch, "Modified externally: %s\n", name.str);
+        print_message(app, str);
+    }
 }
 
 // BOTTOM

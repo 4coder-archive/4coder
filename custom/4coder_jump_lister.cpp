@@ -10,7 +10,7 @@ activate_jump(Application_Links *app,
               String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     Lister_Activation_Code result_code = ListerActivation_Finished;
     i32 list_index = (i32)PtrAsInt(user_data);
-    Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)lister->data.user_data;
+    Jump_Lister_Parameters *params = (Jump_Lister_Parameters*)lister->user_data;
     Marker_List *list = get_marker_list_for_buffer(params->list_buffer_id);
     if (list != 0){
         View_ID target_view = {};

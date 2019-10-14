@@ -59,29 +59,32 @@ struct Lister{
     Arena *arena;
     Temp_Memory restore_all_point;
     
-    struct{
-        Lister_Handlers handlers;
-        
-        void *user_data;
-        umem user_data_size;
-        u8 query_space[256];
-        u8 text_field_space[256];
-        u8 key_string_space[256];
-        String_u8 query;
-        String_u8 text_field;
-        String_u8 key_string;
-        Lister_Node_List options;
-        Temp_Memory filter_restore_point;
-        Lister_Node_Ptr_Array filtered;
-        
-        b32 set_view_vertical_focus_to_item;
-        Lister_Node *highlighted_node;
-        void *hot_user_data;
-        i32 item_index;
-        i32 raw_item_index;
-        
-        Basic_Scroll scroll;
-    } data;
+    Lister_Handlers handlers;
+    
+    Mapping *mapping;
+    Command_Map *map;
+    
+    void *user_data;
+    umem user_data_size;
+    
+    u8 query_space[256];
+    u8 text_field_space[256];
+    u8 key_string_space[256];
+    String_u8 query;
+    String_u8 text_field;
+    String_u8 key_string;
+    
+    Lister_Node_List options;
+    Temp_Memory filter_restore_point;
+    Lister_Node_Ptr_Array filtered;
+    
+    b32 set_view_vertical_focus_to_item;
+    Lister_Node *highlighted_node;
+    void *hot_user_data;
+    i32 item_index;
+    i32 raw_item_index;
+    
+    Basic_Scroll scroll;
 };
 
 struct Lister_Prealloced_String{

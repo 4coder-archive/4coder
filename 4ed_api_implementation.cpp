@@ -810,8 +810,8 @@ buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
         if (!file->settings.never_kill){
             b32 needs_to_save = file_needs_save(file);
             if (!needs_to_save || (flags & BufferKill_AlwaysKill) != 0){
-                if (models->hook_end_file != 0){
-                    models->hook_end_file(&models->app_links, file->id);
+                if (models->end_buffer != 0){
+                    models->end_buffer(&models->app_links, file->id);
                 }
                 
                 buffer_unbind_name_low_level(working_set, file);
@@ -2003,58 +2003,61 @@ managed_object_load_data(Application_Links *app, Managed_Object object, u32 firs
 }
 
 api(custom) function User_Input
-get_user_input(Application_Links *app, Event_Property get_properties, Event_Property abort_properties)
+get_next_input(Application_Links *app, Event_Property get_properties, Event_Property abort_properties)
 {
     Models *models = (Models*)app->cmd_context;
     User_Input result = {};
     if (app->type_coroutine == Co_View){
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
-        Assert(coroutine != 0);
-        Co_Out *out = (Co_Out*)coroutine->out;
-        out->request = CoRequest_None;
-        out->get_flags = get_properties;
-        out->abort_flags = abort_properties;
-        coroutine_yield(coroutine);
-        Co_In *in = (Co_In*)coroutine->in;
-        result = in->user_input;
+        if (coroutine != 0){
+            Co_Out *out = (Co_Out*)coroutine->out;
+            out->request = CoRequest_None;
+            out->get_flags = get_properties;
+            out->abort_flags = abort_properties;
+            coroutine_yield(coroutine);
+            Co_In *in = (Co_In*)coroutine->in;
+            result = in->user_input;
+        }
+        else{
+#define M "ERROR: get_next_input called in a hook that may not make calls to blocking APIs"
+            print_message(app, string_u8_litexpr(M));
+#undef M
+        }
     }
     return(result);
 }
 
+api(custom) function i64
+get_current_input_sequence_number(Application_Links *app)
+{
+    Models *models = (Models*)app->cmd_context;
+    return(models->current_input_sequence_number);
+}
+
 api(custom) function User_Input
-get_command_input(Application_Links *app)
+get_current_input(Application_Links *app)
 {
     Models *models = (Models*)app->cmd_context;
-    User_Input result = {};
-    result.event = models->event;
-    return(result);
+    return(models->current_input);
 }
 
 api(custom) function void
-set_command_input(Application_Links *app, Input_Event *event)
+set_current_input(Application_Links *app, User_Input *input)
 {
     Models *models = (Models*)app->cmd_context;
-    models->event = *event;
+    block_copy_struct(&models->current_input, input);
 }
 
 api(custom) function void
-leave_command_input_unhandled(Application_Links *app){
+leave_current_input_unhandled(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
-    models->event_unhandled = true;
+    models->current_input_unhandled = true;
 }
 
 api(custom) function void
 set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
     Models *models = (Models*)app->cmd_context;
     switch (hook_id){
-        case HookID_FileOutOfSync:
-        {
-            models->file_out_of_sync = (Hook_Function*)func_ptr;
-        }break;
-        case HookID_Exit:
-        {
-            models->exit = (Hook_Function*)func_ptr;
-        }break;
         case HookID_BufferViewerUpdate:
         {
             models->buffer_viewer_update = (Hook_Function*)func_ptr;
@@ -2062,30 +2065,6 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         case HookID_ScrollRule:
         {
             models->scroll_rule = (Delta_Rule_Function*)func_ptr;
-        }break;
-        case HookID_NewFile:
-        {
-            models->hook_new_file = (Buffer_Hook_Function*)func_ptr;
-        }break;
-        case HookID_OpenFile:
-        {
-            models->hook_open_file = (Buffer_Hook_Function*)func_ptr;
-        }break;
-        case HookID_SaveFile:
-        {
-            models->hook_save_file = (Buffer_Hook_Function*)func_ptr;
-        }break;
-        case HookID_EndFile:
-        {
-            models->hook_end_file = (Buffer_Hook_Function*)func_ptr;
-        }break;
-        case HookID_FileEditRange:
-        {
-            models->hook_file_edit_range = (File_Edit_Range_Function*)func_ptr;
-        }break;
-        case HookID_FileExternallyModified:
-        {
-            models->hook_file_externally_modified = (File_Externally_Modified_Function*)func_ptr;
         }break;
         case HookID_ViewEventHandler:
         {
@@ -2095,29 +2074,29 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->render_caller = (Render_Caller_Function*)func_ptr;
         }break;
-        case HookID_InputFilter:
-        {
-            models->input_filter = (Input_Filter_Function*)func_ptr;
-        }break;
-        case HookID_Start:
-        {
-            models->hook_start = (Start_Hook_Function*)func_ptr;
-        }break;
         case HookID_BufferNameResolver:
         {
             models->buffer_name_resolver = (Buffer_Name_Resolver_Function*)func_ptr;
         }break;
-        case HookID_ModifyColorTable:
+        case HookID_BeginBuffer:
         {
-            models->modify_color_table = (Modify_Color_Table_Function*)func_ptr;
+            models->begin_buffer = (Buffer_Hook_Function*)func_ptr;
         }break;
-        case HookID_ClipboardChange:
+        case HookID_EndBuffer:
         {
-            models->clipboard_change = (Clipboard_Change_Hook_Function*)func_ptr;
+            models->end_buffer = (Buffer_Hook_Function*)func_ptr;
         }break;
-        case HookID_GetViewBufferRegion:
+        case HookID_NewFile:
         {
-            models->get_view_buffer_region = (Get_View_Buffer_Region_Function*)func_ptr;
+            models->new_file = (Buffer_Hook_Function*)func_ptr;
+        }break;
+        case HookID_SaveFile:
+        {
+            models->save_file = (Buffer_Hook_Function*)func_ptr;
+        }break;
+        case HookID_BufferEditRange:
+        {
+            models->buffer_edit_range = (Buffer_Edit_Range_Function*)func_ptr;
         }break;
     }
 }

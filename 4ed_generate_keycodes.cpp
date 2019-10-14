@@ -145,9 +145,13 @@ make_core_list(Arena *arena){
     Event_Code_List list = {};
     list.code_prefix = string_u8_litexpr("CoreCode");
     list.name_table = string_u8_litexpr("core_code_name");
+    add_code(arena, &list, string_u8_litexpr("Startup"));
     add_code(arena, &list, string_u8_litexpr("Animate"));
     add_code(arena, &list, string_u8_litexpr("ClickActivateView"));
     add_code(arena, &list, string_u8_litexpr("ClickDeactivateView"));
+    add_code(arena, &list, string_u8_litexpr("TryExit"));
+    add_code(arena, &list, string_u8_litexpr("FileExternallyModified"));
+    add_code(arena, &list, string_u8_litexpr("NewClipboardContents"));
     return(list);
 }
 

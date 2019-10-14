@@ -345,7 +345,8 @@ CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect 
 ////////////////////////////////
 
 static void
-default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count, i32 override_font_size, b32 override_hinting){
+default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_names,
+                          i32 override_font_size, b32 override_hinting){
     Thread_Context *tctx = get_thread_context(app);
     heap_init(&global_heap, tctx->allocator);
     
@@ -383,39 +384,46 @@ default_4coder_initialize(Application_Links *app, char **command_line_files, i32
     // open command line files
     Scratch_Block scratch(app);
     String_Const_u8 hot_directory = push_hot_directory(app, scratch);
-    for (i32 i = 0; i < file_count; i += 1){
-        Temp_Memory temp2 = begin_temp(scratch);
-        String_Const_u8 input_name = SCu8(command_line_files[i]);
-        String_Const_u8 file_name = push_u8_stringf(scratch, "%.*s/%.*s", string_expand(hot_directory), string_expand(input_name));
-        Buffer_ID new_buffer = create_buffer(app, file_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile);
+    for (i32 i = 0; i < file_names.count; i += 1){
+        Temp_Memory_Block temp(scratch);
+        String_Const_u8 input_name = file_names.vals[i];
+        String_Const_u8 full_name = push_u8_stringf(scratch, "%.*s/%.*s",
+                                                    string_expand(hot_directory),
+                                                    string_expand(input_name));
+        Buffer_ID new_buffer = create_buffer(app, full_name, BufferCreate_NeverNew|BufferCreate_MustAttachToFile);
         if (new_buffer == 0){
             create_buffer(app, input_name, 0);
         }
-        end_temp(temp2);
     }
 }
 
 static void
-default_4coder_initialize(Application_Links *app, i32 override_font_size, b32 override_hinting){
-    default_4coder_initialize(app, 0, 0, override_font_size, override_hinting);
+default_4coder_initialize(Application_Links *app,
+                          i32 override_font_size, b32 override_hinting){
+    String_Const_u8_Array file_names = {};
+    default_4coder_initialize(app, file_names, override_font_size, override_hinting);
 }
 
 static void
-default_4coder_initialize(Application_Links *app, char **command_line_files, i32 file_count){
-    Face_Description command_line_description = get_face_description(app, 0);
-    default_4coder_initialize(app, command_line_files, file_count, command_line_description.parameters.pt_size, command_line_description.parameters.hinting);
+default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_names){
+    Face_Description description = get_face_description(app, 0);
+    default_4coder_initialize(app, file_names,
+                              description.parameters.pt_size,
+                              description.parameters.hinting);
 }
 
 static void
 default_4coder_initialize(Application_Links *app){
     Face_Description command_line_description = get_face_description(app, 0);
-    default_4coder_initialize(app, 0, 0, command_line_description.parameters.pt_size, command_line_description.parameters.hinting);
+    String_Const_u8_Array file_names = {};
+    default_4coder_initialize(app, file_names, command_line_description.parameters.pt_size, command_line_description.parameters.hinting);
 }
 
 static void
-default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier left_buffer, Buffer_Identifier right_buffer){
-    Buffer_ID left_id = buffer_identifier_to_id(app, left_buffer);
-    Buffer_ID right_id = buffer_identifier_to_id(app, right_buffer);
+default_4coder_side_by_side_panels(Application_Links *app,
+                                   Buffer_Identifier left, Buffer_Identifier right){
+    Buffer_ID left_id = buffer_identifier_to_id(app, left);
+    Buffer_ID right_id = buffer_identifier_to_id(app, right);
     
     // Left Panel
     View_ID view = get_active_view(app, AccessAll);
@@ -432,26 +440,29 @@ default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier lef
 }
 
 static void
-default_4coder_side_by_side_panels(Application_Links *app, Buffer_Identifier left, Buffer_Identifier right, char **command_line_files, i32 file_count){
-    if (file_count > 0){
-        left = buffer_identifier(SCu8(command_line_files[0]));
-        if (file_count > 1){
-            right = buffer_identifier(SCu8(command_line_files[1]));
+default_4coder_side_by_side_panels(Application_Links *app,
+                                   Buffer_Identifier left, Buffer_Identifier right,
+                                   String_Const_u8_Array file_names){
+    if (file_names.count > 0){
+        left = buffer_identifier(file_names.vals[0]);
+        if (file_names.count > 1){
+            right = buffer_identifier(file_names.vals[1]);
         }
     }
     default_4coder_side_by_side_panels(app, left, right);
 }
 
 static void
-default_4coder_side_by_side_panels(Application_Links *app, char **command_line_files, i32 file_count){
+default_4coder_side_by_side_panels(Application_Links *app, String_Const_u8_Array file_names){
     Buffer_Identifier left = buffer_identifier(string_u8_litexpr("*scratch*"));
     Buffer_Identifier right = buffer_identifier(string_u8_litexpr("*messages*"));
-    default_4coder_side_by_side_panels(app, left, right, command_line_files, file_count);
+    default_4coder_side_by_side_panels(app, left, right, file_names);
 }
 
 static void
 default_4coder_side_by_side_panels(Application_Links *app){
-    default_4coder_side_by_side_panels(app, 0, 0);
+    String_Const_u8_Array file_names = {};
+    default_4coder_side_by_side_panels(app, file_names);
 }
 
 static void
@@ -463,17 +474,18 @@ default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
 }
 
 static void
-default_4coder_one_panel(Application_Links *app, char **command_line_files, i32 file_count){
+default_4coder_one_panel(Application_Links *app, String_Const_u8_Array file_names){
     Buffer_Identifier buffer = buffer_identifier(string_u8_litexpr("*messages*"));
-    if (file_count > 0){
-        buffer = buffer_identifier(SCu8(command_line_files[0]));
+    if (file_names.count > 0){
+        buffer = buffer_identifier(file_names.vals[0]);
     }
     default_4coder_one_panel(app, buffer);
 }
 
 static void
 default_4coder_one_panel(Application_Links *app){
-    default_4coder_one_panel(app, 0, 0);
+    String_Const_u8_Array file_names = {};
+    default_4coder_one_panel(app, file_names);
 }
 
 // BOTTOM

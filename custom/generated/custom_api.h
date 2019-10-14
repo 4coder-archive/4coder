@@ -109,10 +109,11 @@
 #define custom_managed_object_free_sig() b32 custom_managed_object_free(Application_Links* app, Managed_Object object)
 #define custom_managed_object_store_data_sig() b32 custom_managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem)
 #define custom_managed_object_load_data_sig() b32 custom_managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out)
-#define custom_get_user_input_sig() User_Input custom_get_user_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties)
-#define custom_get_command_input_sig() User_Input custom_get_command_input(Application_Links* app)
-#define custom_set_command_input_sig() void custom_set_command_input(Application_Links* app, Input_Event* event)
-#define custom_leave_command_input_unhandled_sig() void custom_leave_command_input_unhandled(Application_Links* app)
+#define custom_get_next_input_sig() User_Input custom_get_next_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties)
+#define custom_get_current_input_sequence_number_sig() i64 custom_get_current_input_sequence_number(Application_Links* app)
+#define custom_get_current_input_sig() User_Input custom_get_current_input(Application_Links* app)
+#define custom_set_current_input_sig() void custom_set_current_input(Application_Links* app, User_Input* input)
+#define custom_leave_current_input_unhandled_sig() void custom_leave_current_input_unhandled(Application_Links* app)
 #define custom_set_custom_hook_sig() void custom_set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr)
 #define custom_get_mouse_state_sig() Mouse_State custom_get_mouse_state(Application_Links* app)
 #define custom_get_active_query_bars_sig() b32 custom_get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out)
@@ -276,10 +277,11 @@ typedef Managed_Scope custom_managed_object_get_containing_scope_type(Applicatio
 typedef b32 custom_managed_object_free_type(Application_Links* app, Managed_Object object);
 typedef b32 custom_managed_object_store_data_type(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 typedef b32 custom_managed_object_load_data_type(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-typedef User_Input custom_get_user_input_type(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
-typedef User_Input custom_get_command_input_type(Application_Links* app);
-typedef void custom_set_command_input_type(Application_Links* app, Input_Event* event);
-typedef void custom_leave_command_input_unhandled_type(Application_Links* app);
+typedef User_Input custom_get_next_input_type(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
+typedef i64 custom_get_current_input_sequence_number_type(Application_Links* app);
+typedef User_Input custom_get_current_input_type(Application_Links* app);
+typedef void custom_set_current_input_type(Application_Links* app, User_Input* input);
+typedef void custom_leave_current_input_unhandled_type(Application_Links* app);
 typedef void custom_set_custom_hook_type(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
 typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
 typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
@@ -444,10 +446,11 @@ custom_managed_object_get_containing_scope_type *managed_object_get_containing_s
 custom_managed_object_free_type *managed_object_free;
 custom_managed_object_store_data_type *managed_object_store_data;
 custom_managed_object_load_data_type *managed_object_load_data;
-custom_get_user_input_type *get_user_input;
-custom_get_command_input_type *get_command_input;
-custom_set_command_input_type *set_command_input;
-custom_leave_command_input_unhandled_type *leave_command_input_unhandled;
+custom_get_next_input_type *get_next_input;
+custom_get_current_input_sequence_number_type *get_current_input_sequence_number;
+custom_get_current_input_type *get_current_input;
+custom_set_current_input_type *set_current_input;
+custom_leave_current_input_unhandled_type *leave_current_input_unhandled;
 custom_set_custom_hook_type *set_custom_hook;
 custom_get_mouse_state_type *get_mouse_state;
 custom_get_active_query_bars_type *get_active_query_bars;
@@ -613,10 +616,11 @@ internal Managed_Scope managed_object_get_containing_scope(Application_Links* ap
 internal b32 managed_object_free(Application_Links* app, Managed_Object object);
 internal b32 managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 internal b32 managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-internal User_Input get_user_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
-internal User_Input get_command_input(Application_Links* app);
-internal void set_command_input(Application_Links* app, Input_Event* event);
-internal void leave_command_input_unhandled(Application_Links* app);
+internal User_Input get_next_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
+internal i64 get_current_input_sequence_number(Application_Links* app);
+internal User_Input get_current_input(Application_Links* app);
+internal void set_current_input(Application_Links* app, User_Input* input);
+internal void leave_current_input_unhandled(Application_Links* app);
 internal void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
 internal Mouse_State get_mouse_state(Application_Links* app);
 internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
@@ -782,10 +786,11 @@ global custom_managed_object_get_containing_scope_type *managed_object_get_conta
 global custom_managed_object_free_type *managed_object_free = 0;
 global custom_managed_object_store_data_type *managed_object_store_data = 0;
 global custom_managed_object_load_data_type *managed_object_load_data = 0;
-global custom_get_user_input_type *get_user_input = 0;
-global custom_get_command_input_type *get_command_input = 0;
-global custom_set_command_input_type *set_command_input = 0;
-global custom_leave_command_input_unhandled_type *leave_command_input_unhandled = 0;
+global custom_get_next_input_type *get_next_input = 0;
+global custom_get_current_input_sequence_number_type *get_current_input_sequence_number = 0;
+global custom_get_current_input_type *get_current_input = 0;
+global custom_set_current_input_type *set_current_input = 0;
+global custom_leave_current_input_unhandled_type *leave_current_input_unhandled = 0;
 global custom_set_custom_hook_type *set_custom_hook = 0;
 global custom_get_mouse_state_type *get_mouse_state = 0;
 global custom_get_active_query_bars_type *get_active_query_bars = 0;

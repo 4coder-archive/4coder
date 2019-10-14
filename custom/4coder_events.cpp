@@ -212,6 +212,26 @@ get_event_properties(Input_Event *event){
                 {
                     flags |= EventProperty_ViewActivation;
                 }break;
+                
+                case CoreCode_FileExternallyModified:
+                {
+                    flags |= EventProperty_AnyFile;
+                }break;
+                
+                case CoreCode_Startup:
+                {
+                    flags |= EventProperty_Startup;
+                }break;
+                
+                case CoreCode_TryExit:
+                {
+                    flags |= EventProperty_Exit;
+                }break;
+                
+                case CoreCode_NewClipboardContents:
+                {
+                    flags |= EventProperty_Clipboard;
+                }break;
             }
         }break;
     }

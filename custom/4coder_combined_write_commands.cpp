@@ -198,7 +198,7 @@ static Snippet default_snippets[] = {
 static Lister_Activation_Code
 activate_snippet(Application_Links *app, View_ID view, Lister *lister, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
     i32 index = (i32)PtrAsInt(user_data);
-    Snippet_Array snippets = *(Snippet_Array*)lister->data.user_data;
+    Snippet_Array snippets = *(Snippet_Array*)lister->user_data;
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
         lister_default(app, view, lister, ListerActivation_Finished);

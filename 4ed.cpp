@@ -462,8 +462,8 @@ App_Step_Sig(app_step){
     if (clipboard.str != 0){
         String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in((char*)dest->str, (char*)clipboard.str, (i32)clipboard.size);
-        if (input->clipboard_changed && models->clipboard_change != 0){
-            models->clipboard_change(&models->app_links, *dest, ClipboardFlag_FromOS);
+        if (input->clipboard_changed){
+            co_send_core_event(models, CoreCode_NewClipboardContents, *dest);
         }
     }
     
@@ -525,11 +525,7 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): input filter and simulated events
-    if (models->input_filter != 0){
-        models->input_filter(&input->mouse);
-    }
-    
+    // NOTE(allen): simulated events
     Input_List input_list = input->events;
     Input_Modifier_Set modifiers = system_get_keyboard_modifiers(scratch);
     if (input->mouse.press_l){
@@ -623,13 +619,28 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): First frame initialization
     if (input->first_step){
-        if (models->hook_start != 0){
-            char **files = models->settings.init_files;
-            i32 files_count = models->settings.init_files_count;
-            char **flags = models->settings.custom_flags;
-            i32 flags_count = models->settings.custom_flags_count;
-            models->hook_start(&models->app_links, files, files_count, flags, flags_count);
+        Temp_Memory_Block temp(scratch);
+        
+        String_Const_u8_Array file_names = {};
+        file_names.count = models->settings.init_files_count;
+        file_names.vals = push_array(scratch, String_Const_u8, file_names.count);
+        for (i32 i = 0; i < file_names.count; i += 1){
+            file_names.vals[i] = SCu8(models->settings.init_files[i]);
         }
+        
+        String_Const_u8_Array flags = {};
+        flags.count = models->settings.custom_flags_count;
+        flags.vals = push_array(scratch, String_Const_u8, flags.count);
+        for (i32 i = 0; i < flags.count; i += 1){
+            flags.vals[i] = SCu8(models->settings.custom_flags[i]);
+        }
+        
+        Input_Event event = {};
+        event.kind = InputEventKind_Core;
+        event.core.code = CoreCode_Startup;
+        event.core.flag_strings = flags;
+        event.core.file_names = file_names;
+        co_send_event(models, &event);
     }
     
     // NOTE(allen): consume event stream
@@ -795,20 +806,17 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): hook for files reloaded
     {
-        File_Externally_Modified_Function *hook_file_externally_modified = models->hook_file_externally_modified;
-        if (hook_file_externally_modified != 0){
-            Working_Set *working_set = &models->working_set;
-            Assert(working_set->has_external_mod_sentinel.next != 0);
-            if (working_set->has_external_mod_sentinel.next != &working_set->has_external_mod_sentinel){
-                for (Node *node = working_set->has_external_mod_sentinel.next, *next = 0;
-                     node != &working_set->has_external_mod_sentinel;
-                     node = next){
-                    next = node->next;
-                    Editing_File *file = CastFromMember(Editing_File, external_mod_node, node);
-                    dll_remove(node);
-                    block_zero_struct(node);
-                    hook_file_externally_modified(&models->app_links, file->id);
-                }
+        Working_Set *working_set = &models->working_set;
+        Assert(working_set->has_external_mod_sentinel.next != 0);
+        if (working_set->has_external_mod_sentinel.next != &working_set->has_external_mod_sentinel){
+            for (Node *node = working_set->has_external_mod_sentinel.next, *next = 0;
+                 node != &working_set->has_external_mod_sentinel;
+                 node = next){
+                next = node->next;
+                Editing_File *file = CastFromMember(Editing_File, external_mod_node, node);
+                dll_remove(node);
+                block_zero_struct(node);
+                co_send_core_event(models, CoreCode_FileExternallyModified, file->id);
             }
         }
     }
@@ -818,12 +826,8 @@ App_Step_Sig(app_step){
         models->keep_playing = false;
     }
     if (!models->keep_playing){
-        Hook_Function *exit_func = models->exit;
-        if (exit_func != 0){
-            if (exit_func(&models->app_links) == 0){
-                models->animate_next_frame = true;
-                models->keep_playing = true;
-            }
+        if (co_send_core_event(models, CoreCode_TryExit)){
+            models->keep_playing = true;
         }
     }
     
@@ -836,6 +840,7 @@ App_Step_Sig(app_step){
         
         {
             Color_Table color_table = models->fallback_color_table;
+#if 0
             if (models->modify_color_table != 0){
                 color_table = models->modify_color_table(&models->app_links, frame);
                 if (color_table.count < models->fallback_color_table.count){
@@ -843,6 +848,7 @@ App_Step_Sig(app_step){
                     color_table = models->fallback_color_table;
                 }
             }
+#endif
             models->color_table = color_table;
         }
         
@@ -850,7 +856,6 @@ App_Step_Sig(app_step){
         models->in_render_mode = true;
         
         Live_Views *live_views = &models->live_set;
-        Layout *layout = &models->layout;
         for (Node *node = layout->open_panels.next;
              node != &layout->open_panels;
              node = node->next){

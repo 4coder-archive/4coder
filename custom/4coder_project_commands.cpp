@@ -944,7 +944,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
 CUSTOM_COMMAND_SIG(project_fkey_command)
 CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.")
 {
-    User_Input input = get_command_input(app);
+    User_Input input = get_current_input(app);
     b32 got_ind = false;
     i32 ind = 0;
     if (input.event.kind == InputEventKind_KeyStroke){

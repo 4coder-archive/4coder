@@ -572,7 +572,7 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
         }
     }
     else{
-        leave_command_input_unhandled(app);
+        leave_current_input_unhandled(app);
     }
 }
 
@@ -589,7 +589,7 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
         }
     }
     else{
-        leave_command_input_unhandled(app);
+        leave_current_input_unhandled(app);
     }
 }
 

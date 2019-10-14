@@ -1301,14 +1301,15 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
     
     for (;;){
         // NOTE(allen|a3.4.4): This call will block until the user does one of the input
-        // types specified in the flags.  The first set of flags are inputs you'd like to intercept
-        // that you don't want to abort on.  The second set are inputs that you'd like to cause
-        // the command to abort.  If an event satisfies both flags, it is treated as an abort.
-        User_Input in = get_user_input(app, EventPropertyGroup_AnyKeyboardEvent,
+        // types specified in the flags.  The first set of flags are inputs you'd like to
+        // intercept that you don't want to abort on.  The second set are inputs that
+        // you'd like to cause the command to abort.  If an event satisfies both flags, it
+        // is treated as an abort.
+        User_Input in = get_next_input(app, EventPropertyGroup_AnyKeyboardEvent,
                                        EventProperty_Escape|EventProperty_MouseButton);
         
         // NOTE(allen|a3.4.4): The responsible thing to do on abort is to end the command
-        // without waiting on get_user_input again.
+        // without waiting on get_next_input again.
         if (in.abort){
             success = false;
             break;
@@ -1351,7 +1352,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
             bar->string = string.string;
         }
         else{
-            leave_command_input_unhandled(app);
+            leave_current_input_unhandled(app);
         }
     }
     
@@ -1675,7 +1676,9 @@ internal Buffer_Kill_Result
 try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, Buffer_Kill_Flag flags){
     Buffer_Kill_Result result = buffer_kill(app, buffer, flags);
     if (result == BufferKillResult_Dirty){
-        do_gui_sure_to_kill(app, buffer, gui_view_id);
+        if (do_gui_sure_to_kill(app, buffer, gui_view_id)){
+            result = buffer_kill(app, buffer, BufferKill_AlwaysKill);
+        }
     }
     return(result);
 }

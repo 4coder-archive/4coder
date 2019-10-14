@@ -4,24 +4,69 @@
 
 // TOP
 
-START_HOOK_SIG(default_start){
-    default_4coder_initialize(app, files, file_count);
-    default_4coder_side_by_side_panels(app, files, file_count);
-    if (global_config.automatically_load_project){
-        load_project(app);
+CUSTOM_COMMAND_SIG(default_startup)
+CUSTOM_DOC("Default command for responding to a startup event")
+{
+    User_Input input = get_current_input(app);
+    if (match_core_code(&input, CoreCode_Startup)){
+        String_Const_u8_Array file_names = input.event.core.file_names;
+        default_4coder_initialize(app, file_names);
+        default_4coder_side_by_side_panels(app, file_names);
+        if (global_config.automatically_load_project){
+            load_project(app);
+        }
     }
-    // no meaning for return
-    return(0);
 }
 
+CUSTOM_COMMAND_SIG(default_try_exit)
+CUSTOM_DOC("Default command for responding to a try-exit event")
+{
+    User_Input input = get_current_input(app);
+    if (match_core_code(&input, CoreCode_TryExit)){
+        b32 do_exit = true;
+        if (!allow_immediate_close_without_checking_for_changes){
+            b32 has_unsaved_changes = false;
+            for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
+                 buffer != 0;
+                 buffer = get_buffer_next(app, buffer, AccessAll)){
+                Dirty_State dirty = buffer_get_dirty_state(app, buffer);
+                if (HasFlag(dirty, DirtyState_UnsavedChanges)){
+                    has_unsaved_changes = true;
+                    break;
+                }
+            }
+            if (has_unsaved_changes){
+                View_ID view = get_active_view(app, AccessAll);
+                do_exit = do_gui_sure_to_close_4coder(app, view);
+            }
+        }
+        if (do_exit){
+            // NOTE(allen): By leaving try exit unhandled we indicate
+            // that the core should take responsibility for handling this,
+            // and it will handle it by exiting 4coder.  If we leave this
+            // event marked as handled on the other hand (for instance by 
+            // running a confirmation GUI that cancels the exit) then 4coder
+            // will not exit.
+            leave_current_input_unhandled(app);
+        }
+    }
+}
+
+
 CUSTOM_COMMAND_SIG(default_view_input_handler)
-CUSTOM_DOC("Input consumption loop for base view behavior")
+CUSTOM_DOC("Input consumption loop for default view behavior")
 {
     for (;;){
         // NOTE(allen): Get the binding from the buffer's current map
-        User_Input input = get_user_input(app, EventPropertyGroup_Any, 0);
+        User_Input input = get_next_input(app, EventPropertyGroup_Any, 0);
         if (input.abort){
             break;
+        }
+        
+        Event_Property event_properties = get_event_properties(&input.event);
+        
+        if (suppressing_mouse && (event_properties & EventPropertyGroup_AnyMouseEvent) != 0){
+            continue;
         }
         
         View_ID view = get_active_view(app, AccessAll);
@@ -41,7 +86,7 @@ CUSTOM_DOC("Input consumption loop for base view behavior")
             // NOTE(allen): we don't have anything to do with this input,
             // leave it marked unhandled so that if there's a follow up
             // event it is not blocked.
-            leave_command_input_unhandled(app);
+            leave_current_input_unhandled(app);
         }
         else{
             // NOTE(allen): before the command is called do some book keeping
@@ -170,8 +215,8 @@ draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID
     }
 }
 
+#if 0
 static argb_color default_colors[Stag_COUNT] = {};
-
 MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
     if (default_colors[Stag_NOOP] == 0){
         default_colors[Stag_NOOP]                  = 0xFFFF00FF;
@@ -231,8 +276,10 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
     color_table.count = ArrayCount(default_colors);
     return(color_table);
 }
+#endif
 
-GET_VIEW_BUFFER_REGION_SIG(default_view_buffer_region){
+function Rect_f32
+default_view_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 sub_region){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics metrics = get_face_metrics(app, face_id);
@@ -714,31 +761,6 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     draw_set_clip(app, prev_clip);
 }
 
-HOOK_SIG(default_exit){
-    // If this returns false it cancels the exit.
-    b32 result = true;
-    
-    if (!allow_immediate_close_without_checking_for_changes){
-        b32 has_unsaved_changes = false;
-        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
-             buffer != 0;
-             buffer = get_buffer_next(app, buffer, AccessAll)){
-            Dirty_State dirty = buffer_get_dirty_state(app, buffer);
-            if (HasFlag(dirty, DirtyState_UnsavedChanges)){
-                has_unsaved_changes = true;
-                break;
-            }
-        }
-        if (has_unsaved_changes){
-            View_ID view = get_active_view(app, AccessAll);
-            do_gui_sure_to_close_4coder(app, view);
-            result = false;
-        }
-    }
-    
-    return(result);
-}
-
 HOOK_SIG(default_view_adjust){
     // NOTE(allen): Called whenever the view layout/sizes have been modified, including
     // by full window resize.
@@ -1000,7 +1022,7 @@ BUFFER_HOOK_SIG(default_file_save){
     return(0);
 }
 
-FILE_EDIT_RANGE_SIG(default_file_edit_range){
+BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     // buffer_id, range, text
     
     Interval_i64 replace_range = Ii64(range.first, range.first + text.size);
@@ -1089,16 +1111,6 @@ FILE_EDIT_RANGE_SIG(default_file_edit_range){
     return(0);
 }
 
-FILE_EXTERNALLY_MODIFIED_SIG(default_file_externally_modified){
-    // buffer_id
-    Scratch_Block scratch(app);
-    String_Const_u8 name = push_buffer_unique_name(app, scratch, buffer_id);
-    String_Const_u8 str = push_u8_stringf(scratch, "Modified externally: %s\n", name.str);
-    print_message(app, str);
-    // no meaning for return
-    return(0);
-}
-
 BUFFER_HOOK_SIG(default_end_file){
     Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
@@ -1106,19 +1118,6 @@ BUFFER_HOOK_SIG(default_end_file){
     print_message(app, str);
     // no meaning for return
     return(0);
-}
-
-// NOTE(allen|a4.0.9): The input filter allows you to modify the input
-// to a frame before 4coder starts processing it at all.
-//
-// Right now it only has access to the mouse state, but it will be
-// extended to have access to the key presses soon.
-INPUT_FILTER_SIG(default_suppress_mouse_filter){
-    if (suppressing_mouse){
-        block_zero_struct(mouse);
-        mouse->p.x = -100;
-        mouse->p.y = -100;
-    }
 }
 
 // TODO(allen): FIX FIX FIX FIX
@@ -1202,24 +1201,27 @@ DELTA_RULE_SIG(smooth_scroll_rule){
 
 internal void
 set_all_default_hooks(Application_Links *app){
+#if 0
     set_custom_hook(app, HookID_Exit, default_exit);
-    set_custom_hook(app, HookID_BufferViewerUpdate, default_view_adjust);
-    
     set_custom_hook(app, HookID_Start, default_start);
-    set_custom_hook(app, HookID_OpenFile, default_file_settings);
-    set_custom_hook(app, HookID_NewFile, default_new_file);
-    set_custom_hook(app, HookID_SaveFile, default_file_save);
-    set_custom_hook(app, HookID_FileEditRange, default_file_edit_range);
     set_custom_hook(app, HookID_FileExternallyModified, default_file_externally_modified);
-    set_custom_hook(app, HookID_EndFile, end_file_close_jump_list);
+    set_custom_hook(app, HookID_InputFilter, default_suppress_mouse_filter);
+    set_custom_hook(app, HookID_ModifyColorTable, default_modify_color_table);
+#endif
+    
+    set_custom_hook(app, HookID_BufferViewerUpdate, default_view_adjust);
     
     set_custom_hook(app, HookID_ViewEventHandler, default_view_input_handler);
     set_custom_hook(app, HookID_RenderCaller, default_render_caller);
-    set_custom_hook(app, HookID_InputFilter, default_suppress_mouse_filter);
     set_custom_hook(app, HookID_ScrollRule, smooth_scroll_rule);
     set_custom_hook(app, HookID_BufferNameResolver, default_buffer_name_resolution);
-    set_custom_hook(app, HookID_ModifyColorTable, default_modify_color_table);
-    set_custom_hook(app, HookID_GetViewBufferRegion, default_view_buffer_region);
+    
+    set_custom_hook(app, HookID_BeginBuffer, default_file_settings);
+    set_custom_hook(app, HookID_EndBuffer, end_file_close_jump_list);
+    set_custom_hook(app, HookID_NewFile, default_new_file);
+    set_custom_hook(app, HookID_SaveFile, default_file_save);
+    set_custom_hook(app, HookID_BufferEditRange, default_buffer_edit_range);
+    set_custom_hook(app, HookID_BufferRegion, default_view_buffer_region);
 }
 
 // BOTTOM

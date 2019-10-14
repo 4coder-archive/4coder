@@ -52,24 +52,17 @@ struct Models{
     
     Application_Links app_links;
     
-    Hook_Function *file_out_of_sync;
-    Hook_Function *exit;
     Hook_Function *buffer_viewer_update;
     Delta_Rule_Function *scroll_rule;
-    Buffer_Hook_Function *hook_new_file;
-    Buffer_Hook_Function *hook_open_file;
-    Buffer_Hook_Function *hook_save_file;
-    Buffer_Hook_Function *hook_end_file;
-    File_Edit_Range_Function *hook_file_edit_range;
-    File_Externally_Modified_Function *hook_file_externally_modified;
     Custom_Command_Function *view_event_handler;
     Render_Caller_Function *render_caller;
-    Input_Filter_Function *input_filter;
-    Start_Hook_Function *hook_start;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
-    Modify_Color_Table_Function *modify_color_table;
-    Clipboard_Change_Hook_Function *clipboard_change;
-    Get_View_Buffer_Region_Function *get_view_buffer_region;
+    Buffer_Hook_Function *begin_buffer;
+    Buffer_Hook_Function *end_buffer;
+    Buffer_Hook_Function *new_file;
+    Buffer_Hook_Function *save_file;
+    Buffer_Edit_Range_Function *buffer_edit_range;
+    Buffer_Region_Function *buffer_region;
     
     Color_Table fallback_color_table;
     Color_Table color_table;
@@ -118,8 +111,9 @@ struct Models{
     
     // Event Context
     Application_Step_Input *input;
-    Input_Event event;
-    b8 event_unhandled;
+    i64 current_input_sequence_number;
+    User_Input current_input;
+    b8 current_input_unhandled;
     
     b8 in_render_mode;
     Render_Target *target;

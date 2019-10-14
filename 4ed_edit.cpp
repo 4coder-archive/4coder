@@ -200,7 +200,7 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     
     // NOTE(allen): save the original text for the edit range hook.
     String_Const_u8 original_text = {};
-    if (models->hook_file_edit_range != 0){
+    if (models->buffer_edit_range != 0){
         original_text = buffer_stringify(scratch, &file->state.buffer, edit.range);
     }
     
@@ -224,16 +224,16 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     edit_fix_markers(models, file, edit);
     
     // NOTE(allen): edit range hook
-    if (models->hook_file_edit_range != 0){
+    if (models->buffer_edit_range != 0){
         Interval_i64 new_range = Ii64(edit.range.first, edit.range.first + edit.text.size);
-        models->hook_file_edit_range(&models->app_links, file->id, new_range, original_text);
+        models->buffer_edit_range(&models->app_links, file->id, new_range, original_text);
     }
 }
 
 internal void
 file_end_file(Models *models, Editing_File *file){
-    if (models->hook_end_file != 0){
-        models->hook_end_file(&models->app_links, file->id);
+    if (models->end_buffer != 0){
+        models->end_buffer(&models->app_links, file->id);
     }
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     lifetime_free_object(lifetime_allocator, file->lifetime_object);
@@ -544,8 +544,8 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
         
         if (file != 0 && buffer_is_for_new_file &&
             !HasFlag(flags, BufferCreate_SuppressNewFileHook) &&
-            models->hook_new_file != 0){
-            models->hook_new_file(&models->app_links, file->id);
+            models->new_file != 0){
+            models->new_file(&models->app_links, file->id);
         }
     }
     

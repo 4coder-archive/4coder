@@ -69,6 +69,14 @@ struct Input_Event{
         } mouse_move;
         struct{
             Core_Code code;
+            union{
+                String_Const_u8 string;
+                i32 id;
+                struct{
+                    String_Const_u8_Array flag_strings;
+                    String_Const_u8_Array file_names;
+                };
+            };
         } core;
     };
 };
@@ -96,6 +104,10 @@ enum{
     EventProperty_Animate        = 0x80,
     EventProperty_ViewActivation = 0x100,
     EventProperty_TextInsert     = 0x200,
+    EventProperty_AnyFile        = 0x400,
+    EventProperty_Startup        = 0x800,
+    EventProperty_Exit           = 0x1000,
+    EventProperty_Clipboard      = 0x2000,
 };
 enum{
     EventPropertyGroup_AnyKeyboardEvent =
@@ -114,7 +126,11 @@ enum{
     EventPropertyGroup_Any =
         EventPropertyGroup_AnyUserInput|
         EventProperty_Animate|
-        EventProperty_ViewActivation,
+        EventProperty_ViewActivation|
+        EventProperty_AnyFile|
+        EventProperty_Startup|
+        EventProperty_Exit|
+        EventProperty_Clipboard,
 };
 
 #endif

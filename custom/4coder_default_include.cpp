@@ -9,8 +9,8 @@
 
 #include "4coder_base_types.h"
 #include "4coder_version.h"
-#include "4coder_events.h"
 #include "4coder_default_colors.h"
+#include "4coder_events.h"
 #include "4coder_types.h"
 #define DYNAMIC_LINK_API
 #include "generated/custom_api.h"

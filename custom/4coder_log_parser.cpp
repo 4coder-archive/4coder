@@ -1002,7 +1002,7 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
     view_push_context(app, log_view, &ctx);
     
     for (;;){
-        User_Input in = get_user_input(app, EventPropertyGroup_AnyUserInput, KeyCode_Escape);
+        User_Input in = get_next_input(app, EventPropertyGroup_AnyUserInput, KeyCode_Escape);
         if (in.abort){
             log_view = 0;
             break;

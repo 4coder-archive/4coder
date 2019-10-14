@@ -148,8 +148,8 @@ save_file_to_name(Models *models, Editing_File *file, u8 *file_name){
     }
     
     if (file_name != 0){
-        if (models->hook_save_file != 0){
-            models->hook_save_file(&models->app_links, file->id);
+        if (models->save_file != 0){
+            models->save_file(&models->app_links, file->id);
         }
         
         Gap_Buffer *buffer = &file->state.buffer;
@@ -244,9 +244,8 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     
     ////////////////////////////////
     
-    Buffer_Hook_Function *hook_open_file = models->hook_open_file;
-    if (hook_open_file != 0){
-        hook_open_file(&models->app_links, file->id);
+    if (models->begin_buffer != 0){
+        models->begin_buffer(&models->app_links, file->id);
     }
 }
 

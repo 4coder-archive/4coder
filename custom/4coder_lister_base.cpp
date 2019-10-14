@@ -50,22 +50,93 @@ view_get_lister(View_ID view){
 }
 
 function Lister*
-begin_lister(Application_Links *app, Arena *arena, View_ID view, void *user_data, umem user_data_size){
+begin_lister(Application_Links *app, Arena *arena, View_ID view,
+             void *user_data, umem user_data_size){
     Lister *lister = push_array_zero(arena, Lister, 1);
     lister->arena = arena;
-    lister->data.query = Su8(lister->data.query_space, 0, sizeof(lister->data.query_space));
-    lister->data.text_field = Su8(lister->data.text_field_space, 0, sizeof(lister->data.text_field_space));
-    lister->data.key_string = Su8(lister->data.key_string_space, 0, sizeof(lister->data.key_string_space));
-    lister->data.user_data_size = user_data_size;
-    if (user_data_size > 0){
-        lister->data.user_data = push_array(lister->arena, u8, user_data_size);
-        if (user_data != 0){
-            block_copy(lister->data.user_data, user_data, user_data_size);
-        }
+    lister->query = Su8(lister->query_space, 0, sizeof(lister->query_space));
+    lister->text_field = Su8(lister->text_field_space, 0, sizeof(lister->text_field_space));
+    lister->key_string = Su8(lister->key_string_space, 0, sizeof(lister->key_string_space));
+    lister->user_data = user_data;
+    lister->user_data_size = user_data_size;
+    if (user_data == 0){
+        lister->user_data = push_array_zero(arena, u8, user_data_size);
     }
     global_lister_state[view - 1] = lister;
     lister->restore_all_point = begin_temp(lister->arena);
     return(lister);
+}
+
+function void
+lister_set_map(Lister *lister, Mapping *mapping, Command_Map *map){
+    lister->mapping = mapping;
+    lister->map = map;
+}
+
+function void
+lister_set_map(Lister *lister, Mapping *mapping, Command_Map_ID map){
+    lister->mapping = mapping;
+    lister->map = mapping_get_map(mapping, map);
+}
+
+function void
+lister_set_string(String_Const_u8 string, String_u8 *target){
+    target->size = 0;
+    string_append(target, string);
+}
+function void
+lister_append_string(String_Const_u8 string, String_u8 *target){
+    string_append(target, string);
+}
+
+function void
+lister_set_query(Lister *lister, String_Const_u8 string){
+    lister_set_string(string, &lister->query);
+}
+function void
+lister_set_query(Lister *lister, char *string){
+    lister_set_string(SCu8(string), &lister->query);
+}
+function void
+lister_set_text_field(Lister *lister, String_Const_u8 string){
+    lister_set_string(string, &lister->text_field);
+}
+function void
+lister_set_text_field(Lister *lister, char *string){
+    lister_set_string(SCu8(string), &lister->text_field);
+}
+function void
+lister_set_key(Lister *lister, String_Const_u8 string){
+    lister_set_string(string, &lister->key_string);
+}
+function void
+lister_set_key(Lister *lister, char *string){
+    lister_set_string(SCu8(string), &lister->key_string);
+}
+
+function void
+lister_append_query(Lister *lister, String_Const_u8 string){
+    lister_append_string(string, &lister->query);
+}
+function void
+lister_append_query(Lister *lister, char *string){
+    lister_append_string(SCu8(string), &lister->query);
+}
+function void
+lister_append_text_field(Lister *lister, String_Const_u8 string){
+    lister_append_string(string, &lister->text_field);
+}
+function void
+lister_append_text_field(Lister *lister, char *string){
+    lister_append_string(SCu8(string), &lister->text_field);
+}
+function void
+lister_append_key(Lister *lister, String_Const_u8 string){
+    lister_append_string(string, &lister->key_string);
+}
+function void
+lister_append_key(Lister *lister, char *string){
+    lister_append_string(SCu8(string), &lister->key_string);
 }
 
 function void
@@ -105,10 +176,10 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     {
         Fancy_String_List text_field = {};
         push_fancy_string(scratch, &text_field, fancy_id(Stag_Pop1),
-                          lister->data.query.string);
+                          lister->query.string);
         push_fancy_stringf(scratch, &text_field, fancy_id(Stag_Pop1), " ");
         push_fancy_string(scratch, &text_field, fancy_id(Stag_Default),
-                          lister->data.text_field.string);
+                          lister->text_field.string);
         draw_fancy_string(app, face_id, text_field.first,
                           V2f32(layout.text_field_rect.x0 + 3.f, layout.text_field_rect.y0),
                           Stag_Default, Stag_Back, 0, V2f32(1.f, 0.f));
@@ -117,24 +188,24 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Range_f32 x = rect_range_x(layout.list_rect);
     draw_set_clip(app, layout.list_rect);
     
-    i32 count = lister->data.filtered.count;
+    i32 count = lister->filtered.count;
     Range_f32 scroll_range = If32(0.f, clamp_bot(0.f, count*block_height - block_height));
-    lister->data.scroll.position.y = clamp_range(scroll_range, lister->data.scroll.position.y);
-    lister->data.scroll.position.x = 0.f;
-    lister->data.scroll.target.y = clamp_range(scroll_range, lister->data.scroll.target.y);
-    lister->data.scroll.target.x = 0.f;
+    lister->scroll.position.y = clamp_range(scroll_range, lister->scroll.position.y);
+    lister->scroll.position.x = 0.f;
+    lister->scroll.target.y = clamp_range(scroll_range, lister->scroll.target.y);
+    lister->scroll.target.x = 0.f;
     
     // TODO(allen): get scroll rule from context
-    lister->data.scroll.position = lister->data.scroll.target;
+    lister->scroll.position = lister->scroll.target;
     
-    f32 scroll_y = lister->data.scroll.position.y;
+    f32 scroll_y = lister->scroll.position.y;
     
     f32 y_pos = layout.list_rect.y0 - scroll_y;
     i32 first_index = (i32)(scroll_y/block_height);
     y_pos += first_index*block_height;
     
     for (i32 i = first_index; i < count; i += 1){
-        Lister_Node *node = lister->data.filtered.node_ptrs[i];
+        Lister_Node *node = lister->filtered.node_ptrs[i];
         
         Range_f32 y = If32(y_pos, y_pos + block_height);
         y_pos = y.max;
@@ -144,10 +215,10 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         
         b32 hovered = rect_contains_point(item_rect, m_p);
         UI_Highlight_Level highlight = UIHighlight_None;
-        if (node == lister->data.highlighted_node){
+        if (node == lister->highlighted_node){
             highlight = UIHighlight_Active;
         }
-        else if (node->user_data == lister->data.hot_user_data){
+        else if (node->user_data == lister->hot_user_data){
             if (hovered){
                 highlight = UIHighlight_Active;
             }
@@ -177,9 +248,9 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
 function void*
 lister_get_user_data(Lister *lister, i32 index){
     void *result = 0;
-    if (0 <= index && index < lister->data.options.count){
+    if (0 <= index && index < lister->options.count){
         i32 counter = 0;
-        for (Lister_Node *node = lister->data.options.first;
+        for (Lister_Node *node = lister->options.first;
              node != 0;
              node = node->next, counter += 1){
             if (counter == index){
@@ -193,7 +264,7 @@ lister_get_user_data(Lister *lister, i32 index){
 
 function Lister_Filtered
 lister_get_filtered(Arena *arena, Lister *lister){
-    i32 node_count = lister->data.options.count;
+    i32 node_count = lister->options.count;
     
     Lister_Filtered filtered = {};
     filtered.exact_matches.node_ptrs = push_array(arena, Lister_Node*, 1);
@@ -202,7 +273,7 @@ lister_get_filtered(Arena *arena, Lister *lister){
     
     Temp_Memory_Block temp(arena);
     
-    String_Const_u8 key = lister->data.key_string.string;
+    String_Const_u8 key = lister->key_string.string;
     key = push_string_copy(arena, key);
     string_mod_replace_character(key, '_', '*');
     string_mod_replace_character(key, ' ', '*');
@@ -214,7 +285,7 @@ lister_get_filtered(Arena *arena, Lister *lister){
     string_list_push(&absolutes, &splits);
     string_list_push(arena, &absolutes, string_u8_litexpr(""));
     
-    for (Lister_Node *node = lister->data.options.first;
+    for (Lister_Node *node = lister->options.first;
          node != 0;
          node = node->next){
         String_Const_u8 node_string = node->string;
@@ -250,7 +321,7 @@ lister_update_filtered_list(Application_Links *app, View_ID view, Lister *lister
     };
     
     Arena *arena = lister->arena;
-    end_temp(lister->data.filter_restore_point);
+    end_temp(lister->filter_restore_point);
     
     i32 total_count = 0;
     for (i32 array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
@@ -259,11 +330,11 @@ lister_update_filtered_list(Application_Links *app, View_ID view, Lister *lister
     }
     
     Lister_Node **node_ptrs = push_array(arena, Lister_Node*, total_count);
-    lister->data.filtered.node_ptrs = node_ptrs;
-    lister->data.filtered.count = total_count;
+    lister->filtered.node_ptrs = node_ptrs;
+    lister->filtered.count = total_count;
     
-    lister->data.raw_item_index = -1;
-    lister->data.highlighted_node = 0;
+    lister->raw_item_index = -1;
+    lister->highlighted_node = 0;
     
     i32 counter = 0;
     for (i32 array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
@@ -271,9 +342,9 @@ lister_update_filtered_list(Application_Links *app, View_ID view, Lister *lister
         for (i32 node_index = 0; node_index < node_ptr_array.count; node_index += 1){
             Lister_Node *node = node_ptr_array.node_ptrs[node_index];
             node_ptrs[counter] = node;
-            if (lister->data.item_index == counter){
-                lister->data.highlighted_node = node;
-                lister->data.raw_item_index = node->raw_index;
+            if (lister->item_index == counter){
+                lister->highlighted_node = node;
+                lister->raw_item_index = node->raw_index;
             }
             counter += 1;
         }
@@ -282,9 +353,9 @@ lister_update_filtered_list(Application_Links *app, View_ID view, Lister *lister
 
 function void
 lister_call_refresh_handler(Application_Links *app, View_ID view, Lister *lister){
-    if (lister->data.handlers.refresh != 0){
-        lister->data.handlers.refresh(app, lister);
-        lister->data.filter_restore_point = begin_temp(lister->arena);
+    if (lister->handlers.refresh != 0){
+        lister->handlers.refresh(app, lister);
+        lister->filter_restore_point = begin_temp(lister->arena);
         lister_update_filtered_list(app, view, lister);
     }
 }
@@ -300,7 +371,7 @@ lister_default(Application_Links *app, View_ID view, Lister *lister, Lister_Acti
         
         case ListerActivation_ContinueAndRefresh:
         {
-            lister->data.item_index = 0;
+            lister->item_index = 0;
             lister_call_refresh_handler(app, view, lister);
         }break;
     }
@@ -310,9 +381,9 @@ function Lister_Activation_Code
 lister_call_activate_handler(Application_Links *app, View_ID view, Lister *lister,
                              void *user_data, b32 activated_by_mouse){
     Lister_Activation_Code result = ListerActivation_Finished;
-    if (lister->data.handlers.activate != 0){
-        result = lister->data.handlers.activate(app, view, lister, lister->data.text_field.string,
-                                                user_data, activated_by_mouse);
+    if (lister->handlers.activate != 0){
+        result = lister->handlers.activate(app, view, lister, lister->text_field.string,
+                                           user_data, activated_by_mouse);
     }
     else{
         lister_default(app, view, lister, ListerActivation_Finished);
@@ -336,10 +407,10 @@ lister_user_data_at_p(Application_Links *app, View_ID view, Lister *lister, Vec2
     
     void *result = 0;
     if (rect_contains_point(layout.list_rect, m_p)){
-        f32 y = m_p.y - layout.list_rect.y0 + lister->data.scroll.position.y;
+        f32 y = m_p.y - layout.list_rect.y0 + lister->scroll.position.y;
         i32 index = (i32)(y/block_height);
-        if (0 < index && index < lister->data.filtered.count){
-            Lister_Node *node = lister->data.filtered.node_ptrs[index];
+        if (0 < index && index < lister->filtered.count){
+            Lister_Node *node = lister->filtered.node_ptrs[index];
             result = node->user_data;
         }
     }
@@ -349,15 +420,16 @@ lister_user_data_at_p(Application_Links *app, View_ID view, Lister *lister, Vec2
 
 function void
 lister_run(Application_Links *app, View_ID view, Lister *lister){
-    lister->data.filter_restore_point = begin_temp(lister->arena);
+    lister->filter_restore_point = begin_temp(lister->arena);
     lister_update_filtered_list(app, view, lister);
     
     View_Context ctx = view_current_context(app, view);
     ctx.render_caller = lister_render;
+    ctx.hides_buffer = true;
     view_push_context(app, view, &ctx);
     
     for (;;){
-        User_Input in = get_user_input(app, EventPropertyGroup_Any, EventProperty_Escape);
+        User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
         if (in.abort){
             break;
         }
@@ -367,8 +439,8 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
         switch (in.event.kind){
             case InputEventKind_TextInsert:
             {
-                if (lister->data.handlers.write_character != 0){
-                    lister->data.handlers.write_character(app);
+                if (lister->handlers.write_character != 0){
+                    lister->handlers.write_character(app);
                 }
             }break;
             
@@ -379,9 +451,9 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     case KeyCode_Tab:
                     {
                         void *user_data = 0;
-                        if (0 <= lister->data.raw_item_index &&
-                            lister->data.raw_item_index < lister->data.options.count){
-                            user_data = lister_get_user_data(lister, lister->data.raw_item_index);
+                        if (0 <= lister->raw_item_index &&
+                            lister->raw_item_index < lister->options.count){
+                            user_data = lister_get_user_data(lister, lister->raw_item_index);
                         }
                         result = lister_call_activate_handler(app, view, lister,
                                                               user_data, false);
@@ -389,11 +461,11 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     
                     case KeyCode_Backspace:
                     {
-                        if (lister->data.handlers.backspace != 0){
-                            lister->data.handlers.backspace(app);
+                        if (lister->handlers.backspace != 0){
+                            lister->handlers.backspace(app);
                         }
-                        else if (lister->data.handlers.key_stroke != 0){
-                            result = lister->data.handlers.key_stroke(app);
+                        else if (lister->handlers.key_stroke != 0){
+                            result = lister->handlers.key_stroke(app);
                         }
                         else{
                             handled = false;
@@ -402,8 +474,8 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     
                     case KeyCode_Up:
                     {
-                        if (lister->data.handlers.navigate_up != 0){
-                            lister->data.handlers.navigate_up(app);
+                        if (lister->handlers.navigate_up != 0){
+                            lister->handlers.navigate_up(app);
                         }
                         else{
                             handled = false;
@@ -412,8 +484,8 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     
                     case KeyCode_Down:
                     {
-                        if (lister->data.handlers.navigate_down != 0){
-                            lister->data.handlers.navigate_down(app);
+                        if (lister->handlers.navigate_down != 0){
+                            lister->handlers.navigate_down(app);
                         }
                         else{
                             handled = false;
@@ -422,8 +494,8 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     
                     default:
                     {
-                        if (lister->data.handlers.key_stroke != 0){
-                            result = lister->data.handlers.key_stroke(app);
+                        if (lister->handlers.key_stroke != 0){
+                            result = lister->handlers.key_stroke(app);
                         }
                         else{
                             handled = false;
@@ -439,7 +511,7 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     {
                         Vec2_f32 p = V2f32(in.event.mouse.p);
                         void *clicked = lister_user_data_at_p(app, view, lister, p);
-                        lister->data.hot_user_data = clicked;
+                        lister->hot_user_data = clicked;
                     }break;
                     
                     default:
@@ -454,15 +526,15 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                 switch (in.event.mouse.code){
                     case MouseCode_Left:
                     {
-                        if (lister->data.hot_user_data != 0){
+                        if (lister->hot_user_data != 0){
                             Vec2_f32 p = V2f32(in.event.mouse.p);
                             void *clicked = lister_user_data_at_p(app, view, lister, p);
-                            if (lister->data.hot_user_data == clicked){
+                            if (lister->hot_user_data == clicked){
                                 result = lister_call_activate_handler(app, view, lister,
                                                                       clicked, true);
                             }
                         }
-                        lister->data.hot_user_data = 0;
+                        lister->hot_user_data = 0;
                     }break;
                     
                     default:
@@ -475,7 +547,7 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
             case InputEventKind_MouseWheel:
             {
                 Mouse_State mouse = get_mouse_state(app);
-                lister->data.scroll.target.y += mouse.wheel;
+                lister->scroll.target.y += mouse.wheel;
                 lister_update_filtered_list(app, view, lister);
             }break;
             
@@ -494,8 +566,28 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
         if (result == ListerActivation_Finished){
             break;
         }
+        
         if (!handled){
-            leave_command_input_unhandled(app);
+            Mapping *mapping = lister->mapping;
+            Command_Map *map = lister->map;
+            if (mapping != 0 && map != 0){
+                Command_Binding binding =
+                    map_get_binding_recursive(mapping, map, &in.event);
+                if (binding.custom != 0){
+                    i64 old_num = get_current_input_sequence_number(app);
+                    binding.custom(app);
+                    i64 num = get_current_input_sequence_number(app);
+                    if (old_num < num){
+                        break;
+                    }
+                }
+                else{
+                    leave_current_input_unhandled(app);
+                }
+            }
+            else{
+                leave_current_input_unhandled(app);
+            }
         }
     }
     
@@ -512,8 +604,8 @@ lister_prealloced(String_Const_u8 string){
 function void
 lister_begin_new_item_set(Application_Links *app, Lister *lister){
     end_temp(lister->restore_all_point);
-    block_zero_struct(&lister->data.options);
-    block_zero_struct(&lister->data.filtered);
+    block_zero_struct(&lister->options);
+    block_zero_struct(&lister->filtered);
 }
 
 function void*
@@ -524,9 +616,9 @@ lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloc
     node->string = string.string;
     node->status = status.string;
     node->user_data = user_data;
-    node->raw_index = lister->data.options.count;
-    zdll_push_back(lister->data.options.first, lister->data.options.last, node);
-    lister->data.options.count += 1;
+    node->raw_index = lister->options.count;
+    zdll_push_back(lister->options.first, lister->options.last, node);
+    lister->options.count += 1;
     void *result = (node + 1);
     return(result);
 }
@@ -551,89 +643,6 @@ lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, 
                            lister_prealloced(push_string_copy(lister->arena, string)),
                            lister_prealloced(push_string_copy(lister->arena, status)),
                            user_data, extra_space));
-}
-
-function void*
-lister_add_theme_item(Lister *lister,
-                      Lister_Prealloced_String string, i32 index,
-                      void *user_data, i32 extra_space){
-    Lister_Node *node = push_array(lister->arena, Lister_Node, 1);
-    node->string = string.string;
-    node->index = index;
-    node->user_data = user_data;
-    node->raw_index = lister->data.options.count;
-    zdll_push_back(lister->data.options.first, lister->data.options.last, node);
-    lister->data.options.count += 1;
-    void *result = push_array(lister->arena, char, extra_space);
-    push_align(lister->arena, 8);
-    return(result);
-}
-
-function void*
-lister_add_theme_item(Lister *lister, String_Const_u8 string, i32 index,
-                      void *user_data, i32 extra_space){
-    return(lister_add_theme_item(lister, lister_prealloced(push_string_copy(lister->arena, string)), index,
-                                 user_data, extra_space));
-}
-
-function void
-lister_set_string(String_Const_u8 string, String_u8 *target){
-    target->size = 0;
-    string_append(target, string);
-}
-function void
-lister_append_string(String_Const_u8 string, String_u8 *target){
-    string_append(target, string);
-}
-
-function void
-lister_set_query(Lister *lister, String_Const_u8 string){
-    lister_set_string(string, &lister->data.query);
-}
-function void
-lister_set_query(Lister *lister, char *string){
-    lister_set_string(SCu8(string), &lister->data.query);
-}
-function void
-lister_set_text_field(Lister *lister, String_Const_u8 string){
-    lister_set_string(string, &lister->data.text_field);
-}
-function void
-lister_set_text_field(Lister *lister, char *string){
-    lister_set_string(SCu8(string), &lister->data.text_field);
-}
-function void
-lister_set_key(Lister *lister, String_Const_u8 string){
-    lister_set_string(string, &lister->data.key_string);
-}
-function void
-lister_set_key(Lister *lister, char *string){
-    lister_set_string(SCu8(string), &lister->data.key_string);
-}
-
-function void
-lister_append_query(Lister *lister, String_Const_u8 string){
-    lister_append_string(string, &lister->data.query);
-}
-function void
-lister_append_query(Lister *lister, char *string){
-    lister_append_string(SCu8(string), &lister->data.query);
-}
-function void
-lister_append_text_field(Lister *lister, String_Const_u8 string){
-    lister_append_string(string, &lister->data.text_field);
-}
-function void
-lister_append_text_field(Lister *lister, char *string){
-    lister_append_string(SCu8(string), &lister->data.text_field);
-}
-function void
-lister_append_key(Lister *lister, String_Const_u8 string){
-    lister_append_string(string, &lister->data.key_string);
-}
-function void
-lister_append_key(Lister *lister, char *string){
-    lister_append_string(SCu8(string), &lister->data.key_string);
 }
 
 // BOTTOM

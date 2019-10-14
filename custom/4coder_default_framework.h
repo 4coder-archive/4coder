@@ -65,10 +65,10 @@ typedef void View_Render_Hook(Application_Links *app, View_ID view, Frame_Info f
 
 ////////////////////////////////
 
-static void
+function b32
 do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view);
 
-static void
+function b32
 do_gui_sure_to_close_4coder(Application_Links *app, View_ID view);
 
 #endif

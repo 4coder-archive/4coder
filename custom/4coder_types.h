@@ -107,14 +107,6 @@ struct Frame_Info{
     f32 animation_dt;
 };
 
-typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
-#define RENDER_CALLER_SIG(name) void name(Application_Links *app, Frame_Info frame_info, View_ID view)
-
-struct View_Context{
-    Render_Caller_Function *render_caller;
-    b32 hides_buffer;
-};
-
 ENUM(i32, View_Setting_ID){
     ViewSetting_Null,
     ViewSetting_ShowWhitespace,
@@ -483,63 +475,23 @@ STRUCT User_Input{
 
 typedef i32 Hook_ID;
 enum{
-    HookID_FileOutOfSync,
-    HookID_Exit,
+    HookID_RenderCaller,
     HookID_BufferViewerUpdate,
     HookID_ScrollRule,
-    HookID_NewFile,
-    HookID_OpenFile,
-    HookID_SaveFile,
-    HookID_EndFile,
-    HookID_FileEditRange,
-    HookID_FileExternallyModified,
     HookID_ViewEventHandler,
-    HookID_RenderCaller,
-    HookID_InputFilter,
-    HookID_Start,
     HookID_BufferNameResolver,
-    HookID_ModifyColorTable,
-    HookID_ClipboardChange,
-    HookID_GetViewBufferRegion,
+    HookID_BeginBuffer,
+    HookID_EndBuffer,
+    HookID_NewFile,
+    HookID_SaveFile,
+    HookID_BufferEditRange,
+    HookID_BufferRegion,
 };
 
-TYPEDEF_FUNC i32 Hook_Function(struct Application_Links *app);
-#define HOOK_SIG(name) i32 name(struct Application_Links *app)
+typedef i32 Hook_Function(Application_Links *app);
+#define HOOK_SIG(name) i32 name(Application_Links *app)
 
-TYPEDEF_FUNC i32 Buffer_Hook_Function(struct Application_Links *app, Buffer_ID buffer_id);
-#define BUFFER_HOOK_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
-
-TYPEDEF_FUNC i32 File_Edit_Range_Function(struct Application_Links *app, Buffer_ID buffer_id, 
-                                          Interval_i64 range, String_Const_u8 text);
-#define FILE_EDIT_RANGE_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id, Interval_i64 range, String_Const_u8 text)
-
-TYPEDEF_FUNC i32 File_Externally_Modified_Function(struct Application_Links *app, Buffer_ID buffer_id);
-#define FILE_EXTERNALLY_MODIFIED_SIG(name) i32 name(struct Application_Links *app, Buffer_ID buffer_id)
-
-TYPEDEF_FUNC void Input_Filter_Function(Mouse_State *mouse);
-#define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
-
-TYPEDEF_FUNC Vec2_f32 Delta_Rule_Function(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt);
-#define DELTA_RULE_SIG(name) Vec2_f32 name(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt)
-
-STRUCT Color_Table{
-    argb_color *vals;
-    u32 count;
-};
-
-TYPEDEF_FUNC Color_Table Modify_Color_Table_Function(struct Application_Links *app, Frame_Info frame);
-#define MODIFY_COLOR_TABLE_SIG(name) Color_Table name(struct Application_Links *app, Frame_Info frame)
-
-ENUM(u32, Clipboard_Change_Flag){
-    ClipboardFlag_FromOS = 0x1,
-};
-TYPEDEF_FUNC void Clipboard_Change_Hook_Function(struct Application_Links *app, String_Const_u8 contents, Clipboard_Change_Flag  flags);
-#define CLIPBOARD_CHANGE_HOOK_SIG(name) void name(struct Application_Links *app, String_Const_u8 contents, Clipboard_Change_Flag flags)
-
-TYPEDEF_FUNC Rect_f32 Get_View_Buffer_Region_Function(struct Application_Links *app, View_ID view_id, Rect_f32 sub_region);
-#define GET_VIEW_BUFFER_REGION_SIG(name) Rect_f32 name(struct Application_Links *app, View_ID view_id, Rect_f32 sub_region)
-
-STRUCT Buffer_Name_Conflict_Entry{
+struct Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;
     String_Const_u8 file_name;
     String_Const_u8 base_name;
@@ -548,16 +500,40 @@ STRUCT Buffer_Name_Conflict_Entry{
     umem unique_name_capacity;
 };
 
-TYPEDEF_FUNC void Buffer_Name_Resolver_Function(struct Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count);
+typedef void Buffer_Name_Resolver_Function(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count);
 #define BUFFER_NAME_RESOLVER_SIG(n) \
-void n(struct Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count)
+void n(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count)
 
-TYPEDEF_FUNC i32 Start_Hook_Function(struct Application_Links *app, char **files, i32 file_count, char **flags, i32 flag_count);
-#define START_HOOK_SIG(name) \
-i32 name(struct Application_Links *app, char **files, i32 file_count, char **flags, i32 flag_count)
+typedef i32 Buffer_Hook_Function(Application_Links *app, Buffer_ID buffer_id);
+#define BUFFER_HOOK_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id)
 
-TYPEDEF_FUNC i32 Get_Binding_Data_Function(void *data, i32 size);
-#define GET_BINDING_DATA(name) i32 name(void *data, i32 size)
+typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_id,
+                                       Range_i64 range, String_Const_u8 text);
+#define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id,\
+Interval_i64 range, String_Const_u8 text)
+
+typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt);
+#define DELTA_RULE_SIG(name) \
+Vec2_f32 name(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt)
+
+typedef Rect_f32 Buffer_Region_Function(Application_Links *app, View_ID view_id, Rect_f32 region);
+
+struct Color_Table{
+    argb_color *vals;
+    u32 count;
+};
+
+typedef void New_Clipboard_Contents_Function(Application_Links *app, String_Const_u8 contents);
+#define NEW_CLIPBOARD_CONTENTS_SIG(name) \
+void name(Application_Links *app, String_Const_u8 contents)
+
+typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
+#define RENDER_CALLER_SIG(name) void name(Application_Links *app, Frame_Info frame_info, View_ID view)
+
+struct View_Context{
+    Render_Caller_Function *render_caller;
+    b32 hides_buffer;
+};
 
 typedef i64 Command_Map_ID;
 

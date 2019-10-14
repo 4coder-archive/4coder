@@ -9,6 +9,14 @@
 
 // TOP
 
+function void
+begin_handling_input(Models *models, User_Input *input){
+    block_copy_struct(&models->current_input, input);
+    models->current_input_sequence_number += 1;
+}
+
+////////////////////////////////
+
 internal void
 init_query_set(Query_Set *set){
     Query_Slot *slot = set->slots;
@@ -142,10 +150,10 @@ view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
 internal Rect_f32
 view_get_buffer_rect(Models *models, View *view){
     Rect_f32 region = {};
-    if (models->get_view_buffer_region != 0){
+    if (models->buffer_region != 0){
         Rect_f32 rect = Rf32(view->panel->rect_inner);
         Rect_f32 sub_region = Rf32(V2(0, 0), rect_dim(rect));
-        sub_region = models->get_view_buffer_region(&models->app_links, view_get_id(&models->live_set, view), sub_region);
+        sub_region = models->buffer_region(&models->app_links, view_get_id(&models->live_set, view), sub_region);
         region.p0 = rect.p0 + sub_region.p0;
         region.p1 = rect.p0 + sub_region.p1;
         region.x1 = clamp_top(region.x1, rect.x1);
@@ -631,28 +639,69 @@ co_send_event(Models *models, View *view, Input_Event *event){
     
     Event_Property event_flags = get_event_properties(event);
     if ((get_flags&event_flags) != 0){
-        models->event_unhandled = false;
+        models->current_input_unhandled = false;
         Co_In in = {};
         in.user_input.event = *event;
         in.user_input.abort = ((abort_flags & event_flags) != 0);
-        block_copy_struct(&models->event, &in.user_input.event);
+        begin_handling_input(models, &in.user_input);
         view->co = co_run(models, Co_View, view->co, &in, &view->co_out);
         view_check_co_exited(models, view);
         if (!HasFlag(event_flags, EventProperty_Animate)){
             models->animate_next_frame = true;
         }
-        event_was_handled = !models->event_unhandled;
+        event_was_handled = !models->current_input_unhandled;
     }
     
     return(event_was_handled);
 }
 
 function b32
-co_send_core_event(Models *models, View *view, Core_Code code){
+co_send_core_event(Models *models, View *view, Core_Code code, String_Const_u8 string){
     Input_Event event = {};
     event.kind = InputEventKind_Core;
     event.core.code = code;
+    event.core.string = string;
     return(co_send_event(models, view, &event));
+}
+
+function b32
+co_send_core_event(Models *models, View *view, Core_Code code, Buffer_ID id){
+    Input_Event event = {};
+    event.kind = InputEventKind_Core;
+    event.core.code = code;
+    event.core.id = id;
+    return(co_send_event(models, view, &event));
+}
+
+function b32
+co_send_core_event(Models *models, View *view, Core_Code code){
+    return(co_send_core_event(models, view, code, SCu8()));
+}
+
+function b32
+co_send_event(Models *models, Input_Event *event){
+    Panel *active_panel = models->layout.active_panel;
+    View *view = active_panel->view;
+    return(co_send_event(models, view, event));
+}
+
+function b32
+co_send_core_event(Models *models, Core_Code code, String_Const_u8 string){
+    Panel *active_panel = models->layout.active_panel;
+    View *view = active_panel->view;
+    return(co_send_core_event(models, view, code, string));
+}
+
+function b32
+co_send_core_event(Models *models, Core_Code code, Buffer_ID buffer_id){
+    Panel *active_panel = models->layout.active_panel;
+    View *view = active_panel->view;
+    return(co_send_core_event(models, view, code, buffer_id));
+}
+
+function b32
+co_send_core_event(Models *models, Core_Code code){
+    return(co_send_core_event(models, code, SCu8()));
 }
 
 ////////////////////////////////
