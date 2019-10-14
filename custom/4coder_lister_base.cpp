@@ -77,8 +77,6 @@ lister_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_
         return;
     }
     
-    Basic_Scroll scroll = lister->data.scroll;
-    (void)scroll;
     Rect_f32 region = view_get_screen_rect(app, view);
     // TODO(allen): eliminate this. bad bad bad bad :(
     region = rect_inner(region, 3.f);
@@ -106,10 +104,25 @@ lister_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_
     }
     
     Range_f32 x = rect_range_x(layout.list_rect);
-    f32 y_pos = layout.list_rect.y0;
+    Rect_f32 prev_clip = draw_set_clip(app, layout.list_rect);
     
     i32 count = lister->data.filtered.count;
-    for (i32 i = 0; i < count; i += 1){
+    Range_f32 scroll_range = If32(0.f, clamp_bot(0.f, count*block_height - block_height));
+    lister->data.scroll.position.y = clamp_range(scroll_range, lister->data.scroll.position.y);
+    lister->data.scroll.position.x = 0.f;
+    lister->data.scroll.target.y = clamp_range(scroll_range, lister->data.scroll.target.y);
+    lister->data.scroll.target.x = 0.f;
+    
+    // TODO(allen): get scroll rule from context
+    lister->data.scroll.position = lister->data.scroll.target;
+    
+    f32 scroll_y = lister->data.scroll.position.y;
+    
+    f32 y_pos = layout.list_rect.y0 - scroll_y;
+    i32 first_index = (i32)(scroll_y/block_height);
+    y_pos += first_index*block_height;
+    
+    for (i32 i = first_index; i < count; i += 1){
         Lister_Node *node = lister->data.filtered.node_ptrs[i];
         
         Range_f32 y = If32(y_pos, y_pos + block_height);
@@ -135,8 +148,8 @@ lister_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_
             highlight = UIHighlight_Hover;
         }
         
-        draw_rectangle(app, item_rect, 3.f, get_margin_color(highlight));
-        draw_rectangle(app, item_inner, 3.f, Stag_Back);
+        draw_rectangle(app, item_rect, 6.f, get_margin_color(highlight));
+        draw_rectangle(app, item_inner, 6.f, Stag_Back);
         
         Fancy_String_List line = {};
         push_fancy_string(scratch, &line, fancy_id(Stag_Default), node->string);
@@ -146,6 +159,8 @@ lister_render(Application_Links *app, View_ID view, Frame_Info frame_info, Rect_
         Vec2_f32 p = V2f32(item_inner.x0 + 3.f, item_inner.y0 + (block_height - line_height)*0.5f);
         draw_fancy_string(app, face_id, line.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
     }
+    
+    draw_set_clip(app, prev_clip);
 }
 
 function void*

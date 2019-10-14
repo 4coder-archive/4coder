@@ -1544,6 +1544,16 @@ unlerp(f32 a, f32 x, f32 b){
     return(r);
 }
 
+internal f32
+lerp(Range_f32 range, f32 t){
+    return(lerp(range.min, t, range.max));
+}
+
+internal f32
+clamp_range(Range_f32 range, f32 x){
+    return(clamp(range.min, x, range.max));
+}
+
 ////////////////////////////////
 
 internal b32
