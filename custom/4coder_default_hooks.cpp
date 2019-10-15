@@ -280,51 +280,12 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 
 function Rect_f32_Pair
 layout_file_bar_on_top(Rect_f32 rect, f32 line_height){
-    return(rect_split_top_bottom(rect, line_height + 2.f));
+    return(rect_split_top_bottom(rect, line_height + 4.f));
 }
 
 function Rect_f32_Pair
 layout_file_bar_on_bot(Rect_f32 rect, f32 line_height){
-    return(rect_split_top_bottom_neg(rect, line_height + 2.f));
-}
-
-function Rect_f32
-default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
-    region = rect_inner(region, 3.f);
-    
-    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
-    Face_ID face_id = get_face_id(app, buffer);
-    Face_Metrics metrics = get_face_metrics(app, face_id);
-    f32  line_height = metrics.line_height;
-    
-    // file bar
-    b64 showing_file_bar = false;
-    if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) &&
-        showing_file_bar){
-        Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
-        region = pair.b;
-    }
-    
-    // query bar
-    {
-        Query_Bar *space[32];
-        Query_Bar_Ptr_Array query_bars = {};
-        query_bars.ptrs = space;
-        if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
-            f32 widget_height = (line_height + 2)*query_bars.count;
-            region.y0 += widget_height;
-        }
-    }
-    
-    // line number margins
-    if (global_config.show_line_number_margins){
-        i64 line_count = buffer_get_line_count(app, buffer);
-        i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
-        i32 margin_width = i32_ceil32((f32)line_count_digit_count*metrics.normal_advance);
-        region.x0 += margin_width + 2;
-    }
-    
-    return(region);
+    return(rect_split_top_bottom_neg(rect, line_height + 4.f));
 }
 
 internal int_color
@@ -381,6 +342,95 @@ get_token_color_cpp(Token token){
     return(result);
 }
 
+function Rect_f32
+default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
+    region = rect_inner(region, 3.f);
+    
+    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Metrics metrics = get_face_metrics(app, face_id);
+    f32  line_height = metrics.line_height;
+    
+    // file bar
+    b64 showing_file_bar = false;
+    if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) &&
+        showing_file_bar){
+        Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
+        region = pair.b;
+    }
+    
+    // query bar
+    {
+        Query_Bar *space[32];
+        Query_Bar_Ptr_Array query_bars = {};
+        query_bars.ptrs = space;
+        if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
+            f32 widget_height = (line_height + 2)*query_bars.count;
+            region.y0 += widget_height;
+        }
+    }
+    
+    // line number margins
+    if (global_config.show_line_number_margins){
+        i64 line_count = buffer_get_line_count(app, buffer);
+        i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
+        i32 margin_width = i32_ceil32((f32)line_count_digit_count*metrics.normal_advance);
+        region.x0 += margin_width + 2;
+    }
+    
+    return(region);
+}
+
+function void
+draw_file_bar(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID face_id, Rect_f32 bar){
+    Scratch_Block scratch(app);
+    
+    draw_rectangle(app, bar, 0.f, Stag_Bar);
+    
+    Fancy_Color base_color = fancy_id(Stag_Base);
+    Fancy_Color pop2_color = fancy_id(Stag_Pop2);
+    
+    i64 cursor_position = view_get_cursor_pos(app, view_id);
+    Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
+    
+    Fancy_String_List list = {};
+    String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
+    push_fancy_string(scratch, &list, base_color, unique_name);
+    push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.col);
+    
+    b64 is_dos_mode = false;
+    if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
+        if (is_dos_mode){
+            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
+        }
+        else{
+            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" nix"));
+        }
+    }
+    else{
+        push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" ???"));
+    }
+    
+    {
+        Dirty_State dirty = buffer_get_dirty_state(app, buffer);
+        u8 space[3];
+        String_u8 str = Su8(space, 0, 3);
+        if (dirty != 0){
+            string_append(&str, string_u8_litexpr(" "));
+        }
+        if (HasFlag(dirty, DirtyState_UnsavedChanges)){
+            string_append(&str, string_u8_litexpr("*"));
+        }
+        if (HasFlag(dirty, DirtyState_UnloadedChanges)){
+            string_append(&str, string_u8_litexpr("!"));
+        }
+        push_fancy_string(scratch, &list, pop2_color, str.string);
+    }
+    
+    Vec2 p = bar.p0 + V2(2.f, 2.f);
+    draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
+}
+
 internal void
 default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     View_ID active_view = get_active_view(app, AccessAll);
@@ -405,56 +455,9 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     // NOTE(allen): Filebar
     b64 showing_file_bar = false;
     if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) && showing_file_bar){
-        Rect_f32 bar = r_cursor;
-        bar.y1 = bar.y0 + line_height + 2.f;
-        r_cursor.y0 = bar.y1;
-        
-        draw_rectangle(app, bar, 0.f, Stag_Bar);
-        
-        Fancy_Color base_color = fancy_id(Stag_Base);
-        Fancy_Color pop2_color = fancy_id(Stag_Pop2);
-        
-        Scratch_Block scratch(app);
-        
-        i64 cursor_position = view_get_cursor_pos(app, view_id);
-        Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
-        
-        Fancy_String_List list = {};
-        String_Const_u8 unique_name = push_buffer_unique_name(app, scratch, buffer);
-        push_fancy_string(scratch, &list, base_color, unique_name);
-        push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.col);
-        
-        b64 is_dos_mode = false;
-        if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
-            if (is_dos_mode){
-                push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
-            }
-            else{
-                push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" nix"));
-            }
-        }
-        else{
-            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" ???"));
-        }
-        
-        {
-            Dirty_State dirty = buffer_get_dirty_state(app, buffer);
-            u8 space[3];
-            String_u8 str = Su8(space, 0, 3);
-            if (dirty != 0){
-                string_append(&str, string_u8_litexpr(" "));
-            }
-            if (HasFlag(dirty, DirtyState_UnsavedChanges)){
-                string_append(&str, string_u8_litexpr("*"));
-            }
-            if (HasFlag(dirty, DirtyState_UnloadedChanges)){
-                string_append(&str, string_u8_litexpr("!"));
-            }
-            push_fancy_string(scratch, &list, pop2_color, str.string);
-        }
-        
-        Vec2 p = bar.p0 + V2(0.f, 2.f);
-        draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
+        Rect_f32_Pair pair = layout_file_bar_on_top(r_cursor, line_height);
+        draw_file_bar(app, view_id, buffer, face_id, pair.min);
+        r_cursor = pair.max;
     }
     
     Rect_f32 buffer_rect = default_buffer_region(app, view_id, view_rect);
@@ -469,23 +472,6 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     if (delta.still_animating){
         animate_in_n_milliseconds(app, 0);
     }
-    
-#if 0    
-    // NOTE(allen): clamp scroll target and position; smooth scroll rule
-    {
-        Vec2_f32 pending = view_point_difference(app, view_id, scroll.target, scroll.position);
-        if (!near_zero(pending, 0.5f)){
-            // TODO(allen): use the real delta rule from the context
-            Vec2_f32 partial = pending;
-            scroll.position = view_move_buffer_point(app, view_id, scroll.position, partial);
-            animate_in_n_milliseconds(app, 0);
-        }
-        else{
-            scroll.position = scroll.target;
-        }
-        view_set_buffer_scroll(app, view_id, scroll, SetBufferScroll_NoCursorChange);
-    }
-#endif
     
     Buffer_Point buffer_point = scroll.position;
     Text_Layout_ID text_layout_id = text_layout_create(app, buffer, buffer_rect, buffer_point);
