@@ -896,8 +896,8 @@ push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_
 }
 
 internal String_Const_u8
-push_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Token token){
-    return(push_buffer_range(app, arena, buffer, Ii64(token.pos, token.pos + token.size)));
+push_token_lexeme(Application_Links *app, Arena *arena, Buffer_ID buffer, Token *token){
+    return(push_buffer_range(app, arena, buffer, Ii64(token)));
 }
 
 internal String_Const_u8
@@ -930,6 +930,50 @@ push_enclose_range_at_pos(Application_Links *app, Arena *arena, Buffer_ID buffer
 
 ////////////////////////////////
 
+internal String_Const_u8
+token_it_lexeme(Application_Links *app, Arena *arena, Token_Iterator_Array *it){
+    String_Const_u8 result = {};
+    Token *token = token_it_read(it);
+    if (token != 0){
+        result = push_token_lexeme(app, arena, (Buffer_ID)it->user_id, token);
+    }
+    return(result);
+}
+
+internal b32
+token_it_check_and_get_lexeme(Application_Links *app, Arena *arena, Token_Iterator_Array *it, Token_Base_Kind kind, String_Const_u8 *lexeme_out){
+    Token *token = token_it_read(it);
+    b32 result = {};
+    if (token != 0 && token->kind == kind){
+        result = true;
+        *lexeme_out = push_token_lexeme(app, arena, (Buffer_ID)it->user_id, token);
+    }
+    return(result);
+}
+
+internal String_Const_u8
+token_it_lexeme(Application_Links *app, Arena *arena, Token_Iterator_List *it){
+    String_Const_u8 result = {};
+    Token *token = token_it_read(it);
+    if (token != 0){
+        result = push_token_lexeme(app, arena, (Buffer_ID)it->user_id, token);
+    }
+    return(result);
+}
+
+internal b32
+token_it_check_and_get_lexeme(Application_Links *app, Arena *arena, Token_Iterator_List *it, Token_Base_Kind kind, String_Const_u8 *lexeme_out){
+    Token *token = token_it_read(it);
+    b32 result = {};
+    if (token != 0 && token->kind == kind){
+        result = true;
+        *lexeme_out = push_token_lexeme(app, arena, (Buffer_ID)it->user_id, token);
+    }
+    return(result);
+}
+
+////////////////////////////////
+
 internal b32
 buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
     Scratch_Block scratch(app);
@@ -945,12 +989,6 @@ buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i64 pos){
         buffer_read_range(app, buffer_id, Ii64(pos, pos + 1), &result);
     }
     return(result);
-}
-
-internal b32
-token_lexeme_string_match(Application_Links *app, Buffer_ID buffer, Token token, String_Const_u8 b){
-    Scratch_Block scratch(app);
-    return(string_match(push_token_lexeme(app, scratch, buffer, token), b));
 }
 
 internal b32

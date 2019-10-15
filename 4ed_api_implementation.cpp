@@ -2533,7 +2533,7 @@ try_modify_face(Application_Links *app, Face_ID id, Face_Description *descriptio
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         Assert(coroutine != 0);
         Co_Out *out = (Co_Out*)coroutine->out;
-        out->request = CoRequest_NewFontFace;
+        out->request = CoRequest_ModifyFace;
         out->face_description = description;
         out->face_id = id;
         coroutine_yield(coroutine);

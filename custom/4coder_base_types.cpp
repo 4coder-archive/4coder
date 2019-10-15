@@ -2433,13 +2433,10 @@ rect_union(Rect_f32 a, Rect_f32 b){
     return(a);
 }
 
-#define intersection_of rect_intersect
-#define union_of rect_union
-
 ////////////////////////////////
 
 internal Rect_f32_Pair
-rect_split_top_bottom(Rect_f32 rect, f32 y){
+rect_split_top_bottom__inner(Rect_f32 rect, f32 y){
     y = clamp(rect.y0, y, rect.y1);
     Rect_f32_Pair pair = {};
     pair.a = Rf32(rect.x0, rect.y0, rect.x1, y      );
@@ -2448,7 +2445,7 @@ rect_split_top_bottom(Rect_f32 rect, f32 y){
 }
 
 internal Rect_f32_Pair
-rect_split_left_right(Rect_f32 rect, f32 x){
+rect_split_left_right__inner(Rect_f32 rect, f32 x){
     x = clamp(rect.x0, x, rect.x1);
     Rect_f32_Pair pair = {};
     pair.a = Rf32(rect.x0, rect.y0, x      , rect.y1);
@@ -2457,23 +2454,33 @@ rect_split_left_right(Rect_f32 rect, f32 x){
 }
 
 internal Rect_f32_Pair
+rect_split_top_bottom(Rect_f32 rect, f32 y){
+    return(rect_split_top_bottom__inner(rect, rect.y0 + y));
+}
+
+internal Rect_f32_Pair
+rect_split_left_right(Rect_f32 rect, f32 x){
+    return(rect_split_left_right__inner(rect, rect.x0 + x));
+}
+
+internal Rect_f32_Pair
 rect_split_top_bottom_neg(Rect_f32 rect, f32 y){
-    return(rect_split_top_bottom(rect, rect.y1 - y));
+    return(rect_split_top_bottom__inner(rect, rect.y1 - y));
 }
 
 internal Rect_f32_Pair
 rect_split_left_right_neg(Rect_f32 rect, f32 x){
-    return(rect_split_left_right(rect, rect.x1 - x));
+    return(rect_split_left_right__inner(rect, rect.x1 - x));
 }
 
 internal Rect_f32_Pair
 rect_split_top_bottom_lerp(Rect_f32 rect, f32 t){
-    return(rect_split_top_bottom(rect, lerp(rect.y0, t, rect.y1)));
+    return(rect_split_top_bottom__inner(rect, lerp(rect.y0, t, rect.y1)));
 }
 
 internal Rect_f32_Pair
 rect_split_left_right_lerp(Rect_f32 rect, f32 t){
-    return(rect_split_left_right(rect, lerp(rect.x0, t, rect.x1)));
+    return(rect_split_left_right__inner(rect, lerp(rect.x0, t, rect.x1)));
 }
 
 ////////////////////////////////

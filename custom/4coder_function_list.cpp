@@ -183,7 +183,7 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_I
                     }
                     
                     Temp_Memory token_temp = begin_temp(scratch);
-                    String_Const_u8 lexeme = push_token_lexeme(app, scratch, buffer, *token);
+                    String_Const_u8 lexeme = push_token_lexeme(app, scratch, buffer, token);
                     insert_string(out, lexeme);
                     end_temp(token_temp);
                     

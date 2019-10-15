@@ -128,93 +128,6 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
     }
 }
 
-internal Range_i64_Array
-get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, u32 flags){
-    Range_i64_Array array = {};
-    i32 max = 100;
-    array.ranges = push_array(arena, Range_i64, max);
-    for (;;){
-        Range_i64 range = {};
-        if (find_surrounding_nest(app, buffer, pos, flags, &range)){
-            array.ranges[array.count] = range;
-            array.count += 1;
-            pos = range.first;
-            if (array.count >= max){
-                break;
-            }
-        }
-        else{
-            break;
-        }
-    }
-    return(array);
-}
-
-typedef i32 Range_Highlight_Kind;
-enum{
-    RangeHighlightKind_LineHighlight,
-    RangeHighlightKind_CharacterHighlight,
-};
-
-internal void
-draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer,
-                i64 pos, u32 flags, Range_Highlight_Kind kind,
-                int_color *back_colors, int_color *fore_colors, i32 color_count){
-    Scratch_Block scratch(app);
-    Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
-    
-    i32 color_index = 0;
-    for (i32 i = ranges.count - 1; i >= 0; i -= 1){
-        Range_i64 range = ranges.ranges[i];
-        if (kind == RangeHighlightKind_LineHighlight){
-            Range_i64 r[2] = {};
-            if (i > 0){
-                Range_i64 inner_range = ranges.ranges[i - 1];
-                Range_i64 lines = get_line_range_from_pos_range(app, buffer, range);
-                Range_i64 inner_lines = get_line_range_from_pos_range(app, buffer, inner_range);
-                inner_lines.min = clamp_bot(lines.min, inner_lines.min);
-                inner_lines.max = clamp_top(inner_lines.max, lines.max);
-                inner_lines.min -= 1;
-                inner_lines.max += 1;
-                if (lines.min <= inner_lines.min){
-                    r[0] = Ii64(lines.min, inner_lines.min);
-                }
-                if (inner_lines.max <= lines.max){
-                    r[1] = Ii64(inner_lines.max, lines.max);
-                }
-            }
-            else{
-                r[0] = get_line_range_from_pos_range(app, buffer, range);
-            }
-            for (i32 j = 0; j < 2; j += 1){
-                if (r[j].min == 0){
-                    continue;
-                }
-                Range_i64 line_range = r[j];
-                if (back_colors != 0){
-                    draw_line_highlight(app, text_layout_id, line_range, back_colors[color_index]);
-                }
-                if (fore_colors != 0){
-                    Range_i64 pos_range = get_pos_range_from_line_range(app, buffer, line_range);
-                    paint_text_color(app, text_layout_id, pos_range, fore_colors[color_index]);
-                }
-            }
-        }
-        else{
-            if (back_colors != 0){
-                draw_character_block(app, text_layout_id, range.min, 0.f, back_colors[color_index]);
-                draw_character_block(app, text_layout_id, range.max - 1, 0.f, back_colors[color_index]);
-            }
-            if (fore_colors != 0){
-                paint_text_color_pos(app, text_layout_id, range.min, fore_colors[color_index]);
-                paint_text_color_pos(app, text_layout_id, range.max - 1, fore_colors[color_index]);
-            }
-        }
-        color_index += 1;
-        color_index = (color_index%color_count);
-    }
-}
-
 #if 0
 static argb_color default_colors[Stag_COUNT] = {};
 MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
@@ -280,66 +193,41 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 
 function Rect_f32_Pair
 layout_file_bar_on_top(Rect_f32 rect, f32 line_height){
-    return(rect_split_top_bottom(rect, line_height + 4.f));
+    return(rect_split_top_bottom(rect, line_height + 2.f));
 }
 
 function Rect_f32_Pair
 layout_file_bar_on_bot(Rect_f32 rect, f32 line_height){
-    return(rect_split_top_bottom_neg(rect, line_height + 4.f));
+    return(rect_split_top_bottom_neg(rect, line_height + 2.f));
 }
 
-internal int_color
-get_token_color_cpp(Token token){
-    int_color result = Stag_Default;
-    switch (token.kind){
-        case TokenBaseKind_Preprocessor:
-        {
-            result = Stag_Preproc;
-        }break;
-        case TokenBaseKind_Keyword:
-        {            
-            result = Stag_Keyword;
-        }break;
-        case TokenBaseKind_Comment:
-        {
-            result = Stag_Comment;
-        }break;
-        case TokenBaseKind_LiteralString:
-        {
-            result = Stag_Str_Constant;
-        }break;
-        case TokenBaseKind_LiteralInteger:
-        {
-            result = Stag_Int_Constant;
-        }break;
-        case TokenBaseKind_LiteralFloat:
-        {
-            result = Stag_Float_Constant;
-        }break;
-        default:
-        {
-            switch (token.sub_kind){
-                case TokenCppKind_LiteralTrue:
-                case TokenCppKind_LiteralFalse:
-                {
-                    result = Stag_Bool_Constant;
-                }break;
-                case TokenCppKind_LiteralCharacter:
-                case TokenCppKind_LiteralCharacterWide:
-                case TokenCppKind_LiteralCharacterUTF8:
-                case TokenCppKind_LiteralCharacterUTF16:
-                case TokenCppKind_LiteralCharacterUTF32:
-                {
-                    result = Stag_Char_Constant;
-                }break;
-                case TokenCppKind_PPIncludeFile:
-                {
-                    result = Stag_Include;
-                }break;
-            }
-        }break;
-    }
-    return(result);
+function Rect_f32_Pair
+layout_query_bar_on_top(Rect_f32 rect, f32 line_height, i32 bar_count){
+    return(rect_split_top_bottom(rect, (line_height + 2.f)*bar_count));
+}
+
+function Rect_f32_Pair
+layout_query_bar_on_bot(Rect_f32 rect, f32 line_height, i32 bar_count){
+    return(rect_split_top_bottom_neg(rect, (line_height + 2.f)*bar_count));
+}
+
+function Rect_f32_Pair
+layout_line_number_margin(Rect_f32 rect, f32 digit_advance, i64 digit_count){
+    f32 margin_width = (f32)digit_count*digit_advance + 2.f;
+    return(rect_split_left_right(rect, margin_width));
+}
+
+function Rect_f32_Pair
+layout_line_number_margin(Application_Links *app, Buffer_ID buffer, Rect_f32 rect, f32 digit_advance){
+    i64 line_count = buffer_get_line_count(app, buffer);
+    i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
+    return(layout_line_number_margin(rect, digit_advance, line_count_digit_count));
+}
+
+global_const i32 fps_history_depth = 10;
+function Rect_f32_Pair
+layout_fps_hud_on_bottom(Rect_f32 rect, f32 line_height){
+    return(rect_split_top_bottom_neg(rect, line_height*fps_history_depth));
 }
 
 function Rect_f32
@@ -349,33 +237,38 @@ default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics metrics = get_face_metrics(app, face_id);
-    f32  line_height = metrics.line_height;
+    f32 line_height = metrics.line_height;
+    f32 digit_advance = metrics.decimal_digit_advance;
     
-    // file bar
+    // NOTE(allen): file bar
     b64 showing_file_bar = false;
     if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) &&
         showing_file_bar){
         Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
-        region = pair.b;
+        region = pair.min;
     }
     
-    // query bar
+    // NOTE(allen): query bars
     {
         Query_Bar *space[32];
         Query_Bar_Ptr_Array query_bars = {};
         query_bars.ptrs = space;
         if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
-            f32 widget_height = (line_height + 2)*query_bars.count;
-            region.y0 += widget_height;
+            Rect_f32_Pair pair = layout_query_bar_on_top(region, line_height, query_bars.count);
+            region = pair.min;
         }
     }
     
-    // line number margins
+    // NOTE(allen): FPS hud
+    if (show_fps_hud){
+        Rect_f32_Pair pair = layout_fps_hud_on_bottom(region, line_height);
+        region = pair.min;
+    }
+    
+    // NOTE(allen): line numbers
     if (global_config.show_line_number_margins){
-        i64 line_count = buffer_get_line_count(app, buffer);
-        i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
-        i32 margin_width = i32_ceil32((f32)line_count_digit_count*metrics.normal_advance);
-        region.x0 += margin_width + 2;
+        Rect_f32_Pair pair = layout_line_number_margin(app, buffer, region, digit_advance);
+        region = pair.max;
     }
     
     return(region);
@@ -431,7 +324,510 @@ draw_file_bar(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID
     draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
 }
 
-internal void
+function void
+draw_query_bar(Application_Links *app, Query_Bar *query_bar, Face_ID face_id, Rect_f32 bar){
+    Scratch_Block scratch(app);
+    Fancy_String_List list = {};
+    push_fancy_string(scratch, &list, fancy_id(Stag_Pop1)   , query_bar->prompt);
+    push_fancy_string(scratch, &list, fancy_id(Stag_Default), query_bar->string);
+    Vec2_f32 p = bar.p0 + V2(2.f, 2.f);
+    draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
+}
+
+function void
+draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID face_id,
+                        Text_Layout_ID text_layout_id, Rect_f32 margin){
+    Rect_f32 prev_clip = draw_set_clip(app, margin);
+    draw_rectangle(app, margin, 0.f, Stag_Line_Numbers_Back);
+    
+    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    
+    Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
+    
+    i64 line_count = buffer_get_line_count(app, buffer);
+    i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
+    
+    Scratch_Block scratch(app, Scratch_Share);
+    
+    Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(visible_range.first));
+    i64 line_number = cursor.line;
+    for (;cursor.pos <= visible_range.one_past_last;){
+        if (line_number > line_count){
+            break;
+        }
+        Range_f32 line_y = text_layout_line_on_screen(app, text_layout_id, line_number);
+        Vec2_f32 p = V2f32(margin.x0, line_y.min);
+        Temp_Memory_Block temp(scratch);
+        Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, line_number);
+        draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
+        line_number += 1;
+    }
+    
+    draw_set_clip(app, prev_clip);
+}
+
+function void
+draw_fps_hud(Application_Links *app, Frame_Info frame_info,
+             Face_ID face_id, Rect_f32 rect){
+    Face_Metrics face_metrics = get_face_metrics(app, face_id);
+    f32 line_height = face_metrics.line_height;
+    
+    local_persist f32 history_literal_dt[fps_history_depth] = {};
+    local_persist f32 history_animation_dt[fps_history_depth] = {};
+    local_persist i32 history_frame_index[fps_history_depth] = {};
+    
+    i32 wrapped_index = frame_info.index%fps_history_depth;
+    history_literal_dt[wrapped_index]   = frame_info.literal_dt;
+    history_animation_dt[wrapped_index] = frame_info.animation_dt;
+    history_frame_index[wrapped_index]  = frame_info.index;
+    
+    draw_rectangle(app, rect, 0.f, 0xFF000000);
+    draw_rectangle_outline(app, rect, 0.f, 1.f, 0xFFFFFFFF);
+    
+    Vec2_f32 p = rect.p0;
+    
+    Scratch_Block scratch(app);
+    
+    Range ranges[2];
+    ranges[0].first = wrapped_index;
+    ranges[0].one_past_last = -1;
+    ranges[1].first = fps_history_depth - 1;
+    ranges[1].one_past_last = wrapped_index;
+    for (i32 i = 0; i < 2; i += 1){
+        Range r = ranges[i];
+        for (i32 j = r.first; j > r.one_past_last; j -= 1, p.y += line_height){
+            f32 dts[2];
+            dts[0] = history_literal_dt[j];
+            dts[1] = history_animation_dt[j];
+            i32 frame_index = history_frame_index[j];
+            
+            Fancy_String_List list = {};
+            push_fancy_stringf(scratch, &list, pink , "FPS: ");
+            push_fancy_stringf(scratch, &list, green, "[");
+            push_fancy_stringf(scratch, &list, white, "%5d", frame_index);
+            push_fancy_stringf(scratch, &list, green, "]: ");
+            
+            for (i32 k = 0; k < 2; k += 1){
+                f32 dt = dts[k];
+                if (dt == 0.f){
+                    push_fancy_stringf(scratch, &list, white, "----------");
+                }
+                else{
+                    push_fancy_stringf(scratch, &list, white, "%10.6f", dt);
+                }
+                push_fancy_stringf(scratch, &list, green, " | ");
+            }
+            
+            draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
+        }
+    }
+}
+
+function int_color
+get_token_color_cpp(Token token){
+    int_color result = Stag_Default;
+    switch (token.kind){
+        case TokenBaseKind_Preprocessor:
+        {
+            result = Stag_Preproc;
+        }break;
+        case TokenBaseKind_Keyword:
+        {            
+            result = Stag_Keyword;
+        }break;
+        case TokenBaseKind_Comment:
+        {
+            result = Stag_Comment;
+        }break;
+        case TokenBaseKind_LiteralString:
+        {
+            result = Stag_Str_Constant;
+        }break;
+        case TokenBaseKind_LiteralInteger:
+        {
+            result = Stag_Int_Constant;
+        }break;
+        case TokenBaseKind_LiteralFloat:
+        {
+            result = Stag_Float_Constant;
+        }break;
+        default:
+        {
+            switch (token.sub_kind){
+                case TokenCppKind_LiteralTrue:
+                case TokenCppKind_LiteralFalse:
+                {
+                    result = Stag_Bool_Constant;
+                }break;
+                case TokenCppKind_LiteralCharacter:
+                case TokenCppKind_LiteralCharacterWide:
+                case TokenCppKind_LiteralCharacterUTF8:
+                case TokenCppKind_LiteralCharacterUTF16:
+                case TokenCppKind_LiteralCharacterUTF32:
+                {
+                    result = Stag_Char_Constant;
+                }break;
+                case TokenCppKind_PPIncludeFile:
+                {
+                    result = Stag_Include;
+                }break;
+            }
+        }break;
+    }
+    return(result);
+}
+
+function void
+draw_buffer_add_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Token_Array *array){
+    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    i64 first_index = token_index_from_pos(array, visible_range.first);
+    Token_Iterator_Array it = token_iterator_index(0, array, first_index);
+    for (;;){
+        Token *token = token_it_read(&it);
+        if (token->pos >= visible_range.one_past_last){
+            break;
+        }
+        int_color color = get_token_color_cpp(*token);
+        paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), color);
+        if (!token_it_inc_non_whitespace(&it)){
+            break;
+        }
+    }
+}
+
+struct Comment_Highlight_Pair{
+    String_Const_u8 needle;
+    int_color color;
+};
+
+function void
+draw_comment_highlights(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                        Token_Array *array, Comment_Highlight_Pair *pairs, i32 pair_count){
+    Scratch_Block scratch(app);
+    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    i64 first_index = token_index_from_pos(array, visible_range.first);
+    Token_Iterator_Array it = token_iterator_index(buffer, array, first_index);
+    for (;;){
+        Temp_Memory_Block temp(scratch);
+        Token *token = token_it_read(&it);
+        if (token->pos >= visible_range.one_past_last){
+            break;
+        }
+        String_Const_u8 tail = {};
+        if (token_it_check_and_get_lexeme(app, scratch, &it, TokenBaseKind_Comment, &tail)){
+            for (i64 index = token->pos;
+                 tail.size > 0;
+                 tail = string_skip(tail, 1), index += 1){
+                Comment_Highlight_Pair *pair = pairs;
+                for (i32 i = 0; i < pair_count; i += 1, pair += 1){
+                    umem needle_size = pair->needle.size;
+                    if (needle_size == 0){
+                        continue;
+                    }
+                    String_Const_u8 prefix = string_prefix(tail, needle_size);
+                    if (string_match(prefix, pair->needle)){
+                        Range_i64 range = Ii64_size(index, needle_size);
+                        paint_text_color(app, text_layout_id, range, pair->color);
+                        tail = string_skip(tail, needle_size - 1);
+                        index += needle_size - 1;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!token_it_inc_non_whitespace(&it)){
+            break;
+        }
+    }
+}
+
+internal Range_i64_Array
+get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, u32 flags){
+    Range_i64_Array array = {};
+    i32 max = 100;
+    array.ranges = push_array(arena, Range_i64, max);
+    for (;;){
+        Range_i64 range = {};
+        if (find_surrounding_nest(app, buffer, pos, flags, &range)){
+            array.ranges[array.count] = range;
+            array.count += 1;
+            pos = range.first;
+            if (array.count >= max){
+                break;
+            }
+        }
+        else{
+            break;
+        }
+    }
+    return(array);
+}
+
+typedef i32 Range_Highlight_Kind;
+enum{
+    RangeHighlightKind_LineHighlight,
+    RangeHighlightKind_CharacterHighlight,
+};
+
+function void
+draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer,
+                i64 pos, u32 flags, Range_Highlight_Kind kind,
+                int_color *back_colors, int_color *fore_colors, i32 color_count){
+    Scratch_Block scratch(app);
+    Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
+    
+    i32 color_index = 0;
+    for (i32 i = ranges.count - 1; i >= 0; i -= 1){
+        Range_i64 range = ranges.ranges[i];
+        if (kind == RangeHighlightKind_LineHighlight){
+            Range_i64 r[2] = {};
+            if (i > 0){
+                Range_i64 inner_range = ranges.ranges[i - 1];
+                Range_i64 lines = get_line_range_from_pos_range(app, buffer, range);
+                Range_i64 inner_lines = get_line_range_from_pos_range(app, buffer, inner_range);
+                inner_lines.min = clamp_bot(lines.min, inner_lines.min);
+                inner_lines.max = clamp_top(inner_lines.max, lines.max);
+                inner_lines.min -= 1;
+                inner_lines.max += 1;
+                if (lines.min <= inner_lines.min){
+                    r[0] = Ii64(lines.min, inner_lines.min);
+                }
+                if (inner_lines.max <= lines.max){
+                    r[1] = Ii64(inner_lines.max, lines.max);
+                }
+            }
+            else{
+                r[0] = get_line_range_from_pos_range(app, buffer, range);
+            }
+            for (i32 j = 0; j < 2; j += 1){
+                if (r[j].min == 0){
+                    continue;
+                }
+                Range_i64 line_range = r[j];
+                if (back_colors != 0){
+                    draw_line_highlight(app, text_layout_id, line_range, back_colors[color_index]);
+                }
+                if (fore_colors != 0){
+                    Range_i64 pos_range = get_pos_range_from_line_range(app, buffer, line_range);
+                    paint_text_color(app, text_layout_id, pos_range, fore_colors[color_index]);
+                }
+            }
+        }
+        else{
+            if (back_colors != 0){
+                draw_character_block(app, text_layout_id, range.min, 0.f, back_colors[color_index]);
+                draw_character_block(app, text_layout_id, range.max - 1, 0.f, back_colors[color_index]);
+            }
+            if (fore_colors != 0){
+                paint_text_color_pos(app, text_layout_id, range.min, fore_colors[color_index]);
+                paint_text_color_pos(app, text_layout_id, range.max - 1, fore_colors[color_index]);
+            }
+        }
+        color_index += 1;
+        color_index = (color_index%color_count);
+    }
+}
+
+function void
+draw_scope_highlight(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                     i64 pos, int_color *colors, i32 color_count){
+    draw_enclosures(app, text_layout_id, buffer,
+                    pos, FindNest_Scope, RangeHighlightKind_LineHighlight,
+                    colors, 0, color_count);
+}
+
+function void
+draw_paren_highlight(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                     i64 pos, int_color *colors, i32 color_count){
+    Token_Array token_array = get_token_array_from_buffer(app, buffer);
+    if (token_array.tokens != 0){
+        Token_Iterator_Array it = token_iterator_pos(0, &token_array, pos);
+        Token *token = token_it_read(&it);
+        if (token != 0 && token->kind == TokenBaseKind_ParentheticalOpen){
+            pos = token->pos + token->size;
+        }
+        else{
+            if (token_it_dec_all(&it)){
+                token = token_it_read(&it);
+                if (token->kind == TokenBaseKind_ParentheticalClose &&
+                    pos == token->pos + token->size){
+                    pos = token->pos;
+                }
+            }
+        }
+    }
+    draw_enclosures(app, text_layout_id, buffer,
+                    pos, FindNest_Paren, RangeHighlightKind_CharacterHighlight,
+                    0, colors, color_count);
+}
+
+function void
+draw_jump_highlights(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                     Buffer_ID jump_buffer, int_color line_color){
+    Scratch_Block scratch(app);
+    if (jump_buffer != 0){
+        Managed_Scope scopes[2];
+        scopes[0] = buffer_get_managed_scope(app, jump_buffer);
+        scopes[1] = buffer_get_managed_scope(app, buffer);
+        Managed_Scope comp_scope = get_managed_scope_with_multiple_dependencies(app, scopes, ArrayCount(scopes));
+        Managed_Object *markers_object = scope_attachment(app, comp_scope, sticky_jump_marker_handle, Managed_Object);
+        
+        i32 count = managed_object_get_item_count(app, *markers_object);
+        Marker *markers = push_array(scratch, Marker, count);
+        managed_object_load_data(app, *markers_object, 0, count, markers);
+        for (i32 i = 0; i < count; i += 1){
+            i64 line_number = get_line_number_from_pos(app, buffer, markers[i].pos);
+            draw_line_highlight(app, text_layout_id, line_number, line_color);
+        }
+    }
+}
+
+function b32
+draw_highlight_range(Application_Links *app, View_ID view_id,
+                     Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                     f32 roundness){
+    b32 has_highlight_range = false;
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
+    Buffer_ID *highlight_buffer = scope_attachment(app, scope, view_highlight_buffer, Buffer_ID);
+    if (*highlight_buffer != 0){
+        if (*highlight_buffer != buffer){
+            view_disable_highlight_range(app, view_id);
+        }
+        else{
+            has_highlight_range = true;
+            Managed_Object *highlight = scope_attachment(app, scope, view_highlight_range, Managed_Object);
+            Marker marker_range[2];
+            if (managed_object_load_data(app, *highlight, 0, 2, marker_range)){
+                Range_i64 range = Ii64(marker_range[0].pos, marker_range[1].pos);
+                draw_character_block(app, text_layout_id, range, roundness, Stag_Highlight);
+                paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
+            }
+        }
+    }
+    return(has_highlight_range);
+}
+
+function void
+draw_original_4coder_style_cursor_mark_highlight(Application_Links *app, View_ID view_id, b32 is_active_view,
+                                                 Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                                                 f32 roundness, f32 outline_thickness){
+    b32 has_highlight_range = draw_highlight_range(app, view_id, buffer, text_layout_id, roundness);
+    if (!has_highlight_range){
+        i64 cursor_pos = view_get_cursor_pos(app, view_id);
+        i64 mark_pos = view_get_mark_pos(app, view_id);
+        if (is_active_view){
+            draw_character_block(app, text_layout_id, cursor_pos, roundness, Stag_Cursor);
+            paint_text_color_pos(app, text_layout_id, cursor_pos, Stag_At_Cursor);
+            draw_character_wire_frame(app, text_layout_id, mark_pos, roundness, outline_thickness, Stag_Mark);
+        }
+        else{
+            draw_character_wire_frame(app, text_layout_id, mark_pos, roundness, outline_thickness, Stag_Mark);
+            draw_character_wire_frame(app, text_layout_id, cursor_pos, roundness, outline_thickness, Stag_Cursor);
+        }
+    }
+}
+
+function void
+draw_notepad_style_cursor_highlight(Application_Links *app, View_ID view_id,
+                                    Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                                    f32 roundness){
+    b32 has_highlight_range = draw_highlight_range(app, view_id, buffer, text_layout_id, roundness);
+    if (!has_highlight_range){
+        i64 cursor_pos = view_get_cursor_pos(app, view_id);
+        i64 mark_pos = view_get_mark_pos(app, view_id);
+        if (cursor_pos != mark_pos){
+            Range_i64 range = Ii64(cursor_pos, mark_pos);
+            draw_character_block(app, text_layout_id, range, roundness, Stag_Highlight);
+            paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
+        }
+        draw_character_i_bar(app, text_layout_id, cursor_pos, Stag_Cursor);
+    }
+}
+
+function void
+default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_view,
+                      Buffer_ID buffer, Text_Layout_ID text_layout_id,
+                      Rect_f32 rect){
+    Rect_f32 prev_clip = draw_set_clip(app, rect);
+    
+    // NOTE(allen): Token colorizing
+    Token_Array token_array = get_token_array_from_buffer(app, buffer);
+    if (token_array.tokens != 0){
+        draw_buffer_add_cpp_token_colors(app, text_layout_id, &token_array);
+        
+        // NOTE(allen): Scan for TODOs and NOTEs
+        if (global_config.use_comment_keyword){
+            Comment_Highlight_Pair pairs[] = {
+                {string_u8_litexpr("NOTE"), Stag_Text_Cycle_2},
+                {string_u8_litexpr("TODO"), Stag_Text_Cycle_1},
+            };
+            draw_comment_highlights(app, buffer, text_layout_id,
+                                    &token_array, pairs, ArrayCount(pairs));
+        }
+    }
+    
+    i64 cursor_pos = view_get_cursor_pos(app, view_id);
+    
+    // NOTE(allen): Scope highlight
+    if (global_config.use_scope_highlight){
+        int_color colors[] = { Stag_Back_Cycle_1, Stag_Back_Cycle_2, Stag_Back_Cycle_3, Stag_Back_Cycle_4, };
+        draw_scope_highlight(app, buffer, text_layout_id, cursor_pos, colors, ArrayCount(colors));
+    }
+    
+    if (global_config.use_error_highlight || global_config.use_jump_highlight){
+        // NOTE(allen): Error highlight
+        String_Const_u8 name = string_u8_litexpr("*compilation*");
+        Buffer_ID compilation_buffer = get_buffer_by_name(app, name, AccessAll);
+        if (global_config.use_error_highlight){
+            draw_jump_highlights(app, buffer, text_layout_id, compilation_buffer, Stag_Highlight_Junk);
+        }
+        
+        // NOTE(allen): Search highlight
+        if (global_config.use_jump_highlight){
+            Buffer_ID jump_buffer = get_locked_jump_buffer(app);
+            if (jump_buffer != compilation_buffer){
+                draw_jump_highlights(app, buffer, text_layout_id, jump_buffer, Stag_Highlight_White);
+            }
+        }
+    }
+    
+    // NOTE(allen): Color parens
+    if (global_config.use_paren_helper){
+        int_color colors[] = { Stag_Text_Cycle_1, Stag_Text_Cycle_2, Stag_Text_Cycle_3, Stag_Text_Cycle_4, };
+        draw_paren_highlight(app, buffer, text_layout_id, cursor_pos, colors, ArrayCount(colors));
+    }
+    
+    // NOTE(allen): Line highlight
+    if (global_config.highlight_line_at_cursor && is_active_view){
+        i64 line_number = get_line_number_from_pos(app, buffer, cursor_pos);
+        draw_line_highlight(app, text_layout_id, line_number, Stag_Highlight_Cursor_Line);
+    }
+    
+    // NOTE(allen): Cursor shape
+    f32 cursor_roundness = 4.f;
+    f32 mark_thickness = 2.f;
+    
+    // NOTE(allen): Cursor
+    switch (fcoder_mode){
+        case FCoderMode_Original:
+        {
+            draw_original_4coder_style_cursor_mark_highlight(app, view_id, is_active_view,
+                                                             buffer, text_layout_id,
+                                                             cursor_roundness, mark_thickness);
+        }break;
+        case FCoderMode_NotepadLike:
+        {
+            draw_notepad_style_cursor_highlight(app, view_id, buffer, text_layout_id, cursor_roundness);
+        }break;
+    }
+    
+    // NOTE(allen): put the actual text on the actual screen
+    draw_text_layout(app, text_layout_id);
+    
+    draw_set_clip(app, prev_clip);
+}
+
+function void
 default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     View_ID active_view = get_active_view(app, AccessAll);
     b32 is_active_view = (active_view == view_id);
@@ -448,19 +844,19 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics face_metrics = get_face_metrics(app, face_id);
     f32 line_height = face_metrics.line_height;
+    f32 digit_advance = face_metrics.decimal_digit_advance;
     
     // NOTE(allen): Frame
-    Rect_f32 r_cursor = inner;
+    Rect_f32 region = inner;
     
-    // NOTE(allen): Filebar
+    // NOTE(allen): file bar
     b64 showing_file_bar = false;
     if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) && showing_file_bar){
-        Rect_f32_Pair pair = layout_file_bar_on_top(r_cursor, line_height);
+        Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
         draw_file_bar(app, view_id, buffer, face_id, pair.min);
-        r_cursor = pair.max;
+        region = pair.max;
     }
     
-    Rect_f32 buffer_rect = default_buffer_region(app, view_id, view_rect);
     Buffer_Scroll scroll = view_get_buffer_scroll(app, view_id);
     
     Buffer_Point_Delta_Result delta = delta_apply(app, view_id,
@@ -473,313 +869,51 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
         animate_in_n_milliseconds(app, 0);
     }
     
-    Buffer_Point buffer_point = scroll.position;
-    Text_Layout_ID text_layout_id = text_layout_create(app, buffer, buffer_rect, buffer_point);
-    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
-    
-    Scratch_Block scratch(app);
-    
-    {
-        Rect_f32 prev_clip_sub = draw_set_clip(app, buffer_rect);
-        
-        // NOTE(allen): Token colorizing
-        Token_Array token_array = get_token_array_from_buffer(app, buffer);
-        if (token_array.tokens != 0){
-            i64 first_index = token_index_from_pos(&token_array, visible_range.first);
-            Token_Iterator_Array it = token_iterator_index(buffer, &token_array, first_index);
-            for (;;){
-                Token *token = token_it_read(&it);
-                if (token->pos >= visible_range.one_past_last){
-                    break;
-                }
-                
-                int_color color = get_token_color_cpp(*token);
-                paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), color);
-                
-                if (!token_it_inc_non_whitespace(&it)){
-                    break;
-                }
-            }
-        }
-        
-        // NOTE(allen): Scan for TODOs and NOTEs
-        if (global_config.use_comment_keyword){
-            Temp_Memory temp = begin_temp(scratch);
-            String_Const_u8 tail = push_buffer_range(app, scratch, buffer, visible_range);
-            i32 index = 0;
-            for (;tail.size > 0; tail = string_skip(tail, 1), index += 1){
-                if (string_match(string_prefix(tail, 4), string_u8_litexpr("NOTE"))){
-                    Interval_i64 range = Ii64_size(visible_range.first + index, 4);
-                    paint_text_color(app, text_layout_id, range, Stag_Text_Cycle_2);
-                    tail = string_skip(tail, 3);
-                    index += 3;
-                }
-                else if (string_match(string_prefix(tail, 4), string_u8_litexpr("TODO"))){
-                    Interval_i64 range = Ii64_size(visible_range.first + index, 4);
-                    paint_text_color(app, text_layout_id, range, Stag_Text_Cycle_1);
-                    tail = string_skip(tail, 3);
-                    index += 3;
-                }
-            }
-            end_temp(temp);
-        }
-        
-        i64 cursor_pos = view_get_cursor_pos(app, view_id);
-        i64 mark_pos = view_get_mark_pos(app, view_id);
-        
-        // NOTE(allen): Scope highlight
-        if (do_matching_enclosure_highlight){
-            static const i32 color_count = 4;
-            int_color colors[color_count];
-            for (u16 i = 0; i < color_count; i += 1){
-                colors[i] = Stag_Back_Cycle_1 + i;
-            }
-            draw_enclosures(app, text_layout_id, buffer,
-                            cursor_pos, FindNest_Scope, RangeHighlightKind_LineHighlight,
-                            colors, 0, color_count);
-        }
-        
-        // NOTE(allen): Error highlight
-        {
-            String_Const_u8 name = string_u8_litexpr("*compilation*");
-            Buffer_ID compilation_buffer = get_buffer_by_name(app, name, AccessAll);
-            if (compilation_buffer != 0){
-                Managed_Scope scopes[2];
-                scopes[0] = buffer_get_managed_scope(app, compilation_buffer);
-                scopes[1] = buffer_get_managed_scope(app, buffer);
-                Managed_Scope comp_scope = get_managed_scope_with_multiple_dependencies(app, scopes, ArrayCount(scopes));
-                Managed_Object *markers_object = scope_attachment(app, comp_scope, sticky_jump_marker_handle, Managed_Object);
-                
-                Temp_Memory temp = begin_temp(scratch);
-                i32 count = managed_object_get_item_count(app, *markers_object);
-                Marker *markers = push_array(scratch, Marker, count);
-                managed_object_load_data(app, *markers_object, 0, count, markers);
-                for (i32 i = 0; i < count; i += 1){
-                    i64 line_number = get_line_number_from_pos(app, buffer, markers[i].pos);
-                    draw_line_highlight(app, text_layout_id, line_number,
-                                        Stag_Highlight_Junk);
-                }
-                end_temp(temp);
-            }
-        }
-        
-        // NOTE(allen): Color parens
-        if (do_matching_paren_highlight){
-            i64 pos = cursor_pos;
-            if (buffer_get_char(app, buffer, pos) == '('){
-                pos += 1;
-            }
-            else if (pos > 0){
-                if (buffer_get_char(app, buffer, pos - 1) == ')'){
-                    pos -= 1;
-                }
-            }
-            static const i32 color_count = 4;
-            int_color colors[color_count];
-            for (u16 i = 0; i < color_count; i += 1){
-                colors[i] = Stag_Text_Cycle_1 + i;
-            }
-            draw_enclosures(app, text_layout_id, buffer,
-                            cursor_pos, FindNest_Paren, RangeHighlightKind_CharacterHighlight,
-                            0, colors, color_count);
-        }
-        
-        // NOTE(allen): Line highlight
-        if (highlight_line_at_cursor && is_active_view){
-            i64 line_number = get_line_number_from_pos(app, buffer, cursor_pos);
-            draw_line_highlight(app, text_layout_id, line_number, Stag_Highlight_Cursor_Line);
-        }
-        
-        // NOTE(allen): Roundness
-        f32 cursor_roundness = 4.f;
-        f32 mark_thickness = 2.f;
-        
-        // NOTE(allen): Highlight range
-        b32 has_highlight_range = false;
-        {
-            Managed_Scope scope = view_get_managed_scope(app, view_id);
-            Buffer_ID *highlight_buffer = scope_attachment(app, scope, view_highlight_buffer, Buffer_ID);
-            if (*highlight_buffer != 0){
-                if (*highlight_buffer != buffer){
-                    view_disable_highlight_range(app, view_id);
-                }
-                else{
-                    has_highlight_range = true;
-                    Managed_Object *highlight = scope_attachment(app, scope, view_highlight_range, Managed_Object);
-                    Marker marker_range[2];
-                    if (managed_object_load_data(app, *highlight, 0, 2, marker_range)){
-                        Range_i64 range = Ii64(marker_range[0].pos, marker_range[1].pos);
-                        draw_character_block(app, text_layout_id, range, cursor_roundness, Stag_Highlight);
-                        paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
-                    }
-                }
-            }
-        }
-        
-        // NOTE(allen): Cursor and mark
-        if (!has_highlight_range){
-            switch (fcoder_mode){
-                case FCoderMode_Original:
-                {
-                    if (is_active_view){
-                        draw_character_block(app, text_layout_id, cursor_pos,
-                                             cursor_roundness, Stag_Cursor);
-                        paint_text_color_pos(app, text_layout_id, cursor_pos,
-                                             Stag_At_Cursor);
-                        draw_character_wire_frame(app, text_layout_id, mark_pos,
-                                                  cursor_roundness, mark_thickness,
-                                                  Stag_Mark);
-                    }
-                    else{
-                        draw_character_wire_frame(app, text_layout_id, mark_pos,
-                                                  cursor_roundness, mark_thickness,
-                                                  Stag_Mark);
-                        draw_character_wire_frame(app, text_layout_id, cursor_pos,
-                                                  cursor_roundness, mark_thickness,
-                                                  Stag_Cursor);
-                    }
-                }break;
-                
-                case FCoderMode_NotepadLike:
-                {
-                    if (cursor_pos != mark_pos){
-                        Range_i64 range = Ii64(cursor_pos, mark_pos);
-                        draw_character_block(app, text_layout_id, range,
-                                             cursor_roundness, Stag_Highlight);
-                        paint_text_color(app, text_layout_id, range, Stag_At_Highlight);
-                    }
-                    draw_character_i_bar(app, text_layout_id, cursor_pos, Stag_Cursor);
-                }break;
-            }
-        }
-        
-        draw_text_layout(app, text_layout_id);
-        draw_set_clip(app, prev_clip_sub);
-    }
-    
-    // NOTE(allen): FPS HUD
-    if (show_fps_hud){
-        static const i32 history_depth = 10;
-        static f32 history_literal_dt[history_depth] = {};
-        static f32 history_animation_dt[history_depth] = {};
-        static i32 history_frame_index[history_depth] = {};
-        
-        i32 wrapped_index = frame_info.index%history_depth;
-        history_literal_dt[wrapped_index]   = frame_info.literal_dt;
-        history_animation_dt[wrapped_index] = frame_info.animation_dt;
-        history_frame_index[wrapped_index]  = frame_info.index;
-        
-        Rect_f32 hud_rect = view_get_screen_rect(app, view_id);
-        hud_rect.y0 = hud_rect.y1 - line_height*(f32)(history_depth);
-        draw_rectangle(app, hud_rect, 0.f, 0xFF000000);
-        draw_rectangle_outline(app, hud_rect, 0.f, 1.f, 0xFFFFFFFF);
-        
-        Vec2 p = hud_rect.p0;
-        
-        Range ranges[2];
-        ranges[0].first = wrapped_index;
-        ranges[0].one_past_last = -1;
-        ranges[1].first = history_depth - 1;
-        ranges[1].one_past_last = wrapped_index;
-        for (i32 i = 0; i < 2; i += 1){
-            Range r = ranges[i];
-            for (i32 j = r.first; j > r.one_past_last; j -= 1, p.y += line_height){
-                f32 dts[2];
-                dts[0] = history_literal_dt[j];
-                dts[1] = history_animation_dt[j];
-                i32 frame_index = history_frame_index[j];
-                
-                Fancy_String_List list = {};
-                push_fancy_stringf(scratch, &list, pink , "FPS: ");
-                push_fancy_stringf(scratch, &list, green, "[");
-                push_fancy_stringf(scratch, &list, white, "%5d", frame_index);
-                push_fancy_stringf(scratch, &list, green, "]: ");
-                
-                for (i32 k = 0; k < 2; k += 1){
-                    f32 dt = dts[k];
-                    if (dt == 0.f){
-                        push_fancy_stringf(scratch, &list, white, "----------");
-                    }
-                    else{
-                        push_fancy_stringf(scratch, &list, white, "%10.6f", dt);
-                    }
-                    push_fancy_stringf(scratch, &list, green, " | ");
-                }
-                
-                draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
-            }
-        }
-        
-        animate_in_n_milliseconds(app, 1000);
-    }
-    
-    // NOTE(allen): Query Bars
+    // NOTE(allen): query bars
     {
         Query_Bar *space[32];
         Query_Bar_Ptr_Array query_bars = {};
         query_bars.ptrs = space;
         if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
             for (i32 i = 0; i < query_bars.count; i += 1){
-                Query_Bar *query_bar = query_bars.ptrs[i];
-                
-                Rect_f32 bar = r_cursor;
-                bar.y1 = bar.y0 + line_height + 2.f;
-                r_cursor.y0 = bar.y1;
-                
-                Temp_Memory temp = begin_temp(scratch);
-                Fancy_String_List list = {};
-                
-                Fancy_Color default_color = fancy_id(Stag_Default);
-                Fancy_Color pop1_color = fancy_id(Stag_Pop1);
-                
-                push_fancy_string(scratch, &list, pop1_color   , query_bar->prompt);
-                push_fancy_string(scratch, &list, default_color, query_bar->string);
-                
-                Vec2 p = bar.p0 + V2(0.f, 2.f);
-                draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
-                
-                end_temp(temp);
+                Rect_f32_Pair pair = layout_query_bar_on_top(region, line_height, 1);
+                draw_query_bar(app, query_bars.ptrs[i], face_id, pair.min);
+                region = pair.max;
             }
         }
     }
     
-    // NOTE(allen): Line Numbers
-    if (global_config.show_line_number_margins){
-        i64 line_count = buffer_get_line_count(app, buffer);
-        i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
-        // TODO(allen): I need a "digit width"
-        f32 zero = get_string_advance(app, face_id, string_u8_litexpr("0"));
-        f32 margin_width = ((f32)line_count_digit_count)*zero;
-        
-        Rect_f32 left_margin = r_cursor;
-        left_margin.x1 = left_margin.x0 + margin_width + 2.f;
-        r_cursor.x0 = left_margin.x1;
-        
-        draw_rectangle(app, left_margin, 0.f, Stag_Line_Numbers_Back);
-        
-        Rect_f32 prev_clip_line_numbers = draw_set_clip(app, left_margin);
-        
-        Fancy_Color line_color = fancy_id(Stag_Line_Numbers_Text);
-        
-        Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(visible_range.first));
-        i64 line_number = cursor.line;
-        for (;cursor.pos <= visible_range.one_past_last;){
-            if (line_number > line_count){
-                break;
-            }
-            Range_f32 line_y = text_layout_line_on_screen(app, text_layout_id, line_number);
-            Vec2_f32 p = V2f32(left_margin.x0, line_y.min);
-            Temp_Memory_Block temp(scratch);
-            Fancy_String *line_string = push_fancy_stringf(scratch, line_color, "%*lld", line_count_digit_count, line_number);
-            draw_fancy_string(app, face_id, line_string, p, Stag_Margin_Active, 0);
-            line_number += 1;
-        }
-        
-        draw_set_clip(app, prev_clip_line_numbers);
+    // NOTE(allen): FPS hud
+    if (show_fps_hud){
+        Rect_f32_Pair pair = layout_fps_hud_on_bottom(region, line_height);
+        draw_fps_hud(app, frame_info, face_id, pair.max);
+        region = pair.min;
+        animate_in_n_milliseconds(app, 1000);
     }
+    
+    // NOTE(allen): layout line numbers
+    Rect_f32 line_number_rect = {};
+    if (global_config.show_line_number_margins){
+        Rect_f32_Pair pair = layout_line_number_margin(app, buffer, region, digit_advance);
+        line_number_rect = pair.min;
+        region = pair.max;
+    }
+    
+    // NOTE(allen): begin buffer render
+    Buffer_Point buffer_point = scroll.position;
+    Text_Layout_ID text_layout_id = text_layout_create(app, buffer, region, buffer_point);
+    
+    // NOTE(allen): draw line numbers
+    if (global_config.show_line_number_margins){
+        draw_line_number_margin(app, view_id, buffer, face_id, text_layout_id, line_number_rect);
+    }
+    
+    // NOTE(allen): draw the buffer
+    default_render_buffer(app, view_id, is_active_view,
+                          buffer, text_layout_id,
+                          region);
     
     text_layout_free(app, text_layout_id);
-    
     draw_set_clip(app, prev_clip);
 }
 
@@ -900,7 +1034,7 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
     }
 }
 
-internal void
+function void
 do_full_lex(Application_Links *app, Buffer_ID buffer_id){
     Scratch_Block scratch(app);
     String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
@@ -1144,14 +1278,6 @@ BUFFER_HOOK_SIG(default_end_file){
 
 internal void
 set_all_default_hooks(Application_Links *app){
-#if 0
-    set_custom_hook(app, HookID_Exit, default_exit);
-    set_custom_hook(app, HookID_Start, default_start);
-    set_custom_hook(app, HookID_FileExternallyModified, default_file_externally_modified);
-    set_custom_hook(app, HookID_InputFilter, default_suppress_mouse_filter);
-    set_custom_hook(app, HookID_ModifyColorTable, default_modify_color_table);
-#endif
-    
     set_custom_hook(app, HookID_BufferViewerUpdate, default_view_adjust);
     
     set_custom_hook(app, HookID_ViewEventHandler, default_view_input_handler);

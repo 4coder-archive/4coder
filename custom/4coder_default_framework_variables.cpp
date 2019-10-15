@@ -51,11 +51,6 @@ global u8 out_buffer_space[1024];
 global u8 command_space[1024];
 global char hot_directory_space[1024];
 
-
-global b32 highlight_line_at_cursor = true;
-global b32 do_matching_enclosure_highlight = true;
-global b32 do_matching_paren_highlight = true;
-global b32 do_colored_comment_keywords = true;
 global b32 suppressing_mouse = false;
 
 global b32 show_fps_hud = false;

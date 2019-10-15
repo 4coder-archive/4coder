@@ -111,6 +111,9 @@ fill_hardcode_default_style(Color_Table color_table){
     color_table.vals[Stag_Text_Cycle_2] = 0xFF00A000;
     color_table.vals[Stag_Text_Cycle_3] = 0xFF0030B0;
     color_table.vals[Stag_Text_Cycle_4] = 0xFFA0A000;
+    
+    color_table.vals[Stag_Line_Numbers_Back] = 0xFF101010;
+    color_table.vals[Stag_Line_Numbers_Text] = 0xFF404040;
 }
 
 internal void

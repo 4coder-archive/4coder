@@ -34,19 +34,26 @@ lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
     lock_jump_buffer(app, buffer_name);
 }
 
+function Buffer_ID
+get_locked_jump_buffer(Application_Links *app){
+    Buffer_ID result = 0;
+    if (locked_buffer.size > 0){
+        result = get_buffer_by_name(app, locked_buffer, AccessAll);
+    }
+    if (result == 0){
+        unlock_jump_buffer();
+    }
+    return(result);
+}
+
 static View_ID
 get_view_for_locked_jump_buffer(Application_Links *app){
-    View_ID view = 0;
-    if (locked_buffer.size > 0){
-        Buffer_ID buffer = get_buffer_by_name(app, locked_buffer, AccessAll);
-        if (buffer != 0){
-            view = get_first_view_with_buffer(app, buffer);
-        }
-        else{
-            unlock_jump_buffer();
-        }
+    View_ID result = 0;
+    Buffer_ID buffer = get_locked_jump_buffer(app);
+    if (buffer != 0){
+        result = get_first_view_with_buffer(app, buffer);
     }
-    return(view);
+    return(result);
 }
 
 ////////////////////////////////
@@ -321,19 +328,19 @@ CUSTOM_DOC("Sets the edit mode to Notepad like.")
 CUSTOM_COMMAND_SIG(toggle_highlight_line_at_cursor)
 CUSTOM_DOC("Toggles the line highlight at the cursor.")
 {
-    highlight_line_at_cursor = !highlight_line_at_cursor;
+    global_config.highlight_line_at_cursor = !global_config.highlight_line_at_cursor;
 }
 
 CUSTOM_COMMAND_SIG(toggle_highlight_enclosing_scopes)
 CUSTOM_DOC("In code files scopes surrounding the cursor are highlighted with distinguishing colors.")
 {
-    do_matching_enclosure_highlight = !do_matching_enclosure_highlight;
+    global_config.use_scope_highlight = !global_config.use_scope_highlight;
 }
 
 CUSTOM_COMMAND_SIG(toggle_paren_matching_helper)
 CUSTOM_DOC("In code files matching parentheses pairs are colored with distinguishing colors.")
 {
-    do_matching_paren_highlight = !do_matching_paren_highlight;
+    global_config.use_paren_helper = !global_config.use_paren_helper;
 }
 
 CUSTOM_COMMAND_SIG(toggle_fullscreen)

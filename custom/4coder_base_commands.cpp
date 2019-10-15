@@ -139,7 +139,7 @@ CUSTOM_DOC("Deletes the text in the range between the cursor and the mark.")
     buffer_replace_range(app, buffer, range, string_u8_empty);
 }
 
-static void
+function  void
 current_view_boundary_delete(Application_Links *app, Scan_Direction direction, Boundary_Function_List funcs){
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
@@ -169,7 +169,7 @@ CUSTOM_DOC("Delete characters between the cursor position and the first alphanum
 #define backspace_word backspace_alpha_numeric_boundary
 #define delete_word    delete_alpha_numeric_boundary
 
-static void
+function void
 current_view_snipe_delete(Application_Links *app, Scan_Direction direction, Boundary_Function_List funcs){
     View_ID view = get_active_view(app, AccessOpen);
     Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
@@ -450,7 +450,7 @@ CUSTOM_DOC("Moves the cursor one character to the right.")
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
-static void
+function void
 current_view_scan_move(Application_Links *app, Scan_Direction direction, Boundary_Function_List funcs){
     View_ID view = get_active_view(app, AccessProtected);
     Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
@@ -700,7 +700,7 @@ CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
 CUSTOM_COMMAND_SIG(mouse_wheel_change_face_size)
 CUSTOM_DOC("Reads the state of the mouse wheel and uses it to either increase or decrease the face size.")
 {
-    static u64 next_resize_time = 0;
+    local_persist u64 next_resize_time = 0;
     u64 now = system_now_time();
     if (now >= next_resize_time){
         next_resize_time = now + 50*1000;
@@ -781,7 +781,7 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
 CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
-static void
+function void
 isearch__update_highlight(Application_Links *app, View_ID view, Range_i64 range){
     view_set_highlight_range(app, view, range);
     view_set_cursor_and_preferred_x(app, view, seek_pos(range.start));
@@ -1091,7 +1091,7 @@ CUSTOM_DOC("Queries the user for a needle and string. Replaces all occurences of
     global_history_edit_group_end(app);
 }
 
-static void
+function void
 query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i64 pos, String_Const_u8 r, String_Const_u8 w){
     i64 new_pos = 0;
     seek_string_forward(app, buffer_id, pos - 1, 0, r, &new_pos);
@@ -1217,7 +1217,7 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 
 ////////////////////////////////
 
-static void
+function void
 save_all_dirty_buffers_with_postfix(Application_Links *app, String_Const_u8 postfix){
     Scratch_Block scratch(app);
     for (Buffer_ID buffer = get_buffer_next(app, 0, AccessOpen);
@@ -1242,7 +1242,7 @@ CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
     save_all_dirty_buffers_with_postfix(app, empty);
 }
 
-static void
+function void
 delete_file_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID buffer_id){
     String_Const_u8 path = string_remove_last_folder(file_name);
     Scratch_Block scratch(app);
@@ -1456,7 +1456,7 @@ CUSTOM_DOC("Delete the line the on which the cursor sits.")
 
 ////////////////////////////////
 
-static b32
+function b32
 get_cpp_matching_file(Application_Links *app, Buffer_ID buffer, Buffer_ID *buffer_out){
     b32 result = false;
     Scratch_Block scratch(app);
@@ -1656,7 +1656,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
     }
 }
 
-static Range_i64
+function Range_i64
 multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 paste_count, b32 old_to_new){
     Scratch_Block scratch(app);
     
@@ -1713,7 +1713,7 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
     return(finish_range);
 }
 
-static void
+function void
 multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 clip_count){
     View_ID view = get_active_view(app, AccessOpen);
     i64 pos = view_get_cursor_pos(app, view);
