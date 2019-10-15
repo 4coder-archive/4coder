@@ -760,8 +760,18 @@ typedef Vec2_f32 Vec2;
 typedef Vec3_f32 Vec3;
 typedef Vec4_f32 Vec4;
 
-struct Rect_f32_Pair{
-    Rect_f32 e[2];
+union Rect_f32_Pair{
+    struct{
+        Rect_f32 a;
+        Rect_f32 b;
+    };
+    struct{
+        Rect_f32 min;
+        Rect_f32 max;
+    };
+    struct{
+        Rect_f32 e[2];
+    };
 };
 
 ////////////////////////////////

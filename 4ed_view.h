@@ -58,7 +58,9 @@ struct Query_Set{
 
 struct View_Context_Node{
     View_Context_Node *next;
+    Temp_Memory pop_me;
     View_Context ctx;
+    void *delta_rule_memory;
 };
 
 struct View{
@@ -79,6 +81,7 @@ struct View{
     Coroutine *co;
     Co_Out co_out;
     
+    Arena *node_arena;
     View_Context_Node *ctx;
     
     b8 hide_scrollbar;
@@ -89,8 +92,6 @@ struct View{
 };
 
 struct Live_Views{
-    Arena *node_arena;
-    View_Context_Node *free_nodes;
     View *views;
     View free_sentinel;
     i32 count;

@@ -44,14 +44,16 @@ struct Lister_Node_Ptr_Array{
 };
 
 typedef Lister_Activation_Code Lister_Key_Stroke_Function(Application_Links *app);
+typedef void Lister_Navigate_Function(Application_Links *app,
+                                      View_ID view, struct Lister *lister,
+                                      i32 index_delta);
 
 struct Lister_Handlers{
     Lister_Activation_Type *activate;
     Lister_Regenerate_List_Function_Type *refresh;
     Custom_Command_Function *write_character;
     Custom_Command_Function *backspace;
-    Custom_Command_Function *navigate_up;
-    Custom_Command_Function *navigate_down;
+    Lister_Navigate_Function *navigate;
     Lister_Key_Stroke_Function *key_stroke;
 };
 
@@ -78,13 +80,14 @@ struct Lister{
     Temp_Memory filter_restore_point;
     Lister_Node_Ptr_Array filtered;
     
-    b32 set_view_vertical_focus_to_item;
+    b32 set_vertical_focus_to_item;
     Lister_Node *highlighted_node;
     void *hot_user_data;
     i32 item_index;
     i32 raw_item_index;
     
     Basic_Scroll scroll;
+    i32 visible_count;
 };
 
 struct Lister_Prealloced_String{

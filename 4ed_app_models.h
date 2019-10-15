@@ -52,10 +52,12 @@ struct Models{
     
     Application_Links app_links;
     
-    Hook_Function *buffer_viewer_update;
-    Delta_Rule_Function *scroll_rule;
-    Custom_Command_Function *view_event_handler;
     Render_Caller_Function *render_caller;
+    Delta_Rule_Function *delta_rule;
+    umem delta_rule_memory_size;
+    
+    Hook_Function *buffer_viewer_update;
+    Custom_Command_Function *view_event_handler;
     Buffer_Name_Resolver_Function *buffer_name_resolver;
     Buffer_Hook_Function *begin_buffer;
     Buffer_Hook_Function *end_buffer;

@@ -167,7 +167,7 @@ view_move_buffer_point(Application_Links *app, View_ID view, Buffer_Point buffer
 internal void
 view_zero_scroll(Application_Links *app, View_ID view){
     Buffer_Scroll scroll = {};
-    view_set_buffer_scroll(app, view, scroll);
+    view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
 }
 
 internal void
@@ -176,6 +176,23 @@ view_set_cursor_and_preferred_x(Application_Links *app, View_ID view, Buffer_See
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek);
     Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, cursor.pos);
     view_set_preferred_x(app, view, p.x);
+}
+
+function Vec2_f32
+buffer_point_difference(Application_Links *app, Buffer_ID buffer, f32 width, Face_ID face_id,
+                        Buffer_Point a, Buffer_Point b){
+    f32 y_difference = buffer_line_y_difference(app, buffer, width, face_id, a.line_number, b.line_number);
+    Vec2_f32 result = a.pixel_shift - b.pixel_shift;
+    result.y += y_difference;
+    return(result);
+}
+
+function Vec2_f32
+view_point_difference(Application_Links *app, View_ID view, Buffer_Point a, Buffer_Point b){
+    f32 y_difference = view_line_y_difference(app, view, a.line_number, b.line_number);
+    Vec2_f32 result = a.pixel_shift - b.pixel_shift;
+    result.y += y_difference;
+    return(result);
 }
 
 ////////////////////////////////
@@ -1625,7 +1642,7 @@ view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 min
                 Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
                 scroll.target.line_number = major_line;
                 scroll.target.pixel_shift.y = -skirt_height;
-                view_set_buffer_scroll(app, view, scroll);
+                view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
             }
             else{
                 Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
@@ -1634,7 +1651,7 @@ view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 min
                 if (top_p.y < acceptable_y.min){
                     scroll.target.line_number = top.line;
                     scroll.target.pixel_shift.y = -skirt_height;
-                    view_set_buffer_scroll(app, view, scroll);
+                    view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
                 }
                 else{
                     Vec2_f32 bot_p = view_relative_xy_of_pos(app, view, scroll.position.line_number, range.max);
@@ -1642,7 +1659,7 @@ view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 min
                     if (bot_p.y > acceptable_y.max){
                         scroll.target.line_number = bottom.line;
                         scroll.target.pixel_shift.y = skirt_height - view_height;
-                        view_set_buffer_scroll(app, view, scroll);
+                        view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
                     }
                 }
             }

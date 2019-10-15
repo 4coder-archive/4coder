@@ -207,7 +207,7 @@ CUSTOM_DOC("Centers the view vertically on the line on which the cursor sits.")
     Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
     scroll.target.line_number = cursor.line;
     scroll.target.pixel_shift.y = -view_height*0.5f;
-    view_set_buffer_scroll(app, view, scroll);
+    view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
 }
 
 CUSTOM_COMMAND_SIG(left_adjust_view)
@@ -219,7 +219,7 @@ CUSTOM_DOC("Sets the left size of the view near the x position of the cursor.")
     Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, pos);
     Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
     scroll.target.pixel_shift.x = clamp_bot(0.f, p.x - 30.f);
-    view_set_buffer_scroll(app, view, scroll);
+    view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
 }
 
 CUSTOM_COMMAND_SIG(click_set_cursor_and_mark)
@@ -272,7 +272,7 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
     if (mouse.wheel != 0){
         Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
         scroll.target = view_move_buffer_point(app, view, scroll.target, V2f32(0.f, (f32)mouse.wheel));
-        view_set_buffer_scroll(app, view, scroll);
+        view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
     }
 }
 
@@ -1581,10 +1581,10 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
             
             view_set_cursor_and_preferred_x(app, view1, seek_pos(p2));
             view_set_mark(app, view1, seek_pos(m2));
-            view_set_buffer_scroll(app, view1, sc2);
+            view_set_buffer_scroll(app, view1, sc2, SetBufferScroll_SnapCursorIntoView);
             view_set_cursor_and_preferred_x(app, view2, seek_pos(p1));
             view_set_mark(app, view2, seek_pos(m1));
-            view_set_buffer_scroll(app, view2, sc1);
+            view_set_buffer_scroll(app, view2, sc1, SetBufferScroll_SnapCursorIntoView);
         }
     }
 }

@@ -253,6 +253,12 @@ STRUCT Buffer_Identifier{
     Buffer_ID id;
 };
 
+typedef i32 Set_Buffer_Scroll_Rule;
+enum{
+    SetBufferScroll_NoCursorChange,
+    SetBufferScroll_SnapCursorIntoView,
+};
+
 struct Buffer_Scroll{
     Buffer_Point position;
     Buffer_Point target;
@@ -476,8 +482,8 @@ STRUCT User_Input{
 typedef i32 Hook_ID;
 enum{
     HookID_RenderCaller,
+    HookID_DeltaRule,
     HookID_BufferViewerUpdate,
-    HookID_ScrollRule,
     HookID_ViewEventHandler,
     HookID_BufferNameResolver,
     HookID_BeginBuffer,
@@ -512,9 +518,9 @@ typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_
 #define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id,\
 Interval_i64 range, String_Const_u8 text)
 
-typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt);
+typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data);
 #define DELTA_RULE_SIG(name) \
-Vec2_f32 name(Vec2_f32 pending_delta, View_ID view_id, b32 is_new_target, f32 dt)
+Vec2_f32 name(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data)
 
 typedef Rect_f32 Buffer_Region_Function(Application_Links *app, View_ID view_id, Rect_f32 region);
 
@@ -532,6 +538,8 @@ typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_inf
 
 struct View_Context{
     Render_Caller_Function *render_caller;
+    Delta_Rule_Function *delta_rule;
+    umem delta_rule_memory_size;
     b32 hides_buffer;
 };
 

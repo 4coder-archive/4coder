@@ -453,37 +453,28 @@ view_set_file(Models *models, View *view, Editing_File *file){
 
 ////////////////////////////////
 
-function View_Context_Node*
-view__alloc_context_node(Live_Views *views){
-    View_Context_Node *node = views->free_nodes;
-    if (node != 0){
-        sll_stack_pop(views->free_nodes); 
-    }
-    else{
-        node = push_array(views->node_arena, View_Context_Node, 1);
-    }
-    return(node);
-}
-
 function void
-view__free_context_node(Live_Views *views, View_Context_Node *node){
-    sll_stack_push(views->free_nodes, node);
-}
-
-function void
-view_push_context(Models *models, View *view, View_Context *ctx){
-    View_Context_Node *node = view__alloc_context_node(&models->live_set);
+view_push_context(View *view, View_Context *ctx){
+    Temp_Memory pop_me = begin_temp(view->node_arena);
+    View_Context_Node *node = push_array_zero(view->node_arena, View_Context_Node, 1);
     sll_stack_push(view->ctx, node);
+    node->pop_me = pop_me;
     block_copy_struct(&node->ctx, ctx);
+    node->delta_rule_memory = push_array_zero(view->node_arena, u8, ctx->delta_rule_memory_size);
 }
 
 function void
-view_pop_context(Models *models, View *view){
+view_pop_context(View *view){
     View_Context_Node *node = view->ctx;
-    if (node != 0){
+    if (node != 0 && node->next != 0){
         sll_stack_pop(view->ctx);
-        view__free_context_node(&models->live_set, node);
+        end_temp(node->pop_me);
     }
+}
+
+function View_Context_Node*
+view_current_context_node(Models *models, View *view){
+    return(view->ctx);
 }
 
 function View_Context
@@ -566,9 +557,13 @@ view_init(Models *models, View *view, Editing_File *initial_buffer,
           Custom_Command_Function *event_context_base){
     view_set_file(models, view, initial_buffer);
     
+    view->node_arena = reserve_arena(models->tctx);
+    
     View_Context first_ctx = {};
     first_ctx.render_caller = models->render_caller;
-    view_push_context(models, view, &first_ctx);
+    first_ctx.delta_rule = models->delta_rule;
+    first_ctx.delta_rule_memory_size = models->delta_rule_memory_size;
+    view_push_context(view, &first_ctx);
     
     view->co = coroutine_create(&models->coroutines, view_event_context_base__inner);
     Co_In in = {};

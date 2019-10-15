@@ -140,6 +140,11 @@ lister_append_key(Lister *lister, char *string){
 }
 
 function void
+lister_zero_scroll(Lister *lister){
+    block_zero_struct(&lister->scroll);
+}
+
+function void
 lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Scratch_Block scratch(app);
     
@@ -171,6 +176,9 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     f32 block_height = lister_get_block_height(line_height);
     f32 text_field_height = lister_get_text_field_height(line_height);
     
+    lister->visible_count = (i32)((rect_height(region)/block_height)) - 3;
+    lister->visible_count = clamp_bot(1, lister->visible_count);
+    
     Lister_Top_Level_Layout layout = lister_get_top_level_layout(region, text_field_height);
     
     {
@@ -188,19 +196,48 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Range_f32 x = rect_range_x(layout.list_rect);
     draw_set_clip(app, layout.list_rect);
     
+    // NOTE(allen): auto scroll to the item if the flag is set.
+    f32 scroll_y = lister->scroll.position.y;
+    
+    if (lister->set_vertical_focus_to_item){
+        lister->set_vertical_focus_to_item = false;
+        Range_f32 item_y = If32_size(lister->item_index*block_height, block_height);
+        f32 view_h = rect_height(layout.list_rect);
+        Range_f32 view_y = If32_size(scroll_y, view_h);
+        if (view_y.min > item_y.min || item_y.max > view_y.max){
+            f32 item_center = (item_y.min + item_y.max)*0.5f;
+            f32 view_center = (view_y.min + view_y.max)*0.5f;
+            f32 margin = view_h*.3f;
+            margin = clamp_top(margin, block_height*3.f);
+            if (item_center < view_center){
+                lister->scroll.target.y = item_y.min - margin;
+            }
+            else{
+                f32 target_bot = item_y.max + margin;
+                lister->scroll.target.y = target_bot - view_h;
+            }
+        }
+    }
+    
+    // NOTE(allen): clamp scroll target and position; smooth scroll rule
     i32 count = lister->filtered.count;
     Range_f32 scroll_range = If32(0.f, clamp_bot(0.f, count*block_height - block_height));
-    lister->scroll.position.y = clamp_range(scroll_range, lister->scroll.position.y);
-    lister->scroll.position.x = 0.f;
     lister->scroll.target.y = clamp_range(scroll_range, lister->scroll.target.y);
     lister->scroll.target.x = 0.f;
     
-    // TODO(allen): get scroll rule from context
-    lister->scroll.position = lister->scroll.target;
+    Vec2_f32_Delta_Result delta = delta_apply(app, view,
+                                              frame_info.animation_dt, lister->scroll);
+    lister->scroll.position = delta.p;
+    if (delta.still_animating){
+        animate_in_n_milliseconds(app, 0);
+    }
     
-    f32 scroll_y = lister->scroll.position.y;
+    lister->scroll.position.y = clamp_range(scroll_range, lister->scroll.position.y);
+    lister->scroll.position.x = 0.f;
     
+    scroll_y = lister->scroll.position.y;
     f32 y_pos = layout.list_rect.y0 - scroll_y;
+    
     i32 first_index = (i32)(scroll_y/block_height);
     y_pos += first_index*block_height;
     
@@ -309,6 +346,20 @@ lister_get_filtered(Arena *arena, Lister *lister){
 }
 
 function void
+lister_update_selection_values(Lister *lister){
+    lister->raw_item_index = -1;
+    lister->highlighted_node = 0;
+    i32 count = lister->filtered.count;
+    for (i32 i = 0; i < count; i += 1){
+        Lister_Node *node = lister->filtered.node_ptrs[i];
+        if (lister->item_index == i){
+            lister->highlighted_node = node;
+            lister->raw_item_index = node->raw_index;
+        }
+    }
+}
+
+function void
 lister_update_filtered_list(Application_Links *app, View_ID view, Lister *lister){
     Scratch_Block scratch(app, Scratch_Share);
     
@@ -332,23 +383,17 @@ lister_update_filtered_list(Application_Links *app, View_ID view, Lister *lister
     Lister_Node **node_ptrs = push_array(arena, Lister_Node*, total_count);
     lister->filtered.node_ptrs = node_ptrs;
     lister->filtered.count = total_count;
-    
-    lister->raw_item_index = -1;
-    lister->highlighted_node = 0;
-    
     i32 counter = 0;
     for (i32 array_index = 0; array_index < ArrayCount(node_ptr_arrays); array_index += 1){
         Lister_Node_Ptr_Array node_ptr_array = node_ptr_arrays[array_index];
         for (i32 node_index = 0; node_index < node_ptr_array.count; node_index += 1){
             Lister_Node *node = node_ptr_array.node_ptrs[node_index];
             node_ptrs[counter] = node;
-            if (lister->item_index == counter){
-                lister->highlighted_node = node;
-                lister->raw_item_index = node->raw_index;
-            }
             counter += 1;
         }
     }
+    
+    lister_update_selection_values(lister);
 }
 
 function void
@@ -474,8 +519,8 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     
                     case KeyCode_Up:
                     {
-                        if (lister->handlers.navigate_up != 0){
-                            lister->handlers.navigate_up(app);
+                        if (lister->handlers.navigate != 0){
+                            lister->handlers.navigate(app, view, lister, -1);
                         }
                         else{
                             handled = false;
@@ -484,8 +529,30 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                     
                     case KeyCode_Down:
                     {
-                        if (lister->handlers.navigate_down != 0){
-                            lister->handlers.navigate_down(app);
+                        if (lister->handlers.navigate != 0){
+                            lister->handlers.navigate(app, view, lister, 1);
+                        }
+                        else{
+                            handled = false;
+                        }
+                    }break;
+                    
+                    case KeyCode_PageUp:
+                    {
+                        if (lister->handlers.navigate != 0){
+                            lister->handlers.navigate(app, view, lister,
+                                                      -lister->visible_count);
+                        }
+                        else{
+                            handled = false;
+                        }
+                    }break;
+                    
+                    case KeyCode_PageDown:
+                    {
+                        if (lister->handlers.navigate != 0){
+                            lister->handlers.navigate(app, view, lister,
+                                                      lister->visible_count);
                         }
                         else{
                             handled = false;
@@ -643,6 +710,54 @@ lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, 
                            lister_prealloced(push_string_copy(lister->arena, string)),
                            lister_prealloced(push_string_copy(lister->arena, status)),
                            user_data, extra_space));
+}
+
+function void
+lister__write_string__default(Application_Links *app){
+    View_ID view = get_active_view(app, AccessAll);
+    Lister *lister = view_get_lister(view);
+    if (lister != 0){
+        User_Input in = get_current_input(app);
+        String_Const_u8 string = to_writable(&in);
+        if (string.str != 0 && string.size > 0){
+            lister_append_text_field(lister, string);
+            lister_append_key(lister, string);
+            lister->item_index = 0;
+            lister_zero_scroll(lister);
+            lister_update_filtered_list(app, view, lister);
+        }
+    }
+}
+
+function void
+lister__backspace_text_field__default(Application_Links *app){
+    View_ID view = get_active_view(app, AccessAll);
+    Lister *lister = view_get_lister(view);
+    if (lister != 0){
+        lister->text_field.string = backspace_utf8(lister->text_field.string);
+        lister->key_string.string = backspace_utf8(lister->key_string.string);
+        lister->item_index = 0;
+        lister_zero_scroll(lister);
+        lister_update_filtered_list(app, view, lister);
+    }
+}
+
+function void
+lister__navigate__default(Application_Links *app, View_ID view, Lister *lister,
+                          i32 delta){
+    i32 new_index = lister->item_index + delta;
+    if (new_index < 0 && lister->item_index == 0){
+        lister->item_index = lister->filtered.count - 1;
+    }
+    else if (new_index >= lister->filtered.count &&
+             lister->item_index == lister->filtered.count - 1){
+        lister->item_index = 0;
+    }
+    else{
+        lister->item_index = clamp(0, new_index, lister->filtered.count - 1);
+    }
+    lister->set_vertical_focus_to_item = true;
+    lister_update_selection_values(lister);
 }
 
 // BOTTOM

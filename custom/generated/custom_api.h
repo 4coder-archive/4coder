@@ -82,13 +82,14 @@
 #define custom_buffer_compute_cursor_sig() Buffer_Cursor custom_buffer_compute_cursor(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek)
 #define custom_view_compute_cursor_sig() Buffer_Cursor custom_view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek)
 #define custom_view_set_cursor_sig() b32 custom_view_set_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek)
-#define custom_view_set_buffer_scroll_sig() b32 custom_view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll)
+#define custom_view_set_buffer_scroll_sig() b32 custom_view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll, Set_Buffer_Scroll_Rule rule)
 #define custom_view_set_mark_sig() b32 custom_view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek)
 #define custom_view_set_buffer_sig() b32 custom_view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags)
 #define custom_view_post_fade_sig() b32 custom_view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color)
 #define custom_view_push_context_sig() b32 custom_view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx)
 #define custom_view_pop_context_sig() b32 custom_view_pop_context(Application_Links* app, View_ID view_id)
 #define custom_view_current_context_sig() View_Context custom_view_current_context(Application_Links* app, View_ID view_id)
+#define custom_view_current_context_hook_memory_sig() Data custom_view_current_context_hook_memory(Application_Links* app, View_ID view_id, Hook_ID hook_id)
 #define custom_create_user_managed_scope_sig() Managed_Scope custom_create_user_managed_scope(Application_Links* app)
 #define custom_destroy_user_managed_scope_sig() b32 custom_destroy_user_managed_scope(Application_Links* app, Managed_Scope scope)
 #define custom_get_global_managed_scope_sig() Managed_Scope custom_get_global_managed_scope(Application_Links* app)
@@ -115,6 +116,7 @@
 #define custom_set_current_input_sig() void custom_set_current_input(Application_Links* app, User_Input* input)
 #define custom_leave_current_input_unhandled_sig() void custom_leave_current_input_unhandled(Application_Links* app)
 #define custom_set_custom_hook_sig() void custom_set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr)
+#define custom_set_custom_hook_memory_size_sig() b32 custom_set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, umem size)
 #define custom_get_mouse_state_sig() Mouse_State custom_get_mouse_state(Application_Links* app)
 #define custom_get_active_query_bars_sig() b32 custom_get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out)
 #define custom_start_query_bar_sig() b32 custom_start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
@@ -250,13 +252,14 @@ typedef Managed_Scope custom_view_get_managed_scope_type(Application_Links* app,
 typedef Buffer_Cursor custom_buffer_compute_cursor_type(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek);
 typedef Buffer_Cursor custom_view_compute_cursor_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 typedef b32 custom_view_set_cursor_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
-typedef b32 custom_view_set_buffer_scroll_type(Application_Links* app, View_ID view_id, Buffer_Scroll scroll);
+typedef b32 custom_view_set_buffer_scroll_type(Application_Links* app, View_ID view_id, Buffer_Scroll scroll, Set_Buffer_Scroll_Rule rule);
 typedef b32 custom_view_set_mark_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 typedef b32 custom_view_set_buffer_type(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
 typedef b32 custom_view_post_fade_type(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color);
 typedef b32 custom_view_push_context_type(Application_Links* app, View_ID view_id, View_Context* ctx);
 typedef b32 custom_view_pop_context_type(Application_Links* app, View_ID view_id);
 typedef View_Context custom_view_current_context_type(Application_Links* app, View_ID view_id);
+typedef Data custom_view_current_context_hook_memory_type(Application_Links* app, View_ID view_id, Hook_ID hook_id);
 typedef Managed_Scope custom_create_user_managed_scope_type(Application_Links* app);
 typedef b32 custom_destroy_user_managed_scope_type(Application_Links* app, Managed_Scope scope);
 typedef Managed_Scope custom_get_global_managed_scope_type(Application_Links* app);
@@ -283,6 +286,7 @@ typedef User_Input custom_get_current_input_type(Application_Links* app);
 typedef void custom_set_current_input_type(Application_Links* app, User_Input* input);
 typedef void custom_leave_current_input_unhandled_type(Application_Links* app);
 typedef void custom_set_custom_hook_type(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
+typedef b32 custom_set_custom_hook_memory_size_type(Application_Links* app, Hook_ID hook_id, umem size);
 typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
 typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 typedef b32 custom_start_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -426,6 +430,7 @@ custom_view_post_fade_type *view_post_fade;
 custom_view_push_context_type *view_push_context;
 custom_view_pop_context_type *view_pop_context;
 custom_view_current_context_type *view_current_context;
+custom_view_current_context_hook_memory_type *view_current_context_hook_memory;
 custom_create_user_managed_scope_type *create_user_managed_scope;
 custom_destroy_user_managed_scope_type *destroy_user_managed_scope;
 custom_get_global_managed_scope_type *get_global_managed_scope;
@@ -452,6 +457,7 @@ custom_get_current_input_type *get_current_input;
 custom_set_current_input_type *set_current_input;
 custom_leave_current_input_unhandled_type *leave_current_input_unhandled;
 custom_set_custom_hook_type *set_custom_hook;
+custom_set_custom_hook_memory_size_type *set_custom_hook_memory_size;
 custom_get_mouse_state_type *get_mouse_state;
 custom_get_active_query_bars_type *get_active_query_bars;
 custom_start_query_bar_type *start_query_bar;
@@ -589,13 +595,14 @@ internal Managed_Scope view_get_managed_scope(Application_Links* app, View_ID vi
 internal Buffer_Cursor buffer_compute_cursor(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek);
 internal Buffer_Cursor view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 internal b32 view_set_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
-internal b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll);
+internal b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll, Set_Buffer_Scroll_Rule rule);
 internal b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 internal b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
 internal b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color);
 internal b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);
 internal b32 view_pop_context(Application_Links* app, View_ID view_id);
 internal View_Context view_current_context(Application_Links* app, View_ID view_id);
+internal Data view_current_context_hook_memory(Application_Links* app, View_ID view_id, Hook_ID hook_id);
 internal Managed_Scope create_user_managed_scope(Application_Links* app);
 internal b32 destroy_user_managed_scope(Application_Links* app, Managed_Scope scope);
 internal Managed_Scope get_global_managed_scope(Application_Links* app);
@@ -622,6 +629,7 @@ internal User_Input get_current_input(Application_Links* app);
 internal void set_current_input(Application_Links* app, User_Input* input);
 internal void leave_current_input_unhandled(Application_Links* app);
 internal void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
+internal b32 set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, umem size);
 internal Mouse_State get_mouse_state(Application_Links* app);
 internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 internal b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -766,6 +774,7 @@ global custom_view_post_fade_type *view_post_fade = 0;
 global custom_view_push_context_type *view_push_context = 0;
 global custom_view_pop_context_type *view_pop_context = 0;
 global custom_view_current_context_type *view_current_context = 0;
+global custom_view_current_context_hook_memory_type *view_current_context_hook_memory = 0;
 global custom_create_user_managed_scope_type *create_user_managed_scope = 0;
 global custom_destroy_user_managed_scope_type *destroy_user_managed_scope = 0;
 global custom_get_global_managed_scope_type *get_global_managed_scope = 0;
@@ -792,6 +801,7 @@ global custom_get_current_input_type *get_current_input = 0;
 global custom_set_current_input_type *set_current_input = 0;
 global custom_leave_current_input_unhandled_type *leave_current_input_unhandled = 0;
 global custom_set_custom_hook_type *set_custom_hook = 0;
+global custom_set_custom_hook_memory_size_type *set_custom_hook_memory_size = 0;
 global custom_get_mouse_state_type *get_mouse_state = 0;
 global custom_get_active_query_bars_type *get_active_query_bars = 0;
 global custom_start_query_bar_type *start_query_bar = 0;

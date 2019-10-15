@@ -6,64 +6,6 @@ such as open file, switch buffer, or kill buffer.
 // TOP
 
 function void
-lister__write_string__default(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
-    Lister *lister = view_get_lister(view);
-    if (lister != 0){
-        User_Input in = get_current_input(app);
-        String_Const_u8 string = to_writable(&in);
-        if (string.str != 0 && string.size > 0){
-            lister_append_text_field(lister, string);
-            lister_append_key(lister, string);
-            lister->item_index = 0;
-            view_zero_scroll(app, view);
-            lister_update_filtered_list(app, view, lister);
-        }
-    }
-}
-
-function void
-lister__backspace_text_field__default(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
-    Lister *lister = view_get_lister(view);
-    if (lister != 0){
-        lister->text_field.string = backspace_utf8(lister->text_field.string);
-        lister->key_string.string = backspace_utf8(lister->key_string.string);
-        lister->item_index = 0;
-        view_zero_scroll(app, view);
-        lister_update_filtered_list(app, view, lister);
-    }
-}
-
-function void
-lister__move_up__default(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
-    Lister *lister = view_get_lister(view);
-    if (lister != 0){
-        lister->item_index = lister->item_index - 1;
-        if (lister->item_index < 0){
-            lister->item_index = lister->filtered.count - 1;
-        }
-        lister->set_view_vertical_focus_to_item = true;
-        lister_update_filtered_list(app, view, lister);
-    }
-}
-
-function void
-lister__move_down__default(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
-    Lister *lister = view_get_lister(view);
-    if (lister != 0){
-        lister->item_index = lister->item_index + 1;
-        if (lister->item_index > lister->filtered.count - 1){
-            lister->item_index = 0;
-        }
-        lister->set_view_vertical_focus_to_item = true;
-        lister_update_filtered_list(app, view, lister);
-    }
-}
-
-function void
 lister__write_character__file_path(Application_Links *app){
     View_ID view = get_active_view(app, AccessAll);
     Lister *lister = view_get_lister(view);
@@ -80,7 +22,7 @@ lister__write_character__file_path(Application_Links *app){
                 lister_call_refresh_handler(app, view, lister);
             }
             lister->item_index = 0;
-            view_zero_scroll(app, view);
+            lister_zero_scroll(lister);
             lister_update_filtered_list(app, view, lister);
         }
     }
@@ -117,7 +59,7 @@ lister__backspace_text_field__file_path(Application_Links *app){
             }
             
             lister->item_index = 0;
-            view_zero_scroll(app, view);
+            lister_zero_scroll(lister);
             lister_update_filtered_list(app, view, lister);
         }
     }
@@ -158,16 +100,14 @@ lister_get_default_handlers(void){
     Lister_Handlers handlers = {};
     handlers.write_character = lister__write_string__default;
     handlers.backspace       = lister__backspace_text_field__default;
-    handlers.navigate_up     = lister__move_up__default;
-    handlers.navigate_down   = lister__move_down__default;
+    handlers.navigate        = lister__navigate__default;
     return(handlers);
 }
 
 function Lister_Handlers
 lister_get_fixed_list_handlers(void){
     Lister_Handlers handlers = {};
-    handlers.navigate_up     = lister__move_up__default;
-    handlers.navigate_down   = lister__move_down__default;
+    handlers.navigate        = lister__navigate__default;
     handlers.key_stroke      = lister__key_stroke__fixed_list;
     return(handlers);
 }
@@ -196,8 +136,6 @@ run_lister_with_refresh_handler(Application_Links *app, char *query_string,
         print_message(app, str);
     }
 }
-
-global_const i32 default_string_size_estimation = 0;
 
 function i32
 lister__get_arena_size_(i32 option_count, i32 user_data_size,
@@ -230,7 +168,6 @@ run_lister_with_fixed_options(Application_Links *app, char *query_string,
                               Lister_Handlers handlers,
                               void *user_data, i32 user_data_size,
                               Lister_Fixed_Option *options, i32 option_count,
-                              i32 estimated_string_space_size,
                               View_ID view){
     Scratch_Block scratch(app);
     Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
@@ -252,14 +189,12 @@ run_lister_with_fixed_options(Application_Links *app, char *query_string,
                               Lister_Activation_Type *activate,
                               void *user_data, i32 user_data_size,
                               Lister_Fixed_Option *options, i32 option_count,
-                              i32 estimated_string_space_size,
                               View_ID view){
     Lister_Handlers handlers = lister_get_fixed_list_handlers();
     handlers.activate = activate;
     run_lister_with_fixed_options(app, query_string,
                                   handlers, user_data, user_data_size,
                                   options, option_count,
-                                  estimated_string_space_size,
                                   view);
 }
 
@@ -486,7 +421,7 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
     data.id = buffer;
     run_lister_with_fixed_options(app, "There are unsaved changes, close anyway?",
                                   activate_confirm_kill, &data, sizeof(data),
-                                  options, option_count, default_string_size_estimation,
+                                  options, option_count,
                                   view);
     return(data.do_kill);
 }
@@ -530,7 +465,7 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
     run_lister_with_fixed_options(app, "There are one or more buffers with unsave changes, close anyway?",
                                   activate_confirm_close_4coder,
                                   &do_exit, sizeof(do_exit),
-                                  options, option_count, default_string_size_estimation,
+                                  options, option_count,
                                   view);
     return(do_exit);
 }

@@ -54,9 +54,8 @@ file_cursor_to_end(Models *models, Editing_File *file){
 #define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (n == 0) return
 #define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
 
-
 DELTA_RULE_SIG(fallback_scroll_rule){
-    return(pending_delta);
+    return(pending);
 }
 
 #include "4ed_api_implementation.cpp"
@@ -339,7 +338,6 @@ App_Init_Sig(app_init){
     // NOTE(allen): live set
     Arena *arena = models->arena;
     {
-        models->live_set.node_arena = reserve_arena(models->tctx);
         models->live_set.count = 0;
         models->live_set.max = MAX_VIEWS;
         models->live_set.views = push_array(arena, View, models->live_set.max);
@@ -776,9 +774,10 @@ App_Step_Sig(app_step){
         }
     }
     
+#if 0
     // NOTE(allen): apply pending smooth deltas
     {
-        Delta_Rule_Function *scroll_rule = models->scroll_rule;
+        Delta_Rule_Function *delta_rule = models->delta_rule;
         for (Panel *panel = layout_get_first_open_panel(layout);
              panel != 0;
              panel = layout_get_next_open_panel(layout, panel)){
@@ -803,6 +802,7 @@ App_Step_Sig(app_step){
             }
         }
     }
+#endif
     
     // NOTE(allen): hook for files reloaded
     {

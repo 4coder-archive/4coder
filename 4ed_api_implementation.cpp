@@ -450,6 +450,8 @@ buffer_pos_from_relative_character(Application_Links *app,  Buffer_ID buffer_id,
     return(result);
 }
 
+
+
 api(custom) function f32
 view_line_y_difference(Application_Links *app, View_ID view_id, i64 line_a, i64 line_b){
     Models *models = (Models*)app->cmd_context;
@@ -1492,7 +1494,8 @@ view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 }
 
 api(custom) function b32
-view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll scroll)
+view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll scroll,
+                       Set_Buffer_Scroll_Rule rule)
 {
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
@@ -1505,7 +1508,14 @@ view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll sc
         scroll.target.pixel_shift.x = clamp_bot(0.f, scroll.target.pixel_shift.x);
         Buffer_Layout_Item_List line = view_get_line_layout(models, view, scroll.target.line_number);
         scroll.target.pixel_shift.y = clamp(0.f, scroll.target.pixel_shift.y, line.height);
-        view_set_scroll(models, view, scroll);
+        if (rule == SetBufferScroll_SnapCursorIntoView){
+            view_set_scroll(models, view, scroll);
+        }
+        else{
+            File_Edit_Positions edit_pos = view_get_edit_pos(view);
+            edit_pos.scroll = scroll;
+            view_set_edit_pos(view, edit_pos);
+        }
         view->new_scroll_target = true;
         result = true;
     }
@@ -1580,7 +1590,7 @@ view_push_context(Application_Links *app, View_ID view_id, View_Context *ctx){
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view)){
-        view_push_context(models, view, ctx);
+        view_push_context(view, ctx);
         result = true;
     }
     return(result);
@@ -1592,7 +1602,7 @@ view_pop_context(Application_Links *app, View_ID view_id){
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view)){
-        view_pop_context(models, view);
+        view_pop_context(view);
         result = true;
     }
     return(result);
@@ -1605,6 +1615,27 @@ view_current_context(Application_Links *app, View_ID view_id){
     View_Context result = {};
     if (api_check_view(view)){
         result = view_current_context(models, view);
+    }
+    return(result);
+}
+
+api(custom) function Data
+view_current_context_hook_memory(Application_Links *app, View_ID view_id,
+                                 Hook_ID hook_id){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    Data result = {};
+    if (api_check_view(view)){
+        View_Context_Node *ctx = view_current_context_node(models, view);
+        if (ctx != 0){
+            switch (hook_id){
+                case HookID_DeltaRule:
+                {
+                    result = make_data(ctx->delta_rule_memory,
+                                       ctx->ctx.delta_rule_memory_size);
+                }break;
+            }
+        }
     }
     return(result);
 }
@@ -2062,9 +2093,9 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->buffer_viewer_update = (Hook_Function*)func_ptr;
         }break;
-        case HookID_ScrollRule:
+        case HookID_DeltaRule:
         {
-            models->scroll_rule = (Delta_Rule_Function*)func_ptr;
+            models->delta_rule = (Delta_Rule_Function*)func_ptr;
         }break;
         case HookID_ViewEventHandler:
         {
@@ -2099,6 +2130,23 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
             models->buffer_edit_range = (Buffer_Edit_Range_Function*)func_ptr;
         }break;
     }
+}
+
+api(custom) function b32
+set_custom_hook_memory_size(Application_Links *app, Hook_ID hook_id, umem size){
+    Models *models = (Models*)app->cmd_context;
+    b32 result = true;
+    switch (hook_id){
+        case HookID_DeltaRule:
+        {
+            models->delta_rule_memory_size = size;
+        }break;
+        default:
+        {
+            result = false;
+        }break;
+    }
+    return(result);
 }
 
 api(custom) function Mouse_State

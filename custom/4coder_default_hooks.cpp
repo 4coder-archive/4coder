@@ -278,21 +278,31 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 }
 #endif
 
+function Rect_f32_Pair
+layout_file_bar_on_top(Rect_f32 rect, f32 line_height){
+    return(rect_split_top_bottom(rect, line_height + 2.f));
+}
+
+function Rect_f32_Pair
+layout_file_bar_on_bot(Rect_f32 rect, f32 line_height){
+    return(rect_split_top_bottom_neg(rect, line_height + 2.f));
+}
+
 function Rect_f32
-default_view_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 sub_region){
+default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
+    region = rect_inner(region, 3.f);
+    
     Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics metrics = get_face_metrics(app, face_id);
-    i32 line_height = i32_ceil32(metrics.line_height);
+    f32  line_height = metrics.line_height;
     
     // file bar
-    {
-        b64 showing_file_bar = false;
-        if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar)){
-            if (showing_file_bar){
-                sub_region.y0 += line_height + 2;
-            }
-        }
+    b64 showing_file_bar = false;
+    if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) &&
+        showing_file_bar){
+        Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
+        region = pair.b;
     }
     
     // query bar
@@ -301,8 +311,8 @@ default_view_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 sub
         Query_Bar_Ptr_Array query_bars = {};
         query_bars.ptrs = space;
         if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
-            i32 widget_height = (line_height + 2)*query_bars.count;
-            sub_region.y0 += widget_height;
+            f32 widget_height = (line_height + 2)*query_bars.count;
+            region.y0 += widget_height;
         }
     }
     
@@ -311,10 +321,10 @@ default_view_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 sub
         i64 line_count = buffer_get_line_count(app, buffer);
         i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
         i32 margin_width = i32_ceil32((f32)line_count_digit_count*metrics.normal_advance);
-        sub_region.x0 += margin_width + 2;
+        region.x0 += margin_width + 2;
     }
     
-    return(sub_region);
+    return(region);
 }
 
 internal int_color
@@ -447,10 +457,36 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
         draw_fancy_string(app, face_id, list.first, p, Stag_Default, 0);
     }
     
-    Rect_f32 sub_region = default_view_buffer_region(app, view_id, inner);
-    Rect_f32 buffer_rect = rect_intersect(sub_region, inner);
-    
+    Rect_f32 buffer_rect = default_buffer_region(app, view_id, view_rect);
     Buffer_Scroll scroll = view_get_buffer_scroll(app, view_id);
+    
+    Buffer_Point_Delta_Result delta = delta_apply(app, view_id,
+                                                  frame_info.animation_dt, scroll);
+    if (!block_match_struct(&scroll.position, &delta.point)){
+        block_copy_struct(&scroll.position, &delta.point);
+        view_set_buffer_scroll(app, view_id, scroll, SetBufferScroll_NoCursorChange);
+    }
+    if (delta.still_animating){
+        animate_in_n_milliseconds(app, 0);
+    }
+    
+#if 0    
+    // NOTE(allen): clamp scroll target and position; smooth scroll rule
+    {
+        Vec2_f32 pending = view_point_difference(app, view_id, scroll.target, scroll.position);
+        if (!near_zero(pending, 0.5f)){
+            // TODO(allen): use the real delta rule from the context
+            Vec2_f32 partial = pending;
+            scroll.position = view_move_buffer_point(app, view_id, scroll.position, partial);
+            animate_in_n_milliseconds(app, 0);
+        }
+        else{
+            scroll.position = scroll.target;
+        }
+        view_set_buffer_scroll(app, view_id, scroll, SetBufferScroll_NoCursorChange);
+    }
+#endif
+    
     Buffer_Point buffer_point = scroll.position;
     Text_Layout_ID text_layout_id = text_layout_create(app, buffer, buffer_rect, buffer_point);
     Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
@@ -762,8 +798,8 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
 }
 
 HOOK_SIG(default_view_adjust){
-    // NOTE(allen): Called whenever the view layout/sizes have been modified, including
-    // by full window resize.
+    // NOTE(allen): Called whenever the view layout/sizes have been modified,
+    // including by full window resize.
     return(0);
 }
 
@@ -1120,85 +1156,6 @@ BUFFER_HOOK_SIG(default_end_file){
     return(0);
 }
 
-// TODO(allen): FIX FIX FIX FIX
-// NOTE(allen|a4): scroll rule information
-//
-// The parameters:
-// target_x, target_y
-//  This is where the view would like to be for the purpose of
-// following the cursor, doing mouse wheel work, etc.
-//
-// scroll_x, scroll_y
-//  These are pointers to where the scrolling actually is. If you bind
-// the scroll rule it is you have to update these in some way to move
-// the actual location of the scrolling.
-//
-// view_id
-//  This corresponds to which view is computing it's new scrolling position.
-// This id DOES correspond to the views that View_ _Summary contains.
-// This will always be between 1 and 16 (0 is a null id).
-// See below for an example of having state that carries across scroll udpates.
-//
-// is_new_target
-//  If the target of the view is different from the last target in either x or y
-// this is true, otherwise it is false.
-//
-// The return:
-//  Should be true if and only if scroll_x or scroll_y are changed.
-//
-// Don't try to use the app pointer in a scroll rule, you're asking for trouble.
-//
-// If you don't bind scroll_rule, nothing bad will happen, yo will get default
-// 4coder scrolling behavior.
-//
-
-Vec2_f32 scroll_velocity_[16] = {};
-Vec2_f32 *scroll_velocity = scroll_velocity_ - 1;
-
-struct Smooth_Step{
-    f32 p;
-    f32 v;
-};
-
-internal Smooth_Step
-smooth_camera_step(f32 target, f32 v, f32 S, f32 T){
-    Smooth_Step step = {};
-    step.v = v;
-    if (step.p != target){
-        if (step.p > target - .1f && step.p < target + .1f){
-            step.p = target;
-            step.v = 1.f;
-        }
-        else{
-            f32 L = step.p + T*(target - step.p);
-            i32 sign = (target > step.p) - (target < step.p);
-            f32 V = step.p + sign*step.v;
-            if (sign > 0){
-                step.p = (L<V)?(L):(V);
-            }
-            else{
-                step.p = (L>V)?(L):(V);
-            }
-            if (step.p == V){
-                step.v *= S;
-            }
-        }
-    }
-    return(step);
-}
-
-DELTA_RULE_SIG(smooth_scroll_rule){
-    Vec2_f32 *velocity = scroll_velocity + view_id;
-    if (velocity->x == 0.f){
-        velocity->x = 1.f;
-        velocity->y = 1.f;
-    }
-    Smooth_Step step_x = smooth_camera_step(pending_delta.x, velocity->x, 80.f, 1.f/2.f);
-    Smooth_Step step_y = smooth_camera_step(pending_delta.y, velocity->y, 80.f, 1.f/2.f);
-    *velocity = V2f32(step_x.v, step_y.v);
-    return(V2f32(step_x.p, step_y.p));
-}
-
 internal void
 set_all_default_hooks(Application_Links *app){
 #if 0
@@ -1213,7 +1170,15 @@ set_all_default_hooks(Application_Links *app){
     
     set_custom_hook(app, HookID_ViewEventHandler, default_view_input_handler);
     set_custom_hook(app, HookID_RenderCaller, default_render_caller);
-    set_custom_hook(app, HookID_ScrollRule, smooth_scroll_rule);
+#if 0
+    set_custom_hook(app, HookID_DeltaRule, original_delta);
+    set_custom_hook_memory_size(app, HookID_DeltaRule,
+                                delta_ctx_size(original_delta_memory_size));
+#else
+    set_custom_hook(app, HookID_DeltaRule, fixed_time_cubic_delta);
+    set_custom_hook_memory_size(app, HookID_DeltaRule,
+                                delta_ctx_size(fixed_time_cubic_delta_memory_size));
+#endif
     set_custom_hook(app, HookID_BufferNameResolver, default_buffer_name_resolution);
     
     set_custom_hook(app, HookID_BeginBuffer, default_file_settings);
@@ -1221,7 +1186,7 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_NewFile, default_new_file);
     set_custom_hook(app, HookID_SaveFile, default_file_save);
     set_custom_hook(app, HookID_BufferEditRange, default_buffer_edit_range);
-    set_custom_hook(app, HookID_BufferRegion, default_view_buffer_region);
+    set_custom_hook(app, HookID_BufferRegion, default_buffer_region);
 }
 
 // BOTTOM
