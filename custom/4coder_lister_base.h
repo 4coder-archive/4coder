@@ -1,11 +1,11 @@
 /*
- * Helpers for ui data structures.
+ * Lister base
  */
 
 // TOP
 
-#if !defined(FCODER_UI_HELPER_H)
-#define FCODER_UI_HELPER_H
+#if !defined(FCODER_LISTER_BASE_H)
+#define FCODER_LISTER_BASE_H
 
 typedef i32 Lister_Activation_Code;
 enum{
@@ -14,8 +14,7 @@ enum{
     ListerActivation_ContinueAndRefresh = 2,
 };
 
-typedef Lister_Activation_Code Lister_Activation_Type(Application_Links *app,
-                                                      View_ID view, struct Lister *lister,
+typedef Lister_Activation_Code Lister_Activation_Type(Application_Links *app, View_ID view, struct Lister *lister,
                                                       String_Const_u8 text_field, void *user_data, b32 activated_by_mouse);
 
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, struct Lister *lister);

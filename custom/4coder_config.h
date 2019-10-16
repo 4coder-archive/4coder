@@ -190,6 +190,7 @@ struct Config_Data{
     
     b8 use_scroll_bars;
     b8 use_file_bars;
+    b8 hide_file_bar_in_ui;
     b8 use_error_highlight;
     b8 use_jump_highlight;
     b8 use_scope_highlight;

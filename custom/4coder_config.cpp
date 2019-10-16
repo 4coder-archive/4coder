@@ -1190,6 +1190,7 @@ config_init_default(Config_Data *config){
     
     config->use_scroll_bars = false;
     config->use_file_bars = true;
+    config->hide_file_bar_in_ui = true;
     config->use_error_highlight = true;
     config->use_jump_highlight = true;
     config->use_scope_highlight = true;
@@ -1255,6 +1256,7 @@ config_parse__data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data
         
         config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
         config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
+        config_bool_var(parsed, "hide_file_bar_in_ui", 0, &config->hide_file_bar_in_ui);
         config_bool_var(parsed, "use_error_highlight", 0, &config->use_error_highlight);
         config_bool_var(parsed, "use_jump_highlight", 0, &config->use_jump_highlight);
         config_bool_var(parsed, "use_scope_highlight", 0, &config->use_scope_highlight);
@@ -1465,6 +1467,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
             
             config_feedback_bool(scratch, &list, "use_scroll_bars", config->use_scroll_bars);
             config_feedback_bool(scratch, &list, "use_file_bars", config->use_file_bars);
+            config_feedback_bool(scratch, &list, "hide_file_bar_in_ui", config->hide_file_bar_in_ui);
             config_feedback_bool(scratch, &list, "use_error_highlight", config->use_error_highlight);
             config_feedback_bool(scratch, &list, "use_jump_highlight", config->use_jump_highlight);
             config_feedback_bool(scratch, &list, "use_scope_highlight", config->use_scope_highlight);

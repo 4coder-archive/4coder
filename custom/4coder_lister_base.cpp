@@ -1,5 +1,5 @@
 /*
- * Helpers for ui data structures.
+ * Lister base
  */
 
 // TOP
@@ -153,28 +153,27 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         return;
     }
     
-    ////////////////////////////////
-    View_ID active_view = get_active_view(app, AccessAll);
-    b32 is_active_view = (active_view == view);
-    
-    Rect_f32 view_rect = view_get_screen_rect(app, view);
-    Rect_f32 inner = rect_inner(view_rect, 3);
-    draw_rectangle(app, view_rect, 0.f,
-                   get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None));
-    draw_rectangle(app, inner, 0.f, Stag_Back);
-    
-    Rect_f32 prev_clip = draw_set_clip(app, inner);
-    ////////////////////////////////
-    
-    Rect_f32 region = inner;
-    Mouse_State mouse = get_mouse_state(app);
-    Vec2_f32 m_p = V2f32(mouse.p);
+    Rect_f32 region = draw_background_and_margin(app, view);
+    Rect_f32 prev_clip = draw_set_clip(app, region);
     
     Face_ID face_id = get_face_id(app, 0);
     Face_Metrics metrics = get_face_metrics(app, face_id);
     f32 line_height = metrics.line_height;
     f32 block_height = lister_get_block_height(line_height);
     f32 text_field_height = lister_get_text_field_height(line_height);
+    
+    // NOTE(allen): file bar
+    b64 showing_file_bar = false;
+    if (view_get_setting(app, view, ViewSetting_ShowFileBar, &showing_file_bar) && showing_file_bar &&
+        !global_config.hide_file_bar_in_ui){
+        Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
+        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+        draw_file_bar(app, view, buffer, face_id, pair.min);
+        region = pair.max;
+    }
+    
+    Mouse_State mouse = get_mouse_state(app);
+    Vec2_f32 m_p = V2f32(mouse.p);
     
     lister->visible_count = (i32)((rect_height(region)/block_height)) - 3;
     lister->visible_count = clamp_bot(1, lister->visible_count);

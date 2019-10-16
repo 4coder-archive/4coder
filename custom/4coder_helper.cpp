@@ -2120,155 +2120,125 @@ get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_In
 
 ////////////////////////////////
 
-internal Vec2
-draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec2 p, int_color color){
-    return(draw_string_oriented(app, font_id, string, p, color, 0, V2(1.f, 0.f)));
-}
-
-internal void
-draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, int_color color){
-    draw_rectangle(app, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), 0.f, color);
-    draw_rectangle(app, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), 0.f, color);
-    draw_rectangle(app, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), 0.f, color);
-    draw_rectangle(app, Rf32(inner.x1, inner.y0, outer.x1, inner.y1), 0.f, color);
-}
-
-internal void
-draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, int_color color){
-    Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
-    draw_rectangle(app, rect, roundness, color);
-}
-
-internal void
-draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, int_color color){
-    if (range.first < range.one_past_last){
-        i64 i = range.first;
-        Rect_f32 first_rect = text_layout_character_on_screen(app, layout, i);
-        i += 1;
-        Range_f32 y = rect_range_y(first_rect);
-        Range_f32 x = rect_range_x(first_rect);
-        for (;i < range.one_past_last; i += 1){
-            Rect_f32 rect = text_layout_character_on_screen(app, layout, i);
-            if (rect.x0 < rect.x1 && rect.y0 < rect.y1){
-                Range_f32 new_y = rect_range_y(rect);
-                Range_f32 new_x = rect_range_x(rect);
-                b32 joinable = false;
-                if (new_y == y && (range_overlap(x, new_x) || x.max == new_x.min || new_x.max == x.min)){
-                    joinable = true;
-                }
-                
-                if (!joinable){
-                    draw_rectangle(app, Rf32(x, y), roundness, color);
-                    y = new_y;
-                    x = new_x;
-                }
-                else{
-                    x = range_union(x, new_x);
-                }
+function Nest_Delimiter_Kind
+get_nest_delimiter_kind(Token_Base_Kind kind, Find_Nest_Flag flags){
+    Nest_Delimiter_Kind result = NestDelim_None;
+    switch (kind){
+        case TokenBaseKind_ScopeOpen:
+        {
+            if (HasFlag(flags, FindNest_Scope)){
+                result = NestDelim_Open;
             }
-        }
-        draw_rectangle(app, Rf32(x, y), roundness, color);
-    }
-    for (i64 i = range.first; i < range.one_past_last; i += 1){
-        draw_character_block(app, layout, i, roundness, color);
-    }
-}
-
-internal void
-draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, f32 thickness, int_color color){
-    Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
-    draw_rectangle_outline(app, rect, roundness, thickness, color);
-}
-
-internal void
-draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, f32 thickness,  int_color color){
-    for (i64 i = range.first; i < range.one_past_last; i += 1){
-        draw_character_wire_frame(app, layout, i, roundness, thickness, color);
-    }
-}
-
-internal void
-draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
-    Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
-    rect.x1 = rect.x0 + 1.f;
-    draw_rectangle(app, rect, 0.f, color);
-}
-
-internal void
-draw_line_highlight(Application_Links *app, Text_Layout_ID layout, Range_i64 line_range, int_color color){
-    Range_f32 y1 = text_layout_line_on_screen(app, layout, line_range.min);
-    Range_f32 y2 = text_layout_line_on_screen(app, layout, line_range.max);
-    Range_f32 y = range_union(y1, y2);
-    if (range_size(y) > 0.f){
-        Rect_f32 region = text_layout_region(app, layout);
-        draw_rectangle(app, Rf32(rect_range_x(region), y), 0.f, color);
-    }
-}
-
-internal void
-draw_line_highlight(Application_Links *app, Text_Layout_ID layout, i64 line, int_color color){
-    draw_line_highlight(app, layout, Ii64(line), color);
-}
-
-internal void
-paint_text_color_pos(Application_Links *app, Text_Layout_ID layout, i64 pos, int_color color){
-    paint_text_color(app, layout, Ii64(pos, pos + 1), color);
-}
-
-////////////////////////////////
-
-internal Rect_f32_Pair
-split_rect(Rect_f32 rect, View_Split_Kind kind, Coordinate coord, Side from_side, f32 t){
-    Rect_f32_Pair result = {};
-    if (kind == ViewSplitKind_FixedPixels){
-        result.e[0] = rect;
-        result.e[1] = rect;
-        if (coord == Coordinate_X){
-            result.e[0].x1 = (from_side == Side_Max) ? (rect.x1 - t) : (rect.x0 + t);
-            result.e[1].x0 = result.e[0].x1;
-        }
-        else{
-            Assert(coord == Coordinate_Y);
-            result.e[0].y1 = (from_side == Side_Max) ? (rect.y1 - t) : (rect.y0 + t);
-            result.e[1].y0 = result.e[0].y1;
-        }
-    }
-    else{
-        Assert(kind == ViewSplitKind_Ratio);
-        f32 pixel_count;
-        if (coord == Coordinate_X){
-            pixel_count = t*(rect.x1 - rect.x0);
-        }
-        else{
-            Assert(coord == Coordinate_Y);
-            pixel_count = t*(rect.y1 - rect.y0);
-        }
-        result = split_rect(rect, ViewSplitKind_FixedPixels, coord, from_side, pixel_count);
+        }break;
+        case TokenBaseKind_ScopeClose:
+        {
+            if (HasFlag(flags, FindNest_Scope)){
+                result = NestDelim_Close;
+            }
+        }break;
+        case TokenBaseKind_ParentheticalOpen:
+        {
+            if (HasFlag(flags, FindNest_Paren)){
+                result = NestDelim_Open;
+            }
+        }break;
+        case TokenBaseKind_ParentheticalClose:
+        {
+            if (HasFlag(flags, FindNest_Paren)){
+                result = NestDelim_Close;
+            }
+        }break;
     }
     return(result);
 }
 
-////////////////////////////////
-
-static int_color
-get_margin_color(i32 level){
-    int_color margin = 0;
-    switch (level){
-        default:
-        case UIHighlight_None:
-        {
-            margin = Stag_List_Item;
-        }break;
-        case UIHighlight_Hover:
-        {
-            margin = Stag_List_Item_Hover;
-        }break;
-        case UIHighlight_Active:
-        {
-            margin = Stag_List_Item_Active;
-        }break;
+function b32
+find_nest_side(Application_Links *app, Buffer_ID buffer, i64 pos,
+               Find_Nest_Flag flags, Scan_Direction scan, Nest_Delimiter_Kind delim,
+               Range_i64 *out){
+    b32 result = false;
+    
+    b32 balanced = HasFlag(flags, FindNest_Balanced);
+    if (balanced){
+        if ((delim == NestDelim_Open && scan == Scan_Forward) ||
+            (delim == NestDelim_Close && scan == Scan_Backward)){
+            balanced = false;
+        }
     }
-    return(margin);
+    
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    Token_Array *tokens = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    if (tokens != 0 && tokens->count > 0){
+        Token_Iterator_Array it = token_iterator_pos(0, tokens, pos);
+        i32 level = 0;
+        for (;;){
+            Token *token = token_it_read(&it);
+            Nest_Delimiter_Kind token_delim = get_nest_delimiter_kind(token->kind, flags);
+            
+            if (level == 0 && token_delim == delim){
+                *out = Ii64_size(token->pos, token->size);
+                result = true;
+                break;
+            }
+            
+            if (balanced && token_delim != NestDelim_None){
+                level += (token_delim == delim)?-1:1;
+            }
+            
+            b32 good = false;
+            if (scan == Scan_Forward){
+                good = token_it_inc(&it);
+            }
+            else{
+                good = token_it_dec(&it);
+            }
+            if (!good){
+                break;
+            }
+        }
+    }
+    
+    return(result);
+}
+
+function b32
+find_nest_side(Application_Links *app, Buffer_ID buffer, i64 pos,
+               Find_Nest_Flag flags, Scan_Direction scan, Nest_Delimiter_Kind delim,
+               i64 *out){
+    Range_i64 range = {};
+    b32 result = find_nest_side(app, buffer, pos, flags, scan, delim, &range);
+    if (result){
+        if (HasFlag(flags, FindNest_EndOfToken)){
+            *out = range.end;
+        }
+        else{
+            *out = range.start;
+        }
+    }
+    return(result);
+}
+
+function b32
+find_surrounding_nest(Application_Links *app, Buffer_ID buffer, i64 pos,
+                      Find_Nest_Flag flags, Range_i64 *out){
+    b32 result = false;
+    Range_i64 range = {};
+    if (find_nest_side(app, buffer, pos - 1, flags|FindNest_Balanced,
+                       Scan_Backward, NestDelim_Open, &range.start) &&
+        find_nest_side(app, buffer, pos, flags|FindNest_Balanced|FindNest_EndOfToken,
+                       Scan_Forward, NestDelim_Close, &range.end)){
+        *out = range;
+        result = true;
+    }
+    return(result);
+}
+
+function void
+select_scope(Application_Links *app, View_ID view, Range_i64 range){
+    view_set_cursor_and_preferred_x(app, view, seek_pos(range.first));
+    view_set_mark(app, view, seek_pos(range.end));
+    view_look_at_region(app, view, range.first, range.end);
+    no_mark_snap_to_cursor(app, view);
 }
 
 ////////////////////////////////
