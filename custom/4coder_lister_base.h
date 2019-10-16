@@ -99,11 +99,6 @@ struct Lister_Filtered{
     Lister_Node_Ptr_Array substring_matches;
 };
 
-struct Lister_Top_Level_Layout{
-    Rect_f32 text_field_rect;
-    Rect_f32 list_rect;
-};
-
 ////////////////////////////////
 
 struct Lister_Option{

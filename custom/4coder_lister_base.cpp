@@ -31,13 +31,9 @@ lister_get_block_height(f32 line_height){
     return(line_height*2);
 }
 
-function Lister_Top_Level_Layout
+function Rect_f32_Pair
 lister_get_top_level_layout(Rect_f32 rect, f32 text_field_height){
-    Lister_Top_Level_Layout layout = {};
-    layout.text_field_rect = Rf32(rect.x0, rect.y0,
-                                  rect.x1, clamp_top(rect.y0 + text_field_height, rect.y1));
-    layout.list_rect = Rf32(rect.x0, layout.text_field_rect.y1, rect.x1, rect.y1);
-    return(layout);
+    return(rect_split_top_bottom(rect, text_field_height));
 }
 
 ////////////////////////////////
@@ -164,7 +160,8 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     
     // NOTE(allen): file bar
     b64 showing_file_bar = false;
-    if (view_get_setting(app, view, ViewSetting_ShowFileBar, &showing_file_bar) && showing_file_bar &&
+    if (view_get_setting(app, view, ViewSetting_ShowFileBar, &showing_file_bar) &&
+        showing_file_bar &&
         !global_config.hide_file_bar_in_ui){
         Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
         Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
@@ -178,7 +175,13 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     lister->visible_count = (i32)((rect_height(region)/block_height)) - 3;
     lister->visible_count = clamp_bot(1, lister->visible_count);
     
-    Lister_Top_Level_Layout layout = lister_get_top_level_layout(region, text_field_height);
+    Rect_f32 text_field_rect = {};
+    Rect_f32 list_rect = {};
+    {
+        Rect_f32_Pair pair = lister_get_top_level_layout(region, text_field_height);
+        text_field_rect = pair.min;
+        list_rect = pair.max;
+    }
     
     {
         Fancy_String_List text_field = {};
@@ -188,12 +191,12 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         push_fancy_string(scratch, &text_field, fancy_id(Stag_Default),
                           lister->text_field.string);
         draw_fancy_string(app, face_id, text_field.first,
-                          V2f32(layout.text_field_rect.x0 + 3.f, layout.text_field_rect.y0),
+                          V2f32(text_field_rect.x0 + 3.f, text_field_rect.y0),
                           Stag_Default, Stag_Back, 0, V2f32(1.f, 0.f));
     }
     
-    Range_f32 x = rect_range_x(layout.list_rect);
-    draw_set_clip(app, layout.list_rect);
+    Range_f32 x = rect_range_x(list_rect);
+    draw_set_clip(app, list_rect);
     
     // NOTE(allen): auto scroll to the item if the flag is set.
     f32 scroll_y = lister->scroll.position.y;
@@ -201,7 +204,7 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     if (lister->set_vertical_focus_to_item){
         lister->set_vertical_focus_to_item = false;
         Range_f32 item_y = If32_size(lister->item_index*block_height, block_height);
-        f32 view_h = rect_height(layout.list_rect);
+        f32 view_h = rect_height(list_rect);
         Range_f32 view_y = If32_size(scroll_y, view_h);
         if (view_y.min > item_y.min || item_y.max > view_y.max){
             f32 item_center = (item_y.min + item_y.max)*0.5f;
@@ -235,7 +238,7 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     lister->scroll.position.x = 0.f;
     
     scroll_y = lister->scroll.position.y;
-    f32 y_pos = layout.list_rect.y0 - scroll_y;
+    f32 y_pos = list_rect.y0 - scroll_y;
     
     i32 first_index = (i32)(scroll_y/block_height);
     y_pos += first_index*block_height;
@@ -447,13 +450,22 @@ lister_user_data_at_p(Application_Links *app, View_ID view, Lister *lister, Vec2
     f32 block_height = lister_get_block_height(line_height);
     f32 text_field_height = lister_get_text_field_height(line_height);
     
-    Lister_Top_Level_Layout layout = lister_get_top_level_layout(region, text_field_height);
+    b64 showing_file_bar = false;
+    if (view_get_setting(app, view, ViewSetting_ShowFileBar, &showing_file_bar) &&
+        showing_file_bar &&
+        !global_config.hide_file_bar_in_ui){
+        Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
+        region = pair.max;
+    }
+    
+    Rect_f32_Pair pair = lister_get_top_level_layout(region, text_field_height);
+    Rect_f32 list_rect = pair.max;
     
     void *result = 0;
-    if (rect_contains_point(layout.list_rect, m_p)){
-        f32 y = m_p.y - layout.list_rect.y0 + lister->scroll.position.y;
+    if (rect_contains_point(list_rect, m_p)){
+        f32 y = m_p.y - list_rect.y0 + lister->scroll.position.y;
         i32 index = (i32)(y/block_height);
-        if (0 < index && index < lister->filtered.count){
+        if (0 <= index && index < lister->filtered.count){
             Lister_Node *node = lister->filtered.node_ptrs[index];
             result = node->user_data;
         }

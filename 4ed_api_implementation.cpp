@@ -2129,6 +2129,10 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->buffer_edit_range = (Buffer_Edit_Range_Function*)func_ptr;
         }break;
+        case HookID_BufferRegion:
+        {
+            models->buffer_region = (Buffer_Region_Function*)func_ptr;
+        }break;
     }
 }
 

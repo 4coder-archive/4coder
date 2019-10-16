@@ -149,9 +149,9 @@ view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
 
 internal Rect_f32
 view_get_buffer_rect(Models *models, View *view){
-    Rect_f32 region = {};
+    Rect_f32 region = Rf32(view->panel->rect_full);
     if (models->buffer_region != 0){
-        Rect_f32 rect = Rf32(view->panel->rect_inner);
+        Rect_f32 rect = region;
         Rect_f32 sub_region = Rf32(V2(0, 0), rect_dim(rect));
         sub_region = models->buffer_region(&models->app_links, view_get_id(&models->live_set, view), sub_region);
         region.p0 = rect.p0 + sub_region.p0;
@@ -160,9 +160,6 @@ view_get_buffer_rect(Models *models, View *view){
         region.y1 = clamp_top(region.y1, rect.y1);
         region.x0 = clamp_top(region.x0, region.x1);
         region.y0 = clamp_top(region.y0, region.y1);
-    }
-    else{
-        region = Rf32(view->panel->rect_inner);
     }
     return(region);
 }

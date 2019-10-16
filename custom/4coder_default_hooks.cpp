@@ -207,7 +207,7 @@ default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
     if (view_get_setting(app, view_id, ViewSetting_ShowFileBar, &showing_file_bar) &&
         showing_file_bar){
         Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
-        region = pair.min;
+        region = pair.max;
     }
     
     // NOTE(allen): query bars
@@ -217,7 +217,7 @@ default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
         query_bars.ptrs = space;
         if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
             Rect_f32_Pair pair = layout_query_bar_on_top(region, line_height, query_bars.count);
-            region = pair.min;
+            region = pair.max;
         }
     }
     

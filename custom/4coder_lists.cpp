@@ -676,11 +676,8 @@ function Lister_Activation_Code
 activate_command(Application_Links *app,
                  View_ID view, Lister *lister,
                  String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
+    (*(Custom_Command_Function**)lister->user_data) = (Custom_Command_Function*)user_data;
     lister_default(app, view, lister, ListerActivation_Finished);
-    if (user_data != 0){
-        Custom_Command_Function *command = (Custom_Command_Function*)user_data;
-        command(app);
-    }
     return(ListerActivation_Finished);
 }
 
@@ -703,7 +700,13 @@ launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 comma
         options[i].status = SCu8(fcoder_metacmd_table[j].description);
         options[i].user_data = (void*)fcoder_metacmd_table[j].proc;
     }
-    run_lister_with_options_array(app, "Command:", activate_command, 0, 0, options, command_id_count, 0, view);
+    Custom_Command_Function *custom_cmd = 0;
+    run_lister_with_options_array(app, "Command:", activate_command, &custom_cmd, sizeof(custom_cmd),
+                                  options, command_id_count, 0, view);
+    if (custom_cmd != 0){
+		animate_in_n_milliseconds(app, 0);
+        custom_cmd(app);
+    }
 }
 
 CUSTOM_COMMAND_SIG(command_lister)
