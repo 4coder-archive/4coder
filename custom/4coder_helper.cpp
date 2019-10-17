@@ -885,7 +885,7 @@ push_buffer_range(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_
     if (length > 0){
         Temp_Memory restore_point = begin_temp(arena);
         u8 *memory = push_array(arena, u8, length);
-        if (buffer_read_range(app, buffer, range, (char*)memory)){
+        if (buffer_read_range(app, buffer, range, memory)){
             result = SCu8(memory, length);
         }
         else{
@@ -981,10 +981,10 @@ buffer_has_name_with_star(Application_Links *app, Buffer_ID buffer){
     return(str.size > 0 && str.str[0] == '*');
 }
 
-internal char
+internal u8
 buffer_get_char(Application_Links *app, Buffer_ID buffer_id, i64 pos){
     i64 buffer_size = buffer_get_size(app, buffer_id);
-    char result = ' ';
+    u8 result = ' ';
     if (0 <= pos && pos < buffer_size){
         buffer_read_range(app, buffer_id, Ii64(pos, pos + 1), &result);
     }
@@ -2239,6 +2239,17 @@ select_scope(Application_Links *app, View_ID view, Range_i64 range){
     view_set_mark(app, view, seek_pos(range.end));
     view_look_at_region(app, view, range.first, range.end);
     no_mark_snap_to_cursor(app, view);
+}
+
+////////////////////////////////
+
+function Line_Ending_Kind
+guess_line_ending_kind_from_buffer_contents(Application_Links *app, Buffer_ID buffer){
+    umem size = buffer_get_size(app, buffer);
+    size = clamp_top(size, KB(8));
+    Scratch_Block scratch(app);
+    String_Const_u8 string = push_buffer_range(app, scratch, buffer, Ii64(0, size));
+    return(string_guess_line_ending_kind(string));
 }
 
 ////////////////////////////////

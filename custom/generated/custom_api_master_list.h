@@ -13,7 +13,7 @@ api(custom) function i32 get_buffer_count(Application_Links* app);
 api(custom) function Buffer_ID get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
 api(custom) function Buffer_ID get_buffer_by_name(Application_Links* app, String_Const_u8 name, Access_Flag access);
 api(custom) function Buffer_ID get_buffer_by_file_name(Application_Links* app, String_Const_u8 file_name, Access_Flag access);
-api(custom) function b32 buffer_read_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, char* out);
+api(custom) function b32 buffer_read_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, u8* out);
 api(custom) function b32 buffer_replace_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string);
 api(custom) function b32 buffer_batch_edit(Application_Links* app, Buffer_ID buffer_id, Batch_Edit* batch);
 api(custom) function String_Match buffer_seek_string(Application_Links* app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos);

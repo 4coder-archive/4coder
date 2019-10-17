@@ -383,7 +383,8 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     view_highlight_buffer     = managed_id_declare(app, SCu8("DEFAULT.highlight_buf" ));
     view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render" ));
     
-    buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
+    buffer_map_id      = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"     ));
+	buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
     
     sticky_jump_marker_handle = managed_id_declare(app, SCu8("DEFAULT.sticky_jump_marker_handle"));
     attachment_tokens = managed_id_declare(app, SCu8("DEFAULT.tokens"));

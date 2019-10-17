@@ -738,22 +738,6 @@ CUSTOM_DOC("Toggles the left margin line numbers.")
     global_config.show_line_number_margins = !global_config.show_line_number_margins;
 }
 
-CUSTOM_COMMAND_SIG(eol_dosify)
-CUSTOM_DOC("Puts the buffer in DOS line ending mode.")
-{
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    buffer_set_setting(app, buffer, BufferSetting_Eol, 1);
-}
-
-CUSTOM_COMMAND_SIG(eol_nixify)
-CUSTOM_DOC("Puts the buffer in NIX line ending mode.")
-{
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
-    buffer_set_setting(app, buffer, BufferSetting_Eol, 0);
-}
-
 CUSTOM_COMMAND_SIG(exit_4coder)
 CUSTOM_DOC("Attempts to close 4coder.")
 {

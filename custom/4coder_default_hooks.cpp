@@ -536,7 +536,7 @@ do_full_lex(Application_Links *app, Buffer_ID buffer_id){
     block_copy_struct(tokens_ptr, &tokens);
 }
 
-BUFFER_HOOK_SIG(default_file_settings){
+BUFFER_HOOK_SIG(default_begin_buffer){
     b32 treat_as_code = false;
     b32 lex_without_strings = false;
     (void)(lex_without_strings);
@@ -618,10 +618,23 @@ BUFFER_HOOK_SIG(default_file_settings){
         }
     }
     
+    local_persist b32 first_call = true;
+    if (first_call){
+        first_call = false;
+        buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
+        buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
+    }
+    
     Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-    Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
+    Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id,
+                                                  Command_Map_ID);
     *map_id_ptr = map_id;
+    
+    Line_Ending_Kind setting = guess_line_ending_kind_from_buffer_contents(app, buffer_id);
+    Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
+                                                     Line_Ending_Kind);
+    *eol_setting = setting;
     
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
@@ -642,6 +655,7 @@ BUFFER_HOOK_SIG(default_file_settings){
         do_full_lex(app, buffer_id);
     }
     
+    
     // no meaning for return
     return(0);
 }
@@ -653,11 +667,26 @@ BUFFER_HOOK_SIG(default_new_file){
 }
 
 BUFFER_HOOK_SIG(default_file_save){
+    // buffer_id
     b32 is_virtual = false;
-    if (global_config.automatically_indent_text_on_save &&
-        is_virtual){ 
+    if (global_config.automatically_indent_text_on_save && is_virtual){ 
         auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
     }
+    
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+    Line_Ending_Kind *eol = scope_attachment(app, scope, buffer_eol_setting,
+                                             Line_Ending_Kind);
+    switch (*eol){
+        case LineEndingKind_LF:
+        {
+            rewrite_lines_to_lf(app, buffer_id);
+        }break;
+        case LineEndingKind_CRLF:
+        {
+            rewrite_lines_to_crlf(app, buffer_id);
+        }break;
+    }
+    
     // no meaning for return
     return(0);
 }
@@ -777,7 +806,7 @@ set_all_default_hooks(Application_Links *app){
 #endif
     set_custom_hook(app, HookID_BufferNameResolver, default_buffer_name_resolution);
     
-    set_custom_hook(app, HookID_BeginBuffer, default_file_settings);
+    set_custom_hook(app, HookID_BeginBuffer, default_begin_buffer);
     set_custom_hook(app, HookID_EndBuffer, end_file_close_jump_list);
     set_custom_hook(app, HookID_NewFile, default_new_file);
     set_custom_hook(app, HookID_SaveFile, default_file_save);

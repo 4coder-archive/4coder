@@ -91,7 +91,6 @@ ENUM(i32, Global_Setting_ID){
 
 ENUM(i32, Buffer_Setting_ID){
     BufferSetting_Null,
-    BufferSetting_Eol,
     BufferSetting_Unimportant,
     BufferSetting_ReadOnly,
     BufferSetting_RecordsHistory,
@@ -398,7 +397,7 @@ STRUCT Face_Description{
     Face_Load_Parameters parameters;
 };
 
-STRUCT Face_Metrics{
+struct Face_Metrics{
     f32 text_height;
     f32 line_height;
     f32 max_advance;
@@ -408,12 +407,12 @@ STRUCT Face_Metrics{
     f32 hex_digit_advance;
 };
 
-STRUCT Edit{
+struct Edit{
     String_Const_u8 text;
     Interval_i64 range;
 };
 
-STRUCT Batch_Edit{
+struct Batch_Edit{
     Batch_Edit *next;
     Edit edit;
 };

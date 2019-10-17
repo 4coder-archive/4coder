@@ -1010,6 +1010,13 @@ struct String_Any{
     };
 };
 
+typedef i32 Line_Ending_Kind;
+enum{
+    LineEndingKind_Binary,
+    LineEndingKind_LF,
+    LineEndingKind_CRLF,
+};
+
 struct Character_Consume_Result{
     u32 inc;
     u32 codepoint;

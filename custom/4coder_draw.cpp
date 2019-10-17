@@ -195,17 +195,24 @@ draw_file_bar(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID
     push_fancy_string(scratch, &list, base_color, unique_name);
     push_fancy_stringf(scratch, &list, base_color, " - Row: %3.lld Col: %3.lld -", cursor.line, cursor.col);
     
-    b64 is_dos_mode = false;
-    if (buffer_get_setting(app, buffer, BufferSetting_Eol, &is_dos_mode)){
-        if (is_dos_mode){
-            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" dos"));
-        }
-        else{
-            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" nix"));
-        }
-    }
-    else{
-        push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" ???"));
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
+                                                     Line_Ending_Kind);
+    switch (*eol_setting){
+        case LineEndingKind_Binary:
+        {
+            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" bin"));
+        }break;
+        
+        case LineEndingKind_LF:
+        {
+            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" lf"));
+        }break;
+        
+        case LineEndingKind_CRLF:
+        {
+            push_fancy_string(scratch, &list, base_color, string_u8_litexpr(" crlf"));
+        }break;
     }
     
     {

@@ -13,7 +13,7 @@
 #define custom_get_buffer_next_sig() Buffer_ID custom_get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access)
 #define custom_get_buffer_by_name_sig() Buffer_ID custom_get_buffer_by_name(Application_Links* app, String_Const_u8 name, Access_Flag access)
 #define custom_get_buffer_by_file_name_sig() Buffer_ID custom_get_buffer_by_file_name(Application_Links* app, String_Const_u8 file_name, Access_Flag access)
-#define custom_buffer_read_range_sig() b32 custom_buffer_read_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, char* out)
+#define custom_buffer_read_range_sig() b32 custom_buffer_read_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, u8* out)
 #define custom_buffer_replace_range_sig() b32 custom_buffer_replace_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string)
 #define custom_buffer_batch_edit_sig() b32 custom_buffer_batch_edit(Application_Links* app, Buffer_ID buffer_id, Batch_Edit* batch)
 #define custom_buffer_seek_string_sig() String_Match custom_buffer_seek_string(Application_Links* app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos)
@@ -183,7 +183,7 @@ typedef i32 custom_get_buffer_count_type(Application_Links* app);
 typedef Buffer_ID custom_get_buffer_next_type(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
 typedef Buffer_ID custom_get_buffer_by_name_type(Application_Links* app, String_Const_u8 name, Access_Flag access);
 typedef Buffer_ID custom_get_buffer_by_file_name_type(Application_Links* app, String_Const_u8 file_name, Access_Flag access);
-typedef b32 custom_buffer_read_range_type(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, char* out);
+typedef b32 custom_buffer_read_range_type(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, u8* out);
 typedef b32 custom_buffer_replace_range_type(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string);
 typedef b32 custom_buffer_batch_edit_type(Application_Links* app, Buffer_ID buffer_id, Batch_Edit* batch);
 typedef String_Match custom_buffer_seek_string_type(Application_Links* app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos);
@@ -526,7 +526,7 @@ internal i32 get_buffer_count(Application_Links* app);
 internal Buffer_ID get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
 internal Buffer_ID get_buffer_by_name(Application_Links* app, String_Const_u8 name, Access_Flag access);
 internal Buffer_ID get_buffer_by_file_name(Application_Links* app, String_Const_u8 file_name, Access_Flag access);
-internal b32 buffer_read_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, char* out);
+internal b32 buffer_read_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, u8* out);
 internal b32 buffer_replace_range(Application_Links* app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string);
 internal b32 buffer_batch_edit(Application_Links* app, Buffer_ID buffer_id, Batch_Edit* batch);
 internal String_Match buffer_seek_string(Application_Links* app, Buffer_ID buffer, String_Const_u8 needle, Scan_Direction direction, i64 start_pos);

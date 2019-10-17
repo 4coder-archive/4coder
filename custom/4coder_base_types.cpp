@@ -5275,6 +5275,31 @@ push_string_copy(Arena *arena, umem size, String_Const_Any src){
     return(string);
 }
 
+function void
+string_list_push(List_String_Const_char *list, Node_String_Const_char *node){
+    sll_queue_push(list->first, list->last, node);
+    list->node_count += 1;
+    list->total_size += node->string.size;
+}
+function void
+string_list_push(List_String_Const_u8 *list, Node_String_Const_u8 *node){
+    sll_queue_push(list->first, list->last, node);
+    list->node_count += 1;
+    list->total_size += node->string.size;
+}
+function void
+string_list_push(List_String_Const_u16 *list, Node_String_Const_u16 *node){
+    sll_queue_push(list->first, list->last, node);
+    list->node_count += 1;
+    list->total_size += node->string.size;
+}
+function void
+string_list_push(List_String_Const_u32 *list, Node_String_Const_u32 *node){
+    sll_queue_push(list->first, list->last, node);
+    list->node_count += 1;
+    list->total_size += node->string.size;
+}
+
 internal void
 string_list_push(Arena *arena, List_String_Const_char *list, String_Const_char string){
     Node_String_Const_char *node = push_array(arena, Node_String_Const_char, 1);
@@ -6622,6 +6647,44 @@ string_list_u32_from_any(Arena *arena, List_String_Const_Any list){
         string_list_push(arena, &result, string_u32_from_any(arena, node->string));
     }
     return(result);
+}
+
+////////////////////////////////
+
+function Line_Ending_Kind
+string_guess_line_ending_kind(String_Const_u8 string){
+    b32 looks_like_binary = false;
+    umem crlf_count = 0;
+    umem lf_count = 0;
+    for (umem i = 0; i < string.size; i += 1){
+        if (string.str[i] == 0){
+            looks_like_binary = true;
+            break;
+        }
+        if (string.str[i] == '\r' &&
+            (i + 1 == string.size || string.str[i + 1] != '\n')){
+            looks_like_binary = true;
+            break;
+        }
+        if (string.str[i] == '\n'){
+            if (i > 0 && string.str[i - 1] == '\r'){
+                crlf_count += 1;
+            }
+            else{
+                lf_count += 1;
+            }
+        }
+    }
+    Line_Ending_Kind kind = LineEndingKind_Binary;
+    if (!looks_like_binary){
+        if (crlf_count > lf_count){
+            kind = LineEndingKind_CRLF;
+        }
+        else{
+            kind = LineEndingKind_LF;
+        }
+    }
+    return(kind);
 }
 
 ////////////////////////////////

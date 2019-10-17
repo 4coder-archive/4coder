@@ -103,17 +103,17 @@ CUSTOM_DOC("At the cursor, insert a ' = {};'.")
     write_string(app, string_u8_litexpr(" = {};"));
 }
 
-static i64
+function i64
 get_start_of_line_at_cursor(Application_Links *app, View_ID view, Buffer_ID buffer){
     i64 pos = view_get_cursor_pos(app, view);
     i64 line = get_line_number_from_pos(app, buffer, pos);
     return(get_pos_past_lead_whitespace_from_line_number(app, buffer, line));
 }
 
-static b32
+function b32
 c_line_comment_starts_at_position(Application_Links *app, Buffer_ID buffer, i64 pos){
     b32 alread_has_comment = false;
-    char check_buffer[2];
+    u8 check_buffer[2];
     if (buffer_read_range(app, buffer, Ii64(pos, pos + 2), check_buffer)){
         if (check_buffer[0] == '/' && check_buffer[1] == '/'){
             alread_has_comment = true;

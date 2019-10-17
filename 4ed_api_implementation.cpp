@@ -217,7 +217,7 @@ get_buffer_by_file_name(Application_Links *app, String_Const_u8 file_name, Acces
 }
 
 api(custom) function b32
-buffer_read_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, char *out)
+buffer_read_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, u8 *out)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -634,18 +634,6 @@ buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
     if (api_check_buffer(file)){
         result = true;
         switch (setting){
-#if 0
-            case BufferSetting_MapID:
-            {
-                *value_out = file->settings.base_map_id;
-            }break;
-#endif
-            
-            case BufferSetting_Eol:
-            {
-                *value_out = file->settings.dos_write_mode;
-            }break;
-            
             case BufferSetting_Unimportant:
             {
                 *value_out = file->settings.unimportant;
@@ -679,21 +667,6 @@ buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
     if (api_check_buffer(file)){
         result = true;
         switch (setting){
-#if 0
-            case BufferSetting_MapID:
-            {
-                Command_Map_ID id = mapping_validate_id(&models->mapping, value);
-                if (id != 0){
-                    file->settings.base_map_id = id;
-                }
-            }break;
-#endif
-            
-            case BufferSetting_Eol:
-            {
-                file->settings.dos_write_mode = (b8)(value != 0);
-            }break;
-            
             case BufferSetting_Unimportant:
             {
                 if (value != 0){
