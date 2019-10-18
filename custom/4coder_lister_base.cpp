@@ -646,6 +646,7 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
         }
         
         if (!handled){
+            // TODO(allen): dedup this stuff.
             Mapping *mapping = lister->mapping;
             Command_Map *map = lister->map;
             if (mapping != 0 && map != 0){

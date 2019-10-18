@@ -385,12 +385,32 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     if (buffer != 0){
+        enum{
+            Prof_WordComplete,
+            Prof_FirstCompletion,
+            Prof_ReserveArena,
+            Prof_NeedleRange,
+            Prof_GetState,
+            Prof_Apply,
+            Prof_COUNT,
+        };
+        Profile_Group *profile = make_profile_group(Prof_COUNT, Prof_COUNT);
+        profile_define(profile, Prof_WordComplete, "word complete");
+        profile_define(profile, Prof_FirstCompletion, "first completion");
+        profile_define(profile, Prof_ReserveArena, "reserve arena");
+        profile_define(profile, Prof_NeedleRange, "needle range");
+        profile_define(profile, Prof_GetState, "get state");
+        profile_define(profile, Prof_Apply, "apply");
+        
+        profile_begin_range(profile, Prof_WordComplete);
+        
         Managed_Scope scope = view_get_managed_scope(app, view);
         
         b32 first_completion = false;
         Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
         if (*rewrite != Rewrite_WordComplete){
             first_completion = true;
+            profile_add_note(profile, Prof_FirstCompletion);
         }
         
         Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
@@ -399,6 +419,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         local_persist Arena *completion_arena = {};
         if (completion_arena == 0){
             completion_arena = reserve_arena(app);
+            profile_add_note(profile, Prof_ReserveArena);
         }
         local_persist Word_Complete_State state = {};
         
@@ -407,13 +428,22 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             linalloc_clear(completion_arena);
             
             i64 pos = view_get_cursor_pos(app, view);
+            
+            profile_begin_range(profile, Prof_NeedleRange);
             Range_i64 needle_range = get_word_complete_needle_range(app, buffer, pos);
+            profile_end_range(profile);
+            
             if (range_size(needle_range) > 0){
-                state = get_word_complete_state(app, completion_arena, buffer, needle_range);
+                profile_begin_range(profile, Prof_GetState);
+                state = get_word_complete_state(app, completion_arena, buffer,
+                                                needle_range);
+                profile_end_range(profile);
             }
         }
         
         if (state.initialized){
+            profile_begin_range(profile, Prof_Apply);
+            
             if (state.iterator == 0){
                 state.iterator = state.list.first;
             }
@@ -432,7 +462,12 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             buffer_replace_range(app, buffer, state.range, str);
             state.range.max = state.range.min + str.size;
             view_set_cursor_and_preferred_x(app, view, seek_pos(state.range.max));
+            
+            profile_end_range(profile);
         }
+        
+        profile_end_range(profile);
+        profile_group_post(profile);
     }
 }
 

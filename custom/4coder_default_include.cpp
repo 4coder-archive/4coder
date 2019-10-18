@@ -22,7 +22,9 @@
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
+#include "4coder_system_allocator.cpp"
 
+#include "4coder_profile.h"
 #include "4coder_table.h"
 #include "4coder_token.h"
 #include "generated/lexer_cpp.h"
@@ -62,6 +64,7 @@
 #include "4coder_table.cpp"
 #include "4coder_string_match.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
+#include "4coder_profile.cpp"
 
 #include "4coder_token.cpp"
 #include "generated/lexer_cpp.cpp"
@@ -93,6 +96,7 @@
 #include "4coder_scope_commands.cpp"
 #include "4coder_combined_write_commands.cpp"
 #include "4coder_miblo_numbers.cpp"
+#include "4coder_profile_inspect.cpp"
 
 #include "4coder_default_hooks.cpp"
 

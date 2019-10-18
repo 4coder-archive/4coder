@@ -208,8 +208,9 @@ draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
         
         f32 adv = get_string_advance(app, use_font_id, string->value);
         
-        // TODO(casey): need to fill the background here, but I don't know the line height,
-        // and I can't actually render filled shapes, so, like, I can't properly do dP :(
+        // TODO(casey): need to fill the background here, but I don't know the line 
+        // height, and I can't actually render filled shapes, so, like, I can't
+        // properly do dP :(
         
         Face_Metrics metrics = get_face_metrics(app, font_id);
         
@@ -221,8 +222,8 @@ draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
 }
 
 static Vec2_f32
-draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string, Vec2 P,
-                  int_color fore, int_color back){
+draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
+                  Vec2_f32 P, int_color fore, int_color back){
     return(draw_fancy_string(app, font_id, string, P, fore, back, 0, V2(1.f, 0.f)));
 }
 
