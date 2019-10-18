@@ -62,14 +62,14 @@ api(custom) function f32 view_get_preferred_x(Application_Links* app, View_ID vi
 api(custom) function b32 view_set_preferred_x(Application_Links* app, View_ID view_id, f32 x);
 api(custom) function Rect_f32 view_get_screen_rect(Application_Links* app, View_ID view_id);
 api(custom) function Panel_ID view_get_panel(Application_Links* app, View_ID view_id);
-api(custom) function View_ID panel_get_view(Application_Links* app, Panel_ID panel_id);
+api(custom) function View_ID panel_get_view(Application_Links* app, Panel_ID panel_id, Access_Flag access);
 api(custom) function b32 panel_is_split(Application_Links* app, Panel_ID panel_id);
 api(custom) function b32 panel_is_leaf(Application_Links* app, Panel_ID panel_id);
-api(custom) function b32 panel_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Orientation orientation);
-api(custom) function b32 panel_set_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t);
+api(custom) function b32 panel_split(Application_Links* app, Panel_ID panel_id, Dimension split_dim);
+api(custom) function b32 panel_set_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, f32 t);
 api(custom) function b32 panel_swap_children(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t);
 api(custom) function Panel_ID panel_get_parent(Application_Links* app, Panel_ID panel_id);
-api(custom) function Panel_ID panel_get_child(Application_Links* app, Panel_ID panel_id, Panel_Child which_child);
+api(custom) function Panel_ID panel_get_child(Application_Links* app, Panel_ID panel_id, Side which_child);
 api(custom) function Panel_ID panel_get_max(Application_Links* app, Panel_ID panel_id);
 api(custom) function Rect_i32 panel_get_margin(Application_Links* app, Panel_ID panel_id);
 api(custom) function b32 view_close(Application_Links* app, View_ID view_id);
@@ -148,7 +148,6 @@ api(custom) function void get_theme_colors(Application_Links* app, Theme_Color* 
 api(custom) function argb_color finalize_color(Application_Links* app, int_color color);
 api(custom) function String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
 api(custom) function b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
-api(custom) function void set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
 api(custom) function void send_exit_signal(Application_Links* app);
 api(custom) function b32 set_window_title(Application_Links* app, String_Const_u8 title);
 api(custom) function Vec2 draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);

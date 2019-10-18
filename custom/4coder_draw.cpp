@@ -173,7 +173,7 @@ draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_v
 
 function Rect_f32
 draw_background_and_margin(Application_Links *app, View_ID view){
-    View_ID active_view = get_active_view(app, AccessAll);
+    View_ID active_view = get_active_view(app, Access_Always);
     b32 is_active_view = (active_view == view);
     return(draw_background_and_margin(app, view, is_active_view));
 }

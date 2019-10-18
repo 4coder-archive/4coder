@@ -62,14 +62,14 @@
 #define custom_view_set_preferred_x_sig() b32 custom_view_set_preferred_x(Application_Links* app, View_ID view_id, f32 x)
 #define custom_view_get_screen_rect_sig() Rect_f32 custom_view_get_screen_rect(Application_Links* app, View_ID view_id)
 #define custom_view_get_panel_sig() Panel_ID custom_view_get_panel(Application_Links* app, View_ID view_id)
-#define custom_panel_get_view_sig() View_ID custom_panel_get_view(Application_Links* app, Panel_ID panel_id)
+#define custom_panel_get_view_sig() View_ID custom_panel_get_view(Application_Links* app, Panel_ID panel_id, Access_Flag access)
 #define custom_panel_is_split_sig() b32 custom_panel_is_split(Application_Links* app, Panel_ID panel_id)
 #define custom_panel_is_leaf_sig() b32 custom_panel_is_leaf(Application_Links* app, Panel_ID panel_id)
-#define custom_panel_split_sig() b32 custom_panel_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Orientation orientation)
-#define custom_panel_set_split_sig() b32 custom_panel_set_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t)
+#define custom_panel_split_sig() b32 custom_panel_split(Application_Links* app, Panel_ID panel_id, Dimension split_dim)
+#define custom_panel_set_split_sig() b32 custom_panel_set_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, f32 t)
 #define custom_panel_swap_children_sig() b32 custom_panel_swap_children(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t)
 #define custom_panel_get_parent_sig() Panel_ID custom_panel_get_parent(Application_Links* app, Panel_ID panel_id)
-#define custom_panel_get_child_sig() Panel_ID custom_panel_get_child(Application_Links* app, Panel_ID panel_id, Panel_Child which_child)
+#define custom_panel_get_child_sig() Panel_ID custom_panel_get_child(Application_Links* app, Panel_ID panel_id, Side which_child)
 #define custom_panel_get_max_sig() Panel_ID custom_panel_get_max(Application_Links* app, Panel_ID panel_id)
 #define custom_panel_get_margin_sig() Rect_i32 custom_panel_get_margin(Application_Links* app, Panel_ID panel_id)
 #define custom_view_close_sig() b32 custom_view_close(Application_Links* app, View_ID view_id)
@@ -148,7 +148,6 @@
 #define custom_finalize_color_sig() argb_color custom_finalize_color(Application_Links* app, int_color color)
 #define custom_push_hot_directory_sig() String_Const_u8 custom_push_hot_directory(Application_Links* app, Arena* arena)
 #define custom_set_hot_directory_sig() b32 custom_set_hot_directory(Application_Links* app, String_Const_u8 string)
-#define custom_set_gui_up_down_keys_sig() void custom_set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
 #define custom_send_exit_signal_sig() void custom_send_exit_signal(Application_Links* app)
 #define custom_set_window_title_sig() b32 custom_set_window_title(Application_Links* app, String_Const_u8 title)
 #define custom_draw_string_oriented_sig() Vec2 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta)
@@ -232,14 +231,14 @@ typedef f32 custom_view_get_preferred_x_type(Application_Links* app, View_ID vie
 typedef b32 custom_view_set_preferred_x_type(Application_Links* app, View_ID view_id, f32 x);
 typedef Rect_f32 custom_view_get_screen_rect_type(Application_Links* app, View_ID view_id);
 typedef Panel_ID custom_view_get_panel_type(Application_Links* app, View_ID view_id);
-typedef View_ID custom_panel_get_view_type(Application_Links* app, Panel_ID panel_id);
+typedef View_ID custom_panel_get_view_type(Application_Links* app, Panel_ID panel_id, Access_Flag access);
 typedef b32 custom_panel_is_split_type(Application_Links* app, Panel_ID panel_id);
 typedef b32 custom_panel_is_leaf_type(Application_Links* app, Panel_ID panel_id);
-typedef b32 custom_panel_split_type(Application_Links* app, Panel_ID panel_id, Panel_Split_Orientation orientation);
-typedef b32 custom_panel_set_split_type(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t);
+typedef b32 custom_panel_split_type(Application_Links* app, Panel_ID panel_id, Dimension split_dim);
+typedef b32 custom_panel_set_split_type(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, f32 t);
 typedef b32 custom_panel_swap_children_type(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t);
 typedef Panel_ID custom_panel_get_parent_type(Application_Links* app, Panel_ID panel_id);
-typedef Panel_ID custom_panel_get_child_type(Application_Links* app, Panel_ID panel_id, Panel_Child which_child);
+typedef Panel_ID custom_panel_get_child_type(Application_Links* app, Panel_ID panel_id, Side which_child);
 typedef Panel_ID custom_panel_get_max_type(Application_Links* app, Panel_ID panel_id);
 typedef Rect_i32 custom_panel_get_margin_type(Application_Links* app, Panel_ID panel_id);
 typedef b32 custom_view_close_type(Application_Links* app, View_ID view_id);
@@ -318,7 +317,6 @@ typedef void custom_get_theme_colors_type(Application_Links* app, Theme_Color* c
 typedef argb_color custom_finalize_color_type(Application_Links* app, int_color color);
 typedef String_Const_u8 custom_push_hot_directory_type(Application_Links* app, Arena* arena);
 typedef b32 custom_set_hot_directory_type(Application_Links* app, String_Const_u8 string);
-typedef void custom_set_gui_up_down_keys_type(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
 typedef void custom_send_exit_signal_type(Application_Links* app);
 typedef b32 custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
 typedef Vec2 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
@@ -489,7 +487,6 @@ custom_get_theme_colors_type *get_theme_colors;
 custom_finalize_color_type *finalize_color;
 custom_push_hot_directory_type *push_hot_directory;
 custom_set_hot_directory_type *set_hot_directory;
-custom_set_gui_up_down_keys_type *set_gui_up_down_keys;
 custom_send_exit_signal_type *send_exit_signal;
 custom_set_window_title_type *set_window_title;
 custom_draw_string_oriented_type *draw_string_oriented;
@@ -575,14 +572,14 @@ internal f32 view_get_preferred_x(Application_Links* app, View_ID view_id);
 internal b32 view_set_preferred_x(Application_Links* app, View_ID view_id, f32 x);
 internal Rect_f32 view_get_screen_rect(Application_Links* app, View_ID view_id);
 internal Panel_ID view_get_panel(Application_Links* app, View_ID view_id);
-internal View_ID panel_get_view(Application_Links* app, Panel_ID panel_id);
+internal View_ID panel_get_view(Application_Links* app, Panel_ID panel_id, Access_Flag access);
 internal b32 panel_is_split(Application_Links* app, Panel_ID panel_id);
 internal b32 panel_is_leaf(Application_Links* app, Panel_ID panel_id);
-internal b32 panel_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Orientation orientation);
-internal b32 panel_set_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t);
+internal b32 panel_split(Application_Links* app, Panel_ID panel_id, Dimension split_dim);
+internal b32 panel_set_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, f32 t);
 internal b32 panel_swap_children(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t);
 internal Panel_ID panel_get_parent(Application_Links* app, Panel_ID panel_id);
-internal Panel_ID panel_get_child(Application_Links* app, Panel_ID panel_id, Panel_Child which_child);
+internal Panel_ID panel_get_child(Application_Links* app, Panel_ID panel_id, Side which_child);
 internal Panel_ID panel_get_max(Application_Links* app, Panel_ID panel_id);
 internal Rect_i32 panel_get_margin(Application_Links* app, Panel_ID panel_id);
 internal b32 view_close(Application_Links* app, View_ID view_id);
@@ -661,7 +658,6 @@ internal void get_theme_colors(Application_Links* app, Theme_Color* colors, i32 
 internal argb_color finalize_color(Application_Links* app, int_color color);
 internal String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
 internal b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
-internal void set_gui_up_down_keys(Application_Links* app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier);
 internal void send_exit_signal(Application_Links* app);
 internal b32 set_window_title(Application_Links* app, String_Const_u8 title);
 internal Vec2 draw_string_oriented(Application_Links* app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta);
@@ -833,7 +829,6 @@ global custom_get_theme_colors_type *get_theme_colors = 0;
 global custom_finalize_color_type *finalize_color = 0;
 global custom_push_hot_directory_type *push_hot_directory = 0;
 global custom_set_hot_directory_type *set_hot_directory = 0;
-global custom_set_gui_up_down_keys_type *set_gui_up_down_keys = 0;
 global custom_send_exit_signal_type *send_exit_signal = 0;
 global custom_set_window_title_type *set_window_title = 0;
 global custom_draw_string_oriented_type *draw_string_oriented = 0;

@@ -56,11 +56,11 @@ file_get_face(Models *models, Editing_File *file){
     return(font_set_face_from_id(&models->font_set, file->settings.face_id));
 }
 
-internal u32
+internal Access_Flag
 file_get_access_flags(Editing_File *file){
-    u32 flags = 0;
-    if (file->settings.read_only){
-        flags |= AccessProtected;
+    Access_Flag flags = Access_Read|Access_Visible;
+    if (!file->settings.read_only){
+        flags |= Access_Write;
     }
     return(flags);
 }

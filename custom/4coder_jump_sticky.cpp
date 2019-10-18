@@ -348,8 +348,8 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 {
     Heap *heap = &global_heap;
     
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
     i64 pos = view_get_cursor_pos(app, view);
@@ -362,7 +362,7 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
         if (get_jump_from_list(app, list, list_index, &location)){
             if (get_jump_buffer(app, &buffer, &location)){
                 change_active_panel(app);
-                View_ID target_view = get_active_view(app, AccessAll);
+                View_ID target_view = get_active_view(app, Access_Always);
                 switch_to_existing_view(app, target_view, buffer);
                 jump_to_location(app, target_view, buffer, location);
             }
@@ -375,8 +375,8 @@ CUSTOM_DOC("If the cursor is found to be on a jump location, parses the jump loc
 {
     Heap *heap = &global_heap;
     
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     
     Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     
@@ -399,10 +399,10 @@ internal void
 goto_jump_in_order(Application_Links *app, Marker_List *list, View_ID jump_view, ID_Pos_Jump_Location location){
     Buffer_ID buffer = {};
     if (get_jump_buffer(app, &buffer, &location)){
-        View_ID target_view = get_active_view(app, AccessAll);
+        View_ID target_view = get_active_view(app, Access_Always);
         if (target_view == jump_view){
             change_active_panel(app);
-            target_view = get_active_view(app, AccessAll);
+            target_view = get_active_view(app, Access_Always);
         }
         switch_to_existing_view(app, target_view, buffer);
         jump_to_location(app, target_view, buffer, location);
@@ -449,7 +449,7 @@ get_locked_jump_state(Application_Links *app, Heap *heap){
     Locked_Jump_State result = {};
     result.view = get_view_for_locked_jump_buffer(app);
     if (result.view != 0){
-        Buffer_ID buffer = view_get_buffer(app, result.view, AccessAll);
+        Buffer_ID buffer = view_get_buffer(app, result.view, Access_Always);
         result.list = get_or_make_list_for_buffer(app, heap, buffer);
         
         i64 cursor_position = view_get_cursor_pos(app, result.view);
@@ -562,10 +562,10 @@ CUSTOM_DOC("If a buffer containing jump locations has been locked in, goes to th
 CUSTOM_COMMAND_SIG(if_read_only_goto_position)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     if (buffer == 0){
-        buffer = view_get_buffer(app, view, AccessProtected);
+        buffer = view_get_buffer(app, view, Access_ReadVisible);
         if (buffer != 0){
             goto_jump_at_cursor(app);
             lock_jump_buffer(app, buffer);
@@ -579,10 +579,10 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
 CUSTOM_COMMAND_SIG(if_read_only_goto_position_same_panel)
 CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, otherwise performs goto_jump_at_cursor_same_panel.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     if (buffer == 0){
-        buffer = view_get_buffer(app, view, AccessProtected);
+        buffer = view_get_buffer(app, view, Access_ReadVisible);
         if (buffer != 0){
             goto_jump_at_cursor_same_panel(app);
             lock_jump_buffer(app, buffer);

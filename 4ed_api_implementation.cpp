@@ -10,8 +10,8 @@
 // TOP
 
 function b32
-access_test(u32 lock_flags, u32 access_flags){
-    return((lock_flags & ~access_flags) == 0);
+access_test(Access_Flag object_flags, Access_Flag access_flags){
+    return((object_flags & access_flags) == access_flags);
 }
 
 function b32
@@ -49,8 +49,7 @@ is_running_coroutine(Application_Links *app){
 }
 
 api(custom) function b32
-global_set_setting(Application_Links *app, Global_Setting_ID setting, i64 value)
-{
+global_set_setting(Application_Links *app, Global_Setting_ID setting, i64 value){
     Models *models = (Models*)app->cmd_context;
     b32 result = true;
     switch (setting){
@@ -1116,15 +1115,16 @@ view_get_panel(Application_Links *app, View_ID view_id){
 }
 
 api(custom) function View_ID
-panel_get_view(Application_Links *app, Panel_ID panel_id){
+panel_get_view(Application_Links *app, Panel_ID panel_id, Access_Flag access){
     Models *models = (Models*)app->cmd_context;
     Panel *panel = imp_get_panel(models, panel_id);
     View_ID result = 0;
     if (api_check_panel(panel)){
         if (panel->kind == PanelKind_Final){
             View *view = panel->view;
-            Assert(view != 0);
-            result = view_get_id(&models->live_set, view);
+            if (api_check_view(view, access)){
+                result = view_get_id(&models->live_set, view);
+            }
         }
     }
     return(result);
@@ -1157,17 +1157,20 @@ panel_is_leaf(Application_Links *app, Panel_ID panel_id){
 }
 
 api(custom) function b32
-panel_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation orientation){
+panel_split(Application_Links *app, Panel_ID panel_id, Dimension split_dim){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
     b32 result = false;
     Panel *panel = imp_get_panel(models, panel_id);
     if (api_check_panel(panel)){
         Panel *new_panel = 0;
-        if (layout_split_panel(layout, panel, (orientation == PanelSplit_LeftAndRight), &new_panel)){
+        if (layout_split_panel(layout, panel, (split_dim == Dimension_X),
+                               &new_panel)){
             Live_Views *live_set = &models->live_set;
-            View *new_view = live_set_alloc_view(&models->lifetime_allocator, live_set, new_panel);
-            view_init(models, new_view, models->scratch_buffer, models->view_event_handler);
+            View *new_view = live_set_alloc_view(&models->lifetime_allocator,
+                                                 live_set, new_panel);
+            view_init(models, new_view, models->scratch_buffer,
+                      models->view_event_handler);
             result = true;
         }
     }
@@ -1175,7 +1178,8 @@ panel_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Orientation o
 }
 
 api(custom) function b32
-panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){
+panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind,
+                f32 t){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
     b32 result = false;
@@ -1236,7 +1240,7 @@ panel_get_parent(Application_Links *app, Panel_ID panel_id){
 }
 
 api(custom) function Panel_ID
-panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_child){
+panel_get_child(Application_Links *app, Panel_ID panel_id, Side which_child){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
     Panel *panel = imp_get_panel(models, panel_id);
@@ -1245,11 +1249,11 @@ panel_get_child(Application_Links *app, Panel_ID panel_id, Panel_Child which_chi
         if (panel->kind == PanelKind_Intermediate){
             Panel *child = 0;
             switch (which_child){
-                case PanelChild_Min:
+                case Side_Min:
                 {
                     child = panel->tl_panel;
                 }break;
-                case PanelChild_Max:
+                case Side_Max:
                 {
                     child = panel->br_panel;
                 }break;
@@ -1587,7 +1591,7 @@ view_current_context(Application_Links *app, View_ID view_id){
     View *view = imp_get_view(models, view_id);
     View_Context result = {};
     if (api_check_view(view)){
-        result = view_current_context(models, view);
+        result = view_current_context(view);
     }
     return(result);
 }
@@ -1599,7 +1603,7 @@ view_current_context_hook_memory(Application_Links *app, View_ID view_id,
     View *view = imp_get_view(models, view_id);
     Data result = {};
     if (api_check_view(view)){
-        View_Context_Node *ctx = view_current_context_node(models, view);
+        View_Context_Node *ctx = view_current_context_node(view);
         if (ctx != 0){
             switch (hook_id){
                 case HookID_DeltaRule:
@@ -2584,16 +2588,6 @@ set_hot_directory(Application_Links *app, String_Const_u8 string)
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_set(hot, string);
     return(true);
-}
-
-api(custom) function void
-set_gui_up_down_keys(Application_Links *app, Key_Code up_key, Key_Modifier up_key_modifier, Key_Code down_key, Key_Modifier down_key_modifier)
-{
-    Models *models = (Models*)app->cmd_context;
-    models->user_up_key = up_key;
-    models->user_up_key_modifier = up_key_modifier;
-    models->user_down_key = down_key;
-    models->user_down_key_modifier = down_key_modifier;
 }
 
 api(custom) function void

@@ -207,7 +207,7 @@ static void
 list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     // TODO(allen): Use create or switch to buffer and clear here?
     String_Const_u8 decls_name = string_u8_litexpr("*decls*");
-    Buffer_ID decls_buffer = get_buffer_by_name(app, decls_name, AccessAll);
+    Buffer_ID decls_buffer = get_buffer_by_name(app, decls_name, Access_Always);
     if (!buffer_exists(app, decls_buffer)){
         decls_buffer = create_buffer(app, decls_name, BufferCreate_AlwaysNew);
         buffer_set_setting(app, decls_buffer, BufferSetting_Unimportant, true);
@@ -228,9 +228,9 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     Cursor insertion_cursor = make_cursor(push_array(scratch, u8, KB(256)), KB(256));
     Buffer_Insertion out = begin_buffer_insertion_at_buffered(app, decls_buffer, 0, &insertion_cursor);
     
-    for (Buffer_ID buffer_it = get_buffer_next(app, 0, AccessAll);
+    for (Buffer_ID buffer_it = get_buffer_next(app, 0, Access_Always);
          buffer_it != 0;
-         buffer_it = get_buffer_next(app, buffer_it, AccessAll)){
+         buffer_it = get_buffer_next(app, buffer_it, Access_Always)){
         Buffer_ID buffer = buffer_it;
         if (optional_target_buffer != 0){
             buffer = optional_target_buffer;
@@ -258,7 +258,7 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     
     end_buffer_insertion(&out);
     
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     view_set_buffer(app, view, decls_buffer, 0);
     
     lock_jump_buffer(app, decls_name);
@@ -267,8 +267,8 @@ list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer)
 CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to define or declare functions.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     if (buffer != 0){
         list_all_functions(app, buffer);
     }
@@ -277,11 +277,11 @@ CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to de
 CUSTOM_COMMAND_SIG(list_all_functions_current_buffer_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations in the buffer.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     if (buffer != 0){
         list_all_functions(app, buffer);
-        view = get_active_view(app, AccessAll);
+        view = get_active_view(app, Access_Always);
         open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
     }
 }
@@ -296,8 +296,8 @@ CUSTOM_COMMAND_SIG(list_all_functions_all_buffers_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations all buffers.")
 {
     list_all_functions(app, 0);
-    View_ID view = get_active_view(app, AccessAll);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
     open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
 }
 

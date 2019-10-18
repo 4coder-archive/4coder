@@ -7,7 +7,7 @@ such as open file, switch buffer, or kill buffer.
 
 function void
 lister__write_character__file_path(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
         User_Input in = get_current_input(app);
@@ -30,7 +30,7 @@ lister__write_character__file_path(Application_Links *app){
 
 function void
 lister__backspace_text_field__file_path(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
         if (lister->text_field.size > 0){
@@ -68,7 +68,7 @@ lister__backspace_text_field__file_path(Application_Links *app){
 function Lister_Activation_Code
 lister__key_stroke__fixed_list(Application_Links *app){
     Lister_Activation_Code result = ListerActivation_Continue;
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
         User_Input in = get_current_input(app);
@@ -223,10 +223,10 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     
     // List currently viewed buffers
     {
-        for (View_ID view = get_view_next(app, 0, AccessAll);
+        for (View_ID view = get_view_next(app, 0, Access_Always);
              view != 0;
-             view = get_view_next(app, view, AccessAll)){
-            Buffer_ID new_buffer_id = view_get_buffer(app, view, AccessAll);
+             view = get_view_next(app, view, Access_Always)){
+            Buffer_ID new_buffer_id = view_get_buffer(app, view, Access_Always);
             for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
                 if (new_buffer_id == buffers_currently_being_viewed[i]){
                     goto skip0;
@@ -239,9 +239,9 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     
     // Regular Buffers
     {
-        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
              buffer != 0;
-             buffer = get_buffer_next(app, buffer, AccessAll)){
+             buffer = get_buffer_next(app, buffer, Access_Always)){
             for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
                 if (buffer == buffers_currently_being_viewed[i]){
                     goto skip1;
@@ -255,9 +255,9 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
     }
     // Buffers Starting with *
     {
-        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
              buffer != 0;
-             buffer = get_buffer_next(app, buffer, AccessAll)){
+             buffer = get_buffer_next(app, buffer, Access_Always)){
             for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
                 if (buffer == buffers_currently_being_viewed[i]){
                     goto skip2;
@@ -324,7 +324,7 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
                 string_list_push(lister->arena, &list, hot);
                 string_list_push_overlap(lister->arena, &list, '/', (**info).file_name);
                 String_Const_u8 full_file_path = string_list_flatten(lister->arena, list);
-                buffer = get_buffer_by_file_name(app, full_file_path, AccessAll);
+                buffer = get_buffer_by_file_name(app, full_file_path, Access_Always);
                 end_temp(path_temp);
             }
             
@@ -487,7 +487,7 @@ activate_switch_buffer(Application_Links *app,
 CUSTOM_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     run_lister_buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, view);
 }
 
@@ -506,7 +506,7 @@ activate_kill_buffer(Application_Links *app,
 CUSTOM_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     run_lister_buffer_list(app, "Kill:", activate_kill_buffer, 0, 0, view);
 }
 
@@ -577,7 +577,7 @@ activate_open_or_new(Application_Links *app,
 CUSTOM_COMMAND_SIG(interactive_open_or_new)
 CUSTOM_DOC("Interactively open a file out of the file system.")
 {
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     run_lister_file_system_list(app, "Open:", activate_open_or_new, 0, 0, view);
 }
 
@@ -616,7 +616,7 @@ activate_new(Application_Links *app,
 CUSTOM_COMMAND_SIG(interactive_new)
 CUSTOM_DOC("Interactively creates a new file.")
 {
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     run_lister_file_system_list(app, "New:", activate_new, 0, 0, view);
 }
 
@@ -649,7 +649,7 @@ activate_open(Application_Links *app,
 CUSTOM_COMMAND_SIG(interactive_open)
 CUSTOM_DOC("Interactively opens a file.")
 {
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     run_lister_file_system_list(app, "Open:", activate_open, 0, 0, view);
 }
 
@@ -688,7 +688,7 @@ launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 comma
     }
     
     Scratch_Block scratch(app, Scratch_Share);
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     Lister_Option *options = push_array(scratch, Lister_Option, command_id_count);
     for (i32 i = 0; i < command_id_count; i += 1){
         i32 j = i;

@@ -31,8 +31,8 @@ begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, 
 
 static Buffer_Insertion
 begin_buffer_insertion(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
     i64 cursor_pos = view_get_cursor_pos(app, view);
     Buffer_Insertion result = begin_buffer_insertion_at(app, buffer, cursor_pos);
     return(result);

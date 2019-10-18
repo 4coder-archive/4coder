@@ -13,8 +13,8 @@ write_string(Application_Links *app, View_ID view, Buffer_ID buffer, String_Cons
 
 static void
 write_string(Application_Links *app, String_Const_u8 string){
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     write_string(app, view, buffer, string);
 }
 
@@ -34,8 +34,8 @@ write_named_comment_string(Application_Links *app, char *type_string){
 
 static void
 long_braces(Application_Links *app, char *text, i32 size){
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     i64 pos = view_get_cursor_pos(app, view);
     buffer_replace_range(app, buffer, Ii64(pos), SCu8(text, size));
     view_set_cursor_and_preferred_x(app, view, seek_pos(pos + 2));
@@ -125,8 +125,8 @@ c_line_comment_starts_at_position(Application_Links *app, Buffer_ID buffer, i64 
 CUSTOM_COMMAND_SIG(comment_line)
 CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
 {
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     i64 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (!alread_has_comment){
@@ -137,8 +137,8 @@ CUSTOM_DOC("Insert '//' at the beginning of the line after leading whitespace.")
 CUSTOM_COMMAND_SIG(uncomment_line)
 CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading whitespace.")
 {
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     i64 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
@@ -149,8 +149,8 @@ CUSTOM_DOC("If present, delete '//' at the beginning of the line after leading w
 CUSTOM_COMMAND_SIG(comment_line_toggle)
 CUSTOM_DOC("Turns uncommented lines into commented lines and vice versa for comments starting with '//'.")
 {
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     i64 pos = get_start_of_line_at_cursor(app, view, buffer);
     b32 alread_has_comment = c_line_comment_starts_at_position(app, buffer, pos);
     if (alread_has_comment){
@@ -202,7 +202,7 @@ activate_snippet(Application_Links *app, View_ID view, Lister *lister, String_Co
     if (0 <= index && index < snippets.count){
         Snippet snippet = snippets.snippets[index];
         lister_default(app, view, lister, ListerActivation_Finished);
-        Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+        Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
         i64 pos = view_get_cursor_pos(app, view);
         buffer_replace_range(app, buffer, Ii64(pos), SCu8(snippet.text));
         view_set_cursor_and_preferred_x(app, view, seek_pos(pos + snippet.cursor_offset));
@@ -216,7 +216,7 @@ activate_snippet(Application_Links *app, View_ID view, Lister *lister, String_Co
 
 static void
 snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_array){
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     Scratch_Block scratch(app, Scratch_Share);
     i32 option_count = snippet_array.count;
     Lister_Option *options = push_array(scratch, Lister_Option, option_count);

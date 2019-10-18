@@ -164,7 +164,7 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         showing_file_bar &&
         !global_config.hide_file_bar_in_ui){
         Rect_f32_Pair pair = layout_file_bar_on_top(region, line_height);
-        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+        Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
         draw_file_bar(app, view, buffer, face_id, pair.min);
         region = pair.max;
     }
@@ -725,7 +725,7 @@ lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, 
 
 function void
 lister__write_string__default(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
         User_Input in = get_current_input(app);
@@ -742,7 +742,7 @@ lister__write_string__default(Application_Links *app){
 
 function void
 lister__backspace_text_field__default(Application_Links *app){
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
         lister->text_field.string = backspace_utf8(lister->text_field.string);

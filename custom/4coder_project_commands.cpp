@@ -35,9 +35,9 @@ close_all_files_with_extension(Application_Links *app, String_Const_u8_Array ext
         i32 buffers_to_close_count = 0;
         do_repeat = false;
         
-        for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
+        for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
              buffer != 0;
-             buffer = get_buffer_next(app, buffer, AccessAll)){
+             buffer = get_buffer_next(app, buffer, Access_Always)){
             b32 is_match = true;
             
             if (extension_array.count > 0){
@@ -847,7 +847,7 @@ exec_project_command(Application_Links *app, Project_Command *command){
                 Buffer_ID buffer = buffer_identifier_to_id(app, buffer_id);
                 view = get_first_view_with_buffer(app, buffer);
                 if (view == 0){
-                    view = get_active_view(app, AccessAll);
+                    view = get_active_view(app, Access_Always);
                 }
             }
             
@@ -1341,7 +1341,7 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
     if (current_project.loaded){
         Scratch_Block scratch(app, Scratch_Share);
         
-        View_ID view = get_active_view(app, AccessAll);
+        View_ID view = get_active_view(app, Access_Always);
         i32 option_count = current_project.command_array.count;
         Lister_Option *options = push_array(scratch, Lister_Option, option_count);
         for (i32 i = 0;

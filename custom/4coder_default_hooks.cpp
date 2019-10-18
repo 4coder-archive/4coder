@@ -26,9 +26,9 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
         b32 do_exit = true;
         if (!allow_immediate_close_without_checking_for_changes){
             b32 has_unsaved_changes = false;
-            for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
+            for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
                  buffer != 0;
-                 buffer = get_buffer_next(app, buffer, AccessAll)){
+                 buffer = get_buffer_next(app, buffer, Access_Always)){
                 Dirty_State dirty = buffer_get_dirty_state(app, buffer);
                 if (HasFlag(dirty, DirtyState_UnsavedChanges)){
                     has_unsaved_changes = true;
@@ -36,7 +36,7 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
                 }
             }
             if (has_unsaved_changes){
-                View_ID view = get_active_view(app, AccessAll);
+                View_ID view = get_active_view(app, Access_Always);
                 do_exit = do_gui_sure_to_close_4coder(app, view);
             }
         }
@@ -69,9 +69,9 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
             continue;
         }
         
-        View_ID view = get_active_view(app, AccessAll);
+        View_ID view = get_active_view(app, Access_Always);
         
-        Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+        Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
         Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
         Command_Map_ID *map_id_ptr =
             scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
@@ -94,9 +94,9 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
             Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
             *next_rewrite = Rewrite_None;
             if (fcoder_mode == FCoderMode_NotepadLike){
-                for (View_ID view_it = get_view_next(app, 0, AccessAll);
+                for (View_ID view_it = get_view_next(app, 0, Access_Always);
                      view_it != 0;
-                     view_it = get_view_next(app, view_it, AccessAll)){
+                     view_it = get_view_next(app, view_it, Access_Always)){
                     Managed_Scope scope_it = view_get_managed_scope(app, view_it);
                     b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
                     *snap_mark_to_cursor = true;
@@ -112,9 +112,9 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
                 Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
                 *rewrite = *next_rewrite;
                 if (fcoder_mode == FCoderMode_NotepadLike){
-                    for (View_ID view_it = get_view_next(app, 0, AccessAll);
+                    for (View_ID view_it = get_view_next(app, 0, Access_Always);
                          view_it != 0;
-                         view_it = get_view_next(app, view_it, AccessAll)){
+                         view_it = get_view_next(app, view_it, Access_Always)){
                         Managed_Scope scope_it = view_get_managed_scope(app, view_it);
                         b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
                         if (*snap_mark_to_cursor){
@@ -193,7 +193,7 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 
 function Rect_f32
 default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
-    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view_id, Access_Always);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics metrics = get_face_metrics(app, face_id);
     f32 line_height = metrics.line_height;
@@ -269,7 +269,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_vie
     if (global_config.use_error_highlight || global_config.use_jump_highlight){
         // NOTE(allen): Error highlight
         String_Const_u8 name = string_u8_litexpr("*compilation*");
-        Buffer_ID compilation_buffer = get_buffer_by_name(app, name, AccessAll);
+        Buffer_ID compilation_buffer = get_buffer_by_name(app, name, Access_Always);
         if (global_config.use_error_highlight){
             draw_jump_highlights(app, buffer, text_layout_id, compilation_buffer, Stag_Highlight_Junk);
         }
@@ -321,13 +321,13 @@ default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_vie
 
 function void
 default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id){
-    View_ID active_view = get_active_view(app, AccessAll);
+    View_ID active_view = get_active_view(app, Access_Always);
     b32 is_active_view = (active_view == view_id);
     
     Rect_f32 region = draw_background_and_margin(app, view_id, is_active_view);
     Rect_f32 prev_clip = draw_set_clip(app, region);
     
-    Buffer_ID buffer = view_get_buffer(app, view_id, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view_id, Access_Always);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics face_metrics = get_face_metrics(app, face_id);
     f32 line_height = face_metrics.line_height;

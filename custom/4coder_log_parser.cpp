@@ -665,7 +665,7 @@ internal void
 log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     if (log_parse.arena != 0){
         ////////////////////////////////
-        View_ID active_view = get_active_view(app, AccessAll);
+        View_ID active_view = get_active_view(app, Access_Always);
         b32 is_active_view = (active_view == view);
         
         Rect_f32 view_rect = view_get_screen_rect(app, view);
@@ -966,12 +966,13 @@ log_graph__click_jump_to_event_source(Application_Links *app, Vec2_f32 m_p){
             Log_Event *event = box_node->event;
             log_graph.selected_event = event;
             
-            View_ID target_view = get_next_view_looped_primary_panels(app, log_view, AccessProtected);
+            View_ID target_view = get_next_view_looped_primary_panels(app, log_view,
+                                                                      Access_ReadVisible);
             if (target_view != 0){
                 String_Const_u8 file_name = log_parse__get_string(&log_parse, event->src_file_name);
-                Buffer_ID target_buffer = get_buffer_by_file_name(app, file_name, AccessAll);
+                Buffer_ID target_buffer = get_buffer_by_file_name(app, file_name, Access_Always);
                 if (target_buffer == 0){
-                    target_buffer = get_buffer_by_name(app, file_name, AccessAll);
+                    target_buffer = get_buffer_by_name(app, file_name, Access_Always);
                 }
                 if (target_buffer != 0){
                     set_view_to_location(app, target_view, target_buffer,
@@ -989,11 +990,11 @@ log_graph__click_jump_to_event_source(Application_Links *app, Vec2_f32 m_p){
 CUSTOM_COMMAND_SIG(show_the_log_graph)
 CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
 {
-    Buffer_ID log_buffer = get_buffer_by_name(app, string_u8_litexpr("*log*"), AccessAll);
+    Buffer_ID log_buffer = get_buffer_by_name(app, string_u8_litexpr("*log*"), Access_Always);
     log_parse_fill(app, log_buffer);
     
     if (log_view == 0){
-        log_view = get_active_view(app, AccessAll);
+        log_view = get_active_view(app, Access_Always);
     }
     
     View_ID view = log_view;

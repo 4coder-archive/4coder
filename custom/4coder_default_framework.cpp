@@ -38,7 +38,7 @@ function Buffer_ID
 get_locked_jump_buffer(Application_Links *app){
     Buffer_ID result = 0;
     if (locked_buffer.size > 0){
-        result = get_buffer_by_name(app, locked_buffer, AccessAll);
+        result = get_buffer_by_name(app, locked_buffer, Access_Always);
     }
     if (result == 0){
         unlock_jump_buffer();
@@ -88,7 +88,7 @@ static View_ID
 open_footer_panel(Application_Links *app, View_ID view){
     View_ID special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, special_view);
-    Buffer_ID buffer = view_get_buffer(app, special_view, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, special_view, Access_Always);
     Face_ID face_id = get_face_id(app, buffer);
     Face_Metrics metrics = get_face_metrics(app, face_id);
     view_set_split_pixel_size(app, special_view, (i32)(metrics.line_height*20.f));
@@ -107,7 +107,7 @@ close_build_footer_panel(Application_Links *app){
 static View_ID
 open_build_footer_panel(Application_Links *app){
     if (build_footer_panel_view_id == 0){
-        View_ID view = get_active_view(app, AccessAll);
+        View_ID view = get_active_view(app, Access_Always);
         build_footer_panel_view_id = open_footer_panel(app, view);
         view_set_active(app, view);
     }
@@ -159,10 +159,10 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
             View_ID view_id;
         };
         
-        View_ID active_view_id = get_active_view(app, AccessAll);
+        View_ID active_view_id = get_active_view(app, Access_Always);
         View_ID first_view_id = active_view_id;
         if (view_get_is_passive(app, active_view_id)){
-            first_view_id = get_next_view_looped_primary_panels(app, active_view_id, AccessAll);
+            first_view_id = get_next_view_looped_primary_panels(app, active_view_id, Access_Always);
         }
         
         View_ID view_id = first_view_id;
@@ -176,7 +176,7 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
         primary_view_last->view_id = view_id;
         available_view_count += 1;
         for (;;){
-            view_id = get_next_view_looped_primary_panels(app, view_id, AccessAll);
+            view_id = get_next_view_looped_primary_panels(app, view_id, Access_Always);
             if (view_id == first_view_id){
                 break;
             }
@@ -203,8 +203,8 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
 CUSTOM_COMMAND_SIG(change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
 {
-    View_ID view = get_active_view(app, AccessAll);
-    view = get_next_view_looped_primary_panels(app, view, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
+    view = get_next_view_looped_primary_panels(app, view, Access_Always);
     if (view != 0){
         view_set_active(app, view);
     }
@@ -213,8 +213,8 @@ CUSTOM_DOC("Change the currently active panel, moving to the panel with the next
 CUSTOM_COMMAND_SIG(change_active_panel_backwards)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next lowest view_id.")
 {
-    View_ID view = get_active_view(app, AccessAll);
-    view = get_prev_view_looped_primary_panels(app, view, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
+    view = get_prev_view_looped_primary_panels(app, view, Access_Always);
     if (view != 0){
         view_set_active(app, view);
     }
@@ -223,20 +223,20 @@ CUSTOM_DOC("Change the currently active panel, moving to the panel with the next
 CUSTOM_COMMAND_SIG(open_panel_vsplit)
 CUSTOM_DOC("Create a new panel by vertically splitting the active panel.")
 {
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     View_ID new_view = open_view(app, view, ViewSplit_Right);
     new_view_settings(app, new_view);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
     view_set_buffer(app, new_view, buffer, 0);
 }
 
 CUSTOM_COMMAND_SIG(open_panel_hsplit)
 CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 {
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     View_ID new_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, new_view);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
     view_set_buffer(app, new_view, buffer, 0);
 }
 
@@ -246,7 +246,7 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 
 static Buffer_ID
 create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Const_u8 name_string, View_ID default_target_view){
-    Buffer_ID search_buffer = get_buffer_by_name(app, name_string, AccessAll);
+    Buffer_ID search_buffer = get_buffer_by_name(app, name_string, Access_Always);
     if (search_buffer != 0){
         buffer_set_setting(app, search_buffer, BufferSetting_ReadOnly, true);
         
@@ -434,13 +434,13 @@ default_4coder_side_by_side_panels(Application_Links *app,
     Buffer_ID right_id = buffer_identifier_to_id(app, right);
     
     // Left Panel
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     new_view_settings(app, view);
     view_set_buffer(app, view, left_id, 0);
     
     // Right Panel
     open_panel_vsplit(app);
-    View_ID right_view = get_active_view(app, AccessAll);
+    View_ID right_view = get_active_view(app, Access_Always);
     view_set_buffer(app, right_view, right_id, 0);
     
     // Restore Active to Left
@@ -476,7 +476,7 @@ default_4coder_side_by_side_panels(Application_Links *app){
 static void
 default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
     Buffer_ID id = buffer_identifier_to_id(app, buffer);
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     new_view_settings(app, view);
     view_set_buffer(app, view, id, 0);
 }

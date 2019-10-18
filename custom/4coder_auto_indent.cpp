@@ -356,8 +356,8 @@ auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos){
 CUSTOM_COMMAND_SIG(auto_indent_whole_file)
 CUSTOM_DOC("Audo-indents the entire current buffer.")
 {
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     i64 buffer_size = buffer_get_size(app, buffer);
     auto_indent_buffer(app, buffer, Ii64(0, buffer_size));
 }
@@ -365,8 +365,8 @@ CUSTOM_DOC("Audo-indents the entire current buffer.")
 CUSTOM_COMMAND_SIG(auto_indent_line_at_cursor)
 CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 {
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     i64 pos = view_get_cursor_pos(app, view);
     auto_indent_buffer(app, buffer, Ii64(pos));
     move_past_lead_whitespace(app, view, buffer);
@@ -375,8 +375,8 @@ CUSTOM_DOC("Auto-indents the line on which the cursor sits.")
 CUSTOM_COMMAND_SIG(auto_indent_range)
 CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
 {
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     Range_i64 range = get_view_range(app, view);
     auto_indent_buffer(app, buffer, range);
     move_past_lead_whitespace(app, view, buffer);
@@ -403,8 +403,8 @@ CUSTOM_DOC("Inserts text and auto-indents the line on which the cursor sits if a
             }
         }
         if (do_auto_indent){
-            View_ID view = get_active_view(app, AccessOpen);
-            Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+            View_ID view = get_active_view(app, Access_ReadWriteVisible);
+            Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
             Range_i64 pos = {};
             pos.min = view_get_cursor_pos(app, view);
             write_text_input(app);

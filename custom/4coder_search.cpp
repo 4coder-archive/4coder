@@ -122,7 +122,7 @@ query_user_list_definition_needle(Application_Links *app, Arena *arena){
 internal void
 list_all_locations__generic(Application_Links *app, String_Const_u8_Array needle, List_All_Locations_Flag flags){
     if (needle.count > 0){
-        View_ID target_view = get_next_view_after_active(app, AccessAll);
+        View_ID target_view = get_next_view_after_active(app, Access_Always);
         String_Match_Flag must_have_flags = 0;
         String_Match_Flag must_not_have_flags = 0;
         if (HasFlag(flags, ListAllLocationsFlag_CaseSensitive)){
@@ -378,8 +378,8 @@ get_word_complete_list(Application_Links *app, Arena *arena, String_Const_u8 nee
 CUSTOM_COMMAND_SIG(word_complete)
 CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
 {
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     if (buffer != 0){
         Managed_Scope scope = view_get_managed_scope(app, view);
         

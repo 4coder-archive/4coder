@@ -77,14 +77,14 @@ view_get_map(View *view){
     return(view->file->settings.base_map_id);
 }
 
-internal u32
+internal Access_Flag
 view_get_access_flags(View *view){
-    u32 result = AccessOpen;
+    Access_Flag result = file_get_access_flags(view->file);
     View_Context_Node *node = view->ctx;
-    if (node != 0 && node->ctx.hides_buffer){
-        result |= AccessHidden;
+    b32 hides_buffer = (node != 0 && node->ctx.hides_buffer);
+    if (hides_buffer){
+        RemFlag(result, Access_Visible);
     }
-    result |= file_get_access_flags(view->file);
     return(result);
 }
 
@@ -281,31 +281,6 @@ view_compute_cursor(View *view, Buffer_Seek seek){
 
 ////////////////////////////////
 
-internal Interval_f32
-view_acceptable_y(f32 view_height, f32 line_height){
-    Interval_f32 acceptable_y = {};
-    if (view_height <= line_height*5.f){
-        if (view_height < line_height){
-            acceptable_y.max = view_height;
-        }
-        else{
-            acceptable_y.max = view_height - line_height;
-        }
-    }
-    else{
-        acceptable_y = If32(line_height*2.f, view_height - line_height*2.f);
-    }
-    return(acceptable_y);
-}
-
-internal Vec2_f32
-view_safety_margin(f32 view_width, f32 acceptable_y_height, f32 line_height, f32 typical_advance){
-    Vec2_f32 safety = {};
-    safety.y = min(line_height*5.f, (acceptable_y_height + 1.f)*0.5f);
-    safety.x = min(view_width*0.5f, typical_advance*8.f);
-    return(safety);
-}
-
 internal b32
 view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
     Editing_File *file = view->file;
@@ -320,23 +295,21 @@ view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
     
     f32 line_height = face->line_height;
     f32 typical_advance = face->typical_advance;
-    Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
-    Vec2_f32 safety = view_safety_margin(view_dim.x, range_size(acceptable_y), line_height, typical_advance);
     
     Vec2_f32 target_p_relative = {};
-    if (p.y < acceptable_y.min){
-        target_p_relative.y = p.y - safety.y;
+    if (p.y < 0.f){
+        target_p_relative.y = p.y - line_height*1.5f;
     }
-    else if (p.y > acceptable_y.max){
-        target_p_relative.y = (p.y + safety.y) - view_dim.y;
+    else if (p.y > view_dim.y){
+        target_p_relative.y = (p.y + line_height*1.5f) - view_dim.y;
     }
     if (p.x < 0.f){
-        target_p_relative.x = p.x - safety.x;
+        target_p_relative.x = p.x - typical_advance*1.5f;
     }
     else if (p.x > view_dim.x){
-        target_p_relative.x = (p.x + safety.x) - view_dim.x;
+        target_p_relative.x = (p.x + typical_advance*1.5f) - view_dim.x;
     }
-    scroll->target.pixel_shift = target_p_relative;
+    scroll->target.pixel_shift += target_p_relative;
     scroll->target = view_normalize_buffer_point(models, view, scroll->target);
     scroll->target.pixel_shift.x = f32_round32(scroll->target.pixel_shift.x);
     scroll->target.pixel_shift.y = f32_round32(scroll->target.pixel_shift.y);
@@ -355,16 +328,13 @@ view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *
     p -= scroll.target.pixel_shift;
     
     f32 line_height = face->line_height;
-    Interval_f32 acceptable_y = view_acceptable_y(view_dim.y, line_height);
-    Vec2_f32 safety = view_safety_margin(view_dim.x, range_size(acceptable_y),
-                                         line_height, face->typical_advance);
     
     b32 adjusted_y = true;
-    if (p.y < acceptable_y.min){
-        p.y = acceptable_y.min + safety.y;
+    if (p.y < 0.f){
+        p.y = line_height*1.5f;
     }
-    else if (p.y > acceptable_y.max){
-        p.y = acceptable_y.max - safety.y;
+    else if (p.y > view_dim.y){
+        p.y = view_dim.y - line_height*1.5f;
     }
     else{
         adjusted_y = false;
@@ -470,12 +440,12 @@ view_pop_context(View *view){
 }
 
 function View_Context_Node*
-view_current_context_node(Models *models, View *view){
+view_current_context_node(View *view){
     return(view->ctx);
 }
 
 function View_Context
-view_current_context(Models *models, View *view){
+view_current_context(View *view){
     View_Context ctx = {};
     View_Context_Node *node = view->ctx;
     if (node != 0){

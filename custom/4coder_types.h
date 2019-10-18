@@ -145,11 +145,17 @@ ENUM(i32, Buffer_Reopen_Result){
     BufferReopenResult_Failed = 1,
 };
 
-ENUM(u32, Access_Flag){
-    AccessOpen      = 0x0,
-    AccessProtected = 0x1,
-    AccessHidden    = 0x2,
-    AccessAll       = 0xFF
+typedef u32 Access_Flag;
+enum{
+    Access_Write = 0x1,
+    Access_Read = 0x2,
+    Access_Visible = 0x4,
+};
+enum{
+    Access_Always = 0,
+    Access_ReadWrite = Access_Write|Access_Read,
+    Access_ReadVisible = Access_Read|Access_Visible,
+    Access_ReadWriteVisible = Access_Write|Access_Read|Access_Visible,
 };
 
 ENUM(u32, Dirty_State){
@@ -187,16 +193,6 @@ ENUM(i32, Panel_Split_Kind){
     PanelSplitKind_Ratio_Max = 1,
     PanelSplitKind_FixedPixels_Min = 2,
     PanelSplitKind_FixedPixels_Max = 3,
-};
-
-ENUM(i32, Panel_Split_Orientation){
-    PanelSplit_LeftAndRight = 0,
-    PanelSplit_TopAndBottom = 1,
-};
-
-ENUM(i32, Panel_Child){
-    PanelChild_Min = 0,
-    PanelChild_Max = 1,
 };
 
 TYPEDEF u8 Key_Modifier;

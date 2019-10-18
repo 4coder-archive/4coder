@@ -145,7 +145,7 @@ buffer_seek_character_class_change_0_1(Application_Links *app, Buffer_ID buffer,
 
 internal i64
 view_pos_from_xy(Application_Links *app, View_ID view, Vec2_f32 p){
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     Rect_f32 region = view_get_buffer_region(app, view);
     f32 width = rect_width(region);
     Face_ID face_id = get_face_id(app, buffer);
@@ -912,13 +912,13 @@ push_whole_buffer(Application_Links *app, Arena *arena, Buffer_ID buffer){
 
 internal String_Const_u8
 push_view_range_string(Application_Links *app, Arena *arena, View_ID view){
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     return(push_buffer_range(app, arena, buffer, get_view_range(app, view)));
 }
 
 internal String_Const_u8
 push_view_range_string(Application_Links *app, Arena *arena){
-    View_ID view = get_active_view(app, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
     return(push_view_range_string(app, arena, view));
 }
 
@@ -1042,7 +1042,7 @@ move_past_lead_whitespace(Application_Links *app, View_ID view, Buffer_ID buffer
 
 internal void
 move_past_lead_whitespace(Application_Links *app, View_ID view){
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     move_past_lead_whitespace(app, view, buffer);
 }
 
@@ -1250,9 +1250,9 @@ clear_buffer(Application_Links *app, Buffer_ID buffer){
 internal String_Match_List
 find_all_matches_all_buffers(Application_Links *app, Arena *arena, String_Const_u8_Array match_patterns, String_Match_Flag must_have_flags, String_Match_Flag must_not_have_flags){
     String_Match_List all_matches = {};
-    for (Buffer_ID buffer = get_buffer_next(app, 0, AccessAll);
+    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
          buffer != 0;
-         buffer = get_buffer_next(app, buffer, AccessAll)){
+         buffer = get_buffer_next(app, buffer, Access_Always)){
         String_Match_List buffer_matches = {};
         for (i32 i = 0; i < match_patterns.count; i += 1){
             Range_i64 range = buffer_range(app, buffer);
@@ -1329,7 +1329,7 @@ backspace_utf8(String_Const_u8 string){
 
 Query_Bar_Group::Query_Bar_Group(Application_Links *app){
     this->app = app;
-    this->view = get_active_view(app, AccessAll);
+    this->view = get_active_view(app, Access_Always);
 }
 
 Query_Bar_Group::Query_Bar_Group(Application_Links *app, View_ID view){
@@ -1457,9 +1457,9 @@ buffer_identifier_to_id(Application_Links *app, Buffer_Identifier identifier){
     }
     else{
         String_Const_u8 name = SCu8(identifier.name, identifier.name_len);
-        id = get_buffer_by_name(app, name, AccessAll);
+        id = get_buffer_by_name(app, name, Access_Always);
         if (id == 0){
-            id = get_buffer_by_file_name(app, name, AccessAll);
+            id = get_buffer_by_file_name(app, name, Access_Always);
         }
     }
     return(id);
@@ -1470,7 +1470,7 @@ buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identif
     Buffer_ID result = 0;
     if (buffer_id.name != 0 && buffer_id.name_len > 0){
         String_Const_u8 buffer_name = SCu8(buffer_id.name, buffer_id.name_len);
-        Buffer_ID buffer_attach_id = get_buffer_by_name(app, buffer_name, AccessAll);
+        Buffer_ID buffer_attach_id = get_buffer_by_name(app, buffer_name, Access_Always);
         if (buffer_attach_id != 0){
             result = buffer_attach_id;
         }
@@ -1493,8 +1493,8 @@ buffer_identifier_to_id_create_out_buffer(Application_Links *app, Buffer_Identif
 
 function void
 place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end){
-    View_ID view = get_active_view(app, AccessOpen);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessOpen);
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     
     Range_i64 range = get_view_range(app, view);
     Range_i64 lines = get_line_range_from_pos_range(app, buffer, range);
@@ -1548,18 +1548,39 @@ place_begin_and_end_on_own_lines(Application_Links *app, char *begin, char *end)
 
 ////////////////////////////////
 
+function Face_ID
+get_view_face_id(Application_Links *app, View_ID view){
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    return(get_face_id(app, buffer));
+}
+
+function Face_Metrics
+get_view_face_metrics(Application_Links *app, View_ID view){
+    Face_ID face = get_view_face_id(app, view);
+    return(get_face_metrics(app, face));
+}
+
+function f32
+get_view_line_height(Application_Links *app, View_ID view){
+    Face_Metrics metrics = get_view_face_metrics(app, view);
+    return(metrics.line_height);
+}
+
 internal View_ID
 open_view(Application_Links *app, View_ID view_location, View_Split_Position position){
     View_ID result = 0;
     if (view_location != 0 && view_exists(app, view_location)){
         Panel_ID panel_id = view_get_panel(app, view_location);
         if (panel_id != 0){
-            b32 vertical = (position == ViewSplit_Left || position == ViewSplit_Right);
-            if (panel_split(app, panel_id, vertical?PanelSplit_LeftAndRight:PanelSplit_TopAndBottom)){
-                Panel_Child child = (position == ViewSplit_Left || position == ViewSplit_Top)?PanelChild_Min:PanelChild_Max;
-                Panel_ID new_panel_id = panel_get_child(app, panel_id, child);
+            Dimension split = (position == ViewSplit_Left ||
+                               position == ViewSplit_Right)?Dimension_X:Dimension_Y;
+            Side side = (position == ViewSplit_Left ||
+                         position == ViewSplit_Top)?Side_Min:Side_Max;
+            if (panel_split(app, panel_id, split)){
+                Panel_ID new_panel_id = panel_get_child(app, panel_id, side);
                 if (new_panel_id != 0){
-                    View_ID new_view_id = panel_get_view(app, new_panel_id);
+                    View_ID new_view_id = panel_get_view(app, new_panel_id,
+                                                         Access_Always);
                     if (new_view_id != 0){
                         result = new_view_id;
                     }
@@ -1574,10 +1595,10 @@ internal View_ID
 get_first_view_with_buffer(Application_Links *app, Buffer_ID buffer_id){
     View_ID result = {};
     if (buffer_id != 0){
-        for (View_ID test = get_view_next(app, 0, AccessAll);
+        for (View_ID test = get_view_next(app, 0, Access_Always);
              test != 0;
-             test = get_view_next(app, test, AccessAll)){
-            Buffer_ID test_buffer = view_get_buffer(app, test, AccessAll);
+             test = get_view_next(app, test, Access_Always)){
+            Buffer_ID test_buffer = view_get_buffer(app, test, Access_Always);
             if (test_buffer == buffer_id){
                 result = test;
                 break;
@@ -1590,7 +1611,7 @@ get_first_view_with_buffer(Application_Links *app, Buffer_ID buffer_id){
 internal b32
 open_file(Application_Links *app, Buffer_ID *buffer_out, String_Const_u8 file_name, b32 background, b32 never_new){
     b32 result = false;
-    Buffer_ID buffer = get_buffer_by_name(app, file_name, AccessProtected);
+    Buffer_ID buffer = get_buffer_by_name(app, file_name, Access_ReadVisible);
     b32 exists = buffer_exists(app, buffer);
     if (!exists){
         Buffer_Create_Flag flags = 0;
@@ -1640,7 +1661,7 @@ internal void
 view_set_highlight_range(Application_Links *app, View_ID view, Range_i64 range){
     view_disable_highlight_range(app, view);
     
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
     Managed_Scope scope = view_get_managed_scope(app, view);
     Managed_Object *highlight = scope_attachment(app, scope, view_highlight_range, Managed_Object);
     *highlight = alloc_buffer_markers_on_buffer(app, buffer, 2, &scope);
@@ -1669,9 +1690,10 @@ view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 min
             f32 skirt_height = view_height*.1f;
             Interval_f32 acceptable_y = If32(skirt_height, view_height*.9f);
             
-            f32 target_height = view_line_y_difference(app, view, bottom.line, top.line);
+            f32 target_height = view_line_y_difference(app, view, bottom.line + 1, top.line);
             
-            if (target_height > view_height){
+            f32 line_height = get_view_line_height(app, view);
+            if (target_height + 2*line_height > view_height){
                 i64 major_line = bottom.line;
                 if (range.min == major_pos){
                     major_line = top.line;
@@ -1689,7 +1711,7 @@ view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 min
                 if (top_p.y < acceptable_y.min){
                     scroll.target.line_number = top.line;
                     scroll.target.pixel_shift.y = -skirt_height;
-                    view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
+                    view_set_buffer_scroll(app, view, scroll, SetBufferScroll_NoCursorChange);
                 }
                 else{
                     Vec2_f32 bot_p = view_relative_xy_of_pos(app, view, scroll.position.line_number, range.max);
@@ -1697,12 +1719,17 @@ view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 min
                     if (bot_p.y > acceptable_y.max){
                         scroll.target.line_number = bottom.line;
                         scroll.target.pixel_shift.y = skirt_height - view_height;
-                        view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
+                        view_set_buffer_scroll(app, view, scroll, SetBufferScroll_NoCursorChange);
                     }
                 }
             }
         }
     }
+}
+
+function void
+view_look_at_region(Application_Links *app, View_ID view, Range_i64 range){
+    view_look_at_region(app, view, range.min, range.max);
 }
 
 ////////////////////////////////
@@ -1782,8 +1809,8 @@ push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buf
 
 internal String_Const_u8
 push_token_or_word_under_active_cursor(Application_Links *app, Arena *arena){
-    View_ID view = get_active_view(app, AccessAll);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
     i64 pos = view_get_cursor_pos(app, view);
     return(push_token_or_word_under_pos(app, arena, buffer, pos));
 }
@@ -1989,7 +2016,7 @@ if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_
     b32 result = false;
     if (view_has_highlighted_range(app, view_id)){
         Range_i64 range = get_view_range(app, view_id);
-        Buffer_ID buffer = view_get_buffer(app, view_id, AccessOpen);
+        Buffer_ID buffer = view_get_buffer(app, view_id, Access_ReadWriteVisible);
         buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
         result = true;
     }
@@ -1999,9 +2026,9 @@ if_view_has_highlighted_range_delete_range(Application_Links *app, View_ID view_
 internal void
 begin_notepad_mode(Application_Links *app){
     fcoder_mode = FCoderMode_NotepadLike;
-    for (View_ID view = get_view_next(app, 0, AccessAll);
+    for (View_ID view = get_view_next(app, 0, Access_Always);
          view != 0;
-         view = get_view_next(app, view, AccessAll)){
+         view = get_view_next(app, view, Access_Always)){
         i64 pos = view_get_cursor_pos(app, view);
         view_set_mark(app, view, seek_pos(pos));
     }
@@ -2011,8 +2038,8 @@ begin_notepad_mode(Application_Links *app){
 
 internal void
 seek_pos_of_textual_line(Application_Links *app, Side side){
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
     i64 pos = view_get_cursor_pos(app, view);
     i64 new_pos = get_line_side_pos_from_pos(app, buffer, pos, side);
     view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
@@ -2021,7 +2048,7 @@ seek_pos_of_textual_line(Application_Links *app, Side side){
 
 internal void
 seek_pos_of_visual_line(Application_Links *app, Side side){
-    View_ID view = get_active_view(app, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
     i64 pos = view_get_cursor_pos(app, view);
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, pos);
@@ -2058,7 +2085,7 @@ CUSTOM_DOC("Seeks the cursor to the end of the visual line.")
 CUSTOM_COMMAND_SIG(goto_beginning_of_file)
 CUSTOM_DOC("Sets the cursor to the beginning of the file.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
     view_set_cursor_and_preferred_x(app, view, seek_pos(0));
     no_mark_snap_to_cursor_if_shift(app, view);
 }
@@ -2066,8 +2093,8 @@ CUSTOM_DOC("Sets the cursor to the beginning of the file.")
 CUSTOM_COMMAND_SIG(goto_end_of_file)
 CUSTOM_DOC("Sets the cursor to the end of the file.")
 {
-    View_ID view = get_active_view(app, AccessProtected);
-    Buffer_ID buffer_id = view_get_buffer(app, view, AccessProtected);
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer_id = view_get_buffer(app, view, Access_ReadVisible);
     i32 size = (i32)buffer_get_size(app, buffer_id);
     view_set_cursor_and_preferred_x(app, view, seek_pos(size));
     no_mark_snap_to_cursor_if_shift(app, view);
@@ -2083,7 +2110,7 @@ view_set_split(Application_Links *app, View_ID view, View_Split_Kind kind, f32 t
         if (panel_id != 0){
             Panel_ID parent_panel_id = panel_get_parent(app, panel_id);
             if (parent_panel_id != 0){
-                Panel_ID min_child_id = panel_get_child(app, parent_panel_id, PanelChild_Min);
+                Panel_ID min_child_id = panel_get_child(app, parent_panel_id, Side_Min);
                 if (min_child_id != 0){
                     b32 panel_is_min = (min_child_id == panel_id);
                     Panel_Split_Kind panel_kind = ((kind == ViewSplitKind_Ratio)?

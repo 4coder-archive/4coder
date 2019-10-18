@@ -439,8 +439,6 @@ App_Init_Sig(app_init){
     // NOTE(allen): miscellaneous init
     hot_directory_init(arena, &models->hot_directory, current_directory);
     child_process_container_init(models->tctx->allocator, &models->child_processes);
-    models->user_up_key = KeyCode_Up;
-    models->user_down_key = KeyCode_Down;
     models->period_wakeup_timer = system_wake_up_timer_create();
 }
 

@@ -36,14 +36,16 @@ activate_jump(Application_Links *app,
             case JumpListerActivation_OpenInNextViewKeepUI:
             {
                 target_view = view;
-                target_view = get_next_view_looped_primary_panels(app, target_view, AccessAll);
+                target_view = get_next_view_looped_primary_panels(app, target_view,
+                                                                  Access_Always);
                 result_code = ListerActivation_Continue;
             }break;
             
             case JumpListerActivation_OpenInNextViewCloseUI:
             {
                 target_view = view;
-                target_view = get_next_view_looped_primary_panels(app, target_view, AccessAll);
+                target_view = get_next_view_looped_primary_panels(app, target_view,
+                                                                  Access_Always);
                 result_code = ListerActivation_Finished;
             }break;
         }
@@ -102,8 +104,8 @@ open_jump_lister(Application_Links *app, Heap *heap, View_ID ui_view, Buffer_ID 
 CUSTOM_COMMAND_SIG(view_jump_list_with_lister)
 CUSTOM_DOC("When executed on a buffer with jumps, creates a persistent lister for all the jumps")
 {
-    View_ID view = get_active_view(app, AccessAll);
-    Buffer_ID buffer = view_get_buffer(app, view, AccessAll);
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
     open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInNextViewKeepUI, 0);
 }
 

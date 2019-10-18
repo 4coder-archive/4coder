@@ -88,12 +88,6 @@ struct Models{
     
     b32 keep_playing;
     
-    // TODO(allen): do(eliminate user_*_key* nonsense from the core)
-    Key_Code user_up_key;
-    Key_Code user_down_key;
-    Key_Modifier user_up_key_modifier;
-    Key_Modifier user_down_key_modifier;
-    
     b32 has_new_title;
     char *title_space;
     i32 title_capacity;
