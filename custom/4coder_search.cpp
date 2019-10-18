@@ -241,7 +241,8 @@ get_word_complete_needle_range(Application_Links *app, Buffer_ID buffer, i64 pos
 }
 
 internal void
-string_match_list_enclose_all(Application_Links *app, String_Match_List list, Enclose_Function *enclose){
+string_match_list_enclose_all(Application_Links *app, String_Match_List list,
+                              Enclose_Function *enclose){
     for (String_Match *node = list.first;
          node != 0;
          node = node->next){
@@ -320,7 +321,8 @@ get_word_complete_match_list__unreduced(Application_Links *app, Arena *arena, Bu
     string_match_list_filter_remove_buffer(&everywhere, buffer);
     
     String_Match_List whole_list = string_match_list_join(&here, &everywhere);
-    string_match_list_enclose_all(app, whole_list, enclose_alpha_numeric_underscore_utf8);
+    string_match_list_enclose_all(app, whole_list,
+                                  right_enclose_alpha_numeric_underscore_utf8);
     
     return(whole_list);
 }
@@ -328,7 +330,8 @@ get_word_complete_match_list__unreduced(Application_Links *app, Arena *arena, Bu
 internal String_Match_List
 get_word_complete_match_list__unreduced(Application_Links *app, Arena *arena, String_Const_u8 needle){
     String_Match_List whole_list = find_all_matches_all_buffers(app, arena, needle, word_complete_must, word_complete_must_not);
-    string_match_list_enclose_all(app, whole_list, enclose_alpha_numeric_underscore_utf8);
+    string_match_list_enclose_all(app, whole_list,
+                                  right_enclose_alpha_numeric_underscore_utf8);
     return(whole_list);
 }
 
@@ -347,7 +350,8 @@ get_word_complete_match_list(Application_Links *app, Arena *arena, String_Const_
 }
 
 internal Word_Complete_State
-get_word_complete_state(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 needle_range){
+get_word_complete_state(Application_Links *app, Arena *arena, Buffer_ID buffer,
+                        Range_i64 needle_range){
     String_Const_u8 needle = push_buffer_range(app, arena, buffer, needle_range);
     
     Scratch_Block scratch(app);

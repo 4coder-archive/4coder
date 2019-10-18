@@ -729,12 +729,35 @@ get_pos_range_from_line_range(Application_Links *app, Buffer_ID buffer, Range_i6
 }
 
 internal Range_i64
-enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range, Boundary_Function *func){
+enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range,
+                 Boundary_Function *func){
     i64 new_min       = func(app, buffer, Side_Min, Scan_Backward, range.min + 1);
     i64 new_min_check = func(app, buffer, Side_Max, Scan_Backward, range.min + 1);
     if (new_min_check <= new_min && new_min < range.min){
         range.min = new_min;
     }
+    i64 new_max       = func(app, buffer, Side_Max, Scan_Forward, range.max - 1);
+    i64 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max - 1);
+    if (new_max_check >= new_max && new_max > range.max){
+        range.max = new_max;
+    }
+    return(range);
+}
+
+internal Range_i64
+left_enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range,
+                       Boundary_Function *func){
+    i64 new_min       = func(app, buffer, Side_Min, Scan_Backward, range.min + 1);
+    i64 new_min_check = func(app, buffer, Side_Max, Scan_Backward, range.min + 1);
+    if (new_min_check <= new_min && new_min < range.min){
+        range.min = new_min;
+    }
+    return(range);
+}
+
+internal Range_i64
+right_enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range,
+                       Boundary_Function *func){
     i64 new_max       = func(app, buffer, Side_Max, Scan_Forward, range.max - 1);
     i64 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max - 1);
     if (new_max_check >= new_max && new_max > range.max){
@@ -814,6 +837,11 @@ internal Range_i64
 enclose_pos_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer, i64 pos){
     return(enclose_boundary(app, buffer, Ii64(pos), boundary_alpha_numeric_underscore));
 }
+internal Range_i64
+right_enclose_alpha_numeric_underscore(Application_Links *app, Buffer_ID buffer,
+                                       Range_i64 range){
+    return(right_enclose_boundary(app, buffer, range, boundary_alpha_numeric_underscore));
+}
 
 internal Range_i64
 enclose_alpha_numeric_underscore_utf8(Application_Links *app, Buffer_ID buffer, Range_i64 range){
@@ -823,6 +851,12 @@ internal Range_i64
 enclose_pos_alpha_numeric_underscore_utf8(Application_Links *app, Buffer_ID buffer, i64 pos){
     return(enclose_boundary(app, buffer, Ii64(pos), boundary_alpha_numeric_underscore_utf8));
 }
+internal Range_i64
+right_enclose_alpha_numeric_underscore_utf8(Application_Links *app, Buffer_ID buffer,
+                                            Range_i64 range){
+    return(right_enclose_boundary(app, buffer, range, boundary_alpha_numeric_underscore_utf8));
+}
+
 
 internal Range_i64
 enclose_alpha_numeric_camel(Application_Links *app, Buffer_ID buffer, Range_i64 range){

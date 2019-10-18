@@ -2894,25 +2894,28 @@ animate_in_n_milliseconds(Application_Links *app, u32 n)
 }
 
 api(custom) function String_Match_List
-buffer_find_all_matches(Application_Links *app, Arena *arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate *predicate, Scan_Direction direction)
-{
+buffer_find_all_matches(Application_Links *app, Arena *arena, Buffer_ID buffer,
+                        i32 string_id, Range_i64 range, String_Const_u8 needle,
+                        Character_Predicate *predicate, Scan_Direction direction){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer);
     String_Match_List list = {};
     if (api_check_buffer(file)){
         if (needle.size > 0){
             Scratch_Block scratch(app);
-            List_String_Const_u8 chunks = buffer_get_chunks(scratch, &file->state.buffer);
+            List_String_Const_u8 chunks = buffer_get_chunks(scratch,
+                                                            &file->state.buffer);
             buffer_chunks_clamp(&chunks, range);
             if (chunks.node_count > 0){
-                u64_Array jump_table = string_compute_needle_jump_table(arena, needle, direction);
+                u64_Array jump_table = string_compute_needle_jump_table(arena, needle,
+                                                                        direction);
                 Character_Predicate dummy = {};
                 if (predicate == 0){
                     predicate = &dummy;
                 }
                 list = find_all_matches(arena, max_i32,
-                                        chunks, needle, jump_table, predicate, direction,
-                                        range.min, buffer, string_id);
+                                        chunks, needle, jump_table, predicate,
+                                        direction, range.min, buffer, string_id);
             }
         }
     }
