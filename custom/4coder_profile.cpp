@@ -83,8 +83,8 @@ profile_group_post(Profile_Group *group){
         sll_queue_push(profile_history.first, profile_history.last, group);
     }
     else{
-        Arena *arena = &group->arena;
-        linalloc_clear(arena);
+        Arena arena = group->arena;
+        linalloc_clear(&arena);
     }
     system_mutex_release(profile_history.mutex);
 }
@@ -108,8 +108,8 @@ profile_history_clear(void){
          node != 0;
          node = next){
         next  = node->next;
-        Arena *arena = &node->arena;
-        linalloc_clear(arena);
+        Arena arena = node->arena;
+        linalloc_clear(&arena);
     }
     system_mutex_release(profile_history.mutex);
 }

@@ -71,10 +71,10 @@ function void
 sort_universal_slots(Profile_Universal_Slot **slots, i32 first, i32 one_past_last){
     if (first + 1 < one_past_last){
         i32 pivot = one_past_last - 1;
-        Profile_Universal_Slot *pivot_slot = &slots[pivot];
+        Profile_Universal_Slot *pivot_slot = slots[pivot];
         i32 j = first;
         for (i32 i = first; i < pivot; i += 1){
-            Profile_Universal_Slot *slot = &slots[i];
+            Profile_Universal_Slot *slot = slots[i];
             b32 is_less = false;
             if (slot->total_time < pivot_slot->total_time){
                 is_less = true;
@@ -117,6 +117,8 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Face_ID face_id = get_face_id(app, 0);
     Face_Metrics metrics = get_face_metrics(app, face_id);
     f32 line_height = metrics.line_height;
+    f32 normal_advance = metrics.normal_advance;
+    f32 block_height = line_height*2.f;
     
     system_mutex_acquire(profile_history.mutex);
     
@@ -130,12 +132,10 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         i32 thread_id = node->thread_id;
         Profile_Thread *column = get_column_from_thread_id(thread_first, thread_id);
         if (column == 0){
-            column = push_array(scratch, Profile_Thread, 1);
+            column = push_array_zero(scratch, Profile_Thread, 1);
             sll_queue_push(thread_first, thread_last, column);
             thread_count += 1;
             column->thread_id = thread_id;
-            column->first_group = 0;
-            column->last_group = 0;
         }
         
         Profile_Group_Ptr *ptr = push_array(scratch, Profile_Group_Ptr, 1);
@@ -169,12 +169,19 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         i32 count = column->slot_count;
         Profile_Universal_Slot **slots = push_array(scratch, Profile_Universal_Slot*, count);
         column->sorted_slots = slots;
+        i32 counter = 0;
+        for (Profile_Universal_Slot *node = column->first_slot;
+             node != 0;
+             node = node->next){
+            slots[counter] = node;
+            counter += 1;
+        }
         sort_universal_slots(slots, 0, count);
     }
     
     f32 column_width = rect_width(region)/(f32)thread_count;
     
-    Rect_f32_Pair header_body = rect_split_top_bottom(region, line_height*2.f);
+    Rect_f32_Pair header_body = rect_split_top_bottom(region, block_height);
     
     Range_f32 full_y = rect_range_y(region);
     Range_f32 header_y = rect_range_y(header_body.min);
@@ -185,6 +192,24 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
          column != 0;
          column = column->next){
         Range_f32 column_x = If32_size(pos_x, column_width);
+        Range_f32 text_x = If32(column_x.min + 6.f, column_x.max - 6.f);
+        f32 text_width = range_size(text_x);
+        f32 count_width = normal_advance*6.f;
+        f32 time_width = normal_advance*9.f;
+        f32 half_padding = normal_advance*0.25f;
+        f32 label_width = text_width - count_width - time_width;
+        if (label_width < normal_advance*10.f){
+            f32 count_ratio =  6.f/25.f;
+            f32 time_ratio  =  9.f/25.f;
+            f32 label_ratio = 10.f/25.f;
+            count_width = text_width*count_ratio;
+            time_width  = text_width*time_ratio;
+            label_width = text_width*label_ratio;
+        }
+        
+        i32 count = column->slot_count;
+        
+        draw_set_clip(app, Rf32(column_x, full_y));
         
         // NOTE(allen): header
         {
@@ -192,18 +217,82 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             draw_rectangle_outline(app, box, 6.f, 3.f, Stag_Margin_Active);
         }
         
-        Range_f32 text_x = If32(column_x.min + 6.f, column_x.max - 6.f);
-        draw_set_clip(app, Rf32(text_x, full_y));
+        // NOTE(allen): list
+        {        
+            f32 pos_y = body_y.min;
+            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
+            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
+                Range_f32 slot_y = If32_size(pos_y, block_height);
+                Rect_f32 box = Rf32(column_x, slot_y);
+                draw_rectangle_outline(app, box, 6.f, 3.f, Stag_Margin);
+                pos_y = slot_y.max;
+            }
+        }
         
         // NOTE(allen): header text
         {
+            draw_set_clip(app, Rf32(text_x, full_y));
+            
             Fancy_String_List list = {};
             push_fancy_stringf(scratch, &list, fancy_id(Stag_Keyword),
                                "%d", column->thread_id);
             f32 y = (header_y.min + header_y.max - line_height)*0.5f;
-            draw_fancy_string(app, face_id, list.first,
-                              V2f32(text_x.min, y),
-                              Stag_Default, 0);
+            draw_fancy_string(app, face_id, list.first, V2f32(text_x.min, y), Stag_Default, 0);
+        }
+        
+        // NOTE(allen): list text counts
+        {
+            Range_f32 x = If32_size(text_x.min + label_width + time_width + half_padding, count_width);
+            f32 pos_y = body_y.min;
+            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
+            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
+                Range_f32 slot_y = If32_size(pos_y, block_height);
+                f32 y = (slot_y.min + slot_y.max - line_height)*0.5f;
+                Profile_Universal_Slot *slot = *slot_ptr;
+                Fancy_String_List list = {};
+                push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop1),
+                                   "%5u", slot->count);
+                draw_fancy_string(app, face_id, list.first, V2f32(x.min, y), Stag_Default, 0);
+                pos_y = slot_y.max;
+            }
+        }
+        
+        // NOTE(allen): list text labels
+        {
+            Range_f32 x = If32_size(text_x.min + label_width + half_padding, time_width - half_padding);
+            draw_set_clip(app, Rf32(x, full_y));
+            
+            f32 pos_y = body_y.min;
+            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
+            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
+                Range_f32 slot_y = If32_size(pos_y, block_height);
+                f32 y = (slot_y.min + slot_y.max - line_height)*0.5f;
+                Profile_Universal_Slot *slot = *slot_ptr;
+                Fancy_String_List list = {};
+                push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop2),
+                                   "%-8.6f", (f32)(slot->total_time)/1000000.f);
+                draw_fancy_string(app, face_id, list.first, V2f32(x.min, y), Stag_Default, 0);
+                pos_y = slot_y.max;
+            }
+        }
+        
+        // NOTE(allen): list text labels
+        {
+            Range_f32 x = If32_size(text_x.min, label_width - half_padding);
+            draw_set_clip(app, Rf32(x, full_y));
+            
+            f32 pos_y = body_y.min;
+            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
+            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
+                Range_f32 slot_y = If32_size(pos_y, block_height);
+                f32 y = (slot_y.min + slot_y.max - line_height)*0.5f;
+                Profile_Universal_Slot *slot = *slot_ptr;
+                Fancy_String_List list = {};
+                push_fancy_stringf(scratch, &list, fancy_id(Stag_Default),
+                                   "%.*s ", string_expand(slot->name));
+                draw_fancy_string(app, face_id, list.first, V2f32(x.min, y), Stag_Default, 0);
+                pos_y = slot_y.max;
+            }
         }
         
         pos_x = column_x.max;
