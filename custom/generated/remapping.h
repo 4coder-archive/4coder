@@ -25,8 +25,8 @@ setup_default_mapping(Mapping *mapping){
     Bind(close_build_panel,             KeyCode_Comma, KeyCode_Alt);
     Bind(goto_next_jump,                KeyCode_N, KeyCode_Alt);
     Bind(goto_prev_jump,                KeyCode_N, KeyCode_Alt, KeyCode_Shift);
-    Bind(goto_first_jump,               KeyCode_M, KeyCode_Alt, KeyCode_Shift);
     Bind(build_in_build_panel,          KeyCode_M, KeyCode_Alt);
+    Bind(goto_first_jump,               KeyCode_M, KeyCode_Alt, KeyCode_Shift);
     Bind(toggle_filebar,                KeyCode_B, KeyCode_Alt);
     Bind(execute_any_cli,               KeyCode_Z, KeyCode_Alt);
     Bind(execute_previous_cli,          KeyCode_Z, KeyCode_Alt, KeyCode_Shift);
@@ -104,6 +104,7 @@ setup_default_mapping(Mapping *mapping){
     Bind(query_replace_selection,     KeyCode_Q, KeyCode_Alt);
     Bind(reverse_search,              KeyCode_R, KeyCode_Control);
     Bind(save,                        KeyCode_S, KeyCode_Control);
+    Bind(save_all_dirty_buffers,      KeyCode_S, KeyCode_Control, KeyCode_Shift);
     Bind(search_identifier,           KeyCode_T, KeyCode_Control);
     Bind(list_all_locations_of_identifier, KeyCode_T, KeyCode_Control, KeyCode_Shift);
     Bind(paste_and_indent,            KeyCode_V, KeyCode_Control);
@@ -132,7 +133,7 @@ setup_default_mapping(Mapping *mapping){
     Bind(write_todo,                 KeyCode_T, KeyCode_Alt);
     Bind(write_note,                 KeyCode_Y, KeyCode_Alt);
     Bind(list_all_locations_of_type_definition,               KeyCode_D, KeyCode_Alt);
-    Bind(list_all_locations_of_type_definition_of_identifier, KeyCode_T, KeyCode_Alt);
+    Bind(list_all_locations_of_type_definition_of_identifier, KeyCode_T, KeyCode_Alt, KeyCode_Shift);
     Bind(open_long_braces,           KeyCode_LeftBracket, KeyCode_Control);
     Bind(open_long_braces_semicolon, KeyCode_LeftBracket, KeyCode_Control, KeyCode_Shift);
     Bind(open_long_braces_break,     KeyCode_RightBracket, KeyCode_Control, KeyCode_Shift);
@@ -146,23 +147,6 @@ setup_default_mapping(Mapping *mapping){
     Bind(open_file_in_quotes,        KeyCode_1, KeyCode_Alt);
     Bind(open_matching_file_cpp,     KeyCode_2, KeyCode_Alt);
     Bind(write_zero_struct,          KeyCode_0, KeyCode_Control);
-    
-#if 0
-    SelectMap(default_lister_ui_map);
-    ParentMap(mapid_global);
-    BindTextInput(lister__write_character);
-    Bind(lister__quit,     KeyCode_Escape);
-    Bind(lister__activate, KeyCode_Return);
-    Bind(lister__activate, KeyCode_Tab);
-    Bind(lister__backspace_text_field, KeyCode_Backspace);
-    Bind(lister__move_up, KeyCode_Up);
-    Bind(lister__move_down, KeyCode_Down);
-    BindMouseWheel(lister__wheel_scroll);
-    BindMouse(lister__mouse_press, MouseCode_Left);
-    BindMouseRelease(lister__mouse_release, MouseCode_Left);
-    BindMouseMove(lister__repaint);
-    BindCore(lister__repaint, CoreCode_Animate);
-#endif
 }
 
 #endif

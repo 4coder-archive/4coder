@@ -114,6 +114,7 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
             write_cursor_with_index(cursors, &cursor_count, (i32)edit_pos.cursor_pos);
             write_cursor_with_index(cursors, &cursor_count, (i32)view->mark);
+            // TODO(allen): write a cursor for the current scroll line
         }
     }
     
@@ -155,6 +156,7 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
                 view->mark = cursors[cursor_count++].pos;
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
                 view_set_cursor_and_scroll(models, view, cursor_pos, edit_pos.scroll);
+                // TODO(allen): read a cursor for the current scroll line
             }
         }
         
