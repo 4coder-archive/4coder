@@ -1768,6 +1768,17 @@ view_look_at_region(Application_Links *app, View_ID view, Range_i64 range){
 
 ////////////////////////////////
 
+function Buffer_ID
+get_buffer_next_looped(Application_Links *app, Buffer_ID buffer, Access_Flag access){
+    buffer = get_buffer_next(app, buffer, access);
+    if (buffer == 0){
+        buffer = get_buffer_next(app, 0, access);
+    }
+    return(buffer);
+}
+
+////////////////////////////////
+
 internal View_ID
 get_next_view_looped_all_panels(Application_Links *app, View_ID view_id, Access_Flag access){
     view_id = get_view_next(app, view_id, access);

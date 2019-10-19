@@ -250,133 +250,142 @@ string_match_list_enclose_all(Application_Links *app, String_Match_List list,
     }
 }
 
-internal List_String_Const_u8
-string_match_list_deduplicated_strings(Application_Links *app, Arena *arena, String_Match_List list){
-    List_String_Const_u8 extension_list = {};
-    Thread_Context *tctx = get_thread_context(app);
-    Table_Data_u64 table = make_table_Data_u64(tctx->allocator, 128);
-    for (String_Match *node = list.first;
+global String_Match_Flag complete_must = (StringMatch_CaseSensitive|
+                                          StringMatch_RightSideSloppy);
+global String_Match_Flag complete_must_not = StringMatch_LeftSideSloppy;
+
+internal String_Match_List
+get_complete_list_raw(Application_Links *app, Arena *arena, Buffer_ID buffer,
+                      Range_i64 needle_range, String_Const_u8 needle){
+    local_persist Character_Predicate *pred =
+        &character_predicate_alpha_numeric_underscore_utf8;
+    
+    String_Match_List result = {};
+    i64 size = buffer_get_size(app, buffer);
+    if (range_size(needle_range) > 0){
+        String_Match_List up = buffer_find_all_matches(app, arena, buffer, 0,
+                                                       Ii64(0, needle_range.min),
+                                                       needle, pred, Scan_Backward);
+        String_Match_List down = buffer_find_all_matches(app, arena, buffer, 0,
+                                                         Ii64(needle_range.max, size),
+                                                         needle, pred, Scan_Forward);
+        string_match_list_filter_flags(&up, complete_must, complete_must_not);
+        string_match_list_filter_flags(&down, complete_must, complete_must_not);
+        result = string_match_list_merge_nearest(&up, &down, needle_range);
+    }
+    else{
+        result = buffer_find_all_matches(app, arena, buffer, 0,
+                                         Ii64(0, size), needle, pred, Scan_Forward);
+        string_match_list_filter_flags(&result, complete_must, complete_must_not);
+    }
+    
+    string_match_list_enclose_all(app, result,
+                                  right_enclose_alpha_numeric_underscore_utf8);
+    return(result);
+}
+
+function void
+word_complete_list_extend_from_raw(Application_Links *app, Arena *arena,
+                                   String_Match_List *matches,
+                                   List_String_Const_u8 *list,
+                                   Table_Data_u64 *used_table){
+    Scratch_Block scratch(app);
+    for (String_Match *node = matches->first;
          node != 0;
          node = node->next){
-        Temp_Memory restore_point = begin_temp(arena);
-        String_Const_u8 str = push_buffer_range(app, arena, node->buffer, node->range);
-        if (table_insert(&table, make_data(str.str, str.size), 1)){
-            string_list_push(arena, &extension_list, str);
-        }
-        else{
-            end_temp(restore_point);
-        }
-    }
-    table_free(&table);
-    return(extension_list);
-}
-
-internal void
-string_match_list_deduplicate(Application_Links *app, String_Match_List *list){
-    String_Match_List new_list = {};
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
-    Table_Data_u64 table = make_table_Data_u64(tctx->allocator, 128);
-    for (String_Match *node = list->first, *next = 0;
-         node != 0;
-         node = next){
-        next = node->next;
-        Temp_Memory restore_point = begin_temp(scratch);
-        String_Const_u8 str = push_buffer_range(app, scratch, node->buffer, node->range);
-        if (table_insert(&table, make_data(str.str, str.size), 1)){
-            sll_queue_push(new_list.first, new_list.last, node);
-            new_list.count += 1;
-        }
-        else{
-            end_temp(restore_point);
+        String_Const_u8 s = push_buffer_range(app, scratch, node->buffer, node->range);
+        Data data = make_data(s.str, s.size);
+        Table_Lookup lookup = table_lookup(used_table, data);
+        if (!lookup.found_match){
+            data = push_data_copy(arena, data);
+            table_insert(used_table, data, 1);
+            string_list_push(arena, list, SCu8(data.data, data.size));
         }
     }
-    table_free(&table);
-    *list = new_list;
 }
 
-global String_Match_Flag word_complete_must = StringMatch_CaseSensitive|StringMatch_RightSideSloppy;
-global String_Match_Flag word_complete_must_not = StringMatch_LeftSideSloppy;
-
-internal String_Match_List
-get_word_complete_match_list__unreduced(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 needle_range, String_Const_u8 needle){
-    if (needle.size == 0){
-        needle = push_buffer_range(app, arena, buffer, needle_range);
-    }
-    local_persist Character_Predicate *pred = &character_predicate_alpha_numeric_underscore_utf8;
-    
-    i64 size = buffer_get_size(app, buffer);
-    String_Match_List up = buffer_find_all_matches(app, arena, buffer, 0,
-                                                   Ii64(0, needle_range.min),
-                                                   needle, pred, Scan_Backward);
-    String_Match_List down = buffer_find_all_matches(app, arena, buffer, 0,
-                                                     Ii64(needle_range.max, size),
-                                                     needle, pred, Scan_Forward);
-    
-    string_match_list_filter_flags(&up, word_complete_must, word_complete_must_not);
-    string_match_list_filter_flags(&down, word_complete_must, word_complete_must_not);
-    String_Match_List here = string_match_list_merge_nearest(&up, &down, needle_range);
-    
-    String_Match_List everywhere = find_all_matches_all_buffers(app, arena, needle, word_complete_must, word_complete_must_not);
-    string_match_list_filter_remove_buffer(&everywhere, buffer);
-    
-    String_Match_List whole_list = string_match_list_join(&here, &everywhere);
-    string_match_list_enclose_all(app, whole_list,
-                                  right_enclose_alpha_numeric_underscore_utf8);
-    
-    return(whole_list);
-}
-
-internal String_Match_List
-get_word_complete_match_list__unreduced(Application_Links *app, Arena *arena, String_Const_u8 needle){
-    String_Match_List whole_list = find_all_matches_all_buffers(app, arena, needle, word_complete_must, word_complete_must_not);
-    string_match_list_enclose_all(app, whole_list,
-                                  right_enclose_alpha_numeric_underscore_utf8);
-    return(whole_list);
-}
-
-internal String_Match_List
-get_word_complete_match_list(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 needle_range, String_Const_u8 needle){
-    String_Match_List whole_list = get_word_complete_match_list__unreduced(app, arena, buffer, needle_range, needle);
-    string_match_list_deduplicate(app, &whole_list);
-    return(whole_list);
-}
-
-internal String_Match_List
-get_word_complete_match_list(Application_Links *app, Arena *arena, String_Const_u8 needle){
-    String_Match_List whole_list = get_word_complete_match_list__unreduced(app, arena, needle);
-    string_match_list_deduplicate(app, &whole_list);
-    return(whole_list);
-}
-
-internal Word_Complete_State
-get_word_complete_state(Application_Links *app, Arena *arena, Buffer_ID buffer,
-                        Range_i64 needle_range){
-    String_Const_u8 needle = push_buffer_range(app, arena, buffer, needle_range);
+internal Word_Complete_Iterator
+get_word_complete_it(Application_Links *app, Arena *arena,
+                     Buffer_ID buffer, Range_i64 range){
+    Base_Allocator *allocator = get_base_allocator_system();
     
     Scratch_Block scratch(app);
-    String_Match_List whole_list = get_word_complete_match_list__unreduced(app, arena, buffer, needle_range, needle);
+    String_Const_u8 needle = push_buffer_range(app, arena, buffer, range);
+    String_Match_List list = get_complete_list_raw(app, scratch, buffer, range, needle);
     
+    Word_Complete_Iterator it = {};
+    it.app = app;
+    it.arena = arena;
+    it.arena_restore = begin_temp(arena);
+    it.first_buffer = buffer;
+    it.current_buffer = buffer;
+    it.needle = needle;
+    
+    it.already_used_table = make_table_Data_u64(allocator, 100);
+    word_complete_list_extend_from_raw(app, arena,
+                                       &list, &it.list, &it.already_used_table);
+    return(it);
+}
+
+function void
+word_complete_it_release(Word_Complete_Iterator *it){
+    if (it->arena != 0){
+        end_temp(it->arena_restore);
+        table_clear(&it->already_used_table);
+    }
+    block_zero_struct(it);
+}
+
+function Word_Complete_State
+get_word_complete_state(Application_Links *app, Arena *arena,
+                        Buffer_ID buffer, Range_i64 needle_range){
     Word_Complete_State state = {};
     state.initialized = true;
-    state.needle = needle;
     state.range = needle_range;
-    state.list = string_match_list_deduplicated_strings(app, arena, whole_list);
-    state.iterator = 0;
+    state.it = get_word_complete_it(app, arena, buffer, needle_range);
     return(state);
 }
 
-internal List_String_Const_u8
-get_word_complete_list(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 needle_range){
-    Word_Complete_State state = get_word_complete_state(app, arena, buffer, needle_range);
-    return(state.list);
+function void
+word_complete_it_next(Word_Complete_Iterator *it){
+    for (;;){
+        if (it->node == 0){
+            it->node = it->list.first;
+        }
+        else{
+            it->node = it->node->next;
+        }
+        
+        if (it->node != 0){
+            break;
+        }
+        
+        Application_Links *app = it->app;
+        Buffer_ID next = get_buffer_next_looped(app, it->current_buffer, Access_Read);
+        if (next == it->first_buffer){
+            break;
+        }
+        
+        it->node = it->list.last;
+        it->current_buffer = next;
+        Scratch_Block scratch(app);
+        String_Match_List list = get_complete_list_raw(app, scratch,
+                                                       next, Ii64(), it->needle);
+        word_complete_list_extend_from_raw(app, it->arena, &list,
+                                           &it->list, &it->already_used_table);
+    }
 }
 
-internal List_String_Const_u8
-get_word_complete_list(Application_Links *app, Arena *arena, String_Const_u8 needle){
-    Scratch_Block scratch(app);
-    String_Match_List whole_list = get_word_complete_match_list__unreduced(app, scratch, needle);
-    return(string_match_list_deduplicated_strings(app, arena, whole_list));
+function String_Const_u8
+word_complete_it_read(Word_Complete_Iterator *it){
+    String_Const_u8 result = {};
+    if (it->node == 0){
+        result = it->needle;
+    }
+    else{
+        result = it->node->string;
+    }
+    return(result);
 }
 
 CUSTOM_COMMAND_SIG(word_complete)
@@ -385,32 +394,12 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     if (buffer != 0){
-        enum{
-            Prof_WordComplete,
-            Prof_FirstCompletion,
-            Prof_ReserveArena,
-            Prof_NeedleRange,
-            Prof_GetState,
-            Prof_Apply,
-            Prof_COUNT,
-        };
-        Profile_Group *profile = make_profile_group(Prof_COUNT, Prof_COUNT);
-        profile_define(profile, Prof_WordComplete, "word complete");
-        profile_define(profile, Prof_FirstCompletion, "first completion");
-        profile_define(profile, Prof_ReserveArena, "reserve arena");
-        profile_define(profile, Prof_NeedleRange, "needle range");
-        profile_define(profile, Prof_GetState, "get state");
-        profile_define(profile, Prof_Apply, "apply");
-        
-        profile_begin_range(profile, Prof_WordComplete);
-        
         Managed_Scope scope = view_get_managed_scope(app, view);
         
         b32 first_completion = false;
         Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
         if (*rewrite != Rewrite_WordComplete){
             first_completion = true;
-            profile_add_note(profile, Prof_FirstCompletion);
         }
         
         Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
@@ -419,55 +408,30 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         local_persist Arena *completion_arena = {};
         if (completion_arena == 0){
             completion_arena = reserve_arena(app);
-            profile_add_note(profile, Prof_ReserveArena);
         }
         local_persist Word_Complete_State state = {};
         
         if (first_completion || !state.initialized){
-            block_zero_struct(&state);
-            linalloc_clear(completion_arena);
+            word_complete_it_release(&state.it);
             
             i64 pos = view_get_cursor_pos(app, view);
             
-            profile_begin_range(profile, Prof_NeedleRange);
             Range_i64 needle_range = get_word_complete_needle_range(app, buffer, pos);
-            profile_end_range(profile);
             
             if (range_size(needle_range) > 0){
-                profile_begin_range(profile, Prof_GetState);
                 state = get_word_complete_state(app, completion_arena, buffer,
                                                 needle_range);
-                profile_end_range(profile);
             }
         }
         
         if (state.initialized){
-            profile_begin_range(profile, Prof_Apply);
-            
-            if (state.iterator == 0){
-                state.iterator = state.list.first;
-            }
-            else{
-                state.iterator = state.iterator->next;
-            }
-            
-            String_Const_u8 str = {};
-            if (state.iterator == 0){
-                str = state.needle;
-            }
-            else{
-                str = state.iterator->string;
-            }
+            word_complete_it_next(&state.it);
+            String_Const_u8 str = word_complete_it_read(&state.it);
             
             buffer_replace_range(app, buffer, state.range, str);
             state.range.max = state.range.min + str.size;
             view_set_cursor_and_preferred_x(app, view, seek_pos(state.range.max));
-            
-            profile_end_range(profile);
         }
-        
-        profile_end_range(profile);
-        profile_group_post(profile);
     }
 }
 

@@ -1,41 +1,8 @@
 /*
- * 4coder_profile.cpp - Built in self profiling UI.
+ * 4coder_profile_inspect.cpp - Built in self profiling UI.
  */
 
 // TOP
-
-struct Profile_Group_Ptr{
-    Profile_Group_Ptr *next;
-    Profile_Group *group;
-};
-
-struct Profile_Universal_Slot{
-    Profile_Universal_Slot *next;
-    
-    String_Const_u8 source_location;
-    u32 slot_index;
-    
-    String_Const_u8 name;
-    
-    u32 count;
-    u64 total_time;
-};
-
-struct Profile_Thread{
-    Profile_Thread *next;
-    i32 thread_id;
-    
-    Profile_Group_Ptr *first_group;
-    Profile_Group_Ptr *last_group;
-    
-    Profile_Universal_Slot *first_slot;
-    Profile_Universal_Slot *last_slot;
-    i32 slot_count;
-    
-    Profile_Universal_Slot **sorted_slots;
-};
-
-////////////////////////////////
 
 function Profile_Thread*
 get_column_from_thread_id(Profile_Thread *first, i32 thread_id){
@@ -75,35 +42,35 @@ sort_universal_slots(Profile_Universal_Slot **slots, i32 first, i32 one_past_las
         i32 j = first;
         for (i32 i = first; i < pivot; i += 1){
             Profile_Universal_Slot *slot = slots[i];
-            b32 is_less = false;
-            if (slot->total_time < pivot_slot->total_time){
-                is_less = true;
+            b32 goes_first = false;
+            if (slot->total_time > pivot_slot->total_time){
+                goes_first = true;
             }
             else if (slot->total_time == pivot_slot->total_time){
-                if (slot->count < pivot_slot->count){
-                    is_less = true;
+                if (slot->count > pivot_slot->count){
+                    goes_first = true;
                 }
                 else if (slot->count == pivot_slot->count){
                     i32 comp = string_compare(slot->source_location,
                                               pivot_slot->source_location);
                     if (comp < 0){
-                        is_less = true;
+                        goes_first = true;
                     }
                     else if (comp == 0){
                         if (slot->slot_index < pivot_slot->slot_index){
-                            is_less = true;
+                            goes_first = true;
                         }
                     }
                 }
             }
-            if (is_less){
+            if (goes_first){
                 Swap(Profile_Universal_Slot*, slots[i], slots[j]);
                 j += 1;
             }
         }
         Swap(Profile_Universal_Slot*, slots[j], slots[pivot]);
-        sort_universal_slots(slots, first, pivot);
-        sort_universal_slots(slots, pivot + 1, one_past_last);
+        sort_universal_slots(slots, first, j);
+        sort_universal_slots(slots, j + 1, one_past_last);
     }
 }
 

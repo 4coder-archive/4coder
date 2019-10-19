@@ -553,7 +553,7 @@ ENUM(u32, String_Match_Flag){
     StringMatch_Straddled = 8,
 };
 
-STRUCT String_Match{
+struct String_Match{
     String_Match *next;
     Buffer_ID buffer;
     i32 string_id;
@@ -561,13 +561,13 @@ STRUCT String_Match{
     Range_i64 range;
 };
 
-STRUCT String_Match_List{
+struct String_Match_List{
     String_Match *first;
     String_Match *last;
     i32 count;
 };
 
-STRUCT Process_State{
+struct Process_State{
     b32 valid;
     b32 is_updating;
     i64 return_code;

@@ -419,6 +419,16 @@ table_read(Table_Data_u64 *table, Table_Lookup lookup, u64 *val_out){
 }
 
 internal b32
+table_read_key(Table_Data_u64 *table, Table_Lookup lookup, Data *key_out){
+    b32 result = false;
+    if (lookup.found_match){
+        *key_out = table->keys[lookup.index];
+        result = true;
+    }
+    return(result);
+}
+
+internal b32
 table_read(Table_Data_u64 *table, Data key, u64 *val_out){
     Table_Lookup lookup = table_lookup(table, key);
     return(table_read(table, lookup, val_out));
@@ -737,14 +747,29 @@ table_lookup(Table_Data_Data *table, Data key){
 }
 
 internal b32
-table_read(Table_Data_Data *table, Data key, Data *val_out){
+table_read(Table_Data_Data *table, Table_Lookup lookup, Data *val_out){
     b32 result = false;
-    Table_Lookup lookup = table_lookup(table, key);
     if (lookup.found_match){
         *val_out = table->vals[lookup.index];
         result = true;
     }
     return(result);
+}
+
+internal b32
+table_read_key(Table_Data_Data *table, Table_Lookup lookup, Data *key_out){
+    b32 result = false;
+    if (lookup.found_match){
+        *key_out = table->keys[lookup.index];
+        result = true;
+    }
+    return(result);
+}
+
+internal b32
+table_read(Table_Data_Data *table, Data key, Data *val_out){
+    Table_Lookup lookup = table_lookup(table, key);
+    return(table_read(table, lookup, val_out));
 }
 
 internal void

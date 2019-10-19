@@ -1779,6 +1779,27 @@ If32(f32 a){
     return(interval);
 }
 
+internal Interval_i32
+Ii32(){
+    Interval_i32 interval = {};
+    return(interval);
+}
+internal Interval_i64
+Ii64(){
+    Interval_i64 interval = {};
+    return(interval);
+}
+internal Interval_u64
+Iu64(){
+    Interval_u64 interval = {};
+    return(interval);
+}
+internal Interval_f32
+If32(){
+    Interval_f32 interval = {};
+    return(interval);
+}
+
 internal b32
 operator==(Interval_i32 a, Interval_i32 b){
     return(a.min == b.min && a.max == b.max);

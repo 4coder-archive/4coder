@@ -111,6 +111,8 @@ profile_history_clear(void){
         Arena arena = node->arena;
         linalloc_clear(&arena);
     }
+    profile_history.first = 0;
+    profile_history.last = 0;
     system_mutex_release(profile_history.mutex);
 }
 

@@ -13,12 +13,23 @@ enum{
     ListAllLocationsFlag_MatchSubstring = 2,
 };
 
+struct Word_Complete_Iterator{
+    Application_Links *app;
+    Arena *arena;
+    Temp_Memory arena_restore;
+    Buffer_ID first_buffer;
+    Buffer_ID current_buffer;
+    String_Const_u8 needle;
+    
+    List_String_Const_u8 list;
+    Node_String_Const_u8 *node;
+    Table_Data_u64 already_used_table;
+};
+
 struct Word_Complete_State{
     b32 initialized;
-    String_Const_u8 needle;
     Range_i64 range;
-    List_String_Const_u8 list;
-    Node_String_Const_u8 *iterator;
+    Word_Complete_Iterator it;
 };
 
 #endif
