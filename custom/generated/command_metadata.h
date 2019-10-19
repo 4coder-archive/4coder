@@ -440,7 +440,7 @@ static Command_Metadata fcoder_metacmd_table[211] = {
 { PROC_LINKS(miblo_decrement_time_stamp, 0), "miblo_decrement_time_stamp", 26,  "Decrement a time stamp under the cursor by one second. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 237 },
 { PROC_LINKS(miblo_increment_time_stamp_minute, 0), "miblo_increment_time_stamp_minute", 33,  "Increment a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 243 },
 { PROC_LINKS(miblo_decrement_time_stamp_minute, 0), "miblo_decrement_time_stamp_minute", 33,  "Decrement a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 249 },
-{ PROC_LINKS(profile_inspect, 0), "profile_inspect", 15,  "Inspect all currently collected profiling information in 4coder's self profiler.", 80, "w:\\4ed\\code\\custom\\4coder_profile_inspect.cpp", 45, 273 },
+{ PROC_LINKS(profile_inspect, 0), "profile_inspect", 15,  "Inspect all currently collected profiling information in 4coder's self profiler.", 80, "w:\\4ed\\code\\custom\\4coder_profile_inspect.cpp", 45, 278 },
 { PROC_LINKS(default_startup, 0), "default_startup", 15,  "Default command for responding to a startup event", 49, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 7 },
 { PROC_LINKS(default_try_exit, 0), "default_try_exit", 16,  "Default command for responding to a try-exit event", 50, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 21 },
 };

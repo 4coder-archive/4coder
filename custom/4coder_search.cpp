@@ -429,6 +429,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             String_Const_u8 str = word_complete_it_read(&state.it);
             
             buffer_replace_range(app, buffer, state.range, str);
+            
             state.range.max = state.range.min + str.size;
             view_set_cursor_and_preferred_x(app, view, seek_pos(state.range.max));
         }

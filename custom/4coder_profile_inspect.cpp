@@ -74,6 +74,66 @@ sort_universal_slots(Profile_Universal_Slot **slots, i32 first, i32 one_past_las
     }
 }
 
+function Profile_Inspection
+profile_inspect(Arena *arena, Profile_History *history){
+    Profile_Inspection inspect = {};
+    for (Profile_Group *node = history->first;
+         node != 0;
+         node = node->next){
+        i32 thread_id = node->thread_id;
+        Profile_Thread *column = get_column_from_thread_id(inspect.thread_first,
+                                                           thread_id);
+        if (column == 0){
+            column = push_array_zero(arena, Profile_Thread, 1);
+            sll_queue_push(inspect.thread_first, inspect.thread_last, column);
+            inspect.thread_count += 1;
+            column->thread_id = thread_id;
+        }
+        
+        Profile_Group_Ptr *ptr = push_array(arena, Profile_Group_Ptr, 1);
+        sll_queue_push(column->first_group, column->last_group, ptr);
+        ptr->group = node;
+        
+        String_Const_u8 source_location = node->source_location;
+        for (Profile_Record *record = node->first;
+             record != 0;
+             record = record->next){
+            Profile_Universal_Slot *univ_slot =
+                get_universal_slot(column, source_location, record->slot_index);
+            if (univ_slot == 0){
+                univ_slot = push_array(arena, Profile_Universal_Slot, 1);
+                sll_queue_push(column->first_slot, column->last_slot, univ_slot);
+                column->slot_count += 1;
+                univ_slot->source_location = source_location;
+                univ_slot->slot_index = record->slot_index;
+                univ_slot->name = node->slot_names[univ_slot->slot_index];
+                univ_slot->count = 0;
+                univ_slot->total_time = 0;
+            }
+            univ_slot->count += 1;
+            univ_slot->total_time += record->time;
+        }
+    }
+    
+    for (Profile_Thread *column = inspect.thread_first;
+         column != 0;
+         column = column->next){
+        i32 count = column->slot_count;
+        Profile_Universal_Slot **slots = push_array(arena, Profile_Universal_Slot*, count);
+        column->sorted_slots = slots;
+        i32 counter = 0;
+        for (Profile_Universal_Slot *node = column->first_slot;
+             node != 0;
+             node = node->next){
+            slots[counter] = node;
+            counter += 1;
+        }
+        sort_universal_slots(slots, 0, count);
+    }
+    
+    return(inspect);
+}
+
 function void
 profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Scratch_Block scratch(app);
@@ -89,64 +149,9 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     
     system_mutex_acquire(profile_history.mutex);
     
-    // TODO(allen): cache this result!
-    Profile_Thread *thread_first = 0;
-    Profile_Thread *thread_last = 0;
-    i32 thread_count = 0;
-    for (Profile_Group *node = profile_history.first;
-         node != 0;
-         node = node->next){
-        i32 thread_id = node->thread_id;
-        Profile_Thread *column = get_column_from_thread_id(thread_first, thread_id);
-        if (column == 0){
-            column = push_array_zero(scratch, Profile_Thread, 1);
-            sll_queue_push(thread_first, thread_last, column);
-            thread_count += 1;
-            column->thread_id = thread_id;
-        }
-        
-        Profile_Group_Ptr *ptr = push_array(scratch, Profile_Group_Ptr, 1);
-        sll_queue_push(column->first_group, column->last_group, ptr);
-        ptr->group = node;
-        
-        String_Const_u8 source_location = node->source_location;
-        for (Profile_Record *record = node->first;
-             record != 0;
-             record = record->next){
-            Profile_Universal_Slot *univ_slot =
-                get_universal_slot(column, source_location, record->slot_index);
-            if (univ_slot == 0){
-                univ_slot = push_array(scratch, Profile_Universal_Slot, 1);
-                sll_queue_push(column->first_slot, column->last_slot, univ_slot);
-                column->slot_count += 1;
-                univ_slot->source_location = source_location;
-                univ_slot->slot_index = record->slot_index;
-                univ_slot->name = node->slot_names[univ_slot->slot_index];
-                univ_slot->count = 0;
-                univ_slot->total_time = 0;
-            }
-            univ_slot->count += 1;
-            univ_slot->total_time += record->time;
-        }
-    }
+    Profile_Inspection inspect = global_profile_inspection;
     
-    for (Profile_Thread *column = thread_first;
-         column != 0;
-         column = column->next){
-        i32 count = column->slot_count;
-        Profile_Universal_Slot **slots = push_array(scratch, Profile_Universal_Slot*, count);
-        column->sorted_slots = slots;
-        i32 counter = 0;
-        for (Profile_Universal_Slot *node = column->first_slot;
-             node != 0;
-             node = node->next){
-            slots[counter] = node;
-            counter += 1;
-        }
-        sort_universal_slots(slots, 0, count);
-    }
-    
-    f32 column_width = rect_width(region)/(f32)thread_count;
+    f32 column_width = rect_width(region)/(f32)inspect.thread_count;
     
     Rect_f32_Pair header_body = rect_split_top_bottom(region, block_height);
     
@@ -155,7 +160,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Range_f32 body_y = rect_range_y(header_body.max);
     
     f32 pos_x = region.x0;
-    for (Profile_Thread *column = thread_first;
+    for (Profile_Thread *column = inspect.thread_first;
          column != 0;
          column = column->next){
         Range_f32 column_x = If32_size(pos_x, column_width);
@@ -273,13 +278,20 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
 CUSTOM_COMMAND_SIG(profile_inspect)
 CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's self profiler.")
 {
+    if (HasFlag(profile_history.disable_bits, ProfileEnable_InspectBit)){
+        return;
+    }
+    
+    profile_history_set_enabled(false, ProfileEnable_InspectBit);
+    
+    Scratch_Block scratch(app);
+    global_profile_inspection = profile_inspect(scratch, &profile_history);
+    
     View_ID view = get_active_view(app, Access_Always);
     View_Context ctx = view_current_context(app, view);
     ctx.render_caller = profile_render;
     ctx.hides_buffer = true;
     view_push_context(app, view, &ctx);
-    
-    profile_history_set_enabled(false, ProfileEnable_InspectBit);
     
     for (;;){
         User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);

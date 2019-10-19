@@ -38,6 +38,14 @@ struct Profile_Thread{
     Profile_Universal_Slot **sorted_slots;
 };
 
+struct Profile_Inspection{
+    Profile_Thread *thread_first;
+    Profile_Thread *thread_last;
+    i32 thread_count;
+};
+
+global Profile_Inspection global_profile_inspection = {};
+
 #endif
 
 // TOP
