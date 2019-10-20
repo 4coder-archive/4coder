@@ -1009,6 +1009,7 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
             break;
         }
         
+        b32 handled = true;
         switch (in.event.kind){
             case InputEventKind_KeyStroke:
             {
@@ -1021,6 +1022,11 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
                     case KeyCode_PageDown:
                     {
                         log_graph.y_scroll += get_page_jump(app, log_view);
+                    }break;
+                    
+                    default:
+                    {
+                        handled = false;
                     }break;
                 }
             }break;
@@ -1038,6 +1044,11 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
                     {
                         log_graph__click_select_event(app, m_p);
                     }break;
+                    
+                    default:
+                    {
+                        handled = false;
+                    }break;
                 }
             }break;
             
@@ -1046,6 +1057,20 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
                 f32 value = in.event.mouse_wheel.value;
                 log_graph.y_scroll += f32_round32(value);
             }break;
+            
+            default:
+            {
+                handled = false;
+            }break;
+        }
+        
+        if (!handled){
+            // TODO(allen): get mapping and map from a more flexible source.
+            Mapping *mapping = &framework_mapping;
+            Command_Map *map = mapping_get_map(mapping, mapid_global);
+            if (ui_fallback_command_dispatch(app, view, mapping, map, &in)){
+                break;
+            }
         }
     }
     

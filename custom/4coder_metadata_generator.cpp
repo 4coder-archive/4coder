@@ -667,9 +667,6 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, u8 *source_nam
                     }
                 }
             }
-            else if (string_match(lexeme, string_u8_litexpr("CUSTOM_UI_COMMAND"))){
-                
-            }
         }
         
         if (token.kind == TokenBaseKind_EOF){

@@ -54,9 +54,16 @@ struct ID_Pos_Jump_Location_Array{
 
 ////////////////////////////////
 
-struct Named_Mapping{
-    String_Const_u8 name;
-    Custom_Command_Function *remap_command;
+typedef i32 Fallback_Dispatch_Result_Code;
+enum{
+    FallbackDispatch_Unhandled,
+    FallbackDispatch_DidCall,
+    FallbackDispatch_DelayedUICall,
+};
+
+struct Fallback_Dispatch_Result{
+    Fallback_Dispatch_Result_Code code;
+    Custom_Command_Function *func;
 };
 
 ////////////////////////////////

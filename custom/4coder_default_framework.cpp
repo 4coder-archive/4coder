@@ -150,11 +150,54 @@ get_next_view_after_active(Application_Links *app, Access_Flag access){
 ////////////////////////////////
 
 static void
-call_after_ui_shutdown(Application_Links *app, View_ID view, Custom_Command_Function *func){
+call_after_ctx_shutdown(Application_Links *app, View_ID view, Custom_Command_Function *func){
     Managed_Scope scope = view_get_managed_scope(app, view);
     Custom_Command_Function **call_next =
         scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
     *call_next = func;
+}
+
+function Fallback_Dispatch_Result
+fallback_command_dispatch(Application_Links *app, Mapping *mapping, Command_Map *map,
+                          User_Input *in){
+    Fallback_Dispatch_Result result = {};
+    if (mapping != 0 && map != 0){
+        Command_Binding binding = map_get_binding_recursive(mapping, map, &in->event);
+        if (binding.custom != 0){
+            Command_Metadata *metadata = get_command_metadata(binding.custom);
+            if (metadata != 0){
+                if (metadata->is_ui){
+                    result.code = FallbackDispatch_DelayedUICall;
+                    result.func = binding.custom;
+                }
+                else{
+                    binding.custom(app);
+                    result.code = FallbackDispatch_DidCall;
+                }
+            }
+            else{
+                binding.custom(app);
+                result.code = FallbackDispatch_DidCall;
+            }
+        }
+    }
+    return(result);
+}
+
+function b32
+ui_fallback_command_dispatch(Application_Links *app, View_ID view,
+                             Mapping *mapping, Command_Map *map, User_Input *in){
+    b32 result = false;
+    Fallback_Dispatch_Result disp_result =
+        fallback_command_dispatch(app, mapping, map, in);
+    if (disp_result.code == FallbackDispatch_DelayedUICall){
+        call_after_ctx_shutdown(app, view, disp_result.func);
+        result = true;
+    }
+    if (disp_result.code == FallbackDispatch_Unhandled){
+        leave_current_input_unhandled(app);
+    }
+    return(result);
 }
 
 ////////////////////////////////

@@ -374,7 +374,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     draw_set_clip(app, prev_clip);
 }
 
-CUSTOM_COMMAND_SIG(profile_inspect)
+CUSTOM_UI_COMMAND_SIG(profile_inspect)
 CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's self profiler.")
 {
     if (HasFlag(global_prof_list.disable_bits, ProfileEnable_InspectBit)){
@@ -426,27 +426,11 @@ CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's se
         }
         
         if (!handled){
-            // TODO(allen): dedup this stuff.
             // TODO(allen): get mapping and map from a more flexible source.
             Mapping *mapping = &framework_mapping;
             Command_Map *map = mapping_get_map(mapping, mapid_global);
-            if (mapping != 0 && map != 0){
-                Command_Binding binding =
-                    map_get_binding_recursive(mapping, map, &in.event);
-                if (binding.custom != 0){
-                    i64 old_num = get_current_input_sequence_number(app);
-                    binding.custom(app);
-                    i64 num = get_current_input_sequence_number(app);
-                    if (old_num < num){
-                        break;
-                    }
-                }
-                else{
-                    leave_current_input_unhandled(app);
-                }
-            }
-            else{
-                leave_current_input_unhandled(app);
+            if (ui_fallback_command_dispatch(app, view, mapping, map, &in)){
+                break;
             }
         }
     }

@@ -454,8 +454,8 @@ STRUCT Record_Info{
 
 TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
-#if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_UI_COMMAND) || defined(CUSTOM_DOC) || defined(CUSTOM_COMMAND)
-#error Please do not define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_UI_COMMAND
+#if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_UI_COMMAND_SIG) || defined(CUSTOM_DOC) || defined(CUSTOM_COMMAND)
+#error Please do not define CUSTOM_COMMAND_SIG, CUSTOM_DOC, CUSTOM_UI_COMMAND_SIG, or CUSTOM_COMMAND
 #endif
 
 #if !defined(META_PASS)
