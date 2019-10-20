@@ -4,134 +4,191 @@
 
 // TOP
 
-function Profile_Thread*
-get_column_from_thread_id(Profile_Thread *first, i32 thread_id){
-    Profile_Thread *result = 0;
-    for (Profile_Thread *node = first;
+function Profile_Slot*
+profile_parse_get_slot(Arena *arena, Profile_Inspection *insp,
+                       String_Const_u8 loc, String_Const_u8 name){
+    Profile_Slot *result = 0;
+    for (Profile_Slot *node = insp->first_slot;
          node != 0;
          node = node->next){
-        if (node->thread_id == thread_id){
+        if (string_match(node->location, loc) &&
+            string_match(node->name, name)){
             result = node;
             break;
         }
     }
-    return(result);
-}
-
-function Profile_Universal_Slot*
-get_universal_slot(Profile_Thread *column, String_Const_u8 source_location,
-                   u32 slot_index){
-    Profile_Universal_Slot *result = 0;
-    for (Profile_Universal_Slot *node = column->first_slot;
-         node != 0;
-         node = node->next){
-        if (node->slot_index == slot_index &&
-            string_match(node->source_location, source_location)){
-            result = node;
-            break;
-        }
+    if (result == 0){
+        result = push_array_zero(arena, Profile_Slot, 1);
+        sll_queue_push(insp->first_slot, insp->last_slot, result);
+        insp->slot_count += 1;
+        result->location = loc;
+        result->name = name;
     }
     return(result);
 }
 
 function void
-sort_universal_slots(Profile_Universal_Slot **slots, i32 first, i32 one_past_last){
-    if (first + 1 < one_past_last){
-        i32 pivot = one_past_last - 1;
-        Profile_Universal_Slot *pivot_slot = slots[pivot];
-        i32 j = first;
-        for (i32 i = first; i < pivot; i += 1){
-            Profile_Universal_Slot *slot = slots[i];
-            b32 goes_first = false;
-            if (slot->total_time > pivot_slot->total_time){
-                goes_first = true;
+profile_parse_error(Arena *arena, Profile_Inspection *insp, String_Const_u8 message,
+                    String_Const_u8 location){
+    Profile_Error *error = push_array(arena, Profile_Error, 1);
+    sll_queue_push(insp->first_error, insp->last_error, error);
+    insp->error_count += 1;
+    error->message = message;
+    error->location = location;
+}
+
+function Profile_Record*
+profile_parse_record(Arena *arena, Profile_Inspection *insp,
+                     Profile_Node *parent, Profile_Record *record,
+                     Range_u64 *total_time_range){
+    for (;record != 0;){
+        if (record->id <= parent->id){
+            break;
+        }
+        
+        Profile_ID id = record->id;
+        Profile_Node *node = push_array(arena, Profile_Node, 1);
+        sll_queue_push(parent->first_child, parent->last_child, node);
+        parent->child_count += 1;
+        
+        String_Const_u8 location = record->location;
+        String_Const_u8 name = record->name;
+        
+        node->time.min = record->time;
+        node->time.max = max_u64;
+        node->id = id;
+        node->first_child = 0;
+        node->last_child = 0;
+        node->child_count = 0;
+        node->closed = false;
+        
+        record = profile_parse_record(arena, insp, node, record->next,
+                                      total_time_range);
+        
+        b32 quit_loop = false;
+        Profile_Slot *slot = 0;
+        if (record == 0 || record->id < id){
+            if (record == 0){
+#define M "List ended before all nodes closed"
+                profile_parse_error(arena, insp, string_u8_litexpr(M), location);
+#undef M
             }
-            else if (slot->total_time == pivot_slot->total_time){
-                if (slot->count > pivot_slot->count){
-                    goes_first = true;
-                }
-                else if (slot->count == pivot_slot->count){
-                    i32 comp = string_compare(slot->source_location,
-                                              pivot_slot->source_location);
-                    if (comp < 0){
-                        goes_first = true;
-                    }
-                    else if (comp == 0){
-                        if (slot->slot_index < pivot_slot->slot_index){
-                            goes_first = true;
-                        }
-                    }
+            else{
+#define M "Node '%.*s' closed by parent ending (or higher priority sibling starting)"
+                String_Const_u8 str = push_u8_stringf(arena, M, string_expand(name));
+                profile_parse_error(arena, insp, str, location);
+#undef M
+                if (parent->id != 0){
+                    quit_loop = true;
                 }
             }
-            if (goes_first){
-                Swap(Profile_Universal_Slot*, slots[i], slots[j]);
-                j += 1;
+            slot = profile_parse_get_slot(arena, insp, location, name);
+        }
+        else if (record->id == id){
+            String_Const_u8 close_location = record->location;
+            String_Const_u8 close_name = record->name;
+            slot = profile_parse_get_slot(arena, insp, location, name);
+            node->time.max = record->time;
+            node->closed = true;
+            total_time_range->min = min(total_time_range->min, node->time.min);
+            total_time_range->max = max(total_time_range->max, node->time.max);
+            record = record->next;
+        }
+        else{
+            // NOTE(allen): This would mean that record exists and it's id
+            // is greater than id, but then the sub-call should not have returned!
+            InvalidPath;
+        }
+        
+        node->slot = slot;
+        if (!slot->corrupted_time){
+            if (node->closed){
+                slot->total_time += range_size(node->time);
+            }
+            else{
+                slot->corrupted_time = true;
             }
         }
-        Swap(Profile_Universal_Slot*, slots[j], slots[pivot]);
-        sort_universal_slots(slots, first, j);
-        sort_universal_slots(slots, j + 1, one_past_last);
+        slot->hit_count += 1;
+        
+        if (quit_loop){
+            break;
+        }
     }
+    return(record);
 }
 
 function Profile_Inspection
-profile_inspect(Arena *arena, Profile_History *history){
-    Profile_Inspection inspect = {};
-    for (Profile_Group *node = history->first;
+profile_parse(Arena *arena){
+    Mutex_Lock lock(global_prof_mutex);
+    Profile_Global_List *src = &global_prof_list;
+    
+    Profile_Inspection result = {};
+    
+    result.thread_count = src->thread_count;
+    result.threads = push_array_zero(arena, Profile_Inspection_Thread,
+                                     result.thread_count);
+    
+    i32 counter = 0;
+    Profile_Inspection_Thread *insp_thread = result.threads;
+    for (Profile_Thread *node = src->first_thread;
          node != 0;
-         node = node->next){
-        i32 thread_id = node->thread_id;
-        Profile_Thread *column = get_column_from_thread_id(inspect.thread_first,
-                                                           thread_id);
-        if (column == 0){
-            column = push_array_zero(arena, Profile_Thread, 1);
-            sll_queue_push(inspect.thread_first, inspect.thread_last, column);
-            inspect.thread_count += 1;
-            column->thread_id = thread_id;
-        }
+         node = node->next, counter += 1, insp_thread += 1){
+        insp_thread->thread_id = node->thread_id;
         
-        Profile_Group_Ptr *ptr = push_array(arena, Profile_Group_Ptr, 1);
-        sll_queue_push(column->first_group, column->last_group, ptr);
-        ptr->group = node;
-        
-        String_Const_u8 source_location = node->source_location;
-        for (Profile_Record *record = node->first;
-             record != 0;
-             record = record->next){
-            Profile_Universal_Slot *univ_slot =
-                get_universal_slot(column, source_location, record->slot_index);
-            if (univ_slot == 0){
-                univ_slot = push_array(arena, Profile_Universal_Slot, 1);
-                sll_queue_push(column->first_slot, column->last_slot, univ_slot);
-                column->slot_count += 1;
-                univ_slot->source_location = source_location;
-                univ_slot->slot_index = record->slot_index;
-                univ_slot->name = node->slot_names[univ_slot->slot_index];
-                univ_slot->count = 0;
-                univ_slot->total_time = 0;
-            }
-            univ_slot->count += 1;
-            univ_slot->total_time += record->time;
-        }
+        // NOTE(allen): This is the "negative infinity" range.
+        // We will be "maxing" it against all the ranges durring the parse,
+        // to get the root range.
+        Range_u64 time_range = {max_u64, 0};
+        profile_parse_record(arena, &result, &insp_thread->root, node->first_record,
+                             &time_range);
+        insp_thread->root.time = time_range;
     }
     
-    for (Profile_Thread *column = inspect.thread_first;
-         column != 0;
-         column = column->next){
-        i32 count = column->slot_count;
-        Profile_Universal_Slot **slots = push_array(arena, Profile_Universal_Slot*, count);
-        column->sorted_slots = slots;
-        i32 counter = 0;
-        for (Profile_Universal_Slot *node = column->first_slot;
-             node != 0;
-             node = node->next){
-            slots[counter] = node;
-            counter += 1;
-        }
-        sort_universal_slots(slots, 0, count);
+    return(result);
+}
+
+////////////////////////////////
+
+struct Tab_State{
+    Vec2_f32 p;
+    Range_f32 tabs_y;
+    Face_ID face_id;
+    f32 x_half_padding;
+    Vec2_f32 m_p;
+};
+
+function void
+profile_draw_tab(Application_Links *app, Tab_State *state, Profile_Inspection *insp,
+                 String_Const_u8 string, Profile_Inspection_Tab tab_id){
+    Scratch_Block scratch(app);
+    
+    state->p.x += state->x_half_padding;
+    
+    Fancy_String_List list = {};
+    push_fancy_string(scratch, &list, fancy_pass_through(), string);
+    
+    b32 hover = false;
+    f32 width = get_fancy_string_advance(app, state->face_id, list.first);
+    Rect_f32 box = Rf32(If32_size(state->p.x, width), state->tabs_y);
+    if (rect_contains_point(box, state->m_p)){
+        hover = true;
+        insp->tab_id_hovered = tab_id;
     }
     
-    return(inspect);
+    int_color text = Stag_Default;
+    int_color back = 0;
+    if (insp->tab_id == tab_id){
+        text = Stag_Pop2;
+    }
+    else if (hover){
+        text = Stag_Pop1;
+    }
+    
+    Vec2_f32 np = draw_fancy_string(app, state->face_id, list.first, state->p,
+                                    text, back);
+    state->p = np;
+    state->p.x += state->x_half_padding;
 }
 
 function void
@@ -147,130 +204,172 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     f32 normal_advance = metrics.normal_advance;
     f32 block_height = line_height*2.f;
     
-    system_mutex_acquire(profile_history.mutex);
+    Mouse_State mouse = get_mouse_state(app);
+    Vec2_f32 m_p = V2f32(mouse.p);
     
-    Profile_Inspection inspect = global_profile_inspection;
+    Profile_Inspection *inspect = &global_profile_inspection;
     
-    f32 column_width = rect_width(region)/(f32)inspect.thread_count;
-    
-    Rect_f32_Pair header_body = rect_split_top_bottom(region, block_height);
-    
-    Range_f32 full_y = rect_range_y(region);
-    Range_f32 header_y = rect_range_y(header_body.min);
-    Range_f32 body_y = rect_range_y(header_body.max);
-    
-    f32 pos_x = region.x0;
-    for (Profile_Thread *column = inspect.thread_first;
-         column != 0;
-         column = column->next){
-        Range_f32 column_x = If32_size(pos_x, column_width);
-        Range_f32 text_x = If32(column_x.min + 6.f, column_x.max - 6.f);
-        f32 text_width = range_size(text_x);
-        f32 count_width = normal_advance*6.f;
-        f32 time_width = normal_advance*9.f;
-        f32 half_padding = normal_advance*0.25f;
-        f32 label_width = text_width - count_width - time_width;
-        if (label_width < normal_advance*10.f){
-            f32 count_ratio =  6.f/25.f;
-            f32 time_ratio  =  9.f/25.f;
-            f32 label_ratio = 10.f/25.f;
-            count_width = text_width*count_ratio;
-            time_width  = text_width*time_ratio;
-            label_width = text_width*label_ratio;
-        }
+    if (inspect->thread_count == 0){
+        Fancy_String_List text = {};
+        push_fancy_string(scratch, &text, fancy_id(Stag_Pop2),
+                          string_u8_litexpr("no profile data"));
+        f32 width = get_fancy_string_advance(app, face_id, text.first);
+        Vec2_f32 view_center = (region.p0 + region.p1)*0.5f;
+        Vec2_f32 half_dim = V2f32(width, line_height)*0.5f;
+        Vec2_f32 p = view_center - half_dim;
+        draw_fancy_string(app, face_id, text.first, p, Stag_Default, 0);
+    }
+    else{
+        Rect_f32_Pair tabs_body = rect_split_top_bottom(region, line_height + 2.f);
+        Range_f32 tabs_y = rect_range_y(tabs_body.min);
         
-        i32 count = column->slot_count;
+        f32 x_padding = normal_advance*1.5f;
+        f32 x_half_padding = x_padding*0.5f;
         
-        draw_set_clip(app, Rf32(column_x, full_y));
+        inspect->tab_id_hovered = ProfileInspectTab_None;
+        block_zero_struct(&inspect->location_jump_hovered);
         
-        // NOTE(allen): header
+        // NOTE(allen): tabs
         {
-            Rect_f32 box = Rf32(column_x, header_y);
-            draw_rectangle_outline(app, box, 6.f, 3.f, Stag_Margin_Active);
-        }
-        
-        // NOTE(allen): list
-        {        
-            f32 pos_y = body_y.min;
-            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
-            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
-                Range_f32 slot_y = If32_size(pos_y, block_height);
-                Rect_f32 box = Rf32(column_x, slot_y);
-                draw_rectangle_outline(app, box, 6.f, 3.f, Stag_Margin);
-                pos_y = slot_y.max;
+            f32 y = (tabs_y.min + tabs_y.max - line_height)*0.5f;
+            f32 x = region.x0;
+            
+            Tab_State tab_state = {};
+            tab_state.p = V2f32(x, y);
+            tab_state.tabs_y = tabs_y;
+            tab_state.face_id = face_id;
+            tab_state.x_half_padding = x_half_padding;
+            tab_state.m_p = m_p;
+            
+            draw_rectangle(app, tabs_body.min, 0.f, Stag_Margin_Hover);
+            
+            if (inspect->tab_id == ProfileInspectTab_None){
+                inspect->tab_id = ProfileInspectTab_Threads;
+            }
+            
+            profile_draw_tab(app, &tab_state, inspect,
+                             string_u8_litexpr("threads"),
+                             ProfileInspectTab_Threads);
+            
+            if (inspect->slot_count > 0){
+                profile_draw_tab(app, &tab_state, inspect,
+                                 string_u8_litexpr("slots"),
+                                 ProfileInspectTab_Slots);
+            }
+            
+            if (inspect->error_count > 0){
+                profile_draw_tab(app, &tab_state, inspect,
+                                 string_u8_litexpr("errors"),
+                                 ProfileInspectTab_Errors);
             }
         }
         
-        // NOTE(allen): header text
-        {
-            draw_set_clip(app, Rf32(text_x, full_y));
+        switch (inspect->tab_id){
+            case ProfileInspectTab_Slots:
+            {
+                draw_set_clip(app, tabs_body.max);
+                Range_f32 x = rect_range_x(tabs_body.max);
+                f32 y_pos = tabs_body.max.y0;
+                for (Profile_Slot *node = inspect->first_slot;
+                     node != 0;
+                     node = node->next){
+                    Range_f32 y = If32_size(y_pos, block_height);
+                    
+                    i32 name_width = 30;
+                    Fancy_String_List list = {};
+                    if (node->name.size > name_width){
+                        push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop1),
+                                           "%.*s... ",
+                                           name_width - 3, node->name.str);
+                    }
+                    else{
+                        push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop1),
+                                           "%-*.*s ",
+                                           name_width,
+                                           string_expand(node->name));
+                    }
+                    
+                    if (node->corrupted_time){
+                        push_fancy_string(scratch, &list, fancy_id(Stag_Pop2),
+                                          string_u8_litexpr("timing error "));
+                    }
+                    else{
+                        push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop2),
+                                           "%11.8fs ",
+                                           ((f32)node->total_time)/1000000.f);
+                    }
+                    
+                    push_fancy_stringf(scratch, &list, fancy_id(Stag_Keyword),
+                                       "hit # %5d", node->hit_count);
+                    
+                    Vec2_f32 p = V2f32(x.min + x_half_padding,
+                                       (y.min + y.max - line_height)*0.5f);
+                    draw_fancy_string(app, face_id, list.first, p, 0, 0);
+                    
+                    Rect_f32 box = Rf32(x, y);
+                    int_color margin = Stag_Margin;
+                    if (rect_contains_point(box, m_p)){
+                        inspect->location_jump_hovered = node->location;
+                        margin = Stag_Margin_Hover;
+                    }
+                    draw_rectangle_outline(app, box, 6.f, 3.f, margin);
+                    
+                    y_pos = y.max;
+                }
+            }break;
+            
+            case ProfileInspectTab_Errors:
+            {
+                draw_set_clip(app, tabs_body.max);
+                Range_f32 x = rect_range_x(tabs_body.max);
+                f32 y_pos = tabs_body.max.y0;
+                for (Profile_Error *node = inspect->first_error;
+                     node != 0;
+                     node = node->next){
+                    Range_f32 y = If32_size(y_pos, block_height);
+                    
+                    Fancy_String_List list = {};
+                    push_fancy_string(scratch, &list, fancy_id(Stag_Pop2),
+                                      node->message);
+                    
+                    Vec2_f32 p = V2f32(x.min + x_half_padding,
+                                       (y.min + y.max - line_height)*0.5f);
+                    draw_fancy_string(app, face_id, list.first, p, 0, 0);
+                    
+                    Rect_f32 box = Rf32(x, y);
+                    int_color margin = Stag_Margin;
+                    if (rect_contains_point(box, m_p)){
+                        inspect->location_jump_hovered = node->location;
+                        margin = Stag_Margin_Hover;
+                    }
+                    draw_rectangle_outline(app, box, 6.f, 3.f, margin);
+                    
+                    y_pos = y.max;
+                }
+            }break;
+        }
+        
+        if (inspect->tab_id_hovered != ProfileInspectTab_None){
+            // NOTE(allen): no tool tip for tabs
+        }
+        else if (inspect->location_jump_hovered.size > 0){
+            draw_set_clip(app, region);
             
             Fancy_String_List list = {};
-            push_fancy_stringf(scratch, &list, fancy_id(Stag_Keyword),
-                               "%d", column->thread_id);
-            f32 y = (header_y.min + header_y.max - line_height)*0.5f;
-            draw_fancy_string(app, face_id, list.first, V2f32(text_x.min, y), Stag_Default, 0);
-        }
-        
-        // NOTE(allen): list text counts
-        {
-            Range_f32 x = If32_size(text_x.min + label_width + time_width + half_padding, count_width);
-            f32 pos_y = body_y.min;
-            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
-            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
-                Range_f32 slot_y = If32_size(pos_y, block_height);
-                f32 y = (slot_y.min + slot_y.max - line_height)*0.5f;
-                Profile_Universal_Slot *slot = *slot_ptr;
-                Fancy_String_List list = {};
-                push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop1),
-                                   "%5u", slot->count);
-                draw_fancy_string(app, face_id, list.first, V2f32(x.min, y), Stag_Default, 0);
-                pos_y = slot_y.max;
+            push_fancy_stringf(scratch, &list, fancy_rgba(1.f, 1.f, 1.f, 0.5f),
+                               "jump to: '%.*s'",
+                               string_expand(inspect->location_jump_hovered));
+            f32 width = get_fancy_string_advance(app, face_id, list.first);
+            Vec2_f32 dims = V2f32(width + x_padding, line_height + 2.f);
+            Rect_f32 box = get_tool_tip_box(region, m_p, dims);
+            if (rect_area(box) > 0.f){
+                draw_rectangle(app, box, 6.f, 0x80000000);
+                draw_fancy_string(app, face_id, list.first,
+                                  V2f32(box.x0 + x_half_padding, box.y0 + 1.f),
+                                  0, 0);
             }
         }
-        
-        // NOTE(allen): list text labels
-        {
-            Range_f32 x = If32_size(text_x.min + label_width + half_padding, time_width - half_padding);
-            draw_set_clip(app, Rf32(x, full_y));
-            
-            f32 pos_y = body_y.min;
-            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
-            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
-                Range_f32 slot_y = If32_size(pos_y, block_height);
-                f32 y = (slot_y.min + slot_y.max - line_height)*0.5f;
-                Profile_Universal_Slot *slot = *slot_ptr;
-                Fancy_String_List list = {};
-                push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop2),
-                                   "%-8.6f", (f32)(slot->total_time)/1000000.f);
-                draw_fancy_string(app, face_id, list.first, V2f32(x.min, y), Stag_Default, 0);
-                pos_y = slot_y.max;
-            }
-        }
-        
-        // NOTE(allen): list text labels
-        {
-            Range_f32 x = If32_size(text_x.min, label_width - half_padding);
-            draw_set_clip(app, Rf32(x, full_y));
-            
-            f32 pos_y = body_y.min;
-            Profile_Universal_Slot **slot_ptr = column->sorted_slots;
-            for (i32 i = 0; i < count; i += 1, slot_ptr += 1){
-                Range_f32 slot_y = If32_size(pos_y, block_height);
-                f32 y = (slot_y.min + slot_y.max - line_height)*0.5f;
-                Profile_Universal_Slot *slot = *slot_ptr;
-                Fancy_String_List list = {};
-                push_fancy_stringf(scratch, &list, fancy_id(Stag_Default),
-                                   "%.*s ", string_expand(slot->name));
-                draw_fancy_string(app, face_id, list.first, V2f32(x.min, y), Stag_Default, 0);
-                pos_y = slot_y.max;
-            }
-        }
-        
-        pos_x = column_x.max;
     }
-    
-    system_mutex_release(profile_history.mutex);
     
     draw_set_clip(app, prev_clip);
 }
@@ -278,14 +377,15 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
 CUSTOM_COMMAND_SIG(profile_inspect)
 CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's self profiler.")
 {
-    if (HasFlag(profile_history.disable_bits, ProfileEnable_InspectBit)){
+    if (HasFlag(global_prof_list.disable_bits, ProfileEnable_InspectBit)){
         return;
     }
     
-    profile_history_set_enabled(false, ProfileEnable_InspectBit);
+    global_prof_set_enabled(false, ProfileEnable_InspectBit);
     
     Scratch_Block scratch(app);
-    global_profile_inspection = profile_inspect(scratch, &profile_history);
+    global_profile_inspection = profile_parse(scratch);
+    Profile_Inspection *insp = &global_profile_inspection;
     
     View_ID view = get_active_view(app, Access_Always);
     View_Context ctx = view_current_context(app, view);
@@ -299,18 +399,32 @@ CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's se
             break;
         }
         
-#if 0
         b32 handled = true;
         switch (in.event.kind){
+            case InputEventKind_MouseButton:
+            {
+                switch (in.event.mouse.code){
+                    case MouseCode_Left:
+                    {
+                        if (insp->tab_id_hovered != ProfileInspectTab_None){
+                            insp->tab_id = insp->tab_id_hovered;
+                        }
+                        else if (insp->location_jump_hovered.size != 0){
+                            View_ID target_view = view;
+                            target_view = get_next_view_looped_primary_panels(app, target_view, Access_Always);
+                            String_Const_u8 location = insp->location_jump_hovered;
+                            jump_to_location(app, target_view, location);
+                        }
+                    }break;
+                }
+            }break;
+            
             default:
             {
                 handled = false;
             }break;
         }
-#else
-        b32 handled = false;
-#endif
-
+        
         if (!handled){
             // TODO(allen): dedup this stuff.
             // TODO(allen): get mapping and map from a more flexible source.
@@ -337,7 +451,7 @@ CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's se
         }
     }
     
-    profile_history_set_enabled(true, ProfileEnable_InspectBit);
+    global_prof_set_enabled(true, ProfileEnable_InspectBit);
     
     view_pop_context(app, view);
 }

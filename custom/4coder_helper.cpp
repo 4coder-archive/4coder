@@ -2326,6 +2326,20 @@ guess_line_ending_kind_from_buffer_contents(Application_Links *app, Buffer_ID bu
 
 ////////////////////////////////
 
+function Command_Metadata*
+get_command_metadata(Custom_Command_Function *func){
+    Command_Metadata *result = 0;
+    for (i32 i = 0; i < ArrayCount(fcoder_metacmd_table); i += 1){
+        if (func == fcoder_metacmd_table[i].proc){
+            result = &fcoder_metacmd_table[i];
+            break;
+        }
+    }
+    return(result);
+}
+
+////////////////////////////////
+
 // TODO(allen): REWRITE THIS EXACTLY HOW YOU WANT IT --- start ---
 
 internal Child_Process_Set_Target_Flags

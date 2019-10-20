@@ -244,11 +244,21 @@ set_view_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Buf
 }
 
 static void
-jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Name_Line_Column_Location location){
+jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer,
+                 Name_Line_Column_Location location){
     view_set_active(app, view);
     set_view_to_location(app, view, buffer, seek_line_col(location.line, location.column));
     if (auto_center_after_jumps){
         center_view(app);
+    }
+}
+
+static void
+jump_to_location(Application_Links *app, View_ID view,
+                 Name_Line_Column_Location location){
+    Buffer_ID buffer = 0;
+    if (get_jump_buffer(app, &buffer, &location)){
+        jump_to_location(app, view, buffer, location);
     }
 }
 
@@ -258,6 +268,14 @@ jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, ID_Pos_
     set_view_to_location(app, view, buffer, seek_pos(location.pos));
     if (auto_center_after_jumps){
         center_view(app);
+    }
+}
+
+function void
+jump_to_location(Application_Links *app, View_ID view, String_Const_u8 location){
+    Parsed_Jump jump = parse_jump_location(location);
+    if (jump.success){
+        jump_to_location(app, view, jump.location);
     }
 }
 

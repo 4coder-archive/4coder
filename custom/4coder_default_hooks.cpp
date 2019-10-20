@@ -82,6 +82,13 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         
         Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
         
+        Managed_Scope scope = view_get_managed_scope(app, view);
+        Custom_Command_Function** next_call = 0;
+
+	    call_again:
+        next_call = scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
+        *next_call = 0;
+        
         if (binding.custom == 0){
             // NOTE(allen): we don't have anything to do with this input,
             // leave it marked unhandled so that if there's a follow up
@@ -90,7 +97,6 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         }
         else{
             // NOTE(allen): before the command is called do some book keeping
-            Managed_Scope scope = view_get_managed_scope(app, view);
             Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
             *next_rewrite = Rewrite_None;
             if (fcoder_mode == FCoderMode_NotepadLike){
@@ -123,6 +129,12 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
                         }
                     }
                 }
+            }
+            
+            next_call = scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
+            if (*next_call != 0){
+                binding.custom = *next_call;
+                goto call_again;
             }
         }
     }
@@ -693,6 +705,8 @@ BUFFER_HOOK_SIG(default_file_save){
 
 BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     // buffer_id, range, text
+    
+    ProfileScope(app, "default edit range");
     
     Interval_i64 replace_range = Ii64(range.first, range.first + text.size);
     i64 insert_size = range_size(range);

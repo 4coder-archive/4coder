@@ -1126,17 +1126,60 @@ struct Temp_Memory{
     };
 };
 
-////////////////////////////////
-
-union Arena_Node{
+struct Arena_Node{
     Arena_Node *next;
     Arena arena;
 };
+
+////////////////////////////////
+
+typedef u64 Profile_ID;
+struct Profile_Record{
+    Profile_Record *next;
+    Profile_ID id;
+    u64 time;
+    String_Const_u8 location;
+    String_Const_u8 name;
+};
+
+struct Profile_Thread{
+    Profile_Thread *next;
+    Profile_Record *first_record;
+    Profile_Record *last_record;
+    i32 record_count;
+    i32 thread_id;
+};
+
+typedef u32 Profile_Enable_Flag;
+enum{
+    ProfileEnable_UserBit    = 0x1,
+    ProfileEnable_InspectBit = 0x2,
+};
+
+struct Profile_Global_List{
+    Arena node_arena;
+    Arena_Node *first_arena;
+    Arena_Node *last_arena;
+    Profile_Thread *first_thread;
+    Profile_Thread *last_thread;
+    i32 thread_count;
+    Profile_Enable_Flag disable_bits;
+};
+
+////////////////////////////////
+
 struct Thread_Context{
     Base_Allocator *allocator;
     Arena node_arena;
     Arena_Node *free_arenas;
     Arena *sharable_scratch;
+    
+    Base_Allocator *prof_allocator;
+    Profile_ID prof_id_counter;
+    Arena prof_arena;
+    Profile_Record *prof_first;
+    Profile_Record *prof_last;
+    i32 prof_record_count;
 };
 
 typedef i32 Scratch_Share_Code;

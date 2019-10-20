@@ -2397,6 +2397,15 @@ rect_range_y(Rect_f32 r){
     return(If32(r.y0, r.y1));
 }
 
+internal i32
+rect_area(Rect_i32 r){
+    return((r.x1 - r.x0)*(r.y1 - r.y0));
+}
+internal f32
+rect_area(Rect_f32 r){
+    return((r.x1 - r.x0)*(r.y1 - r.y0));
+}
+
 internal b32
 rect_overlap(Rect_i32 a, Rect_i32 b){
     return(range_overlap(rect_range_x(a), rect_range_x(b)) &&
@@ -2825,10 +2834,15 @@ end_temp(Temp_Memory temp){
 ////////////////////////////////
 
 internal void
-thread_ctx_init(Thread_Context *tctx, Base_Allocator *allocator){
+thread_ctx_init(Thread_Context *tctx, Base_Allocator *allocator,
+                Base_Allocator *prof_allocator){
     block_zero_struct(tctx);
     tctx->allocator = allocator;
     tctx->node_arena = make_arena(allocator, KB(4), 8);
+    
+    tctx->prof_allocator = prof_allocator;
+    tctx->prof_id_counter = 1;
+    tctx->prof_arena = make_arena(prof_allocator, KB(4));
 }
 
 internal void

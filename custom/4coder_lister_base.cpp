@@ -653,11 +653,18 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
                 Command_Binding binding =
                     map_get_binding_recursive(mapping, map, &in.event);
                 if (binding.custom != 0){
-                    i64 old_num = get_current_input_sequence_number(app);
-                    binding.custom(app);
-                    i64 num = get_current_input_sequence_number(app);
-                    if (old_num < num){
-                        break;
+                    Command_Metadata *metadata = get_command_metadata(binding.custom);
+                    if (metadata != 0){
+                        if (metadata->is_ui){
+                            call_after_ui_shutdown(app, view, binding.custom);
+                            break;
+                        }
+                        else{
+                            binding.custom(app);
+                        }
+                    }
+                    else{
+                        binding.custom(app);
                     }
                 }
                 else{

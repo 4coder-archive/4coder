@@ -289,6 +289,7 @@ word_complete_list_extend_from_raw(Application_Links *app, Arena *arena,
                                    String_Match_List *matches,
                                    List_String_Const_u8 *list,
                                    Table_Data_u64 *used_table){
+    ProfileScope(app, "word complete list extend from raw");
     Scratch_Block scratch(app);
     for (String_Match *node = matches->first;
          node != 0;
@@ -391,6 +392,8 @@ word_complete_it_read(Word_Complete_Iterator *it){
 CUSTOM_COMMAND_SIG(word_complete)
 CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with other words in open buffers that have the same prefix string.")
 {
+    ProfileScope(app, "word complete");
+    
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     if (buffer != 0){
@@ -412,6 +415,8 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         local_persist Word_Complete_State state = {};
         
         if (first_completion || !state.initialized){
+            ProfileBlock(app, "word complete state init");
+            
             word_complete_it_release(&state.it);
             
             i64 pos = view_get_cursor_pos(app, view);
@@ -425,6 +430,8 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         }
         
         if (state.initialized){
+            ProfileBlock(app, "word complete apply");
+            
             word_complete_it_next(&state.it);
             String_Const_u8 str = word_complete_it_read(&state.it);
             

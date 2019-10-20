@@ -58,6 +58,8 @@
 #define DYNAMIC_LINK_API
 #include "generated/system_api.cpp"
 #include "4coder_system_helpers.cpp"
+#include "4coder_profile.cpp"
+#include "4coder_profile_static_enable.cpp"
 #include "4coder_events.cpp"
 #include "4coder_custom.cpp"
 #include "4coder_log.cpp"
@@ -65,7 +67,6 @@
 #include "4coder_table.cpp"
 #include "4coder_string_match.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
-#include "4coder_profile.cpp"
 
 #include "4coder_token.cpp"
 #include "generated/lexer_cpp.cpp"
@@ -75,10 +76,10 @@
 #include "4coder_delta_rule.cpp"
 #include "4coder_fancy.cpp"
 #include "4coder_draw.cpp"
-#include "4coder_lister_base.cpp"
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
+#include "4coder_lister_base.cpp"
 #include "4coder_base_commands.cpp"
 #include "4coder_insertion.cpp"
 #include "4coder_eol.cpp"

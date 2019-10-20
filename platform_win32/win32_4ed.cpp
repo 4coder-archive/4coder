@@ -1440,7 +1440,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     // NOTE(allen): context setup
     Thread_Context _tctx = {};
-    thread_ctx_init(&_tctx, get_base_allocator_system());
+    thread_ctx_init(&_tctx, get_base_allocator_system(), get_base_allocator_system());
     
     block_zero_struct(&win32vars);
     win32vars.tctx = &_tctx;

@@ -484,7 +484,7 @@ activate_switch_buffer(Application_Links *app,
     return(ListerActivation_Finished);
 }
 
-CUSTOM_COMMAND_SIG(interactive_switch_buffer)
+CUSTOM_UI_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
     View_ID view = get_active_view(app, Access_Always);
@@ -503,7 +503,7 @@ activate_kill_buffer(Application_Links *app,
     return(ListerActivation_Finished);
 }
 
-CUSTOM_COMMAND_SIG(interactive_kill_buffer)
+CUSTOM_UI_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
     View_ID view = get_active_view(app, Access_Always);
@@ -574,7 +574,7 @@ activate_open_or_new(Application_Links *app,
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(interactive_open_or_new)
+CUSTOM_UI_COMMAND_SIG(interactive_open_or_new)
 CUSTOM_DOC("Interactively open a file out of the file system.")
 {
     View_ID view = get_active_view(app, Access_Always);
@@ -613,7 +613,7 @@ activate_new(Application_Links *app,
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(interactive_new)
+CUSTOM_UI_COMMAND_SIG(interactive_new)
 CUSTOM_DOC("Interactively creates a new file.")
 {
     View_ID view = get_active_view(app, Access_Always);
@@ -646,7 +646,7 @@ activate_open(Application_Links *app,
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(interactive_open)
+CUSTOM_UI_COMMAND_SIG(interactive_open)
 CUSTOM_DOC("Interactively opens a file.")
 {
     View_ID view = get_active_view(app, Access_Always);
@@ -709,7 +709,7 @@ launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 comma
     }
 }
 
-CUSTOM_COMMAND_SIG(command_lister)
+CUSTOM_UI_COMMAND_SIG(command_lister)
 CUSTOM_DOC("Opens an interactive list of all registered commands.")
 {
     launch_custom_command_lister(app, 0, 0);

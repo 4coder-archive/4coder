@@ -454,18 +454,18 @@ STRUCT Record_Info{
 
 TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 
-#if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_DOC) || defined(CUSTOM_ALIAS)
-#error Please do not define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_ALIAS
+#if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_UI_COMMAND) || defined(CUSTOM_DOC) || defined(CUSTOM_COMMAND)
+#error Please do not define CUSTOM_COMMAND_SIG, CUSTOM_DOC, or CUSTOM_UI_COMMAND
 #endif
 
 #if !defined(META_PASS)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
+#define CUSTOM_UI_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define CUSTOM_DOC(str)
-#define CUSTOM_ALIAS(x) x
 #else
-#define CUSTOM_COMMAND_SIG(name) CUSTOM_COMMAND_SIG(name, __FILE__, __LINE__)
+#define CUSTOM_COMMAND_SIG(name) CUSTOM_COMMAND(name, __FILE__, __LINE__, Normal)
+#define CUSTOM_UI_COMMAND_SIG(name) CUSTOM_COMMAND(name, __FILE__, __LINE__, UI)
 #define CUSTOM_DOC(str) CUSTOM_DOC(str)
-#define CUSTOM_ALIAS(x) CUSTOM_ALIAS(x)
 #endif
 
 // TODO(allen): rename

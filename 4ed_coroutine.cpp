@@ -31,7 +31,7 @@ coroutine_main(void *ptr){
     Coroutine *me = (Coroutine*)ptr;
     
     Thread_Context tctx_ = {};
-    thread_ctx_init(&tctx_, get_base_allocator_system());
+    thread_ctx_init(&tctx_, get_base_allocator_system(), get_base_allocator_system());
     me->tctx = &tctx_;
     
     // NOTE(allen): Init handshake

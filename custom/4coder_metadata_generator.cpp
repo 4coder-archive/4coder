@@ -214,14 +214,16 @@ token_str(String_Const_u8  text, Token token){
 
 ///////////////////////////////
 
-typedef u32 Meta_Command_Entry_Type;
+typedef i32 Meta_Command_Entry_Kind;
 enum{
-    MetaCommandEntry_DocString,
-    MetaCommandEntry_Alias,
+    MetaCommandEntryKind_ERROR,
+    MetaCommandEntryKind_Normal,
+    MetaCommandEntryKind_UI,
 };
 
 struct Meta_Command_Entry{
     Meta_Command_Entry *next;
+    Meta_Command_Entry_Kind kind;
     String_Const_u8 name;
     u8 *source_name;
     i64 line_number;
@@ -229,9 +231,6 @@ struct Meta_Command_Entry{
         struct{
             String_Const_u8 doc;
         } docstring;
-        struct{
-            String_Const_u8 potential;
-        } alias;
     };
 };
 
@@ -240,9 +239,9 @@ struct Meta_Command_Entry_Arrays{
     Meta_Command_Entry *last_doc_string;
     i32 doc_string_count;
     
-    Meta_Command_Entry *first_alias;
-    Meta_Command_Entry *last_alias;
-    i32 alias_count;
+    Meta_Command_Entry *first_ui;
+    Meta_Command_Entry *last_ui;
+    i32 ui_count;
 };
 
 ///////////////////////////////
@@ -515,16 +514,29 @@ extract_string(Reader *reader, String_Const_u8 *str_out){
     return(extract_string(reader, str_out, 0));
 }
 
+function Meta_Command_Entry_Kind
+parse_command_kind(String_Const_u8 kind){
+    Meta_Command_Entry_Kind result = MetaCommandEntryKind_ERROR;
+    if (string_match(kind, string_u8_litexpr("Normal"))){
+        result = MetaCommandEntryKind_Normal;
+    }
+    else if (string_match(kind, string_u8_litexpr("UI"))){
+        result = MetaCommandEntryKind_UI;
+    }
+    return(result);
+}
+
 static b32
 parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
     String_Const_u8 name = {};
+    String_Const_u8 kind = {};
     String_Const_u8 file_name = {};
     String_Const_u8 line_number = {};
     String_Const_u8 doc = {};
     
     // Getting the command's name
     i64 start_pos = 0;
-    if (!require_key_identifier(reader, "CUSTOM_COMMAND_SIG", &start_pos)){
+    if (!require_key_identifier(reader, "CUSTOM_COMMAND", &start_pos)){
         return(false);
     }
     
@@ -549,6 +561,14 @@ parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader
     }
     
     if (!extract_integer(reader, &line_number)){
+        return(false);
+    }
+    
+    if (!require_comma(reader)){
+        return(false);
+    }
+    
+    if (!extract_identifier(reader, &kind)){
         return(false);
     }
     
@@ -590,55 +610,13 @@ parse_documented_command(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader
     String_Const_u8 source_name = string_interpret_escapes(arena, file_name_unquoted);
     
     Meta_Command_Entry *new_entry = push_array(arena, Meta_Command_Entry, 1);
+    new_entry->kind = parse_command_kind(kind);
     new_entry->name = name;
     new_entry->source_name = source_name.str;
     new_entry->line_number = (i32)string_to_integer(line_number, 10);
     new_entry->docstring.doc = doc;
     sll_queue_push(arrays->first_doc_string, arrays->last_doc_string, new_entry);
     ++arrays->doc_string_count;
-    
-    return(true);
-}
-
-static b32
-parse_alias(Arena *arena, Meta_Command_Entry_Arrays *arrays, Reader *reader){
-    String_Const_u8 name = {};
-    String_Const_u8 potential = {};
-    
-    // Getting the alias's name
-    i64 start_pos = 0;
-    if (!require_define(reader, &start_pos)){
-        return(false);
-    }
-    
-    if (!extract_identifier(reader, &name)){
-        return(false);
-    }
-    
-    // Getting the alias's target
-    if (!require_key_identifier(reader, "CUSTOM_ALIAS")){
-        return(false);
-    }
-    
-    if (!require_open_parenthese(reader)){
-        return(false);
-    }
-    
-    if (!extract_identifier(reader, &potential)){
-        return(false);
-    }
-    
-    if (!require_close_parenthese(reader)){
-        return(false);
-    }
-    
-    Meta_Command_Entry *new_entry = push_array(arena, Meta_Command_Entry, 1);
-    new_entry->name = name;
-    new_entry->source_name = reader->source_name;
-    new_entry->line_number = line_number(reader, start_pos);
-    new_entry->alias.potential = potential;
-    sll_queue_push(arrays->first_alias, arrays->last_alias, new_entry);
-    ++arrays->alias_count;
     
     return(true);
 }
@@ -661,15 +639,16 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, u8 *source_nam
             
             b32 in_preproc_body = HasFlag(token.flags, TokenBaseFlag_PreprocessorBody);
             
-            if (!in_preproc_body && string_match(lexeme, string_u8_litexpr("CUSTOM_DOC"))){
+            if (!in_preproc_body &&
+                string_match(lexeme, string_u8_litexpr("CUSTOM_DOC"))){
                 Temp_Read temp_read = begin_temp_read(reader);
                 
                 b32 found_start_pos = false;
-                for (i32 R = 0; R < 10; ++R){
+                for (i32 R = 0; R < 12; ++R){
                     Token p_token = prev_token(reader);
                     if (p_token.kind == TokenBaseKind_Identifier){
                         String_Const_u8 p_lexeme = token_str(text, p_token);
-                        if (string_match(p_lexeme, string_u8_litexpr("CUSTOM_COMMAND_SIG"))){
+                        if (string_match(p_lexeme, string_u8_litexpr("CUSTOM_COMMAND"))){
                             found_start_pos = true;
                             break;
                         }
@@ -688,31 +667,8 @@ parse_text(Arena *arena, Meta_Command_Entry_Arrays *entry_arrays, u8 *source_nam
                     }
                 }
             }
-            else if (string_match(lexeme, string_u8_litexpr("CUSTOM_ALIAS"))){
-                Temp_Read temp_read = begin_temp_read(reader);
+            else if (string_match(lexeme, string_u8_litexpr("CUSTOM_UI_COMMAND"))){
                 
-                b32 found_start_pos = false;
-                for (i32 R = 0; R < 3; ++R){
-                    Token p_token = prev_token(reader);
-                    if (p_token.sub_kind == TokenCppKind_PPDefine){
-                        if (R == 2){
-                            found_start_pos = true;
-                        }
-                        break;
-                    }
-                    if (p_token.kind == TokenBaseKind_EOF){
-                        break;
-                    }
-                }
-                
-                if (!found_start_pos){
-                    end_temp_read(temp_read);
-                }
-                else{
-                    if (!parse_alias(arena, entry_arrays, reader)){
-                        end_temp_read(temp_read);
-                    }
-                }
             }
         }
         
@@ -875,6 +831,7 @@ main(int argc, char **argv){
         fprintf(out,
                 "struct Command_Metadata{\n"
                 "PROC_LINKS(Custom_Command_Function, void) *proc;\n"
+                "b32 is_ui;\n"
                 "char *name;\n"
                 "i32 name_len;\n"
                 "char *description;\n"
@@ -892,17 +849,21 @@ main(int argc, char **argv){
             
             Temp_Memory temp = begin_temp(arena);
             
-            // HACK(allen): We could just get these at the HEAD END of the process,
-            // then we only have to do it once per file, and pass the lengths through.
-            //umem source_name_len = cstring_length(entry->source_name);
             String_Const_u8 source_name = SCu8(entry->source_name);
             String_Const_u8 printable = string_replace(arena, source_name,
                                                        SCu8("\\"), SCu8("\\\\"),
                                                        StringFill_NullTerminate);
             
+            char *is_ui = "false";
+            if (entry->kind == MetaCommandEntryKind_UI){
+                is_ui = "true";
+            }
+            
             fprintf(out,
-                    "{ PROC_LINKS(%.*s, 0), \"%.*s\", %d,  \"%.*s\", %d, \"%s\", %d, %lld },\n",
+                    "{ PROC_LINKS(%.*s, 0), %s, \"%.*s\", %d, "
+                    "\"%.*s\", %d, \"%s\", %d, %lld },\n",
                     string_expand(entry->name),
+                    is_ui,
                     string_expand(entry->name),
                     (i32)entry->name.size,
                     string_expand(entry->docstring.doc),

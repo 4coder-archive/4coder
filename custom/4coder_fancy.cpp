@@ -199,8 +199,8 @@ fancy_string_list_single(Fancy_String *fancy_string){
 }
 
 static Vec2_f32
-draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string, Vec2 P,
-                  int_color fore, int_color back, u32 flags, Vec2 dP){
+draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
+                  Vec2_f32 P, int_color fore, int_color back, u32 flags, Vec2_f32 dP){
     for (;string != 0;
          string = string->next){
         Face_ID use_font_id = (string->font_id) ? string->font_id : font_id;

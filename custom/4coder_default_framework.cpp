@@ -150,6 +150,16 @@ get_next_view_after_active(Application_Links *app, Access_Flag access){
 ////////////////////////////////
 
 static void
+call_after_ui_shutdown(Application_Links *app, View_ID view, Custom_Command_Function *func){
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    Custom_Command_Function **call_next =
+        scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
+    *call_next = func;
+}
+
+////////////////////////////////
+
+static void
 view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
     if (count > 0){
         Scratch_Block scratch(app, Scratch_Share);
@@ -382,6 +392,7 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     view_highlight_range      = managed_id_declare(app, SCu8("DEFAULT.highlight"     ));
     view_highlight_buffer     = managed_id_declare(app, SCu8("DEFAULT.highlight_buf" ));
     view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render" ));
+    view_call_next            = managed_id_declare(app, SCu8("DEFAULT.call_next" ));
     
     buffer_map_id      = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"     ));
 	buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));

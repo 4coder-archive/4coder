@@ -7,41 +7,62 @@
 #if !defined(FCODER_PROFILE_INSPECT_H)
 #define FCODER_PROFILE_INSPECT_H
 
-struct Profile_Group_Ptr{
-    Profile_Group_Ptr *next;
-    Profile_Group *group;
-};
-
-struct Profile_Universal_Slot{
-    Profile_Universal_Slot *next;
-    
-    String_Const_u8 source_location;
-    u32 slot_index;
-    
+struct Profile_Slot{
+    Profile_Slot *next;
+    String_Const_u8 location;
     String_Const_u8 name;
     
-    u32 count;
+    b32 corrupted_time;
     u64 total_time;
+    i32 hit_count;
 };
 
-struct Profile_Thread{
-    Profile_Thread *next;
+struct Profile_Node{
+    Profile_Node *next;
+    Profile_Slot *slot;
+    Range_u64 time;
+    Profile_ID id;
+    
+    Profile_Node *first_child;
+    Profile_Node *last_child;
+    i32 child_count;
+    
+    b32 closed;
+};
+
+struct Profile_Inspection_Thread{
     i32 thread_id;
-    
-    Profile_Group_Ptr *first_group;
-    Profile_Group_Ptr *last_group;
-    
-    Profile_Universal_Slot *first_slot;
-    Profile_Universal_Slot *last_slot;
-    i32 slot_count;
-    
-    Profile_Universal_Slot **sorted_slots;
+    Profile_Node root;
+};
+
+struct Profile_Error{
+    Profile_Error *next;
+    String_Const_u8 message;
+    String_Const_u8 location;
+};
+
+typedef i32 Profile_Inspection_Tab;
+enum{
+    ProfileInspectTab_None,
+    ProfileInspectTab_Threads,
+    ProfileInspectTab_Slots,
+    ProfileInspectTab_Errors
 };
 
 struct Profile_Inspection{
-    Profile_Thread *thread_first;
-    Profile_Thread *thread_last;
+    Profile_Slot *first_slot;
+    Profile_Slot *last_slot;
+    Profile_Error *first_error;
+    Profile_Error *last_error;
+    Profile_Inspection_Thread *threads;
+    i32 slot_count;
     i32 thread_count;
+    i32 error_count;
+    
+    Profile_Inspection_Tab tab_id;
+    Profile_Inspection_Tab tab_id_hovered;
+    
+    String_Const_u8 location_jump_hovered;
 };
 
 global Profile_Inspection global_profile_inspection = {};
