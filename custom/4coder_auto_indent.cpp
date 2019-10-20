@@ -189,6 +189,8 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
             i64 this_indent = current_indent;
             i64 following_indent = current_indent;
             
+            b32 shift_by_actual_indent = false;
+            b32 ignore_unfinished_statement = false;
             if (HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
                 this_indent = 0;
             }
@@ -201,6 +203,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         nest->kind = TokenBaseKind_ScopeOpen;
                         nest->indent = current_indent + indent_width;
                         following_indent = nest->indent;
+                        ignore_unfinished_statement = true;
                     }break;
                     
                     case TokenBaseKind_ScopeClose:
@@ -220,6 +223,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                             this_indent = nest->indent;
                         }
                         following_indent = this_indent;
+                        ignore_unfinished_statement = true;
                     }break;
                     
                     case TokenBaseKind_ParentheticalOpen:
@@ -227,8 +231,9 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         Nest *new_nest = indent__new_nest(arena, &nest_alloc);
                         sll_stack_push(nest, new_nest);
                         nest->kind = TokenBaseKind_ParentheticalOpen;
-                        nest->indent = actual_indent + (token->pos - line_indent_info.first_char_pos) + 1;
+                        nest->indent = (token->pos - line_indent_info.first_char_pos) + 1;
                         following_indent = nest->indent;
+                        shift_by_actual_indent = true;
                     }break;
                     
                     case TokenBaseKind_ParentheticalClose:
@@ -242,11 +247,12 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         if (nest != 0){
                             following_indent = nest->indent;
                         }
+                        ignore_unfinished_statement = true;
                     }break;
                 }
             }
             
-            if (in_unfinished_statement){
+            if (in_unfinished_statement && !ignore_unfinished_statement){
                 this_indent += indent_width;
             }
             
@@ -277,6 +283,11 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                 EMIT(new_indent);
             }
 #undef EMIT
+            
+            if (shift_by_actual_indent){
+                nest->indent += actual_indent;
+                following_indent += actual_indent;
+            }
             
             if (token->kind != TokenBaseKind_Comment){
                 in_unfinished_statement = indent__unfinished_statement(token, nest);
