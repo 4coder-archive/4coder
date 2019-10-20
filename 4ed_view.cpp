@@ -431,6 +431,13 @@ view_push_context(View *view, View_Context *ctx){
 }
 
 function void
+view_alter_context(View *view, View_Context *ctx){
+    View_Context_Node *node = view->ctx;
+    Assert(node != 0);
+    block_copy_struct(&node->ctx, ctx);
+}
+
+function void
 view_pop_context(View *view){
     View_Context_Node *node = view->ctx;
     if (node != 0 && node->next != 0){

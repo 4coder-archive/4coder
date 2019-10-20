@@ -45,6 +45,18 @@ view_get_lister(View_ID view){
     return(global_lister_state[view - 1]);
 }
 
+function void
+lister_set_map(Lister *lister, Mapping *mapping, Command_Map *map){
+    lister->mapping = mapping;
+    lister->map = map;
+}
+
+function void
+lister_set_map(Lister *lister, Mapping *mapping, Command_Map_ID map){
+    lister->mapping = mapping;
+    lister->map = mapping_get_map(mapping, map);
+}
+
 function Lister*
 begin_lister(Application_Links *app, Arena *arena, View_ID view,
              void *user_data, umem user_data_size){
@@ -60,19 +72,9 @@ begin_lister(Application_Links *app, Arena *arena, View_ID view,
     }
     global_lister_state[view - 1] = lister;
     lister->restore_all_point = begin_temp(lister->arena);
+    View_Context ctx = view_current_context(app, view);
+    lister_set_map(lister, ctx.mapping, ctx.map_id);
     return(lister);
-}
-
-function void
-lister_set_map(Lister *lister, Mapping *mapping, Command_Map *map){
-    lister->mapping = mapping;
-    lister->map = map;
-}
-
-function void
-lister_set_map(Lister *lister, Mapping *mapping, Command_Map_ID map){
-    lister->mapping = mapping;
-    lister->map = mapping_get_map(mapping, map);
 }
 
 function void

@@ -426,10 +426,7 @@ CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's se
         }
         
         if (!handled){
-            // TODO(allen): get mapping and map from a more flexible source.
-            Mapping *mapping = &framework_mapping;
-            Command_Map *map = mapping_get_map(mapping, mapid_global);
-            if (ui_fallback_command_dispatch(app, view, mapping, map, &in)){
+            if (ui_fallback_command_dispatch(app, view, &in)){
                 break;
             }
         }

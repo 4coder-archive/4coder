@@ -88,6 +88,7 @@
 #define custom_view_post_fade_sig() b32 custom_view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color)
 #define custom_view_push_context_sig() b32 custom_view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx)
 #define custom_view_pop_context_sig() b32 custom_view_pop_context(Application_Links* app, View_ID view_id)
+#define custom_view_alter_context_sig() b32 custom_view_alter_context(Application_Links* app, View_ID view, View_Context* ctx)
 #define custom_view_current_context_sig() View_Context custom_view_current_context(Application_Links* app, View_ID view_id)
 #define custom_view_current_context_hook_memory_sig() Data custom_view_current_context_hook_memory(Application_Links* app, View_ID view_id, Hook_ID hook_id)
 #define custom_create_user_managed_scope_sig() Managed_Scope custom_create_user_managed_scope(Application_Links* app)
@@ -257,6 +258,7 @@ typedef b32 custom_view_set_buffer_type(Application_Links* app, View_ID view_id,
 typedef b32 custom_view_post_fade_type(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color);
 typedef b32 custom_view_push_context_type(Application_Links* app, View_ID view_id, View_Context* ctx);
 typedef b32 custom_view_pop_context_type(Application_Links* app, View_ID view_id);
+typedef b32 custom_view_alter_context_type(Application_Links* app, View_ID view, View_Context* ctx);
 typedef View_Context custom_view_current_context_type(Application_Links* app, View_ID view_id);
 typedef Data custom_view_current_context_hook_memory_type(Application_Links* app, View_ID view_id, Hook_ID hook_id);
 typedef Managed_Scope custom_create_user_managed_scope_type(Application_Links* app);
@@ -427,6 +429,7 @@ custom_view_set_buffer_type *view_set_buffer;
 custom_view_post_fade_type *view_post_fade;
 custom_view_push_context_type *view_push_context;
 custom_view_pop_context_type *view_pop_context;
+custom_view_alter_context_type *view_alter_context;
 custom_view_current_context_type *view_current_context;
 custom_view_current_context_hook_memory_type *view_current_context_hook_memory;
 custom_create_user_managed_scope_type *create_user_managed_scope;
@@ -598,6 +601,7 @@ internal b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID 
 internal b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, int_color color);
 internal b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);
 internal b32 view_pop_context(Application_Links* app, View_ID view_id);
+internal b32 view_alter_context(Application_Links* app, View_ID view, View_Context* ctx);
 internal View_Context view_current_context(Application_Links* app, View_ID view_id);
 internal Data view_current_context_hook_memory(Application_Links* app, View_ID view_id, Hook_ID hook_id);
 internal Managed_Scope create_user_managed_scope(Application_Links* app);
@@ -769,6 +773,7 @@ global custom_view_set_buffer_type *view_set_buffer = 0;
 global custom_view_post_fade_type *view_post_fade = 0;
 global custom_view_push_context_type *view_push_context = 0;
 global custom_view_pop_context_type *view_pop_context = 0;
+global custom_view_alter_context_type *view_alter_context = 0;
 global custom_view_current_context_type *view_current_context = 0;
 global custom_view_current_context_hook_memory_type *view_current_context_hook_memory = 0;
 global custom_create_user_managed_scope_type *create_user_managed_scope = 0;

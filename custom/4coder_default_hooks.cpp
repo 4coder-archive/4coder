@@ -56,6 +56,14 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
 CUSTOM_COMMAND_SIG(default_view_input_handler)
 CUSTOM_DOC("Input consumption loop for default view behavior")
 {
+    {
+        View_ID view = get_active_view(app, Access_Always);
+        View_Context ctx = view_current_context(app, view);
+        ctx.mapping = &framework_mapping;
+        ctx.map_id = mapid_global;
+        view_alter_context(app, view, &ctx);
+    }
+    
     for (;;){
         // NOTE(allen): Get the binding from the buffer's current map
         User_Input input = get_next_input(app, EventPropertyGroup_Any, 0);

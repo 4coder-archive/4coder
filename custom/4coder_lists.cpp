@@ -120,7 +120,6 @@ run_lister_with_refresh_handler(Application_Links *app, char *query_string,
     if (handlers.refresh != 0){
         Scratch_Block scratch(app);
         Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
-        lister_set_map(lister, &framework_mapping, mapid_global);
         lister_set_query(lister, query_string);
         lister->handlers = handlers;
         handlers.refresh(app, lister);
@@ -137,13 +136,6 @@ run_lister_with_refresh_handler(Application_Links *app, char *query_string,
     }
 }
 
-function i32
-lister__get_arena_size_(i32 option_count, i32 user_data_size,
-                        i32 estimated_string_space_size){
-    i32 arena_size = (user_data_size + 7 + option_count*sizeof(Lister_Node) + estimated_string_space_size);
-    return(arena_size);
-}
-
 function void
 run_lister_with_options_array(Application_Links *app, char *query_string,
                               Lister_Activation_Type *activate,
@@ -153,7 +145,6 @@ run_lister_with_options_array(Application_Links *app, char *query_string,
                               View_ID view){
     Scratch_Block scratch(app);
     Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
-    lister_set_map(lister, &framework_mapping, mapid_global);
     for (i32 i = 0; i < option_count; i += 1){
         lister_add_item(lister, options[i].string, options[i].status, options[i].user_data, 0);
     }
@@ -171,7 +162,6 @@ run_lister_with_fixed_options(Application_Links *app, char *query_string,
                               View_ID view){
     Scratch_Block scratch(app);
     Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
-    lister_set_map(lister, &framework_mapping, mapid_global);
     for (i32 i = 0; i < option_count; i += 1){
         Key_Code code = options[i].key_code;
         void *extra = lister_add_item(lister, SCu8(options[i].string), SCu8(options[i].status),

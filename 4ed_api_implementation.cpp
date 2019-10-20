@@ -1585,6 +1585,18 @@ view_pop_context(Application_Links *app, View_ID view_id){
     return(result);
 }
 
+api(custom) function b32
+view_alter_context(Application_Links *app, View_ID view_id, View_Context *ctx){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (api_check_view(view)){
+        view_alter_context(view, ctx);
+        result = true;
+    }
+    return(result);
+}
+
 api(custom) function View_Context
 view_current_context(Application_Links *app, View_ID view_id){
     Models *models = (Models*)app->cmd_context;

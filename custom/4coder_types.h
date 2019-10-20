@@ -531,14 +531,60 @@ void name(Application_Links *app, String_Const_u8 contents)
 typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
 #define RENDER_CALLER_SIG(name) void name(Application_Links *app, Frame_Info frame_info, View_ID view)
 
+typedef i64 Command_Map_ID;
+
+struct Command_Binding{
+    Custom_Command_Function *custom;
+};
+
+struct Command_Modified_Binding{
+    Command_Modified_Binding *next;
+    SNode order_node;
+    Input_Modifier_Set modifiers;
+    Command_Binding binding;
+};
+
+struct Command_Binding_List{
+    Command_Binding_List *next;
+    SNode *first;
+    SNode *last;
+    i32 count;
+};
+
+struct Command_Map{
+    Command_Map *next;
+    Command_Map_ID id;
+    Command_Map_ID parent;
+    Command_Binding text_input_command;
+    Arena node_arena;
+    Table_u64_u64 event_code_to_binding_list;
+    Command_Modified_Binding *binding_first;
+    Command_Modified_Binding *binding_last;
+    Command_Binding_List *list_first;
+    Command_Binding_List *list_last;
+    
+    struct Binding_Unit *real_beginning;
+};
+
+struct Mapping{
+    Arena *node_arena;
+    Heap heap;
+    Base_Allocator heap_wrapper;
+    Table_u64_u64 id_to_map;
+    Command_Map_ID id_counter;
+    Command_Map *free_maps;
+    Command_Modified_Binding *free_bindings;
+    Command_Binding_List *free_lists;
+};
+
 struct View_Context{
     Render_Caller_Function *render_caller;
     Delta_Rule_Function *delta_rule;
     umem delta_rule_memory_size;
     b32 hides_buffer;
+    Mapping *mapping;
+    Command_Map_ID map_id;
 };
-
-typedef i64 Command_Map_ID;
 
 STRUCT Color_Picker{
     String_Const_u8 title;

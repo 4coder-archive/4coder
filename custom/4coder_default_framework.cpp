@@ -200,6 +200,20 @@ ui_fallback_command_dispatch(Application_Links *app, View_ID view,
     return(result);
 }
 
+function b32
+ui_fallback_command_dispatch(Application_Links *app, View_ID view, User_Input *in){
+    b32 result = false;
+    View_Context ctx = view_current_context(app, view);
+    if (ctx.mapping != 0){
+        Command_Map *map = mapping_get_map(ctx.mapping, ctx.map_id);
+        result = ui_fallback_command_dispatch(app, view, ctx.mapping, map, in);
+    }
+    else{
+        leave_current_input_unhandled(app);
+    }
+    return(result);
+}
+
 ////////////////////////////////
 
 static void

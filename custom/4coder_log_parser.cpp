@@ -987,7 +987,7 @@ log_graph__click_jump_to_event_source(Application_Links *app, Vec2_f32 m_p){
     }
 }
 
-CUSTOM_COMMAND_SIG(show_the_log_graph)
+CUSTOM_UI_COMMAND_SIG(show_the_log_graph)
 CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
 {
     Buffer_ID log_buffer = get_buffer_by_name(app, string_u8_litexpr("*log*"), Access_Always);
@@ -1065,10 +1065,7 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
         }
         
         if (!handled){
-            // TODO(allen): get mapping and map from a more flexible source.
-            Mapping *mapping = &framework_mapping;
-            Command_Map *map = mapping_get_map(mapping, mapid_global);
-            if (ui_fallback_command_dispatch(app, view, mapping, map, &in)){
+            if (ui_fallback_command_dispatch(app, view, &in)){
                 break;
             }
         }
