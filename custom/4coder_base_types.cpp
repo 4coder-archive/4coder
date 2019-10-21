@@ -2834,9 +2834,10 @@ end_temp(Temp_Memory temp){
 ////////////////////////////////
 
 internal void
-thread_ctx_init(Thread_Context *tctx, Base_Allocator *allocator,
+thread_ctx_init(Thread_Context *tctx, Thread_Kind kind, Base_Allocator *allocator,
                 Base_Allocator *prof_allocator){
     block_zero_struct(tctx);
+    tctx->kind = kind;
     tctx->allocator = allocator;
     tctx->node_arena = make_arena(allocator, KB(4), 8);
     

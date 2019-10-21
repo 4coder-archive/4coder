@@ -1438,7 +1438,8 @@ config_feedback_int(Arena *arena, List_String_Const_u8 *list, char *name, i32 va
 ////////////////////////////////
 
 function void
-load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *config, i32 override_font_size, b32 override_hinting){
+load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *config,
+                      i32 override_font_size, b32 override_hinting){
     Scratch_Block scratch(app);
     
     linalloc_clear(out_arena);
@@ -1453,82 +1454,97 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         if (error_text.str != 0){
             print_message(app, error_text);
         }
-        
+    }
+    else{
+        print_message(app, string_u8_litexpr("Using default config:\n"));
+        Face_Description description = get_face_description(app, 0);
+        if (description.font.file_name.str != 0){
+            umem size = min(description.font.file_name.size, sizeof(config->default_font_name_space));
+            block_copy(config->default_font_name_space, description.font.file_name.str, size);
+            config->default_font_name.size = size;
+        }
+    }
+    
+    if (config->default_font_name.size == 0){
+#define M "liberation-mono.ttf"
+        block_copy(config->default_font_name_space, M, sizeof(M) - 1);
+        config->default_font_name.size = sizeof(M) - 1;
+#undef M
+    }
+    
+    {
         // Values
         Temp_Memory temp2 = begin_temp(scratch);
-        // TODO(allen): switch to List_String_Const_u8 for the whole config system
         List_String_Const_u8 list = {};
         
-        {
-            config_feedback_string(scratch, &list, "user_name", config->user_name);
-            config_feedback_extension_list(scratch, &list, "treat_as_code", &config->code_exts);
-            
-            config_feedback_string(scratch, &list, "mode", config->mode);
-            
-            config_feedback_bool(scratch, &list, "use_scroll_bars", config->use_scroll_bars);
-            config_feedback_bool(scratch, &list, "use_file_bars", config->use_file_bars);
-            config_feedback_bool(scratch, &list, "hide_file_bar_in_ui", config->hide_file_bar_in_ui);
-            config_feedback_bool(scratch, &list, "use_error_highlight", config->use_error_highlight);
-            config_feedback_bool(scratch, &list, "use_jump_highlight", config->use_jump_highlight);
-            config_feedback_bool(scratch, &list, "use_scope_highlight", config->use_scope_highlight);
-            config_feedback_bool(scratch, &list, "use_paren_helper", config->use_paren_helper);
-            config_feedback_bool(scratch, &list, "use_comment_keyword", config->use_comment_keyword);
-            config_feedback_bool(scratch, &list, "lister_whole_word_backspace_when_modified", config->lister_whole_word_backspace_when_modified);
-            config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
-            
-            config_feedback_bool(scratch, &list, "enable_virtual_whitespace", config->enable_virtual_whitespace);
-            config_feedback_bool(scratch, &list, "enable_code_wrapping", config->enable_code_wrapping);
-            config_feedback_bool(scratch, &list, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
-            config_feedback_bool(scratch, &list, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
-            config_feedback_bool(scratch, &list, "automatically_adjust_wrapping", config->automatically_adjust_wrapping);
-            config_feedback_bool(scratch, &list, "automatically_load_project", config->automatically_load_project);
-            
-            config_feedback_bool(scratch, &list, "indent_with_tabs", config->indent_with_tabs);
-            config_feedback_int(scratch, &list, "indent_width", config->indent_width);
-            
-            config_feedback_int(scratch, &list, "default_wrap_width", config->default_wrap_width);
-            config_feedback_int(scratch, &list, "default_min_base_width", config->default_min_base_width);
-            
-            config_feedback_string(scratch, &list, "default_theme_name", config->default_theme_name);
-            config_feedback_bool(scratch, &list, "highlight_line_at_cursor", config->highlight_line_at_cursor);
-            
-            config_feedback_string(scratch, &list, "default_font_name", config->default_font_name);
-            config_feedback_int(scratch, &list, "default_font_size", config->default_font_size);
-            config_feedback_bool(scratch, &list, "default_font_hinting", config->default_font_hinting);
-            
-            config_feedback_string(scratch, &list, "default_compiler_bat", config->default_compiler_bat);
-            config_feedback_string(scratch, &list, "default_flags_bat", config->default_flags_bat);
-            config_feedback_string(scratch, &list, "default_compiler_sh", config->default_compiler_sh);
-            config_feedback_string(scratch, &list, "default_flags_sh", config->default_flags_sh);
-            
-            config_feedback_bool(scratch, &list, "lalt_lctrl_is_altgr", config->lalt_lctrl_is_altgr);
-        }
+        config_feedback_string(scratch, &list, "user_name", config->user_name);
+        config_feedback_extension_list(scratch, &list, "treat_as_code", &config->code_exts);
+        
+        config_feedback_string(scratch, &list, "mode", config->mode);
+        
+        config_feedback_bool(scratch, &list, "use_scroll_bars", config->use_scroll_bars);
+        config_feedback_bool(scratch, &list, "use_file_bars", config->use_file_bars);
+        config_feedback_bool(scratch, &list, "hide_file_bar_in_ui", config->hide_file_bar_in_ui);
+        config_feedback_bool(scratch, &list, "use_error_highlight", config->use_error_highlight);
+        config_feedback_bool(scratch, &list, "use_jump_highlight", config->use_jump_highlight);
+        config_feedback_bool(scratch, &list, "use_scope_highlight", config->use_scope_highlight);
+        config_feedback_bool(scratch, &list, "use_paren_helper", config->use_paren_helper);
+        config_feedback_bool(scratch, &list, "use_comment_keyword", config->use_comment_keyword);
+        config_feedback_bool(scratch, &list, "lister_whole_word_backspace_when_modified", config->lister_whole_word_backspace_when_modified);
+        config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
+        
+        config_feedback_bool(scratch, &list, "enable_virtual_whitespace", config->enable_virtual_whitespace);
+        config_feedback_bool(scratch, &list, "enable_code_wrapping", config->enable_code_wrapping);
+        config_feedback_bool(scratch, &list, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
+        config_feedback_bool(scratch, &list, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
+        config_feedback_bool(scratch, &list, "automatically_adjust_wrapping", config->automatically_adjust_wrapping);
+        config_feedback_bool(scratch, &list, "automatically_load_project", config->automatically_load_project);
+        
+        config_feedback_bool(scratch, &list, "indent_with_tabs", config->indent_with_tabs);
+        config_feedback_int(scratch, &list, "indent_width", config->indent_width);
+        
+        config_feedback_int(scratch, &list, "default_wrap_width", config->default_wrap_width);
+        config_feedback_int(scratch, &list, "default_min_base_width", config->default_min_base_width);
+        
+        config_feedback_string(scratch, &list, "default_theme_name", config->default_theme_name);
+        config_feedback_bool(scratch, &list, "highlight_line_at_cursor", config->highlight_line_at_cursor);
+        
+        config_feedback_string(scratch, &list, "default_font_name", config->default_font_name);
+        config_feedback_int(scratch, &list, "default_font_size", config->default_font_size);
+        config_feedback_bool(scratch, &list, "default_font_hinting", config->default_font_hinting);
+        
+        config_feedback_string(scratch, &list, "default_compiler_bat", config->default_compiler_bat);
+        config_feedback_string(scratch, &list, "default_flags_bat", config->default_flags_bat);
+        config_feedback_string(scratch, &list, "default_compiler_sh", config->default_compiler_sh);
+        config_feedback_string(scratch, &list, "default_flags_sh", config->default_flags_sh);
+        
+        config_feedback_bool(scratch, &list, "lalt_lctrl_is_altgr", config->lalt_lctrl_is_altgr);
         
         string_list_push_u8_lit(scratch, &list, "\n");
         String_Const_u8 message = string_list_flatten(scratch, list);
         print_message(app, message);
         end_temp(temp2);
-        
-        // Apply config
-        change_mode(app, config->mode);
-        global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
-        
-        //change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
-        
-        Face_Description description = {};
-        description.font.file_name = config->default_font_name;
-        description.font.in_4coder_font_folder = true;
-        if (override_font_size != 0){
-            description.parameters.pt_size = override_font_size;
-        }
-        else{
-            description.parameters.pt_size = config->default_font_size;
-        }
-        description.parameters.hinting = config->default_font_hinting || override_hinting;
-        if (!modify_global_face_by_description(app, description)){
-            description.font.in_4coder_font_folder = !description.font.in_4coder_font_folder;
-            modify_global_face_by_description(app, description);
-        }
+    }
+    
+    // Apply config
+    change_mode(app, config->mode);
+    global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
+    
+    //change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
+    
+    Face_Description description = {};
+    description.font.file_name = config->default_font_name;
+    if (override_font_size != 0){
+        description.parameters.pt_size = override_font_size;
+    }
+    else{
+        description.parameters.pt_size = config->default_font_size;
+    }
+    description.parameters.hinting = config->default_font_hinting || override_hinting;
+    description.font.in_4coder_font_folder = true;
+    if (!modify_global_face_by_description(app, description)){
+        description.font.in_4coder_font_folder = false;
+        modify_global_face_by_description(app, description);
     }
 }
 

@@ -15,6 +15,7 @@
 
 struct Application_Links{
     void *cmd_context;
+    void *current_thread;
     void *current_coroutine;
     i32 type_coroutine;
 };
@@ -373,14 +374,14 @@ STRUCT Theme_Color{
 //int_color colors[Stag_COUNT];
 //};
 
-TYPEDEF u32 Face_ID;
+typedef  u32 Face_ID;
 
-STRUCT Font_Load_Location{
+struct Font_Load_Location{
     String_Const_u8 file_name;
     b32 in_4coder_font_folder;
 };
 
-STRUCT Face_Load_Parameters{
+struct Face_Load_Parameters{
     u32 pt_size;
     b32 bold;
     b32 italic;
@@ -388,7 +389,7 @@ STRUCT Face_Load_Parameters{
     b32 hinting;
 };
 
-STRUCT Face_Description{
+struct Face_Description{
     Font_Load_Location font;
     Face_Load_Parameters parameters;
 };

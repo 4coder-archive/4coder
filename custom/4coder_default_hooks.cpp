@@ -92,7 +92,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         
         Managed_Scope scope = view_get_managed_scope(app, view);
         Custom_Command_Function** next_call = 0;
-
+        
 	    call_again:
         next_call = scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
         *next_call = 0;
@@ -539,11 +539,17 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
 }
 
 function void
-do_full_lex(Application_Links *app, Buffer_ID buffer_id){
-    Scratch_Block scratch(app);
+do_full_lex_async__inner(Application_Links *app, Buffer_ID buffer_id){
+    Thread_Context *tctx = get_thread_context(app);
+    Scratch_Block scratch(tctx);
+    
+    system_acquire_global_frame_mutex(tctx);
     String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
+    system_release_global_frame_mutex(tctx);
+    
     Token_List list = lex_full_input_cpp(scratch, contents);
     
+    system_acquire_global_frame_mutex(tctx);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Base_Allocator *allocator = managed_scope_allocator(app, scope);
     Token_Array tokens = {};
@@ -554,6 +560,15 @@ do_full_lex(Application_Links *app, Buffer_ID buffer_id){
     
     Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
     block_copy_struct(tokens_ptr, &tokens);
+    system_release_global_frame_mutex(tctx);
+}
+
+function void
+do_full_lex_async(Application_Links *app, Data data){
+    if (data.size == sizeof(Buffer_ID)){
+        Buffer_ID buffer = *(Buffer_ID*)data.data;
+        do_full_lex_async__inner(app, buffer);
+    }
 }
 
 BUFFER_HOOK_SIG(default_begin_buffer){
@@ -643,6 +658,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         first_call = false;
         buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
         buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
+        buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
     }
     
     Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
@@ -672,9 +688,10 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     }
     
     if (use_lexer){
-        do_full_lex(app, buffer_id);
+        Async_Task lex_task = async_task_no_dep(do_full_lex_async, make_data_struct(&buffer_id));
+        Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
+        *lex_task_ptr = lex_task;
     }
-    
     
     // no meaning for return
     return(0);
@@ -778,7 +795,9 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
         else{
             scratch.restore();
             base_free(allocator, ptr->tokens);
-            do_full_lex(app, buffer_id);
+            Async_Task lex_task = async_task_no_dep(do_full_lex_async, make_data_struct(&buffer_id));
+            Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
+            *lex_task_ptr = lex_task;
         }
         
 #if 0

@@ -775,36 +775,6 @@ App_Step_Sig(app_step){
         }
     }
     
-#if 0
-    // NOTE(allen): apply pending smooth deltas
-    {
-        Delta_Rule_Function *delta_rule = models->delta_rule;
-        for (Panel *panel = layout_get_first_open_panel(layout);
-             panel != 0;
-             panel = layout_get_next_open_panel(layout, panel)){
-            View *view = panel->view;
-            
-            View_ID view_id = view_get_id(&models->live_set, view);
-            b32 new_target = (b32)view->new_scroll_target;
-            
-            File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            Vec2_f32 pending = view_buffer_point_difference(models, view,
-                                                            edit_pos.scroll.target, edit_pos.scroll.position);
-            if (!near_zero(pending, 0.5f)){
-                Vec2_f32 partial = scroll_rule(pending, view_id, new_target, animation_dt);
-                edit_pos.scroll.position = view_move_buffer_point(models, view,
-                                                                  edit_pos.scroll.position, partial);
-                view_set_edit_pos(view, edit_pos);
-                models->animate_next_frame = true;
-            }
-            else{
-                edit_pos.scroll.position = edit_pos.scroll.target;
-                view_set_edit_pos(view, edit_pos);
-            }
-        }
-    }
-#endif
-    
     // NOTE(allen): hook for files reloaded
     {
         Working_Set *working_set = &models->working_set;

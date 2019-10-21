@@ -26,6 +26,7 @@
 #include "4coder_system_allocator.cpp"
 
 #include "4coder_profile.h"
+#include "4coder_async_tasks.h"
 #include "4coder_token.h"
 #include "generated/lexer_cpp.h"
 #include "4coder_string_match.h"
@@ -64,6 +65,7 @@
 #include "4coder_log.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
+#include "4coder_async_tasks.cpp"
 #include "4coder_string_match.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
 

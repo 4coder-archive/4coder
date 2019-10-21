@@ -78,6 +78,9 @@ get_thread_context(Application_Links *app){
         Models *models = (Models*)app->cmd_context;
         tctx = models->tctx;
     }
+    else if (app->current_thread != 0){
+        tctx = (Thread_Context*)app->current_thread;
+    }
     else{
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         tctx = coroutine->tctx;

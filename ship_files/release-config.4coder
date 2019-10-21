@@ -14,10 +14,13 @@ mode = "4coder";
 // UI
 use_scroll_bars = false;
 use_file_bars = true;
-use_line_highlight = true;
+use_error_highlight = true;
+use_jump_highlight = true;
 use_scope_highlight = true;
 use_paren_helper = true;
 use_comment_keywords = true;
+lister_whole_word_backspace_when_modified = false;
+show_line_number_margins = false;
 
 // Code Wrapping
 treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m";

@@ -85,8 +85,6 @@ profile_parse_record(Arena *arena, Profile_Inspection *insp,
             slot = profile_parse_get_slot(arena, insp, location, name);
         }
         else if (record->id == id){
-            String_Const_u8 close_location = record->location;
-            String_Const_u8 close_name = record->name;
             slot = profile_parse_get_slot(arena, insp, location, name);
             node->time.max = record->time;
             node->closed = true;

@@ -1168,7 +1168,15 @@ struct Profile_Global_List{
 
 ////////////////////////////////
 
+typedef i32 Thread_Kind;
+enum{
+    ThreadKind_Main,
+    ThreadKind_MainCoroutine,
+    ThreadKind_AsyncTasks,
+};
+
 struct Thread_Context{
+    Thread_Kind kind;
     Base_Allocator *allocator;
     Arena node_arena;
     Arena_Node *free_arenas;
