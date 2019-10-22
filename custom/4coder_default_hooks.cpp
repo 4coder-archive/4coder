@@ -545,9 +545,13 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Thread_Context *tctx = get_thread_context(app);
     Scratch_Block scratch(tctx);
     
-    system_acquire_global_frame_mutex(tctx);
-    String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
-    system_release_global_frame_mutex(tctx);
+    String_Const_u8 contents = {};
+    {
+        ProfileBlock(app, "async lex contents");
+        system_acquire_global_frame_mutex(tctx);
+        contents = push_whole_buffer(app, scratch, buffer_id);
+        system_release_global_frame_mutex(tctx);
+    }
     
     Lex_State_Cpp state = {};
     lex_full_input_cpp_init(&state, contents);
@@ -555,7 +559,7 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Token_List list = {};
     b32 canceled = false;
     for (;;){
-        ProfileScope(app, "async lex block");
+        ProfileBlock(app, "async lex block");
         if (lex_full_input_cpp_breaks(scratch, &list, &state, 10000)){
             break;
         }
@@ -566,6 +570,7 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     }
     
     if (!canceled){
+        ProfileBlock(app, "async lex save results");
         system_acquire_global_frame_mutex(tctx);
         Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
         Base_Allocator *allocator = managed_scope_allocator(app, scope);
