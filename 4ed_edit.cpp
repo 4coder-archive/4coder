@@ -70,7 +70,7 @@ edit_fix_markers__compute_scroll_y(i32 line_height, i32 old_y_val, f32 new_y_val
 }
 
 internal void
-edit_fix_markers(Models *models, Editing_File *file, Edit edit){
+edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Edit edit){
     Layout *layout = &models->layout;
     
     Lifetime_Object *file_lifetime_object = file->lifetime_object;
@@ -97,7 +97,7 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
     }
     cursor_max += total_marker_count;
     
-    Scratch_Block scratch(models->tctx, Scratch_Share);
+    Scratch_Block scratch(tctx, Scratch_Share);
     
     Cursor_With_Index *cursors = push_array(scratch, Cursor_With_Index, cursor_max);
     Cursor_With_Index *r_cursors = push_array(scratch, Cursor_With_Index, cursor_max);
@@ -155,7 +155,7 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
                 i64 cursor_pos = cursors[cursor_count++].pos;
                 view->mark = cursors[cursor_count++].pos;
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
-                view_set_cursor_and_scroll(models, view, cursor_pos, edit_pos.scroll);
+                view_set_cursor_and_scroll(tctx, models, view, cursor_pos, edit_pos.scroll);
                 // TODO(allen): read a cursor for the current scroll line
             }
         }
@@ -178,7 +178,7 @@ edit_fix_markers(Models *models, Editing_File *file, Edit edit){
 }
 
 internal void
-edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
+edit_single(Thread_Context *tctx, Models *models, Editing_File *file, Interval_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
     Edit edit = {};
     edit.text = string;
     edit.range = range;
@@ -188,7 +188,7 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     Assert(edit.range.first <= edit.range.one_past_last);
     Assert(edit.range.one_past_last <= buffer_size(buffer));
     
-    Scratch_Block scratch(models->tctx, Scratch_Share);
+    Scratch_Block scratch(tctx, Scratch_Share);
     
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
@@ -223,19 +223,25 @@ edit_single(Models *models, Editing_File *file, Interval_i64 range, String_Const
     buffer_remeasure_starts(scratch, buffer, Ii64(line_start, line_end + 1), line_shift, shift_amount);
     
     // NOTE(allen): cursor fixing
-    edit_fix_markers(models, file, edit);
+    edit_fix_markers(tctx, models, file, edit);
     
     // NOTE(allen): edit range hook
     if (models->buffer_edit_range != 0){
         Interval_i64 new_range = Ii64(edit.range.first, edit.range.first + edit.text.size);
-        models->buffer_edit_range(&models->app_links, file->id, new_range, original_text);
+        Application_Links app = {};
+        app.tctx = tctx;;
+        app.cmd_context = models;
+        models->buffer_edit_range(&app, file->id, new_range, original_text);
     }
 }
 
 internal void
-file_end_file(Models *models, Editing_File *file){
+file_end_file(Thread_Context *tctx, Models *models, Editing_File *file){
     if (models->end_buffer != 0){
-        models->end_buffer(&models->app_links, file->id);
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        models->end_buffer(&app, file->id);
     }
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     lifetime_free_object(lifetime_allocator, file->lifetime_object);
@@ -243,7 +249,7 @@ file_end_file(Models *models, Editing_File *file){
 }
 
 internal void
-edit__apply_record_forward(Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
+edit__apply_record_forward(Thread_Context *tctx, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
     // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
     // Whenever you change this also change the backward version!
     
@@ -252,7 +258,7 @@ edit__apply_record_forward(Models *models, Editing_File *file, Record *record, E
         {
             String_Const_u8 str = record->single.forward_text;
             Interval_i64 range = Ii64(record->single.first, record->single.first + record->single.backward_text.size);
-            edit_single(models, file, range, str, behaviors_prototype);
+            edit_single(tctx, models, file, range, str, behaviors_prototype);
         }break;
         
         case RecordKind_Group:
@@ -262,7 +268,7 @@ edit__apply_record_forward(Models *models, Editing_File *file, Record *record, E
                  node != sentinel;
                  node = node->next){
                 Record *sub_record = CastFromMember(Record, node, node);
-                edit__apply_record_forward(models, file, sub_record, behaviors_prototype);
+                edit__apply_record_forward(tctx, models, file, sub_record, behaviors_prototype);
             }
         }break;
         
@@ -274,7 +280,7 @@ edit__apply_record_forward(Models *models, Editing_File *file, Record *record, E
 }
 
 internal void
-edit__apply_record_backward(Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
+edit__apply_record_backward(Thread_Context *tctx, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
     // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
     // Whenever you change this also change the forward version!
     
@@ -283,7 +289,7 @@ edit__apply_record_backward(Models *models, Editing_File *file, Record *record, 
         {
             String_Const_u8 str = record->single.backward_text;
             Interval_i64 range = Ii64(record->single.first, record->single.first + record->single.forward_text.size);
-            edit_single(models, file, range, str, behaviors_prototype);
+            edit_single(tctx, models, file, range, str, behaviors_prototype);
         }break;
         
         case RecordKind_Group:
@@ -293,7 +299,7 @@ edit__apply_record_backward(Models *models, Editing_File *file, Record *record, 
                  node != sentinel;
                  node = node->prev){
                 Record *sub_record = CastFromMember(Record, node, node);
-                edit__apply_record_backward(models, file, sub_record, behaviors_prototype);
+                edit__apply_record_backward(tctx, models, file, sub_record, behaviors_prototype);
             }
         }break;
         
@@ -305,7 +311,7 @@ edit__apply_record_backward(Models *models, Editing_File *file, Record *record, 
 }
 
 internal void
-edit_change_current_history_state(Models *models, Editing_File *file, i32 target_index){
+edit_change_current_history_state(Thread_Context *tctx, Models *models, Editing_File *file, i32 target_index){
     History *history = &file->state.history;
     if (history->activated && file->state.current_record_index != target_index){
         Assert(0 <= target_index && target_index <= history->record_count);
@@ -323,13 +329,13 @@ edit_change_current_history_state(Models *models, Editing_File *file, i32 target
                 current += 1;
                 record = CastFromMember(Record, node, record->node.next);
                 Assert(record != dummy_record);
-                edit__apply_record_forward(models, file, record, behaviors_prototype);
+                edit__apply_record_forward(tctx, models, file, record, behaviors_prototype);
             } while (current != target_index);
         }
         else{
             do{
                 Assert(record != dummy_record);
-                edit__apply_record_backward(models, file, record, behaviors_prototype);
+                edit__apply_record_backward(tctx, models, file, record, behaviors_prototype);
                 current -= 1;
                 record = CastFromMember(Record, node, record->node.prev);
             } while (current != target_index);
@@ -340,7 +346,7 @@ edit_change_current_history_state(Models *models, Editing_File *file, i32 target
 }
 
 internal b32
-edit_merge_history_range(Models *models, Editing_File *file, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){
+edit_merge_history_range(Thread_Context *tctx, Models *models, Editing_File *file, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){
     b32 result = false;
     History *history = &file->state.history;
     if (history_is_activated(history)){
@@ -354,13 +360,13 @@ edit_merge_history_range(Models *models, Editing_File *file, History_Record_Inde
                     switch (in_range_handler){
                         case RecordMergeFlag_StateInRange_MoveStateForward:
                         {
-                            edit_change_current_history_state(models, file, last_index);
+                            edit_change_current_history_state(tctx, models, file, last_index);
                             current_index = last_index;
                         }break;
                         
                         case RecordMergeFlag_StateInRange_MoveStateBackward:
                         {
-                            edit_change_current_history_state(models, file, first_index);
+                            edit_change_current_history_state(tctx, models, file, first_index);
                             current_index = first_index;
                         }break;
                         
@@ -370,7 +376,7 @@ edit_merge_history_range(Models *models, Editing_File *file, History_Record_Inde
                         }break;
                     }
                 }
-                Scratch_Block scratch(models->tctx, Scratch_Share);
+                Scratch_Block scratch(tctx, Scratch_Share);
                 history_merge_records(scratch, history, first_index, last_index);
                 if (current_index >= last_index){
                     current_index -= (last_index - first_index);
@@ -385,7 +391,7 @@ edit_merge_history_range(Models *models, Editing_File *file, History_Record_Inde
 }
 
 internal b32
-edit_batch(Models *models, Editing_File *file, Batch_Edit *batch, Edit_Behaviors behaviors){
+edit_batch(Thread_Context *tctx, Models *models, Editing_File *file, Batch_Edit *batch, Edit_Behaviors behaviors){
     b32 result = true;
     if (batch != 0){
         History_Record_Index start_index = 0;
@@ -405,7 +411,7 @@ edit_batch(Models *models, Editing_File *file, Batch_Edit *batch, Edit_Behaviors
             if (0 <= edit_range.first &&
                 edit_range.first <= edit_range.one_past_last &&
                 edit_range.one_past_last <= size){
-                edit_single(models, file, edit_range, insert_string, behaviors);
+                edit_single(tctx, models, file, edit_range, insert_string, behaviors);
                 shift += replace_range_shift(edit_range, insert_string.size);
             }
             else{
@@ -417,7 +423,7 @@ edit_batch(Models *models, Editing_File *file, Batch_Edit *batch, Edit_Behaviors
         if (history_is_activated(&file->state.history)){
             History_Record_Index last_index = file->state.current_record_index;
             if (start_index + 1 < last_index){
-                edit_merge_history_range(models, file, start_index + 1, last_index, RecordMergeFlag_StateInRange_ErrorOut);
+                edit_merge_history_range(tctx, models, file, start_index + 1, last_index, RecordMergeFlag_StateInRange_ErrorOut);
             }
         }
     }
@@ -427,14 +433,14 @@ edit_batch(Models *models, Editing_File *file, Batch_Edit *batch, Edit_Behaviors
 ////////////////////////////////
 
 internal Editing_File*
-create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags){
+create_file(Thread_Context *tctx, Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags){
     Editing_File *result = 0;
     
     if (file_name.size > 0){
         Working_Set *working_set = &models->working_set;
         Heap *heap = &models->heap;
         
-        Scratch_Block scratch(models->tctx);
+        Scratch_Block scratch(tctx);
         
         Editing_File *file = 0;
         b32 do_empty_buffer = false;
@@ -487,9 +493,9 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                             file_bind_file_name(working_set, file, string_from_file_name(&canon));
                         }
                         String_Const_u8 front = string_front_of_path(file_name);
-                        buffer_bind_name(models, scratch, working_set, file, front);
+                        buffer_bind_name(tctx, models, scratch, working_set, file, front);
                         File_Attributes attributes = {};
-                        file_create_from_string(models, file, SCu8(""), attributes);
+                        file_create_from_string(tctx, models, file, SCu8(""), attributes);
                         result = file;
                     }
                 }
@@ -511,8 +517,8 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
                     if (file != 0){
                         file_bind_file_name(working_set, file, string_from_file_name(&canon));
                         String_Const_u8 front = string_front_of_path(file_name);
-                        buffer_bind_name(models, scratch, working_set, file, front);
-                        file_create_from_string(models, file, SCu8(buffer, (i32)attributes.size), attributes);
+                        buffer_bind_name(tctx, models, scratch, working_set, file, front);
+                        file_create_from_string(tctx, models, file, SCu8(buffer, (i32)attributes.size), attributes);
                         result = file;
                     }
                 }
@@ -537,7 +543,7 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
             i64 size = buffer_size(&file->state.buffer);
             if (size > 0){
                 Edit_Behaviors behaviors = {};
-                edit_single(models, file, Ii64(0, size), string_u8_litexpr(""), behaviors);
+                edit_single(tctx, models, file, Ii64(0, size), string_u8_litexpr(""), behaviors);
                 if (has_canon_name){
                     buffer_is_for_new_file = true;
                 }
@@ -547,7 +553,10 @@ create_file(Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags)
         if (file != 0 && buffer_is_for_new_file &&
             !HasFlag(flags, BufferCreate_SuppressNewFileHook) &&
             models->new_file != 0){
-            models->new_file(&models->app_links, file->id);
+            Application_Links app = {};
+            app.tctx = tctx;
+            app.cmd_context = models;
+            models->new_file(&app, file->id);
         }
     }
     

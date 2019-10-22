@@ -10,10 +10,10 @@
 // TOP
 
 internal void
-text_layout_init(Models *models, Text_Layout_Container *container){
+text_layout_init(Thread_Context *tctx, Text_Layout_Container *container){
     block_zero_struct(container);
-    container->node_arena = reserve_arena(models->tctx);
-    container->table = make_table_u64_u64(models->tctx->allocator, 20);
+    container->node_arena = reserve_arena(tctx);
+    container->table = make_table_u64_u64(tctx->allocator, 20);
 }
 
 internal Text_Layout*
@@ -29,8 +29,8 @@ text_layout_new__alloc_layout(Text_Layout_Container *container){
 }
 
 internal void
-text_layout_release(Models *models, Text_Layout_Container *container, Text_Layout *layout){
-    release_arena(models->tctx, layout->arena);
+text_layout_release(Thread_Context *tctx, Models *models, Text_Layout_Container *container, Text_Layout *layout){
+    release_arena(tctx, layout->arena);
     sll_stack_push(container->free_nodes, layout);
 }
 
@@ -65,14 +65,14 @@ text_layout_get(Text_Layout_Container *container, Text_Layout_ID id){
 }
 
 internal b32
-text_layout_erase(Models *models, Text_Layout_Container *container, Text_Layout_ID id){
+text_layout_erase(Thread_Context *tctx, Models *models, Text_Layout_Container *container, Text_Layout_ID id){
     b32 result = false;
     Table_Lookup lookup = table_lookup(&container->table, id);
     if (lookup.found_match){
         u64 ptr_val = 0;
         table_read(&container->table, lookup, &ptr_val);
         Text_Layout *ptr = (Text_Layout*)IntAsPtr(ptr_val);
-        text_layout_release(models, container, ptr);
+        text_layout_release(tctx, models, container, ptr);
         table_erase(&container->table, lookup);
         result = true;
     }
@@ -82,7 +82,7 @@ text_layout_erase(Models *models, Text_Layout_Container *container, Text_Layout_
 ////////////////////////////////
 
 internal void
-text_layout_render(Models *models, Text_Layout *layout){
+text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout){
     Editing_File *file = imp_get_file(models, layout->buffer_id);
     if (file != 0){
         Render_Target *target = models->target;
@@ -98,7 +98,7 @@ text_layout_render(Models *models, Text_Layout *layout){
         i64 line_number = layout->visible_line_number_range.min;
         i64 line_number_last = layout->visible_line_number_range.max;
         for (;line_number <= line_number_last; line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
             for (Buffer_Layout_Item_Block *block = line.first;
                  block != 0;
                  block = block->next){

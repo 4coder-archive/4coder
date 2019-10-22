@@ -13,11 +13,13 @@
 
 #endif
 
+struct Thread_Context_Extra_Info{
+    void *coroutine;
+    void *async_thread;
+};
 struct Application_Links{
+    Thread_Context *tctx;
     void *cmd_context;
-    void *current_thread;
-    void *current_coroutine;
-    i32 type_coroutine;
 };
 typedef void Custom_Layer_Init_Type(Application_Links *app);
 void custom_layer_init(Application_Links *app);

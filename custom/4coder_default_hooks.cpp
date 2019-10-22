@@ -539,7 +539,8 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
 }
 
 function void
-do_full_lex_async__inner(Application_Links *app, Buffer_ID buffer_id){
+do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
+    Application_Links *app = actx->app;
     Thread_Context *tctx = get_thread_context(app);
     Scratch_Block scratch(tctx);
     
@@ -564,10 +565,10 @@ do_full_lex_async__inner(Application_Links *app, Buffer_ID buffer_id){
 }
 
 function void
-do_full_lex_async(Application_Links *app, Data data){
+do_full_lex_async(Async_Context *actx, Data data){
     if (data.size == sizeof(Buffer_ID)){
         Buffer_ID buffer = *(Buffer_ID*)data.data;
-        do_full_lex_async__inner(app, buffer);
+        do_full_lex_async__inner(actx, buffer);
     }
 }
 

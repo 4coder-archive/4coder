@@ -67,6 +67,7 @@ internal void
 lifetime_allocator_init(Base_Allocator *base_allocator, Lifetime_Allocator *lifetime_allocator){
     block_zero_struct(lifetime_allocator);
     lifetime_allocator->allocator = base_allocator;
+    lifetime_allocator->node_arena = make_arena(base_allocator, KB(4));
     lifetime_allocator->key_table = make_table_Data_u64(base_allocator, 100);
     lifetime_allocator->key_check_table = make_table_u64_u64(base_allocator, 100);
     lifetime_allocator->scope_id_to_scope_ptr_table = make_table_u64_u64(base_allocator, 100);
@@ -250,26 +251,15 @@ lifetime__object_add_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Object
 
 internal Lifetime_Object*
 lifetime_alloc_object(Lifetime_Allocator *lifetime_allocator, i32 user_type, void *user_back_ptr){
-    Lifetime_Object *object = lifetime_allocator->free_objects.first;
+    Lifetime_Object *object = lifetime_allocator->free_objects;
     if (object == 0){
-        i32 new_object_count = 256;
-        umem new_memory_size = new_object_count*sizeof(Lifetime_Object);
-        Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
-        Lifetime_Object *new_objects = (Lifetime_Object*)new_memory.data;
-        Lifetime_Object *new_object_ptr = new_objects;
-        for (i32 i = 0; i < new_object_count; i += 1, new_object_ptr += 1){
-            zdll_push_back(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, new_object_ptr);
-        }
-        lifetime_allocator->free_objects.count += new_object_count;
-        object = lifetime_allocator->free_objects.first;
+        object = push_array(&lifetime_allocator->node_arena, Lifetime_Object, 1);
     }
-    
-    zdll_remove(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, object);
-    lifetime_allocator->free_objects.count -= 1;
-    
+    else{
+        sll_stack_pop(lifetime_allocator->free_objects);
+    }
     block_zero_struct(object);
     dynamic_workspace_init(lifetime_allocator, user_type, user_back_ptr, &object->workspace);
-    
     return(object);
 }
 
@@ -313,7 +303,7 @@ internal void
 lifetime_free_object(Lifetime_Allocator *lifetime_allocator, Lifetime_Object *lifetime_object){
     lifetime__object_free_all_keys(lifetime_allocator, lifetime_object);
     dynamic_workspace_free(lifetime_allocator, &lifetime_object->workspace);
-    zdll_push_back(lifetime_allocator->free_objects.first, lifetime_allocator->free_objects.last, lifetime_object);
+    sll_stack_push(lifetime_allocator->free_objects, lifetime_object);
 }
 
 internal void

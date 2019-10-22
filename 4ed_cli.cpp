@@ -98,9 +98,9 @@ child_process_lookup_return_code(Child_Process_Container *container, Child_Proce
 ////////////////////////////////
 
 internal b32
-child_process_call(Models *models, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *id_out){
+child_process_call(Thread_Context *tctx, Models *models, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *id_out){
     b32 result = false;
-    Scratch_Block scratch(&models->app_links);
+    Scratch_Block scratch(tctx);
     String_Const_u8 path_n = push_string_copy(scratch, path);
     String_Const_u8 command_n = push_string_copy(scratch, command);
     CLI_Handles cli_handles = {};

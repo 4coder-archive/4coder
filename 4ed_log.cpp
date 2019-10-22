@@ -31,10 +31,10 @@ log_string(String_Const_u8 str){
 }
 
 internal void
-output_file_append(Models *models, Editing_File *file, String_Const_u8 value);
+output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value);
 
 internal b32
-log_flush(Models *models){
+log_flush(Thread_Context *tctx, Models *models){
     b32 result = false;
     
     system_mutex_acquire(global_log.mutex);
@@ -42,7 +42,7 @@ log_flush(Models *models){
     
     if (global_log.list.total_size > 0){
         String_Const_u8 text = string_list_flatten(&global_log.arena, global_log.list);
-        output_file_append(models, models->log_buffer, text);
+        output_file_append(tctx, models, models->log_buffer, text);
         result = true;
     }
     linalloc_clear(&global_log.arena);

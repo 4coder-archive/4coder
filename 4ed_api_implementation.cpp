@@ -45,7 +45,9 @@ api_check_view(View *view, Access_Flag access){
 
 function b32
 is_running_coroutine(Application_Links *app){
-    return(app->current_coroutine != 0);
+    Thread_Context *tctx = app->tctx;
+    Thread_Context_Extra_Info *info = (Thread_Context_Extra_Info*)tctx->user_data;
+    return(info->coroutine != 0);
 }
 
 api(custom) function b32
@@ -73,25 +75,13 @@ global_get_screen_rectangle(Application_Links *app){
 
 api(custom) function Thread_Context*
 get_thread_context(Application_Links *app){
-    Thread_Context *tctx = 0;
-    if (app->current_coroutine == 0){
-        Models *models = (Models*)app->cmd_context;
-        tctx = models->tctx;
-    }
-    else if (app->current_thread != 0){
-        tctx = (Thread_Context*)app->current_thread;
-    }
-    else{
-        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
-        tctx = coroutine->tctx;
-    }
-    return(tctx);
+    return(app->tctx);
 }
 
 api(custom) function b32
 create_child_process(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out){
     Models *models = (Models*)app->cmd_context;
-    return(child_process_call(models, path, command, child_process_id_out));
+    return(child_process_call(app->tctx, models, path, command, child_process_id_out));
 }
 
 api(custom) function b32
@@ -246,7 +236,7 @@ buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 rang
         i64 size = buffer_size(&file->state.buffer);
         if (0 <= range.first && range.first <= range.one_past_last && range.one_past_last <= size){
             Edit_Behaviors behaviors = {};
-            edit_single(models, file, range, string, behaviors);
+            edit_single(app->tctx, models, file, range, string, behaviors);
             result = true;
         }
     }
@@ -261,7 +251,7 @@ buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, Batch_Edit *batch
     b32 result = false;
     if (api_check_buffer(file)){
         Edit_Behaviors behaviors = {};
-        result = edit_batch(models, file, batch, behaviors);
+        result = edit_batch(app->tctx, models, file, batch, behaviors);
     }
     return(result);
 }
@@ -373,7 +363,7 @@ buffer_line_y_difference(Application_Links *app, Buffer_ID buffer_id, f32 width,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_line_y_difference(models, file, width, face, line_a, line_b);
+            result = file_line_y_difference(app->tctx, models, file, width, face, line_a, line_b);
         }
     }
     return(result);
@@ -387,7 +377,7 @@ buffer_line_shift_y(Application_Links *app, Buffer_ID buffer_id, f32 width, Face
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_line_shift_y(models, file, width, face, line, y_shift);
+            result = file_line_shift_y(app->tctx, models, file, width, face, line, y_shift);
         }
     }
     return(result);
@@ -401,7 +391,7 @@ buffer_pos_at_relative_xy(Application_Links *app, Buffer_ID buffer_id, f32 width
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_pos_at_relative_xy(models, file, width, face, base_line, relative_xy);
+            result = file_pos_at_relative_xy(app->tctx, models, file, width, face, base_line, relative_xy);
         }
     }
     return(result);
@@ -416,7 +406,7 @@ buffer_relative_xy_of_pos(Application_Links *app, Buffer_ID buffer_id, f32 width
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_relative_xy_of_pos(models, file, width, face, base_line, pos);
+            result = file_relative_xy_of_pos(app->tctx, models, file, width, face, base_line, pos);
         }
     }
     return(result);
@@ -431,7 +421,7 @@ buffer_relative_character_from_pos(Application_Links *app, Buffer_ID buffer_id, 
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_relative_character_from_pos(models, file, width, face, base_line, pos);
+            result = file_relative_character_from_pos(app->tctx, models, file, width, face, base_line, pos);
         }
     }
     return(result);
@@ -446,7 +436,7 @@ buffer_pos_from_relative_character(Application_Links *app,  Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_pos_from_relative_character(models, file, width, face, base_line, relative_character);
+            result = file_pos_from_relative_character(app->tctx, models, file, width, face, base_line, relative_character);
         }
     }
     return(result);
@@ -460,7 +450,7 @@ view_line_y_difference(Application_Links *app, View_ID view_id, i64 line_a, i64 
     View *view = imp_get_view(models, view_id);
     f32 result = {};
     if (api_check_view(view)){
-        result = view_line_y_difference(models, view, line_a, line_b);
+        result = view_line_y_difference(app->tctx, models, view, line_a, line_b);
     }
     return(result);
 }
@@ -471,7 +461,7 @@ view_line_shift_y(Application_Links *app, View_ID view_id, i64 line, f32 y_shift
     View *view = imp_get_view(models, view_id);
     Line_Shift_Vertical result = {};
     if (api_check_view(view)){
-        result = view_line_shift_y(models, view, line, y_shift);
+        result = view_line_shift_y(app->tctx, models, view, line, y_shift);
     }
     return(result);
 }
@@ -482,7 +472,7 @@ view_pos_at_relative_xy(Application_Links *app, View_ID view_id, i64 base_line, 
     View *view = imp_get_view(models, view_id);
     i64 result = -1;
     if (api_check_view(view)){
-        result = view_pos_at_relative_xy(models, view, base_line, relative_xy);
+        result = view_pos_at_relative_xy(app->tctx, models, view, base_line, relative_xy);
     }
     return(result);
 }
@@ -493,7 +483,7 @@ view_relative_xy_of_pos(Application_Links *app, View_ID view_id, i64 base_line, 
     View *view = imp_get_view(models, view_id);
     Vec2_f32 result = {};
     if (api_check_view(view)){
-        result = view_relative_xy_of_pos(models, view, base_line, pos);
+        result = view_relative_xy_of_pos(app->tctx, models, view, base_line, pos);
     }
     return(result);
 }
@@ -504,7 +494,7 @@ view_relative_character_from_pos(Application_Links *app,  View_ID view_id, i64 b
     View *view = imp_get_view(models, view_id);
     i64 result = {};
     if (api_check_view(view)){
-        result = view_relative_character_from_pos(models, view, base_line, pos);
+        result = view_relative_character_from_pos(app->tctx, models, view, base_line, pos);
     }
     return(result);
 }
@@ -515,7 +505,7 @@ view_pos_from_relative_character(Application_Links *app,  View_ID view_id, i64 b
     View *view = imp_get_view(models, view_id);
     i64 result = {};
     if (api_check_view(view)){
-        result = view_pos_from_relative_character(models, view, base_line, character);
+        result = view_pos_from_relative_character(app->tctx, models, view, base_line, character);
     }
     return(result);
 }
@@ -693,12 +683,12 @@ buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
             {
                 if (value){
                     if (!history_is_activated(&file->state.history)){
-                        history_init(models, &file->state.history);
+                        history_init(app->tctx, models, &file->state.history);
                     }
                 }
                 else{
                     if (history_is_activated(&file->state.history)){
-                        history_free(models, &file->state.history);
+                        history_free(app->tctx, &file->state.history);
                     }
                 }
             }break;
@@ -732,7 +722,7 @@ buffer_send_end_signal(Application_Links *app, Buffer_ID buffer_id)
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        file_end_file(models, file);
+        file_end_file(app->tctx, models, file);
         result = true;
     }
     return(result);
@@ -742,7 +732,7 @@ api(custom) function Buffer_ID
 create_buffer(Application_Links *app, String_Const_u8 file_name, Buffer_Create_Flag flags)
 {
     Models *models = (Models*)app->cmd_context;
-    Editing_File *new_file = create_file(models, file_name, flags);
+    Editing_File *new_file = create_file(app->tctx, models, file_name, flags);
     Buffer_ID result = 0;
     if (new_file != 0){
         result = new_file->id;
@@ -766,9 +756,10 @@ buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_na
         }
         
         if (!skip_save){
-            Scratch_Block scratch(models->tctx, Scratch_Share);
+            Thread_Context *tctx = app->tctx;
+            Scratch_Block scratch(app->tctx, Scratch_Share);
             String_Const_u8 name = push_string_copy(scratch, file_name);
-            save_file_to_name(models, file, name.str);
+            save_file_to_name(tctx, models, file, name.str);
             result = true;
         }
     }
@@ -787,15 +778,16 @@ buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
         if (!file->settings.never_kill){
             b32 needs_to_save = file_needs_save(file);
             if (!needs_to_save || (flags & BufferKill_AlwaysKill) != 0){
+                Thread_Context *tctx = app->tctx;
                 if (models->end_buffer != 0){
-                    models->end_buffer(&models->app_links, file->id);
+                    models->end_buffer(app, file->id);
                 }
                 
                 buffer_unbind_name_low_level(working_set, file);
                 if (file->canon.name_size != 0){
                     buffer_unbind_file(working_set, file);
                 }
-                file_free(models, file);
+                file_free(tctx, models, file);
                 working_set_free_file(&models->heap, working_set, file);
                 
                 Layout *layout = &models->layout;
@@ -810,7 +802,7 @@ buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
                         Assert(file_node != order);
                         view->file = 0;
                         Editing_File *new_file = CastFromMember(Editing_File, touch_node, file_node);
-                        view_set_file(models, view, new_file);
+                        view_set_file(tctx, models, view, new_file);
                         file_node = file_node->next;
                         if (file_node == order){
                             file_node = file_node->next;
@@ -836,7 +828,8 @@ api(custom) function Buffer_Reopen_Result
 buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags)
 {
     Models *models = (Models*)app->cmd_context;
-    Scratch_Block scratch(models->tctx, Scratch_Share);
+    Thread_Context *tctx = app->tctx;
+    Scratch_Block scratch(tctx, Scratch_Share);
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Reopen_Result result = BufferReopenResult_Failed;
     if (api_check_buffer(file)){
@@ -875,18 +868,18 @@ buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
                         }
                         
                         Working_Set *working_set = &models->working_set;
-                        file_free(models, file);
+                        file_free(tctx, models, file);
                         working_set_file_default_settings(working_set, file);
-                        file_create_from_string(models, file, SCu8(file_memory, attributes.size), attributes);
+                        file_create_from_string(tctx, models, file, SCu8(file_memory, attributes.size), attributes);
                         
                         for (i32 i = 0; i < vptr_count; ++i){
-                            view_set_file(models, vptrs[i], file);
+                            view_set_file(tctx, models, vptrs[i], file);
                             
                             vptrs[i]->file = file;
                             i64 line = line_numbers[i];
                             i64 col = column_numbers[i];
                             Buffer_Cursor cursor = file_compute_cursor(file, seek_line_col(line, col));
-                            view_set_cursor(models, vptrs[i], cursor.pos);
+                            view_set_cursor(tctx, models, vptrs[i], cursor.pos);
                         }
                         result = BufferReopenResult_Reopened;
                     }
@@ -919,7 +912,7 @@ api(custom) function File_Attributes
 get_file_attributes(Application_Links *app, String_Const_u8 file_name)
 {
     Models *models = (Models*)app->cmd_context;
-    Scratch_Block scratch(models->tctx, Scratch_Share);
+    Scratch_Block scratch(app->tctx, Scratch_Share);
     return(system_quick_file_attributes(scratch, file_name));
 }
 
@@ -1172,7 +1165,7 @@ panel_split(Application_Links *app, Panel_ID panel_id, Dimension split_dim){
             Live_Views *live_set = &models->live_set;
             View *new_view = live_set_alloc_view(&models->lifetime_allocator,
                                                  live_set, new_panel);
-            view_init(models, new_view, models->scratch_buffer,
+            view_init(app->tctx, models, new_view, models->scratch_buffer,
                       models->view_event_handler);
             result = true;
         }
@@ -1321,7 +1314,7 @@ view_get_buffer_region(Application_Links *app, View_ID view_id){
     View *view = imp_get_view(models, view_id);
     Rect_f32 result = {};
     if (api_check_view(view)){
-        result = view_get_buffer_rect(models, view);
+        result = view_get_buffer_rect(app->tctx, models, view);
     }
     return(result);
 }
@@ -1466,7 +1459,7 @@ view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek)
         Assert(file != 0);
         if (api_check_buffer(file)){
             Buffer_Cursor cursor = file_compute_cursor(file, seek);
-            view_set_cursor(models, view, cursor.pos);
+            view_set_cursor(app->tctx, models, view, cursor.pos);
             result = true;
         }
     }
@@ -1481,15 +1474,16 @@ view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll sc
     b32 result = false;
     View *view = imp_get_view(models, view_id);
     if (api_check_view(view)){
-        scroll.position = view_normalize_buffer_point(models, view, scroll.position);
-        scroll.target = view_normalize_buffer_point(models, view, scroll.target);
+        Thread_Context *tctx = app->tctx;
+        scroll.position = view_normalize_buffer_point(tctx, models, view, scroll.position);
+        scroll.target = view_normalize_buffer_point(tctx, models, view, scroll.target);
         scroll.target.pixel_shift.x = f32_round32(scroll.target.pixel_shift.x);
         scroll.target.pixel_shift.y = f32_round32(scroll.target.pixel_shift.y);
         scroll.target.pixel_shift.x = clamp_bot(0.f, scroll.target.pixel_shift.x);
-        Buffer_Layout_Item_List line = view_get_line_layout(models, view, scroll.target.line_number);
+        Buffer_Layout_Item_List line = view_get_line_layout(tctx, models, view, scroll.target.line_number);
         scroll.target.pixel_shift.y = clamp(0.f, scroll.target.pixel_shift.y, line.height);
         if (rule == SetBufferScroll_SnapCursorIntoView){
-            view_set_scroll(models, view, scroll);
+            view_set_scroll(tctx, models, view, scroll);
         }
         else{
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
@@ -1536,7 +1530,7 @@ view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Se
         Editing_File *file = working_set_get_file(&models->working_set, buffer_id);
         if (api_check_buffer(file)){
             if (file != view->file){
-                view_set_file(models, view, file);
+                view_set_file(app->tctx, models, view, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
                     //view_quit_ui(models, view);
                     // TODO(allen): back to base context
@@ -1707,7 +1701,7 @@ get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Sco
     Models *models = (Models*)app->cmd_context;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     
-    Scratch_Block scratch(models->tctx, Scratch_Share);
+    Scratch_Block scratch(app->tctx, Scratch_Share);
     
     // TODO(allen): revisit this
     struct Node_Ptr{
@@ -2029,9 +2023,11 @@ api(custom) function User_Input
 get_next_input(Application_Links *app, Event_Property get_properties, Event_Property abort_properties)
 {
     Models *models = (Models*)app->cmd_context;
+    Thread_Context *tctx = app->tctx;
+    Thread_Context_Extra_Info *tctx_info = (Thread_Context_Extra_Info*)tctx->user_data;
     User_Input result = {};
-    if (app->type_coroutine == Co_View){
-        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+    if (tctx_info->coroutine != 0){
+        Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
         if (coroutine != 0){
             Co_Out *out = (Co_Out*)coroutine->out;
             out->request = CoRequest_None;
@@ -2213,8 +2209,8 @@ print_message(Application_Links *app, String_Const_u8 message)
     Editing_File *file = models->message_buffer;
     b32 result = false;
     if (file != 0){
-        output_file_append(models, file, message);
-        file_cursor_to_end(models, file);
+        output_file_append(app->tctx, models, file, message);
+        file_cursor_to_end(app->tctx, models, file);
         result = true;
     }
     return(result);
@@ -2385,7 +2381,7 @@ buffer_history_set_current_state_index(Application_Links *app, Buffer_ID buffer_
     if (api_check_buffer(file) && history_is_activated(&file->state.history)){
         i32 max_index = history_get_record_count(&file->state.history);
         if (0 <= index && index <= max_index){
-            edit_change_current_history_state(models, file, index);
+            edit_change_current_history_state(app->tctx, models, file, index);
             result = true;
         }
     }
@@ -2398,7 +2394,7 @@ buffer_history_merge_record_range(Application_Links *app, Buffer_ID buffer_id, H
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        result = edit_merge_history_range(models, file, first_index, last_index, flags);
+        result = edit_merge_history_range(app->tctx, models, file, first_index, last_index, flags);
     }
     return(result);
 }
@@ -2502,9 +2498,11 @@ api(custom) function Face_ID
 try_create_new_face(Application_Links *app, Face_Description *description)
 {
     Models *models = (Models*)app->cmd_context;
+    Thread_Context *tctx = app->tctx;
+    Thread_Context_Extra_Info *tctx_info = (Thread_Context_Extra_Info*)tctx->user_data;
     Face_ID result = 0;
-    if (is_running_coroutine(app)){
-        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+    if (tctx_info != 0 && tctx_info->coroutine != 0){
+        Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
         Assert(coroutine != 0);
         Co_Out *out = (Co_Out*)coroutine->out;
         out->request = CoRequest_NewFontFace;
@@ -2512,6 +2510,9 @@ try_create_new_face(Application_Links *app, Face_Description *description)
         coroutine_yield(coroutine);
         Co_In *in = (Co_In*)coroutine->in;
         result = in->face_id;
+    }
+    else if (tctx_info != 0){
+        // This API does nothing when called from an async thread.
     }
     else{
         Face *new_face = font_set_new_face(&models->font_set, description);
@@ -2524,9 +2525,11 @@ api(custom) function b32
 try_modify_face(Application_Links *app, Face_ID id, Face_Description *description)
 {
     Models *models = (Models*)app->cmd_context;
+    Thread_Context *tctx = app->tctx;
+    Thread_Context_Extra_Info *tctx_info = (Thread_Context_Extra_Info*)tctx->user_data;
     b32 result = false;
-    if (is_running_coroutine(app)){
-        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+    if (tctx_info != 0 && tctx_info->coroutine != 0){
+        Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
         Assert(coroutine != 0);
         Co_Out *out = (Co_Out*)coroutine->out;
         out->request = CoRequest_ModifyFace;
@@ -2535,6 +2538,9 @@ try_modify_face(Application_Links *app, Face_ID id, Face_Description *descriptio
         coroutine_yield(coroutine);
         Co_In *in = (Co_In*)coroutine->in;
         result = in->success;
+    }
+    else if (tctx_info != 0){
+        // This API does nothing when called from an async thread.
     }
     else{
         result = font_set_modify_face(&models->font_set, id, description);
@@ -2689,8 +2695,9 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
     Editing_File *file = imp_get_file(models, buffer_id);
     Text_Layout_ID result = {};
     if (api_check_buffer(file)){
-        Scratch_Block scratch(app);
-        Arena *arena = reserve_arena(models->tctx);
+        Thread_Context *tctx = app->tctx;
+        Scratch_Block scratch(tctx);
+        Arena *arena = reserve_arena(tctx);
         Face *face = file_get_face(models, file);
         
         Gap_Buffer *buffer = &file->state.buffer;
@@ -2702,7 +2709,7 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
         f32 y = -buffer_point.pixel_shift.y;
         for (;line_number <= line_count;
              line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, dim.x, face, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, dim.x, face, line_number);
             f32 next_y = y + line.height;
             if (next_y >= dim.y){
                 break;
@@ -2775,7 +2782,7 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
             
             for (i64 line_number_it = layout->visible_line_number_range.first;;
                  line_number_it += 1){
-                Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number_it);
+                Buffer_Layout_Item_List line = file_get_line_layout(app->tctx, models, file, width, face, line_number_it);
                 result.max += line.height;
                 if (line_number_it == line_number){
                     break;
@@ -2816,7 +2823,7 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                 Buffer_Layout_Item_List line = {};
                 for (i64 line_number_it = layout->visible_line_number_range.first;;
                      line_number_it += 1){
-                    line = file_get_line_layout(models, file, width, face, line_number_it);
+                    line = file_get_line_layout(app->tctx, models, file, width, face, line_number_it);
                     if (line_number_it == line_number){
                         break;
                     }
@@ -2874,7 +2881,7 @@ paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Interval_i64 
 api(custom) function b32
 text_layout_free(Application_Links *app, Text_Layout_ID text_layout_id){
     Models *models = (Models*)app->cmd_context;
-    return(text_layout_erase(models, &models->text_layouts, text_layout_id));
+    return(text_layout_erase(app->tctx, models, &models->text_layouts, text_layout_id));
 }
 
 api(custom) function void
@@ -2882,7 +2889,7 @@ draw_text_layout(Application_Links *app, Text_Layout_ID layout_id){
     Models *models = (Models*)app->cmd_context;
     Text_Layout *layout = text_layout_get(&models->text_layouts, layout_id);
     if (layout != 0 && models->target != 0){
-        text_layout_render(models, layout);
+        text_layout_render(app->tctx, models, layout);
     }
 }
 

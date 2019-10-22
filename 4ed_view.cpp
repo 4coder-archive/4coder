@@ -148,12 +148,15 @@ view_set_edit_pos(View *view, File_Edit_Positions edit_pos){
 ////////////////////////////////
 
 internal Rect_f32
-view_get_buffer_rect(Models *models, View *view){
+view_get_buffer_rect(Thread_Context *tctx, Models *models, View *view){
     Rect_f32 region = Rf32(view->panel->rect_full);
     if (models->buffer_region != 0){
         Rect_f32 rect = region;
         Rect_f32 sub_region = Rf32(V2(0, 0), rect_dim(rect));
-        sub_region = models->buffer_region(&models->app_links, view_get_id(&models->live_set, view), sub_region);
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        sub_region = models->buffer_region(&app, view_get_id(&models->live_set, view), sub_region);
         region.p0 = rect.p0 + sub_region.p0;
         region.p1 = rect.p0 + sub_region.p1;
         region.x1 = clamp_top(region.x1, rect.x1);
@@ -165,112 +168,112 @@ view_get_buffer_rect(Models *models, View *view){
 }
 
 internal f32
-view_width(Models *models, View *view){
-    return(rect_width(view_get_buffer_rect(models, view)));
+view_width(Thread_Context *tctx, Models *models, View *view){
+    return(rect_width(view_get_buffer_rect(tctx, models, view)));
 }
 
 internal f32
-view_height(Models *models, View *view){
-    return(rect_height(view_get_buffer_rect(models, view)));
+view_height(Thread_Context *tctx, Models *models, View *view){
+    return(rect_height(view_get_buffer_rect(tctx, models, view)));
 }
 
 ////////////////////////////////
 
 internal Buffer_Layout_Item_List
-view_get_line_layout(Models *models, View *view, i64 line_number){
+view_get_line_layout(Thread_Context *tctx, Models *models, View *view, i64 line_number){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_get_line_layout(models, file, width, face, line_number));
+    f32 width = view_width(tctx, models, view);
+    return(file_get_line_layout(tctx, models, file, width, face, line_number));
 }
 
 internal Line_Shift_Vertical
-view_line_shift_y(Models *models, View *view, i64 line_number, f32 y_delta){
+view_line_shift_y(Thread_Context *tctx, Models *models, View *view, i64 line_number, f32 y_delta){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_line_shift_y(models, file, width, face, line_number, y_delta));
+    f32 width = view_width(tctx, models, view);
+    return(file_line_shift_y(tctx, models, file, width, face, line_number, y_delta));
 }
 
 internal f32
-view_line_y_difference(Models *models, View *view, i64 line_a, i64 line_b){
+view_line_y_difference(Thread_Context *tctx, Models *models, View *view, i64 line_a, i64 line_b){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_line_y_difference(models, file, width, face, line_a, line_b));
+    f32 width = view_width(tctx, models, view);
+    return(file_line_y_difference(tctx, models, file, width, face, line_a, line_b));
 }
 
 internal i64
-view_pos_at_relative_xy(Models *models, View *view, i64 base_line, Vec2_f32 relative_xy){
+view_pos_at_relative_xy(Thread_Context *tctx, Models *models, View *view, i64 base_line, Vec2_f32 relative_xy){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_pos_at_relative_xy(models, file, width, face, base_line, relative_xy));
+    f32 width = view_width(tctx, models, view);
+    return(file_pos_at_relative_xy(tctx, models, file, width, face, base_line, relative_xy));
 }
 
 internal Vec2_f32
-view_relative_xy_of_pos(Models *models, View *view, i64 base_line, i64 pos){
+view_relative_xy_of_pos(Thread_Context *tctx, Models *models, View *view, i64 base_line, i64 pos){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_relative_xy_of_pos(models, file, width, face, base_line, pos));
+    f32 width = view_width(tctx, models, view);
+    return(file_relative_xy_of_pos(tctx, models, file, width, face, base_line, pos));
 }
 
 internal Buffer_Point
-view_normalize_buffer_point(Models *models, View *view, Buffer_Point point){
+view_normalize_buffer_point(Thread_Context *tctx, Models *models, View *view, Buffer_Point point){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_normalize_buffer_point(models, file, width, face, point));
+    f32 width = view_width(tctx, models, view);
+    return(file_normalize_buffer_point(tctx, models, file, width, face, point));
 }
 
 internal Vec2_f32
-view_buffer_point_difference(Models *models, View *view, Buffer_Point a, Buffer_Point b){
+view_buffer_point_difference(Thread_Context *tctx, Models *models, View *view, Buffer_Point a, Buffer_Point b){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_buffer_point_difference(models, file, width, face, a, b));
+    f32 width = view_width(tctx, models, view);
+    return(file_buffer_point_difference(tctx, models, file, width, face, a, b));
 }
 
 internal Buffer_Point
-view_move_buffer_point(Models *models, View *view, Buffer_Point buffer_point, Vec2_f32 delta){
+view_move_buffer_point(Thread_Context *tctx, Models *models, View *view, Buffer_Point buffer_point, Vec2_f32 delta){
     delta += buffer_point.pixel_shift;
-    Line_Shift_Vertical shift = view_line_shift_y(models, view, buffer_point.line_number, delta.y);
+    Line_Shift_Vertical shift = view_line_shift_y(tctx, models, view, buffer_point.line_number, delta.y);
     buffer_point.line_number = shift.line;
     buffer_point.pixel_shift = V2f32(delta.x, delta.y - shift.y_delta);
     return(buffer_point);
 }
 
 internal Line_Shift_Character
-view_line_shift_characters(Models *models, View *view, i64 line_number, i64 character_delta){
+view_line_shift_characters(Thread_Context *tctx, Models *models, View *view, i64 line_number, i64 character_delta){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_line_shift_characters(models, file, width, face, line_number, character_delta));
+    f32 width = view_width(tctx, models, view);
+    return(file_line_shift_characters(tctx, models, file, width, face, line_number, character_delta));
 }
 
 internal i64
-view_line_character_difference(Models *models, View *view, i64 line_a, i64 line_b){
+view_line_character_difference(Thread_Context *tctx, Models *models, View *view, i64 line_a, i64 line_b){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_line_character_difference(models, file, width, face, line_a, line_b));
+    f32 width = view_width(tctx, models, view);
+    return(file_line_character_difference(tctx, models, file, width, face, line_a, line_b));
 }
 
 internal i64
-view_pos_from_relative_character(Models *models, View *view, i64 base_line, i64 relative_character){
+view_pos_from_relative_character(Thread_Context *tctx, Models *models, View *view, i64 base_line, i64 relative_character){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_pos_from_relative_character(models, file, width, face, base_line, relative_character));
+    f32 width = view_width(tctx, models, view);
+    return(file_pos_from_relative_character(tctx, models, file, width, face, base_line, relative_character));
 }
 
 internal i64
-view_relative_character_from_pos(Models *models, View *view, i64 base_line, i64 pos){
+view_relative_character_from_pos(Thread_Context *tctx, Models *models, View *view, i64 base_line, i64 pos){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    f32 width = view_width(models, view);
-    return(file_relative_character_from_pos(models, file, width, face, base_line, pos));
+    f32 width = view_width(tctx, models, view);
+    return(file_relative_character_from_pos(tctx, models, file, width, face, base_line, pos));
 }
 
 internal Buffer_Cursor
@@ -282,14 +285,14 @@ view_compute_cursor(View *view, Buffer_Seek seek){
 ////////////////////////////////
 
 internal b32
-view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
+view_move_view_to_cursor(Thread_Context *tctx, Models *models, View *view, Buffer_Scroll *scroll){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    Rect_f32 rect = view_get_buffer_rect(models, view);
+    Rect_f32 rect = view_get_buffer_rect(tctx, models, view);
     Vec2_f32 view_dim = rect_dim(rect);
     
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face, scroll->target.line_number, 
+    Vec2_f32 p = file_relative_xy_of_pos(tctx, models, file, view_dim.x, face, scroll->target.line_number, 
                                          edit_pos.cursor_pos);
     p -= scroll->target.pixel_shift;
     
@@ -310,7 +313,7 @@ view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
         target_p_relative.x = (p.x + typical_advance*1.5f) - view_dim.x;
     }
     scroll->target.pixel_shift += target_p_relative;
-    scroll->target = view_normalize_buffer_point(models, view, scroll->target);
+    scroll->target = view_normalize_buffer_point(tctx, models, view, scroll->target);
     scroll->target.pixel_shift.x = f32_round32(scroll->target.pixel_shift.x);
     scroll->target.pixel_shift.y = f32_round32(scroll->target.pixel_shift.y);
     
@@ -318,13 +321,13 @@ view_move_view_to_cursor(Models *models, View *view, Buffer_Scroll *scroll){
 }
 
 internal b32
-view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *pos_in_out, f32 preferred_x){
+view_move_cursor_to_view(Thread_Context *tctx, Models *models, View *view, Buffer_Scroll scroll, i64 *pos_in_out, f32 preferred_x){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
-    Rect_f32 rect = view_get_buffer_rect(models, view);
+    Rect_f32 rect = view_get_buffer_rect(tctx, models, view);
     Vec2_f32 view_dim = rect_dim(rect);
     
-    Vec2_f32 p = file_relative_xy_of_pos(models, file, view_dim.x, face, scroll.target.line_number, *pos_in_out);
+    Vec2_f32 p = file_relative_xy_of_pos(tctx, models, file, view_dim.x, face, scroll.target.line_number, *pos_in_out);
     p -= scroll.target.pixel_shift;
     
     f32 line_height = face->line_height;
@@ -343,7 +346,7 @@ view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *
     b32 result = false;
     if (adjusted_y){
         p += scroll.target.pixel_shift;
-        *pos_in_out = file_pos_at_relative_xy(models, file, view_dim.x, face, scroll.target.line_number, p);
+        *pos_in_out = file_pos_at_relative_xy(tctx, models, file, view_dim.x, face, scroll.target.line_number, p);
         result = true;
     }
     
@@ -351,33 +354,33 @@ view_move_cursor_to_view(Models *models, View *view, Buffer_Scroll scroll, i64 *
 }
 
 internal void
-view_set_cursor(Models *models, View *view, i64 pos){
+view_set_cursor(Thread_Context *tctx, Models *models, View *view, i64 pos){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     file_edit_positions_set_cursor(&edit_pos, pos);
     view_set_edit_pos(view, edit_pos);
     Buffer_Scroll scroll = edit_pos.scroll;
-    if (view_move_view_to_cursor(models, view, &scroll)){
+    if (view_move_view_to_cursor(tctx, models, view, &scroll)){
         edit_pos.scroll = scroll;
         view_set_edit_pos(view, edit_pos);
     }
 }
 
 internal void
-view_set_scroll(Models *models, View *view, Buffer_Scroll scroll){
+view_set_scroll(Thread_Context *tctx, Models *models, View *view, Buffer_Scroll scroll){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     file_edit_positions_set_scroll(&edit_pos, scroll);
     view_set_edit_pos(view, edit_pos);
-    if (view_move_cursor_to_view(models, view, edit_pos.scroll, &edit_pos.cursor_pos, view->preferred_x)){
+    if (view_move_cursor_to_view(tctx, models, view, edit_pos.scroll, &edit_pos.cursor_pos, view->preferred_x)){
         view_set_edit_pos(view, edit_pos);
     }
 }
 
 internal void
-view_set_cursor_and_scroll(Models *models, View *view, i64 pos, Buffer_Scroll scroll){
+view_set_cursor_and_scroll(Thread_Context *tctx, Models *models, View *view, i64 pos, Buffer_Scroll scroll){
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
     file_edit_positions_set_cursor(&edit_pos, pos);
     Buffer_Cursor cursor = view_compute_cursor(view, seek_pos(pos));
-    Vec2_f32 p = view_relative_xy_of_pos(models, view, cursor.line, pos);
+    Vec2_f32 p = view_relative_xy_of_pos(tctx, models, view, cursor.line, pos);
     view->preferred_x = p.x;
     file_edit_positions_set_scroll(&edit_pos, scroll);
     edit_pos.last_set_type = EditPos_None;
@@ -397,7 +400,7 @@ view_post_paste_effect(View *view, f32 seconds, i64 start, i64 size, u32 color){
 ////////////////////////////////
 
 internal void
-view_set_file(Models *models, View *view, Editing_File *file){
+view_set_file(Thread_Context *tctx, Models *models, View *view, Editing_File *file){
     Assert(file != 0);
     
     Editing_File *old_file = view->file;
@@ -412,7 +415,7 @@ view_set_file(Models *models, View *view, Editing_File *file){
     view_set_edit_pos(view, edit_pos);
     view->mark = edit_pos.cursor_pos;
     Buffer_Cursor cursor = view_compute_cursor(view, seek_pos(edit_pos.cursor_pos));
-    Vec2_f32 p = view_relative_xy_of_pos(models, view, cursor.line, edit_pos.cursor_pos);
+    Vec2_f32 p = view_relative_xy_of_pos(tctx, models, view, cursor.line, edit_pos.cursor_pos);
     view->preferred_x = p.x;
     
     models->layout.panel_state_dirty = true;
@@ -463,20 +466,6 @@ view_current_context(View *view){
 
 ////////////////////////////////
 
-internal App_Coroutine_State
-get_co_state(Application_Links *app){
-    App_Coroutine_State state = {};
-    state.co = app->current_coroutine;
-    state.type = app->type_coroutine;
-    return(state);
-}
-
-internal void
-restore_co_state(Application_Links *app, App_Coroutine_State state){
-    app->current_coroutine = state.co;
-    app->type_coroutine = state.type;
-}
-
 internal Coroutine*
 co_handle_request(Models *models, Coroutine *co, Co_Out *out){
     Coroutine *result = 0;
@@ -503,17 +492,11 @@ co_handle_request(Models *models, Coroutine *co, Co_Out *out){
 }
 
 internal Coroutine*
-co_run(Models *models, App_Coroutine_Purpose purpose, Coroutine *co,
-       Co_In *in, Co_Out *out){
-    Application_Links *app = &models->app_links;
-    App_Coroutine_State prev_state = get_co_state(app);
-    app->current_coroutine = co;
-    app->type_coroutine = purpose;
+co_run(Thread_Context *tctx, Models *models, Coroutine *co, Co_In *in, Co_Out *out){
     Coroutine *result = coroutine_run(&models->coroutines, co, in, out);
     for (;result != 0 && out->request != CoRequest_None;){
         result = co_handle_request(models, result, out);
     }
-    restore_co_state(app, prev_state);
     return(result);
 }
 
@@ -523,15 +506,18 @@ view_event_context_base__inner(Coroutine *coroutine){
     Models *models = in->models;
     Custom_Command_Function *event_context_base = in->event_context_base;
     Assert(event_context_base != 0);
-    event_context_base(&models->app_links);
+    Application_Links app = {};
+    app.tctx = coroutine->tctx;
+    app.cmd_context = models;
+    event_context_base(&app);
 }
 
 function void
-view_init(Models *models, View *view, Editing_File *initial_buffer,
+view_init(Thread_Context *tctx, Models *models, View *view, Editing_File *initial_buffer,
           Custom_Command_Function *event_context_base){
-    view_set_file(models, view, initial_buffer);
+    view_set_file(tctx, models, view, initial_buffer);
     
-    view->node_arena = reserve_arena(models->tctx);
+    view->node_arena = reserve_arena(tctx);
     
     View_Context first_ctx = {};
     first_ctx.render_caller = models->render_caller;
@@ -543,7 +529,7 @@ view_init(Models *models, View *view, Editing_File *initial_buffer,
     Co_In in = {};
     in.models = models;
     in.event_context_base = event_context_base;
-    view->co = co_run(models, Co_View, view->co, &in, &view->co_out);
+    view->co = co_run(tctx, models, view->co, &in, &view->co_out);
     // TODO(allen): deal with this kind of problem!
     Assert(view->co != 0);
 }
@@ -572,25 +558,28 @@ view_check_co_exited(Models *models, View *view){
 }
 
 internal void
-co_single_abort(Models *models, View *view){
+co_single_abort(Thread_Context *tctx, Models *models, View *view){
     Coroutine *co = view->co;
     Co_In in = {};
     in.user_input.abort = true;
-    view->co = co_run(models, Co_View, co, &in, &view->co_out);
+    view->co = co_run(tctx, models, co, &in, &view->co_out);
     view_check_co_exited(models, view);
 }
 
 internal void
-co_full_abort(Models *models, View *view){
+co_full_abort(Thread_Context *tctx, Models *models, View *view){
     Coroutine *co = view->co;
     Co_In in = {};
     in.user_input.abort = true;
     for (u32 j = 0; j < 100 && co != 0; ++j){
-        co  = co_run(models, Co_View, co, &in, &view->co_out);
+        co  = co_run(tctx, models, co, &in, &view->co_out);
     }
     if (co != 0){
 #define M "SERIOUS ERROR: full stack abort did not complete"
-        print_message(&models->app_links, string_u8_litexpr(M));
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        print_message(&app, string_u8_litexpr(M));
 #undef M
     }
     view->co = 0;
@@ -598,7 +587,7 @@ co_full_abort(Models *models, View *view){
 }
 
 function b32
-co_send_event(Models *models, View *view, Input_Event *event){
+co_send_event(Thread_Context *tctx, Models *models, View *view, Input_Event *event){
     b32 event_was_handled = false;
     
     Coroutine *co = view->co;
@@ -613,7 +602,7 @@ co_send_event(Models *models, View *view, Input_Event *event){
         in.user_input.event = *event;
         in.user_input.abort = ((abort_flags & event_flags) != 0);
         begin_handling_input(models, &in.user_input);
-        view->co = co_run(models, Co_View, view->co, &in, &view->co_out);
+        view->co = co_run(tctx, models, view->co, &in, &view->co_out);
         view_check_co_exited(models, view);
         if (!HasFlag(event_flags, EventProperty_Animate)){
             models->animate_next_frame = true;
@@ -625,52 +614,52 @@ co_send_event(Models *models, View *view, Input_Event *event){
 }
 
 function b32
-co_send_core_event(Models *models, View *view, Core_Code code, String_Const_u8 string){
+co_send_core_event(Thread_Context *tctx, Models *models, View *view, Core_Code code, String_Const_u8 string){
     Input_Event event = {};
     event.kind = InputEventKind_Core;
     event.core.code = code;
     event.core.string = string;
-    return(co_send_event(models, view, &event));
+    return(co_send_event(tctx, models, view, &event));
 }
 
 function b32
-co_send_core_event(Models *models, View *view, Core_Code code, Buffer_ID id){
+co_send_core_event(Thread_Context *tctx, Models *models, View *view, Core_Code code, Buffer_ID id){
     Input_Event event = {};
     event.kind = InputEventKind_Core;
     event.core.code = code;
     event.core.id = id;
-    return(co_send_event(models, view, &event));
+    return(co_send_event(tctx, models, view, &event));
 }
 
 function b32
-co_send_core_event(Models *models, View *view, Core_Code code){
-    return(co_send_core_event(models, view, code, SCu8()));
+co_send_core_event(Thread_Context *tctx, Models *models, View *view, Core_Code code){
+    return(co_send_core_event(tctx, models, view, code, SCu8()));
 }
 
 function b32
-co_send_event(Models *models, Input_Event *event){
+co_send_event(Thread_Context *tctx, Models *models, Input_Event *event){
     Panel *active_panel = models->layout.active_panel;
     View *view = active_panel->view;
-    return(co_send_event(models, view, event));
+    return(co_send_event(tctx, models, view, event));
 }
 
 function b32
-co_send_core_event(Models *models, Core_Code code, String_Const_u8 string){
+co_send_core_event(Thread_Context *tctx, Models *models, Core_Code code, String_Const_u8 string){
     Panel *active_panel = models->layout.active_panel;
     View *view = active_panel->view;
-    return(co_send_core_event(models, view, code, string));
+    return(co_send_core_event(tctx, models, view, code, string));
 }
 
 function b32
-co_send_core_event(Models *models, Core_Code code, Buffer_ID buffer_id){
+co_send_core_event(Thread_Context *tctx, Models *models, Core_Code code, Buffer_ID buffer_id){
     Panel *active_panel = models->layout.active_panel;
     View *view = active_panel->view;
-    return(co_send_core_event(models, view, code, buffer_id));
+    return(co_send_core_event(tctx, models, view, code, buffer_id));
 }
 
 function b32
-co_send_core_event(Models *models, Core_Code code){
-    return(co_send_core_event(models, code, SCu8()));
+co_send_core_event(Thread_Context *tctx, Models *models, Core_Code code){
+    return(co_send_core_event(tctx, models, code, SCu8()));
 }
 
 ////////////////////////////////
@@ -691,7 +680,7 @@ file_is_viewed(Layout *layout, Editing_File *file){
 }
 
 internal void
-adjust_views_looking_at_file_to_new_cursor(Models *models, Editing_File *file){
+adjust_views_looking_at_file_to_new_cursor(Thread_Context *tctx, Models *models, Editing_File *file){
     Layout *layout = &models->layout;
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
@@ -699,7 +688,7 @@ adjust_views_looking_at_file_to_new_cursor(Models *models, Editing_File *file){
         View *view = panel->view;
         if (view->file == file){
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            view_set_cursor(models, view, edit_pos.cursor_pos);
+            view_set_cursor(tctx, models, view, edit_pos.cursor_pos);
         }
     }
 }

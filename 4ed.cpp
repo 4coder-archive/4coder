@@ -10,14 +10,14 @@
 // TOP
 
 internal void
-output_file_append(Models *models, Editing_File *file, String_Const_u8 value){
+output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value){
     i64 end = buffer_size(&file->state.buffer);
     Edit_Behaviors behaviors = {};
-    edit_single(models, file, Ii64(end), value, behaviors);
+    edit_single(tctx, models, file, Ii64(end), value, behaviors);
 }
 
 internal void
-file_cursor_to_end(Models *models, Editing_File *file){
+file_cursor_to_end(Thread_Context *tctx, Models *models, Editing_File *file){
     Assert(file != 0);
     i64 pos = buffer_size(&file->state.buffer);
     Layout *layout = &models->layout;
@@ -28,7 +28,7 @@ file_cursor_to_end(Models *models, Editing_File *file){
         if (view->file != file){
             continue;
         }
-        view_set_cursor(models, view, pos);
+        view_set_cursor(tctx, models, view, pos);
         view->mark = pos;
     }
 }
@@ -281,12 +281,12 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
 ////////////////////////////////
 
 internal Models*
-models_init(Thread_Context *tctx){
-    Arena *arena = reserve_arena(tctx);
-    Models *models = push_array_zero(arena, Models, 1);
-    models->tctx = tctx;
-    models->arena = arena;
-    heap_init(&models->heap, tctx->allocator);
+models_init(void){
+    Arena arena = make_arena_system();
+    Models *models = push_array_zero(&arena, Models, 1);
+    models->arena_ = arena;
+    models->arena = &models->arena_;
+    heap_init(&models->heap, get_base_allocator_system());
     return(models);
 }
 
@@ -306,7 +306,7 @@ app_get_logger(void){
 }
 
 App_Read_Command_Line_Sig(app_read_command_line){
-    Models *models = models_init(tctx);
+    Models *models = models_init();
     App_Settings *settings = &models->settings;
     block_zero_struct(settings);
     if (argc > 1){
@@ -322,7 +322,6 @@ App_Init_Sig(app_init){
     models->keep_playing = true;
     
     models->config_api = api;
-    models->app_links.cmd_context = models;
     
     API_VTable_custom custom_vtable = {};
     custom_api_fill_vtable(&custom_vtable);
@@ -330,7 +329,11 @@ App_Init_Sig(app_init){
     system_api_fill_vtable(&system_vtable);
     Custom_Layer_Init_Type *custom_init = api.init_apis(&custom_vtable, &system_vtable);
     Assert(custom_init != 0);
-    custom_init(&models->app_links);
+    
+    Application_Links app = {};
+    app.tctx = tctx;
+    app.cmd_context = models;
+    custom_init(&app);
     
     // NOTE(allen): coroutines
     coroutine_system_init(&models->coroutines);
@@ -360,8 +363,8 @@ App_Init_Sig(app_init){
         }
     }
     
-    managed_ids_init(models->tctx->allocator, &models->managed_id_set);
-    lifetime_allocator_init(models->tctx->allocator, &models->lifetime_allocator);
+    managed_ids_init(tctx->allocator, &models->managed_id_set);
+    lifetime_allocator_init(tctx->allocator, &models->lifetime_allocator);
     dynamic_workspace_init(&models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
@@ -371,7 +374,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): 
     global_history_init(&models->global_history);
-    text_layout_init(models, &models->text_layouts);
+    text_layout_init(tctx, &models->text_layouts);
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
@@ -412,17 +415,17 @@ App_Init_Sig(app_init){
     Heap *heap = &models->heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_allocate_file(&models->working_set, &models->lifetime_allocator);
-        buffer_bind_name(models, arena, &models->working_set, file, init_files[i].name);
+        buffer_bind_name(tctx, models, arena, &models->working_set, file, init_files[i].name);
         
         if (init_files[i].ptr != 0){
             *init_files[i].ptr = file;
         }
         
         File_Attributes attributes = {};
-        file_create_from_string(models, file, SCu8(), attributes);
+        file_create_from_string(tctx, models, file, SCu8(), attributes);
         if (init_files[i].read_only){
             file->settings.read_only = true;
-            history_free(models, &file->state.history);
+            history_free(tctx, &file->state.history);
         }
         
         file->settings.never_kill = true;
@@ -433,12 +436,12 @@ App_Init_Sig(app_init){
     {
         Panel *panel = layout_initialize(arena, &models->layout);
         View *new_view = live_set_alloc_view(&models->lifetime_allocator, &models->live_set, panel);
-        view_init(models, new_view, models->scratch_buffer, models->view_event_handler);
+        view_init(tctx, models, new_view, models->scratch_buffer, models->view_event_handler);
     }
     
     // NOTE(allen): miscellaneous init
     hot_directory_init(arena, &models->hot_directory, current_directory);
-    child_process_container_init(models->tctx->allocator, &models->child_processes);
+    child_process_container_init(tctx->allocator, &models->child_processes);
     models->period_wakeup_timer = system_wake_up_timer_create();
 }
 
@@ -446,7 +449,7 @@ App_Step_Sig(app_step){
     Models *models = (Models*)base_ptr;
     
     Mutex_Lock file_order_lock(models->working_set.mutex);
-    Scratch_Block scratch(models->tctx, Scratch_Share);
+    Scratch_Block scratch(tctx, Scratch_Share);
     
     models->next_animate_delay = max_u32;
     models->animate_next_frame = false;
@@ -462,7 +465,7 @@ App_Step_Sig(app_step){
         String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in((char*)dest->str, (char*)clipboard.str, (i32)clipboard.size);
         if (input->clipboard_changed){
-            co_send_core_event(models, CoreCode_NewClipboardContents, *dest);
+            co_send_core_event(tctx, models, CoreCode_NewClipboardContents, *dest);
         }
     }
     
@@ -499,7 +502,7 @@ App_Step_Sig(app_step){
             if (system_cli_update_step(cli, dest, max, &amount)){
                 if (file != 0 && amount > 0){
                     amount = eol_in_place_convert_in(dest, amount);
-                    output_file_append(models, file, SCu8(dest, amount));
+                    output_file_append(tctx, models, file, SCu8(dest, amount));
                     edited_file = true;
                 }
             }
@@ -507,7 +510,7 @@ App_Step_Sig(app_step){
             if (system_cli_end_update(cli)){
                 if (file != 0){
                     String_Const_u8 str = push_u8_stringf(scratch, "exited with code %d", cli->exit);
-                    output_file_append(models, file, str);
+                    output_file_append(tctx, models, file, str);
                     edited_file = true;
                 }
                 processes_to_free[processes_to_free_count++] = child_process;
@@ -515,7 +518,7 @@ App_Step_Sig(app_step){
             }
             
             if (child_process->cursor_at_end && file != 0){
-                file_cursor_to_end(models, file);
+                file_cursor_to_end(tctx, models, file);
             }
         }
         
@@ -639,7 +642,7 @@ App_Step_Sig(app_step){
         event.core.code = CoreCode_Startup;
         event.core.flag_strings = flags;
         event.core.file_names = file_names;
-        co_send_event(models, &event);
+        co_send_event(tctx, models, &event);
     }
     
     // NOTE(allen): consume event stream
@@ -689,7 +692,7 @@ App_Step_Sig(app_step){
                     case EventConsume_ClickChangeView:
                     {
                         // NOTE(allen): run deactivate command
-                        co_send_core_event(models, view, CoreCode_ClickDeactivateView);
+                        co_send_core_event(tctx, models, view, CoreCode_ClickDeactivateView);
                         
                         layout->active_panel = mouse_panel;
                         models->animate_next_frame = true;
@@ -697,14 +700,14 @@ App_Step_Sig(app_step){
                         view = active_panel->view;
                         
                         // NOTE(allen): run activate command
-                        co_send_core_event(models, view, CoreCode_ClickActivateView);
+                        co_send_core_event(tctx, models, view, CoreCode_ClickActivateView);
                         
                         event_was_handled = true;
                     }break;
                     
                     case EventConsume_CustomCommand:
                     {
-                        event_was_handled = co_send_event(models, view, event);
+                        event_was_handled = co_send_event(tctx, models, view, event);
                     }break;
                 }
             }break;
@@ -745,7 +748,10 @@ App_Step_Sig(app_step){
     if (models->layout.panel_state_dirty){
         models->layout.panel_state_dirty = false;
         if (models->buffer_viewer_update != 0){
-            models->buffer_viewer_update(&models->app_links);
+            Application_Links app = {};
+            app.tctx = tctx;
+            app.cmd_context = models;
+            models->buffer_viewer_update(&app);
         }
     }
     
@@ -769,7 +775,7 @@ App_Step_Sig(app_step){
              panel = layout_get_next_open_panel(layout, panel)){
             View *view = panel->view;
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
-            edit_pos.scroll.position = view_normalize_buffer_point(models, view, edit_pos.scroll.target);
+            edit_pos.scroll.position = view_normalize_buffer_point(tctx, models, view, edit_pos.scroll.target);
             block_zero_struct(&edit_pos.scroll.target);
             view_set_edit_pos(view, edit_pos);
         }
@@ -787,7 +793,7 @@ App_Step_Sig(app_step){
                 Editing_File *file = CastFromMember(Editing_File, external_mod_node, node);
                 dll_remove(node);
                 block_zero_struct(node);
-                co_send_core_event(models, CoreCode_FileExternallyModified, file->id);
+                co_send_core_event(tctx, models, CoreCode_FileExternallyModified, file->id);
             }
         }
     }
@@ -797,7 +803,7 @@ App_Step_Sig(app_step){
         models->keep_playing = false;
     }
     if (!models->keep_playing){
-        if (co_send_core_event(models, CoreCode_TryExit)){
+        if (co_send_core_event(tctx, models, CoreCode_TryExit)){
             models->keep_playing = true;
         }
     }
@@ -836,7 +842,10 @@ App_Step_Sig(app_step){
             if (ctx != 0){
                 Render_Caller_Function *render_caller = ctx->ctx.render_caller;
                 if (render_caller != 0){
-                    render_caller(&models->app_links, frame, view_get_id(live_views, view));
+                    Application_Links app = {};
+                    app.tctx = tctx;
+                    app.cmd_context = models;
+                    render_caller(&app, frame, view_get_id(live_views, view));
                 }
             }
         }
@@ -846,7 +855,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): flush the log
-    log_flush(models);
+    log_flush(tctx, models);
     
     // NOTE(allen): set the app_result
     Application_Step_Result app_result = {};

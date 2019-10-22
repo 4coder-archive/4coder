@@ -1681,7 +1681,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
-        app.init(&target, base_ptr, win32vars.clipboard_contents, curdir, custom);
+        app.init(win32vars.tctx, &target, base_ptr, win32vars.clipboard_contents, curdir, custom);
     }
     
     //
@@ -1871,7 +1871,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Application Core Update
         Application_Step_Result result = {};
         if (app.step != 0){
-            result = app.step(&target, base_ptr, &input);
+            result = app.step(win32vars.tctx, &target, base_ptr, &input);
         }
         else{
             //LOG("app.step == 0 -- skipping\n");
