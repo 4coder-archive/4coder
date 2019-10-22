@@ -689,7 +689,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     }
     
     if (use_lexer){
-        Async_Task lex_task = async_task_no_dep(do_full_lex_async, make_data_struct(&buffer_id));
+        Async_Task lex_task = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
         Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
         *lex_task_ptr = lex_task;
     }
@@ -796,7 +796,7 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
         else{
             scratch.restore();
             base_free(allocator, ptr->tokens);
-            Async_Task lex_task = async_task_no_dep(do_full_lex_async, make_data_struct(&buffer_id));
+            Async_Task lex_task = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
             Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
             *lex_task_ptr = lex_task;
         }

@@ -12,12 +12,18 @@ typedef u64 Async_Task;
 
 struct Async_Thread{
     System_Thread thread;
+    struct Async_System *async_system;
     struct Async_Node *node;
     Async_Task task;
+    b32 cancel_signal;
+    b32 join_signal;
 };
 
 struct Async_Node{
-    Async_Node *next;
+    union{
+        Async_Node *next;
+        Node node;
+    };
     Async_Task task;
     Async_Thread *thread;
     Async_Task_Function_Type *func;
@@ -31,10 +37,10 @@ struct Async_System{
     Arena node_arena;
     System_Mutex mutex;
     System_Condition_Variable cv;
+    System_Condition_Variable join_cv;
     Async_Task task_id_counter;
     Async_Node *free_nodes;
-    Async_Node *task_first;
-    Async_Node *task_last;
+    Node task_sent;
     i32 task_count;
     
     Async_Thread thread;

@@ -19,7 +19,7 @@ custom_layer_init(Application_Links *app){
     mapping_init(tctx, &framework_mapping);
     setup_default_mapping(&framework_mapping);
     global_prof_init();
-    async_task_handler_init(app);
+    async_task_handler_init(app, &global_async_system);
 }
 
 #endif
