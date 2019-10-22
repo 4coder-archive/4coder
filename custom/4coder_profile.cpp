@@ -82,6 +82,14 @@ thread_profile_flush(Thread_Context *tctx){
 }
 
 function void
+thread_set_name(Thread_Context *tctx, String_Const_u8 name){
+    Profile_Thread* thread = global_prof_get_thread(system_thread_get_id());
+    thread->name = name;
+}
+
+#define ProfileThreadName(tctx,name) thread_set_name((tctx), (name))
+
+function void
 global_prof_set_enabled(b32 value, Profile_Enable_Flag flag){
     Mutex_Lock lock(global_prof_mutex);
     if (value){

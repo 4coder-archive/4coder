@@ -66,6 +66,8 @@ async_task_thread(void *thread_ptr){
     Thread_Context *tctx = &tctx_;
     thread_ctx_init(tctx, ThreadKind_AsyncTasks, allocator, allocator);
     
+    ProfileThreadName(tctx, string_u8_litexpr("async"));
+    
     Async_Thread *thread = (Async_Thread*)thread_ptr;
     Async_System *async_system = thread->async_system;
     

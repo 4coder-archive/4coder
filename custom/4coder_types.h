@@ -1,18 +1,6 @@
 #if !defined(FCODER_TYPES_H)
 #define FCODER_TYPES_H
 
-#if !defined(FCODER_META_TAGS)
-#define FCODER_META_TAGS
-
-# define ENUM(type,name) typedef type name; enum name##_
-# define TYPEDEF typedef
-# define TYPEDEF_FUNC typedef
-# define STRUCT struct
-# define UNION union
-# define GLOBAL_VAR static
-
-#endif
-
 struct Thread_Context_Extra_Info{
     void *coroutine;
     void *async_thread;
@@ -30,21 +18,21 @@ typedef Custom_Layer_Init_Type *_Init_APIs_Type(struct API_VTable_custom *custom
 
 ////////////////////////////////
 
-TYPEDEF u32 argb_color;
+typedef u32 argb_color;
 
-TYPEDEF u32 int_color;
+typedef u32 int_color;
 
-TYPEDEF u16 id_color;
+typedef u16 id_color;
 
-TYPEDEF u32 Child_Process_ID;
+typedef u32 Child_Process_ID;
 
-TYPEDEF i32 Buffer_ID;
+typedef i32 Buffer_ID;
 
-TYPEDEF i32 View_ID;
+typedef i32 View_ID;
 
-TYPEDEF i32 Panel_ID;
+typedef i32 Panel_ID;
 
-TYPEDEF u32 Text_Layout_ID;
+typedef u32 Text_Layout_ID;
 
 typedef i32 UI_Highlight_Level;
 enum{
@@ -53,53 +41,58 @@ enum{
     UIHighlight_Active,
 };
 
-STRUCT Buffer_Point{
+struct Buffer_Point{
     i64 line_number;
     Vec2 pixel_shift;
 };
 
-STRUCT Line_Shift_Vertical{
+struct Line_Shift_Vertical{
     i64 line;
     f32 y_delta;
 };
 
-STRUCT Line_Shift_Character{
+struct Line_Shift_Character{
     i64 line;
     i64 character_delta;
 };
 
-ENUM(u32, Child_Process_Set_Target_Flags){
+typedef u32 Child_Process_Set_Target_Flags;
+enum{
     ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess = 1,
     ChildProcessSet_FailIfProcessAlreadyAttachedToABuffer = 2,
     ChildProcessSet_NeverOverrideExistingAttachment = 3,
     ChildProcessSet_CursorAtEnd = 4,
 };
 
-ENUM(u32, Memory_Protect_Flags){
+typedef u32 Memory_Protect_Flags;
+enum{
     MemProtect_Read    = 0x1,
     MemProtect_Write   = 0x2,
     MemProtect_Execute = 0x4,
 };
 
-ENUM(i32, Wrap_Indicator_Mode){
+typedef i32 Wrap_Indicator_Mode;
+enum{
     WrapIndicator_Hide,
     WrapIndicator_Show_After_Line,
     WrapIndicator_Show_At_Wrap_Edge,
 };
 
-ENUM(i32, Global_Setting_ID){
+typedef i32 Global_Setting_ID;
+enum{
     GlobalSetting_Null,
     GlobalSetting_LAltLCtrlIsAltGr,
 };
 
-ENUM(i32, Buffer_Setting_ID){
+typedef i32 Buffer_Setting_ID;
+enum{
     BufferSetting_Null,
     BufferSetting_Unimportant,
     BufferSetting_ReadOnly,
     BufferSetting_RecordsHistory,
 };
 
-STRUCT Character_Predicate{
+struct Character_Predicate{
     u8 b[32];
 };
 
@@ -109,14 +102,16 @@ struct Frame_Info{
     f32 animation_dt;
 };
 
-ENUM(i32, View_Setting_ID){
+typedef i32 View_Setting_ID;
+enum{
     ViewSetting_Null,
     ViewSetting_ShowWhitespace,
     ViewSetting_ShowScrollbar,
     ViewSetting_ShowFileBar,
 };
 
-ENUM(u32, Buffer_Create_Flag){
+typedef u32 Buffer_Create_Flag;
+enum{
     BufferCreate_Background = 0x1,
     BufferCreate_AlwaysNew  = 0x2,
     BufferCreate_NeverNew   = 0x4,
@@ -126,24 +121,29 @@ ENUM(u32, Buffer_Create_Flag){
     BufferCreate_SuppressNewFileHook = 0x40,
 };
 
-ENUM(u32, Buffer_Save_Flag){
+typedef u32 Buffer_Save_Flag;
+enum{
     BufferSave_IgnoreDirtyFlag = 0x1,
 };
 
-ENUM(u32, Buffer_Kill_Flag){
+typedef u32 Buffer_Kill_Flag;
+enum{
     BufferKill_AlwaysKill  = 0x2,
 };
 
-ENUM(u32, Buffer_Reopen_Flag){};
+typedef u32 Buffer_Reopen_Flag;
+enum{};
 
-ENUM(i32, Buffer_Kill_Result){
+typedef u32 Buffer_Kill_Result;
+enum{
     BufferKillResult_Killed = 0,
     BufferKillResult_Dirty = 1,
     BufferKillResult_Unkillable = 2,
     BufferKillResult_DoesNotExist = 3,
 };
 
-ENUM(i32, Buffer_Reopen_Result){
+typedef u32 Buffer_Reopen_Result;
+enum{
     BufferReopenResult_Reopened = 0,
     BufferReopenResult_Failed = 1,
 };
@@ -161,46 +161,52 @@ enum{
     Access_ReadWriteVisible = Access_Write|Access_Read|Access_Visible,
 };
 
-ENUM(u32, Dirty_State){
+typedef i32 Dirty_State;
+enum{
     DirtyState_UpToDate = 0,
     DirtyState_UnsavedChanges = 1,
     DirtyState_UnloadedChanges = 2,
     DirtyState_UnsavedChangesAndUnloadedChanges = 3,
 };
 
-ENUM(u32, Command_Line_Interface_Flag){
+typedef u32 Command_Line_Interface_Flag;
+enum{
     CLI_OverlapWithConflict = 0x1,
     CLI_AlwaysBindToView    = 0x2,
     CLI_CursorAtEnd         = 0x4,
     CLI_SendEndSignal       = 0x8,
 };
 
-ENUM(u32, Set_Buffer_Flag){
+typedef u32 Set_Buffer_Flag;
+enum{
     SetBuffer_KeepOriginalGUI = 0x1
 };
 
-ENUM(i32, Mouse_Cursor_Show_Type){
+typedef i32 Mouse_Cursor_Show_Type;
+enum{
     MouseCursorShow_Never,
     MouseCursorShow_Always,
 };
 
-ENUM(i32, View_Split_Position){
+typedef i32 View_Split_Position;
+enum{
     ViewSplit_Top,
     ViewSplit_Bottom,
     ViewSplit_Left,
     ViewSplit_Right,
 };
 
-ENUM(i32, Panel_Split_Kind){
+typedef i32 Panel_Split_Kind;
+enum{
     PanelSplitKind_Ratio_Min = 0,
     PanelSplitKind_Ratio_Max = 1,
     PanelSplitKind_FixedPixels_Min = 2,
     PanelSplitKind_FixedPixels_Max = 3,
 };
 
-TYPEDEF u8 Key_Modifier;
+typedef u8 Key_Modifier;
 
-STRUCT Mouse_State{
+struct Mouse_State{
     b8 l;
     b8 r;
     b8 press_l;
@@ -209,8 +215,8 @@ STRUCT Mouse_State{
     b8 release_r;
     b8 out_of_window;
     i32 wheel;
-    UNION{
-        STRUCT{
+    union{
+        struct{
             i32 x;
             i32 y;
         };
@@ -218,34 +224,35 @@ STRUCT Mouse_State{
     };
 };
 
-STRUCT Parser_String_And_Type{
+struct Parser_String_And_Type{
     char *str;
     u32 length;
     u32 type;
 };
 
-ENUM(u32, File_Attribute_Flag){
+typedef u32 File_Attribute_Flag;
+enum{
     FileAttribute_IsDirectory = 1,
 };
 
-STRUCT File_Attributes{
+struct File_Attributes{
     u64 size;
     u64 last_write_time;
     File_Attribute_Flag flags;
 };
 
-STRUCT File_Info{
+struct File_Info{
     File_Info *next;
     String_Const_u8 file_name;
     File_Attributes attributes;
 };
 
-STRUCT File_List{
+struct File_List{
     File_Info **infos;
     u32 count;
 };
 
-STRUCT Buffer_Identifier{
+struct Buffer_Identifier{
     char *name;
     i32 name_len;
     Buffer_ID id;
@@ -267,31 +274,32 @@ struct Basic_Scroll{
     Vec2_f32 target;
 };
 
-ENUM(i32, Buffer_Seek_Type){
+typedef i32 Buffer_Seek_Type;
+enum{
     buffer_seek_pos,
     buffer_seek_line_col,
 };
 
-STRUCT Buffer_Seek{
+struct Buffer_Seek{
     Buffer_Seek_Type type;
-    UNION{
-        STRUCT{
+    union{
+        struct{
             i64 pos;
         };
-        STRUCT{
+        struct{
             i64 line;
             i64 col;
         };
     };
 };
 
-STRUCT Buffer_Cursor{
+struct Buffer_Cursor{
     i64 pos;
     i64 line;
     i64 col;
 };
 
-STRUCT Range_Cursor{
+struct Range_Cursor{
     struct{
         Buffer_Cursor min;
         Buffer_Cursor max;
@@ -310,14 +318,13 @@ STRUCT Range_Cursor{
     };
 };
 
-STRUCT Marker{
+struct Marker{
     i64 pos;
     b32 lean_right;
 };
 
-
-ENUM(i32, Managed_Object_Type)
-{
+typedef i32 Managed_Object_Type;
+enum{
     ManagedObjectType_Error = 0,
     ManagedObjectType_Memory = 1,
     ManagedObjectType_Markers = 2,
@@ -326,23 +333,24 @@ ENUM(i32, Managed_Object_Type)
 };
 
 
-TYPEDEF u64 Managed_ID;
+typedef u64 Managed_ID;
 
-TYPEDEF u64 Managed_Scope;
-TYPEDEF u64 Managed_Object;
+typedef u64 Managed_Scope;
+typedef u64 Managed_Object;
 
 static Managed_Scope ManagedScope_NULL = 0;
 static Managed_Object ManagedObject_NULL = 0;
 
 static Managed_ID ManagedIndex_ERROR = 0;
 
-STRUCT Marker_Visual{
+struct Marker_Visual{
     Managed_Scope scope;
     u32 slot_id;
     u32 gen_id;
 };
 
-ENUM(u32, Glyph_Flag){
+typedef u32 Glyph_Flag;
+enum{
     GlyphFlag_None = 0x0,
     GlyphFlag_Rotate90 = 0x1,
 };
@@ -367,12 +375,12 @@ struct Query_Bar_Group{
     ~Query_Bar_Group();
 };
 
-STRUCT Theme_Color{
+struct Theme_Color{
     id_color tag;
     argb_color color;
 };
 
-//STRUCT Theme{
+//struct Theme{
 //int_color colors[Stag_COUNT];
 //};
 
@@ -416,12 +424,14 @@ struct Batch_Edit{
     Edit edit;
 };
 
-ENUM(i32, Record_Kind){
+typedef i32 Record_Kind;
+enum{
     RecordKind_Single,
     RecordKind_Group,
 };
 
-ENUM(i32, Record_Error){
+typedef i32 Record_Error;
+enum{
     RecordError_NoError,
     RecordError_InvalidBuffer,
     RecordError_NoHistoryAttached,
@@ -431,15 +441,16 @@ ENUM(i32, Record_Error){
     RecordError_WrongRecordTypeAtIndex,
 };
 
-ENUM(u32, Record_Merge_Flag){
+typedef u32 Record_Merge_Flag;
+enum{
     RecordMergeFlag_StateInRange_MoveStateForward = 0x0,
     RecordMergeFlag_StateInRange_MoveStateBackward = 0x1,
     RecordMergeFlag_StateInRange_ErrorOut = 0x2,
 };
 
-TYPEDEF i32 History_Record_Index;
+typedef i32 History_Record_Index;
 
-STRUCT Record_Info{
+struct Record_Info{
     Record_Error error;
     Record_Kind kind;
     i32 edit_number;
@@ -455,7 +466,7 @@ STRUCT Record_Info{
     };
 };
 
-TYPEDEF void Custom_Command_Function(struct Application_Links *app);
+typedef void Custom_Command_Function(struct Application_Links *app);
 
 #if defined(CUSTOM_COMMAND_SIG) || defined(CUSTOM_UI_COMMAND_SIG) || defined(CUSTOM_DOC) || defined(CUSTOM_COMMAND)
 #error Please do not define CUSTOM_COMMAND_SIG, CUSTOM_DOC, CUSTOM_UI_COMMAND_SIG, or CUSTOM_COMMAND
@@ -472,7 +483,7 @@ TYPEDEF void Custom_Command_Function(struct Application_Links *app);
 #endif
 
 // TODO(allen): rename
-STRUCT User_Input{
+struct User_Input{
     Input_Event event;
     b32 abort;
 };
@@ -589,13 +600,14 @@ struct View_Context{
     Command_Map_ID map_id;
 };
 
-STRUCT Color_Picker{
+struct Color_Picker{
     String_Const_u8 title;
     argb_color *dest;
     b32 *finished;
 };
 
-ENUM(u32, String_Match_Flag){
+typedef u32 String_Match_Flag;
+enum{
     StringMatch_CaseSensitive = 1,
     StringMatch_LeftSideSloppy = 2,
     StringMatch_RightSideSloppy = 4,

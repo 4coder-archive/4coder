@@ -20,6 +20,8 @@ custom_layer_init(Application_Links *app){
     setup_default_mapping(&framework_mapping);
     global_prof_init();
     async_task_handler_init(app, &global_async_system);
+    
+    ProfileThreadName(tctx, string_u8_litexpr("main"));
 }
 
 #endif

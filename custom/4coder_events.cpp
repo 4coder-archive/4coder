@@ -105,6 +105,12 @@ get_modifiers(Input_Event *event){
 }
 
 function b32
+has_modifier(Input_Event *event, Key_Code modifier){
+    Input_Modifier_Set *set = get_modifiers(event);
+    return(has_modifier(set, modifier));
+}
+
+function b32
 is_unmodified_key(Input_Event *event){
     b32 result = false;
     if (event->kind == InputEventKind_KeyStroke){

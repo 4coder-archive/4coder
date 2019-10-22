@@ -1545,6 +1545,20 @@ unlerp(f32 a, f32 x, f32 b){
 }
 
 internal f32
+unlerp(u64 a, u64 x, u64 b){
+    f32 r = 0.f;
+    if (b <= x){
+        r = 1.f;
+    }
+    else if (a < x){
+        u64 n = x - a;
+        u64 d = b - a;
+        r = (f32)(((f64)n)/((f64)d));
+    }
+    return(r);
+}
+
+internal f32
 lerp(Range_f32 range, f32 t){
     return(lerp(range.min, t, range.max));
 }

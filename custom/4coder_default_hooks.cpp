@@ -56,8 +56,15 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
 CUSTOM_COMMAND_SIG(default_view_input_handler)
 CUSTOM_DOC("Input consumption loop for default view behavior")
 {
+    Thread_Context *tctx = get_thread_context(app);
+    Scratch_Block scratch(tctx);
+    
     {
+        
         View_ID view = get_active_view(app, Access_Always);
+        String_Const_u8 name = push_u8_stringf(scratch, "view %d", view);
+        ProfileThreadName(tctx, name);
+        
         View_Context ctx = view_current_context(app, view);
         ctx.mapping = &framework_mapping;
         ctx.map_id = mapid_global;

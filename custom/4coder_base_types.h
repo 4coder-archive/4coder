@@ -1148,6 +1148,7 @@ struct Profile_Thread{
     Profile_Record *last_record;
     i32 record_count;
     i32 thread_id;
+    String_Const_u8 name;
 };
 
 typedef u32 Profile_Enable_Flag;

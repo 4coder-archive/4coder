@@ -7,15 +7,6 @@
 #if !defined(FCODER_FANCY_H)
 #define FCODER_FANCY_H
 
-/* TODO(casey): This warrants a lot of thought.
-
-   Since you want to be able to edit colors after they have already been stored away in
-   internal structures, you want to capture as much as possible where the colors came
-   from.  In the current set-up, you can blend any two ids, but that's it.  If you
-   go beyond that, it collapses down to just RGBA.  Maybe there should be more than
-   that.  It's hard to say.  I don't know.
-*/
-
 struct Fancy_Color{
     union{
         struct{
