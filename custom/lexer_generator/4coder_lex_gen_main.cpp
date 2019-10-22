@@ -3258,7 +3258,7 @@ gen_flag_check__cont_flow(Flag *flag, b32 value, FILE *out){
     if (value == 0){
         fprintf(out, "!");
     }
-    fprintf(out, "HasFlag(%.*s%d, 0x%x)", string_expand(flag->base_name), flag->index, flag->value);
+    fprintf(out, "HasFlag(state.%.*s%d, 0x%x)", string_expand(flag->base_name), flag->index, flag->value);
 }
 
 internal void
@@ -3298,6 +3298,7 @@ gen_goto_state__cont_flow(State *state, Action_Context context, FILE *out){
         }break;
         case ActionContext_EndOfFile:
         {
+            fprintf(out, "result = true;\n");
             fprintf(out, "goto end;\n");
         }break;
     }
@@ -3312,11 +3313,11 @@ internal void
 gen_action__set_flag(Flag *flag, b32 value, FILE *out){
     if (flag != 0){
         if (value == 0){
-            fprintf(out, "%.*s%d &= ~(0x%x);\n",
+            fprintf(out, "state.%.*s%d &= ~(0x%x);\n",
                     string_expand(flag->base_name), flag->index, flag->value);
         }
         else{
-            fprintf(out, "%.*s%d |= 0x%x;\n",
+            fprintf(out, "state.%.*s%d |= 0x%x;\n",
                     string_expand(flag->base_name), flag->index, flag->value);
         }
     }
@@ -3326,15 +3327,15 @@ internal void
 gen_emit__fill_token_flags(Flag_Set flags, Flag_Bucket_Set bucket_set, FILE *out){
     if (bucket_set.buckets[FlagBindProperty_Bound][FlagResetRule_AutoZero].count > 0){
         if (bucket_set.buckets[FlagBindProperty_Bound][FlagResetRule_KeepState].count > 0){
-            fprintf(out, "token.flags = flag_ZB0 | flags_KB0;\n");
+            fprintf(out, "token.flags = state.flag_ZB0 | state.flags_KB0;\n");
         }
         else{
-            fprintf(out, "token.flags = flags_ZB0;\n");
+            fprintf(out, "token.flags = state.flags_ZB0;\n");
         }
     }
     else{
         if (bucket_set.buckets[FlagBindProperty_Bound][FlagResetRule_KeepState].count > 0){
-            fprintf(out, "token.flags = flags_KB0;\n");
+            fprintf(out, "token.flags = state.flags_KB0;\n");
         }
     }
     for (Flag *flag = flags.first;
@@ -3390,25 +3391,25 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                 for (i32 i = 0; i < FlagBindProperty_COUNT; i += 1){
                     Flag_Bucket *bucket = &bucket_set.buckets[i][FlagResetRule_AutoZero];
                     for (i32 j = 0; j < bucket->number_of_variables; j += 1){
-                        fprintf(out, "%.*s%d = 0;\n", string_expand(bucket->pretty_name), j);
+                        fprintf(out, "state.%.*s%d = 0;\n", string_expand(bucket->pretty_name), j);
                     }
                 }
             }break;
             
             case ActionKind_DelimMarkFirst:
             {
-                fprintf(out, "delim_first = ptr;\n");
+                fprintf(out, "state.delim_first = state.ptr;\n");
             }break;
             
             case ActionKind_DelimMarkOnePastLast:
             {
-                fprintf(out, "delim_one_past_last = ptr;\n");
+                fprintf(out, "state.delim_one_past_last = state.ptr;\n");
             }break;
             
             case ActionKind_Consume:
             {
                 if (context != ActionContext_EndOfFile){
-                    fprintf(out, "ptr += 1;\n");
+                    fprintf(out, "state.ptr += 1;\n");
                 }
                 else{
                     result_context = ActionContext_EndOfFile;
@@ -3422,8 +3423,8 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                 fprintf(out, "{\n");
                 fprintf(out, "Token token = {};\n");
                 
-                fprintf(out, "token.pos = (i64)(emit_ptr - input.str);\n");
-                fprintf(out, "token.size = (i64)(ptr - emit_ptr);\n");
+                fprintf(out, "token.pos = (i64)(state.emit_ptr - state.base);\n");
+                fprintf(out, "token.size = (i64)(state.ptr - state.emit_ptr);\n");
                 
                 gen_emit__fill_token_flags(flags, bucket_set, out);
                 
@@ -3454,7 +3455,7 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                             fprintf(out, "Lexeme_Table_Lookup lookup = "
                                     "lexeme_table_lookup(%.*s_hash_array, %.*s_key_array, "
                                     "%.*s_value_array, %.*s_slot_count, %.*s_seed, "
-                                    "emit_ptr, token.size);\n",
+                                    "state.emit_ptr, token.size);\n",
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),
@@ -3478,7 +3479,7 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                             fprintf(out, "Lexeme_Table_Lookup lookup = "
                                     "lexeme_table_lookup(%.*s_hash_array, %.*s_key_array, "
                                     "%.*s_value_array, %.*s_slot_count, %.*s_seed, "
-                                    "delim_first, (delim_one_past_last - delim_first));\n",
+                                    "state.delim_first, (state.delim_one_past_last - state.delim_first));\n",
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),
@@ -3520,8 +3521,14 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                     fprintf(out, "}\n");
                 }
                 
-                fprintf(out, "token_list_push(arena, &list, &token);\n");
-                fprintf(out, "emit_ptr = ptr;\n");
+                fprintf(out, "token_list_push(arena, list, &token);\n");
+                fprintf(out, "emit_counter += 1;\n");
+                if (context != ActionContext_EndOfFile){
+                    fprintf(out, "if (emit_counter == max){\n");
+                    fprintf(out, "goto end;\n");
+                    fprintf(out, "}\n");
+                }
+                fprintf(out, "state.emit_ptr = state.ptr;\n");
                 fprintf(out, "}\n");
             }break;
         }
@@ -3535,7 +3542,18 @@ gen_flag_declarations__cont_flow(Flag_Bucket *bucket, FILE *out){
     i32 number_of_flag_variables = (bucket->count + max_bits - 1)/max_bits;
     String_Const_u8 pretty_name = bucket->pretty_name;
     for (i32 i = 0; i < number_of_flag_variables; i += 1){
-        fprintf(out, "u%d %.*s%d = 0;\n", max_bits, string_expand(pretty_name), i);
+        fprintf(out, "u%d %.*s%d;\n", max_bits, string_expand(pretty_name), i);
+    }
+    bucket->number_of_variables = number_of_flag_variables;
+}
+
+internal void
+gen_flag_init__cont_flow(Flag_Bucket *bucket, FILE *out){
+    i32 max_bits = bucket->max_bits;
+    i32 number_of_flag_variables = (bucket->count + max_bits - 1)/max_bits;
+    String_Const_u8 pretty_name = bucket->pretty_name;
+    for (i32 i = 0; i < number_of_flag_variables; i += 1){
+        fprintf(out, "state_ptr->%.*s%d = 0;\n", string_expand(pretty_name), i);
     }
     bucket->number_of_variables = number_of_flag_variables;
 }
@@ -3664,23 +3682,43 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
         }
     }
     
-    fprintf(out, "internal Token_List\n");
-    fprintf(out, "lex_full_input_" LANG_NAME_LOWER_STR "(Arena *arena, String_Const_u8 input){\n");
-    fprintf(out, "Token_List list = {};\n");
-    
+    fprintf(out, "struct Lex_State_" LANG_NAME_CAMEL_STR "{\n");
     for (i32 i = 0; i < FlagBindProperty_COUNT; i += 1){
         for (i32 j = 0; j < FlagResetRule_COUNT; j += 1){
             gen_flag_declarations__cont_flow(&bucket_set.buckets[i][j], out);
         }
     }
+    fprintf(out, "u8 *base;\n");
+    fprintf(out, "u8 *delim_first;\n");
+    fprintf(out, "u8 *delim_one_past_last;\n");
+    fprintf(out, "u8 *emit_ptr;\n");
+    fprintf(out, "u8 *ptr;\n");
+    fprintf(out, "u8 *opl_ptr;\n");
+    fprintf(out, "};\n");
     
-    fprintf(out, "u8 *delim_first = input.str;\n");
-    fprintf(out, "u8 *delim_one_past_last = input.str;\n");
+    fprintf(out, "internal void\n");
+    fprintf(out, "lex_full_input_" LANG_NAME_LOWER_STR "_init(Lex_State_"
+            LANG_NAME_CAMEL_STR " *state_ptr, String_Const_u8 input){\n");
+    for (i32 i = 0; i < FlagBindProperty_COUNT; i += 1){
+        for (i32 j = 0; j < FlagResetRule_COUNT; j += 1){
+            gen_flag_init__cont_flow(&bucket_set.buckets[i][j], out);
+        }
+    }
+    fprintf(out, "state_ptr->base = input.str;\n");
+    fprintf(out, "state_ptr->delim_first = input.str;\n");
+    fprintf(out, "state_ptr->delim_one_past_last = input.str;\n");
+    fprintf(out, "state_ptr->emit_ptr = input.str;\n");
+    fprintf(out, "state_ptr->ptr = input.str;\n");
+    fprintf(out, "state_ptr->opl_ptr = input.str + input.size;\n");
+    fprintf(out, "}\n");
     
-    fprintf(out, "u8 *emit_ptr = input.str;\n");
-    
-    fprintf(out, "u8 *ptr = input.str;\n");
-    fprintf(out, "u8 *opl_ptr = ptr + input.size;\n");
+    fprintf(out, "internal b32\n");
+    fprintf(out, "lex_full_input_" LANG_NAME_LOWER_STR "_breaks("
+            "Arena *arena, Token_List *list, Lex_State_" LANG_NAME_CAMEL_STR " *state_ptr, u64 max){\n");
+    fprintf(out, "b32 result = false;\n");
+    fprintf(out, "u64 emit_counter = 0;\n");
+    fprintf(out, "Lex_State_" LANG_NAME_CAMEL_STR " state;\n");
+    fprintf(out, "block_copy_struct(&state, state_ptr);\n");
     
     for (State *state = model.states.first;
          state != 0;
@@ -3706,7 +3744,7 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
                 Transition *failure_trans = trans->next;
                 Assert(failure_trans->condition.kind == TransitionCaseKind_DelimMatchFail);
                 
-                fprintf(out, "umem delim_length = delim_one_past_last - delim_first;\n");
+                fprintf(out, "umem delim_length = state.delim_one_past_last - state.delim_first;\n");
                 fprintf(out, "umem parse_length = 0;\n");
                 fprintf(out, "for (;;){\n");
                 {
@@ -3718,7 +3756,7 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
                         gen_goto_dst_state__cont_flow(success_trans, ActionContext_Normal, out);
                     }
                     fprintf(out, "}\n");
-                    fprintf(out, "if (ptr == opl_ptr){\n");
+                    fprintf(out, "if (state.ptr == state.opl_ptr){\n");
                     {
                         gen_SLOW_action_list__cont_flow(scratch, tokens, model.flags, bucket_set,
                                                         failure_trans->activation_actions,
@@ -3727,8 +3765,8 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
                     }
                     fprintf(out, "}\n");
                     
-                    fprintf(out, "if (*ptr == delim_first[parse_length]){\n");
-                    fprintf(out, "ptr += 1;\n");
+                    fprintf(out, "if (*state.ptr == state.delim_first[parse_length]){\n");
+                    fprintf(out, "state.ptr += 1;\n");
                     fprintf(out, "parse_length += 1;\n");
                     fprintf(out, "}\n");
                     fprintf(out, "else{\n");
@@ -3746,7 +3784,7 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
             case TransitionCaseKind_ConditionSet:
             {
                 {
-                    fprintf(out, "if (ptr == opl_ptr){\n");
+                    fprintf(out, "if (state.ptr == state.opl_ptr){\n");
                     for (;
                          trans != 0;
                          trans = trans->next){
@@ -3773,7 +3811,7 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
                 
                 Grouped_Input_Handler_List group_list = opt_grouped_input_handlers(scratch, trans);
                 
-                fprintf(out, "switch (*ptr){\n");
+                fprintf(out, "switch (*state.ptr){\n");
                 for (Grouped_Input_Handler *group = group_list.first;
                      group != 0;
                      group = group->next){
@@ -3823,6 +3861,16 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
     }
     
     fprintf(out, "end:;\n");
+    fprintf(out, "block_copy_struct(state_ptr, &state);\n");
+    fprintf(out, "return(result);\n");
+    fprintf(out, "}\n");
+    
+    fprintf(out, "internal Token_List\n");
+    fprintf(out, "lex_full_input_" LANG_NAME_LOWER_STR "(Arena *arena, String_Const_u8 input){\n");
+    fprintf(out, "Lex_State_" LANG_NAME_CAMEL_STR " state = {};\n");
+    fprintf(out, "lex_full_input_" LANG_NAME_LOWER_STR "_init(&state, input);\n");
+    fprintf(out, "Token_List list = {};\n");
+    fprintf(out, "lex_full_input_" LANG_NAME_LOWER_STR "_breaks(arena, &list, &state, max_u64);\n");
     fprintf(out, "return(list);\n");
     fprintf(out, "}\n");
     

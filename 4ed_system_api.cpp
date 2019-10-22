@@ -178,6 +178,16 @@ define_api(Arena *arena){
     }
     
     {
+        API_Call *call = api_call(arena, api, "acquire_global_frame_mutex", "void");
+        api_param(arena, call, "Thread_Context*", "tctx");
+    }
+    
+    {
+        API_Call *call = api_call(arena, api, "release_global_frame_mutex", "void");
+        api_param(arena, call, "Thread_Context*", "tctx");
+    }
+    
+    {
         API_Call *call = api_call(arena, api, "mutex_make", "System_Mutex");
     }
     

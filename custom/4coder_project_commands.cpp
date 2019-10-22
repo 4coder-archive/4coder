@@ -138,6 +138,7 @@ open_all_files_in_directory_pattern_match(Application_Links *app,
                                           Project_File_Pattern_Array whitelist,
                                           Project_File_Pattern_Array blacklist,
                                           u32 flags){
+    ProfileScope(app, "open all files in directory pattern");
     Scratch_Block scratch(app);
     String_Const_u8 directory = dir;
     if (!character_is_slash(string_get_character(directory, directory.size - 1))){
@@ -937,6 +938,7 @@ CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
 CUSTOM_COMMAND_SIG(load_project)
 CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries to load it.  Looks in parent directories until a project file is found or there are no more parents.")
 {
+    ProfileScope(app, "load project");
     save_all_dirty_buffers(app);
     set_current_project_from_nearest_project_file(app);
 }
@@ -944,6 +946,7 @@ CUSTOM_DOC("Looks for a project.4coder file in the current directory and tries t
 CUSTOM_COMMAND_SIG(project_fkey_command)
 CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determines the index of the 'fkey command' by which function key or numeric key was pressed to trigger the command.")
 {
+    ProfileScope(app, "project fkey command");
     User_Input input = get_current_input(app);
     b32 got_ind = false;
     i32 ind = 0;

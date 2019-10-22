@@ -478,7 +478,7 @@ union SNode{
 #define sll_stack_pop_(h) h=h=h->next
 #define sll_queue_push_multiple_(f,l,ff,ll) if(ll){if(f){l->next=ff;}else{f=ff;}l=ll;l->next=0;}
 #define sll_queue_push_(f,l,n) sll_queue_push_multiple_(f,l,n,n)
-#define sll_queue_pop_(f,l) if (f==l) { f=l=0; } else { f->next=0;f=f->next; }
+#define sll_queue_pop_(f,l) if (f==l) { f=l=0; } else { f=f->next; }
 
 #define sll_stack_push(h,n) (sll_stack_push_((h),(n)))
 #define sll_stack_pop(h) (sll_stack_pop_((h)))
@@ -1168,7 +1168,15 @@ struct Profile_Global_List{
 
 ////////////////////////////////
 
+typedef i32 Thread_Kind;
+enum{
+    ThreadKind_Main,
+    ThreadKind_MainCoroutine,
+    ThreadKind_AsyncTasks,
+};
+
 struct Thread_Context{
+    Thread_Kind kind;
     Base_Allocator *allocator;
     Arena node_arena;
     Arena_Node *free_arenas;
@@ -1180,6 +1188,8 @@ struct Thread_Context{
     Profile_Record *prof_first;
     Profile_Record *prof_last;
     i32 prof_record_count;
+    
+    void *user_data;
 };
 
 typedef i32 Scratch_Share_Code;

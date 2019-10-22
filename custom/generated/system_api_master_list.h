@@ -27,6 +27,8 @@ api(system) function System_Thread thread_launch(Thread_Function* proc, void* pt
 api(system) function void thread_join(System_Thread thread);
 api(system) function void thread_free(System_Thread thread);
 api(system) function i32 thread_get_id(void);
+api(system) function void acquire_global_frame_mutex(Thread_Context* tctx);
+api(system) function void release_global_frame_mutex(Thread_Context* tctx);
 api(system) function System_Mutex mutex_make(void);
 api(system) function void mutex_acquire(System_Mutex mutex);
 api(system) function void mutex_release(System_Mutex mutex);

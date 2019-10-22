@@ -47,7 +47,8 @@ struct Custom_API{
 };
 
 #define App_Init_Sig(name) \
-void name(Render_Target *target,    \
+void name(Thread_Context *tctx,     \
+Render_Target *target,    \
 void *base_ptr,           \
 String_Const_u8 clipboard,\
 String_Const_u8 current_directory,\
@@ -77,7 +78,8 @@ struct Application_Step_Input{
 };
 
 #define App_Step_Sig(name) Application_Step_Result \
-name(Render_Target *target,                \
+name(Thread_Context *tctx,                 \
+Render_Target *target,                \
 void *base_ptr,                       \
 Application_Step_Input *input)
 

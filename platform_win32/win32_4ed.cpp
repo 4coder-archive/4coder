@@ -188,6 +188,8 @@ struct Win32_Vars{
     CONDITION_VARIABLE thread_launch_cv;
     b32 waiting_for_launch;
     
+    System_Mutex global_frame_mutex;
+    
     Log_Function *log_string;
 };
 
@@ -888,6 +890,20 @@ system_mutex_release_sig(){
 }
 
 internal
+system_acquire_global_frame_mutex_sig(){
+    if (tctx->kind == ThreadKind_AsyncTasks){
+        system_mutex_acquire(win32vars.global_frame_mutex);
+    }
+}
+
+internal
+system_release_global_frame_mutex_sig(){
+    if (tctx->kind == ThreadKind_AsyncTasks){
+        system_mutex_release(win32vars.global_frame_mutex);
+    }
+}
+
+internal
 system_mutex_free_sig(){
     Win32_Object *object = (Win32_Object*)handle_type_ptr(mutex);
     if (object->kind == Win32ObjectKind_Mutex){
@@ -1440,7 +1456,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     
     // NOTE(allen): context setup
     Thread_Context _tctx = {};
-    thread_ctx_init(&_tctx, get_base_allocator_system(), get_base_allocator_system());
+    thread_ctx_init(&_tctx, ThreadKind_Main, get_base_allocator_system(), get_base_allocator_system());
     
     block_zero_struct(&win32vars);
     win32vars.tctx = &_tctx;
@@ -1665,7 +1681,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
-        app.init(&target, base_ptr, win32vars.clipboard_contents, curdir, custom);
+        app.init(win32vars.tctx, &target, base_ptr, win32vars.clipboard_contents, curdir, custom);
     }
     
     //
@@ -1683,6 +1699,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     SetForegroundWindow(win32vars.window_handle);
     SetActiveWindow(win32vars.window_handle);
     ShowWindow(win32vars.window_handle, SW_SHOW);
+    
+    win32vars.global_frame_mutex = system_mutex_make();
+    system_mutex_acquire(win32vars.global_frame_mutex);
     
     u64 timer_start = system_now_time();
     MSG msg;
@@ -1852,7 +1871,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): Application Core Update
         Application_Step_Result result = {};
         if (app.step != 0){
-            result = app.step(&target, base_ptr, &input);
+            result = app.step(win32vars.tctx, &target, base_ptr, &input);
         }
         else{
             //LOG("app.step == 0 -- skipping\n");
@@ -1921,6 +1940,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         // NOTE(allen): sleep a bit to cool off :)
+        system_mutex_release(win32vars.global_frame_mutex);
+        
         u64 timer_end = system_now_time();
         u64 end_target = timer_start + frame_useconds;
         
@@ -1932,6 +1953,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             timer_end = system_now_time();
         }
         timer_start = system_now_time();
+        
+        system_mutex_acquire(win32vars.global_frame_mutex);
         
         win32vars.first = false;
     }

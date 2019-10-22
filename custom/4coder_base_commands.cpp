@@ -1203,6 +1203,7 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 
 function void
 save_all_dirty_buffers_with_postfix(Application_Links *app, String_Const_u8 postfix){
+    ProfileScope(app, "save all dirty buffers");
     Scratch_Block scratch(app);
     for (Buffer_ID buffer = get_buffer_next(app, 0, Access_ReadWriteVisible);
          buffer != 0;

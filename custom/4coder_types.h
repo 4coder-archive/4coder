@@ -13,10 +13,13 @@
 
 #endif
 
+struct Thread_Context_Extra_Info{
+    void *coroutine;
+    void *async_thread;
+};
 struct Application_Links{
+    Thread_Context *tctx;
     void *cmd_context;
-    void *current_coroutine;
-    i32 type_coroutine;
 };
 typedef void Custom_Layer_Init_Type(Application_Links *app);
 void custom_layer_init(Application_Links *app);
@@ -373,14 +376,14 @@ STRUCT Theme_Color{
 //int_color colors[Stag_COUNT];
 //};
 
-TYPEDEF u32 Face_ID;
+typedef  u32 Face_ID;
 
-STRUCT Font_Load_Location{
+struct Font_Load_Location{
     String_Const_u8 file_name;
     b32 in_4coder_font_folder;
 };
 
-STRUCT Face_Load_Parameters{
+struct Face_Load_Parameters{
     u32 pt_size;
     b32 bold;
     b32 italic;
@@ -388,7 +391,7 @@ STRUCT Face_Load_Parameters{
     b32 hinting;
 };
 
-STRUCT Face_Description{
+struct Face_Description{
     Font_Load_Location font;
     Face_Load_Parameters parameters;
 };

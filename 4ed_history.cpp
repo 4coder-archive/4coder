@@ -129,9 +129,8 @@ global_history_adjust_edit_grouping_counter(Global_History *global_history, i32 
 }
 
 internal void
-history_init(Models *models, History *history){
+history_init(Thread_Context *tctx, Models *models, History *history){
     history->activated = true;
-    Thread_Context *tctx = models->tctx;
     history->arena = reserve_arena(tctx, KB(32));
     heap_init(&history->heap, tctx->allocator);
     history->heap_wrapper = base_allocator_on_heap(&history->heap);
@@ -147,9 +146,9 @@ history_is_activated(History *history){
 }
 
 internal void
-history_free(Models *models, History *history){
+history_free(Thread_Context *tctx, History *history){
     if (history->activated){
-        release_arena(models, history->arena);
+        release_arena(tctx, history->arena);
         heap_free_all(&history->heap);
         block_zero_struct(history);
     }

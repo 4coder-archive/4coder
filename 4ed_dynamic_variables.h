@@ -98,18 +98,13 @@ struct Lifetime_Key_Ref_Node{
     struct Lifetime_Key *keys[lifetime_key_reference_per_node];
 };
 
-struct Lifetime_Object{
-    union{
-        struct{
-            Lifetime_Object *next;
-            Lifetime_Object *prev;
-        };
-        struct{
-            Lifetime_Key_Ref_Node *key_node_first;
-            Lifetime_Key_Ref_Node *key_node_last;
-            i32 key_count;
-            Dynamic_Workspace workspace;
-        };
+union Lifetime_Object{
+    Lifetime_Object *next;
+    struct{
+        Lifetime_Key_Ref_Node *key_node_first;
+        Lifetime_Key_Ref_Node *key_node_last;
+        i32 key_count;
+        Dynamic_Workspace workspace;
     };
 };
 
@@ -120,7 +115,7 @@ struct Lifetime_Key{
             Lifetime_Key *prev;
         };
         struct{
-            struct Lifetime_Object **members;
+            Lifetime_Object **members;
             i32 count;
             Dynamic_Workspace dynamic_workspace;
         };
@@ -136,12 +131,6 @@ struct Lifetime_Key_Ref_Node_List{
     i32 count;
 };
 
-struct Lifetime_Object_List{
-    Lifetime_Object *first;
-    Lifetime_Object *last;
-    i32 count;
-};
-
 struct Lifetime_Key_List{
     Lifetime_Key *first;
     Lifetime_Key *last;
@@ -150,8 +139,9 @@ struct Lifetime_Key_List{
 
 struct Lifetime_Allocator{
     Base_Allocator *allocator;
+    Arena node_arena;
     Lifetime_Key_Ref_Node_List free_key_references;
-    Lifetime_Object_List free_objects;
+    Lifetime_Object *free_objects;
     Lifetime_Key_List free_keys;
     Table_Data_u64 key_table;
     Table_u64_u64 key_check_table;

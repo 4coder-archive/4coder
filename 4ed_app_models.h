@@ -35,8 +35,7 @@ enum App_State{
 };
 
 struct Models{
-    Thread_Context *tctx;
-    
+    Arena arena_;
     Arena *arena;
     Heap heap;
     
@@ -49,8 +48,6 @@ struct Models{
     
     Child_Process_Container child_processes;
     Custom_API config_api;
-    
-    Application_Links app_links;
     
     Render_Caller_Function *render_caller;
     Delta_Rule_Function *delta_rule;
@@ -139,15 +136,6 @@ enum Input_Types{
 struct Consumption_Record{
     b32 consumed;
     char consumer[32];
-};
-
-typedef i32 App_Coroutine_Purpose;
-enum{
-    Co_View,
-};
-struct App_Coroutine_State{
-    void *co;
-    i32 type;
 };
 
 struct File_Init{

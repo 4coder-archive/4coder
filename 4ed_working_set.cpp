@@ -381,7 +381,7 @@ buffer_unbind_name_low_level(Working_Set *working_set, Editing_File *file){
 }
 
 internal void
-buffer_bind_name(Models *models, Arena *scratch, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name){
+buffer_bind_name(Thread_Context *tctx, Models *models, Arena *scratch, Working_Set *working_set, Editing_File *file, String_Const_u8 base_name){
     Temp_Memory temp = begin_temp(scratch);
     
     // List of conflict files.
@@ -445,7 +445,10 @@ buffer_bind_name(Models *models, Arena *scratch, Working_Set *working_set, Editi
     
     // Get user's resolution data.
     if (models->buffer_name_resolver != 0){
-        models->buffer_name_resolver(&models->app_links, conflicts, conflict_count);
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        models->buffer_name_resolver(&app, conflicts, conflict_count);
     }
     
     // Re-bind all of the files

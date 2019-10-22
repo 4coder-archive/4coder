@@ -137,7 +137,7 @@ file_name_terminate(Editing_File_Name *name){
 
 // TODO(allen): file_name should be String_Const_u8
 internal b32
-save_file_to_name(Models *models, Editing_File *file, u8 *file_name){
+save_file_to_name(Thread_Context *tctx, Models *models, Editing_File *file, u8 *file_name){
     b32 result = false;
     b32 using_actual_file_name = false;
     
@@ -149,13 +149,16 @@ save_file_to_name(Models *models, Editing_File *file, u8 *file_name){
     
     if (file_name != 0){
         if (models->save_file != 0){
-            models->save_file(&models->app_links, file->id);
+            Application_Links app = {};
+            app.tctx = tctx;
+            app.cmd_context = models;
+            models->save_file(&app, file->id);
         }
         
         Gap_Buffer *buffer = &file->state.buffer;
         b32 dos_write_mode = file->settings.dos_write_mode;
         
-        Scratch_Block scratch(models->tctx, Scratch_Share);
+        Scratch_Block scratch(tctx, Scratch_Share);
         
         if (!using_actual_file_name){
             String_Const_u8 s_file_name = SCu8(file_name);
@@ -181,8 +184,8 @@ save_file_to_name(Models *models, Editing_File *file, u8 *file_name){
 }
 
 internal b32
-save_file(Models *models, Editing_File *file){
-    return(save_file_to_name(models, file, 0));
+save_file(Thread_Context *tctx, Models *models, Editing_File *file){
+    return(save_file_to_name(tctx, models, file, 0));
 }
 
 ////////////////////////////////
@@ -206,8 +209,7 @@ file_compute_cursor(Editing_File *file, Buffer_Seek seek){
 ////////////////////////////////
 
 internal void
-file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
-    Thread_Context *tctx = models->tctx;
+file_create_from_string(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
     Scratch_Block scratch(tctx, Scratch_Share);
     
     Base_Allocator *allocator = tctx->allocator;
@@ -225,7 +227,7 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     buffer_measure_starts(scratch, &file->state.buffer);
     
     file->lifetime_object = lifetime_alloc_object(&models->lifetime_allocator, DynamicWorkspace_Buffer, file);
-    history_init(models, &file->state.history);
+    history_init(tctx, models, &file->state.history);
     
     file->state.cached_layouts_arena = make_arena(allocator);
     file->state.line_layout_table = make_table_Data_u64(allocator, 500);
@@ -245,12 +247,15 @@ file_create_from_string(Models *models, Editing_File *file, String_Const_u8 val,
     ////////////////////////////////
     
     if (models->begin_buffer != 0){
-        models->begin_buffer(&models->app_links, file->id);
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        models->begin_buffer(&app, file->id);
     }
 }
 
 internal void
-file_free(Models *models, Editing_File *file){
+file_free(Thread_Context *tctx, Models *models, Editing_File *file){
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     Working_Set *working_set = &models->working_set;
     
@@ -262,7 +267,7 @@ file_free(Models *models, Editing_File *file){
         base_free(buffer->allocator, buffer->line_starts);
     }
     
-    history_free(models, &file->state.history);
+    history_free(tctx, &file->state.history);
     
     linalloc_clear(&file->state.cached_layouts_arena);
     table_free(&file->state.line_layout_table);
@@ -288,7 +293,7 @@ file_get_managed_scope(Editing_File *file){
 ////////////////////////////////
 
 internal Buffer_Layout_Item_List
-file_get_line_layout(Models *models, Editing_File *file, f32 width, Face *face, i64 line_number){
+file_get_line_layout(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_number){
     Buffer_Layout_Item_List result = {};
     
     i64 line_count = buffer_line_count(&file->state.buffer);
@@ -312,7 +317,7 @@ file_get_line_layout(Models *models, Editing_File *file, f32 width, Face *face, 
         else{
             list = push_array(&file->state.cached_layouts_arena, Buffer_Layout_Item_List, 1);
             Interval_i64 line_range = buffer_get_pos_range_from_line_number(&file->state.buffer, line_number);
-            *list = buffer_layout(models->tctx, &file->state.cached_layouts_arena,
+            *list = buffer_layout(tctx, &file->state.cached_layouts_arena,
                                   &file->state.buffer, line_range, face, width);
             key_data = push_data_copy(&file->state.cached_layouts_arena, key_data);
             table_insert(&file->state.line_layout_table, key_data, (u64)PtrAsInt(list));
@@ -330,7 +335,7 @@ file_clear_layout_cache(Editing_File *file){
 }
 
 internal Line_Shift_Vertical
-file_line_shift_y(Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, f32 y_delta){
+file_line_shift_y(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, f32 y_delta){
     Line_Shift_Vertical result = {};
     
     f32 line_y = 0.f;
@@ -350,7 +355,7 @@ file_line_shift_y(Models *models, Editing_File *file, f32 width, Face *face, i64
                 line_number = 1;
                 break;
             }
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
             line_y -= line.height;
         }
         if (!has_result){
@@ -363,7 +368,7 @@ file_line_shift_y(Models *models, Editing_File *file, f32 width, Face *face, i64
         b32 has_result = false;
         i64 line_count = buffer_line_count(&file->state.buffer);
         for (;;line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
             f32 next_y = line_y + line.height;
             if (y_delta < next_y){
                 has_result = true;
@@ -386,12 +391,12 @@ file_line_shift_y(Models *models, Editing_File *file, f32 width, Face *face, i64
 }
 
 internal f32
-file_line_y_difference(Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
+file_line_y_difference(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
     f32 result = 0.f;
     if (line_a != line_b){
         Interval_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, i);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, i);
             result += line.height;
         }
         if (line_a < line_b){
@@ -402,25 +407,25 @@ file_line_y_difference(Models *models, Editing_File *file, f32 width, Face *face
 }
 
 internal i64
-file_pos_at_relative_xy(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, Vec2_f32 relative_xy){
-    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face, base_line, relative_xy.y);
+file_pos_at_relative_xy(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, Vec2_f32 relative_xy){
+    Line_Shift_Vertical shift = file_line_shift_y(tctx, models, file, width, face, base_line, relative_xy.y);
     relative_xy.y -= shift.y_delta;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, shift.line);
+    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, shift.line);
     return(buffer_layout_nearest_pos_to_xy(line, relative_xy));
 }
 
 internal Vec2_f32
-file_relative_xy_of_pos(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
+file_relative_xy_of_pos(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
     i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
+    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
     Vec2_f32 result = buffer_layout_xy_center_of_pos(line, pos);
-    result.y += file_line_y_difference(models, file, width, face, line_number, base_line);
+    result.y += file_line_y_difference(tctx, models, file, width, face, line_number, base_line);
     return(result);
 }
 
 internal Buffer_Point
-file_normalize_buffer_point(Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point point){
-    Line_Shift_Vertical shift = file_line_shift_y(models, file, width, face, point.line_number, point.pixel_shift.y);
+file_normalize_buffer_point(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point point){
+    Line_Shift_Vertical shift = file_line_shift_y(tctx, models, file, width, face, point.line_number, point.pixel_shift.y);
     point.line_number = shift.line;
     point.pixel_shift.y -= shift.y_delta;
     point.pixel_shift.x = clamp_bot(0.f, point.pixel_shift.x);
@@ -429,15 +434,15 @@ file_normalize_buffer_point(Models *models, Editing_File *file, f32 width, Face 
 }
 
 internal Vec2_f32
-file_buffer_point_difference(Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point a, Buffer_Point b){
-    f32 y_difference = file_line_y_difference(models, file, width, face, a.line_number, b.line_number);
+file_buffer_point_difference(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point a, Buffer_Point b){
+    f32 y_difference = file_line_y_difference(tctx, models, file, width, face, a.line_number, b.line_number);
     Vec2_f32 result = a.pixel_shift - b.pixel_shift;
     result.y += y_difference;
     return(result);
 }
 
 internal Line_Shift_Character
-file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, i64 character_delta){
+file_line_shift_characters(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, i64 character_delta){
     Line_Shift_Character result = {};
     
     i64 line_character = 0;
@@ -457,7 +462,7 @@ file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face *
                 line_number = 1;
                 break;
             }
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
             line_character -= line.character_count;
         }
         if (!has_result){
@@ -470,7 +475,7 @@ file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face *
         b32 has_result = false;
         i64 line_count = buffer_line_count(&file->state.buffer);
         for (;;line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
             i64 next_character = line_character + line.character_count;
             if (character_delta < next_character){
                 has_result = true;
@@ -493,12 +498,12 @@ file_line_shift_characters(Models *models, Editing_File *file, f32 width, Face *
 }
 
 internal i64
-file_line_character_difference(Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
+file_line_character_difference(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
     i64 result = 0;
     if (line_a != line_b){
         Interval_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, i);
+            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, i);
             result += line.character_count;
         }
         if (line_a < line_b){
@@ -509,19 +514,19 @@ file_line_character_difference(Models *models, Editing_File *file, f32 width, Fa
 }
 
 internal i64
-file_pos_from_relative_character(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 relative_character){
-    Line_Shift_Character shift = file_line_shift_characters(models, file, width, face, base_line, relative_character);
+file_pos_from_relative_character(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 relative_character){
+    Line_Shift_Character shift = file_line_shift_characters(tctx, models, file, width, face, base_line, relative_character);
     relative_character -= shift.character_delta;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, shift.line);
+    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, shift.line);
     return(buffer_layout_get_pos_at_character(line, relative_character));
 }
 
 internal i64
-file_relative_character_from_pos(Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
+file_relative_character_from_pos(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
     i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
-    Buffer_Layout_Item_List line = file_get_line_layout(models, file, width, face, line_number);
+    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
     i64 result = buffer_layout_character_from_pos(line, pos);
-    result += file_line_character_difference(models, file, width, face, line_number, base_line);
+    result += file_line_character_difference(tctx, models, file, width, face, line_number, base_line);
     return(result);
 }
 

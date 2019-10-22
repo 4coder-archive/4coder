@@ -44,6 +44,7 @@ global Managed_ID view_call_next = 0;
 
 global Managed_ID buffer_map_id = 0;
 global Managed_ID buffer_eol_setting = 0;
+global Managed_ID buffer_lex_task = 0;
 
 global Managed_ID sticky_jump_marker_handle = 0;
 

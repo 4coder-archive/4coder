@@ -334,7 +334,6 @@ word_complete_it_release(Word_Complete_Iterator *it){
         end_temp(it->arena_restore);
         table_clear(&it->already_used_table);
     }
-    block_zero_struct(it);
 }
 
 function Word_Complete_State
@@ -418,6 +417,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             ProfileBlock(app, "word complete state init");
             
             word_complete_it_release(&state.it);
+            block_zero_struct(&state);
             
             i64 pos = view_get_cursor_pos(app, view);
             

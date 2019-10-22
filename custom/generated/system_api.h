@@ -27,6 +27,8 @@
 #define system_thread_join_sig() void system_thread_join(System_Thread thread)
 #define system_thread_free_sig() void system_thread_free(System_Thread thread)
 #define system_thread_get_id_sig() i32 system_thread_get_id(void)
+#define system_acquire_global_frame_mutex_sig() void system_acquire_global_frame_mutex(Thread_Context* tctx)
+#define system_release_global_frame_mutex_sig() void system_release_global_frame_mutex(Thread_Context* tctx)
 #define system_mutex_make_sig() System_Mutex system_mutex_make(void)
 #define system_mutex_acquire_sig() void system_mutex_acquire(System_Mutex mutex)
 #define system_mutex_release_sig() void system_mutex_release(System_Mutex mutex)
@@ -71,6 +73,8 @@ typedef System_Thread system_thread_launch_type(Thread_Function* proc, void* ptr
 typedef void system_thread_join_type(System_Thread thread);
 typedef void system_thread_free_type(System_Thread thread);
 typedef i32 system_thread_get_id_type(void);
+typedef void system_acquire_global_frame_mutex_type(Thread_Context* tctx);
+typedef void system_release_global_frame_mutex_type(Thread_Context* tctx);
 typedef System_Mutex system_mutex_make_type(void);
 typedef void system_mutex_acquire_type(System_Mutex mutex);
 typedef void system_mutex_release_type(System_Mutex mutex);
@@ -116,6 +120,8 @@ system_thread_launch_type *thread_launch;
 system_thread_join_type *thread_join;
 system_thread_free_type *thread_free;
 system_thread_get_id_type *thread_get_id;
+system_acquire_global_frame_mutex_type *acquire_global_frame_mutex;
+system_release_global_frame_mutex_type *release_global_frame_mutex;
 system_mutex_make_type *mutex_make;
 system_mutex_acquire_type *mutex_acquire;
 system_mutex_release_type *mutex_release;
@@ -162,6 +168,8 @@ internal System_Thread system_thread_launch(Thread_Function* proc, void* ptr);
 internal void system_thread_join(System_Thread thread);
 internal void system_thread_free(System_Thread thread);
 internal i32 system_thread_get_id(void);
+internal void system_acquire_global_frame_mutex(Thread_Context* tctx);
+internal void system_release_global_frame_mutex(Thread_Context* tctx);
 internal System_Mutex system_mutex_make(void);
 internal void system_mutex_acquire(System_Mutex mutex);
 internal void system_mutex_release(System_Mutex mutex);
@@ -208,6 +216,8 @@ global system_thread_launch_type *system_thread_launch = 0;
 global system_thread_join_type *system_thread_join = 0;
 global system_thread_free_type *system_thread_free = 0;
 global system_thread_get_id_type *system_thread_get_id = 0;
+global system_acquire_global_frame_mutex_type *system_acquire_global_frame_mutex = 0;
+global system_release_global_frame_mutex_type *system_release_global_frame_mutex = 0;
 global system_mutex_make_type *system_mutex_make = 0;
 global system_mutex_acquire_type *system_mutex_acquire = 0;
 global system_mutex_release_type *system_mutex_release = 0;

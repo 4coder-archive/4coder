@@ -7,6 +7,7 @@
 
 function void
 rewrite_lines_to_crlf(Application_Links *app, Buffer_ID buffer){
+    ProfileScope(app, "rewrite lines to crlf");
     Scratch_Block scratch(app);
     i64 size = buffer_get_size(app, buffer);
     
@@ -51,6 +52,7 @@ rewrite_lines_to_crlf(Application_Links *app, Buffer_ID buffer){
 
 function void
 rewrite_lines_to_lf(Application_Links *app, Buffer_ID buffer){
+    ProfileScope(app, "rewrite lines to lf");
     Scratch_Block scratch(app);
     
     Batch_Edit *first = 0;

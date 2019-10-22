@@ -648,21 +648,20 @@ draw_notepad_style_cursor_highlight(Application_Links *app, View_ID view_id,
 
 function Rect_f32
 get_tool_tip_box(Rect_f32 container, Vec2_f32 p, Vec2_f32 box_dims){
-    Rect_f32 box = {};
     Vec2_f32 container_dims = rect_dim(container);
-    if (box_dims.x <= container_dims.x &&
-        box_dims.y <= container_dims.y){
-        p.x -= 6.f;
-        p.y += 22.f;
-        if (p.x + box_dims.x > container.x1){
-            p.x = container.x1 - box_dims.x;
-        }
-        if (p.y + box_dims.y > container.y1){
-            p.y = container.y1 - box_dims.y;
-        }
-        box = Rf32_xy_wh(p, box_dims);
+    box_dims.x = clamp_top(box_dims.x, container_dims.x);
+    box_dims.y = clamp_top(box_dims.y, container_dims.y);
+    Vec2_f32 q = p + V2f32(-20.f, 22.f);
+    if (q.x + box_dims.x > container.x1){
+        q.x = container.x1 - box_dims.x;
     }
-    return(box);
+    if (q.y + box_dims.y > container.y1){
+        q.y = p.y - box_dims.y - 2.f;
+        if (q.y < container.y0){
+            q.y = (container.y0 + container.y1 - box_dims.y)*0.5f;
+        }
+    }
+    return(Rf32_xy_wh(q, box_dims));
 }
 
 // BOTTOM
