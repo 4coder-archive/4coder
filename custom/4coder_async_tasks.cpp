@@ -138,6 +138,7 @@ async_task_handler_init(Application_Links *app, Async_System *async_system){
     async_system->cv = system_condition_variable_make();
     async_system->join_cv = system_condition_variable_make();
     dll_init_sentinel(&async_system->task_sent);
+    async_system->thread.async_system = async_system;
     async_system->thread.thread = system_thread_launch(async_task_thread, &async_system->thread);
 }
 

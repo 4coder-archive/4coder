@@ -541,6 +541,7 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
 function void
 do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Application_Links *app = actx->app;
+    ProfileScope(app, "async lex");
     Thread_Context *tctx = get_thread_context(app);
     Scratch_Block scratch(tctx);
     
@@ -548,20 +549,36 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
     system_release_global_frame_mutex(tctx);
     
-    Token_List list = lex_full_input_cpp(scratch, contents);
+    Lex_State_Cpp state = {};
+    lex_full_input_cpp_init(&state, contents);
     
-    system_acquire_global_frame_mutex(tctx);
-    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-    Base_Allocator *allocator = managed_scope_allocator(app, scope);
-    Token_Array tokens = {};
-    tokens.tokens = base_array(allocator, Token, list.total_count);
-    tokens.count = list.total_count;
-    tokens.max = list.total_count;
-    token_fill_memory_from_list(tokens.tokens, &list);
+    Token_List list = {};
+    b32 canceled = false;
+    for (;;){
+        ProfileScope(app, "async lex block");
+        if (lex_full_input_cpp_breaks(scratch, &list, &state, 10000)){
+            break;
+        }
+        if (async_check_canceled(actx)){
+            canceled = true;
+            break;
+        }
+    }
     
-    Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-    block_copy_struct(tokens_ptr, &tokens);
-    system_release_global_frame_mutex(tctx);
+    if (!canceled){
+        system_acquire_global_frame_mutex(tctx);
+        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+        Base_Allocator *allocator = managed_scope_allocator(app, scope);
+        Token_Array tokens = {};
+        tokens.tokens = base_array(allocator, Token, list.total_count);
+        tokens.count = list.total_count;
+        tokens.max = list.total_count;
+        token_fill_memory_from_list(tokens.tokens, &list);
+        
+        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+        block_copy_struct(tokens_ptr, &tokens);
+        system_release_global_frame_mutex(tctx);
+    }
 }
 
 function void

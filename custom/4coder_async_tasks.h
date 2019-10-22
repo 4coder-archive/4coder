@@ -11,8 +11,8 @@ typedef void Async_Task_Function_Type(struct Async_Context *actx, Data data);
 typedef u64 Async_Task;
 
 struct Async_Thread{
-    System_Thread thread;
     struct Async_System *async_system;
+    System_Thread thread;
     struct Async_Node *node;
     Async_Task task;
     b32 cancel_signal;
