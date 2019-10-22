@@ -793,10 +793,10 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                 token_drop_eof(&relex_list);
             }
             
+            Base_Allocator *allocator = managed_scope_allocator(app, scope);
+            
             Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
                                             ptr->tokens, token_index_first, token_index_resync_guess);
-            
-            Base_Allocator *allocator = managed_scope_allocator(app, scope);
             
             if (relex.successful_resync){
                 i64 token_index_resync = relex.first_resync_index;
@@ -829,6 +829,8 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                 ptr->max = new_tokens_count;
             }
             else{
+                base_free(allocator, ptr->tokens);
+                block_zero_struct(ptr);
                 *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async,
                                                   make_data_struct(&buffer_id));
             }
