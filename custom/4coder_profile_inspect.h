@@ -62,6 +62,7 @@ struct Profile_Inspection{
     Profile_Inspection_Tab tab_id;
     Profile_Inspection_Tab tab_id_hovered;
     
+    String_Const_u8 full_name_hovered;
     String_Const_u8 location_jump_hovered;
 };
 

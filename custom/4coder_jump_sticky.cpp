@@ -597,13 +597,13 @@ CUSTOM_DOC("If the buffer in the active view is writable, inserts a character, o
 // End File Hook
 //
 
-BUFFER_HOOK_SIG(default_end_file);
-BUFFER_HOOK_SIG(end_file_close_jump_list){
+BUFFER_HOOK_SIG(default_end_buffer);
+BUFFER_HOOK_SIG(end_buffer_close_jump_list){
     Marker_List *list = get_marker_list_for_buffer(buffer_id);
     if (list != 0){
         delete_marker_list(list);
     }
-    default_end_file(app, buffer_id);
+    default_end_buffer(app, buffer_id);
     return(0);
 }
 

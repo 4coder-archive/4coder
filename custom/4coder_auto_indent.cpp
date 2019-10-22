@@ -300,6 +300,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
 
 internal b32
 auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos, Indent_Flag flags, i32 tab_width, i32 indent_width){
+    ProfileScope(app, "auto indent buffer");
     Managed_Scope scope = buffer_get_managed_scope(app, buffer);
     Token_Array *tokens = scope_attachment(app, scope, attachment_tokens, Token_Array);
     

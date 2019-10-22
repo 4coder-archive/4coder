@@ -201,30 +201,6 @@ async_task_cancel(Async_System *async_system, Async_Task task){
     system_mutex_release(async_system->mutex);
 }
 
-function void
-async_task_join(Async_System *async_system, Async_Task task){
-    system_mutex_acquire(async_system->mutex);
-    Async_Node *node = async_get_pending_node(async_system, task);
-    b32 wait_for_join = false;
-    if (node != 0){
-        dll_remove(&node->node);
-        dll_insert(&async_system->task_sent, &node->node);
-        node->thread->join_signal = true;
-        wait_for_join = true;
-    }
-    else{
-        node = async_get_running_node(async_system, task);
-        if (node != 0){
-            node->thread->join_signal = true;
-            wait_for_join = true;
-        }
-    }
-    if (wait_for_join){
-        system_condition_variable_wait(async_system->join_cv, async_system->mutex);
-    }
-    system_mutex_release(async_system->mutex);
-}
-
 function b32
 async_check_canceled(Async_Context *actx){
     b32 *cancel_signal = &actx->thread->cancel_signal;

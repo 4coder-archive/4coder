@@ -140,7 +140,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
             }
             
             next_call = scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
-            if (*next_call != 0){
+            if (next_call != 0 && *next_call != 0){
                 binding.custom = *next_call;
                 goto call_again;
             }
@@ -547,8 +547,9 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     
     String_Const_u8 contents = {};
     {
-        ProfileBlock(app, "async lex contents");
+        ProfileBlock(app, "async lex contents (before mutex)");
         system_acquire_global_frame_mutex(tctx);
+        ProfileBlock(app, "async lex contents (after mutex)");
         contents = push_whole_buffer(app, scratch, buffer_id);
         system_release_global_frame_mutex(tctx);
     }
@@ -570,18 +571,22 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     }
     
     if (!canceled){
-        ProfileBlock(app, "async lex save results");
+        ProfileBlock(app, "async lex save results (before mutex)");
         system_acquire_global_frame_mutex(tctx);
+        ProfileBlock(app, "async lex save results (after mutex)");
         Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        Base_Allocator *allocator = managed_scope_allocator(app, scope);
-        Token_Array tokens = {};
-        tokens.tokens = base_array(allocator, Token, list.total_count);
-        tokens.count = list.total_count;
-        tokens.max = list.total_count;
-        token_fill_memory_from_list(tokens.tokens, &list);
-        
-        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-        block_copy_struct(tokens_ptr, &tokens);
+        if (scope != 0){
+            Base_Allocator *allocator = managed_scope_allocator(app, scope);
+            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+            base_free(allocator, tokens_ptr->tokens);
+            
+            Token_Array tokens = {};
+            tokens.tokens = base_array(allocator, Token, list.total_count);
+            tokens.count = list.total_count;
+            tokens.max = list.total_count;
+            token_fill_memory_from_list(tokens.tokens, &list);
+            block_copy_struct(tokens_ptr, &tokens);
+        }
         system_release_global_frame_mutex(tctx);
     }
 }
@@ -595,6 +600,8 @@ do_full_lex_async(Async_Context *actx, Data data){
 }
 
 BUFFER_HOOK_SIG(default_begin_buffer){
+    ProfileScope(app, "begin buffer");
+    
     b32 treat_as_code = false;
     b32 lex_without_strings = false;
     (void)(lex_without_strings);
@@ -711,9 +718,9 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     }
     
     if (use_lexer){
-        Async_Task lex_task = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
+        ProfileBlock(app, "begin buffer kick off lexer");
         Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
-        *lex_task_ptr = lex_task;
+        *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
     }
     
     // no meaning for return
@@ -728,6 +735,7 @@ BUFFER_HOOK_SIG(default_new_file){
 
 BUFFER_HOOK_SIG(default_file_save){
     // buffer_id
+    ProfileScope(app, "default file save");
     b32 is_virtual = false;
     if (global_config.automatically_indent_text_on_save && is_virtual){ 
         auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
@@ -753,7 +761,6 @@ BUFFER_HOOK_SIG(default_file_save){
 
 BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     // buffer_id, range, text
-    
     ProfileScope(app, "default edit range");
     
     Interval_i64 replace_range = Ii64(range.first, range.first + text.size);
@@ -763,92 +770,81 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     Scratch_Block scratch(app);
     
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-    Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-    if (ptr != 0 && ptr->tokens != 0){
-        i64 token_index_first = token_relex_first(ptr, range.first, 1);
-        i64 token_index_resync_guess = token_relex_resync(ptr, range.one_past_last, 16);
-        
-        Token *token_first = ptr->tokens + token_index_first;
-        Token *token_resync = ptr->tokens + token_index_resync_guess;
-        
-        Interval_i64 relex_range = Ii64(token_first->pos,
-                                        token_resync->pos + token_resync->size + text_shift);
-        String_Const_u8 partial_text = push_buffer_range(app, scratch, buffer_id, relex_range);
-        
-        Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
-        if (relex_range.one_past_last < buffer_get_size(app, buffer_id)){
-            token_drop_eof(&relex_list);
-        }
-        
-        Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
-                                        ptr->tokens, token_index_first, token_index_resync_guess);
-        
-        Base_Allocator *allocator = managed_scope_allocator(app, scope);
-        
-        if (relex.successful_resync){
-            i64 token_index_resync = relex.first_resync_index;
+    Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
+    if (async_task_is_running_or_pending(&global_async_system, *lex_task_ptr)){
+        async_task_cancel(&global_async_system, *lex_task_ptr);
+        *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
+    }
+    else{
+        Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+        if (ptr != 0 && ptr->tokens != 0){
+            i64 token_index_first = token_relex_first(ptr, range.first, 1);
+            i64 token_index_resync_guess = token_relex_resync(ptr, range.one_past_last, 16);
             
-            Interval_i64 head = Ii64(0, token_index_first);
-            Interval_i64 replaced = Ii64(token_index_first, token_index_resync);
-            Interval_i64 tail = Ii64(token_index_resync, ptr->count);
-            i64 resynced_count = (token_index_resync_guess + 1) - token_index_resync;
-            i64 relexed_count = relex_list.total_count - resynced_count;
-            i64 tail_shift = relexed_count - (token_index_resync - token_index_first);
+            Token *token_first = ptr->tokens + token_index_first;
+            Token *token_resync = ptr->tokens + token_index_resync_guess;
             
-            i64 new_tokens_count = ptr->count + tail_shift;
-            Token *new_tokens = base_array(allocator, Token, new_tokens_count);
+            Interval_i64 relex_range = Ii64(token_first->pos,
+                                            token_resync->pos + token_resync->size + text_shift);
+            String_Const_u8 partial_text = push_buffer_range(app, scratch, buffer_id, relex_range);
             
-            Token *old_tokens = ptr->tokens;
-            block_copy_array_shift(new_tokens, old_tokens, head, 0);
-            token_fill_memory_from_list(new_tokens + replaced.first, &relex_list, relexed_count);
-            for (i64 i = 0, index = replaced.first; i < relexed_count; i += 1, index += 1){
-                new_tokens[index].pos += relex_range.first;
+            Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
+            if (relex_range.one_past_last < buffer_get_size(app, buffer_id)){
+                token_drop_eof(&relex_list);
             }
-            for (i64 i = tail.first; i < tail.one_past_last; i += 1){
-                old_tokens[i].pos += text_shift;
+            
+            Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
+                                            ptr->tokens, token_index_first, token_index_resync_guess);
+            
+            Base_Allocator *allocator = managed_scope_allocator(app, scope);
+            
+            if (relex.successful_resync){
+                i64 token_index_resync = relex.first_resync_index;
+                
+                Interval_i64 head = Ii64(0, token_index_first);
+                Interval_i64 replaced = Ii64(token_index_first, token_index_resync);
+                Interval_i64 tail = Ii64(token_index_resync, ptr->count);
+                i64 resynced_count = (token_index_resync_guess + 1) - token_index_resync;
+                i64 relexed_count = relex_list.total_count - resynced_count;
+                i64 tail_shift = relexed_count - (token_index_resync - token_index_first);
+                
+                i64 new_tokens_count = ptr->count + tail_shift;
+                Token *new_tokens = base_array(allocator, Token, new_tokens_count);
+                
+                Token *old_tokens = ptr->tokens;
+                block_copy_array_shift(new_tokens, old_tokens, head, 0);
+                token_fill_memory_from_list(new_tokens + replaced.first, &relex_list, relexed_count);
+                for (i64 i = 0, index = replaced.first; i < relexed_count; i += 1, index += 1){
+                    new_tokens[index].pos += relex_range.first;
+                }
+                for (i64 i = tail.first; i < tail.one_past_last; i += 1){
+                    old_tokens[i].pos += text_shift;
+                }
+                block_copy_array_shift(new_tokens, ptr->tokens, tail, tail_shift);
+                
+                base_free(allocator, ptr->tokens);
+                
+                ptr->tokens = new_tokens;
+                ptr->count = new_tokens_count;
+                ptr->max = new_tokens_count;
             }
-            block_copy_array_shift(new_tokens, ptr->tokens, tail, tail_shift);
-            
-            base_free(allocator, ptr->tokens);
-            
-            ptr->tokens = new_tokens;
-            ptr->count = new_tokens_count;
-            ptr->max = new_tokens_count;
-        }
-        else{
-            scratch.restore();
-            base_free(allocator, ptr->tokens);
-            Async_Task lex_task = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
-            Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
-            *lex_task_ptr = lex_task;
-        }
-        
-#if 0
-        // NOTE(allen): Assert correctness of relex results. Enable this code
-        // to track down corruption of the token data.
-        {
-            String_Const_u8 full = push_whole_buffer(app, scratch, buffer_id);
-            Token_List list = lex_full_input_cpp(scratch, full);
-            Token_Array array = token_array_from_list(scratch, &list);
-            Assert(array.count == ptr->count);
-            Token *token_a = array.tokens;
-            Token *token_b = ptr->tokens;
-            for (i64 i = 0; i < array.count; i += 1, token_a += 1, token_b += 1){
-                Assert(block_match_struct(token_a, token_b));
+            else{
+                *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async,
+                                                  make_data_struct(&buffer_id));
             }
         }
-#endif
     }
     
     // no meaning for return
     return(0);
 }
 
-BUFFER_HOOK_SIG(default_end_file){
-    Scratch_Block scratch(app);
-    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
-    String_Const_u8 str = push_u8_stringf(scratch, "Ending file: %s\n", buffer_name.str);
-    print_message(app, str);
+BUFFER_HOOK_SIG(default_end_buffer){
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+    Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
+    if (lex_task_ptr != 0){
+        async_task_cancel(&global_async_system, *lex_task_ptr);
+    }
     // no meaning for return
     return(0);
 }
@@ -871,7 +867,7 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_BufferNameResolver, default_buffer_name_resolution);
     
     set_custom_hook(app, HookID_BeginBuffer, default_begin_buffer);
-    set_custom_hook(app, HookID_EndBuffer, end_file_close_jump_list);
+    set_custom_hook(app, HookID_EndBuffer, end_buffer_close_jump_list);
     set_custom_hook(app, HookID_NewFile, default_new_file);
     set_custom_hook(app, HookID_SaveFile, default_file_save);
     set_custom_hook(app, HookID_BufferEditRange, default_buffer_edit_range);

@@ -225,6 +225,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         f32 x_half_padding = x_padding*0.5f;
         
         inspect->tab_id_hovered = ProfileInspectTab_None;
+        block_zero_struct(&inspect->full_name_hovered);
         block_zero_struct(&inspect->location_jump_hovered);
         
         // NOTE(allen): tabs
@@ -273,12 +274,14 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                      node = node->next){
                     Range_f32 y = If32_size(y_pos, block_height);
                     
-                    i32 name_width = 30;
+                    b32 name_too_long = false;
+                    i32 name_width = 45;
                     Fancy_String_List list = {};
                     if (node->name.size > name_width){
                         push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop1),
                                            "%.*s... ",
                                            name_width - 3, node->name.str);
+                        name_too_long = true;
                     }
                     else{
                         push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop1),
@@ -293,7 +296,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     }
                     else{
                         push_fancy_stringf(scratch, &list, fancy_id(Stag_Pop2),
-                                           "%11.8fs ",
+                                           "%11.9fs ",
                                            ((f32)node->total_time)/1000000.f);
                     }
                     
@@ -307,6 +310,9 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     Rect_f32 box = Rf32(x, y);
                     int_color margin = Stag_Margin;
                     if (rect_contains_point(box, m_p)){
+                        if (name_too_long){
+                            inspect->full_name_hovered = node->name;
+                        }
                         inspect->location_jump_hovered = node->location;
                         margin = Stag_Margin_Hover;
                     }
@@ -347,24 +353,51 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             }break;
         }
         
-        if (inspect->tab_id_hovered != ProfileInspectTab_None){
+        if (!rect_contains_point(region, m_p)){
+            // NOTE(allen): don't draw tool tip when the mouse doesn't hover in our view
+        }
+        else if (inspect->tab_id_hovered != ProfileInspectTab_None){
             // NOTE(allen): no tool tip for tabs
         }
-        else if (inspect->location_jump_hovered.size > 0){
-            draw_set_clip(app, region);
+        else{
+            i32 line_count = 0;
+            Fancy_String_List list[2] = {};
+            Fancy_Color color = fancy_rgba(1.f, 1.f, 1.f, 0.5f);
             
-            Fancy_String_List list = {};
-            push_fancy_stringf(scratch, &list, fancy_rgba(1.f, 1.f, 1.f, 0.5f),
-                               "jump to: '%.*s'",
-                               string_expand(inspect->location_jump_hovered));
-            f32 width = get_fancy_string_advance(app, face_id, list.first);
-            Vec2_f32 dims = V2f32(width + x_padding, line_height + 2.f);
-            Rect_f32 box = get_tool_tip_box(region, m_p, dims);
-            if (rect_area(box) > 0.f){
+            f32 width = 0.f;
+            if (inspect->full_name_hovered.size > 0){
+                line_count += 1;
+                push_fancy_stringf(scratch, &list[0], color, "%.*s",
+                                   string_expand(inspect->full_name_hovered));
+                f32 l_width = get_fancy_string_advance(app, face_id, list[0].first);
+                width = max(width, l_width);
+            }
+            if (inspect->location_jump_hovered.size > 0){
+                line_count += 1;
+                push_fancy_stringf(scratch, &list[1], color, "jump to: '%.*s'",
+                                   string_expand(inspect->location_jump_hovered));
+                f32 l_width = get_fancy_string_advance(app, face_id, list[1].first);
+                width = max(width, l_width);
+            }
+            
+            if (line_count > 0){
+                Vec2_f32 dims = V2f32(width + x_padding, line_count*line_height + 2.f);
+                Rect_f32 box = get_tool_tip_box(region, m_p, dims);
+                draw_set_clip(app, box);
+                
                 draw_rectangle(app, box, 6.f, 0x80000000);
-                draw_fancy_string(app, face_id, list.first,
-                                  V2f32(box.x0 + x_half_padding, box.y0 + 1.f),
-                                  0, 0);
+                f32 y = box.y0 + 1.f;
+                if (inspect->full_name_hovered.size > 0){
+                    draw_fancy_string(app, face_id, list[0].first,
+                                      V2f32(box.x0 + x_half_padding, y),
+                                      0, 0);
+                    y += line_height;
+                }
+                if (inspect->location_jump_hovered.size > 0){
+                    draw_fancy_string(app, face_id, list[1].first,
+                                      V2f32(box.x0 + x_half_padding, y),
+                                      0, 0);
+                }
             }
         }
     }
