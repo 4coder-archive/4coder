@@ -1630,10 +1630,9 @@ CUSTOM_COMMAND_SIG(multi_paste){
             view_set_mark(app, view, seek_pos(range.max + 1));
             view_set_cursor_and_preferred_x(app, view, seek_pos(range.max + insert_string.size));
             
-            Theme_Color paste = {};
-            paste.tag = Stag_Paste;
-            get_theme_colors(app, &paste, 1);
-            view_post_fade(app, view, 0.667f, Ii64(range.max + 1, range.max + insert_string.size), paste.color);
+            view_post_fade(app, view, 0.667f,
+                           Ii64(range.max + 1, range.max + insert_string.size),
+                           fcolor_id(Stag_Paste));
         }
         else{
             paste(app);
@@ -1689,10 +1688,7 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
             view_set_cursor_and_preferred_x(app, view, seek_pos(finish_range.max));
             
             // TODO(allen): Send this to all views.
-            Theme_Color paste;
-            paste.tag = Stag_Paste;
-            get_theme_colors(app, &paste, 1);
-            view_post_fade(app, view, 0.667f, finish_range, paste.color);
+            view_post_fade(app, view, 0.667f, finish_range, fcolor_id(Stag_Paste));
         }
     }
     return(finish_range);

@@ -348,19 +348,18 @@ system_save_file_sig(){
 
 ////////////////////////////////
 
-internal int_color
-swap_r_and_b(int_color a){
-    int_color result = a & 0xff00ff00;
+internal ARGB_Color
+swap_r_and_b(ARGB_Color a){
+    ARGB_Color result = a & 0xff00ff00;
     result |= ((a >> 16) & 0xff);
     result |= ((a & 0xff) << 16);
     return(result);
 }
 
-internal int_color
-int_color_from_colorref(COLORREF ref, int_color alpha_from){
-    int_color rgb = swap_r_and_b(ref & 0xffffff);
-    
-    int_color result = ((0xff000000 & alpha_from) | rgb);
+internal ARGB_Color
+int_color_from_colorref(COLORREF ref, ARGB_Color alpha_from){
+    ARGB_Color rgb = swap_r_and_b(ref & 0xffffff);
+    ARGB_Color result = ((0xff000000 & alpha_from) | rgb);
     return(result);
 }
 
@@ -383,17 +382,20 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
         
         case WM_CTLCOLORSTATIC:
         {
-            // NOTE(casey): I can't believe I'm 42 years old and I still have to do this fucking crap.
-            // Microsoft is so fucking fired every god damn day.  Would it have killed you to update rgbResult
-            // continuously, or at least provide a GetCurrentColor() call???
+            // NOTE(casey): I can't believe I'm 42 years old and I still have to do
+            // this fucking crap. Microsoft is so fucking fired every god damn day.
+            // Would it have killed you to update rgbResult continuously, or at least
+            // provide a GetCurrentColor() call???
             //
-            // Anyway, since the color picker doesn't tell us when the color is changed, what we do is watch for messages
-            // that repaint the color swatch, which is dialog id 0x2c5, and then we sample it to see what color it is.
-            // No, I'm not fucking kidding, that's what we do.
+            // Anyway, since the color picker doesn't tell us when the color is 
+            // changed, what we do is watch for messages that repaint the color
+            // swatch, which is dialog id 0x2c5, and then we sample it to see what
+            // color it is. No, I'm not fucking kidding, that's what we do.
             HWND swatch_window = (HWND)LParam;
             if(GetDlgCtrlID(swatch_window) == 0x2c5)
             {
-                CHOOSECOLORW *win32_params = (CHOOSECOLORW *)GetWindowLongPtr(Window, GWLP_USERDATA);
+                CHOOSECOLORW *win32_params =
+                    (CHOOSECOLORW *)GetWindowLongPtr(Window, GWLP_USERDATA);
                 if(win32_params)
                 {
                     Color_Picker *picker = (Color_Picker*)win32_params->lCustData;
@@ -401,8 +403,11 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
                     RECT rect;
                     GetClientRect(swatch_window, &rect);
                     HDC swatch_dc = (HDC)WParam;
-                    COLORREF Probe = GetPixel(swatch_dc, (rect.left + rect.right) / 4, (rect.top + rect.bottom) / 2);
-                    int_color new_color = int_color_from_colorref(Probe, *picker->dest);
+                    COLORREF Probe = GetPixel(swatch_dc,
+                                              (rect.left + rect.right)/4,
+                                              (rect.top + rect.bottom)/2);
+                    ARGB_Color new_color =
+                        int_color_from_colorref(Probe, *picker->dest);
                     
                     if(*picker->dest != new_color)
                     {
@@ -433,9 +438,8 @@ color_picker_thread(LPVOID Param)
 {
     Color_Picker *picker = (Color_Picker*)Param;
     
-    int_color color = 0;
-    if(picker->dest)
-    {
+    ARGB_Color color = 0;
+    if (picker->dest){
         color = *picker->dest;
     }
     
@@ -451,18 +455,15 @@ color_picker_thread(LPVOID Param)
     win32_params.lCustData = (LPARAM)picker;
     win32_params.lpfnHook = color_picker_hook;
     
-    if(ChooseColorW(&win32_params))
-    {
+    if (ChooseColorW(&win32_params)){
         color = int_color_from_colorref(win32_params.rgbResult, color);
     }
     
-    if(picker->dest)
-    {
+    if(picker->dest){
         *picker->dest = color;
     }
     
-    if(picker->finished)
-    {
+    if (picker->finished){
         *picker->finished = true;
     }
     

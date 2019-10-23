@@ -774,6 +774,8 @@ union Rect_f32_Pair{
     };
 };
 
+typedef u32 ARGB_Color;
+
 ////////////////////////////////
 
 struct i8_Array{

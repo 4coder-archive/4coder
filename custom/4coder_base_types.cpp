@@ -1520,18 +1520,18 @@ lerp(i32 a, f32 t, i32 b){
     return((i32)(lerp((f32)a, t, (f32)b)));
 }
 
-internal Vec2
-lerp(Vec2 a, f32 t, Vec2 b){
+internal Vec2_f32
+lerp(Vec2_f32 a, f32 t, Vec2_f32 b){
     return(a + (b-a)*t);
 }
 
-internal Vec3
-lerp(Vec3 a, f32 t, Vec3 b){
+internal Vec3_f32
+lerp(Vec3_f32 a, f32 t, Vec3_f32 b){
     return(a + (b-a)*t);
 }
 
-internal Vec4
-lerp(Vec4 a, f32 t, Vec4 b){
+internal Vec4_f32
+lerp(Vec4_f32 a, f32 t, Vec4_f32 b){
     return(a + (b-a)*t);
 }
 
@@ -1590,34 +1590,9 @@ operator!=(Rect_f32 a, Rect_f32 b){
 
 ////////////////////////////////
 
-// TODO(allen): Convert colors to Vec4
-internal u32
-color_blend(u32 a, f32 t, u32 b){
-    union{
-        u8 byte[4];
-        u32 comp;
-    } A, B, R;
-    A.comp = a;
-    B.comp = b;
-    R.byte[0] = (u8)lerp(A.byte[0], t, B.byte[0]);
-    R.byte[1] = (u8)lerp(A.byte[1], t, B.byte[1]);
-    R.byte[2] = (u8)lerp(A.byte[2], t, B.byte[2]);
-    R.byte[3] = (u8)lerp(A.byte[3], t, B.byte[3]);
-    return(R.comp);
-}
-
-internal Vec3
-unpack_color3(u32 color){
-    Vec3 result;
-    result.r = ((color >> 16) & 0xFF)/255.f;
-    result.g = ((color >> 8) & 0xFF)/255.f;
-    result.b = ((color >> 0) & 0xFF)/255.f;
-    return(result);
-}
-
-internal Vec4
-unpack_color4(u32 color){
-    Vec4 result;
+internal Vec4_f32
+unpack_color(ARGB_Color color){
+    Vec4_f32 result;
     result.a = ((color >> 24) & 0xFF)/255.f;
     result.r = ((color >> 16) & 0xFF)/255.f;
     result.g = ((color >> 8) & 0xFF)/255.f;
@@ -1625,14 +1600,22 @@ unpack_color4(u32 color){
     return(result);
 }
 
-internal u32
-pack_color4(Vec4 color){
-    u32 result =
+internal ARGB_Color
+pack_color(Vec4_f32 color){
+    ARGB_Color result =
         ((u8)(color.a*255) << 24) |
         ((u8)(color.r*255) << 16) |
         ((u8)(color.g*255) << 8) |
         ((u8)(color.b*255) << 0);
     return(result);
+}
+
+internal ARGB_Color
+color_blend(ARGB_Color a, f32 t, ARGB_Color b){
+    Vec4_f32 av = unpack_color(a);
+    Vec4_f32 bv = unpack_color(b);
+    Vec4_f32 v = lerp(av, t, bv);
+    return(pack_color(v));
 }
 
 internal Vec4

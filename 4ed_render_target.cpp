@@ -162,11 +162,13 @@ draw_rectangle(Render_Target *target, Rect_f32 rect, f32 roundness, u32 color){
 }
 
 internal void
-draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, u32 color, u32 flags){
+draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, Vec2_f32 p,
+                ARGB_Color color, u32 flags){
     draw__set_face_id(target, face->id);
     
     u16 glyph_index = 0;
-    if (!codepoint_index_map_read(&face->codepoint_to_index_map, codepoint, &glyph_index)){
+    if (!codepoint_index_map_read(&face->codepoint_to_index_map, codepoint,
+                                  &glyph_index)){
         glyph_index = 0;
     }
     Glyph_Bounds bounds = face->bounds[glyph_index];
@@ -176,22 +178,29 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, f32 x, f32 y, 
     
     Render_Vertex vertices[6] = {};
     if (!HasFlag(flags, GlyphFlag_Rotate90)){
-        Rect_f32 xy = Rf32(x + bounds.xy_off.x0, y + bounds.xy_off.y0,
-                           x + bounds.xy_off.x1, y + bounds.xy_off.y1);
+        Rect_f32 xy = Rf32(p + bounds.xy_off.p0, p + bounds.xy_off.p1);
         
-        vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x0, uv.y1, bounds.w);
-        vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y1, bounds.w);
-        vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uvw = V3(uv.x0, uv.y0, bounds.w);
-        vertices[5].xy = V2(xy.x1, xy.y0); vertices[5].uvw = V3(uv.x1, uv.y0, bounds.w);
+        vertices[0].xy  = V2f32(xy.x0, xy.y1);
+        vertices[0].uvw = V3f32(uv.x0, uv.y1, bounds.w);
+        vertices[1].xy  = V2f32(xy.x1, xy.y1);
+        vertices[1].uvw = V3f32(uv.x1, uv.y1, bounds.w);
+        vertices[2].xy  = V2f32(xy.x0, xy.y0);
+        vertices[2].uvw = V3f32(uv.x0, uv.y0, bounds.w);
+        vertices[5].xy  = V2f32(xy.x1, xy.y0);
+        vertices[5].uvw = V3f32(uv.x1, uv.y0, bounds.w);
     }
     else{
-        Rect_f32 xy = Rf32(x - bounds.xy_off.y1, y + bounds.xy_off.x0,
-                           x - bounds.xy_off.y0, y + bounds.xy_off.x1);
+        Rect_f32 xy = Rf32(p.x - bounds.xy_off.y1, p.y + bounds.xy_off.x0,
+                           p.x - bounds.xy_off.y0, p.y + bounds.xy_off.x1);
         
-        vertices[0].xy = V2(xy.x0, xy.y1); vertices[0].uvw = V3(uv.x1, uv.y1, bounds.w);
-        vertices[1].xy = V2(xy.x1, xy.y1); vertices[1].uvw = V3(uv.x1, uv.y0, bounds.w);
-        vertices[2].xy = V2(xy.x0, xy.y0); vertices[2].uvw = V3(uv.x0, uv.y1, bounds.w);
-        vertices[5].xy = V2(xy.x1, xy.y0); vertices[5].uvw = V3(uv.x0, uv.y0, bounds.w);
+        vertices[0].xy  = V2f32(xy.x0, xy.y1);
+        vertices[0].uvw = V3f32(uv.x1, uv.y1, bounds.w);
+        vertices[1].xy  = V2f32(xy.x1, xy.y1);
+        vertices[1].uvw = V3f32(uv.x1, uv.y0, bounds.w);
+        vertices[2].xy  = V2f32(xy.x0, xy.y0);
+        vertices[2].uvw = V3f32(uv.x0, uv.y1, bounds.w);
+        vertices[5].xy  = V2f32(xy.x1, xy.y0);
+        vertices[5].uvw = V3f32(uv.x0, uv.y0, bounds.w);
     }
     
     vertices[3] = vertices[1];
@@ -215,7 +224,8 @@ floor32(Vec2 point){
 }
 
 internal f32
-draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 point, u32 color, u32 flags, Vec2 delta){
+draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2_f32 point,
+            ARGB_Color color, u32 flags, Vec2_f32 delta){
     f32 total_delta = 0.f;
     if (face != 0){
         point = floor32(point);
@@ -238,7 +248,7 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 poin
                 if (behavior.do_codepoint_advance){
                     u32 codepoint = step.value;
                     if (color != 0){
-                        draw_font_glyph(target, face, codepoint, point.x, point.y, color, flags);
+                        draw_font_glyph(target, face, codepoint, point, color, flags);
                     }
                     f32 d = font_get_glyph_advance(face, codepoint);
                     point += d*delta;
@@ -264,7 +274,7 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 poin
                         
                         Vec2 pp = point;
                         for (u32 j = 0; j < 3; ++j){
-                            draw_font_glyph(target, face, cs[j], pp.x, pp.y, color, flags);
+                            draw_font_glyph(target, face, cs[j], pp, color, flags);
                             pp += delta*byte_sub_advances[j];
                         }
                     }

@@ -186,15 +186,14 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     }
     
     {
-        Fancy_String_List text_field = {};
-        push_fancy_string(scratch, &text_field, fancy_id(Stag_Pop1),
+        Fancy_Line text_field = {};
+        push_fancy_string(scratch, &text_field, fcolor_id(Stag_Pop1),
                           lister->query.string);
-        push_fancy_stringf(scratch, &text_field, fancy_id(Stag_Pop1), " ");
-        push_fancy_string(scratch, &text_field, fancy_id(Stag_Default),
+        push_fancy_stringf(scratch, &text_field, " ");
+        push_fancy_string(scratch, &text_field, fcolor_id(Stag_Default),
                           lister->text_field.string);
-        draw_fancy_string(app, face_id, text_field.first,
-                          V2f32(text_field_rect.x0 + 3.f, text_field_rect.y0),
-                          Stag_Default, Stag_Back, 0, V2f32(1.f, 0.f));
+        draw_fancy_line(app, face_id, fcolor_zero(), &text_field,
+                        V2f32(text_field_rect.x0 + 3.f, text_field_rect.y0));
     }
     
     Range_f32 x = rect_range_x(list_rect);
@@ -272,15 +271,15 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         }
         
         draw_rectangle(app, item_rect, 6.f, get_margin_color(highlight));
-        draw_rectangle(app, item_inner, 6.f, Stag_Back);
+        draw_rectangle(app, item_inner, 6.f, fcolor_id(Stag_Back));
         
-        Fancy_String_List line = {};
-        push_fancy_string(scratch, &line, fancy_id(Stag_Default), node->string);
-        push_fancy_stringf(scratch, &line, fancy_id(Stag_Default), " ");
-        push_fancy_string(scratch, &line, fancy_id(Stag_Pop2), node->status);
+        Fancy_Line line = {};
+        push_fancy_string(scratch, &line, fcolor_id(Stag_Default), node->string);
+        push_fancy_stringf(scratch, &line, " ");
+        push_fancy_string(scratch, &line, fcolor_id(Stag_Pop2), node->status);
         
-        Vec2_f32 p = V2f32(item_inner.x0 + 3.f, item_inner.y0 + (block_height - line_height)*0.5f);
-        draw_fancy_string(app, face_id, line.first, p, Stag_Default, 0, 0, V2(1.f, 0.f));
+        Vec2_f32 p = item_inner.p0 + V2f32(3.f, (block_height - line_height)*0.5f);
+        draw_fancy_line(app, face_id, fcolor_zero(), &line, p);
     }
     
     draw_set_clip(app, prev_clip);

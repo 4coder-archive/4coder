@@ -4,258 +4,520 @@
 
 // TOP
 
-static Fancy_Color
-fancy_blend(id_color a, f32 t, id_color b){
-    Fancy_Color result = {};
-    result.index_a = (u16)a;
-    result.index_b = (u16)b;
-    result.table_a = 1;
-    result.table_b = 1;
-    result.c_b = (u8)(clamp(0, 255.0f*t, 255.0f));
-    result.c_a = 255 - result.c_b;
-    return(result);
-}
-
-static Fancy_Color
-fancy_id(id_color a){
-    Fancy_Color result = {};
-    result.index_a = (u16)a;
-    result.index_b = 0;
-    result.table_a = 1;
-    result.table_b = 0;
-    result.c_a = 255;
-    result.c_b = 0;
-    return(result);
-}
-
-static Fancy_Color
-fancy_rgba(argb_color color){
-    Fancy_Color result = {};
-    result.rgba = color;
-    result.code = 0;
-    return(result);
-}
-
-static Fancy_Color
-fancy_rgba(f32 r, f32 g, f32 b, f32 a){
-    Fancy_Color result = fancy_rgba(pack_color4(V4(r, g, b, a)));
-    return(result);
-}
-
-static Fancy_Color
-fancy_resolve_to_rgba(Application_Links *app, Fancy_Color source){
-    if (source.code != 0){
-        Vec4 a = unpack_color4(finalize_color(app, source.index_a));
-        Vec4 b = unpack_color4(finalize_color(app, source.index_b));
-        
-        f32 ca = (f32)source.c_a/255.0f;
-        f32 cb = (f32)source.c_b/255.0f;
-        
-        Vec4 value = ca*a + cb*b;
-        
-        source.rgba = pack_color4(value);
-        source.code = 0;
+function FColor
+fcolor_argb(ARGB_Color color){
+    FColor result = {};
+    result.argb = color;
+    if (result.a_byte == 0){
+        result.argb = 0;
     }
-    return(source);
+    return(result);
+}
+function FColor
+fcolor_argb(Vec4_f32 color){
+    return(fcolor_argb(pack_color(color)));
+}
+function FColor
+fcolor_argb(f32 r, f32 g, f32 b, f32 a){
+    return(fcolor_argb(pack_color(V4f32(r, g, b, a))));
 }
 
-static Fancy_Color
-fancy_pass_through(void){
-    Fancy_Color result = {};
+function FColor
+fcolor_id(ID_Color id){
+    FColor result = {};
+    result.id = id;
     return(result);
 }
 
-static int_color
-int_color_from(Application_Links *app, Fancy_Color source){
-    int_color result = {};
-    if ((source.c_a == 255) && (source.c_b == 0)){
-        result = source.index_a;
+function ARGB_Color
+argb_color_blend(ARGB_Color a, f32 at, ARGB_Color b, f32 bt){
+    Vec4_f32 av = unpack_color(a);
+    Vec4_f32 bv = unpack_color(b);
+    Vec4_f32 value = at*av + bt*bv;
+    return(pack_color(value));
+}
+function ARGB_Color
+argb_color_blend(ARGB_Color a, f32 t, ARGB_Color b){
+    return(argb_color_blend(a, 1.f - t, b, t));
+}
+
+function ARGB_Color
+fcolor_resolve_to_argb(Application_Links *app, FColor color){
+    ARGB_Color result = 0;
+    if (color.a_byte == 0){
+        if (color.id != 0){
+            result = finalize_color(app, color.id);
+        }
     }
     else{
-        source = fancy_resolve_to_rgba(app, source);
-        result = source.rgba;
+        result = color.argb;
     }
     return(result);
 }
 
-static b32
-is_valid(Fancy_Color source){
-    b32 result = !((source.code == 0) && (source.rgba == 0));
+function FColor
+fcolor_change_alpha(Application_Links *app, FColor color, f32 alpha){
+    Vec4_f32 v = unpack_color(fcolor_resolve_to_argb(app, color));
+    v.a = alpha;
+    return(fcolor_argb(pack_color(v)));
+}
+function FColor
+fcolor_blend(Application_Links *app, FColor a, f32 at, FColor b, f32 bt){
+    ARGB_Color a_argb = fcolor_resolve_to_argb(app, a);
+    ARGB_Color b_argb = fcolor_resolve_to_argb(app, b);
+    return(fcolor_argb(argb_color_blend(a_argb, at, b_argb, bt)));
+}
+function FColor
+fcolor_blend(Application_Links *app, FColor a, f32 t, FColor b){
+    return(fcolor_blend(app, a, 1.f - t, b, t));
+}
+
+function FColor
+fcolor_zero(void){
+    FColor result = {};
     return(result);
 }
 
-static void
-fancy_string_list_push(Fancy_String_List *list, Fancy_String *string){
-    list->last = (list->last ? list->last->next : list->first) = string;
+function b32
+fcolor_is_valid(FColor color){
+    return(color.argb != 0);
 }
 
-static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, String_Const_u8 value){
+////////////////////////////////
+
+function void
+push_fancy_string(Fancy_Line *line, Fancy_String *string){
+    sll_queue_push(line->first, line->last, string);
+}
+
+function void
+push_fancy_line(Fancy_Block *block, Fancy_Line *line){
+    sll_queue_push(block->first, block->last, line);
+    block->line_count += 1;
+}
+
+////////////////////////////////
+
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, Face_ID face, FColor fore,
+                  f32 pre_margin, f32 post_margin, String_Const_u8 value){
     Fancy_String *result = push_array_zero(arena, Fancy_String, 1);
-    result->value = push_string_copy(arena, value);
+    result->value = value;
+    result->face = face;
     result->fore = fore;
-    result->back = back;
-    if (list != 0){
-        fancy_string_list_push(list, result);
+    result->pre_margin = pre_margin;
+    result->post_margin = post_margin;
+    if (line != 0){
+        push_fancy_string(line, result);
     }
     return(result);
 }
 
-static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_Color fore, Fancy_Color back, String_Const_u8 value){
-    return(push_fancy_string(arena, 0, fore, back, value));
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, Face_ID face, FColor fore,
+                  String_Const_u8 value){
+    return(push_fancy_string(arena, line, face, fore, 0, 0, value));
+}
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, Face_ID face,
+                  f32 pre_margin, f32 post_margin, String_Const_u8 value){
+    return(push_fancy_string(arena, line, face, fcolor_zero(),
+                             pre_margin, post_margin, value));
+}
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, FColor fore,
+                  f32 pre_margin, f32 post_margin, String_Const_u8 value){
+    return(push_fancy_string(arena, line, 0, fore, pre_margin, post_margin, value));
+}
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, Face_ID face, String_Const_u8 value){
+    return(push_fancy_string(arena, line, face, fcolor_zero(), 0, 0, value));
+}
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, FColor color, String_Const_u8 value){
+    return(push_fancy_string(arena, line, 0, color, 0, 0, value));
+}
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, f32 pre_margn, f32 post_margin,
+                  String_Const_u8 value){
+    return(push_fancy_string(arena, line, 0, fcolor_zero(), pre_margn, post_margin,
+                             value));
+}
+function Fancy_String*
+push_fancy_string(Arena *arena, Fancy_Line *line, String_Const_u8 value){
+    return(push_fancy_string(arena, line, 0, fcolor_zero(), 0, 0, value));
 }
 
-static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_String_List *list, Fancy_Color fore, String_Const_u8 value){
-    return(push_fancy_string(arena, list, fore, fancy_pass_through(), value));
+////////////////////////////////
+
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line, Face_ID face, FColor fore,
+                    f32 pre_margin, f32 post_margin,
+                    char *format, va_list args){
+    return(push_fancy_string(arena, line, face, fore, pre_margin, post_margin,
+                             push_u8_stringfv(arena, format, args)));
+}
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line, Face_ID face, FColor fore,
+                    char *format, va_list args){
+    return(push_fancy_stringfv(arena, line, face, fore, 0, 0, format, args));
+}
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line, Face_ID face,
+                    f32 pre_margin, f32 post_margin,
+                    char *format, va_list args){
+    return(push_fancy_stringfv(arena, line, face, fcolor_zero(),
+                               pre_margin, post_margin, format, args));
+}
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line, FColor fore,
+                    f32 pre_margin, f32 post_margin,
+                    char *format, va_list args){
+    return(push_fancy_stringfv(arena, line, 0, fore, pre_margin, post_margin,
+                               format, args));
+}
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line, Face_ID face,
+                    char *format, va_list args){
+    return(push_fancy_stringfv(arena, line, face, fcolor_zero(), 0, 0,
+                               format, args));
+}
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line, FColor color,
+                    char *format, va_list args){
+    return(push_fancy_stringfv(arena, line, 0, color, 0, 0, format, args));
+}
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line, f32 pre_margn, f32 post_margin,
+                    char *format, va_list args){
+    return(push_fancy_stringfv(arena, line, 0, fcolor_zero(), pre_margn, post_margin,
+                             format, args));
+}
+function Fancy_String*
+push_fancy_stringfv(Arena *arena, Fancy_Line *line,
+                    char *format, va_list args){
+    return(push_fancy_stringfv(arena, line, 0, fcolor_zero(), 0, 0, format, args));
 }
 
-static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_Color fore, String_Const_u8 value){
-    return(push_fancy_string(arena, 0, fore, fancy_pass_through(), value));
+#define StringFBegin() va_list args; va_start(args, format)
+#define StringFPass(N) Fancy_String *result = N
+#define StringFEnd() va_end(args); return(result)
+
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line, Face_ID face, FColor fore,
+                   f32 pre_margin, f32 post_margin,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_string(arena, line, face, fore, pre_margin, post_margin,
+                                  push_u8_stringfv(arena, format, args)));
+    StringFEnd();
+}
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line, Face_ID face, FColor fore,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_stringfv(arena, line, face, fore, 0, 0, format, args));
+    StringFEnd();
+}
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line, Face_ID face,
+                   f32 pre_margin, f32 post_margin,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_stringfv(arena, line, face, fcolor_zero(),
+                                    pre_margin, post_margin, format, args));
+    StringFEnd();
+}
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line, FColor fore,
+                   f32 pre_margin, f32 post_margin,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_stringfv(arena, line, 0, fore, pre_margin, post_margin,
+                                    format, args));
+    StringFEnd();
+}
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line, Face_ID face,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_stringfv(arena, line, face, fcolor_zero(), 0, 0,
+                                    format, args));
+    StringFEnd();
+}
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line, FColor color,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_stringfv(arena, line, 0, color, 0, 0, format, args));
+    StringFEnd();
+}
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line, f32 pre_margn, f32 post_margin,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_stringfv(arena, line, 0, fcolor_zero(),
+                                    pre_margn, post_margin, format, args));
+    StringFEnd();
+}
+function Fancy_String*
+push_fancy_stringf(Arena *arena, Fancy_Line *line,
+                   char *format, ...){
+    StringFBegin();
+    StringFPass(push_fancy_stringfv(arena, line, 0, fcolor_zero(), 0, 0, format, args));
+    StringFEnd();
 }
 
-static Fancy_String *
-push_fancy_string(Arena *arena, Fancy_String_List *list, String_Const_u8 value){
-    return(push_fancy_string(arena, list, fancy_pass_through(), fancy_pass_through(), value));
-}
+////////////////////////////////
 
-static Fancy_String *
-push_fancy_string(Arena *arena, String_Const_u8 value){
-    return(push_fancy_string(arena, 0, fancy_pass_through(), fancy_pass_through(), value));
-}
-
-static Fancy_String*
-push_fancy_stringfv(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, va_list args){
-    String_Const_u8 str = push_u8_stringfv(arena, format, args);
-    Fancy_String *result = 0;
-    if (str.size > 0){
-        result = push_fancy_string(arena, list, fore, back, str);
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block, Face_ID face, FColor fore,
+                String_Const_u8 text){
+    Fancy_Line *line = push_array_zero(arena, Fancy_Line, 1);
+    line->face = face;
+    line->fore = fore;
+    if (text.size != 0){
+        push_fancy_string(arena, line, text);
     }
-    return(result);
+    if (block != 0){
+        push_fancy_line(block, line);
+    }
+    return(line);
+}
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block, Face_ID face, FColor fcolor){
+    return(push_fancy_line(arena, block, face, fcolor, SCu8()));
+}
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block, Face_ID face, String_Const_u8 val){
+    return(push_fancy_line(arena, block, face, fcolor_zero(), val));
+}
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block, FColor color, String_Const_u8 val){
+    return(push_fancy_line(arena, block, 0, color, val));
+}
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block, Face_ID face){
+    return(push_fancy_line(arena, block, face, fcolor_zero(), SCu8()));
+}
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block, FColor color){
+    return(push_fancy_line(arena, block, 0, color, SCu8()));
+}
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block, String_Const_u8 val){
+    return(push_fancy_line(arena, block, 0, fcolor_zero(), val));
+}
+function Fancy_Line*
+push_fancy_line(Arena *arena, Fancy_Block *block){
+    return(push_fancy_line(arena, block, 0, fcolor_zero(), SCu8()));
 }
 
-static Fancy_String*
-push_fancy_stringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, Fancy_Color back, char *format, ...){
-    va_list args;
-    va_start(args, format);
-    Fancy_String *result = push_fancy_stringfv(arena, list, fore, back, format, args);
-    va_end(args);
-    return(result);
-}
+////////////////////////////////
 
-static Fancy_String*
-push_fancy_stringf(Arena *arena, Fancy_String_List *list, Fancy_Color fore, char *format, ...){
-    va_list args;
-    va_start(args, format);
-    Fancy_String *result = push_fancy_stringfv(arena, list, fore, fancy_pass_through(), format, args);
-    va_end(args);
-    return(result);
-}
-
-static Fancy_String*
-push_fancy_stringf(Arena *arena, Fancy_String_List *list, char *format, ...){
-    va_list args;
-    va_start(args, format);
-    Fancy_String *result = push_fancy_stringfv(arena, list, fancy_pass_through(), fancy_pass_through(), format, args);
-    va_end(args);
-    return(result);
-}
-
-static Fancy_String*
-push_fancy_stringf(Arena *arena, Fancy_Color fore, Fancy_Color back, char *format, ...){
-    va_list args;
-    va_start(args, format);
-    Fancy_String *result = push_fancy_stringfv(arena, 0, fore, back, format, args);
-    va_end(args);
-    return(result);
-}
-
-static Fancy_String*
-push_fancy_stringf(Arena *arena, Fancy_Color fore, char *format, ...){
-    va_list args;
-    va_start(args, format);
-    Fancy_String *result = push_fancy_stringfv(arena, 0, fore, fancy_pass_through(), format, args);
-    va_end(args);
-    return(result);
-}
-
-static Fancy_String*
-push_fancy_stringf(Arena *arena, char *format, ...){
-    va_list args;
-    va_start(args, format);
-    Fancy_String *result = push_fancy_stringfv(arena, 0, fancy_pass_through(), fancy_pass_through(), format, args);
-    va_end(args);
-    return(result);
-}
-
-static Fancy_String_List
-fancy_string_list_single(Fancy_String *fancy_string){
-    Fancy_String_List list = {};
-    list.first = fancy_string;
-    list.last = fancy_string;
-    return(list);
-}
-
-static Vec2_f32
-draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
-                  Vec2_f32 P, int_color fore, int_color back, u32 flags, Vec2_f32 dP){
+function f32
+get_fancy_string_width__inner(Application_Links *app, Face_ID face,
+                              Fancy_String *string){
+    f32 result = 0.f;
     for (;string != 0;
          string = string->next){
-        Face_ID use_font_id = (string->font_id) ? string->font_id : font_id;
-        int_color use_fore = is_valid(string->fore) ? int_color_from(app, string->fore) : fore;
-        
-        f32 adv = get_string_advance(app, use_font_id, string->value);
-        
-        // TODO(casey): need to fill the background here, but I don't know the line 
-        // height, and I can't actually render filled shapes, so, like, I can't
-        // properly do dP :(
-        
-        Face_Metrics metrics = get_face_metrics(app, font_id);
-        
-        P += (string->pre_margin*metrics.normal_advance)*dP;
-        draw_string_oriented(app, use_font_id, string->value, P, use_fore, flags, dP);
-        P += (adv + string->post_margin*metrics.normal_advance)*dP;
+        Face_ID use_face = face;
+        if (string->face != 0){
+            use_face = string->face;
+        }
+        if (use_face != 0){
+            result += get_string_advance(app, use_face, string->value);
+            Face_Metrics metrics = get_face_metrics(app, use_face);
+            f32 normal_advance = metrics.normal_advance;
+            result += (string->pre_margin + string->post_margin)*normal_advance;
+        }
     }
-    return(P);
+    return(result);
 }
 
-static Vec2_f32
-draw_fancy_string(Application_Links *app, Face_ID font_id, Fancy_String *string,
-                  Vec2_f32 P, int_color fore, int_color back){
-    return(draw_fancy_string(app, font_id, string, P, fore, back, 0, V2(1.f, 0.f)));
-}
-
-static f32
-get_fancy_string_advance(Application_Links *app, Face_ID font_id, Fancy_String *string){
-    f32 advance = 0.f;
+function f32
+get_fancy_string_height__inner(Application_Links *app, Face_ID face,
+                               Fancy_String *string){
+    f32 result = 0.f;
+    if (face != 0){
+        Face_Metrics metrics = get_face_metrics(app, face);
+        result = metrics.line_height;
+    }
     for (;string != 0;
          string = string->next){
-        Face_ID use_font_id = (string->font_id) ? string->font_id : font_id;
-        f32 adv = get_string_advance(app, use_font_id, string->value);
-        Face_Metrics metrics = get_face_metrics(app, font_id);
-        advance += (string->pre_margin + string->post_margin)*metrics.normal_advance + adv;
+        if (string->face != 0){
+            Face_ID use_face = string->face;
+            Face_Metrics metrics = get_face_metrics(app, use_face);
+            result = max(result, metrics.line_height);
+        }
     }
-    return(advance);
+    return(result);
 }
 
-static void
-draw_rectangle_fancy(Application_Links *app, Rect_f32 rect, Fancy_Color fancy_color){
-    int_color color = int_color_from(app, fancy_color);
-    draw_rectangle(app, rect, 0.f, color);
+function Vec2_f32
+draw_fancy_string__inner(Application_Links *app, Face_ID face, FColor fore,
+                         Fancy_String *string, Vec2_f32 p, u32 flags, Vec2_f32 delta){
+    for (;string != 0;
+         string = string->next){
+        Face_ID use_face = face;
+        if (string->face != 0){
+            use_face = string->face;
+        }
+        FColor use_fore = fore;
+        if (fcolor_is_valid(string->fore)){
+            use_fore = string->fore;
+        }
+        if (use_face != 0){
+            Face_Metrics metrics = get_face_metrics(app, use_face);
+            if (fcolor_is_valid(use_fore)){
+                Vec2_f32 margin_delta = delta*metrics.normal_advance;
+                p += margin_delta*string->pre_margin;
+                p = draw_string_oriented(app, use_face, use_fore,
+                                         string->value, p, flags, delta);
+                p += margin_delta*string->post_margin;
+            }
+            else{
+                f32 adv =
+                    (string->pre_margin + string->post_margin)*metrics.normal_advance;
+                adv += get_string_advance(app, use_face, string->value);
+                p += adv*delta;
+            }
+        }
+    }
+    return(p);
+}
+
+function f32
+get_fancy_string_width(Application_Links *app, Face_ID face,
+                       Fancy_String *string){
+    Fancy_String *next = string->next;
+    string->next = 0;
+    f32 result = get_fancy_string_width__inner(app, face, string);
+    string->next = next;
+    return(result);
+}
+
+function f32
+get_fancy_string_height(Application_Links *app, Face_ID face,
+                        Fancy_String *string){
+    Fancy_String *next = string->next;
+    string->next = 0;
+    f32 result = get_fancy_string_height__inner(app, face, string);
+    string->next = next;
+    return(result);
+}
+
+function Vec2_f32
+draw_fancy_string(Application_Links *app, Face_ID face, FColor fore,
+                  Fancy_String *string, Vec2_f32 p, u32 flags, Vec2_f32 delta){
+    Fancy_String *next = string->next;
+    string->next = 0;
+    Vec2_f32 result = draw_fancy_string__inner(app, face, fore,
+                                               string, p, flags, delta);
+    string->next = next;
+    return(result);
+}
+
+function f32
+get_fancy_line_width(Application_Links *app, Face_ID face, Fancy_Line *line){
+    if (line->face != 0){
+        face = line->face;
+    }
+    return(get_fancy_string_width__inner(app, face, line->first));
+}
+
+function f32
+get_fancy_line_height(Application_Links *app, Face_ID face, Fancy_Line *line){
+    if (line->face != 0){
+        face = line->face;
+    }
+    return(get_fancy_string_height__inner(app, face, line->first));
+}
+
+function Vec2_f32
+draw_fancy_line(Application_Links *app, Face_ID face, FColor fore,
+                Fancy_Line *line, Vec2_f32 p, u32 flags, Vec2_f32 delta){
+    if (line->face != 0){
+        face = line->face;
+    }
+    if (fcolor_is_valid(line->fore)){
+        fore = line->fore;
+    }
+    return(draw_fancy_string__inner(app, face, fore,
+                                    line->first, p, flags, delta));
+}
+
+function f32
+get_fancy_block_width(Application_Links *app, Face_ID face, Fancy_Block *block){
+    f32 width = 0.f;
+    for (Fancy_Line *node = block->first;
+         node != 0;
+         node = node->next){
+        f32 w = get_fancy_line_width(app, face, node);
+        width = max(width, w);
+    }
+    return(width);
+}
+
+function f32
+get_fancy_block_height(Application_Links *app, Face_ID face, Fancy_Block *block){
+    f32 height = 0.f;
+    for (Fancy_Line *node = block->first;
+         node != 0;
+         node = node->next){
+        height += get_fancy_line_height(app, face, node);
+    }
+    return(height);
+}
+
+function Vec2_f32
+get_fancy_block_dim(Application_Links *app, Face_ID face, Fancy_Block *block){
+    Vec2_f32 result = {};
+    result.x = get_fancy_block_width(app, face, block);
+    result.y = get_fancy_block_height(app, face, block);
+    return(result);
+}
+
+function void
+draw_fancy_block(Application_Links *app, Face_ID face, FColor fore,
+                 Fancy_Block *block, Vec2_f32 p, u32 flags, Vec2_f32 delta){
+    Face_Metrics metrics = get_face_metrics(app, face);
+    for (Fancy_Line *node = block->first;
+         node != 0;
+         node = node->next){
+        draw_fancy_line(app, face, fore, node, p, flags, delta);
+        p.y += get_fancy_line_height(app, face, node);
+    }
+}
+
+function Vec2_f32
+draw_fancy_string(Application_Links *app, Face_ID face, FColor fore,
+                  Fancy_String *string, Vec2_f32 p){
+    return(draw_fancy_string(app, face, fore, string, p, 0, V2f32(1.f, 0.f)));
+}
+
+function Vec2_f32
+draw_fancy_line(Application_Links *app, Face_ID face, FColor fore,
+                  Fancy_Line *line, Vec2_f32 p){
+    return(draw_fancy_line(app, face, fore, line, p, 0, V2f32(1.f, 0.f)));
+}
+
+function void
+draw_fancy_block(Application_Links *app, Face_ID face, FColor fore,
+                 Fancy_Block *block, Vec2_f32 p){
+    draw_fancy_block(app, face, fore, block, p, 0, V2f32(1.f, 0.f));
 }
 
 ////////////////////////////////
 
 // TODO(allen): beta: color palette
-global Fancy_Color white      = fancy_rgba(1.0f, 1.0f, 1.0f, 1.0f);
-global Fancy_Color light_gray = fancy_rgba(0.7f, 0.7f, 0.7f, 1.0f);
-global Fancy_Color gray       = fancy_rgba(0.5f, 0.5f, 0.5f, 1.0f);
-global Fancy_Color dark_gray  = fancy_rgba(0.3f, 0.3f, 0.3f, 1.0f);
-global Fancy_Color black      = fancy_rgba(0.0f, 0.0f, 0.0f, 1.0f);
-global Fancy_Color pink       = fancy_rgba(1.0f, 0.0f, 1.0f, 1.0f);
-global Fancy_Color green      = fancy_rgba(0.0f, 1.0f, 0.0f, 1.0f);
+global FColor f_white      = fcolor_argb(1.0f, 1.0f, 1.0f, 1.0f);
+global FColor f_light_gray = fcolor_argb(0.7f, 0.7f, 0.7f, 1.0f);
+global FColor f_gray       = fcolor_argb(0.5f, 0.5f, 0.5f, 1.0f);
+global FColor f_dark_gray  = fcolor_argb(0.3f, 0.3f, 0.3f, 1.0f);
+global FColor f_black      = fcolor_argb(0.0f, 0.0f, 0.0f, 1.0f);
+global FColor f_pink       = fcolor_argb(1.0f, 0.0f, 1.0f, 1.0f);
+global FColor f_green      = fcolor_argb(0.0f, 1.0f, 0.0f, 1.0f);
 
 // BOTTOM
 

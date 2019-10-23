@@ -32,7 +32,6 @@
 #include "4coder_string_match.h"
 #include "4coder_helper.h"
 #include "4coder_delta_rule.h"
-#include "4coder_fancy.h"
 #include "4coder_draw.h"
 #include "4coder_insertion.h"
 #include "4coder_lister_base.h"

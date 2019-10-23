@@ -289,7 +289,10 @@ default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_vie
     
     // NOTE(allen): Scope highlight
     if (global_config.use_scope_highlight){
-        int_color colors[] = { Stag_Back_Cycle_1, Stag_Back_Cycle_2, Stag_Back_Cycle_3, Stag_Back_Cycle_4, };
+        FColor colors[] = {
+            fcolor_id(Stag_Back_Cycle_1), fcolor_id(Stag_Back_Cycle_2),
+            fcolor_id(Stag_Back_Cycle_3), fcolor_id(Stag_Back_Cycle_4),
+        };
         draw_scope_highlight(app, buffer, text_layout_id, cursor_pos, colors, ArrayCount(colors));
     }
     
@@ -298,28 +301,35 @@ default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_vie
         String_Const_u8 name = string_u8_litexpr("*compilation*");
         Buffer_ID compilation_buffer = get_buffer_by_name(app, name, Access_Always);
         if (global_config.use_error_highlight){
-            draw_jump_highlights(app, buffer, text_layout_id, compilation_buffer, Stag_Highlight_Junk);
+            draw_jump_highlights(app, buffer, text_layout_id, compilation_buffer,
+                                 fcolor_id(Stag_Highlight_Junk));
         }
         
         // NOTE(allen): Search highlight
         if (global_config.use_jump_highlight){
             Buffer_ID jump_buffer = get_locked_jump_buffer(app);
             if (jump_buffer != compilation_buffer){
-                draw_jump_highlights(app, buffer, text_layout_id, jump_buffer, Stag_Highlight_White);
+                draw_jump_highlights(app, buffer, text_layout_id, jump_buffer,
+                                     fcolor_id(Stag_Highlight_White));
             }
         }
     }
     
     // NOTE(allen): Color parens
     if (global_config.use_paren_helper){
-        int_color colors[] = { Stag_Text_Cycle_1, Stag_Text_Cycle_2, Stag_Text_Cycle_3, Stag_Text_Cycle_4, };
-        draw_paren_highlight(app, buffer, text_layout_id, cursor_pos, colors, ArrayCount(colors));
+        FColor colors[] = {
+            fcolor_id(Stag_Text_Cycle_1), fcolor_id(Stag_Text_Cycle_2),
+            fcolor_id(Stag_Text_Cycle_3), fcolor_id(Stag_Text_Cycle_4),
+        };
+        draw_paren_highlight(app, buffer, text_layout_id, cursor_pos,
+                             colors, ArrayCount(colors));
     }
     
     // NOTE(allen): Line highlight
     if (global_config.highlight_line_at_cursor && is_active_view){
         i64 line_number = get_line_number_from_pos(app, buffer, cursor_pos);
-        draw_line_highlight(app, text_layout_id, line_number, Stag_Highlight_Cursor_Line);
+        draw_line_highlight(app, text_layout_id, line_number,
+                            fcolor_id(Stag_Highlight_Cursor_Line));
     }
     
     // NOTE(allen): Cursor shape

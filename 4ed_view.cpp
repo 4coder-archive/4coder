@@ -388,7 +388,7 @@ view_set_cursor_and_scroll(Thread_Context *tctx, Models *models, View *view, i64
 }
 
 internal void
-view_post_paste_effect(View *view, f32 seconds, i64 start, i64 size, u32 color){
+view_post_paste_effect(View *view, f32 seconds, i64 start, i64 size, ARGB_Color color){
     Editing_File *file = view->file;
     file->state.paste_effect.start = start;
     file->state.paste_effect.end = start + size;
@@ -727,13 +727,18 @@ release_font_and_update(Models *models, Face *face, Face *replacement_face){
 
 ////////////////////////////////
 
-internal argb_color
-finalize_color(Color_Table color_table, int_color color){
-    argb_color color_argb = color;
-    if ((color & 0xFF000000) == 0){
-        color_argb = color_table.vals[color % color_table.count];
+function ARGB_Color
+finalize_color(Color_Table color_table, ID_Color id){
+    return(color_table.vals[id % color_table.count]);
+}
+
+function ARGB_Color
+finalize_color(Color_Table color_table, FColor fcolor){
+    ARGB_Color result = fcolor.argb;
+    if (fcolor.a_byte == 0){
+        result = finalize_color(color_table, fcolor.id);
     }
-    return(color_argb);
+    return(result);
 }
 
 ////////////////////////////////

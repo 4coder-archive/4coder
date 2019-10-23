@@ -646,19 +646,20 @@ log_parse_fill(Application_Links *app, Buffer_ID buffer){
 }
 
 internal void
-log_graph_render__tag(Arena *arena, Fancy_String_List *line, Log_Parse *log, Log_Tag *tag){
+log_graph_render__tag(Arena *arena, Fancy_Line *line,
+                      Log_Parse *log, Log_Tag *tag){
     String_Const_u8 tag_name = log_parse__get_string(log, tag->name);
-    push_fancy_stringf(arena, line, white, "[");
-    push_fancy_string(arena, line, green, tag_name);
-    push_fancy_stringf(arena, line, white, "=");
+    push_fancy_stringf(arena, line, f_white, "[");
+    push_fancy_string(arena, line, f_green, tag_name);
+    push_fancy_stringf(arena, line, f_white, "=");
     if (tag->value.kind == LogTagKind_Integer){
-        push_fancy_stringf(arena, line, pink, "0x%llx", tag->value.value_s);
+        push_fancy_stringf(arena, line, f_pink, "0x%llx", tag->value.value_s);
     }
     else if (tag->value.kind == LogTagKind_String){
         String_Const_u8 value = log_parse__get_string(log, tag->value.value);
-        push_fancy_string(arena, line, pink, value);
+        push_fancy_string(arena, line, f_pink, value);
     }
-    push_fancy_stringf(arena, line, white, "]");
+    push_fancy_stringf(arena, line, f_white, "]");
 }
 
 internal void
@@ -671,8 +672,9 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         Rect_f32 view_rect = view_get_screen_rect(app, view);
         Rect_f32 inner = rect_inner(view_rect, 3);
         draw_rectangle(app, view_rect, 0.f,
-                       get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None));
-        draw_rectangle(app, inner, 0.f, Stag_Back);
+                       get_margin_color(is_active_view?
+                                        UIHighlight_Active:UIHighlight_None));
+        draw_rectangle(app, inner, 0.f, fcolor_id(Stag_Back));
         
         Rect_f32 prev_clip = draw_set_clip(app, inner);
         ////////////////////////////////
@@ -710,23 +712,23 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             
             Rect_f32 box_inner = rect_inner(box, 3.f);
             
-            Fancy_Color margin_color = dark_gray;
+            FColor margin_color = f_dark_gray;
             if (!in_details_region && hover_event == 0 && rect_contains_point(box, m_p)){
-                margin_color = gray;
+                margin_color = f_gray;
                 hover_event = box_node->event;
             }
             if (box_node->event == log_graph.selected_event){
-                margin_color = light_gray;
+                margin_color = f_light_gray;
             }
             
-            draw_rectangle_fancy(app, box      , margin_color);
-            draw_rectangle_fancy(app, box_inner, black       );
+            draw_rectangle(app, box      , 0.f, margin_color);
+            draw_rectangle(app, box_inner, 0.f, f_black     );
             
             Log_Event *event = box_node->event;
             
             String_Const_u8 event_name = log_parse__get_string(&log_parse, event->event_name);
-            Fancy_String_List line = {};
-            push_fancy_string(scratch, &line, white, event_name);
+            Fancy_Line line = {};
+            push_fancy_string(scratch, &line, f_white, event_name);
             
             for (Log_Filter *filter = log_preview_set.first;
                  filter != 0;
@@ -745,7 +747,7 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             
             Vec2_f32 p = V2f32(box_inner.x0 + 3.f,
                                (f32_round32((box_inner.y0 + box_inner.y1 - line_height)*0.5f)));
-            draw_fancy_string(app, log_graph.face_id, line.first, p, 0, 0, 0, V2f32(1.f, 0.f));
+            draw_fancy_line(app, log_graph.face_id, fcolor_zero(), &line, p);
         }
         
         {
@@ -757,8 +759,8 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             Log_Graph_List_Tab current_tab = log_graph.tab;
             Log_Filter_Set *viewing_filter_set = log_filter_set_from_tab(current_tab);
             
-            draw_rectangle_fancy(app, box      , dark_gray);
-            draw_rectangle_fancy(app, box_inner, black    );
+            draw_rectangle(app, box      , 0.f, f_dark_gray);
+            draw_rectangle(app, box_inner, 0.f, f_black    );
             
             {
                 f32 y_cursor = box_inner.y0 + 3.f;
@@ -767,8 +769,8 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                 {
                     f32 x_cursor = box_inner.x0 + 3.f;
                     for (i32 i = LogTab_ERROR + 1; i < LogTab_COUNT; i += 1){
-                        Fancy_Color color = (i == current_tab)?white:gray;
-                        Fancy_String_List line = {};
+                        FColor color = (i == current_tab)?f_white:f_gray;
+                        Fancy_Line line = {};
                         switch (i){
                             case LogTab_Filters:
                             {
@@ -781,13 +783,15 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                         }
                         
                         Vec2_f32 p = V2f32(x_cursor, y_cursor);
-                        f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
-                        draw_fancy_string(app, log_graph.face_id, line.first, p,
-                                          Stag_Default, Stag_Back, 0, V2f32(1.f, 0.f));
-                        x_cursor += advance + metrics.normal_advance;
+                        f32 width = get_fancy_line_width(app, log_graph.face_id,
+                                                         &line);
+                        draw_fancy_line(app, log_graph.face_id, fcolor_zero(),
+                                        &line, p);
+                        x_cursor += width + metrics.normal_advance;
                         
                         if (log_graph.has_unused_click){
-                            Rect_f32 click_rect = Rf32(p.x, p.y, p.x + advance, p.y + line_height);
+                            Rect_f32 click_rect = Rf32_xy_wh(p.x, p.y, 
+                                                             width, line_height);
                             if (rect_contains_point(click_rect, log_graph.unused_click)){
                                 log_graph.has_unused_click = false;
                                 log_graph.tab = i;
@@ -805,36 +809,38 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                         y_cursor += line_height;
                         if (y_cursor + line_height > box_inner.y1) goto finish_list_display;
                         
-                        Fancy_String_List line = {};
+                        Fancy_Line line = {};
                         
                         if (filter->kind == LogFilter_TagValue){
-                            push_fancy_stringf(scratch, &line, white, "val  [");
+                            push_fancy_stringf(scratch, &line, f_white, "val  [");
                             String_Const_u8 tag_name = log_parse__get_string(&log_parse, filter->tag_name_code);
-                            push_fancy_stringf(scratch, &line, green, "%.*s", string_expand(tag_name));
-                            push_fancy_stringf(scratch, &line, white, "=");
+                            push_fancy_stringf(scratch, &line, f_green, "%.*s", string_expand(tag_name));
+                            push_fancy_stringf(scratch, &line, f_white, "=");
                             if (filter->tag_value.kind == LogTagKind_Integer){
-                                push_fancy_stringf(scratch, &line, pink, "0x%llx", filter->tag_value.value_s);
+                                push_fancy_stringf(scratch, &line, f_pink, "0x%llx", filter->tag_value.value_s);
                             }
                             else if (filter->tag_value.kind == LogTagKind_String){
                                 String_Const_u8 value = log_parse__get_string(&log_parse, filter->tag_value.value);
-                                push_fancy_stringf(scratch, &line, pink, "%.*s", string_expand(value));
+                                push_fancy_stringf(scratch, &line, f_pink, "%.*s", string_expand(value));
                             }
-                            push_fancy_stringf(scratch, &line, white, "]");
+                            push_fancy_stringf(scratch, &line, f_white, "]");
                         }
                         else{
-                            push_fancy_stringf(scratch, &line, white, "name [");
+                            push_fancy_stringf(scratch, &line, f_white, "name [");
                             String_Const_u8 tag_name = log_parse__get_string(&log_parse, filter->tag_name_code);
-                            push_fancy_stringf(scratch, &line, green, "%.*s", string_expand(tag_name));
-                            push_fancy_stringf(scratch, &line, white, "]");
+                            push_fancy_stringf(scratch, &line, f_green, "%.*s", string_expand(tag_name));
+                            push_fancy_stringf(scratch, &line, f_white, "]");
                         }
                         
                         Vec2_f32 p = V2f32(box_inner.x0 + 3.f, y_cursor);
-                        f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
-                        draw_fancy_string(app, log_graph.face_id, line.first, p, Stag_Default, Stag_Back,
-                                          0, V2f32(1.f, 0.f));
+                        f32 width = get_fancy_line_width(app, log_graph.face_id,
+                                                         &line);
+                        draw_fancy_line(app, log_graph.face_id, fcolor_zero(),
+                                        &line, p);
                         
                         if (log_graph.has_unused_click){
-                            Rect_f32 click_rect = Rf32(p.x, p.y, p.x + advance, p.y + line_height);
+                            Rect_f32 click_rect = Rf32_xy_wh(p.x, p.y,
+                                                             width, line_height);
                             if (rect_contains_point(click_rect, log_graph.unused_click)){
                                 log_graph.has_unused_click = false;
                                 log_filter_set__free_filter(viewing_filter_set, filter);
@@ -852,17 +858,16 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                 if (y_cursor + line_height > box_inner.y1) goto finish_event_display;
                 
                 {
-                    Fancy_String_List line = {};
+                    Fancy_Line line = {};
                     String_Const_u8 file_name = log_parse__get_string(&log_parse, view_event->src_file_name);
-                    push_fancy_stringf(scratch, &line, green, "[%d]  ", view_event->event_number);
-                    push_fancy_stringf(scratch, &line, white, "%.*s:", string_expand(file_name));
-                    push_fancy_stringf(scratch, &line, pink, "%llu", view_event->line_number);
+                    push_fancy_stringf(scratch, &line, f_green, "[%d]  ", view_event->event_number);
+                    push_fancy_stringf(scratch, &line, f_white, "%.*s:", string_expand(file_name));
+                    push_fancy_stringf(scratch, &line, f_pink, "%llu", view_event->line_number);
                     
                     Vec2_f32 right_p = V2f32(box_inner.x1 - 3.f, y_cursor);
-                    f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
-                    Vec2 p = V2f32(right_p.x - advance, right_p.y);
-                    draw_fancy_string(app, log_graph.face_id, line.first, p, Stag_Default, Stag_Back,
-                                      0, V2(1.f, 0.f));
+                    f32 width = get_fancy_line_width(app, log_graph.face_id, &line);
+                    Vec2 p = V2f32(right_p.x - width, right_p.y);
+                    draw_fancy_line(app, log_graph.face_id, fcolor_zero(), &line, p);
                 }
                 
                 for (Log_Tag *tag = view_event->first_tag;
@@ -872,14 +877,14 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     if (y_cursor + line_height > box_inner.y1) goto finish_event_display;
                     
                     {
-                        Fancy_String_List line = {};
+                        Fancy_Line line = {};
                         log_graph_render__tag(scratch, &line, &log_parse, tag);
                         
                         Vec2_f32 right_p = V2f32(box_inner.x1 - 3.f, y_cursor);
-                        f32 advance = get_fancy_string_advance(app, log_graph.face_id, line.first);
-                        Vec2 p = V2f32(right_p.x - advance, right_p.y);
-                        draw_fancy_string(app, log_graph.face_id, line.first, p,
-                                          Stag_Default, Stag_Back, 0, V2(1.f, 0.f));
+                        f32 width = get_fancy_line_width(app, log_graph.face_id, &line);
+                        Vec2 p = V2f32(right_p.x - width, right_p.y);
+                        draw_fancy_line(app, log_graph.face_id, fcolor_zero(),
+                                        &line, p);
                         
                         if (log_graph.has_unused_click){
                             Rect_f32 click_rect = Rf32(p.x, p.y, right_p.x, p.y + line_height);

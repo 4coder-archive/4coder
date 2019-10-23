@@ -1542,16 +1542,19 @@ view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Se
     return(result);
 }
 
+// TODO(allen): remove this!
 api(custom) function b32
-view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, int_color color)
-{
+view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, 
+               FColor color){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
     b32 result = false;
     if (api_check_view(view)){
         i64 size = range_size(range);
         if (size > 0){
-            view_post_paste_effect(view, seconds, (i32)range.start, (i32)size, color|0xFF000000);
+            Color_Table color_table = models->color_table;
+            view_post_paste_effect(view, seconds, (i32)range.start, (i32)size,
+                                   finalize_color(color_table, color));
             result = true;
         }
     }
@@ -2582,15 +2585,11 @@ get_theme_colors(Application_Links *app, Theme_Color *colors, i32 count)
     }
 }
 
-api(custom) function argb_color
-finalize_color(Application_Links *app, int_color color){
+api(custom) function ARGB_Color
+finalize_color(Application_Links *app, ID_Color color){
     Models *models = (Models*)app->cmd_context;
     Color_Table color_table = models->color_table;
-    u32 color_rgb = color;
-    if ((color & 0xFF000000) == 0){
-        color_rgb = color_table.vals[color % color_table.count];
-    }
-    return(color_rgb);
+    return(finalize_color(color_table, color));
 }
 
 api(custom) function String_Const_u8
@@ -2630,10 +2629,11 @@ set_window_title(Application_Links *app, String_Const_u8 title)
     return(true);
 }
 
-api(custom) function Vec2
-draw_string_oriented(Application_Links *app, Face_ID font_id, String_Const_u8 str, Vec2 point, int_color color, u32 flags, Vec2 delta)
+api(custom) function Vec2_f32
+draw_string_oriented(Application_Links *app, Face_ID font_id, FColor color,
+                     String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta)
 {
-    Vec2 result = point;
+    Vec2_f32 result = point;
     Models *models = (Models*)app->cmd_context;
     Face *face = font_set_face_from_id(&models->font_set, font_id);
     if (models->target == 0){
@@ -2658,7 +2658,7 @@ get_string_advance(Application_Links *app, Face_ID font_id, String_Const_u8 str)
 }
 
 api(custom) function void
-draw_rectangle(Application_Links *app, Rect_f32 rect, f32 roundness, int_color color){
+draw_rectangle(Application_Links *app, Rect_f32 rect, f32 roundness, FColor color){
     Models *models = (Models*)app->cmd_context;
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
@@ -2670,8 +2670,8 @@ draw_rectangle(Application_Links *app, Rect_f32 rect, f32 roundness, int_color c
 }
 
 api(custom) function void
-draw_rectangle_outline(Application_Links *app, Rect_f32 rect, f32 roundness, f32 thickness, int_color color)
-{
+draw_rectangle_outline(Application_Links *app, Rect_f32 rect,
+                       f32 roundness, f32 thickness, FColor color){
     Models *models = (Models*)app->cmd_context;
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
@@ -2722,9 +2722,10 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
                                           buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
         
         i64 item_count = range_size_inclusive(visible_range);
-        int_color *colors_array = push_array(arena, int_color, item_count);
+        FColor *colors_array = push_array(arena, FColor, item_count);
         for (i64 i = 0; i < item_count; i += 1){
-            colors_array[i] = Stag_Default;
+            colors_array[i].a_byte = 0;
+            colors_array[i].id = Stag_Default;
         }
         result = text_layout_new(&models->text_layouts, arena, buffer_id, buffer_point,
                                  visible_range, visible_line_number_range, rect, colors_array);
@@ -2862,7 +2863,8 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
 }
 
 api(custom) function void
-paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Interval_i64 range, int_color color){
+paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Interval_i64 range,
+                 FColor color){
     Models *models = (Models*)app->cmd_context;
     Rect_f32 result = {};
     Text_Layout *layout = text_layout_get(&models->text_layouts, layout_id);
@@ -2871,7 +2873,7 @@ paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Interval_i64 
         range.max = clamp_top(range.max, layout->visible_range.max);
         range.min -= layout->visible_range.min;
         range.max -= layout->visible_range.min;
-        int_color *color_ptr = layout->item_colors + range.min;
+        FColor *color_ptr = layout->item_colors + range.min;
         for (i64 i = range.min; i < range.max; i += 1, color_ptr += 1){
             *color_ptr = color;
         }

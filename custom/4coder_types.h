@@ -18,21 +18,73 @@ typedef Custom_Layer_Init_Type *_Init_APIs_Type(struct API_VTable_custom *custom
 
 ////////////////////////////////
 
-typedef u32 argb_color;
+typedef u16 ID_Color;
+union FColor{
+    struct{
+        u8 padding__[3];
+        u8 a_byte;
+    };
+    ARGB_Color argb;
+    struct{
+        ID_Color id;
+        u16 padding_;
+    };
+};
 
-typedef u32 int_color;
+struct Theme_Color{
+    ID_Color tag;
+    ARGB_Color color;
+};
 
-typedef u16 id_color;
+//struct Theme{
+//ARGB_Color colors[Stag_COUNT];
+//};
 
-typedef u32 Child_Process_ID;
+struct Color_Table{
+    ARGB_Color *vals;
+    u32 count;
+};
+
+struct Color_Picker{
+    String_Const_u8 title;
+    ARGB_Color *dest;
+    b32 *finished;
+};
+
+////////////////////////////////
+
+typedef u32 Face_ID;
+
+struct Fancy_String{
+    Fancy_String *next;
+    String_Const_u8 value;
+    Face_ID face;
+    FColor fore;
+    f32 pre_margin;
+    f32 post_margin;
+};
+
+struct Fancy_Line{
+    Fancy_Line *next;
+    Face_ID face;
+    FColor fore;
+    Fancy_String *first;
+    Fancy_String *last;
+};
+
+struct Fancy_Block{
+    Fancy_Line *first;
+    Fancy_Line *last;
+    i32 line_count;
+};
+
+////////////////////////////////
 
 typedef i32 Buffer_ID;
-
 typedef i32 View_ID;
-
 typedef i32 Panel_ID;
-
 typedef u32 Text_Layout_ID;
+typedef u32 Child_Process_ID;
 
 typedef i32 UI_Highlight_Level;
 enum{
@@ -375,17 +427,6 @@ struct Query_Bar_Group{
     ~Query_Bar_Group();
 };
 
-struct Theme_Color{
-    id_color tag;
-    argb_color color;
-};
-
-//struct Theme{
-//int_color colors[Stag_COUNT];
-//};
-
-typedef  u32 Face_ID;
-
 struct Font_Load_Location{
     String_Const_u8 file_name;
     b32 in_4coder_font_folder;
@@ -533,11 +574,6 @@ Vec2_f32 name(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data)
 
 typedef Rect_f32 Buffer_Region_Function(Application_Links *app, View_ID view_id, Rect_f32 region);
 
-struct Color_Table{
-    argb_color *vals;
-    u32 count;
-};
-
 typedef void New_Clipboard_Contents_Function(Application_Links *app, String_Const_u8 contents);
 #define NEW_CLIPBOARD_CONTENTS_SIG(name) \
 void name(Application_Links *app, String_Const_u8 contents)
@@ -598,12 +634,6 @@ struct View_Context{
     b32 hides_buffer;
     Mapping *mapping;
     Command_Map_ID map_id;
-};
-
-struct Color_Picker{
-    String_Const_u8 title;
-    argb_color *dest;
-    b32 *finished;
 };
 
 typedef u32 String_Match_Flag;

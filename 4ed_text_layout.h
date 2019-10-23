@@ -21,7 +21,7 @@ union Text_Layout{
         Interval_i64 visible_range;
         Interval_i64 visible_line_number_range;
         Rect_f32 rect;
-        int_color *item_colors;
+        FColor *item_colors;
     };
 };
 
