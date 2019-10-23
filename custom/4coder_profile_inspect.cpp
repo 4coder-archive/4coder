@@ -114,6 +114,7 @@ profile_parse_record(Arena *arena, Profile_Inspection *insp,
             sll_queue_push(slot->first_hit, slot->last_hit, node_ptr);
             slot->hit_count += 1;
             node_ptr->ptr = node;
+            node->unique_counter = (u64)slot->hit_count;
         }
         
         if (quit_loop){
@@ -244,6 +245,36 @@ profile_node_name(Profile_Node *node){
     return(result);
 }
 
+function String_Const_u8
+profile_node_location(Profile_Node *node){
+    String_Const_u8 result = {};
+    if (node->slot != 0){
+        result = node->slot->location;
+    }
+    return(result);
+}
+
+function void
+profile_qsort_nodes(Profile_Node **nodes, i32 first, i32 one_past_last){
+    if (first + 1 < one_past_last){
+        i32 pivot_index = one_past_last - 1;
+        Profile_Node *pivot = nodes[pivot_index];
+        u64 pivot_time = range_size(pivot->time);
+        i32 j = first;
+        for (i32 i = first; i < one_past_last; i += 1){
+            Profile_Node *node = nodes[i];
+            u64 node_time = range_size(node->time);
+            if (node_time > pivot_time){
+                Swap(Profile_Node*, nodes[i], nodes[j]);
+                j += 1;
+            }
+        }
+        Swap(Profile_Node*, nodes[pivot_index], nodes[j]);
+        profile_qsort_nodes(nodes, first, j);
+        profile_qsort_nodes(nodes, j + 1, one_past_last);
+    }
+}
+
 function void
 profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
                   Profile_Node *node, Rect_f32 rect,
@@ -255,6 +286,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     Face_Metrics metrics = get_face_metrics(app, face_id);
     f32 line_height = metrics.line_height;
     f32 normal_advance = metrics.normal_advance;
+    f32 block_height = line_height*2.f;
     f32 x_padding = normal_advance*1.5f;
     f32 x_half_padding = x_padding*0.5f;
     
@@ -348,7 +380,22 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
                 
                 if (rect_contains_point(box, m_p)){
                     insp->full_name_hovered = profile_node_name(child);
+                    insp->unique_counter_hovered = child->unique_counter;
                     insp->hover_node = child;
+                }
+                
+                if (range_size(child_y) >= line_height){
+                    String_Const_u8 child_name = profile_node_name(child);
+                    Fancy_Line line = {};
+                    push_fancy_string(scratch, &line, fcolor_id(Stag_Pop1),
+                                      child_name);
+                    push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default),
+                                       0.5f, 0.f, "#%4llu", child->unique_counter);
+                    
+                    Vec2_f32 p = V2f32(x.min + x_half_padding,
+                                       child_y.min);
+                    draw_fancy_line(app, face_id, fcolor_zero(),
+                                    &line, p);
                 }
             }
         }
@@ -358,10 +405,9 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     
     {
         x = rect_range_x(info_box);
-        y = rect_range_y(info_box);
         
         x_pos = x.min + x_half_padding;
-        f32 y_pos = y.min;
+        f32 y_pos = info_box.y0;
         
         // NOTE(allen): duration
         {
@@ -372,6 +418,51 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             draw_fancy_line(app, face_id, fcolor_zero(),
                             &list, V2f32(x_pos, y_pos + 1.f));
             y_pos += line_height + 2.f;
+        }
+        
+        i32 child_count = node->child_count;
+        Profile_Node **children_array = push_array(scratch, Profile_Node*, child_count);
+        i32 counter = 0;
+        for (Profile_Node *child = node->first_child;
+             child != 0;
+             child = child->next){
+            children_array[counter] = child;
+            counter += 1;
+        }
+        
+        profile_qsort_nodes(children_array, 0, child_count);
+        
+        Profile_Node **child_ptr = children_array;
+        for (i32 i = 0; i < child_count; i += 1, child_ptr += 1){
+            Profile_Node *child = *child_ptr;
+            y = If32_size(y_pos, block_height);
+            
+            f32 ratio = ((f32)range_size(child->time))/((f32)range_size(node->time));
+            
+            String_Const_u8 child_name = profile_node_name(child);
+            Fancy_Line line = {};
+            push_fancy_string_trunc(scratch, &line, child_name, 10);
+            push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default), 0.5f, 0.f,
+                               "#%4llu", child->unique_counter);
+            push_fancy_stringf(scratch, &line, fcolor_id(Stag_Pop2),
+                               0.5f, 0.f, "%6.4f", ratio);
+            
+            Vec2_f32 p = V2f32(x.min + x_half_padding,
+                               (y.min + y.max - line_height)*0.5f);
+            draw_fancy_line(app, face_id, fcolor_id(Stag_Pop1), &line, p);
+            
+            Rect_f32 box = Rf32(x, y);
+            FColor margin = fcolor_id(Stag_Margin);
+            if (rect_contains_point(box, m_p)){
+                insp->full_name_hovered = child_name;
+                insp->unique_counter_hovered = child->unique_counter;
+                insp->location_jump_hovered = profile_node_location(child);
+                insp->hover_node = child;
+                margin = fcolor_id(Stag_Margin_Hover);
+            }
+            draw_rectangle_outline(app, box, 6.f, 3.f, margin);
+            
+            y_pos = y.max;
         }
     }
 }
@@ -412,6 +503,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         
         inspect->tab_id_hovered = ProfileInspectTab_None;
         block_zero_struct(&inspect->full_name_hovered);
+        inspect->unique_counter_hovered = 0;
         block_zero_struct(&inspect->location_jump_hovered);
         inspect->hover_thread = 0;
         inspect->hover_slot = 0;
@@ -526,20 +618,11 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                      node = node->next){
                     Range_f32 y = If32_size(y_pos, block_height);
                     
-                    b32 name_too_long = false;
-                    i32 name_width = 45;
+                    u32 name_width = 45;
+                    b32 name_too_long = (node->name.size > name_width);
                     Fancy_Line list = {};
-                    if (node->name.size > name_width){
-                        push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop1),
-                                           "%.*s... ",
-                                           name_width - 3, node->name.str);
-                        name_too_long = true;
-                    }
-                    else{
-                        push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop1),
-                                           "%-*.*s ",
-                                           name_width, string_expand(node->name));
-                    }
+                    push_fancy_string_fixed(scratch, &list, fcolor_id(Stag_Pop1),
+                                            node->name, name_width);
                     
                     if (node->corrupted_time){
                         push_fancy_string(scratch, &list, fcolor_id(Stag_Pop2),
@@ -634,27 +717,22 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             FColor back_color = fcolor_change_alpha(app, f_black, 0.5f);
             
             if (inspect->full_name_hovered.size > 0){
-                Fancy_Line *line = push_fancy_line(scratch, &block);
-                push_fancy_stringf(scratch, line, text_color, "%.*s",
+                Fancy_Line *line = push_fancy_line(scratch, &block, text_color);
+                push_fancy_stringf(scratch, line, "%.*s",
                                    string_expand(inspect->full_name_hovered));
+                if (inspect->unique_counter_hovered > 0){
+                    push_fancy_stringf(scratch, line, text_color, 0.5f, 0.f,
+                                       "#%4llu", inspect->unique_counter_hovered);
+                }
             }
             if (inspect->location_jump_hovered.size > 0){
-                Fancy_Line *line = push_fancy_line(scratch, &block);
-                push_fancy_stringf(scratch, line, text_color, "[shift] '%.*s'",
+                Fancy_Line *line = push_fancy_line(scratch, &block, text_color);
+                push_fancy_stringf(scratch, line, "[shift] '%.*s'",
                                    string_expand(inspect->location_jump_hovered));
             }
             
-            if (block.line_count > 0){
-                Vec2_f32 dims = get_fancy_block_dim(app, face_id, &block);
-                dims += V2f32(x_padding, 2.f);
-                
-                Rect_f32 box = get_tool_tip_box(region, m_p, dims);
-                draw_set_clip(app, box);
-                
-                draw_rectangle(app, box, 6.f, back_color);
-                draw_fancy_block(app, face_id, fcolor_zero(), &block,
-                                 V2f32(box.x0 + x_half_padding, box.y0 + 1.f));
-            }
+            draw_tool_tip(app, face_id, &block, m_p, region,
+                          x_padding, x_half_padding, back_color);
         }
     }
     

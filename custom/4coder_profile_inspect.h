@@ -32,6 +32,7 @@ struct Profile_Node{
     struct Profile_Inspection_Thread *thread;
     Range_u64 time;
     Profile_ID id;
+    u64 unique_counter;
     
     Profile_Node *first_child;
     Profile_Node *last_child;
@@ -79,6 +80,7 @@ struct Profile_Inspection{
     
     Profile_Inspection_Tab tab_id_hovered;
     String_Const_u8 full_name_hovered;
+    u64 unique_counter_hovered;
     String_Const_u8 location_jump_hovered;
     Profile_Inspection_Thread *hover_thread;
     Profile_Slot *hover_slot;

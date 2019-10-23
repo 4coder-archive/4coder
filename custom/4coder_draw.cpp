@@ -691,5 +691,23 @@ get_tool_tip_box(Rect_f32 container, Vec2_f32 p, Vec2_f32 box_dims){
     return(Rf32_xy_wh(q, box_dims));
 }
 
+function Rect_f32
+draw_tool_tip(Application_Links *app, Face_ID face, Fancy_Block *block,
+              Vec2_f32 p, Rect_f32 region, f32 x_padding, f32 x_half_padding,
+              FColor back_color){
+    Rect_f32 box = Rf32(p, p);
+    if (block->line_count > 0){
+        Vec2_f32 dims = get_fancy_block_dim(app, face, block);
+        dims += V2f32(x_padding, 2.f);
+        box = get_tool_tip_box(region, p, dims);
+        Rect_f32 prev_clip = draw_set_clip(app, box);
+        draw_rectangle(app, box, 6.f, back_color);
+        draw_fancy_block(app, face, fcolor_zero(), block,
+                         box.p0 + V2f32(x_half_padding, 1.f));
+        draw_set_clip(app, prev_clip);
+    }
+    return(box);
+}
+
 // BOTTOM
 
