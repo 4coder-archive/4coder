@@ -358,6 +358,8 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     time_slice_box = rect_inner(time_slice_box, 3.f);
     
     if (node->closed){
+        draw_set_clip(app, time_slice_box);
+        
         x = rect_range_x(time_slice_box);
         y = rect_range_y(time_slice_box);
         
@@ -404,6 +406,8 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     Rect_f32 info_box = side_by_side.max;
     
     {
+        draw_set_clip(app, info_box);
+        
         x = rect_range_x(info_box);
         
         x_pos = x.min + x_half_padding;
@@ -441,7 +445,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             
             String_Const_u8 child_name = profile_node_name(child);
             Fancy_Line line = {};
-            push_fancy_string_trunc(scratch, &line, child_name, 10);
+            push_fancy_string_trunc(scratch, &line, child_name, 20);
             push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default), 0.5f, 0.f,
                                "#%4llu", child->unique_counter);
             push_fancy_stringf(scratch, &line, fcolor_id(Stag_Pop2),
