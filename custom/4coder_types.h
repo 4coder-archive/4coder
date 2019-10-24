@@ -564,9 +564,10 @@ typedef i32 Buffer_Hook_Function(Application_Links *app, Buffer_ID buffer_id);
 #define BUFFER_HOOK_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id)
 
 typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_id,
-                                       Range_i64 range, String_Const_u8 text);
-#define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id,\
-Interval_i64 range, String_Const_u8 text)
+                                       Range_i64 new_range, String_Const_u8 text);
+#define BUFFER_EDIT_RANGE_SIG(name) \
+i32 name(Application_Links *app, Buffer_ID buffer_id, \
+Interval_i64 new_range, String_Const_u8 text)
 
 typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data);
 #define DELTA_RULE_SIG(name) \

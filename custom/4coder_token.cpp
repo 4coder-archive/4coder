@@ -637,7 +637,7 @@ internal i64
 token_relex_resync(Token_Array *tokens, i64 edit_range_first, i64 look_ahead_repeats){
     Token_Iterator_Array it = token_iterator_pos(0, tokens, edit_range_first);
     b32 good_status = true;
-    for (i64 i = 0; i < look_ahead_repeats && good_status; i += 1){
+    for (i64 i = 0; (i < look_ahead_repeats) && good_status; i += 1){
         good_status = token_it_inc(&it);
     }
     if (good_status){

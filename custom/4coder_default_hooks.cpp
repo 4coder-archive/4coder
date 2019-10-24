@@ -594,7 +594,8 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
         Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
         if (scope != 0){
             Base_Allocator *allocator = managed_scope_allocator(app, scope);
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
+                                                       Token_Array);
             base_free(allocator, tokens_ptr->tokens);
             
             Token_Array tokens = {};
@@ -620,8 +621,6 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     ProfileScope(app, "begin buffer");
     
     b32 treat_as_code = false;
-    b32 lex_without_strings = false;
-    (void)(lex_without_strings);
     
     String_Const_u8_Array extensions = global_config.code_exts;
     
@@ -664,7 +663,6 @@ BUFFER_HOOK_SIG(default_begin_buffer){
                         init_language_rust(app);
                     }
                     parse_context_id = parse_context_language_rust;
-                    lex_without_strings = true;
                 }
                 
                 if (string_match(ext, string_u8_litexpr("cpp")) || 
@@ -777,12 +775,12 @@ BUFFER_HOOK_SIG(default_file_save){
 }
 
 BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
-    // buffer_id, range, text
+    // buffer_id, new_range, text
     ProfileScope(app, "default edit range");
     
-    Interval_i64 replace_range = Ii64(range.first, range.first + text.size);
-    i64 insert_size = range_size(range);
-    i64 text_shift = replace_range_shift(replace_range, insert_size);
+    Interval_i64 old_range = Ii64(new_range.first, new_range.first + text.size);
+    i64 insert_size = range_size(new_range);
+    i64 text_shift = replace_range_shift(old_range, insert_size);
     
     Scratch_Block scratch(app);
     
@@ -795,15 +793,18 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     else{
         Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
         if (ptr != 0 && ptr->tokens != 0){
-            i64 token_index_first = token_relex_first(ptr, range.first, 1);
-            i64 token_index_resync_guess = token_relex_resync(ptr, range.one_past_last, 16);
+            i64 token_index_first = token_relex_first(ptr, old_range.first, 1);
+            i64 token_index_resync_guess =
+                token_relex_resync(ptr, old_range.one_past_last, 16);
             
             Token *token_first = ptr->tokens + token_index_first;
             Token *token_resync = ptr->tokens + token_index_resync_guess;
             
-            Interval_i64 relex_range = Ii64(token_first->pos,
-                                            token_resync->pos + token_resync->size + text_shift);
-            String_Const_u8 partial_text = push_buffer_range(app, scratch, buffer_id, relex_range);
+            Range_i64 relex_range =
+                Ii64(token_first->pos,
+                     token_resync->pos + token_resync->size + text_shift);
+            String_Const_u8 partial_text = push_buffer_range(app, scratch, buffer_id,
+                                                             relex_range);
             
             Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
             if (relex_range.one_past_last < buffer_get_size(app, buffer_id)){
