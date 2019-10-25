@@ -41,6 +41,7 @@ struct Coroutine{
     Coroutine *yield_ctx;
     Coroutine_State state;
     Coroutine_Type type;
+    void *user_data;
 };
 
 struct Coroutine_Group{

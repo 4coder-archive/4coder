@@ -68,7 +68,7 @@ struct Models{
     
     Layout layout;
     Working_Set working_set;
-    Live_Views live_set;
+    Live_Views view_set;
     Global_History global_history;
     Text_Layout_Container text_layouts;
     Font_Set font_set;

@@ -38,7 +38,7 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
             }
             if (has_unsaved_changes){
                 View_ID view = get_active_view(app, Access_Always);
-                do_exit = do_gui_sure_to_close_4coder(app, view);
+                do_exit = do_4coder_close_user_check(app, view);
             }
         }
         if (do_exit){

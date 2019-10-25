@@ -18,6 +18,12 @@ select_next_scope_after_pos(Application_Links *app, View_ID view, Buffer_ID buff
     }
 }
 
+function b32
+range_is_scope_selection(Application_Links *app, Buffer_ID buffer, Range_i64 range){
+    return (buffer_get_char(app, buffer, range.min) == '{' &&
+            buffer_get_char(app, buffer, range.max - 1) == '}');
+}
+
 CUSTOM_COMMAND_SIG(select_surrounding_scope)
 CUSTOM_DOC("Finds the scope enclosed by '{' '}' surrounding the cursor and puts the cursor and mark on the '{' and '}'.")
 {
@@ -58,12 +64,19 @@ CUSTOM_DOC("Finds the first scope started by '{' after the cursor and puts the c
 }
 
 CUSTOM_COMMAND_SIG(select_next_scope_after_current)
-CUSTOM_DOC("Finds the first scope started by '{' after the mark and puts the cursor and mark on the '{' and '}'.  This command is meant to be used after a scope is already selected so that it will have the effect of selecting the next scope after the current scope.")
+CUSTOM_DOC("If a scope is selected, find first scope that starts after the selected scope. Otherwise find the first scope that starts after the cursor.")
 {
     View_ID view = get_active_view(app, Access_ReadVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
-    i64 pos = view_get_mark_pos(app, view);
-    select_next_scope_after_pos(app, view, buffer, pos);
+    i64 cursor_pos = view_get_cursor_pos(app, view);
+    i64 mark_pos = view_get_mark_pos(app, view);
+    Range_i64 range = Ii64(cursor_pos, mark_pos);
+    if (range_is_scope_selection(app, buffer, range)){
+        select_next_scope_after_pos(app, view, buffer, range.max);
+    }
+    else{
+        select_next_scope_after_pos(app, view, buffer, cursor_pos);
+    }
 }
 
 CUSTOM_COMMAND_SIG(select_prev_scope_absolute)
@@ -103,8 +116,7 @@ CUSTOM_DOC("Deletes the braces surrounding the currently selected scope.  Leaves
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     
     Range_i64 range = get_view_range(app, view);
-    if (buffer_get_char(app, buffer, range.min) == '{' &&
-        buffer_get_char(app, buffer, range.max - 1) == '}'){
+    if (range_is_scope_selection(app, buffer, range)){
         i32 top_len = 1;
         i32 bot_len = 1;
         if (buffer_get_char(app, buffer, range.min - 1) == '\n'){

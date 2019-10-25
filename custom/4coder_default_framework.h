@@ -73,10 +73,10 @@ typedef void View_Render_Hook(Application_Links *app, View_ID view, Frame_Info f
 ////////////////////////////////
 
 function b32
-do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view);
+do_buffer_kill_user_check(Application_Links *app, Buffer_ID buffer, View_ID view);
 
 function b32
-do_gui_sure_to_close_4coder(Application_Links *app, View_ID view);
+do_4coder_close_user_check(Application_Links *app, View_ID view);
 
 #endif
 

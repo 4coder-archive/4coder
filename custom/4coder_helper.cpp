@@ -1803,7 +1803,7 @@ internal Buffer_Kill_Result
 try_buffer_kill(Application_Links *app, Buffer_ID buffer, View_ID gui_view_id, Buffer_Kill_Flag flags){
     Buffer_Kill_Result result = buffer_kill(app, buffer, flags);
     if (result == BufferKillResult_Dirty){
-        if (do_gui_sure_to_kill(app, buffer, gui_view_id)){
+        if (do_buffer_kill_user_check(app, buffer, gui_view_id)){
             result = buffer_kill(app, buffer, BufferKill_AlwaysKill);
         }
     }

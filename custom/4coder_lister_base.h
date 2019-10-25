@@ -14,9 +14,6 @@ enum{
     ListerActivation_ContinueAndRefresh = 2,
 };
 
-typedef Lister_Activation_Code Lister_Activation_Type(Application_Links *app, View_ID view, struct Lister *lister,
-                                                      String_Const_u8 text_field, void *user_data, b32 activated_by_mouse);
-
 typedef void Lister_Regenerate_List_Function_Type(Application_Links *app, struct Lister *lister);
 
 struct Lister_Node{
@@ -48,7 +45,6 @@ typedef void Lister_Navigate_Function(Application_Links *app,
                                       i32 index_delta);
 
 struct Lister_Handlers{
-    Lister_Activation_Type *activate;
     Lister_Regenerate_List_Function_Type *refresh;
     Custom_Command_Function *write_character;
     Custom_Command_Function *backspace;
@@ -57,9 +53,10 @@ struct Lister_Handlers{
 };
 
 struct Lister_Result{
-    void *user_data;
-    b32 activated_by_click;
     b32 canceled;
+    b32 activated_by_click;
+    String_Const_u8 text_field;
+    void *user_data;
 };
 
 struct Lister{
@@ -70,9 +67,6 @@ struct Lister{
     
     Mapping *mapping;
     Command_Map *map;
-    
-    void *user_data;
-    umem user_data_size;
     
     u8 query_space[256];
     u8 text_field_space[256];
@@ -109,18 +103,15 @@ struct Lister_Filtered{
 
 ////////////////////////////////
 
-struct Lister_Option{
-    String_Const_u8 string;
-    String_Const_u8 status;
-    void *user_data;
-};
-
 struct Lister_Choice{
     Lister_Choice *next;
     String_Const_u8 string;
     String_Const_u8 status;
     Key_Code key_code;
-    u64 user_data;
+    union{
+        u64 user_data;
+        void *user_data_ptr;
+    };
 };
 
 struct Lister_Choice_List{

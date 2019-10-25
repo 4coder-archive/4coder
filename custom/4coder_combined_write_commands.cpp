@@ -195,46 +195,58 @@ static Snippet default_snippets[] = {
 #endif
 };
 
-static Lister_Activation_Code
-activate_snippet(Application_Links *app, View_ID view, Lister *lister, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
-    i32 index = (i32)PtrAsInt(user_data);
-    Snippet_Array snippets = *(Snippet_Array*)lister->user_data;
-    if (0 <= index && index < snippets.count){
-        Snippet snippet = snippets.snippets[index];
-        lister_default(app, view, lister, ListerActivation_Finished);
-        Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-        i64 pos = view_get_cursor_pos(app, view);
-        buffer_replace_range(app, buffer, Ii64(pos), SCu8(snippet.text));
-        view_set_cursor_and_preferred_x(app, view, seek_pos(pos + snippet.cursor_offset));
-        view_set_mark(app, view, seek_pos(pos + snippet.mark_offset));
-    }
-    else{
-        lister_default(app, view, lister, ListerActivation_Finished);
-    }
-    return(ListerActivation_Finished);
+function void
+write_snippet(Application_Links *app, View_ID view, Buffer_ID buffer,
+              i64 pos, Snippet *snippet){
+    String_Const_u8 snippet_text = SCu8(snippet->text);
+    buffer_replace_range(app, buffer, Ii64(pos), snippet_text);
+    i64 new_cursor = pos + snippet->cursor_offset;
+    view_set_cursor_and_preferred_x(app, view, seek_pos(new_cursor));
+    i64 new_mark = pos + snippet->mark_offset;
+    view_set_mark(app, view, seek_pos(new_mark));
+    auto_indent_buffer(app, buffer, Ii64_size(pos, snippet_text.size));
 }
 
-static void
-snippet_lister__parameterized(Application_Links *app, Snippet_Array snippet_array){
-    View_ID view = get_active_view(app, Access_Always);
+function Snippet*
+get_snippet_from_user(Application_Links *app, Snippet *snippets, i32 snippet_count,
+                      String_Const_u8 query){
     Scratch_Block scratch(app, Scratch_Share);
-    i32 option_count = snippet_array.count;
-    Lister_Option *options = push_array(scratch, Lister_Option, option_count);
-    for (i32 i = 0; i < snippet_array.count; i += 1){
-        options[i].string = SCu8(snippet_array.snippets[i].name);
-        options[i].status = SCu8(snippet_array.snippets[i].text);
-        options[i].user_data = IntAsPtr(i);
+    Lister *lister = begin_lister(app, scratch);
+    lister_set_query(lister, query);
+    lister->handlers = lister_get_default_handlers();
+    
+    Snippet *snippet = snippets;
+    for (i32 i = 0; i < snippet_count; i += 1, snippet += 1){
+        lister_add_item(lister, SCu8(snippet->name), SCu8(snippet->text), snippet, 0);
     }
-    run_lister_with_options_array(app, "Snippet:", activate_snippet, &snippet_array, sizeof(snippet_array), options, option_count, 0, view);
+    Lister_Result l_result = run_lister(app, lister);
+    Snippet *result = 0;
+    if (!l_result.canceled){
+        result = (Snippet*)l_result.user_data;
+    }
+    return(result);
+}
+
+
+function Snippet*
+get_snippet_from_user(Application_Links *app, Snippet *snippets, i32 snippet_count,
+                      char *query){
+    return(get_snippet_from_user(app, snippets, snippet_count, SCu8(query)));
 }
 
 CUSTOM_COMMAND_SIG(snippet_lister)
 CUSTOM_DOC("Opens a snippet lister for inserting whole pre-written snippets of text.")
 {
-    Snippet_Array snippet_array = {};
-    snippet_array.snippets = default_snippets;
-    snippet_array.count = ArrayCount(default_snippets);
-    snippet_lister__parameterized(app, snippet_array);
+    View_ID view = get_this_ctx_view(app, Access_ReadWrite);
+    if (view != 0){
+        Snippet *snippet = get_snippet_from_user(app, default_snippets,
+                                                 ArrayCount(default_snippets),
+                                                 "Snippet:");
+        
+        Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+        i64 pos = view_get_cursor_pos(app, view);
+        write_snippet(app, view, buffer, pos, snippet);
+    }
 }
 
 // BOTTOM

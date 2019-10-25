@@ -156,7 +156,7 @@ view_get_buffer_rect(Thread_Context *tctx, Models *models, View *view){
         Application_Links app = {};
         app.tctx = tctx;
         app.cmd_context = models;
-        sub_region = models->buffer_region(&app, view_get_id(&models->live_set, view), sub_region);
+        sub_region = models->buffer_region(&app, view_get_id(&models->view_set, view), sub_region);
         region.p0 = rect.p0 + sub_region.p0;
         region.p1 = rect.p0 + sub_region.p1;
         region.x1 = clamp_top(region.x1, rect.x1);
@@ -526,6 +526,7 @@ view_init(Thread_Context *tctx, Models *models, View *view, Editing_File *initia
     view_push_context(view, &first_ctx);
     
     view->co = coroutine_create(&models->coroutines, view_event_context_base__inner);
+    view->co->user_data = view;
     Co_In in = {};
     in.models = models;
     in.event_context_base = event_context_base;
@@ -539,7 +540,7 @@ view_close(Models *models, View *view){
     Layout *layout = &models->layout;
     b32 result = false;
     if (layout_close_panel(layout, view->panel)){
-        live_set_free_view(&models->lifetime_allocator, &models->live_set, view);
+        live_set_free_view(&models->lifetime_allocator, &models->view_set, view);
         result = true;
     }
     return(result);
@@ -745,11 +746,11 @@ finalize_color(Color_Table color_table, FColor fcolor){
 
 internal View*
 imp_get_view(Models *models, View_ID view_id){
-    Live_Views *live_set = &models->live_set;
+    Live_Views *view_set = &models->view_set;
     View *view = 0;
     view_id -= 1;
-    if (0 <= view_id && view_id < live_set->max){
-        view = live_set->views + view_id;
+    if (0 <= view_id && view_id < view_set->max){
+        view = view_set->views + view_id;
         if (!view->in_use){
             view = 0;
         }

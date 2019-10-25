@@ -7,7 +7,6 @@
  *
  */
 
-
 // TOP
 
 internal void
@@ -345,21 +344,21 @@ App_Init_Sig(app_init){
     // NOTE(allen): live set
     Arena *arena = models->arena;
     {
-        models->live_set.count = 0;
-        models->live_set.max = MAX_VIEWS;
-        models->live_set.views = push_array(arena, View, models->live_set.max);
+        models->view_set.count = 0;
+        models->view_set.max = MAX_VIEWS;
+        models->view_set.views = push_array(arena, View, models->view_set.max);
         
         //dll_init_sentinel
-        models->live_set.free_sentinel.next = &models->live_set.free_sentinel;
-        models->live_set.free_sentinel.prev = &models->live_set.free_sentinel;
+        models->view_set.free_sentinel.next = &models->view_set.free_sentinel;
+        models->view_set.free_sentinel.prev = &models->view_set.free_sentinel;
         
-        i32 max = models->live_set.max;
-        View *view = models->live_set.views;
+        i32 max = models->view_set.max;
+        View *view = models->view_set.views;
         for (i32 i = 0; i < max; ++i, ++view){
-            //dll_insert(&models->live_set.free_sentinel, view);
-            view->next = models->live_set.free_sentinel.next;
-            view->prev = &models->live_set.free_sentinel;
-            models->live_set.free_sentinel.next = view;
+            //dll_insert(&models->view_set.free_sentinel, view);
+            view->next = models->view_set.free_sentinel.next;
+            view->prev = &models->view_set.free_sentinel;
+            models->view_set.free_sentinel.next = view;
             view->next->prev = view;
         }
     }
@@ -436,7 +435,7 @@ App_Init_Sig(app_init){
     // NOTE(allen): setup first panel
     {
         Panel *panel = layout_initialize(arena, &models->layout);
-        View *new_view = live_set_alloc_view(&models->lifetime_allocator, &models->live_set, panel);
+        View *new_view = live_set_alloc_view(&models->lifetime_allocator, &models->view_set, panel);
         view_init(tctx, models, new_view, models->scratch_buffer, models->view_event_handler);
     }
     
@@ -833,7 +832,7 @@ App_Step_Sig(app_step){
         begin_render_section(target, models->frame_counter, literal_dt, animation_dt);
         models->in_render_mode = true;
         
-        Live_Views *live_views = &models->live_set;
+        Live_Views *live_views = &models->view_set;
         for (Node *node = layout->open_panels.next;
              node != &layout->open_panels;
              node = node->next){

@@ -282,7 +282,13 @@ CUSTOM_DOC("Creates a lister of locations that look like function definitions an
     if (buffer != 0){
         list_all_functions(app, buffer);
         view = get_active_view(app, Access_Always);
-        open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
+        buffer = view_get_buffer(app, view, Access_Always);
+        Marker_List *list = get_marker_list_for_buffer(buffer);
+        if (list != 0){
+            Jump_Lister_Result jump = get_jump_index_from_user(app, list,
+                                                               "Function:");
+            jump_to_jump_lister_result(app, view, list, &jump);
+        }
     }
 }
 
@@ -298,7 +304,12 @@ CUSTOM_DOC("Creates a lister of locations that look like function definitions an
     list_all_functions(app, 0);
     View_ID view = get_active_view(app, Access_Always);
     Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-    open_jump_lister(app, &global_heap, view, buffer, JumpListerActivation_OpenInUIView, 0);
+    Marker_List *list = get_marker_list_for_buffer(buffer);
+    if (list != 0){
+        Jump_Lister_Result jump = get_jump_index_from_user(app, list,
+                                                           "Function:");
+        jump_to_jump_lister_result(app, view, list, &jump);
+    }
 }
 
 // BOTTOM

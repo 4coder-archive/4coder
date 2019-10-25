@@ -966,7 +966,7 @@ get_view_next(Application_Links *app, View_ID view_id, Access_Flag access)
     }
     View_ID result = 0;
     if (view != 0){
-        result = view_get_id(&models->live_set, view);
+        result = view_get_id(&models->view_set, view);
     }
     return(result);
 }
@@ -983,7 +983,24 @@ get_view_prev(Application_Links *app, View_ID view_id, Access_Flag access)
     }
     View_ID result = 0;
     if (view != 0){
-        result = view_get_id(&models->live_set, view);
+        result = view_get_id(&models->view_set, view);
+    }
+    return(result);
+}
+
+api(custom) function View_ID
+get_this_ctx_view(Application_Links *app, Access_Flag access)
+{
+    Models *models = (Models*)app->cmd_context;
+    Thread_Context *tctx = app->tctx;
+    Thread_Context_Extra_Info *tctx_info = (Thread_Context_Extra_Info*)tctx->user_data;
+    View_ID result = 0;
+    if (tctx_info->coroutine != 0){
+        Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
+        View *view = (View*)coroutine->user_data;
+        if (view != 0){
+            result = view_get_id(&models->view_set, view);
+        }
     }
     return(result);
 }
@@ -998,7 +1015,7 @@ get_active_view(Application_Links *app, Access_Flag access)
     Assert(view != 0);
     View_ID result = 0;
     if (api_check_view(view, access)){
-        result = view_get_id(&models->live_set, view);
+        result = view_get_id(&models->view_set, view);
     }
     return(result);
 }
@@ -1119,7 +1136,7 @@ panel_get_view(Application_Links *app, Panel_ID panel_id, Access_Flag access){
         if (panel->kind == PanelKind_Final){
             View *view = panel->view;
             if (api_check_view(view, access)){
-                result = view_get_id(&models->live_set, view);
+                result = view_get_id(&models->view_set, view);
             }
         }
     }
@@ -1162,9 +1179,9 @@ panel_split(Application_Links *app, Panel_ID panel_id, Dimension split_dim){
         Panel *new_panel = 0;
         if (layout_split_panel(layout, panel, (split_dim == Dimension_X),
                                &new_panel)){
-            Live_Views *live_set = &models->live_set;
+            Live_Views *view_set = &models->view_set;
             View *new_view = live_set_alloc_view(&models->lifetime_allocator,
-                                                 live_set, new_panel);
+                                                 view_set, new_panel);
             view_init(app->tctx, models, new_view, models->scratch_buffer,
                       models->view_event_handler);
             result = true;
@@ -2031,20 +2048,18 @@ get_next_input(Application_Links *app, Event_Property get_properties, Event_Prop
     User_Input result = {};
     if (tctx_info->coroutine != 0){
         Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
-        if (coroutine != 0){
-            Co_Out *out = (Co_Out*)coroutine->out;
-            out->request = CoRequest_None;
-            out->get_flags = get_properties;
-            out->abort_flags = abort_properties;
-            coroutine_yield(coroutine);
-            Co_In *in = (Co_In*)coroutine->in;
-            result = in->user_input;
-        }
-        else{
+        Co_Out *out = (Co_Out*)coroutine->out;
+        out->request = CoRequest_None;
+        out->get_flags = get_properties;
+        out->abort_flags = abort_properties;
+        coroutine_yield(coroutine);
+        Co_In *in = (Co_In*)coroutine->in;
+        result = in->user_input;
+    }
+    else{
 #define M "ERROR: get_next_input called in a hook that may not make calls to blocking APIs"
-            print_message(app, string_u8_litexpr(M));
+        print_message(app, string_u8_litexpr(M));
 #undef M
-        }
     }
     return(result);
 }

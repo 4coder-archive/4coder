@@ -52,6 +52,7 @@
 #define custom_get_file_attributes_sig() File_Attributes custom_get_file_attributes(Application_Links* app, String_Const_u8 file_name)
 #define custom_get_view_next_sig() View_ID custom_get_view_next(Application_Links* app, View_ID view_id, Access_Flag access)
 #define custom_get_view_prev_sig() View_ID custom_get_view_prev(Application_Links* app, View_ID view_id, Access_Flag access)
+#define custom_get_this_ctx_view_sig() View_ID custom_get_this_ctx_view(Application_Links* app, Access_Flag access)
 #define custom_get_active_view_sig() View_ID custom_get_active_view(Application_Links* app, Access_Flag access)
 #define custom_get_active_panel_sig() Panel_ID custom_get_active_panel(Application_Links* app)
 #define custom_view_exists_sig() b32 custom_view_exists(Application_Links* app, View_ID view_id)
@@ -222,6 +223,7 @@ typedef File_Attributes custom_buffer_get_file_attributes_type(Application_Links
 typedef File_Attributes custom_get_file_attributes_type(Application_Links* app, String_Const_u8 file_name);
 typedef View_ID custom_get_view_next_type(Application_Links* app, View_ID view_id, Access_Flag access);
 typedef View_ID custom_get_view_prev_type(Application_Links* app, View_ID view_id, Access_Flag access);
+typedef View_ID custom_get_this_ctx_view_type(Application_Links* app, Access_Flag access);
 typedef View_ID custom_get_active_view_type(Application_Links* app, Access_Flag access);
 typedef Panel_ID custom_get_active_panel_type(Application_Links* app);
 typedef b32 custom_view_exists_type(Application_Links* app, View_ID view_id);
@@ -393,6 +395,7 @@ custom_buffer_get_file_attributes_type *buffer_get_file_attributes;
 custom_get_file_attributes_type *get_file_attributes;
 custom_get_view_next_type *get_view_next;
 custom_get_view_prev_type *get_view_prev;
+custom_get_this_ctx_view_type *get_this_ctx_view;
 custom_get_active_view_type *get_active_view;
 custom_get_active_panel_type *get_active_panel;
 custom_view_exists_type *view_exists;
@@ -565,6 +568,7 @@ internal File_Attributes buffer_get_file_attributes(Application_Links* app, Buff
 internal File_Attributes get_file_attributes(Application_Links* app, String_Const_u8 file_name);
 internal View_ID get_view_next(Application_Links* app, View_ID view_id, Access_Flag access);
 internal View_ID get_view_prev(Application_Links* app, View_ID view_id, Access_Flag access);
+internal View_ID get_this_ctx_view(Application_Links* app, Access_Flag access);
 internal View_ID get_active_view(Application_Links* app, Access_Flag access);
 internal Panel_ID get_active_panel(Application_Links* app);
 internal b32 view_exists(Application_Links* app, View_ID view_id);
@@ -737,6 +741,7 @@ global custom_buffer_get_file_attributes_type *buffer_get_file_attributes = 0;
 global custom_get_file_attributes_type *get_file_attributes = 0;
 global custom_get_view_next_type *get_view_next = 0;
 global custom_get_view_prev_type *get_view_prev = 0;
+global custom_get_this_ctx_view_type *get_this_ctx_view = 0;
 global custom_get_active_view_type *get_active_view = 0;
 global custom_get_active_panel_type *get_active_panel = 0;
 global custom_view_exists_type *view_exists = 0;

@@ -1343,31 +1343,47 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
 
 ///////////////////////////////
 
-function Lister_Activation_Code
-activate_project_command(Application_Links *app, View_ID view, Lister *lister, String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
-    i32 command_index = (i32)PtrAsInt(user_data);
-    exec_project_command_by_index(app, command_index);
-    lister_default(app, view, lister, ListerActivation_Finished);
-    return(ListerActivation_Finished);
+function Project_Command_Lister_Result
+get_project_command_from_user(Application_Links *app, Project *project,
+                              String_Const_u8 query){
+    Project_Command_Lister_Result result = {};
+    if (project != 0){
+        Scratch_Block scratch(app);
+        Lister *lister = begin_lister(app, scratch);
+        lister_set_query(lister, query);
+        lister->handlers = lister_get_default_handlers();
+        
+        Project_Command *proj_cmd = project->command_array.commands;
+        i32 count = project->command_array.count;
+        for (i32 i = 0; i < count; i += 1, proj_cmd += 1){
+            lister_add_item(lister, proj_cmd->name, proj_cmd->cmd, IntAsPtr(i), 0);
+        }
+        
+        Lister_Result l_result = run_lister(app, lister);
+        if (!l_result.canceled){
+            result.success = true;
+            result.index = (i32)PtrAsInt(l_result.user_data);
+        }
+    }
+    
+    return(result);
+}
+
+
+function Project_Command_Lister_Result
+get_project_command_from_user(Application_Links *app, Project *project, char *query){
+    return(get_project_command_from_user(app, project, SCu8(query)));
 }
 
 CUSTOM_COMMAND_SIG(project_command_lister)
 CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
 {
     if (current_project.loaded){
-        Scratch_Block scratch(app, Scratch_Share);
-        
-        View_ID view = get_active_view(app, Access_Always);
-        i32 option_count = current_project.command_array.count;
-        Lister_Option *options = push_array(scratch, Lister_Option, option_count);
-        for (i32 i = 0;
-             i < current_project.command_array.count;
-             i += 1){
-            options[i].string = push_string_copy(scratch, current_project.command_array.commands[i].name);
-            options[i].status = push_string_copy(scratch, current_project.command_array.commands[i].cmd);
-            options[i].user_data = IntAsPtr(i);
+        Project_Command_Lister_Result proj_cmd =
+            get_project_command_from_user(app, &current_project, "Command:");
+        if (proj_cmd.success){
+            exec_project_command_by_index(app, proj_cmd.index);
         }
-        run_lister_with_options_array(app, "Command:", activate_project_command, 0, 0, options, option_count, 0, view);
     }
 }
 

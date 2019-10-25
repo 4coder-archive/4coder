@@ -52,6 +52,7 @@ api(custom) function File_Attributes buffer_get_file_attributes(Application_Link
 api(custom) function File_Attributes get_file_attributes(Application_Links* app, String_Const_u8 file_name);
 api(custom) function View_ID get_view_next(Application_Links* app, View_ID view_id, Access_Flag access);
 api(custom) function View_ID get_view_prev(Application_Links* app, View_ID view_id, Access_Flag access);
+api(custom) function View_ID get_this_ctx_view(Application_Links* app, Access_Flag access);
 api(custom) function View_ID get_active_view(Application_Links* app, Access_Flag access);
 api(custom) function Panel_ID get_active_panel(Application_Links* app);
 api(custom) function b32 view_exists(Application_Links* app, View_ID view_id);

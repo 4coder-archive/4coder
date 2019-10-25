@@ -79,11 +79,9 @@ generate_all_buffers_list(Application_Links *app, Lister *lister){
 
 function Buffer_ID
 get_buffer_from_user(Application_Links *app, String_Const_u8 query){
-    View_ID view = get_active_view(app, Access_Always);
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.refresh = generate_all_buffers_list;
-    Lister_Result l_result = run_lister_with_refresh_handler(app, query, handlers,
-                                                             0, 0, view);
+    Lister_Result l_result = run_lister_with_refresh_handler(app, query, handlers);
     Buffer_ID result = 0;
     if (!l_result.canceled){
         result = (Buffer_ID)(PtrAsInt(l_result.user_data));
@@ -98,9 +96,60 @@ get_buffer_from_user(Application_Links *app, char *query){
 
 ////////////////////////////////
 
+function Custom_Command_Function*
+get_command_from_user(Application_Links *app, String_Const_u8 query,
+                      i32 *command_ids, i32 command_id_count){
+    if (command_ids == 0){
+        command_id_count = command_one_past_last_id;
+    }
+    
+    Scratch_Block scratch(app, Scratch_Share);
+    Lister *lister = begin_lister(app, scratch);
+    lister_set_query(lister, query);
+    lister->handlers = lister_get_default_handlers();
+    
+    for (i32 i = 0; i < command_id_count; i += 1){
+        i32 j = i;
+        if (command_ids != 0){
+            j = command_ids[i];
+        }
+        j = clamp(0, j, command_one_past_last_id);
+        lister_add_item(lister,
+                        SCu8(fcoder_metacmd_table[j].name),
+                        SCu8(fcoder_metacmd_table[j].description),
+                        (void*)fcoder_metacmd_table[j].proc, 0);
+    }
+    
+    Lister_Result l_result = run_lister(app, lister);
+    
+    Custom_Command_Function *result = 0;
+    if (!l_result.canceled){
+        result = (Custom_Command_Function*)l_result.user_data;
+    }
+    return(result);
+}
+
+function Custom_Command_Function*
+get_command_from_user(Application_Links *app, String_Const_u8 query){
+    return(get_command_from_user(app, query, 0, 0));
+}
+
+function Custom_Command_Function*
+get_command_from_user(Application_Links *app, char *query,
+                      i32 *command_ids, i32 command_id_count){
+    return(get_command_from_user(app, SCu8(query), command_ids, command_id_count));
+}
+
+function Custom_Command_Function*
+get_command_from_user(Application_Links *app, char *query){
+    return(get_command_from_user(app, SCu8(query), 0, 0));
+}
+
+////////////////////////////////
+
 function void
 lister__write_character__file_path(Application_Links *app){
-    View_ID view = get_active_view(app, Access_Always);
+    View_ID view = get_this_ctx_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
         User_Input in = get_current_input(app);
@@ -112,18 +161,18 @@ lister__write_character__file_path(Application_Links *app){
             if (character_is_slash(string.str[0])){
                 String_Const_u8 new_hot = lister->text_field.string;
                 set_hot_directory(app, new_hot);
-                lister_call_refresh_handler(app, view, lister);
+                lister_call_refresh_handler(app, lister);
             }
             lister->item_index = 0;
             lister_zero_scroll(lister);
-            lister_update_filtered_list(app, view, lister);
+            lister_update_filtered_list(app, lister);
         }
     }
 }
 
 function void
 lister__backspace_text_field__file_path(Application_Links *app){
-    View_ID view = get_active_view(app, Access_Always);
+    View_ID view = get_this_ctx_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
         if (lister->text_field.size > 0){
@@ -142,7 +191,7 @@ lister__backspace_text_field__file_path(Application_Links *app){
                 // TODO(allen): We have to protect against lister_call_refresh_handler
                 // changing the text_field here. Clean this up.
                 String_u8 dingus = lister->text_field;
-                lister_call_refresh_handler(app, view, lister);
+                lister_call_refresh_handler(app, lister);
                 lister->text_field = dingus;
             }
             else{
@@ -153,7 +202,7 @@ lister__backspace_text_field__file_path(Application_Links *app){
             
             lister->item_index = 0;
             lister_zero_scroll(lister);
-            lister_update_filtered_list(app, view, lister);
+            lister_update_filtered_list(app, lister);
         }
     }
 }
@@ -226,17 +275,52 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
     }
 }
 
-function void
-run_lister_file_system_list(Application_Links *app, char *query_string,
-                            Lister_Activation_Type *activate_procedure,
-                            void *user_data, i32 user_data_size, View_ID target_view){
+struct File_Name_Result{
+    b32 canceled;
+    b32 clicked;
+    b32 is_folder;
+    String_Const_u8 file_name_activated;
+    String_Const_u8 file_name_in_text_field;
+    String_Const_u8 path_in_text_field;
+};
+
+function File_Name_Result
+get_file_name_from_user(Application_Links *app, Arena *arena, String_Const_u8 query,
+                        View_ID view){
     Lister_Handlers handlers = lister_get_default_handlers();
-    handlers.activate = activate_procedure;
     handlers.refresh = generate_hot_directory_file_list;
     handlers.write_character = lister__write_character__file_path;
     handlers.backspace = lister__backspace_text_field__file_path;
-    run_lister_with_refresh_handler(app, SCu8(query_string), handlers,
-                                    user_data, user_data_size, target_view);
+    
+    Lister_Result l_result =
+        run_lister_with_refresh_handler(app, arena, query, handlers);
+    
+    File_Name_Result result = {};
+    result.canceled = l_result.canceled;
+    if (!l_result.canceled){
+        result.clicked = l_result.activated_by_click;
+        if (l_result.user_data != 0){
+            String_Const_u8 name = SCu8((u8*)l_result.user_data);
+            result.file_name_activated = name;
+            result.is_folder =
+                character_is_slash(string_get_character(name, name.size -1 ));
+        }
+        result.file_name_in_text_field = string_front_of_path(l_result.text_field);
+        
+        String_Const_u8 path = string_remove_front_of_path(l_result.text_field);
+        if (character_is_slash(string_get_character(path, path.size - 1))){
+            path = string_chop(path, 1);
+        }
+        result.path_in_text_field = path;
+    }
+    
+    return(result);
+}
+
+function File_Name_Result
+get_file_name_from_user(Application_Links *app, Arena *arena, char *query,
+                        View_ID view){
+    return(get_file_name_from_user(app, arena, SCu8(query), view));
 }
 
 ////////////////////////////////
@@ -249,7 +333,7 @@ enum{
 };
 
 function b32
-do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
+do_buffer_kill_user_check(Application_Links *app, Buffer_ID buffer, View_ID view){
     Scratch_Block scratch(app);
     Lister_Choice_List list = {};
     lister_choice(scratch, &list, "(N)o"  , "", KeyCode_N, SureToKill_No);
@@ -290,35 +374,8 @@ do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
     return(do_kill);
 }
 
-function Lister_Activation_Code
-activate_confirm_close_4coder(Application_Links *app,
-                              View_ID view, Lister *lister,
-                              String_Const_u8 text_field, void *user_data, b32 clicked){
-    i32 behavior = (i32)PtrAsInt(user_data);
-    b32 *do_exit = (b32*)user_data;
-    switch (behavior){
-        case SureToKill_No:
-        {}break;
-        
-        case SureToKill_Yes:
-        {
-            allow_immediate_close_without_checking_for_changes = true;
-            *do_exit = true;
-        }break;
-        
-        case SureToKill_Save:
-        {
-            save_all_dirty_buffers(app);
-            allow_immediate_close_without_checking_for_changes = true;
-            *do_exit = true;
-        }break;
-    }
-    lister_default(app, view, lister, ListerActivation_Finished);
-    return(ListerActivation_Finished);
-}
-
 function b32
-do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
+do_4coder_close_user_check(Application_Links *app, View_ID view){
     Scratch_Block scratch(app);
     Lister_Choice_List list = {};
     lister_choice(scratch, &list, "(N)o"  , "", KeyCode_N, SureToKill_No);
@@ -356,59 +413,32 @@ do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
 
 ////////////////////////////////
 
-#if 0
-function Lister_Activation_Code
-activate_switch_buffer(Application_Links *app,
-                       View_ID view, Lister *lister,
-                       String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
-    if (user_data != 0){
-        Buffer_ID buffer_id = (Buffer_ID)(PtrAsInt(user_data));
-        view_set_buffer(app, view, buffer_id, SetBuffer_KeepOriginalGUI);
-    }
-    lister_default(app, view, lister, ListerActivation_Finished);
-    return(ListerActivation_Finished);
-}
-#endif
-
 CUSTOM_UI_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
     View_ID view = get_active_view(app, Access_Always);
-    //run_lister_buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, view);
-    Buffer_ID buffer = get_buffer_from_user(app, "Switch: ");
+    Buffer_ID buffer = get_buffer_from_user(app, "Switch:");
     if (buffer != 0){
         view_set_buffer(app, view, buffer, 0);
     }
 }
 
-#if 0
-function Lister_Activation_Code
-activate_kill_buffer(Application_Links *app,
-                     View_ID view, Lister *lister,
-                     String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
-    lister_default(app, view, lister, ListerActivation_Finished);
-    if (user_data != 0){
-        Buffer_ID buffer = (Buffer_ID)(PtrAsInt(user_data));
-        try_buffer_kill(app, buffer, view, 0);
-    }
-    return(ListerActivation_Finished);
-}
-#endif
-
 CUSTOM_UI_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
     View_ID view = get_active_view(app, Access_Always);
-    //run_lister_buffer_list(app, "Kill:", activate_kill_buffer, 0, 0, view);
-    Buffer_ID buffer = get_buffer_from_user(app, "Kill: ");
+    Buffer_ID buffer = get_buffer_from_user(app, "Kill:");
     if (buffer != 0){
         try_buffer_kill(app, buffer, view, 0);
     }
 }
 
+////////////////////////////////
+
 function Lister_Activation_Code
 activate_open_or_new__generic(Application_Links *app, View_ID view,
-                              String_Const_u8 path, String_Const_u8 file_name, b32 is_folder,
+                              String_Const_u8 path, String_Const_u8 file_name,
+                              b32 is_folder,
                               Buffer_Create_Flag flags){
     Lister_Activation_Code result = 0;
     
@@ -441,174 +471,122 @@ activate_open_or_new__generic(Application_Links *app, View_ID view,
     return(result);
 }
 
-function Lister_Activation_Code
-activate_open_or_new(Application_Links *app,
-                     View_ID view, Lister *lister,
-                     String_Const_u8 text_field, void *user_data, b32 clicked){
-    Lister_Activation_Code result = 0;
-    String_Const_u8 file_name = {};
-    if (user_data == 0){
-        file_name = string_front_of_path(text_field);
-    }
-    else{
-        file_name = SCu8((u8*)user_data);
-    }
-    if (file_name.size == 0){
-        result = ListerActivation_Finished;
-    }
-    else{
-        String_Const_u8 path = lister->text_field.string;
-        if (!character_is_slash(string_get_character(path, path.size - 1))){
-            path = string_remove_last_folder(path);
-        }
-        b32 is_folder = (character_is_slash(string_get_character(file_name, file_name.size - 1)) &&
-                         user_data != 0);
-        Buffer_Create_Flag flags = 0;
-        result = activate_open_or_new__generic(app, view, path, file_name, is_folder, flags);
-    }
-    lister_default(app, view, lister, result);
-    return(result);
-}
-
 CUSTOM_UI_COMMAND_SIG(interactive_open_or_new)
 CUSTOM_DOC("Interactively open a file out of the file system.")
 {
-    View_ID view = get_active_view(app, Access_Always);
-    run_lister_file_system_list(app, "Open:", activate_open_or_new, 0, 0, view);
-}
-
-function Lister_Activation_Code
-activate_new(Application_Links *app,
-             View_ID view, Lister *lister,
-             String_Const_u8 text_field, void *user_data, b32 clicked){
-    Lister_Activation_Code result = 0;
-    String_Const_u8 file_name = string_front_of_path(text_field);
-    if (user_data != 0){
-        String_Const_u8 item_name = SCu8((u8*)user_data);
-        if (item_name.str[item_name.size - 1] == '/'){
-            file_name = item_name;
+    for (;;){
+        Scratch_Block scratch(app);
+        View_ID view = get_this_ctx_view(app, Access_Always);
+        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:",
+                                                          view);
+        if (result.canceled) break;
+        
+        String_Const_u8 file_name = result.file_name_activated;
+        if (file_name.size == 0){
+            file_name = result.file_name_in_text_field;
         }
-        else if (clicked){
-            file_name = item_name;
+        if (file_name.size == 0) break;
+        
+        String_Const_u8 path = result.path_in_text_field;
+        String_Const_u8 full_file_name =
+            push_u8_stringf(scratch, "%.*s/%.*s",
+                            string_expand(path), string_expand(file_name));
+        
+        if (result.is_folder){
+            set_hot_directory(app, full_file_name);
+            continue;
         }
-    }
-    if (file_name.size == 0){
-        result = ListerActivation_Finished;
-    }
-    else{
-        String_Const_u8 path = lister->text_field.string;
-        if (character_is_slash(string_get_character(path, path.size - 1))){
-            path = string_remove_last_folder(path);
+        
+        Buffer_ID buffer = create_buffer(app, full_file_name, 0);
+        if (buffer != 0){
+            view_set_buffer(app, view, buffer, 0);
         }
-        b32 is_folder = (character_is_slash(string_get_character(file_name, file_name.size - 1)) &&
-                         user_data != 0);
-        Buffer_Create_Flag flags = BufferCreate_AlwaysNew;
-        result = activate_open_or_new__generic(app, view, path, file_name, is_folder, flags);
+        break;
     }
-    lister_default(app, view, lister, result);
-    return(result);
 }
 
 CUSTOM_UI_COMMAND_SIG(interactive_new)
 CUSTOM_DOC("Interactively creates a new file.")
 {
-    View_ID view = get_active_view(app, Access_Always);
-    run_lister_file_system_list(app, "New:", activate_new, 0, 0, view);
-}
-
-function Lister_Activation_Code
-activate_open(Application_Links *app,
-              View_ID view, Lister *lister,
-              String_Const_u8 text_field, void *user_data, b32 clicked){
-    Lister_Activation_Code result = 0;
-    String_Const_u8 file_name = {};
-    if (user_data != 0){
-        file_name = SCu8((u8*)user_data);
-    }
-    if (file_name.size == 0){
-        result = ListerActivation_Finished;
-    }
-    else{
-        String_Const_u8 path = lister->text_field.string;
-        if (!character_is_slash(string_get_character(path, path.size - 1))){
-            path = string_remove_last_folder(path);
+    for (;;){
+        Scratch_Block scratch(app);
+        View_ID view = get_this_ctx_view(app, Access_Always);
+        File_Name_Result result = get_file_name_from_user(app, scratch, "New:",
+                                                          view);
+        if (result.canceled) break;
+        
+        // NOTE(allen): file_name from the text field always
+        // unless this is a folder or a mouse click.
+        String_Const_u8 file_name = result.file_name_in_text_field;
+        if (result.is_folder || result.clicked){
+            file_name = result.file_name_activated;
         }
-        b32 is_folder = (character_is_slash(string_get_character(file_name, file_name.size - 1)) &&
-                         user_data != 0);
-        Buffer_Create_Flag flags = BufferCreate_NeverNew;
-        result = activate_open_or_new__generic(app, view, path, file_name, is_folder, flags);
+        if (file_name.size == 0) break;
+        
+        String_Const_u8 path = result.path_in_text_field;
+        String_Const_u8 full_file_name =
+            push_u8_stringf(scratch, "%.*s/%.*s",
+                            string_expand(path), string_expand(file_name));
+        
+        if (result.is_folder){
+            set_hot_directory(app, full_file_name);
+            continue;
+        }
+        
+        Buffer_Create_Flag flags = BufferCreate_AlwaysNew;
+        Buffer_ID buffer = create_buffer(app, full_file_name, flags);
+        if (buffer != 0){
+            view_set_buffer(app, view, buffer, 0);
+        }
+        break;
     }
-    lister_default(app, view, lister, result);
-    return(result);
 }
 
 CUSTOM_UI_COMMAND_SIG(interactive_open)
 CUSTOM_DOC("Interactively opens a file.")
 {
-    View_ID view = get_active_view(app, Access_Always);
-    run_lister_file_system_list(app, "Open:", activate_open, 0, 0, view);
+    for (;;){
+        Scratch_Block scratch(app);
+        View_ID view = get_this_ctx_view(app, Access_Always);
+        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:",
+                                                          view);
+        if (result.canceled) break;
+        
+        String_Const_u8 file_name = result.file_name_activated;
+        if (file_name.size == 0) break;
+        
+        String_Const_u8 path = result.path_in_text_field;
+        String_Const_u8 full_file_name =
+            push_u8_stringf(scratch, "%.*s/%.*s",
+                            string_expand(path), string_expand(file_name));
+        
+        if (result.is_folder){
+            set_hot_directory(app, full_file_name);
+            continue;
+        }
+        
+        Buffer_Create_Flag flags = BufferCreate_NeverNew;
+        Buffer_ID buffer = create_buffer(app, full_file_name, flags);
+        if (buffer != 0){
+            view_set_buffer(app, view, buffer, 0);
+        }
+        break;
+    }
 }
-
-#if 0
-function Lister_Activation_Code
-activate_select_theme(Application_Links *app,
-                      View_ID view, struct Lister *lister,
-                      String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
-    change_theme_by_index(app, (i32)PtrAsInt(user_data));
-    lister_default(app, scratch, view, state, ListerActivation_Finished);
-    return(ListerActivation_Finished);
-}
-
-CUSTOM_COMMAND_SIG(open_color_tweaker)
-CUSTOM_DOC("Opens the 4coder theme selector list.")
-{
-    
-}
-#endif
 
 ////////////////////////////////
-
-function Lister_Activation_Code
-activate_command(Application_Links *app,
-                 View_ID view, Lister *lister,
-                 String_Const_u8 text_field, void *user_data, b32 activated_by_mouse){
-    (*(Custom_Command_Function**)lister->user_data) = (Custom_Command_Function*)user_data;
-    lister_default(app, view, lister, ListerActivation_Finished);
-    return(ListerActivation_Finished);
-}
-
-function void
-launch_custom_command_lister(Application_Links *app, i32 *command_ids, i32 command_id_count){
-    if (command_ids == 0){
-        command_id_count = command_one_past_last_id;
-    }
-    
-    Scratch_Block scratch(app, Scratch_Share);
-    View_ID view = get_active_view(app, Access_Always);
-    Lister_Option *options = push_array(scratch, Lister_Option, command_id_count);
-    for (i32 i = 0; i < command_id_count; i += 1){
-        i32 j = i;
-        if (command_ids != 0){
-            j = command_ids[i];
-        }
-        j = clamp(0, j, command_one_past_last_id);
-        options[i].string = SCu8(fcoder_metacmd_table[j].name);
-        options[i].status = SCu8(fcoder_metacmd_table[j].description);
-        options[i].user_data = (void*)fcoder_metacmd_table[j].proc;
-    }
-    Custom_Command_Function *custom_cmd = 0;
-    run_lister_with_options_array(app, "Command:", activate_command, &custom_cmd, sizeof(custom_cmd),
-                                  options, command_id_count, 0, view);
-    if (custom_cmd != 0){
-		animate_in_n_milliseconds(app, 0);
-        custom_cmd(app);
-    }
-}
 
 CUSTOM_UI_COMMAND_SIG(command_lister)
 CUSTOM_DOC("Opens an interactive list of all registered commands.")
 {
-    launch_custom_command_lister(app, 0, 0);
+    Custom_Command_Function *func = get_command_from_user(app, "Command:");
+    if (func != 0){
+        View_ID view = get_this_ctx_view(app, Access_Always);
+        Managed_Scope scope = view_get_managed_scope(app, view);
+        Custom_Command_Function **call_next =
+            scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
+        *call_next = func;
+    }
 }
 
 // BOTTOM
