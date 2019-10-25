@@ -10,12 +10,16 @@
 #undef ProfileEnd
 #undef ProfileBlock
 #undef ProfileScope
+#undef ProfileBlockNamed
+#undef ProfileScopeNamed
 #endif
 
 #define ProfileBegin(T,N)
 #define ProfileEnd(T,I)
 #define ProfileBlock(T,N)
 #define ProfileScope(T,N)
+#define ProfileBlockNamed(T,N,M)
+#define ProfileScopeNamed(T,N,M)
 
 // BOTTOM
 

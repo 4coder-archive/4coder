@@ -436,6 +436,8 @@ lister_call_activate_handler(Application_Links *app, View_ID view, Lister *liste
     else{
         lister_default(app, view, lister, ListerActivation_Finished);
     }
+    lister->out.user_data = user_data;
+    lister->out.activated_by_click = activated_by_mouse;
     return(result);
 }
 
@@ -475,8 +477,8 @@ lister_user_data_at_p(Application_Links *app, View_ID view, Lister *lister, Vec2
     return(result);
 }
 
-function void
-lister_run(Application_Links *app, View_ID view, Lister *lister){
+function Lister_Result
+run_lister(Application_Links *app, View_ID view, Lister *lister){
     lister->filter_restore_point = begin_temp(lister->arena);
     lister_update_filtered_list(app, view, lister);
     
@@ -486,8 +488,11 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
     view_push_context(app, view, &ctx);
     
     for (;;){
-        User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
+        User_Input in = get_next_input(app, EventPropertyGroup_Any,
+                                       EventProperty_Escape);
         if (in.abort){
+            block_zero_struct(&lister->out);
+            lister->out.canceled = true;
             break;
         }
         
@@ -657,6 +662,8 @@ lister_run(Application_Links *app, View_ID view, Lister *lister){
     }
     
     view_pop_context(app, view);
+    
+    return(lister->out);
 }
 
 function Lister_Prealloced_String
@@ -674,8 +681,8 @@ lister_begin_new_item_set(Application_Links *app, Lister *lister){
 }
 
 function void*
-lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status,
-                void *user_data, umem extra_space){
+lister_add_item(Lister *lister, Lister_Prealloced_String string,
+                Lister_Prealloced_String status, void *user_data, umem extra_space){
     void *base_memory = push_array(lister->arena, u8, sizeof(Lister_Node) + extra_space);
     Lister_Node *node = (Lister_Node*)base_memory;
     node->string = string.string;
@@ -756,6 +763,153 @@ lister__navigate__default(Application_Links *app, View_ID view, Lister *lister,
     }
     lister->set_vertical_focus_to_item = true;
     lister_update_selection_values(lister);
+}
+
+function Lister_Activation_Code
+lister__key_stroke__fixed_list(Application_Links *app){
+    Lister_Activation_Code result = ListerActivation_Continue;
+    View_ID view = get_active_view(app, Access_Always);
+    Lister *lister = view_get_lister(view);
+    if (lister != 0){
+        User_Input in = get_current_input(app);
+        if (in.event.kind == InputEventKind_KeyStroke){
+            void *user_data = 0;
+            b32 did_shortcut_key = false;
+            for (Lister_Node *node = lister->options.first;
+                 node != 0;
+                 node = node->next){
+                Key_Code *key_code = (Key_Code*)(node + 1);
+                if (*key_code == in.event.key.code){
+                    user_data = node->user_data;
+                    did_shortcut_key = true;
+                    break;
+                }
+            }
+            if (did_shortcut_key){
+                result = lister_call_activate_handler(app, view, lister, user_data, false);
+            }
+        }
+    }
+    return(result);
+}
+
+function Lister_Handlers
+lister_get_default_handlers(void){
+    Lister_Handlers handlers = {};
+    handlers.write_character = lister__write_string__default;
+    handlers.backspace       = lister__backspace_text_field__default;
+    handlers.navigate        = lister__navigate__default;
+    return(handlers);
+}
+
+////////////////////////////////
+
+function Lister_Result
+run_lister_with_refresh_handler(Application_Links *app, String_Const_u8 query, 
+                                Lister_Handlers handlers,
+                                void *user_data, i32 user_data_size, View_ID view){
+    Scratch_Block scratch(app);
+    Lister_Result result = {};
+    if (handlers.refresh != 0){
+        Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
+        lister_set_query(lister, query);
+        lister->handlers = handlers;
+        handlers.refresh(app, lister);
+        result = run_lister(app, view, lister);
+    }
+    else{
+#define M "ERROR: No refresh handler specified for lister (query_string = \"%.*s\")\n"
+        String_Const_u8 str = push_u8_stringf(scratch, M, string_expand(query));
+#undef M
+        print_message(app, str);
+    }
+    return(result);
+}
+
+function Lister_Result
+run_lister_with_options_array(Application_Links *app, char *query_string,
+                              Lister_Activation_Type *activate,
+                              void *user_data, i32 user_data_size,
+                              Lister_Option *options, i32 option_count,
+                              i32 estimated_string_space_size,
+                              View_ID view){
+    Scratch_Block scratch(app);
+    Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
+    for (i32 i = 0; i < option_count; i += 1){
+        lister_add_item(lister, options[i].string, options[i].status, options[i].user_data, 0);
+    }
+    lister_set_query(lister, query_string);
+    lister->handlers = lister_get_default_handlers();
+    lister->handlers.activate = activate;
+    return(run_lister(app, view, lister));
+}
+
+function void
+lister_choice(Arena *arena, Lister_Choice_List *list,
+              String_Const_u8 string, String_Const_u8 status,
+              Key_Code code, u64 user_data){
+    Lister_Choice *choice = push_array(arena, Lister_Choice, 1);
+    sll_queue_push(list->first, list->last, choice);
+    choice->string = string;
+    choice->status = status;
+    choice->key_code = code;
+    choice->user_data = user_data;
+}
+
+function void
+lister_choice(Arena *arena, Lister_Choice_List *list,
+              char *string, String_Const_u8 status,
+              Key_Code code, u64 user_data){
+    lister_choice(arena, list, SCu8(string), status, code, (u64)PtrAsInt(user_data));
+}
+
+function void
+lister_choice(Arena *arena, Lister_Choice_List *list,
+              String_Const_u8 string, char *status,
+              Key_Code code, u64 user_data){
+    lister_choice(arena, list, string, SCu8(status), code, (u64)PtrAsInt(user_data));
+}
+
+function void
+lister_choice(Arena *arena, Lister_Choice_List *list,
+              char *string, char *status,
+              Key_Code code, u64 user_data){
+    lister_choice(arena, list, SCu8(string), SCu8(status), code,
+                  (u64)PtrAsInt(user_data));
+}
+
+function Lister_Choice*
+get_choice_from_user(Application_Links *app, String_Const_u8 query,
+                     Lister_Choice_List list){
+    Scratch_Block scratch(app);
+    View_ID view = get_active_view(app, Access_Always);
+    Lister *lister = begin_lister(app, scratch, view, 0, 0);
+    for (Lister_Choice *choice = list.first;
+         choice != 0;
+         choice = choice->next){
+        umem code_size = sizeof(choice->key_code);
+        void *extra = lister_add_item(lister, choice->string, choice->status,
+                                      choice, code_size);
+        block_copy(extra, &choice->key_code, code_size);
+    }
+    lister_set_query(lister, query);
+    Lister_Handlers handlers = {};
+    handlers.navigate        = lister__navigate__default;
+    handlers.key_stroke      = lister__key_stroke__fixed_list;
+    lister->handlers = handlers;
+    lister->handlers.refresh = 0;
+    
+    Lister_Result l_result = run_lister(app, view, lister);
+    Lister_Choice *result = 0;
+    if (!l_result.canceled){
+        result = (Lister_Choice*)l_result.user_data;
+    }
+    return(result);
+}
+
+function Lister_Choice*
+get_choice_from_user(Application_Links *app, char *query, Lister_Choice_List list){
+    return(get_choice_from_user(app, SCu8(query), list));
 }
 
 // BOTTOM

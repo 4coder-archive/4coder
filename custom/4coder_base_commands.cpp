@@ -7,6 +7,7 @@ moving the cursor, which work even without the default 4coder framework.
 
 function void
 write_character_parameter(Application_Links *app, String_Const_u8 insert){
+    ProfileScope(app, "write character");
     if (insert.str != 0 && insert.size > 0){
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
         if_view_has_highlighted_range_delete_range(app, view);
@@ -280,6 +281,7 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
 
 internal void
 move_vertical_pixels(Application_Links *app, View_ID view, f32 pixels){
+    ProfileScope(app, "move vertical pixels");
     i64 pos = view_get_cursor_pos(app, view);
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
     Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, pos);
@@ -379,7 +381,6 @@ seek_blank_line(Application_Links *app, Scan_Direction direction, Position_Withi
         {
             new_pos = get_pos_past_lead_whitespace(app, buffer, new_pos);
         }break;
-        
         case PositionWithinLine_End:
         {
             new_pos = get_line_side_pos_from_pos(app, buffer, new_pos, Side_Max);
@@ -584,6 +585,7 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
 CUSTOM_COMMAND_SIG(clean_all_lines)
 CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
 {
+    ProfileScope(app, "clean all lines");
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     

@@ -178,7 +178,8 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Edit 
 }
 
 internal void
-edit_single(Thread_Context *tctx, Models *models, Editing_File *file, Interval_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
+edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
+            Interval_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
     Edit edit = {};
     edit.text = string;
     edit.range = range;
@@ -391,7 +392,8 @@ edit_merge_history_range(Thread_Context *tctx, Models *models, Editing_File *fil
 }
 
 internal b32
-edit_batch(Thread_Context *tctx, Models *models, Editing_File *file, Batch_Edit *batch, Edit_Behaviors behaviors){
+edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
+           Batch_Edit *batch, Edit_Behaviors behaviors){
     b32 result = true;
     if (batch != 0){
         History_Record_Index start_index = 0;

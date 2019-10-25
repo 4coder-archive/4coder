@@ -7,6 +7,7 @@
 CUSTOM_COMMAND_SIG(default_startup)
 CUSTOM_DOC("Default command for responding to a startup event")
 {
+    ProfileScope(app, "default startup");
     User_Input input = get_current_input(app);
     if (match_core_code(&input, CoreCode_Startup)){
         String_Const_u8_Array file_names = input.event.core.file_names;
@@ -74,6 +75,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
     for (;;){
         // NOTE(allen): Get the binding from the buffer's current map
         User_Input input = get_next_input(app, EventPropertyGroup_Any, 0);
+        ProfileScopeNamed(app, "before view input", view_input_profile);
         if (input.abort){
             break;
         }
@@ -95,13 +97,15 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         }
         Command_Map_ID map_id = *map_id_ptr;
         
-        Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
+        Command_Binding binding =
+            map_get_binding_recursive(&framework_mapping, map_id, &input.event);
         
         Managed_Scope scope = view_get_managed_scope(app, view);
         Custom_Command_Function** next_call = 0;
         
 	    call_again:
-        next_call = scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
+        next_call = scope_attachment(app, scope, view_call_next,
+                                     Custom_Command_Function*);
         *next_call = 0;
         
         if (binding.custom == 0){
@@ -112,32 +116,43 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         }
         else{
             // NOTE(allen): before the command is called do some book keeping
-            Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+            Rewrite_Type *next_rewrite =
+                scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
             *next_rewrite = Rewrite_None;
             if (fcoder_mode == FCoderMode_NotepadLike){
                 for (View_ID view_it = get_view_next(app, 0, Access_Always);
                      view_it != 0;
                      view_it = get_view_next(app, view_it, Access_Always)){
                     Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-                    b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
+                    b32 *snap_mark_to_cursor =
+                        scope_attachment(app, scope_it, view_snap_mark_to_cursor,
+                                         b32);
                     *snap_mark_to_cursor = true;
                 }
             }
+            
+            view_input_profile.close_now();
             
             // NOTE(allen): call the command
             binding.custom(app);
             
             // NOTE(allen): after the command is called do some book keeping
-            next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+            ProfileScope(app, "after view input");
+            
+            next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc,
+                                            Rewrite_Type);
             if (next_rewrite != 0){
-                Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
+                Rewrite_Type *rewrite =
+                    scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
                 *rewrite = *next_rewrite;
                 if (fcoder_mode == FCoderMode_NotepadLike){
                     for (View_ID view_it = get_view_next(app, 0, Access_Always);
                          view_it != 0;
                          view_it = get_view_next(app, view_it, Access_Always)){
                         Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-                        b32 *snap_mark_to_cursor = scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
+                        b32 *snap_mark_to_cursor =
+                            scope_attachment(app, scope_it, view_snap_mark_to_cursor,
+                                             b32);
                         if (*snap_mark_to_cursor){
                             i64 pos = view_get_cursor_pos(app, view_it);
                             view_set_mark(app, view_it, seek_pos(pos));
@@ -146,7 +161,8 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
                 }
             }
             
-            next_call = scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
+            next_call = scope_attachment(app, scope, view_call_next,
+                                         Custom_Command_Function*);
             if (next_call != 0 && *next_call != 0){
                 binding.custom = *next_call;
                 goto call_again;
@@ -267,6 +283,7 @@ function void
 default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_view,
                       Buffer_ID buffer, Text_Layout_ID text_layout_id,
                       Rect_f32 rect){
+    ProfileScope(app, "render buffer");
     Rect_f32 prev_clip = draw_set_clip(app, rect);
     
     // NOTE(allen): Token colorizing
@@ -358,6 +375,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_vie
 
 function void
 default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id){
+    ProfileScope(app, "default render caller");
     View_ID active_view = get_active_view(app, Access_Always);
     b32 is_active_view = (active_view == view_id);
     
@@ -445,6 +463,7 @@ HOOK_SIG(default_view_adjust){
 }
 
 BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
+    ProfileScope(app, "default buffer name resolution");
     if (conflict_count > 1){
         // List of unresolved conflicts
         Scratch_Block scratch(app);

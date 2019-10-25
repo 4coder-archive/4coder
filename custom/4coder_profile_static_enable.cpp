@@ -9,6 +9,8 @@
 #undef ProfileEnd
 #undef ProfileBlock
 #undef ProfileScope
+#undef ProfileBlockNamed
+#undef ProfileScopeNamed
 #endif
 
 #define ProfileBegin(T,N) \
@@ -23,6 +25,14 @@ Profile_Block glue(profile_block_, __LINE__) \
 
 #define ProfileScope(T,N) \
 Profile_Scope_Block glue(profile_block_, __LINE__) \
+((T), string_u8_litexpr(N), string_u8_litexpr(file_name_line_number))
+
+#define ProfileBlockNamed(T,N,M) \
+Profile_Block M \
+((T), string_u8_litexpr(N), string_u8_litexpr(file_name_line_number))
+
+#define ProfileScopeNamed(T,N,M) \
+Profile_Scope_Block M \
 ((T), string_u8_litexpr(N), string_u8_litexpr(file_name_line_number))
 
 // BOTTOM

@@ -5,7 +5,9 @@
 // TOP
 
 function String_Const_u8_Array
-parse_extension_line_to_extension_list(Arena *arena, String_Const_u8 str){
+parse_extension_line_to_extension_list(Application_Links *app,
+                                       Arena *arena, String_Const_u8 str){
+    ProfileScope(app, "parse extension line to extension list");
     i32 count = 0;
     for (umem i = 0; i < str.size; i += 1){
         if (str.str[i] == '.'){
@@ -33,7 +35,8 @@ parse_extension_line_to_extension_list(Arena *arena, String_Const_u8 str){
 ////////////////////////////////
 
 function Error_Location
-get_error_location(u8 *base, u8 *pos){
+get_error_location(Application_Links *app, u8 *base, u8 *pos){
+    ProfileScope(app, "get error location");
     Error_Location location = {};
     location.line_number = 1;
     location.column_number = 1;
@@ -52,14 +55,16 @@ get_error_location(u8 *base, u8 *pos){
 }
 
 function String_Const_u8
-config_stringize_errors(Arena *arena, Config *parsed){
+config_stringize_errors(Application_Links *app, Arena *arena, Config *parsed){
+    ProfileScope(app, "stringize errors");
     String_Const_u8 result = {};
     if (parsed->errors.first != 0){
         List_String_Const_u8 list = {};
         for (Config_Error *error = parsed->errors.first;
              error != 0;
              error = error->next){
-            Error_Location location = get_error_location(parsed->data.str, error->pos);
+            Error_Location location = get_error_location(app, parsed->data.str,
+                                                         error->pos);
             string_list_pushf(arena, &list, "%.*s:%d:%d: %.*s\n",
                               string_expand(error->file_name), location.line_number, location.column_number, string_expand(error->text));
         }
@@ -202,7 +207,9 @@ function Config_Compound         *config_parser__compound  (Config_Parser *ctx);
 function Config_Compound_Element *config_parser__element   (Config_Parser *ctx);
 
 function Config*
-text_data_and_token_array_to_parse_data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array){
+config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name,
+             String_Const_u8 data, Token_Array array){
+    ProfileScope(app, "config parse");
     Temp_Memory restore_point = begin_temp(arena);
     Config_Parser ctx = make_config_parser(arena, file_name, data, array);
     Config *config = config_parser__config(&ctx);
@@ -214,7 +221,8 @@ text_data_and_token_array_to_parse_data(Arena *arena, String_Const_u8 file_name,
 
 // TODO(allen): Move to string library
 function Config_Error*
-config_error_push(Arena *arena, Config_Error_List *list, String_Const_u8 file_name, u8 *pos, char *error_text){
+config_error_push(Arena *arena, Config_Error_List *list, String_Const_u8 file_name,
+                  u8 *pos, char *error_text){
     Config_Error *error = push_array(arena, Config_Error, 1);
     zdll_push_back(list->first, list->last, error);
     list->count += 1;
@@ -518,7 +526,8 @@ config_parser__element(Config_Parser *ctx){
 
 function Config_Error*
 config_add_error(Arena *arena, Config *config, u8 *pos, char *error_text){
-    return(config_error_push(arena, &config->errors, config->file_name, pos, error_text));
+    return(config_error_push(arena, &config->errors, config->file_name, pos,
+                             error_text));
 }
 
 ////////////////////////////////
@@ -1159,18 +1168,20 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 ////////////////////////////////
 
 function Token_Array
-token_array_from_text(Arena *arena, String_Const_u8 data){
+token_array_from_text(Application_Links *app, Arena *arena, String_Const_u8 data){
+    ProfileScope(app, "token array from text");
     Token_List list = lex_full_input_cpp(arena, data);
     return(token_array_from_list(arena, &list));
 }
 
 function Config*
-text_data_to_parsed_data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data){
+config_from_text(Application_Links *app, Arena *arena, String_Const_u8 file_name,
+                 String_Const_u8 data){
     Config *parsed = 0;
     Temp_Memory restore_point = begin_temp(arena);
-    Token_Array array = token_array_from_text(arena, data);
+    Token_Array array = token_array_from_text(app, arena, data);
     if (array.tokens != 0){
-        parsed = text_data_and_token_array_to_parse_data(arena, file_name, data, array);
+        parsed = config_parse(app, arena, file_name, data, array);
         if (parsed == 0){
             end_temp(restore_point);
         }
@@ -1234,12 +1245,13 @@ config_init_default(Config_Data *config){
 }
 
 function Config*
-config_parse__data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Config_Data *config){
+config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_name,
+                   String_Const_u8 data, Config_Data *config){
     config_init_default(config);
     
     b32 success = false;
     
-    Config *parsed = text_data_to_parsed_data(arena, file_name, data);
+    Config *parsed = config_from_text(app, arena, file_name, data);
     if (parsed != 0){
         success = true;
         
@@ -1248,7 +1260,8 @@ config_parse__data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data
         
         String_Const_u8 str = {};
         if (config_string_var(parsed, "treat_as_code", 0, &str)){
-            config->code_exts = parse_extension_line_to_extension_list(arena, str);
+            config->code_exts =
+                parse_extension_line_to_extension_list(app, arena, str);
         }
         
         config_fixed_string_var(parsed, "mode", 0,
@@ -1308,11 +1321,12 @@ config_parse__data(Arena *arena, String_Const_u8 file_name, String_Const_u8 data
 }
 
 function Config*
-config_parse__file_handle(Arena *arena, String_Const_u8 file_name, FILE *file, Config_Data *config){
+config_parse__file_handle(Application_Links *app, Arena *arena,
+                          String_Const_u8 file_name, FILE *file, Config_Data *config){
     Config *parsed = 0;
     Data data = dump_file_handle(arena, file);
     if (data.data != 0){
-        parsed = config_parse__data(arena, file_name, SCu8(data), config);
+        parsed = config_parse__data(app, arena, file_name, SCu8(data), config);
     }
     else{
         config_init_default(config);
@@ -1329,7 +1343,8 @@ config_parse__file_name(Application_Links *app, Arena *arena, char *file_name, C
         Data data = dump_file_handle(arena, file);
         fclose(file);
         if (data.data != 0){
-            parsed = config_parse__data(arena, SCu8(file_name), SCu8(data), config);
+            parsed = config_parse__data(app, arena, SCu8(file_name), SCu8(data),
+                                        config);
             success = true; 
         }
     }
@@ -1353,7 +1368,7 @@ theme_parse__data(Partition *arena, String file_name, String data, Theme_Data *t
     copy(&theme->name, "unnamed");
     init_theme_zero(&theme->theme);
     
-    Config *parsed = text_data_to_parsed_data(arena, file_name, data);
+    Config *parsed = config_from_text(arena, file_name, data);
     if (parsed != 0){
         config_fixed_string_var(parsed, "name", 0, &theme->name, theme->space);
         
@@ -1450,7 +1465,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         print_message(app, string_u8_litexpr("Loaded config file:\n"));
         
         // Errors
-        String_Const_u8 error_text = config_stringize_errors(scratch, parsed);
+        String_Const_u8 error_text = config_stringize_errors(app, scratch, parsed);
         if (error_text.str != 0){
             print_message(app, error_text);
         }

@@ -138,7 +138,9 @@ setup_default_mapping(Mapping *mapping){
     Bind(open_long_braces_semicolon, KeyCode_LeftBracket, KeyCode_Control, KeyCode_Shift);
     Bind(open_long_braces_break,     KeyCode_RightBracket, KeyCode_Control, KeyCode_Shift);
     Bind(select_surrounding_scope,   KeyCode_LeftBracket, KeyCode_Alt);
+    Bind(select_surrounding_scope_maximal, KeyCode_LeftBracket, KeyCode_Alt, KeyCode_Shift);
     Bind(select_prev_scope_absolute, KeyCode_RightBracket, KeyCode_Alt);
+    Bind(select_prev_top_most_scope, KeyCode_RightBracket, KeyCode_Alt, KeyCode_Shift);
     Bind(select_next_scope_absolute, KeyCode_Quote, KeyCode_Alt);
     Bind(select_next_scope_after_current, KeyCode_Quote, KeyCode_Alt, KeyCode_Shift);
     Bind(place_in_scope,             KeyCode_ForwardSlash, KeyCode_Alt);

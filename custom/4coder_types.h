@@ -584,6 +584,18 @@ typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_inf
 
 typedef i64 Command_Map_ID;
 
+struct Command_Trigger{
+    Command_Trigger *next;
+    Input_Event_Kind kind;
+    u32 sub_code;
+    Input_Modifier_Set mods;
+};
+
+struct Command_Trigger_List{
+    Command_Trigger *first;
+    Command_Trigger *last;
+};
+
 struct Command_Binding{
     Custom_Command_Function *custom;
 };
@@ -591,7 +603,7 @@ struct Command_Binding{
 struct Command_Modified_Binding{
     Command_Modified_Binding *next;
     SNode order_node;
-    Input_Modifier_Set modifiers;
+    Input_Modifier_Set mods;
     Command_Binding binding;
 };
 
@@ -609,6 +621,7 @@ struct Command_Map{
     Command_Binding text_input_command;
     Arena node_arena;
     Table_u64_u64 event_code_to_binding_list;
+    Table_u64_u64 cmd_to_binding_trigger;
     Command_Modified_Binding *binding_first;
     Command_Modified_Binding *binding_last;
     Command_Binding_List *list_first;

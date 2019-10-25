@@ -6,6 +6,99 @@ such as open file, switch buffer, or kill buffer.
 // TOP
 
 function void
+generate_all_buffers_list__output_buffer(Application_Links *app, Lister *lister,
+                                         Buffer_ID buffer){
+    Dirty_State dirty = buffer_get_dirty_state(app, buffer);
+    String_Const_u8 status = {};
+    switch (dirty){
+        case DirtyState_UnsavedChanges:  status = string_u8_litexpr("*"); break;
+        case DirtyState_UnloadedChanges: status = string_u8_litexpr("!"); break;
+        case DirtyState_UnsavedChangesAndUnloadedChanges: status = string_u8_litexpr("*!"); break;
+    }
+    Scratch_Block scratch(app);
+    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
+    lister_add_item(lister, buffer_name, status, IntAsPtr(buffer), 0);
+}
+
+function void
+generate_all_buffers_list(Application_Links *app, Lister *lister){
+    lister_begin_new_item_set(app, lister);
+    
+    Buffer_ID viewed_buffers[16];
+    i32 viewed_buffer_count = 0;
+    
+    // List currently viewed buffers
+    for (View_ID view = get_view_next(app, 0, Access_Always);
+         view != 0;
+         view = get_view_next(app, view, Access_Always)){
+        Buffer_ID new_buffer_id = view_get_buffer(app, view, Access_Always);
+        for (i32 i = 0; i < viewed_buffer_count; i += 1){
+            if (new_buffer_id == viewed_buffers[i]){
+                goto skip0;
+            }
+        }
+        viewed_buffers[viewed_buffer_count++] = new_buffer_id;
+        skip0:;
+    }
+    
+    // Regular Buffers
+    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
+         buffer != 0;
+         buffer = get_buffer_next(app, buffer, Access_Always)){
+        for (i32 i = 0; i < viewed_buffer_count; i += 1){
+            if (buffer == viewed_buffers[i]){
+                goto skip1;
+            }
+        }
+        if (!buffer_has_name_with_star(app, buffer)){
+            generate_all_buffers_list__output_buffer(app, lister, buffer);
+        }
+        skip1:;
+    }
+    
+    // Buffers Starting with *
+    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
+         buffer != 0;
+         buffer = get_buffer_next(app, buffer, Access_Always)){
+        for (i32 i = 0; i < viewed_buffer_count; i += 1){
+            if (buffer == viewed_buffers[i]){
+                goto skip2;
+            }
+        }
+        if (buffer_has_name_with_star(app, buffer)){
+            generate_all_buffers_list__output_buffer(app, lister, buffer);
+        }
+        skip2:;
+    }
+    
+    // Buffers That Are Open in Views
+    for (i32 i = 0; i < viewed_buffer_count; i += 1){
+        generate_all_buffers_list__output_buffer(app, lister, viewed_buffers[i]);
+    }
+}
+
+function Buffer_ID
+get_buffer_from_user(Application_Links *app, String_Const_u8 query){
+    View_ID view = get_active_view(app, Access_Always);
+    Lister_Handlers handlers = lister_get_default_handlers();
+    handlers.refresh = generate_all_buffers_list;
+    Lister_Result l_result = run_lister_with_refresh_handler(app, query, handlers,
+                                                             0, 0, view);
+    Buffer_ID result = 0;
+    if (!l_result.canceled){
+        result = (Buffer_ID)(PtrAsInt(l_result.user_data));
+    }
+    return(result);
+}
+
+function Buffer_ID
+get_buffer_from_user(Application_Links *app, char *query){
+    return(get_buffer_from_user(app, SCu8(query)));
+}
+
+////////////////////////////////
+
+function void
 lister__write_character__file_path(Application_Links *app){
     View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
@@ -46,8 +139,8 @@ lister__backspace_text_field__file_path(Application_Links *app){
                     lister->text_field.size = new_hot.size;
                 }
                 set_hot_directory(app, new_hot);
-                // TODO(allen): We have to protect against lister_call_refresh_handler changing 
-                // the text_field here. Clean this up.
+                // TODO(allen): We have to protect against lister_call_refresh_handler
+                // changing the text_field here. Clean this up.
                 String_u8 dingus = lister->text_field;
                 lister_call_refresh_handler(app, view, lister);
                 lister->text_field = dingus;
@@ -62,206 +155,6 @@ lister__backspace_text_field__file_path(Application_Links *app){
             lister_zero_scroll(lister);
             lister_update_filtered_list(app, view, lister);
         }
-    }
-}
-
-function Lister_Activation_Code
-lister__key_stroke__fixed_list(Application_Links *app){
-    Lister_Activation_Code result = ListerActivation_Continue;
-    View_ID view = get_active_view(app, Access_Always);
-    Lister *lister = view_get_lister(view);
-    if (lister != 0){
-        User_Input in = get_current_input(app);
-        if (in.event.kind == InputEventKind_KeyStroke){
-            void *user_data = 0;
-            b32 did_shortcut_key = false;
-            for (Lister_Node *node = lister->options.first;
-                 node != 0;
-                 node = node->next){
-                Key_Code *key_code = (Key_Code*)(node + 1);
-                if (*key_code == in.event.key.code){
-                    user_data = node->user_data;
-                    did_shortcut_key = true;
-                    break;
-                }
-            }
-            if (did_shortcut_key){
-                result = lister_call_activate_handler(app, view, lister, user_data, false);
-            }
-        }
-    }
-    return(result);
-}
-
-////////////////////////////////
-
-function Lister_Handlers
-lister_get_default_handlers(void){
-    Lister_Handlers handlers = {};
-    handlers.write_character = lister__write_string__default;
-    handlers.backspace       = lister__backspace_text_field__default;
-    handlers.navigate        = lister__navigate__default;
-    return(handlers);
-}
-
-function Lister_Handlers
-lister_get_fixed_list_handlers(void){
-    Lister_Handlers handlers = {};
-    handlers.navigate        = lister__navigate__default;
-    handlers.key_stroke      = lister__key_stroke__fixed_list;
-    return(handlers);
-}
-
-function void
-run_lister_with_refresh_handler(Application_Links *app, char *query_string, 
-                                Lister_Handlers handlers,
-                                void *user_data, i32 user_data_size,
-                                View_ID view){
-    if (handlers.refresh != 0){
-        Scratch_Block scratch(app);
-        Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
-        lister_set_query(lister, query_string);
-        lister->handlers = handlers;
-        handlers.refresh(app, lister);
-        lister_run(app, view, lister);
-    }
-    else{
-        Scratch_Block scratch(app);
-        List_String_Const_u8 list = {};
-        string_list_push(scratch, &list, string_u8_litexpr("ERROR: No refresh handler specified for lister (query_string = \""));
-        string_list_push(scratch, &list, SCu8(query_string));
-        string_list_push(scratch, &list, string_u8_litexpr("\")\n"));
-        String_Const_u8 str = string_list_flatten(scratch, list);
-        print_message(app, str);
-    }
-}
-
-function void
-run_lister_with_options_array(Application_Links *app, char *query_string,
-                              Lister_Activation_Type *activate,
-                              void *user_data, i32 user_data_size,
-                              Lister_Option *options, i32 option_count,
-                              i32 estimated_string_space_size,
-                              View_ID view){
-    Scratch_Block scratch(app);
-    Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
-    for (i32 i = 0; i < option_count; i += 1){
-        lister_add_item(lister, options[i].string, options[i].status, options[i].user_data, 0);
-    }
-    lister_set_query(lister, query_string);
-    lister->handlers = lister_get_default_handlers();
-    lister->handlers.activate = activate;
-    lister_run(app, view, lister);
-}
-
-function void
-run_lister_with_fixed_options(Application_Links *app, char *query_string,
-                              Lister_Handlers handlers,
-                              void *user_data, i32 user_data_size,
-                              Lister_Fixed_Option *options, i32 option_count,
-                              View_ID view){
-    Scratch_Block scratch(app);
-    Lister *lister = begin_lister(app, scratch, view, user_data, user_data_size);
-    for (i32 i = 0; i < option_count; i += 1){
-        Key_Code code = options[i].key_code;
-        void *extra = lister_add_item(lister, SCu8(options[i].string), SCu8(options[i].status),
-                                      options[i].user_data, sizeof(code));
-        block_copy(extra, &code, sizeof(code));
-    }
-    lister_set_query(lister, query_string);
-    lister->handlers = handlers;
-    lister->handlers.refresh = 0;
-    lister_run(app, view, lister);
-}
-
-function void
-run_lister_with_fixed_options(Application_Links *app, char *query_string,
-                              Lister_Activation_Type *activate,
-                              void *user_data, i32 user_data_size,
-                              Lister_Fixed_Option *options, i32 option_count,
-                              View_ID view){
-    Lister_Handlers handlers = lister_get_fixed_list_handlers();
-    handlers.activate = activate;
-    run_lister_with_fixed_options(app, query_string,
-                                  handlers, user_data, user_data_size,
-                                  options, option_count,
-                                  view);
-}
-
-////////////////////////////////
-
-function void
-generate_all_buffers_list__output_buffer(Application_Links *app, Lister *lister, Buffer_ID buffer){
-    Dirty_State dirty = buffer_get_dirty_state(app, buffer);
-    String_Const_u8 status = {};
-    switch (dirty){
-        case DirtyState_UnsavedChanges:  status = string_u8_litexpr("*"); break;
-        case DirtyState_UnloadedChanges: status = string_u8_litexpr("!"); break;
-        case DirtyState_UnsavedChangesAndUnloadedChanges: status = string_u8_litexpr("*!"); break;
-    }
-    Scratch_Block scratch(app);
-    String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
-    lister_add_item(lister, buffer_name, status, IntAsPtr(buffer), 0);
-}
-
-function void
-generate_all_buffers_list(Application_Links *app, Lister *lister){
-    lister_begin_new_item_set(app, lister);
-    
-    Buffer_ID buffers_currently_being_viewed[16];
-    i32 currently_viewed_buffer_count = 0;
-    
-    // List currently viewed buffers
-    {
-        for (View_ID view = get_view_next(app, 0, Access_Always);
-             view != 0;
-             view = get_view_next(app, view, Access_Always)){
-            Buffer_ID new_buffer_id = view_get_buffer(app, view, Access_Always);
-            for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-                if (new_buffer_id == buffers_currently_being_viewed[i]){
-                    goto skip0;
-                }
-            }
-            buffers_currently_being_viewed[currently_viewed_buffer_count++] = new_buffer_id;
-            skip0:;
-        }
-    }
-    
-    // Regular Buffers
-    {
-        for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
-             buffer != 0;
-             buffer = get_buffer_next(app, buffer, Access_Always)){
-            for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-                if (buffer == buffers_currently_being_viewed[i]){
-                    goto skip1;
-                }
-            }
-            if (!buffer_has_name_with_star(app, buffer)){
-                generate_all_buffers_list__output_buffer(app, lister, buffer);
-            }
-            skip1:;
-        }
-    }
-    // Buffers Starting with *
-    {
-        for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
-             buffer != 0;
-             buffer = get_buffer_next(app, buffer, Access_Always)){
-            for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-                if (buffer == buffers_currently_being_viewed[i]){
-                    goto skip2;
-                }
-            }
-            if (buffer_has_name_with_star(app, buffer)){
-                generate_all_buffers_list__output_buffer(app, lister, buffer);
-            }
-            skip2:;
-        }
-    }
-    // Buffers That Are Open in Views
-    for (i32 i = 0; i < currently_viewed_buffer_count; i += 1){
-        generate_all_buffers_list__output_buffer(app, lister, buffers_currently_being_viewed[i]);
     }
 }
 
@@ -334,23 +227,16 @@ generate_hot_directory_file_list(Application_Links *app, Lister *lister){
 }
 
 function void
-run_lister_buffer_list(Application_Links *app, char *query_string, Lister_Activation_Type *activate_procedure,
-                       void *user_data, i32 user_data_size, View_ID target_view){
-    Lister_Handlers handlers = lister_get_default_handlers();
-    handlers.activate = activate_procedure;
-    handlers.refresh = generate_all_buffers_list;
-    run_lister_with_refresh_handler(app, query_string, handlers, user_data, user_data_size, target_view);
-}
-
-function void
-run_lister_file_system_list(Application_Links *app, char *query_string, Lister_Activation_Type *activate_procedure,
+run_lister_file_system_list(Application_Links *app, char *query_string,
+                            Lister_Activation_Type *activate_procedure,
                             void *user_data, i32 user_data_size, View_ID target_view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.activate = activate_procedure;
     handlers.refresh = generate_hot_directory_file_list;
     handlers.write_character = lister__write_character__file_path;
     handlers.backspace = lister__backspace_text_field__file_path;
-    run_lister_with_refresh_handler(app, query_string, handlers, user_data, user_data_size, target_view);
+    run_lister_with_refresh_handler(app, SCu8(query_string), handlers,
+                                    user_data, user_data_size, target_view);
 }
 
 ////////////////////////////////
@@ -362,58 +248,46 @@ enum{
     SureToKill_Save = 3,
 };
 
-struct Confirm_Kill_Data{
-    Buffer_ID id;
-    b32 do_kill;
-};
-
-function Lister_Activation_Code
-activate_confirm_kill(Application_Links *app, View_ID view, Lister *lister, 
-                      String_Const_u8 text_field, void *user_data, b32 clicked){
-    i32 behavior = (i32)PtrAsInt(user_data);
-    Confirm_Kill_Data *data = (Confirm_Kill_Data*)(lister->user_data);
-    switch (behavior){
-        case SureToKill_No:
-        {}break;
-        
-        case SureToKill_Yes:
-        {
-            data->do_kill = true;
-        }break;
-        
-        case SureToKill_Save:
-        {
-            Scratch_Block scratch(app);
-            String_Const_u8 file_name = push_buffer_file_name(app, scratch, data->id);
-            if (buffer_save(app, data->id, file_name, BufferSave_IgnoreDirtyFlag)){
-                data->do_kill = true;
-            }
-            else{
-                String_Const_u8 str = push_u8_stringf(scratch, "Did not close '%.*s' because it did not successfully save.",
-                                                      string_expand(file_name));
-                print_message(app, str);
-            }
-        }break;
-    }
-    lister_default(app, view, lister, ListerActivation_Finished);
-    return(ListerActivation_Finished);
-}
-
 function b32
 do_gui_sure_to_kill(Application_Links *app, Buffer_ID buffer, View_ID view){
-    Lister_Fixed_Option options[] = {
-        {"(N)o"           , "", KeyCode_N, IntAsPtr(SureToKill_No)  },
-        {"(Y)es"          , "", KeyCode_Y, IntAsPtr(SureToKill_Yes) },
-        {"(S)ave and Kill", "", KeyCode_S, IntAsPtr(SureToKill_Save)},
-    };
-    i32 option_count = sizeof(options)/sizeof(options[0]);
-    Confirm_Kill_Data data = {};
-    data.id = buffer;
-    run_lister_with_fixed_options(app, "There are unsaved changes, close anyway?",
-                                  activate_confirm_kill, &data, sizeof(data),
-                                  options, option_count,
-                                  view);
-    return(data.do_kill);
+    Scratch_Block scratch(app);
+    Lister_Choice_List list = {};
+    lister_choice(scratch, &list, "(N)o"  , "", KeyCode_N, SureToKill_No);
+    lister_choice(scratch, &list, "(Y)es" , "", KeyCode_Y, SureToKill_Yes);
+    lister_choice(scratch, &list, "(S)ave", "", KeyCode_S, SureToKill_Save);
+    
+    Lister_Choice *choice =
+        get_choice_from_user(app, "There are unsaved changes, close anyway?", list);
+    
+    b32 do_kill = false;
+    if (choice != 0){
+        switch (choice->user_data){
+            case SureToKill_No:
+            {}break;
+            
+            case SureToKill_Yes:
+            {
+                do_kill = true;
+            }break;
+            
+            case SureToKill_Save:
+            {
+                String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+                if (buffer_save(app, buffer, file_name, BufferSave_IgnoreDirtyFlag)){
+                    do_kill = true;
+                }
+                else{
+#define M "Did not close '%.*s' because it did not successfully save."
+                    String_Const_u8 str =
+                        push_u8_stringf(scratch, M, string_expand(file_name));
+#undef M
+                    print_message(app, str);
+                }
+            }break;
+        }
+    }
+    
+    return(do_kill);
 }
 
 function Lister_Activation_Code
@@ -445,23 +319,44 @@ activate_confirm_close_4coder(Application_Links *app,
 
 function b32
 do_gui_sure_to_close_4coder(Application_Links *app, View_ID view){
-    Lister_Fixed_Option options[] = {
-        {"(N)o"                , "", KeyCode_N, (void*)SureToKill_No  },
-        {"(Y)es"               , "", KeyCode_Y, (void*)SureToKill_Yes },
-        {"(S)ave All and Close", "", KeyCode_S, (void*)SureToKill_Save},
-    };
-    i32 option_count = sizeof(options)/sizeof(options[0]);
+    Scratch_Block scratch(app);
+    Lister_Choice_List list = {};
+    lister_choice(scratch, &list, "(N)o"  , "", KeyCode_N, SureToKill_No);
+    lister_choice(scratch, &list, "(Y)es" , "", KeyCode_Y, SureToKill_Yes);
+    lister_choice(scratch, &list, "(S)ave all and close", "",
+                  KeyCode_S, SureToKill_Save);
+    
+#define M "There are one or more buffers with unsave changes, close anyway?"
+    Lister_Choice *choice = get_choice_from_user(app, M, list);
+#undef M
+    
     b32 do_exit = false;
-    run_lister_with_fixed_options(app, "There are one or more buffers with unsave changes, close anyway?",
-                                  activate_confirm_close_4coder,
-                                  &do_exit, sizeof(do_exit),
-                                  options, option_count,
-                                  view);
+    if (choice != 0){
+        switch (choice->user_data){
+            case SureToKill_No:
+            {}break;
+            
+            case SureToKill_Yes:
+            {
+                allow_immediate_close_without_checking_for_changes = true;
+                do_exit = true;
+            }break;
+            
+            case SureToKill_Save:
+            {
+                save_all_dirty_buffers(app);
+                allow_immediate_close_without_checking_for_changes = true;
+                do_exit = true;
+            }break;
+        }
+    }
+    
     return(do_exit);
 }
 
 ////////////////////////////////
 
+#if 0
 function Lister_Activation_Code
 activate_switch_buffer(Application_Links *app,
                        View_ID view, Lister *lister,
@@ -473,14 +368,20 @@ activate_switch_buffer(Application_Links *app,
     lister_default(app, view, lister, ListerActivation_Finished);
     return(ListerActivation_Finished);
 }
+#endif
 
 CUSTOM_UI_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
     View_ID view = get_active_view(app, Access_Always);
-    run_lister_buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, view);
+    //run_lister_buffer_list(app, "Switch:", activate_switch_buffer, 0, 0, view);
+    Buffer_ID buffer = get_buffer_from_user(app, "Switch: ");
+    if (buffer != 0){
+        view_set_buffer(app, view, buffer, 0);
+    }
 }
 
+#if 0
 function Lister_Activation_Code
 activate_kill_buffer(Application_Links *app,
                      View_ID view, Lister *lister,
@@ -492,12 +393,17 @@ activate_kill_buffer(Application_Links *app,
     }
     return(ListerActivation_Finished);
 }
+#endif
 
 CUSTOM_UI_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
     View_ID view = get_active_view(app, Access_Always);
-    run_lister_buffer_list(app, "Kill:", activate_kill_buffer, 0, 0, view);
+    //run_lister_buffer_list(app, "Kill:", activate_kill_buffer, 0, 0, view);
+    Buffer_ID buffer = get_buffer_from_user(app, "Kill: ");
+    if (buffer != 0){
+        try_buffer_kill(app, buffer, view, 0);
+    }
 }
 
 function Lister_Activation_Code

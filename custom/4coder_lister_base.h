@@ -56,6 +56,12 @@ struct Lister_Handlers{
     Lister_Key_Stroke_Function *key_stroke;
 };
 
+struct Lister_Result{
+    void *user_data;
+    b32 activated_by_click;
+    b32 canceled;
+};
+
 struct Lister{
     Arena *arena;
     Temp_Memory restore_all_point;
@@ -87,6 +93,8 @@ struct Lister{
     
     Basic_Scroll scroll;
     i32 visible_count;
+    
+    Lister_Result out;
 };
 
 struct Lister_Prealloced_String{
@@ -107,11 +115,17 @@ struct Lister_Option{
     void *user_data;
 };
 
-struct Lister_Fixed_Option{
-    char *string;
-    char *status;
+struct Lister_Choice{
+    Lister_Choice *next;
+    String_Const_u8 string;
+    String_Const_u8 status;
     Key_Code key_code;
-    void *user_data;
+    u64 user_data;
+};
+
+struct Lister_Choice_List{
+    Lister_Choice *first;
+    Lister_Choice *last;
 };
 
 #endif

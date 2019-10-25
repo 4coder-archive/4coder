@@ -368,37 +368,40 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
         for (Profile_Node *child = node->first_child;
              child != 0;
              child = child->next){
-            if (child->closed){
-                Range_u64 child_time = child->time;
-                Range_f32 child_y = {};
-                child_y.min = unlerp(top_time.min, child_time.min, top_time.max);
-                child_y.max = unlerp(top_time.min, child_time.max, top_time.max);
-                child_y.min = lerp(y.min, child_y.min, y.max);
-                child_y.max = lerp(y.min, child_y.max, y.max);
+            if (!child->closed){
+                continue;
+            }
+            
+            Range_u64 child_time = child->time;
+            Range_f32 child_y = {};
+            child_y.min = unlerp(top_time.min, child_time.min, top_time.max);
+            child_y.max = unlerp(top_time.min, child_time.max, top_time.max);
+            child_y.min = lerp(y.min, child_y.min, y.max);
+            child_y.max = lerp(y.min, child_y.max, y.max);
+            
+            Rect_f32 box = Rf32(x, child_y);
+            draw_rectangle(app, box, 0.f, colors[cycle_counter%count]);
+            cycle_counter += 1;
+            
+            if (rect_contains_point(box, m_p)){
+                insp->full_name_hovered = profile_node_name(child);
+                insp->unique_counter_hovered = child->unique_counter;
+                insp->location_jump_hovered = profile_node_location(child);
+                insp->hover_node = child;
+            }
+            
+            if (range_size(child_y) >= line_height){
+                String_Const_u8 child_name = profile_node_name(child);
+                Fancy_Line line = {};
+                push_fancy_string(scratch, &line, fcolor_id(Stag_Pop1),
+                                  child_name);
+                push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default),
+                                   0.5f, 0.f, "#%4llu", child->unique_counter);
                 
-                Rect_f32 box = Rf32(x, child_y);
-                draw_rectangle(app, box, 0.f, colors[cycle_counter%count]);
-                cycle_counter += 1;
-                
-                if (rect_contains_point(box, m_p)){
-                    insp->full_name_hovered = profile_node_name(child);
-                    insp->unique_counter_hovered = child->unique_counter;
-                    insp->hover_node = child;
-                }
-                
-                if (range_size(child_y) >= line_height){
-                    String_Const_u8 child_name = profile_node_name(child);
-                    Fancy_Line line = {};
-                    push_fancy_string(scratch, &line, fcolor_id(Stag_Pop1),
-                                      child_name);
-                    push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default),
-                                       0.5f, 0.f, "#%4llu", child->unique_counter);
-                    
-                    Vec2_f32 p = V2f32(x.min + x_half_padding,
-                                       child_y.min);
-                    draw_fancy_line(app, face_id, fcolor_zero(),
-                                    &line, p);
-                }
+                Vec2_f32 p = V2f32(x.min + x_half_padding,
+                                   child_y.min);
+                draw_fancy_line(app, face_id, fcolor_zero(),
+                                &line, p);
             }
         }
     }
@@ -441,7 +444,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             Profile_Node *child = *child_ptr;
             y = If32_size(y_pos, block_height);
             
-            f32 ratio = ((f32)range_size(child->time))/((f32)range_size(node->time));
+            f32 child_duration = ((f32)range_size(child->time))/1000000.f;
             
             String_Const_u8 child_name = profile_node_name(child);
             Fancy_Line line = {};
@@ -449,7 +452,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default), 0.5f, 0.f,
                                "#%4llu", child->unique_counter);
             push_fancy_stringf(scratch, &line, fcolor_id(Stag_Pop2),
-                               0.5f, 0.f, "%6.4f", ratio);
+                               0.5f, 0.f, "%6.4f", child_duration);
             
             Vec2_f32 p = V2f32(x.min + x_half_padding,
                                (y.min + y.max - line_height)*0.5f);
