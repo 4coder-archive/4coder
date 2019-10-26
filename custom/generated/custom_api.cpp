@@ -171,6 +171,7 @@ vtable->draw_text_layout = draw_text_layout;
 vtable->open_color_picker = open_color_picker;
 vtable->animate_in_n_milliseconds = animate_in_n_milliseconds;
 vtable->buffer_find_all_matches = buffer_find_all_matches;
+vtable->get_core_profile_list = get_core_profile_list;
 }
 #if defined(DYNAMIC_LINK_API)
 function void
@@ -346,6 +347,7 @@ draw_text_layout = vtable->draw_text_layout;
 open_color_picker = vtable->open_color_picker;
 animate_in_n_milliseconds = vtable->animate_in_n_milliseconds;
 buffer_find_all_matches = vtable->buffer_find_all_matches;
+get_core_profile_list = vtable->get_core_profile_list;
 }
 #undef DYNAMIC_LINK_API
 #endif

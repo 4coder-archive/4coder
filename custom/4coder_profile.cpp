@@ -4,20 +4,16 @@
 
 // TOP
 
-global Profile_Global_List global_prof_list = {};
-global System_Mutex global_prof_mutex = {};
-
 function void
-global_prof_init(void){
-    global_prof_mutex = system_mutex_make();
-    global_prof_list.node_arena = make_arena(get_base_allocator_system(),
-                                             KB(4));
+profile_init(Profile_Global_List *list){
+    list->mutex = system_mutex_make();
+    list->node_arena = make_arena_system(KB(4));
 }
 
 function Profile_Thread*
-global_prof_get_thread(i32 thread_id){
+prof__get_thread(Profile_Global_List *list, i32 thread_id){
     Profile_Thread *result = 0;
-    for (Profile_Thread *node = global_prof_list.first_thread;
+    for (Profile_Thread *node = list->first_thread;
          node != 0;
          node = node->next){
         if (thread_id == node->thread_id){
@@ -26,43 +22,42 @@ global_prof_get_thread(i32 thread_id){
         }
     }
     if (result == 0){
-        result = push_array_zero(&global_prof_list.node_arena, Profile_Thread, 1);
-        sll_queue_push(global_prof_list.first_thread, global_prof_list.last_thread, result);
-        global_prof_list.thread_count += 1;
+        result = push_array_zero(&list->node_arena, Profile_Thread, 1);
+        sll_queue_push(list->first_thread, list->last_thread, result);
+        list->thread_count += 1;
         result->thread_id = thread_id;
     }
     return(result);
 }
 
 function void
-global_prof_clear(void){
-    Mutex_Lock lock(global_prof_mutex);
-    for (Arena_Node *node = global_prof_list.first_arena;
+profile_clear(Profile_Global_List *list){
+    Mutex_Lock lock(list->mutex);
+    for (Arena_Node *node = list->first_arena;
          node != 0;
          node = node->next){
         linalloc_clear(&node->arena);
     }
-    global_prof_list.first_arena = 0;
-    global_prof_list.last_arena = 0;
+    list->first_arena = 0;
+    list->last_arena = 0;
     
-    linalloc_clear(&global_prof_list.node_arena);
-    global_prof_list.first_thread = 0;
-    global_prof_list.last_thread = 0;
-    global_prof_list.thread_count = 0;
+    linalloc_clear(&list->node_arena);
+    list->first_thread = 0;
+    list->last_thread = 0;
+    list->thread_count = 0;
 }
 
 function void
-thread_profile_flush(Thread_Context *tctx){
+profile_thread_flush(Thread_Context *tctx, Profile_Global_List *list){
     if (tctx->prof_record_count > 0){
-        Mutex_Lock lock(global_prof_mutex);
-        if (global_prof_list.disable_bits == 0){
-            Profile_Thread* thread = global_prof_get_thread(system_thread_get_id());
+        Mutex_Lock lock(list->mutex);
+        if (list->disable_bits == 0){
+            Profile_Thread* thread = prof__get_thread(list, system_thread_get_id());
             
-            Arena_Node* node = push_array(&global_prof_list.node_arena, Arena_Node, 1);
-            sll_queue_push(global_prof_list.first_arena, global_prof_list.last_arena,
-                           node);
+            Arena_Node* node = push_array(&list->node_arena, Arena_Node, 1);
+            sll_queue_push(list->first_arena, list->last_arena, node);
             node->arena = tctx->prof_arena;
-            tctx->prof_arena = make_arena(get_base_allocator_system(), KB(4));
+            tctx->prof_arena = make_arena_system(KB(4));
             
             if (thread->first_record == 0){
                 thread->first_record = tctx->prof_first;
@@ -82,21 +77,22 @@ thread_profile_flush(Thread_Context *tctx){
 }
 
 function void
-thread_set_name(Thread_Context *tctx, String_Const_u8 name){
-    Profile_Thread* thread = global_prof_get_thread(system_thread_get_id());
+profile_thread_set_name(Thread_Context *tctx, Profile_Global_List *list, String_Const_u8 name){
+    Mutex_Lock lock(list->mutex);
+    Profile_Thread* thread = prof__get_thread(list, system_thread_get_id());
     thread->name = name;
 }
 
-#define ProfileThreadName(tctx,name) thread_set_name((tctx), (name))
+#define ProfileThreadName(tctx,list,name) profile_thread_set_name((tctx), (list), (name))
 
 function void
-global_prof_set_enabled(b32 value, Profile_Enable_Flag flag){
-    Mutex_Lock lock(global_prof_mutex);
+profile_set_enabled(Profile_Global_List *list, b32 value, Profile_Enable_Flag flag){
+    Mutex_Lock lock(list->mutex);
     if (value){
-        RemFlag(global_prof_list.disable_bits, flag);
+        RemFlag(list->disable_bits, flag);
     }
     else{
-        AddFlag(global_prof_list.disable_bits, flag);
+        AddFlag(list->disable_bits, flag);
     }
 }
 
@@ -142,29 +138,34 @@ thread_profile_record_pop(Application_Links *app, u64 time, Profile_ID id){
 ////////////////////////////////
 
 function void
-profile_block__init(Thread_Context *tctx, String_Const_u8 name,
-                    String_Const_u8 location, Profile_Block *block){
+profile_block__init(Thread_Context *tctx, Profile_Global_List *list,
+                    String_Const_u8 name, String_Const_u8 location, Profile_Block *block){
     block->tctx = tctx;
+    block->list = list;
     block->is_closed = false;
     block->id = thread_profile_record_push(tctx, system_now_time(), name, location);
 }
 function void
-profile_block__init(Thread_Context *tctx, String_Const_u8 name,
-                    String_Const_u8 location, Profile_Scope_Block *block){
+profile_block__init(Thread_Context *tctx, Profile_Global_List *list,
+                    String_Const_u8 name, String_Const_u8 location,
+                    Profile_Scope_Block *block){
     block->tctx = tctx;
+    block->list = list;
     block->is_closed = false;
     block->id = thread_profile_record_push(tctx, system_now_time(), name, location);
 }
 
 ////////
 
-Profile_Block::Profile_Block(Thread_Context *tctx, String_Const_u8 name,
-                             String_Const_u8 location){
-    profile_block__init(tctx, name, location, this);
+Profile_Block::Profile_Block(Thread_Context *tctx, Profile_Global_List *list,
+                             String_Const_u8 name, String_Const_u8 location){
+    profile_block__init(tctx, list, name, location, this);
 }
 Profile_Block::Profile_Block(Application_Links *app, String_Const_u8 name,
                              String_Const_u8 location){
-    profile_block__init(get_thread_context(app), name, location, this);
+    Thread_Context *v_tctx = get_thread_context(app);
+    Profile_Global_List *v_list = get_core_profile_list(app);
+    profile_block__init(v_tctx, v_list, name, location, this);
 }
 Profile_Block::~Profile_Block(){
     this->close_now();
@@ -179,17 +180,19 @@ Profile_Block::close_now(){
 
 ////////
 
-Profile_Scope_Block::Profile_Scope_Block(Thread_Context *tctx, String_Const_u8 name,
-                                         String_Const_u8 location){
-    profile_block__init(tctx, name, location, this);
+Profile_Scope_Block::Profile_Scope_Block(Thread_Context *tctx, Profile_Global_List *list,
+                                         String_Const_u8 name, String_Const_u8 location){
+    profile_block__init(tctx, list, name, location, this);
 }
 Profile_Scope_Block::Profile_Scope_Block(Application_Links *app, String_Const_u8 name,
                                          String_Const_u8 location){
-    profile_block__init(get_thread_context(app), name, location, this);
+    Thread_Context *v_tctx = get_thread_context(app);
+    Profile_Global_List *v_list = get_core_profile_list(app);
+    profile_block__init(v_tctx, v_list, name, location, this);
 }
 Profile_Scope_Block::~Profile_Scope_Block(){
     this->close_now();
-    thread_profile_flush(this->tctx);
+    profile_thread_flush(this->tctx, this->list);
 }
 void
 Profile_Scope_Block::close_now(){
@@ -204,19 +207,22 @@ Profile_Scope_Block::close_now(){
 CUSTOM_COMMAND_SIG(profile_enable)
 CUSTOM_DOC("Allow 4coder's self profiler to gather new profiling information.")
 {
-    global_prof_set_enabled(true, ProfileEnable_UserBit);
+    Profile_Global_List *list = get_core_profile_list(app);
+    profile_set_enabled(list, true, ProfileEnable_UserBit);
 }
 
 CUSTOM_COMMAND_SIG(profile_disable)
 CUSTOM_DOC("Prevent 4coder's self profiler from gathering new profiling information.")
 {
-    global_prof_set_enabled(false, ProfileEnable_UserBit);
+    Profile_Global_List *list = get_core_profile_list(app);
+    profile_set_enabled(list, false, ProfileEnable_UserBit);
 }
 
 CUSTOM_COMMAND_SIG(profile_clear)
 CUSTOM_DOC("Clear all profiling information from 4coder's self profiler.")
 {
-    global_prof_clear();
+    Profile_Global_List *list = get_core_profile_list(app);
+    profile_clear(list);
 }
 
 // BOTTOM

@@ -64,7 +64,9 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         
         View_ID view = get_active_view(app, Access_Always);
         String_Const_u8 name = push_u8_stringf(scratch, "view %d", view);
-        ProfileThreadName(tctx, name);
+        
+        Profile_Global_List *list = get_core_profile_list(app);
+        ProfileThreadName(tctx, list, name);
         
         View_Context ctx = view_current_context(app, view);
         ctx.mapping = &framework_mapping;
@@ -131,7 +133,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
                 }
             }
             
-            view_input_profile.close_now();
+            ProfileCloseNow(view_input_profile);
             
             // NOTE(allen): call the command
             binding.custom(app);
@@ -843,7 +845,7 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                 Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
                                                 ptr->tokens, token_index_first, token_index_resync_guess);
                 
-                profile_attempt_resync.close_now();
+                ProfileCloseNow(profile_attempt_resync);
                 
                 if (relex.successful_resync){
                     ProfileBlock(app, "apply resync");
@@ -881,7 +883,7 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                     do_full_relex = true;
                 }
             }
-
+            
             if (do_full_relex){
                 base_free(allocator, ptr->tokens);
                 block_zero_struct(ptr);

@@ -32,6 +32,8 @@
 #define DYNAMIC_LINK_API
 #include "generated/font_api.h"
 
+#include "4coder_profile.h"
+
 #include "4ed_render_target.h"
 #include "4ed.h"
 #include "4ed_buffer_model.h"
@@ -65,6 +67,7 @@
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
 #include "4coder_system_allocator.cpp"
+#include "4coder_profile.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"

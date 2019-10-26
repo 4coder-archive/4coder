@@ -20,85 +20,152 @@ write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i64 pos){
     ++(*count);
 }
 
-// TODO(allen): Rewrite this without being a dumbass.
-// TODO(allen): Rewrite this without being a dumbass.
-// TODO(allen): Rewrite this without being a dumbass.
-#define CursorSwap__(a,b) { Cursor_With_Index t = a; a = b; b = t; }
-
-// TODO(allen): Rewrite this without being a dumbass.
 internal void
-buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
-    i32 mid = start;
-    i64 pivot_pos = positions[pivot].pos;
-    for (i32 i = mid; i < pivot; ++i){
-        if (positions[i].pos < pivot_pos){
-            CursorSwap__(positions[mid], positions[i]);
-            ++mid;
+buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 first, i32 one_past_last){
+    if (first + 1 < one_past_last){
+        i32 pivot = one_past_last - 1;
+        i64 pivot_pos = positions[pivot].pos;
+        i32 j = first;
+        for (i32 i = first; i < pivot; i += 1){
+            i64 pos = positions[i].pos;
+            if (pos < pivot_pos){
+                Swap(Cursor_With_Index, positions[j], positions[i]);
+                j += 1;
+            }
         }
-    }
-    CursorSwap__(positions[mid], positions[pivot]);
-    
-    if (start < mid - 1){
-        buffer_quick_sort_cursors(positions, start, mid - 1);
-    }
-    if (mid + 1 < pivot){
-        buffer_quick_sort_cursors(positions, mid + 1, pivot);
+        Swap(Cursor_With_Index, positions[j], positions[pivot]);
+        buffer_quick_sort_cursors(positions, first, j);
+        buffer_quick_sort_cursors(positions, j + 1, one_past_last);
     }
 }
-
-// TODO(allen): Rewrite this without being a dumbass.
-internal void
-buffer_quick_unsort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
-    i32 mid = start;
-    i32 pivot_index = positions[pivot].index;
-    for (i32 i = mid; i < pivot; ++i){
-        if (positions[i].index < pivot_index){
-            CursorSwap__(positions[mid], positions[i]);
-            ++mid;
-        }
-    }
-    CursorSwap__(positions[mid], positions[pivot]);
-    
-    if (start < mid - 1) buffer_quick_unsort_cursors(positions, start, mid - 1);
-    if (mid + 1 < pivot) buffer_quick_unsort_cursors(positions, mid + 1, pivot);
-}
-
-#undef CursorSwap__
 
 internal void
 buffer_sort_cursors(Cursor_With_Index *positions, i32 count){
     if (count > 0){
-        buffer_quick_sort_cursors(positions, 0, count - 1);
+        buffer_quick_sort_cursors(positions, 0, count);
     }
 }
 
 internal void
 buffer_unsort_cursors(Cursor_With_Index *positions, i32 count){
     if (count > 0){
-        buffer_quick_unsort_cursors(positions, 0, count - 1);
+        i32 i = 0;
+        for (;;){
+            if (positions[i].index == i){
+                i += 1;
+                if (i >= count){
+                    break;
+                }
+            }
+            else{
+                i32 j = positions[i].index;
+                Swap(Cursor_With_Index, positions[i], positions[j]);
+            }
+        }
+    }
+}
+
+#if 0
+function void
+buffer_sort_batch(Edit *batch, i32 first, i32 one_past_last){
+    if (first + 1 < one_past_last){
+        i32 pivot = one_past_last - 1;
+        i64 pivot_pos = batch[pivot].range.first;
+        i32 j = first;
+        for (i32 i = first; i < pivot; i += 1){
+            i64 pos = batch[i].range.first;
+            if (pos < pivot_pos){
+                Swap(Edit, batch[j], batch[i]);
+                j += 1;
+            }
+        }
+        Swap(Edit, batch[j], batch[pivot]);
+        buffer_sort_batch(batch, first, j);
+        buffer_sort_batch(batch, j + 1, one_past_last);
+    }
+}
+
+function Edit_Array
+buffer_batch_array_from_linked_list(Arena *arena, Batch_Edit *batch, i32 count){
+    Edit_Array result = {};
+    result.count = count;
+    result.vals = push_array(arena, Edit, count);
+    i32 counter = 0;
+    for (Batch_Edit *node = batch;
+         counter < count && node != 0;
+         node = node->next){
+        result.vals[counter] = node->edit;
+        counter += 1;
+    }
+    return(result);
+}
+
+function Edit_Array
+buffer_sort_batch(Arena *arena, Batch_Edit *batch, i32 count){
+    Edit_Array result = buffer_batch_array_from_linked_list(arena, batch, count);
+    buffer_sort_batch(result.vals, 0, result.count);
+    return(result);
+}
+#endif
+
+internal void
+buffer_update_cursors_lean_l(Cursor_With_Index *sorted_positions, i32 count,
+                             Batch_Edit *batch){
+    Cursor_With_Index *pos = sorted_positions;
+    Cursor_With_Index *end_pos = sorted_positions + count;
+    i64 shift_amount = 0;
+    for (; batch != 0 && pos < end_pos;
+         batch = batch->next){
+        Range_i64 range = batch->edit.range;
+        i64 len = batch->edit.text.size;
+        if (shift_amount != 0){
+            for (;pos < end_pos && pos->pos < range.first; pos += 1){
+                pos->pos += shift_amount;
+            }
+        }
+        else{
+            for (;pos < end_pos && pos->pos < range.first; pos += 1);
+        }
+        i64 new_pos = range.first + shift_amount;
+        for (;pos < end_pos && pos->pos <= range.one_past_last; pos += 1){
+            pos->pos = new_pos;
+        }
+        shift_amount += len - (range.one_past_last - range.first);
+    }
+    if (shift_amount != 0){
+        for (;pos < end_pos; pos += 1){
+            pos->pos += shift_amount;
+        }
     }
 }
 
 internal void
-buffer_update_cursors(Cursor_With_Index *sorted_positions, i32 count,
-                      i64 start, i64 end, i64 len, b32 lean_right){
-    i64 shift_amount = replace_range_shift(start, end, len);
-    Cursor_With_Index *position = sorted_positions + count - 1;
-    
-    if (lean_right){
-        for (; position >= sorted_positions && position->pos > end; --position){
-            position->pos += shift_amount;
+buffer_update_cursors_lean_r(Cursor_With_Index *sorted_positions, i32 count,
+                             Batch_Edit *batch){
+    Cursor_With_Index *pos = sorted_positions;
+    Cursor_With_Index *end_pos = sorted_positions + count;
+    i64 shift_amount = 0;
+    for (; batch != 0 && pos < end_pos;
+         batch = batch->next){
+        Range_i64 range = batch->edit.range;
+        i64 len = batch->edit.text.size;
+        if (shift_amount != 0){
+            for (;pos < end_pos && pos->pos < range.first; pos += 1){
+                pos->pos += shift_amount;
+            }
         }
-        for (; position >= sorted_positions && position->pos >= start; --position){
-            position->pos = start + len;
+        else{
+            for (;pos < end_pos && pos->pos < range.first; pos += 1);
         }
+        i64 new_pos = range.first + len + shift_amount;
+        for (;pos < end_pos && pos->pos < range.one_past_last; pos += 1){
+            pos->pos = new_pos;
+        }
+        shift_amount += len - (range.one_past_last - range.first);
     }
-    else{
-        for (; position >= sorted_positions && position->pos > end; --position){
-            position->pos += shift_amount;
-        }
-        for (; position >= sorted_positions && position->pos >= start; --position){
-            position->pos = start;
+    if (shift_amount != 0){
+        for (;pos < end_pos; pos += 1){
+            pos->pos += shift_amount;
         }
     }
 }

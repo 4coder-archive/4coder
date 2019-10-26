@@ -169,6 +169,7 @@
 #define custom_open_color_picker_sig() void custom_open_color_picker(Application_Links* app, Color_Picker* picker)
 #define custom_animate_in_n_milliseconds_sig() void custom_animate_in_n_milliseconds(Application_Links* app, u32 n)
 #define custom_buffer_find_all_matches_sig() String_Match_List custom_buffer_find_all_matches(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction)
+#define custom_get_core_profile_list_sig() Profile_Global_List* custom_get_core_profile_list(Application_Links* app)
 typedef b32 custom_global_set_setting_type(Application_Links* app, Global_Setting_ID setting, i64 value);
 typedef Rect_f32 custom_global_get_screen_rectangle_type(Application_Links* app);
 typedef Thread_Context* custom_get_thread_context_type(Application_Links* app);
@@ -340,6 +341,7 @@ typedef void custom_draw_text_layout_type(Application_Links* app, Text_Layout_ID
 typedef void custom_open_color_picker_type(Application_Links* app, Color_Picker* picker);
 typedef void custom_animate_in_n_milliseconds_type(Application_Links* app, u32 n);
 typedef String_Match_List custom_buffer_find_all_matches_type(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction);
+typedef Profile_Global_List* custom_get_core_profile_list_type(Application_Links* app);
 struct API_VTable_custom{
 custom_global_set_setting_type *global_set_setting;
 custom_global_get_screen_rectangle_type *global_get_screen_rectangle;
@@ -512,6 +514,7 @@ custom_draw_text_layout_type *draw_text_layout;
 custom_open_color_picker_type *open_color_picker;
 custom_animate_in_n_milliseconds_type *animate_in_n_milliseconds;
 custom_buffer_find_all_matches_type *buffer_find_all_matches;
+custom_get_core_profile_list_type *get_core_profile_list;
 };
 #if defined(STATIC_LINK_API)
 internal b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value);
@@ -685,6 +688,7 @@ internal void draw_text_layout(Application_Links* app, Text_Layout_ID layout_id)
 internal void open_color_picker(Application_Links* app, Color_Picker* picker);
 internal void animate_in_n_milliseconds(Application_Links* app, u32 n);
 internal String_Match_List buffer_find_all_matches(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction);
+internal Profile_Global_List* get_core_profile_list(Application_Links* app);
 #undef STATIC_LINK_API
 #elif defined(DYNAMIC_LINK_API)
 global custom_global_set_setting_type *global_set_setting = 0;
@@ -858,5 +862,6 @@ global custom_draw_text_layout_type *draw_text_layout = 0;
 global custom_open_color_picker_type *open_color_picker = 0;
 global custom_animate_in_n_milliseconds_type *animate_in_n_milliseconds = 0;
 global custom_buffer_find_all_matches_type *buffer_find_all_matches = 0;
+global custom_get_core_profile_list_type *get_core_profile_list = 0;
 #undef DYNAMIC_LINK_API
 #endif

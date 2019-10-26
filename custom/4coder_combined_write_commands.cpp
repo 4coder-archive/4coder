@@ -198,13 +198,15 @@ static Snippet default_snippets[] = {
 function void
 write_snippet(Application_Links *app, View_ID view, Buffer_ID buffer,
               i64 pos, Snippet *snippet){
-    String_Const_u8 snippet_text = SCu8(snippet->text);
-    buffer_replace_range(app, buffer, Ii64(pos), snippet_text);
-    i64 new_cursor = pos + snippet->cursor_offset;
-    view_set_cursor_and_preferred_x(app, view, seek_pos(new_cursor));
-    i64 new_mark = pos + snippet->mark_offset;
-    view_set_mark(app, view, seek_pos(new_mark));
-    auto_indent_buffer(app, buffer, Ii64_size(pos, snippet_text.size));
+    if (snippet != 0){
+        String_Const_u8 snippet_text = SCu8(snippet->text);
+        buffer_replace_range(app, buffer, Ii64(pos), snippet_text);
+        i64 new_cursor = pos + snippet->cursor_offset;
+        view_set_cursor_and_preferred_x(app, view, seek_pos(new_cursor));
+        i64 new_mark = pos + snippet->mark_offset;
+        view_set_mark(app, view, seek_pos(new_mark));
+        auto_indent_buffer(app, buffer, Ii64_size(pos, snippet_text.size));
+    }
 }
 
 function Snippet*

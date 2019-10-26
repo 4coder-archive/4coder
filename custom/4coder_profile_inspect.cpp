@@ -125,9 +125,8 @@ profile_parse_record(Arena *arena, Profile_Inspection *insp,
 }
 
 function Profile_Inspection
-profile_parse(Arena *arena){
-    Mutex_Lock lock(global_prof_mutex);
-    Profile_Global_List *src = &global_prof_list;
+profile_parse(Arena *arena, Profile_Global_List *src){
+    Mutex_Lock lock(src->mutex);
     
     Profile_Inspection result = {};
     
@@ -155,7 +154,7 @@ profile_parse(Arena *arena){
         
         for (Profile_Node *prof_node = insp_thread->root.first_child;
              prof_node != 0;
-			prof_node = prof_node->next){
+             prof_node = prof_node->next){
             insp_thread->active_time += range_size(prof_node->time);
         }
     }
@@ -777,14 +776,15 @@ profile_inspect__left_click(Application_Links *app, View_ID view,
 CUSTOM_UI_COMMAND_SIG(profile_inspect)
 CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's self profiler.")
 {
-    if (HasFlag(global_prof_list.disable_bits, ProfileEnable_InspectBit)){
+    Profile_Global_List *list = get_core_profile_list(app);
+    if (HasFlag(list->disable_bits, ProfileEnable_InspectBit)){
         return;
     }
     
-    global_prof_set_enabled(false, ProfileEnable_InspectBit);
+    profile_set_enabled(list, false, ProfileEnable_InspectBit);
     
     Scratch_Block scratch(app);
-    global_profile_inspection = profile_parse(scratch);
+    global_profile_inspection = profile_parse(scratch, list);
     Profile_Inspection *insp = &global_profile_inspection;
     
     View_ID view = get_active_view(app, Access_Always);
@@ -824,7 +824,7 @@ CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's se
         }
     }
     
-    global_prof_set_enabled(true, ProfileEnable_InspectBit);
+    profile_set_enabled(list, true, ProfileEnable_InspectBit);
     
     view_pop_context(app, view);
 }

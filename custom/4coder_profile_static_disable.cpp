@@ -5,21 +5,31 @@
 
 // TOP
 
-#if defined(ProfileBegin)
-#undef ProfileBegin
-#undef ProfileEnd
+#if defined(ProfileBlock)
 #undef ProfileBlock
 #undef ProfileScope
 #undef ProfileBlockNamed
 #undef ProfileScopeNamed
+
+#undef ProfileTLBlock
+#undef ProfileTLScope
+#undef ProfileTLBlockNamed
+#undef ProfileTLScopeNamed
+
+#undef ProfileCloseNow
 #endif
 
-#define ProfileBegin(T,N)
-#define ProfileEnd(T,I)
 #define ProfileBlock(T,N)
 #define ProfileScope(T,N)
 #define ProfileBlockNamed(T,N,M)
 #define ProfileScopeNamed(T,N,M)
+
+#define ProfileTLBlock(T,L,N)
+#define ProfileTLScope(T,L,N)
+#define ProfileTLBlockNamed(T,L,N,M)
+#define ProfileTLScopeNamed(T,L,N,M)
+
+#define ProfileCloseNow(O)
 
 // BOTTOM
 

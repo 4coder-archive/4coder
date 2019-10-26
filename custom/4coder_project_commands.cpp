@@ -91,9 +91,9 @@ open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path
                                     u32 flags){
     Scratch_Block scratch(app);
     
-    Profile_ID get_file_list_id = ProfileBegin(app, "get file list");
+    ProfileScopeNamed(app, "get file list", profile_get_file_list);
     File_List list = system_get_file_list(scratch, path);
-    ProfileEnd(app, get_file_list_id);
+    ProfileCloseNow(profile_get_file_list);
     
     File_Info **info = list.infos;
     for (u32 i = 0; i < list.count; ++i, ++info){
@@ -107,7 +107,7 @@ open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path
                                                        string_expand(path),
                                                        string_expand(file_name));
             open_files_pattern_match__recursive(app, new_path,
-                                                                 whitelist, blacklist, flags);
+                                                whitelist, blacklist, flags);
         }
         else{
             if (!match_in_pattern_array(file_name, whitelist)){
@@ -120,9 +120,8 @@ open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path
             String_Const_u8 full_path = push_u8_stringf(scratch, "%.*s%.*s",
                                                         string_expand(path),
                                                         string_expand(file_name));
-            Profile_ID create_buffer_id = ProfileBegin(app, "create buffer");
+            
             create_buffer(app, full_path, 0);
-            ProfileEnd(app, create_buffer_id);
         }
     }
 }

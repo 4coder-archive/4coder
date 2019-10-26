@@ -323,6 +323,8 @@ App_Init_Sig(app_init){
     
     models->config_api = api;
     
+    profile_init(&models->profile_list);
+    
     API_VTable_custom custom_vtable = {};
     custom_api_fill_vtable(&custom_vtable);
     API_VTable_system system_vtable = {};

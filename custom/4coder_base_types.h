@@ -1159,15 +1159,8 @@ enum{
     ProfileEnable_InspectBit = 0x2,
 };
 
-struct Profile_Global_List{
-    Arena node_arena;
-    Arena_Node *first_arena;
-    Arena_Node *last_arena;
-    Profile_Thread *first_thread;
-    Profile_Thread *last_thread;
-    i32 thread_count;
-    Profile_Enable_Flag disable_bits;
-};
+// NOTE(allen): full definition in 4coder_profile.h, due to dependency on System_Mutex.
+struct Profile_Global_List;
 
 ////////////////////////////////
 

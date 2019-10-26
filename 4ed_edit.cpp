@@ -90,7 +90,8 @@ edit_fix_markers__compute_scroll_y(i32 line_height, i32 old_y_val, f32 new_y_val
 }
 
 internal void
-edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Edit edit){
+edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file,
+                 Batch_Edit *batch){
     Layout *layout = &models->layout;
     
     Lifetime_Object *file_lifetime_object = file->lifetime_object;
@@ -159,12 +160,8 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Edit 
         buffer_sort_cursors(  cursors,   cursor_count);
         buffer_sort_cursors(r_cursors, r_cursor_count);
         
-        buffer_update_cursors(  cursors,   cursor_count,
-                              edit.range.first, edit.range.one_past_last,
-                              edit.text.size, false);
-        buffer_update_cursors(r_cursors, r_cursor_count,
-                              edit.range.first, edit.range.one_past_last,
-                              edit.text.size, true);
+        buffer_update_cursors_lean_l(  cursors,   cursor_count, batch);
+        buffer_update_cursors_lean_r(r_cursors, r_cursor_count, batch);
         
         buffer_unsort_cursors(  cursors,   cursor_count);
         buffer_unsort_cursors(r_cursors, r_cursor_count);
@@ -248,14 +245,13 @@ edit__apply(Thread_Context *tctx, Models *models, Editing_File *file,
     i64 line_start = buffer_get_line_index(buffer, edit.range.first);
     i64 line_end = buffer_get_line_index(buffer, edit.range.one_past_last);
     i64 replaced_line_count = line_end - line_start;
-    i64 new_line_count = buffer_count_newlines(scratch, buffer, edit.range.first, edit.range.first + edit.text.size);
+    i64 new_line_count = buffer_count_newlines(scratch, buffer, edit.range.first,
+                                               edit.range.first + edit.text.size);
     i64 line_shift =  new_line_count - replaced_line_count;
     
     file_clear_layout_cache(file);
-    buffer_remeasure_starts(scratch, buffer, Ii64(line_start, line_end + 1), line_shift, shift_amount);
-    
-    // NOTE(allen): cursor fixing
-    edit_fix_markers(tctx, models, file, edit);
+    buffer_remeasure_starts(scratch, buffer, Ii64(line_start, line_end + 1),
+                            line_shift, shift_amount);
 }
 
 internal void
@@ -265,6 +261,11 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
     pre_edit_history_prep(file, behaviors);
     
     edit__apply(tctx, models, file, range, string, behaviors);
+    
+    Batch_Edit batch = {};
+    batch.edit.text = string;
+    batch.edit.range = range;
+    edit_fix_markers(tctx, models, file, &batch);
     
     post_edit_call_hook(tctx, models, file,
                         Ii64_size(range.first, string.size), range_size(range));
@@ -412,65 +413,100 @@ edit_merge_history_range(Thread_Context *tctx, Models *models, Editing_File *fil
     return(result);
 }
 
+#include "4coder_profile_static_enable.cpp"
+
+function b32
+edit_batch_check(Thread_Context *tctx, Profile_Global_List *list, Batch_Edit *batch){
+    ProfileTLScope(tctx, list, "batch check");
+    b32 result = true;
+    Range_i64 prev_range = Ii64(-1, 0);
+    for (;batch != 0;
+         batch = batch->next){
+        if (batch->edit.range.first <= prev_range.first ||
+            batch->edit.range.first < prev_range.one_past_last){
+            result = false;
+            break;
+        }
+    }
+    return(result);
+}
+
 internal b32
 edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
            Batch_Edit *batch, Edit_Behaviors behaviors){
     b32 result = true;
-    
     if (batch != 0){
-        pre_edit_state_change(models, file);
-        pre_edit_history_prep(file, behaviors);
-        
-        History_Record_Index start_index = 0;
-        if (history_is_activated(&file->state.history)){
-            start_index = file->state.current_record_index;
+        if (!edit_batch_check(tctx, &models->profile_list, batch)){
+            result = false;
         }
-        
-        Range_i64 old_range = Ii64_neg_inf;
-        Range_i64 new_range = Ii64_neg_inf;
-        
-        i64 shift = 0;
-        for (Batch_Edit *edit = batch;
-             edit != 0;
-             edit = edit->next){
-            String_Const_u8 insert_string = edit->edit.text;
+        else{
+            ProfileTLScope(tctx, &models->profile_list, "batch apply");
             
-            Range_i64 edit_range = edit->edit.range;
-            old_range.min = min(old_range.min, edit_range.min);
-            old_range.max = max(old_range.max, edit_range.max);
+            pre_edit_state_change(models, file);
+            pre_edit_history_prep(file, behaviors);
             
-            edit_range.first += shift;
-            edit_range.one_past_last += shift;
-            
-            new_range.min = min(new_range.min, edit_range.min);
-            i64 new_max = (i64)(edit_range.min + insert_string.size); 
-            new_range.max = max(new_range.max, new_max);
-            
-            i64 size = buffer_size(&file->state.buffer);
-            if (0 <= edit_range.first &&
-                edit_range.first <= edit_range.one_past_last &&
-                edit_range.one_past_last <= size){
-                edit__apply(tctx, models, file, edit_range, insert_string, behaviors);
-                shift += replace_range_shift(edit_range, insert_string.size);
+            History_Record_Index start_index = 0;
+            if (history_is_activated(&file->state.history)){
+                start_index = file->state.current_record_index;
             }
-            else{
-                result = false;
-                break;
+            
+            Range_i64 old_range = Ii64_neg_inf;
+            Range_i64 new_range = Ii64_neg_inf;
+            
+            ProfileTLBlockNamed(tctx, &models->profile_list, "batch text edits", profile_edits);
+            i32 batch_count = 0;
+            i64 shift = 0;
+            for (Batch_Edit *edit = batch;
+                 edit != 0;
+                 edit = edit->next){
+                String_Const_u8 insert_string = edit->edit.text;
+                
+                Range_i64 edit_range = edit->edit.range;
+                old_range.min = min(old_range.min, edit_range.min);
+                old_range.max = max(old_range.max, edit_range.max);
+                
+                edit_range.first += shift;
+                edit_range.one_past_last += shift;
+                
+                new_range.min = min(new_range.min, edit_range.min);
+                i64 new_max = (i64)(edit_range.min + insert_string.size); 
+                new_range.max = max(new_range.max, new_max);
+                
+                i64 size = buffer_size(&file->state.buffer);
+                if (0 <= edit_range.first &&
+                    edit_range.first <= edit_range.one_past_last &&
+                    edit_range.one_past_last <= size){
+                    edit__apply(tctx, models, file, edit_range, insert_string,
+                                behaviors);
+                    shift += replace_range_shift(edit_range, insert_string.size);
+                    batch_count += 1;
+                }
+                else{
+                    result = false;
+                    break;
+                }
             }
+            ProfileCloseNow(profile_edits);
+            
+            if (history_is_activated(&file->state.history)){
+                History_Record_Index last_index = file->state.current_record_index;
+                if (start_index + 1 < last_index){
+                    edit_merge_history_range(tctx, models, file,
+                                             start_index + 1, last_index,
+                                             RecordMergeFlag_StateInRange_ErrorOut);
+                }
+            }
+            
+            edit_fix_markers(tctx, models, file, batch);
+            
+            post_edit_call_hook(tctx, models, file, new_range, range_size(old_range));
         }
-        
-        if (history_is_activated(&file->state.history)){
-            History_Record_Index last_index = file->state.current_record_index;
-            if (start_index + 1 < last_index){
-                edit_merge_history_range(tctx, models, file, start_index + 1, last_index, RecordMergeFlag_StateInRange_ErrorOut);
-            }
-        }
-        
-        post_edit_call_hook(tctx, models, file, new_range, range_size(old_range));
     }
     
     return(result);
 }
+
+#include "4coder_profile_static_disable.cpp"
 
 ////////////////////////////////
 

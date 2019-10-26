@@ -72,6 +72,13 @@ struct Buffer_Layout_Item_List{
     Interval_i64 index_range;
 };
 
+#if 0
+struct Edit_Array{
+    Edit *vals;
+    i32 count;
+};
+#endif
+
 #endif
 
 // BOTTOM

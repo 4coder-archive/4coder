@@ -2961,4 +2961,12 @@ buffer_find_all_matches(Application_Links *app, Arena *arena, Buffer_ID buffer,
     return(list);
 }
 
+////////////////////////////////
+
+api(custom) function Profile_Global_List*
+get_core_profile_list(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    return(&models->profile_list);
+}
+
 // BOTTOM

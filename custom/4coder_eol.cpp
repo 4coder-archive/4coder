@@ -47,7 +47,7 @@ rewrite_lines_to_crlf(Application_Links *app, Buffer_ID buffer){
             edit->edit.range = Ii64(pos);
         }
     }
-    profile_batch.close_now();
+    ProfileCloseNow(profile_batch);
     
     buffer_batch_edit(app, buffer, first);
 }
@@ -76,7 +76,7 @@ rewrite_lines_to_lf(Application_Links *app, Buffer_ID buffer){
         edit->edit.text = string_u8_litexpr("");
         edit->edit.range = match.range;
     }
-    profile_batch.close_now();
+    ProfileCloseNow(profile_batch);
     
 	buffer_batch_edit(app, buffer, first);
 }
