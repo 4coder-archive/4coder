@@ -10,8 +10,28 @@
 // TOP
 
 internal void
-edit_pre_state_change(Models *models, Editing_File *file){
+pre_edit_state_change(Models *models, Editing_File *file){
     file_add_dirty_flag(file, DirtyState_UnsavedChanges);
+}
+
+internal void
+pre_edit_history_prep(Editing_File *file, Edit_Behaviors behaviors){
+    if (!behaviors.do_not_post_to_history){
+        history_dump_records_after_index(&file->state.history,
+                                         file->state.current_record_index);
+    }
+}
+
+internal void
+post_edit_call_hook(Thread_Context *tctx, Models *models, Editing_File *file,
+                    Range_i64 new_range, umem original_size){
+    // NOTE(allen): edit range hook
+    if (models->buffer_edit_range != 0){
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        models->buffer_edit_range(&app, file->id, new_range, original_size);
+    }
 }
 
 internal void
@@ -138,8 +158,14 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Edit 
     if (cursor_count > 0 || r_cursor_count > 0){
         buffer_sort_cursors(  cursors,   cursor_count);
         buffer_sort_cursors(r_cursors, r_cursor_count);
-        buffer_update_cursors(  cursors,   cursor_count, edit.range.first, edit.range.one_past_last, edit.text.size, false);
-        buffer_update_cursors(r_cursors, r_cursor_count, edit.range.first, edit.range.one_past_last, edit.text.size, true);
+        
+        buffer_update_cursors(  cursors,   cursor_count,
+                              edit.range.first, edit.range.one_past_last,
+                              edit.text.size, false);
+        buffer_update_cursors(r_cursors, r_cursor_count,
+                              edit.range.first, edit.range.one_past_last,
+                              edit.text.size, true);
+        
         buffer_unsort_cursors(  cursors,   cursor_count);
         buffer_unsort_cursors(r_cursors, r_cursor_count);
         
@@ -178,7 +204,20 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Edit 
 }
 
 internal void
-edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
+file_end_file(Thread_Context *tctx, Models *models, Editing_File *file){
+    if (models->end_buffer != 0){
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        models->end_buffer(&app, file->id);
+    }
+    Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
+    lifetime_free_object(lifetime_allocator, file->lifetime_object);
+    file->lifetime_object = lifetime_alloc_object(lifetime_allocator, DynamicWorkspace_Buffer, file);
+}
+
+internal void
+edit__apply(Thread_Context *tctx, Models *models, Editing_File *file,
             Interval_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
     Edit edit = {};
     edit.text = string;
@@ -193,21 +232,13 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
     
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
-        history_dump_records_after_index(&file->state.history, file->state.current_record_index);
-        history_record_edit(&models->global_history, &file->state.history, buffer, edit);
-        file->state.current_record_index = history_get_record_count(&file->state.history);
+        history_record_edit(&models->global_history, &file->state.history, buffer,
+                            edit);
+        file->state.current_record_index =
+            history_get_record_count(&file->state.history);
     }
     
-    // NOTE(allen): fixing stuff beforewards????
-    edit_pre_state_change(models, file);
-    
-    // NOTE(allen): save the original text for the edit range hook.
-    String_Const_u8 original_text = {};
-    if (models->buffer_edit_range != 0){
-        original_text = buffer_stringify(scratch, &file->state.buffer, edit.range);
-    }
-    
-    // NOTE(allen): expand spec, compute shift
+    // NOTE(allen): compute shift
     i64 shift_amount = replace_range_shift(edit.range, (i64)edit.text.size);
     
     // NOTE(allen): actual text replacement
@@ -225,28 +256,18 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
     
     // NOTE(allen): cursor fixing
     edit_fix_markers(tctx, models, file, edit);
-    
-    // NOTE(allen): edit range hook
-    if (models->buffer_edit_range != 0){
-        Interval_i64 new_range = Ii64(edit.range.first, edit.range.first + edit.text.size);
-        Application_Links app = {};
-        app.tctx = tctx;;
-        app.cmd_context = models;
-        models->buffer_edit_range(&app, file->id, new_range, original_text);
-    }
 }
 
 internal void
-file_end_file(Thread_Context *tctx, Models *models, Editing_File *file){
-    if (models->end_buffer != 0){
-        Application_Links app = {};
-        app.tctx = tctx;
-        app.cmd_context = models;
-        models->end_buffer(&app, file->id);
-    }
-    Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
-    lifetime_free_object(lifetime_allocator, file->lifetime_object);
-    file->lifetime_object = lifetime_alloc_object(lifetime_allocator, DynamicWorkspace_Buffer, file);
+edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
+            Range_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
+    pre_edit_state_change(models, file);
+    pre_edit_history_prep(file, behaviors);
+    
+    edit__apply(tctx, models, file, range, string, behaviors);
+    
+    post_edit_call_hook(tctx, models, file,
+                        Ii64_size(range.first, string.size), range_size(range));
 }
 
 internal void
@@ -395,25 +416,41 @@ internal b32
 edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
            Batch_Edit *batch, Edit_Behaviors behaviors){
     b32 result = true;
+    
     if (batch != 0){
+        pre_edit_state_change(models, file);
+        pre_edit_history_prep(file, behaviors);
+        
         History_Record_Index start_index = 0;
         if (history_is_activated(&file->state.history)){
             start_index = file->state.current_record_index;
         }
+        
+        Range_i64 old_range = Ii64_neg_inf;
+        Range_i64 new_range = Ii64_neg_inf;
         
         i64 shift = 0;
         for (Batch_Edit *edit = batch;
              edit != 0;
              edit = edit->next){
             String_Const_u8 insert_string = edit->edit.text;
-            Interval_i64 edit_range = edit->edit.range;
+            
+            Range_i64 edit_range = edit->edit.range;
+            old_range.min = min(old_range.min, edit_range.min);
+            old_range.max = max(old_range.max, edit_range.max);
+            
             edit_range.first += shift;
             edit_range.one_past_last += shift;
+            
+            new_range.min = min(new_range.min, edit_range.min);
+            i64 new_max = (i64)(edit_range.min + insert_string.size); 
+            new_range.max = max(new_range.max, new_max);
+            
             i64 size = buffer_size(&file->state.buffer);
             if (0 <= edit_range.first &&
                 edit_range.first <= edit_range.one_past_last &&
                 edit_range.one_past_last <= size){
-                edit_single(tctx, models, file, edit_range, insert_string, behaviors);
+                edit__apply(tctx, models, file, edit_range, insert_string, behaviors);
                 shift += replace_range_shift(edit_range, insert_string.size);
             }
             else{
@@ -428,7 +465,10 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
                 edit_merge_history_range(tctx, models, file, start_index + 1, last_index, RecordMergeFlag_StateInRange_ErrorOut);
             }
         }
+        
+        post_edit_call_hook(tctx, models, file, new_range, range_size(old_range));
     }
+    
     return(result);
 }
 

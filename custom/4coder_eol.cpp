@@ -14,6 +14,7 @@ rewrite_lines_to_crlf(Application_Links *app, Buffer_ID buffer){
     Batch_Edit *first = 0;
     Batch_Edit *last = 0;
     
+    ProfileBlockNamed(app, "build batch edit", profile_batch);
     i64 pos = -1;
     Character_Predicate pred_cr = character_predicate_from_character('\r');
     Character_Predicate pred_lf = character_predicate_from_character('\n');
@@ -46,6 +47,7 @@ rewrite_lines_to_crlf(Application_Links *app, Buffer_ID buffer){
             edit->edit.range = Ii64(pos);
         }
     }
+    profile_batch.close_now();
     
     buffer_batch_edit(app, buffer, first);
 }
@@ -58,6 +60,7 @@ rewrite_lines_to_lf(Application_Links *app, Buffer_ID buffer){
     Batch_Edit *first = 0;
     Batch_Edit *last = 0;
     
+    ProfileBlockNamed(app, "build batch edit", profile_batch);
     i64 pos = -1;
     Character_Predicate pred = character_predicate_from_character('\r');
     for (;;){
@@ -73,7 +76,8 @@ rewrite_lines_to_lf(Application_Links *app, Buffer_ID buffer){
         edit->edit.text = string_u8_litexpr("");
         edit->edit.range = match.range;
     }
-
+    profile_batch.close_now();
+    
 	buffer_batch_edit(app, buffer, first);
 }
 

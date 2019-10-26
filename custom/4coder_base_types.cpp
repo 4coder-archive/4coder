@@ -1797,6 +1797,11 @@ If32(){
     return(interval);
 }
 
+global Interval_i32 Ii32_neg_inf = {max_i32, min_i32};
+global Interval_i64 Ii64_neg_inf = {max_i64, min_i64};
+global Interval_u64 Iu64_neg_inf = {max_u64, 0};
+global Interval_f32 If32_neg_inf = {max_f32, -max_f32};
+
 internal b32
 operator==(Interval_i32 a, Interval_i32 b){
     return(a.min == b.min && a.max == b.max);
