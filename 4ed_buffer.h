@@ -41,6 +41,28 @@ struct Buffer_Chunk_Position{
     i64 chunk_index;
 };
 
+typedef i32 Line_Move_Kind;
+enum{
+    LineMove_ShiftOldValues,
+    LineMove_MeasureString,
+};
+struct Line_Move{
+    Line_Move *next;
+    Line_Move_Kind kind;
+    i64 new_line_first;
+    union{
+        struct{
+            i64 old_line_first;
+            i64 old_line_opl;
+            i64 text_shift;
+        };
+        struct{
+            String_Const_u8 string;
+            i64 text_base;
+        };
+    };
+};
+
 typedef u32 Buffer_Layout_Flag;
 enum{
     BRFlag_Special_Character = (1 << 0),

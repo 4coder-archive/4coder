@@ -225,33 +225,20 @@ edit__apply(Thread_Context *tctx, Models *models, Editing_File *file,
     Assert(edit.range.first <= edit.range.one_past_last);
     Assert(edit.range.one_past_last <= buffer_size(buffer));
     
-    Scratch_Block scratch(tctx, Scratch_Share);
-    
     // NOTE(allen): history update
     if (!behaviors.do_not_post_to_history){
+        ProfileTLBlock(tctx, &models->profile_list, "edit apply history");
         history_record_edit(&models->global_history, &file->state.history, buffer,
                             edit);
         file->state.current_record_index =
             history_get_record_count(&file->state.history);
     }
     
-    // NOTE(allen): compute shift
-    i64 shift_amount = replace_range_shift(edit.range, (i64)edit.text.size);
-    
-    // NOTE(allen): actual text replacement
-    buffer_replace_range(buffer, edit.range, edit.text, shift_amount);
-    
-    // NOTE(allen): line meta data
-    i64 line_start = buffer_get_line_index(buffer, edit.range.first);
-    i64 line_end = buffer_get_line_index(buffer, edit.range.one_past_last);
-    i64 replaced_line_count = line_end - line_start;
-    i64 new_line_count = buffer_count_newlines(scratch, buffer, edit.range.first,
-                                               edit.range.first + edit.text.size);
-    i64 line_shift =  new_line_count - replaced_line_count;
-    
-    file_clear_layout_cache(file);
-    buffer_remeasure_starts(scratch, buffer, Ii64(line_start, line_end + 1),
-                            line_shift, shift_amount);
+    {
+        ProfileTLBlock(tctx, &models->profile_list, "edit apply replace range");
+        i64 shift_amount = replace_range_shift(edit.range, (i64)edit.text.size);
+        buffer_replace_range(buffer, edit.range, edit.text, shift_amount);
+    }
 }
 
 internal void
@@ -262,11 +249,14 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
     
     edit__apply(tctx, models, file, range, string, behaviors);
     
+    file_clear_layout_cache(file);
+    
     Batch_Edit batch = {};
     batch.edit.text = string;
     batch.edit.range = range;
-    edit_fix_markers(tctx, models, file, &batch);
     
+    buffer_remeasure_starts(tctx, &file->state.buffer, &batch);
+    edit_fix_markers(tctx, models, file, &batch);
     post_edit_call_hook(tctx, models, file,
                         Ii64_size(range.first, string.size), range_size(range));
 }
@@ -413,8 +403,6 @@ edit_merge_history_range(Thread_Context *tctx, Models *models, Editing_File *fil
     return(result);
 }
 
-#include "4coder_profile_static_enable.cpp"
-
 function b32
 edit_batch_check(Thread_Context *tctx, Profile_Global_List *list, Batch_Edit *batch){
     ProfileTLScope(tctx, list, "batch check");
@@ -453,7 +441,10 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
             Range_i64 old_range = Ii64_neg_inf;
             Range_i64 new_range = Ii64_neg_inf;
             
-            ProfileTLBlockNamed(tctx, &models->profile_list, "batch text edits", profile_edits);
+            Gap_Buffer *buffer = &file->state.buffer;
+            
+            ProfileTLBlockNamed(tctx, &models->profile_list, "batch text edits",
+                                profile_edits);
             i32 batch_count = 0;
             i64 shift = 0;
             for (Batch_Edit *edit = batch;
@@ -472,7 +463,7 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
                 i64 new_max = (i64)(edit_range.min + insert_string.size); 
                 new_range.max = max(new_range.max, new_max);
                 
-                i64 size = buffer_size(&file->state.buffer);
+                i64 size = buffer_size(buffer);
                 if (0 <= edit_range.first &&
                     edit_range.first <= edit_range.one_past_last &&
                     edit_range.one_past_last <= size){
@@ -497,6 +488,9 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
                 }
             }
             
+            file_clear_layout_cache(file);
+            
+            buffer_remeasure_starts(tctx, buffer, batch);
             edit_fix_markers(tctx, models, file, batch);
             
             post_edit_call_hook(tctx, models, file, new_range, range_size(old_range));
@@ -505,8 +499,6 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
     
     return(result);
 }
-
-#include "4coder_profile_static_disable.cpp"
 
 ////////////////////////////////
 

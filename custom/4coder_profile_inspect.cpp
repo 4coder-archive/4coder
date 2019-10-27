@@ -469,6 +469,9 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             draw_rectangle_outline(app, box, 6.f, 3.f, margin);
             
             y_pos = y.max;
+            if (y_pos >= info_box.y1){
+                break;
+            }
         }
     }
 }

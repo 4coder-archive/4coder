@@ -68,6 +68,7 @@
 #include "4coder_app_links_allocator.cpp"
 #include "4coder_system_allocator.cpp"
 #include "4coder_profile.cpp"
+#include "4coder_profile_static_enable.cpp"
 #include "4coder_hash_functions.cpp"
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"

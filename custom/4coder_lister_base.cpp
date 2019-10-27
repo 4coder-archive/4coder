@@ -637,8 +637,18 @@ run_lister(Application_Links *app, Lister *lister){
         if (!handled){
             Mapping *mapping = lister->mapping;
             Command_Map *map = lister->map;
-            if (ui_fallback_command_dispatch(app, view, mapping, map, &in)){
+            
+            Fallback_Dispatch_Result disp_result =
+                fallback_command_dispatch(app, mapping, map, &in);
+            if (disp_result.code == FallbackDispatch_DelayedUICall){
+                call_after_ctx_shutdown(app, view, disp_result.func);
                 break;
+            }
+            if (disp_result.code == FallbackDispatch_Unhandled){
+                leave_current_input_unhandled(app);
+            }
+            else{
+                lister_call_refresh_handler(app, lister);
             }
         }
     }

@@ -424,6 +424,7 @@ buffer_eol_convert_out(Arena *arena, Gap_Buffer *buffer, Interval_i64 range){
     return(SCu8(memory, ptr));
 }
 
+#if 0
 internal i64
 buffer_count_newlines(Arena *scratch, Gap_Buffer *buffer, i64 start, i64 end){
     Temp_Memory temp = begin_temp(scratch);
@@ -447,6 +448,7 @@ buffer_count_newlines(Arena *scratch, Gap_Buffer *buffer, i64 start, i64 end){
     
     return(count);
 }
+#endif
 
 internal void
 buffer_starts__ensure_max_size(Gap_Buffer *buffer, i64 max_size){
@@ -491,15 +493,172 @@ buffer_measure_starts(Arena *scratch, Gap_Buffer *buffer){
     end_temp(temp);
 }
 
+internal i64
+buffer_get_line_index(Gap_Buffer *buffer, i64 pos){
+    i64 i = 0;
+    if (buffer->line_start_count > 2){
+        i64 start = 0;
+        i64 one_past_last = buffer->line_start_count - 1;
+        i64 *array = buffer->line_starts;
+        pos = clamp_bot(0, pos);
+        for (;;){
+            i = (start + one_past_last) >> 1;
+            if (array[i] < pos){
+                start = i;
+            }
+            else if (array[i] > pos){
+                one_past_last = i;
+            }
+            else{
+                break;
+            }
+            if (start + 1 >= one_past_last){
+                i = start;
+                break;
+            }
+        }
+    }
+    return(i);
+}
+
+Line_Move*
+push_line_move(Arena *arena, Line_Move *moves, i64 new_line_first,
+               i64 old_line_first, i64 old_line_opl, i64 text_shift){
+    Line_Move *move = push_array(arena, Line_Move, 1);
+    move->next = moves;
+    move->kind = LineMove_ShiftOldValues;
+    move->new_line_first = new_line_first;
+    move->old_line_first = old_line_first;
+    move->old_line_opl = old_line_opl;
+    move->text_shift = text_shift;
+    return(move);
+}
+
+Line_Move*
+push_line_move(Arena *arena, Line_Move *moves, i64 new_line_first,
+               String_Const_u8 string, i64 text_base){
+    Line_Move *move = push_array(arena, Line_Move, 1);
+    move->next = moves;
+    move->kind = LineMove_MeasureString;
+    move->new_line_first = new_line_first;
+    move->string = string;
+    move->text_base = text_base;
+    return(move);
+}
+
+function i64
+count_lines(String_Const_u8 string){
+    i64 result = 0;
+    for (umem i = 0; i < string.size; i += 1){
+        if (string.str[i] == '\n'){
+            result += 1;
+        }
+    }
+    return(result);
+}
+
+function void
+fill_line_starts(i64 *lines_starts, String_Const_u8 string, i64 text_base){
+    i64 *ptr = lines_starts;
+    for (umem i = 0; i < string.size; i += 1){
+        if (string.str[i] == '\n'){
+            *ptr = text_base + i + 1;
+            ptr += 1;
+        }
+    }
+}
+
+function void
+buffer_remeasure_starts(Thread_Context *tctx, Gap_Buffer *buffer, Batch_Edit *batch){
+    Scratch_Block scratch(tctx);
+    
+    i64 line_start_count = buffer_line_count(buffer) + 1;
+    
+    Line_Move *moves = 0;
+    i64 current_line = 0;
+    i64 text_shift = 0;
+    i64 line_shift = 0;
+    for (Batch_Edit *node = batch;
+         node != 0;
+         node = node->next){
+        i64 first_line = buffer_get_line_index(buffer, node->edit.range.first);
+        i64 opl_line = buffer_get_line_index(buffer, node->edit.range.one_past_last);
+        i64 new_line_count = count_lines(node->edit.text);
+        i64 deleted_line_count = opl_line - first_line;
+        
+        Assert(first_line <= opl_line);
+        Assert(opl_line <= line_start_count);
+        
+        if (current_line <= first_line &&
+            (text_shift != 0 || line_shift != 0)){
+            moves = push_line_move(scratch, moves, current_line + line_shift,
+                                   current_line, first_line + 1, text_shift);
+        }
+        
+        if (new_line_count != 0){
+            moves = push_line_move(scratch, moves, first_line + 1 + line_shift,
+                                   node->edit.text, node->edit.range.first + text_shift);
+        }
+        
+        text_shift += node->edit.text.size - range_size(node->edit.range);
+        line_shift += new_line_count - deleted_line_count;
+        current_line = opl_line + 1;
+    }
+    
+    moves = push_line_move(scratch, moves, current_line + line_shift,
+                           current_line, line_start_count, text_shift);
+    line_start_count = line_start_count + line_shift;
+    
+    buffer_starts__ensure_max_size(buffer, line_start_count + 1);
+    buffer->line_start_count = line_start_count;
+    
+    i64 *array = buffer->line_starts;
+    
+    for (Line_Move *node = moves;
+         node != 0;
+         node = node->next){
+        if (node->kind == LineMove_ShiftOldValues){
+            i64 line_index_shift = node->new_line_first - node->old_line_first;
+            i64 move_text_shift = node->text_shift;
+            if (line_index_shift > 0){
+                for (i64 i = node->old_line_opl - 1;
+                     i >= node->old_line_first;
+                     i -= 1){
+                    array[i + line_index_shift] = array[i] + move_text_shift;
+                }
+            }
+            else{
+                for (i64 i = node->old_line_first;
+                     i < node->old_line_opl;
+                     i += 1){
+                    array[i + line_index_shift] = array[i] + move_text_shift;
+                }
+            }
+        }
+    }
+    
+    for (Line_Move *node = moves;
+         node != 0;
+         node = node->next){
+        if (node->kind == LineMove_MeasureString){
+            fill_line_starts(array + node->new_line_first, node->string, node->text_base);
+        }
+    }
+}
+
+#if 0
 internal void
-buffer_remeasure_starts(Arena *scratch, Gap_Buffer *buffer, Interval_i64 old_line_indexes, i64 line_shift, i64 text_shift){
+buffer_remeasure_starts(Arena *scratch, Gap_Buffer *buffer,
+                        Range_i64 old_line_indexes, i64 line_shift, i64 text_shift){
     Temp_Memory temp = begin_temp(scratch);
     buffer_starts__ensure_max_size(buffer, buffer->line_start_count + line_shift);
     
     i64 new_line_indexes_opl = old_line_indexes.one_past_last + line_shift;
     i64 old_line_start_count = buffer->line_start_count;
     i64 *line_start_ptr = buffer->line_starts + old_line_indexes.one_past_last;
-    for (i64 i = old_line_indexes.one_past_last; i < old_line_start_count; i += 1, line_start_ptr += 1){
+    for (i64 i = old_line_indexes.one_past_last;
+         i < old_line_start_count;
+         i += 1, line_start_ptr += 1){
         *line_start_ptr += text_shift;
     }
     block_copy_dynamic_array(buffer->line_starts + new_line_indexes_opl,
@@ -532,34 +691,7 @@ buffer_remeasure_starts(Arena *scratch, Gap_Buffer *buffer, Interval_i64 old_lin
     buffer->line_start_count += line_shift;
     end_temp(temp);
 }
-
-internal i64
-buffer_get_line_index(Gap_Buffer *buffer, i64 pos){
-    i64 i = 0;
-    if (buffer->line_start_count > 2){
-        i64 start = 0;
-        i64 one_past_last = buffer->line_start_count - 1;
-        i64 *array = buffer->line_starts;
-        pos = clamp_bot(0, pos);
-        for (;;){
-            i = (start + one_past_last) >> 1;
-            if (array[i] < pos){
-                start = i;
-            }
-            else if (array[i] > pos){
-                one_past_last = i;
-            }
-            else{
-                break;
-            }
-            if (start + 1 >= one_past_last){
-                i = start;
-                break;
-            }
-        }
-    }
-    return(i);
-}
+#endif
 
 internal Interval_i64
 buffer_get_pos_range_from_line_number(Gap_Buffer *buffer, i64 line_number){
