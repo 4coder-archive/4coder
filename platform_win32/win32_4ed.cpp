@@ -624,7 +624,7 @@ global Key_Code keycode_lookup_table[255];
 
 internal void
 win32_keycode_init(void){
-    for (u32 i = 'A'; i <= 'z'; i += 1){
+    for (u32 i = 'A'; i <= 'Z'; i += 1){
         keycode_lookup_table[i] = KeyCode_A + i - 'A';
     }
     for (u32 i = '0'; i <= '9'; i += 1){

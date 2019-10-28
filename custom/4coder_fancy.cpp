@@ -191,7 +191,7 @@ function Fancy_String*
 push_fancy_stringfv(Arena *arena, Fancy_Line *line, f32 pre_margin, f32 post_margin,
                     char *format, va_list args){
     return(push_fancy_stringfv(arena, line, 0, fcolor_zero(), pre_margin, post_margin,
-                             format, args));
+                               format, args));
 }
 function Fancy_String*
 push_fancy_stringfv(Arena *arena, Fancy_Line *line,
@@ -693,7 +693,6 @@ get_fancy_block_dim(Application_Links *app, Face_ID face, Fancy_Block *block){
 function void
 draw_fancy_block(Application_Links *app, Face_ID face, FColor fore,
                  Fancy_Block *block, Vec2_f32 p, u32 flags, Vec2_f32 delta){
-    Face_Metrics metrics = get_face_metrics(app, face);
     for (Fancy_Line *node = block->first;
          node != 0;
          node = node->next){
@@ -710,7 +709,7 @@ draw_fancy_string(Application_Links *app, Face_ID face, FColor fore,
 
 function Vec2_f32
 draw_fancy_line(Application_Links *app, Face_ID face, FColor fore,
-                  Fancy_Line *line, Vec2_f32 p){
+                Fancy_Line *line, Vec2_f32 p){
     return(draw_fancy_line(app, face, fore, line, p, 0, V2f32(1.f, 0.f)));
 }
 
