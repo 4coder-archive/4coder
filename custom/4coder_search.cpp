@@ -5,10 +5,6 @@ and list all locations.
 
 // TOP
 
-//
-// Search Iteration Systems
-//
-
 global String_Const_u8 search_name = string_u8_litexpr("*search*");
 
 internal void
@@ -305,49 +301,39 @@ word_complete_list_extend_from_raw(Application_Links *app, Arena *arena,
     }
 }
 
-internal Word_Complete_Iterator
-get_word_complete_it(Application_Links *app, Arena *arena,
-                     Buffer_ID buffer, Range_i64 range){
-    Base_Allocator *allocator = get_base_allocator_system();
-    
-    Scratch_Block scratch(app);
-    String_Const_u8 needle = push_buffer_range(app, arena, buffer, range);
-    String_Match_List list = get_complete_list_raw(app, scratch, buffer, range, needle);
-    
-    Word_Complete_Iterator it = {};
-    it.app = app;
-    it.arena = arena;
-    it.arena_restore = begin_temp(arena);
-    it.first_buffer = buffer;
-    it.current_buffer = buffer;
-    it.needle = needle;
-    
-    it.already_used_table = make_table_Data_u64(allocator, 100);
-    word_complete_list_extend_from_raw(app, arena,
-                                       &list, &it.list, &it.already_used_table);
-    return(it);
-}
-
 function void
-word_complete_it_release(Word_Complete_Iterator *it){
-    if (it->arena != 0){
-        end_temp(it->arena_restore);
-        table_clear(&it->already_used_table);
+word_complete_iter_init(Buffer_ID buffer, Range_i64 range, Word_Complete_Iterator *iter){
+    if (iter->app != 0 && iter->arena != 0){
+        Base_Allocator *allocator = get_base_allocator_system();
+        
+        Application_Links *app = iter->app;
+        Arena *arena = iter->arena;
+        
+        if (iter->already_used_table.allocator != 0){
+            end_temp(iter->arena_restore);
+            table_clear(&iter->already_used_table);
+        }
+        
+        block_zero_struct(iter);
+        iter->app = app;
+        iter->arena = arena;
+        
+        Scratch_Block scratch(app);
+        String_Const_u8 needle = push_buffer_range(app, arena, buffer, range);
+        String_Match_List list = get_complete_list_raw(app, scratch, buffer, range, needle);
+        
+        iter->arena_restore = begin_temp(arena);
+        iter->first_buffer = buffer;
+        iter->current_buffer = buffer;
+        iter->needle = needle;
+        
+        iter->already_used_table = make_table_Data_u64(allocator, 100);
+        word_complete_list_extend_from_raw(app, arena, &list, &iter->list, &iter->already_used_table);
     }
 }
 
-function Word_Complete_State
-get_word_complete_state(Application_Links *app, Arena *arena,
-                        Buffer_ID buffer, Range_i64 needle_range){
-    Word_Complete_State state = {};
-    state.initialized = true;
-    state.range = needle_range;
-    state.it = get_word_complete_it(app, arena, buffer, needle_range);
-    return(state);
-}
-
 function void
-word_complete_it_next(Word_Complete_Iterator *it){
+word_complete_iter_next(Word_Complete_Iterator *it){
     for (;;){
         if (it->node == 0){
             it->node = it->list.first;
@@ -377,7 +363,7 @@ word_complete_it_next(Word_Complete_Iterator *it){
 }
 
 function String_Const_u8
-word_complete_it_read(Word_Complete_Iterator *it){
+word_complete_iter_read(Word_Complete_Iterator *it){
     String_Const_u8 result = {};
     if (it->node == 0){
         result = it->needle;
@@ -386,6 +372,24 @@ word_complete_it_read(Word_Complete_Iterator *it){
         result = it->node->string;
     }
     return(result);
+}
+
+
+function b32
+word_complete_iter_is_at_base_slot(Word_Complete_Iterator *it){
+    return(it->node == 0);
+}
+
+function Word_Complete_Iterator*
+word_complete_get_shared_iter(Application_Links *app){
+    local_persist Arena *completion_arena = {};
+    local_persist Word_Complete_Iterator it = {};
+    if (completion_arena == 0){
+        completion_arena = reserve_arena(app);
+    }
+    it.app = app;
+    it.arena = completion_arena;
+    return(&it);
 }
 
 CUSTOM_COMMAND_SIG(word_complete)
@@ -407,38 +411,247 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
         *next_rewrite = Rewrite_WordComplete;
         
-        local_persist Arena *completion_arena = {};
-        if (completion_arena == 0){
-            completion_arena = reserve_arena(app);
-        }
-        local_persist Word_Complete_State state = {};
+        Word_Complete_Iterator *it = word_complete_get_shared_iter(app);
+        local_persist b32 initialized = false;
+        local_persist Range_i64 range = {};
         
-        if (first_completion || !state.initialized){
+        if (first_completion || !initialized){
             ProfileBlock(app, "word complete state init");
-            
-            word_complete_it_release(&state.it);
-            block_zero_struct(&state);
             
             i64 pos = view_get_cursor_pos(app, view);
             
             Range_i64 needle_range = get_word_complete_needle_range(app, buffer, pos);
             
             if (range_size(needle_range) > 0){
-                state = get_word_complete_state(app, completion_arena, buffer,
-                                                needle_range);
+                initialized = true;
+                range = needle_range;
+                word_complete_iter_init(buffer, needle_range, it);
             }
         }
         
-        if (state.initialized){
+        if (initialized){
             ProfileBlock(app, "word complete apply");
             
-            word_complete_it_next(&state.it);
-            String_Const_u8 str = word_complete_it_read(&state.it);
+            word_complete_iter_next(it);
+            String_Const_u8 str = word_complete_iter_read(it);
             
-            buffer_replace_range(app, buffer, state.range, str);
+            buffer_replace_range(app, buffer, range, str);
             
-            state.range.max = state.range.min + str.size;
-            view_set_cursor_and_preferred_x(app, view, seek_pos(state.range.max));
+            range.max = range.min + str.size;
+            view_set_cursor_and_preferred_x(app, view, seek_pos(range.max));
+        }
+    }
+}
+
+function Word_Complete_Menu
+make_word_complete_menu(Render_Caller_Function *prev_render_caller, Word_Complete_Iterator *it){
+    Word_Complete_Menu menu = {};
+    menu.prev_render_caller = prev_render_caller;
+    menu.it = it;
+    return(menu);
+}
+
+function void
+word_complete_menu_next(Word_Complete_Menu *menu){
+    i32 count = 0;
+    for (i32 i = 0; i < ArrayCount(menu->options); i += 1){
+        word_complete_iter_next(menu->it);
+        if (word_complete_iter_is_at_base_slot(menu->it)){
+            break;
+        }
+        else{
+            menu->options[i] = word_complete_iter_read(menu->it);
+            count += 1;
+        }
+    }
+    menu->count = count;
+}
+
+function void
+word_complete_menu_render(Application_Links *app, Frame_Info frame_info, View_ID view){
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    Word_Complete_Menu **menu_ptr = scope_attachment(app, scope, view_word_complete_menu, Word_Complete_Menu*);
+    Word_Complete_Menu *menu = *menu_ptr;
+    
+    if (menu != 0){
+        menu->prev_render_caller(app, frame_info, view);
+        
+        Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+        Face_ID face = get_face_id(app, buffer);
+        
+        Scratch_Block scratch(app);
+        
+        Fancy_Block block = {};
+        for (i32 i = 0; i < menu->count; i += 1){
+            if (menu->options[i].size > 0){
+                Fancy_Line *line = push_fancy_line(scratch, &block, face);
+                push_fancy_stringf(scratch, line, fcolor_id(Stag_Pop1), "F%d:", i + 1);
+                push_fancy_string(scratch, line, fcolor_id(Stag_Default), menu->options[i]);
+            }
+        }
+        
+        Rect_f32 region = view_get_buffer_region(app, view);
+        
+        Buffer_Scroll scroll = view_get_buffer_scroll(app, view);
+        Buffer_Point buffer_point = scroll.position;
+        i64 pos = view_get_cursor_pos(app, view);
+        Vec2_f32 cursor_p = view_relative_xy_of_pos(app, view, buffer_point.line_number, pos);
+        cursor_p -= buffer_point.pixel_shift;
+        cursor_p += region.p0;
+        
+        Face_Metrics metrics = get_face_metrics(app, face);
+        f32 x_padding = metrics.normal_advance;
+        f32 x_half_padding = x_padding*0.5f;
+        
+        draw_drop_down(app, face, &block, cursor_p, region, x_padding, x_half_padding,
+                       fcolor_id(Stag_Margin_Hover), fcolor_id(Stag_Back));
+    }
+}
+
+function Edit
+get_word_complete_from_user_drop_down(Application_Links *app){
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    View_Context ctx = view_current_context(app, view);
+    Render_Caller_Function *prev_render_caller = ctx.render_caller;
+    ctx.render_caller = word_complete_menu_render;
+    view_push_context(app, view, &ctx);
+    
+    Edit result = {};
+    
+    Word_Complete_Iterator *it = word_complete_get_shared_iter(app);
+    
+    i64 pos = view_get_cursor_pos(app, view);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    Range_i64 range = get_word_complete_needle_range(app, buffer, pos);
+    if (range_size(range) != 0){
+        word_complete_iter_init(buffer, range, it);
+        Word_Complete_Menu menu = make_word_complete_menu(prev_render_caller, it);
+        word_complete_menu_next(&menu);
+        
+        Managed_Scope scope = view_get_managed_scope(app, view);
+        Word_Complete_Menu **menu_ptr = scope_attachment(app, scope, view_word_complete_menu, Word_Complete_Menu*);
+        *menu_ptr = &menu;
+        
+        b32 keep_looping_menu = true;
+        for (;keep_looping_menu;){
+            User_Input in = get_next_input(app, EventPropertyGroup_Any,
+                                           EventProperty_Escape);
+            if (in.abort){
+                break;
+            }
+            
+            b32 handled = true;
+            switch (in.event.kind){
+                case InputEventKind_TextInsert:
+                {
+                    write_text_input(app);
+                    pos = view_get_cursor_pos(app, view);
+                    range = get_word_complete_needle_range(app, buffer, pos);
+                    if (range_size(range) == 0){
+                        keep_looping_menu = false;
+                    }
+                    else{
+                        word_complete_iter_init(buffer, range, it);
+                        menu = make_word_complete_menu(prev_render_caller, it);
+                        word_complete_menu_next(&menu);
+                        if (menu.count == 0){
+                            keep_looping_menu = false;
+                        }
+                    }
+                }break;
+                
+                case InputEventKind_KeyStroke:
+                {
+                    switch (in.event.key.code){
+                        case KeyCode_Return:
+                        {
+                            result.text = menu.options[0];
+                            result.range = range;
+                            keep_looping_menu = false;
+                        }break;
+                        
+                        case KeyCode_Tab:
+                        {
+                            word_complete_menu_next(&menu);
+                        }break;
+                        
+                        case KeyCode_F1:
+                        case KeyCode_F2:
+                        case KeyCode_F3:
+                        case KeyCode_F4:
+                        case KeyCode_F5:
+                        case KeyCode_F6:
+                        case KeyCode_F7:
+                        case KeyCode_F8:
+                        {
+                            i32 index = (in.event.key.code - KeyCode_F1);
+                            result.text = menu.options[index];
+                            result.range = range;
+                            keep_looping_menu = false;
+                        }break;
+                        
+                        case KeyCode_Backspace:
+                        {
+                            backspace_char(app);
+                            pos = view_get_cursor_pos(app, view);
+                            range = get_word_complete_needle_range(app, buffer, pos);
+                            if (range_size(range) == 0){
+                                keep_looping_menu = false;
+                            }
+                            else{
+                                word_complete_iter_init(buffer, range, it);
+                                menu = make_word_complete_menu(prev_render_caller, it);
+                                word_complete_menu_next(&menu);
+                                if (menu.count == 0){
+                                    keep_looping_menu = false;
+                                }
+                            }
+                        }break;
+                        
+                        default:
+                        {
+                            leave_current_input_unhandled(app);
+                        }break;
+                    }
+                }break;
+                
+                case InputEventKind_MouseButton:
+                {
+                    leave_current_input_unhandled(app);
+                    keep_looping_menu = false;
+                }break;
+                
+                default:
+                {
+                    handled = false;
+                }break;
+            }
+            
+            if (!handled){
+                leave_current_input_unhandled(app);
+            }
+        }
+        
+        scope = view_get_managed_scope(app, view);
+        menu_ptr = scope_attachment(app, scope, view_word_complete_menu, Word_Complete_Menu*);
+        *menu_ptr = 0;
+        
+        view_pop_context(app, view);
+    }
+    
+    return(result);
+}
+
+CUSTOM_COMMAND_SIG(word_complete_drop_down)
+CUSTOM_DOC("Word complete with drop down menu.")
+{
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    if (buffer != 0){
+        Edit edit = get_word_complete_from_user_drop_down(app);
+        if (edit.text.size > 0){
+            buffer_replace_range(app, buffer, edit.range, edit.text);
+            view_set_cursor_and_preferred_x(app, view, seek_pos(edit.range.min + edit.text.size));
         }
     }
 }

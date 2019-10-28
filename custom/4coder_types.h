@@ -95,7 +95,7 @@ enum{
 
 struct Buffer_Point{
     i64 line_number;
-    Vec2 pixel_shift;
+    Vec2_f32 pixel_shift;
 };
 
 struct Line_Shift_Vertical{

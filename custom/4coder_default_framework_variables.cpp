@@ -41,6 +41,7 @@ global Managed_ID view_highlight_range = 0;
 global Managed_ID view_highlight_buffer = 0;
 global Managed_ID view_render_hook = 0;
 global Managed_ID view_call_next = 0;
+global Managed_ID view_word_complete_menu = 0;
 
 global Managed_ID buffer_map_id = 0;
 global Managed_ID buffer_eol_setting = 0;

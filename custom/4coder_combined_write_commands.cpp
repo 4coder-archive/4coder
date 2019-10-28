@@ -172,10 +172,8 @@ static Snippet default_snippets[] = {
     {"forj",   "for (j = 0; j < ; j += 1){\n\n}\n", 5, 16},
     {"fork",   "for (k = 0; k < ; k += 1){\n\n}\n", 5, 16},
     {"for",    "for (;;){\n\n}\n", 5, 10},
-    {"case",   "case :\n{\n\n}break;\n", 5, 9},
     {"///",    "////////////////////////////////", 32, 32},
     {"#guard", "#if !defined(Z)\n#define Z\n#endif\n", 0, 26},
-    {"space",  "char space[256];", 0, 14},
     
     {"op+",  "Z\noperator+(Z a, Z b){\n,\n}\n", 0, 23},
     {"op-",  "Z\noperator-(Z a, Z b){\n,\n}\n", 0, 23},

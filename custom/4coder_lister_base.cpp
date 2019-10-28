@@ -452,7 +452,7 @@ run_lister(Application_Links *app, Lister *lister){
     lister->filter_restore_point = begin_temp(lister->arena);
     lister_update_filtered_list(app, lister);
     
-    View_ID view = get_this_ctx_view(app, Access_Always);;
+    View_ID view = get_this_ctx_view(app, Access_Always);
     View_Context ctx = view_current_context(app, view);
     ctx.render_caller = lister_render;
     ctx.hides_buffer = true;

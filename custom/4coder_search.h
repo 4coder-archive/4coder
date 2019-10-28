@@ -16,6 +16,7 @@ enum{
 struct Word_Complete_Iterator{
     Application_Links *app;
     Arena *arena;
+    
     Temp_Memory arena_restore;
     Buffer_ID first_buffer;
     Buffer_ID current_buffer;
@@ -26,10 +27,11 @@ struct Word_Complete_Iterator{
     Table_Data_u64 already_used_table;
 };
 
-struct Word_Complete_State{
-    b32 initialized;
-    Range_i64 range;
-    Word_Complete_Iterator it;
+struct Word_Complete_Menu{
+    Render_Caller_Function *prev_render_caller;
+    Word_Complete_Iterator *it;
+    String_Const_u8 options[8];
+    i32 count;
 };
 
 #endif

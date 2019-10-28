@@ -25,13 +25,13 @@ get_margin_color(i32 level){
     return(margin);
 }
 
-internal Vec2_f32
+function Vec2_f32
 draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string,
             Vec2_f32 p, FColor color){
     return(draw_string_oriented(app, font_id, color, string, p, 0, V2(1.f, 0.f)));
 }
 
-internal void
+function void
 draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, FColor color){
     draw_rectangle(app, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), 0.f, color);
     draw_rectangle(app, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), 0.f, color);
@@ -39,14 +39,14 @@ draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, FColor color
     draw_rectangle(app, Rf32(inner.x1, inner.y0, outer.x1, inner.y1), 0.f, color);
 }
 
-internal void
+function void
 draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos,
                      f32 roundness, FColor color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
     draw_rectangle(app, rect, roundness, color);
 }
 
-internal void
+function void
 draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range,
                      f32 roundness, FColor color){
     if (range.first < range.one_past_last){
@@ -82,14 +82,14 @@ draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 ra
     }
 }
 
-internal void
+function void
 draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos,
                           f32 roundness, f32 thickness, FColor color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
     draw_rectangle_outline(app, rect, roundness, thickness, color);
 }
 
-internal void
+function void
 draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout,
                           Range_i64 range, f32 roundness, f32 thickness,
                           FColor color){
@@ -98,7 +98,7 @@ draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout,
     }
 }
 
-internal void
+function void
 draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos,
                      FColor color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
@@ -106,7 +106,7 @@ draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos,
     draw_rectangle(app, rect, 0.f, color);
 }
 
-internal void
+function void
 draw_line_highlight(Application_Links *app, Text_Layout_ID layout,
                     Range_i64 line_range, FColor color){
     Range_f32 y1 = text_layout_line_on_screen(app, layout, line_range.min);
@@ -118,13 +118,13 @@ draw_line_highlight(Application_Links *app, Text_Layout_ID layout,
     }
 }
 
-internal void
+function void
 draw_line_highlight(Application_Links *app, Text_Layout_ID layout, i64 line,
                     FColor color){
     draw_line_highlight(app, layout, Ii64(line), color);
 }
 
-internal void
+function void
 paint_text_color_pos(Application_Links *app, Text_Layout_ID layout, i64 pos,
                      FColor color){
     paint_text_color(app, layout, Ii64(pos, pos + 1), color);
@@ -462,7 +462,7 @@ draw_comment_highlights(Application_Links *app, Buffer_ID buffer, Text_Layout_ID
     }
 }
 
-internal Range_i64_Array
+function Range_i64_Array
 get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 pos, u32 flags){
     Range_i64_Array array = {};
     i32 max = 100;
@@ -674,7 +674,7 @@ draw_notepad_style_cursor_highlight(Application_Links *app, View_ID view_id,
 ////////////////////////////////
 
 function Rect_f32
-get_tool_tip_box(Rect_f32 container, Vec2_f32 p, Vec2_f32 box_dims){
+get_contained_box_near_point(Rect_f32 container, Vec2_f32 p, Vec2_f32 box_dims){
     Vec2_f32 container_dims = rect_dim(container);
     box_dims.x = clamp_top(box_dims.x, container_dims.x);
     box_dims.y = clamp_top(box_dims.y, container_dims.y);
@@ -699,11 +699,38 @@ draw_tool_tip(Application_Links *app, Face_ID face, Fancy_Block *block,
     if (block->line_count > 0){
         Vec2_f32 dims = get_fancy_block_dim(app, face, block);
         dims += V2f32(x_padding, 2.f);
-        box = get_tool_tip_box(region, p, dims);
+        box = get_contained_box_near_point(region, p, dims);
+        box.x0 = f32_round32(box.x0);
+        box.y0 = f32_round32(box.y0);
+        box.x1 = f32_round32(box.x1);
+        box.y1 = f32_round32(box.y1);
         Rect_f32 prev_clip = draw_set_clip(app, box);
         draw_rectangle(app, box, 6.f, back_color);
         draw_fancy_block(app, face, fcolor_zero(), block,
                          box.p0 + V2f32(x_half_padding, 1.f));
+        draw_set_clip(app, prev_clip);
+    }
+    return(box);
+}
+
+function Rect_f32
+draw_drop_down(Application_Links *app, Face_ID face, Fancy_Block *block,
+               Vec2_f32 p, Rect_f32 region, f32 x_padding, f32 x_half_padding,
+               FColor outline_color, FColor back_color){
+    Rect_f32 box = Rf32(p, p);
+    if (block->line_count > 0){
+        Vec2_f32 dims = get_fancy_block_dim(app, face, block);
+        dims += V2f32(x_padding, 4.f);
+        box = get_contained_box_near_point(region, p, dims);
+        box.x0 = f32_round32(box.x0);
+        box.y0 = f32_round32(box.y0);
+        box.x1 = f32_round32(box.x1);
+        box.y1 = f32_round32(box.y1);
+        Rect_f32 prev_clip = draw_set_clip(app, box);
+        draw_rectangle(app, box, 0.f, back_color);
+        draw_margin(app, box, rect_inner(box, 1.f), outline_color);
+        draw_fancy_block(app, face, fcolor_zero(), block,
+                         box.p0 + V2f32(x_half_padding, 2.f));
         draw_set_clip(app, prev_clip);
     }
     return(box);

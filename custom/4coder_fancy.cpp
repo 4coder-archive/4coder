@@ -727,8 +727,12 @@ global FColor f_light_gray = fcolor_argb(0.7f, 0.7f, 0.7f, 1.0f);
 global FColor f_gray       = fcolor_argb(0.5f, 0.5f, 0.5f, 1.0f);
 global FColor f_dark_gray  = fcolor_argb(0.3f, 0.3f, 0.3f, 1.0f);
 global FColor f_black      = fcolor_argb(0.0f, 0.0f, 0.0f, 1.0f);
-global FColor f_pink       = fcolor_argb(1.0f, 0.0f, 1.0f, 1.0f);
+global FColor f_red        = fcolor_argb(1.0f, 0.0f, 0.0f, 1.0f);
 global FColor f_green      = fcolor_argb(0.0f, 1.0f, 0.0f, 1.0f);
+global FColor f_blue       = fcolor_argb(0.0f, 0.0f, 1.0f, 1.0f);
+global FColor f_yellow     = fcolor_argb(1.0f, 1.0f, 0.0f, 1.0f);
+global FColor f_pink       = fcolor_argb(1.0f, 0.0f, 1.0f, 1.0f);
+global FColor f_cyan       = fcolor_argb(0.0f, 1.0f, 1.0f, 1.0f);
 
 // BOTTOM
 

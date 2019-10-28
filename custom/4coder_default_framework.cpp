@@ -448,8 +448,9 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     view_ui_data              = managed_id_declare(app, SCu8("DEFAULT.ui_data"       ));
     view_highlight_range      = managed_id_declare(app, SCu8("DEFAULT.highlight"     ));
     view_highlight_buffer     = managed_id_declare(app, SCu8("DEFAULT.highlight_buf" ));
-    view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render" ));
-    view_call_next            = managed_id_declare(app, SCu8("DEFAULT.call_next" ));
+    view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render"        ));
+    view_call_next            = managed_id_declare(app, SCu8("DEFAULT.call_next"     ));
+    view_word_complete_menu   = managed_id_declare(app, SCu8("DEFAULT.word_complete_menu"));
     
     buffer_map_id      = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"     ));
 	buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
