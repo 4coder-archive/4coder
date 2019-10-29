@@ -292,9 +292,10 @@ file_get_managed_scope(Editing_File *file){
 
 ////////////////////////////////
 
-internal Buffer_Layout_Item_List
-file_get_line_layout(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_number){
-    Buffer_Layout_Item_List result = {};
+internal Layout_Item_List
+file_get_line_layout(Thread_Context *tctx, Models *models, Editing_File *file,
+                     Layout_Function *layout_func, f32 width, Face *face, i64 line_number){
+    Layout_Item_List result = {};
     
     i64 line_count = buffer_line_count(&file->state.buffer);
     if (1 <= line_number && line_number <= line_count){
@@ -306,19 +307,23 @@ file_get_line_layout(Thread_Context *tctx, Models *models, Editing_File *file, f
         
         Data key_data = make_data_struct(&key);
         
-        Buffer_Layout_Item_List *list = 0;
+        Layout_Item_List *list = 0;
         
         Table_Lookup lookup = table_lookup(&file->state.line_layout_table, key_data);
         if (lookup.found_match){
             u64 val = 0;
             table_read(&file->state.line_layout_table, lookup, &val);
-            list = (Buffer_Layout_Item_List*)IntAsPtr(val);
+            list = (Layout_Item_List*)IntAsPtr(val);
         }
         else{
-            list = push_array(&file->state.cached_layouts_arena, Buffer_Layout_Item_List, 1);
-            Interval_i64 line_range = buffer_get_pos_range_from_line_number(&file->state.buffer, line_number);
-            *list = buffer_layout(tctx, &file->state.cached_layouts_arena,
-                                  &file->state.buffer, line_range, face, width);
+            list = push_array(&file->state.cached_layouts_arena, Layout_Item_List, 1);
+            Range_i64 line_range = buffer_get_pos_range_from_line_number(&file->state.buffer, line_number);
+            
+            Application_Links app = {};
+            app.tctx = tctx;
+            app.cmd_context = models;
+            *list = layout_func(&app, &file->state.cached_layouts_arena,
+                                file->id, line_range, face->id, width);
             key_data = push_data_copy(&file->state.cached_layouts_arena, key_data);
             table_insert(&file->state.line_layout_table, key_data, (u64)PtrAsInt(list));
         }
@@ -335,7 +340,9 @@ file_clear_layout_cache(Editing_File *file){
 }
 
 internal Line_Shift_Vertical
-file_line_shift_y(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, f32 y_delta){
+file_line_shift_y(Thread_Context *tctx, Models *models, Editing_File *file,
+                  Layout_Function *layout_func, f32 width, Face *face,
+                  i64 line_number, f32 y_delta){
     Line_Shift_Vertical result = {};
     
     f32 line_y = 0.f;
@@ -355,7 +362,8 @@ file_line_shift_y(Thread_Context *tctx, Models *models, Editing_File *file, f32 
                 line_number = 1;
                 break;
             }
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
+            Layout_Item_List line = file_get_line_layout(tctx, models, file, layout_func,
+                                                         width, face, line_number);
             line_y -= line.height;
         }
         if (!has_result){
@@ -368,7 +376,8 @@ file_line_shift_y(Thread_Context *tctx, Models *models, Editing_File *file, f32 
         b32 has_result = false;
         i64 line_count = buffer_line_count(&file->state.buffer);
         for (;;line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
+            Layout_Item_List line = file_get_line_layout(tctx, models, file, layout_func,
+                                                         width, face, line_number);
             f32 next_y = line_y + line.height;
             if (y_delta < next_y){
                 has_result = true;
@@ -391,12 +400,15 @@ file_line_shift_y(Thread_Context *tctx, Models *models, Editing_File *file, f32 
 }
 
 internal f32
-file_line_y_difference(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
+file_line_y_difference(Thread_Context *tctx, Models *models, Editing_File *file,
+                       Layout_Function *layout_func, f32 width, Face *face,
+                       i64 line_a, i64 line_b){
     f32 result = 0.f;
     if (line_a != line_b){
         Interval_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, i);
+            Layout_Item_List line = file_get_line_layout(tctx, models, file, layout_func,
+                                                         width, face, i);
             result += line.height;
         }
         if (line_a < line_b){
@@ -407,25 +419,40 @@ file_line_y_difference(Thread_Context *tctx, Models *models, Editing_File *file,
 }
 
 internal i64
-file_pos_at_relative_xy(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, Vec2_f32 relative_xy){
-    Line_Shift_Vertical shift = file_line_shift_y(tctx, models, file, width, face, base_line, relative_xy.y);
+file_pos_at_relative_xy(Thread_Context *tctx, Models *models, Editing_File *file,
+                        Layout_Function *layout_func, f32 width, Face *face,
+                        i64 base_line, Vec2_f32 relative_xy){
+    Line_Shift_Vertical shift = file_line_shift_y(tctx, models, file,
+                                                  layout_func, width, face, base_line,
+                                                  relative_xy.y);
     relative_xy.y -= shift.y_delta;
-    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, shift.line);
+    Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                 layout_func, width, face,
+                                                 shift.line);
     return(buffer_layout_nearest_pos_to_xy(line, relative_xy));
 }
 
 internal Vec2_f32
-file_relative_xy_of_pos(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
+file_relative_xy_of_pos(Thread_Context *tctx, Models *models, Editing_File *file,
+                        Layout_Function *layout_func, f32 width, Face *face,
+                        i64 base_line, i64 pos){
     i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
-    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
+    Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                 layout_func, width, face,
+                                                 line_number);
     Vec2_f32 result = buffer_layout_xy_center_of_pos(line, pos);
-    result.y += file_line_y_difference(tctx, models, file, width, face, line_number, base_line);
+    result.y += file_line_y_difference(tctx, models, file,
+                                       layout_func, width, face, line_number, base_line);
     return(result);
 }
 
 internal Buffer_Point
-file_normalize_buffer_point(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point point){
-    Line_Shift_Vertical shift = file_line_shift_y(tctx, models, file, width, face, point.line_number, point.pixel_shift.y);
+file_normalize_buffer_point(Thread_Context *tctx, Models *models, Editing_File *file,
+                            Layout_Function *layout_func, f32 width, Face *face,
+                            Buffer_Point point){
+    Line_Shift_Vertical shift = file_line_shift_y(tctx, models, file,
+                                                  layout_func, width, face, point.line_number,
+                                                  point.pixel_shift.y);
     point.line_number = shift.line;
     point.pixel_shift.y -= shift.y_delta;
     point.pixel_shift.x = clamp_bot(0.f, point.pixel_shift.x);
@@ -434,15 +461,21 @@ file_normalize_buffer_point(Thread_Context *tctx, Models *models, Editing_File *
 }
 
 internal Vec2_f32
-file_buffer_point_difference(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, Buffer_Point a, Buffer_Point b){
-    f32 y_difference = file_line_y_difference(tctx, models, file, width, face, a.line_number, b.line_number);
+file_buffer_point_difference(Thread_Context *tctx, Models *models, Editing_File *file,
+                             Layout_Function *layout_func, f32 width, Face *face,
+                             Buffer_Point a, Buffer_Point b){
+    f32 y_difference = file_line_y_difference(tctx, models, file,
+                                              layout_func, width, face,
+                                              a.line_number, b.line_number);
     Vec2_f32 result = a.pixel_shift - b.pixel_shift;
     result.y += y_difference;
     return(result);
 }
 
 internal Line_Shift_Character
-file_line_shift_characters(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_number, i64 character_delta){
+file_line_shift_characters(Thread_Context *tctx, Models *models, Editing_File *file,
+                           Layout_Function *layout_func, f32 width, Face *face,
+                           i64 line_number, i64 character_delta){
     Line_Shift_Character result = {};
     
     i64 line_character = 0;
@@ -462,7 +495,9 @@ file_line_shift_characters(Thread_Context *tctx, Models *models, Editing_File *f
                 line_number = 1;
                 break;
             }
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
+            Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                         layout_func, width, face,
+                                                         line_number);
             line_character -= line.character_count;
         }
         if (!has_result){
@@ -475,7 +510,9 @@ file_line_shift_characters(Thread_Context *tctx, Models *models, Editing_File *f
         b32 has_result = false;
         i64 line_count = buffer_line_count(&file->state.buffer);
         for (;;line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
+            Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                         layout_func, width, face,
+                                                         line_number);
             i64 next_character = line_character + line.character_count;
             if (character_delta < next_character){
                 has_result = true;
@@ -498,12 +535,15 @@ file_line_shift_characters(Thread_Context *tctx, Models *models, Editing_File *f
 }
 
 internal i64
-file_line_character_difference(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 line_a, i64 line_b){
+file_line_character_difference(Thread_Context *tctx, Models *models, Editing_File *file,
+                               Layout_Function *layout_func, f32 width, Face *face,
+                               i64 line_a, i64 line_b){
     i64 result = 0;
     if (line_a != line_b){
         Interval_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, i);
+            Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                         layout_func, width, face, i);
             result += line.character_count;
         }
         if (line_a < line_b){
@@ -514,19 +554,29 @@ file_line_character_difference(Thread_Context *tctx, Models *models, Editing_Fil
 }
 
 internal i64
-file_pos_from_relative_character(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 relative_character){
-    Line_Shift_Character shift = file_line_shift_characters(tctx, models, file, width, face, base_line, relative_character);
+file_pos_from_relative_character(Thread_Context *tctx, Models *models, Editing_File *file,
+                                 Layout_Function *layout_func, f32 width, Face *face,
+                                 i64 base_line, i64 relative_character){
+    Line_Shift_Character shift = file_line_shift_characters(tctx, models, file,
+                                                            layout_func, width, face,
+                                                            base_line, relative_character);
     relative_character -= shift.character_delta;
-    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, shift.line);
+    Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                 layout_func, width, face,
+                                                 shift.line);
     return(buffer_layout_get_pos_at_character(line, relative_character));
 }
 
 internal i64
-file_relative_character_from_pos(Thread_Context *tctx, Models *models, Editing_File *file, f32 width, Face *face, i64 base_line, i64 pos){
+file_relative_character_from_pos(Thread_Context *tctx, Models *models, Editing_File *file, Layout_Function *layout_func, f32 width, Face *face,
+                                 i64 base_line, i64 pos){
     i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
-    Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
+    Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                 layout_func, width, face,
+                                                 line_number);
     i64 result = buffer_layout_character_from_pos(line, pos);
-    result += file_line_character_difference(tctx, models, file, width, face, line_number, base_line);
+    result += file_line_character_difference(tctx, models, file,
+                                             layout_func, width, face, line_number, base_line);
     return(result);
 }
 

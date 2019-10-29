@@ -194,31 +194,35 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         face->description = *description;
         face->description.font.file_name = file_name;
         
-        face->max_advance = f32_ceil32(ft_face->size->metrics.max_advance/64.f);
-        face->ascent      = f32_ceil32(ft_face->size->metrics.ascender/64.f);
-        face->descent     = f32_floor32(ft_face->size->metrics.descender/64.f);
-        face->text_height = f32_ceil32(ft_face->size->metrics.height/64.f);
-        face->line_skip   = face->text_height - face->ascent + face->descent;
-        face->line_skip   = clamp_bot(1.f, face->line_skip);
-        face->line_height = face->text_height + face->line_skip;
+        Face_Metrics *met = &face->metrics;
+        
+        met->max_advance = f32_ceil32(ft_face->size->metrics.max_advance/64.f);
+        met->ascent      = f32_ceil32(ft_face->size->metrics.ascender/64.f);
+        met->descent     = f32_floor32(ft_face->size->metrics.descender/64.f);
+        met->text_height = f32_ceil32(ft_face->size->metrics.height/64.f);
+        met->line_skip   = met->text_height - met->ascent + met->descent;
+        met->line_skip   = clamp_bot(1.f, met->line_skip);
+        met->line_height = met->text_height + met->line_skip;
         
         {
-            f32 real_over_notional = face->line_height/(f32)ft_face->height;
+            f32 real_over_notional = met->line_height/(f32)ft_face->height;
             f32 relative_center = -1.f*real_over_notional*ft_face->underline_position;
             f32 relative_thickness = real_over_notional*ft_face->underline_thickness;
             
-            f32 center    = f32_floor32(face->ascent + relative_center);
+            f32 center    = f32_floor32(met->ascent + relative_center);
             f32 thickness = clamp_bot(1.f, relative_thickness);
             
-            face->underline_yoff1 = center - thickness*0.5f;
-            face->underline_yoff2 = center + thickness*0.5f;
+            met->underline_yoff1 = center - thickness*0.5f;
+            met->underline_yoff2 = center + thickness*0.5f;
         }
         
-        face->codepoint_to_index_map = ft__get_codepoint_index_map(arena->base_allocator, ft_face);
-        u16 index_count = codepoint_index_map_count(&face->codepoint_to_index_map);
-        face->index_count = index_count;
+        face->advance_map.codepoint_to_index =
+            ft__get_codepoint_index_map(arena->base_allocator, ft_face);
+        u16 index_count =
+            codepoint_index_map_count(&face->advance_map.codepoint_to_index);
+        face->advance_map.index_count = index_count;
+        face->advance_map.advance = push_array_zero(arena, f32, index_count);
         face->bounds = push_array(arena, Glyph_Bounds, index_count);
-        face->advance = push_array_zero(arena, f32, index_count);
         
         struct FT_Bitmap{
             Vec2_i32 dim;
@@ -238,7 +242,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                 bitmap->data = push_array(arena, u8, dim.x*dim.y);
                 
                 face->bounds[i].xy_off.x0 = (f32)(ft_face->glyph->bitmap_left);
-                face->bounds[i].xy_off.y0 = (f32)(face->ascent - ft_face->glyph->bitmap_top);
+                face->bounds[i].xy_off.y0 = (f32)(met->ascent - ft_face->glyph->bitmap_top);
                 face->bounds[i].xy_off.x1 = (f32)(face->bounds[i].xy_off.x0 + dim.x);
                 face->bounds[i].xy_off.y1 = (f32)(face->bounds[i].xy_off.y0 + dim.y);
                 
@@ -272,7 +276,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                     }break;
                 }
                 
-                face->advance[i] = f32_ceil32(ft_glyph->advance.x/64.0f);
+                face->advance_map.advance[i] = f32_ceil32(ft_glyph->advance.x/64.0f);
             }
         }
         
@@ -327,22 +331,30 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         }
         
         {
-            face->space_advance = font_get_glyph_advance(face, ' ');
-            face->digit_advance = font_get_max_glyph_advance_range(face, '0', '9');
-            face->hex_advance = font_get_max_glyph_advance_range(face, 'A', 'F');
-            face->hex_advance = Max(face->hex_advance, face->digit_advance);
-            face->byte_sub_advances[0] = font_get_glyph_advance(face, '\\');
-            face->byte_sub_advances[1] = face->hex_advance;
-            face->byte_sub_advances[2] = face->hex_advance;
-            face->byte_advance =
-                face->byte_sub_advances[0] +
-                face->byte_sub_advances[1] +
-                face->byte_sub_advances[2];
-            face->typical_lowercase_advance = font_get_average_glyph_advance_range(face, 'a', 'z');
-            face->typical_uppercase_advance = font_get_average_glyph_advance_range(face, 'A', 'Z');
-            face->typical_advance = (26*face->typical_lowercase_advance +
-                                     26*face->typical_uppercase_advance +
-                                     10*face->digit_advance)/62.f;
+            Face_Advance_Map *advance_map = &face->advance_map;
+            
+            met->space_advance = font_get_glyph_advance(advance_map, met, ' ');
+            met->decimal_digit_advance =
+                font_get_max_glyph_advance_range(advance_map, met, '0', '9');
+            met->hex_digit_advance =
+                font_get_max_glyph_advance_range(advance_map, met, 'A', 'F');
+            met->hex_digit_advance =
+                max(met->hex_digit_advance, met->decimal_digit_advance);
+            met->byte_sub_advances[0] =
+                font_get_glyph_advance(advance_map, met, '\\');
+            met->byte_sub_advances[1] = met->hex_digit_advance;
+            met->byte_sub_advances[2] = met->hex_digit_advance;
+            met->byte_advance =
+                met->byte_sub_advances[0] +
+                met->byte_sub_advances[1] +
+                met->byte_sub_advances[2];
+            met->normal_lowercase_advance =
+                font_get_average_glyph_advance_range(advance_map, met, 'a', 'z');
+            met->normal_uppercase_advance =
+                font_get_average_glyph_advance_range(advance_map, met, 'A', 'Z');
+            met->normal_advance = (26*met->normal_lowercase_advance +
+                                   26*met->normal_uppercase_advance +
+                                   10*met->decimal_digit_advance)/62.f;
         }
     }
     

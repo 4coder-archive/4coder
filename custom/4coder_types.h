@@ -448,11 +448,35 @@ struct Face_Description{
 struct Face_Metrics{
     f32 text_height;
     f32 line_height;
+    f32 ascent;
+    f32 descent;
+    f32 line_skip;
+    
+    f32 underline_yoff1;
+    f32 underline_yoff2;
+    
     f32 max_advance;
-    f32 normal_advance;
     f32 space_advance;
     f32 decimal_digit_advance;
     f32 hex_digit_advance;
+    f32 byte_advance;
+    f32 byte_sub_advances[3];
+    f32 normal_lowercase_advance;
+    f32 normal_uppercase_advance;
+    f32 normal_advance;
+};
+
+struct Codepoint_Index_Map{
+    b32 has_zero_index;
+    u16 zero_index;
+    u16 max_index;
+    Table_u32_u16 table;
+};
+
+struct Face_Advance_Map{
+    Codepoint_Index_Map codepoint_to_index;
+    f32 *advance;
+    u16 index_count;
 };
 
 struct Edit{
@@ -542,6 +566,7 @@ enum{
     HookID_SaveFile,
     HookID_BufferEditRange,
     HookID_BufferRegion,
+    HookID_Layout,
 };
 
 typedef i32 Hook_Function(Application_Links *app);
@@ -559,7 +584,7 @@ struct Buffer_Name_Conflict_Entry{
 typedef void Buffer_Name_Resolver_Function(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count);
 #define BUFFER_NAME_RESOLVER_SIG(n) \
 void n(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, \
-       i32 conflict_count)
+i32 conflict_count)
 
 typedef i32 Buffer_Hook_Function(Application_Links *app, Buffer_ID buffer_id);
 #define BUFFER_HOOK_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id)
@@ -568,7 +593,7 @@ typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_
                                        Range_i64 new_range, umem original_size);
 #define BUFFER_EDIT_RANGE_SIG(name) \
 i32 name(Application_Links *app, Buffer_ID buffer_id, \
-         Interval_i64 new_range, umem original_size)
+Interval_i64 new_range, umem original_size)
 
 typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data);
 #define DELTA_RULE_SIG(name) \
@@ -583,6 +608,41 @@ void name(Application_Links *app, String_Const_u8 contents)
 typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
 #define RENDER_CALLER_SIG(name) \
 void name(Application_Links *app, Frame_Info frame_info, View_ID view)
+
+typedef u32 Layout_Item_Flag;
+enum{
+    LayoutItemFlag_Special_Character = (1 << 0),
+    LayoutItemFlag_Ghost_Character = (1 << 1)
+};
+
+struct Layout_Item{
+    i64 index;
+    u32 codepoint;
+    Layout_Item_Flag flags;
+    Rect_f32 rect;
+};
+
+struct Layout_Item_Block{
+    Layout_Item_Block *next;
+    Layout_Item *items;
+    i64 count;
+    i64 character_count;
+};
+
+struct Layout_Item_List{
+    Layout_Item_Block *first;
+    Layout_Item_Block *last;
+    i32 node_count;
+    i32 total_count;
+    f32 height;
+    f32 bottom_extension;
+    i64 character_count;
+    Interval_i64 index_range;
+};
+
+typedef Layout_Item_List Layout_Function(Application_Links *app, Arena *arena,
+                                         Buffer_ID buffer, Range_i64 range,
+                                         Face_ID face, f32 width);
 
 typedef i64 Command_Map_ID;
 

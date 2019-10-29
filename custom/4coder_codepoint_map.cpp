@@ -1,15 +1,10 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 23.07.2019
- *
- * Face basic operations.
- *
- */
+4coder_codepoint_map.cpp - Codepoint map to index
+*/
 
 // TOP
 
-internal b32
+function b32
 codepoint_index_map_read(Codepoint_Index_Map *map, u32 codepoint, u16 *index_out){
     b32 success = true;
     if (codepoint == 0 && map->has_zero_index){
@@ -24,46 +19,48 @@ codepoint_index_map_read(Codepoint_Index_Map *map, u32 codepoint, u16 *index_out
     return(success);
 }
 
-internal u16
+function u16
 codepoint_index_map_count(Codepoint_Index_Map *map){
     return(map->max_index + 1);
 }
 
-internal f32
-font_get_glyph_advance(Face *face, u32 codepoint){
+function f32
+font_get_glyph_advance(Face_Advance_Map *map, Face_Metrics *metrics, u32 codepoint){
     f32 result = 0.f;
     if (codepoint == '\t'){
-        result = face->space_advance*4.f;
+        result = metrics->space_advance*4.f;
     }
     else{
         if (character_is_whitespace(codepoint)){
             codepoint = ' ';
         }
         u16 index = 0;
-        if (codepoint_index_map_read(&face->codepoint_to_index_map, codepoint, &index)){
-            if (index < face->index_count){
-                result = face->advance[index];
+        if (codepoint_index_map_read(&map->codepoint_to_index, codepoint, &index)){
+            if (index < map->index_count){
+                result = map->advance[index];
             }
         }
     }
     return(result);
 }
 
-internal f32
-font_get_max_glyph_advance_range(Face *face, u32 codepoint_first, u32 codepoint_last){
-    f32 result = font_get_glyph_advance(face, codepoint_first);
+function f32
+font_get_max_glyph_advance_range(Face_Advance_Map *map, Face_Metrics *metrics,
+                                 u32 codepoint_first, u32 codepoint_last){
+    f32 result = font_get_glyph_advance(map, metrics, codepoint_first);
     for (u32 i = codepoint_first + 1; i <= codepoint_last; i += 1){
-        f32 a = font_get_glyph_advance(face, i);
+        f32 a = font_get_glyph_advance(map, metrics, i);
         result = Max(a, result);
     }
     return(result);
 }
 
-internal f32
-font_get_average_glyph_advance_range(Face *face, u32 codepoint_first, u32 codepoint_last){
+function f32
+font_get_average_glyph_advance_range(Face_Advance_Map *map, Face_Metrics *metrics,
+                                     u32 codepoint_first, u32 codepoint_last){
     f32 result = 0.f;
     for (u32 i = codepoint_first; i <= codepoint_last; i += 1){
-        result += font_get_glyph_advance(face, i);
+        result += font_get_glyph_advance(map, metrics, i);
     }
     result /= (f32)(codepoint_last - codepoint_first + 1);
     return(result);

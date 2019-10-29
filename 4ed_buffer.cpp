@@ -856,194 +856,8 @@ buffer_chunk_position_iterate(String_Const_u8_Array chunks, Buffer_Chunk_Positio
 
 ////////////////////////////////
 
-internal void
-buffer_layout__write(Arena *arena, Buffer_Layout_Item_List *list, i64 index, u32 codepoint,
-                     Buffer_Layout_Flag flags, Rect_f32 rect){
-    Temp_Memory restore_point = begin_temp(arena);
-    Buffer_Layout_Item *item = push_array(arena, Buffer_Layout_Item, 1);
-    
-    Buffer_Layout_Item_Block *block = list->first;
-    if (block != 0){
-        if (block->items + block->count == item){
-            block->count += 1;
-        }
-        else{
-            block = 0;
-        }
-    }
-    if (block == 0){
-        end_temp(restore_point);
-        block = push_array(arena, Buffer_Layout_Item_Block, 1);
-        item = push_array(arena, Buffer_Layout_Item, 1);
-        sll_queue_push(list->first, list->last, block);
-        list->node_count += 1;
-        block->items = item;
-        block->count = 1;
-    }
-    list->total_count += 1;
-    
-    if (index > list->index_range.max){
-        block->character_count += 1;
-        list->character_count += 1;
-        list->index_range.max = index;
-    }
-    
-    item->index = index;
-    item->codepoint = codepoint;
-    item->flags = flags;
-    item->rect = rect;
-    list->height = max(list->height, rect.y1);
-}
-
-internal Buffer_Layout_Item_List
-buffer_layout(Thread_Context *tctx, Arena *arena, Gap_Buffer *buffer, Interval_i64 range, Face *face, f32 width){
-    Scratch_Block scratch(tctx);
-    
-    Buffer_Layout_Item_List list = {};
-    list.index_range.first = range.first;
-    list.index_range.one_past_last = range.first - 1;
-    
-    List_String_Const_u8 chunks = buffer_get_chunks(scratch, buffer);
-    buffer_chunks_clamp(&chunks, range);
-    
-    f32 line_height = face->line_height;
-    f32 text_height = face->text_height;
-    f32 line_to_text_shift = text_height - line_height;
-    f32 space_advance = face->space_advance;
-    
-    if (chunks.node_count == 0){
-        f32 next_x = space_advance;
-        buffer_layout__write(arena, &list, range.first, ' ', 0, 
-                             Rf32(V2(0.f, 0.f), V2f32(next_x, text_height)));
-    }
-    else{
-        Vec2_f32 p = {};
-        f32 line_y = line_height;
-        f32 text_y = text_height;
-        
-        String_Const_u8 text = {};
-        if (chunks.node_count == 1){
-            text = chunks.first->string;
-        }
-        else{
-            text = string_list_flatten(scratch, chunks);
-        }
-        
-        i64 index = range.first;
-        b32 first_of_the_line = true;
-        
-        b32 consuming_newline_characters = false;
-        i64 newline_character_index = -1;
-        
-        b32 prev_did_emit_newline = false;
-        
-        u8 *ptr = text.str;
-        u8 *end_ptr = ptr + text.size;
-        for (;ptr < end_ptr;){
-            Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
-            u32 render_codepoint = consume.codepoint;
-            b32 emit_newline = false;
-            switch (consume.codepoint){
-                case '\t':
-                {
-                    render_codepoint = ' ';
-                }//fallthrough;
-                default:
-                {
-                    f32 advance = font_get_glyph_advance(face, consume.codepoint);
-                    f32 next_x = p.x + advance;
-                    if (!first_of_the_line && next_x >= width){
-                        p.y = line_y;
-                        p.x = 0.f;
-                        line_y += line_height;
-                        text_y = line_y + line_to_text_shift;
-                        next_x = p.x + advance;
-                    }
-                    buffer_layout__write(arena, &list, index, render_codepoint, 0, 
-                                         Rf32(p, V2f32(next_x, text_y)));
-                    p.x = next_x;
-                    ptr += consume.inc;
-                    index += consume.inc;
-                    first_of_the_line = false;
-                }break;
-                
-                case '\r':
-                {
-                    if (!consuming_newline_characters){
-                        consuming_newline_characters = true;
-                        newline_character_index = index;
-                    }
-                    ptr += 1;
-                    index += 1;
-                }break;
-                
-                case '\n':
-                {
-                    if (!consuming_newline_characters){
-                        consuming_newline_characters = true;
-                        newline_character_index = index;
-                    }
-                    emit_newline = true;
-                    ptr += 1;
-                    index += 1;
-                }break;
-                
-                case max_u32:
-                {
-                    f32 next_x = p.x + face->byte_advance;
-                    if (!first_of_the_line && next_x >= width){
-                        p.y = line_y;
-                        p.x = 0.f;
-                        line_y += line_height;
-                        text_y = line_y + line_to_text_shift;
-                        next_x = p.x + face->byte_advance;
-                    }
-                    u32 v = *ptr;
-                    u32 lo = v&0xF;
-                    u32 hi = (v >> 4)&0xF;
-                    f32 advance = face->byte_sub_advances[0];
-                    buffer_layout__write(arena, &list, index, '\\', 0,
-                                         Rf32(p, V2f32(p.x + advance, text_y)));
-                    p.x += advance;
-                    advance = face->byte_sub_advances[1];
-                    buffer_layout__write(arena, &list, index, integer_symbols[lo], 0,
-                                         Rf32(p, V2f32(p.x + advance, text_y)));
-                    p.x += advance;
-                    face->byte_sub_advances[2];
-                    buffer_layout__write(arena, &list, index, integer_symbols[hi], 0,
-                                         Rf32(p, V2f32(p.x + advance, text_y)));
-                    p.x = next_x;
-                    ptr += 1;
-                    index += 1;
-                    first_of_the_line = false;
-                }break;
-            }
-            prev_did_emit_newline = false;
-            if (emit_newline){
-                f32 next_x = p.x + space_advance;
-                buffer_layout__write(arena, &list, newline_character_index, ' ', 0,
-                                     Rf32(p, V2f32(next_x, text_y)));
-                p.y = line_y;
-                p.x = 0.f;
-                line_y += line_height;
-                text_y = line_y + line_to_text_shift;
-                first_of_the_line = true;
-                prev_did_emit_newline = true;
-            }
-        }
-        if (!prev_did_emit_newline){
-            f32 next_x = p.x + space_advance;
-            buffer_layout__write(arena, &list, index, ' ', 0,  Rf32(p, V2f32(next_x, text_y)));
-        }
-    }
-    list.bottom_extension = -line_to_text_shift;
-    list.height += list.bottom_extension;
-    
-    return(list);
-}
-
 internal i64
-buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
+buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
     i64 closest_match = 0;
     if (p.y < 0.f){
         closest_match = list.index_range.min;
@@ -1055,11 +869,11 @@ buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
         if (0.f < p.x && p.x < max_f32){
             f32 bottom_extension = list.bottom_extension;
             f32 closest_x = -max_f32;
-            for (Buffer_Layout_Item_Block *block = list.first;
+            for (Layout_Item_Block *block = list.first;
                  block != 0;
                  block = block->next){
                 i64 count = block->count;
-                Buffer_Layout_Item *item = block->items;
+                Layout_Item *item = block->items;
                 for (i32 i = 0; i < count; i += 1, item += 1){
                     // NOTE(allen): This only works if we build layouts in y-sorted order.
                     if (p.y < item->rect.y0){
@@ -1088,12 +902,12 @@ buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
         }
         else{
             if (p.x == max_f32){
-                Buffer_Layout_Item *prev_item = 0;
-                for (Buffer_Layout_Item_Block *block = list.first;
+                Layout_Item *prev_item = 0;
+                for (Layout_Item_Block *block = list.first;
                      block != 0;
                      block = block->next){
                     i64 count = block->count;
-                    Buffer_Layout_Item *item = block->items;
+                    Layout_Item *item = block->items;
                     for (i32 i = 0; i < count; i += 1, item += 1){
                         if (p.y < item->rect.y0){
                             goto double_break_2;
@@ -1113,12 +927,12 @@ buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
                 }
             }
             else{
-                Buffer_Layout_Item *closest_item = 0;
-                for (Buffer_Layout_Item_Block *block = list.first;
+                Layout_Item *closest_item = 0;
+                for (Layout_Item_Block *block = list.first;
                      block != 0;
                      block = block->next){
                     i64 count = block->count;
-                    Buffer_Layout_Item *item = block->items;
+                    Layout_Item *item = block->items;
                     for (i32 i = 0; i < count; i += 1, item += 1){
                         // NOTE(allen): This only works if we build layouts in y-sorted order.
                         if (p.y < item->rect.y0){
@@ -1145,7 +959,7 @@ buffer_layout_nearest_pos_to_xy(Buffer_Layout_Item_List list, Vec2_f32 p){
 }
 
 internal i64
-buffer_layout_get_pos_at_character(Buffer_Layout_Item_List list, i64 character){
+buffer_layout_get_pos_at_character(Layout_Item_List list, i64 character){
     i64 result = 0;
     if (character <= 0){
         result = list.index_range.min;
@@ -1155,7 +969,7 @@ buffer_layout_get_pos_at_character(Buffer_Layout_Item_List list, i64 character){
     }
     else{
         i64 counter = 0;
-        for (Buffer_Layout_Item_Block *node = list.first;
+        for (Layout_Item_Block *node = list.first;
              node != 0;
              node = node->next){
             i64 next_counter = counter + node->character_count;
@@ -1164,7 +978,7 @@ buffer_layout_get_pos_at_character(Buffer_Layout_Item_List list, i64 character){
                 i64 relative_character = character - counter;
                 i64 relative_character_counter = 0;
                 i64 prev_index = -1;
-                Buffer_Layout_Item *item = node->items;
+                Layout_Item *item = node->items;
                 for (i64 i = 0; i < count; i += 1, item += 1){
                     if (prev_index != item->index){
                         prev_index = item->index;
@@ -1183,15 +997,15 @@ buffer_layout_get_pos_at_character(Buffer_Layout_Item_List list, i64 character){
     return(result);
 }
 
-internal Buffer_Layout_Item*
-buffer_layout_get_first_with_index(Buffer_Layout_Item_List list, i64 index){
-    Buffer_Layout_Item *result = 0;
-    Buffer_Layout_Item *prev = 0;
-    for (Buffer_Layout_Item_Block *block = list.first;
+internal Layout_Item*
+buffer_layout_get_first_with_index(Layout_Item_List list, i64 index){
+    Layout_Item *result = 0;
+    Layout_Item *prev = 0;
+    for (Layout_Item_Block *block = list.first;
          block != 0;
          block = block->next){
         i64 count = block->count;
-        Buffer_Layout_Item *item = block->items;
+        Layout_Item *item = block->items;
         for (i32 i = 0; i < count; i += 1, item += 1){
             if (item->index > index){
                 result = prev;
@@ -1212,9 +1026,9 @@ buffer_layout_get_first_with_index(Buffer_Layout_Item_List list, i64 index){
 }
 
 internal Vec2_f32
-buffer_layout_xy_center_of_pos(Buffer_Layout_Item_List list, i64 index){
+buffer_layout_xy_center_of_pos(Layout_Item_List list, i64 index){
     Vec2_f32 result = {};
-    Buffer_Layout_Item *item = buffer_layout_get_first_with_index(list, index);
+    Layout_Item *item = buffer_layout_get_first_with_index(list, index);
     if (item != 0){
         result = rect_center(item->rect);
     }
@@ -1222,7 +1036,7 @@ buffer_layout_xy_center_of_pos(Buffer_Layout_Item_List list, i64 index){
 }
 
 internal i64
-buffer_layout_character_from_pos(Buffer_Layout_Item_List list, i64 index){
+buffer_layout_character_from_pos(Layout_Item_List list, i64 index){
     i64 result = 0;
     i64 character_count = 0;
     i64 prev_index = -1;
@@ -1233,10 +1047,10 @@ buffer_layout_character_from_pos(Buffer_Layout_Item_List list, i64 index){
         result = list.character_count - 1;
     }
     else{
-        for (Buffer_Layout_Item_Block *node = list.first;
+        for (Layout_Item_Block *node = list.first;
              node != 0;
              node = node->next){
-            Buffer_Layout_Item *item = node->items;
+            Layout_Item *item = node->items;
             i64 count = node->count;
             for (i64 i = 0; i < count; i += 1, item += 1){
                 if (item->index == index){

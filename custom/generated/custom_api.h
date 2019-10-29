@@ -141,6 +141,7 @@
 #define custom_buffer_set_face_sig() b32 custom_buffer_set_face(Application_Links* app, Buffer_ID buffer_id, Face_ID id)
 #define custom_get_face_description_sig() Face_Description custom_get_face_description(Application_Links* app, Face_ID face_id)
 #define custom_get_face_metrics_sig() Face_Metrics custom_get_face_metrics(Application_Links* app, Face_ID face_id)
+#define custom_get_face_advance_map_sig() Face_Advance_Map custom_get_face_advance_map(Application_Links* app, Face_ID face_id)
 #define custom_get_face_id_sig() Face_ID custom_get_face_id(Application_Links* app, Buffer_ID buffer_id)
 #define custom_try_create_new_face_sig() Face_ID custom_try_create_new_face(Application_Links* app, Face_Description* description)
 #define custom_try_modify_face_sig() b32 custom_try_modify_face(Application_Links* app, Face_ID id, Face_Description* description)
@@ -313,6 +314,7 @@ typedef void custom_global_history_edit_group_end_type(Application_Links* app);
 typedef b32 custom_buffer_set_face_type(Application_Links* app, Buffer_ID buffer_id, Face_ID id);
 typedef Face_Description custom_get_face_description_type(Application_Links* app, Face_ID face_id);
 typedef Face_Metrics custom_get_face_metrics_type(Application_Links* app, Face_ID face_id);
+typedef Face_Advance_Map custom_get_face_advance_map_type(Application_Links* app, Face_ID face_id);
 typedef Face_ID custom_get_face_id_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Face_ID custom_try_create_new_face_type(Application_Links* app, Face_Description* description);
 typedef b32 custom_try_modify_face_type(Application_Links* app, Face_ID id, Face_Description* description);
@@ -486,6 +488,7 @@ custom_global_history_edit_group_end_type *global_history_edit_group_end;
 custom_buffer_set_face_type *buffer_set_face;
 custom_get_face_description_type *get_face_description;
 custom_get_face_metrics_type *get_face_metrics;
+custom_get_face_advance_map_type *get_face_advance_map;
 custom_get_face_id_type *get_face_id;
 custom_try_create_new_face_type *try_create_new_face;
 custom_try_modify_face_type *try_modify_face;
@@ -660,6 +663,7 @@ internal void global_history_edit_group_end(Application_Links* app);
 internal b32 buffer_set_face(Application_Links* app, Buffer_ID buffer_id, Face_ID id);
 internal Face_Description get_face_description(Application_Links* app, Face_ID face_id);
 internal Face_Metrics get_face_metrics(Application_Links* app, Face_ID face_id);
+internal Face_Advance_Map get_face_advance_map(Application_Links* app, Face_ID face_id);
 internal Face_ID get_face_id(Application_Links* app, Buffer_ID buffer_id);
 internal Face_ID try_create_new_face(Application_Links* app, Face_Description* description);
 internal b32 try_modify_face(Application_Links* app, Face_ID id, Face_Description* description);
@@ -834,6 +838,7 @@ global custom_global_history_edit_group_end_type *global_history_edit_group_end 
 global custom_buffer_set_face_type *buffer_set_face = 0;
 global custom_get_face_description_type *get_face_description = 0;
 global custom_get_face_metrics_type *get_face_metrics = 0;
+global custom_get_face_advance_map_type *get_face_advance_map = 0;
 global custom_get_face_id_type *get_face_id = 0;
 global custom_try_create_new_face_type *try_create_new_face = 0;
 global custom_try_modify_face_type *try_modify_face = 0;

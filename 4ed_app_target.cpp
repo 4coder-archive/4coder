@@ -74,6 +74,7 @@
 #include "4coder_log.cpp"
 #include "4coder_buffer_seek_constructors.cpp"
 #include "4coder_command_map.cpp"
+#include "4coder_codepoint_map.cpp"
 
 #include "generated/custom_api.cpp"
 #define DYNAMIC_LINK_API
@@ -87,7 +88,6 @@
 #include "4ed_coroutine.cpp"
 #include "4ed_mem.cpp"
 #include "4ed_dynamic_variables.cpp"
-#include "4ed_font_face.cpp"
 #include "4ed_font_set.cpp"
 #include "4ed_translation.cpp"
 #include "4ed_render_target.cpp"

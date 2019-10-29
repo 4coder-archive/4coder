@@ -356,64 +356,84 @@ buffer_seek_character_class(Application_Links *app, Buffer_ID buffer, Character_
 }
 
 api(custom) function f32
-buffer_line_y_difference(Application_Links *app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 line_a, i64 line_b){
+buffer_line_y_difference(Application_Links *app, Buffer_ID buffer_id,
+                         f32 width, Face_ID face_id,
+                         i64 line_a, i64 line_b){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     f32 result = {};
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_line_y_difference(app->tctx, models, file, width, face, line_a, line_b);
+            Layout_Function *layout_func = models->layout_func;
+            result = file_line_y_difference(app->tctx, models, file,
+                                            layout_func, width, face,
+                                            line_a, line_b);
         }
     }
     return(result);
 }
 
 api(custom) function Line_Shift_Vertical
-buffer_line_shift_y(Application_Links *app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 line, f32 y_shift){
+buffer_line_shift_y(Application_Links *app, Buffer_ID buffer_id,
+                    f32 width, Face_ID face_id,
+                    i64 line, f32 y_shift){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     Line_Shift_Vertical result = {};
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_line_shift_y(app->tctx, models, file, width, face, line, y_shift);
+            Layout_Function *layout_func = models->layout_func;
+            result = file_line_shift_y(app->tctx, models, file,
+                                       layout_func, width, face,
+                                       line, y_shift);
         }
     }
     return(result);
 }
 
 api(custom) function i64
-buffer_pos_at_relative_xy(Application_Links *app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, Vec2_f32 relative_xy){
+buffer_pos_at_relative_xy(Application_Links *app, Buffer_ID buffer_id,
+                          f32 width, Face_ID face_id,
+                          i64 base_line, Vec2_f32 relative_xy){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     i64 result = -1;
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_pos_at_relative_xy(app->tctx, models, file, width, face, base_line, relative_xy);
+            Layout_Function *layout_func = models->layout_func;
+            result = file_pos_at_relative_xy(app->tctx, models, file,
+                                             layout_func, width, face,
+                                             base_line, relative_xy);
         }
     }
     return(result);
 }
 
 api(custom) function Vec2_f32
-buffer_relative_xy_of_pos(Application_Links *app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos)
-{
+buffer_relative_xy_of_pos(Application_Links *app, Buffer_ID buffer_id,
+                          f32 width, Face_ID face_id,
+                          i64 base_line, i64 pos){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     Vec2_f32 result = {};
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_relative_xy_of_pos(app->tctx, models, file, width, face, base_line, pos);
+            Layout_Function *layout_func = models->layout_func;
+            result = file_relative_xy_of_pos(app->tctx, models, file,
+                                             layout_func, width, face,
+                                             base_line, pos);
         }
     }
     return(result);
 }
 
 api(custom) function i64
-buffer_relative_character_from_pos(Application_Links *app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos)
+buffer_relative_character_from_pos(Application_Links *app, Buffer_ID buffer_id,
+                                   f32 width, Face_ID face_id, i64 base_line, i64 pos)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
@@ -421,7 +441,10 @@ buffer_relative_character_from_pos(Application_Links *app, Buffer_ID buffer_id, 
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_relative_character_from_pos(app->tctx, models, file, width, face, base_line, pos);
+            Layout_Function *layout_func = models->layout_func;
+            result = file_relative_character_from_pos(app->tctx, models, file,
+                                                      layout_func, width, face,
+                                                      base_line, pos);
         }
     }
     return(result);
@@ -436,7 +459,10 @@ buffer_pos_from_relative_character(Application_Links *app,  Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result = file_pos_from_relative_character(app->tctx, models, file, width, face, base_line, relative_character);
+            Layout_Function *layout_func = models->layout_func;
+            result = file_pos_from_relative_character(app->tctx, models, file,
+                                                      layout_func, width, face,
+                                                      base_line, relative_character);
         }
     }
     return(result);
@@ -1497,8 +1523,10 @@ view_set_buffer_scroll(Application_Links *app, View_ID view_id, Buffer_Scroll sc
         scroll.target.pixel_shift.x = f32_round32(scroll.target.pixel_shift.x);
         scroll.target.pixel_shift.y = f32_round32(scroll.target.pixel_shift.y);
         scroll.target.pixel_shift.x = clamp_bot(0.f, scroll.target.pixel_shift.x);
-        Buffer_Layout_Item_List line = view_get_line_layout(tctx, models, view, scroll.target.line_number);
-        scroll.target.pixel_shift.y = clamp(0.f, scroll.target.pixel_shift.y, line.height);
+        Layout_Item_List line = view_get_line_layout(tctx, models, view,
+                                                     scroll.target.line_number);
+        scroll.target.pixel_shift.y =
+            clamp(0.f, scroll.target.pixel_shift.y, line.height);
         if (rule == SetBufferScroll_SnapCursorIntoView){
             view_set_scroll(tctx, models, view, scroll);
         }
@@ -2139,6 +2167,10 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->buffer_region = (Buffer_Region_Function*)func_ptr;
         }break;
+        case HookID_Layout:
+        {
+            models->layout_func = (Layout_Function*)func_ptr;
+        }break;
     }
 }
 
@@ -2483,13 +2515,20 @@ get_face_metrics(Application_Links *app, Face_ID face_id){
     if (face_id != 0){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            result.text_height = face->text_height;
-            result.line_height = face->line_height;
-            result.max_advance = face->max_advance;
-            result.normal_advance = face->typical_advance;
-            result.space_advance = face->space_advance;
-            result.decimal_digit_advance = face->digit_advance;
-            result.hex_digit_advance = face->hex_advance;
+            result = face->metrics;
+        }
+    }
+    return(result);
+}
+
+api(custom) function Face_Advance_Map
+get_face_advance_map(Application_Links *app, Face_ID face_id){
+    Models *models = (Models*)app->cmd_context;
+    Face_Advance_Map result = {};
+    if (face_id != 0){
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            result = face->advance_map;
         }
     }
     return(result);
@@ -2717,6 +2756,8 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
         
         Gap_Buffer *buffer = &file->state.buffer;
         
+        Layout_Function *layout_func = models->layout_func;
+        
         Vec2_f32 dim = rect_dim(rect);
         
         i64 line_count = buffer_line_count(buffer);
@@ -2724,7 +2765,9 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
         f32 y = -buffer_point.pixel_shift.y;
         for (;line_number <= line_count;
              line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, dim.x, face, line_number);
+            Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                         layout_func, dim.x, face,
+                                                         line_number);
             f32 next_y = y + line.height;
             if (next_y >= dim.y){
                 break;
@@ -2743,7 +2786,8 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
             colors_array[i].id = Stag_Default;
         }
         result = text_layout_new(&models->text_layouts, arena, buffer_id, buffer_point,
-                                 visible_range, visible_line_number_range, rect, colors_array);
+                                 visible_range, visible_line_number_range, rect, colors_array,
+                                 layout_func);
     }
     return(result);
 }
@@ -2789,6 +2833,9 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
     if (layout == 0){
         return(result);
     }
+    
+    Layout_Function *layout_func = layout->layout_func;
+    
     Rect_f32 rect = layout->rect;
     if (range_contains_inclusive(layout->visible_line_number_range, line_number)){
         Editing_File *file = imp_get_file(models, layout->buffer_id);
@@ -2798,7 +2845,9 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
             
             for (i64 line_number_it = layout->visible_line_number_range.first;;
                  line_number_it += 1){
-                Buffer_Layout_Item_List line = file_get_line_layout(app->tctx, models, file, width, face, line_number_it);
+                Layout_Item_List line = file_get_line_layout(app->tctx, models, file,
+                                                             layout_func, width, face,
+                                                             line_number_it);
                 result.max += line.height;
                 if (line_number_it == line_number){
                     break;
@@ -2816,6 +2865,7 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
     else if (line_number > layout->visible_line_number_range.max){
         result = If32(rect.y1, rect.y1);
     }
+    
     return(result);
 }
 
@@ -2835,11 +2885,15 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                 f32 width = rect_width(rect);
                 Face *face = file_get_face(models, file);
                 
+                Layout_Function *layout_func = layout->layout_func;
+                
                 f32 y = 0.f;
-                Buffer_Layout_Item_List line = {};
+                Layout_Item_List line = {};
                 for (i64 line_number_it = layout->visible_line_number_range.first;;
                      line_number_it += 1){
-                    line = file_get_line_layout(app->tctx, models, file, width, face, line_number_it);
+                    line = file_get_line_layout(app->tctx, models, file,
+                                                layout_func, width, face,
+                                                line_number_it);
                     if (line_number_it == line_number){
                         break;
                     }
@@ -2851,10 +2905,10 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                 // Buffer_Layout_Item_List.
                 b32 is_first_item = true;
                 result = Rf32_negative_infinity;
-                for (Buffer_Layout_Item_Block *block = line.first;
+                for (Layout_Item_Block *block = line.first;
                      block != 0;
                      block = block->next){
-                    Buffer_Layout_Item *item_ptr = block->items;
+                    Layout_Item *item_ptr = block->items;
                     i64 count = block->count;
                     for (i32 i = 0; i < count; i += 1, item_ptr += 1){
                         i64 index = item_ptr->index;

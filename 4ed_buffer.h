@@ -63,44 +63,6 @@ struct Line_Move{
     };
 };
 
-typedef u32 Buffer_Layout_Flag;
-enum{
-    BRFlag_Special_Character = (1 << 0),
-    BRFlag_Ghost_Character = (1 << 1)
-};
-
-struct Buffer_Layout_Item{
-    i64 index;
-    u32 codepoint;
-    Buffer_Layout_Flag flags;
-    Rect_f32 rect;
-};
-
-struct Buffer_Layout_Item_Block{
-    Buffer_Layout_Item_Block *next;
-    Buffer_Layout_Item *items;
-    i64 count;
-    i64 character_count;
-};
-
-struct Buffer_Layout_Item_List{
-    Buffer_Layout_Item_Block *first;
-    Buffer_Layout_Item_Block *last;
-    i32 node_count;
-    i32 total_count;
-    f32 height;
-    f32 bottom_extension;
-    i64 character_count;
-    Interval_i64 index_range;
-};
-
-#if 0
-struct Edit_Array{
-    Edit *vals;
-    i32 count;
-};
-#endif
-
 #endif
 
 // BOTTOM

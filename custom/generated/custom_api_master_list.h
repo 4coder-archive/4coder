@@ -141,6 +141,7 @@ api(custom) function void global_history_edit_group_end(Application_Links* app);
 api(custom) function b32 buffer_set_face(Application_Links* app, Buffer_ID buffer_id, Face_ID id);
 api(custom) function Face_Description get_face_description(Application_Links* app, Face_ID face_id);
 api(custom) function Face_Metrics get_face_metrics(Application_Links* app, Face_ID face_id);
+api(custom) function Face_Advance_Map get_face_advance_map(Application_Links* app, Face_ID face_id);
 api(custom) function Face_ID get_face_id(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Face_ID try_create_new_face(Application_Links* app, Face_Description* description);
 api(custom) function b32 try_modify_face(Application_Links* app, Face_ID id, Face_Description* description);

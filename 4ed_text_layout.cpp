@@ -37,8 +37,8 @@ text_layout_release(Thread_Context *tctx, Models *models, Text_Layout_Container 
 internal Text_Layout_ID
 text_layout_new(Text_Layout_Container *container, Arena *arena,
                 Buffer_ID buffer_id, Buffer_Point point,
-                Interval_i64 visible_range, Interval_i64 visible_line_number_range,
-                Rect_f32 rect, FColor *item_colors){
+                Range_i64 visible_range, Interval_i64 visible_line_number_range,
+                Rect_f32 rect, FColor *item_colors, Layout_Function *layout_func){
     Text_Layout *new_layout_data = text_layout_new__alloc_layout(container);
     new_layout_data->arena = arena;
     new_layout_data->buffer_id = buffer_id;
@@ -47,6 +47,7 @@ text_layout_new(Text_Layout_Container *container, Arena *arena,
     new_layout_data->visible_line_number_range = visible_line_number_range;
     new_layout_data->rect = rect;
     new_layout_data->item_colors = item_colors;
+    new_layout_data->layout_func = layout_func;
     Text_Layout_ID new_id = ++container->id_counter;
     table_insert(&container->table, new_id, (u64)PtrAsInt(new_layout_data));
     return(new_id);
@@ -97,21 +98,24 @@ text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout){
         i64 first_index = layout->visible_range.first;
         i64 line_number = layout->visible_line_number_range.min;
         i64 line_number_last = layout->visible_line_number_range.max;
+        Layout_Function *layout_func = layout->layout_func;
         for (;line_number <= line_number_last; line_number += 1){
-            Buffer_Layout_Item_List line = file_get_line_layout(tctx, models, file, width, face, line_number);
-            for (Buffer_Layout_Item_Block *block = line.first;
+            Layout_Item_List line = file_get_line_layout(tctx, models, file,
+                                                         layout_func, width, face,
+                                                         line_number);
+            for (Layout_Item_Block *block = line.first;
                  block != 0;
                  block = block->next){
-                Buffer_Layout_Item *item = block->items;
+                Layout_Item *item = block->items;
                 i64 count = block->count;
                 FColor *item_colors = layout->item_colors;
                 for (i32 i = 0; i < count; i += 1, item += 1){
                     if (item->codepoint != 0){
                         ARGB_Color color = 0;
-                        if (HasFlag(item->flags, BRFlag_Special_Character)){
+                        if (HasFlag(item->flags, LayoutItemFlag_Special_Character)){
                             color = special_color;
                         }
-                        else if (HasFlag(item->flags, BRFlag_Ghost_Character)){
+                        else if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
                             color = ghost_color;
                         }
                         else{

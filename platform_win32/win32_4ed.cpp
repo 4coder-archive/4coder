@@ -108,8 +108,8 @@ struct Win32_Input_Chunk{
 
 #include "4coder_hash_functions.cpp"
 #include "4coder_system_allocator.cpp"
+#include "4coder_codepoint_map.cpp"
 
-#include "4ed_font_face.cpp"
 #include "4ed_mem.cpp"
 #include "4ed_font_set.cpp"
 

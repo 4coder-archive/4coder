@@ -177,66 +177,91 @@ view_height(Thread_Context *tctx, Models *models, View *view){
     return(rect_height(view_get_buffer_rect(tctx, models, view)));
 }
 
+function Layout_Function*
+view_get_layout_func(View *view){
+    return(view->layout_func);
+}
+
 ////////////////////////////////
 
-internal Buffer_Layout_Item_List
+internal Layout_Item_List
 view_get_line_layout(Thread_Context *tctx, Models *models, View *view, i64 line_number){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_get_line_layout(tctx, models, file, width, face, line_number));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_get_line_layout(tctx, models, file, layout_func, width, face, line_number));
 }
 
 internal Line_Shift_Vertical
-view_line_shift_y(Thread_Context *tctx, Models *models, View *view, i64 line_number, f32 y_delta){
+view_line_shift_y(Thread_Context *tctx, Models *models, View *view,
+                  i64 line_number, f32 y_delta){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_line_shift_y(tctx, models, file, width, face, line_number, y_delta));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_line_shift_y(tctx, models, file, layout_func, width, face,
+                             line_number, y_delta));
 }
 
 internal f32
-view_line_y_difference(Thread_Context *tctx, Models *models, View *view, i64 line_a, i64 line_b){
+view_line_y_difference(Thread_Context *tctx, Models *models, View *view,
+                       i64 line_a, i64 line_b){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_line_y_difference(tctx, models, file, width, face, line_a, line_b));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_line_y_difference(tctx, models, file,
+                                  layout_func, width, face, line_a, line_b));
 }
 
 internal i64
-view_pos_at_relative_xy(Thread_Context *tctx, Models *models, View *view, i64 base_line, Vec2_f32 relative_xy){
+view_pos_at_relative_xy(Thread_Context *tctx, Models *models, View *view,
+                        i64 base_line, Vec2_f32 relative_xy){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_pos_at_relative_xy(tctx, models, file, width, face, base_line, relative_xy));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_pos_at_relative_xy(tctx, models, file,
+                                   layout_func, width, face, base_line, relative_xy));
 }
 
 internal Vec2_f32
-view_relative_xy_of_pos(Thread_Context *tctx, Models *models, View *view, i64 base_line, i64 pos){
+view_relative_xy_of_pos(Thread_Context *tctx, Models *models, View *view,
+                        i64 base_line, i64 pos){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_relative_xy_of_pos(tctx, models, file, width, face, base_line, pos));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_relative_xy_of_pos(tctx, models, file,
+                                   layout_func, width, face, base_line, pos));
 }
 
 internal Buffer_Point
-view_normalize_buffer_point(Thread_Context *tctx, Models *models, View *view, Buffer_Point point){
+view_normalize_buffer_point(Thread_Context *tctx, Models *models, View *view,
+                            Buffer_Point point){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_normalize_buffer_point(tctx, models, file, width, face, point));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_normalize_buffer_point(tctx, models, file,
+                                       layout_func, width, face, point));
 }
 
 internal Vec2_f32
-view_buffer_point_difference(Thread_Context *tctx, Models *models, View *view, Buffer_Point a, Buffer_Point b){
+view_buffer_point_difference(Thread_Context *tctx, Models *models, View *view,
+                             Buffer_Point a, Buffer_Point b){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_buffer_point_difference(tctx, models, file, width, face, a, b));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_buffer_point_difference(tctx, models, file,
+                                        layout_func, width, face, a, b));
 }
 
 internal Buffer_Point
-view_move_buffer_point(Thread_Context *tctx, Models *models, View *view, Buffer_Point buffer_point, Vec2_f32 delta){
+view_move_buffer_point(Thread_Context *tctx, Models *models, View *view,
+                       Buffer_Point buffer_point, Vec2_f32 delta){
     delta += buffer_point.pixel_shift;
     Line_Shift_Vertical shift = view_line_shift_y(tctx, models, view, buffer_point.line_number, delta.y);
     buffer_point.line_number = shift.line;
@@ -245,35 +270,47 @@ view_move_buffer_point(Thread_Context *tctx, Models *models, View *view, Buffer_
 }
 
 internal Line_Shift_Character
-view_line_shift_characters(Thread_Context *tctx, Models *models, View *view, i64 line_number, i64 character_delta){
+view_line_shift_characters(Thread_Context *tctx, Models *models, View *view,
+                           i64 line_number, i64 character_delta){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_line_shift_characters(tctx, models, file, width, face, line_number, character_delta));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_line_shift_characters(tctx, models, file,
+                                      layout_func, width, face, line_number, character_delta));
 }
 
 internal i64
-view_line_character_difference(Thread_Context *tctx, Models *models, View *view, i64 line_a, i64 line_b){
+view_line_character_difference(Thread_Context *tctx, Models *models, View *view,
+                               i64 line_a, i64 line_b){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_line_character_difference(tctx, models, file, width, face, line_a, line_b));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_line_character_difference(tctx, models, file, layout_func, width, face,
+                                          line_a, line_b));
 }
 
 internal i64
-view_pos_from_relative_character(Thread_Context *tctx, Models *models, View *view, i64 base_line, i64 relative_character){
+view_pos_from_relative_character(Thread_Context *tctx, Models *models, View *view,
+                                 i64 base_line, i64 relative_character){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_pos_from_relative_character(tctx, models, file, width, face, base_line, relative_character));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_pos_from_relative_character(tctx, models, file, layout_func, width, face,
+                                            base_line, relative_character));
 }
 
 internal i64
-view_relative_character_from_pos(Thread_Context *tctx, Models *models, View *view, i64 base_line, i64 pos){
+view_relative_character_from_pos(Thread_Context *tctx, Models *models, View *view,
+                                 i64 base_line, i64 pos){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
-    return(file_relative_character_from_pos(tctx, models, file, width, face, base_line, pos));
+    Layout_Function *layout_func = view_get_layout_func(view);
+    return(file_relative_character_from_pos(tctx, models, file,
+                                            layout_func, width, face, base_line, pos));
 }
 
 internal Buffer_Cursor
@@ -291,13 +328,16 @@ view_move_view_to_cursor(Thread_Context *tctx, Models *models, View *view, Buffe
     Rect_f32 rect = view_get_buffer_rect(tctx, models, view);
     Vec2_f32 view_dim = rect_dim(rect);
     
+    Layout_Function *layout_func = view_get_layout_func(view);
+    
     File_Edit_Positions edit_pos = view_get_edit_pos(view);
-    Vec2_f32 p = file_relative_xy_of_pos(tctx, models, file, view_dim.x, face, scroll->target.line_number, 
-                                         edit_pos.cursor_pos);
+    Vec2_f32 p = file_relative_xy_of_pos(tctx, models, file,
+                                         layout_func, view_dim.x, face,
+                                         scroll->target.line_number, edit_pos.cursor_pos);
     p -= scroll->target.pixel_shift;
     
-    f32 line_height = face->line_height;
-    f32 typical_advance = face->typical_advance;
+    f32 line_height = face->metrics.line_height;
+    f32 normal_advance = face->metrics.normal_advance;
     
     Vec2_f32 target_p_relative = {};
     if (p.y < 0.f){
@@ -307,10 +347,10 @@ view_move_view_to_cursor(Thread_Context *tctx, Models *models, View *view, Buffe
         target_p_relative.y = (p.y + line_height*1.5f) - view_dim.y;
     }
     if (p.x < 0.f){
-        target_p_relative.x = p.x - typical_advance*1.5f;
+        target_p_relative.x = p.x - normal_advance*1.5f;
     }
     else if (p.x > view_dim.x){
-        target_p_relative.x = (p.x + typical_advance*1.5f) - view_dim.x;
+        target_p_relative.x = (p.x + normal_advance*1.5f) - view_dim.x;
     }
     scroll->target.pixel_shift += target_p_relative;
     scroll->target = view_normalize_buffer_point(tctx, models, view, scroll->target);
@@ -327,10 +367,14 @@ view_move_cursor_to_view(Thread_Context *tctx, Models *models, View *view, Buffe
     Rect_f32 rect = view_get_buffer_rect(tctx, models, view);
     Vec2_f32 view_dim = rect_dim(rect);
     
-    Vec2_f32 p = file_relative_xy_of_pos(tctx, models, file, view_dim.x, face, scroll.target.line_number, *pos_in_out);
+    Layout_Function *layout_func = view_get_layout_func(view);
+    
+    Vec2_f32 p = file_relative_xy_of_pos(tctx, models, file,
+                                         layout_func, view_dim.x, face,
+                                         scroll.target.line_number, *pos_in_out);
     p -= scroll.target.pixel_shift;
     
-    f32 line_height = face->line_height;
+    f32 line_height = face->metrics.line_height;
     
     b32 adjusted_y = true;
     if (p.y < 0.f){
@@ -346,7 +390,9 @@ view_move_cursor_to_view(Thread_Context *tctx, Models *models, View *view, Buffe
     b32 result = false;
     if (adjusted_y){
         p += scroll.target.pixel_shift;
-        *pos_in_out = file_pos_at_relative_xy(tctx, models, file, view_dim.x, face, scroll.target.line_number, p);
+        *pos_in_out = file_pos_at_relative_xy(tctx, models, file,
+                                              layout_func, view_dim.x, face,
+                                              scroll.target.line_number, p);
         result = true;
     }
     
@@ -515,6 +561,7 @@ view_event_context_base__inner(Coroutine *coroutine){
 function void
 view_init(Thread_Context *tctx, Models *models, View *view, Editing_File *initial_buffer,
           Custom_Command_Function *event_context_base){
+    view->layout_func = models->layout_func;
     view_set_file(tctx, models, view, initial_buffer);
     
     view->node_arena = reserve_arena(tctx);

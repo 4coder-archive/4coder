@@ -167,8 +167,8 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, Vec2_f32 p,
     draw__set_face_id(target, face->id);
     
     u16 glyph_index = 0;
-    if (!codepoint_index_map_read(&face->codepoint_to_index_map, codepoint,
-                                  &glyph_index)){
+    if (!codepoint_index_map_read(&face->advance_map.codepoint_to_index,
+                                  codepoint, &glyph_index)){
         glyph_index = 0;
     }
     Glyph_Bounds bounds = face->bounds[glyph_index];
@@ -230,8 +230,8 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2_f32 
     if (face != 0){
         point = floor32(point);
         
-        f32 byte_advance = face->byte_advance;
-        f32 *byte_sub_advances = face->byte_sub_advances;
+        f32 byte_advance = face->metrics.byte_advance;
+        f32 *byte_sub_advances = face->metrics.byte_sub_advances;
         
         u8 *str = (u8*)string.str;
         u8 *str_end = str + string.size;
@@ -250,7 +250,9 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2_f32 
                     if (color != 0){
                         draw_font_glyph(target, face, codepoint, point, color, flags);
                     }
-                    f32 d = font_get_glyph_advance(face, codepoint);
+                    f32 d = font_get_glyph_advance(&face->advance_map,
+                                                   &face->metrics,
+                                                   codepoint);
                     point += d*delta;
                     total_delta += d;
                 }

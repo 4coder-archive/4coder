@@ -30,43 +30,17 @@ struct Glyph_Bounds{
     Rect_f32 xy_off;
 };
 
-struct Codepoint_Index_Map{
-    b32 has_zero_index;
-    u16 zero_index;
-    u16 max_index;
-    Table_u32_u16 table;
-};
-
 struct Face{
     Face_Description description;
     Face_ID id;
     i32 version_number;
     
     // NOTE(allen): Metrics
-    f32 text_height;
-    f32 line_height;
-    f32 ascent;
-    f32 descent;
-    f32 line_skip;
-    f32 max_advance;
-    
-    f32 underline_yoff1;
-    f32 underline_yoff2;
-    
-    f32 space_advance;
-    f32 digit_advance;
-    f32 hex_advance;
-    f32 byte_advance;
-    f32 byte_sub_advances[3];
-    f32 typical_lowercase_advance;
-    f32 typical_uppercase_advance;
-    f32 typical_advance;
+    Face_Metrics metrics;
     
     // NOTE(allen): Glyph data
-    Codepoint_Index_Map codepoint_to_index_map;
-    u16 index_count;
+    Face_Advance_Map advance_map;
     Glyph_Bounds *bounds;
-    f32 *advance;
     Glyph_Bounds white;
     
     Texture_Kind texture_kind;

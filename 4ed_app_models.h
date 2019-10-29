@@ -62,6 +62,7 @@ struct Models{
     Buffer_Hook_Function *save_file;
     Buffer_Edit_Range_Function *buffer_edit_range;
     Buffer_Region_Function *buffer_region;
+    Layout_Function *layout_func;
     
     Color_Table fallback_color_table;
     Color_Table color_table;
