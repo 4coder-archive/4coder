@@ -126,10 +126,10 @@ setup_default_mapping(Mapping *mapping){
     Bind(move_left_alpha_numeric_or_camel_boundary,  KeyCode_Left, KeyCode_Alt);
     Bind(move_right_alpha_numeric_or_camel_boundary, KeyCode_Right, KeyCode_Alt);
     Bind(comment_line_toggle,        KeyCode_Semicolon, KeyCode_Control);
-    Bind(word_complete_drop_down,    KeyCode_Tab);
+    Bind(word_complete,              KeyCode_Tab);
     Bind(auto_indent_range,          KeyCode_Tab, KeyCode_Control);
     Bind(auto_indent_line_at_cursor, KeyCode_Tab, KeyCode_Shift);
-    Bind(word_complete,              KeyCode_Tab, KeyCode_Shift, KeyCode_Control);
+    Bind(word_complete_drop_down,    KeyCode_Tab, KeyCode_Shift, KeyCode_Control);
     Bind(write_block,                KeyCode_R, KeyCode_Alt);
     Bind(write_todo,                 KeyCode_T, KeyCode_Alt);
     Bind(write_note,                 KeyCode_Y, KeyCode_Alt);
