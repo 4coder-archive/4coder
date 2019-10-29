@@ -33,34 +33,7 @@ file_cursor_to_end(Thread_Context *tctx, Models *models, Editing_File *file){
     }
 }
 
-// Commands
-
-#define USE_VARS(n) App_Vars *n = command->vars
-#define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
-
-#define USE_PANEL(n) Panel *n = 0; do{                      \
-    i32 panel_index = command->models->layout.active_panel; \
-    n = command->models->layout.panels + panel_index;       \
-}while(false)
-
-#define USE_VIEW(n) View *n = 0; do{                                  \
-    i32 panel_index = command->models->layout.active_panel;           \
-    Panel *__panel__ = command->models->layout.panels + panel_index;  \
-    n = __panel__->view;                                              \
-}while(false)
-
-#define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_flags(n) != 0) return
-
-#define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (n == 0) return
-#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (n == 0 || n->state.undo.undo.edits == 0) return
-
-DELTA_RULE_SIG(fallback_scroll_rule){
-    return(pending);
-}
-
 #include "4ed_api_implementation.cpp"
-
-// App Functions
 
 internal void
 fill_hardcode_default_style(Color_Table color_table){

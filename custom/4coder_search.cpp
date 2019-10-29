@@ -511,9 +511,9 @@ word_complete_menu_render(Application_Links *app, Frame_Info frame_info, View_ID
 function Edit
 get_word_complete_from_user_drop_down(Application_Links *app){
     View_ID view = get_this_ctx_view(app, Access_Always);
-	View_Context ctx = view_current_context(app, view);
-	Render_Caller_Function *prev_render_caller = ctx.render_caller;
-
+    View_Context ctx = view_current_context(app, view);
+    Render_Caller_Function *prev_render_caller = ctx.render_caller;
+    
     Edit result = {};
     
     Word_Complete_Iterator *it = word_complete_get_shared_iter(app);
@@ -526,9 +526,9 @@ get_word_complete_from_user_drop_down(Application_Links *app){
         Word_Complete_Menu menu = make_word_complete_menu(prev_render_caller, it);
         word_complete_menu_next(&menu);
         
-		ctx.render_caller = word_complete_menu_render;
-		view_push_context(app, view, &ctx);
-
+        ctx.render_caller = word_complete_menu_render;
+        View_Context_Block ctx_block(app, view, &ctx);
+        
         Managed_Scope scope = view_get_managed_scope(app, view);
         Word_Complete_Menu **menu_ptr = scope_attachment(app, scope, view_word_complete_menu, Word_Complete_Menu*);
         *menu_ptr = &menu;
@@ -636,8 +636,6 @@ get_word_complete_from_user_drop_down(Application_Links *app){
         scope = view_get_managed_scope(app, view);
         menu_ptr = scope_attachment(app, scope, view_word_complete_menu, Word_Complete_Menu*);
         *menu_ptr = 0;
-        
-        view_pop_context(app, view);
     }
     
     return(result);

@@ -45,6 +45,19 @@ seek_jump(Parsed_Jump jump){
 
 ////////////////////////////////
 
+View_Context_Block::View_Context_Block(Application_Links *a, View_ID v,
+                                       View_Context *ctx){
+    this->app = a;
+    this->view = v;
+    view_push_context(a, v, ctx);
+}
+
+View_Context_Block::~View_Context_Block(){
+    view_pop_context(this->app, this->view);
+}
+
+////////////////////////////////
+
 internal Character_Predicate
 character_predicate_from_function(Character_Predicate_Function *func){
     Character_Predicate predicate = {};

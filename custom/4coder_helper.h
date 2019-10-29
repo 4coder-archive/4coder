@@ -12,6 +12,14 @@ struct File_Name_Data{
     Data data;
 };
 
+struct View_Context_Block{
+    Application_Links *app;
+    View_ID view;
+    
+    View_Context_Block(Application_Links *app, View_ID view, View_Context *ctx);
+    ~View_Context_Block();
+};
+
 ////////////////////////////////
 
 typedef i32 Position_Within_Line;

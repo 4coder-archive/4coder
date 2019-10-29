@@ -456,7 +456,7 @@ run_lister(Application_Links *app, Lister *lister){
     View_Context ctx = view_current_context(app, view);
     ctx.render_caller = lister_render;
     ctx.hides_buffer = true;
-    view_push_context(app, view, &ctx);
+    View_Context_Block ctx_block(app, view, &ctx);
     
     for (;;){
         User_Input in = get_next_input(app, EventPropertyGroup_Any,
@@ -652,8 +652,6 @@ run_lister(Application_Links *app, Lister *lister){
             }
         }
     }
-    
-    view_pop_context(app, view);
     
     return(lister->out);
 }

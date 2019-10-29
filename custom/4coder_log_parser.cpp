@@ -995,22 +995,24 @@ log_graph__click_jump_to_event_source(Application_Links *app, Vec2_f32 m_p){
 CUSTOM_UI_COMMAND_SIG(show_the_log_graph)
 CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
 {
+    if (log_view != 0){
+        return;
+    }
+    
     Buffer_ID log_buffer = get_buffer_by_name(app, string_u8_litexpr("*log*"), Access_Always);
     log_parse_fill(app, log_buffer);
     
-    if (log_view == 0){
-        log_view = get_active_view(app, Access_Always);
-    }
-    
+    log_view = get_this_ctx_view(app, Access_Always);
     View_ID view = log_view;
-    View_Context ctx = view_current_context(app, log_view);
+    
+    View_Context ctx = view_current_context(app, view);
     ctx.render_caller = log_graph_render;
-    view_push_context(app, log_view, &ctx);
+    View_Context_Block ctx_block(app, view, &ctx);
     
     for (;;){
         User_Input in = get_next_input(app, EventPropertyGroup_AnyUserInput, KeyCode_Escape);
         if (in.abort){
-            log_view = 0;
+            view = 0;
             break;
         }
         
@@ -1021,12 +1023,12 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
                 switch (in.event.key.code){
                     case KeyCode_PageUp:
                     {
-                        log_graph.y_scroll -= get_page_jump(app, log_view);
+                        log_graph.y_scroll -= get_page_jump(app, view);
                     }break;
                     
                     case KeyCode_PageDown:
                     {
-                        log_graph.y_scroll += get_page_jump(app, log_view);
+                        log_graph.y_scroll += get_page_jump(app, view);
                     }break;
                     
                     default:
@@ -1076,7 +1078,7 @@ CUSTOM_DOC("Parses *log* and displays the 'log graph' UI")
         }
     }
     
-    view_pop_context(app, view);
+    log_view = 0;
 }
 
 // BOTTOM

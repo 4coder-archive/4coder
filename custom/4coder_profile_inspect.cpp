@@ -794,7 +794,7 @@ CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's se
     View_Context ctx = view_current_context(app, view);
     ctx.render_caller = profile_render;
     ctx.hides_buffer = true;
-    view_push_context(app, view, &ctx);
+    View_Context_Block ctx_block(app, view, &ctx);
     
     for (;;){
         User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
@@ -828,8 +828,6 @@ CUSTOM_DOC("Inspect all currently collected profiling information in 4coder's se
     }
     
     profile_set_enabled(list, true, ProfileEnable_InspectBit);
-    
-    view_pop_context(app, view);
 }
 
 // BOTTOM
