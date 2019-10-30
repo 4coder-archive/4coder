@@ -412,20 +412,20 @@ buffer_pos_at_relative_xy(Application_Links *app, Buffer_ID buffer_id,
     return(result);
 }
 
-api(custom) function Vec2_f32
-buffer_relative_xy_of_pos(Application_Links *app, Buffer_ID buffer_id,
-                          f32 width, Face_ID face_id,
-                          i64 base_line, i64 pos){
+api(custom) function Rect_f32
+buffer_relative_box_of_pos(Application_Links *app, Buffer_ID buffer_id,
+                           f32 width, Face_ID face_id,
+                           i64 base_line, i64 pos){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    Vec2_f32 result = {};
+    Rect_f32 result = {};
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
             Layout_Function *layout_func = models->layout_func;
-            result = file_relative_xy_of_pos(app->tctx, models, file,
-                                             layout_func, width, face,
-                                             base_line, pos);
+            result = file_relative_box_of_pos(app->tctx, models, file,
+                                              layout_func, width, face,
+                                              base_line, pos);
         }
     }
     return(result);
@@ -469,7 +469,6 @@ buffer_pos_from_relative_character(Application_Links *app,  Buffer_ID buffer_id,
 }
 
 
-
 api(custom) function f32
 view_line_y_difference(Application_Links *app, View_ID view_id, i64 line_a, i64 line_b){
     Models *models = (Models*)app->cmd_context;
@@ -503,13 +502,13 @@ view_pos_at_relative_xy(Application_Links *app, View_ID view_id, i64 base_line, 
     return(result);
 }
 
-api(custom) function Vec2_f32
-view_relative_xy_of_pos(Application_Links *app, View_ID view_id, i64 base_line, i64 pos){
+api(custom) function Rect_f32
+view_relative_box_of_pos(Application_Links *app, View_ID view_id, i64 base_line, i64 pos){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    Vec2_f32 result = {};
+    Rect_f32 result = {};
     if (api_check_view(view)){
-        result = view_relative_xy_of_pos(app->tctx, models, view, base_line, pos);
+        result = view_relative_box_of_pos(app->tctx, models, view, base_line, pos);
     }
     return(result);
 }

@@ -226,15 +226,22 @@ view_pos_at_relative_xy(Thread_Context *tctx, Models *models, View *view,
                                    layout_func, width, face, base_line, relative_xy));
 }
 
-internal Vec2_f32
-view_relative_xy_of_pos(Thread_Context *tctx, Models *models, View *view,
-                        i64 base_line, i64 pos){
+internal Rect_f32
+view_relative_box_of_pos(Thread_Context *tctx, Models *models, View *view,
+                         i64 base_line, i64 pos){
     Editing_File *file = view->file;
     Face *face = file_get_face(models, file);
     f32 width = view_width(tctx, models, view);
     Layout_Function *layout_func = view_get_layout_func(view);
-    return(file_relative_xy_of_pos(tctx, models, file,
-                                   layout_func, width, face, base_line, pos));
+    return(file_relative_box_of_pos(tctx, models, file,
+                                    layout_func, width, face, base_line, pos));
+}
+
+internal Vec2_f32
+view_relative_xy_of_pos(Thread_Context *tctx, Models *models, View *view,
+                        i64 base_line, i64 pos){
+    Rect_f32 rect = view_relative_box_of_pos(tctx, models, view, base_line, pos);
+    return(rect_center(rect));
 }
 
 internal Buffer_Point

@@ -167,9 +167,6 @@ CUSTOM_DOC("Delete characters between the cursor position and the first alphanum
                                  push_boundary_list(scratch, boundary_alpha_numeric));
 }
 
-#define backspace_word backspace_alpha_numeric_boundary
-#define delete_word    delete_alpha_numeric_boundary
-
 function void
 current_view_snipe_delete(Application_Links *app, Scan_Direction direction, Boundary_Function_List funcs){
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
@@ -299,17 +296,29 @@ move_vertical_pixels(Application_Links *app, f32 pixels){
 }
 
 internal void
-move_vertical_lines(Application_Links *app, View_ID view, f32 lines){
-    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
-    Face_ID face_id = get_face_id(app, buffer);
-    Face_Metrics metrics = get_face_metrics(app, face_id);
-    
-    f32 delta_y = lines*metrics.line_height;
-    move_vertical_pixels(app, delta_y);
+move_vertical_lines(Application_Links *app, View_ID view, i64 lines){
+    if (lines > 0){
+        for (i64 i = 0; i < lines; i += 1){
+            i64 pos = view_get_cursor_pos(app, view);
+            Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+            Rect_f32 box = view_relative_box_of_pos(app, view, cursor.line, cursor.pos);
+            f32 half_height = rect_height(box)*0.5f;
+            move_vertical_pixels(app, half_height + 2.f);
+        }
+    }
+    else{
+        for (i64 i = 0; i > lines; i -= 1){
+            i64 pos = view_get_cursor_pos(app, view);
+            Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+            Rect_f32 box = view_relative_box_of_pos(app, view, cursor.line, cursor.pos);
+            f32 half_height = rect_height(box)*0.5f;
+            move_vertical_pixels(app, -half_height - 2.f);
+        }
+    }
 }
 
 internal void
-move_vertical_lines(Application_Links *app, f32 lines){
+move_vertical_lines(Application_Links *app, i64 lines){
     View_ID view = get_active_view(app, Access_ReadVisible);
     move_vertical_lines(app, view, lines);
 }
@@ -323,25 +332,25 @@ get_page_jump(Application_Links *app, View_ID view){
 CUSTOM_COMMAND_SIG(move_up)
 CUSTOM_DOC("Moves the cursor up one line.")
 {
-    move_vertical_lines(app, -1.f);
+    move_vertical_lines(app, -1);
 }
 
 CUSTOM_COMMAND_SIG(move_down)
 CUSTOM_DOC("Moves the cursor down one line.")
 {
-    move_vertical_lines(app, 1.f);
+    move_vertical_lines(app, 1);
 }
 
 CUSTOM_COMMAND_SIG(move_up_10)
 CUSTOM_DOC("Moves the cursor up ten lines.")
 {
-    move_vertical_lines(app, -10.f);
+    move_vertical_lines(app, -10);
 }
 
 CUSTOM_COMMAND_SIG(move_down_10)
 CUSTOM_DOC("Moves the cursor down ten lines.")
 {
-    move_vertical_lines(app, 10.f);
+    move_vertical_lines(app, 10);
 }
 
 CUSTOM_COMMAND_SIG(move_down_textual)
@@ -431,11 +440,7 @@ CUSTOM_COMMAND_SIG(move_left)
 CUSTOM_DOC("Moves the cursor one character to the left.")
 {
     View_ID view = get_active_view(app, Access_ReadVisible);
-    i64 pos = view_get_cursor_pos(app, view);
-    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    i64 character = view_relative_character_from_pos(app, view, cursor.line, pos);
-    i64 new_pos = view_pos_from_relative_character(app, view, cursor.line, character - 1);
-    view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
+    view_set_cursor_by_character_delta(app, view, -1);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -443,11 +448,7 @@ CUSTOM_COMMAND_SIG(move_right)
 CUSTOM_DOC("Moves the cursor one character to the right.")
 {
     View_ID view = get_active_view(app, Access_ReadVisible);
-    i64 pos = view_get_cursor_pos(app, view);
-    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    i64 character = view_relative_character_from_pos(app, view, cursor.line, pos);
-    i64 new_pos = view_pos_from_relative_character(app, view, cursor.line, character + 1);
-    view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
+    view_set_cursor_by_character_delta(app, view, 1);
     no_mark_snap_to_cursor_if_shift(app, view);
 }
 
@@ -2023,8 +2024,7 @@ CUSTOM_DOC("Loads all the theme files in the theme folder, replacing duplicates 
 CUSTOM_COMMAND_SIG(open_in_other)
 CUSTOM_DOC("Interactively opens a file in the other panel.")
 {
-    change_active_panel(app);
-    interactive_open_or_new(app);
+    change_active_panel_send_command(app, interactive_open_or_new);
 }
 
 CUSTOM_COMMAND_SIG(default_file_externally_modified)

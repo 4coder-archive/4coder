@@ -953,7 +953,10 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     Scratch_Block scratch(win32vars.tctx);
     
     switch (uMsg){
-        case WM_MENUCHAR:break;
+        case WM_MENUCHAR:
+        {
+            result = (MNC_CLOSE << 16);
+        }break;
         
         case WM_SYSKEYDOWN:
         case WM_SYSKEYUP:

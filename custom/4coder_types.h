@@ -635,9 +635,10 @@ struct Layout_Item_List{
     i32 node_count;
     i32 total_count;
     f32 height;
-    f32 bottom_extension;
+    f32 bottom_padding;
     i64 character_count;
-    Interval_i64 index_range;
+    Range_i64 input_index_range;
+    Range_i64 manifested_index_range;
 };
 
 typedef Layout_Item_List Layout_Function(Application_Links *app, Arena *arena,

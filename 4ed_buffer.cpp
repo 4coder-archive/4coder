@@ -860,14 +860,14 @@ internal i64
 buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
     i64 closest_match = 0;
     if (p.y < 0.f){
-        closest_match = list.index_range.min;
+        closest_match = list.manifested_index_range.min;
     }
     else if (p.y >= list.height){
-        closest_match = list.index_range.max + 1;
+        closest_match = list.manifested_index_range.max;
     }
     else{
         if (0.f < p.x && p.x < max_f32){
-            f32 bottom_extension = list.bottom_extension;
+            f32 bottom_padding = list.bottom_padding;
             f32 closest_x = -max_f32;
             for (Layout_Item_Block *block = list.first;
                  block != 0;
@@ -879,7 +879,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     if (p.y < item->rect.y0){
                         goto double_break;
                     }
-                    if (item->rect.y1 + bottom_extension <= p.y){
+                    if (item->rect.y1 + bottom_padding <= p.y){
                         continue;
                     }
                     f32 dist0 = p.x - item->rect.x0;
@@ -923,7 +923,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     closest_match = prev_item->index;
                 }
                 else{
-                    closest_match = list.index_range.max;
+                    closest_match = list.manifested_index_range.max;
                 }
             }
             else{
@@ -950,7 +950,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     closest_match = closest_item->index;
                 }
                 else{
-                    closest_match = list.index_range.min;
+                    closest_match = list.manifested_index_range.min;
                 }
             }
         }
@@ -962,10 +962,10 @@ internal i64
 buffer_layout_get_pos_at_character(Layout_Item_List list, i64 character){
     i64 result = 0;
     if (character <= 0){
-        result = list.index_range.min;
+        result = list.manifested_index_range.min;
     }
     else if (character >= list.character_count){
-        result = list.index_range.max + 1;
+        result = list.manifested_index_range.max;
     }
     else{
         i64 counter = 0;
@@ -1025,12 +1025,12 @@ buffer_layout_get_first_with_index(Layout_Item_List list, i64 index){
     return(result);
 }
 
-internal Vec2_f32
-buffer_layout_xy_center_of_pos(Layout_Item_List list, i64 index){
-    Vec2_f32 result = {};
+internal Rect_f32
+buffer_layout_box_of_pos(Layout_Item_List list, i64 index){
+    Rect_f32 result = {};
     Layout_Item *item = buffer_layout_get_first_with_index(list, index);
     if (item != 0){
-        result = rect_center(item->rect);
+        result = item->rect;
     }
     return(result);
 }
@@ -1038,12 +1038,11 @@ buffer_layout_xy_center_of_pos(Layout_Item_List list, i64 index){
 internal i64
 buffer_layout_character_from_pos(Layout_Item_List list, i64 index){
     i64 result = 0;
-    i64 character_count = 0;
     i64 prev_index = -1;
-    if (index <= list.index_range.first){
+    if (index <= list.manifested_index_range.first){
         result = 0;
     }
-    else if (index > list.index_range.one_past_last){
+    else if (index > list.manifested_index_range.one_past_last){
         result = list.character_count - 1;
     }
     else{
@@ -1053,13 +1052,12 @@ buffer_layout_character_from_pos(Layout_Item_List list, i64 index){
             Layout_Item *item = node->items;
             i64 count = node->count;
             for (i64 i = 0; i < count; i += 1, item += 1){
-                if (item->index == index){
-                    result = character_count;
+                if (item->index >= index){
                     goto double_break;
                 }
-                if (item->index != prev_index){
+                if (item->index > prev_index){
                     prev_index = item->index;
-                    character_count += 1;
+                    result += 1;
                 }
             }
         }

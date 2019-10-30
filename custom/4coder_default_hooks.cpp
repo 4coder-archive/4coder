@@ -282,10 +282,13 @@ default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
 }
 
 function void
-default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_view,
+default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
                       Buffer_ID buffer, Text_Layout_ID text_layout_id,
                       Rect_f32 rect){
     ProfileScope(app, "render buffer");
+    
+    View_ID active_view = get_active_view(app, Access_Always);
+    b32 is_active_view = (active_view == view_id);
     Rect_f32 prev_clip = draw_set_clip(app, rect);
     
     // NOTE(allen): Token colorizing
@@ -304,7 +307,8 @@ default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_vie
         }
     }
     
-    i64 cursor_pos = view_get_cursor_pos(app, view_id);
+    i64 cursor_pos = view_correct_cursor(app, view_id);
+    view_correct_mark(app, view_id);
     
     // NOTE(allen): Scope highlight
     if (global_config.use_scope_highlight){
@@ -352,7 +356,8 @@ default_render_buffer(Application_Links *app, View_ID view_id, b32 is_active_vie
     }
     
     // NOTE(allen): Cursor shape
-    f32 cursor_roundness = 4.f;
+    Face_Metrics metrics = get_face_metrics(app, face_id);
+    f32 cursor_roundness = (metrics.normal_advance*0.5f)*0.9f;
     f32 mark_thickness = 2.f;
     
     // NOTE(allen): Cursor
@@ -450,7 +455,7 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     }
     
     // NOTE(allen): draw the buffer
-    default_render_buffer(app, view_id, is_active_view,
+    default_render_buffer(app, view_id, face_id,
                           buffer, text_layout_id,
                           region);
     
@@ -932,7 +937,11 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_BufferEditRange, default_buffer_edit_range);
     set_custom_hook(app, HookID_BufferRegion, default_buffer_region);
     
-    set_custom_hook(app, HookID_Layout, layout_wrap_whitespace);
+    //set_custom_hook(app, HookID_Layout, layout_unwrapped);
+    //set_custom_hook(app, HookID_Layout, layout_wrap_anywhere);
+    //set_custom_hook(app, HookID_Layout, layout_wrap_whitespace);
+    set_custom_hook(app, HookID_Layout, layout_generic_virtual_whitespace);
+    //set_custom_hook(app, HookID_Layout, layout_unwrapped_small_blank_lines);
 }
 
 // BOTTOM

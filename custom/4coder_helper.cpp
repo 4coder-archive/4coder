@@ -183,12 +183,50 @@ view_zero_scroll(Application_Links *app, View_ID view){
     view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
 }
 
+internal Vec2_f32
+view_relative_xy_of_pos(Application_Links *app, View_ID view, i64 base_line, i64 pos){
+    Rect_f32 rect = view_relative_box_of_pos(app, view, base_line, pos);
+    return(rect_center(rect));
+}
+
 internal void
 view_set_cursor_and_preferred_x(Application_Links *app, View_ID view, Buffer_Seek seek){
     view_set_cursor(app, view, seek);
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek);
     Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, cursor.pos);
     view_set_preferred_x(app, view, p.x);
+}
+
+function i64
+view_set_pos_by_character_delta(Application_Links *app, View_ID view, i64 pos, i64 character_delta){
+    Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
+    i64 character = view_relative_character_from_pos(app, view, cursor.line, cursor.pos);
+    i64 new_pos = view_pos_from_relative_character(app, view, cursor.line, character + character_delta);
+    return(new_pos);
+}
+
+function i64
+view_set_cursor_by_character_delta(Application_Links *app, View_ID view, i64 character_delta){
+    i64 pos = view_get_cursor_pos(app, view);
+    i64 new_pos = view_set_pos_by_character_delta(app, view, pos, character_delta);
+    view_set_cursor_and_preferred_x(app, view, seek_pos(new_pos));
+    return(new_pos);
+}
+
+function i64
+view_correct_cursor(Application_Links *app, View_ID view){
+    i64 pos = view_get_cursor_pos(app, view);
+    i64 new_pos = view_set_pos_by_character_delta(app, view, pos, 0);
+    view_set_cursor(app, view, seek_pos(new_pos));
+    return(new_pos);
+}
+
+function i64
+view_correct_mark(Application_Links *app, View_ID view){
+    i64 pos = view_get_mark_pos(app, view);
+    i64 new_pos = view_set_pos_by_character_delta(app, view, pos, 0);
+    view_set_mark(app, view, seek_pos(new_pos));
+    return(new_pos);
 }
 
 function Vec2_f32

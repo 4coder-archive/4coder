@@ -267,6 +267,11 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
 
 ////////////////////////////////
 
+function void
+change_active_panel_send_command(Application_Links *app, Custom_Command_Function *custom_func){
+    NotImplemented;
+}
+
 CUSTOM_COMMAND_SIG(change_active_panel)
 CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
 {

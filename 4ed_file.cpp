@@ -432,18 +432,33 @@ file_pos_at_relative_xy(Thread_Context *tctx, Models *models, Editing_File *file
     return(buffer_layout_nearest_pos_to_xy(line, relative_xy));
 }
 
-internal Vec2_f32
-file_relative_xy_of_pos(Thread_Context *tctx, Models *models, Editing_File *file,
-                        Layout_Function *layout_func, f32 width, Face *face,
-                        i64 base_line, i64 pos){
+internal Rect_f32
+file_relative_box_of_pos(Thread_Context *tctx, Models *models, Editing_File *file,
+                         Layout_Function *layout_func, f32 width, Face *face,
+                         i64 base_line, i64 pos){
     i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
     Layout_Item_List line = file_get_line_layout(tctx, models, file,
                                                  layout_func, width, face,
                                                  line_number);
-    Vec2_f32 result = buffer_layout_xy_center_of_pos(line, pos);
-    result.y += file_line_y_difference(tctx, models, file,
-                                       layout_func, width, face, line_number, base_line);
+    Rect_f32 result = buffer_layout_box_of_pos(line, pos);
+    
+    f32 y_difference = file_line_y_difference(tctx, models, file,
+                                              layout_func, width, face,
+                                              line_number, base_line);
+    result.y0 += y_difference;
+    result.y1 += y_difference;
+    
     return(result);
+}
+
+function Vec2_f32
+file_relative_xy_of_pos(Thread_Context *tctx, Models *models, Editing_File *file,
+                        Layout_Function *layout_func, f32 width, Face *face,
+                        i64 base_line, i64 pos){
+    Rect_f32 rect = file_relative_box_of_pos(tctx, models, file,
+                                             layout_func, width, face,
+                                             base_line, pos);
+    return(rect_center(rect));
 }
 
 internal Buffer_Point
