@@ -80,6 +80,7 @@
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
+#include "4coder_layout_rule.cpp"
 #include "4coder_lister_base.cpp"
 #include "4coder_base_commands.cpp"
 #include "4coder_insertion.cpp"

@@ -2717,8 +2717,6 @@ draw_rectangle(Application_Links *app, Rect_f32 rect, f32 roundness, FColor colo
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
         u32 actual_color = finalize_color(color_table, color);
-        f32 scale = system_get_screen_scale_factor();
-        roundness *= scale;
         draw_rectangle(models->target, rect, roundness, actual_color);
     }
 }
@@ -2730,9 +2728,6 @@ draw_rectangle_outline(Application_Links *app, Rect_f32 rect,
     if (models->in_render_mode){
         Color_Table color_table = models->color_table;
         u32 actual_color = finalize_color(color_table, color);
-        f32 scale = system_get_screen_scale_factor();
-        roundness *= scale;
-        thickness *= scale;
         draw_rectangle_outline(models->target, rect, roundness, thickness, actual_color);
     }
 }
