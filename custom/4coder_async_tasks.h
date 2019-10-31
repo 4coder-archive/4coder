@@ -28,7 +28,6 @@ struct Async_Node{
     Async_Thread *thread;
     Async_Task_Function_Type *func;
     Data data;
-    Async_Node *following_task;
 };
 
 struct Async_System{

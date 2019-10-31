@@ -365,7 +365,7 @@ buffer_line_y_difference(Application_Links *app, Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            Layout_Function *layout_func = models->layout_func;
+            Layout_Function *layout_func = file_get_layout_func(file);
             result = file_line_y_difference(app->tctx, models, file,
                                             layout_func, width, face,
                                             line_a, line_b);
@@ -384,7 +384,7 @@ buffer_line_shift_y(Application_Links *app, Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            Layout_Function *layout_func = models->layout_func;
+            Layout_Function *layout_func = file_get_layout_func(file);
             result = file_line_shift_y(app->tctx, models, file,
                                        layout_func, width, face,
                                        line, y_shift);
@@ -403,7 +403,7 @@ buffer_pos_at_relative_xy(Application_Links *app, Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            Layout_Function *layout_func = models->layout_func;
+            Layout_Function *layout_func = file_get_layout_func(file);
             result = file_pos_at_relative_xy(app->tctx, models, file,
                                              layout_func, width, face,
                                              base_line, relative_xy);
@@ -422,7 +422,7 @@ buffer_relative_box_of_pos(Application_Links *app, Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            Layout_Function *layout_func = models->layout_func;
+            Layout_Function *layout_func = file_get_layout_func(file);
             result = file_relative_box_of_pos(app->tctx, models, file,
                                               layout_func, width, face,
                                               base_line, pos);
@@ -441,7 +441,7 @@ buffer_relative_character_from_pos(Application_Links *app, Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            Layout_Function *layout_func = models->layout_func;
+            Layout_Function *layout_func = file_get_layout_func(file);
             result = file_relative_character_from_pos(app->tctx, models, file,
                                                       layout_func, width, face,
                                                       base_line, pos);
@@ -459,7 +459,7 @@ buffer_pos_from_relative_character(Application_Links *app,  Buffer_ID buffer_id,
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
-            Layout_Function *layout_func = models->layout_func;
+            Layout_Function *layout_func = file_get_layout_func(file);
             result = file_pos_from_relative_character(app->tctx, models, file,
                                                       layout_func, width, face,
                                                       base_line, relative_character);
@@ -643,14 +643,26 @@ buffer_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State 
 }
 
 api(custom) function b32
-buffer_set_layout(Application_Links *app, Buffer_ID buffer_id,
-                  Layout_Function *layout_func){
+buffer_set_layout(Application_Links *app, Buffer_ID buffer_id, Layout_Function *layout_func){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
         result = true;
         file->settings.layout_func = layout_func;
+        file_clear_layout_cache(file);
+    }
+    return(result);
+}
+
+api(custom) function b32
+file_clear_layout_cache(Application_Links *app, Buffer_ID buffer_id){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (api_check_buffer(file)){
+        result = true;
+        file_clear_layout_cache(file);
     }
     return(result);
 }
@@ -2774,7 +2786,7 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
         
         Gap_Buffer *buffer = &file->state.buffer;
         
-        Layout_Function *layout_func = models->layout_func;
+        Layout_Function *layout_func = file_get_layout_func(file);
         
         Vec2_f32 dim = rect_dim(rect);
         

@@ -43,7 +43,6 @@ async_push_node__inner(Async_System *async_system, Async_Task_Function_Type *fun
     node->data.data = (u8*)heap_allocate(&async_system->node_heap, data.size);
     block_copy(node->data.data, data.data, data.size);
     node->data.size = data.size;
-    node->following_task = 0;
     dll_insert_back(&async_system->task_sent, &node->node);
     async_system->task_count += 1;
     system_condition_variable_signal(async_system->cv);
@@ -107,17 +106,7 @@ async_task_thread(void *thread_ptr){
         thread->task = 0;
         thread->cancel_signal = false;
         thread->join_signal = false;
-        {
-            Async_Node *next = node->following_task;
-            async_free_node(async_system, node);
-            for (node = next; node != 0; node = next){
-                next = node->following_task;
-                Assert(&node->node != &async_system->task_sent);
-                dll_remove(&node->node);
-                async_system->task_count -= 1;
-                async_free_node(async_system, node);
-            }
-        }
+        async_free_node(async_system, node);
         system_mutex_release(async_system->mutex);
     }
 }
@@ -173,22 +162,6 @@ async_task_no_dep(Async_System *async_system, Async_Task_Function_Type *func,
     return(result);
 }
 
-function Async_Task
-async_task_single_dep(Async_System *async_system, Async_Task_Function_Type *func,
-                      Data data, Async_Task dependency){
-    system_mutex_acquire(async_system->mutex);
-    Async_Node *dep_node = async_get_pending_node(async_system, dependency);
-    if (dep_node == 0){
-        dep_node = async_get_running_node(async_system, dependency);
-    }
-    Async_Node *node = async_push_node__inner(async_system, func, data);
-    if (dep_node != 0){
-        dep_node->following_task = node;
-    }
-    system_mutex_release(async_system->mutex);
-    return(node->task);
-}
-
 function b32
 async_task_is_pending(Async_System *async_system, Async_Task task){
     system_mutex_acquire(async_system->mutex);
@@ -216,6 +189,7 @@ async_task_is_running_or_pending(Async_System *async_system, Async_Task task){
     return(node != 0);
 }
 
+// TODO(allen): ensure that the job is canceled before this returns.
 function void
 async_task_cancel(Async_System *async_system, Async_Task task){
     system_mutex_acquire(async_system->mutex);

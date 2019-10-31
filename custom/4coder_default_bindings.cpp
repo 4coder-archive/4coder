@@ -19,6 +19,7 @@ custom_layer_init(Application_Links *app){
     mapping_init(tctx, &framework_mapping);
     setup_default_mapping(&framework_mapping);
     async_task_handler_init(app, &global_async_system);
+    code_index_init();
     
     Profile_Global_List *list = get_core_profile_list(app);
     ProfileThreadName(tctx, list, string_u8_litexpr("main"));

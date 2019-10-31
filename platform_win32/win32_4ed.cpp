@@ -1723,6 +1723,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 win32vars.got_useful_event = false;
             }
             
+            // NOTE(allen): while we're doing this (and possibly sleeping)
+            // we can let async processes get there time in.
+            system_mutex_release(win32vars.global_frame_mutex);
+            
             b32 get_more_messages = true;
             do{
                 if (win32vars.got_useful_event == 0){
@@ -1797,6 +1801,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                     }
                 }
             }while (get_more_messages);
+            
+            system_mutex_acquire(win32vars.global_frame_mutex);
         }
         
         // NOTE(allen): Mouse Out of Window Detection

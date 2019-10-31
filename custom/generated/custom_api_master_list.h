@@ -40,8 +40,9 @@ api(custom) function String_Const_u8 push_buffer_unique_name(Application_Links* 
 api(custom) function String_Const_u8 push_buffer_file_name(Application_Links* app, Arena* arena, Buffer_ID buffer_id);
 api(custom) function Dirty_State buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function b32 buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
-api(custom) function b32 buffer_set_layout(Application_Links* app, Buffer_ID buffer, Layout_Function* layout_func);
-api(custom) function Layout_Function* buffer_get_layout(Application_Links* app, Buffer_ID buffer);
+api(custom) function b32 buffer_set_layout(Application_Links* app, Buffer_ID buffer_id, Layout_Function* layout_func);
+api(custom) function b32 file_clear_layout_cache(Application_Links* app, Buffer_ID buffer);
+api(custom) function Layout_Function* buffer_get_layout(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
 api(custom) function b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
 api(custom) function Managed_Scope buffer_get_managed_scope(Application_Links* app, Buffer_ID buffer_id);
