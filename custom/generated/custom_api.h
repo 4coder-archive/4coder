@@ -40,6 +40,8 @@
 #define custom_push_buffer_file_name_sig() String_Const_u8 custom_push_buffer_file_name(Application_Links* app, Arena* arena, Buffer_ID buffer_id)
 #define custom_buffer_get_dirty_state_sig() Dirty_State custom_buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_set_dirty_state_sig() b32 custom_buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state)
+#define custom_buffer_set_layout_sig() b32 custom_buffer_set_layout(Application_Links* app, Buffer_ID buffer, Layout_Function* layout_func)
+#define custom_buffer_get_layout_sig() Layout_Function* custom_buffer_get_layout(Application_Links* app, Buffer_ID buffer)
 #define custom_buffer_get_setting_sig() b32 custom_buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out)
 #define custom_buffer_set_setting_sig() b32 custom_buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value)
 #define custom_buffer_get_managed_scope_sig() Managed_Scope custom_buffer_get_managed_scope(Application_Links* app, Buffer_ID buffer_id)
@@ -213,6 +215,8 @@ typedef String_Const_u8 custom_push_buffer_unique_name_type(Application_Links* a
 typedef String_Const_u8 custom_push_buffer_file_name_type(Application_Links* app, Arena* arena, Buffer_ID buffer_id);
 typedef Dirty_State custom_buffer_get_dirty_state_type(Application_Links* app, Buffer_ID buffer_id);
 typedef b32 custom_buffer_set_dirty_state_type(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
+typedef b32 custom_buffer_set_layout_type(Application_Links* app, Buffer_ID buffer, Layout_Function* layout_func);
+typedef Layout_Function* custom_buffer_get_layout_type(Application_Links* app, Buffer_ID buffer);
 typedef b32 custom_buffer_get_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
 typedef b32 custom_buffer_set_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
 typedef Managed_Scope custom_buffer_get_managed_scope_type(Application_Links* app, Buffer_ID buffer_id);
@@ -387,6 +391,8 @@ custom_push_buffer_unique_name_type *push_buffer_unique_name;
 custom_push_buffer_file_name_type *push_buffer_file_name;
 custom_buffer_get_dirty_state_type *buffer_get_dirty_state;
 custom_buffer_set_dirty_state_type *buffer_set_dirty_state;
+custom_buffer_set_layout_type *buffer_set_layout;
+custom_buffer_get_layout_type *buffer_get_layout;
 custom_buffer_get_setting_type *buffer_get_setting;
 custom_buffer_set_setting_type *buffer_set_setting;
 custom_buffer_get_managed_scope_type *buffer_get_managed_scope;
@@ -562,6 +568,8 @@ internal String_Const_u8 push_buffer_unique_name(Application_Links* app, Arena* 
 internal String_Const_u8 push_buffer_file_name(Application_Links* app, Arena* arena, Buffer_ID buffer_id);
 internal Dirty_State buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id);
 internal b32 buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
+internal b32 buffer_set_layout(Application_Links* app, Buffer_ID buffer, Layout_Function* layout_func);
+internal Layout_Function* buffer_get_layout(Application_Links* app, Buffer_ID buffer);
 internal b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
 internal b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
 internal Managed_Scope buffer_get_managed_scope(Application_Links* app, Buffer_ID buffer_id);
@@ -737,6 +745,8 @@ global custom_push_buffer_unique_name_type *push_buffer_unique_name = 0;
 global custom_push_buffer_file_name_type *push_buffer_file_name = 0;
 global custom_buffer_get_dirty_state_type *buffer_get_dirty_state = 0;
 global custom_buffer_set_dirty_state_type *buffer_set_dirty_state = 0;
+global custom_buffer_set_layout_type *buffer_set_layout = 0;
+global custom_buffer_get_layout_type *buffer_get_layout = 0;
 global custom_buffer_get_setting_type *buffer_get_setting = 0;
 global custom_buffer_set_setting_type *buffer_set_setting = 0;
 global custom_buffer_get_managed_scope_type *buffer_get_managed_scope = 0;

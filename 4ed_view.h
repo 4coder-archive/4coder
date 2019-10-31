@@ -75,7 +75,6 @@ struct View{
     File_Edit_Positions edit_pos_;
     i64 mark;
     f32 preferred_x;
-    Layout_Function *layout_func;
     
     b8 new_scroll_target;
     

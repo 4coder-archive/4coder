@@ -106,16 +106,6 @@ newline_layout_consume_finish(Newline_Layout_Vars *vars){
 
 ////
 
-#if 0
-function void
-lr_tb_write_blank(LefRig_TopBot_Layout_Vars *vars,
-                  Arena *arena, Layout_Item_List *list, i64 index){
-    f32 advance = vars->metrics->space_advance;
-    lr_tb_write_blank_dim(vars, V2f32(advance, vars->metrics->text_height),
-                          arena, list, index);
-}
-#endif
-
 function LefRig_TopBot_Layout_Vars
 get_lr_tb_layout_vars(Face_Advance_Map *advance_map, Face_Metrics *metrics, f32 width){
     f32 text_height = metrics->text_height;
@@ -612,9 +602,9 @@ layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer,
 }
 
 function Layout_Item_List
-layout_generic_virtual_whitespace(Application_Links *app, Arena *arena,
-                                  Buffer_ID buffer, Range_i64 range, Face_ID face,
-                                  f32 width){
+layout_virt_indent_unwrapped(Application_Links *app, Arena *arena,
+                             Buffer_ID buffer, Range_i64 range, Face_ID face,
+                             f32 width){
     Scratch_Block scratch(app);
     
     Layout_Item_List list = get_empty_item_list(range);

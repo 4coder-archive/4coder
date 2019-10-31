@@ -764,6 +764,23 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
     }
     
+    if (wrap_lines){
+        if (use_virtual_whitespace){
+            buffer_set_layout(app, buffer_id, layout_virt_indent_unwrapped);
+        }
+        else{
+            buffer_set_layout(app, buffer_id, layout_wrap_whitespace);
+        }
+    }
+    else{
+        if (use_virtual_whitespace){
+            buffer_set_layout(app, buffer_id, layout_virt_indent_unwrapped);
+        }
+        else{
+            buffer_set_layout(app, buffer_id, layout_unwrapped);
+        }
+    }
+    
     // no meaning for return
     return(0);
 }
@@ -937,10 +954,10 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_BufferEditRange, default_buffer_edit_range);
     set_custom_hook(app, HookID_BufferRegion, default_buffer_region);
     
-    //set_custom_hook(app, HookID_Layout, layout_unwrapped);
+    set_custom_hook(app, HookID_Layout, layout_unwrapped);
     //set_custom_hook(app, HookID_Layout, layout_wrap_anywhere);
     //set_custom_hook(app, HookID_Layout, layout_wrap_whitespace);
-    set_custom_hook(app, HookID_Layout, layout_generic_virtual_whitespace);
+    //set_custom_hook(app, HookID_Layout, layout_virt_indent_unwrapped);
     //set_custom_hook(app, HookID_Layout, layout_unwrapped_small_blank_lines);
 }
 

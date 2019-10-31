@@ -34,7 +34,7 @@ struct Text_Effect{
 };
 
 struct Editing_File_Settings{
-    Command_Map_ID base_map_id;
+    Layout_Function *layout_func;
     Face_ID face_id;
     b8 dos_write_mode;
     b8 is_initialized;

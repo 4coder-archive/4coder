@@ -208,6 +208,11 @@ file_compute_cursor(Editing_File *file, Buffer_Seek seek){
 
 ////////////////////////////////
 
+function Layout_Function*
+file_get_layout_func(Editing_File *file){
+    return(file->settings.layout_func);
+}
+
 internal void
 file_create_from_string(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
     Scratch_Block scratch(tctx, Scratch_Share);
@@ -222,6 +227,7 @@ file_create_from_string(Thread_Context *tctx, Models *models, Editing_File *file
     file_clear_dirty_flags(file);
     file->attributes = attributes;
     
+    file->settings.layout_func = models->layout_func;
     file->settings.face_id = models->global_face_id;
     
     buffer_measure_starts(scratch, &file->state.buffer);

@@ -636,8 +636,32 @@ buffer_set_dirty_state(Application_Links *app, Buffer_ID buffer_id, Dirty_State 
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        file->state.dirty = dirty_state;
         result = true;
+        file->state.dirty = dirty_state;
+    }
+    return(result);
+}
+
+api(custom) function b32
+buffer_set_layout(Application_Links *app, Buffer_ID buffer_id,
+                  Layout_Function *layout_func){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    b32 result = false;
+    if (api_check_buffer(file)){
+        result = true;
+        file->settings.layout_func = layout_func;
+    }
+    return(result);
+}
+
+api(custom) function Layout_Function*
+buffer_get_layout(Application_Links *app, Buffer_ID buffer_id){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    Layout_Function *result = 0;
+    if (api_check_buffer(file)){
+        result = file->settings.layout_func;
     }
     return(result);
 }
