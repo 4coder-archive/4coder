@@ -643,6 +643,60 @@ do_full_lex_async(Async_Context *actx, Data data){
     }
 }
 
+function void
+do_full_parse_async__inner(Async_Context *actx, Buffer_ID buffer){
+    Application_Links *app = actx->app;
+    ProfileScope(app, "async parse");
+    
+    Thread_Context *tctx = get_thread_context(app);
+    Scratch_Block scratch(tctx);
+    
+    String_Const_u8 contents = {};
+    Token_Array tokens = {};
+    {
+        ProfileBlock(app, "async parse contents (before mutex)");
+        system_acquire_global_frame_mutex(tctx);
+        ProfileBlock(app, "async parse contents (after mutex)");
+        contents = push_whole_buffer(app, scratch, buffer);
+        Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+        tokens.count = tokens_ptr->count;
+        tokens.tokens = push_array_write(scratch, Token, tokens.count, tokens_ptr->tokens);
+        system_release_global_frame_mutex(tctx);
+    }
+    
+    Arena arena = make_arena_system(KB(16));
+    
+    Generic_Parse_State state = {};
+    generic_parse_init(app, &arena, contents, &tokens, &state);
+    
+    Code_Index_File index = {};
+    b32 canceled = false;
+    for (;;){
+        ProfileBlock(app, "async parse block");
+        if (generic_parse_full_input_breaks(&index, &state, 10000)){
+            break;
+        }
+        if (async_check_canceled(actx)){
+            canceled = true;
+            break;
+        }
+    }
+    
+    if (!canceled){
+        ProfileBlock(app, "async parse save results");
+        code_index_set_file(app, buffer, arena, &index);
+    }
+}
+
+function void
+do_full_parse_async(Async_Context *actx, Data data){
+    if (data.size == sizeof(Buffer_ID)){
+        Buffer_ID buffer = *(Buffer_ID*)data.data;
+        do_full_parse_async__inner(actx, buffer);
+    }
+}
+
 BUFFER_HOOK_SIG(default_begin_buffer){
     ProfileScope(app, "begin buffer");
     
@@ -762,6 +816,8 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         ProfileBlock(app, "begin buffer kick off lexer");
         Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
         *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
+        async_task_single_dep(&global_async_system, do_full_parse_async, make_data_struct(&buffer_id),
+                              *lex_task_ptr);
     }
     
     if (wrap_lines){
@@ -832,6 +888,8 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     if (async_task_is_running_or_pending(&global_async_system, *lex_task_ptr)){
         async_task_cancel(&global_async_system, *lex_task_ptr);
         *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
+        async_task_single_dep(&global_async_system, do_full_parse_async, make_data_struct(&buffer_id),
+                              *lex_task_ptr);
     }
     else{
         Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
@@ -912,6 +970,8 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                 *lex_task_ptr = async_task_no_dep(&global_async_system,
                                                   do_full_lex_async,
                                                   make_data_struct(&buffer_id));
+                async_task_single_dep(&global_async_system, do_full_parse_async, make_data_struct(&buffer_id),
+                                      *lex_task_ptr);
             }
         }
     }

@@ -627,8 +627,7 @@ layout_virt_indent_unwrapped(Application_Links *app, Arena *arena,
         for (;ptr < end_ptr;){
             Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
             
-            if (consume.codepoint != ' ' &&
-                consume.codepoint != '\t'){
+            if (!character_is_whitespace(consume.codepoint)){
                 skipping_leading_whitespace = false;
             }
             
