@@ -582,32 +582,25 @@ struct Buffer_Name_Conflict_Entry{
 };
 
 typedef void Buffer_Name_Resolver_Function(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count);
-#define BUFFER_NAME_RESOLVER_SIG(n) \
-void n(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, \
-i32 conflict_count)
+#define BUFFER_NAME_RESOLVER_SIG(n) void n(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count)
 
 typedef i32 Buffer_Hook_Function(Application_Links *app, Buffer_ID buffer_id);
 #define BUFFER_HOOK_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id)
 
 typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_id,
                                        Range_i64 new_range, umem original_size);
-#define BUFFER_EDIT_RANGE_SIG(name) \
-i32 name(Application_Links *app, Buffer_ID buffer_id, \
-Interval_i64 new_range, umem original_size)
+#define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id, Interval_i64 new_range, umem original_size)
 
 typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data);
-#define DELTA_RULE_SIG(name) \
-Vec2_f32 name(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data)
+#define DELTA_RULE_SIG(name) Vec2_f32 name(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data)
 
 typedef Rect_f32 Buffer_Region_Function(Application_Links *app, View_ID view_id, Rect_f32 region);
 
 typedef void New_Clipboard_Contents_Function(Application_Links *app, String_Const_u8 contents);
-#define NEW_CLIPBOARD_CONTENTS_SIG(name) \
-void name(Application_Links *app, String_Const_u8 contents)
+#define NEW_CLIPBOARD_CONTENTS_SIG(name) void name(Application_Links *app, String_Const_u8 contents)
 
 typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
-#define RENDER_CALLER_SIG(name) \
-void name(Application_Links *app, Frame_Info frame_info, View_ID view)
+#define RENDER_CALLER_SIG(name) void name(Application_Links *app, Frame_Info frame_info, View_ID view)
 
 typedef u32 Layout_Item_Flag;
 enum{

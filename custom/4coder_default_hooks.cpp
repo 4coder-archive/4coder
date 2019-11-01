@@ -53,7 +53,6 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
     }
 }
 
-
 CUSTOM_COMMAND_SIG(default_view_input_handler)
 CUSTOM_DOC("Input consumption loop for default view behavior")
 {
@@ -279,6 +278,48 @@ default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
     }
     
     return(region);
+}
+
+function void
+recursive_nest_highlight(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range,
+                         Code_Index_Nest_Ptr_Array *array, i32 counter){
+    Code_Index_Nest **ptr = array->ptrs;
+    Code_Index_Nest **ptr_end = ptr + array->count;
+    
+    for (;ptr < ptr_end; ptr += 1){
+        Code_Index_Nest *nest = *ptr;
+        if (!nest->is_closed){
+            break;
+        }
+        if (range.first <= nest->close.max){
+            break;
+        }
+    }
+    
+    FColor t_colors[] = {
+        fcolor_id(Stag_Text_Cycle_1), fcolor_id(Stag_Text_Cycle_2),
+        fcolor_id(Stag_Text_Cycle_3), fcolor_id(Stag_Text_Cycle_4),
+    };
+    FColor t_color = t_colors[counter%ArrayCount(t_colors)];
+    
+    for (;ptr < ptr_end; ptr += 1){
+        Code_Index_Nest *nest = *ptr;
+        if (range.max <= nest->open.min){
+            break;
+        }
+        
+        paint_text_color(app, layout_id, nest->open, t_color);
+        if (nest->is_closed){
+            paint_text_color(app, layout_id, nest->close, t_color);
+        }
+        recursive_nest_highlight(app, layout_id, range, &nest->nest_array, counter + 1);
+    }
+}
+
+function void
+recursive_nest_highlight(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range,
+                         Code_Index_File *file){
+    recursive_nest_highlight(app, layout_id, range, &file->nest_array, 0);
 }
 
 function void
@@ -582,6 +623,45 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
 }
 
 function void
+parse_async__inner(Async_Context *actx, Buffer_ID buffer_id,
+                   String_Const_u8 contents, Token_Array *tokens, i32 limit_factor){
+    Application_Links *app = actx->app;
+    ProfileBlock(app, "async parse");
+    
+    Arena arena = make_arena_system(KB(16));
+    Code_Index_File *index = push_array_zero(&arena, Code_Index_File, 1);
+    index->buffer = buffer_id;
+    
+    Generic_Parse_State state = {};
+    generic_parse_init(app, &arena, contents, tokens, &state);
+    
+    b32 canceled = false;
+    
+    for (;;){
+        if (generic_parse_full_input_breaks(index, &state, limit_factor)){
+            break;
+        }
+        if (async_check_canceled(actx)){
+            canceled = true;
+            break;
+        }
+    }
+    
+    if (!canceled){
+        Thread_Context *tctx = get_thread_context(app);
+        system_acquire_global_frame_mutex(tctx);
+        code_index_lock();
+        code_index_set_file(buffer_id, arena, index);
+        code_index_unlock();
+        buffer_clear_layout_cache(app, buffer_id);
+        system_release_global_frame_mutex(tctx);
+    }
+    else{
+        linalloc_clear(&arena);
+    }
+}
+
+function void
 do_full_lex_and_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Application_Links *app = actx->app;
     ProfileScope(app, "async lex");
@@ -600,10 +680,8 @@ do_full_lex_and_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
             Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
                                                        Token_Array);
             base_free(allocator, tokens_ptr->tokens);
+            block_zero_struct(tokens_ptr);
         }
-        code_index_lock();
-        code_index_erase_file(buffer_id);
-        code_index_unlock();
         
         contents = push_whole_buffer(app, scratch, buffer_id);
         system_release_global_frame_mutex(tctx);
@@ -650,32 +728,7 @@ do_full_lex_and_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     }
     
     if (tokens.count > 0){
-        ProfileBlock(app, "async parse");
-        Arena arena = make_arena_system(KB(16));
-        Code_Index_File *index = push_array_zero(&arena, Code_Index_File, 1);
-        index->buffer = buffer_id;
-        
-        Generic_Parse_State state = {};
-        generic_parse_init(app, &arena, contents, &tokens, &state);
-        
-        for (;;){
-            if (generic_parse_full_input_breaks(index, &state, limit_factor)){
-                break;
-            }
-            if (async_check_canceled(actx)){
-                canceled = true;
-                break;
-            }
-        }
-        
-        if (!canceled){
-            code_index_lock();
-            code_index_set_file(buffer_id, arena, index);
-            code_index_unlock();
-        }
-        else{
-            linalloc_clear(&arena);
-        }
+        parse_async__inner(actx, buffer_id, contents, &tokens, limit_factor);
     }
 }
 
@@ -684,6 +737,49 @@ do_full_lex_and_parse_async(Async_Context *actx, Data data){
     if (data.size == sizeof(Buffer_ID)){
         Buffer_ID buffer = *(Buffer_ID*)data.data;
         do_full_lex_and_parse_async__inner(actx, buffer);
+    }
+}
+
+function void
+do_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
+    Application_Links *app = actx->app;
+    ProfileScope(app, "async lex");
+    Thread_Context *tctx = get_thread_context(app);
+    Scratch_Block scratch(tctx);
+    
+    String_Const_u8 contents = {};
+    Token_Array tokens = {};
+    {
+        ProfileBlock(app, "async parse contents (before mutex)");
+        system_acquire_global_frame_mutex(tctx);
+        ProfileBlock(app, "async parse contents (after mutex)");
+        
+        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+        if (scope != 0){
+            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
+                                                       Token_Array);
+            tokens.count = tokens_ptr->count;
+            tokens.tokens = push_array_write(scratch, Token, tokens.count, tokens_ptr->tokens);
+            if (tokens.count > 0){
+                contents = push_whole_buffer(app, scratch, buffer_id);
+            }
+        }
+        
+        system_release_global_frame_mutex(tctx);
+    }
+    
+    i32 limit_factor = 10000;
+    
+    if (tokens.count > 0){
+        parse_async__inner(actx, buffer_id, contents, &tokens, limit_factor);
+    }
+}
+
+function void
+do_parse_async(Async_Context *actx, Data data){
+    if (data.size == sizeof(Buffer_ID)){
+        Buffer_ID buffer = *(Buffer_ID*)data.data;
+        do_parse_async__inner(actx, buffer);
     }
 }
 
@@ -774,6 +870,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
         buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
         buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
+        buffer_parse_task = managed_id_declare(app, SCu8("DEFAULT.buffer_parse_task"));
     }
     
     Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
@@ -810,7 +907,13 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     
     if (wrap_lines){
         if (use_virtual_whitespace){
-            buffer_set_layout(app, buffer_id, layout_virt_indent_unwrapped);
+            if (use_lexer){
+                buffer_set_layout(app, buffer_id, layout_virt_indent_index_unwrapped);
+                //buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
+            }
+            else{
+                buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
+            }
         }
         else{
             buffer_set_layout(app, buffer_id, layout_wrap_whitespace);
@@ -818,7 +921,13 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     }
     else{
         if (use_virtual_whitespace){
-            buffer_set_layout(app, buffer_id, layout_virt_indent_unwrapped);
+            if (use_lexer){
+                buffer_set_layout(app, buffer_id, layout_virt_indent_index_unwrapped);
+                //buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
+            }
+            else{
+                buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
+            }
         }
         else{
             buffer_set_layout(app, buffer_id, layout_unwrapped);
@@ -865,7 +974,17 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     // buffer_id, new_range, original_size
     ProfileScope(app, "default edit range");
     
-    Interval_i64 old_range = Ii64(new_range.first, new_range.first + original_size);
+    Range_i64 old_range = Ii64(new_range.first, new_range.first + original_size);
+    
+    {
+        code_index_lock();
+        Code_Index_File *file = code_index_get_file(buffer_id);
+        if (file != 0){
+            code_index_shift(file, old_range, range_size(new_range));
+        }
+        code_index_unlock();
+    }
+    
     i64 insert_size = range_size(new_range);
     i64 text_shift = replace_range_shift(old_range, insert_size);
     
@@ -873,91 +992,97 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
+    Async_Task *parse_task_ptr = scope_attachment(app, scope, buffer_parse_task, Async_Task);
+    
+    Base_Allocator *allocator = managed_scope_allocator(app, scope);
+    b32 do_full_relex = false;
+    
     if (async_task_is_running_or_pending(&global_async_system, *lex_task_ptr)){
         async_task_cancel(&global_async_system, *lex_task_ptr);
-        *lex_task_ptr = async_task_no_dep(&global_async_system,
-                                          do_full_lex_and_parse_async,
-                                          make_data_struct(&buffer_id));
+        do_full_relex = true;
+        *lex_task_ptr = 0;
     }
-    else{
-        Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-        if (ptr != 0 && ptr->tokens != 0){
-            ProfileBlockNamed(app, "attempt resync", profile_attempt_resync);
+    if (async_task_is_running_or_pending(&global_async_system, *parse_task_ptr)){
+        async_task_cancel(&global_async_system, *parse_task_ptr);
+        *parse_task_ptr = 0;
+    }
+    
+    Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    if (ptr != 0 && ptr->tokens != 0){
+        ProfileBlockNamed(app, "attempt resync", profile_attempt_resync);
+        
+        i64 token_index_first = token_relex_first(ptr, old_range.first, 1);
+        i64 token_index_resync_guess =
+            token_relex_resync(ptr, old_range.one_past_last, 16);
+        
+        if (token_index_resync_guess - token_index_first >= 4000){
+            do_full_relex = true;
+        }
+        else{
+            Token *token_first = ptr->tokens + token_index_first;
+            Token *token_resync = ptr->tokens + token_index_resync_guess;
             
-            Base_Allocator *allocator = managed_scope_allocator(app, scope);
+            Range_i64 relex_range =
+                Ii64(token_first->pos,
+                     token_resync->pos + token_resync->size + text_shift);
+            String_Const_u8 partial_text = push_buffer_range(app, scratch,
+                                                             buffer_id,
+                                                             relex_range);
             
-            b32 do_full_relex = false;
-            i64 token_index_first = token_relex_first(ptr, old_range.first, 1);
-            i64 token_index_resync_guess =
-                token_relex_resync(ptr, old_range.one_past_last, 16);
+            Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
+            if (relex_range.one_past_last < buffer_get_size(app, buffer_id)){
+                token_drop_eof(&relex_list);
+            }
             
-            if (token_index_resync_guess - token_index_first >= 4000){
+            Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
+                                            ptr->tokens, token_index_first, token_index_resync_guess);
+            
+            ProfileCloseNow(profile_attempt_resync);
+            
+            if (!relex.successful_resync){
                 do_full_relex = true;
             }
             else{
-                Token *token_first = ptr->tokens + token_index_first;
-                Token *token_resync = ptr->tokens + token_index_resync_guess;
+                ProfileBlock(app, "apply resync");
                 
-                Range_i64 relex_range =
-                    Ii64(token_first->pos,
-                         token_resync->pos + token_resync->size + text_shift);
-                String_Const_u8 partial_text = push_buffer_range(app, scratch,
-                                                                 buffer_id,
-                                                                 relex_range);
+                i64 token_index_resync = relex.first_resync_index;
                 
-                Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
-                if (relex_range.one_past_last < buffer_get_size(app, buffer_id)){
-                    token_drop_eof(&relex_list);
+                Interval_i64 head = Ii64(0, token_index_first);
+                Interval_i64 replaced = Ii64(token_index_first, token_index_resync);
+                Interval_i64 tail = Ii64(token_index_resync, ptr->count);
+                i64 resynced_count = (token_index_resync_guess + 1) - token_index_resync;
+                i64 relexed_count = relex_list.total_count - resynced_count;
+                i64 tail_shift = relexed_count - (token_index_resync - token_index_first);
+                
+                i64 new_tokens_count = ptr->count + tail_shift;
+                Token *new_tokens = base_array(allocator, Token, new_tokens_count);
+                
+                Token *old_tokens = ptr->tokens;
+                block_copy_array_shift(new_tokens, old_tokens, head, 0);
+                token_fill_memory_from_list(new_tokens + replaced.first, &relex_list, relexed_count);
+                for (i64 i = 0, index = replaced.first; i < relexed_count; i += 1, index += 1){
+                    new_tokens[index].pos += relex_range.first;
                 }
-                
-                Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
-                                                ptr->tokens, token_index_first, token_index_resync_guess);
-                
-                ProfileCloseNow(profile_attempt_resync);
-                
-                if (relex.successful_resync){
-                    ProfileBlock(app, "apply resync");
-                    
-                    i64 token_index_resync = relex.first_resync_index;
-                    
-                    Interval_i64 head = Ii64(0, token_index_first);
-                    Interval_i64 replaced = Ii64(token_index_first, token_index_resync);
-                    Interval_i64 tail = Ii64(token_index_resync, ptr->count);
-                    i64 resynced_count = (token_index_resync_guess + 1) - token_index_resync;
-                    i64 relexed_count = relex_list.total_count - resynced_count;
-                    i64 tail_shift = relexed_count - (token_index_resync - token_index_first);
-                    
-                    i64 new_tokens_count = ptr->count + tail_shift;
-                    Token *new_tokens = base_array(allocator, Token, new_tokens_count);
-                    
-                    Token *old_tokens = ptr->tokens;
-                    block_copy_array_shift(new_tokens, old_tokens, head, 0);
-                    token_fill_memory_from_list(new_tokens + replaced.first, &relex_list, relexed_count);
-                    for (i64 i = 0, index = replaced.first; i < relexed_count; i += 1, index += 1){
-                        new_tokens[index].pos += relex_range.first;
-                    }
-                    for (i64 i = tail.first; i < tail.one_past_last; i += 1){
-                        old_tokens[i].pos += text_shift;
-                    }
-                    block_copy_array_shift(new_tokens, ptr->tokens, tail, tail_shift);
-                    
-                    base_free(allocator, ptr->tokens);
-                    
-                    ptr->tokens = new_tokens;
-                    ptr->count = new_tokens_count;
-                    ptr->max = new_tokens_count;
+                for (i64 i = tail.first; i < tail.one_past_last; i += 1){
+                    old_tokens[i].pos += text_shift;
                 }
-                else{
-                    do_full_relex = true;
-                }
-            }
-            
-            if (do_full_relex){
-                *lex_task_ptr = async_task_no_dep(&global_async_system,
-                                                  do_full_lex_and_parse_async,
-                                                  make_data_struct(&buffer_id));
+                block_copy_array_shift(new_tokens, ptr->tokens, tail, tail_shift);
+                
+                base_free(allocator, ptr->tokens);
+                
+                ptr->tokens = new_tokens;
+                ptr->count = new_tokens_count;
+                ptr->max = new_tokens_count;
+                
+                *parse_task_ptr = async_task_no_dep(&global_async_system, do_parse_async,
+                                                    make_data_struct(&buffer_id));
             }
         }
+    }
+    
+    if (do_full_relex){
+        *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_and_parse_async,
+                                          make_data_struct(&buffer_id));
     }
     
     // no meaning for return
@@ -969,6 +1094,10 @@ BUFFER_HOOK_SIG(default_end_buffer){
     Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
     if (lex_task_ptr != 0){
         async_task_cancel(&global_async_system, *lex_task_ptr);
+    }
+    Async_Task *lex_parse_ptr = scope_attachment(app, scope, buffer_parse_task, Async_Task);
+    if (lex_parse_ptr != 0){
+        async_task_cancel(&global_async_system, *lex_parse_ptr);
     }
     code_index_lock();
     code_index_erase_file(buffer_id);

@@ -656,7 +656,7 @@ buffer_set_layout(Application_Links *app, Buffer_ID buffer_id, Layout_Function *
 }
 
 api(custom) function b32
-file_clear_layout_cache(Application_Links *app, Buffer_ID buffer_id){
+buffer_clear_layout_cache(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
@@ -2844,7 +2844,7 @@ text_layout_get_buffer(Application_Links *app, Text_Layout_ID text_layout_id){
     return(result);
 }
 
-api(custom) function Interval_i64
+api(custom) function Range_i64
 text_layout_get_visible_range(Application_Links *app, Text_Layout_ID text_layout_id){
     Models *models = (Models*)app->cmd_context;
     Range_i64 result = {};
@@ -2943,7 +2943,9 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                     for (i32 i = 0; i < count; i += 1, item_ptr += 1){
                         i64 index = item_ptr->index;
                         if (index == pos){
+                            if (!HasFlag(item_ptr->flags, LayoutItemFlag_Ghost_Character)){
                             result = rect_union(result, item_ptr->rect);
+                            }
                         }
                         else if (index > pos){
                             break;

@@ -264,9 +264,7 @@ models_init(void){
 }
 
 internal void
-app_load_vtables(API_VTable_system *vtable_system,
-                 API_VTable_font *vtable_font,
-                 API_VTable_graphics *vtable_graphics){
+app_load_vtables(API_VTable_system *vtable_system, API_VTable_font *vtable_font, API_VTable_graphics *vtable_graphics){
     system_api_read_vtable(vtable_system);
     font_api_read_vtable(vtable_font);
     graphics_api_read_vtable(vtable_graphics);

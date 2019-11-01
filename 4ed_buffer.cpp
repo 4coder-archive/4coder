@@ -875,6 +875,9 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                 i64 count = block->count;
                 Layout_Item *item = block->items;
                 for (i32 i = 0; i < count; i += 1, item += 1){
+                    if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
+                        continue;
+                    }
                     // NOTE(allen): This only works if we build layouts in y-sorted order.
                     if (p.y < item->rect.y0){
                         goto double_break;
@@ -901,6 +904,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
             double_break:;
         }
         else{
+            
             if (p.x == max_f32){
                 Layout_Item *prev_item = 0;
                 for (Layout_Item_Block *block = list.first;
@@ -909,6 +913,9 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     i64 count = block->count;
                     Layout_Item *item = block->items;
                     for (i32 i = 0; i < count; i += 1, item += 1){
+                        if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
+                            continue;
+                        }
                         if (p.y < item->rect.y0){
                             goto double_break_2;
                         }
@@ -918,6 +925,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                         }
                     }
                 }
+                
                 double_break_2:;
                 if (prev_item != 0){
                     closest_match = prev_item->index;
@@ -934,6 +942,9 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     i64 count = block->count;
                     Layout_Item *item = block->items;
                     for (i32 i = 0; i < count; i += 1, item += 1){
+                        if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
+                            continue;
+                        }
                         // NOTE(allen): This only works if we build layouts in y-sorted order.
                         if (p.y < item->rect.y0){
                             goto double_break_3;
@@ -945,6 +956,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                         goto double_break_3;
                     }
                 }
+                
                 double_break_3:;
                 if (closest_item != 0){
                     closest_match = closest_item->index;
@@ -953,6 +965,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     closest_match = list.manifested_index_range.min;
                 }
             }
+            
         }
     }
     return(closest_match);
@@ -980,6 +993,9 @@ buffer_layout_get_pos_at_character(Layout_Item_List list, i64 character){
                 i64 prev_index = -1;
                 Layout_Item *item = node->items;
                 for (i64 i = 0; i < count; i += 1, item += 1){
+                    if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
+                        continue;
+                    }
                     if (prev_index != item->index){
                         prev_index = item->index;
                         if (relative_character_counter == relative_character){
@@ -1007,6 +1023,9 @@ buffer_layout_get_first_with_index(Layout_Item_List list, i64 index){
         i64 count = block->count;
         Layout_Item *item = block->items;
         for (i32 i = 0; i < count; i += 1, item += 1){
+            if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
+                continue;
+            }
             if (item->index > index){
                 result = prev;
                 goto done;

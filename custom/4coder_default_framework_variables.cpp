@@ -46,6 +46,7 @@ global Managed_ID view_word_complete_menu = 0;
 global Managed_ID buffer_map_id = 0;
 global Managed_ID buffer_eol_setting = 0;
 global Managed_ID buffer_lex_task = 0;
+global Managed_ID buffer_parse_task = 0;
 
 global Managed_ID sticky_jump_marker_handle = 0;
 

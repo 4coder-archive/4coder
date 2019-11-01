@@ -41,7 +41,7 @@
 #define custom_buffer_get_dirty_state_sig() Dirty_State custom_buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_set_dirty_state_sig() b32 custom_buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state)
 #define custom_buffer_set_layout_sig() b32 custom_buffer_set_layout(Application_Links* app, Buffer_ID buffer_id, Layout_Function* layout_func)
-#define custom_file_clear_layout_cache_sig() b32 custom_file_clear_layout_cache(Application_Links* app, Buffer_ID buffer)
+#define custom_buffer_clear_layout_cache_sig() b32 custom_buffer_clear_layout_cache(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_get_layout_sig() Layout_Function* custom_buffer_get_layout(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_get_setting_sig() b32 custom_buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out)
 #define custom_buffer_set_setting_sig() b32 custom_buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value)
@@ -164,7 +164,7 @@
 #define custom_text_layout_create_sig() Text_Layout_ID custom_text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point)
 #define custom_text_layout_region_sig() Rect_f32 custom_text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_text_layout_get_buffer_sig() Buffer_ID custom_text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id)
-#define custom_text_layout_get_visible_range_sig() Interval_i64 custom_text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id)
+#define custom_text_layout_get_visible_range_sig() Range_i64 custom_text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_text_layout_line_on_screen_sig() Range_f32 custom_text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number)
 #define custom_text_layout_character_on_screen_sig() Rect_f32 custom_text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos)
 #define custom_paint_text_color_sig() void custom_paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, FColor color)
@@ -217,7 +217,7 @@ typedef String_Const_u8 custom_push_buffer_file_name_type(Application_Links* app
 typedef Dirty_State custom_buffer_get_dirty_state_type(Application_Links* app, Buffer_ID buffer_id);
 typedef b32 custom_buffer_set_dirty_state_type(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
 typedef b32 custom_buffer_set_layout_type(Application_Links* app, Buffer_ID buffer_id, Layout_Function* layout_func);
-typedef b32 custom_file_clear_layout_cache_type(Application_Links* app, Buffer_ID buffer);
+typedef b32 custom_buffer_clear_layout_cache_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Layout_Function* custom_buffer_get_layout_type(Application_Links* app, Buffer_ID buffer_id);
 typedef b32 custom_buffer_get_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
 typedef b32 custom_buffer_set_setting_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
@@ -340,7 +340,7 @@ typedef Rect_f32 custom_draw_set_clip_type(Application_Links* app, Rect_f32 new_
 typedef Text_Layout_ID custom_text_layout_create_type(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
 typedef Rect_f32 custom_text_layout_region_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef Buffer_ID custom_text_layout_get_buffer_type(Application_Links* app, Text_Layout_ID text_layout_id);
-typedef Interval_i64 custom_text_layout_get_visible_range_type(Application_Links* app, Text_Layout_ID text_layout_id);
+typedef Range_i64 custom_text_layout_get_visible_range_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef Range_f32 custom_text_layout_line_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 typedef Rect_f32 custom_text_layout_character_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 typedef void custom_paint_text_color_type(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, FColor color);
@@ -394,7 +394,7 @@ custom_push_buffer_file_name_type *push_buffer_file_name;
 custom_buffer_get_dirty_state_type *buffer_get_dirty_state;
 custom_buffer_set_dirty_state_type *buffer_set_dirty_state;
 custom_buffer_set_layout_type *buffer_set_layout;
-custom_file_clear_layout_cache_type *file_clear_layout_cache;
+custom_buffer_clear_layout_cache_type *buffer_clear_layout_cache;
 custom_buffer_get_layout_type *buffer_get_layout;
 custom_buffer_get_setting_type *buffer_get_setting;
 custom_buffer_set_setting_type *buffer_set_setting;
@@ -572,7 +572,7 @@ internal String_Const_u8 push_buffer_file_name(Application_Links* app, Arena* ar
 internal Dirty_State buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id);
 internal b32 buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
 internal b32 buffer_set_layout(Application_Links* app, Buffer_ID buffer_id, Layout_Function* layout_func);
-internal b32 file_clear_layout_cache(Application_Links* app, Buffer_ID buffer);
+internal b32 buffer_clear_layout_cache(Application_Links* app, Buffer_ID buffer_id);
 internal Layout_Function* buffer_get_layout(Application_Links* app, Buffer_ID buffer_id);
 internal b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
 internal b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
@@ -695,7 +695,7 @@ internal Rect_f32 draw_set_clip(Application_Links* app, Rect_f32 new_clip);
 internal Text_Layout_ID text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
 internal Rect_f32 text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id);
 internal Buffer_ID text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id);
-internal Interval_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
+internal Range_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
 internal Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 internal Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 internal void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, FColor color);
@@ -750,7 +750,7 @@ global custom_push_buffer_file_name_type *push_buffer_file_name = 0;
 global custom_buffer_get_dirty_state_type *buffer_get_dirty_state = 0;
 global custom_buffer_set_dirty_state_type *buffer_set_dirty_state = 0;
 global custom_buffer_set_layout_type *buffer_set_layout = 0;
-global custom_file_clear_layout_cache_type *file_clear_layout_cache = 0;
+global custom_buffer_clear_layout_cache_type *buffer_clear_layout_cache = 0;
 global custom_buffer_get_layout_type *buffer_get_layout = 0;
 global custom_buffer_get_setting_type *buffer_get_setting = 0;
 global custom_buffer_set_setting_type *buffer_set_setting = 0;

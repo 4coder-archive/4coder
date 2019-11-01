@@ -460,6 +460,7 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     buffer_map_id      = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"     ));
 	buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
     buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
+    buffer_parse_task = managed_id_declare(app, SCu8("DEFAULT.buffer_parse_task"));
     
     sticky_jump_marker_handle = managed_id_declare(app, SCu8("DEFAULT.sticky_jump_marker_handle"));
     attachment_tokens = managed_id_declare(app, SCu8("DEFAULT.tokens"));

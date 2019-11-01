@@ -41,7 +41,7 @@ api(custom) function String_Const_u8 push_buffer_file_name(Application_Links* ap
 api(custom) function Dirty_State buffer_get_dirty_state(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function b32 buffer_set_dirty_state(Application_Links* app, Buffer_ID buffer_id, Dirty_State dirty_state);
 api(custom) function b32 buffer_set_layout(Application_Links* app, Buffer_ID buffer_id, Layout_Function* layout_func);
-api(custom) function b32 file_clear_layout_cache(Application_Links* app, Buffer_ID buffer);
+api(custom) function b32 buffer_clear_layout_cache(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Layout_Function* buffer_get_layout(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function b32 buffer_get_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64* value_out);
 api(custom) function b32 buffer_set_setting(Application_Links* app, Buffer_ID buffer_id, Buffer_Setting_ID setting, i64 value);
@@ -164,7 +164,7 @@ api(custom) function Rect_f32 draw_set_clip(Application_Links* app, Rect_f32 new
 api(custom) function Text_Layout_ID text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
 api(custom) function Rect_f32 text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id);
 api(custom) function Buffer_ID text_layout_get_buffer(Application_Links* app, Text_Layout_ID text_layout_id);
-api(custom) function Interval_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
+api(custom) function Range_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
 api(custom) function Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 api(custom) function Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 api(custom) function void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, FColor color);
