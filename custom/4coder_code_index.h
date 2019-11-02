@@ -22,6 +22,7 @@ typedef i32 Code_Index_Nest_Kind;
 enum{
     CodeIndexNest_Scope,
     CodeIndexNest_Paren,
+    CodeIndexNest_Preprocessor,
 };
 
 struct Code_Index_Nest{
@@ -78,6 +79,8 @@ struct Generic_Parse_State{
     Generic_Parse_Comment_Function *handle_comment;
     u8 *prev_line_start;
     b32 finished;
+    
+    b32 in_preprocessor;
 };
 
 #endif

@@ -18,22 +18,19 @@ function Code_Index_File_Storage*
 code_index__alloc_storage(void){
     Code_Index_File_Storage *result = global_code_index.free_storage;
     if (result == 0){
-        result = push_array_zero(&global_code_index.node_arena,
-                                 Code_Index_File_Storage, 1);
+        result = push_array_zero(&global_code_index.node_arena, Code_Index_File_Storage, 1);
     }
     else{
         sll_stack_pop(global_code_index.free_storage);
     }
-    zdll_push_back(global_code_index.storage_first, global_code_index.storage_last,
-                   result);
+    zdll_push_back(global_code_index.storage_first, global_code_index.storage_last, result);
     global_code_index.storage_count += 1;
     return(result);
 }
 
 function void
 code_index__free_storage(Code_Index_File_Storage *storage){
-    zdll_remove(global_code_index.storage_first, global_code_index.storage_last,
-                storage);
+    zdll_remove(global_code_index.storage_first, global_code_index.storage_last, storage);
     global_code_index.storage_count -= 1;
     sll_stack_push(global_code_index.free_storage, storage);
 }
@@ -229,8 +226,68 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
 }
 
 function Code_Index_Nest*
-generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state,
-                    i64 indentation);
+generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state, i64 indentation);
+
+function Code_Index_Nest*
+generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state, i64 indentation);
+
+function Code_Index_Nest*
+generic_parse_preprocessor(Code_Index_File *index, Generic_Parse_State *state, i64 indentation){
+    Token *token = token_it_read(&state->it);
+    Code_Index_Nest *result = push_array_zero(state->arena, Code_Index_Nest, 1);
+    result->kind = CodeIndexNest_Preprocessor;
+    result->open = Ii64(token->pos);
+    result->close = Ii64(max_i64);
+    result->file = index;
+    
+    result->interior_indentation = 0;
+    result->close_indentation = 0;
+    indentation = 0;
+    
+    state->in_preprocessor = true;
+    
+    generic_parse_inc(state);
+    for (;;){
+        generic_parse_skip_soft_tokens(index, state);
+        token = token_it_read(&state->it);
+        if (token == 0 || state->finished){
+            break;
+        }
+        
+        if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
+            result->is_closed = true;
+            result->close = Ii64(token->pos);
+            break;
+        }
+        
+        if (token->kind == TokenBaseKind_Preprocessor){
+            result->is_closed = true;
+            result->close = Ii64(token->pos);
+            break;
+        }
+        
+        if (token->kind == TokenBaseKind_ScopeOpen){
+            Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+        }
+        else if (token->kind == TokenBaseKind_ParentheticalOpen){
+            Code_Index_Nest *nest = generic_parse_paren(index, state,
+                                                        indentation);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+        }
+        else{
+            generic_parse_inc(state);
+        }
+    }
+    
+    result->nest_array = code_index_nest_ptr_array_from_list(state->arena, &result->nest_list);
+    
+    state->in_preprocessor = false;
+    
+    return(result);
+}
 
 function Code_Index_Nest*
 generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state,
@@ -254,26 +311,42 @@ generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state,
             break;
         }
         
-        if (token->kind == TokenBaseKind_ScopeOpen){
-            Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
-            nest->parent = result;
-            code_index_push_nest(&result->nest_list, nest);
-        }
-        else if (token->kind == TokenBaseKind_ParentheticalOpen){
-            Code_Index_Nest *nest = generic_parse_paren(index, state,
-                                                        indentation);
-            nest->parent = result;
-            code_index_push_nest(&result->nest_list, nest);
-        }
-        else if (token->kind == TokenBaseKind_ScopeClose){
+        if (token->kind == TokenBaseKind_ScopeClose){
             result->is_closed = true;
             result->close = Ii64(token);
             generic_parse_inc(state);
             break;
         }
-        else{
-            generic_parse_inc(state);
+        
+        if (state->in_preprocessor){
+            if (!HasFlag(token->kind == TokenBaseFlag_PreprocessorBody) ||
+                token->kind == TokenBaseKind_Preprocessor){
+                break;
+            }
         }
+        else{
+            if (token->kind == TokenBaseKind_Preprocessor){
+                
+                continue;
+            }
+        }
+        
+        if (token->kind == TokenBaseKind_ScopeOpen){
+            Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+            continue;
+        }
+        
+        if (token->kind == TokenBaseKind_ParentheticalOpen){
+            Code_Index_Nest *nest = generic_parse_paren(index, state,
+                                                        indentation);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+            continue;
+        }
+        
+            generic_parse_inc(state);
     }
     
     result->nest_array = code_index_nest_ptr_array_from_list(state->arena, &result->nest_list);
@@ -317,7 +390,11 @@ generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state,
             break;
         }
         
-        if (token->kind == TokenBaseKind_ScopeOpen){
+        if (token->kind == TokenBaseKind_Preprocessor){
+            Code_Index_Nest *nest = generic_parse_preprocessor(index, state, indentation);
+            code_index_push_nest(&index->nest_list, nest);
+        }
+        else if (token->kind == TokenBaseKind_ScopeOpen){
             Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
             nest->parent = result;
             code_index_push_nest(&result->nest_list, nest);
@@ -362,7 +439,11 @@ generic_parse_full_input_breaks(Code_Index_File *index, Generic_Parse_State *sta
             break;
         }
         
-        if (token->kind == TokenBaseKind_ScopeOpen){
+        if (token->kind == TokenBaseKind_Preprocessor){
+            Code_Index_Nest *nest = generic_parse_preprocessor(index, state, indentation);
+            code_index_push_nest(&index->nest_list, nest);
+        }
+        else if (token->kind == TokenBaseKind_ScopeOpen){
             Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
             code_index_push_nest(&index->nest_list, nest);
         }
