@@ -57,7 +57,17 @@ gl__fill_texture(Texture_Kind texture_kind, u32 texture, Vec3_i32 p, Vec3_i32 di
 
 internal void CALL_CONVENTION
 gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char *message, void *userParam){
+    switch (id){
+        case 131218:
+        {
+            // NOTE(allen): performance warning, do nothing.
+        }break;
+        
+        default:
+        {
     InvalidPath;
+        }break;
+    }
 }
 
 char *gl__header = R"foo(#version 150

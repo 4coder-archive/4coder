@@ -190,6 +190,9 @@ function void
 generic_parse_skip_soft_tokens(Code_Index_File *index, Generic_Parse_State *state){
     Token *token = token_it_read(&state->it);
     for (;token != 0 && !state->finished;){
+        if (state->in_preprocessor && !HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
+            break;
+        }
         if (token->kind == TokenBaseKind_Comment){
             state->handle_comment(state->app, state->arena, index, token, state->contents);
         }
@@ -254,13 +257,8 @@ generic_parse_preprocessor(Code_Index_File *index, Generic_Parse_State *state, i
             break;
         }
         
-        if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody)){
-            result->is_closed = true;
-            result->close = Ii64(token->pos);
-            break;
-        }
-        
-        if (token->kind == TokenBaseKind_Preprocessor){
+        if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody) ||
+            token->kind == TokenBaseKind_Preprocessor){
             result->is_closed = true;
             result->close = Ii64(token->pos);
             break;
@@ -270,16 +268,17 @@ generic_parse_preprocessor(Code_Index_File *index, Generic_Parse_State *state, i
             Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
             nest->parent = result;
             code_index_push_nest(&result->nest_list, nest);
+            continue;
         }
-        else if (token->kind == TokenBaseKind_ParentheticalOpen){
-            Code_Index_Nest *nest = generic_parse_paren(index, state,
-                                                        indentation);
+        
+        if (token->kind == TokenBaseKind_ParentheticalOpen){
+            Code_Index_Nest *nest = generic_parse_paren(index, state, indentation);
             nest->parent = result;
             code_index_push_nest(&result->nest_list, nest);
+            continue;
         }
-        else{
-            generic_parse_inc(state);
-        }
+        
+        generic_parse_inc(state);
     }
     
     result->nest_array = code_index_nest_ptr_array_from_list(state->arena, &result->nest_list);
@@ -311,24 +310,25 @@ generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state,
             break;
         }
         
-        if (token->kind == TokenBaseKind_ScopeClose){
-            result->is_closed = true;
-            result->close = Ii64(token);
-            generic_parse_inc(state);
-            break;
-        }
-        
         if (state->in_preprocessor){
-            if (!HasFlag(token->kind == TokenBaseFlag_PreprocessorBody) ||
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody) ||
                 token->kind == TokenBaseKind_Preprocessor){
                 break;
             }
         }
         else{
             if (token->kind == TokenBaseKind_Preprocessor){
-                
+                Code_Index_Nest *nest = generic_parse_preprocessor(index, state, indentation);
+                code_index_push_nest(&index->nest_list, nest);
                 continue;
             }
+        }
+        
+        if (token->kind == TokenBaseKind_ScopeClose){
+            result->is_closed = true;
+            result->close = Ii64(token);
+            generic_parse_inc(state);
+            break;
         }
         
         if (token->kind == TokenBaseKind_ScopeOpen){
@@ -339,14 +339,13 @@ generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state,
         }
         
         if (token->kind == TokenBaseKind_ParentheticalOpen){
-            Code_Index_Nest *nest = generic_parse_paren(index, state,
-                                                        indentation);
+            Code_Index_Nest *nest = generic_parse_paren(index, state, indentation);
             nest->parent = result;
             code_index_push_nest(&result->nest_list, nest);
             continue;
         }
         
-            generic_parse_inc(state);
+        generic_parse_inc(state);
     }
     
     result->nest_array = code_index_nest_ptr_array_from_list(state->arena, &result->nest_list);
@@ -390,32 +389,52 @@ generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state,
             break;
         }
         
-        if (token->kind == TokenBaseKind_Preprocessor){
-            Code_Index_Nest *nest = generic_parse_preprocessor(index, state, indentation);
-            code_index_push_nest(&index->nest_list, nest);
+        if (state->in_preprocessor){
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody) ||
+                token->kind == TokenBaseKind_Preprocessor){
+                break;
+            }
         }
-        else if (token->kind == TokenBaseKind_ScopeOpen){
-            Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
-            nest->parent = result;
-            code_index_push_nest(&result->nest_list, nest);
+        else{
+            if (token->kind == TokenBaseKind_Preprocessor){
+                Code_Index_Nest *nest = generic_parse_preprocessor(index, state, indentation);
+                code_index_push_nest(&index->nest_list, nest);
+                continue;
+            }
         }
-        else if (token->kind == TokenBaseKind_ParentheticalOpen){
-            Code_Index_Nest *nest = generic_parse_paren(index, state, indentation);
-            nest->parent = result;
-            code_index_push_nest(&result->nest_list, nest);
-        }
-        else if (token->kind == TokenBaseKind_ParentheticalClose){
+        
+        if (token->kind == TokenBaseKind_ParentheticalClose){
             result->is_closed = true;
             result->close = Ii64(token);
             generic_parse_inc(state);
             break;
         }
-        else if (token->kind == TokenBaseKind_ScopeClose){
+        
+        if (token->kind == TokenBaseKind_ScopeClose){
             break;
         }
-        else{
-            generic_parse_inc(state);
+        
+        if (token->kind == TokenBaseKind_Preprocessor){
+            Code_Index_Nest *nest = generic_parse_preprocessor(index, state, indentation);
+            code_index_push_nest(&index->nest_list, nest);
+            continue;
         }
+        
+        if (token->kind == TokenBaseKind_ScopeOpen){
+            Code_Index_Nest *nest = generic_parse_scope(index, state, indentation);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+            continue;
+        }
+        
+        if (token->kind == TokenBaseKind_ParentheticalOpen){
+            Code_Index_Nest *nest = generic_parse_paren(index, state, indentation);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+            continue;
+        }
+        
+        generic_parse_inc(state);
     }
     
     result->nest_array = code_index_nest_ptr_array_from_list(state->arena, &result->nest_list);
@@ -657,7 +676,7 @@ layout_index_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID bu
         
         finish:
         if (newline_layout_consume_finish(&newline_vars)){
-                i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
             if (first_of_the_line){
                 f32 shift = layout_index_x_shift(file, index,
                                                  metrics.space_advance);
