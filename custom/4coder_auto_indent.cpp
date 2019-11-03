@@ -131,12 +131,10 @@ indent__unfinished_statement(Token *token, Nest *current_nest){
     b32 result = false;
     if (current_nest != 0 && current_nest->kind == TokenBaseKind_ScopeOpen){
         result = true;
-        switch (token->sub_kind){
-            case TokenCppKind_BraceOp:
-            case TokenCppKind_BraceCl:
-            case TokenCppKind_Semicolon:
-            case TokenCppKind_Colon:
-            case TokenCppKind_Comma:
+        switch (token->kind){
+            case TokenBaseKind_ScopeOpen:
+            case TokenBaseKind_ScopeClose:
+            case TokenBaseKind_StatementClose:
             {
                 result = false;
             }break;

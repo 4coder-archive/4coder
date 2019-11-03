@@ -24,8 +24,9 @@ enum{
     TokenBaseKind_ScopeClose = 12,
     TokenBaseKind_ParentheticalOpen = 13,
     TokenBaseKind_ParentheticalClose = 14,
+    TokenBaseKind_StatementClose = 15,
     
-    TokenBaseKind_COUNT = 15,
+    TokenBaseKind_COUNT = 16,
 };
 
 char *token_base_kind_names[] ={

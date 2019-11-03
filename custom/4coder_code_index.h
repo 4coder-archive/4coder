@@ -23,6 +23,7 @@ enum{
     CodeIndexNest_Scope,
     CodeIndexNest_Paren,
     CodeIndexNest_Preprocessor,
+    CodeIndexNest_Statement,
 };
 
 struct Code_Index_Nest{
@@ -33,6 +34,7 @@ struct Code_Index_Nest{
     Range_i64 open;
     Range_i64 close;
     
+    i64 open_indentation;
     i64 interior_indentation;
     i64 close_indentation;
     
@@ -80,7 +82,10 @@ struct Generic_Parse_State{
     u8 *prev_line_start;
     b32 finished;
     
+    i32 scope_counter;
+    i32 paren_counter;
     b32 in_preprocessor;
+    b32 in_statement;
 };
 
 #endif

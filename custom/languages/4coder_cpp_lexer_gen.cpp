@@ -93,9 +93,10 @@ build_language_model(void){
     sm_select_base_kind(TokenBaseKind_ParentheticalClose);
     sm_op(")");
     sm_op("]");
-    sm_select_base_kind(TokenBaseKind_Operator);
+    sm_select_base_kind(TokenBaseKind_StatementClose);
     sm_op(";");
     sm_op(":");
+    sm_select_base_kind(TokenBaseKind_Operator);
     sm_op("...");
     
     sm_op("::");
@@ -147,6 +148,7 @@ build_language_model(void){
     sm_op("<<=");
     sm_op(">>=");
     
+    sm_select_base_kind(TokenBaseKind_StatementClose);
     sm_op(",");
     
     // CPP Preprocess Operators

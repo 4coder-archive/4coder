@@ -69,8 +69,7 @@ code_index_unlock(void){
 function void
 code_index_set_file(Buffer_ID buffer, Arena arena, Code_Index_File *index){
     Code_Index_File_Storage *storage = 0;
-    Table_Lookup lookup = table_lookup(&global_code_index.buffer_to_index_file,
-                                       buffer);
+    Table_Lookup lookup = table_lookup(&global_code_index.buffer_to_index_file, buffer);
     if (lookup.found_match){
         u64 val = 0;
         table_read(&global_code_index.buffer_to_index_file, lookup, &val);
@@ -79,8 +78,7 @@ code_index_set_file(Buffer_ID buffer, Arena arena, Code_Index_File *index){
     }
     else{
         storage = code_index__alloc_storage();
-        table_insert(&global_code_index.buffer_to_index_file, buffer,
-                     (u64)PtrAsInt(storage));
+        table_insert(&global_code_index.buffer_to_index_file, buffer, (u64)PtrAsInt(storage));
     }
     storage->arena = arena;
     storage->file = index;
@@ -217,9 +215,7 @@ generic_parse_skip_soft_tokens(Code_Index_File *index, Generic_Parse_State *stat
 }
 
 function void
-generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 contents,
-                   Token_Array *tokens,
-                   Generic_Parse_Comment_Function *handle_comment, Generic_Parse_State *state){
+generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 contents, Token_Array *tokens, Generic_Parse_Comment_Function *handle_comment, Generic_Parse_State *state){
     state->app = app;
     state->arena = arena;
     state->contents = contents;
@@ -229,10 +225,75 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
 }
 
 function Code_Index_Nest*
+generic_parse_preprocessor(Code_Index_File *index, Generic_Parse_State *state, i64 indentation);
+
+function Code_Index_Nest*
 generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state, i64 indentation);
 
 function Code_Index_Nest*
 generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state, i64 indentation);
+
+function Code_Index_Nest*
+generic_parse_statement(Code_Index_File *index, Generic_Parse_State *state, i64 indentation){
+    Token *token = token_it_read(&state->it);
+    Code_Index_Nest *result = push_array_zero(state->arena, Code_Index_Nest, 1);
+    result->kind = CodeIndexNest_Statement;
+    result->open = Ii64(token->pos);
+    result->close = Ii64(max_i64);
+    result->file = index;
+    
+    result->open_indentation = indentation;
+    result->interior_indentation = indentation + 4;
+    result->close_indentation = indentation + 4;
+    
+    state->in_statement = true;
+    
+    for (;;){
+        generic_parse_skip_soft_tokens(index, state);
+        token = token_it_read(&state->it);
+        if (token == 0 || state->finished){
+            break;
+        }
+        
+        if (state->in_preprocessor){
+            if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody) ||
+                token->kind == TokenBaseKind_Preprocessor){
+                result->is_closed = true;
+                result->close = Ii64(token->pos);
+                break;
+            }
+        }
+        else{
+            if (token->kind == TokenBaseKind_Preprocessor){
+                result->is_closed = true;
+                result->close = Ii64(token->pos);
+                break;
+            }
+        }
+        
+        if (token->kind == TokenBaseKind_ScopeOpen ||
+            token->kind == TokenBaseKind_ScopeClose ||
+            token->kind == TokenBaseKind_ParentheticalOpen ||
+            token->kind == TokenBaseKind_ParentheticalClose){
+            result->is_closed = true;
+            result->close = Ii64(token->pos);
+            break;
+        }
+        
+        if (token->kind == TokenBaseKind_StatementClose){
+            result->is_closed = true;
+            result->close = Ii64(token);
+            generic_parse_inc(state);
+            break;
+        }
+        
+        generic_parse_inc(state);
+    }
+    
+    state->in_statement = false;
+    
+    return(result);
+}
 
 function Code_Index_Nest*
 generic_parse_preprocessor(Code_Index_File *index, Generic_Parse_State *state, i64 indentation){
@@ -243,6 +304,7 @@ generic_parse_preprocessor(Code_Index_File *index, Generic_Parse_State *state, i
     result->close = Ii64(max_i64);
     result->file = index;
     
+    result->open_indentation = 0;
     result->interior_indentation = 0;
     result->close_indentation = 0;
     indentation = 0;
@@ -289,8 +351,7 @@ generic_parse_preprocessor(Code_Index_File *index, Generic_Parse_State *state, i
 }
 
 function Code_Index_Nest*
-generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state,
-                    i64 indentation){
+generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state, i64 indentation){
     Token *token = token_it_read(&state->it);
     Code_Index_Nest *result = push_array_zero(state->arena, Code_Index_Nest, 1);
     result->kind = CodeIndexNest_Scope;
@@ -298,9 +359,12 @@ generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state,
     result->close = Ii64(max_i64);
     result->file = index;
     
+    result->open_indentation = indentation;
     result->interior_indentation = indentation + 4;
     result->close_indentation = indentation;
     indentation = result->interior_indentation;
+    
+    state->scope_counter += 1;
     
     generic_parse_inc(state);
     for (;;){
@@ -345,17 +409,22 @@ generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state,
             continue;
         }
         
-        generic_parse_inc(state);
+        {
+            Code_Index_Nest *nest = generic_parse_statement(index, state, indentation);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+        }
     }
     
     result->nest_array = code_index_nest_ptr_array_from_list(state->arena, &result->nest_list);
+    
+    state->scope_counter -= 1;
     
     return(result);
 }
 
 function Code_Index_Nest*
-generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state,
-                    i64 indentation){
+generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state, i64 indentation){
     Token *token = token_it_read(&state->it);
     Code_Index_Nest *result = push_array_zero(state->arena, Code_Index_Nest, 1);
     result->kind = CodeIndexNest_Paren;
@@ -378,8 +447,12 @@ generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state,
     }
     
     indentation += manifested_characters_on_line;
+    
+    result->open_indentation = indentation;
     result->interior_indentation = indentation;
     result->close_indentation = indentation;
+    
+    state->paren_counter += 1;
     
     generic_parse_inc(state);
     for (;;){
@@ -438,6 +511,8 @@ generic_parse_paren(Code_Index_File *index, Generic_Parse_State *state,
     }
     
     result->nest_array = code_index_nest_ptr_array_from_list(state->arena, &result->nest_list);
+    
+    state->paren_counter -= 1;
     
     return(result);
 }
@@ -512,7 +587,10 @@ layout_index_indent(Code_Index_File *file, i64 pos){
     i64 indent = 0;
     Code_Index_Nest *nest = code_index_get_nest(file, pos);
     if (nest != 0){
-        if (pos == nest->close.min){
+        if (pos == nest->open.min && pos == nest->open.max){
+            indent = nest->open_indentation;
+        }
+        else if (pos == nest->close.min){
             indent = nest->close_indentation;
         }
         else{
