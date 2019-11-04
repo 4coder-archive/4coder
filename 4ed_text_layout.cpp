@@ -107,7 +107,7 @@ text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout){
                  block != 0;
                  block = block->next){
                 Layout_Item *item = block->items;
-                i64 count = block->count;
+                i64 count = block->item_count;
                 FColor *item_colors = layout->item_colors;
                 for (i32 i = 0; i < count; i += 1, item += 1){
                     if (item->codepoint != 0){

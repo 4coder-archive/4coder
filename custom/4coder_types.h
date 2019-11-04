@@ -618,25 +618,23 @@ struct Layout_Item{
 struct Layout_Item_Block{
     Layout_Item_Block *next;
     Layout_Item *items;
-    i64 count;
+    i64 item_count;
     i64 character_count;
 };
 
 struct Layout_Item_List{
     Layout_Item_Block *first;
     Layout_Item_Block *last;
+    i64 item_count;
+    i64 character_count;
     i32 node_count;
-    i32 total_count;
     f32 height;
     f32 bottom_padding;
-    i64 character_count;
     Range_i64 input_index_range;
     Range_i64 manifested_index_range;
 };
 
-typedef Layout_Item_List Layout_Function(Application_Links *app, Arena *arena,
-                                         Buffer_ID buffer, Range_i64 range,
-                                         Face_ID face, f32 width);
+typedef Layout_Item_List Layout_Function(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width);
 
 typedef i64 Command_Map_ID;
 

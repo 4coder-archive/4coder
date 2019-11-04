@@ -872,7 +872,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
             for (Layout_Item_Block *block = list.first;
                  block != 0;
                  block = block->next){
-                i64 count = block->count;
+                i64 count = block->item_count;
                 Layout_Item *item = block->items;
                 for (i32 i = 0; i < count; i += 1, item += 1){
                     if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
@@ -910,7 +910,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                 for (Layout_Item_Block *block = list.first;
                      block != 0;
                      block = block->next){
-                    i64 count = block->count;
+                    i64 count = block->item_count;
                     Layout_Item *item = block->items;
                     for (i32 i = 0; i < count; i += 1, item += 1){
                         if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
@@ -939,7 +939,7 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                 for (Layout_Item_Block *block = list.first;
                      block != 0;
                      block = block->next){
-                    i64 count = block->count;
+                    i64 count = block->item_count;
                     Layout_Item *item = block->items;
                     for (i32 i = 0; i < count; i += 1, item += 1){
                         if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
@@ -971,48 +971,6 @@ buffer_layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
     return(closest_match);
 }
 
-internal i64
-buffer_layout_get_pos_at_character(Layout_Item_List list, i64 character){
-    i64 result = 0;
-    if (character <= 0){
-        result = list.manifested_index_range.min;
-    }
-    else if (character >= list.character_count){
-        result = list.manifested_index_range.max;
-    }
-    else{
-        i64 counter = 0;
-        for (Layout_Item_Block *node = list.first;
-             node != 0;
-             node = node->next){
-            i64 next_counter = counter + node->character_count;
-            if (character < next_counter){
-                i64 count = node->count;
-                i64 relative_character = character - counter;
-                i64 relative_character_counter = 0;
-                i64 prev_index = -1;
-                Layout_Item *item = node->items;
-                for (i64 i = 0; i < count; i += 1, item += 1){
-                    if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
-                        continue;
-                    }
-                    if (prev_index != item->index){
-                        prev_index = item->index;
-                        if (relative_character_counter == relative_character){
-                            result = prev_index;
-                            break;
-                        }
-                        relative_character_counter += 1;
-                    }
-                }
-                break;
-            }
-            counter = next_counter;
-        }
-    }
-    return(result);
-}
-
 internal Layout_Item*
 buffer_layout_get_first_with_index(Layout_Item_List list, i64 index){
     Layout_Item *result = 0;
@@ -1020,7 +978,7 @@ buffer_layout_get_first_with_index(Layout_Item_List list, i64 index){
     for (Layout_Item_Block *block = list.first;
          block != 0;
          block = block->next){
-        i64 count = block->count;
+        i64 count = block->item_count;
         Layout_Item *item = block->items;
         for (i32 i = 0; i < count; i += 1, item += 1){
             if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
@@ -1055,6 +1013,48 @@ buffer_layout_box_of_pos(Layout_Item_List list, i64 index){
 }
 
 internal i64
+buffer_layout_get_pos_at_character(Layout_Item_List list, i64 character){
+    i64 result = 0;
+    if (character <= 0){
+        result = list.manifested_index_range.min;
+    }
+    else if (character >= list.character_count){
+        result = list.manifested_index_range.max;
+    }
+    else{
+        i64 counter = 0;
+        i64 next_counter = 0;
+        for (Layout_Item_Block *node = list.first;
+             node != 0;
+             node = node->next, counter = next_counter){
+            next_counter = counter + node->character_count;
+            if (character >= next_counter){
+                continue;
+            }
+            
+            i64 count = node->item_count;
+            i64 relative_character = character - counter;
+            i64 relative_character_counter = 0;
+            
+            Layout_Item *item = node->items;
+            for (i64 i = 0; i < count; i += 1, item += 1){
+                if (HasFlag(item->flags, LayoutItemFlag_Ghost_Character)){
+                    continue;
+                }
+                if (relative_character_counter == relative_character){
+                    result = item->index;
+                    break;
+                }
+                relative_character_counter += 1;
+            }
+            
+            break;
+        }
+    }
+    return(result);
+}
+
+internal i64
 buffer_layout_character_from_pos(Layout_Item_List list, i64 index){
     i64 result = 0;
     i64 prev_index = -1;
@@ -1069,7 +1069,7 @@ buffer_layout_character_from_pos(Layout_Item_List list, i64 index){
              node != 0;
              node = node->next){
             Layout_Item *item = node->items;
-            i64 count = node->count;
+            i64 count = node->item_count;
             for (i64 i = 0; i < count; i += 1, item += 1){
                 if (item->index >= index){
                     goto double_break;

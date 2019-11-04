@@ -2938,14 +2938,15 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                 for (Layout_Item_Block *block = line.first;
                      block != 0;
                      block = block->next){
+                    i64 count = block->item_count;
                     Layout_Item *item_ptr = block->items;
-                    i64 count = block->count;
                     for (i32 i = 0; i < count; i += 1, item_ptr += 1){
+                        if (HasFlag(item_ptr->flags, LayoutItemFlag_Ghost_Character)){
+                            continue;
+                        }
                         i64 index = item_ptr->index;
                         if (index == pos){
-                            if (!HasFlag(item_ptr->flags, LayoutItemFlag_Ghost_Character)){
                             result = rect_union(result, item_ptr->rect);
-                            }
                         }
                         else if (index > pos){
                             break;

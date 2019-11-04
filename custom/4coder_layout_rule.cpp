@@ -30,8 +30,8 @@ layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Lay
     
     Layout_Item_Block *block = list->first;
     if (block != 0){
-        if (block->items + block->count == item){
-            block->count += 1;
+        if (block->items + block->item_count == item){
+            block->item_count += 1;
         }
         else{
             block = 0;
@@ -44,17 +44,16 @@ layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Lay
         sll_queue_push(list->first, list->last, block);
         list->node_count += 1;
         block->items = item;
-        block->count = 1;
+        block->item_count = 1;
     }
-    list->total_count += 1;
+    list->item_count += 1;
     
-    if (index < list->manifested_index_range.min){
-        list->manifested_index_range.min = index;
-    }
-    if (index > list->manifested_index_range.max){
+    list->manifested_index_range.min = min(list->manifested_index_range.min, index);
+    list->manifested_index_range.max = max(list->manifested_index_range.max, index);
+    
+    if (!HasFlag(flags, LayoutItemFlag_Ghost_Character)){
         block->character_count += 1;
         list->character_count += 1;
-        list->manifested_index_range.max = index;
     }
     
     item->index = index;
@@ -186,17 +185,15 @@ lr_tb_write_byte_with_advance(LefRig_TopBot_Layout_Vars *vars, f32 advance, Aren
     f32 text_y = vars->text_y;
     
     Layout_Item_Flag flags = LayoutItemFlag_Special_Character;
-    
-    layout_write(arena, list, index, '\\', flags,
-                 Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, index, '\\', flags, Rf32(p, V2f32(next_x, text_y)));
     p.x = next_x;
+    
+    flags = LayoutItemFlag_Ghost_Character;
     next_x += metrics->byte_sub_advances[1];
-    layout_write(arena, list, index, integer_symbols[hi], flags,
-                 Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, index, integer_symbols[hi], flags, Rf32(p, V2f32(next_x, text_y)));
     p.x = next_x;
     next_x += metrics->byte_sub_advances[2];
-    layout_write(arena, list, index, integer_symbols[lo], flags,
-                 Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, index, integer_symbols[lo], flags, Rf32(p, V2f32(next_x, text_y)));
     
     vars->p.x = final_next_x;
 }
