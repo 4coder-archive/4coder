@@ -34,10 +34,6 @@ struct Code_Index_Nest{
     Range_i64 open;
     Range_i64 close;
     
-    i64 open_indentation;
-    i64 interior_indentation;
-    i64 close_indentation;
-    
     struct Code_Index_File *file;
     Code_Index_Nest *parent;
     

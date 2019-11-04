@@ -413,9 +413,7 @@ buffer_pos_at_relative_xy(Application_Links *app, Buffer_ID buffer_id,
 }
 
 api(custom) function Rect_f32
-buffer_relative_box_of_pos(Application_Links *app, Buffer_ID buffer_id,
-                           f32 width, Face_ID face_id,
-                           i64 base_line, i64 pos){
+buffer_relative_box_of_pos(Application_Links *app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
     Rect_f32 result = {};

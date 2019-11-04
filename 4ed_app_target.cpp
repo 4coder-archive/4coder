@@ -61,6 +61,7 @@
 ////////////////////////////////
 
 #include "4coder_base_types.cpp"
+#include "4coder_layout.cpp"
 #include "4coder_system_helpers.cpp"
 #include "4coder_events.cpp"
 #include "4coder_string_match.cpp"

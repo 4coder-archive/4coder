@@ -4,6 +4,31 @@
 
 // TOP
 
+function Layout_Reflex
+get_layout_reflex(Layout_Item_List *list, Buffer_ID buffer, f32 width, Face_ID face){
+    Layout_Reflex reflex = {};
+    reflex.list = list;
+    reflex.buffer = buffer;
+    reflex.width = width;
+    reflex.face = face;
+    return(reflex);
+}
+
+function Rect_f32
+layout_reflex_get_rect(Application_Links *app, Layout_Reflex *reflex, i64 pos){
+    Rect_f32 rect = {};
+    if (range_contains(reflex->list->input_index_range, pos)){
+        rect = layout_box_of_pos(*reflex->list, pos);
+    }
+    else{
+    Buffer_Cursor cursor = buffer_compute_cursor(app, reflex->buffer, seek_pos(pos));
+    rect = buffer_relative_box_of_pos(app, reflex->buffer, reflex->width, reflex->face, cursor.line, cursor.pos);
+    }
+    return(rect);
+}
+
+////////////////////////////////
+
 function i64
 layout_index_from_ptr(u8 *ptr, u8 *string_base, i64 index_base){
     return((i64)(ptr - string_base) + index_base);

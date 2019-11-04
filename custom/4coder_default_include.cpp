@@ -59,6 +59,7 @@
 #define DYNAMIC_LINK_API
 #include "generated/system_api.cpp"
 #include "4coder_system_helpers.cpp"
+#include "4coder_layout.cpp"
 #include "4coder_profile.cpp"
 #include "4coder_profile_static_enable.cpp"
 #include "4coder_events.cpp"

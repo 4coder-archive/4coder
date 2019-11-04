@@ -11,7 +11,7 @@
 
 internal void
 output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value){
-    i64 end = buffer_size(&file->state.buffer);
+         i64 end = buffer_size(&file->state.buffer);
     Edit_Behaviors behaviors = {};
     edit_single(tctx, models, file, Ii64(end), value, behaviors);
 }
@@ -61,9 +61,7 @@ fill_hardcode_default_style(Color_Table color_table){
     color_table.vals[Stag_Include]               = color_table.vals[Stag_Str_Constant];
     color_table.vals[Stag_Preproc]               = color_table.vals[Stag_Default];
     color_table.vals[Stag_Special_Character]     = 0xFFFF0000;
-    color_table.vals[Stag_Ghost_Character]       = color_blend(color_table.vals[Stag_Default],
-                                                               0.5f,
-                                                               color_table.vals[Stag_Back]);
+    color_table.vals[Stag_Ghost_Character]       = color_blend(color_table.vals[Stag_Default], 0.5f, color_table.vals[Stag_Back]);
     
     color_table.vals[Stag_Paste] = 0xFFDDEE00;
     color_table.vals[Stag_Undo]  = 0xFF00DDEE;
@@ -71,10 +69,10 @@ fill_hardcode_default_style(Color_Table color_table){
     color_table.vals[Stag_Highlight_Junk]  = 0xff3a0000;
     color_table.vals[Stag_Highlight_White] = 0xff003a3a;
     
-    color_table.vals[Stag_Bar]        = 0xFF888888;
-    color_table.vals[Stag_Base]       = 0xFF000000;
-    color_table.vals[Stag_Pop1]       = 0xFF3C57DC;
-    color_table.vals[Stag_Pop2]       = 0xFFFF0000;
+    color_table.vals[Stag_Bar]  = 0xFF888888;
+    color_table.vals[Stag_Base] = 0xFF000000;
+    color_table.vals[Stag_Pop1] = 0xFF3C57DC;
+    color_table.vals[Stag_Pop2] = 0xFFFF0000;
     
     color_table.vals[Stag_Back_Cycle_1] = 0x10A00000;
     color_table.vals[Stag_Back_Cycle_2] = 0x0C00A000;
@@ -116,8 +114,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
         
         if (arg[0] == '-' && arg[1] == '-'){
             char *long_arg_name = arg+2;
-            if (string_match(SCu8(long_arg_name),
-                             string_u8_litexpr("custom"))){
+            if (string_match(SCu8(long_arg_name), string_u8_litexpr("custom"))){
                 mode = CLMode_Custom;
                 continue;
             }
@@ -132,18 +129,18 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (arg[0] == '-'){
                             action = CLAct_Ignore;
                             switch (arg[1]){
-                                case 'd': action = CLAct_CustomDLL; strict = false;     break;
-                                case 'D': action = CLAct_CustomDLL; strict = true;      break;
+                                case 'd': action = CLAct_CustomDLL; strict = false; break;
+                                case 'D': action = CLAct_CustomDLL; strict = true; break;
                                 
-                                case 'i': action = CLAct_InitialFilePosition;           break;
+                                case 'i': action = CLAct_InitialFilePosition; break;
                                 
-                                case 'w': action = CLAct_WindowSize;                    break;
-                                case 'W': action = CLAct_WindowMaximize;                break;
-                                case 'p': action = CLAct_WindowPosition;                break;
-                                case 'F': action = CLAct_WindowFullscreen;              break;
+                                case 'w': action = CLAct_WindowSize; break;
+                                case 'W': action = CLAct_WindowMaximize; break;
+                                case 'p': action = CLAct_WindowPosition; break;
+                                case 'F': action = CLAct_WindowFullscreen; break;
                                 
-                                case 'f': action = CLAct_FontSize;                      break;
-                                case 'h': action = CLAct_FontUseHinting; --i;           break;
+                                case 'f': action = CLAct_FontSize; break;
+                                case 'h': action = CLAct_FontUseHinting; --i; break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -625,8 +622,7 @@ App_Step_Sig(app_step){
         b32 event_was_handled = false;
         Input_Event *event = &node->event;
         
-        if (event->kind == InputEventKind_TextInsert &&
-            event->text.blocked){
+        if (event->kind == InputEventKind_TextInsert && event->text.blocked){
             continue;
         }
         

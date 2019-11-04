@@ -138,7 +138,7 @@ string_match_list_merge_nearest(String_Match_List *a, String_Match_List *b, Rang
 
 internal String_Match_List
 string_match_list_merge_front_to_back(String_Match_List *a, String_Match_List *b){
-    return(string_match_list_merge_nearest(a, b, Ii64(0)));
+    return(string_match_list_merge_nearest(a, b, Ii64((i64)0)));
 }
 
 // BOTTOM

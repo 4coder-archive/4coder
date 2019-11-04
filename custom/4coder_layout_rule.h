@@ -26,6 +26,13 @@ struct LefRig_TopBot_Layout_Vars{
     f32 width;
 };
 
+struct Layout_Reflex{
+    Layout_Item_List *list;
+    Buffer_ID buffer;
+    f32 width;
+    Face_ID face;
+};
+
 #endif
 
 // BOTTOM
