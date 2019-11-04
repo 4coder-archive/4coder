@@ -28,7 +28,7 @@ layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Lay
     Temp_Memory restore_point = begin_temp(arena);
     Layout_Item *item = push_array(arena, Layout_Item, 1);
     
-    Layout_Item_Block *block = list->first;
+    Layout_Item_Block *block = list->last;
     if (block != 0){
         if (block->items + block->item_count == item){
             block->item_count += 1;
@@ -46,8 +46,8 @@ layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Lay
         block->items = item;
         block->item_count = 1;
     }
-    list->item_count += 1;
     
+    list->item_count += 1;
     list->manifested_index_range.min = min(list->manifested_index_range.min, index);
     list->manifested_index_range.max = max(list->manifested_index_range.max, index);
     
@@ -144,8 +144,7 @@ lr_tb_write_with_advance_with_flags(LefRig_TopBot_Layout_Vars *vars, f32 advance
     }
     vars->p.x = f32_ceil32(vars->p.x);
     f32 next_x = vars->p.x + advance;
-    layout_write(arena, list, index, codepoint, flags,
-                 Rf32(vars->p, V2f32(next_x, vars->text_y)));
+    layout_write(arena, list, index, codepoint, flags, Rf32(vars->p, V2f32(next_x, vars->text_y)));
     vars->p.x = next_x;
 }
 
