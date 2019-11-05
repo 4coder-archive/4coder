@@ -235,6 +235,45 @@ MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
 }
 #endif
 
+function void
+default_tick(Application_Links *app, Frame_Info frame_info){
+    Scratch_Block scratch(app);
+    
+    for (Buffer_Modified_Node *node = global_buffer_modified_set.first;
+         node != 0;
+         node = node->next){
+        Temp_Memory_Block temp(scratch);
+        Buffer_ID buffer_id = node->buffer;
+        
+        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+        
+        String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
+        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+        if (tokens_ptr == 0){
+            continue;
+        }
+        if (tokens_ptr->count == 0){
+            continue;
+        }
+        Token_Array tokens = *tokens_ptr;
+        
+        Arena arena = make_arena_system(KB(16));
+        Code_Index_File *index = push_array_zero(&arena, Code_Index_File, 1);
+        index->buffer = buffer_id;
+        
+        Generic_Parse_State state = {};
+        generic_parse_init(app, &arena, contents, &tokens, &state);
+        generic_parse_full_input_breaks(index, &state, max_i32);
+        
+        code_index_lock();
+        code_index_set_file(buffer_id, arena, index);
+        code_index_unlock();
+        buffer_clear_layout_cache(app, buffer_id);
+    }
+    
+    buffer_modified_set_clear();
+}
+
 function Rect_f32
 default_buffer_region(Application_Links *app, View_ID view_id, Rect_f32 region){
     Buffer_ID buffer = view_get_buffer(app, view_id, Access_Always);
@@ -662,6 +701,71 @@ parse_async__inner(Async_Context *actx, Buffer_ID buffer_id,
 }
 
 function void
+do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
+    Application_Links *app = actx->app;
+    ProfileScope(app, "async lex");
+    Thread_Context *tctx = get_thread_context(app);
+    Scratch_Block scratch(tctx);
+    
+    String_Const_u8 contents = {};
+    {
+        ProfileBlock(app, "async lex contents (before mutex)");
+        system_acquire_global_frame_mutex(tctx);
+        ProfileBlock(app, "async lex contents (after mutex)");
+        contents = push_whole_buffer(app, scratch, buffer_id);
+        system_release_global_frame_mutex(tctx);
+    }
+    
+    i32 limit_factor = 10000;
+    
+    Token_List list = {};
+    b32 canceled = false;
+    
+        Lex_State_Cpp state = {};
+        lex_full_input_cpp_init(&state, contents);
+        for (;;){
+            ProfileBlock(app, "async lex block");
+            if (lex_full_input_cpp_breaks(scratch, &list, &state, limit_factor)){
+                break;
+            }
+            if (async_check_canceled(actx)){
+                canceled = true;
+                break;
+            }
+        }
+    
+    if (!canceled){
+        ProfileBlock(app, "async lex save results (before mutex)");
+        system_acquire_global_frame_mutex(tctx);
+        ProfileBlock(app, "async lex save results (after mutex)");
+        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
+        if (scope != 0){
+            Base_Allocator *allocator = managed_scope_allocator(app, scope);
+            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
+                                                       Token_Array);
+            base_free(allocator, tokens_ptr->tokens);
+            Token_Array tokens = {};
+            tokens.tokens = base_array(allocator, Token, list.total_count);
+            tokens.count = list.total_count;
+            tokens.max = list.total_count;
+            token_fill_memory_from_list(tokens.tokens, &list);
+            block_copy_struct(tokens_ptr, &tokens);
+        }
+        buffer_mark_as_modified(buffer_id);
+        system_release_global_frame_mutex(tctx);
+    }
+}
+
+function void
+do_full_lex_async(Async_Context *actx, Data data){
+    if (data.size == sizeof(Buffer_ID)){
+        Buffer_ID buffer = *(Buffer_ID*)data.data;
+        do_full_lex_async__inner(actx, buffer);
+    }
+}
+
+#if 0
+function void
 do_full_lex_and_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Application_Links *app = actx->app;
     ProfileScope(app, "async lex");
@@ -739,7 +843,9 @@ do_full_lex_and_parse_async(Async_Context *actx, Data data){
         do_full_lex_and_parse_async__inner(actx, buffer);
     }
 }
+#endif
 
+#if 0
 function void
 do_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Application_Links *app = actx->app;
@@ -782,19 +888,17 @@ do_parse_async(Async_Context *actx, Data data){
         do_parse_async__inner(actx, buffer);
     }
 }
+#endif
 
 BUFFER_HOOK_SIG(default_begin_buffer){
     ProfileScope(app, "begin buffer");
     
-    b32 treat_as_code = false;
-    
-    String_Const_u8_Array extensions = global_config.code_exts;
-    
     Scratch_Block scratch(app);
     
+    b32 treat_as_code = false;
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
-    
     if (file_name.size > 0){
+    String_Const_u8_Array extensions = global_config.code_exts;
         String_Const_u8 ext = string_file_extension(file_name);
         for (i32 i = 0; i < extensions.count; ++i){
             if (string_match(ext, extensions.strings[i])){
@@ -870,7 +974,6 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
         buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
         buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
-        buffer_parse_task = managed_id_declare(app, SCu8("DEFAULT.buffer_parse_task"));
     }
     
     Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
@@ -880,8 +983,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     *map_id_ptr = map_id;
     
     Line_Ending_Kind setting = guess_line_ending_kind_from_buffer_contents(app, buffer_id);
-    Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
-                                                     Line_Ending_Kind);
+    Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting, Line_Ending_Kind);
     *eol_setting = setting;
     
     // NOTE(allen): Decide buffer settings
@@ -902,7 +1004,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     if (use_lexer){
         ProfileBlock(app, "begin buffer kick off lexer");
         Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
-        *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_and_parse_async, make_data_struct(&buffer_id));
+        *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
     }
     
     if (wrap_lines){
@@ -992,19 +1094,15 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
-    Async_Task *parse_task_ptr = scope_attachment(app, scope, buffer_parse_task, Async_Task);
     
     Base_Allocator *allocator = managed_scope_allocator(app, scope);
     b32 do_full_relex = false;
     
     if (async_task_is_running_or_pending(&global_async_system, *lex_task_ptr)){
         async_task_cancel(&global_async_system, *lex_task_ptr);
+        buffer_unmark_as_modified(buffer_id);
         do_full_relex = true;
         *lex_task_ptr = 0;
-    }
-    if (async_task_is_running_or_pending(&global_async_system, *parse_task_ptr)){
-        async_task_cancel(&global_async_system, *parse_task_ptr);
-        *parse_task_ptr = 0;
     }
     
     Token_Array *ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
@@ -1022,20 +1120,15 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
             Token *token_first = ptr->tokens + token_index_first;
             Token *token_resync = ptr->tokens + token_index_resync_guess;
             
-            Range_i64 relex_range =
-                Ii64(token_first->pos,
-                     token_resync->pos + token_resync->size + text_shift);
-            String_Const_u8 partial_text = push_buffer_range(app, scratch,
-                                                             buffer_id,
-                                                             relex_range);
+            Range_i64 relex_range = Ii64(token_first->pos, token_resync->pos + token_resync->size + text_shift);
+            String_Const_u8 partial_text = push_buffer_range(app, scratch, buffer_id, relex_range);
             
             Token_List relex_list = lex_full_input_cpp(scratch, partial_text);
             if (relex_range.one_past_last < buffer_get_size(app, buffer_id)){
                 token_drop_eof(&relex_list);
             }
             
-            Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift,
-                                            ptr->tokens, token_index_first, token_index_resync_guess);
+            Token_Relex relex = token_relex(relex_list, relex_range.first - text_shift, ptr->tokens, token_index_first, token_index_resync_guess);
             
             ProfileCloseNow(profile_attempt_resync);
             
@@ -1074,14 +1167,13 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                 ptr->count = new_tokens_count;
                 ptr->max = new_tokens_count;
                 
-                *parse_task_ptr = async_task_no_dep(&global_async_system, do_parse_async,
-                                                    make_data_struct(&buffer_id));
+                buffer_mark_as_modified(buffer_id);
             }
         }
     }
     
     if (do_full_relex){
-        *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_and_parse_async,
+        *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async,
                                           make_data_struct(&buffer_id));
     }
     
@@ -1095,10 +1187,7 @@ BUFFER_HOOK_SIG(default_end_buffer){
     if (lex_task_ptr != 0){
         async_task_cancel(&global_async_system, *lex_task_ptr);
     }
-    Async_Task *lex_parse_ptr = scope_attachment(app, scope, buffer_parse_task, Async_Task);
-    if (lex_parse_ptr != 0){
-        async_task_cancel(&global_async_system, *lex_parse_ptr);
-    }
+        buffer_unmark_as_modified(buffer_id);
     code_index_lock();
     code_index_erase_file(buffer_id);
     code_index_unlock();
@@ -1111,6 +1200,7 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_BufferViewerUpdate, default_view_adjust);
     
     set_custom_hook(app, HookID_ViewEventHandler, default_view_input_handler);
+    set_custom_hook(app, HookID_Tick, default_tick);
     set_custom_hook(app, HookID_RenderCaller, default_render_caller);
 #if 0
     set_custom_hook(app, HookID_DeltaRule, original_delta);

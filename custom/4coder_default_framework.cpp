@@ -460,7 +460,6 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     buffer_map_id      = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"     ));
 	buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
     buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
-    buffer_parse_task = managed_id_declare(app, SCu8("DEFAULT.buffer_parse_task"));
     
     sticky_jump_marker_handle = managed_id_declare(app, SCu8("DEFAULT.sticky_jump_marker_handle"));
     attachment_tokens = managed_id_declare(app, SCu8("DEFAULT.tokens"));
@@ -570,6 +569,71 @@ static void
 default_4coder_one_panel(Application_Links *app){
     String_Const_u8_Array file_names = {};
     default_4coder_one_panel(app, file_names);
+}
+
+////////////////////////////////
+
+function void
+buffer_modified_set_init(void){
+    Buffer_Modified_Set *set = &global_buffer_modified_set;
+    
+    block_zero_struct(set);
+    Base_Allocator *allocator = get_base_allocator_system();
+    set->arena = make_arena(allocator);
+    set->id_to_node = make_table_u64_u64(allocator, 100);
+}
+
+function Buffer_Modified_Node*
+buffer_modified_set__alloc_node(Buffer_Modified_Set *set){
+    Buffer_Modified_Node *result = set->free;
+    if (result == 0){
+        result = push_array(&set->arena, Buffer_Modified_Node, 1);
+    }
+    else{
+        sll_stack_pop(set->free);
+    }
+    return(result);
+}
+
+function void
+buffer_mark_as_modified(Buffer_ID buffer){
+    Buffer_Modified_Set *set = &global_buffer_modified_set;
+    
+    Table_Lookup lookup = table_lookup(&set->id_to_node, (u64)buffer);
+    if (!lookup.found_match){
+        Buffer_Modified_Node *node = buffer_modified_set__alloc_node(set);
+        zdll_push_back(set->first, set->last, node);
+        node->buffer = buffer;
+        table_insert(&set->id_to_node, (u64)buffer, (u64)PtrAsInt(node));
+    }
+}
+
+function void
+buffer_unmark_as_modified(Buffer_ID buffer){
+    Buffer_Modified_Set *set = &global_buffer_modified_set;
+    
+    Table_Lookup lookup = table_lookup(&set->id_to_node, (u64)buffer);
+    if (lookup.found_match){
+        u64 val = 0;
+        table_read(&set->id_to_node, (u64)buffer, &val);
+        Buffer_Modified_Node *node = (Buffer_Modified_Node*)IntAsPtr(val);
+        zdll_remove(set->first, set->last, node);
+        table_erase(&set->id_to_node, lookup);
+        sll_stack_push(set->free, node);
+    }
+}
+
+function void
+buffer_modified_set_clear(void){
+    Buffer_Modified_Set *set = &global_buffer_modified_set;
+    
+    table_clear(&set->id_to_node);
+    if (set->last != 0){
+        set->last->next = set->free;
+        set->free = set->first;
+        set->first = 0;
+        set->last = 0;
+    }
 }
 
 // BOTTOM

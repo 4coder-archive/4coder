@@ -555,6 +555,7 @@ struct User_Input{
 
 typedef i32 Hook_ID;
 enum{
+    HookID_Tick,
     HookID_RenderCaller,
     HookID_DeltaRule,
     HookID_BufferViewerUpdate,
@@ -599,8 +600,9 @@ typedef Rect_f32 Buffer_Region_Function(Application_Links *app, View_ID view_id,
 typedef void New_Clipboard_Contents_Function(Application_Links *app, String_Const_u8 contents);
 #define NEW_CLIPBOARD_CONTENTS_SIG(name) void name(Application_Links *app, String_Const_u8 contents)
 
+typedef void Tick_Function(Application_Links *app, Frame_Info frame_info);
+
 typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
-#define RENDER_CALLER_SIG(name) void name(Application_Links *app, Frame_Info frame_info, View_ID view)
 
 typedef u32 Layout_Item_Flag;
 enum{

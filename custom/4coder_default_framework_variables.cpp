@@ -46,7 +46,6 @@ global Managed_ID view_word_complete_menu = 0;
 global Managed_ID buffer_map_id = 0;
 global Managed_ID buffer_eol_setting = 0;
 global Managed_ID buffer_lex_task = 0;
-global Managed_ID buffer_parse_task = 0;
 
 global Managed_ID sticky_jump_marker_handle = 0;
 
@@ -85,6 +84,8 @@ enum{
     default_code_map,
     default_maps_count,
 };
+
+global Buffer_Modified_Set global_buffer_modified_set = {};
 
 // BOTTOM
 

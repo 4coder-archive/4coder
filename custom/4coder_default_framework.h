@@ -78,6 +78,22 @@ do_buffer_kill_user_check(Application_Links *app, Buffer_ID buffer, View_ID view
 function b32
 do_4coder_close_user_check(Application_Links *app, View_ID view);
 
+////////////////////////////////
+
+struct Buffer_Modified_Node{
+    Buffer_Modified_Node *next;
+    Buffer_Modified_Node *prev;
+    Buffer_ID buffer;
+};
+
+struct Buffer_Modified_Set{
+    Arena arena;
+    Buffer_Modified_Node *free;
+    Buffer_Modified_Node *first;
+    Buffer_Modified_Node *last;
+    Table_u64_u64 id_to_node;
+};
+
 #endif
 
 // BOTTOM

@@ -11,7 +11,7 @@
 
 internal void
 output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value){
-         i64 end = buffer_size(&file->state.buffer);
+    i64 end = buffer_size(&file->state.buffer);
     Edit_Behaviors behaviors = {};
     edit_single(tctx, models, file, Ii64(end), value, behaviors);
 }
@@ -24,7 +24,7 @@ file_cursor_to_end(Thread_Context *tctx, Models *models, Editing_File *file){
     for (Panel *panel = layout_get_first_open_panel(layout);
          panel != 0;
          panel = layout_get_next_open_panel(layout, panel)){
-        View *view = panel->view;
+          View *view = panel->view;
         if (view->file != file){
             continue;
         }
@@ -82,7 +82,7 @@ fill_hardcode_default_style(Color_Table color_table){
     color_table.vals[Stag_Text_Cycle_2] = 0xFF00A000;
     color_table.vals[Stag_Text_Cycle_3] = 0xFF0030B0;
     color_table.vals[Stag_Text_Cycle_4] = 0xFFA0A000;
-    
+     
     color_table.vals[Stag_Line_Numbers_Back] = 0xFF101010;
     color_table.vals[Stag_Line_Numbers_Text] = 0xFF404040;
 }
@@ -798,6 +798,14 @@ App_Step_Sig(app_step){
             models->color_table = color_table;
         }
         
+        Application_Links app = {};
+        app.tctx = tctx;
+        app.cmd_context = models;
+        
+        if (models->tick != 0){
+            models->tick(&app, frame);
+        }
+        
         begin_render_section(target, models->frame_counter, literal_dt, animation_dt);
         models->in_render_mode = true;
         
@@ -811,9 +819,6 @@ App_Step_Sig(app_step){
             if (ctx != 0){
                 Render_Caller_Function *render_caller = ctx->ctx.render_caller;
                 if (render_caller != 0){
-                    Application_Links app = {};
-                    app.tctx = tctx;
-                    app.cmd_context = models;
                     render_caller(&app, frame, view_get_id(live_views, view));
                 }
             }

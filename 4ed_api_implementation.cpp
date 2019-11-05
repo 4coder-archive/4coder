@@ -2168,6 +2168,10 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->view_event_handler = (Custom_Command_Function*)func_ptr;
         }break;
+        case HookID_Tick:
+        {
+            models->tick = (Tick_Function*)func_ptr;
+        }break;
         case HookID_RenderCaller:
         {
             models->render_caller = (Render_Caller_Function*)func_ptr;

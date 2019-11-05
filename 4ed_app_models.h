@@ -49,6 +49,7 @@ struct Models{
     Child_Process_Container child_processes;
     Custom_API config_api;
     
+    Tick_Function *tick;
     Render_Caller_Function *render_caller;
     Delta_Rule_Function *delta_rule;
     umem delta_rule_memory_size;
