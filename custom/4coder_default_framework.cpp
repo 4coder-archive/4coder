@@ -269,17 +269,20 @@ view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 
 
 function void
 change_active_panel_send_command(Application_Links *app, Custom_Command_Function *custom_func){
-    NotImplemented;
-}
-
-CUSTOM_COMMAND_SIG(change_active_panel)
-CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
-{
     View_ID view = get_active_view(app, Access_Always);
     view = get_next_view_looped_primary_panels(app, view, Access_Always);
     if (view != 0){
         view_set_active(app, view);
     }
+    if (custom_func != 0){
+        view_enqueue_command_function(app, view, custom_func);
+    }
+}
+
+CUSTOM_COMMAND_SIG(change_active_panel)
+CUSTOM_DOC("Change the currently active panel, moving to the panel with the next highest view_id.")
+{
+    change_active_panel_send_command(app, 0);
 }
 
 CUSTOM_COMMAND_SIG(change_active_panel_backwards)

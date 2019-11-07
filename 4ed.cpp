@@ -10,32 +10,6 @@
 // TOP
 
 internal void
-output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value){
-    i64 end = buffer_size(&file->state.buffer);
-    Edit_Behaviors behaviors = {};
-    edit_single(tctx, models, file, Ii64(end), value, behaviors);
-}
-
-internal void
-file_cursor_to_end(Thread_Context *tctx, Models *models, Editing_File *file){
-    Assert(file != 0);
-    i64 pos = buffer_size(&file->state.buffer);
-    Layout *layout = &models->layout;
-    for (Panel *panel = layout_get_first_open_panel(layout);
-         panel != 0;
-         panel = layout_get_next_open_panel(layout, panel)){
-          View *view = panel->view;
-        if (view->file != file){
-            continue;
-        }
-        view_set_cursor(tctx, models, view, pos);
-        view->mark = pos;
-    }
-}
-
-#include "4ed_api_implementation.cpp"
-
-internal void
 fill_hardcode_default_style(Color_Table color_table){
     color_table.vals[Stag_Back]                  = 0xFF0C0C0C;
     color_table.vals[Stag_Margin]                = 0xFF181818;
@@ -616,11 +590,31 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): consume event stream
-    for (Input_Event_Node *node = input_list.first;
-         node != 0;
-         node = node->next){
+    Input_Event_Node *input_node = input_list.first;
+    Input_Event_Node *input_node_next = 0;
+    for (;; input_node = input_node_next){
+        // NOTE(allen): first handle any events coming from the view command
+        // function queue
+        Model_View_Command_Function cmd_func = models_pop_view_command_function(models);
+        if (cmd_func.custom_func != 0){
+            View *view = imp_get_view(models, cmd_func.view_id);
+            if (view != 0){
+            input_node_next = input_node;
+            Input_Event cmd_func_event = {};
+                cmd_func_event.kind = InputEventKind_CustomFunction;
+                cmd_func_event.custom_func = cmd_func.custom_func;
+            co_send_event(tctx, models, view, &cmd_func_event);
+            continue;
+            }
+        }
+        
+        if (input_node == 0){
+            break;
+        }
+        input_node_next = input_node->next;
+        
         b32 event_was_handled = false;
-        Input_Event *event = &node->event;
+        Input_Event *event = &input_node->event;
         
         if (event->kind == InputEventKind_TextInsert && event->text.blocked){
             continue;

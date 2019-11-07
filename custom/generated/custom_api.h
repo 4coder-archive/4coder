@@ -80,6 +80,7 @@
 #define custom_view_get_buffer_region_sig() Rect_f32 custom_view_get_buffer_region(Application_Links* app, View_ID view_id)
 #define custom_view_get_buffer_scroll_sig() Buffer_Scroll custom_view_get_buffer_scroll(Application_Links* app, View_ID view_id)
 #define custom_view_set_active_sig() b32 custom_view_set_active(Application_Links* app, View_ID view_id)
+#define custom_view_enqueue_command_function_sig() b32 custom_view_enqueue_command_function(Application_Links* app, View_ID view_id, Custom_Command_Function* custom_func)
 #define custom_view_get_setting_sig() b32 custom_view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out)
 #define custom_view_set_setting_sig() b32 custom_view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value)
 #define custom_view_get_managed_scope_sig() Managed_Scope custom_view_get_managed_scope(Application_Links* app, View_ID view_id)
@@ -256,6 +257,7 @@ typedef b32 custom_view_close_type(Application_Links* app, View_ID view_id);
 typedef Rect_f32 custom_view_get_buffer_region_type(Application_Links* app, View_ID view_id);
 typedef Buffer_Scroll custom_view_get_buffer_scroll_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_set_active_type(Application_Links* app, View_ID view_id);
+typedef b32 custom_view_enqueue_command_function_type(Application_Links* app, View_ID view_id, Custom_Command_Function* custom_func);
 typedef b32 custom_view_get_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
 typedef b32 custom_view_set_setting_type(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
 typedef Managed_Scope custom_view_get_managed_scope_type(Application_Links* app, View_ID view_id);
@@ -433,6 +435,7 @@ custom_view_close_type *view_close;
 custom_view_get_buffer_region_type *view_get_buffer_region;
 custom_view_get_buffer_scroll_type *view_get_buffer_scroll;
 custom_view_set_active_type *view_set_active;
+custom_view_enqueue_command_function_type *view_enqueue_command_function;
 custom_view_get_setting_type *view_get_setting;
 custom_view_set_setting_type *view_set_setting;
 custom_view_get_managed_scope_type *view_get_managed_scope;
@@ -611,6 +614,7 @@ internal b32 view_close(Application_Links* app, View_ID view_id);
 internal Rect_f32 view_get_buffer_region(Application_Links* app, View_ID view_id);
 internal Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
 internal b32 view_set_active(Application_Links* app, View_ID view_id);
+internal b32 view_enqueue_command_function(Application_Links* app, View_ID view_id, Custom_Command_Function* custom_func);
 internal b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
 internal b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
 internal Managed_Scope view_get_managed_scope(Application_Links* app, View_ID view_id);
@@ -789,6 +793,7 @@ global custom_view_close_type *view_close = 0;
 global custom_view_get_buffer_region_type *view_get_buffer_region = 0;
 global custom_view_get_buffer_scroll_type *view_get_buffer_scroll = 0;
 global custom_view_set_active_type *view_set_active = 0;
+global custom_view_enqueue_command_function_type *view_enqueue_command_function = 0;
 global custom_view_get_setting_type *view_get_setting = 0;
 global custom_view_set_setting_type *view_set_setting = 0;
 global custom_view_get_managed_scope_type *view_get_managed_scope = 0;

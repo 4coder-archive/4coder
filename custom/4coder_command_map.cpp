@@ -178,7 +178,10 @@ function Command_Binding
 map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
     Command_Binding result = {};
     
-    if (map != 0){
+    if (event->kind == InputEventKind_CustomFunction){
+        result.custom = event->custom_func;
+    }
+    else if (map != 0){
         b32 do_table_lookup = false;
         Input_Modifier_Set *mods = 0;
         u64 key = 0;

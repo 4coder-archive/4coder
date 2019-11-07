@@ -240,6 +240,11 @@ get_event_properties(Input_Event *event){
                 }break;
             }
         }break;
+        
+        case InputEventKind_CustomFunction:
+        {
+            flags |= EventProperty_CustomFunction;
+        }break;
     }
     
     return(flags);

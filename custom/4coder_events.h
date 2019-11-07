@@ -7,6 +7,8 @@
 #if !defined(FCODER_EVENTS_H)
 #define FCODER_EVENTS_H
 
+typedef void Custom_Command_Function(struct Application_Links *app);
+
 typedef u32 Key_Code;
 typedef u32 Mouse_Code;
 typedef u32 Core_Code;
@@ -22,6 +24,7 @@ enum{
     InputEventKind_MouseWheel,
     InputEventKind_MouseMove,
     InputEventKind_Core,
+    InputEventKind_CustomFunction,
 };
 
 global_const i32 Input_MaxModifierCount = 8;
@@ -78,6 +81,7 @@ struct Input_Event{
                 };
             };
         } core;
+        Custom_Command_Function *custom_func;
     };
 };
 
@@ -94,20 +98,21 @@ struct Input_List{
 
 typedef u32 Event_Property;
 enum{
-    EventProperty_AnyKey         = 0x1,
-    EventProperty_Escape         = 0x2,
-    EventProperty_AnyKeyRelease  = 0x4,
-    EventProperty_MouseButton    = 0x8,
-    EventProperty_MouseRelease   = 0x10,
-    EventProperty_MouseWheel     = 0x20,
-    EventProperty_MouseMove      = 0x40,
-    EventProperty_Animate        = 0x80,
-    EventProperty_ViewActivation = 0x100,
-    EventProperty_TextInsert     = 0x200,
-    EventProperty_AnyFile        = 0x400,
-    EventProperty_Startup        = 0x800,
+    EventProperty_AnyKey         = 0x0001,
+    EventProperty_Escape         = 0x0002,
+    EventProperty_AnyKeyRelease  = 0x0004,
+    EventProperty_MouseButton    = 0x0008,
+    EventProperty_MouseRelease   = 0x0010,
+    EventProperty_MouseWheel     = 0x0020,
+    EventProperty_MouseMove      = 0x0040,
+    EventProperty_Animate        = 0x0080,
+    EventProperty_ViewActivation = 0x0100,
+    EventProperty_TextInsert     = 0x0200,
+    EventProperty_AnyFile        = 0x0400,
+    EventProperty_Startup        = 0x0800,
     EventProperty_Exit           = 0x1000,
     EventProperty_Clipboard      = 0x2000,
+    EventProperty_CustomFunction = 0x4000,
 };
 enum{
     EventPropertyGroup_AnyKeyboardEvent =
@@ -130,7 +135,8 @@ enum{
         EventProperty_AnyFile|
         EventProperty_Startup|
         EventProperty_Exit|
-        EventProperty_Clipboard,
+        EventProperty_Clipboard|
+        EventProperty_CustomFunction,
 };
 
 #endif

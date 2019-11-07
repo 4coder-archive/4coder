@@ -34,6 +34,12 @@ enum App_State{
     APP_STATE_COUNT
 };
 
+struct Model_View_Command_Function{
+    Model_View_Command_Function *next;
+    Custom_Command_Function *custom_func;
+    View_ID view_id;
+};
+
 struct Models{
     Arena arena_;
     Arena *arena;
@@ -67,6 +73,10 @@ struct Models{
     
     Color_Table fallback_color_table;
     Color_Table color_table;
+    
+    Model_View_Command_Function *free_view_cmd_funcs;
+    Model_View_Command_Function *first_view_cmd_func;
+    Model_View_Command_Function *last_view_cmd_func;
     
     Layout layout;
     Working_Set working_set;

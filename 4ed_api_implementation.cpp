@@ -9,6 +9,59 @@
 
 // TOP
 
+internal void
+output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value){
+    i64 end = buffer_size(&file->state.buffer);
+    Edit_Behaviors behaviors = {};
+    edit_single(tctx, models, file, Ii64(end), value, behaviors);
+}
+
+internal void
+file_cursor_to_end(Thread_Context *tctx, Models *models, Editing_File *file){
+    Assert(file != 0);
+    i64 pos = buffer_size(&file->state.buffer);
+    Layout *layout = &models->layout;
+    for (Panel *panel = layout_get_first_open_panel(layout);
+         panel != 0;
+         panel = layout_get_next_open_panel(layout, panel)){
+        View *view = panel->view;
+        if (view->file != file){
+            continue;
+        }
+        view_set_cursor(tctx, models, view, pos);
+        view->mark = pos;
+    }
+}
+
+function void
+models_push_view_command_function(Models *models, View_ID view_id, Custom_Command_Function *custom_func){
+    Model_View_Command_Function *node = models->free_view_cmd_funcs;
+    if (node == 0){
+        node = push_array(models->arena, Model_View_Command_Function, 1);
+    }
+    else{
+        sll_stack_pop(models->free_view_cmd_funcs);
+    }
+    sll_queue_push(models->first_view_cmd_func, models->last_view_cmd_func, node);
+    node->view_id = view_id;
+    node->custom_func = custom_func;
+}
+
+function Model_View_Command_Function
+models_pop_view_command_function(Models *models){
+    Model_View_Command_Function result = {};
+    if (models->first_view_cmd_func != 0){
+        Model_View_Command_Function *node = models->first_view_cmd_func;
+        result.custom_func = node->custom_func;
+        result.view_id = node->view_id;
+        sll_queue_pop(models->first_view_cmd_func, models->last_view_cmd_func);
+        sll_stack_push(models->free_view_cmd_funcs, node);
+    }
+    return(result);
+}
+
+////////////////////////////////
+
 function b32
 access_test(Access_Flag object_flags, Access_Flag access_flags){
     return((object_flags & access_flags) == access_flags);
@@ -1415,6 +1468,19 @@ view_set_active(Application_Links *app, View_ID view_id)
     b32 result = false;
     if (api_check_view(view)){
         models->layout.active_panel = view->panel;
+        result = true;
+    }
+    return(result);
+}
+
+api(custom) function b32
+view_enqueue_command_function(Application_Links *app, View_ID view_id, Custom_Command_Function *custom_func)
+{
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (api_check_view(view)){
+        models_push_view_command_function(models, view_id, custom_func);
         result = true;
     }
     return(result);

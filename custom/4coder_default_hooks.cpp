@@ -98,8 +98,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         }
         Command_Map_ID map_id = *map_id_ptr;
         
-        Command_Binding binding =
-            map_get_binding_recursive(&framework_mapping, map_id, &input.event);
+        Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
         
         Managed_Scope scope = view_get_managed_scope(app, view);
         Custom_Command_Function** next_call = 0;

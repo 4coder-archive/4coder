@@ -80,6 +80,7 @@ api(custom) function b32 view_close(Application_Links* app, View_ID view_id);
 api(custom) function Rect_f32 view_get_buffer_region(Application_Links* app, View_ID view_id);
 api(custom) function Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_set_active(Application_Links* app, View_ID view_id);
+api(custom) function b32 view_enqueue_command_function(Application_Links* app, View_ID view_id, Custom_Command_Function* custom_func);
 api(custom) function b32 view_get_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64* value_out);
 api(custom) function b32 view_set_setting(Application_Links* app, View_ID view_id, View_Setting_ID setting, i64 value);
 api(custom) function Managed_Scope view_get_managed_scope(Application_Links* app, View_ID view_id);
