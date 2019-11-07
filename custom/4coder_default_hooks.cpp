@@ -61,7 +61,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
     
     {
         
-        View_ID view = get_active_view(app, Access_Always);
+        View_ID view = get_this_ctx_view(app, Access_Always);
         String_Const_u8 name = push_u8_stringf(scratch, "view %d", view);
         
         Profile_Global_List *list = get_core_profile_list(app);
@@ -87,7 +87,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
             continue;
         }
         
-        View_ID view = get_active_view(app, Access_Always);
+        View_ID view = get_this_ctx_view(app, Access_Always);
         
         Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
         Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
@@ -101,12 +101,6 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
         
         Managed_Scope scope = view_get_managed_scope(app, view);
-        Custom_Command_Function** next_call = 0;
-        
-	    call_again:
-        next_call = scope_attachment(app, scope, view_call_next,
-                                     Custom_Command_Function*);
-        *next_call = 0;
         
         if (binding.custom == 0){
             // NOTE(allen): we don't have anything to do with this input,
@@ -159,13 +153,6 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
                         }
                     }
                 }
-            }
-            
-            next_call = scope_attachment(app, scope, view_call_next,
-                                         Custom_Command_Function*);
-            if (next_call != 0 && *next_call != 0){
-                binding.custom = *next_call;
-                goto call_again;
             }
         }
     }

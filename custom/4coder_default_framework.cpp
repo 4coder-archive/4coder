@@ -151,10 +151,7 @@ get_next_view_after_active(Application_Links *app, Access_Flag access){
 
 static void
 call_after_ctx_shutdown(Application_Links *app, View_ID view, Custom_Command_Function *func){
-    Managed_Scope scope = view_get_managed_scope(app, view);
-    Custom_Command_Function **call_next =
-        scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
-    *call_next = func;
+    view_enqueue_command_function(app, view, func);
 }
 
 function Fallback_Dispatch_Result
@@ -457,7 +454,6 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     view_highlight_range      = managed_id_declare(app, SCu8("DEFAULT.highlight"     ));
     view_highlight_buffer     = managed_id_declare(app, SCu8("DEFAULT.highlight_buf" ));
     view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render"        ));
-    view_call_next            = managed_id_declare(app, SCu8("DEFAULT.call_next"     ));
     view_word_complete_menu   = managed_id_declare(app, SCu8("DEFAULT.word_complete_menu"));
     
     buffer_map_id      = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"     ));

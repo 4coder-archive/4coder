@@ -582,10 +582,7 @@ CUSTOM_DOC("Opens an interactive list of all registered commands.")
     Custom_Command_Function *func = get_command_from_user(app, "Command:");
     if (func != 0){
         View_ID view = get_this_ctx_view(app, Access_Always);
-        Managed_Scope scope = view_get_managed_scope(app, view);
-        Custom_Command_Function **call_next =
-            scope_attachment(app, scope, view_call_next, Custom_Command_Function*);
-        *call_next = func;
+        view_enqueue_command_function(app, view, func);
     }
 }
 
