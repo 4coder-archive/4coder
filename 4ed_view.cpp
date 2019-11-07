@@ -594,9 +594,9 @@ view_check_co_exited(Models *models, View *view){
     if (view->co == 0){
         b32 result = view_close(models, view);
         // TODO(allen): Here it looks like the final view has
-        // closed exited from it's event handler.  We should probably
-        // have a failsafe restarter for the event handler when this
-        // happens.
+        // exited from it's event handler.  We should probably
+        // have a failsafe restarter for the event handler when
+        // this happens.
         Assert(result);
     }
 }
@@ -619,10 +619,10 @@ co_full_abort(Thread_Context *tctx, Models *models, View *view){
         co  = co_run(tctx, models, co, &in, &view->co_out);
     }
     if (co != 0){
-#define M "SERIOUS ERROR: full stack abort did not complete"
         Application_Links app = {};
         app.tctx = tctx;
         app.cmd_context = models;
+#define M "SERIOUS ERROR: full stack abort did not complete"
         print_message(&app, string_u8_litexpr(M));
 #undef M
     }
@@ -704,6 +704,28 @@ co_send_core_event(Thread_Context *tctx, Models *models, Core_Code code, Buffer_
 function b32
 co_send_core_event(Thread_Context *tctx, Models *models, Core_Code code){
     return(co_send_core_event(tctx, models, code, SCu8()));
+}
+
+////////////////////////////////
+
+function void
+view_quit_ui(Thread_Context *tctx, Models *models, View *view){
+    for (u32 j = 0;; j += 1){
+        if (j == 100){
+            Application_Links app = {};
+            app.tctx = tctx;
+            app.cmd_context = models;
+#define M "SERIOUS ERROR: view quit ui did not complete"
+            print_message(&app, string_u8_litexpr(M));
+#undef M
+            break;
+        }
+        View_Context_Node *ctx = view->ctx;
+        if (ctx->next == 0){
+            break;
+        }
+        co_single_abort(tctx, models, view);
+    }
 }
 
 ////////////////////////////////

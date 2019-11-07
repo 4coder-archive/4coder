@@ -1665,6 +1665,18 @@ view_set_mark(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 }
 
 api(custom) function b32
+view_quit_ui(Application_Links *app, View_ID view_id){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (view != 0){
+        view_quit_ui(app->tctx, models, view);
+        result = true;
+    }
+    return(result);
+}
+
+api(custom) function b32
 view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags)
 {
     Models *models = (Models*)app->cmd_context;
@@ -1676,8 +1688,7 @@ view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Se
             if (file != view->file){
                 view_set_file(app->tctx, models, view, file);
                 if (!(flags & SetBuffer_KeepOriginalGUI)){
-                    //view_quit_ui(models, view);
-                    // TODO(allen): back to base context
+                    view_quit_ui(app->tctx, models, view);
                 }
             }
             result = true;
