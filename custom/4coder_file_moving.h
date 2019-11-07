@@ -57,7 +57,7 @@ internal void fm_make_folder_if_missing(Arena *arena, char *dir);
 internal void fm_clear_folder(char *folder);
 internal void fm_delete_file(char *file);
 internal void fm_copy_file(char *file, char *newname);
-internal void fm_copy_all(char *source, char *tag, char *folder);
+internal void fm_copy_all(char *source, char *folder);
 internal void fm_copy_folder(Arena *arena, char *src_dir, char *dst_dir, char *src_folder);
 
 // File Reading and Writing
@@ -352,6 +352,7 @@ fm_make_folder_if_missing(Arena *arena, char *dir){
 internal void
 fm_clear_folder(char *folder){
     fprintf(stdout, "clearing folder %s\n", folder);
+    fflush(stdout);
     systemf("del /S /Q /F %s\\* > nul & rmdir /S /Q %s > nul & mkdir %s > nul", folder, folder, folder);
 }
 
@@ -362,19 +363,16 @@ fm_delete_file(char *file){
 
 internal void
 fm_copy_file(char *file, char *newname){
+    printf("copy %s to %s\n", file, newname);
+    fflush(stdout);
     CopyFileA(file, newname, 0);
 }
 
 internal void
-fm_copy_all(char *source, char *tag, char *folder){
-    if (source){
-        fprintf(stdout, "copy %s\\%s to %s\n", source, tag, folder);
-        systemf("copy %s\\%s %s\\* > nul", source, tag, folder);
-    }
-    else{
-        fprintf(stdout, "copy %s to %s\n", tag, folder);
-        systemf("copy %s %s\\* > nul", tag, folder);
-    }
+fm_copy_all(char *source, char *folder){
+        fprintf(stdout, "copy %s to %s\n", source, folder);
+        fflush(stdout);
+        systemf("xcopy /s /e /y /q %s %s > nul", source, folder);
 }
 
 internal void
@@ -396,14 +394,17 @@ fm_write_file(char *file_name, char *data, u32 size){
 
 internal void
 fm_zip(char *parent, char *folder, char *dest){
+    printf("zipping %s\\%s to %s\n", parent, folder, dest);
+    fflush(stdout);
+    
     char cdir[512];
     fm_get_current_directory(cdir, sizeof(cdir));
     
     Temp_Dir temp = fm_pushdir(parent);
-    systemf("%s\\zip %s\\4ed_gobble.zip", cdir, cdir);
+    systemf("%s\\bin\\zip %s\\4ed_gobble.zip > nul", cdir, cdir);
     fm_popdir(temp);
     
-    systemf("copy %s\\4ed_gobble.zip %s & del %s\\4ed_gobble.zip", cdir, dest, cdir);
+    systemf("copy %s\\4ed_gobble.zip %s > nul & del %s\\4ed_gobble.zip > nul", cdir, dest, cdir);
 }
 
 //
@@ -492,6 +493,7 @@ fm_make_folder_if_missing(Partition *part, char *dir){
 internal void
 fm_clear_folder(char *folder){
     fprintf(stdout, "clearing folder %s\n", folder);
+    fflush(stdout);
     systemf("rm -rf %s* > /dev/null", folder);
 }
 
@@ -544,7 +546,7 @@ fm_copy_folder(Arena *arena, char *src_dir, char *dst_dir, char *src_folder){
     Temp_Dir temp = fm_pushdir(src_dir);
     fm_make_folder_if_missing(arena, fm_str(arena, dst_dir, "/", src_folder));
     char *copy_name = fm_str(arena, dst_dir, "/", src_folder);
-    fm_copy_all(src_folder, "*", copy_name);
+    fm_copy_all(src_folder, copy_name);
     fm_popdir(temp);
 }
 

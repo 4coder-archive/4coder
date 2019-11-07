@@ -136,11 +136,7 @@ get_standard_blacklist(Arena *arena){
 }
 
 function void
-open_files_pattern_match(Application_Links *app,
-                         String_Const_u8 dir,
-                         Project_File_Pattern_Array whitelist,
-                         Project_File_Pattern_Array blacklist,
-                         u32 flags){
+open_files_pattern_match(Application_Links *app, String_Const_u8 dir, Project_File_Pattern_Array whitelist, Project_File_Pattern_Array blacklist, u32 flags){
     ProfileScope(app, "open all files in directory pattern");
     Scratch_Block scratch(app);
     String_Const_u8 directory = dir;
@@ -181,79 +177,6 @@ open_all_files_in_hot_with_extension(Application_Links *app, String_Const_u8_Arr
 # error no project configuration names for this platform
 #endif
 
-function Project*
-parse_project__config_data__version_0(Application_Links *app, Arena *arena,
-                                      String_Const_u8 file_dir, Config *parsed){
-    Project *project = push_array_zero(arena, Project, 1);
-    
-    // Set new project directory
-    {
-        project->dir = push_string_copy(arena, file_dir);
-        
-        project->load_path_array.paths = push_array(arena, Project_File_Load_Path, 1);
-        project->load_path_array.count = 1;
-        
-        project->load_path_array.paths[0].path = project->dir;
-        project->load_path_array.paths[0].recursive = false;
-        project->load_path_array.paths[0].relative = false;
-        
-        project->name = project->dir;
-    }
-    
-    // Read the settings from project.4coder
-    String_Const_u8 str = {};
-    if (config_string_var(parsed, "extensions", 0, &str)){
-        String_Const_u8_Array extension_list =
-            parse_extension_line_to_extension_list(app, arena, str);
-        project->pattern_array = get_pattern_array_from_string_array(arena, extension_list);
-        project->blacklist_pattern_array = get_standard_blacklist(arena);
-    }
-    
-    b32 open_recursively = false;
-    if (config_bool_var(parsed, "open_recursively", 0, &open_recursively)){
-        project->load_path_array.paths[0].recursive = open_recursively;
-    }
-    
-    char fkey_command_name[] = "fkey_command_" PlatformName;
-    
-    project->command_array.commands = push_array(arena, Project_Command, 16);
-    project->command_array.count = 16;
-    
-    Project_Command *command = project->command_array.commands;
-    for (i32 j = 1; j <= 16; ++j, ++command){
-        project->fkey_commands[j - 1] = j - 1;
-        block_zero_struct(command);
-        
-        command->name = push_u8_stringf(arena, "%d", j);
-        
-        Config_Compound *compound = 0;
-        if (config_compound_var(parsed, fkey_command_name, j, &compound)){
-            String_Const_u8 cmd = {};
-            if (config_compound_string_member(parsed, compound, "cmd", 0, &cmd)){
-                command->cmd = push_string_copy(arena, cmd);
-            }
-            
-            String_Const_u8 out = {};
-            if (config_compound_string_member(parsed, compound, "out", 1, &out)){
-                command->out = push_string_copy(arena, out);
-            }
-            
-            b32 footer_panel = false;
-            if (config_compound_bool_member(parsed, compound, "footer_panel", 2, &footer_panel)){
-                command->footer_panel = footer_panel;
-            }
-            
-            b32 save_dirty_files = false;
-            if (config_compound_bool_member(parsed, compound, "save_dirty_files", 3, &save_dirty_files)){
-                command->save_dirty_files = save_dirty_files;
-            }
-        }
-    }
-    
-    project->loaded = true;
-    return(project);
-}
-
 function void
 parse_project__extract_pattern_array(Arena *arena, Config *parsed, char *root_variable_name, Project_File_Pattern_Array *array_out){
     Config_Compound *compound = 0;
@@ -288,8 +211,7 @@ parse_project__version_1__os_match(String_Const_u8 str, String_Const_u8 this_os_
 }
 
 function Project*
-parse_project__config_data__version_1(Application_Links *app, Arena *arena,
-                                      String_Const_u8 root_dir, Config *parsed){
+parse_project__config_data__version_1(Application_Links *app, Arena *arena, String_Const_u8 root_dir, Config *parsed){
     Project *project = push_array_zero(arena, Project, 1);
     
     // Set new project directory
@@ -502,34 +424,25 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena,
 }
 
 function Project*
-parse_project__config_data(Application_Links *app, Arena *arena,
-                           String_Const_u8 file_dir, Config *parsed){
+parse_project__config_data(Application_Links *app, Arena *arena, String_Const_u8 file_dir, Config *parsed){
     i32 version = 0;
     if (parsed->version != 0){
         version = *parsed->version;
     }
     
+    Project *result = 0;
     switch (version){
-        case 0:
-        {
-            return(parse_project__config_data__version_0(app, arena, file_dir, parsed));
-        }break;
-        
         case 1:
         {
-            return(parse_project__config_data__version_1(app, arena, file_dir, parsed));
-        }break;
-        
-        default:
-        {
-            return(0);
+            result = parse_project__config_data__version_1(app, arena, file_dir, parsed);
         }break;
     }
+    
+    return(result);
 }
 
 function Project_Parse_Result
-parse_project__data(Application_Links *app, Arena *arena, String_Const_u8 file_name,
-                    Data raw_data, String_Const_u8 file_dir){
+parse_project__data(Application_Links *app, Arena *arena, String_Const_u8 file_name, Data raw_data, String_Const_u8 file_dir){
     String_Const_u8 data = SCu8(raw_data);
     Project_Parse_Result result = {};
     Token_Array array = token_array_from_text(app, arena, data);

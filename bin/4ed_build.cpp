@@ -108,27 +108,14 @@ char **platform_includes[Platform_COUNT][Compiler_COUNT] = {
     {0                      , mac_gcc_platform_inc  },
 };
 
-//
-// Custom targets
-//
+char *default_custom_target = "../code/custom/4coder_default_bindings.cpp";
 
-enum{
-    Custom_Default,
-    //
-    Custom_COUNT
-};
-
-char *custom_files[] = {
-    "../code/custom/4coder_default_bindings.cpp",
-};
-
-//
-// Architectures
-//
+// NOTE(allen): Architectures
 
 enum{
     Arch_X64,
     Arch_X86,
+    
     //
     Arch_COUNT,
     Arch_None = Arch_COUNT,
@@ -139,9 +126,7 @@ char *arch_names[] = {
     "x86",
 };
 
-//
-// Build flags
-//
+// NOTE(allen): Build flags
 
 enum{
     OPTS = 0x1,
@@ -199,7 +184,7 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     fm_init_build_line(&line);
     
     if (arch == Arch_X86){
-        fm_add_to_line(line, "%s\\windows_scripts\\setup_cl_x86.bat &", code_path);
+        fm_add_to_line(line, "%s\\custom\\bin\\setup_cl_x86.bat &", code_path);
     }
     
     fm_add_to_line(line, "cl");
@@ -287,6 +272,8 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     
     systemf("%s", line.build_options);
     fm_popdir(temp);
+    
+    fflush(stdout);
 }
 
 //
@@ -413,38 +400,6 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char *code_file, char 
     build(arena, flags, arch, code_path, code_files, out_path, out_file, defines, exports, inc_folders);
 }
 
-// TODO(NAME): build metadata fully from C++ and eliminate build_metadata.bat and build_metadata.sh
-
-internal void
-build_metadata(void){
-    systemf(".%s%s ..%scode%s4coder_default_bindings.cpp", SLASH, "build_metadata" BAT, SLASH, SLASH);
-}
-
-internal void
-site_build(Arena *arena, char *cdir, u32 flags){
-    build_metadata();
-    
-    {
-        char *file = fm_str(arena, "site/4ed_sitegen.cpp");
-        char *dir = fm_str(arena, BUILD_DIR);
-        BEGIN_TIME_SECTION();
-        build(arena, OPTS | flags, Arch_X64, cdir, file, dir, "sitegen", get_defines_from_flags(arena, flags), 0, includes);
-        END_TIME_SECTION("build sitegen");
-    }
-    
-    if (prev_error == 0){
-        BEGIN_TIME_SECTION();
-        char *cmd = fm_str(arena, BUILD_DIR "/sitegen");
-        char *code_dir = fm_str(arena, ".");
-        char *asset_dir = fm_str(arena, "../4coder-non-source/site_resources");
-        char *site_source_dir = fm_str(arena, "site/source_material");
-        char *dest_dir = fm_str(arena, "../site");
-        fm_make_folder_if_missing(arena, dest_dir);
-        systemf("%s %s %s %s %s", cmd, code_dir, asset_dir, site_source_dir, dest_dir);
-        END_TIME_SECTION("run sitegen");
-    }
-}
-
 internal void
 build_and_run(Arena *arena, char *cdir, char *filename, char *name, u32 flags){
     char *dir = fm_str(arena, BUILD_DIR);
@@ -484,7 +439,9 @@ string_build(Arena *arena, char *cdir){
 }
 
 internal void
-do_buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
+buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
+    printf("BUILDSUPER: cdir: %s; file: %s; arch: %u\n", cdir, file, arch);
+    
     BEGIN_TIME_SECTION();
     Temp_Dir temp = fm_pushdir(fm_str(arena, BUILD_DIR));
     
@@ -498,6 +455,7 @@ do_buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
     
     fm_popdir(temp);
     END_TIME_SECTION("build custom");
+    fflush(stdout);
 }
 
 // TODO(allen): Remove this
@@ -559,24 +517,22 @@ build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch
         char *source_themes_folder = fm_str(arena, "themes");
         fm_clear_folder(themes_folder);
         fm_make_folder_if_missing(arena, themes_folder);
-        fm_copy_all(source_themes_folder, "*", themes_folder);
+        fm_copy_all(source_themes_folder, themes_folder);
         END_TIME_SECTION("move files");
     }
+        
+        fflush(stdout);
 }
 
 internal void
 standard_build(Arena *arena, char *cdir, u32 flags, u32 arch){
-    do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
-    
+    buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
     build_main(arena, cdir, true, flags, arch);
 }
 
 internal char*
 get_4coder_dist_name(Arena *arena, u32 platform, char *tier, u32 arch){
-    char *name = fm_str(arena, "4coder-alpha-" MAJOR_STR "-" MINOR_STR "-" PATCH_STR);
-    if (strcmp(tier, "alpha") != 0){
-        name = fm_str(arena, name, "-", tier);
-    }
+    char *name = fm_str(arena, "4coder-" MAJOR_STR "-" MINOR_STR "-" PATCH_STR "-", tier);
     if (platform != Platform_None){
         name = fm_str(arena, name, "-", platform_names[platform]);
     }
@@ -586,80 +542,84 @@ get_4coder_dist_name(Arena *arena, u32 platform, char *tier, u32 arch){
     return(name);
 }
 
+enum{
+    Tier_Demo,
+    Tier_Super,
+    Tier_COUNT,
+};
+
 internal void
 package(Arena *arena, char *cdir){
     // NOTE(allen): meta
     char *build_dir = fm_str(arena, BUILD_DIR);
     char *pack_dir = fm_str(arena, PACK_DIR);
-    char *fonts_source_dir = fm_str(arena, "../4coder-non-source/dist_files/fonts");
+    char *dist_files[3];
+    dist_files[0] = fm_str(arena, "../4coder-non-source/dist_files");
+    dist_files[1] = fm_str(arena, "ship_files");
+    dist_files[2] = fm_str(arena, "ship_files_super");
     
-    char *base_package_root = "../current_dist";
+    printf("build dir: %s\n", build_dir);
+    printf("pack dir: %s\n", pack_dir);
+    printf("dist files: %s, %s, %s\n", dist_files[0], dist_files[1], dist_files[2]);
+    fflush(stdout);
     
-    // NOTE(allen): alpha and super builds
-    enum{
-        Tier_Alpha = 0,
-        Tier_Super = 1,
-        Tier_COUNT = 2
-    };
-    
-    char *tiers[] = { "alpha", "super" };
+    char *tier_names[] = { "demo", "super", };
     u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO;
     u32 tier_flags[] = { 0, SUPER, };
     
-    for (u32 tier_index = 0; tier_index < Tier_COUNT; ++tier_index){
-        char *tier = tiers[tier_index];
-        u32 flags = base_flags | tier_flags[tier_index];
+    fm_make_folder_if_missing(arena, pack_dir);
+    
+    for (u32 i = 0; i < Tier_COUNT; i += 1){
+        char *tier_name = tier_names[i];
+        u32 flags = base_flags | tier_flags[i];
         
         Temp_Memory temp = begin_temp(arena);
-        char *tier_package_root = fm_str(arena, base_package_root, "_", tier);
+        char *current_dist_tier = fm_str(arena, ".." SLASH "current_dist_", tier_name);
+        
         for (u32 arch = 0; arch < Arch_COUNT; ++arch){
-            char *par_dir      = fm_str(arena, tier_package_root, "_", arch_names[arch]);
-            char *dir          = fm_str(arena, par_dir, "/4coder");
-            char *fonts_dir    = fm_str(arena, dir, "/fonts");
-            char *zip_dir      = fm_str(arena, pack_dir, "/", tier, "_", arch_names[arch]);
+            char *arch_name = arch_names[arch];
+            char *parent_dir = fm_str(arena, current_dist_tier, "_", arch_name);
+            char *dir        = fm_str(arena, parent_dir, SLASH "4coder");
+            char *zip_dir    = fm_str(arena, pack_dir, SLASH, tier_name, "_", arch_name);
             
-            build_metadata();
+            printf("\nbuild: %s_%s\n", tier_name, arch_name);
+            printf("parent_dir: %s\n", parent_dir);
+            printf("dir: %s\n", dir);
+            printf("zip_dir: %s\n", zip_dir);
+            fflush(stdout);
+            
+                buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
             build_main(arena, cdir, false, flags, arch);
             
-            fm_clear_folder(par_dir);
-            
+            fm_make_folder_if_missing(arena, parent_dir);
+            fm_clear_folder(parent_dir);
             fm_make_folder_if_missing(arena, dir);
             fm_copy_file(fm_str(arena, build_dir, "/4ed" EXE), fm_str(arena, dir, "/4ed" EXE));
             fm_copy_file(fm_str(arena, build_dir, "/4ed_app" DLL), fm_str(arena, dir, "/4ed_app" DLL));
+            fm_copy_file(fm_str(arena, build_dir, "/custom_4coder" DLL), fm_str(arena, dir, "/custom_4coder" DLL));
             
-            fm_copy_folder(arena, cdir, dir, "themes");
-            fm_copy_file(fm_str(arena, cdir, "/LICENSE.txt"), fm_str(arena, dir, "/LICENSE.txt"));
-            fm_copy_file(fm_str(arena, cdir, "/README.txt"), fm_str(arena, dir, "/README.txt"));
-            fm_copy_file(fm_str(arena, cdir, "/changes.txt"), fm_str(arena, dir, "/changes.txt"));
-            
-            fm_make_folder_if_missing(arena, fonts_dir);
-            fm_copy_all(fonts_source_dir, "*", fonts_dir);
-            fm_copy_file(fm_str(arena, cdir, "/release-config.4coder"), fm_str(arena, dir, "/config.4coder"));
-            
-            if (tier_index == Tier_Super){
-                fm_copy_all(0, "4coder_*", dir);
-                
-                do_buildsuper(arena, cdir, fm_str(arena, custom_files[Custom_Default]), arch);
-                fm_copy_file(fm_str(arena, build_dir, "/custom_4coder" DLL), fm_str(arena, dir, "/custom_4coder" DLL));
-                
-                char *build_script = fm_str(arena, "buildsuper_", arch_names[arch], BAT);
-                fm_copy_file(build_script, fm_str(arena, dir, "/buildsuper" BAT));
-                
-                if (This_OS == Platform_Windows){
-                    fm_copy_folder(arena, cdir, dir, "windows_scripts");
-                }
-                
-                fm_copy_folder(arena, cdir, dir, "4coder_API");
-                fm_copy_folder(arena, cdir, dir, "4coder_lib");
-                fm_copy_folder(arena, cdir, dir, "4coder_generated");
-                fm_copy_folder(arena, cdir, dir, "languages");
+            i32 dist_file_count = ArrayCount(dist_files);
+            if (i == Tier_Demo){
+                dist_file_count -= 1;
             }
             
-            char *dist_name = get_4coder_dist_name(arena, This_OS, tier, arch);
-            char *zip_name = fm_str(arena, zip_dir, "/", dist_name, ".zip");
+            for (i32 j = 0; j < dist_file_count; j += 1){
+                fm_copy_all(dist_files[j], dir);
+            }
+            
+            if (i == Tier_Super){
+                char *custom_src_dir = fm_str(arena, cdir, SLASH, "custom");
+                char *custom_dst_dir = fm_str(arena, dir, SLASH, "custom");
+                fm_make_folder_if_missing(arena, custom_dst_dir);
+                fm_copy_all(custom_src_dir, custom_dst_dir);
+            }
+            
+            char *dist_name = get_4coder_dist_name(arena, This_OS, tier_name, arch);
+            char *zip_name = fm_str(arena, zip_dir, SLASH, dist_name, ".zip");
             fm_make_folder_if_missing(arena, zip_dir);
-            fm_zip(par_dir, "4coder", zip_name);
+            fm_zip(parent_dir, "4coder", zip_name);
         }
+        
         end_temp(temp);
     }
 }

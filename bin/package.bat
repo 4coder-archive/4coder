@@ -1,3 +1,3 @@
 @echo off
 
-build.bat /DPACKAGE
+bin\build.bat /DPACKAGE

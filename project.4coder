@@ -1,5 +1,6 @@
 version(1);
 project_name = "4coder";
+
 patterns = {
 "*.c",
 "*.cpp",
@@ -23,15 +24,20 @@ load_paths = {
 };
 
 build_x64_win32 = "echo build: x64 & bin\\build.bat";
-build_x64_linux = "echo build: x64 & bin/build.sh";
-build_x64_mac   = "echo build: x64 & bin/build.sh";
+build_x64_unix = "echo build: x64 & bin/build.sh";
 
 command_list = {
  { .name = "build x64",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
    .cmd = { {build_x64_win32, .os = "win"  },
-            {build_x64_linux, .os = "linux"},
-            {build_x64_max  , .os = "mac"  }, }, },
+            {build_x64_unix , .os = "linux"},
+            {build_x64_unix , .os = "mac"  }, }, },
+ 
+ { .name = "package",
+   .out = "*compilation*", .footer_panel = false, .save_dirty_files = true,
+   .cmd = { {"echo package & bin\\package.bat", .os = "win"  }, 
+            {"echo package & bin/package.sh"  , .os = "linux"}, 
+            {"echo package & bin/package.sh"  , .os = "mac"  }, }, },
  
  { .name = "run one time",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,
@@ -74,10 +80,11 @@ command_list = {
    .cmd = { { "..\\build\\api_parser 4ed_api_implementation.cpp", .os = "win"   }, }, },
 };
 
-fkey_command[1] = "build x64";
-fkey_command[2] = "build keycode generator";
-fkey_command[4] = "run one time";
-fkey_command[5] = "build C++ lexer generator";
-fkey_command[6] = "build token tester";
+fkey_command[1]  = "build x64";
+fkey_command[2]  = "build keycode generator";
+fkey_command[4]  = "run one time";
+fkey_command[5]  = "build C++ lexer generator";
+fkey_command[6]  = "build token tester";
+fkey_command[11] = "package";
 
 

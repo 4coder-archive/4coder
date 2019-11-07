@@ -1,0 +1,64 @@
+version(1);
+project_name = "4coder custom";
+
+patterns = {
+"*.c",
+"*.cpp",
+"*.h",
+"*.m",
+"*.bat",
+"*.sh",
+"*.4coder",
+"*.txt",
+};
+blacklist_patterns = {
+".*",
+};
+load_paths_only = {
+ {"."},
+};
+load_paths = {
+ { load_paths_only, .os = "win"  },
+ { load_paths_only, .os = "linux"},
+ { load_paths_only, .os = "mac"  },
+};
+
+build_super_x64_win32 = "custom\\bin\\buildsuper_x64.bat";
+build_super_x86_win32 = "custom\\bin\\buildsuper_x86.bat";
+build_super_x64_unix  = "custom/bin/buildsuper_x64.sh";
+build_super_x86_unix  = "custom/bin/buildsuper_x86.sh";
+
+command_list = {
+ { .name = "build super x64",
+   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
+   .cmd = { {build_super_x64_win32, .os ="win"  },
+            {build_super_x64_unix , .os ="linux"}, 
+            {build_super_x64_unix , .os ="mac"  }, }, },
+ 
+ { .name = "build super x86",
+   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
+   .cmd = { {build_super_x86_win32, .os ="win" },
+            {build_super_x86_unix, .os ="linux" }, 
+            {build_super_x86_unix, .os ="mac" }, }, },
+ 
+ { .name = "build C++ lexer generator",
+   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
+   .cmd = { {"custom\\bin\\build_one_time custom\\languages\\4coder_cpp_lexer_gen.cpp ..\\build", .os ="win" },
+           }, },
+ 
+ { .name = "build token tester",
+   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
+   .cmd = { {"custom\\bin\\build_one_time custom\\languages\\4coder_cpp_lexer_test.cpp ..\\build", .os = "win" },
+           }, },
+
+ { .name = "run one time",
+   .out = "*run*", .footer_panel = false, .save_dirty_files = false,
+   .cmd = { {"pushd ..\\build & one_time", .os = "win" },
+           }, },
+};
+
+fkey_command[1] = "build super x64";
+fkey_command[2] = "build C++ lexer generator";
+fkey_command[3] = "build token tester";
+fkey_command[4] = "run one time";
+fkey_command[5] = "build super x86";
