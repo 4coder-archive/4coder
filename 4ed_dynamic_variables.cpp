@@ -189,7 +189,7 @@ lifetime__free_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key, Li
         
         if ((object->key_count % lifetime_key_reference_per_node) == 0){
             zdll_remove(object->key_node_first, object->key_node_last, last_node);
-            zdll_push_back(lifetime_allocator->free_key_references.first, lifetime_allocator->free_key_references.last, last_node);
+            sll_stack_push(lifetime_allocator->free_key_references, last_node);
         }
     }
     
@@ -198,28 +198,19 @@ lifetime__free_key(Lifetime_Allocator *lifetime_allocator, Lifetime_Key *key, Li
     table_erase(&lifetime_allocator->key_table, key_data);
     table_erase(&lifetime_allocator->key_check_table, (u64)PtrAsInt(key));
     base_free(lifetime_allocator->allocator, key->members);
-    zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, key);
+    sll_stack_push(lifetime_allocator->free_keys, key);
 }
 
 internal Lifetime_Key_Ref_Node*
 lifetime__alloc_key_reference_node(Lifetime_Allocator *lifetime_allocator){
     Assert(lifetime_allocator != 0);
-    Lifetime_Key_Ref_Node *result = lifetime_allocator->free_key_references.first;
+    Lifetime_Key_Ref_Node *result = lifetime_allocator->free_key_references;
     if (result == 0){
-        i32 new_node_count = 32;
-        umem new_memory_size = new_node_count*sizeof(Lifetime_Key_Ref_Node);
-        Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
-        Lifetime_Key_Ref_Node *new_nodes = (Lifetime_Key_Ref_Node*)new_memory.data;
-        Lifetime_Key_Ref_Node *new_node_ptr = new_nodes;
-        for (i32 i = 0; i < new_node_count; i += 1, new_node_ptr += 1){
-            zdll_push_back(lifetime_allocator->free_key_references.first,
-                           lifetime_allocator->free_key_references.last,
-                           new_node_ptr);
-        }
-        lifetime_allocator->free_key_references.count += new_node_count;
-        result = lifetime_allocator->free_key_references.first;
+        result = push_array(&lifetime_allocator->node_arena, Lifetime_Key_Ref_Node, 1);
     }
-    zdll_remove(lifetime_allocator->free_key_references.first, lifetime_allocator->free_key_references.last, result);
+    else{
+        sll_stack_pop(lifetime_allocator->free_key_references);
+    }
     return(result);
 }
 
@@ -277,10 +268,8 @@ lifetime__object_free_all_keys(Lifetime_Allocator *lifetime_allocator, Lifetime_
     }
     
     if (lifetime_object->key_count > 0){
-        lifetime_object->key_node_last->next = lifetime_allocator->free_key_references.first;
-        lifetime_allocator->free_key_references.first = lifetime_object->key_node_first;
-        i32 node_count = (lifetime_object->key_count + (lifetime_key_reference_per_node - 1))/lifetime_key_reference_per_node;
-        lifetime_allocator->free_key_references.count += node_count;
+        lifetime_object->key_node_last->next = lifetime_allocator->free_key_references;
+        lifetime_allocator->free_key_references = lifetime_object->key_node_first;
     }
 }
 
@@ -364,20 +353,13 @@ lifetime_get_or_create_intersection_key(Lifetime_Allocator *lifetime_allocator, 
     }
     
     // Allocate
-    Lifetime_Key *new_key = lifetime_allocator->free_keys.first;
+    Lifetime_Key *new_key = lifetime_allocator->free_keys;
     if (new_key == 0){
-        i32 new_key_count = 256;
-        umem new_memory_size = new_key_count*sizeof(Lifetime_Key);
-        Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
-        Lifetime_Key *new_keys = (Lifetime_Key*)new_memory.data;
-        Lifetime_Key *new_key_ptr = new_keys;
-        for (i32 i = 0; i < new_key_count; i += 1, new_key_ptr += 1){
-            zdll_push_back(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, new_key_ptr);
-        }
-        lifetime_allocator->free_keys.count += new_key_count;
-        new_key = lifetime_allocator->free_keys.first;
+        new_key = push_array(&lifetime_allocator->node_arena, Lifetime_Key, 1);
     }
-    zdll_remove(lifetime_allocator->free_keys.first, lifetime_allocator->free_keys.last, new_key);
+    else{
+        sll_stack_pop(lifetime_allocator->free_keys);
+    }
     block_zero_struct(new_key);
     
     // Add to Objects

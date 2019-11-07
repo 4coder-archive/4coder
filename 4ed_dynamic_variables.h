@@ -125,24 +125,12 @@ struct Lifetime_Key{
 global_const u64 LifetimeKeyHash_Empty   = 0&(~bit_63);
 global_const u64 LifetimeKeyHash_Deleted = max_u64&(~bit_63);
 
-struct Lifetime_Key_Ref_Node_List{
-    Lifetime_Key_Ref_Node *first;
-    Lifetime_Key_Ref_Node *last;
-    i32 count;
-};
-
-struct Lifetime_Key_List{
-    Lifetime_Key *first;
-    Lifetime_Key *last;
-    i32 count;
-};
-
 struct Lifetime_Allocator{
     Base_Allocator *allocator;
     Arena node_arena;
-    Lifetime_Key_Ref_Node_List free_key_references;
+    Lifetime_Key_Ref_Node *free_key_references;
+    Lifetime_Key* free_keys;
     Lifetime_Object *free_objects;
-    Lifetime_Key_List free_keys;
     Table_Data_u64 key_table;
     Table_u64_u64 key_check_table;
     Table_u64_u64 scope_id_to_scope_ptr_table;
