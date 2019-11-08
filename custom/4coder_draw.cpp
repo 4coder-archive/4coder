@@ -172,14 +172,18 @@ layout_fps_hud_on_bottom(Rect_f32 rect, f32 line_height){
 }
 
 function Rect_f32
-draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view){
+draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, FColor back){
     Rect_f32 view_rect = view_get_screen_rect(app, view);
     Rect_f32 inner = rect_inner(view_rect, 3.f);
-    FColor margin_color = get_margin_color(is_active_view?
-                                           UIHighlight_Active:UIHighlight_None);
-    draw_rectangle(app, inner, 0.f, fcolor_id(Stag_Back));
-    draw_margin(app, view_rect, inner, margin_color);
+    draw_rectangle(app, inner, 0.f, back);
+    draw_margin(app, view_rect, inner, margin);
     return(inner);
+}
+
+function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view){
+    FColor margin_color = get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
+    return(draw_background_and_margin(app, view, margin_color, fcolor_id(Stag_Back)));
 }
 
 function Rect_f32

@@ -171,9 +171,10 @@ layout_split_panel(Layout *layout, Panel *panel, b32 vertical_split, Panel **new
             // init min_panel
             dll_insert(&layout->intermediate_panels, &min_panel->node);
             
+            panel->tl_panel->parent = min_panel;
+            panel->br_panel->parent = min_panel;
             min_panel->parent = panel;
             min_panel->kind = PanelKind_Intermediate;
-            min_panel->view = panel->view;
             min_panel->tl_panel = panel->tl_panel;
             min_panel->br_panel = panel->br_panel;
             min_panel->vertical_split = panel->vertical_split;

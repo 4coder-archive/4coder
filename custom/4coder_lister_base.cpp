@@ -619,9 +619,23 @@ run_lister(Application_Links *app, Lister *lister){
             }break;
             
             case InputEventKind_MouseMove:
-            case InputEventKind_Core:
             {
                 lister_update_filtered_list(app, lister);
+            }break;
+            
+            case InputEventKind_Core:
+            {
+                switch (in.event.core.code){
+                    case CoreCode_Animate:
+                    {
+                lister_update_filtered_list(app, lister);
+                    }break;
+                    
+                    default:
+                    {
+                        handled = false;
+                    }break;
+                }
             }break;
             
             default:
@@ -671,8 +685,7 @@ lister_begin_new_item_set(Application_Links *app, Lister *lister){
 }
 
 function void*
-lister_add_item(Lister *lister, Lister_Prealloced_String string,
-                Lister_Prealloced_String status, void *user_data, umem extra_space){
+lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status, void *user_data, umem extra_space){
     void *base_memory = push_array(lister->arena, u8, sizeof(Lister_Node) + extra_space);
     Lister_Node *node = (Lister_Node*)base_memory;
     node->string = string.string;
@@ -688,15 +701,12 @@ lister_add_item(Lister *lister, Lister_Prealloced_String string,
 function void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, String_Const_u8 status,
                 void *user_data, umem  extra_space){
-    return(lister_add_item(lister, string, lister_prealloced(push_string_copy(lister->arena, status)),
-                           user_data, extra_space));
+    return(lister_add_item(lister, string, lister_prealloced(push_string_copy(lister->arena, status)), user_data, extra_space));
 }
 
 function void*
-lister_add_item(Lister *lister, String_Const_u8 string, Lister_Prealloced_String status,
-                void *user_data, umem extra_space){
-    return(lister_add_item(lister, lister_prealloced(push_string_copy(lister->arena, string)), status,
-                           user_data, extra_space));
+lister_add_item(Lister *lister, String_Const_u8 string, Lister_Prealloced_String status, void *user_data, umem extra_space){
+    return(lister_add_item(lister, lister_prealloced(push_string_copy(lister->arena, string)), status, user_data, extra_space));
 }
 
 function void*
@@ -738,8 +748,7 @@ lister__backspace_text_field__default(Application_Links *app){
 }
 
 function void
-lister__navigate__default(Application_Links *app, View_ID view, Lister *lister,
-                          i32 delta){
+lister__navigate__default(Application_Links *app, View_ID view, Lister *lister, i32 delta){
     i32 new_index = lister->item_index + delta;
     if (new_index < 0 && lister->item_index == 0){
         lister->item_index = lister->filtered.count - 1;
@@ -767,8 +776,7 @@ lister_get_default_handlers(void){
 ////////////////////////////////
 
 function Lister_Result
-run_lister_with_refresh_handler(Application_Links *app, Arena *arena,
-                                String_Const_u8 query, Lister_Handlers handlers){
+run_lister_with_refresh_handler(Application_Links *app, Arena *arena, String_Const_u8 query, Lister_Handlers handlers){
     Lister_Result result = {};
     if (handlers.refresh != 0){
         Lister *lister = begin_lister(app, arena);
@@ -788,30 +796,25 @@ run_lister_with_refresh_handler(Application_Links *app, Arena *arena,
 }
 
 function Lister_Result
-run_lister_with_refresh_handler(Application_Links *app, String_Const_u8 query, 
-                                Lister_Handlers handlers){
+run_lister_with_refresh_handler(Application_Links *app, String_Const_u8 query,  Lister_Handlers handlers){
     Scratch_Block scratch(app);
     return(run_lister_with_refresh_handler(app, scratch, query, handlers));
 }
 
 function Lister_Result
-run_lister_with_refresh_handler(Application_Links *app, Arena *arena,
-                                char *query, Lister_Handlers handlers){
+run_lister_with_refresh_handler(Application_Links *app, Arena *arena, char *query, Lister_Handlers handlers){
     return(run_lister_with_refresh_handler(app, arena, SCu8(query), handlers));
 }
 
 function Lister_Result
-run_lister_with_refresh_handler(Application_Links *app,
-                                char *query, Lister_Handlers handlers){
+run_lister_with_refresh_handler(Application_Links *app, char *query, Lister_Handlers handlers){
     return(run_lister_with_refresh_handler(app, SCu8(query), handlers));
 }
 
 ////////////////////////////////
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              String_Const_u8 string, String_Const_u8 status,
-              Key_Code code, u64 user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, String_Const_u8 string, String_Const_u8 status, Key_Code code, u64 user_data){
     Lister_Choice *choice = push_array(arena, Lister_Choice, 1);
     sll_queue_push(list->first, list->last, choice);
     choice->string = string;
@@ -821,52 +824,38 @@ lister_choice(Arena *arena, Lister_Choice_List *list,
 }
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              char *string, String_Const_u8 status,
-              Key_Code code, u64 user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, char *string, String_Const_u8 status, Key_Code code, u64 user_data){
     lister_choice(arena, list, SCu8(string), status, code, (u64)PtrAsInt(user_data));
 }
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              String_Const_u8 string, char *status,
-              Key_Code code, u64 user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, String_Const_u8 string, char *status, Key_Code code, u64 user_data){
     lister_choice(arena, list, string, SCu8(status), code, (u64)PtrAsInt(user_data));
 }
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              char *string, char *status,
-              Key_Code code, u64 user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, char *string, char *status, Key_Code code, u64 user_data){
     lister_choice(arena, list, SCu8(string), SCu8(status), code,
                   (u64)PtrAsInt(user_data));
 }
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              String_Const_u8 string, String_Const_u8 status,
-              Key_Code code, void *user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, String_Const_u8 string, String_Const_u8 status, Key_Code code, void *user_data){
     lister_choice(arena, list, string, status, code, (u64)PtrAsInt(user_data));
 }
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              char *string, String_Const_u8 status,
-              Key_Code code, void *user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, char *string, String_Const_u8 status, Key_Code code, void *user_data){
     lister_choice(arena, list, string, status, code, (u64)PtrAsInt(user_data));
 }
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              String_Const_u8 string, char *status,
-              Key_Code code, void *user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, String_Const_u8 string, char *status, Key_Code code, void *user_data){
     lister_choice(arena, list, string, status, code, (u64)PtrAsInt(user_data));
 }
 
 function void
-lister_choice(Arena *arena, Lister_Choice_List *list,
-              char *string, char *status,
-              Key_Code code, void *user_data){
+lister_choice(Arena *arena, Lister_Choice_List *list, char *string, char *status, Key_Code code, void *user_data){
     lister_choice(arena, list, string, status, code, (u64)PtrAsInt(user_data));
 }
 

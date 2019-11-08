@@ -2693,7 +2693,9 @@ try_create_new_face(Application_Links *app, Face_Description *description)
     }
     else{
         Face *new_face = font_set_new_face(&models->font_set, description);
-        result = new_face->id;
+        if (new_face != 0){
+            result = new_face->id;
+        }
     }
     return(result);
 }

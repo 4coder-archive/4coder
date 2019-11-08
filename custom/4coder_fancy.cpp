@@ -647,6 +647,14 @@ get_fancy_line_height(Application_Links *app, Face_ID face, Fancy_Line *line){
 }
 
 function Vec2_f32
+get_fancy_line_dim(Application_Links *app, Face_ID face, Fancy_Line *line){
+    if (line->face != 0){
+        face = line->face;
+    }
+    return(V2f32(get_fancy_string_width__inner(app, face, line->first), get_fancy_string_height__inner(app, face, line->first)));
+}
+
+function Vec2_f32
 draw_fancy_line(Application_Links *app, Face_ID face, FColor fore,
                 Fancy_Line *line, Vec2_f32 p, u32 flags, Vec2_f32 delta){
     if (line->face != 0){

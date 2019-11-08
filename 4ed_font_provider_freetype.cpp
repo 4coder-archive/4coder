@@ -191,8 +191,9 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         size.height = (pt_size << 6);
         FT_Request_Size(ft_face, &size);
         
-        face->description = *description;
         face->description.font.file_name = file_name;
+        face->description.font.in_4coder_font_folder = false;
+        face->description.parameters = description->parameters;
         
         Face_Metrics *met = &face->metrics;
         
