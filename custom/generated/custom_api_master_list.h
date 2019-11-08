@@ -71,7 +71,8 @@ api(custom) function b32 panel_is_split(Application_Links* app, Panel_ID panel_i
 api(custom) function b32 panel_is_leaf(Application_Links* app, Panel_ID panel_id);
 api(custom) function b32 panel_split(Application_Links* app, Panel_ID panel_id, Dimension split_dim);
 api(custom) function b32 panel_set_split(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, f32 t);
-api(custom) function b32 panel_swap_children(Application_Links* app, Panel_ID panel_id, Panel_Split_Kind kind, float t);
+api(custom) function b32 panel_swap_children(Application_Links* app, Panel_ID panel_id);
+api(custom) function Panel_ID panel_get_root(Application_Links* app);
 api(custom) function Panel_ID panel_get_parent(Application_Links* app, Panel_ID panel_id);
 api(custom) function Panel_ID panel_get_child(Application_Links* app, Panel_ID panel_id, Side which_child);
 api(custom) function Panel_ID panel_get_max(Application_Links* app, Panel_ID panel_id);
@@ -89,6 +90,7 @@ api(custom) function Buffer_Cursor view_compute_cursor(Application_Links* app, V
 api(custom) function b32 view_set_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 api(custom) function b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll, Set_Buffer_Scroll_Rule rule);
 api(custom) function b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);
+api(custom) function b32 view_quit_ui(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
 api(custom) function b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, FColor color);
 api(custom) function b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);

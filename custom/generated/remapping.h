@@ -113,7 +113,7 @@ setup_default_mapping(Mapping *mapping){
     Bind(redo,                        KeyCode_Y, KeyCode_Control);
     Bind(undo,                        KeyCode_Z, KeyCode_Control);
     Bind(view_buffer_other_panel,     KeyCode_1, KeyCode_Control);
-    Bind(swap_buffers_between_panels, KeyCode_2, KeyCode_Control);
+    Bind(swap_panels,                 KeyCode_2, KeyCode_Control);
     Bind(if_read_only_goto_position,  KeyCode_Return);
     Bind(if_read_only_goto_position_same_panel, KeyCode_Return, KeyCode_Shift);
     Bind(view_jump_list_with_lister,  KeyCode_Period, KeyCode_Control, KeyCode_Shift);

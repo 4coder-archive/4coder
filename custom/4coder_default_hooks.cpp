@@ -91,8 +91,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         
         Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
         Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
-        Command_Map_ID *map_id_ptr =
-            scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
+        Command_Map_ID *map_id_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
         if (*map_id_ptr == 0){
             *map_id_ptr = mapid_file;
         }
@@ -133,8 +132,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
             // NOTE(allen): after the command is called do some book keeping
             ProfileScope(app, "after view input");
             
-            next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc,
-                                            Rewrite_Type);
+            next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
             if (next_rewrite != 0){
                 Rewrite_Type *rewrite =
                     scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
@@ -145,8 +143,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
                          view_it = get_view_next(app, view_it, Access_Always)){
                         Managed_Scope scope_it = view_get_managed_scope(app, view_it);
                         b32 *snap_mark_to_cursor =
-                            scope_attachment(app, scope_it, view_snap_mark_to_cursor,
-                                             b32);
+                            scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
                         if (*snap_mark_to_cursor){
                             i64 pos = view_get_cursor_pos(app, view_it);
                             view_set_mark(app, view_it, seek_pos(pos));

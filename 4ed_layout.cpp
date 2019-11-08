@@ -155,19 +155,34 @@ layout_split_panel(Layout *layout, Panel *panel, b32 vertical_split, Panel **new
         Panel *min_panel = layout__alloc_panel(layout);
         Panel *max_panel = layout__alloc_panel(layout);
         
-        dll_remove(&panel->node);
-        dll_insert(&layout->intermediate_panels, &panel->node);
-        
-        dll_insert(&layout->open_panels, &min_panel->node);
-        dll_insert(&layout->open_panels, &max_panel->node);
-        
-        // init min_panel
-        panel->view->panel = min_panel;
-        min_panel->parent = panel;
-        min_panel->kind = PanelKind_Final;
-        min_panel->view = panel->view;
+        if (panel->kind == PanelKind_Final){
+            dll_remove(&panel->node);
+            dll_insert(&layout->intermediate_panels, &panel->node);
+            
+            // init min_panel
+            dll_insert(&layout->open_panels, &min_panel->node);
+            
+            panel->view->panel = min_panel;
+            min_panel->parent = panel;
+            min_panel->kind = PanelKind_Final;
+            min_panel->view = panel->view;
+        }
+        else{
+            // init min_panel
+            dll_insert(&layout->intermediate_panels, &min_panel->node);
+            
+            min_panel->parent = panel;
+            min_panel->kind = PanelKind_Intermediate;
+            min_panel->view = panel->view;
+            min_panel->tl_panel = panel->tl_panel;
+            min_panel->br_panel = panel->br_panel;
+            min_panel->vertical_split = panel->vertical_split;
+            min_panel->split = panel->split;
+        }
         
         // init max_panel
+        dll_insert(&layout->open_panels, &max_panel->node);
+        
         *new_panel_out = max_panel;
         max_panel->parent = panel;
         max_panel->kind = PanelKind_Final;

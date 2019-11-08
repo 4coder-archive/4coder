@@ -1545,35 +1545,25 @@ CUSTOM_DOC("Set the other non-active panel to view the buffer that the active pa
     view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
 }
 
-CUSTOM_COMMAND_SIG(swap_buffers_between_panels)
-CUSTOM_DOC("Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.")
+CUSTOM_COMMAND_SIG(swap_panels)
+CUSTOM_DOC("Swaps the active panel with it's sibling.")
 {
-    View_ID view1 = get_active_view(app, Access_ReadVisible);
-    change_active_panel(app);
-    View_ID view2 = get_active_view(app, Access_ReadVisible);
-    
-    if (view1 != view2){
-        Buffer_ID buffer1 = view_get_buffer(app, view1, Access_Always);
-        Buffer_ID buffer2 = view_get_buffer(app, view2, Access_Always);
-        if (buffer1 != buffer2){
-            view_set_buffer(app, view1, buffer2, 0);
-            view_set_buffer(app, view2, buffer1, 0);
+    View_ID view = get_active_view(app, Access_Always);
+    Panel_ID panel = view_get_panel(app, view);
+    Panel_ID parent = panel_get_parent(app, panel);
+    for (;parent != 0;){
+        Panel_ID child_1 = panel_get_child(app, parent, Side_Min);
+        Panel_ID child_2 = panel_get_child(app, parent, Side_Max);
+        
+        View_ID view_1 = panel_get_view(app, child_1, Access_Always);
+        View_ID view_2 = panel_get_view(app, child_2, Access_Always);
+        
+        if (!view_get_is_passive(app, view_1) && !view_get_is_passive(app, view_2)){
+            panel_swap_children(app, parent);
+            break;
         }
-        else{
-            i64 p1 = view_get_cursor_pos(app, view1);
-            i64 m1 = view_get_mark_pos(app, view1);
-            Buffer_Scroll sc1 = view_get_buffer_scroll(app, view1);
-            i64 p2 = view_get_cursor_pos(app, view2);
-            i64 m2 = view_get_mark_pos(app, view2);
-            Buffer_Scroll sc2 = view_get_buffer_scroll(app, view2);
-            
-            view_set_cursor_and_preferred_x(app, view1, seek_pos(p2));
-            view_set_mark(app, view1, seek_pos(m2));
-            view_set_buffer_scroll(app, view1, sc2, SetBufferScroll_SnapCursorIntoView);
-            view_set_cursor_and_preferred_x(app, view2, seek_pos(p1));
-            view_set_mark(app, view2, seek_pos(m1));
-            view_set_buffer_scroll(app, view2, sc1, SetBufferScroll_SnapCursorIntoView);
-        }
+        
+        parent = panel_get_parent(app, parent);
     }
 }
 

@@ -1,16 +1,15 @@
 /*
-4coder_default_framework.cpp - Sets up the basics of the framework that is used for default 
-4coder behaviour.
+4coder_default_framework.cpp - Sets up the basics of the framework that is used for default 4coder behaviour.
 */
 
 // TOP
 
-static void
+function void
 unlock_jump_buffer(void){
     locked_buffer.size = 0;
 }
 
-static void
+function void
 lock_jump_buffer(Application_Links *app, String_Const_u8 name){
     if (name.size < sizeof(locked_buffer_space)){
         block_copy(locked_buffer_space, name.str, name.size);
@@ -22,12 +21,12 @@ lock_jump_buffer(Application_Links *app, String_Const_u8 name){
     }
 }
 
-static void
+function void
 lock_jump_buffer(Application_Links *app, char *name, i32 size){
     lock_jump_buffer(app, SCu8(name, size));
 }
 
-static void
+function void
 lock_jump_buffer(Application_Links *app, Buffer_ID buffer_id){
     Scratch_Block scratch(app);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer_id);
@@ -46,7 +45,7 @@ get_locked_jump_buffer(Application_Links *app){
     return(result);
 }
 
-static View_ID
+function View_ID
 get_view_for_locked_jump_buffer(Application_Links *app){
     View_ID result = 0;
     Buffer_ID buffer = get_locked_jump_buffer(app);
@@ -58,7 +57,7 @@ get_view_for_locked_jump_buffer(Application_Links *app){
 
 ////////////////////////////////
 
-static void
+function void
 new_view_settings(Application_Links *app, View_ID view){
     if (!global_config.use_scroll_bars){
         view_set_setting(app, view, ViewSetting_ShowScrollbar, false);
@@ -70,21 +69,27 @@ new_view_settings(Application_Links *app, View_ID view){
 
 ////////////////////////////////
 
-static void
+function void
 view_set_passive(Application_Links *app, View_ID view_id, b32 value){
     Managed_Scope scope = view_get_managed_scope(app, view_id);
     b32 *is_passive = scope_attachment(app, scope, view_is_passive_loc, b32);
-    *is_passive = value;
+    if (is_passive != 0){
+        *is_passive = value;
+    }
 }
 
-static b32
+function b32
 view_get_is_passive(Application_Links *app, View_ID view_id){
     Managed_Scope scope = view_get_managed_scope(app, view_id);
     b32 *is_passive = scope_attachment(app, scope, view_is_passive_loc, b32);
-    return(*is_passive);
+    b32 result = false;
+    if (is_passive != 0){
+        result = *is_passive;
+    }
+    return(result);
 }
 
-static View_ID
+function View_ID
 open_footer_panel(Application_Links *app, View_ID view){
     View_ID special_view = open_view(app, view, ViewSplit_Bottom);
     new_view_settings(app, special_view);
@@ -96,7 +101,7 @@ open_footer_panel(Application_Links *app, View_ID view){
     return(special_view);
 }
 
-static void
+function void
 close_build_footer_panel(Application_Links *app){
     if (build_footer_panel_view_id != 0){
         view_close(app, build_footer_panel_view_id);
@@ -104,7 +109,7 @@ close_build_footer_panel(Application_Links *app){
     }
 }
 
-static View_ID
+function View_ID
 open_build_footer_panel(Application_Links *app){
     if (build_footer_panel_view_id == 0){
         View_ID view = get_active_view(app, Access_Always);
@@ -114,7 +119,7 @@ open_build_footer_panel(Application_Links *app){
     return(build_footer_panel_view_id);
 }
 
-static View_ID
+function View_ID
 get_next_view_looped_primary_panels(Application_Links *app, View_ID start_view_id, Access_Flag access){
     View_ID view_id = start_view_id;
     do{
@@ -126,7 +131,7 @@ get_next_view_looped_primary_panels(Application_Links *app, View_ID start_view_i
     return(view_id);
 }
 
-static View_ID
+function View_ID
 get_prev_view_looped_primary_panels(Application_Links *app, View_ID start_view_id, Access_Flag access){
     View_ID view_id = start_view_id;
     do{
@@ -138,7 +143,7 @@ get_prev_view_looped_primary_panels(Application_Links *app, View_ID start_view_i
     return(view_id);
 }
 
-static View_ID
+function View_ID
 get_next_view_after_active(Application_Links *app, Access_Flag access){
     View_ID view = get_active_view(app, access);
     if (view != 0){
@@ -149,7 +154,7 @@ get_next_view_after_active(Application_Links *app, Access_Flag access){
 
 ////////////////////////////////
 
-static void
+function void
 call_after_ctx_shutdown(Application_Links *app, View_ID view, Custom_Command_Function *func){
     view_enqueue_command_function(app, view, func);
 }
@@ -213,7 +218,7 @@ ui_fallback_command_dispatch(Application_Links *app, View_ID view, User_Input *i
 
 ////////////////////////////////
 
-static void
+function void
 view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
     if (count > 0){
         Scratch_Block scratch(app, Scratch_Share);
@@ -316,7 +321,7 @@ CUSTOM_DOC("Create a new panel by horizontally splitting the active panel.")
 
 // NOTE(allen): Credits to nj/FlyingSolomon for authoring the original version of this helper.
 
-static Buffer_ID
+function Buffer_ID
 create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Const_u8 name_string, View_ID default_target_view){
     Buffer_ID search_buffer = get_buffer_by_name(app, name_string, Access_Always);
     if (search_buffer != 0){
@@ -423,7 +428,7 @@ CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect 
 
 ////////////////////////////////
 
-static void
+function void
 default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_names,
                           i32 override_font_size, b32 override_hinting){
     Thread_Context *tctx = get_thread_context(app);
@@ -431,12 +436,12 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     
 #define M \
     "Welcome to " VERSION "\n" \
-    "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n" \
-    "Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n" \
-    "Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n" \
-    "The change log can be found in CHANGES.txt\n" \
-    "\n"
-    print_message(app, string_u8_litexpr(M));
+        "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n" \
+        "Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n" \
+        "Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n" \
+        "The change log can be found in CHANGES.txt\n" \
+        "\n"
+        print_message(app, string_u8_litexpr(M));
 #undef M
     
 #if 0
@@ -479,14 +484,14 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     }
 }
 
-static void
+function void
 default_4coder_initialize(Application_Links *app,
                           i32 override_font_size, b32 override_hinting){
     String_Const_u8_Array file_names = {};
     default_4coder_initialize(app, file_names, override_font_size, override_hinting);
 }
 
-static void
+function void
 default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_names){
     Face_Description description = get_face_description(app, 0);
     default_4coder_initialize(app, file_names,
@@ -494,14 +499,14 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
                               description.parameters.hinting);
 }
 
-static void
+function void
 default_4coder_initialize(Application_Links *app){
     Face_Description command_line_description = get_face_description(app, 0);
     String_Const_u8_Array file_names = {};
     default_4coder_initialize(app, file_names, command_line_description.parameters.pt_size, command_line_description.parameters.hinting);
 }
 
-static void
+function void
 default_4coder_side_by_side_panels(Application_Links *app,
                                    Buffer_Identifier left, Buffer_Identifier right){
     Buffer_ID left_id = buffer_identifier_to_id(app, left);
@@ -521,7 +526,7 @@ default_4coder_side_by_side_panels(Application_Links *app,
     view_set_active(app, view);
 }
 
-static void
+function void
 default_4coder_side_by_side_panels(Application_Links *app,
                                    Buffer_Identifier left, Buffer_Identifier right,
                                    String_Const_u8_Array file_names){
@@ -534,20 +539,20 @@ default_4coder_side_by_side_panels(Application_Links *app,
     default_4coder_side_by_side_panels(app, left, right);
 }
 
-static void
+function void
 default_4coder_side_by_side_panels(Application_Links *app, String_Const_u8_Array file_names){
     Buffer_Identifier left = buffer_identifier(string_u8_litexpr("*scratch*"));
     Buffer_Identifier right = buffer_identifier(string_u8_litexpr("*messages*"));
     default_4coder_side_by_side_panels(app, left, right, file_names);
 }
 
-static void
+function void
 default_4coder_side_by_side_panels(Application_Links *app){
     String_Const_u8_Array file_names = {};
     default_4coder_side_by_side_panels(app, file_names);
 }
 
-static void
+function void
 default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
     Buffer_ID id = buffer_identifier_to_id(app, buffer);
     View_ID view = get_active_view(app, Access_Always);
@@ -555,7 +560,7 @@ default_4coder_one_panel(Application_Links *app, Buffer_Identifier buffer){
     view_set_buffer(app, view, id, 0);
 }
 
-static void
+function void
 default_4coder_one_panel(Application_Links *app, String_Const_u8_Array file_names){
     Buffer_Identifier buffer = buffer_identifier(string_u8_litexpr("*messages*"));
     if (file_names.count > 0){
@@ -564,7 +569,7 @@ default_4coder_one_panel(Application_Links *app, String_Const_u8_Array file_name
     default_4coder_one_panel(app, buffer);
 }
 
-static void
+function void
 default_4coder_one_panel(Application_Links *app){
     String_Const_u8_Array file_names = {};
     default_4coder_one_panel(app, file_names);

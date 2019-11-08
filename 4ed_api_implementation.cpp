@@ -1289,11 +1289,9 @@ panel_split(Application_Links *app, Panel_ID panel_id, Dimension split_dim){
     Panel *panel = imp_get_panel(models, panel_id);
     if (api_check_panel(panel)){
         Panel *new_panel = 0;
-        if (layout_split_panel(layout, panel, (split_dim == Dimension_X),
-                               &new_panel)){
+        if (layout_split_panel(layout, panel, (split_dim == Dimension_X), &new_panel)){
             Live_Views *view_set = &models->view_set;
-            View *new_view = live_set_alloc_view(&models->lifetime_allocator,
-                                                 view_set, new_panel);
+            View *new_view = live_set_alloc_view(&models->lifetime_allocator, view_set, new_panel);
             view_init(app->tctx, models, new_view, models->scratch_buffer,
                       models->view_event_handler);
             result = true;
@@ -1338,7 +1336,7 @@ panel_set_split(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind
 }
 
 api(custom) function b32
-panel_swap_children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind kind, float t){
+panel_swap_children(Application_Links *app, Panel_ID panel_id){
     Models *models = (Models*)app->cmd_context;
     Layout *layout = &models->layout;
     b32 result = false;
@@ -1350,6 +1348,14 @@ panel_swap_children(Application_Links *app, Panel_ID panel_id, Panel_Split_Kind 
         }
     }
     return(result);
+}
+
+api(custom) function Panel_ID
+panel_get_root(Application_Links *app){
+    Models *models = (Models*)app->cmd_context;
+    Layout *layout = &models->layout;
+    Panel *panel = layout->root;
+    return(panel_get_id(layout, panel));
 }
 
 api(custom) function Panel_ID

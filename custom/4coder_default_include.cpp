@@ -105,6 +105,7 @@
 #include "4coder_combined_write_commands.cpp"
 #include "4coder_miblo_numbers.cpp"
 #include "4coder_profile_inspect.cpp"
+#include "4coder_tutorial.cpp"
 
 #include "4coder_default_hooks.cpp"
 
