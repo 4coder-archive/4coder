@@ -717,15 +717,6 @@ CUSTOM_DOC("Reads the state of the mouse wheel and uses it to either increase or
     }
 }
 
-CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
-CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
-{
-    View_ID view = get_active_view(app, Access_ReadVisible);
-    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
-    (void)buffer;
-    NotImplemented;
-}
-
 CUSTOM_COMMAND_SIG(toggle_show_whitespace)
 CUSTOM_DOC("Toggles the current buffer's whitespace visibility status.")
 {

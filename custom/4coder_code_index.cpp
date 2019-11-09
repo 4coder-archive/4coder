@@ -769,12 +769,15 @@ layout_index_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID bu
     return(list);
 }
 
+
+
 function Layout_Item_List
 layout_virt_indent_index_unwrapped(Application_Links *app, Arena *arena,
                                    Buffer_ID buffer, Range_i64 range, Face_ID face,
                                    f32 width){
     Layout_Item_List result = {};
     
+    if (global_config.enable_virtual_whitespace){
     code_index_lock();
     Code_Index_File *file = code_index_get_file(buffer);
     if (file != 0){
@@ -784,8 +787,24 @@ layout_virt_indent_index_unwrapped(Application_Links *app, Arena *arena,
     if (file == 0){
         result = layout_virt_indent_literal_unwrapped(app, arena, buffer, range, face, width);
     }
+    }
+    else{
+        result = layout_wrap_whitespace(app, arena, buffer, range, face, width);
+    }
     
     return(result);
+}
+
+CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
+CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
+{
+    global_config.enable_virtual_whitespace = !global_config.enable_virtual_whitespace;
+    
+    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
+         buffer != 0;
+         buffer = get_buffer_next(app, buffer, Access_Always)){
+        buffer_clear_layout_cache(app, buffer);
+    }
 }
 
 // BOTTOM

@@ -19,6 +19,7 @@ CUSTOM_COMMAND_SIG(seek_beginning_of_line);
 CUSTOM_COMMAND_SIG(seek_end_of_line);
 CUSTOM_COMMAND_SIG(goto_beginning_of_file);
 CUSTOM_COMMAND_SIG(goto_end_of_file);
+CUSTOM_COMMAND_SIG(toggle_virtual_whitespace);
 CUSTOM_COMMAND_SIG(change_active_panel);
 CUSTOM_COMMAND_SIG(change_active_panel_backwards);
 CUSTOM_COMMAND_SIG(open_panel_vsplit);
@@ -91,7 +92,6 @@ CUSTOM_COMMAND_SIG(toggle_fps_meter);
 CUSTOM_COMMAND_SIG(increase_face_size);
 CUSTOM_COMMAND_SIG(decrease_face_size);
 CUSTOM_COMMAND_SIG(mouse_wheel_change_face_size);
-CUSTOM_COMMAND_SIG(toggle_virtual_whitespace);
 CUSTOM_COMMAND_SIG(toggle_show_whitespace);
 CUSTOM_COMMAND_SIG(toggle_line_numbers);
 CUSTOM_COMMAND_SIG(exit_4coder);
@@ -222,7 +222,7 @@ CUSTOM_COMMAND_SIG(miblo_increment_time_stamp_minute);
 CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp_minute);
 CUSTOM_COMMAND_SIG(profile_inspect);
 CUSTOM_COMMAND_SIG(kill_tutorial);
-CUSTOM_COMMAND_SIG(default_4coder_tutorial);
+CUSTOM_COMMAND_SIG(hms_demo_tutorial);
 CUSTOM_COMMAND_SIG(default_startup);
 CUSTOM_COMMAND_SIG(default_try_exit);
 #endif
@@ -248,6 +248,7 @@ static Command_Metadata fcoder_metacmd_table[216] = {
 { PROC_LINKS(seek_end_of_line, 0), false, "seek_end_of_line", 16, "Seeks the cursor to the end of the visual line.", 47, "w:\\4ed\\code\\custom\\4coder_helper.cpp", 36, 2175 },
 { PROC_LINKS(goto_beginning_of_file, 0), false, "goto_beginning_of_file", 22, "Sets the cursor to the beginning of the file.", 45, "w:\\4ed\\code\\custom\\4coder_helper.cpp", 36, 2181 },
 { PROC_LINKS(goto_end_of_file, 0), false, "goto_end_of_file", 16, "Sets the cursor to the end of the file.", 39, "w:\\4ed\\code\\custom\\4coder_helper.cpp", 36, 2189 },
+{ PROC_LINKS(toggle_virtual_whitespace, 0), false, "toggle_virtual_whitespace", 25, "Toggles the current buffer's virtual whitespace status.", 55, "w:\\4ed\\code\\custom\\4coder_code_index.cpp", 40, 798 },
 { PROC_LINKS(change_active_panel, 0), false, "change_active_panel", 19, "Change the currently active panel, moving to the panel with the next highest view_id.", 85, "w:\\4ed\\code\\custom\\4coder_default_framework.cpp", 47, 284 },
 { PROC_LINKS(change_active_panel_backwards, 0), false, "change_active_panel_backwards", 29, "Change the currently active panel, moving to the panel with the next lowest view_id.", 84, "w:\\4ed\\code\\custom\\4coder_default_framework.cpp", 47, 290 },
 { PROC_LINKS(open_panel_vsplit, 0), false, "open_panel_vsplit", 17, "Create a new panel by vertically splitting the active panel.", 60, "w:\\4ed\\code\\custom\\4coder_default_framework.cpp", 47, 300 },
@@ -320,43 +321,42 @@ static Command_Metadata fcoder_metacmd_table[216] = {
 { PROC_LINKS(increase_face_size, 0), false, "increase_face_size", 18, "Increase the size of the face used by the current buffer.", 57, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 681 },
 { PROC_LINKS(decrease_face_size, 0), false, "decrease_face_size", 18, "Decrease the size of the face used by the current buffer.", 57, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 692 },
 { PROC_LINKS(mouse_wheel_change_face_size, 0), false, "mouse_wheel_change_face_size", 28, "Reads the state of the mouse wheel and uses it to either increase or decrease the face size.", 92, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 703 },
-{ PROC_LINKS(toggle_virtual_whitespace, 0), false, "toggle_virtual_whitespace", 25, "Toggles the current buffer's virtual whitespace status.", 55, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 720 },
-{ PROC_LINKS(toggle_show_whitespace, 0), false, "toggle_show_whitespace", 22, "Toggles the current buffer's whitespace visibility status.", 58, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 729 },
-{ PROC_LINKS(toggle_line_numbers, 0), false, "toggle_line_numbers", 19, "Toggles the left margin line numbers.", 37, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 738 },
-{ PROC_LINKS(exit_4coder, 0), false, "exit_4coder", 11, "Attempts to close 4coder.", 25, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 744 },
-{ PROC_LINKS(goto_line, 0), false, "goto_line", 9, "Queries the user for a number, and jumps the cursor to the corresponding line.", 78, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 752 },
-{ PROC_LINKS(search, 0), false, "search", 6, "Begins an incremental search down through the current buffer for a user specified string.", 89, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 980 },
-{ PROC_LINKS(reverse_search, 0), false, "reverse_search", 14, "Begins an incremental search up through the current buffer for a user specified string.", 87, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 986 },
-{ PROC_LINKS(search_identifier, 0), false, "search_identifier", 17, "Begins an incremental search down through the current buffer for the word or token under the cursor.", 100, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 992 },
-{ PROC_LINKS(reverse_search_identifier, 0), false, "reverse_search_identifier", 25, "Begins an incremental search up through the current buffer for the word or token under the cursor.", 98, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 998 },
-{ PROC_LINKS(replace_in_range, 0), false, "replace_in_range", 16, "Queries the user for a needle and string. Replaces all occurences of needle with string in the range between cursor and the mark in the active buffer.", 150, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1045 },
-{ PROC_LINKS(replace_in_buffer, 0), false, "replace_in_buffer", 17, "Queries the user for a needle and string. Replaces all occurences of needle with string in the active buffer.", 109, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1054 },
-{ PROC_LINKS(replace_in_all_buffers, 0), false, "replace_in_all_buffers", 22, "Queries the user for a needle and string. Replaces all occurences of needle with string in all editable buffers.", 112, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1063 },
-{ PROC_LINKS(query_replace, 0), false, "query_replace", 13, "Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.", 120, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1153 },
-{ PROC_LINKS(query_replace_identifier, 0), false, "query_replace_identifier", 24, "Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.", 140, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1174 },
-{ PROC_LINKS(query_replace_selection, 0), false, "query_replace_selection", 23, "Queries the user for a string, and incrementally replace every occurence of the string found in the selected range with the specified string.", 141, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1190 },
-{ PROC_LINKS(save_all_dirty_buffers, 0), false, "save_all_dirty_buffers", 22, "Saves all buffers marked dirty (showing the '*' indicator).", 59, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1226 },
-{ PROC_LINKS(delete_file_query, 0), false, "delete_file_query", 17, "Deletes the file of the current buffer if 4coder has the appropriate access rights. Will ask the user for confirmation first.", 125, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1251 },
-{ PROC_LINKS(save_to_query, 0), false, "save_to_query", 13, "Queries the user for a file name and saves the contents of the current buffer, altering the buffer's name too.", 110, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1295 },
-{ PROC_LINKS(rename_file_query, 0), false, "rename_file_query", 17, "Queries the user for a new name and renames the file of the current buffer, altering the buffer's name too.", 107, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1328 },
-{ PROC_LINKS(make_directory_query, 0), false, "make_directory_query", 20, "Queries the user for a name and creates a new directory with the given name.", 76, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1366 },
-{ PROC_LINKS(move_line_up, 0), false, "move_line_up", 12, "Swaps the line under the cursor with the line above it, and moves the cursor up with it.", 88, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1400 },
-{ PROC_LINKS(move_line_down, 0), false, "move_line_down", 14, "Swaps the line under the cursor with the line below it, and moves the cursor down with it.", 90, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1406 },
-{ PROC_LINKS(duplicate_line, 0), false, "duplicate_line", 14, "Create a copy of the line on which the cursor sits.", 51, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1412 },
-{ PROC_LINKS(delete_line, 0), false, "delete_line", 11, "Delete the line the on which the cursor sits.", 45, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1426 },
-{ PROC_LINKS(open_file_in_quotes, 0), false, "open_file_in_quotes", 19, "Reads a filename from surrounding '\"' characters and attempts to open the corresponding file.", 94, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1491 },
-{ PROC_LINKS(open_matching_file_cpp, 0), false, "open_matching_file_cpp", 22, "If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.", 110, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1523 },
-{ PROC_LINKS(view_buffer_other_panel, 0), false, "view_buffer_other_panel", 23, "Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.", 104, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1536 },
-{ PROC_LINKS(swap_panels, 0), false, "swap_panels", 11, "Swaps the active panel with it's sibling.", 41, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1548 },
-{ PROC_LINKS(kill_buffer, 0), false, "kill_buffer", 11, "Kills the current buffer.", 25, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1572 },
-{ PROC_LINKS(save, 0), false, "save", 4, "Saves the current buffer.", 25, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1580 },
-{ PROC_LINKS(reopen, 0), false, "reopen", 6, "Reopen the current buffer from the hard drive.", 46, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1590 },
-{ PROC_LINKS(undo, 0), false, "undo", 4, "Advances backwards through the undo history of the current buffer.", 66, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1815 },
-{ PROC_LINKS(redo, 0), false, "redo", 4, "Advances forwards through the undo history of the current buffer.", 65, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1828 },
-{ PROC_LINKS(undo_all_buffers, 0), false, "undo_all_buffers", 16, "Advances backward through the undo history in the buffer containing the most recent regular edit.", 97, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1842 },
-{ PROC_LINKS(redo_all_buffers, 0), false, "redo_all_buffers", 16, "Advances forward through the undo history in the buffer containing the most recent regular edit.", 96, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1913 },
-{ PROC_LINKS(open_in_other, 0), false, "open_in_other", 13, "Interactively opens a file in the other panel.", 46, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 2014 },
-{ PROC_LINKS(default_file_externally_modified, 0), false, "default_file_externally_modified", 32, "Notes the external modification of attached files by printing a message.", 72, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 2020 },
+{ PROC_LINKS(toggle_show_whitespace, 0), false, "toggle_show_whitespace", 22, "Toggles the current buffer's whitespace visibility status.", 58, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 720 },
+{ PROC_LINKS(toggle_line_numbers, 0), false, "toggle_line_numbers", 19, "Toggles the left margin line numbers.", 37, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 729 },
+{ PROC_LINKS(exit_4coder, 0), false, "exit_4coder", 11, "Attempts to close 4coder.", 25, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 735 },
+{ PROC_LINKS(goto_line, 0), false, "goto_line", 9, "Queries the user for a number, and jumps the cursor to the corresponding line.", 78, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 743 },
+{ PROC_LINKS(search, 0), false, "search", 6, "Begins an incremental search down through the current buffer for a user specified string.", 89, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 971 },
+{ PROC_LINKS(reverse_search, 0), false, "reverse_search", 14, "Begins an incremental search up through the current buffer for a user specified string.", 87, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 977 },
+{ PROC_LINKS(search_identifier, 0), false, "search_identifier", 17, "Begins an incremental search down through the current buffer for the word or token under the cursor.", 100, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 983 },
+{ PROC_LINKS(reverse_search_identifier, 0), false, "reverse_search_identifier", 25, "Begins an incremental search up through the current buffer for the word or token under the cursor.", 98, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 989 },
+{ PROC_LINKS(replace_in_range, 0), false, "replace_in_range", 16, "Queries the user for a needle and string. Replaces all occurences of needle with string in the range between cursor and the mark in the active buffer.", 150, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1036 },
+{ PROC_LINKS(replace_in_buffer, 0), false, "replace_in_buffer", 17, "Queries the user for a needle and string. Replaces all occurences of needle with string in the active buffer.", 109, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1045 },
+{ PROC_LINKS(replace_in_all_buffers, 0), false, "replace_in_all_buffers", 22, "Queries the user for a needle and string. Replaces all occurences of needle with string in all editable buffers.", 112, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1054 },
+{ PROC_LINKS(query_replace, 0), false, "query_replace", 13, "Queries the user for two strings, and incrementally replaces every occurence of the first string with the second string.", 120, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1144 },
+{ PROC_LINKS(query_replace_identifier, 0), false, "query_replace_identifier", 24, "Queries the user for a string, and incrementally replace every occurence of the word or token found at the cursor with the specified string.", 140, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1165 },
+{ PROC_LINKS(query_replace_selection, 0), false, "query_replace_selection", 23, "Queries the user for a string, and incrementally replace every occurence of the string found in the selected range with the specified string.", 141, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1181 },
+{ PROC_LINKS(save_all_dirty_buffers, 0), false, "save_all_dirty_buffers", 22, "Saves all buffers marked dirty (showing the '*' indicator).", 59, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1217 },
+{ PROC_LINKS(delete_file_query, 0), false, "delete_file_query", 17, "Deletes the file of the current buffer if 4coder has the appropriate access rights. Will ask the user for confirmation first.", 125, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1242 },
+{ PROC_LINKS(save_to_query, 0), false, "save_to_query", 13, "Queries the user for a file name and saves the contents of the current buffer, altering the buffer's name too.", 110, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1286 },
+{ PROC_LINKS(rename_file_query, 0), false, "rename_file_query", 17, "Queries the user for a new name and renames the file of the current buffer, altering the buffer's name too.", 107, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1319 },
+{ PROC_LINKS(make_directory_query, 0), false, "make_directory_query", 20, "Queries the user for a name and creates a new directory with the given name.", 76, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1357 },
+{ PROC_LINKS(move_line_up, 0), false, "move_line_up", 12, "Swaps the line under the cursor with the line above it, and moves the cursor up with it.", 88, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1391 },
+{ PROC_LINKS(move_line_down, 0), false, "move_line_down", 14, "Swaps the line under the cursor with the line below it, and moves the cursor down with it.", 90, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1397 },
+{ PROC_LINKS(duplicate_line, 0), false, "duplicate_line", 14, "Create a copy of the line on which the cursor sits.", 51, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1403 },
+{ PROC_LINKS(delete_line, 0), false, "delete_line", 11, "Delete the line the on which the cursor sits.", 45, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1417 },
+{ PROC_LINKS(open_file_in_quotes, 0), false, "open_file_in_quotes", 19, "Reads a filename from surrounding '\"' characters and attempts to open the corresponding file.", 94, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1482 },
+{ PROC_LINKS(open_matching_file_cpp, 0), false, "open_matching_file_cpp", 22, "If the current file is a *.cpp or *.h, attempts to open the corresponding *.h or *.cpp file in the other view.", 110, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1514 },
+{ PROC_LINKS(view_buffer_other_panel, 0), false, "view_buffer_other_panel", 23, "Set the other non-active panel to view the buffer that the active panel views, and switch to that panel.", 104, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1527 },
+{ PROC_LINKS(swap_panels, 0), false, "swap_panels", 11, "Swaps the active panel with it's sibling.", 41, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1539 },
+{ PROC_LINKS(kill_buffer, 0), false, "kill_buffer", 11, "Kills the current buffer.", 25, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1563 },
+{ PROC_LINKS(save, 0), false, "save", 4, "Saves the current buffer.", 25, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1571 },
+{ PROC_LINKS(reopen, 0), false, "reopen", 6, "Reopen the current buffer from the hard drive.", 46, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1581 },
+{ PROC_LINKS(undo, 0), false, "undo", 4, "Advances backwards through the undo history of the current buffer.", 66, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1806 },
+{ PROC_LINKS(redo, 0), false, "redo", 4, "Advances forwards through the undo history of the current buffer.", 65, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1819 },
+{ PROC_LINKS(undo_all_buffers, 0), false, "undo_all_buffers", 16, "Advances backward through the undo history in the buffer containing the most recent regular edit.", 97, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1833 },
+{ PROC_LINKS(redo_all_buffers, 0), false, "redo_all_buffers", 16, "Advances forward through the undo history in the buffer containing the most recent regular edit.", 96, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 1904 },
+{ PROC_LINKS(open_in_other, 0), false, "open_in_other", 13, "Interactively opens a file in the other panel.", 46, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 2005 },
+{ PROC_LINKS(default_file_externally_modified, 0), false, "default_file_externally_modified", 32, "Notes the external modification of attached files by printing a message.", 72, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 2011 },
 { PROC_LINKS(set_eol_mode_to_crlf, 0), false, "set_eol_mode_to_crlf", 20, "Puts the buffer in crlf line ending mode.", 41, "w:\\4ed\\code\\custom\\4coder_eol.cpp", 33, 86 },
 { PROC_LINKS(set_eol_mode_to_lf, 0), false, "set_eol_mode_to_lf", 18, "Puts the buffer in lf line ending mode.", 39, "w:\\4ed\\code\\custom\\4coder_eol.cpp", 33, 97 },
 { PROC_LINKS(set_eol_mode_to_binary, 0), false, "set_eol_mode_to_binary", 22, "Puts the buffer in bin line ending mode.", 40, "w:\\4ed\\code\\custom\\4coder_eol.cpp", 33, 108 },
@@ -451,7 +451,7 @@ static Command_Metadata fcoder_metacmd_table[216] = {
 { PROC_LINKS(miblo_decrement_time_stamp_minute, 0), false, "miblo_decrement_time_stamp_minute", 33, "Decrement a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 249 },
 { PROC_LINKS(profile_inspect, 0), true, "profile_inspect", 15, "Inspect all currently collected profiling information in 4coder's self profiler.", 80, "w:\\4ed\\code\\custom\\4coder_profile_inspect.cpp", 45, 779 },
 { PROC_LINKS(kill_tutorial, 0), false, "kill_tutorial", 13, "If there is an active tutorial, kill it.", 40, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 9 },
-{ PROC_LINKS(default_4coder_tutorial, 0), false, "default_4coder_tutorial", 23, "Tutorial for built in 4coder bindings and features.", 51, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 470 },
+{ PROC_LINKS(hms_demo_tutorial, 0), false, "hms_demo_tutorial", 17, "Tutorial for built in 4coder bindings and features.", 51, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 636 },
 { PROC_LINKS(default_startup, 0), false, "default_startup", 15, "Default command for responding to a startup event", 49, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 7 },
 { PROC_LINKS(default_try_exit, 0), false, "default_try_exit", 16, "Default command for responding to a try-exit event", 50, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 22 },
 };
@@ -465,79 +465,79 @@ static i32 fcoder_metacmd_ID_seek_beginning_of_line = 6;
 static i32 fcoder_metacmd_ID_seek_end_of_line = 7;
 static i32 fcoder_metacmd_ID_goto_beginning_of_file = 8;
 static i32 fcoder_metacmd_ID_goto_end_of_file = 9;
-static i32 fcoder_metacmd_ID_change_active_panel = 10;
-static i32 fcoder_metacmd_ID_change_active_panel_backwards = 11;
-static i32 fcoder_metacmd_ID_open_panel_vsplit = 12;
-static i32 fcoder_metacmd_ID_open_panel_hsplit = 13;
-static i32 fcoder_metacmd_ID_suppress_mouse = 14;
-static i32 fcoder_metacmd_ID_allow_mouse = 15;
-static i32 fcoder_metacmd_ID_toggle_mouse = 16;
-static i32 fcoder_metacmd_ID_set_mode_to_original = 17;
-static i32 fcoder_metacmd_ID_set_mode_to_notepad_like = 18;
-static i32 fcoder_metacmd_ID_toggle_highlight_line_at_cursor = 19;
-static i32 fcoder_metacmd_ID_toggle_highlight_enclosing_scopes = 20;
-static i32 fcoder_metacmd_ID_toggle_paren_matching_helper = 21;
-static i32 fcoder_metacmd_ID_toggle_fullscreen = 22;
-static i32 fcoder_metacmd_ID_write_text_input = 23;
-static i32 fcoder_metacmd_ID_write_space = 24;
-static i32 fcoder_metacmd_ID_write_underscore = 25;
-static i32 fcoder_metacmd_ID_delete_char = 26;
-static i32 fcoder_metacmd_ID_backspace_char = 27;
-static i32 fcoder_metacmd_ID_set_mark = 28;
-static i32 fcoder_metacmd_ID_cursor_mark_swap = 29;
-static i32 fcoder_metacmd_ID_delete_range = 30;
-static i32 fcoder_metacmd_ID_backspace_alpha_numeric_boundary = 31;
-static i32 fcoder_metacmd_ID_delete_alpha_numeric_boundary = 32;
-static i32 fcoder_metacmd_ID_snipe_backward_whitespace_or_token_boundary = 33;
-static i32 fcoder_metacmd_ID_snipe_forward_whitespace_or_token_boundary = 34;
-static i32 fcoder_metacmd_ID_center_view = 35;
-static i32 fcoder_metacmd_ID_left_adjust_view = 36;
-static i32 fcoder_metacmd_ID_click_set_cursor_and_mark = 37;
-static i32 fcoder_metacmd_ID_click_set_cursor = 38;
-static i32 fcoder_metacmd_ID_click_set_cursor_if_lbutton = 39;
-static i32 fcoder_metacmd_ID_click_set_mark = 40;
-static i32 fcoder_metacmd_ID_mouse_wheel_scroll = 41;
-static i32 fcoder_metacmd_ID_move_up = 42;
-static i32 fcoder_metacmd_ID_move_down = 43;
-static i32 fcoder_metacmd_ID_move_up_10 = 44;
-static i32 fcoder_metacmd_ID_move_down_10 = 45;
-static i32 fcoder_metacmd_ID_move_down_textual = 46;
-static i32 fcoder_metacmd_ID_page_up = 47;
-static i32 fcoder_metacmd_ID_page_down = 48;
-static i32 fcoder_metacmd_ID_move_up_to_blank_line = 49;
-static i32 fcoder_metacmd_ID_move_down_to_blank_line = 50;
-static i32 fcoder_metacmd_ID_move_up_to_blank_line_skip_whitespace = 51;
-static i32 fcoder_metacmd_ID_move_down_to_blank_line_skip_whitespace = 52;
-static i32 fcoder_metacmd_ID_move_up_to_blank_line_end = 53;
-static i32 fcoder_metacmd_ID_move_down_to_blank_line_end = 54;
-static i32 fcoder_metacmd_ID_move_left = 55;
-static i32 fcoder_metacmd_ID_move_right = 56;
-static i32 fcoder_metacmd_ID_move_right_whitespace_boundary = 57;
-static i32 fcoder_metacmd_ID_move_left_whitespace_boundary = 58;
-static i32 fcoder_metacmd_ID_move_right_token_boundary = 59;
-static i32 fcoder_metacmd_ID_move_left_token_boundary = 60;
-static i32 fcoder_metacmd_ID_move_right_whitespace_or_token_boundary = 61;
-static i32 fcoder_metacmd_ID_move_left_whitespace_or_token_boundary = 62;
-static i32 fcoder_metacmd_ID_move_right_alpha_numeric_boundary = 63;
-static i32 fcoder_metacmd_ID_move_left_alpha_numeric_boundary = 64;
-static i32 fcoder_metacmd_ID_move_right_alpha_numeric_or_camel_boundary = 65;
-static i32 fcoder_metacmd_ID_move_left_alpha_numeric_or_camel_boundary = 66;
-static i32 fcoder_metacmd_ID_select_all = 67;
-static i32 fcoder_metacmd_ID_to_uppercase = 68;
-static i32 fcoder_metacmd_ID_to_lowercase = 69;
-static i32 fcoder_metacmd_ID_clean_all_lines = 70;
-static i32 fcoder_metacmd_ID_basic_change_active_panel = 71;
-static i32 fcoder_metacmd_ID_close_panel = 72;
-static i32 fcoder_metacmd_ID_show_scrollbar = 73;
-static i32 fcoder_metacmd_ID_hide_scrollbar = 74;
-static i32 fcoder_metacmd_ID_show_filebar = 75;
-static i32 fcoder_metacmd_ID_hide_filebar = 76;
-static i32 fcoder_metacmd_ID_toggle_filebar = 77;
-static i32 fcoder_metacmd_ID_toggle_fps_meter = 78;
-static i32 fcoder_metacmd_ID_increase_face_size = 79;
-static i32 fcoder_metacmd_ID_decrease_face_size = 80;
-static i32 fcoder_metacmd_ID_mouse_wheel_change_face_size = 81;
-static i32 fcoder_metacmd_ID_toggle_virtual_whitespace = 82;
+static i32 fcoder_metacmd_ID_toggle_virtual_whitespace = 10;
+static i32 fcoder_metacmd_ID_change_active_panel = 11;
+static i32 fcoder_metacmd_ID_change_active_panel_backwards = 12;
+static i32 fcoder_metacmd_ID_open_panel_vsplit = 13;
+static i32 fcoder_metacmd_ID_open_panel_hsplit = 14;
+static i32 fcoder_metacmd_ID_suppress_mouse = 15;
+static i32 fcoder_metacmd_ID_allow_mouse = 16;
+static i32 fcoder_metacmd_ID_toggle_mouse = 17;
+static i32 fcoder_metacmd_ID_set_mode_to_original = 18;
+static i32 fcoder_metacmd_ID_set_mode_to_notepad_like = 19;
+static i32 fcoder_metacmd_ID_toggle_highlight_line_at_cursor = 20;
+static i32 fcoder_metacmd_ID_toggle_highlight_enclosing_scopes = 21;
+static i32 fcoder_metacmd_ID_toggle_paren_matching_helper = 22;
+static i32 fcoder_metacmd_ID_toggle_fullscreen = 23;
+static i32 fcoder_metacmd_ID_write_text_input = 24;
+static i32 fcoder_metacmd_ID_write_space = 25;
+static i32 fcoder_metacmd_ID_write_underscore = 26;
+static i32 fcoder_metacmd_ID_delete_char = 27;
+static i32 fcoder_metacmd_ID_backspace_char = 28;
+static i32 fcoder_metacmd_ID_set_mark = 29;
+static i32 fcoder_metacmd_ID_cursor_mark_swap = 30;
+static i32 fcoder_metacmd_ID_delete_range = 31;
+static i32 fcoder_metacmd_ID_backspace_alpha_numeric_boundary = 32;
+static i32 fcoder_metacmd_ID_delete_alpha_numeric_boundary = 33;
+static i32 fcoder_metacmd_ID_snipe_backward_whitespace_or_token_boundary = 34;
+static i32 fcoder_metacmd_ID_snipe_forward_whitespace_or_token_boundary = 35;
+static i32 fcoder_metacmd_ID_center_view = 36;
+static i32 fcoder_metacmd_ID_left_adjust_view = 37;
+static i32 fcoder_metacmd_ID_click_set_cursor_and_mark = 38;
+static i32 fcoder_metacmd_ID_click_set_cursor = 39;
+static i32 fcoder_metacmd_ID_click_set_cursor_if_lbutton = 40;
+static i32 fcoder_metacmd_ID_click_set_mark = 41;
+static i32 fcoder_metacmd_ID_mouse_wheel_scroll = 42;
+static i32 fcoder_metacmd_ID_move_up = 43;
+static i32 fcoder_metacmd_ID_move_down = 44;
+static i32 fcoder_metacmd_ID_move_up_10 = 45;
+static i32 fcoder_metacmd_ID_move_down_10 = 46;
+static i32 fcoder_metacmd_ID_move_down_textual = 47;
+static i32 fcoder_metacmd_ID_page_up = 48;
+static i32 fcoder_metacmd_ID_page_down = 49;
+static i32 fcoder_metacmd_ID_move_up_to_blank_line = 50;
+static i32 fcoder_metacmd_ID_move_down_to_blank_line = 51;
+static i32 fcoder_metacmd_ID_move_up_to_blank_line_skip_whitespace = 52;
+static i32 fcoder_metacmd_ID_move_down_to_blank_line_skip_whitespace = 53;
+static i32 fcoder_metacmd_ID_move_up_to_blank_line_end = 54;
+static i32 fcoder_metacmd_ID_move_down_to_blank_line_end = 55;
+static i32 fcoder_metacmd_ID_move_left = 56;
+static i32 fcoder_metacmd_ID_move_right = 57;
+static i32 fcoder_metacmd_ID_move_right_whitespace_boundary = 58;
+static i32 fcoder_metacmd_ID_move_left_whitespace_boundary = 59;
+static i32 fcoder_metacmd_ID_move_right_token_boundary = 60;
+static i32 fcoder_metacmd_ID_move_left_token_boundary = 61;
+static i32 fcoder_metacmd_ID_move_right_whitespace_or_token_boundary = 62;
+static i32 fcoder_metacmd_ID_move_left_whitespace_or_token_boundary = 63;
+static i32 fcoder_metacmd_ID_move_right_alpha_numeric_boundary = 64;
+static i32 fcoder_metacmd_ID_move_left_alpha_numeric_boundary = 65;
+static i32 fcoder_metacmd_ID_move_right_alpha_numeric_or_camel_boundary = 66;
+static i32 fcoder_metacmd_ID_move_left_alpha_numeric_or_camel_boundary = 67;
+static i32 fcoder_metacmd_ID_select_all = 68;
+static i32 fcoder_metacmd_ID_to_uppercase = 69;
+static i32 fcoder_metacmd_ID_to_lowercase = 70;
+static i32 fcoder_metacmd_ID_clean_all_lines = 71;
+static i32 fcoder_metacmd_ID_basic_change_active_panel = 72;
+static i32 fcoder_metacmd_ID_close_panel = 73;
+static i32 fcoder_metacmd_ID_show_scrollbar = 74;
+static i32 fcoder_metacmd_ID_hide_scrollbar = 75;
+static i32 fcoder_metacmd_ID_show_filebar = 76;
+static i32 fcoder_metacmd_ID_hide_filebar = 77;
+static i32 fcoder_metacmd_ID_toggle_filebar = 78;
+static i32 fcoder_metacmd_ID_toggle_fps_meter = 79;
+static i32 fcoder_metacmd_ID_increase_face_size = 80;
+static i32 fcoder_metacmd_ID_decrease_face_size = 81;
+static i32 fcoder_metacmd_ID_mouse_wheel_change_face_size = 82;
 static i32 fcoder_metacmd_ID_toggle_show_whitespace = 83;
 static i32 fcoder_metacmd_ID_toggle_line_numbers = 84;
 static i32 fcoder_metacmd_ID_exit_4coder = 85;
@@ -668,7 +668,7 @@ static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 209;
 static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 210;
 static i32 fcoder_metacmd_ID_profile_inspect = 211;
 static i32 fcoder_metacmd_ID_kill_tutorial = 212;
-static i32 fcoder_metacmd_ID_default_4coder_tutorial = 213;
+static i32 fcoder_metacmd_ID_hms_demo_tutorial = 213;
 static i32 fcoder_metacmd_ID_default_startup = 214;
 static i32 fcoder_metacmd_ID_default_try_exit = 215;
 #endif
