@@ -51,6 +51,7 @@
 #include "4coder_combined_write_commands.h"
 #include "4coder_log_parser.h"
 #include "4coder_profile_inspect.h"
+#include "4coder_tutorial.h"
 
 ////////////////////////////////
 

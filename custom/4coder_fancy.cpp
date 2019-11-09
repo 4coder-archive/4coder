@@ -689,46 +689,66 @@ draw_fancy_string(Application_Links *app, Face_ID face, FColor fore,
 
 function f32
 get_fancy_line_width(Application_Links *app, Face_ID face, Fancy_Line *line){
+    f32 result = 0.f;
+    if (line != 0){
     if (line->face != 0){
         face = line->face;
     }
-    return(get_fancy_string_width__inner(app, face, line->first));
+    result = get_fancy_string_width__inner(app, face, line->first);
+    }
+    return(result);
 }
 
 function f32
 get_fancy_line_height(Application_Links *app, Face_ID face, Fancy_Line *line){
-    if (line->face != 0){
-        face = line->face;
+    f32 result = 0.f;
+    if (line != 0){
+        if (line->face != 0){
+            face = line->face;
+        }
+        result = get_fancy_string_height__inner(app, face, line->first);
     }
-    return(get_fancy_string_height__inner(app, face, line->first));
+    return(result);
 }
 
 function f32
 get_fancy_line_text_height(Application_Links *app, Face_ID face, Fancy_Line *line){
-    if (line->face != 0){
-        face = line->face;
+    f32 result = 0.f;
+    if (line != 0){
+        if (line->face != 0){
+            face = line->face;
+        }
+        result = get_fancy_string_text_height__inner(app, face, line->first);
     }
-    return(get_fancy_string_text_height__inner(app, face, line->first));
+    return(result);
 }
 
 function Vec2_f32
 get_fancy_line_dim(Application_Links *app, Face_ID face, Fancy_Line *line){
-    if (line->face != 0){
-        face = line->face;
+    Vec2_f32 result = {};
+    if (line != 0){
+        if (line->face != 0){
+            face = line->face;
+        }
+        result = V2f32(get_fancy_string_width__inner(app, face, line->first), get_fancy_string_height__inner(app, face, line->first));
     }
-    return(V2f32(get_fancy_string_width__inner(app, face, line->first), get_fancy_string_height__inner(app, face, line->first)));
+    return(result);
 }
 
 function Vec2_f32
 draw_fancy_line(Application_Links *app, Face_ID face, FColor fore,
                 Fancy_Line *line, Vec2_f32 p, u32 flags, Vec2_f32 delta){
+    Vec2_f32 result = {};
+    if (line != 0){
     if (line->face != 0){
         face = line->face;
     }
     if (fcolor_is_valid(line->fore)){
         fore = line->fore;
     }
-    return(draw_fancy_string__inner(app, face, fore, line->first, p, flags, delta));
+        result = draw_fancy_string__inner(app, face, fore, line->first, p, flags, delta);
+    }
+    return(result);
 }
 
 function f32

@@ -450,8 +450,8 @@ static Command_Metadata fcoder_metacmd_table[216] = {
 { PROC_LINKS(miblo_increment_time_stamp_minute, 0), false, "miblo_increment_time_stamp_minute", 33, "Increment a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 243 },
 { PROC_LINKS(miblo_decrement_time_stamp_minute, 0), false, "miblo_decrement_time_stamp_minute", 33, "Decrement a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 249 },
 { PROC_LINKS(profile_inspect, 0), true, "profile_inspect", 15, "Inspect all currently collected profiling information in 4coder's self profiler.", 80, "w:\\4ed\\code\\custom\\4coder_profile_inspect.cpp", 45, 779 },
-{ PROC_LINKS(kill_tutorial, 0), false, "kill_tutorial", 13, "If in the tutorial state - kill it.", 35, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 21 },
-{ PROC_LINKS(default_4coder_tutorial, 0), false, "default_4coder_tutorial", 23, "Tutorial for built in 4coder bindings and features.", 51, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 316 },
+{ PROC_LINKS(kill_tutorial, 0), false, "kill_tutorial", 13, "If there is an active tutorial, kill it.", 40, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 9 },
+{ PROC_LINKS(default_4coder_tutorial, 0), false, "default_4coder_tutorial", 23, "Tutorial for built in 4coder bindings and features.", 51, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 470 },
 { PROC_LINKS(default_startup, 0), false, "default_startup", 15, "Default command for responding to a startup event", 49, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 7 },
 { PROC_LINKS(default_try_exit, 0), false, "default_try_exit", 16, "Default command for responding to a try-exit event", 50, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 22 },
 };
