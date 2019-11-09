@@ -2,7 +2,7 @@
 #define command_id(c) (fcoder_metacmd_ID_##c)
 #define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])
 #define command_metadata_by_id(id) (&fcoder_metacmd_table[id])
-#define command_one_past_last_id 215
+#define command_one_past_last_id 216
 #if defined(CUSTOM_COMMAND_SIG)
 #define PROC_LINKS(x,y) x
 #else
@@ -221,7 +221,8 @@ CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp);
 CUSTOM_COMMAND_SIG(miblo_increment_time_stamp_minute);
 CUSTOM_COMMAND_SIG(miblo_decrement_time_stamp_minute);
 CUSTOM_COMMAND_SIG(profile_inspect);
-CUSTOM_COMMAND_SIG(tutorial_default_4coder);
+CUSTOM_COMMAND_SIG(kill_tutorial);
+CUSTOM_COMMAND_SIG(default_4coder_tutorial);
 CUSTOM_COMMAND_SIG(default_startup);
 CUSTOM_COMMAND_SIG(default_try_exit);
 #endif
@@ -236,7 +237,7 @@ char *source_name;
 i32 source_name_len;
 i32 line_number;
 };
-static Command_Metadata fcoder_metacmd_table[215] = {
+static Command_Metadata fcoder_metacmd_table[216] = {
 { PROC_LINKS(default_view_input_handler, 0), false, "default_view_input_handler", 26, "Input consumption loop for default view behavior", 48, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 56 },
 { PROC_LINKS(profile_enable, 0), false, "profile_enable", 14, "Allow 4coder's self profiler to gather new profiling information.", 65, "w:\\4ed\\code\\custom\\4coder_profile.cpp", 37, 207 },
 { PROC_LINKS(profile_disable, 0), false, "profile_disable", 15, "Prevent 4coder's self profiler from gathering new profiling information.", 72, "w:\\4ed\\code\\custom\\4coder_profile.cpp", 37, 214 },
@@ -449,7 +450,8 @@ static Command_Metadata fcoder_metacmd_table[215] = {
 { PROC_LINKS(miblo_increment_time_stamp_minute, 0), false, "miblo_increment_time_stamp_minute", 33, "Increment a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 243 },
 { PROC_LINKS(miblo_decrement_time_stamp_minute, 0), false, "miblo_decrement_time_stamp_minute", 33, "Decrement a time stamp under the cursor by one minute. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 249 },
 { PROC_LINKS(profile_inspect, 0), true, "profile_inspect", 15, "Inspect all currently collected profiling information in 4coder's self profiler.", 80, "w:\\4ed\\code\\custom\\4coder_profile_inspect.cpp", 45, 779 },
-{ PROC_LINKS(tutorial_default_4coder, 0), false, "tutorial_default_4coder", 23, "Tutorial for built in 4coder bindings and features.", 51, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 162 },
+{ PROC_LINKS(kill_tutorial, 0), false, "kill_tutorial", 13, "If in the tutorial state - kill it.", 35, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 21 },
+{ PROC_LINKS(default_4coder_tutorial, 0), false, "default_4coder_tutorial", 23, "Tutorial for built in 4coder bindings and features.", 51, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 316 },
 { PROC_LINKS(default_startup, 0), false, "default_startup", 15, "Default command for responding to a startup event", 49, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 7 },
 { PROC_LINKS(default_try_exit, 0), false, "default_try_exit", 16, "Default command for responding to a try-exit event", 50, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 22 },
 };
@@ -665,7 +667,8 @@ static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 208;
 static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 209;
 static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 210;
 static i32 fcoder_metacmd_ID_profile_inspect = 211;
-static i32 fcoder_metacmd_ID_tutorial_default_4coder = 212;
-static i32 fcoder_metacmd_ID_default_startup = 213;
-static i32 fcoder_metacmd_ID_default_try_exit = 214;
+static i32 fcoder_metacmd_ID_kill_tutorial = 212;
+static i32 fcoder_metacmd_ID_default_4coder_tutorial = 213;
+static i32 fcoder_metacmd_ID_default_startup = 214;
+static i32 fcoder_metacmd_ID_default_try_exit = 215;
 #endif

@@ -740,5 +740,26 @@ draw_drop_down(Application_Links *app, Face_ID face, Fancy_Block *block,
     return(box);
 }
 
+function b32
+draw_button(Application_Links *app, Rect_f32 rect, Vec2_f32 mouse_p, Face_ID face, String_Const_u8 text){
+    b32 hovered = false;
+    if (rect_contains_point(rect, mouse_p)){
+        hovered = true;
+    }
+    
+    FColor margin_color = get_margin_color(hovered?UIHighlight_Active:UIHighlight_None);
+    draw_rectangle(app, rect, 3.f, margin_color);
+    rect = rect_inner(rect, 3.f);
+    draw_rectangle(app, rect, 3.f, fcolor_id(Stag_Back));
+    
+    Scratch_Block scratch(app);
+    Fancy_String *fancy = push_fancy_string(scratch, 0, face, fcolor_id(Stag_Default), text);
+    Vec2_f32 dim = get_fancy_string_dim(app, 0, fancy);
+    Vec2_f32 p = (rect.p0 + rect.p1 - dim)*0.5f;
+    draw_fancy_string(app, fancy, p);
+    
+    return(hovered);
+}
+
 // BOTTOM
 

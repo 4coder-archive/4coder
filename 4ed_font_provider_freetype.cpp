@@ -201,7 +201,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         met->ascent      = f32_ceil32(ft_face->size->metrics.ascender/64.f);
         met->descent     = f32_floor32(ft_face->size->metrics.descender/64.f);
         met->text_height = f32_ceil32(ft_face->size->metrics.height/64.f);
-        met->line_skip   = met->text_height - met->ascent + met->descent;
+        met->line_skip   = met->text_height - (met->ascent - met->descent);
         met->line_skip   = clamp_bot(1.f, met->line_skip);
         met->line_height = met->text_height + met->line_skip;
         
