@@ -357,7 +357,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     // NOTE(allen): Token colorizing
     Token_Array token_array = get_token_array_from_buffer(app, buffer);
     if (token_array.tokens != 0){
-        draw_buffer_add_cpp_token_colors(app, text_layout_id, &token_array);
+        draw_cpp_token_colors(app, text_layout_id, &token_array);
         
         // NOTE(allen): Scan for TODOs and NOTEs
         if (global_config.use_comment_keyword){
@@ -518,9 +518,7 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     }
     
     // NOTE(allen): draw the buffer
-    default_render_buffer(app, view_id, face_id,
-                          buffer, text_layout_id,
-                          region);
+    default_render_buffer(app, view_id, face_id, buffer, text_layout_id, region);
     
     text_layout_free(app, text_layout_id);
     draw_set_clip(app, prev_clip);

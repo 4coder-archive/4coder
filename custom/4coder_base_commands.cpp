@@ -6,7 +6,7 @@ moving the cursor, which work even without the default 4coder framework.
 // TOP
 
 function void
-write_character_parameter(Application_Links *app, String_Const_u8 insert){
+write_text(Application_Links *app, String_Const_u8 insert){
     ProfileScope(app, "write character");
     if (insert.str != 0 && insert.size > 0){
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
@@ -57,23 +57,23 @@ write_character_parameter(Application_Links *app, String_Const_u8 insert){
 }
 
 CUSTOM_COMMAND_SIG(write_text_input)
-CUSTOM_DOC("Inserts whatever character was used to trigger this command.")
+CUSTOM_DOC("Inserts whatever text was used to trigger this command.")
 {
     User_Input in = get_current_input(app);
     String_Const_u8 insert = to_writable(&in);
-    write_character_parameter(app, insert);
+    write_text(app, insert);
 }
 
 CUSTOM_COMMAND_SIG(write_space)
 CUSTOM_DOC("Inserts an underscore.")
 {
-    write_character_parameter(app, string_u8_litexpr(" "));
+    write_text(app, string_u8_litexpr(" "));
 }
 
 CUSTOM_COMMAND_SIG(write_underscore)
 CUSTOM_DOC("Inserts an underscore.")
 {
-    write_character_parameter(app, string_u8_litexpr("_"));
+    write_text(app, string_u8_litexpr("_"));
 }
 
 CUSTOM_COMMAND_SIG(delete_char)

@@ -459,8 +459,7 @@ run_lister(Application_Links *app, Lister *lister){
     View_Context_Block ctx_block(app, view, &ctx);
     
     for (;;){
-        User_Input in = get_next_input(app, EventPropertyGroup_Any,
-                                       EventProperty_Escape);
+        User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
         if (in.abort){
             block_zero_struct(&lister->out);
             lister->out.canceled = true;

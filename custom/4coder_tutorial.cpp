@@ -315,7 +315,7 @@ hms_demo_tutorial_long_start(Application_Links *app, Arena *arena, Fancy_Block *
     Face_ID face = get_face_id(app, 0);
     //
     line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));
-#define M "If there are any features you'd like to know about or try out, "
+#define M "If you want more information than what you can find here, please "
     push_fancy_string(arena, line, string_u8_litexpr(M));
 #undef M
     push_fancy_string(arena, line, fcolor_id(Stag_Pop2), string_u8_litexpr("ask!"));
@@ -628,7 +628,193 @@ hms_demo_tutorial_slide_6(Application_Links *app, Arena *arena){
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Auto Indentation:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
-                                   "Control", "Tab", "auto indent the lines marked by the cursor-mark range; this command only observable when virtual whitespace is off.");
+                                   "Control", "Tab", "auto indent the lines marked by the range; the effect is only visible with virtual whitespace off.");
+    
+    return(result);
+}
+
+function Tutorial_Slide
+hms_demo_tutorial_slide_7(Application_Links *app, Arena *arena){
+    Tutorial_Slide result = {};
+    
+    Face_ID face = get_face_id(app, 0);
+    tutorial_init_title_face(app);
+    
+    hms_demo_tutorial_short_details(app, arena, &result.short_details);
+    
+    Fancy_Block *long_details = &result.long_details;
+    hms_demo_tutorial_long_start(app, arena, long_details);
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Builds, scripts, and projects:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt", "M", "searches for and runs a build script (windows -> 'build.bat'; unix -> 'build.sh')");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "execute_any_cli", "queries the user for a buffer name and a system command then runs the command and pipes output to the buffer");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "execute_previous_cli", "repeats an execute_any_cli command with the same command and ouptut buffer");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("If a script/command generates output that can be parsed as jumps (e.g. compilation errors) then it becomes the active jump buffer:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt", "N", "jump to the next jump location");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt Shift", "N", "jump to the previous jump location");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt Shift", "M", "jump to the first jump");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("The project system enables rich bindings of arbitrary system scripts (when a project is loaded):"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "F#", "run a script bound to the corresponding index in the loaded project");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "project_command_lister", "use a lister to examine all system commands encoded in the loaded project");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "load_project", "searches for and loads a 'project.4coder' file");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "setup_new_project", "command to generate a new 'project.4coder' file and build scripts");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+                    string_u8_litexpr("\tCheckout 'project.4coder' to see more about what is in a project."));
+    
+    return(result);
+}
+
+function Tutorial_Slide
+hms_demo_tutorial_slide_8(Application_Links *app, Arena *arena){
+    Tutorial_Slide result = {};
+    
+    Face_ID face = get_face_id(app, 0);
+    tutorial_init_title_face(app);
+    
+    hms_demo_tutorial_short_details(app, arena, &result.short_details);
+    
+    Fancy_Block *long_details = &result.long_details;
+    hms_demo_tutorial_long_start(app, arena, long_details);
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+                    string_u8_litexpr("Probably the biggest feature in 4coder is that so many things about it can be customized."));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+                    string_u8_litexpr("The code project loaded for this demo is the 'default custom layer' everything here can be done differently as you see fit."));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+                    string_u8_litexpr("Search for these commands to see some of the features available to customization:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt", "F", "(hint!) this is the default binding for search, use it to find these functions");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "write_text_input", "the default implementation for text insertion");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "copy", "the default implementation copying to clipboard");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "goto_line", "jump to a line specified by the user (which you should try by the way!)");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "interactive_switch_buffer", "see how this command encodes it's use of a lister with the call 'get_buffer_from_user'");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "project_command_lister", "again see how this command encodes a lister with a call, this time 'get_project_command_from_user'");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "setup_default_mapping", "defines the mapping of commands to bindings");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr(""));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr("\tThe macros CUSTOM_COMMAND_SIG and CUSTOM_DOC markup the commands to create the list of all available commands."));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr("\tThis means that user written commands that use the same markup automatically appear in the command_lister along side built in commands!"));
+    
+    return(result);
+}
+
+function Tutorial_Slide
+hms_demo_tutorial_slide_9(Application_Links *app, Arena *arena){
+    Tutorial_Slide result = {};
+    
+    Face_ID face = get_face_id(app, 0);
+    tutorial_init_title_face(app);
+    
+    hms_demo_tutorial_short_details(app, arena, &result.short_details);
+    
+    Fancy_Block *long_details = &result.long_details;
+    hms_demo_tutorial_long_start(app, arena, long_details);
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+                    string_u8_litexpr("The customization system exposes much more than just commands to be customized..."));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt", "F", "(hint!) this is the default binding for search, use it to find these functions");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+                    string_u8_litexpr("Write completely custom GUIs:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "run_lister/lister_render", "the input handling loop for listers; and the render handler for listers");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "tutorial_run_loop/tutorial_render", "underlying implementation for the tutorial system powering this demo!");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+                    string_u8_litexpr("Write custom text coloring and highlighting in buffers:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "draw_cpp_token_colors", "syntax highlighting for C++ tokens.");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "draw_line_number_margin", "draws a line number margin");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "default_render_buffer", "puts together all the default markup in buffer rendering");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+                    string_u8_litexpr("Write custom line layout rules:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "layout_unwrapped_small_blank_lines", "a funky layout that makes blank lines half height");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "layout_index_unwrapped__inner", "the unwrapped version of the virtual whitespace layout logic");
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+                    string_u8_litexpr("Write custom smoothing rules that interact with buffer and UI scrolling:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "snap_delta", "a delta rule that snaps to the destination point instantly");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "fixed_time_cubic_delta", "the smooth scrolling enabled in this build");
+    
+    return(result);
+}
+
+function Tutorial_Slide
+hms_demo_tutorial_slide_10(Application_Links *app, Arena *arena){
+    Tutorial_Slide result = {};
+    
+    Face_ID face = get_face_id(app, 0);
+    tutorial_init_title_face(app);
+    
+    hms_demo_tutorial_short_details(app, arena, &result.short_details);
+    
+    Fancy_Block *long_details = &result.long_details;
+    hms_demo_tutorial_long_start(app, arena, long_details);
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+                    string_u8_litexpr("Some miscellaneous things to try:"));
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "", "Tab", "in a code file this triggers the cyclic word complete, often a handy command");
     
     return(result);
 }
@@ -649,6 +835,14 @@ CUSTOM_DOC("Tutorial for built in 4coder bindings and features.")
         hms_demo_tutorial_slide_5,
         // virtual whitespace
         hms_demo_tutorial_slide_6,
+        // system commands
+        hms_demo_tutorial_slide_7,
+        // customizable commands
+        hms_demo_tutorial_slide_8,
+        // customizable ui
+        hms_demo_tutorial_slide_9,
+        // miscellanea
+        hms_demo_tutorial_slide_10,
     };
     run_tutorial(app, slides, ArrayCount(slides));
 }

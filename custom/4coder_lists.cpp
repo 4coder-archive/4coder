@@ -416,9 +416,9 @@ do_4coder_close_user_check(Application_Links *app, View_ID view){
 CUSTOM_UI_COMMAND_SIG(interactive_switch_buffer)
 CUSTOM_DOC("Interactively switch to an open buffer.")
 {
-    View_ID view = get_active_view(app, Access_Always);
     Buffer_ID buffer = get_buffer_from_user(app, "Switch:");
     if (buffer != 0){
+    View_ID view = get_this_ctx_view(app, Access_Always);
         view_set_buffer(app, view, buffer, 0);
     }
 }
@@ -426,9 +426,9 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
 CUSTOM_UI_COMMAND_SIG(interactive_kill_buffer)
 CUSTOM_DOC("Interactively kill an open buffer.")
 {
-    View_ID view = get_active_view(app, Access_Always);
     Buffer_ID buffer = get_buffer_from_user(app, "Kill:");
     if (buffer != 0){
+        View_ID view = get_this_ctx_view(app, Access_Always);
         try_buffer_kill(app, buffer, view, 0);
     }
 }

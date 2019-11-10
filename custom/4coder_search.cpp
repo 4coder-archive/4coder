@@ -281,10 +281,7 @@ get_complete_list_raw(Application_Links *app, Arena *arena, Buffer_ID buffer,
 }
 
 function void
-word_complete_list_extend_from_raw(Application_Links *app, Arena *arena,
-                                   String_Match_List *matches,
-                                   List_String_Const_u8 *list,
-                                   Table_Data_u64 *used_table){
+word_complete_list_extend_from_raw(Application_Links *app, Arena *arena, String_Match_List *matches, List_String_Const_u8 *list, Table_Data_u64 *used_table){
     ProfileScope(app, "word complete list extend from raw");
     Scratch_Block scratch(app);
     for (String_Match *node = matches->first;

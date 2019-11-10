@@ -261,8 +261,7 @@ draw_query_bar(Application_Links *app, Query_Bar *query_bar, Face_ID face_id, Re
 }
 
 function void
-draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID face_id,
-                        Text_Layout_ID text_layout_id, Rect_f32 margin){
+draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID face_id, Text_Layout_ID text_layout_id, Rect_f32 margin){
     Rect_f32 prev_clip = draw_set_clip(app, margin);
     draw_rectangle(app, margin, 0.f, fcolor_id(Stag_Line_Numbers_Back));
     
@@ -407,7 +406,7 @@ get_token_color_cpp(Token token){
 }
 
 function void
-draw_buffer_add_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Token_Array *array){
+draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Token_Array *array){
     Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
     i64 first_index = token_index_from_pos(array, visible_range.first);
     Token_Iterator_Array it = token_iterator_index(0, array, first_index);
