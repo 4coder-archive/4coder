@@ -699,10 +699,16 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
         
         start:
         if (ptr == end_ptr){
+            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+            f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+            lr_tb_advance_x_without_item(&pos_vars, shift);
             goto finish;
         }
         
         if (!character_is_whitespace(*ptr)){
+            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+            f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+            lr_tb_advance_x_without_item(&pos_vars, shift);
             goto consuming_non_whitespace;
         }
         
@@ -768,9 +774,11 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 lr_tb_write_ghost(&pos_vars, arena, &list, index, '\\');
                 
                 lr_tb_next_line(&pos_vars);
+#if 0
                 f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
                 lr_tb_advance_x_without_item(&pos_vars, shift);
-                
+                #endif
+
                 ptr = pending_wrap_ptr;
                 pending_wrap_accumulated_w = 0.f;
                 first_of_the_line = true;
