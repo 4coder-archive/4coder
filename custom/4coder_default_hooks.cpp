@@ -955,12 +955,12 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
         buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
         buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
+        buffer_wrap_lines = managed_id_declare(app, SCu8("DEFAULT.buffer_wrap_lines"));
     }
     
     Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-    Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id,
-                                                  Command_Map_ID);
+    Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
     *map_id_ptr = map_id;
     
     Line_Ending_Kind setting = guess_line_ending_kind_from_buffer_contents(app, buffer_id);
@@ -988,34 +988,21 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         *lex_task_ptr = async_task_no_dep(&global_async_system, do_full_lex_async, make_data_struct(&buffer_id));
     }
     
-    if (wrap_lines){
+    {
+        b32 *wrap_lines_ptr = scope_attachment(app, scope, buffer_wrap_lines, b32);
+        *wrap_lines_ptr = wrap_lines;
+    }
         if (use_virtual_whitespace){
             if (use_lexer){
-                buffer_set_layout(app, buffer_id, layout_virt_indent_index_unwrapped);
-                //buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
+            buffer_set_layout(app, buffer_id, layout_virt_indent_index_generic);
             }
             else{
-                buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
+            buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
             }
         }
         else{
-            buffer_set_layout(app, buffer_id, layout_wrap_whitespace);
+            buffer_set_layout(app, buffer_id, layout_generic);
         }
-    }
-    else{
-        if (use_virtual_whitespace){
-            if (use_lexer){
-                buffer_set_layout(app, buffer_id, layout_virt_indent_index_unwrapped);
-                //buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
-            }
-            else{
-                buffer_set_layout(app, buffer_id, layout_virt_indent_literal_unwrapped);
-            }
-        }
-        else{
-            buffer_set_layout(app, buffer_id, layout_unwrapped);
-        }
-    }
     
     // no meaning for return
     return(0);

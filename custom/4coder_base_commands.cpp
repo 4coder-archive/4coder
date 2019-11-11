@@ -732,6 +732,19 @@ CUSTOM_DOC("Toggles the left margin line numbers.")
     global_config.show_line_number_margins = !global_config.show_line_number_margins;
 }
 
+CUSTOM_COMMAND_SIG(toggle_line_wrap)
+CUSTOM_DOC("Toggles the line wrap setting on this buffer.")
+{
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    b32 *wrap_lines_ptr = scope_attachment(app, scope, buffer_wrap_lines, b32);
+    if (wrap_lines_ptr != 0){
+        *wrap_lines_ptr = !(*wrap_lines_ptr);
+        buffer_clear_layout_cache(app, buffer);
+    }
+}
+
 CUSTOM_COMMAND_SIG(exit_4coder)
 CUSTOM_DOC("Attempts to close 4coder.")
 {

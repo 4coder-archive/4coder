@@ -90,7 +90,6 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     Face_ID face = get_face_id(app, 0);
     tutorial_init_title_face(app);
     Face_Metrics metrics = get_face_metrics(app, face);
-    Face_Metrics tut_metrics = get_face_metrics(app, tutorial.face);
     
     ////////
     
@@ -125,7 +124,7 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     if (is_active_view){
         if (!tutorial.is_active){
             view_enqueue_command_function(app, view_id, tutorial_activate);
-            }
+        }
     }
     else{
         if (tutorial.is_active){
@@ -152,25 +151,25 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
             Rect_f32_Pair pair = rect_split_left_right(footer, b_width);
             footer = pair.max;
             footer.x0 += 10.f;
-        if (tutorial.slide_index > 0){
-            if (draw_button(app, pair.min, m_p, face, string_u8_litexpr("prev"))){
-                tutorial.hover_action = TutorialAction_Prev;
+            if (tutorial.slide_index > 0){
+                if (draw_button(app, pair.min, m_p, face, string_u8_litexpr("prev"))){
+                    tutorial.hover_action = TutorialAction_Prev;
+                }
             }
         }
-}
         
-{
+        {
             Rect_f32_Pair pair = rect_split_left_right(footer, b_width);
             footer = pair.max;
             footer.x0 += 10.f;
-        if (tutorial.slide_index < tutorial.slide_count - 1){
-            if (draw_button(app, pair.min, m_p, face, string_u8_litexpr("next"))){
-                tutorial.hover_action = TutorialAction_Next;
+            if (tutorial.slide_index < tutorial.slide_count - 1){
+                if (draw_button(app, pair.min, m_p, face, string_u8_litexpr("next"))){
+                    tutorial.hover_action = TutorialAction_Next;
+                }
             }
         }
-        }
-
-{
+        
+        {
             Rect_f32_Pair pair = rect_split_left_right(footer, b_width);
             footer = pair.max;
             footer.x0 += 10.f;
@@ -178,16 +177,16 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
             pair = rect_split_left_right(footer, b_width);
             Rect_f32 restart_box = pair.min;
             
-        if (tutorial.slide_index == tutorial.slide_count - 1){
-            if (draw_button(app, exit_box, m_p, face, string_u8_litexpr("end"))){
-                tutorial.hover_action = TutorialAction_Exit;
-            }
-            
+            if (tutorial.slide_index == tutorial.slide_count - 1){
+                if (draw_button(app, exit_box, m_p, face, string_u8_litexpr("end"))){
+                    tutorial.hover_action = TutorialAction_Exit;
+                }
+                
                 if (draw_button(app, restart_box, m_p, face, string_u8_litexpr("restart"))){
-                tutorial.hover_action = TutorialAction_Restart;
+                    tutorial.hover_action = TutorialAction_Restart;
+                }
             }
         }
-}
     }
     else{
         draw_fancy_line(app, 0, fcolor_zero(), &slide.short_details, title_p);
@@ -214,7 +213,7 @@ tutorial_run_loop(Application_Links *app)
             break;
         }
         
-    b32 handled = true;
+        b32 handled = true;
         switch (in.event.kind){
             case InputEventKind_MouseButton:
             {
@@ -257,7 +256,7 @@ tutorial_run_loop(Application_Links *app)
                 handled = false;
             }break;
         }
-
+        
         if (!handled){
             Mapping *mapping = ctx.mapping;
             Command_Map *map = mapping_get_map(mapping, ctx.map_id);
@@ -335,7 +334,7 @@ hms_demo_tutorial_binding_line(Application_Links *app, Arena *arena, Fancy_Block
     }
     f32 pad_size = 0.f;
     if (fill_size < 40.f){
-    pad_size = 40.f - fill_size;
+        pad_size = 40.f - fill_size;
     }
     
     Fancy_Line *line = line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));

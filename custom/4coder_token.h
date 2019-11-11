@@ -61,6 +61,11 @@ struct Token{
     u16 sub_flags;
 };
 
+struct Token_Pair{
+    Token a;
+    Token b;
+};
+
 struct Token_Array{
     Token *tokens;
     i64 count;

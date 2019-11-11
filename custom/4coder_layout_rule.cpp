@@ -15,14 +15,21 @@ get_layout_reflex(Layout_Item_List *list, Buffer_ID buffer, f32 width, Face_ID f
 }
 
 function Rect_f32
-layout_reflex_get_rect(Application_Links *app, Layout_Reflex *reflex, i64 pos){
+layout_reflex_get_rect(Application_Links *app, Layout_Reflex *reflex, i64 pos, b32 *unresolved_dependence){
     Rect_f32 rect = {};
     if (range_contains(reflex->list->input_index_range, pos)){
-        rect = layout_box_of_pos(*reflex->list, pos);
+        if (range_contains(reflex->list->manifested_index_range, pos)){
+            rect = layout_box_of_pos(*reflex->list, pos);
+            *unresolved_dependence = false;
+        }
+        else{
+            *unresolved_dependence = true;
+        }
     }
     else{
     Buffer_Cursor cursor = buffer_compute_cursor(app, reflex->buffer, seek_pos(pos));
-    rect = buffer_relative_box_of_pos(app, reflex->buffer, reflex->width, reflex->face, cursor.line, cursor.pos);
+        rect = buffer_relative_box_of_pos(app, reflex->buffer, reflex->width, reflex->face, cursor.line, cursor.pos);
+        *unresolved_dependence = false;
     }
     return(rect);
 }
@@ -272,9 +279,7 @@ lr_tb_align_rightward(LefRig_TopBot_Layout_Vars *vars, f32 align_x){
 ////////////////////////////////
 
 function Layout_Item_List
-layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena,
-                                   Buffer_ID buffer, Range_i64 range, Face_ID face,
-                                   f32 width){
+layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
     Layout_Item_List list = get_empty_item_list(range);
     
     Scratch_Block scratch(app);
@@ -368,72 +373,7 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena,
 }
 
 function Layout_Item_List
-layout_unwrapped(Application_Links *app, Arena *arena, Buffer_ID buffer,
-                 Range_i64 range, Face_ID face, f32 width){
-    Layout_Item_List list = get_empty_item_list(range);
-    
-    Scratch_Block scratch(app);
-    String_Const_u8 text = push_buffer_range(app, scratch, buffer, range);
-    
-    Face_Advance_Map advance_map = get_face_advance_map(app, face);
-    Face_Metrics metrics = get_face_metrics(app, face);
-    LefRig_TopBot_Layout_Vars pos_vars = get_lr_tb_layout_vars(&advance_map, &metrics, width);
-    
-    if (text.size == 0){
-        lr_tb_write_blank(&pos_vars, arena, &list, range.first);
-    }
-    else{
-        Newline_Layout_Vars newline_vars = get_newline_layout_vars();
-        
-        u8 *ptr = text.str;
-        u8 *end_ptr = ptr + text.size;
-        for (;ptr < end_ptr;){
-            Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
-            
-            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            switch (consume.codepoint){
-                default:
-                {
-                    newline_layout_consume_default(&newline_vars);
-                    lr_tb_write(&pos_vars, arena, &list, index, consume.codepoint);
-                }break;
-                
-                case '\r':
-                {
-                    newline_layout_consume_CR(&newline_vars, index);
-                }break;
-                
-                case '\n':
-                {
-                    i64 newline_index = newline_layout_consume_LF(&newline_vars, index);
-                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
-                    lr_tb_next_line(&pos_vars);
-                }break;
-                
-                case max_u32:
-                {
-                    newline_layout_consume_default(&newline_vars);
-                    lr_tb_write_byte(&pos_vars, arena, &list, index, *ptr);
-                }break;
-            }
-            
-            ptr += consume.inc;
-        }
-        
-        if (newline_layout_consume_finish(&newline_vars)){
-            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            lr_tb_write_blank(&pos_vars, arena, &list, index);
-        }
-    }
-    
-    layout_item_list_finish(&list, -pos_vars.line_to_text_shift);
-    
-    return(list);
-}
-
-function Layout_Item_List
-layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer,
-                     Range_i64 range, Face_ID face, f32 width){
+layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
     Scratch_Block scratch(app);
     
     Layout_Item_List list = get_empty_item_list(range);
@@ -509,8 +449,84 @@ layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer,
 }
 
 function Layout_Item_List
-layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer,
-                       Range_i64 range, Face_ID face, f32 width){
+layout_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Layout_Virtual_Indent virt_indent){
+    Layout_Item_List list = get_empty_item_list(range);
+    
+    Scratch_Block scratch(app);
+    String_Const_u8 text = push_buffer_range(app, scratch, buffer, range);
+    
+    Face_Advance_Map advance_map = get_face_advance_map(app, face);
+    Face_Metrics metrics = get_face_metrics(app, face);
+    LefRig_TopBot_Layout_Vars pos_vars = get_lr_tb_layout_vars(&advance_map, &metrics, width);
+    
+    if (text.size == 0){
+        lr_tb_write_blank(&pos_vars, arena, &list, range.first);
+    }
+    else{
+        b32 skipping_leading_whitespace = (virt_indent == LayoutVirtualIndent_On);
+        Newline_Layout_Vars newline_vars = get_newline_layout_vars();
+        
+        u8 *ptr = text.str;
+        u8 *end_ptr = ptr + text.size;
+        for (;ptr < end_ptr;){
+            Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
+            
+            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+            switch (consume.codepoint){
+                case '\t':
+                case ' ':
+                {
+                    newline_layout_consume_default(&newline_vars);
+                    f32 advance = lr_tb_advance(&pos_vars, consume.codepoint);
+                    if (!skipping_leading_whitespace){
+                        lr_tb_write_with_advance(&pos_vars, advance, arena, &list, index, consume.codepoint);
+                    }
+                    else{
+                        lr_tb_advance_x_without_item(&pos_vars, advance);
+                    }
+                }break;
+                
+                default:
+                {
+                    newline_layout_consume_default(&newline_vars);
+                    lr_tb_write(&pos_vars, arena, &list, index, consume.codepoint);
+                }break;
+                
+                case '\r':
+                {
+                    newline_layout_consume_CR(&newline_vars, index);
+                }break;
+                
+                case '\n':
+                {
+                    i64 newline_index = newline_layout_consume_LF(&newline_vars, index);
+                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
+                    lr_tb_next_line(&pos_vars);
+                }break;
+                
+                case max_u32:
+                {
+                    newline_layout_consume_default(&newline_vars);
+                    lr_tb_write_byte(&pos_vars, arena, &list, index, *ptr);
+                }break;
+            }
+            
+            ptr += consume.inc;
+        }
+        
+        if (newline_layout_consume_finish(&newline_vars)){
+            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+            lr_tb_write_blank(&pos_vars, arena, &list, index);
+        }
+    }
+    
+    layout_item_list_finish(&list, -pos_vars.line_to_text_shift);
+    
+    return(list);
+}
+
+function Layout_Item_List
+layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Layout_Virtual_Indent virt_indent){
     Scratch_Block scratch(app);
     
     Layout_Item_List list = get_empty_item_list(range);
@@ -525,6 +541,7 @@ layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer,
         lr_tb_write_blank(&pos_vars, arena, &list, range.first);
     }
     else{
+        b32 skipping_leading_whitespace = false;
         b32 first_of_the_line = true;
         Newline_Layout_Vars newline_vars = get_newline_layout_vars();
         
@@ -533,6 +550,7 @@ layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer,
         u8 *word_ptr = ptr;
         
         if (character_is_whitespace(*ptr)){
+             skipping_leading_whitespace = (virt_indent == LayoutVirtualIndent_On);
             goto consuming_whitespace;
         }
         
@@ -598,6 +616,23 @@ layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer,
             
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
             switch (*ptr){
+                case '\t':
+                case ' ':
+                {
+                    newline_layout_consume_default(&newline_vars);
+                    f32 advance = lr_tb_advance(&pos_vars, *ptr);
+                    if (!skipping_leading_whitespace){
+                        if (!first_of_the_line && lr_tb_crosses_width(&pos_vars, advance)){
+                            lr_tb_next_line(&pos_vars);
+                        }
+                        lr_tb_write_with_advance(&pos_vars, advance, arena, &list, index, *ptr);
+                        first_of_the_line = false;
+                    }
+                    else{
+                        lr_tb_advance_x_without_item(&pos_vars, advance);
+                    }
+                }break;
+                
                 default:
                 {
                     newline_layout_consume_default(&newline_vars);
@@ -605,8 +640,7 @@ layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer,
                     if (!first_of_the_line && lr_tb_crosses_width(&pos_vars, advance)){
                         lr_tb_next_line(&pos_vars);
                     }
-                    lr_tb_write_with_advance(&pos_vars, advance,
-                                             arena, &list, index, *ptr);
+                    lr_tb_write_with_advance(&pos_vars, advance, arena, &list, index, *ptr);
                     first_of_the_line = false;
                 }break;
                 
@@ -637,89 +671,71 @@ layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer,
 }
 
 function Layout_Item_List
-layout_virt_indent_literal_unwrapped(Application_Links *app, Arena *arena,
-                                     Buffer_ID buffer, Range_i64 range, Face_ID face,
-                                     f32 width){
-    Scratch_Block scratch(app);
-    
-    Layout_Item_List list = get_empty_item_list(range);
-    
-    String_Const_u8 text = push_buffer_range(app, scratch, buffer, range);
-    
-    Face_Advance_Map advance_map = get_face_advance_map(app, face);
-    Face_Metrics metrics = get_face_metrics(app, face);
-    LefRig_TopBot_Layout_Vars pos_vars = get_lr_tb_layout_vars(&advance_map, &metrics, width);
-    
-    if (text.size == 0){
-        lr_tb_write_blank(&pos_vars, arena, &list, range.start);
+layout_unwrapped(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    return(layout_unwrapped__inner(app, arena, buffer, range, face, width, LayoutVirtualIndent_Off));
+}
+
+function Layout_Item_List
+layout_wrap_whitespace(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    return(layout_wrap_whitespace__inner(app, arena, buffer, range, face, width, LayoutVirtualIndent_Off));
+}
+
+function Layout_Item_List
+layout_basic(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Layout_Wrap_Kind kind){
+    Layout_Item_List result = {};
+    switch (kind){
+        case Layout_Unwrapped:
+        {
+            result = layout_unwrapped(app, arena, buffer, range, face, width);
+        }break;
+        case Layout_Wrapped:
+        {
+            result = layout_wrap_whitespace(app, arena, buffer, range, face, width);
+        }break;
     }
-    else{
-        b32 skipping_leading_whitespace = true;
-        Newline_Layout_Vars newline_vars = get_newline_layout_vars();
-        
-        u8 *ptr = text.str;
-        u8 *end_ptr = ptr + text.size;
-        for (;ptr < end_ptr;){
-            Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
-            
-            if (!character_is_whitespace(consume.codepoint)){
-                skipping_leading_whitespace = false;
-            }
-            
-            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            switch (consume.codepoint){
-                case '\t':
-                case ' ':
-                {
-                    newline_layout_consume_default(&newline_vars);
-                    f32 advance = lr_tb_advance(&pos_vars, consume.codepoint);
-                    if (!skipping_leading_whitespace){
-                        lr_tb_write_with_advance(&pos_vars, advance,
-                                                 arena, &list, index,
-                                                 consume.codepoint);
-                    }
-                    else{
-                        lr_tb_advance_x_without_item(&pos_vars, advance);
-                    }
-                }break;
-                
-                default:
-                {
-                    newline_layout_consume_default(&newline_vars);
-                    lr_tb_write(&pos_vars, arena, &list, index, consume.codepoint);
-                }break;
-                
-                case '\r':
-                {
-                    newline_layout_consume_CR(&newline_vars, index);
-                }break;
-                
-                case '\n':
-                {
-                    i64 newline_index = newline_layout_consume_LF(&newline_vars, index);
-                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
-                    lr_tb_next_line(&pos_vars);
-                }break;
-                
-                case max_u32:
-                {
-                    newline_layout_consume_default(&newline_vars);
-                    lr_tb_write_byte(&pos_vars, arena, &list, index, *ptr);
-                }break;
-            }
-            
-            ptr += consume.inc;
-        }
-        
-        if (newline_layout_consume_finish(&newline_vars)){
-            i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            lr_tb_write_blank(&pos_vars, arena, &list, index);
-        }
+    return(result);
+}
+
+function Layout_Item_List
+layout_generic(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    b32 *wrap_lines_ptr = scope_attachment(app, scope, buffer_wrap_lines, b32);
+    b32 wrap_lines = (wrap_lines_ptr != 0 && *wrap_lines_ptr);
+    return(layout_basic(app, arena, buffer, range, face, width, wrap_lines?Layout_Wrapped:Layout_Unwrapped));
+}
+
+function Layout_Item_List
+layout_virt_indent_literal_unwrapped(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    return(layout_unwrapped__inner(app, arena, buffer, range, face, width, LayoutVirtualIndent_On));
+}
+
+function Layout_Item_List
+layout_virt_indent_literal_wrapped(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    return(layout_wrap_whitespace__inner(app, arena, buffer, range, face, width, LayoutVirtualIndent_On));
+}
+
+function Layout_Item_List
+layout_virt_indent_literal(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Layout_Wrap_Kind kind){
+    Layout_Item_List result = {};
+    switch (kind){
+        case Layout_Unwrapped:
+        {
+            result = layout_virt_indent_literal_unwrapped(app, arena, buffer, range, face, width);
+        }break;
+        case Layout_Wrapped:
+        {
+            result = layout_virt_indent_literal_wrapped(app, arena, buffer, range, face, width);
+        }break;
     }
-    
-    layout_item_list_finish(&list, -pos_vars.line_to_text_shift);
-    
-    return(list);
+    return(result);
+}
+
+function Layout_Item_List
+layout_virt_indent_literal_generic(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    b32 *wrap_lines_ptr = scope_attachment(app, scope, buffer_wrap_lines, b32);
+    b32 wrap_lines = (wrap_lines_ptr != 0 && *wrap_lines_ptr);
+    return(layout_virt_indent_literal(app, arena, buffer, range, face, width, wrap_lines?Layout_Wrapped:Layout_Unwrapped));
 }
 
 // BOTTOM

@@ -10,8 +10,7 @@ function void
 code_index_init(void){
     global_code_index.mutex = system_mutex_make();
     global_code_index.node_arena = make_arena_system(KB(4));
-    global_code_index.buffer_to_index_file =
-        make_table_u64_u64(global_code_index.node_arena.base_allocator, 500);
+    global_code_index.buffer_to_index_file = make_table_u64_u64(global_code_index.node_arena.base_allocator, 500);
 }
 
 function Code_Index_File_Storage*
@@ -547,8 +546,7 @@ generic_parse_full_input_breaks(Code_Index_File *index, Generic_Parse_State *sta
 ////////////////////////////////
 
 function void
-default_comment_index(Application_Links *app, Arena *arena, Code_Index_File *index,
-                      Token *token, String_Const_u8 contents){
+default_comment_index(Application_Links *app, Arena *arena, Code_Index_File *index, Token *token, String_Const_u8 contents){
     
 }
 
@@ -559,16 +557,35 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
 
 ////////////////////////////////
 
+function Token_Pair
+layout_token_pair(Token_Array *tokens, i64 pos){
+    Token_Iterator_Array it = token_iterator_pos(0, tokens, pos);
+    Token *b = token_it_read(&it);
+    if (b->kind == TokenBaseKind_Whitespace){
+        token_it_inc_non_whitespace(&it);
+        b = token_it_read(&it);
+    }
+    token_it_dec_non_whitespace(&it);
+    Token *a = token_it_read(&it);
+    Token_Pair result = {};
+    if (a != 0){
+        result.a = *a;
+    }
+    if (b != 0){
+        result.b = *b;
+    }
+    return(result);
+}
+
 function f32
-layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_Nest *nest, i64 pos, f32 space_advance){
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_Nest *nest, i64 pos, f32 space_advance, b32 *unresolved_dependence){
     f32 result = 0.f;
     if (nest != 0){
         switch (nest->kind){
             case CodeIndexNest_Scope:
             case CodeIndexNest_Preprocessor:
             {
-                
-                result = layout_index_x_shift(app, reflex, nest->parent, pos, space_advance);
+                result = layout_index_x_shift(app, reflex, nest->parent, pos, space_advance, unresolved_dependence);
                 if (nest->open.min < pos && nest->open.max <= pos &&
                     (!nest->is_closed || pos < nest->close.min)){
                     result += 4.f*space_advance;
@@ -577,7 +594,7 @@ layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_N
             
             case CodeIndexNest_Statement:
             {
-                result = layout_index_x_shift(app, reflex, nest->parent, pos, space_advance);
+                result = layout_index_x_shift(app, reflex, nest->parent, pos, space_advance, unresolved_dependence);
                 if (nest->open.min < pos && nest->open.max <= pos &&
                     (!nest->is_closed || pos < nest->close.min)){
                     result += 4.f*space_advance;
@@ -586,7 +603,7 @@ layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_N
             
             case CodeIndexNest_Paren:
             {
-                Rect_f32 box = layout_reflex_get_rect(app, reflex, nest->open.max - 1);
+                Rect_f32 box = layout_reflex_get_rect(app, reflex, nest->open.max - 1, unresolved_dependence);
                 result = box.x1;
             }break;
         }
@@ -595,18 +612,62 @@ layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_N
 }
 
 function f32
-layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_File *file, i64 pos, f32 space_advance){
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_Nest *nest, i64 pos, f32 space_advance){
+    b32 ignore;
+    return(layout_index_x_shift(app, reflex, nest, pos, space_advance, &ignore));
+}
+
+function f32
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_File *file, i64 pos, f32 space_advance, b32 *unresolved_dependence){
     f32 indent = 0;
     Code_Index_Nest *nest = code_index_get_nest(file, pos);
     if (nest != 0){
-        indent = layout_index_x_shift(app, reflex, nest, pos, space_advance);
+        indent = layout_index_x_shift(app, reflex, nest, pos, space_advance, unresolved_dependence);
     }
     return(indent);
 }
 
+function f32
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_File *file, i64 pos, f32 space_advance){
+    b32 ignore;
+    return(layout_index_x_shift(app, reflex, file, pos, space_advance, &ignore));
+}
+
+function void
+layout_index__emit_chunk(LefRig_TopBot_Layout_Vars *pos_vars, Arena *arena, u8 *text_str, i64 range_first, u8 *ptr, u8 *end, Layout_Item_List *list){
+    for (;ptr < end;){
+        Character_Consume_Result consume = utf8_consume(ptr, (umem)(end - ptr));
+        if (consume.codepoint != '\r'){
+        i64 index = layout_index_from_ptr(ptr, text_str, range_first);
+        if (consume.codepoint != max_u32){
+            lr_tb_write(pos_vars, arena, list, index, consume.codepoint);
+        }
+        else{
+            lr_tb_write_byte(pos_vars, arena, list, index, *ptr);
+        }
+		}
+        ptr += consume.inc;
+    }
+}
+
+    function i32
+        layout_token_score_wrap_token(Token_Pair *pair, Token_Cpp_Kind kind){
+        i32 result = 0;
+        if (pair->a.sub_kind != kind && pair->b.sub_kind == kind){
+            result -= 1;
+        }
+        else if (pair->a.sub_kind == kind && pair->b.sub_kind != kind){
+            result += 1;
+        }
+        return(result);
+    }
+
 function Layout_Item_List
-layout_index_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Code_Index_File *file){
+layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Code_Index_File *file, Layout_Wrap_Kind kind){
     Scratch_Block scratch(app);
+    
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
     
     Layout_Item_List list = get_empty_item_list(range);
     String_Const_u8 text = push_buffer_range(app, scratch, buffer, range);
@@ -630,92 +691,173 @@ layout_index_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID bu
         u8 *end_ptr = ptr + text.size;
         u8 *word_ptr = ptr;
         
-        if (!character_is_whitespace(*ptr)){
-            goto consuming_non_whitespace;
-        }
+        u8 *pending_wrap_ptr = ptr;
+        f32 pending_wrap_x = 0.f;
+        i32 pending_wrap_paren_nest_count = 0;
+        i32 pending_wrap_token_score = 0;
+        f32 pending_wrap_accumulated_w = 0.f;
         
-        skipping_leading_whitespace:
-        for (;ptr < end_ptr; ptr += 1){
-            if (!character_is_whitespace(*ptr)){
-                word_ptr = ptr;
-                goto consuming_non_whitespace;
-            }
-            if (*ptr == '\n'){
-                goto consuming_normal_whitespace;
-            }
-        }
-        
+        start:
         if (ptr == end_ptr){
             goto finish;
         }
         
-        consuming_non_whitespace:
-        for (;ptr <= end_ptr; ptr += 1){
-            if (ptr == end_ptr || character_is_whitespace(*ptr)){
-                break;
-            }
+        if (!character_is_whitespace(*ptr)){
+            goto consuming_non_whitespace;
         }
         
         {
-            newline_layout_consume_default(&newline_vars);
+            for (;ptr < end_ptr; ptr += 1){
+                if (!character_is_whitespace(*ptr)){
+                    pending_wrap_ptr = ptr;
+                    word_ptr = ptr;
+                    i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+                    f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+                    lr_tb_advance_x_without_item(&pos_vars, shift);
+                    goto consuming_non_whitespace;
+                }
+                if (*ptr == '\n'){
+                    pending_wrap_ptr = ptr;
+                    i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+                    f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+                    lr_tb_advance_x_without_item(&pos_vars, shift);
+                    goto consuming_normal_whitespace;
+                }
+            }
             
+            if (ptr == end_ptr){
+                pending_wrap_ptr = ptr;
+                i64 index = layout_index_from_ptr(ptr - 1, text.str, range.first);
+                f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+                lr_tb_advance_x_without_item(&pos_vars, shift);
+                goto finish;
+            }
+        }
+        
+        consuming_non_whitespace:
+        {
+            for (;ptr <= end_ptr; ptr += 1){
+                if (ptr == end_ptr || character_is_whitespace(*ptr)){
+                    break;
+                }
+            }
+            
+            // NOTE(allen): measure this word
+            newline_layout_consume_default(&newline_vars);
             String_Const_u8 word = SCu8(word_ptr, ptr);
             u8 *word_end = ptr;
-            
-            if (!first_of_the_line){
-                f32 total_advance = 0.f;
+            {
+                f32 word_advance = 0.f;
                 ptr = word.str;
                 for (;ptr < word_end;){
-                    Character_Consume_Result consume =
-                        utf8_consume(ptr, (umem)(word_end - ptr));
+                    Character_Consume_Result consume = utf8_consume(ptr, (umem)(word_end - ptr));
                     if (consume.codepoint != max_u32){
-                        total_advance += lr_tb_advance(&pos_vars, consume.codepoint);
+                        word_advance += lr_tb_advance(&pos_vars, consume.codepoint);
                     }
                     else{
-                        total_advance += lr_tb_advance_byte(&pos_vars);
+                        word_advance += lr_tb_advance_byte(&pos_vars);
                     }
                     ptr += consume.inc;
                 }
-                
-                if (lr_tb_crosses_width(&pos_vars, total_advance)){
-                    i64 index = layout_index_from_ptr(word.str, text.str, range.first);
-                    lr_tb_align_rightward(&pos_vars, wrap_align_x);
-                    lr_tb_write_ghost(&pos_vars, arena, &list, index, '\\');
-                    
-                    lr_tb_next_line(&pos_vars);
-                    f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
-                    lr_tb_advance_x_without_item(&pos_vars, shift);
-                }
+                pending_wrap_accumulated_w += word_advance;
             }
-            else{
-                i64 index = layout_index_from_ptr(word.str, text.str, range.first);
+            
+            if (!first_of_the_line && (kind == Layout_Wrapped) && lr_tb_crosses_width(&pos_vars, pending_wrap_accumulated_w)){
+                i64 index = layout_index_from_ptr(pending_wrap_ptr, text.str, range.first);
+                lr_tb_align_rightward(&pos_vars, wrap_align_x);
+                lr_tb_write_ghost(&pos_vars, arena, &list, index, '\\');
+                
+                lr_tb_next_line(&pos_vars);
                 f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
                 lr_tb_advance_x_without_item(&pos_vars, shift);
-            }
-            
-            ptr = word.str;
-            
-            for (;ptr < word_end;){
-                Character_Consume_Result consume =
-                    utf8_consume(ptr, (umem)(word_end - ptr));
-                i64 index = layout_index_from_ptr(ptr, text.str, range.first);
                 
-                if (consume.codepoint != max_u32){
-                    lr_tb_write(&pos_vars, arena, &list, index, consume.codepoint);
-                }
-                else{
-                    lr_tb_write_byte(&pos_vars, arena, &list, index, *ptr);
-                }
-                
-                ptr += consume.inc;
+                ptr = pending_wrap_ptr;
+                pending_wrap_accumulated_w = 0.f;
+                first_of_the_line = true;
+                goto start;
             }
-            
-            first_of_the_line = false;
         }
         
         consuming_normal_whitespace:
         for (; ptr < end_ptr; ptr += 1){
             if (!character_is_whitespace(*ptr)){
+                u8 *new_wrap_ptr = ptr;
+                
+                i64 index = layout_index_from_ptr(new_wrap_ptr, text.str, range.first);
+                Code_Index_Nest *new_wrap_nest = code_index_get_nest(file, index);
+                b32 invalid_wrap_x = false;
+                f32 new_wrap_x = layout_index_x_shift(app, &reflex, new_wrap_nest, index, metrics.space_advance, &invalid_wrap_x);
+                if (invalid_wrap_x){
+                    new_wrap_x = max_f32;
+                }
+                
+                i32 new_wrap_paren_nest_count = 0;
+                for (Code_Index_Nest *nest = new_wrap_nest;
+                     nest != 0;
+                     nest = nest->parent){
+                    if (nest->kind == CodeIndexNest_Paren){
+                        new_wrap_paren_nest_count += 1;
+                    }
+                }
+                
+                Token_Pair new_wrap_token_pair = layout_token_pair(tokens_ptr, index);
+                
+                // TODO(allen): pull out the token scoring part and make it replacable for other
+                // language's token based wrap scoring needs.
+                i32 token_score = 0;
+                if (new_wrap_token_pair.a.kind == TokenBaseKind_Keyword){
+                    if (new_wrap_token_pair.b.kind == TokenBaseKind_ParentheticalOpen ||
+                        new_wrap_token_pair.b.kind == TokenBaseKind_Keyword){
+                        token_score -= 2;
+                    }
+                }
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_Eq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_PlusEq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_MinusEq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_StarEq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_DivEq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_ModEq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_LeftLeftEq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_RightRightEq);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_Comma);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_AndAnd);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_OrOr);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_Ternary);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_Colon);
+                token_score += layout_token_score_wrap_token(&new_wrap_token_pair, TokenCppKind_Semicolon);
+                
+                i32 new_wrap_token_score = token_score;
+                
+                b32 new_wrap_ptr_is_better = false;
+                if (first_of_the_line){
+                    new_wrap_ptr_is_better = true;
+                }
+                else{
+                    if (new_wrap_token_score > pending_wrap_token_score){
+                        new_wrap_ptr_is_better = true;
+                    }
+                    else if (new_wrap_token_score == pending_wrap_token_score){
+                        f32 new_score = new_wrap_paren_nest_count*10.f + new_wrap_x;
+                        f32 old_score = pending_wrap_paren_nest_count*10.f + pending_wrap_x + metrics.normal_advance*4.f + pending_wrap_accumulated_w*0.5f;
+                        
+                        if (new_score < old_score){
+                            new_wrap_ptr_is_better = true;
+                        }
+                    }
+                }
+                
+                if (new_wrap_ptr_is_better){
+                    layout_index__emit_chunk(&pos_vars, arena, text.str, range.first, pending_wrap_ptr, new_wrap_ptr, &list);
+                    first_of_the_line = false;
+                    
+                    pending_wrap_ptr = new_wrap_ptr;
+                    pending_wrap_paren_nest_count = new_wrap_paren_nest_count;
+                    pending_wrap_x = layout_index_x_shift(app, &reflex, new_wrap_nest, index, metrics.space_advance);
+                    pending_wrap_paren_nest_count = new_wrap_paren_nest_count;
+                    pending_wrap_token_score = new_wrap_token_score;
+                    pending_wrap_accumulated_w = 0.f;
+                }
+                
                 word_ptr = ptr;
                 goto consuming_non_whitespace;
             }
@@ -725,8 +867,7 @@ layout_index_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                 default:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    lr_tb_write(&pos_vars, arena, &list, index, *ptr);
-                    first_of_the_line = false;
+                    pending_wrap_accumulated_w += lr_tb_advance(&pos_vars, *ptr);
                 }break;
                 
                 case '\r':
@@ -736,30 +877,24 @@ layout_index_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                 
                 case '\n':
                 {
-                    if (first_of_the_line){
-                        f32 shift = layout_index_x_shift(app, &reflex, file, index,
-                                                         metrics.space_advance);
-                        lr_tb_advance_x_without_item(&pos_vars, shift);
-                    }
+                    layout_index__emit_chunk(&pos_vars, arena, text.str, range.first, pending_wrap_ptr, ptr, &list);
+                    pending_wrap_ptr = ptr + 1;
+                    pending_wrap_accumulated_w = 0.f;
                     
                     u64 newline_index = newline_layout_consume_LF(&newline_vars, index);
                     lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
                     lr_tb_next_line(&pos_vars);
                     first_of_the_line = true;
                     ptr += 1;
-                    goto skipping_leading_whitespace;
+                    goto start;
                 }break;
             }
         }
         
         finish:
         if (newline_layout_consume_finish(&newline_vars)){
+            layout_index__emit_chunk(&pos_vars, arena, text.str, range.first, pending_wrap_ptr, ptr, &list);
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            if (first_of_the_line){
-                f32 shift = layout_index_x_shift(app, &reflex, file, index,
-                                                 metrics.space_advance);
-                lr_tb_advance_x_without_item(&pos_vars, shift);
-            }
             lr_tb_write_blank(&pos_vars, arena, &list, index);
         }
     }
@@ -769,30 +904,44 @@ layout_index_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID bu
     return(list);
 }
 
-
-
 function Layout_Item_List
-layout_virt_indent_index_unwrapped(Application_Links *app, Arena *arena,
-                                   Buffer_ID buffer, Range_i64 range, Face_ID face,
-                                   f32 width){
+layout_virt_indent_index(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Layout_Wrap_Kind kind){
     Layout_Item_List result = {};
     
     if (global_config.enable_virtual_whitespace){
     code_index_lock();
     Code_Index_File *file = code_index_get_file(buffer);
     if (file != 0){
-        result = layout_index_unwrapped__inner(app, arena, buffer, range, face, width, file);
+            result = layout_index__inner(app, arena, buffer, range, face, width, file, kind);
     }
     code_index_unlock();
     if (file == 0){
-        result = layout_virt_indent_literal_unwrapped(app, arena, buffer, range, face, width);
+            result = layout_virt_indent_literal(app, arena, buffer, range, face, width, kind);
     }
     }
     else{
-        result = layout_wrap_whitespace(app, arena, buffer, range, face, width);
+        result = layout_basic(app, arena, buffer, range, face, width, kind);
     }
     
     return(result);
+}
+
+function Layout_Item_List
+layout_virt_indent_index_unwrapped(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    return(layout_virt_indent_index(app, arena, buffer, range, face, width, Layout_Unwrapped));
+}
+
+function Layout_Item_List
+layout_virt_indent_index_wrapped(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    return(layout_virt_indent_index(app, arena, buffer, range, face, width, Layout_Wrapped));
+}
+
+function Layout_Item_List
+layout_virt_indent_index_generic(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width){
+    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
+    b32 *wrap_lines_ptr = scope_attachment(app, scope, buffer_wrap_lines, b32);
+    b32 wrap_lines = (wrap_lines_ptr != 0 && *wrap_lines_ptr);
+    return(layout_virt_indent_index(app, arena, buffer, range, face, width, wrap_lines?Layout_Wrapped:Layout_Unwrapped));
 }
 
 CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
