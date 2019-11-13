@@ -416,8 +416,7 @@ draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Tok
             break;
         }
         FColor color = get_token_color_cpp(*token);
-        paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size),
-                         color);
+        paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), color);
         if (!token_it_inc_non_whitespace(&it)){
             break;
         }

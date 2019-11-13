@@ -2367,7 +2367,7 @@ select_scope(Application_Links *app, View_ID view, Range_i64 range){
 ////////////////////////////////
 
 function Line_Ending_Kind
-guess_line_ending_kind_from_buffer_contents(Application_Links *app, Buffer_ID buffer){
+guess_line_ending_kind_from_buffer(Application_Links *app, Buffer_ID buffer){
     umem size = buffer_get_size(app, buffer);
     size = clamp_top(size, KB(8));
     Scratch_Block scratch(app);

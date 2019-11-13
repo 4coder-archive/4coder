@@ -62,8 +62,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             view_set_cursor_and_preferred_x(app, view, seek_pos(pos + (i32)string.size));
             
             // TODO(allen): Send this to all views.
-            view_post_fade(app, view, 0.667f, Ii64_size(pos, string.size),
-                           fcolor_id(Stag_Paste));
+            view_post_fade(app, view, 0.667f, Ii64_size(pos, string.size), fcolor_id(Stag_Paste));
         }
     }
 }
@@ -98,9 +97,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
             buffer_replace_range(app, buffer, range, string);
             view_set_cursor_and_preferred_x(app, view, seek_pos(pos + string.size));
             
-            // TODO(allen): Send this to all views.
-            view_post_fade(app, view, 0.667f, Ii64_size(pos, string.size),
-                           fcolor_id(Stag_Paste));
+            view_post_fade(app, view, 0.667f, Ii64_size(pos, string.size), fcolor_id(Stag_Paste));
         }
         else{
             paste(app);

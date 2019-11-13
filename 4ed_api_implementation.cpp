@@ -2973,7 +2973,6 @@ text_layout_line_on_screen(Application_Links *app, Text_Layout_ID layout_id, i64
             }
             
             result += rect.y0 - layout->point.pixel_shift.y;
-            result = range_intersect(result, rect_range_y(rect));
         }
     }
     else if (line_number < layout->visible_line_number_range.min){
@@ -3044,7 +3043,6 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                 Vec2_f32 shift = V2f32(rect.x0, rect.y0 + y) - layout->point.pixel_shift;
                 result.p0 += shift;
                 result.p1 += shift;
-                result = rect_intersect(rect, result);
             }
         }
     }

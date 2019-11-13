@@ -121,7 +121,7 @@ CUSTOM_DOC("Sets the buffer's line ending mode to match the contents of the buff
 {
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-    Line_Ending_Kind setting = guess_line_ending_kind_from_buffer_contents(app, buffer);
+    Line_Ending_Kind setting = guess_line_ending_kind_from_buffer(app, buffer);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer);
     Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
                                                      Line_Ending_Kind);

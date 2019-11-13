@@ -482,64 +482,56 @@ CUSTOM_COMMAND_SIG(move_right_token_boundary)
 CUSTOM_DOC("Seek right for the next end of a token.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Forward,
-                           push_boundary_list(scratch, boundary_token));
+    current_view_scan_move(app, Scan_Forward, push_boundary_list(scratch, boundary_token));
 }
 
 CUSTOM_COMMAND_SIG(move_left_token_boundary)
 CUSTOM_DOC("Seek left for the next beginning of a token.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Backward,
-                           push_boundary_list(scratch, boundary_token));
+    current_view_scan_move(app, Scan_Backward, push_boundary_list(scratch, boundary_token));
 }
 
 CUSTOM_COMMAND_SIG(move_right_whitespace_or_token_boundary)
 CUSTOM_DOC("Seek right for the next end of a token or boundary between whitespace and non-whitespace.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Forward,
-                           push_boundary_list(scratch, boundary_token, boundary_non_whitespace));
+    current_view_scan_move(app, Scan_Forward, push_boundary_list(scratch, boundary_token, boundary_non_whitespace));
 }
 
 CUSTOM_COMMAND_SIG(move_left_whitespace_or_token_boundary)
 CUSTOM_DOC("Seek left for the next end of a token or boundary between whitespace and non-whitespace.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Backward,
-                           push_boundary_list(scratch, boundary_token, boundary_non_whitespace));
+    current_view_scan_move(app, Scan_Backward, push_boundary_list(scratch, boundary_token, boundary_non_whitespace));
 }
 
 CUSTOM_COMMAND_SIG(move_right_alpha_numeric_boundary)
 CUSTOM_DOC("Seek right for boundary between alphanumeric characters and non-alphanumeric characters.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Forward,
-                           push_boundary_list(scratch, boundary_alpha_numeric));
+    current_view_scan_move(app, Scan_Forward, push_boundary_list(scratch, boundary_alpha_numeric));
 }
 
 CUSTOM_COMMAND_SIG(move_left_alpha_numeric_boundary)
 CUSTOM_DOC("Seek left for boundary between alphanumeric characters and non-alphanumeric characters.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Backward,
-                           push_boundary_list(scratch, boundary_alpha_numeric));
+    current_view_scan_move(app, Scan_Backward, push_boundary_list(scratch, boundary_alpha_numeric));
 }
 
 CUSTOM_COMMAND_SIG(move_right_alpha_numeric_or_camel_boundary)
 CUSTOM_DOC("Seek right for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Forward,
-                           push_boundary_list(scratch, boundary_alpha_numeric_camel));
+    current_view_scan_move(app, Scan_Forward, push_boundary_list(scratch, boundary_alpha_numeric_camel));
 }
 
 CUSTOM_COMMAND_SIG(move_left_alpha_numeric_or_camel_boundary)
 CUSTOM_DOC("Seek left for boundary between alphanumeric characters or camel case word and non-alphanumeric characters.")
 {
     Scratch_Block scratch(app);
-    current_view_scan_move(app, Scan_Backward,
-                           push_boundary_list(scratch, boundary_alpha_numeric_camel));
+    current_view_scan_move(app, Scan_Backward, push_boundary_list(scratch, boundary_alpha_numeric_camel));
 }
 
 ////////////////////////////////

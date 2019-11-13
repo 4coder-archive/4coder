@@ -427,9 +427,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     switch (fcoder_mode){
         case FCoderMode_Original:
         {
-            draw_original_4coder_style_cursor_mark_highlight(app, view_id, is_active_view,
-                                                             buffer, text_layout_id,
-                                                             cursor_roundness, mark_thickness);
+            draw_original_4coder_style_cursor_mark_highlight(app, view_id, is_active_view, buffer, text_layout_id, cursor_roundness, mark_thickness);
         }break;
         case FCoderMode_NotepadLike:
         {
@@ -963,7 +961,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
     *map_id_ptr = map_id;
     
-    Line_Ending_Kind setting = guess_line_ending_kind_from_buffer_contents(app, buffer_id);
+    Line_Ending_Kind setting = guess_line_ending_kind_from_buffer(app, buffer_id);
     Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting, Line_Ending_Kind);
     *eol_setting = setting;
     
@@ -992,17 +990,18 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         b32 *wrap_lines_ptr = scope_attachment(app, scope, buffer_wrap_lines, b32);
         *wrap_lines_ptr = wrap_lines;
     }
-        if (use_virtual_whitespace){
-            if (use_lexer){
+    
+    if (use_virtual_whitespace){
+        if (use_lexer){
             buffer_set_layout(app, buffer_id, layout_virt_indent_index_generic);
-            }
-            else{
-            buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
-            }
         }
         else{
-            buffer_set_layout(app, buffer_id, layout_generic);
+            buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
         }
+    }
+    else{
+        buffer_set_layout(app, buffer_id, layout_generic);
+    }
     
     // no meaning for return
     return(0);
