@@ -17,8 +17,9 @@ CUSTOM_DOC("If there is an active tutorial, kill it.")
     view_close(app, tutorial.view);
 }
 
-function void
-tutorial_activate(Application_Links *app){
+CUSTOM_COMMAND_SIG(tutorial_maximize)
+CUSTOM_DOC("Expand the tutorial window")
+{
     if (!tutorial.in_tutorial){
         return;
     }
@@ -30,8 +31,9 @@ tutorial_activate(Application_Links *app){
     tutorial.is_active = true;
 }
 
-function void
-tutorial_deactivate(Application_Links *app){
+CUSTOM_COMMAND_SIG(tutorial_minimize)
+CUSTOM_DOC("Shrink the tutorial window")
+{
     if (!tutorial.in_tutorial){
         return;
     }
@@ -50,6 +52,16 @@ tutorial_deactivate(Application_Links *app){
 function void
 tutorial_action(Application_Links *app, Tutorial_Action action){
     switch (action){
+        case TutorialAction_Minimize:
+        {
+            tutorial_minimize(app);
+        }break;
+        
+        case TutorialAction_Maximize:
+        {
+            tutorial_maximize(app);
+        }break;
+        
         case TutorialAction_Prev:
         {
             tutorial.slide_index -= 1;
@@ -121,17 +133,6 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     
     Vec2_f32 title_p = V2f32(region.x0, panel_y0 + (metrics.line_height*2.f) - title_height*0.5f);
     
-    if (is_active_view){
-        if (!tutorial.is_active){
-            view_enqueue_command_function(app, view_id, tutorial_activate);
-        }
-    }
-    else{
-        if (tutorial.is_active){
-            view_enqueue_command_function(app, view_id, tutorial_deactivate);
-        }
-    }
-    
     tutorial.hover_action = TutorialAction_None;
     if (tutorial.is_active){
         draw_fancy_block(app, 0, fcolor_zero(), &slide.long_details, title_p);
@@ -146,6 +147,15 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
         f32 b_width = metrics.normal_advance*10.f;
         Mouse_State mouse = get_mouse_state(app);
         Vec2_f32 m_p = V2f32(mouse.p);
+        
+        {
+            Rect_f32_Pair pair = rect_split_left_right(footer, b_width);
+            footer = pair.max;
+            footer.x0 += 10.f;
+                if (draw_button(app, pair.min, m_p, face, string_u8_litexpr("minimize"))){
+                    tutorial.hover_action = TutorialAction_Minimize;
+                }
+        }
         
         {
             Rect_f32_Pair pair = rect_split_left_right(footer, b_width);
@@ -196,8 +206,7 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
 }
 
 function void
-tutorial_run_loop(Application_Links *app)
-{
+tutorial_run_loop(Application_Links *app){
     View_ID view = get_this_ctx_view(app, Access_Always);
     View_Context ctx = view_current_context(app, view);
     ctx.render_caller = tutorial_render;
@@ -206,6 +215,7 @@ tutorial_run_loop(Application_Links *app)
     
     tutorial.in_tutorial = true;
     tutorial.view = view;
+    tutorial_maximize(app);
     
     for (;;){
         User_Input in = get_next_input(app, EventPropertyGroup_Any, 0);
@@ -217,6 +227,7 @@ tutorial_run_loop(Application_Links *app)
         switch (in.event.kind){
             case InputEventKind_MouseButton:
             {
+                tutorial_maximize(app);
                 if (in.event.mouse.code == MouseCode_Left){
                     tutorial.depressed_action = tutorial.hover_action;
                 }
@@ -236,12 +247,7 @@ tutorial_run_loop(Application_Links *app)
                 switch (in.event.core.code){
                     case CoreCode_ClickActivateView:
                     {
-                        tutorial_activate(app);
-                    }break;
-                    
-                    case CoreCode_ClickDeactivateView:
-                    {
-                        tutorial_deactivate(app);
+                        tutorial_maximize(app);
                     }break;
                     
                     default:
@@ -286,7 +292,6 @@ run_tutorial(Application_Links *app, Tutorial_Slide_Function **slides, i32 slide
             Panel_ID tutorial_panel = panel_get_child(app, root_panel, Side_Min);
             tutorial.view = panel_get_view(app, tutorial_panel, Access_Always);
             view_set_passive(app, tutorial.view, true);
-            tutorial_activate(app);
             tutorial.slide_index = 0;
             tutorial.slide_func_ptrs = slides;
             tutorial.slide_count = slide_count;
@@ -603,25 +608,34 @@ hms_demo_tutorial_slide_6(Application_Links *app, Arena *arena){
                     string_u8_litexpr("\tBuffers that are indexed with information about nest structures can be equiped with the virtual whitespace layout algorithm."));
     
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+                    string_u8_litexpr("\tThe on screen layout of text is independent of the actual whitespace contents of the underlying text."));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr(""));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Keyword),
                     string_u8_litexpr("\tTry inserting new scopes and parenthetical sections in a code file."));
     
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
-                    string_u8_litexpr("\tObserve that indentation is updated automatically."));
+                    string_u8_litexpr("\t\tObserve that indentation is updated automatically."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Keyword),
                     string_u8_litexpr("\tTry creating a line that is long enough to wrap around the edge."));
     
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
-                    string_u8_litexpr("\tObserve that wrapped lines obey the same indentation rules as literal lines."));
-    
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
-                    string_u8_litexpr("\tThe on screen layout of text is independent of the actual whitespace contents of the underlying text."));
+                    string_u8_litexpr("\t\tObserve that wrapped lines obey the same indentation rules as literal lines."));
     
     {
         Fancy_Line *line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));
         push_fancy_stringf(arena, line, "\tUse the command ");
         push_fancy_stringf(arena, line, fcolor_id(Stag_Pop2), "toggle_virtual_whitespace");
         push_fancy_stringf(arena, line, " to turn this feature on and off");
+    }
+    
+    {
+        Fancy_Line *line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));
+        push_fancy_stringf(arena, line, "\tUse the command ");
+        push_fancy_stringf(arena, line, fcolor_id(Stag_Pop2), "toggle_line_wrap");
+        push_fancy_stringf(arena, line, " to see how layout changes with line wrapping on and off");
     }
     
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Auto Indentation:"));
@@ -702,7 +716,10 @@ hms_demo_tutorial_slide_8(Application_Links *app, Arena *arena){
                     string_u8_litexpr("Probably the biggest feature in 4coder is that so many things about it can be customized."));
     
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
-                    string_u8_litexpr("The code project loaded for this demo is the 'default custom layer' everything here can be done differently as you see fit."));
+                    string_u8_litexpr("The project loaded for this demo is the 'default custom layer' everything here could be done differently, as you see fit."));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+                    string_u8_litexpr(""));
     
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
                     string_u8_litexpr("Search for these commands to see some of the features available to customization:"));
@@ -815,6 +832,42 @@ hms_demo_tutorial_slide_10(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "Tab", "in a code file this triggers the cyclic word complete, often a handy command");
     
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Control", "F/R", "forward/reverse iterative search");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Control", "A", "replace all instances of a string in the range");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Control", "0", "insert an assignment to an empty struct or array");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt", "0", "insert a #if 0 / #endif pair at the cursor and mark");
+    
+    hms_demo_tutorial_binding_line(app, arena, long_details, face,
+                                   "Alt", "2", "open the corresponding .h/.cpp file to the current buffer in the second panel");
+    
+    return(result);
+}
+
+function Tutorial_Slide
+hms_demo_tutorial_slide_11(Application_Links *app, Arena *arena){
+    Tutorial_Slide result = {};
+    
+    Face_ID face = get_face_id(app, 0);
+    tutorial_init_title_face(app);
+    
+    hms_demo_tutorial_short_details(app, arena, &result.short_details);
+    
+    Fancy_Block *long_details = &result.long_details;
+    hms_demo_tutorial_long_start(app, arena, long_details);
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr(""));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr(""));
+    
+    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("\t\tThanks for checking out the demo!"));
+    
     return(result);
 }
 
@@ -842,6 +895,8 @@ CUSTOM_DOC("Tutorial for built in 4coder bindings and features.")
         hms_demo_tutorial_slide_9,
         // miscellanea
         hms_demo_tutorial_slide_10,
+        // end
+        hms_demo_tutorial_slide_11,
     };
     run_tutorial(app, slides, ArrayCount(slides));
 }

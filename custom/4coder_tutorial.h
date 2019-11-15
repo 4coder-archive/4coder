@@ -10,6 +10,8 @@
 typedef i32 Tutorial_Action;
 enum{
     TutorialAction_None,
+    TutorialAction_Minimize,
+    TutorialAction_Maximize,
     TutorialAction_Prev,
     TutorialAction_Next,
     TutorialAction_Exit,
