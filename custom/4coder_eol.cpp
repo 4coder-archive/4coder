@@ -91,7 +91,9 @@ CUSTOM_DOC("Puts the buffer in crlf line ending mode.")
     Managed_Scope scope = buffer_get_managed_scope(app, buffer);
     Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
                                                      Line_Ending_Kind);
+    if (eol_setting != 0){
     *eol_setting = LineEndingKind_CRLF;
+    }
 }
 
 CUSTOM_COMMAND_SIG(set_eol_mode_to_lf)
@@ -102,7 +104,9 @@ CUSTOM_DOC("Puts the buffer in lf line ending mode.")
     Managed_Scope scope = buffer_get_managed_scope(app, buffer);
     Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
                                                      Line_Ending_Kind);
+    if (eol_setting != 0){
     *eol_setting = LineEndingKind_LF;
+    }
 }
 
 CUSTOM_COMMAND_SIG(set_eol_mode_to_binary)
@@ -113,7 +117,9 @@ CUSTOM_DOC("Puts the buffer in bin line ending mode.")
     Managed_Scope scope = buffer_get_managed_scope(app, buffer);
     Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
                                                      Line_Ending_Kind);
-    *eol_setting = LineEndingKind_Binary;
+    if (eol_setting != 0){
+        *eol_setting = LineEndingKind_Binary;
+    }
 }
 
 CUSTOM_COMMAND_SIG(set_eol_mode_from_contents)
@@ -125,7 +131,9 @@ CUSTOM_DOC("Sets the buffer's line ending mode to match the contents of the buff
     Managed_Scope scope = buffer_get_managed_scope(app, buffer);
     Line_Ending_Kind *eol_setting = scope_attachment(app, scope, buffer_eol_setting,
                                                      Line_Ending_Kind);
-    *eol_setting = setting;
+    if (eol_setting != 0){
+        *eol_setting = setting;
+    }
 }
 
 // BOTTOM

@@ -217,6 +217,8 @@ tutorial_run_loop(Application_Links *app){
     tutorial.view = view;
     tutorial_maximize(app);
     
+    change_active_panel(app);
+    
     for (;;){
         User_Input in = get_next_input(app, EventPropertyGroup_Any, 0);
         if (in.abort){
@@ -229,16 +231,7 @@ tutorial_run_loop(Application_Links *app){
             {
                 tutorial_maximize(app);
                 if (in.event.mouse.code == MouseCode_Left){
-                    tutorial.depressed_action = tutorial.hover_action;
-                }
-            }break;
-            
-            case InputEventKind_MouseButtonRelease:
-            {
-                if (in.event.mouse.code == MouseCode_Left){
-                    if (tutorial.depressed_action == tutorial.hover_action){
-                        tutorial_action(app, tutorial.depressed_action);
-                    }
+                    tutorial_action(app, tutorial.hover_action);
                 }
             }break;
             
@@ -248,6 +241,8 @@ tutorial_run_loop(Application_Links *app){
                     case CoreCode_ClickActivateView:
                     {
                         tutorial_maximize(app);
+                            tutorial_action(app, tutorial.hover_action);
+                        change_active_panel(app);
                     }break;
                     
                     default:
@@ -437,7 +432,7 @@ hms_demo_tutorial_slide_2(Application_Links *app, Arena *arena){
     push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Range commands based on a cursor and mark (emacs style):"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
-                                   "Control", "Space", "moves the mark to the cursor cursor");
+                                   "Control", "Space", "moves the mark to the cursor");
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "D", "delete the range");
