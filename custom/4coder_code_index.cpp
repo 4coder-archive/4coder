@@ -559,15 +559,17 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
 
 function Token_Pair
 layout_token_pair(Token_Array *tokens, i64 pos){
+    Token_Pair result = {};
     Token_Iterator_Array it = token_iterator_pos(0, tokens, pos);
     Token *b = token_it_read(&it);
+    if (b != 0){
     if (b->kind == TokenBaseKind_Whitespace){
         token_it_inc_non_whitespace(&it);
         b = token_it_read(&it);
     }
+    }
     token_it_dec_non_whitespace(&it);
     Token *a = token_it_read(&it);
-    Token_Pair result = {};
     if (a != 0){
         result.a = *a;
     }
