@@ -12,6 +12,8 @@ setup_default_mapping(Mapping *mapping){
     SelectMap(mapid_global);
     BindCore(default_startup , CoreCode_Startup);
     BindCore(default_try_exit, CoreCode_TryExit);
+    Bind(keyboard_macro_record, KeyCode_U, KeyCode_Control);
+    Bind(keyboard_macro_replay, KeyCode_U, KeyCode_Alt);
     Bind(change_active_panel,           KeyCode_Comma, KeyCode_Control);
     Bind(change_active_panel_backwards, KeyCode_Comma, KeyCode_Control, KeyCode_Shift);
     Bind(interactive_new,               KeyCode_N, KeyCode_Control);

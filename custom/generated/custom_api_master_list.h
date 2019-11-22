@@ -9,6 +9,7 @@ api(custom) function Process_State child_process_get_state(Application_Links* ap
 api(custom) function b32 clipboard_post(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
 api(custom) function i32 clipboard_count(Application_Links* app, i32 clipboard_id);
 api(custom) function String_Const_u8 push_clipboard_index(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index);
+api(custom) function b32 enqueue_virtual_event(Application_Links* app, Input_Event* event);
 api(custom) function i32 get_buffer_count(Application_Links* app);
 api(custom) function Buffer_ID get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
 api(custom) function Buffer_ID get_buffer_by_name(Application_Links* app, String_Const_u8 name, Access_Flag access);

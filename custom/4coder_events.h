@@ -16,6 +16,7 @@ typedef u32 Core_Code;
 
 typedef u32 Input_Event_Kind;
 enum{
+    InputEventKind_None,
     InputEventKind_TextInsert,
     InputEventKind_KeyStroke,
     InputEventKind_KeyRelease,
@@ -25,6 +26,8 @@ enum{
     InputEventKind_MouseMove,
     InputEventKind_Core,
     InputEventKind_CustomFunction,
+    
+    InputEventKind_COUNT,
 };
 
 global_const i32 Input_MaxModifierCount = 8;

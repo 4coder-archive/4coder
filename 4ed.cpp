@@ -264,6 +264,7 @@ App_Init_Sig(app_init){
     models->keep_playing = true;
     
     models->config_api = api;
+    models->virtual_event_arena = reserve_arena(tctx);
     
     profile_init(&models->profile_list);
     
@@ -351,9 +352,10 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): init baked in buffers
     File_Init init_files[] = {
-        { string_u8_litinit("*messages*"), &models->message_buffer, true , },
-        { string_u8_litinit("*scratch*") , &models->scratch_buffer, false, },
-        { string_u8_litinit("*log*")     , &models->log_buffer    , true , },
+        { string_u8_litinit("*messages*"), &models->message_buffer , true , },
+        { string_u8_litinit("*scratch*") , &models->scratch_buffer , false, },
+        { string_u8_litinit("*log*")     , &models->log_buffer     , true , },
+        { string_u8_litinit("*keyboard*"), &models->keyboard_buffer, true , },
     };
     
     Heap *heap = &models->heap;
@@ -608,17 +610,35 @@ App_Step_Sig(app_step){
             }
         }
         
+        Temp_Memory_Block temp(scratch);
+        Input_Event *simulated_input = 0;
+        Input_Event virtual_event = models_pop_virtual_event(scratch, models);
+        if (virtual_event.kind != InputEventKind_None){
+            simulated_input = &virtual_event;
+        }
+        else{
         if (input_node == 0){
             break;
         }
-        input_node_next = input_node->next;
+            input_node_next = input_node->next;
+            simulated_input = &input_node->event;
+            
+            if (simulated_input->kind == InputEventKind_TextInsert && simulated_input->text.blocked){
+                continue;
+            }
+            
+            // NOTE(allen): record to keyboard history
+            if (simulated_input->kind == InputEventKind_KeyStroke ||
+                simulated_input->kind == InputEventKind_KeyRelease ||
+                simulated_input->kind == InputEventKind_TextInsert){
+                    Temp_Memory_Block temp_key_line(scratch);
+                    String_Const_u8 key_line = stringize_keyboard_event(scratch, simulated_input);
+                    output_file_append(tctx, models, models->keyboard_buffer, key_line);
+            }
+        }
         
         b32 event_was_handled = false;
-        Input_Event *event = &input_node->event;
-        
-        if (event->kind == InputEventKind_TextInsert && event->text.blocked){
-            continue;
-        }
+        Input_Event *event = simulated_input;
         
         Panel *active_panel = layout_get_active_panel(layout);
         View *view = active_panel->view;
@@ -706,6 +726,11 @@ App_Step_Sig(app_step){
             }
         }
     }
+    
+    linalloc_clear(models->virtual_event_arena);
+    models->free_virtual_event = 0;
+    models->first_virtual_event = 0;
+    models->last_virtual_event = 0;
     
     // NOTE(allen): send panel size update
     if (models->layout.panel_state_dirty){

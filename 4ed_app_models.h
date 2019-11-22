@@ -40,6 +40,11 @@ struct Model_View_Command_Function{
     View_ID view_id;
 };
 
+struct Model_Input_Event_Node{
+    Model_Input_Event_Node *next;
+    Input_Event event;
+};
+
 struct Models{
     Arena arena_;
     Arena *arena;
@@ -78,6 +83,11 @@ struct Models{
     Model_View_Command_Function *first_view_cmd_func;
     Model_View_Command_Function *last_view_cmd_func;
     
+    Arena *virtual_event_arena;
+    Model_Input_Event_Node *free_virtual_event;
+    Model_Input_Event_Node *first_virtual_event;
+    Model_Input_Event_Node *last_virtual_event;
+    
     Layout layout;
     Working_Set working_set;
     Live_Views view_set;
@@ -92,6 +102,7 @@ struct Models{
     Editing_File *message_buffer;
     Editing_File *scratch_buffer;
     Editing_File *log_buffer;
+    Editing_File *keyboard_buffer;
     
     Hot_Directory hot_directory;
     

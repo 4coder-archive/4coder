@@ -5299,6 +5299,17 @@ push_string_copy(Arena *arena, umem size, String_Const_Any src){
     return(string);
 }
 
+ function String_Const_u8_Array
+push_string_array_copy(Arena *arena, String_Const_u8_Array src){
+    String_Const_u8_Array result = {};
+    result.vals = push_array(arena, String_Const_u8, src.count);
+    result.count = src.count;
+    for (i32 i = 0; i < src.count; i += 1){
+        result.vals[i] = push_string_copy(arena, src.vals[i]);
+    }
+    return(result);
+}
+
 function void
 string_list_push(List_String_Const_char *list, Node_String_Const_char *node){
     sll_queue_push(list->first, list->last, node);

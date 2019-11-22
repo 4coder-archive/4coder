@@ -20,15 +20,9 @@
 #include "generated/system_api.h"
 #include "generated/command_metadata.h"
 
-#include "4coder_base_types.cpp"
-#include "4coder_stringf.cpp"
-#include "4coder_app_links_allocator.cpp"
-#include "4coder_system_allocator.cpp"
-
 #include "4coder_profile.h"
 #include "4coder_async_tasks.h"
 #include "4coder_token.h"
-#include "generated/lexer_cpp.h"
 #include "4coder_string_match.h"
 #include "4coder_helper.h"
 #include "4coder_delta_rule.h"
@@ -54,6 +48,12 @@
 #include "4coder_tutorial.h"
 
 ////////////////////////////////
+
+#include "4coder_base_types.cpp"
+#include "4coder_stringf.cpp"
+#include "4coder_app_links_allocator.cpp"
+#include "4coder_system_allocator.cpp"
+#include "generated/lexer_cpp.h"
 
 #define DYNAMIC_LINK_API
 #include "generated/custom_api.cpp"
@@ -98,6 +98,7 @@
 #include "4coder_jump_lister.cpp"
 #include "4coder_log_parser.cpp"
 #include "4coder_clipboard.cpp"
+#include "4coder_keyboard_macro.cpp"
 #include "4coder_cli_command.cpp"
 #include "4coder_build_commands.cpp"
 #include "4coder_project_commands.cpp"

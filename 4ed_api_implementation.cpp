@@ -60,6 +60,31 @@ models_pop_view_command_function(Models *models){
     return(result);
 }
 
+function void
+models_push_virtual_event(Models *models, Input_Event *event){
+    Model_Input_Event_Node *node = models->free_virtual_event;
+    if (node == 0){
+        node = push_array(models->virtual_event_arena, Model_Input_Event_Node, 1);
+    }
+    else{
+        sll_stack_pop(models->free_virtual_event);
+    }
+    sll_queue_push(models->first_virtual_event, models->last_virtual_event, node);
+    node->event = copy_input_event(models->virtual_event_arena, event);
+}
+
+function Input_Event
+models_pop_virtual_event(Arena *arena, Models *models){
+    Input_Event result = {};
+    if (models->first_virtual_event != 0){
+        Model_Input_Event_Node *node = models->first_virtual_event;
+        result = copy_input_event(arena, &node->event);
+        sll_queue_pop(models->first_virtual_event, models->last_virtual_event);
+        sll_stack_push(models->free_virtual_event, node);
+    }
+    return(result);
+}
+
 ////////////////////////////////
 
 function b32
@@ -202,6 +227,16 @@ push_clipboard_index(Application_Links *app, Arena *arena, i32 clipboard_id, i32
     String_Const_u8 result = {};
     if (str != 0){
         result = push_string_copy(arena, *str);
+    }
+    return(result);
+}
+
+api(custom) function b32
+enqueue_virtual_event(Application_Links *app, Input_Event *event){
+    Models *models = (Models*)app->cmd_context;
+    b32 result = false;
+    if (InputEventKind_None < event->kind && event->kind < InputEventKind_COUNT){
+        models_push_virtual_event(models, event);
     }
     return(result);
 }

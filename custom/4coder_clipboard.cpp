@@ -4,7 +4,7 @@
 
 // TOP
 
-static b32
+ function b32
 clipboard_post_buffer_range(Application_Links *app, i32 clipboard_index, Buffer_ID buffer, Range_i64 range){
     b32 success = false;
     Scratch_Block scratch(app);
