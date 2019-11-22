@@ -477,6 +477,25 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
 }
 
 function void
+profile_memory_sort_by_count(Memory_Bucket **buckets, i32 first, i32 one_past_last){
+    if (first + 1 < one_past_last){
+        i32 pivot = one_past_last - 1;
+        i32 pivot_key = buckets[pivot]->annotation.count;
+        i32 j = first;
+        for (i32 i = first; i < pivot; i += 1){
+            i32 key = buckets[i]->annotation.count;
+            if (key <= pivot_key){
+                Swap(Memory_Bucket*, buckets[j], buckets[i]);
+                j += 1;
+            }
+        }
+        Swap(Memory_Bucket*, buckets[j], buckets[pivot]);
+        profile_memory_sort_by_count(buckets, first, j);
+        profile_memory_sort_by_count(buckets, j + 1, one_past_last);
+    }
+}
+
+function void
 profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Scratch_Block scratch(app);
     
@@ -552,6 +571,10 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                                  ProfileInspectTab_Errors);
             }
             
+                profile_draw_tab(app, &tab_state, inspect,
+                                 string_u8_litexpr("memory"),
+                                 ProfileInspectTab_Memory);
+            
             if (inspect->tab_id == ProfileInspectTab_Selection){
                 String_Const_u8 string = {};
                 if (inspect->selected_thread != 0){
@@ -615,6 +638,9 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     draw_rectangle_outline(app, box, 6.f, 3.f, margin);
                     
                     y_pos = y.max;
+                    if (y_pos >= tabs_body.max.y1){
+                        break;
+                    }
                 }
             }break;
             
@@ -663,6 +689,9 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     draw_rectangle_outline(app, box, 6.f, 3.f, margin);
                     
                     y_pos = y.max;
+                    if (y_pos >= tabs_body.max.y1){
+                        break;
+                    }
                 }
             }break;
             
@@ -693,7 +722,89 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     draw_rectangle_outline(app, box, 6.f, 3.f, margin);
                     
                     y_pos = y.max;
+                    if (y_pos >= tabs_body.max.y1){
+                        break;
+                    }
                 }
+            }break;
+            
+            case ProfileInspectTab_Memory:
+            {
+                draw_set_clip(app, tabs_body.max);
+                Range_f32 x = rect_range_x(tabs_body.max);
+                f32 y_pos = tabs_body.max.y0;
+                Memory_Annotation annotation = system_memory_annotation(scratch);
+                
+                Base_Allocator *allocator = get_base_allocator_system();
+                
+                Memory_Bucket *first_bucket = 0;
+                Memory_Bucket *last_bucket = 0;
+                i32 bucket_count = 0;
+                Table_Data_u64 table = make_table_Data_u64(allocator, 100);
+                
+                for (Memory_Annotation_Node *node = annotation.first, *next = 0;
+                     node != 0;
+                     node = next){
+                    next = node->next;
+                    Data key = make_data(node->location.str, node->location.size);
+                    Table_Lookup lookup = table_lookup(&table, key);
+                    Memory_Bucket *bucket = 0;
+                    if (lookup.found_match){
+                        u64 val = 0;
+                        table_read(&table, lookup, &val);
+                        bucket = (Memory_Bucket*)IntAsPtr(val);
+                    }
+                    else{
+                        bucket = push_array_zero(scratch, Memory_Bucket, 1);
+                        sll_queue_push(first_bucket, last_bucket, bucket);
+                        bucket_count += 1;
+                        bucket->location = node->location;
+                        table_insert(&table, key, PtrAsInt(bucket));
+                    }
+                    sll_queue_push(bucket->annotation.first, bucket->annotation.last, node);
+                    bucket->annotation.count += 1;
+                    bucket->total_memory += node->size;
+                }
+                
+                Memory_Bucket **buckets = push_array(scratch, Memory_Bucket*, bucket_count);
+                i32 counter = 0;
+                for (Memory_Bucket *node = first_bucket;
+                     node != 0;
+                     node = node->next){
+                    buckets[counter] = node;
+                    counter += 1;
+                }
+                
+                profile_memory_sort_by_count(buckets, 0, bucket_count);
+                
+                for (i32 i = bucket_count - 1; i >= 0; i -= 1){
+                    Memory_Bucket *node = buckets[i];
+                    Range_f32 y = If32_size(y_pos, block_height);
+                    
+                    Fancy_Line list = {};
+                    push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop2), "[%12llu] / %6d ",
+                                       node->total_memory, node->annotation.count);
+                    push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop1), "%.*s",
+                                       string_expand(node->location));
+                    
+                    Vec2_f32 p = V2f32(x.min + x_half_padding,
+                                       (y.min + y.max - line_height)*0.5f);
+                    draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
+                    
+                    Rect_f32 box = Rf32(x, y);
+                    FColor margin = fcolor_id(Stag_Margin);
+                    if (rect_contains_point(box, m_p)){
+                        inspect->location_jump_hovered = node->location;
+                        margin = fcolor_id(Stag_Margin_Hover);
+                    }
+                    
+                    y_pos = y.max;
+                    if (y_pos >= tabs_body.max.y1){
+                        break;
+                    }
+                }
+                
+                table_free(&table);
             }break;
             
             case ProfileInspectTab_Selection:

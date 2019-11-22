@@ -21,11 +21,7 @@ get_global_face_description(Application_Links *app){
 
 internal b32
 font_load_location_match(Font_Load_Location *a, Font_Load_Location *b){
-    b32 result = false;
-    if (string_match(a->file_name, b->file_name) && a->in_4coder_font_folder == b->in_4coder_font_folder){
-        result = true;
-    }
-    return(result);
+    return(string_match(a->file_name, b->file_name));
 }
 
 internal b32

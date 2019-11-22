@@ -8,7 +8,7 @@
 #include <malloc.h>
 
 internal void*
-base_reserve__malloc(void *user_data, umem size, umem *size_out){
+base_reserve__malloc(void *user_data, umem size, umem *size_out, String_Const_u8 location){
     *size_out = size;
     return(malloc(size));
 }

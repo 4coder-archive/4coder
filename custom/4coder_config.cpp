@@ -1548,7 +1548,6 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     //change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
     
     Face_Description description = {};
-    description.font.file_name = config->default_font_name;
     if (override_font_size != 0){
         description.parameters.pt_size = override_font_size;
     }
@@ -1556,9 +1555,10 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         description.parameters.pt_size = config->default_font_size;
     }
     description.parameters.hinting = config->default_font_hinting || override_hinting;
-    description.font.in_4coder_font_folder = true;
+    
+    description.font.file_name = config->default_font_name;
     if (!modify_global_face_by_description(app, description)){
-        description.font.in_4coder_font_folder = false;
+        description.font.file_name = get_file_path_in_fonts_folder(scratch, config->default_font_name);
         modify_global_face_by_description(app, description);
     }
 }

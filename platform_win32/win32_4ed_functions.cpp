@@ -24,21 +24,54 @@ system_file_can_be_made(Arena *scratch, u8 *filename){
 // Memory
 //
 
+struct Memory_Annotation_Tracker_Node{
+    Memory_Annotation_Tracker_Node *next;
+    Memory_Annotation_Tracker_Node *prev;
+    String_Const_u8 location;
+    umem size;
+};
+
+struct Memory_Annotation_Tracker{
+    Memory_Annotation_Tracker_Node *first;
+    Memory_Annotation_Tracker_Node *last;
+    i32 count;
+};
+
+global Memory_Annotation_Tracker memory_tracker = {};
+global CRITICAL_SECTION memory_tracker_mutex;
+
 internal void*
-win32_memory_allocate_extended(void *base, umem size){
-    void *result = VirtualAlloc(base, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    return(result);
+win32_memory_allocate_extended(void *base, umem size, String_Const_u8 location){
+    umem adjusted_size = size + 64;
+    void *result = VirtualAlloc(base, adjusted_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)result;
+    EnterCriticalSection(&memory_tracker_mutex);
+    zdll_push_back(memory_tracker.first, memory_tracker.last, node);
+    memory_tracker.count += 1;
+    LeaveCriticalSection(&memory_tracker_mutex);
+    node->location = location;
+    node->size = size;
+    return(node + 1);
+}
+
+internal void
+win32_memory_free_extended(void *ptr){
+    Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)ptr;
+    node -= 1;
+    EnterCriticalSection(&memory_tracker_mutex);
+    zdll_remove(memory_tracker.first, memory_tracker.last, node);
+    memory_tracker.count -= 1;
+    LeaveCriticalSection(&memory_tracker_mutex);
+    VirtualFree(node, 0, MEM_RELEASE);
 }
 
 internal
 system_memory_allocate_sig(){
-    return(win32_memory_allocate_extended(0, size));
+    return(win32_memory_allocate_extended(0, size, location));
 }
 
 internal
 system_memory_set_protection_sig(){
-    b32 result = false;
-    DWORD old_protect = 0;
     DWORD protect = 0;
     
     switch (flags & 0x7){
@@ -52,13 +85,37 @@ system_memory_set_protection_sig(){
         case MemProtect_Execute|MemProtect_Write|MemProtect_Read: protect = PAGE_EXECUTE_READWRITE; break;
     }
     
-    VirtualProtect(ptr, size, protect, &old_protect);
+    Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)ptr;
+    node -= 1;
+    
+    DWORD old_protect = 0;
+    b32 result = VirtualProtect(node, size, protect, &old_protect);
     return(result);
 }
 
 internal
 system_memory_free_sig(){
-    VirtualFree(ptr, 0, MEM_RELEASE);
+    win32_memory_free_extended(ptr);
+}
+
+internal
+system_memory_annotation_sig(){
+    Memory_Annotation result = {};
+    EnterCriticalSection(&memory_tracker_mutex);
+    
+    for (Memory_Annotation_Tracker_Node *node = memory_tracker.first;
+         node != 0;
+         node = node->next){
+        Memory_Annotation_Node *r_node = push_array(arena, Memory_Annotation_Node, 1);
+        sll_queue_push(result.first, result.last, r_node);
+        result.count += 1;
+        r_node->location = node->location;
+        r_node->address = node + 1;
+        r_node->size = node->size;
+    }
+    
+    LeaveCriticalSection(&memory_tracker_mutex);
+    return(result);
 }
 
 //
@@ -83,7 +140,7 @@ system_get_path_sig(){
             if (!has_stashed_4ed_path){
                 has_stashed_4ed_path = true;
                 local_const i32 binary_path_capacity = KB(32);
-                u8 *memory = (u8*)system_memory_allocate(binary_path_capacity);
+                u8 *memory = (u8*)system_memory_allocate(binary_path_capacity, string_u8_litexpr(file_name_line_number));
                 i32 size = GetModuleFileName_utf8(arena, 0, memory, binary_path_capacity);
                 Assert(size <= binary_path_capacity - 1);
                 win32vars.binary_path = SCu8(memory, size);
@@ -478,7 +535,7 @@ system_open_color_picker_sig(){
     // NOTE(casey): Because this is going to be used by a semi-permanent thread, we need to
     // copy it to system memory where it can live as long as it wants, no matter what we do 
     // over here on the 4coder threads.
-    Color_Picker *perm = (Color_Picker*)system_memory_allocate(sizeof(Color_Picker));
+    Color_Picker *perm = (Color_Picker*)system_memory_allocate(sizeof(Color_Picker), string_u8_litexpr(file_name_line_number));
     *perm = *picker;
     
     HANDLE ThreadHandle = CreateThread(0, 0, color_picker_thread, perm, 0, 0);

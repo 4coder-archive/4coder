@@ -21,11 +21,11 @@ global_const u32 table_erased_u32_key = max_u32;
 ////////////////////////////////
 
 internal Table_u64_u64
-make_table_u64_u64(Base_Allocator *allocator, u32 slot_count){
+make_table_u64_u64__inner(Base_Allocator *allocator, u32 slot_count, String_Const_u8 location){
     Table_u64_u64 table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)));
+    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
     block_zero(mem.data, mem.size);
     table.memory = mem.data;
     table.keys = (u64*)table.memory;
@@ -35,6 +35,8 @@ make_table_u64_u64(Base_Allocator *allocator, u32 slot_count){
     table.dirty_count = 0;
     return(table);
 }
+
+#define make_table_u64_u64(a,s) make_table_u64_u64__inner((a),(s),file_name_line_number_lit_u8)
 
 internal void
 table_free(Table_u64_u64 *table){
@@ -183,11 +185,11 @@ table_clear(Table_u64_u64 *table){
 ////////////////////////////////
 
 internal Table_u32_u16
-make_table_u32_u16(Base_Allocator *allocator, u32 slot_count){
+make_table_u32_u16__inner(Base_Allocator *allocator, u32 slot_count, String_Const_u8 location){
     Table_u32_u16 table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)));
+    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
     block_zero(mem.data, mem.size);
     table.memory = mem.data;
     table.keys = (u32*)table.memory;
@@ -197,6 +199,8 @@ make_table_u32_u16(Base_Allocator *allocator, u32 slot_count){
     table.dirty_count = 0;
     return(table);
 }
+
+#define make_table_u32_u16(a,s) make_table_u32_u16__inner((a),(s),file_name_line_number_lit_u8)
 
 internal void
 table_free(Table_u32_u16 *table){
@@ -341,11 +345,11 @@ table_clear(Table_u32_u16 *table){
 ////////////////////////////////
 
 internal Table_Data_u64
-make_table_Data_u64(Base_Allocator *allocator, u32 slot_count){
+make_table_Data_u64__inner(Base_Allocator *allocator, u32 slot_count, String_Const_u8 location){
     Table_Data_u64 table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)));
+    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)), location);
     block_zero(mem.data, mem.size);
     table.memory = mem.data;
     table.hashes = (u64*)table.memory;
@@ -356,6 +360,8 @@ make_table_Data_u64(Base_Allocator *allocator, u32 slot_count){
     table.dirty_count = 0;
     return(table);
 }
+
+#define make_table_Data_u64(a,s) make_table_Data_u64__inner((a),(s),file_name_line_number_lit_u8)
 
 internal void
 table_free(Table_Data_u64 *table){
@@ -515,11 +521,11 @@ table_clear(Table_Data_u64 *table){
 ////////////////////////////////
 
 internal Table_u64_Data
-make_table_u64_Data(Base_Allocator *allocator, u32 slot_count){
+make_table_u64_Data__inner(Base_Allocator *allocator, u32 slot_count, String_Const_u8 location){
     Table_u64_Data table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)));
+    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.keys) + sizeof(*table.vals)), location);
     block_zero(mem.data, mem.size);
     table.memory = mem.data;
     table.keys = (u64*)table.memory;
@@ -529,6 +535,8 @@ make_table_u64_Data(Base_Allocator *allocator, u32 slot_count){
     table.dirty_count = 0;
     return(table);
 }
+
+#define make_table_u64_Data(a,s) make_table_u64_Data__inner((a),(s),file_name_line_number_lit_u8)
 
 internal void
 table_free(Table_u64_Data *table){
@@ -679,11 +687,11 @@ table_clear(Table_u64_Data *table){
 ////////////////////////////////
 
 internal Table_Data_Data
-make_table_Data_Data(Base_Allocator *allocator, u32 slot_count){
+make_table_Data_Data__inner(Base_Allocator *allocator, u32 slot_count, String_Const_u8 location){
     Table_Data_Data table = {};
     table.allocator = allocator;
     slot_count = clamp_bot(8, slot_count);
-    Data mem = base_allocate(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)));
+    Data mem = base_allocate__inner(allocator, slot_count*(sizeof(*table.hashes) + sizeof(*table.keys) + sizeof(*table.vals)), location);
     block_zero(mem.data, mem.size);
     table.memory = mem.data;
     table.hashes = (u64*)table.memory;
@@ -694,6 +702,8 @@ make_table_Data_Data(Base_Allocator *allocator, u32 slot_count){
     table.dirty_count = 0;
     return(table);
 }
+
+#define make_table_Data_Data(a,s) make_table_Data_Data__inner((a),(s),file_name_line_number_lit_u8)
 
 internal void
 table_free(Table_Data_Data *table){

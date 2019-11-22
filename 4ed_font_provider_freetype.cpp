@@ -100,7 +100,7 @@ ft__get_codepoint_index_map(Base_Allocator *base_allocator, FT_Face face){
     return(map);
 }
 
-struct FT_Bad_Rect_Pack{
+struct Bad_Rect_Pack{
     Vec2_i32 max_dim;
     Vec3_i32 dim;
     Vec3_i32 p;
@@ -108,7 +108,7 @@ struct FT_Bad_Rect_Pack{
 };
 
 internal void
-ft__bad_rect_pack_init(FT_Bad_Rect_Pack *pack, Vec2_i32 max_dim){
+ft__bad_rect_pack_init(Bad_Rect_Pack *pack, Vec2_i32 max_dim){
     pack->max_dim = max_dim;
     pack->dim = V3i32(0, 0, 1);
     pack->p = V3i32(0, 0, 0);
@@ -116,7 +116,7 @@ ft__bad_rect_pack_init(FT_Bad_Rect_Pack *pack, Vec2_i32 max_dim){
 }
 
 internal void
-ft__bad_rect_pack_end_line(FT_Bad_Rect_Pack *pack){
+ft__bad_rect_pack_end_line(Bad_Rect_Pack *pack){
     pack->p.y += pack->current_line_h;
     pack->dim.y = Max(pack->dim.y, pack->p.y);
     pack->current_line_h = 0;
@@ -124,7 +124,7 @@ ft__bad_rect_pack_end_line(FT_Bad_Rect_Pack *pack){
 }
 
 internal Vec3_i32
-ft__bad_rect_pack_next(FT_Bad_Rect_Pack *pack, Vec2_i32 dim){
+ft__bad_rect_pack_next(Bad_Rect_Pack *pack, Vec2_i32 dim){
     Vec3_i32 result = {};
     if (dim.x <= pack->max_dim.x && dim.y <= pack->max_dim.y){
         if (pack->current_line_h < dim.y){
@@ -150,7 +150,7 @@ ft__bad_rect_pack_next(FT_Bad_Rect_Pack *pack, Vec2_i32 dim){
 }
 
 internal void
-ft__bad_rect_store_finish(FT_Bad_Rect_Pack *pack){
+ft__bad_rect_store_finish(Bad_Rect_Pack *pack){
     ft__bad_rect_pack_end_line(pack);
 }
 
@@ -162,16 +162,7 @@ ft__glyph_bounds_store_uv_raw(Vec3_i32 p, Vec2_i32 dim, Glyph_Bounds *bounds){
 
 internal Face*
 ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor){
-    String_Const_u8 file_name = {};
-    if (description->font.in_4coder_font_folder){
-        String_Const_u8 binary_path = system_get_path(arena, SystemPath_Binary);
-        binary_path = string_mod_replace_character(binary_path, '\\', '/');
-        file_name = push_u8_stringf(arena, "%.*sfonts/%.*s", string_expand(binary_path),
-                                    string_expand(description->font.file_name));
-    }
-    else{
-        file_name = push_string_copy(arena, description->font.file_name);
-    }
+    String_Const_u8 file_name = push_string_copy(arena, description->font.file_name);
     
     FT_Library ft;
     FT_Init_FreeType(&ft);
@@ -192,7 +183,6 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         FT_Request_Size(ft_face, &size);
         
         face->description.font.file_name = file_name;
-        face->description.font.in_4coder_font_folder = false;
         face->description.parameters = description->parameters;
         
         Face_Metrics *met = &face->metrics;
@@ -225,15 +215,16 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         face->advance_map.advance = push_array_zero(arena, f32, index_count);
         face->bounds = push_array(arena, Glyph_Bounds, index_count);
         
-        struct FT_Bitmap{
+        Temp_Memory_Block temp_memory(arena);
+        struct Bitmap{
             Vec2_i32 dim;
             u8 *data;
         };
-        FT_Bitmap *glyph_bitmaps = push_array(arena, FT_Bitmap, index_count);
+        Bitmap *glyph_bitmaps = push_array(arena, Bitmap, index_count);
         
         u32 load_flags = ft__load_flags(hinting);
         for (u16 i = 0; i < index_count; i += 1){
-            FT_Bitmap *bitmap = &glyph_bitmaps[i];
+            Bitmap *bitmap = &glyph_bitmaps[i];
             
             error = FT_Load_Glyph(ft_face, i, load_flags);
             if (error == 0){
@@ -288,11 +279,11 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
             0xFF, 0xFF, 0xFF, 0xFF,
         };
         
-        FT_Bitmap white = {};
+        Bitmap white = {};
         white.dim = V2i32(4, 4);
         white.data = white_data;
         
-        FT_Bad_Rect_Pack pack = {};
+        Bad_Rect_Pack pack = {};
         ft__bad_rect_pack_init(&pack, V2i32(1024, 1024));
         ft__glyph_bounds_store_uv_raw(ft__bad_rect_pack_next(&pack, white.dim), white.dim, &face->white);
         for (u16 i = 0; i < index_count; i += 1){

@@ -2549,926 +2549,6 @@ flip_side(Side side){
 
 ////////////////////////////////
 
-internal void*
-base_reserve__noop(void *user_data, umem size, umem *size_out){
-    *size_out = 0;
-    return(0);
-}
-internal void
-base_commit__noop(void *user_data, void *ptr, umem size){}
-internal void
-base_uncommit__noop(void *user_data, void *ptr, umem size){}
-internal void
-base_free__noop(void *user_data, void *ptr){}
-internal void
-base_set_access__noop(void *user_data, void *ptr, umem size, Access_Flag flags){}
-
-internal Base_Allocator
-make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
-                    Base_Allocator_Commit_Signature *func_commit,
-                    Base_Allocator_Uncommit_Signature *func_uncommit,
-                    Base_Allocator_Free_Signature *func_free,
-                    Base_Allocator_Set_Access_Signature *func_set_access,
-                    void *user_data){
-    if (func_reserve == 0){
-        func_reserve = base_reserve__noop;
-    }
-    if (func_commit == 0){
-        func_commit = base_commit__noop;
-    }
-    if (func_uncommit == 0){
-        func_uncommit = base_uncommit__noop;
-    }
-    if (func_free == 0){
-        func_free = base_free__noop;
-    }
-    if (func_set_access == 0){
-        func_set_access = base_set_access__noop;
-    }
-    Base_Allocator base_allocator = {
-        func_reserve,
-        func_commit,
-        func_uncommit,
-        func_free,
-        func_set_access,
-        user_data,
-    };
-    return(base_allocator);
-}
-internal Data
-base_allocate(Base_Allocator *allocator, umem size){
-    umem full_size = 0;
-    void *memory = allocator->reserve(allocator->user_data, size, &full_size);
-    allocator->commit(allocator->user_data, memory, full_size);
-    return(make_data(memory, full_size));
-}
-internal void
-base_free(Base_Allocator *allocator, void *ptr){
-    if (ptr != 0){
-        allocator->free(allocator->user_data, ptr);
-    }
-}
-
-#define base_array(a,T,c) (T*)(base_allocate((a), sizeof(T)*(c)).data)
-
-////////////////////////////////
-
-internal Cursor
-make_cursor(void *base, umem size){
-    Cursor cursor = {(u8*)base, 0, size};
-    return(cursor);
-}
-internal Cursor
-make_cursor(Data data){
-    return(make_cursor(data.data, data.size));
-}
-internal Cursor
-make_cursor(Base_Allocator *allocator, umem size){
-    Data memory = base_allocate(allocator, size);
-    return(make_cursor(memory));
-}
-internal Data
-linalloc_push(Cursor *cursor, umem size){
-    Data result = {};
-    if (cursor->pos + size <= cursor->cap){
-        result.data = cursor->base + cursor->pos;
-        result.size = size;
-        cursor->pos += size;
-    }
-    return(result);
-}
-internal void
-linalloc_pop(Cursor *cursor, umem size){
-    if (cursor->pos > size){
-        cursor->pos -= size;
-    }
-    else{
-        cursor->pos = 0;
-    }
-}
-internal Data
-linalloc_align(Cursor *cursor, umem alignment){
-    umem pos = round_up_umem(cursor->pos, alignment);
-    umem new_size = pos - cursor->pos;
-    return(linalloc_push(cursor, new_size));
-}
-internal Temp_Memory_Cursor
-linalloc_begin_temp(Cursor *cursor){
-    Temp_Memory_Cursor temp = {cursor, cursor->pos};
-    return(temp);
-}
-internal void
-linalloc_end_temp(Temp_Memory_Cursor temp){
-    temp.cursor->pos = temp.pos;
-}
-internal void
-linalloc_clear(Cursor *cursor){
-    cursor->pos = 0;
-}
-internal Arena
-make_arena(Base_Allocator *allocator, umem chunk_size, umem alignment){
-    Arena arena = {allocator, 0, chunk_size, alignment};
-    return(arena);
-}
-internal Arena
-make_arena(Base_Allocator *allocator, umem chunk_size){
-    return(make_arena(allocator, chunk_size, 8));
-}
-internal Arena
-make_arena(Base_Allocator *allocator){
-    return(make_arena(allocator, KB(64), 8));
-}
-internal Cursor_Node*
-arena__new_node(Arena *arena, umem min_size){
-    min_size = clamp_bot(min_size, arena->chunk_size);
-    Data memory = base_allocate(arena->base_allocator, min_size + sizeof(Cursor_Node));
-    Cursor_Node *cursor_node = (Cursor_Node*)memory.data;
-    cursor_node->cursor = make_cursor(cursor_node + 1, memory.size - sizeof(Cursor_Node));
-    sll_stack_push(arena->cursor_node, cursor_node);
-    return(cursor_node);
-}
-internal Data
-linalloc_push(Arena *arena, umem size){
-    Data result = {};
-    if (size > 0){
-        Cursor_Node *cursor_node = arena->cursor_node;
-        if (cursor_node == 0){
-            cursor_node = arena__new_node(arena, size);
-        }
-        result = linalloc_push(&cursor_node->cursor, size);
-        if (result.data == 0){
-            cursor_node = arena__new_node(arena, size);
-            result = linalloc_push(&cursor_node->cursor, size);
-        }
-        Data alignment_data = linalloc_align(&cursor_node->cursor, arena->alignment);
-        result.size += alignment_data.size;
-    }
-    return(result);
-}
-internal void
-linalloc_pop(Arena *arena, umem size){
-    Base_Allocator *allocator = arena->base_allocator;
-    Cursor_Node *cursor_node = arena->cursor_node;
-    for (Cursor_Node *prev = 0;
-         cursor_node != 0 && size != 0;
-         cursor_node = prev){
-        prev = cursor_node->prev;
-        if (size >= cursor_node->cursor.pos){
-            size -= cursor_node->cursor.pos;
-            base_free(allocator, cursor_node);
-        }
-        else{
-            linalloc_pop(&cursor_node->cursor, size);
-            break;
-        }
-    }
-    arena->cursor_node = cursor_node;
-}
-internal Data
-linalloc_align(Arena *arena, umem alignment){
-    arena->alignment = alignment;
-    Data data = {};
-    Cursor_Node *cursor_node = arena->cursor_node;
-    if (cursor_node != 0){
-        data = linalloc_align(&cursor_node->cursor, arena->alignment);
-    }
-    return(data);
-}
-internal Temp_Memory_Arena
-linalloc_begin_temp(Arena *arena){
-    Cursor_Node *cursor_node = arena->cursor_node;
-    Temp_Memory_Arena temp = {arena, cursor_node,
-        cursor_node == 0?0:cursor_node->cursor.pos};
-    return(temp);
-}
-internal void
-linalloc_end_temp(Temp_Memory_Arena temp){
-    Base_Allocator *allocator = temp.arena->base_allocator;
-    Cursor_Node *cursor_node = temp.arena->cursor_node;
-    for (Cursor_Node *prev = 0;
-         cursor_node != temp.cursor_node && cursor_node != 0;
-         cursor_node = prev){
-        prev = cursor_node->prev;
-        base_free(allocator, cursor_node);
-    }
-    temp.arena->cursor_node = cursor_node;
-    if (cursor_node != 0){
-        if (temp.pos > 0){
-            cursor_node->cursor.pos = temp.pos;
-        }
-        else{
-            temp.arena->cursor_node = cursor_node->prev;
-            base_free(allocator, cursor_node);
-        }
-    }
-}
-internal void
-linalloc_clear(Arena *arena){
-    Temp_Memory_Arena temp = {arena, 0, 0};
-    linalloc_end_temp(temp);
-}
-internal void
-arena_tap(Arena *arena){
-    Cursor_Node *cursor_node = arena->cursor_node;
-    if (cursor_node == 0){
-        arena__new_node(arena, 0);
-    }
-    else if (cursor_node->cursor.pos == cursor_node->cursor.cap){
-        arena__new_node(arena, 0);
-    }
-}
-internal Cursor*
-arena_as_cursor(Arena *arena){
-    Cursor *cursor = 0;
-    arena_tap(arena);
-    Cursor_Node *node = arena->cursor_node;
-    if (node != 0){
-        cursor = &node->cursor;
-    }
-    return(cursor);
-}
-internal void*
-linalloc_wrap_unintialized(Data data){
-    return(data.data);
-}
-internal void*
-linalloc_wrap_zero(Data data){
-    block_zero(data.data, data.size);
-    return(data.data);
-}
-internal void*
-linalloc_wrap_write(Data data, umem size, void *src){
-    block_copy(data.data, src, clamp_top(data.size, size));
-    return(data.data);
-}
-#define push_array(a,T,c) ((T*)linalloc_wrap_unintialized(linalloc_push((a), sizeof(T)*(c))))
-#define push_array_zero(a,T,c) ((T*)linalloc_wrap_zero(linalloc_push((a), sizeof(T)*(c))))
-#define push_array_write(a,T,c,s) ((T*)linalloc_wrap_write(linalloc_push((a), sizeof(T)*(c)), sizeof(T)*(c), (s)))
-#define pop_array(a,T,c) (linalloc_pop((a), sizeof(T)*(c)))
-#define push_align(a,b) (linalloc_align((a), (b)))
-#define push_align_zero(a,b) (linalloc_wrap_zero(linalloc_align((a), (b))))
-internal Temp_Memory
-begin_temp(Cursor *cursor){
-    Temp_Memory temp = {LinearAllocatorKind_Cursor};
-    temp.temp_memory_cursor = linalloc_begin_temp(cursor);
-    return(temp);
-}
-internal Temp_Memory
-begin_temp(Arena *arena){
-    Temp_Memory temp = {LinearAllocatorKind_Arena};
-    temp.temp_memory_arena = linalloc_begin_temp(arena);
-    return(temp);
-}
-internal void
-end_temp(Temp_Memory temp){
-    switch (temp.kind){
-        case LinearAllocatorKind_Cursor:
-        {
-            linalloc_end_temp(temp.temp_memory_cursor);
-        }break;
-        case LinearAllocatorKind_Arena:
-        {
-            linalloc_end_temp(temp.temp_memory_arena);
-        }break;
-    }
-}
-
-////////////////////////////////
-
-internal void
-thread_ctx_init(Thread_Context *tctx, Thread_Kind kind, Base_Allocator *allocator,
-                Base_Allocator *prof_allocator){
-    block_zero_struct(tctx);
-    tctx->kind = kind;
-    tctx->allocator = allocator;
-    tctx->node_arena = make_arena(allocator, KB(4), 8);
-    
-    tctx->prof_allocator = prof_allocator;
-    tctx->prof_id_counter = 1;
-    tctx->prof_arena = make_arena(prof_allocator, KB(4));
-}
-
-internal void
-thread_ctx_release(Thread_Context *tctx){
-    for (Arena_Node *node = tctx->free_arenas;
-         node != 0;
-         node = node->next){
-        linalloc_clear(&node->arena);
-    }
-    linalloc_clear(&tctx->node_arena);
-    block_zero_struct(tctx);
-}
-
-internal Arena*
-reserve_arena(Thread_Context *tctx, umem chunk_size, umem align){
-    Arena_Node *node = tctx->free_arenas;
-    if (node != 0){
-        sll_stack_pop(tctx->free_arenas);
-    }
-    else{
-        node = push_array_zero(&tctx->node_arena, Arena_Node, 1);
-    }
-    node->arena = make_arena(tctx->allocator, chunk_size, align);
-    return(&node->arena);
-}
-
-internal Arena*
-reserve_arena(Thread_Context *tctx, umem chunk_size){
-    return(reserve_arena(tctx, chunk_size, 8));
-}
-
-internal Arena*
-reserve_arena(Thread_Context *tctx){
-    return(reserve_arena(tctx, KB(64), 8));
-}
-
-internal void
-release_arena(Thread_Context *tctx, Arena *arena){
-    Arena_Node *node = CastFromMember(Arena_Node, arena, arena);
-    linalloc_clear(arena);
-    sll_stack_push(tctx->free_arenas, node);
-}
-
-////////////////////////////////
-
-internal void
-scratch_block__init(Scratch_Block *block, Thread_Context *tctx, Scratch_Share_Code share){
-    Arena *arena = tctx->sharable_scratch;
-    if (arena != 0){
-        block->arena = arena;
-        block->temp = begin_temp(arena);
-        block->do_full_clear = false;
-    }
-    else{
-        arena = reserve_arena(tctx);
-        block->arena = arena;
-        block_zero_struct(&block->temp);
-        block->do_full_clear = true;
-    }
-    block->tctx = tctx;
-    block->sharable_restore = tctx->sharable_scratch;
-    if (share == Scratch_Share){
-        tctx->sharable_scratch = arena;
-    }
-    else{
-        tctx->sharable_scratch = 0;
-    }
-}
-
-global_const Scratch_Share_Code share_code_default = Scratch_DontShare;
-
-Scratch_Block::Scratch_Block(Thread_Context *tctx, Scratch_Share_Code share){
-    scratch_block__init(this, tctx, share);
-}
-
-Scratch_Block::Scratch_Block(Thread_Context *tctx){
-    scratch_block__init(this, tctx, share_code_default);
-}
-
-Scratch_Block::~Scratch_Block(){
-    if (this->do_full_clear){
-        Assert(this->tctx != 0);
-        release_arena(this->tctx, this->arena);
-    }
-    else{
-        end_temp(this->temp);
-    }
-    if (this->tctx != 0){
-        this->tctx->sharable_scratch = this->sharable_restore;
-    }
-}
-
-Scratch_Block::operator Arena*(){
-    return(this->arena);
-}
-
-void
-Scratch_Block::restore(void){
-    if (this->do_full_clear){
-        linalloc_clear(this->arena);
-    }
-    else{
-        end_temp(this->temp);
-    }
-}
-
-Temp_Memory_Block::Temp_Memory_Block(Temp_Memory t){
-    this->temp = t;
-}
-
-Temp_Memory_Block::Temp_Memory_Block(Arena *arena){
-    this->temp = begin_temp(arena);
-}
-
-Temp_Memory_Block::~Temp_Memory_Block(){
-    end_temp(this->temp);
-}
-
-void
-Temp_Memory_Block::restore(void){
-    end_temp(this->temp);
-}
-
-////////////////////////////////
-
-#define heap__sent_init(s) (s)->next=(s)->prev=(s)
-#define heap__insert_next(p,n) ((n)->next=(p)->next,(n)->prev=(p),(n)->next->prev=(n),(p)->next=(n))
-#define heap__insert_prev(p,n) ((n)->prev=(p)->prev,(n)->next=(p),(n)->prev->next=(n),(p)->prev=(n))
-#define heap__remove(n) ((n)->next->prev=(n)->prev,(n)->prev->next=(n)->next)
-
-#if defined(DO_HEAP_CHECKS)
-internal void
-heap_assert_good(Heap *heap){
-    if (heap->in_order.next != 0){
-        Assert(heap->in_order.prev != 0);
-        Assert(heap->free_nodes.next != 0);
-        Assert(heap->free_nodes.prev != 0);
-        for (Heap_Basic_Node *node = &heap->in_order;;){
-            Assert(node->next->prev == node);
-            Assert(node->prev->next == node);
-            node = node->next;
-            if (node == &heap->in_order){
-                break;
-            }
-        }
-        for (Heap_Basic_Node *node = &heap->free_nodes;;){
-            Assert(node->next->prev == node);
-            Assert(node->prev->next == node);
-            node = node->next;
-            if (node == &heap->free_nodes){
-                break;
-            }
-        }
-    }
-}
-#else
-#define heap_assert_good(heap) ((void)(heap))
-#endif
-
-internal void
-heap_init(Heap *heap, Base_Allocator *allocator){
-    heap->arena_ = make_arena(allocator);
-    heap->arena = &heap->arena_;
-    heap__sent_init(&heap->in_order);
-    heap__sent_init(&heap->free_nodes);
-    heap->used_space = 0;
-    heap->total_space = 0;
-}
-
-internal void
-heap_init(Heap *heap, Arena *arena){
-    heap->arena = arena;
-    heap__sent_init(&heap->in_order);
-    heap__sent_init(&heap->free_nodes);
-    heap->used_space = 0;
-    heap->total_space = 0;
-}
-
-internal Base_Allocator*
-heap_get_base_allocator(Heap *heap){
-    return(heap->arena->base_allocator);
-}
-
-internal void
-heap_free_all(Heap *heap){
-    if (heap->arena == &heap->arena_){
-        linalloc_clear(heap->arena);
-    }
-    block_zero_struct(heap);
-}
-
-internal void
-heap__extend(Heap *heap, void *memory, umem size){
-    heap_assert_good(heap);
-    if (size >= sizeof(Heap_Node)){
-        Heap_Node *new_node = (Heap_Node*)memory;
-        heap__insert_prev(&heap->in_order, &new_node->order);
-        heap__insert_next(&heap->free_nodes, &new_node->alloc);
-        new_node->size = size - sizeof(*new_node);
-        heap->total_space += size;
-    }
-    heap_assert_good(heap);
-}
-
-internal void
-heap__extend_automatic(Heap *heap, umem size){
-    void *memory = push_array(heap->arena, u8, size);
-    heap__extend(heap, memory, size);
-}
-
-internal void*
-heap__reserve_chunk(Heap *heap, Heap_Node *node, umem size){
-    u8 *ptr = (u8*)(node + 1);
-    Assert(node->size >= size);
-    umem left_over_size = node->size - size;
-    if (left_over_size > sizeof(*node)){
-        umem new_node_size = left_over_size - sizeof(*node);
-        Heap_Node *new_node = (Heap_Node*)(ptr + size);
-        heap__insert_next(&node->order, &new_node->order);
-        heap__insert_next(&node->alloc, &new_node->alloc);
-        new_node->size = new_node_size;
-    }
-    heap__remove(&node->alloc);
-    node->alloc.next = 0;
-    node->alloc.prev = 0;
-    node->size = size;
-    heap->used_space += sizeof(*node) + size;
-    return(ptr);
-}
-
-internal void*
-heap_allocate(Heap *heap, umem size){
-    b32 first_try = true;
-    for (;;){
-        if (heap->in_order.next != 0){
-            heap_assert_good(heap);
-            umem aligned_size = (size + sizeof(Heap_Node) - 1);
-            aligned_size = aligned_size - (aligned_size%sizeof(Heap_Node));
-            for (Heap_Basic_Node *n = heap->free_nodes.next;
-                 n != &heap->free_nodes;
-                 n = n->next){
-                Heap_Node *node = CastFromMember(Heap_Node, alloc, n);
-                if (node->size >= aligned_size){
-                    void *ptr = heap__reserve_chunk(heap, node, aligned_size);
-                    heap_assert_good(heap);
-                    return(ptr);
-                }
-            }
-            heap_assert_good(heap);
-        }
-        
-        if (first_try){
-            umem extension_size = clamp_bot(KB(64), size*2);
-            heap__extend_automatic(heap, extension_size);
-            first_try = false;
-        }
-        else{
-            break;
-        }
-    }
-    return(0);
-}
-
-internal void
-heap__merge(Heap *heap, Heap_Node *l, Heap_Node *r){
-    if (&l->order != &heap->in_order && &r->order != &heap->in_order &&
-        l->alloc.next != 0 && l->alloc.prev != 0 &&
-        r->alloc.next != 0 && r->alloc.prev != 0){
-        u8 *ptr = (u8*)(l + 1) + l->size;
-        if (PtrDif(ptr, r) == 0){
-            heap__remove(&r->order);
-            heap__remove(&r->alloc);
-            heap__remove(&l->alloc);
-            l->size += r->size + sizeof(*r);
-            heap__insert_next(&heap->free_nodes, &l->alloc);
-        }
-    }
-}
-
-internal void
-heap_free(Heap *heap, void *memory){
-    if (heap->in_order.next != 0 && memory != 0){
-        Heap_Node *node = ((Heap_Node*)memory) - 1;
-        Assert(node->alloc.next == 0);
-        Assert(node->alloc.prev == 0);
-        heap->used_space -= sizeof(*node) + node->size;
-        heap_assert_good(heap);
-        heap__insert_next(&heap->free_nodes, &node->alloc);
-        heap_assert_good(heap);
-        heap__merge(heap, node, CastFromMember(Heap_Node, order, node->order.next));
-        heap_assert_good(heap);
-        heap__merge(heap, CastFromMember(Heap_Node, order, node->order.prev), node);
-        heap_assert_good(heap);
-    }
-}
-
-#define heap_array(heap, T, c) (T*)(heap_allocate((heap), sizeof(T)*(c)))
-
-////////////////////////////////
-
-internal void*
-base_reserve__heap(void *user_data, umem size, umem *size_out){
-    Heap *heap = (Heap*)user_data;
-    void *memory = heap_allocate(heap, size);
-    *size_out = size;
-    return(memory);
-}
-
-internal void
-base_free__heap(void *user_data, void *ptr){
-    Heap *heap = (Heap*)user_data;
-    heap_free(heap, ptr);
-}
-
-internal Base_Allocator
-base_allocator_on_heap(Heap *heap){
-    return(make_base_allocator(base_reserve__heap, 0, 0, base_free__heap, 0, heap));
-}
-
-////////////////////////////////
-
-internal Data
-push_data(Arena *arena, umem size){
-    Data result = {};
-    result.data = push_array(arena, u8, size);
-    result.size = size;
-    return(result);
-}
-
-internal Data
-push_data_copy(Arena *arena, Data data){
-    Data result = {};
-    result.data = push_array_write(arena, u8, data.size, data.data);
-    result.size = data.size;
-    return(result);
-}
-
-internal b32
-data_match(Data a, Data b){
-    return(a.size == b.size && block_match(a.data, b.data, a.size));
-}
-
-////////////////////////////////
-
-internal b32
-character_is_basic_ascii(char c){
-    return(' ' <= c && c <= '~');
-}
-internal b32
-character_is_basic_ascii(u8 c){
-    return(' ' <= c && c <= '~');
-}
-internal b32
-character_is_basic_ascii(u16 c){
-    return(' ' <= c && c <= '~');
-}
-internal b32
-character_is_basic_ascii(u32 c){
-    return(' ' <= c && c <= '~');
-}
-
-internal b32
-character_is_slash(char c){
-    return((c == '/') || (c == '\\'));
-}
-internal b32
-character_is_slash(u8 c){
-    return((c == '/') || (c == '\\'));
-}
-internal b32
-character_is_slash(u16 c){
-    return((c == '/') || (c == '\\'));
-}
-internal b32
-character_is_slash(u32 c){
-    return((c == '/') || (c == '\\'));
-}
-
-internal b32
-character_is_upper(char c){
-    return(('A' <= c) && (c <= 'Z'));
-}
-internal b32
-character_is_upper(u8 c){
-    return(('A' <= c) && (c <= 'Z'));
-}
-internal b32
-character_is_upper(u16 c){
-    return(('A' <= c) && (c <= 'Z'));
-}
-internal b32
-character_is_upper(u32 c){
-    return(('A' <= c) && (c <= 'Z'));
-}
-
-internal b32
-character_is_lower(char c){
-    return(('a' <= c) && (c <= 'z'));
-}
-internal b32
-character_is_lower(u8 c){
-    return(('a' <= c) && (c <= 'z'));
-}
-internal b32
-character_is_lower(u16 c){
-    return(('a' <= c) && (c <= 'z'));
-}
-internal b32
-character_is_lower(u32 c){
-    return(('a' <= c) && (c <= 'z'));
-}
-
-internal b32
-character_is_lower_unicode(u8 c){
-    return((('a' <= c) && (c <= 'z')) || c >= 128);
-}
-internal b32
-character_is_lower_unicode(u16 c){
-    return((('a' <= c) && (c <= 'z')) || c >= 128);
-}
-internal b32
-character_is_lower_unicode(u32 c){
-    return((('a' <= c) && (c <= 'z')) || c >= 128);
-}
-
-internal char
-character_to_upper(char c){
-    if (('a' <= c) && (c <= 'z')){
-        c -= 'a' - 'A';
-    }
-    return(c);
-}
-internal u8
-character_to_upper(u8 c){
-    if (('a' <= c) && (c <= 'z')){
-        c -= 'a' - 'A';
-    }
-    return(c);
-}
-internal u16
-character_to_upper(u16 c){
-    if (('a' <= c) && (c <= 'z')){
-        c -= 'a' - 'A';
-    }
-    return(c);
-}
-internal u32
-character_to_upper(u32 c){
-    if (('a' <= c) && (c <= 'z')){
-        c -= 'a' - 'A';
-    }
-    return(c);
-}
-internal char
-character_to_lower(char c){
-    if (('A' <= c) && (c <= 'Z')){
-        c += 'a' - 'A';
-    }
-    return(c);
-}
-internal u8
-character_to_lower(u8 c){
-    if (('A' <= c) && (c <= 'Z')){
-        c += 'a' - 'A';
-    }
-    return(c);
-}
-internal u16
-character_to_lower(u16 c){
-    if (('A' <= c) && (c <= 'Z')){
-        c += 'a' - 'A';
-    }
-    return(c);
-}
-internal u32
-character_to_lower(u32 c){
-    if (('A' <= c) && (c <= 'Z')){
-        c += 'a' - 'A';
-    }
-    return(c);
-}
-
-internal b32
-character_is_whitespace(char c){
-    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
-}
-internal b32
-character_is_whitespace(u8 c){
-    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
-}
-internal b32
-character_is_whitespace(u16 c){
-    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
-}
-internal b32
-character_is_whitespace(u32 c){
-    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
-}
-
-internal b32
-character_is_base10(char c){
-    return('0' <= c && c <= '9');
-}
-internal b32
-character_is_base10(u8 c){
-    return('0' <= c && c <= '9');
-}
-internal b32
-character_is_base10(u16 c){
-    return('0' <= c && c <= '9');
-}
-internal b32
-character_is_base10(u32 c){
-    return('0' <= c && c <= '9');
-}
-
-internal b32
-character_is_base16(char c){
-    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
-}
-internal b32
-character_is_base16(u8 c){
-    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
-}
-internal b32
-character_is_base16(u16 c){
-    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
-}
-internal b32
-character_is_base16(u32 c){
-    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
-}
-
-internal b32
-character_is_base64(char c){
-    return(('0' <= c && c <= '9') ||
-           ('a' <= c && c <= 'z') ||
-           ('A' <= c && c <= 'Z') ||
-           c == '_' || c == '$' || c == '?');
-}
-internal b32
-character_is_base64(u8 c){
-    return(('0' <= c && c <= '9') ||
-           ('a' <= c && c <= 'z') ||
-           ('A' <= c && c <= 'Z') ||
-           c == '_' || c == '$' || c == '?');
-}
-internal b32
-character_is_base64(u16 c){
-    return(('0' <= c && c <= '9') ||
-           ('a' <= c && c <= 'z') ||
-           ('A' <= c && c <= 'Z') ||
-           c == '_' || c == '$' || c == '?');
-}
-internal b32
-character_is_base64(u32 c){
-    return(('0' <= c && c <= '9') ||
-           ('a' <= c && c <= 'z') ||
-           ('A' <= c && c <= 'Z') ||
-           c == '_' || c == '$' || c == '?');
-}
-
-internal b32
-character_is_alpha(char c){
-    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
-}
-internal b32
-character_is_alpha(u8 c){
-    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
-}
-internal b32
-character_is_alpha(u16 c){
-    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
-}
-internal b32
-character_is_alpha(u32 c){
-    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
-}
-
-internal b32
-character_is_alpha_numeric(char c){
-    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
-}
-internal b32
-character_is_alpha_numeric(u8 c){
-    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
-}
-internal b32
-character_is_alpha_numeric(u16 c){
-    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
-}
-internal b32
-character_is_alpha_numeric(u32 c){
-    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
-}
-
-
-internal b32
-character_is_alpha_unicode(u8 c){
-    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
-}
-internal b32
-character_is_alpha_unicode(u16 c){
-    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
-}
-internal b32
-character_is_alpha_unicode(u32 c){
-    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
-}
-
-internal b32
-character_is_alpha_numeric_unicode(u8 c){
-    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
-}
-internal b32
-character_is_alpha_numeric_unicode(u16 c){
-    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
-}
-internal b32
-character_is_alpha_numeric_unicode(u32 c){
-    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
-}
-
 internal umem
 cstring_length(char *str){
     umem length = 0;
@@ -3863,6 +2943,912 @@ SCany(String_Const_u32 str){
 
 internal String_Const_char string_empty = {"", 0};
 internal String_Const_u8 string_u8_empty = {"", 0};
+
+#define file_name_line_number_lit_u8 string_u8_litexpr(file_name_line_number)
+
+////////////////////////////////
+
+internal void*
+base_reserve__noop(void *user_data, umem size, umem *size_out, String_Const_u8 location){
+    *size_out = 0;
+    return(0);
+}
+internal void
+base_commit__noop(void *user_data, void *ptr, umem size){}
+internal void
+base_uncommit__noop(void *user_data, void *ptr, umem size){}
+internal void
+base_free__noop(void *user_data, void *ptr){}
+internal void
+base_set_access__noop(void *user_data, void *ptr, umem size, Access_Flag flags){}
+
+internal Base_Allocator
+make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
+                    Base_Allocator_Commit_Signature *func_commit,
+                    Base_Allocator_Uncommit_Signature *func_uncommit,
+                    Base_Allocator_Free_Signature *func_free,
+                    Base_Allocator_Set_Access_Signature *func_set_access,
+                    void *user_data){
+    if (func_reserve == 0){
+        func_reserve = base_reserve__noop;
+    }
+    if (func_commit == 0){
+        func_commit = base_commit__noop;
+    }
+    if (func_uncommit == 0){
+        func_uncommit = base_uncommit__noop;
+    }
+    if (func_free == 0){
+        func_free = base_free__noop;
+    }
+    if (func_set_access == 0){
+        func_set_access = base_set_access__noop;
+    }
+    Base_Allocator base_allocator = {
+        func_reserve,
+        func_commit,
+        func_uncommit,
+        func_free,
+        func_set_access,
+        user_data,
+    };
+    return(base_allocator);
+}
+internal Data
+base_allocate__inner(Base_Allocator *allocator, umem size, String_Const_u8 location){
+    umem full_size = 0;
+    void *memory = allocator->reserve(allocator->user_data, size, &full_size, location);
+    allocator->commit(allocator->user_data, memory, full_size);
+    return(make_data(memory, full_size));
+}
+internal void
+base_free(Base_Allocator *allocator, void *ptr){
+    if (ptr != 0){
+        allocator->free(allocator->user_data, ptr);
+    }
+}
+
+#define base_allocate(a,s) base_allocate__inner((a), (s), file_name_line_number_lit_u8)
+#define base_array_loc(a,T,c,l) (T*)(base_allocate__inner((a), sizeof(T)*(c), (l)).data)
+#define base_array(a,T,c) base_array_loc(a,T,c, file_name_line_number_lit_u8)
+
+////////////////////////////////
+
+internal Cursor
+make_cursor(void *base, umem size){
+    Cursor cursor = {(u8*)base, 0, size};
+    return(cursor);
+}
+internal Cursor
+make_cursor(Data data){
+    return(make_cursor(data.data, data.size));
+}
+internal Cursor
+make_cursor(Base_Allocator *allocator, umem size){
+    Data memory = base_allocate(allocator, size);
+    return(make_cursor(memory));
+}
+internal Data
+linalloc_push(Cursor *cursor, umem size, String_Const_u8 location){
+    Data result = {};
+    if (cursor->pos + size <= cursor->cap){
+        result.data = cursor->base + cursor->pos;
+        result.size = size;
+        cursor->pos += size;
+    }
+    return(result);
+}
+internal void
+linalloc_pop(Cursor *cursor, umem size){
+    if (cursor->pos > size){
+        cursor->pos -= size;
+    }
+    else{
+        cursor->pos = 0;
+    }
+}
+internal Data
+linalloc_align(Cursor *cursor, umem alignment){
+    umem pos = round_up_umem(cursor->pos, alignment);
+    umem new_size = pos - cursor->pos;
+    return(linalloc_push(cursor, new_size, file_name_line_number_lit_u8));
+}
+internal Temp_Memory_Cursor
+linalloc_begin_temp(Cursor *cursor){
+    Temp_Memory_Cursor temp = {cursor, cursor->pos};
+    return(temp);
+}
+internal void
+linalloc_end_temp(Temp_Memory_Cursor temp){
+    temp.cursor->pos = temp.pos;
+}
+internal void
+linalloc_clear(Cursor *cursor){
+    cursor->pos = 0;
+}
+internal Arena
+make_arena(Base_Allocator *allocator, umem chunk_size, umem alignment){
+    Arena arena = {allocator, 0, chunk_size, alignment};
+    return(arena);
+}
+internal Arena
+make_arena(Base_Allocator *allocator, umem chunk_size){
+    return(make_arena(allocator, chunk_size, 8));
+}
+internal Arena
+make_arena(Base_Allocator *allocator){
+    return(make_arena(allocator, KB(64), 8));
+}
+internal Cursor_Node*
+arena__new_node(Arena *arena, umem min_size, String_Const_u8 location){
+    min_size = clamp_bot(min_size, arena->chunk_size);
+    Data memory = base_allocate__inner(arena->base_allocator, min_size + sizeof(Cursor_Node), location);
+    Cursor_Node *cursor_node = (Cursor_Node*)memory.data;
+    cursor_node->cursor = make_cursor(cursor_node + 1, memory.size - sizeof(Cursor_Node));
+    sll_stack_push(arena->cursor_node, cursor_node);
+    return(cursor_node);
+}
+internal Data
+linalloc_push(Arena *arena, umem size, String_Const_u8 location){
+    Data result = {};
+    if (size > 0){
+        Cursor_Node *cursor_node = arena->cursor_node;
+        if (cursor_node == 0){
+            cursor_node = arena__new_node(arena, size, location);
+        }
+        result = linalloc_push(&cursor_node->cursor, size, location);
+        if (result.data == 0){
+            cursor_node = arena__new_node(arena, size, location);
+            result = linalloc_push(&cursor_node->cursor, size, location);
+        }
+        Data alignment_data = linalloc_align(&cursor_node->cursor, arena->alignment);
+        result.size += alignment_data.size;
+    }
+    return(result);
+}
+internal void
+linalloc_pop(Arena *arena, umem size){
+    Base_Allocator *allocator = arena->base_allocator;
+    Cursor_Node *cursor_node = arena->cursor_node;
+    for (Cursor_Node *prev = 0;
+         cursor_node != 0 && size != 0;
+         cursor_node = prev){
+        prev = cursor_node->prev;
+        if (size >= cursor_node->cursor.pos){
+            size -= cursor_node->cursor.pos;
+            base_free(allocator, cursor_node);
+        }
+        else{
+            linalloc_pop(&cursor_node->cursor, size);
+            break;
+        }
+    }
+    arena->cursor_node = cursor_node;
+}
+internal Data
+linalloc_align(Arena *arena, umem alignment){
+    arena->alignment = alignment;
+    Data data = {};
+    Cursor_Node *cursor_node = arena->cursor_node;
+    if (cursor_node != 0){
+        data = linalloc_align(&cursor_node->cursor, arena->alignment);
+    }
+    return(data);
+}
+internal Temp_Memory_Arena
+linalloc_begin_temp(Arena *arena){
+    Cursor_Node *cursor_node = arena->cursor_node;
+    Temp_Memory_Arena temp = {arena, cursor_node,
+        cursor_node == 0?0:cursor_node->cursor.pos};
+    return(temp);
+}
+internal void
+linalloc_end_temp(Temp_Memory_Arena temp){
+    Base_Allocator *allocator = temp.arena->base_allocator;
+    Cursor_Node *cursor_node = temp.arena->cursor_node;
+    for (Cursor_Node *prev = 0;
+         cursor_node != temp.cursor_node && cursor_node != 0;
+         cursor_node = prev){
+        prev = cursor_node->prev;
+        base_free(allocator, cursor_node);
+    }
+    temp.arena->cursor_node = cursor_node;
+    if (cursor_node != 0){
+        if (temp.pos > 0){
+            cursor_node->cursor.pos = temp.pos;
+        }
+        else{
+            temp.arena->cursor_node = cursor_node->prev;
+            base_free(allocator, cursor_node);
+        }
+    }
+}
+internal void
+linalloc_clear(Arena *arena){
+    Temp_Memory_Arena temp = {arena, 0, 0};
+    linalloc_end_temp(temp);
+}
+internal void*
+linalloc_wrap_unintialized(Data data){
+    return(data.data);
+}
+internal void*
+linalloc_wrap_zero(Data data){
+    block_zero(data.data, data.size);
+    return(data.data);
+}
+internal void*
+linalloc_wrap_write(Data data, umem size, void *src){
+    block_copy(data.data, src, clamp_top(data.size, size));
+    return(data.data);
+}
+#define push_array(a,T,c) ((T*)linalloc_wrap_unintialized(linalloc_push((a), sizeof(T)*(c), file_name_line_number_lit_u8)))
+#define push_array_zero(a,T,c) ((T*)linalloc_wrap_zero(linalloc_push((a), sizeof(T)*(c), file_name_line_number_lit_u8)))
+#define push_array_write(a,T,c,s) ((T*)linalloc_wrap_write(linalloc_push((a), sizeof(T)*(c), file_name_line_number_lit_u8), sizeof(T)*(c), (s)))
+#define pop_array(a,T,c) (linalloc_pop((a), sizeof(T)*(c)))
+#define push_align(a,b) (linalloc_align((a), (b)))
+#define push_align_zero(a,b) (linalloc_wrap_zero(linalloc_align((a), (b))))
+internal Temp_Memory
+begin_temp(Cursor *cursor){
+    Temp_Memory temp = {LinearAllocatorKind_Cursor};
+    temp.temp_memory_cursor = linalloc_begin_temp(cursor);
+    return(temp);
+}
+internal Temp_Memory
+begin_temp(Arena *arena){
+    Temp_Memory temp = {LinearAllocatorKind_Arena};
+    temp.temp_memory_arena = linalloc_begin_temp(arena);
+    return(temp);
+}
+internal void
+end_temp(Temp_Memory temp){
+    switch (temp.kind){
+        case LinearAllocatorKind_Cursor:
+        {
+            linalloc_end_temp(temp.temp_memory_cursor);
+        }break;
+        case LinearAllocatorKind_Arena:
+        {
+            linalloc_end_temp(temp.temp_memory_arena);
+        }break;
+    }
+}
+
+////////////////////////////////
+
+internal void
+thread_ctx_init(Thread_Context *tctx, Thread_Kind kind, Base_Allocator *allocator,
+                Base_Allocator *prof_allocator){
+    block_zero_struct(tctx);
+    tctx->kind = kind;
+    tctx->allocator = allocator;
+    tctx->node_arena = make_arena(allocator, KB(4), 8);
+    
+    tctx->prof_allocator = prof_allocator;
+    tctx->prof_id_counter = 1;
+    tctx->prof_arena = make_arena(prof_allocator, KB(16));
+}
+
+internal void
+thread_ctx_release(Thread_Context *tctx){
+    for (Arena_Node *node = tctx->free_arenas;
+         node != 0;
+         node = node->next){
+        linalloc_clear(&node->arena);
+    }
+    linalloc_clear(&tctx->node_arena);
+    block_zero_struct(tctx);
+}
+
+internal Arena*
+reserve_arena(Thread_Context *tctx, umem chunk_size, umem align){
+    Arena_Node *node = tctx->free_arenas;
+    if (node != 0){
+        sll_stack_pop(tctx->free_arenas);
+    }
+    else{
+        node = push_array_zero(&tctx->node_arena, Arena_Node, 1);
+    }
+    node->arena = make_arena(tctx->allocator, chunk_size, align);
+    return(&node->arena);
+}
+
+internal Arena*
+reserve_arena(Thread_Context *tctx, umem chunk_size){
+    return(reserve_arena(tctx, chunk_size, 8));
+}
+
+internal Arena*
+reserve_arena(Thread_Context *tctx){
+    return(reserve_arena(tctx, KB(64), 8));
+}
+
+internal void
+release_arena(Thread_Context *tctx, Arena *arena){
+    Arena_Node *node = CastFromMember(Arena_Node, arena, arena);
+    linalloc_clear(arena);
+    sll_stack_push(tctx->free_arenas, node);
+}
+
+////////////////////////////////
+
+internal void
+scratch_block__init(Scratch_Block *block, Thread_Context *tctx, Scratch_Share_Code share){
+    Arena *arena = tctx->sharable_scratch;
+    if (arena != 0){
+        block->arena = arena;
+        block->temp = begin_temp(arena);
+        block->do_full_clear = false;
+    }
+    else{
+        arena = reserve_arena(tctx);
+        block->arena = arena;
+        block_zero_struct(&block->temp);
+        block->do_full_clear = true;
+    }
+    block->tctx = tctx;
+    block->sharable_restore = tctx->sharable_scratch;
+    if (share == Scratch_Share){
+        tctx->sharable_scratch = arena;
+    }
+    else{
+        tctx->sharable_scratch = 0;
+    }
+}
+
+global_const Scratch_Share_Code share_code_default = Scratch_DontShare;
+
+Scratch_Block::Scratch_Block(Thread_Context *tctx, Scratch_Share_Code share){
+    scratch_block__init(this, tctx, share);
+}
+
+Scratch_Block::Scratch_Block(Thread_Context *tctx){
+    scratch_block__init(this, tctx, share_code_default);
+}
+
+Scratch_Block::~Scratch_Block(){
+    if (this->do_full_clear){
+        Assert(this->tctx != 0);
+        release_arena(this->tctx, this->arena);
+    }
+    else{
+        end_temp(this->temp);
+    }
+    if (this->tctx != 0){
+        this->tctx->sharable_scratch = this->sharable_restore;
+    }
+}
+
+Scratch_Block::operator Arena*(){
+    return(this->arena);
+}
+
+void
+Scratch_Block::restore(void){
+    if (this->do_full_clear){
+        linalloc_clear(this->arena);
+    }
+    else{
+        end_temp(this->temp);
+    }
+}
+
+Temp_Memory_Block::Temp_Memory_Block(Temp_Memory t){
+    this->temp = t;
+}
+
+Temp_Memory_Block::Temp_Memory_Block(Arena *arena){
+    this->temp = begin_temp(arena);
+}
+
+Temp_Memory_Block::~Temp_Memory_Block(){
+    end_temp(this->temp);
+}
+
+void
+Temp_Memory_Block::restore(void){
+    end_temp(this->temp);
+}
+
+////////////////////////////////
+
+#define heap__sent_init(s) (s)->next=(s)->prev=(s)
+#define heap__insert_next(p,n) ((n)->next=(p)->next,(n)->prev=(p),(n)->next->prev=(n),(p)->next=(n))
+#define heap__insert_prev(p,n) ((n)->prev=(p)->prev,(n)->next=(p),(n)->prev->next=(n),(p)->prev=(n))
+#define heap__remove(n) ((n)->next->prev=(n)->prev,(n)->prev->next=(n)->next)
+
+#if defined(DO_HEAP_CHECKS)
+internal void
+heap_assert_good(Heap *heap){
+    if (heap->in_order.next != 0){
+        Assert(heap->in_order.prev != 0);
+        Assert(heap->free_nodes.next != 0);
+        Assert(heap->free_nodes.prev != 0);
+        for (Heap_Basic_Node *node = &heap->in_order;;){
+            Assert(node->next->prev == node);
+            Assert(node->prev->next == node);
+            node = node->next;
+            if (node == &heap->in_order){
+                break;
+            }
+        }
+        for (Heap_Basic_Node *node = &heap->free_nodes;;){
+            Assert(node->next->prev == node);
+            Assert(node->prev->next == node);
+            node = node->next;
+            if (node == &heap->free_nodes){
+                break;
+            }
+        }
+    }
+}
+#else
+#define heap_assert_good(heap) ((void)(heap))
+#endif
+
+internal void
+heap_init(Heap *heap, Base_Allocator *allocator){
+    heap->arena_ = make_arena(allocator);
+    heap->arena = &heap->arena_;
+    heap__sent_init(&heap->in_order);
+    heap__sent_init(&heap->free_nodes);
+    heap->used_space = 0;
+    heap->total_space = 0;
+}
+
+internal void
+heap_init(Heap *heap, Arena *arena){
+    heap->arena = arena;
+    heap__sent_init(&heap->in_order);
+    heap__sent_init(&heap->free_nodes);
+    heap->used_space = 0;
+    heap->total_space = 0;
+}
+
+internal Base_Allocator*
+heap_get_base_allocator(Heap *heap){
+    return(heap->arena->base_allocator);
+}
+
+internal void
+heap_free_all(Heap *heap){
+    if (heap->arena == &heap->arena_){
+        linalloc_clear(heap->arena);
+    }
+    block_zero_struct(heap);
+}
+
+internal void
+heap__extend(Heap *heap, void *memory, umem size){
+    heap_assert_good(heap);
+    if (size >= sizeof(Heap_Node)){
+        Heap_Node *new_node = (Heap_Node*)memory;
+        heap__insert_prev(&heap->in_order, &new_node->order);
+        heap__insert_next(&heap->free_nodes, &new_node->alloc);
+        new_node->size = size - sizeof(*new_node);
+        heap->total_space += size;
+    }
+    heap_assert_good(heap);
+}
+
+internal void
+heap__extend_automatic(Heap *heap, umem size){
+    void *memory = push_array(heap->arena, u8, size);
+    heap__extend(heap, memory, size);
+}
+
+internal void*
+heap__reserve_chunk(Heap *heap, Heap_Node *node, umem size){
+    u8 *ptr = (u8*)(node + 1);
+    Assert(node->size >= size);
+    umem left_over_size = node->size - size;
+    if (left_over_size > sizeof(*node)){
+        umem new_node_size = left_over_size - sizeof(*node);
+        Heap_Node *new_node = (Heap_Node*)(ptr + size);
+        heap__insert_next(&node->order, &new_node->order);
+        heap__insert_next(&node->alloc, &new_node->alloc);
+        new_node->size = new_node_size;
+    }
+    heap__remove(&node->alloc);
+    node->alloc.next = 0;
+    node->alloc.prev = 0;
+    node->size = size;
+    heap->used_space += sizeof(*node) + size;
+    return(ptr);
+}
+
+internal void*
+heap_allocate(Heap *heap, umem size){
+    b32 first_try = true;
+    for (;;){
+        if (heap->in_order.next != 0){
+            heap_assert_good(heap);
+            umem aligned_size = (size + sizeof(Heap_Node) - 1);
+            aligned_size = aligned_size - (aligned_size%sizeof(Heap_Node));
+            for (Heap_Basic_Node *n = heap->free_nodes.next;
+                 n != &heap->free_nodes;
+                 n = n->next){
+                Heap_Node *node = CastFromMember(Heap_Node, alloc, n);
+                if (node->size >= aligned_size){
+                    void *ptr = heap__reserve_chunk(heap, node, aligned_size);
+                    heap_assert_good(heap);
+                    return(ptr);
+                }
+            }
+            heap_assert_good(heap);
+        }
+        
+        if (first_try){
+            umem extension_size = clamp_bot(KB(64), size*2);
+            heap__extend_automatic(heap, extension_size);
+            first_try = false;
+        }
+        else{
+            break;
+        }
+    }
+    return(0);
+}
+
+internal void
+heap__merge(Heap *heap, Heap_Node *l, Heap_Node *r){
+    if (&l->order != &heap->in_order && &r->order != &heap->in_order &&
+        l->alloc.next != 0 && l->alloc.prev != 0 &&
+        r->alloc.next != 0 && r->alloc.prev != 0){
+        u8 *ptr = (u8*)(l + 1) + l->size;
+        if (PtrDif(ptr, r) == 0){
+            heap__remove(&r->order);
+            heap__remove(&r->alloc);
+            heap__remove(&l->alloc);
+            l->size += r->size + sizeof(*r);
+            heap__insert_next(&heap->free_nodes, &l->alloc);
+        }
+    }
+}
+
+internal void
+heap_free(Heap *heap, void *memory){
+    if (heap->in_order.next != 0 && memory != 0){
+        Heap_Node *node = ((Heap_Node*)memory) - 1;
+        Assert(node->alloc.next == 0);
+        Assert(node->alloc.prev == 0);
+        heap->used_space -= sizeof(*node) + node->size;
+        heap_assert_good(heap);
+        heap__insert_next(&heap->free_nodes, &node->alloc);
+        heap_assert_good(heap);
+        heap__merge(heap, node, CastFromMember(Heap_Node, order, node->order.next));
+        heap_assert_good(heap);
+        heap__merge(heap, CastFromMember(Heap_Node, order, node->order.prev), node);
+        heap_assert_good(heap);
+    }
+}
+
+#define heap_array(heap, T, c) (T*)(heap_allocate((heap), sizeof(T)*(c)))
+
+////////////////////////////////
+
+internal void*
+base_reserve__heap(void *user_data, umem size, umem *size_out, String_Const_u8 location){
+    Heap *heap = (Heap*)user_data;
+    void *memory = heap_allocate(heap, size);
+    *size_out = size;
+    return(memory);
+}
+
+internal void
+base_free__heap(void *user_data, void *ptr){
+    Heap *heap = (Heap*)user_data;
+    heap_free(heap, ptr);
+}
+
+internal Base_Allocator
+base_allocator_on_heap(Heap *heap){
+    return(make_base_allocator(base_reserve__heap, 0, 0, base_free__heap, 0, heap));
+}
+
+////////////////////////////////
+
+internal Data
+push_data(Arena *arena, umem size){
+    Data result = {};
+    result.data = push_array(arena, u8, size);
+    result.size = size;
+    return(result);
+}
+
+internal Data
+push_data_copy(Arena *arena, Data data){
+    Data result = {};
+    result.data = push_array_write(arena, u8, data.size, data.data);
+    result.size = data.size;
+    return(result);
+}
+
+internal b32
+data_match(Data a, Data b){
+    return(a.size == b.size && block_match(a.data, b.data, a.size));
+}
+
+////////////////////////////////
+
+internal b32
+character_is_basic_ascii(char c){
+    return(' ' <= c && c <= '~');
+}
+internal b32
+character_is_basic_ascii(u8 c){
+    return(' ' <= c && c <= '~');
+}
+internal b32
+character_is_basic_ascii(u16 c){
+    return(' ' <= c && c <= '~');
+}
+internal b32
+character_is_basic_ascii(u32 c){
+    return(' ' <= c && c <= '~');
+}
+
+internal b32
+character_is_slash(char c){
+    return((c == '/') || (c == '\\'));
+}
+internal b32
+character_is_slash(u8 c){
+    return((c == '/') || (c == '\\'));
+}
+internal b32
+character_is_slash(u16 c){
+    return((c == '/') || (c == '\\'));
+}
+internal b32
+character_is_slash(u32 c){
+    return((c == '/') || (c == '\\'));
+}
+
+internal b32
+character_is_upper(char c){
+    return(('A' <= c) && (c <= 'Z'));
+}
+internal b32
+character_is_upper(u8 c){
+    return(('A' <= c) && (c <= 'Z'));
+}
+internal b32
+character_is_upper(u16 c){
+    return(('A' <= c) && (c <= 'Z'));
+}
+internal b32
+character_is_upper(u32 c){
+    return(('A' <= c) && (c <= 'Z'));
+}
+
+internal b32
+character_is_lower(char c){
+    return(('a' <= c) && (c <= 'z'));
+}
+internal b32
+character_is_lower(u8 c){
+    return(('a' <= c) && (c <= 'z'));
+}
+internal b32
+character_is_lower(u16 c){
+    return(('a' <= c) && (c <= 'z'));
+}
+internal b32
+character_is_lower(u32 c){
+    return(('a' <= c) && (c <= 'z'));
+}
+
+internal b32
+character_is_lower_unicode(u8 c){
+    return((('a' <= c) && (c <= 'z')) || c >= 128);
+}
+internal b32
+character_is_lower_unicode(u16 c){
+    return((('a' <= c) && (c <= 'z')) || c >= 128);
+}
+internal b32
+character_is_lower_unicode(u32 c){
+    return((('a' <= c) && (c <= 'z')) || c >= 128);
+}
+
+internal char
+character_to_upper(char c){
+    if (('a' <= c) && (c <= 'z')){
+        c -= 'a' - 'A';
+    }
+    return(c);
+}
+internal u8
+character_to_upper(u8 c){
+    if (('a' <= c) && (c <= 'z')){
+        c -= 'a' - 'A';
+    }
+    return(c);
+}
+internal u16
+character_to_upper(u16 c){
+    if (('a' <= c) && (c <= 'z')){
+        c -= 'a' - 'A';
+    }
+    return(c);
+}
+internal u32
+character_to_upper(u32 c){
+    if (('a' <= c) && (c <= 'z')){
+        c -= 'a' - 'A';
+    }
+    return(c);
+}
+internal char
+character_to_lower(char c){
+    if (('A' <= c) && (c <= 'Z')){
+        c += 'a' - 'A';
+    }
+    return(c);
+}
+internal u8
+character_to_lower(u8 c){
+    if (('A' <= c) && (c <= 'Z')){
+        c += 'a' - 'A';
+    }
+    return(c);
+}
+internal u16
+character_to_lower(u16 c){
+    if (('A' <= c) && (c <= 'Z')){
+        c += 'a' - 'A';
+    }
+    return(c);
+}
+internal u32
+character_to_lower(u32 c){
+    if (('A' <= c) && (c <= 'Z')){
+        c += 'a' - 'A';
+    }
+    return(c);
+}
+
+internal b32
+character_is_whitespace(char c){
+    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
+}
+internal b32
+character_is_whitespace(u8 c){
+    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
+}
+internal b32
+character_is_whitespace(u16 c){
+    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
+}
+internal b32
+character_is_whitespace(u32 c){
+    return(c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\f' || c == '\v');
+}
+
+internal b32
+character_is_base10(char c){
+    return('0' <= c && c <= '9');
+}
+internal b32
+character_is_base10(u8 c){
+    return('0' <= c && c <= '9');
+}
+internal b32
+character_is_base10(u16 c){
+    return('0' <= c && c <= '9');
+}
+internal b32
+character_is_base10(u32 c){
+    return('0' <= c && c <= '9');
+}
+
+internal b32
+character_is_base16(char c){
+    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
+}
+internal b32
+character_is_base16(u8 c){
+    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
+}
+internal b32
+character_is_base16(u16 c){
+    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
+}
+internal b32
+character_is_base16(u32 c){
+    return(('0' <= c && c <= '9') || ('A' <= c && c <= 'F'));
+}
+
+internal b32
+character_is_base64(char c){
+    return(('0' <= c && c <= '9') ||
+           ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           c == '_' || c == '$' || c == '?');
+}
+internal b32
+character_is_base64(u8 c){
+    return(('0' <= c && c <= '9') ||
+           ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           c == '_' || c == '$' || c == '?');
+}
+internal b32
+character_is_base64(u16 c){
+    return(('0' <= c && c <= '9') ||
+           ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           c == '_' || c == '$' || c == '?');
+}
+internal b32
+character_is_base64(u32 c){
+    return(('0' <= c && c <= '9') ||
+           ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           c == '_' || c == '$' || c == '?');
+}
+
+internal b32
+character_is_alpha(char c){
+    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
+}
+internal b32
+character_is_alpha(u8 c){
+    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
+}
+internal b32
+character_is_alpha(u16 c){
+    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
+}
+internal b32
+character_is_alpha(u32 c){
+    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_');
+}
+
+internal b32
+character_is_alpha_numeric(char c){
+    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
+}
+internal b32
+character_is_alpha_numeric(u8 c){
+    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
+}
+internal b32
+character_is_alpha_numeric(u16 c){
+    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
+}
+internal b32
+character_is_alpha_numeric(u32 c){
+    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_');
+}
+
+
+internal b32
+character_is_alpha_unicode(u8 c){
+    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
+}
+internal b32
+character_is_alpha_unicode(u16 c){
+    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
+}
+internal b32
+character_is_alpha_unicode(u32 c){
+    return( (('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || c == '_' || c >= 128);
+}
+
+internal b32
+character_is_alpha_numeric_unicode(u8 c){
+    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
+}
+internal b32
+character_is_alpha_numeric_unicode(u16 c){
+    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
+}
+internal b32
+character_is_alpha_numeric_unicode(u32 c){
+    return((('a' <= c) && (c <= 'z')) || (('A' <= c) && (c <= 'Z')) || (('0' <= c) && (c <= '9')) || c == '_' || c >= 128);
+}
 
 internal char
 string_get_character(String_Const_char str, umem i){

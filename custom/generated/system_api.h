@@ -37,9 +37,10 @@
 #define system_condition_variable_wait_sig() void system_condition_variable_wait(System_Condition_Variable cv, System_Mutex mutex)
 #define system_condition_variable_signal_sig() void system_condition_variable_signal(System_Condition_Variable cv)
 #define system_condition_variable_free_sig() void system_condition_variable_free(System_Condition_Variable cv)
-#define system_memory_allocate_sig() void* system_memory_allocate(umem size)
+#define system_memory_allocate_sig() void* system_memory_allocate(umem size, String_Const_u8 location)
 #define system_memory_set_protection_sig() b32 system_memory_set_protection(void* ptr, umem size, u32 flags)
 #define system_memory_free_sig() void system_memory_free(void* ptr, umem size)
+#define system_memory_annotation_sig() Memory_Annotation system_memory_annotation(Arena* arena)
 #define system_show_mouse_cursor_sig() void system_show_mouse_cursor(i32 show)
 #define system_set_fullscreen_sig() b32 system_set_fullscreen(b32 full_screen)
 #define system_is_fullscreen_sig() b32 system_is_fullscreen(void)
@@ -83,9 +84,10 @@ typedef System_Condition_Variable system_condition_variable_make_type(void);
 typedef void system_condition_variable_wait_type(System_Condition_Variable cv, System_Mutex mutex);
 typedef void system_condition_variable_signal_type(System_Condition_Variable cv);
 typedef void system_condition_variable_free_type(System_Condition_Variable cv);
-typedef void* system_memory_allocate_type(umem size);
+typedef void* system_memory_allocate_type(umem size, String_Const_u8 location);
 typedef b32 system_memory_set_protection_type(void* ptr, umem size, u32 flags);
 typedef void system_memory_free_type(void* ptr, umem size);
+typedef Memory_Annotation system_memory_annotation_type(Arena* arena);
 typedef void system_show_mouse_cursor_type(i32 show);
 typedef b32 system_set_fullscreen_type(b32 full_screen);
 typedef b32 system_is_fullscreen_type(void);
@@ -133,6 +135,7 @@ system_condition_variable_free_type *condition_variable_free;
 system_memory_allocate_type *memory_allocate;
 system_memory_set_protection_type *memory_set_protection;
 system_memory_free_type *memory_free;
+system_memory_annotation_type *memory_annotation;
 system_show_mouse_cursor_type *show_mouse_cursor;
 system_set_fullscreen_type *set_fullscreen;
 system_is_fullscreen_type *is_fullscreen;
@@ -178,9 +181,10 @@ internal System_Condition_Variable system_condition_variable_make(void);
 internal void system_condition_variable_wait(System_Condition_Variable cv, System_Mutex mutex);
 internal void system_condition_variable_signal(System_Condition_Variable cv);
 internal void system_condition_variable_free(System_Condition_Variable cv);
-internal void* system_memory_allocate(umem size);
+internal void* system_memory_allocate(umem size, String_Const_u8 location);
 internal b32 system_memory_set_protection(void* ptr, umem size, u32 flags);
 internal void system_memory_free(void* ptr, umem size);
+internal Memory_Annotation system_memory_annotation(Arena* arena);
 internal void system_show_mouse_cursor(i32 show);
 internal b32 system_set_fullscreen(b32 full_screen);
 internal b32 system_is_fullscreen(void);
@@ -229,6 +233,7 @@ global system_condition_variable_free_type *system_condition_variable_free = 0;
 global system_memory_allocate_type *system_memory_allocate = 0;
 global system_memory_set_protection_type *system_memory_set_protection = 0;
 global system_memory_free_type *system_memory_free = 0;
+global system_memory_annotation_type *system_memory_annotation = 0;
 global system_show_mouse_cursor_type *system_show_mouse_cursor = 0;
 global system_set_fullscreen_type *system_set_fullscreen = 0;
 global system_is_fullscreen_type *system_is_fullscreen = 0;

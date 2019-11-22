@@ -429,7 +429,6 @@ struct Query_Bar_Group{
 
 struct Font_Load_Location{
     String_Const_u8 file_name;
-    b32 in_4coder_font_folder;
 };
 
 struct Face_Load_Parameters{

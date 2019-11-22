@@ -739,7 +739,7 @@ win32_alloc_object(Win32_Object_Kind kind){
     }
     if (result == 0){
         i32 count = 512;
-        Win32_Object *objects = (Win32_Object*)system_memory_allocate(count*sizeof(Win32_Object));
+        Win32_Object *objects = (Win32_Object*)system_memory_allocate(count*sizeof(Win32_Object), file_name_line_number_lit_u8);
         objects[0].node.prev = &win32vars.free_win32_objects;
         win32vars.free_win32_objects.next = &objects[0].node;
         for (i32 i = 1; i < count; i += 1){
@@ -1457,6 +1457,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     i32 argc = __argc;
     char **argv = __argv;
     
+    InitializeCriticalSection(&memory_tracker_mutex);
+    
     // NOTE(allen): context setup
     Thread_Context _tctx = {};
     thread_ctx_init(&_tctx, ThreadKind_Main, get_base_allocator_system(), get_base_allocator_system());
@@ -1476,7 +1478,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     // NOTE(allen): memory
     win32vars.frame_arena = reserve_arena(win32vars.tctx);
     // TODO(allen): *arena;
-    target.arena = make_arena_system();
+    target.arena = make_arena_system(KB(256));
     
     win32vars.cursor_show = MouseCursorShow_Always;
     win32vars.prev_cursor_show = MouseCursorShow_Always;

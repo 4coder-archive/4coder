@@ -60,6 +60,7 @@ enum{
     ProfileInspectTab_Threads,
     ProfileInspectTab_Blocks,
     ProfileInspectTab_Errors,
+    ProfileInspectTab_Memory,
     ProfileInspectTab_Selection,
 };
 
@@ -88,6 +89,13 @@ struct Profile_Inspection{
 };
 
 global Profile_Inspection global_profile_inspection = {};
+
+struct Memory_Bucket{
+    Memory_Bucket *next;
+    Memory_Annotation annotation;
+    String_Const_u8 location;
+    umem total_memory;
+};
 
 #endif
 

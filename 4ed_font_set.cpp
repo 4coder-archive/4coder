@@ -60,6 +60,7 @@ font_set__alloc_face_slot(Font_Set *set){
 internal void
 font_set__free_face_slot(Font_Set *set, Font_Face_Slot *slot){
     if (slot->arena.base_allocator != 0){
+        table_free(&slot->face->advance_map.codepoint_to_index.table);
         linalloc_clear(&slot->arena);
     }
     block_zero_struct(slot);

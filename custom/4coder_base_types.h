@@ -206,6 +206,18 @@ enum{
 
 #define Stmnt(s) do{ s }while(0)
 
+// NOTE(allen): Assert notes:
+// Break = the run time implementation of break
+//                - replace this to get fancier behavior on assert
+// Always = assert that is not compiled out in SHIP_MODE
+//                - helpful for debugging specific issues
+//                - used rarely in normal code
+// Message = unconditional asserts with an attached message
+//                - InvalidPath version for paths of a switch or if-else dispatch that should always be unreachable
+//                - NotImplemented version for stubs functions that are not yet completed
+// Static = asserts that contain only compile time constants and become compilation errors
+// Disambiguate = for static asserts that happen to have name conflicts
+
 #define AssertBreak(m) (*((i32*)0) = 0xA11E)
 #define AssertAlways(c) Stmnt( if (!(c)) { AssertBreak(c); } )
 #define AssertMessageAlways(m) AssertBreak(m)
@@ -305,8 +317,8 @@ global_const f32 half_pi_f32 = 1.5707963267f;
 #define clamp_unsigned_to_u32(x) (u32)(clamp_top((u64)(x), (u64)u32_max))
 #define clamp_unsigned_to_u64(x) (u64)(clamp_top((u64)(x), (u64)u64_max))
 
-#define LINE_STR__ stringify(__LINE__)
-#define file_name_line_number __FILE__ ":" LINE_STR__ ":"
+#define line_number_as_string stringify(__LINE__)
+#define file_name_line_number __FILE__ ":" line_number_as_string ":"
 
 #define require(c) Stmnt( if (!(c)){ return(0); } )
 
@@ -1074,7 +1086,7 @@ enum{
 
 ////////////////////////////////
 
-typedef void *Base_Allocator_Reserve_Signature(void *user_data, umem size, umem *size_out);
+typedef void *Base_Allocator_Reserve_Signature(void *user_data, umem size, umem *size_out, String_Const_u8 location);
 typedef void  Base_Allocator_Commit_Signature(void *user_data, void *ptr, umem size);
 typedef void  Base_Allocator_Uncommit_Signature(void *user_data, void *ptr, umem size);
 typedef void  Base_Allocator_Free_Signature(void *user_data, void *ptr);

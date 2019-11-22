@@ -230,6 +230,7 @@ define_api(Arena *arena){
     {
         API_Call *call = api_call(arena, api, "memory_allocate", "void*");
         api_param(arena, call, "umem", "size");
+        api_param(arena, call, "String_Const_u8", "location");
     }
     
     {
@@ -243,6 +244,11 @@ define_api(Arena *arena){
         API_Call *call = api_call(arena, api, "memory_free", "void");
         api_param(arena, call, "void*", "ptr");
         api_param(arena, call, "umem", "size");
+    }
+    
+    {
+        API_Call *call = api_call(arena, api, "memory_annotation", "Memory_Annotation");
+        api_param(arena, call, "Arena*", "arena");
     }
     
     {

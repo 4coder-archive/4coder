@@ -334,9 +334,9 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): style setup
     {
+        Scratch_Block scratch(tctx);
         Face_Description description = {};
-        description.font.file_name = string_u8_litexpr("liberation-mono.ttf");
-        description.font.in_4coder_font_folder = true;
+        description.font.file_name = get_file_path_in_fonts_folder(scratch, string_u8_litexpr("liberation-mono.ttf"));
         description.parameters.pt_size = 12;
         Face *new_face = font_set_new_face(&models->font_set, &description);
         models->global_face_id = new_face->id;

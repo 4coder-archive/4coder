@@ -57,8 +57,9 @@ profile_thread_flush(Thread_Context *tctx, Profile_Global_List *list){
             Arena_Node* node = push_array(&list->node_arena, Arena_Node, 1);
             sll_queue_push(list->first_arena, list->last_arena, node);
             node->arena = tctx->prof_arena;
-            tctx->prof_arena = make_arena_system(KB(4));
+            tctx->prof_arena = make_arena_system(KB(16));
             
+            if (tctx->prof_first != 0){
             if (thread->first_record == 0){
                 thread->first_record = tctx->prof_first;
                 thread->last_record = tctx->prof_last;
@@ -68,11 +69,14 @@ profile_thread_flush(Thread_Context *tctx, Profile_Global_List *list){
                 thread->last_record = tctx->prof_last;
             }
             thread->record_count += tctx->prof_record_count;
-            
-            tctx->prof_record_count = 0;
-            tctx->prof_first = 0;
-            tctx->prof_last = 0;
+            }
         }
+        else{
+            linalloc_clear(&tctx->prof_arena);
+        }
+        tctx->prof_record_count = 0;
+        tctx->prof_first = 0;
+        tctx->prof_last = 0;
     }
 }
 

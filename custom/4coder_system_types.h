@@ -31,6 +31,19 @@ enum{
     SystemPath_Binary,
 };
 
+struct Memory_Annotation_Node{
+    Memory_Annotation_Node *next;
+    String_Const_u8 location;
+    void *address;
+    umem size;
+};
+
+struct Memory_Annotation{
+    Memory_Annotation_Node *first;
+    Memory_Annotation_Node *last;
+    i32 count;
+};
+
 struct Mutex_Lock{
     Mutex_Lock(System_Mutex mutex);
     ~Mutex_Lock();

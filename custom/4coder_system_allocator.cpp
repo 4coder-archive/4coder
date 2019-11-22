@@ -5,12 +5,12 @@
 // TOP
 
 internal void*
-base_reserve__system(void *user_data, umem size, umem *size_out){
+base_reserve__system(void *user_data, umem size, umem *size_out, String_Const_u8 location){
     umem extra_size = 128;
     umem increased_size = size + extra_size;
     size = round_up_umem(increased_size, KB(4));
     *size_out = size - extra_size;
-    void *ptr = system_memory_allocate(size);
+    void *ptr = system_memory_allocate(size, location);
     *(umem*)ptr = size;
     ptr = (u8*)ptr + extra_size;
     return(ptr);
