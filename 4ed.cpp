@@ -614,6 +614,7 @@ App_Step_Sig(app_step){
         Input_Event *simulated_input = 0;
         Input_Event virtual_event = models_pop_virtual_event(scratch, models);
         if (virtual_event.kind != InputEventKind_None){
+            virtual_event.virtual_event = true;
             simulated_input = &virtual_event;
         }
         else{

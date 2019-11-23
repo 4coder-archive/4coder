@@ -33,17 +33,36 @@ keyboard_macro_play(Application_Links *app, String_Const_u8 macro){
     }
 }
 
+function b32
+get_current_input_is_virtual(Application_Links *app){
+    User_Input input = get_current_input(app);
+    return(input.event.virtual_event);
+}
+
 ////////////////////////////////
 
-CUSTOM_COMMAND_SIG(keyboard_macro_record)
-CUSTOM_DOC("Start macro recording or end macro recording if recording is in progress")
+CUSTOM_COMMAND_SIG(keyboard_macro_start_recording)
+CUSTOM_DOC("Start macro recording, do nothing if macro recording is already started")
 {
+    if (global_keyboard_macro_is_recording ||
+        get_current_input_is_virtual(app)){
+        return;
+    }
+    
     Buffer_ID buffer = get_keyboard_log_buffer(app);
-    if (!global_keyboard_macro_is_recording){
         global_keyboard_macro_is_recording = true;
         global_keyboard_macro_range.first = buffer_get_size(app, buffer);
+}
+
+CUSTOM_COMMAND_SIG(keyboard_macro_finish_recording)
+CUSTOM_DOC("Stop macro recording, do nothing if macro recording is not already started")
+{
+    if (!global_keyboard_macro_is_recording ||
+        get_current_input_is_virtual(app)){
+        return;
     }
-    else{
+    
+    Buffer_ID buffer = get_keyboard_log_buffer(app);
         global_keyboard_macro_is_recording = false;
         i64 end = buffer_get_size(app, buffer);
         Buffer_Cursor cursor = buffer_compute_cursor(app, buffer, seek_pos(end));
@@ -56,13 +75,13 @@ CUSTOM_DOC("Start macro recording or end macro recording if recording is in prog
         print_message(app, string_u8_litexpr("recorded:\n"));
         print_message(app, macro);
 #endif
-    }
 }
 
 CUSTOM_COMMAND_SIG(keyboard_macro_replay)
 CUSTOM_DOC("Replay the most recently recorded keyboard macro")
 {
-    if (global_keyboard_macro_is_recording){
+    if (global_keyboard_macro_is_recording ||
+        get_current_input_is_virtual(app)){
         return;
     }
     

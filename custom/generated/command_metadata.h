@@ -2,7 +2,7 @@
 #define command_id(c) (fcoder_metacmd_ID_##c)
 #define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])
 #define command_metadata_by_id(id) (&fcoder_metacmd_table[id])
-#define command_one_past_last_id 221
+#define command_one_past_last_id 222
 #if defined(CUSTOM_COMMAND_SIG)
 #define PROC_LINKS(x,y) x
 #else
@@ -173,7 +173,8 @@ CUSTOM_COMMAND_SIG(paste);
 CUSTOM_COMMAND_SIG(paste_next);
 CUSTOM_COMMAND_SIG(paste_and_indent);
 CUSTOM_COMMAND_SIG(paste_next_and_indent);
-CUSTOM_COMMAND_SIG(keyboard_macro_record);
+CUSTOM_COMMAND_SIG(keyboard_macro_start_recording);
+CUSTOM_COMMAND_SIG(keyboard_macro_finish_recording);
 CUSTOM_COMMAND_SIG(keyboard_macro_replay);
 CUSTOM_COMMAND_SIG(execute_previous_cli);
 CUSTOM_COMMAND_SIG(execute_any_cli);
@@ -242,7 +243,7 @@ char *source_name;
 i32 source_name_len;
 i32 line_number;
 };
-static Command_Metadata fcoder_metacmd_table[221] = {
+static Command_Metadata fcoder_metacmd_table[222] = {
 { PROC_LINKS(default_view_input_handler, 0), false, "default_view_input_handler", 26, "Input consumption loop for default view behavior", 48, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 56 },
 { PROC_LINKS(profile_enable, 0), false, "profile_enable", 14, "Allow 4coder's self profiler to gather new profiling information.", 65, "w:\\4ed\\code\\custom\\4coder_profile.cpp", 37, 211 },
 { PROC_LINKS(profile_disable, 0), false, "profile_disable", 15, "Prevent 4coder's self profiler from gathering new profiling information.", 72, "w:\\4ed\\code\\custom\\4coder_profile.cpp", 37, 218 },
@@ -407,8 +408,9 @@ static Command_Metadata fcoder_metacmd_table[221] = {
 { PROC_LINKS(paste_next, 0), false, "paste_next", 10, "If the previous command was paste or paste_next, replaces the paste range with the next text down on the clipboard, otherwise operates as the paste command.", 156, "w:\\4ed\\code\\custom\\4coder_clipboard.cpp", 39, 70 },
 { PROC_LINKS(paste_and_indent, 0), false, "paste_and_indent", 16, "Paste from the top of clipboard and run auto-indent on the newly pasted text.", 77, "w:\\4ed\\code\\custom\\4coder_clipboard.cpp", 39, 108 },
 { PROC_LINKS(paste_next_and_indent, 0), false, "paste_next_and_indent", 21, "Paste the next item on the clipboard and run auto-indent on the newly pasted text.", 82, "w:\\4ed\\code\\custom\\4coder_clipboard.cpp", 39, 115 },
-{ PROC_LINKS(keyboard_macro_record, 0), false, "keyboard_macro_record", 21, "Start macro recording or end macro recording if recording is in progress", 72, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 38 },
-{ PROC_LINKS(keyboard_macro_replay, 0), false, "keyboard_macro_replay", 21, "Replay the most recently recorded keyboard macro", 48, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 62 },
+{ PROC_LINKS(keyboard_macro_start_recording, 0), false, "keyboard_macro_start_recording", 30, "Start macro recording, do nothing if macro recording is already started", 71, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 44 },
+{ PROC_LINKS(keyboard_macro_finish_recording, 0), false, "keyboard_macro_finish_recording", 31, "Stop macro recording, do nothing if macro recording is not already started", 74, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 57 },
+{ PROC_LINKS(keyboard_macro_replay, 0), false, "keyboard_macro_replay", 21, "Replay the most recently recorded keyboard macro", 48, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 80 },
 { PROC_LINKS(execute_previous_cli, 0), false, "execute_previous_cli", 20, "If the command execute_any_cli has already been used, this will execute a CLI reusing the most recent buffer name and command.", 126, "w:\\4ed\\code\\custom\\4coder_cli_command.cpp", 41, 7 },
 { PROC_LINKS(execute_any_cli, 0), false, "execute_any_cli", 15, "Queries for an output buffer name and system command, runs the system command as a CLI and prints the output to the specified buffer.", 133, "w:\\4ed\\code\\custom\\4coder_cli_command.cpp", 41, 22 },
 { PROC_LINKS(build_search, 0), false, "build_search", 12, "Looks for a build.bat, build.sh, or makefile in the current and parent directories.  Runs the first that it finds and prints the output to *compilation*.", 153, "w:\\4ed\\code\\custom\\4coder_build_commands.cpp", 44, 128 },
@@ -629,61 +631,62 @@ static i32 fcoder_metacmd_ID_paste = 160;
 static i32 fcoder_metacmd_ID_paste_next = 161;
 static i32 fcoder_metacmd_ID_paste_and_indent = 162;
 static i32 fcoder_metacmd_ID_paste_next_and_indent = 163;
-static i32 fcoder_metacmd_ID_keyboard_macro_record = 164;
-static i32 fcoder_metacmd_ID_keyboard_macro_replay = 165;
-static i32 fcoder_metacmd_ID_execute_previous_cli = 166;
-static i32 fcoder_metacmd_ID_execute_any_cli = 167;
-static i32 fcoder_metacmd_ID_build_search = 168;
-static i32 fcoder_metacmd_ID_build_in_build_panel = 169;
-static i32 fcoder_metacmd_ID_close_build_panel = 170;
-static i32 fcoder_metacmd_ID_change_to_build_panel = 171;
-static i32 fcoder_metacmd_ID_close_all_code = 172;
-static i32 fcoder_metacmd_ID_open_all_code = 173;
-static i32 fcoder_metacmd_ID_open_all_code_recursive = 174;
-static i32 fcoder_metacmd_ID_load_project = 175;
-static i32 fcoder_metacmd_ID_project_fkey_command = 176;
-static i32 fcoder_metacmd_ID_project_go_to_root_directory = 177;
-static i32 fcoder_metacmd_ID_setup_new_project = 178;
-static i32 fcoder_metacmd_ID_setup_build_bat = 179;
-static i32 fcoder_metacmd_ID_setup_build_sh = 180;
-static i32 fcoder_metacmd_ID_setup_build_bat_and_sh = 181;
-static i32 fcoder_metacmd_ID_project_command_lister = 182;
-static i32 fcoder_metacmd_ID_list_all_functions_current_buffer = 183;
-static i32 fcoder_metacmd_ID_list_all_functions_current_buffer_lister = 184;
-static i32 fcoder_metacmd_ID_list_all_functions_all_buffers = 185;
-static i32 fcoder_metacmd_ID_list_all_functions_all_buffers_lister = 186;
-static i32 fcoder_metacmd_ID_select_surrounding_scope = 187;
-static i32 fcoder_metacmd_ID_select_surrounding_scope_maximal = 188;
-static i32 fcoder_metacmd_ID_select_next_scope_absolute = 189;
-static i32 fcoder_metacmd_ID_select_next_scope_after_current = 190;
-static i32 fcoder_metacmd_ID_select_prev_scope_absolute = 191;
-static i32 fcoder_metacmd_ID_select_prev_top_most_scope = 192;
-static i32 fcoder_metacmd_ID_place_in_scope = 193;
-static i32 fcoder_metacmd_ID_delete_current_scope = 194;
-static i32 fcoder_metacmd_ID_open_long_braces = 195;
-static i32 fcoder_metacmd_ID_open_long_braces_semicolon = 196;
-static i32 fcoder_metacmd_ID_open_long_braces_break = 197;
-static i32 fcoder_metacmd_ID_if0_off = 198;
-static i32 fcoder_metacmd_ID_write_todo = 199;
-static i32 fcoder_metacmd_ID_write_hack = 200;
-static i32 fcoder_metacmd_ID_write_note = 201;
-static i32 fcoder_metacmd_ID_write_block = 202;
-static i32 fcoder_metacmd_ID_write_zero_struct = 203;
-static i32 fcoder_metacmd_ID_comment_line = 204;
-static i32 fcoder_metacmd_ID_uncomment_line = 205;
-static i32 fcoder_metacmd_ID_comment_line_toggle = 206;
-static i32 fcoder_metacmd_ID_snippet_lister = 207;
-static i32 fcoder_metacmd_ID_miblo_increment_basic = 208;
-static i32 fcoder_metacmd_ID_miblo_decrement_basic = 209;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 210;
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 211;
-static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 212;
-static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 213;
-static i32 fcoder_metacmd_ID_profile_inspect = 214;
-static i32 fcoder_metacmd_ID_kill_tutorial = 215;
-static i32 fcoder_metacmd_ID_tutorial_maximize = 216;
-static i32 fcoder_metacmd_ID_tutorial_minimize = 217;
-static i32 fcoder_metacmd_ID_hms_demo_tutorial = 218;
-static i32 fcoder_metacmd_ID_default_startup = 219;
-static i32 fcoder_metacmd_ID_default_try_exit = 220;
+static i32 fcoder_metacmd_ID_keyboard_macro_start_recording = 164;
+static i32 fcoder_metacmd_ID_keyboard_macro_finish_recording = 165;
+static i32 fcoder_metacmd_ID_keyboard_macro_replay = 166;
+static i32 fcoder_metacmd_ID_execute_previous_cli = 167;
+static i32 fcoder_metacmd_ID_execute_any_cli = 168;
+static i32 fcoder_metacmd_ID_build_search = 169;
+static i32 fcoder_metacmd_ID_build_in_build_panel = 170;
+static i32 fcoder_metacmd_ID_close_build_panel = 171;
+static i32 fcoder_metacmd_ID_change_to_build_panel = 172;
+static i32 fcoder_metacmd_ID_close_all_code = 173;
+static i32 fcoder_metacmd_ID_open_all_code = 174;
+static i32 fcoder_metacmd_ID_open_all_code_recursive = 175;
+static i32 fcoder_metacmd_ID_load_project = 176;
+static i32 fcoder_metacmd_ID_project_fkey_command = 177;
+static i32 fcoder_metacmd_ID_project_go_to_root_directory = 178;
+static i32 fcoder_metacmd_ID_setup_new_project = 179;
+static i32 fcoder_metacmd_ID_setup_build_bat = 180;
+static i32 fcoder_metacmd_ID_setup_build_sh = 181;
+static i32 fcoder_metacmd_ID_setup_build_bat_and_sh = 182;
+static i32 fcoder_metacmd_ID_project_command_lister = 183;
+static i32 fcoder_metacmd_ID_list_all_functions_current_buffer = 184;
+static i32 fcoder_metacmd_ID_list_all_functions_current_buffer_lister = 185;
+static i32 fcoder_metacmd_ID_list_all_functions_all_buffers = 186;
+static i32 fcoder_metacmd_ID_list_all_functions_all_buffers_lister = 187;
+static i32 fcoder_metacmd_ID_select_surrounding_scope = 188;
+static i32 fcoder_metacmd_ID_select_surrounding_scope_maximal = 189;
+static i32 fcoder_metacmd_ID_select_next_scope_absolute = 190;
+static i32 fcoder_metacmd_ID_select_next_scope_after_current = 191;
+static i32 fcoder_metacmd_ID_select_prev_scope_absolute = 192;
+static i32 fcoder_metacmd_ID_select_prev_top_most_scope = 193;
+static i32 fcoder_metacmd_ID_place_in_scope = 194;
+static i32 fcoder_metacmd_ID_delete_current_scope = 195;
+static i32 fcoder_metacmd_ID_open_long_braces = 196;
+static i32 fcoder_metacmd_ID_open_long_braces_semicolon = 197;
+static i32 fcoder_metacmd_ID_open_long_braces_break = 198;
+static i32 fcoder_metacmd_ID_if0_off = 199;
+static i32 fcoder_metacmd_ID_write_todo = 200;
+static i32 fcoder_metacmd_ID_write_hack = 201;
+static i32 fcoder_metacmd_ID_write_note = 202;
+static i32 fcoder_metacmd_ID_write_block = 203;
+static i32 fcoder_metacmd_ID_write_zero_struct = 204;
+static i32 fcoder_metacmd_ID_comment_line = 205;
+static i32 fcoder_metacmd_ID_uncomment_line = 206;
+static i32 fcoder_metacmd_ID_comment_line_toggle = 207;
+static i32 fcoder_metacmd_ID_snippet_lister = 208;
+static i32 fcoder_metacmd_ID_miblo_increment_basic = 209;
+static i32 fcoder_metacmd_ID_miblo_decrement_basic = 210;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp = 211;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp = 212;
+static i32 fcoder_metacmd_ID_miblo_increment_time_stamp_minute = 213;
+static i32 fcoder_metacmd_ID_miblo_decrement_time_stamp_minute = 214;
+static i32 fcoder_metacmd_ID_profile_inspect = 215;
+static i32 fcoder_metacmd_ID_kill_tutorial = 216;
+static i32 fcoder_metacmd_ID_tutorial_maximize = 217;
+static i32 fcoder_metacmd_ID_tutorial_minimize = 218;
+static i32 fcoder_metacmd_ID_hms_demo_tutorial = 219;
+static i32 fcoder_metacmd_ID_default_startup = 220;
+static i32 fcoder_metacmd_ID_default_try_exit = 221;
 #endif

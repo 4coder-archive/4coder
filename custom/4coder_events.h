@@ -44,6 +44,7 @@ struct Input_Modifier_Set_Fixed{
 
 struct Input_Event{
     Input_Event_Kind kind;
+    b32 virtual_event;
     union{
         struct{
             String_Const_u8 string;
