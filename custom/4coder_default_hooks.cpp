@@ -947,15 +947,6 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         }
     }
     
-    local_persist b32 first_call = true;
-    if (first_call){
-        first_call = false;
-        buffer_map_id = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"));
-        buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
-        buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
-        buffer_wrap_lines = managed_id_declare(app, SCu8("DEFAULT.buffer_wrap_lines"));
-    }
-    
     Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);

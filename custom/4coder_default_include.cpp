@@ -10,9 +10,9 @@
 #include "4coder_base_types.h"
 #include "4coder_version.h"
 #include "4coder_table.h"
-#include "4coder_default_colors.h"
 #include "4coder_events.h"
 #include "4coder_types.h"
+#include "4coder_default_colors.h"
 #define DYNAMIC_LINK_API
 #include "generated/custom_api.h"
 #include "4coder_system_types.h"
@@ -110,6 +110,8 @@
 #include "4coder_tutorial.cpp"
 
 #include "4coder_default_hooks.cpp"
+
+#include "generated/managed_id_metadata.cpp"
 
 #endif
 

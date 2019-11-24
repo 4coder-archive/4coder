@@ -15,8 +15,8 @@
 #include "4coder_version.h"
 #include "4coder_table.h"
 #include "4coder_events.h"
-#include "4coder_default_colors.h"
 #include "4coder_types.h"
+#include "4coder_default_colors.h"
 #define STATIC_LINK_API
 #include "generated/custom_api.h"
 

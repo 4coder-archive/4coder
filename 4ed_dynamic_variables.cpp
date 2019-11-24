@@ -12,23 +12,40 @@
 internal void
 managed_ids_init(Base_Allocator *allocator, Managed_ID_Set *set){
     set->arena = make_arena(allocator, KB(4), 8);
-    set->name_to_id_table = make_table_Data_u64(allocator, 40);
-    set->id_counter = 1;
-}
+    set->name_to_group_table = make_table_Data_u64(allocator, 20);
+    }
 
 internal Managed_ID
-managed_ids_declare(Managed_ID_Set *set, String_Const_u8 name){
-    Managed_ID result = 0;
-    Data data = make_data(name.str, name.size);
-    Table_Lookup lookup = table_lookup(&set->name_to_id_table, data);
+managed_ids_declare(Managed_ID_Set *set, String_Const_u8 group_name, String_Const_u8 name){
+    Managed_ID_Group *group = 0;
+{
+        Data data = make_data(group_name.str, group_name.size);
+    Table_Lookup lookup = table_lookup(&set->name_to_group_table, data);
     if (lookup.found_match){
-        table_read(&set->name_to_id_table, lookup, &result);
+        u64 val = 0;
+            table_read(&set->name_to_group_table, lookup, &val);
+        group = (Managed_ID_Group*)IntAsPtr(val);
     }
     else{
-        result = set->id_counter;
-        set->id_counter += 1;
+            group = push_array(&set->arena, Managed_ID_Group, 1);
+            group->name_to_id_table = make_table_Data_u64(set->arena.base_allocator, 50);
         data = push_data_copy(&set->arena, data);
-        table_insert(&set->name_to_id_table, data, result);
+        table_insert(&set->name_to_group_table, data, PtrAsInt(group));
+    }
+    }
+    Managed_ID result = 0;
+    {
+        Data data = make_data(name.str, name.size);
+        Table_Lookup lookup = table_lookup(&group->name_to_id_table, data);
+        if (lookup.found_match){
+            table_read(&group->name_to_id_table, lookup, &result);
+        }
+        else{
+        result = group->id_counter;
+            group->id_counter += 1;
+        data = push_data_copy(&set->arena, data);
+        table_insert(&group->name_to_id_table, data, result);
+        }
     }
     return(result);
 }

@@ -538,10 +538,12 @@ struct Record_Info{
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define CUSTOM_UI_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define CUSTOM_DOC(str)
+#define CUSTOM_ID(group, name) global Managed_ID name;
 #else
 #define CUSTOM_COMMAND_SIG(name) CUSTOM_COMMAND(name, __FILE__, __LINE__, Normal)
 #define CUSTOM_UI_COMMAND_SIG(name) CUSTOM_COMMAND(name, __FILE__, __LINE__, UI)
 #define CUSTOM_DOC(str) CUSTOM_DOC(str)
+#define CUSTOM_ID(group, name) CUSTOM_ID(group, name)
 #endif
 
 // TODO(allen): rename

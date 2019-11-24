@@ -60,10 +60,14 @@ struct Managed_Arena_Header_List{
 
 ////////////////////////////////
 
-struct Managed_ID_Set{
-    Arena arena;
+struct Managed_ID_Group{
     Table_Data_u64 name_to_id_table;
     Managed_ID id_counter;
+};
+
+struct Managed_ID_Set{
+    Arena arena;
+    Table_Data_u64 name_to_group_table;
 };
 
 struct Dynamic_Variable_Block{

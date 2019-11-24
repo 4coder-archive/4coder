@@ -106,7 +106,7 @@
 #define custom_managed_scope_clear_contents_sig() b32 custom_managed_scope_clear_contents(Application_Links* app, Managed_Scope scope)
 #define custom_managed_scope_clear_self_all_dependent_scopes_sig() b32 custom_managed_scope_clear_self_all_dependent_scopes(Application_Links* app, Managed_Scope scope)
 #define custom_managed_scope_allocator_sig() Base_Allocator* custom_managed_scope_allocator(Application_Links* app, Managed_Scope scope)
-#define custom_managed_id_declare_sig() Managed_ID custom_managed_id_declare(Application_Links* app, String_Const_u8 name)
+#define custom_managed_id_declare_sig() Managed_ID custom_managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name)
 #define custom_managed_scope_get_attachment_sig() void* custom_managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size)
 #define custom_managed_scope_attachment_erase_sig() void* custom_managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id)
 #define custom_alloc_managed_memory_in_scope_sig() Managed_Object custom_alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count)
@@ -286,7 +286,7 @@ typedef Managed_Scope custom_get_managed_scope_with_multiple_dependencies_type(A
 typedef b32 custom_managed_scope_clear_contents_type(Application_Links* app, Managed_Scope scope);
 typedef b32 custom_managed_scope_clear_self_all_dependent_scopes_type(Application_Links* app, Managed_Scope scope);
 typedef Base_Allocator* custom_managed_scope_allocator_type(Application_Links* app, Managed_Scope scope);
-typedef Managed_ID custom_managed_id_declare_type(Application_Links* app, String_Const_u8 name);
+typedef Managed_ID custom_managed_id_declare_type(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 typedef void* custom_managed_scope_get_attachment_type(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
 typedef void* custom_managed_scope_attachment_erase_type(Application_Links* app, Managed_Scope scope, Managed_ID id);
 typedef Managed_Object custom_alloc_managed_memory_in_scope_type(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);
@@ -649,7 +649,7 @@ internal Managed_Scope get_managed_scope_with_multiple_dependencies(Application_
 internal b32 managed_scope_clear_contents(Application_Links* app, Managed_Scope scope);
 internal b32 managed_scope_clear_self_all_dependent_scopes(Application_Links* app, Managed_Scope scope);
 internal Base_Allocator* managed_scope_allocator(Application_Links* app, Managed_Scope scope);
-internal Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 name);
+internal Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 internal void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
 internal void* managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
 internal Managed_Object alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);

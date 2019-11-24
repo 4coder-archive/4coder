@@ -5,6 +5,27 @@ the default 4coder behavior.
 
 // TOP
 
+CUSTOM_ID(attachment, view_rewrite_loc);
+CUSTOM_ID(attachment, view_next_rewrite_loc);
+CUSTOM_ID(attachment, view_paste_index_loc);
+CUSTOM_ID(attachment, view_is_passive_loc);
+CUSTOM_ID(attachment, view_snap_mark_to_cursor);
+CUSTOM_ID(attachment, view_ui_data);
+CUSTOM_ID(attachment, view_highlight_range);
+CUSTOM_ID(attachment, view_highlight_buffer);
+CUSTOM_ID(attachment, view_render_hook);
+CUSTOM_ID(attachment, view_word_complete_menu);
+
+CUSTOM_ID(attachment, buffer_map_id);
+CUSTOM_ID(attachment, buffer_eol_setting);
+CUSTOM_ID(attachment, buffer_lex_task);
+CUSTOM_ID(attachment, buffer_wrap_lines);
+
+CUSTOM_ID(attachment, sticky_jump_marker_handle);
+CUSTOM_ID(attachment, attachment_tokens);
+
+////////////////////////////////
+
 global b32 allow_immediate_close_without_checking_for_changes = false;
 
 global char *default_extensions[] = {
@@ -29,27 +50,6 @@ global String_Const_u8 locked_buffer = {};
 
 
 global View_ID build_footer_panel_view_id = 0;
-
-
-global Managed_ID view_rewrite_loc = 0;
-global Managed_ID view_next_rewrite_loc = 0;
-global Managed_ID view_paste_index_loc = 0;
-global Managed_ID view_is_passive_loc = 0;
-global Managed_ID view_snap_mark_to_cursor = 0;
-global Managed_ID view_ui_data = 0;
-global Managed_ID view_highlight_range = 0;
-global Managed_ID view_highlight_buffer = 0;
-global Managed_ID view_render_hook = 0;
-global Managed_ID view_word_complete_menu = 0;
-
-global Managed_ID buffer_map_id = 0;
-global Managed_ID buffer_eol_setting = 0;
-global Managed_ID buffer_lex_task = 0;
-global Managed_ID buffer_wrap_lines = 0;
-
-global Managed_ID sticky_jump_marker_handle = 0;
-
-global Managed_ID attachment_tokens = 0;
 
 global u8 out_buffer_space[1024];
 global u8 command_space[1024];

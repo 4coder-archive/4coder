@@ -450,24 +450,6 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     global_config_arena = reserve_arena(app);
     load_config_and_apply(app, global_config_arena, &global_config, override_font_size, override_hinting);
     
-    view_rewrite_loc          = managed_id_declare(app, SCu8("DEFAULT.rewrite"       ));
-    view_next_rewrite_loc     = managed_id_declare(app, SCu8("DEFAULT.next_rewrite"  ));
-    view_paste_index_loc      = managed_id_declare(app, SCu8("DEFAULT.paste_index"   ));
-    view_is_passive_loc       = managed_id_declare(app, SCu8("DEFAULT.is_passive"    ));
-    view_snap_mark_to_cursor  = managed_id_declare(app, SCu8("DEFAULT.mark_to_cursor"));
-    view_ui_data              = managed_id_declare(app, SCu8("DEFAULT.ui_data"       ));
-    view_highlight_range      = managed_id_declare(app, SCu8("DEFAULT.highlight"     ));
-    view_highlight_buffer     = managed_id_declare(app, SCu8("DEFAULT.highlight_buf" ));
-    view_render_hook          = managed_id_declare(app, SCu8("DEFAULT.render"        ));
-    view_word_complete_menu   = managed_id_declare(app, SCu8("DEFAULT.word_complete_menu"));
-    
-    buffer_map_id      = managed_id_declare(app, SCu8("DEFAULT.buffer_map_id"     ));
-	buffer_eol_setting = managed_id_declare(app, SCu8("DEFAULT.buffer_eol_setting"));
-    buffer_lex_task = managed_id_declare(app, SCu8("DEFAULT.buffer_lex_task"));
-    
-    sticky_jump_marker_handle = managed_id_declare(app, SCu8("DEFAULT.sticky_jump_marker_handle"));
-    attachment_tokens = managed_id_declare(app, SCu8("DEFAULT.tokens"));
-    
     // open command line files
     Scratch_Block scratch(app);
     String_Const_u8 hot_directory = push_hot_directory(app, scratch);

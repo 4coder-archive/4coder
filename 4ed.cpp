@@ -268,17 +268,14 @@ App_Init_Sig(app_init){
     
     profile_init(&models->profile_list);
     
+    managed_ids_init(tctx->allocator, &models->managed_id_set);
+    
     API_VTable_custom custom_vtable = {};
     custom_api_fill_vtable(&custom_vtable);
     API_VTable_system system_vtable = {};
     system_api_fill_vtable(&system_vtable);
     Custom_Layer_Init_Type *custom_init = api.init_apis(&custom_vtable, &system_vtable);
     Assert(custom_init != 0);
-    
-    Application_Links app = {};
-    app.tctx = tctx;
-    app.cmd_context = models;
-    custom_init(&app);
     
     // NOTE(allen): coroutines
     coroutine_system_init(&models->coroutines);
@@ -308,13 +305,11 @@ App_Init_Sig(app_init){
         }
     }
     
-    managed_ids_init(tctx->allocator, &models->managed_id_set);
     lifetime_allocator_init(tctx->allocator, &models->lifetime_allocator);
     dynamic_workspace_init(&models->lifetime_allocator, DynamicWorkspace_Global, 0, &models->dynamic_workspace);
     
     // NOTE(allen): file setup
     working_set_init(models, &models->working_set);
-    
     Mutex_Lock file_order_lock(models->working_set.mutex);
     
     // NOTE(allen): 
@@ -350,6 +345,17 @@ App_Init_Sig(app_init){
     models->title_space = push_array(arena, char, models->title_capacity);
     block_copy(models->title_space, WINDOW_NAME, sizeof(WINDOW_NAME));
     
+    // NOTE(allen): miscellaneous init
+    hot_directory_init(arena, &models->hot_directory, current_directory);
+    child_process_container_init(tctx->allocator, &models->child_processes);
+    models->period_wakeup_timer = system_wake_up_timer_create();
+    
+    // NOTE(allen): custom layer init
+    Application_Links app = {};
+    app.tctx = tctx;
+    app.cmd_context = models;
+    custom_init(&app);
+    
     // NOTE(allen): init baked in buffers
     File_Init init_files[] = {
         { string_u8_litinit("*messages*"), &models->message_buffer , true , },
@@ -384,11 +390,6 @@ App_Init_Sig(app_init){
         View *new_view = live_set_alloc_view(&models->lifetime_allocator, &models->view_set, panel);
         view_init(tctx, models, new_view, models->scratch_buffer, models->view_event_handler);
     }
-    
-    // NOTE(allen): miscellaneous init
-    hot_directory_init(arena, &models->hot_directory, current_directory);
-    child_process_container_init(tctx->allocator, &models->child_processes);
-    models->period_wakeup_timer = system_wake_up_timer_create();
 }
 
 App_Step_Sig(app_step){
@@ -601,12 +602,12 @@ App_Step_Sig(app_step){
         if (cmd_func.custom_func != 0){
             View *view = imp_get_view(models, cmd_func.view_id);
             if (view != 0){
-            input_node_next = input_node;
-            Input_Event cmd_func_event = {};
+                input_node_next = input_node;
+                Input_Event cmd_func_event = {};
                 cmd_func_event.kind = InputEventKind_CustomFunction;
                 cmd_func_event.custom_func = cmd_func.custom_func;
-            co_send_event(tctx, models, view, &cmd_func_event);
-            continue;
+                co_send_event(tctx, models, view, &cmd_func_event);
+                continue;
             }
         }
         
@@ -618,9 +619,9 @@ App_Step_Sig(app_step){
             simulated_input = &virtual_event;
         }
         else{
-        if (input_node == 0){
-            break;
-        }
+            if (input_node == 0){
+                break;
+            }
             input_node_next = input_node->next;
             simulated_input = &input_node->event;
             
@@ -632,9 +633,9 @@ App_Step_Sig(app_step){
             if (simulated_input->kind == InputEventKind_KeyStroke ||
                 simulated_input->kind == InputEventKind_KeyRelease ||
                 simulated_input->kind == InputEventKind_TextInsert){
-                    Temp_Memory_Block temp_key_line(scratch);
-                    String_Const_u8 key_line = stringize_keyboard_event(scratch, simulated_input);
-                    output_file_append(tctx, models, models->keyboard_buffer, key_line);
+                Temp_Memory_Block temp_key_line(scratch);
+                String_Const_u8 key_line = stringize_keyboard_event(scratch, simulated_input);
+                output_file_append(tctx, models, models->keyboard_buffer, key_line);
             }
         }
         
