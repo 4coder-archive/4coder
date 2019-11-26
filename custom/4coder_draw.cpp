@@ -4,6 +4,13 @@
 
 // TOP
 
+function void
+draw_text_layout_default(Application_Links *app, Text_Layout_ID layout_id){
+    ARGB_Color special_color = finalize_color(defcolor_special_character, 0);
+    ARGB_Color ghost_color = finalize_color(defcolor_ghost_character, 0);
+    draw_text_layout(app, layout_id, special_color, ghost_color);
+}
+
 function FColor
 get_margin_color(i32 level){
     FColor margin = fcolor_zero();
@@ -11,28 +18,45 @@ get_margin_color(i32 level){
         default:
         case UIHighlight_None:
         {
-            margin = fcolor_id(Stag_List_Item);
+            margin = fcolor_id(defcolor_list_item);
         }break;
         case UIHighlight_Hover:
         {
-            margin = fcolor_id(Stag_List_Item_Hover);
+            margin = fcolor_id(defcolor_list_item_hover);
         }break;
         case UIHighlight_Active:
         {
-            margin = fcolor_id(Stag_List_Item_Active);
+            margin = fcolor_id(defcolor_list_item_active);
         }break;
     }
     return(margin);
 }
 
 function Vec2_f32
-draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string,
-            Vec2_f32 p, FColor color){
+draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec2_f32 p, ARGB_Color color){
     return(draw_string_oriented(app, font_id, color, string, p, 0, V2(1.f, 0.f)));
 }
 
+function Vec2_f32
+draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec2_f32 p, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_string(app, font_id, string, p, argb);
+}
+
 function void
-draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, FColor color){
+draw_rectangle_fcolor(Application_Links *app, Rect_f32 rect, f32 roundness, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_rectangle(app, rect, roundness, argb);
+}
+
+function void
+draw_rectangle_outline_fcolor(Application_Links *app, Rect_f32 rect, f32 roundness, f32 thickness, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_rectangle_outline(app, rect, roundness, thickness, argb);
+}
+
+function void
+draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, ARGB_Color color){
     draw_rectangle(app, Rf32(outer.x0, outer.y0, outer.x1, inner.y0), 0.f, color);
     draw_rectangle(app, Rf32(outer.x0, inner.y1, outer.x1, outer.y1), 0.f, color);
     draw_rectangle(app, Rf32(outer.x0, inner.y0, inner.x0, inner.y1), 0.f, color);
@@ -40,15 +64,25 @@ draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, FColor color
 }
 
 function void
-draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos,
-                     f32 roundness, FColor color){
+draw_margin(Application_Links *app, Rect_f32 outer, Rect_f32 inner, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_margin(app, outer, inner, argb);
+}
+
+function void
+draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, ARGB_Color color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
     draw_rectangle(app, rect, roundness, color);
 }
 
 function void
-draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range,
-                     f32 roundness, FColor color){
+draw_character_block(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_character_block(app, layout, pos, roundness, argb);
+}
+
+function void
+draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, ARGB_Color color){
     if (range.first < range.one_past_last){
         i64 i = range.first;
         Rect_f32 first_rect = text_layout_character_on_screen(app, layout, i);
@@ -83,32 +117,45 @@ draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 ra
 }
 
 function void
-draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos,
-                          f32 roundness, f32 thickness, FColor color){
+draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_character_block(app, layout, range, roundness, argb);
+    }
+
+function void
+draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, f32 thickness, ARGB_Color color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
     draw_rectangle_outline(app, rect, roundness, thickness, color);
 }
 
 function void
-draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout,
-                          Range_i64 range, f32 roundness, f32 thickness,
-                          FColor color){
+draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, f32 thickness, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_character_wire_frame(app, layout, pos, roundness, thickness, argb);
+}
+
+function void
+draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, f32 thickness, FColor color){
     for (i64 i = range.first; i < range.one_past_last; i += 1){
         draw_character_wire_frame(app, layout, i, roundness, thickness, color);
     }
 }
 
 function void
-draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos,
-                     FColor color){
+draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos, ARGB_Color color){
     Rect_f32 rect = text_layout_character_on_screen(app, layout, pos);
     rect.x1 = rect.x0 + 1.f;
     draw_rectangle(app, rect, 0.f, color);
 }
 
 function void
-draw_line_highlight(Application_Links *app, Text_Layout_ID layout,
-                    Range_i64 line_range, FColor color){
+draw_character_i_bar(Application_Links *app, Text_Layout_ID layout, i64 pos, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_character_i_bar(app, layout, pos, argb);
+}
+
+function void
+draw_line_highlight(Application_Links *app, Text_Layout_ID layout, Range_i64 line_range, ARGB_Color color){
     Range_f32 y1 = text_layout_line_on_screen(app, layout, line_range.min);
     Range_f32 y2 = text_layout_line_on_screen(app, layout, line_range.max);
     Range_f32 y = range_union(y1, y2);
@@ -119,15 +166,36 @@ draw_line_highlight(Application_Links *app, Text_Layout_ID layout,
 }
 
 function void
-draw_line_highlight(Application_Links *app, Text_Layout_ID layout, i64 line,
-                    FColor color){
+draw_line_highlight(Application_Links *app, Text_Layout_ID layout, Range_i64 line_range, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    draw_line_highlight(app, layout, line_range, argb);
+}
+
+function void
+draw_line_highlight(Application_Links *app, Text_Layout_ID layout, i64 line, ARGB_Color color){
     draw_line_highlight(app, layout, Ii64(line), color);
 }
 
 function void
-paint_text_color_pos(Application_Links *app, Text_Layout_ID layout, i64 pos,
-                     FColor color){
+draw_line_highlight(Application_Links *app, Text_Layout_ID layout, i64 line, FColor color){
+    draw_line_highlight(app, layout, Ii64(line), color);
+}
+
+function void
+paint_text_color_fcolor(Application_Links *app, Text_Layout_ID layout, Range_i64 pos, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    paint_text_color(app, layout, pos, argb);
+}
+
+function void
+paint_text_color_pos(Application_Links *app, Text_Layout_ID layout, i64 pos, ARGB_Color color){
     paint_text_color(app, layout, Ii64(pos, pos + 1), color);
+}
+
+function void
+paint_text_color_pos(Application_Links *app, Text_Layout_ID layout, i64 pos, FColor color){
+    ARGB_Color argb = fcolor_resolve(color);
+    paint_text_color_pos(app, layout, pos, argb);
 }
 
 ////////////////////////////////
@@ -172,7 +240,7 @@ layout_fps_hud_on_bottom(Rect_f32 rect, f32 line_height){
 }
 
 function Rect_f32
-draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, FColor back){
+draw_background_and_margin(Application_Links *app, View_ID view, ARGB_Color margin, ARGB_Color back){
     Rect_f32 view_rect = view_get_screen_rect(app, view);
     Rect_f32 inner = rect_inner(view_rect, 3.f);
     draw_rectangle(app, inner, 0.f, back);
@@ -181,9 +249,16 @@ draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, 
 }
 
 function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, FColor back){
+    ARGB_Color margin_argb = fcolor_resolve(margin);
+    ARGB_Color back_argb = fcolor_resolve(back);
+    return(draw_background_and_margin(app, view, margin_argb, back_argb));
+}
+
+function Rect_f32
 draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view){
     FColor margin_color = get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
-    return(draw_background_and_margin(app, view, margin_color, fcolor_id(Stag_Back)));
+    return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back)));
 }
 
 function Rect_f32
@@ -197,10 +272,10 @@ function void
 draw_file_bar(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID face_id, Rect_f32 bar){
     Scratch_Block scratch(app);
     
-    draw_rectangle(app, bar, 0.f, fcolor_id(Stag_Bar));
+    draw_rectangle_fcolor(app, bar, 0.f, fcolor_id(defcolor_bar));
     
-    FColor base_color = fcolor_id(Stag_Base);
-    FColor pop2_color = fcolor_id(Stag_Pop2);
+    FColor base_color = fcolor_id(defcolor_base);
+    FColor pop2_color = fcolor_id(defcolor_pop2);
     
     i64 cursor_position = view_get_cursor_pos(app, view_id);
     Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(cursor_position));
@@ -254,8 +329,8 @@ function void
 draw_query_bar(Application_Links *app, Query_Bar *query_bar, Face_ID face_id, Rect_f32 bar){
     Scratch_Block scratch(app);
     Fancy_Line list = {};
-    push_fancy_string(scratch, &list, fcolor_id(Stag_Pop1)   , query_bar->prompt);
-    push_fancy_string(scratch, &list, fcolor_id(Stag_Default), query_bar->string);
+    push_fancy_string(scratch, &list, fcolor_id(defcolor_pop1)        , query_bar->prompt);
+    push_fancy_string(scratch, &list, fcolor_id(defcolor_text_default), query_bar->string);
     Vec2_f32 p = bar.p0 + V2(2.f, 2.f);
     draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
 }
@@ -263,11 +338,11 @@ draw_query_bar(Application_Links *app, Query_Bar *query_bar, Face_ID face_id, Re
 function void
 draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID face_id, Text_Layout_ID text_layout_id, Rect_f32 margin){
     Rect_f32 prev_clip = draw_set_clip(app, margin);
-    draw_rectangle(app, margin, 0.f, fcolor_id(Stag_Line_Numbers_Back));
+    draw_rectangle_fcolor(app, margin, 0.f, fcolor_id(defcolor_line_numbers_back));
     
     Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
     
-    FColor line_color = fcolor_id(Stag_Line_Numbers_Text);
+    FColor line_color = fcolor_id(defcolor_line_numbers_text);
     
     i64 line_count = buffer_get_line_count(app, buffer);
     i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
@@ -309,8 +384,8 @@ draw_fps_hud(Application_Links *app, Frame_Info frame_info,
     history_animation_dt[wrapped_index] = frame_info.animation_dt;
     history_frame_index[wrapped_index]  = frame_info.index;
     
-    draw_rectangle(app, rect, 0.f, f_black);
-    draw_rectangle_outline(app, rect, 0.f, 1.f, f_white);
+    draw_rectangle_fcolor(app, rect, 0.f, f_black);
+    draw_rectangle_outline_fcolor(app, rect, 0.f, 1.f, f_white);
     
     Vec2_f32 p = rect.p0;
     
@@ -353,31 +428,31 @@ draw_fps_hud(Application_Links *app, Frame_Info frame_info,
 
 function FColor
 get_token_color_cpp(Token token){
-    ID_Color color = Stag_Default;
+     Managed_ID color = defcolor_text_default;
     switch (token.kind){
         case TokenBaseKind_Preprocessor:
         {
-            color = Stag_Preproc;
+            color = defcolor_preproc;
         }break;
         case TokenBaseKind_Keyword:
         {            
-            color = Stag_Keyword;
+            color = defcolor_keyword;
         }break;
         case TokenBaseKind_Comment:
         {
-            color = Stag_Comment;
+            color = defcolor_comment;
         }break;
         case TokenBaseKind_LiteralString:
         {
-            color = Stag_Str_Constant;
+            color = defcolor_str_constant;
         }break;
         case TokenBaseKind_LiteralInteger:
         {
-            color = Stag_Int_Constant;
+            color = defcolor_int_constant;
         }break;
         case TokenBaseKind_LiteralFloat:
         {
-            color = Stag_Float_Constant;
+            color = defcolor_float_constant;
         }break;
         default:
         {
@@ -385,7 +460,7 @@ get_token_color_cpp(Token token){
                 case TokenCppKind_LiteralTrue:
                 case TokenCppKind_LiteralFalse:
                 {
-                    color = Stag_Bool_Constant;
+                    color = defcolor_bool_constant;
                 }break;
                 case TokenCppKind_LiteralCharacter:
                 case TokenCppKind_LiteralCharacterWide:
@@ -393,11 +468,11 @@ get_token_color_cpp(Token token){
                 case TokenCppKind_LiteralCharacterUTF16:
                 case TokenCppKind_LiteralCharacterUTF32:
                 {
-                    color = Stag_Char_Constant;
+                    color = defcolor_char_constant;
                 }break;
                 case TokenCppKind_PPIncludeFile:
                 {
-                    color = Stag_Include;
+                    color = defcolor_include;
                 }break;
             }
         }break;
@@ -416,7 +491,8 @@ draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Tok
             break;
         }
         FColor color = get_token_color_cpp(*token);
-        paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), color);
+        ARGB_Color argb = fcolor_resolve(color);
+        paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
         if (!token_it_inc_non_whitespace(&it)){
             break;
         }
@@ -489,7 +565,8 @@ get_enclosure_ranges(Application_Links *app, Arena *arena, Buffer_ID buffer, i64
 function void
 draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID buffer,
                 i64 pos, u32 flags, Range_Highlight_Kind kind,
-                FColor *back_colors, FColor *fore_colors, i32 color_count){
+                ARGB_Color *back_colors, i32 back_count,
+                ARGB_Color *fore_colors, i32 fore_count){
     Scratch_Block scratch(app);
     Range_i64_Array ranges = get_enclosure_ranges(app, scratch, buffer, pos, flags);
     
@@ -522,40 +599,43 @@ draw_enclosures(Application_Links *app, Text_Layout_ID text_layout_id, Buffer_ID
                 }
                 Range_i64 line_range = r[j];
                 if (back_colors != 0){
-                    draw_line_highlight(app, text_layout_id, line_range, back_colors[color_index]);
+                    i32 back_index = color_index%back_count;
+                    draw_line_highlight(app, text_layout_id, line_range, back_colors[back_index]);
                 }
                 if (fore_colors != 0){
+                    i32 fore_index = color_index%fore_count;
                     Range_i64 pos_range = get_pos_range_from_line_range(app, buffer, line_range);
-                    paint_text_color(app, text_layout_id, pos_range, fore_colors[color_index]);
+                    paint_text_color(app, text_layout_id, pos_range, fore_colors[fore_index]);
                 }
             }
         }
         else{
             if (back_colors != 0){
-                draw_character_block(app, text_layout_id, range.min, 0.f, back_colors[color_index]);
-                draw_character_block(app, text_layout_id, range.max - 1, 0.f, back_colors[color_index]);
+                i32 back_index = color_index%back_count;
+                draw_character_block(app, text_layout_id, range.min, 0.f, back_colors[back_index]);
+                draw_character_block(app, text_layout_id, range.max - 1, 0.f, back_colors[back_index]);
             }
             if (fore_colors != 0){
-                paint_text_color_pos(app, text_layout_id, range.min, fore_colors[color_index]);
-                paint_text_color_pos(app, text_layout_id, range.max - 1, fore_colors[color_index]);
+                i32 fore_index = color_index%fore_count;
+                paint_text_color_pos(app, text_layout_id, range.min, fore_colors[fore_index]);
+                paint_text_color_pos(app, text_layout_id, range.max - 1, fore_colors[fore_index]);
             }
         }
         color_index += 1;
-        color_index = (color_index%color_count);
     }
 }
 
 function void
 draw_scope_highlight(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
-                     i64 pos, FColor *colors, i32 color_count){
+                     i64 pos, ARGB_Color *colors, i32 color_count){
     draw_enclosures(app, text_layout_id, buffer,
                     pos, FindNest_Scope, RangeHighlightKind_LineHighlight,
-                    colors, 0, color_count);
+                    colors, color_count, 0, 0);
 }
 
 function void
 draw_paren_highlight(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
-                     i64 pos, FColor *colors, i32 color_count){
+                     i64 pos, ARGB_Color *colors, i32 color_count){
     Token_Array token_array = get_token_array_from_buffer(app, buffer);
     if (token_array.tokens != 0){
         Token_Iterator_Array it = token_iterator_pos(0, &token_array, pos);
@@ -575,7 +655,7 @@ draw_paren_highlight(Application_Links *app, Buffer_ID buffer, Text_Layout_ID te
     }
     draw_enclosures(app, text_layout_id, buffer,
                     pos, FindNest_Paren, RangeHighlightKind_CharacterHighlight,
-                    0, colors, color_count);
+                    0, 0, colors, color_count);
 }
 
 function void
@@ -617,9 +697,9 @@ draw_highlight_range(Application_Links *app, View_ID view_id,
             if (managed_object_load_data(app, *highlight, 0, 2, marker_range)){
                 Range_i64 range = Ii64(marker_range[0].pos, marker_range[1].pos);
                 draw_character_block(app, text_layout_id, range, roundness,
-                                     fcolor_id(Stag_Highlight));
-                paint_text_color(app, text_layout_id, range,
-                                 fcolor_id(Stag_At_Highlight));
+                                     fcolor_id(defcolor_highlight));
+                paint_text_color_fcolor(app, text_layout_id, range,
+                                 fcolor_id(defcolor_at_highlight));
             }
         }
     }
@@ -636,20 +716,20 @@ draw_original_4coder_style_cursor_mark_highlight(Application_Links *app, View_ID
         i64 mark_pos = view_get_mark_pos(app, view_id);
         if (is_active_view){
             draw_character_block(app, text_layout_id, cursor_pos, roundness,
-                                 fcolor_id(Stag_Cursor));
+                                 fcolor_id(defcolor_cursor));
             paint_text_color_pos(app, text_layout_id, cursor_pos,
-                                 fcolor_id(Stag_At_Cursor));
+                                 fcolor_id(defcolor_at_cursor));
             draw_character_wire_frame(app, text_layout_id, mark_pos,
                                       roundness, outline_thickness,
-                                      fcolor_id(Stag_Mark));
+                                      fcolor_id(defcolor_mark));
         }
         else{
             draw_character_wire_frame(app, text_layout_id, mark_pos,
                                       roundness, outline_thickness,
-                                      fcolor_id(Stag_Mark));
+                                      fcolor_id(defcolor_mark));
             draw_character_wire_frame(app, text_layout_id, cursor_pos,
                                       roundness, outline_thickness,
-                                      fcolor_id(Stag_Cursor));
+                                      fcolor_id(defcolor_cursor));
         }
     }
 }
@@ -665,11 +745,11 @@ draw_notepad_style_cursor_highlight(Application_Links *app, View_ID view_id,
         if (cursor_pos != mark_pos){
             Range_i64 range = Ii64(cursor_pos, mark_pos);
             draw_character_block(app, text_layout_id, range, roundness, 
-                                 fcolor_id(Stag_Highlight));
-            paint_text_color(app, text_layout_id, range,
-                             fcolor_id(Stag_At_Highlight));
+                                 fcolor_id(defcolor_highlight));
+            paint_text_color_fcolor(app, text_layout_id, range,
+                             fcolor_id(defcolor_at_highlight));
         }
-        draw_character_i_bar(app, text_layout_id, cursor_pos, fcolor_id(Stag_Cursor));
+        draw_character_i_bar(app, text_layout_id, cursor_pos, fcolor_id(defcolor_cursor));
     }
 }
 
@@ -707,7 +787,7 @@ draw_tool_tip(Application_Links *app, Face_ID face, Fancy_Block *block,
         box.x1 = f32_round32(box.x1);
         box.y1 = f32_round32(box.y1);
         Rect_f32 prev_clip = draw_set_clip(app, box);
-        draw_rectangle(app, box, 6.f, back_color);
+        draw_rectangle_fcolor(app, box, 6.f, back_color);
         draw_fancy_block(app, face, fcolor_zero(), block,
                          box.p0 + V2f32(x_half_padding, 1.f));
         draw_set_clip(app, prev_clip);
@@ -729,7 +809,7 @@ draw_drop_down(Application_Links *app, Face_ID face, Fancy_Block *block,
         box.x1 = f32_round32(box.x1);
         box.y1 = f32_round32(box.y1);
         Rect_f32 prev_clip = draw_set_clip(app, box);
-        draw_rectangle(app, box, 0.f, back_color);
+        draw_rectangle_fcolor(app, box, 0.f, back_color);
         draw_margin(app, box, rect_inner(box, 1.f), outline_color);
         draw_fancy_block(app, face, fcolor_zero(), block,
                          box.p0 + V2f32(x_half_padding, 2.f));
@@ -746,12 +826,12 @@ draw_button(Application_Links *app, Rect_f32 rect, Vec2_f32 mouse_p, Face_ID fac
     }
     
     FColor margin_color = get_margin_color(hovered?UIHighlight_Active:UIHighlight_None);
-    draw_rectangle(app, rect, 3.f, margin_color);
+    draw_rectangle_fcolor(app, rect, 3.f, margin_color);
     rect = rect_inner(rect, 3.f);
-    draw_rectangle(app, rect, 3.f, fcolor_id(Stag_Back));
+    draw_rectangle_fcolor(app, rect, 3.f, fcolor_id(defcolor_back));
     
     Scratch_Block scratch(app);
-    Fancy_String *fancy = push_fancy_string(scratch, 0, face, fcolor_id(Stag_Default), text);
+    Fancy_String *fancy = push_fancy_string(scratch, 0, face, fcolor_id(defcolor_text_default), text);
     Vec2_f32 dim = get_fancy_string_dim(app, 0, fancy);
     Vec2_f32 p = (rect.p0 + rect.p1 - dim)*0.5f;
     draw_fancy_string(app, fancy, p);

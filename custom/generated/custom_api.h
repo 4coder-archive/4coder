@@ -93,7 +93,7 @@
 #define custom_view_set_mark_sig() b32 custom_view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek)
 #define custom_view_quit_ui_sig() b32 custom_view_quit_ui(Application_Links* app, View_ID view_id)
 #define custom_view_set_buffer_sig() b32 custom_view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags)
-#define custom_view_post_fade_sig() b32 custom_view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, FColor color)
+#define custom_view_post_fade_sig() b32 custom_view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color)
 #define custom_view_push_context_sig() b32 custom_view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx)
 #define custom_view_pop_context_sig() b32 custom_view_pop_context(Application_Links* app, View_ID view_id)
 #define custom_view_alter_context_sig() b32 custom_view_alter_context(Application_Links* app, View_ID view_id, View_Context* ctx)
@@ -106,6 +106,7 @@
 #define custom_managed_scope_clear_contents_sig() b32 custom_managed_scope_clear_contents(Application_Links* app, Managed_Scope scope)
 #define custom_managed_scope_clear_self_all_dependent_scopes_sig() b32 custom_managed_scope_clear_self_all_dependent_scopes(Application_Links* app, Managed_Scope scope)
 #define custom_managed_scope_allocator_sig() Base_Allocator* custom_managed_scope_allocator(Application_Links* app, Managed_Scope scope)
+#define custom_managed_id_group_highest_id_sig() u64 custom_managed_id_group_highest_id(Application_Links* app, String_Const_u8 group)
 #define custom_managed_id_declare_sig() Managed_ID custom_managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name)
 #define custom_managed_scope_get_attachment_sig() void* custom_managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size)
 #define custom_managed_scope_attachment_erase_sig() void* custom_managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id)
@@ -153,17 +154,14 @@
 #define custom_try_create_new_face_sig() Face_ID custom_try_create_new_face(Application_Links* app, Face_Description* description)
 #define custom_try_modify_face_sig() b32 custom_try_modify_face(Application_Links* app, Face_ID id, Face_Description* description)
 #define custom_try_release_face_sig() b32 custom_try_release_face(Application_Links* app, Face_ID id, Face_ID replacement_id)
-#define custom_set_theme_colors_sig() void custom_set_theme_colors(Application_Links* app, Theme_Color* colors, i32 count)
-#define custom_get_theme_colors_sig() void custom_get_theme_colors(Application_Links* app, Theme_Color* colors, i32 count)
-#define custom_finalize_color_sig() ARGB_Color custom_finalize_color(Application_Links* app, ID_Color color)
 #define custom_push_hot_directory_sig() String_Const_u8 custom_push_hot_directory(Application_Links* app, Arena* arena)
 #define custom_set_hot_directory_sig() b32 custom_set_hot_directory(Application_Links* app, String_Const_u8 string)
 #define custom_send_exit_signal_sig() void custom_send_exit_signal(Application_Links* app)
 #define custom_set_window_title_sig() b32 custom_set_window_title(Application_Links* app, String_Const_u8 title)
-#define custom_draw_string_oriented_sig() Vec2_f32 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, FColor color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta)
+#define custom_draw_string_oriented_sig() Vec2_f32 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta)
 #define custom_get_string_advance_sig() f32 custom_get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str)
-#define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, FColor color)
-#define custom_draw_rectangle_outline_sig() void custom_draw_rectangle_outline(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, FColor color)
+#define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color)
+#define custom_draw_rectangle_outline_sig() void custom_draw_rectangle_outline(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, ARGB_Color color)
 #define custom_draw_set_clip_sig() Rect_f32 custom_draw_set_clip(Application_Links* app, Rect_f32 new_clip)
 #define custom_text_layout_create_sig() Text_Layout_ID custom_text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point)
 #define custom_text_layout_region_sig() Rect_f32 custom_text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id)
@@ -171,9 +169,9 @@
 #define custom_text_layout_get_visible_range_sig() Range_i64 custom_text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_text_layout_line_on_screen_sig() Range_f32 custom_text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number)
 #define custom_text_layout_character_on_screen_sig() Rect_f32 custom_text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos)
-#define custom_paint_text_color_sig() void custom_paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, FColor color)
+#define custom_paint_text_color_sig() void custom_paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, ARGB_Color color)
 #define custom_text_layout_free_sig() b32 custom_text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id)
-#define custom_draw_text_layout_sig() void custom_draw_text_layout(Application_Links* app, Text_Layout_ID layout_id)
+#define custom_draw_text_layout_sig() void custom_draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color)
 #define custom_open_color_picker_sig() void custom_open_color_picker(Application_Links* app, Color_Picker* picker)
 #define custom_animate_in_n_milliseconds_sig() void custom_animate_in_n_milliseconds(Application_Links* app, u32 n)
 #define custom_buffer_find_all_matches_sig() String_Match_List custom_buffer_find_all_matches(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction)
@@ -273,7 +271,7 @@ typedef b32 custom_view_set_buffer_scroll_type(Application_Links* app, View_ID v
 typedef b32 custom_view_set_mark_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 typedef b32 custom_view_quit_ui_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_set_buffer_type(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
-typedef b32 custom_view_post_fade_type(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, FColor color);
+typedef b32 custom_view_post_fade_type(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color);
 typedef b32 custom_view_push_context_type(Application_Links* app, View_ID view_id, View_Context* ctx);
 typedef b32 custom_view_pop_context_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_alter_context_type(Application_Links* app, View_ID view_id, View_Context* ctx);
@@ -286,6 +284,7 @@ typedef Managed_Scope custom_get_managed_scope_with_multiple_dependencies_type(A
 typedef b32 custom_managed_scope_clear_contents_type(Application_Links* app, Managed_Scope scope);
 typedef b32 custom_managed_scope_clear_self_all_dependent_scopes_type(Application_Links* app, Managed_Scope scope);
 typedef Base_Allocator* custom_managed_scope_allocator_type(Application_Links* app, Managed_Scope scope);
+typedef u64 custom_managed_id_group_highest_id_type(Application_Links* app, String_Const_u8 group);
 typedef Managed_ID custom_managed_id_declare_type(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 typedef void* custom_managed_scope_get_attachment_type(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
 typedef void* custom_managed_scope_attachment_erase_type(Application_Links* app, Managed_Scope scope, Managed_ID id);
@@ -333,17 +332,14 @@ typedef Face_ID custom_get_face_id_type(Application_Links* app, Buffer_ID buffer
 typedef Face_ID custom_try_create_new_face_type(Application_Links* app, Face_Description* description);
 typedef b32 custom_try_modify_face_type(Application_Links* app, Face_ID id, Face_Description* description);
 typedef b32 custom_try_release_face_type(Application_Links* app, Face_ID id, Face_ID replacement_id);
-typedef void custom_set_theme_colors_type(Application_Links* app, Theme_Color* colors, i32 count);
-typedef void custom_get_theme_colors_type(Application_Links* app, Theme_Color* colors, i32 count);
-typedef ARGB_Color custom_finalize_color_type(Application_Links* app, ID_Color color);
 typedef String_Const_u8 custom_push_hot_directory_type(Application_Links* app, Arena* arena);
 typedef b32 custom_set_hot_directory_type(Application_Links* app, String_Const_u8 string);
 typedef void custom_send_exit_signal_type(Application_Links* app);
 typedef b32 custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
-typedef Vec2_f32 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, FColor color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
+typedef Vec2_f32 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 typedef f32 custom_get_string_advance_type(Application_Links* app, Face_ID font_id, String_Const_u8 str);
-typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, f32 roundness, FColor color);
-typedef void custom_draw_rectangle_outline_type(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, FColor color);
+typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
+typedef void custom_draw_rectangle_outline_type(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, ARGB_Color color);
 typedef Rect_f32 custom_draw_set_clip_type(Application_Links* app, Rect_f32 new_clip);
 typedef Text_Layout_ID custom_text_layout_create_type(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
 typedef Rect_f32 custom_text_layout_region_type(Application_Links* app, Text_Layout_ID text_layout_id);
@@ -351,9 +347,9 @@ typedef Buffer_ID custom_text_layout_get_buffer_type(Application_Links* app, Tex
 typedef Range_i64 custom_text_layout_get_visible_range_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef Range_f32 custom_text_layout_line_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 typedef Rect_f32 custom_text_layout_character_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
-typedef void custom_paint_text_color_type(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, FColor color);
+typedef void custom_paint_text_color_type(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, ARGB_Color color);
 typedef b32 custom_text_layout_free_type(Application_Links* app, Text_Layout_ID text_layout_id);
-typedef void custom_draw_text_layout_type(Application_Links* app, Text_Layout_ID layout_id);
+typedef void custom_draw_text_layout_type(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 typedef void custom_open_color_picker_type(Application_Links* app, Color_Picker* picker);
 typedef void custom_animate_in_n_milliseconds_type(Application_Links* app, u32 n);
 typedef String_Match_List custom_buffer_find_all_matches_type(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction);
@@ -467,6 +463,7 @@ custom_get_managed_scope_with_multiple_dependencies_type *get_managed_scope_with
 custom_managed_scope_clear_contents_type *managed_scope_clear_contents;
 custom_managed_scope_clear_self_all_dependent_scopes_type *managed_scope_clear_self_all_dependent_scopes;
 custom_managed_scope_allocator_type *managed_scope_allocator;
+custom_managed_id_group_highest_id_type *managed_id_group_highest_id;
 custom_managed_id_declare_type *managed_id_declare;
 custom_managed_scope_get_attachment_type *managed_scope_get_attachment;
 custom_managed_scope_attachment_erase_type *managed_scope_attachment_erase;
@@ -514,9 +511,6 @@ custom_get_face_id_type *get_face_id;
 custom_try_create_new_face_type *try_create_new_face;
 custom_try_modify_face_type *try_modify_face;
 custom_try_release_face_type *try_release_face;
-custom_set_theme_colors_type *set_theme_colors;
-custom_get_theme_colors_type *get_theme_colors;
-custom_finalize_color_type *finalize_color;
 custom_push_hot_directory_type *push_hot_directory;
 custom_set_hot_directory_type *set_hot_directory;
 custom_send_exit_signal_type *send_exit_signal;
@@ -636,7 +630,7 @@ internal b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buf
 internal b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 internal b32 view_quit_ui(Application_Links* app, View_ID view_id);
 internal b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
-internal b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, FColor color);
+internal b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color);
 internal b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);
 internal b32 view_pop_context(Application_Links* app, View_ID view_id);
 internal b32 view_alter_context(Application_Links* app, View_ID view_id, View_Context* ctx);
@@ -649,6 +643,7 @@ internal Managed_Scope get_managed_scope_with_multiple_dependencies(Application_
 internal b32 managed_scope_clear_contents(Application_Links* app, Managed_Scope scope);
 internal b32 managed_scope_clear_self_all_dependent_scopes(Application_Links* app, Managed_Scope scope);
 internal Base_Allocator* managed_scope_allocator(Application_Links* app, Managed_Scope scope);
+internal u64 managed_id_group_highest_id(Application_Links* app, String_Const_u8 group);
 internal Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 internal void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
 internal void* managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
@@ -696,17 +691,14 @@ internal Face_ID get_face_id(Application_Links* app, Buffer_ID buffer_id);
 internal Face_ID try_create_new_face(Application_Links* app, Face_Description* description);
 internal b32 try_modify_face(Application_Links* app, Face_ID id, Face_Description* description);
 internal b32 try_release_face(Application_Links* app, Face_ID id, Face_ID replacement_id);
-internal void set_theme_colors(Application_Links* app, Theme_Color* colors, i32 count);
-internal void get_theme_colors(Application_Links* app, Theme_Color* colors, i32 count);
-internal ARGB_Color finalize_color(Application_Links* app, ID_Color color);
 internal String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
 internal b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
 internal void send_exit_signal(Application_Links* app);
 internal b32 set_window_title(Application_Links* app, String_Const_u8 title);
-internal Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, FColor color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
+internal Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 internal f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
-internal void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, FColor color);
-internal void draw_rectangle_outline(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, FColor color);
+internal void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
+internal void draw_rectangle_outline(Application_Links* app, Rect_f32 rect, f32 roundness, f32 thickness, ARGB_Color color);
 internal Rect_f32 draw_set_clip(Application_Links* app, Rect_f32 new_clip);
 internal Text_Layout_ID text_layout_create(Application_Links* app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point);
 internal Rect_f32 text_layout_region(Application_Links* app, Text_Layout_ID text_layout_id);
@@ -714,9 +706,9 @@ internal Buffer_ID text_layout_get_buffer(Application_Links* app, Text_Layout_ID
 internal Range_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
 internal Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 internal Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
-internal void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, FColor color);
+internal void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, ARGB_Color color);
 internal b32 text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id);
-internal void draw_text_layout(Application_Links* app, Text_Layout_ID layout_id);
+internal void draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 internal void open_color_picker(Application_Links* app, Color_Picker* picker);
 internal void animate_in_n_milliseconds(Application_Links* app, u32 n);
 internal String_Match_List buffer_find_all_matches(Application_Links* app, Arena* arena, Buffer_ID buffer, i32 string_id, Range_i64 range, String_Const_u8 needle, Character_Predicate* predicate, Scan_Direction direction);
@@ -831,6 +823,7 @@ global custom_get_managed_scope_with_multiple_dependencies_type *get_managed_sco
 global custom_managed_scope_clear_contents_type *managed_scope_clear_contents = 0;
 global custom_managed_scope_clear_self_all_dependent_scopes_type *managed_scope_clear_self_all_dependent_scopes = 0;
 global custom_managed_scope_allocator_type *managed_scope_allocator = 0;
+global custom_managed_id_group_highest_id_type *managed_id_group_highest_id = 0;
 global custom_managed_id_declare_type *managed_id_declare = 0;
 global custom_managed_scope_get_attachment_type *managed_scope_get_attachment = 0;
 global custom_managed_scope_attachment_erase_type *managed_scope_attachment_erase = 0;
@@ -878,9 +871,6 @@ global custom_get_face_id_type *get_face_id = 0;
 global custom_try_create_new_face_type *try_create_new_face = 0;
 global custom_try_modify_face_type *try_modify_face = 0;
 global custom_try_release_face_type *try_release_face = 0;
-global custom_set_theme_colors_type *set_theme_colors = 0;
-global custom_get_theme_colors_type *get_theme_colors = 0;
-global custom_finalize_color_type *finalize_color = 0;
 global custom_push_hot_directory_type *push_hot_directory = 0;
 global custom_set_hot_directory_type *set_hot_directory = 0;
 global custom_send_exit_signal_type *send_exit_signal = 0;

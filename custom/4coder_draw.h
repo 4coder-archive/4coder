@@ -9,7 +9,7 @@
 
 struct Comment_Highlight_Pair{
     String_Const_u8 needle;
-    FColor color;
+     ARGB_Color color;
 };
 
 typedef i32 Range_Highlight_Kind;

@@ -1,59 +1,55 @@
 /* 
-* Colors with meanings built into the core.
+* Default color slots
 */
 
 // TOP
 
-enum Style_Tag{
-    Stag_NOOP = 0,
-    
-    Stag_Bar = 1,
-    Stag_Base = 2,
-    Stag_Pop1 = 3,
-    Stag_Pop2 = 4,
-    Stag_Back = 5,
-    Stag_Margin = 6,
-    Stag_Margin_Hover = 7,
-    Stag_Margin_Active = 8,
-    Stag_List_Item = 9,
-    Stag_List_Item_Hover = 10,
-    Stag_List_Item_Active = 11,
-    Stag_Cursor = 12,
-    Stag_At_Cursor = 13,
-    Stag_Highlight_Cursor_Line = 14,
-    Stag_Highlight = 15,
-    Stag_At_Highlight = 16,
-    Stag_Mark = 17,
-    Stag_Default = 18,
-    Stag_Comment = 19,
-    Stag_Keyword = 20,
-    Stag_Str_Constant = 21,
-    Stag_Char_Constant = 22,
-    Stag_Int_Constant = 23,
-    Stag_Float_Constant = 24,
-    Stag_Bool_Constant = 25,
-    Stag_Preproc = 26,
-    Stag_Include = 27,
-    Stag_Special_Character = 28,
-    Stag_Ghost_Character = 29,
-    Stag_Highlight_Junk = 30,
-    Stag_Highlight_White = 31,
-    Stag_Paste = 32,
-    Stag_Undo = 33,
-    Stag_Back_Cycle_1 = 34,
-    Stag_Back_Cycle_2 = 35,
-    Stag_Back_Cycle_3 = 36,
-    Stag_Back_Cycle_4 = 37,
-    Stag_Text_Cycle_1 = 38,
-    Stag_Text_Cycle_2 = 39,
-    Stag_Text_Cycle_3 = 40,
-    Stag_Text_Cycle_4 = 41,
-    Stag_Line_Numbers_Back = 42,
-    Stag_Line_Numbers_Text = 43,
-    Stag_COUNT = 44
-};
+#if !defined(FCODER_DEFAULT_COLORS_H)
+#define FCODER_DEFAULT_COLORS_H
 
-#define FirstCustomColor Stag_COUNT
+CUSTOM_ID(colors, defcolor_bar);
+CUSTOM_ID(colors, defcolor_base);
+CUSTOM_ID(colors, defcolor_pop1);
+CUSTOM_ID(colors, defcolor_pop2);
+CUSTOM_ID(colors, defcolor_back);
+CUSTOM_ID(colors, defcolor_margin);
+CUSTOM_ID(colors, defcolor_margin_hover);
+CUSTOM_ID(colors, defcolor_margin_active);
+CUSTOM_ID(colors, defcolor_list_item);
+CUSTOM_ID(colors, defcolor_list_item_hover);
+CUSTOM_ID(colors, defcolor_list_item_active);
+CUSTOM_ID(colors, defcolor_cursor);
+CUSTOM_ID(colors, defcolor_at_cursor);
+CUSTOM_ID(colors, defcolor_highlight_cursor_line);
+CUSTOM_ID(colors, defcolor_highlight);
+CUSTOM_ID(colors, defcolor_at_highlight);
+CUSTOM_ID(colors, defcolor_mark);
+CUSTOM_ID(colors, defcolor_text_default);
+CUSTOM_ID(colors, defcolor_comment);
+CUSTOM_ID(colors, defcolor_comment_pop);
+CUSTOM_ID(colors, defcolor_keyword);
+CUSTOM_ID(colors, defcolor_str_constant);
+CUSTOM_ID(colors, defcolor_char_constant);
+CUSTOM_ID(colors, defcolor_int_constant);
+CUSTOM_ID(colors, defcolor_float_constant);
+CUSTOM_ID(colors, defcolor_bool_constant);
+CUSTOM_ID(colors, defcolor_preproc);
+CUSTOM_ID(colors, defcolor_include);
+CUSTOM_ID(colors, defcolor_special_character);
+CUSTOM_ID(colors, defcolor_ghost_character);
+CUSTOM_ID(colors, defcolor_highlight_junk);
+CUSTOM_ID(colors, defcolor_highlight_white);
+CUSTOM_ID(colors, defcolor_paste);
+CUSTOM_ID(colors, defcolor_undo);
+CUSTOM_ID(colors, defcolor_back_cycle);
+CUSTOM_ID(colors, defcolor_text_cycle);
+CUSTOM_ID(colors, defcolor_line_numbers_back);
+CUSTOM_ID(colors, defcolor_line_numbers_text);
+
+global Color_Table active_color_table = {};
+global Color_Table default_color_table = {};
+
+#endif
 
 // BOTTOM
 

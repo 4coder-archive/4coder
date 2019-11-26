@@ -671,10 +671,9 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         
         Rect_f32 view_rect = view_get_screen_rect(app, view);
         Rect_f32 inner = rect_inner(view_rect, 3);
-        draw_rectangle(app, view_rect, 0.f,
-                       get_margin_color(is_active_view?
-                                        UIHighlight_Active:UIHighlight_None));
-        draw_rectangle(app, inner, 0.f, fcolor_id(Stag_Back));
+        draw_rectangle_fcolor(app, view_rect, 0.f,
+                       get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None));
+        draw_rectangle_fcolor(app, inner, 0.f, fcolor_id(defcolor_back));
         
         Rect_f32 prev_clip = draw_set_clip(app, inner);
         ////////////////////////////////
@@ -721,8 +720,8 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                 margin_color = f_light_gray;
             }
             
-            draw_rectangle(app, box      , 0.f, margin_color);
-            draw_rectangle(app, box_inner, 0.f, f_black     );
+            draw_rectangle_fcolor(app, box      , 0.f, margin_color);
+            draw_rectangle_fcolor(app, box_inner, 0.f, f_black     );
             
             Log_Event *event = box_node->event;
             
@@ -759,8 +758,8 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             Log_Graph_List_Tab current_tab = log_graph.tab;
             Log_Filter_Set *viewing_filter_set = log_filter_set_from_tab(current_tab);
             
-            draw_rectangle(app, box      , 0.f, f_dark_gray);
-            draw_rectangle(app, box_inner, 0.f, f_black    );
+            draw_rectangle_fcolor(app, box      , 0.f, f_dark_gray);
+            draw_rectangle_fcolor(app, box_inner, 0.f, f_black    );
             
             {
                 f32 y_cursor = box_inner.y0 + 3.f;

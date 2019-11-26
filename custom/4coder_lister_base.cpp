@@ -182,10 +182,10 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     
     {
         Fancy_Line text_field = {};
-        push_fancy_string(scratch, &text_field, fcolor_id(Stag_Pop1),
+        push_fancy_string(scratch, &text_field, fcolor_id(defcolor_pop1),
                           lister->query.string);
         push_fancy_stringf(scratch, &text_field, " ");
-        push_fancy_string(scratch, &text_field, fcolor_id(Stag_Default),
+        push_fancy_string(scratch, &text_field, fcolor_id(defcolor_text_default),
                           lister->text_field.string);
         draw_fancy_line(app, face_id, fcolor_zero(), &text_field,
                         V2f32(text_field_rect.x0 + 3.f, text_field_rect.y0));
@@ -266,13 +266,13 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             highlight = UIHighlight_Hover;
         }
         
-        draw_rectangle(app, item_rect, 6.f, get_margin_color(highlight));
-        draw_rectangle(app, item_inner, 6.f, fcolor_id(Stag_Back));
+        draw_rectangle_fcolor(app, item_rect, 6.f, get_margin_color(highlight));
+        draw_rectangle_fcolor(app, item_inner, 6.f, fcolor_id(defcolor_back));
         
         Fancy_Line line = {};
-        push_fancy_string(scratch, &line, fcolor_id(Stag_Default), node->string);
+        push_fancy_string(scratch, &line, fcolor_id(defcolor_text_default), node->string);
         push_fancy_stringf(scratch, &line, " ");
-        push_fancy_string(scratch, &line, fcolor_id(Stag_Pop2), node->status);
+        push_fancy_string(scratch, &line, fcolor_id(defcolor_pop2), node->status);
         
         Vec2_f32 p = item_inner.p0 + V2f32(3.f, (block_height - line_height)*0.5f);
         draw_fancy_line(app, face_id, fcolor_zero(), &line, p);

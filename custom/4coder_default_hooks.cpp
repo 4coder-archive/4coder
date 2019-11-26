@@ -318,11 +318,7 @@ recursive_nest_highlight(Application_Links *app, Text_Layout_ID layout_id, Range
         }
     }
     
-    FColor t_colors[] = {
-        fcolor_id(Stag_Text_Cycle_1), fcolor_id(Stag_Text_Cycle_2),
-        fcolor_id(Stag_Text_Cycle_3), fcolor_id(Stag_Text_Cycle_4),
-    };
-    FColor t_color = t_colors[counter%ArrayCount(t_colors)];
+     ARGB_Color argb = finalize_color(defcolor_text_cycle, counter);
     
     for (;ptr < ptr_end; ptr += 1){
         Code_Index_Nest *nest = *ptr;
@@ -330,9 +326,9 @@ recursive_nest_highlight(Application_Links *app, Text_Layout_ID layout_id, Range
             break;
         }
         
-        paint_text_color(app, layout_id, nest->open, t_color);
+        paint_text_color(app, layout_id, nest->open, argb);
         if (nest->is_closed){
-            paint_text_color(app, layout_id, nest->close, t_color);
+            paint_text_color(app, layout_id, nest->close, argb);
         }
         recursive_nest_highlight(app, layout_id, range, &nest->nest_array, counter + 1);
     }
@@ -362,12 +358,16 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
         // NOTE(allen): Scan for TODOs and NOTEs
         if (global_config.use_comment_keyword){
             Comment_Highlight_Pair pairs[] = {
-                {string_u8_litexpr("NOTE"), Stag_Text_Cycle_2},
-                {string_u8_litexpr("TODO"), Stag_Text_Cycle_1},
+                {string_u8_litexpr("NOTE"), finalize_color(defcolor_comment_pop, 0)},
+                {string_u8_litexpr("TODO"), finalize_color(defcolor_comment_pop, 1)},
             };
             draw_comment_highlights(app, buffer, text_layout_id,
                                     &token_array, pairs, ArrayCount(pairs));
         }
+    }
+    else{
+        Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+        paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
     }
     
     i64 cursor_pos = view_correct_cursor(app, view_id);
@@ -375,11 +375,8 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     
     // NOTE(allen): Scope highlight
     if (global_config.use_scope_highlight){
-        FColor colors[] = {
-            fcolor_id(Stag_Back_Cycle_1), fcolor_id(Stag_Back_Cycle_2),
-            fcolor_id(Stag_Back_Cycle_3), fcolor_id(Stag_Back_Cycle_4),
-        };
-        draw_scope_highlight(app, buffer, text_layout_id, cursor_pos, colors, ArrayCount(colors));
+        Color_Array colors = finalize_color_array(defcolor_back_cycle);
+        draw_scope_highlight(app, buffer, text_layout_id, cursor_pos, colors.vals, colors.count);
     }
     
     if (global_config.use_error_highlight || global_config.use_jump_highlight){
@@ -388,7 +385,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
         Buffer_ID compilation_buffer = get_buffer_by_name(app, name, Access_Always);
         if (global_config.use_error_highlight){
             draw_jump_highlights(app, buffer, text_layout_id, compilation_buffer,
-                                 fcolor_id(Stag_Highlight_Junk));
+                                 fcolor_id(defcolor_highlight_junk));
         }
         
         // NOTE(allen): Search highlight
@@ -396,26 +393,22 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
             Buffer_ID jump_buffer = get_locked_jump_buffer(app);
             if (jump_buffer != compilation_buffer){
                 draw_jump_highlights(app, buffer, text_layout_id, jump_buffer,
-                                     fcolor_id(Stag_Highlight_White));
+                                     fcolor_id(defcolor_highlight_white));
             }
         }
     }
     
     // NOTE(allen): Color parens
     if (global_config.use_paren_helper){
-        FColor colors[] = {
-            fcolor_id(Stag_Text_Cycle_1), fcolor_id(Stag_Text_Cycle_2),
-            fcolor_id(Stag_Text_Cycle_3), fcolor_id(Stag_Text_Cycle_4),
-        };
-        draw_paren_highlight(app, buffer, text_layout_id, cursor_pos,
-                             colors, ArrayCount(colors));
+        Color_Array colors = finalize_color_array(defcolor_text_cycle);
+        draw_paren_highlight(app, buffer, text_layout_id, cursor_pos, colors.vals, colors.count);
     }
     
     // NOTE(allen): Line highlight
     if (global_config.highlight_line_at_cursor && is_active_view){
         i64 line_number = get_line_number_from_pos(app, buffer, cursor_pos);
         draw_line_highlight(app, text_layout_id, line_number,
-                            fcolor_id(Stag_Highlight_Cursor_Line));
+                            fcolor_id(defcolor_highlight_cursor_line));
     }
     
     // NOTE(allen): Cursor shape
@@ -436,7 +429,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     }
     
     // NOTE(allen): put the actual text on the actual screen
-    draw_text_layout(app, text_layout_id);
+    draw_text_layout_default(app, text_layout_id);
     
     draw_set_clip(app, prev_clip);
 }

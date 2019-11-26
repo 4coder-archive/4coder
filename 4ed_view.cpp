@@ -793,22 +793,6 @@ release_font_and_update(Models *models, Face *face, Face *replacement_face){
 
 ////////////////////////////////
 
-function ARGB_Color
-finalize_color(Color_Table color_table, ID_Color id){
-    return(color_table.vals[id % color_table.count]);
-}
-
-function ARGB_Color
-finalize_color(Color_Table color_table, FColor fcolor){
-    ARGB_Color result = fcolor.argb;
-    if (fcolor.a_byte == 0){
-        result = finalize_color(color_table, fcolor.id);
-    }
-    return(result);
-}
-
-////////////////////////////////
-
 internal View*
 imp_get_view(Models *models, View_ID view_id){
     Live_Views *view_set = &models->view_set;

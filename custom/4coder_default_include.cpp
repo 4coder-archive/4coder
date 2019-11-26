@@ -77,6 +77,7 @@
 #include "generated/lexer_cpp.cpp"
 #include "4coder_command_map.cpp"
 #include "4coder_default_framework_variables.cpp"
+#include "4coder_default_colors.cpp"
 #include "4coder_helper.cpp"
 #include "4coder_delta_rule.cpp"
 #include "4coder_layout_rule.cpp"

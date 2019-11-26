@@ -230,7 +230,7 @@ get_word_complete_needle_range(Application_Links *app, Buffer_ID buffer, i64 pos
     needle_range.max = pos;
     needle_range.min = scan(app, boundary_alpha_numeric_underscore_utf8, buffer, Scan_Backward, pos);
     i64 e = scan(app, boundary_alpha_numeric_underscore_utf8, buffer, Scan_Forward, needle_range.min);
-    if (needle_range.max > e){
+    if (pos > e){
         needle_range = Ii64(pos);
     }
     return(needle_range);
@@ -414,11 +414,9 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
         
         if (first_completion || !initialized){
             ProfileBlock(app, "word complete state init");
-            
+            initialized = false;
             i64 pos = view_get_cursor_pos(app, view);
-            
             Range_i64 needle_range = get_word_complete_needle_range(app, buffer, pos);
-            
             if (range_size(needle_range) > 0){
                 initialized = true;
                 range = needle_range;
@@ -482,8 +480,8 @@ word_complete_menu_render(Application_Links *app, Frame_Info frame_info, View_ID
         for (i32 i = 0; i < menu->count; i += 1){
             if (menu->options[i].size > 0){
                 Fancy_Line *line = push_fancy_line(scratch, &block, face);
-                push_fancy_stringf(scratch, line, fcolor_id(Stag_Pop1), "F%d:", i + 1);
-                push_fancy_string(scratch, line, fcolor_id(Stag_Default), menu->options[i]);
+                push_fancy_stringf(scratch, line, fcolor_id(defcolor_pop1), "F%d:", i + 1);
+                push_fancy_string(scratch, line, fcolor_id(defcolor_text_default), menu->options[i]);
             }
         }
         
@@ -501,7 +499,7 @@ word_complete_menu_render(Application_Links *app, Frame_Info frame_info, View_ID
         f32 x_half_padding = x_padding*0.5f;
         
         draw_drop_down(app, face, &block, cursor_p, region, x_padding, x_half_padding,
-                       fcolor_id(Stag_Margin_Hover), fcolor_id(Stag_Back));
+                       fcolor_id(defcolor_margin_hover), fcolor_id(defcolor_back));
     }
 }
 

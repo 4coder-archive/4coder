@@ -37,8 +37,8 @@ text_layout_release(Thread_Context *tctx, Models *models, Text_Layout_Container 
 internal Text_Layout_ID
 text_layout_new(Text_Layout_Container *container, Arena *arena,
                 Buffer_ID buffer_id, Buffer_Point point,
-                Range_i64 visible_range, Interval_i64 visible_line_number_range,
-                Rect_f32 rect, FColor *item_colors, Layout_Function *layout_func){
+                Range_i64 visible_range, Range_i64 visible_line_number_range,
+                Rect_f32 rect, ARGB_Color *item_colors, Layout_Function *layout_func){
     Text_Layout *new_layout_data = text_layout_new__alloc_layout(container);
     new_layout_data->arena = arena;
     new_layout_data->buffer_id = buffer_id;
@@ -83,16 +83,13 @@ text_layout_erase(Thread_Context *tctx, Models *models, Text_Layout_Container *c
 ////////////////////////////////
 
 internal void
-text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout){
+text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout,
+                   ARGB_Color special_color, ARGB_Color ghost_color){
     Editing_File *file = imp_get_file(models, layout->buffer_id);
     if (file != 0){
         Render_Target *target = models->target;
-        Color_Table color_table = models->color_table;
         Face *face = file_get_face(models, file);
         f32 width = rect_width(layout->rect);
-        
-        ARGB_Color special_color = color_table.vals[Stag_Special_Character];
-        ARGB_Color ghost_color   = color_table.vals[Stag_Ghost_Character];
         
         Vec2_f32 shift_p = layout->rect.p0 - layout->point.pixel_shift;
         i64 first_index = layout->visible_range.first;
@@ -108,7 +105,7 @@ text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout){
                  block = block->next){
                 Layout_Item *item = block->items;
                 i64 count = block->item_count;
-                FColor *item_colors = layout->item_colors;
+                 ARGB_Color *item_colors = layout->item_colors;
                 for (i32 i = 0; i < count; i += 1, item += 1){
                     if (item->codepoint != 0){
                         ARGB_Color color = 0;
@@ -119,12 +116,10 @@ text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout){
                             color = ghost_color;
                         }
                         else{
-                            FColor fcolor = item_colors[item->index - first_index];
-                            color = finalize_color(color_table, fcolor);
+                            color = item_colors[item->index - first_index];
                         }
                         Vec2_f32 p = item->rect.p0 + shift_p;
-                        draw_font_glyph(target, face, item->codepoint, 
-                                        p, color, GlyphFlag_None);
+                        draw_font_glyph(target, face, item->codepoint, p, color, GlyphFlag_None);
                     }
                 }
             }

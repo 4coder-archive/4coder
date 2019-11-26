@@ -76,8 +76,7 @@ struct Models{
     Buffer_Region_Function *buffer_region;
     Layout_Function *layout_func;
     
-    Color_Table fallback_color_table;
-    Color_Table color_table;
+    Color_Table color_table_;
     
     Model_View_Command_Function *free_view_cmd_funcs;
     Model_View_Command_Function *first_view_cmd_func;

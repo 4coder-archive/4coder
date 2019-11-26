@@ -16,6 +16,20 @@ managed_ids_init(Base_Allocator *allocator, Managed_ID_Set *set){
     }
 
 internal Managed_ID
+managed_ids_group_highest_id(Managed_ID_Set *set, String_Const_u8 group_name){
+    Managed_ID result = 0;
+    Data data = make_data(group_name.str, group_name.size);
+        Table_Lookup lookup = table_lookup(&set->name_to_group_table, data);
+        if (lookup.found_match){
+            u64 val = 0;
+            table_read(&set->name_to_group_table, lookup, &val);
+        Managed_ID_Group *group = (Managed_ID_Group*)IntAsPtr(val);
+        result = group->id_counter - 1;
+        }
+    return(result);
+}
+
+internal Managed_ID
 managed_ids_declare(Managed_ID_Set *set, String_Const_u8 group_name, String_Const_u8 name){
     Managed_ID_Group *group = 0;
 {

@@ -23,9 +23,17 @@ fcolor_argb(f32 r, f32 g, f32 b, f32 a){
 }
 
 function FColor
-fcolor_id(ID_Color id){
+fcolor_id(Managed_ID id){
     FColor result = {};
-    result.id = id;
+    result.id = (ID_Color)id;
+    return(result);
+}
+
+function FColor
+fcolor_id(Managed_ID id, u32 sub_index){
+    FColor result = {};
+    result.id = (ID_Color)id;
+    result.sub_index = (u8)sub_index;
     return(result);
 }
 
@@ -42,11 +50,11 @@ argb_color_blend(ARGB_Color a, f32 t, ARGB_Color b){
 }
 
 function ARGB_Color
-fcolor_resolve_to_argb(Application_Links *app, FColor color){
+fcolor_resolve(FColor color){
     ARGB_Color result = 0;
     if (color.a_byte == 0){
         if (color.id != 0){
-            result = finalize_color(app, color.id);
+            result = finalize_color(color.id, color.sub_index);
         }
     }
     else{
@@ -56,20 +64,20 @@ fcolor_resolve_to_argb(Application_Links *app, FColor color){
 }
 
 function FColor
-fcolor_change_alpha(Application_Links *app, FColor color, f32 alpha){
-    Vec4_f32 v = unpack_color(fcolor_resolve_to_argb(app, color));
+fcolor_change_alpha(FColor color, f32 alpha){
+    Vec4_f32 v = unpack_color(fcolor_resolve(color));
     v.a = alpha;
     return(fcolor_argb(pack_color(v)));
 }
 function FColor
-fcolor_blend(Application_Links *app, FColor a, f32 at, FColor b, f32 bt){
-    ARGB_Color a_argb = fcolor_resolve_to_argb(app, a);
-    ARGB_Color b_argb = fcolor_resolve_to_argb(app, b);
+fcolor_blend(FColor a, f32 at, FColor b, f32 bt){
+    ARGB_Color a_argb = fcolor_resolve(a);
+    ARGB_Color b_argb = fcolor_resolve(b);
     return(fcolor_argb(argb_color_blend(a_argb, at, b_argb, bt)));
 }
 function FColor
-fcolor_blend(Application_Links *app, FColor a, f32 t, FColor b){
-    return(fcolor_blend(app, a, 1.f - t, b, t));
+fcolor_blend(FColor a, f32 t, FColor b){
+    return(fcolor_blend(a, 1.f - t, b, t));
 }
 
 function FColor
@@ -612,6 +620,7 @@ draw_fancy_string__inner(Application_Links *app, Face_ID face, FColor fore, Fanc
             use_fore = string->fore;
         }
         if (use_face != 0){
+        ARGB_Color use_argb = fcolor_resolve(use_fore);
             Face_Metrics metrics = get_face_metrics(app, use_face);
             f32 down_shift = (base_line - metrics.ascent);
             down_shift = clamp_bot(0.f, down_shift);
@@ -621,7 +630,7 @@ draw_fancy_string__inner(Application_Links *app, Face_ID face, FColor fore, Fanc
             if (fcolor_is_valid(use_fore)){
                 Vec2_f32 margin_delta = delta*metrics.normal_advance;
                 p_shifted += margin_delta*string->pre_margin;
-                p_shifted = draw_string_oriented(app, use_face, use_fore, string->value, p_shifted, flags, delta);
+                p_shifted = draw_string_oriented(app, use_face, use_argb, string->value, p_shifted, flags, delta);
                 p_shifted += margin_delta*string->post_margin;
             }
             else{

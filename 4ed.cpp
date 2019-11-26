@@ -10,67 +10,6 @@
 // TOP
 
 internal void
-fill_hardcode_default_style(Color_Table color_table){
-    color_table.vals[Stag_Back]                  = 0xFF0C0C0C;
-    color_table.vals[Stag_Margin]                = 0xFF181818;
-    color_table.vals[Stag_Margin_Hover]          = 0xFF252525;
-    color_table.vals[Stag_Margin_Active]         = 0xFF323232;
-    color_table.vals[Stag_List_Item]             = color_table.vals[Stag_Margin];
-    color_table.vals[Stag_List_Item_Hover]       = color_table.vals[Stag_Margin_Hover];
-    color_table.vals[Stag_List_Item_Active]      = color_table.vals[Stag_Margin_Active];
-    color_table.vals[Stag_Cursor]                = 0xFF00EE00;
-    color_table.vals[Stag_Highlight]             = 0xFFDDEE00;
-    color_table.vals[Stag_Mark]                  = 0xFF494949;
-    color_table.vals[Stag_Default]               = 0xFF90B080;
-    color_table.vals[Stag_At_Cursor]             = color_table.vals[Stag_Back];
-    color_table.vals[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
-    color_table.vals[Stag_At_Highlight]          = 0xFFFF44DD;
-    color_table.vals[Stag_Comment]               = 0xFF2090F0;
-    color_table.vals[Stag_Keyword]               = 0xFFD08F20;
-    color_table.vals[Stag_Str_Constant]          = 0xFF50FF30;
-    color_table.vals[Stag_Char_Constant]         = color_table.vals[Stag_Str_Constant];
-    color_table.vals[Stag_Int_Constant]          = color_table.vals[Stag_Str_Constant];
-    color_table.vals[Stag_Float_Constant]        = color_table.vals[Stag_Str_Constant];
-    color_table.vals[Stag_Bool_Constant]         = color_table.vals[Stag_Str_Constant];
-    color_table.vals[Stag_Include]               = color_table.vals[Stag_Str_Constant];
-    color_table.vals[Stag_Preproc]               = color_table.vals[Stag_Default];
-    color_table.vals[Stag_Special_Character]     = 0xFFFF0000;
-    color_table.vals[Stag_Ghost_Character]       = color_blend(color_table.vals[Stag_Default], 0.5f, color_table.vals[Stag_Back]);
-    
-    color_table.vals[Stag_Paste] = 0xFFDDEE00;
-    color_table.vals[Stag_Undo]  = 0xFF00DDEE;
-    
-    color_table.vals[Stag_Highlight_Junk]  = 0xff3a0000;
-    color_table.vals[Stag_Highlight_White] = 0xff003a3a;
-    
-    color_table.vals[Stag_Bar]  = 0xFF888888;
-    color_table.vals[Stag_Base] = 0xFF000000;
-    color_table.vals[Stag_Pop1] = 0xFF3C57DC;
-    color_table.vals[Stag_Pop2] = 0xFFFF0000;
-    
-    color_table.vals[Stag_Back_Cycle_1] = 0x10A00000;
-    color_table.vals[Stag_Back_Cycle_2] = 0x0C00A000;
-    color_table.vals[Stag_Back_Cycle_3] = 0x0C0000A0;
-    color_table.vals[Stag_Back_Cycle_4] = 0x0CA0A000;
-    color_table.vals[Stag_Text_Cycle_1] = 0xFFA00000;
-    color_table.vals[Stag_Text_Cycle_2] = 0xFF00A000;
-    color_table.vals[Stag_Text_Cycle_3] = 0xFF0030B0;
-    color_table.vals[Stag_Text_Cycle_4] = 0xFFA0A000;
-    
-    color_table.vals[Stag_Line_Numbers_Back] = 0xFF101010;
-    color_table.vals[Stag_Line_Numbers_Text] = 0xFF404040;
-}
-
-internal void
-app_hardcode_default_style(Models *models){
-    Color_Table color_table = {};
-    color_table.count = Stag_COUNT;
-    color_table.vals = push_array(models->arena, u32, color_table.count);
-    fill_hardcode_default_style(color_table);
-    models->fallback_color_table = color_table;
-}
-
-internal void
 init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings, i32 argc, char **argv){
     char *arg = 0;
     Command_Line_Mode mode = CLMode_App;
@@ -337,7 +276,6 @@ App_Init_Sig(app_init){
         Face *new_face = font_set_new_face(&models->font_set, &description);
         models->global_face_id = new_face->id;
     }
-    app_hardcode_default_style(models);
     
     // NOTE(allen): title space
     models->has_new_title = true;
@@ -804,20 +742,6 @@ App_Step_Sig(app_step){
         frame.index = models->frame_counter;
         frame.literal_dt = literal_dt;
         frame.animation_dt = animation_dt;
-        
-        {
-            Color_Table color_table = models->fallback_color_table;
-#if 0
-            if (models->modify_color_table != 0){
-                color_table = models->modify_color_table(&models->app_links, frame);
-                if (color_table.count < models->fallback_color_table.count){
-                    block_copy(models->fallback_color_table.vals, color_table.vals, color_table.count*sizeof(*color_table.vals));
-                    color_table = models->fallback_color_table;
-                }
-            }
-#endif
-            models->color_table = color_table;
-        }
         
         Application_Links app = {};
         app.tctx = tctx;

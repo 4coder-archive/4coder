@@ -27,7 +27,8 @@ union FColor{
     ARGB_Color argb;
     struct{
         ID_Color id;
-        u16 padding_;
+        u8 sub_index;
+        u8 padding_;
     };
 };
 
@@ -36,12 +37,13 @@ struct Theme_Color{
     ARGB_Color color;
 };
 
-//struct Theme{
-//ARGB_Color colors[Stag_COUNT];
-//};
+struct Color_Array{
+    ARGB_Color *vals;
+    i32 count;
+};
 
 struct Color_Table{
-    ARGB_Color *vals;
+     Color_Array *arrays;
     u32 count;
 };
 

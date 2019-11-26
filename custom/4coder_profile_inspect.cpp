@@ -189,12 +189,12 @@ profile_draw_tab(Application_Links *app, Tab_State *state, Profile_Inspection *i
         insp->tab_id_hovered = tab_id;
     }
     
-    FColor text = fcolor_id(Stag_Default);
+    FColor text = fcolor_id(defcolor_text_default);
     if (insp->tab_id == tab_id){
-        text = fcolor_id(Stag_Pop2);
+        text = fcolor_id(defcolor_pop2);
     }
     else if (hover){
-        text = fcolor_id(Stag_Pop1);
+        text = fcolor_id(defcolor_pop1);
     }
     
     Vec2_f32 np = draw_fancy_string(app, state->face_id, text, fstring, state->p);
@@ -289,10 +289,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     f32 x_padding = normal_advance*1.5f;
     f32 x_half_padding = x_padding*0.5f;
     
-    FColor colors[] = {
-        fcolor_id(Stag_Back_Cycle_1), fcolor_id(Stag_Back_Cycle_2),
-        fcolor_id(Stag_Back_Cycle_3), fcolor_id(Stag_Back_Cycle_4),
-    };
+    Color_Array colors = finalize_color_array(defcolor_back_cycle);
     
     Scratch_Block scratch(app);
     
@@ -304,7 +301,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     String_Const_u8 thread_name = profile_node_thread_name(node);
     if (thread_name.size > 0){
         Fancy_String *fstr =
-            push_fancy_string(scratch, 0, fcolor_id(Stag_Pop1), thread_name);
+            push_fancy_string(scratch, 0, fcolor_id(defcolor_pop1), thread_name);
         Vec2_f32 p = V2f32(x_pos, y.min + 1.f);
         draw_fancy_string(app, face_id, fcolor_zero(), fstr, p);
         f32 w = get_fancy_string_width(app, face_id, fstr);
@@ -315,7 +312,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     String_Const_u8 name = profile_node_name(node);
     if (name.size > 0){
         Fancy_String *fstr =
-            push_fancy_string(scratch, 0, fcolor_id(Stag_Default), name);
+            push_fancy_string(scratch, 0, fcolor_id(defcolor_text_default), name);
         Vec2_f32 p = V2f32(x_pos, y.min + 1.f);
         draw_fancy_string(app, face_id, fcolor_zero(), fstr, p);
         f32 w = get_fancy_string_width(app, face_id, fstr);
@@ -333,10 +330,10 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
         Range_f32 btn_x = If32_size(x_pos, w);
         Rect_f32 box = Rf32(btn_x, nav_bar_y);
         
-        FColor color = fcolor_id(Stag_Default);
+        FColor color = fcolor_id(defcolor_text_default);
         if (rect_contains_point(box, m_p)){
-            draw_rectangle(app, box, 0.f, fcolor_id(Stag_Margin));
-            color = fcolor_id(Stag_Pop1);
+            draw_rectangle_fcolor(app, box, 0.f, fcolor_id(defcolor_margin));
+            color = fcolor_id(defcolor_pop1);
             insp->hover_node = node->parent;
         }
         
@@ -353,7 +350,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
     
     Rect_f32 time_slice_box = side_by_side.min;
     time_slice_box = rect_inner(time_slice_box, 3.f);
-    draw_rectangle_outline(app, time_slice_box, 0.f, 3.f, f_white);
+    draw_rectangle_outline_fcolor(app, time_slice_box, 0.f, 3.f, f_white);
     time_slice_box = rect_inner(time_slice_box, 3.f);
     
     if (node->closed){
@@ -363,7 +360,6 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
         y = rect_range_y(time_slice_box);
         
         i32 cycle_counter = 0;
-        i32 count = ArrayCount(colors);
         for (Profile_Node *child = node->first_child;
              child != 0;
              child = child->next){
@@ -379,7 +375,8 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             child_y.max = lerp(y.min, child_y.max, y.max);
             
             Rect_f32 box = Rf32(x, child_y);
-            draw_rectangle(app, box, 0.f, colors[cycle_counter%count]);
+            ARGB_Color argb = finalize_color(colors, cycle_counter);
+            draw_rectangle(app, box, 0.f, argb);
             cycle_counter += 1;
             
             if (rect_contains_point(box, m_p)){
@@ -392,9 +389,9 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             if (range_size(child_y) >= line_height){
                 String_Const_u8 child_name = profile_node_name(child);
                 Fancy_Line line = {};
-                push_fancy_string(scratch, &line, fcolor_id(Stag_Pop1),
+                push_fancy_string(scratch, &line, fcolor_id(defcolor_pop1),
                                   child_name);
-                push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default),
+                push_fancy_stringf(scratch, &line, fcolor_id(defcolor_text_default),
                                    0.5f, 0.f, "#%4llu", child->unique_counter);
                 
                 Vec2_f32 p = V2f32(x.min + x_half_padding,
@@ -419,7 +416,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
         {
             f32 duration = ((f32)range_size(node->time))/1000000.f;
             Fancy_Line list = {};
-            push_fancy_stringf(scratch, &list, fcolor_id(Stag_Default),
+            push_fancy_stringf(scratch, &list, fcolor_id(defcolor_text_default),
                                "time: %11.9f", duration);
             draw_fancy_line(app, face_id, fcolor_zero(),
                             &list, V2f32(x_pos, y_pos + 1.f));
@@ -448,25 +445,25 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
             String_Const_u8 child_name = profile_node_name(child);
             Fancy_Line line = {};
             push_fancy_string_trunc(scratch, &line, child_name, 20);
-            push_fancy_stringf(scratch, &line, fcolor_id(Stag_Default), 0.5f, 0.f,
+            push_fancy_stringf(scratch, &line, fcolor_id(defcolor_text_default), 0.5f, 0.f,
                                "#%4llu", child->unique_counter);
-            push_fancy_stringf(scratch, &line, fcolor_id(Stag_Pop2),
+            push_fancy_stringf(scratch, &line, fcolor_id(defcolor_pop2),
                                0.5f, 0.f, "%6.4f", child_duration);
             
             Vec2_f32 p = V2f32(x.min + x_half_padding,
                                (y.min + y.max - line_height)*0.5f);
-            draw_fancy_line(app, face_id, fcolor_id(Stag_Pop1), &line, p);
+            draw_fancy_line(app, face_id, fcolor_id(defcolor_pop1), &line, p);
             
             Rect_f32 box = Rf32(x, y);
-            FColor margin = fcolor_id(Stag_Margin);
+            FColor margin = fcolor_id(defcolor_margin);
             if (rect_contains_point(box, m_p)){
                 insp->full_name_hovered = child_name;
                 insp->unique_counter_hovered = child->unique_counter;
                 insp->location_jump_hovered = profile_node_location(child);
                 insp->hover_node = child;
-                margin = fcolor_id(Stag_Margin_Hover);
+                margin = fcolor_id(defcolor_margin_hover);
             }
-            draw_rectangle_outline(app, box, 6.f, 3.f, margin);
+            draw_rectangle_outline_fcolor(app, box, 6.f, 3.f, margin);
             
             y_pos = y.max;
             if (y_pos >= info_box.y1){
@@ -517,7 +514,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Profile_Inspection *inspect = &global_profile_inspection;
     
     if (inspect->thread_count == 0){
-        Fancy_String *fstr = push_fancy_string(scratch, 0, fcolor_id(Stag_Pop2),
+        Fancy_String *fstr = push_fancy_string(scratch, 0, fcolor_id(defcolor_pop2),
                                                string_u8_litexpr("no profile data"));
         f32 width = get_fancy_string_width(app, face_id, fstr);
         Vec2_f32 view_center = (region.p0 + region.p1)*0.5f;
@@ -549,7 +546,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             tab_state.x_half_padding = x_half_padding;
             tab_state.m_p = m_p;
             
-            draw_rectangle(app, tabs_body.min, 0.f, fcolor_id(Stag_Margin_Hover));
+            draw_rectangle_fcolor(app, tabs_body.min, 0.f, fcolor_id(defcolor_margin_hover));
             
             if (inspect->tab_id == ProfileInspectTab_None){
                 inspect->tab_id = ProfileInspectTab_Threads;
@@ -615,13 +612,13 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     Range_f32 y = If32_size(y_pos, block_height);
                     
                     Fancy_Line list = {};
-                    push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop1),
+                    push_fancy_stringf(scratch, &list, fcolor_id(defcolor_pop1),
                                        "%-20.*s (%6d) ",
                                        string_expand(thread->name),
                                        thread->thread_id);
                     
                     f32 active_time = ((f32)thread->active_time)/1000000.f;
-                    push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop2),
+                    push_fancy_stringf(scratch, &list, fcolor_id(defcolor_pop2),
                                        "active time %11.9f",
                                        active_time);
                     
@@ -630,12 +627,12 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
                     
                     Rect_f32 box = Rf32(x, y);
-                    FColor margin = fcolor_id(Stag_Margin);
+                    FColor margin = fcolor_id(defcolor_margin);
                     if (rect_contains_point(box, m_p)){
                         inspect->hover_thread = thread;
-                        margin = fcolor_id(Stag_Margin_Hover);
+                        margin = fcolor_id(defcolor_margin_hover);
                     }
-                    draw_rectangle_outline(app, box, 6.f, 3.f, margin);
+                    draw_rectangle_outline_fcolor(app, box, 6.f, 3.f, margin);
                     
                     y_pos = y.max;
                     if (y_pos >= tabs_body.max.y1){
@@ -656,20 +653,20 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     u32 name_width = 45;
                     b32 name_too_long = (node->name.size > name_width);
                     Fancy_Line list = {};
-                    push_fancy_string_fixed(scratch, &list, fcolor_id(Stag_Pop1),
+                    push_fancy_string_fixed(scratch, &list, fcolor_id(defcolor_pop1),
                                             node->name, name_width);
                     
                     if (node->corrupted_time){
-                        push_fancy_string(scratch, &list, fcolor_id(Stag_Pop2),
+                        push_fancy_string(scratch, &list, fcolor_id(defcolor_pop2),
                                           string_u8_litexpr("timing error "));
                     }
                     else{
-                        push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop2),
+                        push_fancy_stringf(scratch, &list, fcolor_id(defcolor_pop2),
                                            "%11.9fs ",
                                            ((f32)node->total_time)/1000000.f);
                     }
                     
-                    push_fancy_stringf(scratch, &list, fcolor_id(Stag_Keyword),
+                    push_fancy_stringf(scratch, &list, fcolor_id(defcolor_keyword),
                                        "hit # %5d", node->hit_count);
                     
                     Vec2_f32 p = V2f32(x.min + x_half_padding,
@@ -677,16 +674,16 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
                     
                     Rect_f32 box = Rf32(x, y);
-                    FColor margin = fcolor_id(Stag_Margin);
+                    FColor margin = fcolor_id(defcolor_margin);
                     if (rect_contains_point(box, m_p)){
                         if (name_too_long){
                             inspect->full_name_hovered = node->name;
                         }
                         inspect->location_jump_hovered = node->location;
                         inspect->hover_slot = node;
-                        margin = fcolor_id(Stag_Margin_Hover);
+                        margin = fcolor_id(defcolor_margin_hover);
                     }
-                    draw_rectangle_outline(app, box, 6.f, 3.f, margin);
+                    draw_rectangle_outline_fcolor(app, box, 6.f, 3.f, margin);
                     
                     y_pos = y.max;
                     if (y_pos >= tabs_body.max.y1){
@@ -706,7 +703,7 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     Range_f32 y = If32_size(y_pos, block_height);
                     
                     Fancy_Line list = {};
-                    push_fancy_string(scratch, &list, fcolor_id(Stag_Pop2),
+                    push_fancy_string(scratch, &list, fcolor_id(defcolor_pop2),
                                       node->message);
                     
                     Vec2_f32 p = V2f32(x.min + x_half_padding,
@@ -714,12 +711,12 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
                     
                     Rect_f32 box = Rf32(x, y);
-                    FColor margin = fcolor_id(Stag_Margin);
+                    FColor margin = fcolor_id(defcolor_margin);
                     if (rect_contains_point(box, m_p)){
                         inspect->location_jump_hovered = node->location;
-                        margin = fcolor_id(Stag_Margin_Hover);
+                        margin = fcolor_id(defcolor_margin_hover);
                     }
-                    draw_rectangle_outline(app, box, 6.f, 3.f, margin);
+                    draw_rectangle_outline_fcolor(app, box, 6.f, 3.f, margin);
                     
                     y_pos = y.max;
                     if (y_pos >= tabs_body.max.y1){
@@ -782,9 +779,9 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     Range_f32 y = If32_size(y_pos, block_height);
                     
                     Fancy_Line list = {};
-                    push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop2), "[%12llu] / %6d ",
+                    push_fancy_stringf(scratch, &list, fcolor_id(defcolor_pop2), "[%12llu] / %6d ",
                                        node->total_memory, node->annotation.count);
-                    push_fancy_stringf(scratch, &list, fcolor_id(Stag_Pop1), "%.*s",
+                    push_fancy_stringf(scratch, &list, fcolor_id(defcolor_pop1), "%.*s",
                                        string_expand(node->location));
                     
                     Vec2_f32 p = V2f32(x.min + x_half_padding,
@@ -792,10 +789,10 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
                     
                     Rect_f32 box = Rf32(x, y);
-                    FColor margin = fcolor_id(Stag_Margin);
+                    FColor margin = fcolor_id(defcolor_margin);
                     if (rect_contains_point(box, m_p)){
                         inspect->location_jump_hovered = node->location;
-                        margin = fcolor_id(Stag_Margin_Hover);
+                        margin = fcolor_id(defcolor_margin_hover);
                     }
                     
                     y_pos = y.max;
@@ -833,8 +830,8 @@ profile_render(Application_Links *app, Frame_Info frame_info, View_ID view){
         }
         else{
             Fancy_Block block = {};
-            FColor text_color = fcolor_change_alpha(app, f_white, 0.5f);
-            FColor back_color = fcolor_change_alpha(app, f_black, 0.5f);
+            FColor text_color = fcolor_change_alpha(f_white, 0.5f);
+            FColor back_color = fcolor_change_alpha(f_black, 0.5f);
             
             if (inspect->full_name_hovered.size > 0){
                 Fancy_Line *line = push_fancy_line(scratch, &block, text_color);

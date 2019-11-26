@@ -128,7 +128,7 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     f32 panel_y0 = region.y0 - 3.f;
     
     region = rect_inner(region, 3.f);
-    draw_rectangle(app, region, 20.f, fcolor_id(Stag_Back));
+    draw_rectangle_fcolor(app, region, 20.f, fcolor_id(defcolor_back));
     region = rect_inner(region, 10.f);
     
     Vec2_f32 title_p = V2f32(region.x0, panel_y0 + (metrics.line_height*2.f) - title_height*0.5f);
@@ -302,25 +302,25 @@ global String_Const_u8 hms_title = string_u8_litexpr("Handmade Seattle Demo");
 function void
 hms_demo_tutorial_short_details(Application_Links *app, Arena *arena, Fancy_Line *short_details){
     Face_ID face = get_face_id(app, 0);
-    push_fancy_string(arena, short_details, tutorial.face, fcolor_id(Stag_Pop1), hms_title);
-    push_fancy_string(arena, short_details, face, fcolor_id(Stag_Default), 8.f, 8.f, string_u8_litexpr("Welcome to Handmade Seattle and to this 4coder demo!"));
-    push_fancy_string(arena, short_details, face, fcolor_id(Stag_Pop2), string_u8_litexpr("Click here to see more."));
+    push_fancy_string(arena, short_details, tutorial.face, fcolor_id(defcolor_pop1), hms_title);
+    push_fancy_string(arena, short_details, face, fcolor_id(defcolor_text_default), 8.f, 8.f, string_u8_litexpr("Welcome to Handmade Seattle and to this 4coder demo!"));
+    push_fancy_string(arena, short_details, face, fcolor_id(defcolor_pop2), string_u8_litexpr("Click here to see more."));
 }
 
 function void
 hms_demo_tutorial_long_start(Application_Links *app, Arena *arena, Fancy_Block *long_details){
-    Fancy_Line *line = push_fancy_line(arena, long_details, tutorial.face, fcolor_id(Stag_Pop1), hms_title);
+    Fancy_Line *line = push_fancy_line(arena, long_details, tutorial.face, fcolor_id(defcolor_pop1), hms_title);
     
     Face_ID face = get_face_id(app, 0);
     //
-    line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));
+    line = push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default));
 #define M "If you want more information than what you can find here, please "
     push_fancy_string(arena, line, string_u8_litexpr(M));
 #undef M
-    push_fancy_string(arena, line, fcolor_id(Stag_Pop2), string_u8_litexpr("ask!"));
+    push_fancy_string(arena, line, fcolor_id(defcolor_pop2), string_u8_litexpr("ask!"));
     
     //
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr(""));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr(""));
 }
 
 function void
@@ -337,12 +337,12 @@ hms_demo_tutorial_binding_line(Application_Links *app, Arena *arena, Fancy_Block
         pad_size = 40.f - fill_size;
     }
     
-    Fancy_Line *line = line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));
+    Fancy_Line *line = line = push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default));
     push_fancy_stringf(arena, line, pad_size, 0.5f, "<");
     if (m.size > 0){
-        push_fancy_stringf(arena, line, fcolor_id(Stag_Keyword), 0.f, 0.5f, "%s", modifiers);
+        push_fancy_stringf(arena, line, fcolor_id(defcolor_keyword), 0.f, 0.5f, "%s", modifiers);
     }
-    push_fancy_stringf(arena, line, fcolor_id(Stag_Pop2), "%s", key);
+    push_fancy_stringf(arena, line, fcolor_id(defcolor_pop2), "%s", key);
     push_fancy_stringf(arena, line, 0.5f, 1.f, ">");
     push_fancy_stringf(arena, line, "%s", description);
 }
@@ -359,7 +359,7 @@ hms_demo_tutorial_slide_1(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Let's start with a few navigation commands:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Let's start with a few navigation commands:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "Comma", "change active panel");
@@ -376,7 +376,7 @@ hms_demo_tutorial_slide_1(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "PageUp/PageDown", "move cursor by full pages up/down");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Available in code files:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Available in code files:"));
     
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
@@ -409,7 +409,7 @@ hms_demo_tutorial_slide_2(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Now a look at basic editing:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Now a look at basic editing:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "TextInsert", "non-modal text insertion works in any user-writable buffers at the cursor");
@@ -429,7 +429,7 @@ hms_demo_tutorial_slide_2(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "Up/Down", "move the current line");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Range commands based on a cursor and mark (emacs style):"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Range commands based on a cursor and mark (emacs style):"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "Space", "moves the mark to the cursor");
@@ -443,7 +443,7 @@ hms_demo_tutorial_slide_2(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "X", "cut the range");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Paste options with a multi-stage clipboard:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Paste options with a multi-stage clipboard:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "V", "paste the clipboard to the buffer");
@@ -466,7 +466,7 @@ hms_demo_tutorial_slide_3(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Now try beginning a file lister:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Now try beginning a file lister:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "N", "begin a file lister for exploring the file system - always creating a new file");
@@ -477,7 +477,7 @@ hms_demo_tutorial_slide_3(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "O", "same as previous option but opens in the other panel");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Inside a file lister:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Inside a file lister:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "TextInsert", "narrows the lister down to options with substrings matching the text field");
@@ -497,7 +497,7 @@ hms_demo_tutorial_slide_3(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "Escape", "cancel the operation");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("There are also buffer listers for operations on buffers that are already open:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("There are also buffer listers for operations on buffers that are already open:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "I", "begin a buffer lister and switch to the selected buffer");
@@ -520,12 +520,12 @@ hms_demo_tutorial_slide_4(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("The command lister makes all commands available in one place:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("The command lister makes all commands available in one place:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "X", "a lister of all commands");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Try some of these commands from the command lister:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Try some of these commands from the command lister:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "toggle_filebar", "toggle the panel's filebar");
@@ -560,7 +560,7 @@ hms_demo_tutorial_slide_5(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Fast navigation by jump lists:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Fast navigation by jump lists:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "F", "after the user answers a query for a string generate a jump list of matches");
@@ -571,7 +571,7 @@ hms_demo_tutorial_slide_5(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control Shift", "I", "parse the current buffer as a C/C++ source and generate a jump list of functions");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("After generating a jump list it is bound as the active jump list enabling these commands:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("After generating a jump list it is bound as the active jump list enabling these commands:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "N", "jump to the next jump location");
@@ -597,43 +597,43 @@ hms_demo_tutorial_slide_6(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Virtual whitespace:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Virtual whitespace:"));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("\tBuffers that are indexed with information about nest structures can be equiped with the virtual whitespace layout algorithm."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("\tThe on screen layout of text is independent of the actual whitespace contents of the underlying text."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr(""));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default), string_u8_litexpr(""));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Keyword),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_keyword),
                     string_u8_litexpr("\tTry inserting new scopes and parenthetical sections in a code file."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("\t\tObserve that indentation is updated automatically."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Keyword),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_keyword),
                     string_u8_litexpr("\tTry creating a line that is long enough to wrap around the edge."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("\t\tObserve that wrapped lines obey the same indentation rules as literal lines."));
     
     {
-        Fancy_Line *line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));
+        Fancy_Line *line = push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default));
         push_fancy_stringf(arena, line, "\tUse the command ");
-        push_fancy_stringf(arena, line, fcolor_id(Stag_Pop2), "toggle_virtual_whitespace");
+        push_fancy_stringf(arena, line, fcolor_id(defcolor_pop2), "toggle_virtual_whitespace");
         push_fancy_stringf(arena, line, " to turn this feature on and off");
     }
     
     {
-        Fancy_Line *line = push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default));
+        Fancy_Line *line = push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default));
         push_fancy_stringf(arena, line, "\tUse the command ");
-        push_fancy_stringf(arena, line, fcolor_id(Stag_Pop2), "toggle_line_wrap");
+        push_fancy_stringf(arena, line, fcolor_id(defcolor_pop2), "toggle_line_wrap");
         push_fancy_stringf(arena, line, " to see how layout changes with line wrapping on and off");
     }
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Auto Indentation:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Auto Indentation:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Control", "Tab", "auto indent the lines marked by the range; the effect is only visible with virtual whitespace off.");
@@ -653,7 +653,7 @@ hms_demo_tutorial_slide_7(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("Builds, scripts, and projects:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("Builds, scripts, and projects:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "M", "searches for and runs a build script (windows -> 'build.bat'; unix -> 'build.sh')");
@@ -664,7 +664,7 @@ hms_demo_tutorial_slide_7(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "execute_previous_cli", "repeats an execute_any_cli command with the same command and ouptut buffer");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("If a script/command generates output that can be parsed as jumps (e.g. compilation errors) then it becomes the active jump buffer:"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("If a script/command generates output that can be parsed as jumps (e.g. compilation errors) then it becomes the active jump buffer:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "N", "jump to the next jump location");
@@ -675,7 +675,7 @@ hms_demo_tutorial_slide_7(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt Shift", "M", "jump to the first jump");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("The project system enables rich bindings of arbitrary system scripts (when a project is loaded):"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("The project system enables rich bindings of arbitrary system scripts (when a project is loaded):"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "F#", "run a script bound to the corresponding index in the loaded project");
@@ -689,7 +689,7 @@ hms_demo_tutorial_slide_7(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "setup_new_project", "command to generate a new 'project.4coder' file and build scripts");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("\tCheckout 'project.4coder' to see more about what is in a project."));
     
     return(result);
@@ -707,16 +707,16 @@ hms_demo_tutorial_slide_8(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("Probably the biggest feature in 4coder is that so many things about it can be customized."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("The project loaded for this demo is the 'default custom layer' everything here could be done differently, as you see fit."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr(""));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1),
                     string_u8_litexpr("Search for these commands to see some of the features available to customization:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
@@ -740,11 +740,11 @@ hms_demo_tutorial_slide_8(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "setup_default_mapping", "defines the mapping of commands to bindings");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr(""));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default), string_u8_litexpr(""));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr("\tThe macros CUSTOM_COMMAND_SIG and CUSTOM_DOC markup the commands to create the list of all available commands."));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default), string_u8_litexpr("\tThe macros CUSTOM_COMMAND_SIG and CUSTOM_DOC markup the commands to create the list of all available commands."));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default), string_u8_litexpr("\tThis means that user written commands that use the same markup automatically appear in the command_lister along side built in commands!"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default), string_u8_litexpr("\tThis means that user written commands that use the same markup automatically appear in the command_lister along side built in commands!"));
     
     return(result);
 }
@@ -761,13 +761,13 @@ hms_demo_tutorial_slide_9(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Default),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_text_default),
                     string_u8_litexpr("The customization system exposes much more than just commands to be customized..."));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "Alt", "F", "(hint!) this is the default binding for search, use it to find these functions");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1),
                     string_u8_litexpr("Write completely custom GUIs:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
@@ -776,7 +776,7 @@ hms_demo_tutorial_slide_9(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "tutorial_run_loop/tutorial_render", "underlying implementation for the tutorial system powering this demo!");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1),
                     string_u8_litexpr("Write custom text coloring and highlighting in buffers:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
@@ -788,7 +788,7 @@ hms_demo_tutorial_slide_9(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "default_render_buffer", "puts together all the default markup in buffer rendering");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1),
                     string_u8_litexpr("Write custom line layout rules:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
@@ -797,7 +797,7 @@ hms_demo_tutorial_slide_9(Application_Links *app, Arena *arena){
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
                                    "", "layout_index_unwrapped__inner", "the unwrapped version of the virtual whitespace layout logic");
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1),
                     string_u8_litexpr("Write custom smoothing rules that interact with buffer and UI scrolling:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
@@ -821,7 +821,7 @@ hms_demo_tutorial_slide_10(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1),
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1),
                     string_u8_litexpr("Some miscellaneous things to try:"));
     
     hms_demo_tutorial_binding_line(app, arena, long_details, face,
@@ -857,11 +857,11 @@ hms_demo_tutorial_slide_11(Application_Links *app, Arena *arena){
     Fancy_Block *long_details = &result.long_details;
     hms_demo_tutorial_long_start(app, arena, long_details);
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr(""));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr(""));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr(""));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr(""));
     
-    push_fancy_line(arena, long_details, face, fcolor_id(Stag_Pop1), string_u8_litexpr("\t\tThanks for checking out the demo!"));
+    push_fancy_line(arena, long_details, face, fcolor_id(defcolor_pop1), string_u8_litexpr("\t\tThanks for checking out the demo!"));
     
     return(result);
 }

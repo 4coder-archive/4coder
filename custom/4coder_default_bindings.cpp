@@ -26,6 +26,7 @@ custom_layer_init(Application_Links *app){
     ProfileThreadName(tctx, list, string_u8_litexpr("main"));
     
     initialize_managed_id_metadata(app);
+    set_default_color_scheme(app);
 }
 
 #endif
