@@ -28,6 +28,7 @@ managed_ids_declare(Managed_ID_Set *set, String_Const_u8 group_name, String_Cons
     }
     else{
             group = push_array(&set->arena, Managed_ID_Group, 1);
+            group->id_counter = 1;
             group->name_to_id_table = make_table_Data_u64(set->arena.base_allocator, 50);
         data = push_data_copy(&set->arena, data);
         table_insert(&set->name_to_group_table, data, PtrAsInt(group));
