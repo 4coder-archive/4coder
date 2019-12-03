@@ -86,55 +86,83 @@ make_colors(Arena *arena, ARGB_Color *colors, i32 count){
     return(result);
 }
 
+function Color_Table
+make_color_table(Application_Links *app, Arena *arena){
+    Managed_ID highest_color_id = managed_id_group_highest_id(app, string_u8_litexpr("colors"));
+    Color_Table result = {};
+    result.count = (u32)(clamp_top(highest_color_id + 1, max_u32));
+    result.arrays = push_array(arena, Color_Array, result.count);
+    u32 *dummy = push_array(arena, u32, 1);
+    *dummy = 0xFF990099;
+    for (u32 i = 0; i < result.count; i += 1){
+        result.arrays[i].vals = dummy;
+        result.arrays[i].count = 1;
+    }
+    return(result);
+}
+
 function void
 set_default_color_scheme(Application_Links *app){
-    Arena arena = make_arena_system();
+    if (global_theme_arena.base_allocator == 0){
+    global_theme_arena = make_arena_system();
+    }
     
-    Managed_ID highest_color_id = managed_id_group_highest_id(app, string_u8_litexpr("colors"));
-    default_color_table.count = (u32)(clamp_top(highest_color_id + 1, max_u32));
-    default_color_table.arrays = push_array_zero(&arena, Color_Array, default_color_table.count);
+    Arena *arena = &global_theme_arena;
     
-    default_color_table.arrays[0] = make_colors(&arena, 0xFF90B080);
-    default_color_table.arrays[defcolor_bar] = make_colors(&arena, 0xFF888888);
-    default_color_table.arrays[defcolor_base] = make_colors(&arena, 0xFF000000);
-    default_color_table.arrays[defcolor_pop1] = make_colors(&arena, 0xFF3C57DC);
-    default_color_table.arrays[defcolor_pop2] = make_colors(&arena, 0xFFFF0000);
-    default_color_table.arrays[defcolor_back] = make_colors(&arena, 0xFF0C0C0C);
-    default_color_table.arrays[defcolor_margin] = make_colors(&arena, 0xFF181818);
-    default_color_table.arrays[defcolor_margin_hover] = make_colors(&arena, 0xFF252525);
-    default_color_table.arrays[defcolor_margin_active] = make_colors(&arena, 0xFF323232);
-    default_color_table.arrays[defcolor_list_item] = make_colors(&arena, 0xFF181818);
-    default_color_table.arrays[defcolor_list_item_hover] = make_colors(&arena, 0xFF252525);
-    default_color_table.arrays[defcolor_list_item_active] = make_colors(&arena, 0xFF323232);
-    default_color_table.arrays[defcolor_cursor] = make_colors(&arena, 0xFF00EE00);
-    default_color_table.arrays[defcolor_at_cursor] = make_colors(&arena, 0xFF0C0C0C);
-    default_color_table.arrays[defcolor_highlight_cursor_line] = make_colors(&arena, 0xFF1E1E1E);
-    default_color_table.arrays[defcolor_highlight] = make_colors(&arena, 0xFFDDEE00);
-    default_color_table.arrays[defcolor_at_highlight] = make_colors(&arena, 0xFFFF44DD);
-    default_color_table.arrays[defcolor_mark] = make_colors(&arena, 0xFF494949);
-    default_color_table.arrays[defcolor_text_default] = make_colors(&arena, 0xFF90B080);
-    default_color_table.arrays[defcolor_comment] = make_colors(&arena, 0xFF2090F0);
-    default_color_table.arrays[defcolor_comment_pop] = make_colors(&arena, 0xFF00A000, 0xFFA00000);
-    default_color_table.arrays[defcolor_keyword] = make_colors(&arena, 0xFFD08F20);
-    default_color_table.arrays[defcolor_str_constant] = make_colors(&arena, 0xFF50FF30);
-    default_color_table.arrays[defcolor_char_constant] = make_colors(&arena, 0xFF50FF30);
-    default_color_table.arrays[defcolor_int_constant] = make_colors(&arena, 0xFF50FF30);
-    default_color_table.arrays[defcolor_float_constant] = make_colors(&arena, 0xFF50FF30);
-    default_color_table.arrays[defcolor_bool_constant] = make_colors(&arena, 0xFF50FF30);
-    default_color_table.arrays[defcolor_preproc] = make_colors(&arena, 0xFFA0B8A0);
-    default_color_table.arrays[defcolor_include] = make_colors(&arena, 0xFF50FF30);
-    default_color_table.arrays[defcolor_special_character] = make_colors(&arena, 0xFFFF0000);
-    default_color_table.arrays[defcolor_ghost_character] = make_colors(&arena, 0xFF4E5E46);
-    default_color_table.arrays[defcolor_highlight_junk] = make_colors(&arena, 0xFF3A0000);
-    default_color_table.arrays[defcolor_highlight_white] = make_colors(&arena, 0xFF003A3A);
-    default_color_table.arrays[defcolor_paste] = make_colors(&arena, 0xFFDDEE00);
-    default_color_table.arrays[defcolor_undo] = make_colors(&arena, 0xFF00DDEE);
-    default_color_table.arrays[defcolor_back_cycle] = make_colors(&arena, 0xFF130707, 0xFF071307, 0xFF070713, 0xFF131307);
-    default_color_table.arrays[defcolor_text_cycle] = make_colors(&arena, 0xFFA00000, 0xFF00A000, 0xFF0030B0, 0xFFA0A000);
-    default_color_table.arrays[defcolor_line_numbers_back] = make_colors(&arena, 0xFF101010);
-    default_color_table.arrays[defcolor_line_numbers_text] = make_colors(&arena, 0xFF404040);
+    default_color_table = make_color_table(app, arena);
+    
+    default_color_table.arrays[0] = make_colors(arena, 0xFF90B080);
+    default_color_table.arrays[defcolor_bar] = make_colors(arena, 0xFF888888);
+    default_color_table.arrays[defcolor_base] = make_colors(arena, 0xFF000000);
+    default_color_table.arrays[defcolor_pop1] = make_colors(arena, 0xFF3C57DC);
+    default_color_table.arrays[defcolor_pop2] = make_colors(arena, 0xFFFF0000);
+    default_color_table.arrays[defcolor_back] = make_colors(arena, 0xFF0C0C0C);
+    default_color_table.arrays[defcolor_margin] = make_colors(arena, 0xFF181818);
+    default_color_table.arrays[defcolor_margin_hover] = make_colors(arena, 0xFF252525);
+    default_color_table.arrays[defcolor_margin_active] = make_colors(arena, 0xFF323232);
+    default_color_table.arrays[defcolor_list_item] = make_colors(arena, 0xFF181818);
+    default_color_table.arrays[defcolor_list_item_hover] = make_colors(arena, 0xFF252525);
+    default_color_table.arrays[defcolor_list_item_active] = make_colors(arena, 0xFF323232);
+    default_color_table.arrays[defcolor_cursor] = make_colors(arena, 0xFF00EE00);
+    default_color_table.arrays[defcolor_at_cursor] = make_colors(arena, 0xFF0C0C0C);
+    default_color_table.arrays[defcolor_highlight_cursor_line] = make_colors(arena, 0xFF1E1E1E);
+    default_color_table.arrays[defcolor_highlight] = make_colors(arena, 0xFFDDEE00);
+    default_color_table.arrays[defcolor_at_highlight] = make_colors(arena, 0xFFFF44DD);
+    default_color_table.arrays[defcolor_mark] = make_colors(arena, 0xFF494949);
+    default_color_table.arrays[defcolor_text_default] = make_colors(arena, 0xFF90B080);
+    default_color_table.arrays[defcolor_comment] = make_colors(arena, 0xFF2090F0);
+    default_color_table.arrays[defcolor_comment_pop] = make_colors(arena, 0xFF00A000, 0xFFA00000);
+    default_color_table.arrays[defcolor_keyword] = make_colors(arena, 0xFFD08F20);
+    default_color_table.arrays[defcolor_str_constant] = make_colors(arena, 0xFF50FF30);
+    default_color_table.arrays[defcolor_char_constant] = make_colors(arena, 0xFF50FF30);
+    default_color_table.arrays[defcolor_int_constant] = make_colors(arena, 0xFF50FF30);
+    default_color_table.arrays[defcolor_float_constant] = make_colors(arena, 0xFF50FF30);
+    default_color_table.arrays[defcolor_bool_constant] = make_colors(arena, 0xFF50FF30);
+    default_color_table.arrays[defcolor_preproc] = make_colors(arena, 0xFFA0B8A0);
+    default_color_table.arrays[defcolor_include] = make_colors(arena, 0xFF50FF30);
+    default_color_table.arrays[defcolor_special_character] = make_colors(arena, 0xFFFF0000);
+    default_color_table.arrays[defcolor_ghost_character] = make_colors(arena, 0xFF4E5E46);
+    default_color_table.arrays[defcolor_highlight_junk] = make_colors(arena, 0xFF3A0000);
+    default_color_table.arrays[defcolor_highlight_white] = make_colors(arena, 0xFF003A3A);
+    default_color_table.arrays[defcolor_paste] = make_colors(arena, 0xFFDDEE00);
+    default_color_table.arrays[defcolor_undo] = make_colors(arena, 0xFF00DDEE);
+    default_color_table.arrays[defcolor_back_cycle] = make_colors(arena, 0xFF130707, 0xFF071307, 0xFF070713, 0xFF131307);
+    default_color_table.arrays[defcolor_text_cycle] = make_colors(arena, 0xFFA00000, 0xFF00A000, 0xFF0030B0, 0xFFA0A000);
+    default_color_table.arrays[defcolor_line_numbers_back] = make_colors(arena, 0xFF101010);
+    default_color_table.arrays[defcolor_line_numbers_text] = make_colors(arena, 0xFF404040);
     
     active_color_table = default_color_table;
+}
+
+////////////////////////////////
+
+function void
+save_theme(Color_Table table, String_Const_u8 name){
+    Color_Table_Node *node = push_array(&global_theme_arena, Color_Table_Node, 1);
+    sll_queue_push(global_theme_list.first, global_theme_list.last, node);
+    global_theme_list.count += 1;
+    node->name = push_string_copy(&global_theme_arena, name);
+    node->table = table;
 }
 
 // BOTTOM

@@ -1,51 +1,44 @@
 // Created by: Jeremiah Goerdt
 
-name = "Wombat";
+defcolor_back = 0xFF242424;
+defcolor_margin = 0xFF181818;
+defcolor_margin_hover = 0xFF252525;
+defcolor_margin_active = 0xFF323232;
+defcolor_list_item = defcolor_margin;
+defcolor_list_item_hover = defcolor_margin_hover;
+defcolor_list_item_active = defcolor_margin_active;
+defcolor_cursor = 0xFF656565;
+defcolor_highlight = 0xFF636066;
+defcolor_mark = defcolor_cursor;
+defcolor_text_default = 0xFFe3e0d7;
+defcolor_at_cursor = defcolor_back;
+defcolor_highlight_cursor_line = 0xFF383838;
+defcolor_at_highlight = 0xFFd787ff;
+defcolor_comment = 0xFF9c998e;
+defcolor_comment_pop = {0xFF00A000, 0xFFA00000};
+defcolor_keyword = 0xFF88b8f6;
+defcolor_str_constant = 0xFF95e454;
+defcolor_char_constant = 0xFFd4d987;
+defcolor_int_constant = 0xFFe5796d;
+defcolor_float_constant = defcolor_int_constant;
+defcolor_bool_constant = 0xFFd4d987;
+defcolor_include = defcolor_str_constant;
+defcolor_preproc = defcolor_int_constant;
+defcolor_special_character = defcolor_int_constant;
+defcolor_ghost_character = defcolor_char_constant;
 
-Back = 0xFF242424;
-Margin = 0xFF181818;
-Margin_Hover = 0xFF252525;
-Margin_Active = 0xFF323232;
-List_Item = Margin;
-List_Item_Hover = Margin_Hover;
-List_Item_Active = Margin_Active;
-Cursor = 0xFF656565;
-Highlight = 0xFF636066;
-Mark = Cursor;
-Default = 0xFFe3e0d7;
-At_Cursor = Back;
-Highlight_Cursor_Line = 0xFF383838;
-At_Highlight = 0xFFd787ff;
-Comment = 0xFF9c998e;
-Keyword = 0xFF88b8f6;
-Str_Constant = 0xFF95e454;
-Char_Constant = 0xFFd4d987;
-Int_Constant = 0xFFe5796d;
-Float_Constant = Int_Constant;
-Bool_Constant = 0xFFd4d987;
-Include = Str_Constant;
-Preproc = Int_Constant;
-Special_Character = Int_Constant;
-Ghost_Character = Char_Constant;
+defcolor_paste = defcolor_ghost_character;
 
-Paste = Ghost_Character;
+defcolor_undo = defcolor_keyword;
 
-Undo = Keyword;
+defcolor_highlight_junk = 0xFF73186e;
+defcolor_highlight_white = 0xFF3e3969;
 
-Highlight_Junk = 0xFF73186e;
-Highlight_White = 0xFF3e3969;
+defcolor_bar = 0xFF888888;
+defcolor_bar_active = 0xFF666666;
+defcolor_base = 0xFF000000;
+defcolor_pop1 = 0xFF3C57DC;
+defcolor_pop2 = defcolor_highlight_junk;
 
-Bar = 0xFF888888;
-Bar_Active = 0xFF666666;
-Base = 0xFF000000;
-Pop1 = 0xFF3C57DC;
-Pop2 = Highlight_Junk;
-
-Back_Cycle_1 = 0x10A00000;
-Back_Cycle_2 = 0x0C00A000;
-Back_Cycle_3 = 0x0C0000A0;
-Back_Cycle_4 = 0x0CA0A000;
-Text_Cycle_1 = 0xFFA00000;
-Text_Cycle_2 = 0xFF00A000;
-Text_Cycle_3 = 0xFF0030B8;
-Text_Cycle_4 = 0xFFA0A000;
+defcolor_back_cycle = {0x10A00000, 0x0C00A000, 0x0C0000A0, 0x0CA0A000};
+defcolor_text_cycle = {0xFFA00000, 0xFF00A000, 0xFF0030B8, 0xFFA0A000};

@@ -361,6 +361,34 @@ create_or_switch_to_buffer_and_clear_by_name(Application_Links *app, String_Cons
 ////////////////////////////////
 
 function void
+save_all_dirty_buffers_with_postfix(Application_Links *app, String_Const_u8 postfix){
+    ProfileScope(app, "save all dirty buffers");
+    Scratch_Block scratch(app);
+    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_ReadWriteVisible);
+         buffer != 0;
+         buffer = get_buffer_next(app, buffer, Access_ReadWriteVisible)){
+        Dirty_State dirty = buffer_get_dirty_state(app, buffer);
+        if (dirty == DirtyState_UnsavedChanges){
+            Temp_Memory temp = begin_temp(scratch);
+            String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+            if (string_match(string_postfix(file_name, postfix.size), postfix)){
+                buffer_save(app, buffer, file_name, 0);
+            }
+            end_temp(temp);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(save_all_dirty_buffers)
+CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
+{
+    String_Const_u8 empty = {};
+    save_all_dirty_buffers_with_postfix(app, empty);
+}
+
+////////////////////////////////
+
+function void
 set_mouse_suppression(b32 suppress){
     if (suppress){
         suppressing_mouse = true;
@@ -424,6 +452,43 @@ CUSTOM_COMMAND_SIG(toggle_fullscreen)
 CUSTOM_DOC("Toggle fullscreen mode on or off.  The change(s) do not take effect until the next frame.")
 {
     system_set_fullscreen(!system_is_fullscreen());
+}
+
+CUSTOM_COMMAND_SIG(load_themes_default_folder)
+CUSTOM_DOC("Loads all the theme files in the default theme folder.")
+{
+    String_Const_u8 fcoder_extension = string_u8_litexpr(".4coder");
+    save_all_dirty_buffers_with_postfix(app, fcoder_extension);
+    
+    Scratch_Block scratch(app);
+    String_Const_u8 bin_path = system_get_path(scratch, SystemPath_Binary);
+    String_Const_u8 path = push_u8_stringf(scratch, "%.*sthemes", string_expand(bin_path));
+    load_folder_of_themes_into_live_set(app, path);
+}
+
+CUSTOM_COMMAND_SIG(load_themes_hot_directory)
+CUSTOM_DOC("Loads all the theme files in the current hot directory.")
+{
+    String_Const_u8 fcoder_extension = string_u8_litexpr(".4coder");
+    save_all_dirty_buffers_with_postfix(app, fcoder_extension);
+    
+    Scratch_Block scratch(app);
+    String_Const_u8 path = push_hot_directory(app, scratch);
+    load_folder_of_themes_into_live_set(app, path);
+}
+
+CUSTOM_COMMAND_SIG(clear_all_themes)
+CUSTOM_DOC("Clear the theme list")
+{
+    if (global_theme_arena.base_allocator == 0){
+        global_theme_arena = make_arena_system();
+    }
+    else{
+    linalloc_clear(&global_theme_arena);
+    }
+    
+    block_zero_struct(&global_theme_list);
+    set_default_color_scheme(app);
 }
 
 ////////////////////////////////

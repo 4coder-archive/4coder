@@ -26,6 +26,12 @@ CUSTOM_ID(attachment, attachment_tokens);
 
 ////////////////////////////////
 
+CUSTOM_ID(command_map, mapid_global);
+CUSTOM_ID(command_map, mapid_file);
+CUSTOM_ID(command_map, mapid_code);
+
+////////////////////////////////
+
 global b32 allow_immediate_close_without_checking_for_changes = false;
 
 global char *default_extensions[] = {
@@ -77,13 +83,6 @@ global Config_Data global_config = {};
 global char previous_isearch_query[256] = {};
 
 global Mapping framework_mapping = {};
-
-enum{
-    mapid_global = 1,
-    mapid_file,
-    default_code_map,
-    default_maps_count,
-};
 
 global Buffer_Modified_Set global_buffer_modified_set = {};
 

@@ -108,6 +108,7 @@ api(custom) function b32 managed_scope_clear_self_all_dependent_scopes(Applicati
 api(custom) function Base_Allocator* managed_scope_allocator(Application_Links* app, Managed_Scope scope);
 api(custom) function u64 managed_id_group_highest_id(Application_Links* app, String_Const_u8 group);
 api(custom) function Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
+api(custom) function Managed_ID managed_id_get(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 api(custom) function void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
 api(custom) function void* managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
 api(custom) function Managed_Object alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);

@@ -190,6 +190,7 @@ enum{
 #define external extern "C"
 
 #define ArrayCount(a) ((sizeof(a))/(sizeof(*a)))
+#define ArraySafe(a,i) ((a)[(i)%ArrayCount(a)])
 #define ExpandArray(a) (a), (ArrayCount(a))
 #define FixSize(s) struct{ u8 __size_fixer__[s]; }
 

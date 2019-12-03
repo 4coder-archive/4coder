@@ -96,9 +96,37 @@ get_buffer_from_user(Application_Links *app, char *query){
 
 ////////////////////////////////
 
+typedef i32 Command_Lister_Status_Mode;
+enum{
+    CommandLister_None,
+    CommandLister_Descriptions,
+    CommandLister_Bindings
+};
+
+struct Command_Lister_Status_Rule{
+    Command_Lister_Status_Mode mode;
+    Mapping *mapping;
+    Command_Map_ID map_id;
+};
+
+function Command_Lister_Status_Rule
+command_lister_status_descriptions(void){
+    Command_Lister_Status_Rule result = {};
+    result.mode = CommandLister_Descriptions;
+    return(result);
+}
+
+function Command_Lister_Status_Rule
+command_lister_status_bindings(Mapping *mapping, Command_Map_ID map_id){
+    Command_Lister_Status_Rule result = {};
+    result.mode = CommandLister_Bindings;
+    result.mapping = mapping;
+    result.map_id = map_id;
+    return(result);
+}
+
 function Custom_Command_Function*
-get_command_from_user(Application_Links *app, String_Const_u8 query,
-                      i32 *command_ids, i32 command_id_count){
+get_command_from_user(Application_Links *app, String_Const_u8 query, i32 *command_ids, i32 command_id_count, Command_Lister_Status_Rule *status_rule){
     if (command_ids == 0){
         command_id_count = command_one_past_last_id;
     }
@@ -114,10 +142,34 @@ get_command_from_user(Application_Links *app, String_Const_u8 query,
             j = command_ids[i];
         }
         j = clamp(0, j, command_one_past_last_id);
-        lister_add_item(lister,
-                        SCu8(fcoder_metacmd_table[j].name),
-                        SCu8(fcoder_metacmd_table[j].description),
-                        (void*)fcoder_metacmd_table[j].proc, 0);
+        
+        Custom_Command_Function *proc = fcoder_metacmd_table[j].proc;
+        String_Const_u8 status = {};
+        switch (status_rule->mode){
+            case CommandLister_Descriptions:
+            {
+                status = SCu8(fcoder_metacmd_table[j].description);
+            }break;
+            case CommandLister_Bindings:
+            {
+                Command_Trigger_List triggers = map_get_triggers_recursive(scratch, status_rule->mapping, status_rule->map_id, proc);
+                
+                List_String_Const_u8 list = {};
+                for (Command_Trigger *node = triggers.first;
+                     node != 0;
+                     node = node->next){
+                    command_trigger_stringize(scratch, &list, node);
+                    if (node->next != 0){
+                        string_list_push(scratch, &list, string_u8_litexpr(" "));
+                    }
+                }
+                
+                status = string_list_flatten(scratch, list);
+            }break;
+        }
+        
+        lister_add_item(lister, SCu8(fcoder_metacmd_table[j].name), status,
+                        (void*)proc, 0);
     }
     
     Lister_Result l_result = run_lister(app, lister);
@@ -130,19 +182,56 @@ get_command_from_user(Application_Links *app, String_Const_u8 query,
 }
 
 function Custom_Command_Function*
-get_command_from_user(Application_Links *app, String_Const_u8 query){
-    return(get_command_from_user(app, query, 0, 0));
+get_command_from_user(Application_Links *app, String_Const_u8 query, Command_Lister_Status_Rule *status_rule){
+    return(get_command_from_user(app, query, 0, 0, status_rule));
 }
 
 function Custom_Command_Function*
 get_command_from_user(Application_Links *app, char *query,
-                      i32 *command_ids, i32 command_id_count){
-    return(get_command_from_user(app, SCu8(query), command_ids, command_id_count));
+                      i32 *command_ids, i32 command_id_count, Command_Lister_Status_Rule *status_rule){
+    return(get_command_from_user(app, SCu8(query), command_ids, command_id_count, status_rule));
 }
 
 function Custom_Command_Function*
-get_command_from_user(Application_Links *app, char *query){
-    return(get_command_from_user(app, SCu8(query), 0, 0));
+get_command_from_user(Application_Links *app, char *query, Command_Lister_Status_Rule *status_rule){
+    return(get_command_from_user(app, SCu8(query), 0, 0, status_rule));
+}
+
+////////////////////////////////
+
+function Color_Table*
+get_color_table_from_user(Application_Links *app, String_Const_u8 query, Color_Table_List *color_table_list){
+    if (color_table_list == 0){
+        color_table_list = &global_theme_list;
+    }
+    
+    Scratch_Block scratch(app, Scratch_Share);
+    Lister *lister = begin_lister(app, scratch);
+    lister_set_query(lister, query);
+    lister->handlers = lister_get_default_handlers();
+    
+    lister_add_item(lister, string_u8_litexpr("4coder"), string_u8_litexpr(""),
+                    (void*)&default_color_table, 0);
+    
+    for (Color_Table_Node *node = color_table_list->first;
+         node != 0;
+         node = node->next){
+        lister_add_item(lister, node->name, string_u8_litexpr(""),
+                        (void*)&node->table, 0);
+    }
+    
+    Lister_Result l_result = run_lister(app, lister);
+    
+     Color_Table *result = 0;
+    if (!l_result.canceled){
+        result = (Color_Table*)l_result.user_data;
+    }
+    return(result);
+}
+
+function Color_Table*
+get_color_table_from_user(Application_Links *app){
+    return(get_color_table_from_user(app, string_u8_litexpr("Theme:"), 0));
 }
 
 ////////////////////////////////
@@ -579,10 +668,32 @@ CUSTOM_DOC("Interactively opens a file.")
 CUSTOM_UI_COMMAND_SIG(command_lister)
 CUSTOM_DOC("Opens an interactive list of all registered commands.")
 {
-    Custom_Command_Function *func = get_command_from_user(app, "Command:");
+    Command_Lister_Status_Rule rule = {};
+    
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Visible);
+    Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
+    Command_Map_ID *map_id_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
+    if (map_id_ptr != 0){
+        rule = command_lister_status_bindings(&framework_mapping, *map_id_ptr);
+    }
+    else{
+        rule = command_lister_status_descriptions();
+    }
+    Custom_Command_Function *func = get_command_from_user(app, "Command:", &rule);
     if (func != 0){
-        View_ID view = get_this_ctx_view(app, Access_Always);
         view_enqueue_command_function(app, view, func);
+    }
+}
+
+////////////////////////////////
+
+CUSTOM_UI_COMMAND_SIG(theme_lister)
+CUSTOM_DOC("Opens an interactive list of all registered themes.")
+{
+    Color_Table *color_table = get_color_table_from_user(app);
+    if (color_table != 0){
+        active_color_table = *color_table;
     }
 }
 

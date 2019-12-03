@@ -2031,6 +2031,13 @@ managed_id_declare(Application_Links *app, String_Const_u8 group, String_Const_u
     return(managed_ids_declare(set, group, name));
 }
 
+api(custom) function Managed_ID
+managed_id_get(Application_Links *app, String_Const_u8 group, String_Const_u8 name){
+    Models *models = (Models*)app->cmd_context;
+    Managed_ID_Set *set = &models->managed_id_set;
+    return(managed_ids_get(set, group, name));
+}
+
 api(custom) function void*
 managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Managed_ID id, umem size){
     Models *models = (Models*)app->cmd_context;

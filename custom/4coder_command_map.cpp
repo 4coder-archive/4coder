@@ -174,6 +174,8 @@ mapping_release_map(Mapping *mapping, Command_Map *map){
     linalloc_clear(&map->node_arena);
 }
 
+////////////////////////////////
+
 function Command_Binding
 map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
     Command_Binding result = {};
@@ -314,74 +316,110 @@ map__command_add_trigger(Command_Map *map, Custom_Command_Function *custom,
     }
 }
 
+function Input_Event
+map_trigger_as_event(Command_Trigger *trigger){
+    Input_Event result = {};
+    result.kind = trigger->kind;
+    switch (result.kind){
+        case InputEventKind_TextInsert:
+        {}break;
+        
+        case InputEventKind_KeyStroke:
+        case InputEventKind_KeyRelease:
+        {
+            result.key.code = trigger->sub_code;
+            result.key.modifiers = trigger->mods;
+        }break;
+        
+        case InputEventKind_MouseButton:
+        case InputEventKind_MouseButtonRelease:
+        {
+            result.mouse.code = trigger->sub_code;
+            result.mouse.modifiers = trigger->mods;
+        }break;
+        
+        case InputEventKind_MouseWheel:
+        {
+            result.mouse_wheel.modifiers = trigger->mods;
+        }break;
+        
+        case InputEventKind_MouseMove:
+        {
+            result.mouse_move.modifiers = trigger->mods;
+        }break;
+        
+        case InputEventKind_Core:
+        {
+            result.core.code = trigger->sub_code;
+        }break;
+    }
+    return(result);
+}
+
 function Command_Trigger_List
-map_get_triggers(Command_Map *map, Custom_Command_Function *custom){
-    Command_Trigger_List result = {};
+map_get_triggers_non_recursive(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom){
+    Command_Trigger_List *result_ptr = 0;
     if (map != 0){
         u64 key = (u64)(PtrAsInt(custom));
         Table_Lookup lookup = table_lookup(&map->cmd_to_binding_trigger, key);
         if (lookup.found_match){
             u64 val = 0;
             table_read(&map->cmd_to_binding_trigger, lookup, &val);
-            result = *(Command_Trigger_List*)IntAsPtr(val);
+            result_ptr = (Command_Trigger_List*)IntAsPtr(val);
+            
+            Command_Trigger_List list = {};
+            for (Command_Trigger *node = result_ptr->first, *next = 0;
+                 node != 0;
+                 node = next){
+                next = node->next;
+                Input_Event event = map_trigger_as_event(node);
+                Command_Binding binding = {};
+                if (mapping != 0){
+                binding = map_get_binding_recursive(mapping, map, &event);
+                }
+                else{
+                    binding = map_get_binding_non_recursive(map, &event);
+                }
+                if (binding.custom == custom){
+                    sll_queue_push(list.first, list.last, node);
+                }
+            }
+            *result_ptr = list;
         }
+    }
+    Command_Trigger_List result = {};
+    if (result_ptr != 0){
+        result = *result_ptr;
     }
     return(result);
 }
 
-function void
-map_set_binding(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
-                u32 code1, u32 code2, Input_Modifier_Set *mods){
-    if (map != 0){
-        u64 key = mapping__key(code1, code2);
-        Command_Binding_List *list = map__get_or_make_list(mapping, map, key);
-        Command_Modified_Binding *mod_binding = mapping__alloc_modified_binding(mapping);
-        sll_stack_push(map->binding_first, mod_binding);
-        if (map->binding_last == 0){
-            map->binding_last = map->binding_first;
-        }
-        sll_stack_push(list->first, &mod_binding->order_node);
-        if (list->last == 0){
-            list->last= list->first;
-        }
-        list->count += 1;
-        mod_binding->mods = copy_modifier_set(&map->node_arena, mods);
-        mod_binding->binding.custom = custom;
+function Command_Trigger_List
+map_get_triggers_non_recursive(Command_Map *map, Custom_Command_Function *custom){
+    return(map_get_triggers_non_recursive(0, map, custom));
+}
+
+function Command_Trigger_List
+map_get_triggers_recursive(Arena *arena, Mapping *mapping, Command_Map *map, Custom_Command_Function *custom){
+    Command_Trigger_List result = {};
+    if (mapping != 0){
+    for (i32 safety_counter = 0;
+         map != 0 && safety_counter < 40;
+         safety_counter += 1){
+        Command_Trigger_List list = map_get_triggers_non_recursive(mapping, map, custom);
         
-        Command_Trigger trigger = {};
-        trigger.kind = code1;
-        trigger.sub_code = code2;
-        trigger.mods = mod_binding->mods;
-        map__command_add_trigger(map, custom, &trigger);
+        for (Command_Trigger *node = list.first, *next = 0;
+             node != 0;
+             node = next){
+            next = node->next;
+            Command_Trigger *nnode = push_array_write(arena, Command_Trigger, 1, node);
+            sll_queue_push(result.first, result.last, nnode);
+        }
+        
+        map = mapping_get_map(mapping, map->parent);
     }
-}
-
-function void
-map_set_binding_key(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
-                    Key_Code code, Input_Modifier_Set *modifiers){
-    map_set_binding(mapping, map, custom, InputEventKind_KeyStroke, code, modifiers);
-}
-
-function void
-map_set_binding_mouse(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
-                      Mouse_Code code, Input_Modifier_Set *modifiers){
-    map_set_binding(mapping, map, custom, InputEventKind_MouseButton, code, modifiers);
-}
-
-function void
-map_set_binding_core(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom,
-                     Core_Code code, Input_Modifier_Set *modifiers){
-    map_set_binding(mapping, map, custom, InputEventKind_Core, code, modifiers);
-}
-
-function void
-map_set_binding_text_input(Command_Map *map, Custom_Command_Function *custom){
-    if (map != 0){
-        map->text_input_command.custom = custom;
-        Command_Trigger trigger = {};
-        trigger.kind = InputEventKind_TextInsert;
-        map__command_add_trigger(map, custom, &trigger);
     }
+    return(result);
 }
 
 function Command_Binding_List*
@@ -415,6 +453,89 @@ map_get_binding_list_on_core(Command_Map *map, Core_Code code){
 }
 
 ////////////////////////////////
+
+function void
+map_set_binding(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom, u32 code1, u32 code2, Input_Modifier_Set *mods){
+    if (map != 0){
+        u64 key = mapping__key(code1, code2);
+        Command_Binding_List *list = map__get_or_make_list(mapping, map, key);
+        Command_Modified_Binding *mod_binding = mapping__alloc_modified_binding(mapping);
+        sll_stack_push(map->binding_first, mod_binding);
+        if (map->binding_last == 0){
+            map->binding_last = map->binding_first;
+        }
+        sll_stack_push(list->first, &mod_binding->order_node);
+        if (list->last == 0){
+            list->last= list->first;
+        }
+        list->count += 1;
+        mod_binding->mods = copy_modifier_set(&map->node_arena, mods);
+        mod_binding->binding.custom = custom;
+        
+        Command_Trigger trigger = {};
+        trigger.kind = code1;
+        trigger.sub_code = code2;
+        trigger.mods = mod_binding->mods;
+        map__command_add_trigger(map, custom, &trigger);
+    }
+}
+
+function void
+map_set_binding_key(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom, Key_Code code, Input_Modifier_Set *modifiers){
+    map_set_binding(mapping, map, custom, InputEventKind_KeyStroke, code, modifiers);
+}
+
+function void
+map_set_binding_mouse(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom, Mouse_Code code, Input_Modifier_Set *modifiers){
+    map_set_binding(mapping, map, custom, InputEventKind_MouseButton, code, modifiers);
+}
+
+function void
+map_set_binding_core(Mapping *mapping, Command_Map *map, Custom_Command_Function *custom, Core_Code code, Input_Modifier_Set *modifiers){
+    map_set_binding(mapping, map, custom, InputEventKind_Core, code, modifiers);
+}
+
+function void
+map_set_binding_text_input(Command_Map *map, Custom_Command_Function *custom){
+    if (map != 0){
+        map->text_input_command.custom = custom;
+        Command_Trigger trigger = {};
+        trigger.kind = InputEventKind_TextInsert;
+        map__command_add_trigger(map, custom, &trigger);
+    }
+}
+
+////////////////////////////////
+
+function Command_Binding_List*
+map_get_binding_list_on_key(Mapping *mapping, Command_Map_ID map_id, Key_Code code){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    return(map_get_binding_list_on_key(map, code));
+}
+
+function Command_Binding
+map_get_binding_non_recursive(Mapping *mapping, Command_Map_ID map_id, Input_Event *event){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    return(map_get_binding_non_recursive(map, event));
+}
+
+function Command_Binding
+map_get_binding_recursive(Mapping *mapping, Command_Map_ID map_id, Input_Event *event){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    return(map_get_binding_recursive(mapping, map, event));
+}
+
+function Command_Trigger_List
+map_get_triggers_non_recursive(Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    return(map_get_triggers_non_recursive(map, custom));
+}
+
+function Command_Trigger_List
+map_get_triggers_recursive(Arena *arena, Mapping *mapping, Command_Map_ID map_id, Custom_Command_Function *custom){
+    Command_Map *map = mapping_get_map(mapping, map_id);
+    return(map_get_triggers_recursive(arena, mapping, map, custom));
+}
 
 function void
 map_set_parent(Mapping *mapping, Command_Map_ID map_id, Command_Map_ID parent_id){
@@ -469,22 +590,77 @@ map_set_binding_text_input(Mapping *mapping, Command_Map_ID map_id, Custom_Comma
     map_set_binding_text_input(map, custom);
 }
 
-function Command_Binding_List*
-map_get_binding_list_on_key(Mapping *mapping, Command_Map_ID map_id, Key_Code code){
-    Command_Map *map = mapping_get_map(mapping, map_id);
-    return(map_get_binding_list_on_key(map, code));
+////////////////////////////////
+
+function void
+command_trigger_stringize_mods(Arena *arena, List_String_Const_u8 *list, Input_Modifier_Set *modifiers){
+    if (modifiers->count > 0){
+        string_list_push(arena, list, string_u8_litexpr(" holding:"));
+        i32 count = modifiers->count;
+        Key_Code *mods = modifiers->mods;
+        for (i32 i = 0; i < count; i += 1){
+            string_list_pushf(arena, list, " %s", ArraySafe(key_code_name, mods[i]));
+        }
+    }
 }
 
-function Command_Binding
-map_get_binding_non_recursive(Mapping *mapping, Command_Map_ID map_id, Input_Event *event){
-    Command_Map *map = mapping_get_map(mapping, map_id);
-    return(map_get_binding_non_recursive(map, event));
-}
-
-function Command_Binding
-map_get_binding_recursive(Mapping *mapping, Command_Map_ID map_id, Input_Event *event){
-    Command_Map *map = mapping_get_map(mapping, map_id);
-    return(map_get_binding_recursive(mapping, map, event));
+function void
+command_trigger_stringize(Arena *arena, List_String_Const_u8 *list, Command_Trigger *trigger){
+    string_list_push(arena, list, string_u8_litexpr("<"));
+    switch (trigger->kind){
+        case InputEventKind_TextInsert:
+        {
+            string_list_push(arena, list, string_u8_litexpr("TextInsert"));
+        }break;
+        
+        case InputEventKind_KeyStroke:
+        {
+            String_Const_u8 key_name = SCu8(ArraySafe(key_code_name, trigger->sub_code));
+            string_list_push(arena, list, key_name);
+            command_trigger_stringize_mods(arena, list, &trigger->mods);
+        }break;
+        
+        case InputEventKind_KeyRelease:
+        {
+            string_list_pushf(arena, list, "Release %s", ArraySafe(key_code_name, trigger->sub_code));
+            command_trigger_stringize_mods(arena, list, &trigger->mods);
+        }break;
+        
+        case InputEventKind_MouseButton:
+        {
+            string_list_pushf(arena, list, "Mouse %s", ArraySafe(mouse_code_name, trigger->sub_code));
+            command_trigger_stringize_mods(arena, list, &trigger->mods);
+        }break;
+        
+        case InputEventKind_MouseButtonRelease:
+        {
+            string_list_pushf(arena, list, "Release Mouse %s", ArraySafe(mouse_code_name, trigger->sub_code));
+            command_trigger_stringize_mods(arena, list, &trigger->mods);
+        }break;
+        
+        case InputEventKind_MouseWheel:
+        {
+            string_list_push(arena, list, string_u8_litexpr("MouseWheel"));
+            command_trigger_stringize_mods(arena, list, &trigger->mods);
+        }break;
+        
+        case InputEventKind_MouseMove:
+        {
+            string_list_push(arena, list, string_u8_litexpr("MouseMove"));
+            command_trigger_stringize_mods(arena, list, &trigger->mods);
+        }break;
+        
+        case InputEventKind_Core:
+        {
+            string_list_pushf(arena, list, "Core %s", ArraySafe(core_code_name, trigger->sub_code));
+        }break;
+        
+        default:
+        {
+            string_list_push(arena, list, string_u8_litexpr("ERROR unexpected trigger kind"));
+        }break;
+    }
+    string_list_push(arena, list, string_u8_litexpr(">"));
 }
 
 ////////////////////////////////

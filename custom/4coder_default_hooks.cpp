@@ -60,7 +60,6 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
     Scratch_Block scratch(tctx);
     
     {
-        
         View_ID view = get_this_ctx_view(app, Access_Always);
         String_Const_u8 name = push_u8_stringf(scratch, "view %d", view);
         
@@ -154,69 +153,6 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         }
     }
 }
-
-#if 0
-static argb_color default_colors[Stag_COUNT] = {};
-MODIFY_COLOR_TABLE_SIG(default_modify_color_table){
-    if (default_colors[Stag_NOOP] == 0){
-        default_colors[Stag_NOOP]                  = 0xFFFF00FF;
-        
-        default_colors[Stag_Back]                  = 0xFF0C0C0C;
-        default_colors[Stag_Margin]                = 0xFF181818;
-        default_colors[Stag_Margin_Hover]          = 0xFF252525;
-        default_colors[Stag_Margin_Active]         = 0xFF323232;
-        default_colors[Stag_List_Item]             = default_colors[Stag_Margin];
-        default_colors[Stag_List_Item_Hover]       = default_colors[Stag_Margin_Hover];
-        default_colors[Stag_List_Item_Active]      = default_colors[Stag_Margin_Active];
-        default_colors[Stag_Cursor]                = 0xFF00EE00;
-        default_colors[Stag_Highlight]             = 0xFFDDEE00;
-        default_colors[Stag_Mark]                  = 0xFF494949;
-        default_colors[Stag_Default]               = 0xFF90B080;
-        default_colors[Stag_At_Cursor]             = default_colors[Stag_Back];
-        default_colors[Stag_Highlight_Cursor_Line] = 0xFF1E1E1E;
-        default_colors[Stag_At_Highlight]          = 0xFFFF44DD;
-        default_colors[Stag_Comment]               = 0xFF2090F0;
-        default_colors[Stag_Keyword]               = 0xFFD08F20;
-        default_colors[Stag_Str_Constant]          = 0xFF50FF30;
-        default_colors[Stag_Char_Constant]         = default_colors[Stag_Str_Constant];
-        default_colors[Stag_Int_Constant]          = default_colors[Stag_Str_Constant];
-        default_colors[Stag_Float_Constant]        = default_colors[Stag_Str_Constant];
-        default_colors[Stag_Bool_Constant]         = default_colors[Stag_Str_Constant];
-        default_colors[Stag_Include]               = default_colors[Stag_Str_Constant];
-        default_colors[Stag_Preproc]               = default_colors[Stag_Default];
-        default_colors[Stag_Special_Character]     = 0xFFFF0000;
-        default_colors[Stag_Ghost_Character]       = 0xFF4E5E46;
-        
-        default_colors[Stag_Paste] = 0xFFDDEE00;
-        default_colors[Stag_Undo]  = 0xFF00DDEE;
-        
-        default_colors[Stag_Highlight_Junk]  = 0xFF3A0000;
-        default_colors[Stag_Highlight_White] = 0xFF003A3A;
-        
-        default_colors[Stag_Bar]        = 0xFF888888;
-        default_colors[Stag_Base]       = 0xFF000000;
-        default_colors[Stag_Pop1]       = 0xFF3C57DC;
-        default_colors[Stag_Pop2]       = 0xFFFF0000;
-        
-        default_colors[Stag_Back_Cycle_1] = 0x10A00000;
-        default_colors[Stag_Back_Cycle_2] = 0x0C00A000;
-        default_colors[Stag_Back_Cycle_3] = 0x0C0000A0;
-        default_colors[Stag_Back_Cycle_4] = 0x0CA0A000;
-        default_colors[Stag_Text_Cycle_1] = 0xFFA00000;
-        default_colors[Stag_Text_Cycle_2] = 0xFF00A000;
-        default_colors[Stag_Text_Cycle_3] = 0xFF0030B0;
-        default_colors[Stag_Text_Cycle_4] = 0xFFA0A000;
-        
-        default_colors[Stag_Line_Numbers_Back] = 0xFF101010;
-        default_colors[Stag_Line_Numbers_Text] = 0xFF404040;
-    }
-    
-    Color_Table color_table = {};
-    color_table.vals = default_colors;
-    color_table.count = ArrayCount(default_colors);
-    return(color_table);
-}
-#endif
 
 function void
 default_tick(Application_Links *app, Frame_Info frame_info){
@@ -940,7 +876,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         }
     }
     
-    Command_Map_ID map_id = (treat_as_code)?(default_code_map):(mapid_file);
+    Command_Map_ID map_id = (treat_as_code)?(mapid_code):(mapid_file);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
     *map_id_ptr = map_id;

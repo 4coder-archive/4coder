@@ -1201,32 +1201,6 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 ////////////////////////////////
 
 function void
-save_all_dirty_buffers_with_postfix(Application_Links *app, String_Const_u8 postfix){
-    ProfileScope(app, "save all dirty buffers");
-    Scratch_Block scratch(app);
-    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_ReadWriteVisible);
-         buffer != 0;
-         buffer = get_buffer_next(app, buffer, Access_ReadWriteVisible)){
-        Dirty_State dirty = buffer_get_dirty_state(app, buffer);
-        if (dirty == DirtyState_UnsavedChanges){
-            Temp_Memory temp = begin_temp(scratch);
-            String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
-            if (string_match(string_postfix(file_name, postfix.size), postfix)){
-                buffer_save(app, buffer, file_name, 0);
-            }
-            end_temp(temp);
-        }
-    }
-}
-
-CUSTOM_COMMAND_SIG(save_all_dirty_buffers)
-CUSTOM_DOC("Saves all buffers marked dirty (showing the '*' indicator).")
-{
-    String_Const_u8 empty = {};
-    save_all_dirty_buffers_with_postfix(app, empty);
-}
-
-function void
 delete_file_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID buffer_id){
     String_Const_u8 path = string_remove_last_folder(file_name);
     Scratch_Block scratch(app);
@@ -1814,31 +1788,6 @@ CUSTOM_DOC("Advances forward through the undo history in the buffer containing t
 }
 
 ////////////////////////////////
-
-#if 0
-CUSTOM_COMMAND_SIG(reload_themes)
-CUSTOM_DOC("Loads all the theme files in the theme folder, replacing duplicates with the new theme data.")
-{
-    String fcoder_extension = make_lit_string(".4coder");
-    save_all_dirty_buffers_with_postfix(app, fcoder_extension);
-    
-    Partition *scratch = &global_part;
-    Temp_Memory temp = begin_temp_memory(scratch);
-    load_folder_of_themes_into_live_set(app, scratch, "themes");
-    String name = get_theme_name(app, scratch, 0);
-    i32 theme_count = get_theme_count(app);
-    for (i32 i = 1; i < theme_count; i += 1){
-        Temp_Memory sub_temp = begin_temp_memory(scratch);
-        String style_name = get_theme_name(app, scratch, i);
-        if (match(name, style_name)){
-            change_theme_by_index(app, i);
-            break;
-        }
-        end_temp_memory(sub_temp);
-    }
-    end_temp_memory(temp);
-}
-#endif
 
 CUSTOM_COMMAND_SIG(open_in_other)
 CUSTOM_DOC("Interactively opens a file in the other panel.")

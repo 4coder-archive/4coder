@@ -54,4 +54,7 @@ buffer_lex_task = managed_id_declare(app, string_u8_litexpr("attachment"), strin
 buffer_wrap_lines = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("buffer_wrap_lines"));
 sticky_jump_marker_handle = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("sticky_jump_marker_handle"));
 attachment_tokens = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("attachment_tokens"));
+mapid_global = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("mapid_global"));
+mapid_file = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("mapid_file"));
+mapid_code = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("mapid_code"));
 }

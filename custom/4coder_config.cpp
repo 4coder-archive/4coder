@@ -63,8 +63,7 @@ config_stringize_errors(Application_Links *app, Arena *arena, Config *parsed){
         for (Config_Error *error = parsed->errors.first;
              error != 0;
              error = error->next){
-            Error_Location location = get_error_location(app, parsed->data.str,
-                                                         error->pos);
+            Error_Location location = get_error_location(app, parsed->data.str, error->pos);
             string_list_pushf(arena, &list, "%.*s:%d:%d: %.*s\n",
                               string_expand(error->file_name), location.line_number, location.column_number, string_expand(error->text));
         }
@@ -784,7 +783,7 @@ config_char_var(Config *config, char *var_name, i32 subscript, char* var_out){
 function b32
 config_compound_var(Config *config, String_Const_u8 var_name, i32 subscript, Config_Compound** var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
-    b32 success = result.success && result.type == ConfigRValueType_Compound;
+    b32 success = (result.success && result.type == ConfigRValueType_Compound);
     if (success){
         *var_out = result.compound;
     }
@@ -1354,68 +1353,79 @@ config_parse__file_name(Application_Links *app, Arena *arena, char *file_name, C
     return(parsed);
 }
 
-#if 0
-function void
-init_theme_zero(Theme *theme){
-    for (i32 i = 0; i < Stag_COUNT; ++i){
-        theme->colors[i] = 0;
-    }
-}
-
 function Config*
-theme_parse__data(Partition *arena, String file_name, String data, Theme_Data *theme){
-    theme->name = make_fixed_width_string(theme->space);
-    copy(&theme->name, "unnamed");
-    init_theme_zero(&theme->theme);
-    
-    Config *parsed = config_from_text(arena, file_name, data);
+theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Arena *color_arena, Color_Table *color_table){
+    Config *parsed = config_from_text(app, arena, file_name, data);
     if (parsed != 0){
-        config_fixed_string_var(parsed, "name", 0, &theme->name, theme->space);
-        
-        for (i32 i = 0; i < Stag_COUNT; ++i){
-            char *name = style_tag_names[i];
+        for (Config_Assignment *node = parsed->first;
+             node != 0;
+             node = node->next){
+            Scratch_Block scratch(app);
+            Config_LValue *l = node->l;
+            String_Const_u8 l_name = push_string_copy(scratch, l->identifier);
+            Managed_ID id = managed_id_get(app, string_u8_litexpr("colors"), l_name);
+            if (id != 0){
             u32 color = 0;
-            if (!config_uint_var(parsed, name, 0, &color)){
-                color = 0xFFFF00FF;
+            if (config_uint_var(parsed, l_name, 0, &color)){
+                    color_table->arrays[id%color_table->count] = make_colors(color_arena, color);
+                }
+                else{
+                    Config_Compound *compound = 0;
+                if (config_compound_var(parsed, l_name, 0, &compound)){
+                        local_persist u32 color_array[256];
+                        i32 counter = 0;
+                        for (i32 i = 0;; i += 1){
+                        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Integer, i);
+                        if (result.step == Iteration_Skip){
+                            continue;
+                        }
+                        else if (result.step == Iteration_Quit){
+                            break;
+                            }
+                            
+                            color_array[counter] = result.get.uinteger;
+                            counter += 1;
+                            if (counter == 256){
+                                break;
+                            }
+                        }
+                        
+                        color_table->arrays[id%color_table->count] = make_colors(color_arena, color_array, counter);
+                }
+                }
             }
-            theme->theme.colors[i] = color;
+            
         }
     }
-    
     return(parsed);
 }
 
 function Config*
-theme_parse__file_handle(Partition *arena, String file_name, FILE *file, Theme_Data *theme){
-    String data = dump_file_handle(arena, file);
+theme_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file, Arena *color_arena, Color_Table *color_table){
+     Data data = dump_file_handle(arena, file);
     Config *parsed = 0;
-    if (data.str != 0){
-        parsed = theme_parse__data(arena, file_name, data, theme);
+    if (data.data != 0){
+        parsed = theme_parse__data(app, arena, file_name, SCu8(data), color_arena, color_table);
     }
     return(parsed);
 }
 
 function Config*
-theme_parse__file_name(Application_Links *app, Partition *arena,
-                       char *file_name, Theme_Data *theme){
+theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Arena *color_arena, Color_Table *color_table){
     Config *parsed = 0;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-        String data = dump_file_handle(arena, file);
+         Data data = dump_file_handle(arena, file);
         fclose(file);
-        parsed = theme_parse__data(arena, make_string_slowly(file_name), data, theme);
+        parsed = theme_parse__data(app, arena, SCu8(file_name), SCu8(data), color_arena, color_table);
     }
     if (parsed == 0){
-        char space[256];
-        String str = make_fixed_width_string(space);
-        append(&str, "Did not find ");
-        append(&str, file_name);
-        append(&str, ", color scheme not loaded");
-        print_message(app, str.str, str.size);
+        Scratch_Block scratch(app);
+        String_Const_u8 str = push_u8_stringf(arena, "Did not find %s, theme not loaded", file_name);
+        print_message(app, str);
     }
     return(parsed);
 }
-#endif
 
 ////////////////////////////////
 
@@ -1545,8 +1555,11 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     change_mode(app, config->mode);
     global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
     
-    //change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
-    
+    // TODO(allen): 
+#if 0    
+    change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
+    #endif
+
     Face_Description description = {};
     if (override_font_size != 0){
         description.parameters.pt_size = override_font_size;
@@ -1563,47 +1576,42 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     }
 }
 
-#if 0
 function void
-load_theme_file_into_live_set(Application_Links *app, Partition *scratch, char *file_name){
-    Temp_Memory temp = begin_temp_memory(scratch);
-    Theme_Data theme = {};
-    Config *config = theme_parse__file_name(app, scratch, file_name, &theme);
-    String error_text = config_stringize_errors(scratch, config);
-    print_message(app, error_text.str, error_text.size);
-    end_temp_memory(temp);
-    create_theme(app, &theme.theme, theme.name.str, theme.name.size);
+load_theme_file_into_live_set(Application_Links *app, char *file_name){
+    Arena *arena = &global_theme_arena;
+    Color_Table color_table = make_color_table(app, arena);
+    Scratch_Block scratch(app);
+    Config *config = theme_parse__file_name(app, scratch, file_name, arena, &color_table);
+    String_Const_u8 error_text = config_stringize_errors(app, scratch, config);
+    print_message(app, error_text);
+    
+    String_Const_u8 name = SCu8(file_name);
+    name = string_front_of_path(name);
+    if (string_match(string_postfix(name, 7), string_u8_litexpr(".4coder"))){
+        name = string_chop(name, 7);
+    }
+    save_theme(color_table, name);
 }
 
 function void
-load_folder_of_themes_into_live_set(Application_Links *app, Partition *scratch,
-                                    char *folder_name){
-    char path_space[512];
-    String path = make_fixed_width_string(path_space);
-    path.size = get_4ed_path(app, path_space, sizeof(path_space));
-    append(&path, folder_name);
+load_folder_of_themes_into_live_set(Application_Links *app, String_Const_u8 path){
+    Scratch_Block scratch(app, Scratch_Share);
     
-    if (path.size < path.memory_size){
-        File_List list = get_file_list(app, path.str, path.size);
-        for (u32 i = 0; i < list.count; ++i){
-            File_Info *info = &list.infos[i];
-            if (info->folder){
-                continue;
-            }
-            String info_file_name = make_string(info->filename, info->filename_len);
-            char file_name_space[512];
-            String file_name = make_fixed_width_string(file_name_space);
-            copy(&file_name, path);
-            append(&file_name, "/");
-            append(&file_name, info_file_name);
-            if (terminate_with_null(&file_name)){
-                load_theme_file_into_live_set(app, scratch, file_name.str);
-            }
+    File_List list = system_get_file_list(scratch, path);
+    for (File_Info **ptr = list.infos, **end = list.infos + list.count;
+         ptr < end;
+         ptr += 1){
+        File_Info *info = *ptr;
+        if (!HasFlag(info->attributes.flags, FileAttribute_IsDirectory)){
+            String_Const_u8 name = info->file_name;
+            Temp_Memory_Block temp(scratch);
+            String_Const_u8 full_name = push_u8_stringf(scratch, "%.*s/%.*s",
+                                                        string_expand(path),
+                                                        string_expand(name));
+            load_theme_file_into_live_set(app, (char*)full_name.str);
         }
-        free_file_list(app, list);
     }
 }
-#endif
 
 // BOTTOM
 

@@ -1,51 +1,44 @@
 // Created by: Zack Strange
 
-name = "Strange";
+defcolor_back = 0xFF161616;
+defcolor_margin = 0xFF606590;
+defcolor_margin_hover = 0xFF606590;
+defcolor_margin_active = 0xFF9A99E7;
+defcolor_list_item = defcolor_margin;
+defcolor_list_item_hover = defcolor_margin_hover;
+defcolor_list_item_active = defcolor_margin_active;
+defcolor_cursor = 0xFFd96e26;
+defcolor_at_cursor = defcolor_back;
+defcolor_highlight_cursor_line = 0xFF002222;
+defcolor_mark = 0xFF808080;
+defcolor_highlight = 0xFF703419;
+defcolor_at_highlight = 0xFFCDAA7D;
+defcolor_text_default = 0xFFFFFFFF;
+defcolor_comment = 0xFF505F89;
+defcolor_comment_pop = {0xFF00F000, 0xFFF00000};
+defcolor_keyword = 0xFFAA8DA7;
+defcolor_str_constant = 0xFF9A99E7;
+defcolor_char_constant = defcolor_str_constant;
+defcolor_include = defcolor_str_constant;
+defcolor_int_constant = 0xFF007C00;
+defcolor_float_constant = defcolor_int_constant;
+defcolor_bool_constant = defcolor_int_constant;
+defcolor_preproc = 0xFF606590;
+defcolor_special_character = 0xFFFF0000;
+defcolor_ghost_character = 0xFF8A8A8A;
 
-Back = 0xFF161616;
-Margin = 0xFF606590;
-Margin_Hover = 0xFF606590;
-Margin_Active = 0xFF9A99E7;
-List_Item = Margin;
-List_Item_Hover = Margin_Hover;
-List_Item_Active = Margin_Active;
-Cursor = 0xFFd96e26;
-At_Cursor = Back;
-Highlight_Cursor_Line = 0xFF002222;
-Mark = 0xFF808080;
-Highlight = 0xFF703419;
-At_Highlight = 0xFFCDAA7D;
-Default = 0xFFFFFFFF;
-Comment = 0xFF505F89;
-Keyword = 0xFFAA8DA7;
-Str_Constant = 0xFF9A99E7;
-Char_Constant = Str_Constant;
-Include = Str_Constant;
-Int_Constant = 0xFF007C00;
-Float_Constant = Int_Constant;
-Bool_Constant = Int_Constant;
-Preproc = 0xFF606590;
-Special_Character = 0xFFFF0000;
-Ghost_Character = 0xFF8A8A8A;
+defcolor_paste = 0xFFFFBB00;
+defcolor_undo = 0xFF80005D;
 
-Paste = 0xFFFFBB00;
-Undo = 0xFF80005D;
+defcolor_highlight_junk = 0xFF3A0000;
+defcolor_highlight_white = 0xFF003A3A;
 
-Highlight_Junk = 0xFF3A0000;
-Highlight_White = 0xFF003A3A;
+defcolor_bar = 0xFF9A99E7;
+defcolor_bar_active = 0xFF9A99E7;
+defcolor_base = 0xFF000000;
+defcolor_pop1 = 0xFF03CF0C;
+defcolor_pop2 = 0xFFFF0000;
 
-Bar = 0xFF9A99E7;
-Bar_Active = 0xFF9A99E7;
-Base = 0xFF000000;
-Pop1 = 0xFF03CF0C;
-Pop2 = 0xFFFF0000;
-
-Back_Cycle_1 = 0x0CA00000;
-Back_Cycle_2 = 0x0C00A000;
-Back_Cycle_3 = 0x0C0000A0;
-Back_Cycle_4 = 0x0CA0A000;
-Text_Cycle_1 = 0xFFF00000;
-Text_Cycle_2 = 0xFF00F000;
-Text_Cycle_3 = 0xFF0080F0;
-Text_Cycle_4 = 0xFFF0F000;
+defcolor_back_cycle = {0x0CA00000, 0x0C00A000, 0x0C0000A0, 0x0CA0A000};
+defcolor_text_cycle = {0xFFF00000, 0xFF00F000, 0xFF0080F0, 0xFFF0F000};
 
