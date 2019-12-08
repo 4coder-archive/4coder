@@ -14,7 +14,7 @@ set custom_root=%cd%
 set custom_bin=%custom_root%\bin
 cd %location%
 
-if NOT "%Platform%" == "X64" IF NOT "%Platform%" == "x64" (call "%code_home%\windows_scripts\setup_cl_x64.bat")
+if NOT "%Platform%" == "X64" IF NOT "%Platform%" == "x64" (call "%custom_root%\windows_scripts\setup_cl_x64.bat")
 
 set target=%1
 if "%target%" == "" (echo error: no input file & exit)
@@ -35,7 +35,7 @@ set opts=%opts% /I%custom_root%
 set opts=%opts% %mode%
 
 pushd %dst%
-call cl /I"%code_home%" %opts% %full_target% /Feone_time
+call cl /I"%custom_root%" %opts% %full_target% /Feone_time
 popd
 
 

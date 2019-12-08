@@ -148,7 +148,7 @@ global_set_setting(Application_Links *app, Global_Setting_ID setting, i64 value)
 api(custom) function Rect_f32
 global_get_screen_rectangle(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
-    return(Rf32(V2(0, 0), V2(layout_get_root_size(&models->layout))));
+    return(Rf32(V2f32(0, 0), V2f32(layout_get_root_size(&models->layout))));
 }
 
 api(custom) function Thread_Context*
@@ -156,10 +156,14 @@ get_thread_context(Application_Links *app){
     return(app->tctx);
 }
 
-api(custom) function b32
-create_child_process(Application_Links *app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID *child_process_id_out){
+api(custom) function Child_Process_ID
+create_child_process(Application_Links *app, String_Const_u8 path, String_Const_u8 command){
     Models *models = (Models*)app->cmd_context;
-    return(child_process_call(app->tctx, models, path, command, child_process_id_out));
+    Child_Process_ID result = 0;
+    if (!child_process_call(app->tctx, models, path, command, &result)){
+        result = 0;
+    }
+    return(result);
 }
 
 api(custom) function b32
@@ -628,17 +632,6 @@ buffer_exists(Application_Links *app, Buffer_ID buffer_id){
     return(api_check_buffer(file));
 }
 
-api(custom) function b32
-buffer_ready(Application_Links *app, Buffer_ID buffer_id){
-    Models *models = (Models*)app->cmd_context;
-    Editing_File *file = imp_get_file(models, buffer_id);
-    b32 result = false;
-    if (api_check_buffer(file)){
-        result = file_is_ready(file);
-    }
-    return(result);
-}
-
 api(custom) function Access_Flag
 buffer_get_access_flags(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
@@ -1055,14 +1048,6 @@ buffer_get_file_attributes(Application_Links *app, Buffer_ID buffer_id)
     return(result);
 }
 
-api(custom) function File_Attributes
-get_file_attributes(Application_Links *app, String_Const_u8 file_name)
-{
-    Models *models = (Models*)app->cmd_context;
-    Scratch_Block scratch(app->tctx, Scratch_Share);
-    return(system_quick_file_attributes(scratch, file_name));
-}
-
 function View*
 get_view_next__inner(Layout *layout, View *view){
     if (view != 0){
@@ -1163,18 +1148,6 @@ get_active_view(Application_Links *app, Access_Flag access)
     View_ID result = 0;
     if (api_check_view(view, access)){
         result = view_get_id(&models->view_set, view);
-    }
-    return(result);
-}
-
-api(custom) function Panel_ID
-get_active_panel(Application_Links *app){
-    Models *models = (Models*)app->cmd_context;
-    Panel *panel = layout_get_active_panel(&models->layout);
-    Assert(panel != 0);
-    Panel_ID result = 0;
-    if (api_check_panel(panel)){
-        result = panel_get_id(&models->layout, panel);
     }
     return(result);
 }
@@ -1427,39 +1400,6 @@ panel_get_child(Application_Links *app, Panel_ID panel_id, Side which_child){
             if (child != 0){
                 result = panel_get_id(layout, child);
             }
-        }
-    }
-    return(result);
-}
-
-api(custom) function Panel_ID
-panel_get_max(Application_Links *app, Panel_ID panel_id){
-    Models *models = (Models*)app->cmd_context;
-    Layout *layout = &models->layout;
-    Panel *panel = imp_get_panel(models, panel_id);
-    Panel_ID result = 0;
-    if (api_check_panel(panel)){
-        if (panel->kind == PanelKind_Intermediate){
-            Panel *child = panel->br_panel;
-            result = panel_get_id(layout, child);
-        }
-    }
-    return(result);
-}
-
-api(custom) function Rect_i32
-panel_get_margin(Application_Links *app, Panel_ID panel_id){
-    Models *models = (Models*)app->cmd_context;
-    Layout *layout = &models->layout;
-    Panel *panel = imp_get_panel(models, panel_id);
-    Rect_i32 result = {};
-    if (api_check_panel(panel)){
-        if (panel->kind == PanelKind_Final){
-            i32 margin = layout->margin;
-            result.x0 = margin;
-            result.x1 = margin;
-            result.y0 = margin;
-            result.y1 = margin;
         }
     }
     return(result);
@@ -2059,14 +1999,15 @@ managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Manage
     return(result);
 }
 
-api(custom) function void*
+api(custom) function b32
 managed_scope_attachment_erase(Application_Links *app, Managed_Scope scope, Managed_ID id){
     Models *models = (Models*)app->cmd_context;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
-    void *result = 0;
+    b32 result = false;
     if (workspace != 0){
         Dynamic_Variable_Block *var_block = &workspace->var_block;
         dynamic_variable_erase(var_block, id);
+        result = true;
     }
     return(result);
 }
@@ -2419,29 +2360,20 @@ clear_all_query_bars(Application_Links *app, View_ID view_id){
     }
 }
 
-api(custom) function b32
+api(custom) function void
 print_message(Application_Links *app, String_Const_u8 message)
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = models->message_buffer;
-    b32 result = false;
     if (file != 0){
         output_file_append(app->tctx, models, file, message);
         file_cursor_to_end(app->tctx, models, file);
-        result = true;
     }
-    return(result);
 }
 
 api(custom) function b32
 log_string(Application_Links *app, String_Const_u8 str){
     return(log_string(str));
-}
-
-api(custom) function i32
-thread_get_id(Application_Links *app){
-    Models *models = (Models*)app->cmd_context;
-    return(system_thread_get_id());
 }
 
 api(custom) function Face_ID
@@ -2452,23 +2384,16 @@ get_largest_face_id(Application_Links *app)
 }
 
 api(custom) function b32
-set_global_face(Application_Links *app, Face_ID id, b32 apply_to_all_buffers)
+set_global_face(Application_Links *app, Face_ID id)
 {
     Models *models = (Models*)app->cmd_context;
-    
-    b32 did_change = false;
+    b32 result = false;
     Face *face = font_set_face_from_id(&models->font_set, id);
     if (face != 0){
-        if (apply_to_all_buffers){
-            global_set_font_and_update_files(models, face);
-        }
-        else{
             models->global_face_id = face->id;
-        }
-        did_change = true;
+        result = true;
     }
-    
-    return(did_change);
+    return(result);
 }
 
 api(custom) function History_Record_Index

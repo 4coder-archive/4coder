@@ -16,7 +16,7 @@ lock_jump_buffer(Application_Links *app, String_Const_u8 name){
         locked_buffer = SCu8(locked_buffer_space, name.size);
         Scratch_Block scratch(app);
         String_Const_u8 escaped = string_escape(scratch, name);
-        LogEventF(log_string(app, M), scratch, 0, 0, thread_get_id(app),
+        LogEventF(log_string(app, M), scratch, 0, 0, system_thread_get_id(),
                   "lock jump buffer [name=\"%.*s\"]", string_expand(escaped));
     }
 }

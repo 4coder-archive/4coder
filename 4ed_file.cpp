@@ -84,28 +84,12 @@ file_can_save(Editing_File *file){
     return(result);
 }
 
-internal b32
-file_is_ready(Editing_File *file){
-    b32 result = false;
-    if (file != 0 && file->is_loading == 0){
-        result = true;
-    }
-    return(result);
-}
-
 internal void
 file_set_unimportant(Editing_File *file, b32 val){
     if (val){
         file->state.dirty = DirtyState_UpToDate;
     }
     file->settings.unimportant = (b8)(val);
-}
-
-internal void
-file_set_to_loading(Editing_File *file){
-    block_zero_struct(&file->state);
-    block_zero_struct(&file->settings);
-    file->is_loading = true;
 }
 
 internal void

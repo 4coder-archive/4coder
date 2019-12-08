@@ -1,7 +1,7 @@
 api(custom) function b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value);
 api(custom) function Rect_f32 global_get_screen_rectangle(Application_Links* app);
 api(custom) function Thread_Context* get_thread_context(Application_Links* app);
-api(custom) function b32 create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out);
+api(custom) function Child_Process_ID create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command);
 api(custom) function b32 child_process_set_target_buffer(Application_Links* app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags);
 api(custom) function Child_Process_ID buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Buffer_ID child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id);
@@ -32,7 +32,6 @@ api(custom) function Rect_f32 view_relative_box_of_pos(Application_Links* app, V
 api(custom) function i64 view_relative_character_from_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
 api(custom) function i64 view_pos_from_relative_character(Application_Links* app, View_ID view_id, i64 base_line, i64 character);
 api(custom) function b32 buffer_exists(Application_Links* app, Buffer_ID buffer_id);
-api(custom) function b32 buffer_ready(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Access_Flag buffer_get_access_flags(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function i64 buffer_get_size(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function i64 buffer_get_line_count(Application_Links* app, Buffer_ID buffer_id);
@@ -53,12 +52,10 @@ api(custom) function b32 buffer_save(Application_Links* app, Buffer_ID buffer_id
 api(custom) function Buffer_Kill_Result buffer_kill(Application_Links* app, Buffer_ID buffer_id, Buffer_Kill_Flag flags);
 api(custom) function Buffer_Reopen_Result buffer_reopen(Application_Links* app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags);
 api(custom) function File_Attributes buffer_get_file_attributes(Application_Links* app, Buffer_ID buffer_id);
-api(custom) function File_Attributes get_file_attributes(Application_Links* app, String_Const_u8 file_name);
 api(custom) function View_ID get_view_next(Application_Links* app, View_ID view_id, Access_Flag access);
 api(custom) function View_ID get_view_prev(Application_Links* app, View_ID view_id, Access_Flag access);
 api(custom) function View_ID get_this_ctx_view(Application_Links* app, Access_Flag access);
 api(custom) function View_ID get_active_view(Application_Links* app, Access_Flag access);
-api(custom) function Panel_ID get_active_panel(Application_Links* app);
 api(custom) function b32 view_exists(Application_Links* app, View_ID view_id);
 api(custom) function Buffer_ID view_get_buffer(Application_Links* app, View_ID view_id, Access_Flag access);
 api(custom) function i64 view_get_cursor_pos(Application_Links* app, View_ID view_id);
@@ -76,8 +73,6 @@ api(custom) function b32 panel_swap_children(Application_Links* app, Panel_ID pa
 api(custom) function Panel_ID panel_get_root(Application_Links* app);
 api(custom) function Panel_ID panel_get_parent(Application_Links* app, Panel_ID panel_id);
 api(custom) function Panel_ID panel_get_child(Application_Links* app, Panel_ID panel_id, Side which_child);
-api(custom) function Panel_ID panel_get_max(Application_Links* app, Panel_ID panel_id);
-api(custom) function Rect_i32 panel_get_margin(Application_Links* app, Panel_ID panel_id);
 api(custom) function b32 view_close(Application_Links* app, View_ID view_id);
 api(custom) function Rect_f32 view_get_buffer_region(Application_Links* app, View_ID view_id);
 api(custom) function Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
@@ -110,7 +105,7 @@ api(custom) function u64 managed_id_group_highest_id(Application_Links* app, Str
 api(custom) function Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 api(custom) function Managed_ID managed_id_get(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 api(custom) function void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
-api(custom) function void* managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
+api(custom) function b32 managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
 api(custom) function Managed_Object alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);
 api(custom) function Managed_Object alloc_buffer_markers_on_buffer(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope);
 api(custom) function u32 managed_object_get_item_size(Application_Links* app, Managed_Object object);
@@ -133,11 +128,10 @@ api(custom) function b32 get_active_query_bars(Application_Links* app, View_ID v
 api(custom) function b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
 api(custom) function void end_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
 api(custom) function void clear_all_query_bars(Application_Links* app, View_ID view_id);
-api(custom) function b32 print_message(Application_Links* app, String_Const_u8 message);
+api(custom) function void print_message(Application_Links* app, String_Const_u8 message);
 api(custom) function b32 log_string(Application_Links* app, String_Const_u8 str);
-api(custom) function i32 thread_get_id(Application_Links* app);
 api(custom) function Face_ID get_largest_face_id(Application_Links* app);
-api(custom) function b32 set_global_face(Application_Links* app, Face_ID id, b32 apply_to_all_buffers);
+api(custom) function b32 set_global_face(Application_Links* app, Face_ID id);
 api(custom) function History_Record_Index buffer_history_get_max_record_index(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Record_Info buffer_history_get_record_info(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index);
 api(custom) function Record_Info buffer_history_get_group_sub_record(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index);

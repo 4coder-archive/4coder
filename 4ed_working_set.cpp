@@ -313,8 +313,7 @@ buffer_name_has_conflict(Working_Set *working_set, String_Const_u8 base_name){
          node != used_nodes;
          node = node->next){
         Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
-        if (file_is_ready(file_ptr) &&
-            string_match(base_name, string_from_file_name(&file_ptr->unique_name))){
+        if (file_ptr && string_match(base_name, string_from_file_name(&file_ptr->unique_name))){
             hit_conflict = true;
             break;
         }
@@ -405,8 +404,7 @@ buffer_bind_name(Thread_Context *tctx, Models *models, Arena *scratch, Working_S
          node != used_nodes;
          node = node->next){
         Editing_File *file_ptr = CastFromMember(Editing_File, main_chain_node, node);
-        if (file_is_ready(file_ptr) &&
-            string_match(base_name, string_from_file_name(&file_ptr->base_name))){
+        if (file_ptr != 0 && string_match(base_name, string_from_file_name(&file_ptr->base_name))){
             Node_Ptr *new_node = push_array(scratch, Node_Ptr, 1);
             sll_queue_push(conflict_first, conflict_last, new_node);
             new_node->file_ptr = file_ptr;
@@ -511,11 +509,7 @@ file_get_next(Working_Set *working_set, Editing_File *file){
 internal Editing_File*
 imp_get_file(Models *models, Buffer_ID buffer_id){
     Working_Set *working_set = &models->working_set;
-    Editing_File *file = working_set_get_file(working_set, buffer_id);
-    if (file != 0 && !file_is_ready(file)){
-        file = 0;
-    }
-    return(file);
+    return(working_set_get_file(working_set, buffer_id));
 }
 
 // BOTTOM

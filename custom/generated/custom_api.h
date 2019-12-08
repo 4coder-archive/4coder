@@ -1,7 +1,7 @@
 #define custom_global_set_setting_sig() b32 custom_global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value)
 #define custom_global_get_screen_rectangle_sig() Rect_f32 custom_global_get_screen_rectangle(Application_Links* app)
 #define custom_get_thread_context_sig() Thread_Context* custom_get_thread_context(Application_Links* app)
-#define custom_create_child_process_sig() b32 custom_create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out)
+#define custom_create_child_process_sig() Child_Process_ID custom_create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command)
 #define custom_child_process_set_target_buffer_sig() b32 custom_child_process_set_target_buffer(Application_Links* app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags)
 #define custom_buffer_get_attached_child_process_sig() Child_Process_ID custom_buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id)
 #define custom_child_process_get_attached_buffer_sig() Buffer_ID custom_child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id)
@@ -32,7 +32,6 @@
 #define custom_view_relative_character_from_pos_sig() i64 custom_view_relative_character_from_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos)
 #define custom_view_pos_from_relative_character_sig() i64 custom_view_pos_from_relative_character(Application_Links* app, View_ID view_id, i64 base_line, i64 character)
 #define custom_buffer_exists_sig() b32 custom_buffer_exists(Application_Links* app, Buffer_ID buffer_id)
-#define custom_buffer_ready_sig() b32 custom_buffer_ready(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_get_access_flags_sig() Access_Flag custom_buffer_get_access_flags(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_get_size_sig() i64 custom_buffer_get_size(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_get_line_count_sig() i64 custom_buffer_get_line_count(Application_Links* app, Buffer_ID buffer_id)
@@ -53,12 +52,10 @@
 #define custom_buffer_kill_sig() Buffer_Kill_Result custom_buffer_kill(Application_Links* app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
 #define custom_buffer_reopen_sig() Buffer_Reopen_Result custom_buffer_reopen(Application_Links* app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags)
 #define custom_buffer_get_file_attributes_sig() File_Attributes custom_buffer_get_file_attributes(Application_Links* app, Buffer_ID buffer_id)
-#define custom_get_file_attributes_sig() File_Attributes custom_get_file_attributes(Application_Links* app, String_Const_u8 file_name)
 #define custom_get_view_next_sig() View_ID custom_get_view_next(Application_Links* app, View_ID view_id, Access_Flag access)
 #define custom_get_view_prev_sig() View_ID custom_get_view_prev(Application_Links* app, View_ID view_id, Access_Flag access)
 #define custom_get_this_ctx_view_sig() View_ID custom_get_this_ctx_view(Application_Links* app, Access_Flag access)
 #define custom_get_active_view_sig() View_ID custom_get_active_view(Application_Links* app, Access_Flag access)
-#define custom_get_active_panel_sig() Panel_ID custom_get_active_panel(Application_Links* app)
 #define custom_view_exists_sig() b32 custom_view_exists(Application_Links* app, View_ID view_id)
 #define custom_view_get_buffer_sig() Buffer_ID custom_view_get_buffer(Application_Links* app, View_ID view_id, Access_Flag access)
 #define custom_view_get_cursor_pos_sig() i64 custom_view_get_cursor_pos(Application_Links* app, View_ID view_id)
@@ -76,8 +73,6 @@
 #define custom_panel_get_root_sig() Panel_ID custom_panel_get_root(Application_Links* app)
 #define custom_panel_get_parent_sig() Panel_ID custom_panel_get_parent(Application_Links* app, Panel_ID panel_id)
 #define custom_panel_get_child_sig() Panel_ID custom_panel_get_child(Application_Links* app, Panel_ID panel_id, Side which_child)
-#define custom_panel_get_max_sig() Panel_ID custom_panel_get_max(Application_Links* app, Panel_ID panel_id)
-#define custom_panel_get_margin_sig() Rect_i32 custom_panel_get_margin(Application_Links* app, Panel_ID panel_id)
 #define custom_view_close_sig() b32 custom_view_close(Application_Links* app, View_ID view_id)
 #define custom_view_get_buffer_region_sig() Rect_f32 custom_view_get_buffer_region(Application_Links* app, View_ID view_id)
 #define custom_view_get_buffer_scroll_sig() Buffer_Scroll custom_view_get_buffer_scroll(Application_Links* app, View_ID view_id)
@@ -110,7 +105,7 @@
 #define custom_managed_id_declare_sig() Managed_ID custom_managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name)
 #define custom_managed_id_get_sig() Managed_ID custom_managed_id_get(Application_Links* app, String_Const_u8 group, String_Const_u8 name)
 #define custom_managed_scope_get_attachment_sig() void* custom_managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size)
-#define custom_managed_scope_attachment_erase_sig() void* custom_managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id)
+#define custom_managed_scope_attachment_erase_sig() b32 custom_managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id)
 #define custom_alloc_managed_memory_in_scope_sig() Managed_Object custom_alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count)
 #define custom_alloc_buffer_markers_on_buffer_sig() Managed_Object custom_alloc_buffer_markers_on_buffer(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope)
 #define custom_managed_object_get_item_size_sig() u32 custom_managed_object_get_item_size(Application_Links* app, Managed_Object object)
@@ -133,11 +128,10 @@
 #define custom_start_query_bar_sig() b32 custom_start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
 #define custom_end_query_bar_sig() void custom_end_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
 #define custom_clear_all_query_bars_sig() void custom_clear_all_query_bars(Application_Links* app, View_ID view_id)
-#define custom_print_message_sig() b32 custom_print_message(Application_Links* app, String_Const_u8 message)
+#define custom_print_message_sig() void custom_print_message(Application_Links* app, String_Const_u8 message)
 #define custom_log_string_sig() b32 custom_log_string(Application_Links* app, String_Const_u8 str)
-#define custom_thread_get_id_sig() i32 custom_thread_get_id(Application_Links* app)
 #define custom_get_largest_face_id_sig() Face_ID custom_get_largest_face_id(Application_Links* app)
-#define custom_set_global_face_sig() b32 custom_set_global_face(Application_Links* app, Face_ID id, b32 apply_to_all_buffers)
+#define custom_set_global_face_sig() b32 custom_set_global_face(Application_Links* app, Face_ID id)
 #define custom_buffer_history_get_max_record_index_sig() History_Record_Index custom_buffer_history_get_max_record_index(Application_Links* app, Buffer_ID buffer_id)
 #define custom_buffer_history_get_record_info_sig() Record_Info custom_buffer_history_get_record_info(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index)
 #define custom_buffer_history_get_group_sub_record_sig() Record_Info custom_buffer_history_get_group_sub_record(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index)
@@ -180,7 +174,7 @@
 typedef b32 custom_global_set_setting_type(Application_Links* app, Global_Setting_ID setting, i64 value);
 typedef Rect_f32 custom_global_get_screen_rectangle_type(Application_Links* app);
 typedef Thread_Context* custom_get_thread_context_type(Application_Links* app);
-typedef b32 custom_create_child_process_type(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out);
+typedef Child_Process_ID custom_create_child_process_type(Application_Links* app, String_Const_u8 path, String_Const_u8 command);
 typedef b32 custom_child_process_set_target_buffer_type(Application_Links* app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags);
 typedef Child_Process_ID custom_buffer_get_attached_child_process_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Buffer_ID custom_child_process_get_attached_buffer_type(Application_Links* app, Child_Process_ID child_process_id);
@@ -211,7 +205,6 @@ typedef Rect_f32 custom_view_relative_box_of_pos_type(Application_Links* app, Vi
 typedef i64 custom_view_relative_character_from_pos_type(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
 typedef i64 custom_view_pos_from_relative_character_type(Application_Links* app, View_ID view_id, i64 base_line, i64 character);
 typedef b32 custom_buffer_exists_type(Application_Links* app, Buffer_ID buffer_id);
-typedef b32 custom_buffer_ready_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Access_Flag custom_buffer_get_access_flags_type(Application_Links* app, Buffer_ID buffer_id);
 typedef i64 custom_buffer_get_size_type(Application_Links* app, Buffer_ID buffer_id);
 typedef i64 custom_buffer_get_line_count_type(Application_Links* app, Buffer_ID buffer_id);
@@ -232,12 +225,10 @@ typedef b32 custom_buffer_save_type(Application_Links* app, Buffer_ID buffer_id,
 typedef Buffer_Kill_Result custom_buffer_kill_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Kill_Flag flags);
 typedef Buffer_Reopen_Result custom_buffer_reopen_type(Application_Links* app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags);
 typedef File_Attributes custom_buffer_get_file_attributes_type(Application_Links* app, Buffer_ID buffer_id);
-typedef File_Attributes custom_get_file_attributes_type(Application_Links* app, String_Const_u8 file_name);
 typedef View_ID custom_get_view_next_type(Application_Links* app, View_ID view_id, Access_Flag access);
 typedef View_ID custom_get_view_prev_type(Application_Links* app, View_ID view_id, Access_Flag access);
 typedef View_ID custom_get_this_ctx_view_type(Application_Links* app, Access_Flag access);
 typedef View_ID custom_get_active_view_type(Application_Links* app, Access_Flag access);
-typedef Panel_ID custom_get_active_panel_type(Application_Links* app);
 typedef b32 custom_view_exists_type(Application_Links* app, View_ID view_id);
 typedef Buffer_ID custom_view_get_buffer_type(Application_Links* app, View_ID view_id, Access_Flag access);
 typedef i64 custom_view_get_cursor_pos_type(Application_Links* app, View_ID view_id);
@@ -255,8 +246,6 @@ typedef b32 custom_panel_swap_children_type(Application_Links* app, Panel_ID pan
 typedef Panel_ID custom_panel_get_root_type(Application_Links* app);
 typedef Panel_ID custom_panel_get_parent_type(Application_Links* app, Panel_ID panel_id);
 typedef Panel_ID custom_panel_get_child_type(Application_Links* app, Panel_ID panel_id, Side which_child);
-typedef Panel_ID custom_panel_get_max_type(Application_Links* app, Panel_ID panel_id);
-typedef Rect_i32 custom_panel_get_margin_type(Application_Links* app, Panel_ID panel_id);
 typedef b32 custom_view_close_type(Application_Links* app, View_ID view_id);
 typedef Rect_f32 custom_view_get_buffer_region_type(Application_Links* app, View_ID view_id);
 typedef Buffer_Scroll custom_view_get_buffer_scroll_type(Application_Links* app, View_ID view_id);
@@ -289,7 +278,7 @@ typedef u64 custom_managed_id_group_highest_id_type(Application_Links* app, Stri
 typedef Managed_ID custom_managed_id_declare_type(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 typedef Managed_ID custom_managed_id_get_type(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 typedef void* custom_managed_scope_get_attachment_type(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
-typedef void* custom_managed_scope_attachment_erase_type(Application_Links* app, Managed_Scope scope, Managed_ID id);
+typedef b32 custom_managed_scope_attachment_erase_type(Application_Links* app, Managed_Scope scope, Managed_ID id);
 typedef Managed_Object custom_alloc_managed_memory_in_scope_type(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);
 typedef Managed_Object custom_alloc_buffer_markers_on_buffer_type(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope);
 typedef u32 custom_managed_object_get_item_size_type(Application_Links* app, Managed_Object object);
@@ -312,11 +301,10 @@ typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID vi
 typedef b32 custom_start_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
 typedef void custom_end_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
 typedef void custom_clear_all_query_bars_type(Application_Links* app, View_ID view_id);
-typedef b32 custom_print_message_type(Application_Links* app, String_Const_u8 message);
+typedef void custom_print_message_type(Application_Links* app, String_Const_u8 message);
 typedef b32 custom_log_string_type(Application_Links* app, String_Const_u8 str);
-typedef i32 custom_thread_get_id_type(Application_Links* app);
 typedef Face_ID custom_get_largest_face_id_type(Application_Links* app);
-typedef b32 custom_set_global_face_type(Application_Links* app, Face_ID id, b32 apply_to_all_buffers);
+typedef b32 custom_set_global_face_type(Application_Links* app, Face_ID id);
 typedef History_Record_Index custom_buffer_history_get_max_record_index_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Record_Info custom_buffer_history_get_record_info_type(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index);
 typedef Record_Info custom_buffer_history_get_group_sub_record_type(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index);
@@ -391,7 +379,6 @@ custom_view_relative_box_of_pos_type *view_relative_box_of_pos;
 custom_view_relative_character_from_pos_type *view_relative_character_from_pos;
 custom_view_pos_from_relative_character_type *view_pos_from_relative_character;
 custom_buffer_exists_type *buffer_exists;
-custom_buffer_ready_type *buffer_ready;
 custom_buffer_get_access_flags_type *buffer_get_access_flags;
 custom_buffer_get_size_type *buffer_get_size;
 custom_buffer_get_line_count_type *buffer_get_line_count;
@@ -412,12 +399,10 @@ custom_buffer_save_type *buffer_save;
 custom_buffer_kill_type *buffer_kill;
 custom_buffer_reopen_type *buffer_reopen;
 custom_buffer_get_file_attributes_type *buffer_get_file_attributes;
-custom_get_file_attributes_type *get_file_attributes;
 custom_get_view_next_type *get_view_next;
 custom_get_view_prev_type *get_view_prev;
 custom_get_this_ctx_view_type *get_this_ctx_view;
 custom_get_active_view_type *get_active_view;
-custom_get_active_panel_type *get_active_panel;
 custom_view_exists_type *view_exists;
 custom_view_get_buffer_type *view_get_buffer;
 custom_view_get_cursor_pos_type *view_get_cursor_pos;
@@ -435,8 +420,6 @@ custom_panel_swap_children_type *panel_swap_children;
 custom_panel_get_root_type *panel_get_root;
 custom_panel_get_parent_type *panel_get_parent;
 custom_panel_get_child_type *panel_get_child;
-custom_panel_get_max_type *panel_get_max;
-custom_panel_get_margin_type *panel_get_margin;
 custom_view_close_type *view_close;
 custom_view_get_buffer_region_type *view_get_buffer_region;
 custom_view_get_buffer_scroll_type *view_get_buffer_scroll;
@@ -494,7 +477,6 @@ custom_end_query_bar_type *end_query_bar;
 custom_clear_all_query_bars_type *clear_all_query_bars;
 custom_print_message_type *print_message;
 custom_log_string_type *log_string;
-custom_thread_get_id_type *thread_get_id;
 custom_get_largest_face_id_type *get_largest_face_id;
 custom_set_global_face_type *set_global_face;
 custom_buffer_history_get_max_record_index_type *buffer_history_get_max_record_index;
@@ -541,7 +523,7 @@ custom_get_core_profile_list_type *get_core_profile_list;
 internal b32 global_set_setting(Application_Links* app, Global_Setting_ID setting, i64 value);
 internal Rect_f32 global_get_screen_rectangle(Application_Links* app);
 internal Thread_Context* get_thread_context(Application_Links* app);
-internal b32 create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command, Child_Process_ID* child_process_id_out);
+internal Child_Process_ID create_child_process(Application_Links* app, String_Const_u8 path, String_Const_u8 command);
 internal b32 child_process_set_target_buffer(Application_Links* app, Child_Process_ID child_process_id, Buffer_ID buffer_id, Child_Process_Set_Target_Flags flags);
 internal Child_Process_ID buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id);
 internal Buffer_ID child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id);
@@ -572,7 +554,6 @@ internal Rect_f32 view_relative_box_of_pos(Application_Links* app, View_ID view_
 internal i64 view_relative_character_from_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
 internal i64 view_pos_from_relative_character(Application_Links* app, View_ID view_id, i64 base_line, i64 character);
 internal b32 buffer_exists(Application_Links* app, Buffer_ID buffer_id);
-internal b32 buffer_ready(Application_Links* app, Buffer_ID buffer_id);
 internal Access_Flag buffer_get_access_flags(Application_Links* app, Buffer_ID buffer_id);
 internal i64 buffer_get_size(Application_Links* app, Buffer_ID buffer_id);
 internal i64 buffer_get_line_count(Application_Links* app, Buffer_ID buffer_id);
@@ -593,12 +574,10 @@ internal b32 buffer_save(Application_Links* app, Buffer_ID buffer_id, String_Con
 internal Buffer_Kill_Result buffer_kill(Application_Links* app, Buffer_ID buffer_id, Buffer_Kill_Flag flags);
 internal Buffer_Reopen_Result buffer_reopen(Application_Links* app, Buffer_ID buffer_id, Buffer_Reopen_Flag flags);
 internal File_Attributes buffer_get_file_attributes(Application_Links* app, Buffer_ID buffer_id);
-internal File_Attributes get_file_attributes(Application_Links* app, String_Const_u8 file_name);
 internal View_ID get_view_next(Application_Links* app, View_ID view_id, Access_Flag access);
 internal View_ID get_view_prev(Application_Links* app, View_ID view_id, Access_Flag access);
 internal View_ID get_this_ctx_view(Application_Links* app, Access_Flag access);
 internal View_ID get_active_view(Application_Links* app, Access_Flag access);
-internal Panel_ID get_active_panel(Application_Links* app);
 internal b32 view_exists(Application_Links* app, View_ID view_id);
 internal Buffer_ID view_get_buffer(Application_Links* app, View_ID view_id, Access_Flag access);
 internal i64 view_get_cursor_pos(Application_Links* app, View_ID view_id);
@@ -616,8 +595,6 @@ internal b32 panel_swap_children(Application_Links* app, Panel_ID panel_id);
 internal Panel_ID panel_get_root(Application_Links* app);
 internal Panel_ID panel_get_parent(Application_Links* app, Panel_ID panel_id);
 internal Panel_ID panel_get_child(Application_Links* app, Panel_ID panel_id, Side which_child);
-internal Panel_ID panel_get_max(Application_Links* app, Panel_ID panel_id);
-internal Rect_i32 panel_get_margin(Application_Links* app, Panel_ID panel_id);
 internal b32 view_close(Application_Links* app, View_ID view_id);
 internal Rect_f32 view_get_buffer_region(Application_Links* app, View_ID view_id);
 internal Buffer_Scroll view_get_buffer_scroll(Application_Links* app, View_ID view_id);
@@ -650,7 +627,7 @@ internal u64 managed_id_group_highest_id(Application_Links* app, String_Const_u8
 internal Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 internal Managed_ID managed_id_get(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 internal void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
-internal void* managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
+internal b32 managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
 internal Managed_Object alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);
 internal Managed_Object alloc_buffer_markers_on_buffer(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope);
 internal u32 managed_object_get_item_size(Application_Links* app, Managed_Object object);
@@ -673,11 +650,10 @@ internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 
 internal b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
 internal void end_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
 internal void clear_all_query_bars(Application_Links* app, View_ID view_id);
-internal b32 print_message(Application_Links* app, String_Const_u8 message);
+internal void print_message(Application_Links* app, String_Const_u8 message);
 internal b32 log_string(Application_Links* app, String_Const_u8 str);
-internal i32 thread_get_id(Application_Links* app);
 internal Face_ID get_largest_face_id(Application_Links* app);
-internal b32 set_global_face(Application_Links* app, Face_ID id, b32 apply_to_all_buffers);
+internal b32 set_global_face(Application_Links* app, Face_ID id);
 internal History_Record_Index buffer_history_get_max_record_index(Application_Links* app, Buffer_ID buffer_id);
 internal Record_Info buffer_history_get_record_info(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index);
 internal Record_Info buffer_history_get_group_sub_record(Application_Links* app, Buffer_ID buffer_id, History_Record_Index index, i32 sub_index);
@@ -753,7 +729,6 @@ global custom_view_relative_box_of_pos_type *view_relative_box_of_pos = 0;
 global custom_view_relative_character_from_pos_type *view_relative_character_from_pos = 0;
 global custom_view_pos_from_relative_character_type *view_pos_from_relative_character = 0;
 global custom_buffer_exists_type *buffer_exists = 0;
-global custom_buffer_ready_type *buffer_ready = 0;
 global custom_buffer_get_access_flags_type *buffer_get_access_flags = 0;
 global custom_buffer_get_size_type *buffer_get_size = 0;
 global custom_buffer_get_line_count_type *buffer_get_line_count = 0;
@@ -774,12 +749,10 @@ global custom_buffer_save_type *buffer_save = 0;
 global custom_buffer_kill_type *buffer_kill = 0;
 global custom_buffer_reopen_type *buffer_reopen = 0;
 global custom_buffer_get_file_attributes_type *buffer_get_file_attributes = 0;
-global custom_get_file_attributes_type *get_file_attributes = 0;
 global custom_get_view_next_type *get_view_next = 0;
 global custom_get_view_prev_type *get_view_prev = 0;
 global custom_get_this_ctx_view_type *get_this_ctx_view = 0;
 global custom_get_active_view_type *get_active_view = 0;
-global custom_get_active_panel_type *get_active_panel = 0;
 global custom_view_exists_type *view_exists = 0;
 global custom_view_get_buffer_type *view_get_buffer = 0;
 global custom_view_get_cursor_pos_type *view_get_cursor_pos = 0;
@@ -797,8 +770,6 @@ global custom_panel_swap_children_type *panel_swap_children = 0;
 global custom_panel_get_root_type *panel_get_root = 0;
 global custom_panel_get_parent_type *panel_get_parent = 0;
 global custom_panel_get_child_type *panel_get_child = 0;
-global custom_panel_get_max_type *panel_get_max = 0;
-global custom_panel_get_margin_type *panel_get_margin = 0;
 global custom_view_close_type *view_close = 0;
 global custom_view_get_buffer_region_type *view_get_buffer_region = 0;
 global custom_view_get_buffer_scroll_type *view_get_buffer_scroll = 0;
@@ -856,7 +827,6 @@ global custom_end_query_bar_type *end_query_bar = 0;
 global custom_clear_all_query_bars_type *clear_all_query_bars = 0;
 global custom_print_message_type *print_message = 0;
 global custom_log_string_type *log_string = 0;
-global custom_thread_get_id_type *thread_get_id = 0;
 global custom_get_largest_face_id_type *get_largest_face_id = 0;
 global custom_set_global_face_type *set_global_face = 0;
 global custom_buffer_history_get_max_record_index_type *buffer_history_get_max_record_index = 0;

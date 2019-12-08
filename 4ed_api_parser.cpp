@@ -67,7 +67,7 @@ api_parse__match_identifier(Token_Iterator *it, String_Const_u8 source, char *le
 function String_Const_u8
 api_parse__type_name_with_stars(Arena *arena, String_Const_u8 type, i32 star_counter){
     if (star_counter > 0){
-        i32 type_full_size = type.size + star_counter;
+        i32 type_full_size = (i32)(type.size) + star_counter;
         u8 *type_buffer = push_array(arena, u8, type_full_size + 1);
         block_copy(type_buffer, type.str, type.size);
         block_fill_u8(type_buffer + type.size, star_counter, (u8)'*');
@@ -121,8 +121,7 @@ api_parse_location(Arena *arena, String_Const_u8 source_name, String_Const_u8 so
 }
 
 function void
-api_parse_source_add_to_list(Arena *arena, String_Const_u8 source_name, String_Const_u8 source,
-                             API_Definition_List *list){
+api_parse_source_add_to_list(Arena *arena, String_Const_u8 source_name, String_Const_u8 source, API_Definition_List *list){
     Token_List token_list = lex_full_input_cpp(arena, source);
     Token_Iterator token_it = token_iterator(token_iterator(0, &token_list));
     

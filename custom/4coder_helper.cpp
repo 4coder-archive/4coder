@@ -1915,19 +1915,22 @@ push_token_or_word_under_active_cursor(Application_Links *app, Arena *arena){
 
 internal b32
 file_exists(Application_Links *app, String_Const_u8 file_name){
-    File_Attributes attributes = get_file_attributes(app, file_name);
+    Scratch_Block scratch(app);
+    File_Attributes attributes = system_quick_file_attributes(scratch, file_name);
     return(attributes.last_write_time > 0);
 }
 
 internal b32
 file_exists_and_is_file(Application_Links *app, String_Const_u8 file_name){
-    File_Attributes attributes = get_file_attributes(app, file_name);
+    Scratch_Block scratch(app);
+    File_Attributes attributes = system_quick_file_attributes(scratch, file_name);
     return(attributes.last_write_time > 0 && !HasFlag(attributes.flags, FileAttribute_IsDirectory));
 }
 
 internal b32
 file_exists_and_is_folder(Application_Links *app, String_Const_u8 file_name){
-    File_Attributes attributes = get_file_attributes(app, file_name);
+    Scratch_Block scratch(app);
+    File_Attributes attributes = system_quick_file_attributes(scratch, file_name);
     return(attributes.last_write_time > 0 && HasFlag(attributes.flags, FileAttribute_IsDirectory));
 }
 
@@ -2423,8 +2426,8 @@ internal b32
 exec_system_command(Application_Links *app, View_ID view, Buffer_Identifier buffer_id,
                     String_Const_u8 path, String_Const_u8 command, Command_Line_Interface_Flag flags){
     b32 result = false;
-    Child_Process_ID child_process_id = 0;
-    if (create_child_process(app, path, command, &child_process_id)){
+    Child_Process_ID child_process_id = create_child_process(app, path, command);
+    if (child_process_id != 0){
         result = true;
         Buffer_ID buffer_attach_id = buffer_identifier_to_id_create_out_buffer(app, buffer_id);
         if (buffer_attach_id != 0){
