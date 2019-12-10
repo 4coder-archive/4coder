@@ -8,6 +8,7 @@ function void
 profile_init(Profile_Global_List *list){
     list->mutex = system_mutex_make();
     list->node_arena = make_arena_system(KB(4));
+    list->disable_bits = ProfileEnable_UserBit;
 }
 
 function Profile_Thread*

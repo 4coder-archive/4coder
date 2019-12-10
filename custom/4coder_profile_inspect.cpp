@@ -147,8 +147,7 @@ profile_parse(Arena *arena, Profile_Global_List *src){
         // to get the root range.
         Range_u64 time_range = {max_u64, 0};
         insp_thread->root.thread = insp_thread;
-        profile_parse_record(arena, &result, &insp_thread->root, node->first_record,
-                             &time_range);
+        profile_parse_record(arena, &result, &insp_thread->root, node->first_record, &time_range);
         insp_thread->root.time = time_range;
         insp_thread->root.closed = true;
         

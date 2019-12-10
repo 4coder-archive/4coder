@@ -150,7 +150,7 @@ api(custom) function Face_ID try_create_new_face(Application_Links* app, Face_De
 api(custom) function b32 try_modify_face(Application_Links* app, Face_ID id, Face_Description* description);
 api(custom) function b32 try_release_face(Application_Links* app, Face_ID id, Face_ID replacement_id);
 api(custom) function String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
-api(custom) function b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
+api(custom) function void set_hot_directory(Application_Links* app, String_Const_u8 string);
 api(custom) function void send_exit_signal(Application_Links* app);
 api(custom) function b32 set_window_title(Application_Links* app, String_Const_u8 title);
 api(custom) function Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);

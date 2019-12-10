@@ -58,6 +58,11 @@
 #include "4ed_log.h"
 #include "4ed_app_models.h"
 
+#include "generated/lexer_cpp.h"
+#include "4ed_api_definition.h"
+#include "4coder_doc_content_types.h"
+#include "docs/4ed_doc_helper.h"
+
 ////////////////////////////////
 
 #include "4coder_base_types.cpp"
@@ -84,6 +89,14 @@
 #include "generated/graphics_api.cpp"
 #define DYNAMIC_LINK_API
 #include "generated/font_api.cpp"
+
+#include "4coder_token.cpp"
+#include "generated/lexer_cpp.cpp"
+
+#include "4ed_api_definition.cpp"
+#include "4ed_api_parser.cpp"
+#include "docs/4ed_doc_content_types.cpp"
+#include "docs/4ed_doc_custom_api.cpp"
 
 #include "4ed_log.cpp"
 #include "4ed_coroutine.cpp"

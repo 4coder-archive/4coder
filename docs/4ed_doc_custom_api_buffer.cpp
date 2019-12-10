@@ -1005,27 +1005,104 @@ doc_custom_api__buffer(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
     
     ////////////////////////////////
     
-    if (begin_doc_call(arena, cluster, api_def, "", &func)){
-        doc_function_brief(arena, &func, "");
+    if (begin_doc_call(arena, cluster, api_def, "buffer_history_merge_record_range", &func)){
+        doc_function_brief(arena, &func, "Merge a range of records into a single group record");
         
         // params
         Doc_Block *params = doc_function_begin_params(arena, &func);
         doc_custom_app_ptr(arena, &func);
         
-        doc_function_param(arena, &func, "");
-        doc_text(arena, params, "");
+        doc_function_param(arena, &func, "buffer_id");
+        doc_text(arena, params, "the id of the buffer to modify");
+        
+        doc_function_param(arena, &func, "first_index");
+        doc_text(arena, params, "the first index in the range to merge");
+        
+        doc_function_param(arena, &func, "last_index");
+        doc_text(arena, params, "the last index in the range to merge, forming an inclusive-inclusive range");
+        
+        doc_function_param(arena, &func, "flags");
+        doc_text(arena, params, "flags controlling the behavior of the operation");
         
         // return
         Doc_Block *ret = doc_function_return(arena, &func);
-        doc_text(arena, ret, "");
+        doc_text(arena, ret, "non-zero on success, when the buffer exists, and the index range is contained within the buffer history, otherwise zero");
         
         // details
         Doc_Block *det = doc_function_details(arena, &func);
-        doc_text(arena, det, "");
+        doc_text(arena, det, "Group records contain all the same information that the range of individual records previously contained.  A group is treated as a single unit in undo-redo operations.");
+    }
+    
+    ////////////////////////////////
+    
+    if (begin_doc_call(arena, cluster, api_def, "buffer_history_clear_after_current_state", &func)){
+        doc_function_brief(arena, &func, "Forget the portion of the buffer history on the redo side");
         
-        // related
-        Doc_Block *rel = doc_function_begin_related(arena, &func);
-        doc_function_add_related(arena, rel, "");
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "buffer_id");
+        doc_text(arena, params, "the id of the buffer to modify");
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "non-zero on success, when the buffer exists, otherwise zero");
+    }
+    
+    ////////////////////////////////
+    
+    if (begin_doc_call(arena, cluster, api_def, "buffer_set_face", &func)){
+        doc_function_brief(arena, &func, "Change the face of a buffer");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "buffer_id");
+        doc_text(arena, params, "the id of the buffer to modify");
+        
+        doc_function_param(arena, &func, "id");
+        doc_text(arena, params, "the id of the face to set on the buffer");
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "non-zero on success, when the buffer and face exist, otherwise zero");
+    }
+    
+    ////////////////////////////////
+    
+    if (begin_doc_call(arena, cluster, api_def, "buffer_find_all_matches", &func)){
+        doc_function_brief(arena, &func, "Find all matches for a search pattern in a buffer");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "arena");
+        doc_text(arena, params, "the arena on which the returned string will be allocated");
+        
+        doc_function_param(arena, &func, "buffer");
+        doc_text(arena, params, "the id of the buffer to search");
+        
+        doc_function_param(arena, &func, "string_id");
+        doc_text(arena, params, "the id to store into the resulting string matches");
+        
+        doc_function_param(arena, &func, "range");
+        doc_text(arena, params, "the range in byte positions where all matches must be contained");
+        
+        doc_function_param(arena, &func, "needle");
+        doc_text(arena, params, "the string to search for in the buffer range");
+        
+        doc_function_param(arena, &func, "predicate");
+        doc_text(arena, params, "a character predicate used to check the left and right side of the match to add left sloppy and right sloppy match flags.");
+        
+        doc_function_param(arena, &func, "direction");
+        doc_text(arena, params, "the direction of the scan through the buffer range determining the order of the generated matches");
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "a linked list of matches to the search pattern");
     }
 }
 

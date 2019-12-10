@@ -1,11 +1,6 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 04.12.2019
- *
- * Definition of information contained in 4coder documentation.
- *
- */
+4coder_doc_content_types.h - Documentation content types
+*/
 
 // TOP
 
@@ -147,21 +142,6 @@ struct Doc_Cluster{
     
     Doc_Log *first_log;
     Doc_Log *last_log;
-};
-
-////////////////////////////////
-
-struct Doc_Function{
-    API_Call *call;
-    API_Param *param_iter;
-    Doc_Page *page;
-    Doc_Block *brief;
-    Doc_Block *sig;
-    Doc_Block *params;
-    Doc_Block *ret;
-    Doc_Block *det;
-    Doc_Block *examples;
-    Doc_Block *rel;
 };
 
 #endif

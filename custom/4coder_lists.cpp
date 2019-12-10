@@ -1,6 +1,6 @@
 /*
-4coder_lists.cpp - List helpers and list commands
-such as open file, switch buffer, or kill buffer.
+4coder_lists.cpp - List helpers and list commands such as:
+open file, switch buffer, or kill buffer.
 */
 
 // TOP

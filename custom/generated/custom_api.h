@@ -150,9 +150,9 @@
 #define custom_try_modify_face_sig() b32 custom_try_modify_face(Application_Links* app, Face_ID id, Face_Description* description)
 #define custom_try_release_face_sig() b32 custom_try_release_face(Application_Links* app, Face_ID id, Face_ID replacement_id)
 #define custom_push_hot_directory_sig() String_Const_u8 custom_push_hot_directory(Application_Links* app, Arena* arena)
-#define custom_set_hot_directory_sig() b32 custom_set_hot_directory(Application_Links* app, String_Const_u8 string)
+#define custom_set_hot_directory_sig() void custom_set_hot_directory(Application_Links* app, String_Const_u8 string)
 #define custom_send_exit_signal_sig() void custom_send_exit_signal(Application_Links* app)
-#define custom_set_window_title_sig() b32 custom_set_window_title(Application_Links* app, String_Const_u8 title)
+#define custom_set_window_title_sig() void custom_set_window_title(Application_Links* app, String_Const_u8 title)
 #define custom_draw_string_oriented_sig() Vec2_f32 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta)
 #define custom_get_string_advance_sig() f32 custom_get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str)
 #define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color)
@@ -323,9 +323,9 @@ typedef Face_ID custom_try_create_new_face_type(Application_Links* app, Face_Des
 typedef b32 custom_try_modify_face_type(Application_Links* app, Face_ID id, Face_Description* description);
 typedef b32 custom_try_release_face_type(Application_Links* app, Face_ID id, Face_ID replacement_id);
 typedef String_Const_u8 custom_push_hot_directory_type(Application_Links* app, Arena* arena);
-typedef b32 custom_set_hot_directory_type(Application_Links* app, String_Const_u8 string);
+typedef void custom_set_hot_directory_type(Application_Links* app, String_Const_u8 string);
 typedef void custom_send_exit_signal_type(Application_Links* app);
-typedef b32 custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
+typedef void custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
 typedef Vec2_f32 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 typedef f32 custom_get_string_advance_type(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
@@ -672,9 +672,9 @@ internal Face_ID try_create_new_face(Application_Links* app, Face_Description* d
 internal b32 try_modify_face(Application_Links* app, Face_ID id, Face_Description* description);
 internal b32 try_release_face(Application_Links* app, Face_ID id, Face_ID replacement_id);
 internal String_Const_u8 push_hot_directory(Application_Links* app, Arena* arena);
-internal b32 set_hot_directory(Application_Links* app, String_Const_u8 string);
+internal void set_hot_directory(Application_Links* app, String_Const_u8 string);
 internal void send_exit_signal(Application_Links* app);
-internal b32 set_window_title(Application_Links* app, String_Const_u8 title);
+internal void set_window_title(Application_Links* app, String_Const_u8 title);
 internal Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 internal f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 internal void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);

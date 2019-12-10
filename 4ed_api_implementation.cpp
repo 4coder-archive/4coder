@@ -2718,13 +2718,12 @@ push_hot_directory(Application_Links *app, Arena *arena)
     return(push_string_copy(arena, hot->string));
 }
 
-api(custom) function b32
+api(custom) function void
 set_hot_directory(Application_Links *app, String_Const_u8 string)
 {
     Models *models = (Models*)app->cmd_context;
     Hot_Directory *hot = &models->hot_directory;
     hot_directory_set(hot, string);
-    return(true);
 }
 
 api(custom) function void
@@ -2734,7 +2733,7 @@ send_exit_signal(Application_Links *app)
     models->keep_playing = false;
 }
 
-api(custom) function b32
+api(custom) function void
 set_window_title(Application_Links *app, String_Const_u8 title)
 {
     Models *models = (Models*)app->cmd_context;
@@ -2743,7 +2742,6 @@ set_window_title(Application_Links *app, String_Const_u8 title)
     umem copy_size = clamp_top(title.size, cap_before_null);
     block_copy(models->title_space, title.str, copy_size);
     models->title_space[copy_size] = 0;
-    return(true);
 }
 
 api(custom) function Vec2_f32
@@ -3069,6 +3067,14 @@ api(custom) function Profile_Global_List*
 get_core_profile_list(Application_Links *app){
     Models *models = (Models*)app->cmd_context;
     return(&models->profile_list);
+}
+
+api(custom) function Doc_Cluster*
+get_custom_layer_boundary_docs(Application_Links *app, Arena *arena){
+    // TODO(allen): Need to be able to get the API_Definition of the custom
+    // layer boundary here.
+    API_Definition *api_def = 0;
+    return(doc_custom_api(arena, api_def));
 }
 
 // BOTTOM

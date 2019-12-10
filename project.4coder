@@ -45,7 +45,7 @@ command_list = {
  
  { .name = "build custom api docs",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time docs\\4ed_doc_custom_api.cpp ..\\build", .os = "win" }, }, },
+   .cmd = { { "custom\\bin\\build_one_time docs\\4ed_doc_custom_api_main.cpp ..\\build", .os = "win" }, }, },
  
  { .name = "build C++ lexer generator",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
