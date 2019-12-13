@@ -344,7 +344,7 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
         doc_paragraph(arena, det);
         doc_text(arena, det, "1. When there is only one scope in the parameters, that scope is the result. {A} -> A;");
         doc_paragraph(arena, det);
-        doc_text(arena, det, "2. When there are two or more parameters that are the same scope, the result is the that scope again. {A, A, ...} -> A;");
+        doc_text(arena, det, "2. When there are two or more parameters that are the same scope, the result is that scope again. {A, A, ..., A} -> A;");
         doc_paragraph(arena, det);
         doc_text(arena, det, "3. When any scope in the parameters is the special global scope, it is as if it is not there. {A, G} -> A");
         doc_paragraph(arena, det);
@@ -354,7 +354,7 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
         doc_paragraph(arena, det);
         doc_text(arena, det, "6. When the parameter set is empty the result is the global scope. {} -> G");
         doc_paragraph(arena, det);
-        doc_text(arena, det, "For a set-theoretic definition one can think of scopes as being keyed by a set of 'atoms'. Getting the key for a scope with multiple dependencies is defined by the operation of union of sets of atoms. The global scope is keyed by the empty set. A scope continues to exist as long all the atoms in it's key set exist.");
+        doc_text(arena, det, "For a set-theoretic definition one can think of scopes as being keyed by sets of 'atoms'. Getting the key for a scope with multiple dependencies is defined by the operation of union of sets. The global scope is keyed by the empty set. A scope continues to exist for as long all of the atoms in it's key set exist.");
     }
     
     ////////////////////////////////

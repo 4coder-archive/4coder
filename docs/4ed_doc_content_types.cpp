@@ -18,7 +18,7 @@ doc_date_now(void){
     Doc_Date date = {};
     date.day = time->tm_mday;
     date.month = time->tm_mon + 1;
-    date.year = 1990 + time->tm_year;
+    date.year = 1900 + time->tm_year;
     return(date);
              }
 
@@ -203,15 +203,16 @@ make_doc_function(Arena *arena, Doc_Cluster *cluster, API_Call *call){
     result.sig = new_doc_block(arena, result.page, "Signature");
     new_doc_block_jump(arena, result.page, result.sig);
     
-    String_Const_u8 opener = push_u8_stringf(arena, "%.*s %.*s(",
+       String_Const_u8 opener = push_u8_stringf(arena, "%.*s\n%.*s(",
                                              string_expand(call->return_type),
                                              string_expand(call->name));
     
-    u8 *buffer = push_array(arena, u8, opener.size);
-    for (umem i = 0; i < opener.size; i += 1){
+    umem indent_size = call->name.size + 1;
+    u8 *buffer = push_array(arena, u8, indent_size);
+    for (umem i = 0; i < indent_size; i += 1){
         buffer[i] = ' ';
     }
-    String_Const_u8 indent = SCu8(buffer, opener.size);
+    String_Const_u8 indent = SCu8(buffer, indent_size);
     
     List_String_Const_u8 list = {};
     string_list_push(arena, &list, opener);

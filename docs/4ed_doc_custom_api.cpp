@@ -22,7 +22,7 @@ doc_custom_app_ptr(Arena *arena, Doc_Function *func){
 
 function Doc_Cluster*
 doc_custom_api(Arena *arena, API_Definition *api_def){
-    Doc_Cluster *cluster = new_doc_cluster(arena, "Custom Layer Boundary API", "custom api");
+    Doc_Cluster *cluster = new_doc_cluster(arena, "Custom Layer Boundary API", "custom_api");
     
     doc_custom_api__global(arena, api_def, cluster);
     doc_custom_api__buffer(arena, api_def, cluster);

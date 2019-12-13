@@ -23,6 +23,55 @@ enum{
      November,
      December,
 };
+char *doc_month_names[] = {
+    "None",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+};
+char *doc_day_names[] = {
+    "0",
+    "1st",
+    "2nd",
+    "3rd",
+    "4th",
+    "5th",
+    "6th",
+    "7th",
+    "8th",
+    "9th",
+    "10th",
+    "11th",
+    "12th",
+    "13th",
+    "14th",
+    "15th",
+    "16th",
+    "17th",
+    "18th",
+    "19th",
+    "20th",
+    "21st",
+    "22nd",
+    "23rd",
+    "24th",
+    "25th",
+    "26th",
+    "27th",
+    "28th",
+    "29th",
+    "30th",
+    "31st",
+};
 
 struct Doc_Date{
     i32 day;
@@ -57,6 +106,11 @@ enum{
     DocCodeLanguage_None,
     DocCodeLanguage_Cpp,
     DocCodeLanguage_Bat,
+};
+char *doc_language_name[] = {
+    "none",
+    "C++",
+    "Batch",
 };
 struct Doc_Code_Sample{
     Doc_Code_Sample *next;

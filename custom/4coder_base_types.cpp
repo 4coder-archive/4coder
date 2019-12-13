@@ -4869,9 +4869,9 @@ internal i32
 string_compare(String_Const_char a, String_Const_char b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
-        char ca = (i < a.size)?0:a.str[i];
-        char cb = (i < b.size)?0:b.str[i];
-        i32 dif = (ca) != (cb);
+        char ca = (i < a.size)?a.str[i]:0;
+        char cb = (i < b.size)?b.str[i]:0;
+        i32 dif = ((ca) - (cb));
         if (dif != 0){
             result = (dif > 0)?1:-1;
             break;
@@ -4883,9 +4883,9 @@ internal i32
 string_compare(String_Const_u8 a, String_Const_u8 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
-        u8 ca = (i < a.size)?0:a.str[i];
-        u8 cb = (i < b.size)?0:b.str[i];
-        i32 dif = (ca) != (cb);
+        u8 ca = (i < a.size)?a.str[i]:0;
+        u8 cb = (i < b.size)?b.str[i]:0;
+        i32 dif = ((ca) - (cb));
         if (dif != 0){
             result = (dif > 0)?1:-1;
             break;
@@ -4897,9 +4897,9 @@ internal i32
 string_compare(String_Const_u16 a, String_Const_u16 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
-        u16 ca = (i < a.size)?0:a.str[i];
-        u16 cb = (i < b.size)?0:b.str[i];
-        i32 dif = (ca) != (cb);
+        u16 ca = (i < a.size)?a.str[i]:0;
+        u16 cb = (i < b.size)?b.str[i]:0;
+        i32 dif = ((ca) - (cb));
         if (dif != 0){
             result = (dif > 0)?1:-1;
             break;
@@ -4911,9 +4911,9 @@ internal i32
 string_compare(String_Const_u32 a, String_Const_u32 b){
     i32 result = 0;
     for (umem i = 0; i < a.size || i < b.size; i += 1){
-        u32 ca = (i < a.size)?0:a.str[i];
-        u32 cb = (i < b.size)?0:b.str[i];
-        i32 dif = (ca) != (cb);
+        u32 ca = (i < a.size)?a.str[i]:0;
+        u32 cb = (i < b.size)?b.str[i]:0;
+        i32 dif = ((ca) - (cb));
         if (dif != 0){
             result = (dif > 0)?1:-1;
             break;
