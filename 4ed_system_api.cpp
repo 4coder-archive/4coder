@@ -89,11 +89,11 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "now_time", "u64");
+        api_call(arena, api, "now_time", "u64");
     }
     
     {
-        API_Call *call = api_call(arena, api, "wake_up_timer_create", "Plat_Handle");
+        api_call(arena, api, "wake_up_timer_create", "Plat_Handle");
     }
     
     {
@@ -154,7 +154,7 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "get_screen_scale_factor", "f32");
+        api_call(arena, api, "get_screen_scale_factor", "f32");
     }
     
     {
@@ -174,7 +174,7 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "thread_get_id", "i32");
+api_call(arena, api, "thread_get_id", "i32");
     }
     
     {
@@ -188,7 +188,7 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "mutex_make", "System_Mutex");
+api_call(arena, api, "mutex_make", "System_Mutex");
     }
     
     {
@@ -207,7 +207,7 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "condition_variable_make",
+api_call(arena, api, "condition_variable_make",
                                   "System_Condition_Variable");
     }
     
@@ -262,7 +262,7 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "is_fullscreen", "b32");
+api_call(arena, api, "is_fullscreen", "b32");
     }
     
     {

@@ -529,6 +529,7 @@ doc_custom_api__view(Arena *arena, API_Definition *api_def, Doc_Cluster *cluster
         Doc_Block *ret = doc_function_return(arena, &func);
         doc_text(arena, ret, "non-zero if the panel exists and is a split panel, zero otherwise");
         
+        // TODO(allen): write this allen!
         // details
         Doc_Block *det = doc_function_details(arena, &func);
         doc_text(arena, det, "");

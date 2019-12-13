@@ -3071,9 +3071,7 @@ get_core_profile_list(Application_Links *app){
 
 api(custom) function Doc_Cluster*
 get_custom_layer_boundary_docs(Application_Links *app, Arena *arena){
-    // TODO(allen): Need to be able to get the API_Definition of the custom
-    // layer boundary here.
-    API_Definition *api_def = 0;
+    API_Definition *api_def = custom_api_construct(arena);
     return(doc_custom_api(arena, api_def));
 }
 

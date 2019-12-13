@@ -17,8 +17,7 @@ begin_api(Arena *arena, char *name){
 }
 
 function API_Call*
-api_call_with_location(Arena *arena, API_Definition *api, String_Const_u8 name, String_Const_u8 type,
-                       String_Const_u8 location){
+api_call_with_location(Arena *arena, API_Definition *api, String_Const_u8 name, String_Const_u8 type, String_Const_u8 location){
     API_Call *call = push_array_zero(arena, API_Call, 1);
     sll_queue_push(api->first, api->last, call);
     api->count += 1;
@@ -301,6 +300,45 @@ generate_cpp(Arena *scratch, API_Definition *api, API_Generation_Flag flags, FIL
     fprintf(out, "#endif\n");
 }
 
+function void
+generate_constructor(Arena *scratch, API_Definition *api, API_Generation_Flag flags, FILE *out){
+    fprintf(out, "function API_Definition*\n");
+    fprintf(out, "%.*s_api_construct(Arena *arena){\n",
+            string_expand(api->name));
+    fprintf(out, "API_Definition *result = begin_api(arena, \"%.*s\");\n",
+            string_expand(api->name));
+    
+    for (API_Call *call = api->first;
+         call != 0;
+         call = call->next){
+        fprintf(out, "{\n");
+        fprintf(out, "API_Call *call = api_call_with_location(arena, result, "
+                "string_u8_litexpr(\"%.*s\"), "
+                "string_u8_litexpr(\"%.*s\"), "
+                "string_u8_litexpr(\"\"));\n",
+                string_expand(call->name),
+                string_expand(call->return_type));
+        
+        if (call->params.count == 0){
+        fprintf(out, "(void)call;\n");
+        }
+        else{
+            for (API_Param *param = call->params.first;
+                 param != 0;
+                 param = param->next){
+                fprintf(out, "api_param(arena, call, \"%.*s\", \"%.*s\");\n",
+                        string_expand(param->type_name),
+                        string_expand(param->name));
+            }
+        }
+        
+        fprintf(out, "}\n");
+    }
+    
+    fprintf(out, "return(result);\n");
+    fprintf(out, "}\n");
+}
+
 ////////////////////////////////
 
 function b32
@@ -313,6 +351,7 @@ api_definition_generate_api_includes(Arena *arena, API_Definition *api, Generate
     String_Const_u8 fname_ml = {};
     String_Const_u8 fname_h = {};
     String_Const_u8 fname_cpp = {};
+    String_Const_u8 fname_con = {};
     
     String_Const_u8 root = {};
     switch (group){
@@ -341,6 +380,11 @@ api_definition_generate_api_includes(Arena *arena, API_Definition *api, Generate
                                 string_expand(root),
                                 string_expand(api->name));
     
+    fname_con = push_u8_stringf(arena, "%.*s%.*s%.*s_api_constructor.cpp",
+                                string_expand(path_to_self),
+                                string_expand(root),
+                                string_expand(api->name));
+    
     FILE *out_file_ml = fopen((char*)fname_ml.str, "wb");
     if (out_file_ml == 0){
         printf("could not open output file: '%s'\n", fname_ml.str);
@@ -359,9 +403,16 @@ api_definition_generate_api_includes(Arena *arena, API_Definition *api, Generate
         return(false);
     }
     
+    FILE *out_file_con = fopen((char*)fname_con.str, "wb");
+    if (out_file_cpp == 0){
+        printf("could not open output file: '%s'\n", fname_con.str);
+        return(false);
+    }
+    
     printf("%s:1:\n", fname_ml.str);
     printf("%s:1:\n", fname_h.str);
     printf("%s:1:\n", fname_cpp.str);
+    printf("%s:1:\n", fname_con.str);
     
     ////////////////////////////////
     
@@ -370,6 +421,7 @@ api_definition_generate_api_includes(Arena *arena, API_Definition *api, Generate
     generate_api_master_list(arena, api, flags, out_file_ml);
     generate_header(arena, api, flags, out_file_h);
     generate_cpp(arena, api, flags, out_file_cpp);
+    generate_constructor(arena, api, flags, out_file_con);
     
     ////////////////////////////////
     

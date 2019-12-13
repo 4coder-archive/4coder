@@ -88,8 +88,7 @@ new_doc_page_normal_title(Arena *arena, Doc_Cluster *cluster, char *title, char 
 
 function Doc_Page*
 new_doc_page_function(Arena *arena, Doc_Cluster *cluster, char *name){
-    String_Const_u8 full_name = push_u8_stringf(arena, "%s function", name);
-    return(new_doc_page_normal_title(arena, cluster, name, (char*)full_name.str));
+    return(new_doc_page_normal_title(arena, cluster, name, name));
 }
 
 function Doc_Page*

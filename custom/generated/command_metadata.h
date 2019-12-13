@@ -2,7 +2,7 @@
 #define command_id(c) (fcoder_metacmd_ID_##c)
 #define command_metadata(c) (&fcoder_metacmd_table[command_id(c)])
 #define command_metadata_by_id(id) (&fcoder_metacmd_table[id])
-#define command_one_past_last_id 226
+#define command_one_past_last_id 227
 #if defined(CUSTOM_COMMAND_SIG)
 #define PROC_LINKS(x,y) x
 #else
@@ -233,6 +233,7 @@ CUSTOM_COMMAND_SIG(kill_tutorial);
 CUSTOM_COMMAND_SIG(tutorial_maximize);
 CUSTOM_COMMAND_SIG(tutorial_minimize);
 CUSTOM_COMMAND_SIG(hms_demo_tutorial);
+CUSTOM_COMMAND_SIG(open_documentation);
 CUSTOM_COMMAND_SIG(default_startup);
 CUSTOM_COMMAND_SIG(default_try_exit);
 #endif
@@ -247,7 +248,7 @@ char *source_name;
 i32 source_name_len;
 i32 line_number;
 };
-static Command_Metadata fcoder_metacmd_table[226] = {
+static Command_Metadata fcoder_metacmd_table[227] = {
 { PROC_LINKS(default_view_input_handler, 0), false, "default_view_input_handler", 26, "Input consumption loop for default view behavior", 48, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 56 },
 { PROC_LINKS(profile_enable, 0), false, "profile_enable", 14, "Allow 4coder's self profiler to gather new profiling information.", 65, "w:\\4ed\\code\\custom\\4coder_profile.cpp", 37, 212 },
 { PROC_LINKS(profile_disable, 0), false, "profile_disable", 15, "Prevent 4coder's self profiler from gathering new profiling information.", 72, "w:\\4ed\\code\\custom\\4coder_profile.cpp", 37, 219 },
@@ -460,7 +461,7 @@ static Command_Metadata fcoder_metacmd_table[226] = {
 { PROC_LINKS(comment_line, 0), false, "comment_line", 12, "Insert '//' at the beginning of the line after leading whitespace.", 66, "w:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 125 },
 { PROC_LINKS(uncomment_line, 0), false, "uncomment_line", 14, "If present, delete '//' at the beginning of the line after leading whitespace.", 78, "w:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 137 },
 { PROC_LINKS(comment_line_toggle, 0), false, "comment_line_toggle", 19, "Turns uncommented lines into commented lines and vice versa for comments starting with '//'.", 92, "w:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 149 },
-{ PROC_LINKS(snippet_lister, 0), false, "snippet_lister", 14, "Opens a snippet lister for inserting whole pre-written snippets of text.", 72, "w:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 237 },
+{ PROC_LINKS(snippet_lister, 0), true, "snippet_lister", 14, "Opens a snippet lister for inserting whole pre-written snippets of text.", 72, "w:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 237 },
 { PROC_LINKS(miblo_increment_basic, 0), false, "miblo_increment_basic", 21, "Increment an integer under the cursor by one.", 45, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 29 },
 { PROC_LINKS(miblo_decrement_basic, 0), false, "miblo_decrement_basic", 21, "Decrement an integer under the cursor by one.", 45, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 44 },
 { PROC_LINKS(miblo_increment_time_stamp, 0), false, "miblo_increment_time_stamp", 26, "Increment a time stamp under the cursor by one second. (format [m]m:ss or h:mm:ss", 81, "w:\\4ed\\code\\custom\\4coder_miblo_numbers.cpp", 43, 231 },
@@ -472,6 +473,7 @@ static Command_Metadata fcoder_metacmd_table[226] = {
 { PROC_LINKS(tutorial_maximize, 0), false, "tutorial_maximize", 17, "Expand the tutorial window", 26, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 20 },
 { PROC_LINKS(tutorial_minimize, 0), false, "tutorial_minimize", 17, "Shrink the tutorial window", 26, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 34 },
 { PROC_LINKS(hms_demo_tutorial, 0), false, "hms_demo_tutorial", 17, "Tutorial for built in 4coder bindings and features.", 51, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 869 },
+{ PROC_LINKS(open_documentation, 0), true, "open_documentation", 18, "Prompts the user to select an API item then loads a doc buffer for that item", 76, "w:\\4ed\\code\\custom\\4coder_docs.cpp", 34, 175 },
 { PROC_LINKS(default_startup, 0), false, "default_startup", 15, "Default command for responding to a startup event", 49, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 7 },
 { PROC_LINKS(default_try_exit, 0), false, "default_try_exit", 16, "Default command for responding to a try-exit event", 50, "w:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 22 },
 };
@@ -699,6 +701,7 @@ static i32 fcoder_metacmd_ID_kill_tutorial = 220;
 static i32 fcoder_metacmd_ID_tutorial_maximize = 221;
 static i32 fcoder_metacmd_ID_tutorial_minimize = 222;
 static i32 fcoder_metacmd_ID_hms_demo_tutorial = 223;
-static i32 fcoder_metacmd_ID_default_startup = 224;
-static i32 fcoder_metacmd_ID_default_try_exit = 225;
+static i32 fcoder_metacmd_ID_open_documentation = 224;
+static i32 fcoder_metacmd_ID_default_startup = 225;
+static i32 fcoder_metacmd_ID_default_try_exit = 226;
 #endif

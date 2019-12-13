@@ -12,6 +12,7 @@
 #include "4coder_table.h"
 #include "4coder_events.h"
 #include "4coder_types.h"
+#include "4coder_doc_content_types.h"
 #include "4coder_default_colors.h"
 #define DYNAMIC_LINK_API
 #include "generated/custom_api.h"
@@ -109,6 +110,7 @@
 #include "4coder_miblo_numbers.cpp"
 #include "4coder_profile_inspect.cpp"
 #include "4coder_tutorial.cpp"
+#include "4coder_docs.cpp"
 
 #include "4coder_default_hooks.cpp"
 

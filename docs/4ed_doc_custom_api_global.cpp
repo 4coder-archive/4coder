@@ -1213,6 +1213,24 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
     if (begin_doc_call(arena, cluster, api_def, "get_core_profile_list", &func)){
         doc_function_brief(arena, &func, "Potentially going to be deprecated - do not rely on this call!");
     }
+    
+    ////////////////////////////////
+    
+    if (begin_doc_call(arena, cluster, api_def, "get_custom_layer_boundary_docs", &func)){
+        doc_function_brief(arena, &func, "Construct the documentation content for the custom layer boundary API");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "arena");
+        doc_text(arena, params, "the arena on which the documentation content will be allocated");
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "a pointer to the newly constructed documentation content");
+    }
+    
 }
 
 // BOTTOM

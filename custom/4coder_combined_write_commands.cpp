@@ -234,7 +234,7 @@ get_snippet_from_user(Application_Links *app, Snippet *snippets, i32 snippet_cou
     return(get_snippet_from_user(app, snippets, snippet_count, SCu8(query)));
 }
 
-CUSTOM_COMMAND_SIG(snippet_lister)
+CUSTOM_UI_COMMAND_SIG(snippet_lister)
 CUSTOM_DOC("Opens a snippet lister for inserting whole pre-written snippets of text.")
 {
     View_ID view = get_this_ctx_view(app, Access_ReadWrite);
