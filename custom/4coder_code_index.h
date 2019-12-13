@@ -41,9 +41,38 @@ struct Code_Index_Nest{
     Code_Index_Nest_Ptr_Array nest_array;
 };
 
+typedef i64 Code_Index_Note_Kind;
+enum{
+    CodeIndexNote_Type,
+    CodeIndexNote_Function,
+    CodeIndexNote_Macro,
+};
+
+struct Code_Index_Note{
+    Code_Index_Note *next;
+    Code_Index_Note_Kind note_kind;
+    Range_i64 pos;
+    String_Const_u8 text;
+    struct Code_Index_File *file;
+    Code_Index_Nest *parent;
+};
+
+struct Code_Index_Note_List{
+    Code_Index_Note *first;
+    Code_Index_Note *last;
+    i32 count;
+};
+
+struct Code_Index_Note_Ptr_Array{
+    Code_Index_Note **ptrs;
+    i32 count;
+};
+
 struct Code_Index_File{
     Code_Index_Nest_List nest_list;
     Code_Index_Nest_Ptr_Array nest_array;
+    Code_Index_Note_List note_list;
+    Code_Index_Note_Ptr_Array note_array;
     Buffer_ID buffer;
 };
 

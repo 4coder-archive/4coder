@@ -4,7 +4,7 @@
 
 // TOP
 
-static b32
+function b32
 ms_style_verify(String_Const_u8 line, umem left_paren_pos, umem right_paren_pos){
     i32 result = false;
     String_Const_u8 line_part = string_skip(line, right_paren_pos);
@@ -31,7 +31,7 @@ ms_style_verify(String_Const_u8 line, umem left_paren_pos, umem right_paren_pos)
     return(result);
 }
 
-static umem
+function umem
 try_skip_rust_arrow(String_Const_u8 line){
     umem pos = 0;
     if (string_match(string_prefix(line, 3), string_u8_litexpr("-->"))){
@@ -42,7 +42,7 @@ try_skip_rust_arrow(String_Const_u8 line){
     return(pos);
 }
 
-static b32
+function b32
 check_is_note(String_Const_u8 line, umem colon_pos){
     b32 is_note = false;
     umem note_pos = colon_pos + string_find_first(string_skip(line, colon_pos), string_u8_litexpr("note"));
@@ -61,7 +61,7 @@ check_is_note(String_Const_u8 line, umem colon_pos){
     return(is_note);
 }
 
-static Parsed_Jump
+function Parsed_Jump
 parse_jump_location(String_Const_u8 line){
     Parsed_Jump jump = {};
     jump.sub_jump_indented = (string_get_character(line, 0) == ' ');
@@ -185,7 +185,7 @@ parse_jump_location(String_Const_u8 line){
     return(jump);
 }
 
-static Parsed_Jump
+function Parsed_Jump
 parse_jump_location(String_Const_u8 line, Jump_Flag flags){
     Parsed_Jump jump = parse_jump_location(line);
     if (HasFlag(flags, JumpFlag_SkipSubs) && jump.is_sub_jump){
@@ -194,7 +194,7 @@ parse_jump_location(String_Const_u8 line, Jump_Flag flags){
     return(jump);
 }
 
-static Parsed_Jump
+function Parsed_Jump
 parse_jump_from_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buffer, i64 line, Jump_Flag flags){
     Parsed_Jump jump = {};
     String_Const_u8 line_str = push_buffer_line(app, arena, buffer, line);
@@ -206,23 +206,23 @@ parse_jump_from_buffer_line(Application_Links *app, Arena *arena, Buffer_ID buff
 
 ////////////////////////////////
 
-static b32
+function b32
 get_jump_buffer(Application_Links *app, Buffer_ID *buffer, Name_Line_Column_Location *location){
     return(open_file(app, buffer, location->file, false, true));
 }
 
-static b32
+function b32
 get_jump_buffer(Application_Links *app, Buffer_ID *buffer, ID_Pos_Jump_Location *location, Access_Flag access){
     *buffer = location->buffer_id;
     return(buffer_exists(app, *buffer));
 }
 
-static b32
+function b32
 get_jump_buffer(Application_Links *app, Buffer_ID *buffer, ID_Pos_Jump_Location *location){
     return(get_jump_buffer(app, buffer, location, Access_Always));
 }
 
-static View_ID
+function View_ID
 switch_to_existing_view(Application_Links *app, View_ID view, Buffer_ID buffer){
     Buffer_ID current_buffer = view_get_buffer(app, view, Access_Always);
     if (view != 0 || current_buffer != buffer){
@@ -234,7 +234,7 @@ switch_to_existing_view(Application_Links *app, View_ID view, Buffer_ID buffer){
     return(view);
 }
 
-static void
+function void
 set_view_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Buffer_Seek seek){
     Buffer_ID current_buffer = view_get_buffer(app, view, Access_Always);
     if (current_buffer != buffer){
@@ -243,7 +243,16 @@ set_view_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, Buf
     view_set_cursor_and_preferred_x(app, view, seek);
 }
 
-static void
+function void
+jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, i64 pos){
+    view_set_active(app, view);
+    set_view_to_location(app, view, buffer, seek_pos(pos));
+    if (auto_center_after_jumps){
+        center_view(app);
+    }
+}
+
+function void
 jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer,
                  Name_Line_Column_Location location){
     view_set_active(app, view);
@@ -253,7 +262,7 @@ jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer,
     }
 }
 
-static void
+function void
 jump_to_location(Application_Links *app, View_ID view,
                  Name_Line_Column_Location location){
     Buffer_ID buffer = 0;
@@ -262,7 +271,7 @@ jump_to_location(Application_Links *app, View_ID view,
     }
 }
 
-static void
+function void
 jump_to_location(Application_Links *app, View_ID view, Buffer_ID buffer, ID_Pos_Jump_Location location){
     view_set_active(app, view);
     set_view_to_location(app, view, buffer, seek_pos(location.pos));
