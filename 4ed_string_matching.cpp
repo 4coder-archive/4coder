@@ -83,7 +83,7 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
         i64 chunk_pos = 0;
         
         i32 jump_back_code = 0;
-
+        
         u8 c = 0;
         u64 n = 0;
         u8 needle_c = 0;
@@ -150,7 +150,7 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
                     if (list.count >= maximum_output_count){
                         break;
                     }
-                    u64 jump = jump_table.vals[n + 1];
+                    jump = jump_table.vals[n + 1];
                     current_l = character_predicate_check_character(*predicate, needle.str[jump - 1]);
                     j += jump;
                 }
@@ -201,7 +201,7 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
         i64 chunk_pos = node->string.size - 1;
         
         i32 jump_back_code = 0;
-
+        
         u8 c = 0;
         u64 n = 0;
         u8 needle_c = 0;
@@ -270,7 +270,7 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
                     if (list.count >= maximum_output_count){
                         break;
                     }
-                    u64 jump = jump_table.vals[n + 1];
+                    jump = jump_table.vals[n + 1];
                     u64 m = needle.size - jump;
                     u8 needle_m = needle.str[m];
                     current_r = character_predicate_check_character(*predicate, needle_m);

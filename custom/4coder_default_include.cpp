@@ -98,6 +98,7 @@
 #include "4coder_jumping.cpp"
 #include "4coder_jump_sticky.cpp"
 #include "4coder_jump_lister.cpp"
+#include "4coder_code_index_listers.cpp"
 #include "4coder_log_parser.cpp"
 #include "4coder_clipboard.cpp"
 #include "4coder_keyboard_macro.cpp"

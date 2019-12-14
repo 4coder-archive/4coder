@@ -182,6 +182,9 @@ default_tick(Application_Links *app, Frame_Info frame_info){
         
         Generic_Parse_State state = {};
         generic_parse_init(app, &arena, contents, &tokens, &state);
+        // TODO(allen): Actually determine this in a fair way.
+        // Maybe switch to an enum.
+        state.do_cpp_parse = true;
         generic_parse_full_input_breaks(index, &state, max_i32);
         
         code_index_lock();
