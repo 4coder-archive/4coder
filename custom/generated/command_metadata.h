@@ -75,7 +75,7 @@ CUSTOM_COMMAND_SIG(interactive_new);
 CUSTOM_COMMAND_SIG(interactive_open);
 CUSTOM_COMMAND_SIG(interactive_open_or_new);
 CUSTOM_COMMAND_SIG(interactive_switch_buffer);
-CUSTOM_COMMAND_SIG(jump_to_type_definition);
+CUSTOM_COMMAND_SIG(jump_to_definition);
 CUSTOM_COMMAND_SIG(keyboard_macro_finish_recording);
 CUSTOM_COMMAND_SIG(keyboard_macro_replay);
 CUSTOM_COMMAND_SIG(keyboard_macro_start_recording);
@@ -316,7 +316,7 @@ static Command_Metadata fcoder_metacmd_table[228] = {
 { PROC_LINKS(interactive_open, 0), true, "interactive_open", 16, "Interactively opens a file.", 27, "w:\\4ed\\code\\custom\\4coder_lists.cpp", 35, 634 },
 { PROC_LINKS(interactive_open_or_new, 0), true, "interactive_open_or_new", 23, "Interactively open a file out of the file system.", 49, "w:\\4ed\\code\\custom\\4coder_lists.cpp", 35, 563 },
 { PROC_LINKS(interactive_switch_buffer, 0), true, "interactive_switch_buffer", 25, "Interactively switch to an open buffer.", 39, "w:\\4ed\\code\\custom\\4coder_lists.cpp", 35, 505 },
-{ PROC_LINKS(jump_to_type_definition, 0), true, "jump_to_type_definition", 23, "List all types in the code index and jump to one chosen by the user.", 68, "w:\\4ed\\code\\custom\\4coder_code_index_listers.cpp", 48, 12 },
+{ PROC_LINKS(jump_to_definition, 0), true, "jump_to_definition", 18, "List all definitions in the code index and jump to one chosen by the user.", 74, "w:\\4ed\\code\\custom\\4coder_code_index_listers.cpp", 48, 12 },
 { PROC_LINKS(keyboard_macro_finish_recording, 0), false, "keyboard_macro_finish_recording", 31, "Stop macro recording, do nothing if macro recording is not already started", 74, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 57 },
 { PROC_LINKS(keyboard_macro_replay, 0), false, "keyboard_macro_replay", 21, "Replay the most recently recorded keyboard macro", 48, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 80 },
 { PROC_LINKS(keyboard_macro_start_recording, 0), false, "keyboard_macro_start_recording", 30, "Start macro recording, do nothing if macro recording is already started", 71, "w:\\4ed\\code\\custom\\4coder_keyboard_macro.cpp", 44, 44 },
@@ -459,7 +459,7 @@ static Command_Metadata fcoder_metacmd_table[228] = {
 { PROC_LINKS(toggle_mouse, 0), false, "toggle_mouse", 12, "Toggles the mouse suppression mode, see suppress_mouse and allow_mouse.", 71, "w:\\4ed\\code\\custom\\4coder_default_framework.cpp", 47, 415 },
 { PROC_LINKS(toggle_paren_matching_helper, 0), false, "toggle_paren_matching_helper", 28, "In code files matching parentheses pairs are colored with distinguishing colors.", 80, "w:\\4ed\\code\\custom\\4coder_default_framework.cpp", 47, 445 },
 { PROC_LINKS(toggle_show_whitespace, 0), false, "toggle_show_whitespace", 22, "Toggles the current buffer's whitespace visibility status.", 58, "w:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 712 },
-{ PROC_LINKS(toggle_virtual_whitespace, 0), false, "toggle_virtual_whitespace", 25, "Toggles the current buffer's virtual whitespace status.", 55, "w:\\4ed\\code\\custom\\4coder_code_index.cpp", 40, 1098 },
+{ PROC_LINKS(toggle_virtual_whitespace, 0), false, "toggle_virtual_whitespace", 25, "Toggles the current buffer's virtual whitespace status.", 55, "w:\\4ed\\code\\custom\\4coder_code_index.cpp", 40, 1122 },
 { PROC_LINKS(tutorial_maximize, 0), false, "tutorial_maximize", 17, "Expand the tutorial window", 26, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 20 },
 { PROC_LINKS(tutorial_minimize, 0), false, "tutorial_minimize", 17, "Shrink the tutorial window", 26, "w:\\4ed\\code\\custom\\4coder_tutorial.cpp", 38, 34 },
 { PROC_LINKS(uncomment_line, 0), false, "uncomment_line", 14, "If present, delete '//' at the beginning of the line after leading whitespace.", 78, "w:\\4ed\\code\\custom\\4coder_combined_write_commands.cpp", 53, 137 },
@@ -545,7 +545,7 @@ static i32 fcoder_metacmd_ID_interactive_new = 62;
 static i32 fcoder_metacmd_ID_interactive_open = 63;
 static i32 fcoder_metacmd_ID_interactive_open_or_new = 64;
 static i32 fcoder_metacmd_ID_interactive_switch_buffer = 65;
-static i32 fcoder_metacmd_ID_jump_to_type_definition = 66;
+static i32 fcoder_metacmd_ID_jump_to_definition = 66;
 static i32 fcoder_metacmd_ID_keyboard_macro_finish_recording = 67;
 static i32 fcoder_metacmd_ID_keyboard_macro_replay = 68;
 static i32 fcoder_metacmd_ID_keyboard_macro_start_recording = 69;

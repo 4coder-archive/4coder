@@ -351,8 +351,8 @@ internal Range_Cursor
 get_line_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     b32 success = false;
     Range_Cursor result = {};
-    result.begin = get_line_start(app, buffer, line_number);
-    if (result.begin.line != 0){
+    result.start = get_line_start(app, buffer, line_number);
+    if (result.start.line != 0){
         result.end = get_line_end(app, buffer, line_number);
         if (result.end.line != 0){
             success = true;
@@ -369,15 +369,15 @@ internal Range_i64
 get_line_pos_range(Application_Links *app, Buffer_ID buffer, i64 line_number){
     Range_Cursor range = get_line_range(app, buffer, line_number);
     Range_i64 result = {};
-    if (range.begin.line != 0 && range.end.line != 0){
-        result = Ii64(range.begin.pos, range.end.pos);
+    if (range.start.line != 0 && range.end.line != 0){
+        result = Ii64(range.start.pos, range.end.pos);
     }
     return(result);
 }
 
 internal Range_i64
 make_range_from_cursors(Range_Cursor range){
-    return(Ii64(range.begin.pos, range.end.pos));
+    return(Ii64(range.start.pos, range.end.pos));
 }
 
 internal i64

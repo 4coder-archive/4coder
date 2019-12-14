@@ -46,6 +46,7 @@ enum{
     CodeIndexNote_Type,
     CodeIndexNote_Function,
     CodeIndexNote_Macro,
+    CodeIndexNote_4coderCommand,
 };
 
 struct Code_Index_Note{
@@ -111,6 +112,8 @@ struct Generic_Parse_State{
     i32 paren_counter;
     b32 in_preprocessor;
     b32 in_statement;
+    
+    b32 do_cpp_parse;
 };
 
 #endif

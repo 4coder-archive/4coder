@@ -9,12 +9,12 @@ struct Tiny_Jump{
     i64 pos;
 };
 
-CUSTOM_UI_COMMAND_SIG(jump_to_type_definition)
-CUSTOM_DOC("List all types in the code index and jump to one chosen by the user.")
+CUSTOM_UI_COMMAND_SIG(jump_to_definition)
+CUSTOM_DOC("List all definitions in the code index and jump to one chosen by the user.")
 {
-    char *query = "Type:";
+    char *query = "Definition:";
     
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     Lister *lister = begin_lister(app, scratch);
     lister_set_query(lister, query);
     lister->handlers = lister_get_default_handlers();
@@ -30,7 +30,23 @@ CUSTOM_DOC("List all types in the code index and jump to one chosen by the user.
                 Tiny_Jump *jump = push_array(scratch, Tiny_Jump, 1);
                 jump->buffer = buffer;
                 jump->pos = note->pos.first;
-                lister_add_item(lister, note->text, string_u8_litexpr("type"), jump, 0);
+                
+                String_Const_u8 sort = {};
+                switch (note->note_kind){
+                    case CodeIndexNote_Type:
+                    {
+                        sort = string_u8_litexpr("type");
+                    }break;
+                    case CodeIndexNote_Function:
+                    {
+                        sort = string_u8_litexpr("function");
+                    }break;
+                    case CodeIndexNote_Macro:
+                    {
+                        sort = string_u8_litexpr("macro");
+                    }break;
+                }
+                lister_add_item(lister, note->text, sort, jump, 0);
             }
         }
     }
