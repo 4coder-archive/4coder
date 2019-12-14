@@ -208,7 +208,7 @@ block_fill_ones(Data data){
     block_fill_ones(data.data, data.size);
 }
 internal void
-block_copy(void *dst, void *src, umem size){
+block_copy(void *dst, const void *src, umem size){
     u8 *d = (u8*)dst;
     u8 *s = (u8*)src;
     if (d < s){
@@ -1941,7 +1941,7 @@ internal Interval_i32
 range_intersect(Interval_i32 a, Interval_i32 b){
     Interval_i32 result = {};
     if (range_overlap(a, b)){
-        result = Ii32(max(a.min, b.min), min(a.max, b.max));
+        result = Ii32(Max(a.min, b.min), Min(a.max, b.max));
     }
     return(result);
 }
@@ -1949,7 +1949,7 @@ internal Interval_i64
 range_intersect(Interval_i64 a, Interval_i64 b){
     Interval_i64 result = {};
     if (range_overlap(a, b)){
-        result = Ii64(max(a.min, b.min), min(a.max, b.max));
+        result = Ii64(Max(a.min, b.min), Min(a.max, b.max));
     }
     return(result);
 }
@@ -1957,7 +1957,7 @@ internal Interval_u64
 range_intersect(Interval_u64 a, Interval_u64 b){
     Interval_u64 result = {};
     if (range_overlap(a, b)){
-        result = Iu64(max(a.min, b.min), min(a.max, b.max));
+        result = Iu64(Max(a.min, b.min), Min(a.max, b.max));
     }
     return(result);
 }
@@ -1965,26 +1965,26 @@ internal Interval_f32
 range_intersect(Interval_f32 a, Interval_f32 b){
     Interval_f32 result = {};
     if (range_overlap(a, b)){
-        result = If32(max(a.min, b.min), min(a.max, b.max));
+        result = If32(Max(a.min, b.min), Min(a.max, b.max));
     }
     return(result);
 }
 
 internal Interval_i32
 range_union(Interval_i32 a, Interval_i32 b){
-    return(Ii32(min(a.min, b.min), max(a.max, b.max)));
+    return(Ii32(Min(a.min, b.min), Max(a.max, b.max)));
 }
 internal Interval_i64
 range_union(Interval_i64 a, Interval_i64 b){
-    return(Ii64(min(a.min, b.min), max(a.max, b.max)));
+    return(Ii64(Min(a.min, b.min), Max(a.max, b.max)));
 }
 internal Interval_u64
 range_union(Interval_u64 a, Interval_u64 b){
-    return(Iu64(min(a.min, b.min), max(a.max, b.max)));
+    return(Iu64(Min(a.min, b.min), Max(a.max, b.max)));
 }
 internal Interval_f32
 range_union(Interval_f32 a, Interval_f32 b){
-    return(If32(min(a.min, b.min), max(a.max, b.max)));
+    return(If32(Min(a.min, b.min), Max(a.max, b.max)));
 }
 
 internal b32
@@ -2942,7 +2942,7 @@ SCany(String_Const_u32 str){
 #define string_expand(s) (i32)(s).size, (char*)(s).str
 
 internal String_Const_char string_empty = {"", 0};
-internal String_Const_u8 string_u8_empty = {"", 0};
+internal String_Const_u8 string_u8_empty = {(u8*)"", 0};
 
 #define file_name_line_number_lit_u8 string_u8_litexpr(file_name_line_number)
 
@@ -5705,7 +5705,7 @@ string_split(Arena *arena, String_Const_char string, char *split_characters, i32
         for (i32 j = 0; j < split_character_count; j += 1){
             umem pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
-            i = min(i, pos);
+            i = Min(i, pos);
         }
         if (prefix.size > 0){
             string_list_push(arena, &list, prefix);
@@ -5726,7 +5726,7 @@ string_split(Arena *arena, String_Const_u8 string, u8 *split_characters, i32 spl
         for (i32 j = 0; j < split_character_count; j += 1){
             umem pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
-            i = min(i, pos);
+            i = Min(i, pos);
         }
         if (prefix.size > 0){
             string_list_push(arena, &list, prefix);
@@ -5747,7 +5747,7 @@ string_split(Arena *arena, String_Const_u16 string, u16 *split_characters, i32 s
         for (i32 j = 0; j < split_character_count; j += 1){
             umem pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
-            i = min(i, pos);
+            i = Min(i, pos);
         }
         if (prefix.size > 0){
             string_list_push(arena, &list, prefix);
@@ -5768,7 +5768,7 @@ string_split(Arena *arena, String_Const_u32 string, u32 *split_characters, i32 s
         for (i32 j = 0; j < split_character_count; j += 1){
             umem pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
-            i = min(i, pos);
+            i = Min(i, pos);
         }
         if (prefix.size > 0){
             string_list_push(arena, &list, prefix);

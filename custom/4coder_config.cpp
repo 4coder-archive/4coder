@@ -1484,7 +1484,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         print_message(app, string_u8_litexpr("Using default config:\n"));
         Face_Description description = get_face_description(app, 0);
         if (description.font.file_name.str != 0){
-            umem size = min(description.font.file_name.size, sizeof(config->default_font_name_space));
+            umem size = Min(description.font.file_name.size, sizeof(config->default_font_name_space));
             block_copy(config->default_font_name_space, description.font.file_name.str, size);
             config->default_font_name.size = size;
         }

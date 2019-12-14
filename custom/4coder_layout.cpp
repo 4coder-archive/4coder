@@ -42,7 +42,7 @@ layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     // NOTE(allen): One of dist0 and dist1 are negative, but certainly not both.
                     // 1. Take the negative one.
                     // 2. If the negative distance is larger than closest_x, then this is closer.
-                    f32 neg_dist = min(dist0, dist1);
+                    f32 neg_dist = Min(dist0, dist1);
                     if (closest_x < neg_dist){
                         closest_x = neg_dist;
                         closest_match = item->index;

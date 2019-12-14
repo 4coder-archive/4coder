@@ -696,6 +696,7 @@ map_set_binding_l(Mapping *mapping, Command_Map *map,
 #define ParentMap(ID) map_set_parent(m, map, (ID))
 #define BindTextInput(F) map_set_binding_text_input(map, (F))
 // TODO(allen): detect compiler and apply va args extensions correctly
+#if COMPILER_CL
 #define Bind(F, K, ...) \
 map_set_binding_l(m, map, (F), InputEventKind_KeyStroke, (K), __VA_ARGS__, 0)
 #define BindRelease(F, K, ...) \
@@ -710,6 +711,24 @@ map_set_binding_l(m, map, (F), InputEventKind_MouseWheel, 0, __VA_ARGS__, 0)
 map_set_binding_l(m, map, (F), InputEventKind_MouseMove, 0, __VA_ARGS__, 0)
 #define BindCore(F, K, ...) \
 map_set_binding_l(m, map, (F), InputEventKind_Core, (K), __VA_ARGS__, 0)
+#elif COMPILER_GCC
+#define Bind(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_KeyStroke, (K), ##__VA_ARGS__, 0)
+#define BindRelease(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_KeyRelease, (K), ##__VA_ARGS__, 0)
+#define BindMouse(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseButton, (K), ##__VA_ARGS__, 0)
+#define BindMouseRelease(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseButtonRelease, (K), ##__VA_ARGS__, 0)
+#define BindMouseWheel(F, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseWheel, 0, ##__VA_ARGS__, 0)
+#define BindMouseMove(F, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_MouseMove, 0, ##__VA_ARGS__, 0)
+#define BindCore(F, K, ...) \
+map_set_binding_l(m, map, (F), InputEventKind_Core, (K), ##__VA_ARGS__, 0)
+#else
+#error "Unsupported compiler"
+#endif
 
 // BOTTOM
 

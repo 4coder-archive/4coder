@@ -158,7 +158,7 @@ draw_rectangle_outline(Render_Target *target, Rect_f32 rect, f32 roundness, f32 
 internal void
 draw_rectangle(Render_Target *target, Rect_f32 rect, f32 roundness, u32 color){
     Vec2_f32 dim = rect_dim(rect);
-    draw_rectangle_outline(target, rect, roundness, max(dim.x, dim.y), color);
+    draw_rectangle_outline(target, rect, roundness, Max(dim.x, dim.y), color);
 }
 
 internal void
