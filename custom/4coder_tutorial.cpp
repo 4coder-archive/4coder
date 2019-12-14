@@ -114,7 +114,7 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     
     f32 h0 = get_fancy_line_height(app, 0, &slide.short_details);
     f32 h1 = get_fancy_line_height(app, 0, slide.long_details.first);
-    f32 title_height = max(h0, h1);
+    f32 title_height = Max(h0, h1);
     
     ////////
     

@@ -90,8 +90,8 @@ profile_parse_record(Arena *arena, Profile_Inspection *insp,
             slot = profile_parse_get_slot(arena, insp, location, name);
             node->time.max = record->time;
             node->closed = true;
-            total_time_range->min = min(total_time_range->min, node->time.min);
-            total_time_range->max = max(total_time_range->max, node->time.max);
+            total_time_range->min = Min(total_time_range->min, node->time.min);
+            total_time_range->max = Max(total_time_range->max, node->time.max);
             record = record->next;
         }
         else{
@@ -304,7 +304,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
         Vec2_f32 p = V2f32(x_pos, y.min + 1.f);
         draw_fancy_string(app, face_id, fcolor_zero(), fstr, p);
         f32 w = get_fancy_string_width(app, face_id, fstr);
-        nav_bar_w = max(nav_bar_w, w);
+        nav_bar_w = Max(nav_bar_w, w);
     }
     y.min += line_height + 2.f;
     
@@ -315,7 +315,7 @@ profile_draw_node(Application_Links *app, View_ID view, Face_ID face_id,
         Vec2_f32 p = V2f32(x_pos, y.min + 1.f);
         draw_fancy_string(app, face_id, fcolor_zero(), fstr, p);
         f32 w = get_fancy_string_width(app, face_id, fstr);
-        nav_bar_w = max(nav_bar_w, w);
+        nav_bar_w = Max(nav_bar_w, w);
     }
     y.min += line_height + 2.f;
     

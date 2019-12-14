@@ -359,10 +359,6 @@ struct Range_Cursor{
         Buffer_Cursor max;
     };
     struct{
-        Buffer_Cursor begin;
-        Buffer_Cursor end;
-    };
-    struct{
         Buffer_Cursor start;
         Buffer_Cursor end;
     };

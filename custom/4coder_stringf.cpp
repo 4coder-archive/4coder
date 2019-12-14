@@ -12,9 +12,11 @@
 
 static String_Const_char
 push_stringfv(Arena *arena, char *format, va_list args){
+    va_list args2;
+    va_copy(args2, args);
     i32 size = vsnprintf(0, 0, format, args);
     String_Const_char result = string_const_char_push(arena, size + 1);
-    vsnprintf(result.str, result.size, format, args);
+    vsnprintf(result.str, result.size, format, args2);
     result.size -= 1;
     result.str[result.size] = 0;
     return(result);

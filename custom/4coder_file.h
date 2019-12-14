@@ -25,7 +25,10 @@ typedef TCHAR Filename_Character;
 //// WINDOWS END ////
 
 #else
-# error 4coder file not defined
+#include <dirent.h>
+#include <sys/stat.h>
+#define SLASH '/'
+typedef char Filename_Character;
 #endif
 
 struct Cross_Platform_File_Info{
@@ -293,10 +296,12 @@ static b32
 match_pattern(Filename_Character *name, Filename_Character *pattern){
     b32 match = false;
     if (sizeof(*name) == 1){
-        Absolutes absolutes = {};
-        String pattern_str = make_string_slowly(pattern);
-        get_absolutes(pattern_str, &absolutes, false, false);
-        match = wildcard_match_c(&absolutes, name, false);
+        String_Const_u8 name_str = SCu8(name);
+        String_Const_u8 pattern_str = SCu8(pattern);
+        List_String_Const_u8 list = {};
+        Node_String_Const_u8 node = { NULL, name_str };
+        string_list_push(&list, &node);
+        match = string_wildcard_match(list, pattern_str, StringMatch_Exact);
     }
     else{
         fprintf(stdout, "fatal error: wide characters not supported!\n");
@@ -306,9 +311,9 @@ match_pattern(Filename_Character *name, Filename_Character *pattern){
 }
 
 static Cross_Platform_File_List
-get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter){
-    if (part == 0){
-        fprintf(stdout, "fatal error: NULL part passed to %s\n", __FUNCTION__);
+get_file_list(Arena *arena, Filename_Character *pattern, File_Filter *filter){
+    if (arena == 0){
+        fprintf(stdout, "fatal error: NULL arena passed to %s\n", __FUNCTION__);
         exit(1);
     }
     if (pattern == 0){
@@ -340,7 +345,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
     }
     
     Filename_Character path_name[4096];
-    int32_t path_length = str_size(pattern);
+    int32_t path_length = cstring_length(pattern);
     if (path_length + 1 > sizeof(path_name)){
         fprintf(stdout, "fatal error: path name too long for local buffer\n");
         exit(1);
@@ -380,11 +385,11 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
     }
     
     Cross_Platform_File_List list = {};
-    Temp_Memory part_reset = begin_temp_memory(part);
+    Temp_Memory part_reset = begin_temp(arena);
     
     int32_t rounded_char_size = (character_count*sizeof(Filename_Character) + 7)&(~7);
     int32_t memsize = rounded_char_size + file_count*sizeof(Cross_Platform_File_Info);
-    void *mem = push_array(part, uint8_t, memsize);
+    void *mem = push_array(arena, uint8_t, memsize);
     if (mem == 0){
         fprintf(stdout, "fatal error: not enough memory on the partition for a file list.\n");
         exit(1);
@@ -426,7 +431,7 @@ get_file_list(Partition *part, Filename_Character *pattern, File_Filter *filter)
         if (name[0] != '.' && (is_folder || filter(name, size))){
             if (info_ptr + 1 > info_ptr_end || char_ptr + size + 1 > char_ptr_end){
                 memset(&list, 0, sizeof(list));
-                end_temp_memory(part_reset);
+                end_temp(part_reset);
                 closedir(dir_handle);
                 return(list);
             }

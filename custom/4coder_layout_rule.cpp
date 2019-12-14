@@ -80,8 +80,8 @@ layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Lay
     }
     
     list->item_count += 1;
-    list->manifested_index_range.min = min(list->manifested_index_range.min, index);
-    list->manifested_index_range.max = max(list->manifested_index_range.max, index);
+    list->manifested_index_range.min = Min(list->manifested_index_range.min, index);
+    list->manifested_index_range.max = Max(list->manifested_index_range.max, index);
     
     if (!HasFlag(flags, LayoutItemFlag_Ghost_Character)){
         block->character_count += 1;
@@ -92,7 +92,7 @@ layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Lay
     item->codepoint = codepoint;
     item->flags = flags;
     item->rect = rect;
-    list->height = max(list->height, rect.y1);
+    list->height = Max(list->height, rect.y1);
 }
 
 ////

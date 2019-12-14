@@ -83,6 +83,11 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
         i64 chunk_pos = 0;
         
         i32 jump_back_code = 0;
+
+        u8 c = 0;
+        u64 n = 0;
+        u8 needle_c = 0;
+        u64 jump = 0;
         
         if (false){
             iterate_forward:
@@ -107,9 +112,9 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
         }
         
         for (;node != 0;){
-            u8 c = node->string.str[chunk_pos];
-            u64 n = i - j;
-            u8 needle_c = needle.str[n];
+            c = node->string.str[chunk_pos];
+            n = i - j;
+            needle_c = needle.str[n];
             if (character_to_upper(c) == character_to_upper(needle_c)){
                 if (c != needle_c){
                     last_insensitive = i;
@@ -152,7 +157,7 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
                 
             }
             else{
-                u64 jump = jump_table.vals[n];
+                jump = jump_table.vals[n];
                 if (jump == 0){
                     current_l = character_predicate_check_character(*predicate, c);
                     
@@ -196,6 +201,11 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
         i64 chunk_pos = node->string.size - 1;
         
         i32 jump_back_code = 0;
+
+        u8 c = 0;
+        u64 n = 0;
+        u8 needle_c = 0;
+        u64 jump = 0;
         
         if (false){
             iterate_backward:
@@ -222,9 +232,9 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
         }
         
         for (;node != 0;){
-            u8 c = node->string.str[chunk_pos];
-            u64 n = j - i;
-            u8 needle_c = needle.str[needle.size - 1 - n];
+            c = node->string.str[chunk_pos];
+            n = j - i;
+            needle_c = needle.str[needle.size - 1 - n];
             if (character_to_upper(c) == character_to_upper(needle_c)){
                 if (c != needle_c){
                     last_insensitive = i;
@@ -269,7 +279,7 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
                 
             }
             else{
-                u64 jump = jump_table.vals[n];
+                jump = jump_table.vals[n];
                 if (jump == 0){
                     current_r = character_predicate_check_character(*predicate, c);
                     

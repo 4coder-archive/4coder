@@ -373,8 +373,8 @@ buffer_chunks_clamp(List_String_Const_u8 *chunks, Interval_i64 range){
         next = node->next;
         Interval_i64 node_range = Ii64(p, p + node->string.size);
         if (range_overlap(range, node_range)){
-            i64 first = max(node_range.first, range.first) - node_range.first;
-            i64 one_past_last = min(node_range.one_past_last, range.one_past_last) - node_range.first;
+            i64 first = Max(node_range.first, range.first) - node_range.first;
+            i64 one_past_last = Min(node_range.one_past_last, range.one_past_last) - node_range.first;
             String_Const_u8 s = string_prefix(node->string, one_past_last);
             node->string = string_skip(s, first);
             sll_queue_push(list.first, list.last, node);

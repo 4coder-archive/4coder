@@ -331,7 +331,7 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
             met->hex_digit_advance =
                 font_get_max_glyph_advance_range(advance_map, met, 'A', 'F');
             met->hex_digit_advance =
-                max(met->hex_digit_advance, met->decimal_digit_advance);
+                Max(met->hex_digit_advance, met->decimal_digit_advance);
             met->byte_sub_advances[0] =
                 font_get_glyph_advance(advance_map, met, '\\');
             met->byte_sub_advances[1] = met->hex_digit_advance;

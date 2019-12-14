@@ -567,7 +567,7 @@ get_fancy_string_height__inner(Application_Links *app, Face_ID face, Fancy_Strin
         if (string->face != 0){
             Face_ID use_face = string->face;
             Face_Metrics metrics = get_face_metrics(app, use_face);
-            result = max(result, metrics.line_height);
+            result = Max(result, metrics.line_height);
         }
     }
     return(result);
@@ -585,7 +585,7 @@ get_fancy_string_text_height__inner(Application_Links *app, Face_ID face, Fancy_
         if (string->face != 0){
             Face_ID use_face = string->face;
             Face_Metrics metrics = get_face_metrics(app, use_face);
-            result = max(result, metrics.text_height);
+            result = Max(result, metrics.text_height);
         }
     }
     return(result);
@@ -603,7 +603,7 @@ draw_fancy_string__inner(Application_Links *app, Face_ID face, FColor fore, Fanc
         }
         if (use_face != 0){
             Face_Metrics metrics = get_face_metrics(app, use_face);
-            base_line = max(base_line, metrics.ascent);
+            base_line = Max(base_line, metrics.ascent);
         }
     }
     
@@ -767,7 +767,7 @@ get_fancy_block_width(Application_Links *app, Face_ID face, Fancy_Block *block){
          node != 0;
          node = node->next){
         f32 w = get_fancy_line_width(app, face, node);
-        width = max(width, w);
+        width = Max(width, w);
     }
     return(width);
 }

@@ -321,7 +321,7 @@ FOREIGN "/x86/libfreetype-mac.a"
 #endif
 
 internal void
-build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
+build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, char *out_path, char *out_file, char **defines, char **exports, char **inc_folders){
     Build_Line line;
     fm_init_build_line(&line);
     
@@ -334,7 +334,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
         fm_add_to_line(line, "-m32");
         fm_add_to_line(line, "-DFTECH_32_BIT"); break;
         
-        default: InvalidCodePath;
+        default: InvalidPath;
     }
     
     if (flags & OPTS){
@@ -344,7 +344,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     fm_add_to_line(line, "-I%s", code_path);
     if (inc_folders != 0){
         for (u32 i = 0; inc_folders[i] != 0; ++i){
-            char *str = fm_str(part, code_path, "/", inc_folders[i]);
+            char *str = fm_str(arena, code_path, "/", inc_folders[i]);
             fm_add_to_line(line, "-I%s", str);
         }
     }
@@ -363,7 +363,7 @@ build(Partition *part, u32 flags, u32 arch, char *code_path, char **code_files, 
     
     if (defines != 0){
         for (u32 i = 0; defines[i]; ++i){
-            char *define_flag = fm_str(part, "-D", defines[i]);
+            char *define_flag = fm_str(arena, "-D", defines[i]);
             fm_add_to_line(line, "%s", define_flag);
         }
     }

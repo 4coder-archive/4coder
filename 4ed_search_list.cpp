@@ -12,7 +12,7 @@
 function void
 search_list_add_path__inner(Arena *arena, Path_Search_List *list, String_Const_u8 path){
     string_list_push(arena, &list->list, path);
-    list->max_member_length = max(list->max_member_length, path.size);
+    list->max_member_length = Max(list->max_member_length, path.size);
 }
 
 function void

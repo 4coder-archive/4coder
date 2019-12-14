@@ -453,15 +453,15 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
                 String_Const_u8 insert_string = edit->edit.text;
                 
                 Range_i64 edit_range = edit->edit.range;
-                old_range.min = min(old_range.min, edit_range.min);
-                old_range.max = max(old_range.max, edit_range.max);
+                old_range.min = Min(old_range.min, edit_range.min);
+                old_range.max = Max(old_range.max, edit_range.max);
                 
                 edit_range.first += shift;
                 edit_range.one_past_last += shift;
                 
-                new_range.min = min(new_range.min, edit_range.min);
+                new_range.min = Min(new_range.min, edit_range.min);
                 i64 new_max = (i64)(edit_range.min + insert_string.size); 
-                new_range.max = max(new_range.max, new_max);
+                new_range.max = Max(new_range.max, new_max);
                 
                 i64 size = buffer_size(buffer);
                 if (0 <= edit_range.first &&

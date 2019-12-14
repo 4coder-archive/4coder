@@ -179,6 +179,10 @@ enum{
 #define stringify_(a) #a
 #define stringify(a) stringify_(a)
 
+#if COMPILER_CL
+#define __VA_OPT__(x)
+#endif
+
 #define function static
 #define api(x)
 

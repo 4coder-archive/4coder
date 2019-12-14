@@ -118,7 +118,7 @@ internal void fm__swap_ptr(char **A, char **B);
 #elif COMPILER_GCC
 
 #define fm_add_to_line(line, str, ...) do{                   \
-    snprintf(line.build_options, line.build_max, "%s "str,   \
+    snprintf(line.build_options, line.build_max, "%s " str,  \
     line.build_options_prev, ##__VA_ARGS__);                 \
     fm__swap_ptr(&line.build_options, &line.build_options_prev); \
 }while(0)
@@ -434,7 +434,7 @@ fm_popdir(Temp_Dir temp){
     chdir(temp.dir);
 }
 
-internal Partition
+internal Arena
 fm_init_system(){
     return(fm__init_memory());
 }
@@ -486,7 +486,7 @@ internal void
 fm_slash_fix(char *path){}
 
 internal void
-fm_make_folder_if_missing(Partition *part, char *dir){
+fm_make_folder_if_missing(Arena *arena, char *dir){
     systemf("mkdir -p %s", dir);
 }
 
@@ -508,15 +508,9 @@ fm_copy_file(char *file, char *newname){
 }
 
 internal void
-fm_copy_all(char *source, char *tag, char *folder){
-    if (source){
-        fprintf(stdout, "copy %s/%s to %s\n", source, tag, folder);
-        systemf("cp -f %s/%s %s > /dev/null", source, tag, folder);
-    }
-    else{
-        fprintf(stdout, "copy %s to %s\n", tag, folder);
-        systemf("cp -f %s %s > /dev/null", tag, folder);
-    }
+fm_copy_all(char *source, char *folder){
+    fprintf(stdout, "copy %s to %s\n", source, folder);
+    systemf("cp -rf %s %s > /dev/null", source, folder);
 }
 
 internal void

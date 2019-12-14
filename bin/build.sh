@@ -1,24 +1,20 @@
 #!/bin/bash
 
-# Store the real CWD
-REAL_PWD="$PWD"
+# If any command errors, stop the script
+set -e
 
-# Find the code home folder
-TARGET_FILE="$0"
-cd `dirname $TARGET_FILE`
-TARGET_FILE=`basename $TARGET_FILE`
-while [ -L "$TARGET_FILE" ]
-do
-    TARGET_FILE=`readlink $TARGET_FILE`
-    cd `dirname $TARGET_FILE`
-    TARGET_FILE=`basename $TARGET_FILE`
-done
-PHYS_DIR=`pwd -P`
-SCRIPT_FILE=$PHYS_DIR/$TARGET_FILE
-CODE_HOME=$(dirname "$SCRIPT_FILE")
-
-# Restore the PWD
-cd "$REAL_PWD"
+# Set up directories (mirrors build.bat)
+ME="$(readlink -f "$0")"
+LOCATION="$(dirname "$ME")"
+SRC_ROOT="$(dirname "$LOCATION")"
+PROJECT_ROOT="$(dirname "$SRC_ROOT")"
+if [ ! -d "$PROJECT_ROOT/build" ]; then
+mkdir "$PROJECT_ROOT/build"
+fi
+BUILD_ROOT="$PROJECT_ROOT/build"
+BIN_ROOT="$SRC_ROOT/bin"
+CUSTOM_ROOT="$SRC_ROOT/custom"
+CUSTOM_BIN="$CUSTOM_ROOT/bin"
 
 # Get the build mode
 BUILD_MODE="$1"
@@ -27,20 +23,20 @@ if [ -z "$BUILD_MODE" ]; then
 fi
 
 # Get the OS specific flags
-chmod 777 detect_os.sh
-os=$("./detect_os.sh")
+chmod +rx "$BIN_ROOT/detect_os.sh"
+os=$("$BIN_ROOT/detect_os.sh")
 
 if [[ "$os" == "linux" ]]; then
-WARNINGS="-Wno-write-strings -Wno-comment "
+WARNINGS="-Wno-write-strings -Wno-comment"
 elif [[ "$os" == "mac" ]]; then
 WARNINGS="-Wno-write-strings -Wno-comment -Wno-logical-op-parentheses -Wno-null-dereference -Wno-switch"
 fi
 
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"
+INCLUDES="-I$SRC_ROOT -I$CUSTOM_ROOT"
 
 # Execute
-g++ $WARNINGS $FLAGS $CODE_HOME/meta/4ed_build.cpp -g -o ../build/build
-../build/build
-
-
-
+g++ $WARNINGS $FLAGS $INCLUDES "$BIN_ROOT/4ed_build.cpp" -g -o "$BUILD_ROOT/build"
+pushd "$SRC_ROOT"
+"$BUILD_ROOT/build"
+popd
