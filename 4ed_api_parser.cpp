@@ -254,7 +254,8 @@ api_parse_source__structure(Arena *arena, String_Const_u8 source_name, String_Co
     }
     if (result){
         Token *token_end = api_parse__token_pos(token_it);
-        String_Const_u8 definition = ;
+        // TODO(allen): 
+        String_Const_u8 definition = {};
         String_Const_u8 location = api_parse_location(arena, source_name, source, name.str);
         api_parse_add_structure(arena, list, api_name, kind, name, member_list, definition, location);
     }
