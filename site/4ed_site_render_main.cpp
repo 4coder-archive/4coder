@@ -38,6 +38,7 @@ char html_header[] = R"HTMLFOO(
 <head>
 <link rel='shortcut icon' type='image/x-icon' href='4coder_icon.ico' />
 <link href="https://fonts.googleapis.com/css?family=Inconsolata:700&display=swap" rel="stylesheet">
+<script src="../search.js"></script> 
 <title>%.*s</title>
 <style>
 body {
@@ -177,6 +178,21 @@ background: #181818;
 
 .bottom_spacer {
   height: 20em;
+}
+
+.docs_menu {
+  list-style-type:none;
+  padding: 0;
+}
+
+.filter_box {
+  border: 1px solid #90B080;
+  font-size: 1.5em;
+  color: #90B080;
+  background: none;
+  text-align: justify;
+  font-family: 'Inconsolata', monospace;
+  width: 15em;
 }
 
 </style>
@@ -426,6 +442,9 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
     fprintf(file_index, "<div class=\"small_spacer\"></div>\n");
     fprintf(file_index, "<h1>%.*s Index</h1>\n", string_expand(cluster->title));
     fprintf(file_index, "<div class=\"spacer\"></div>\n");
+    fprintf(file_index, "<input class=\"filter_box\" type=\"text\" id=\"search_input\" onkeyup=\"SearchKeyUp(event)\" onkeydown=\"SearchKeyDown(event)\""
+                        "placeholder=\"Filter...\" title=\"Filter...\">");
+    fprintf(file_index, "<div class=\"spacer\"></div>\n");
     
     Doc_Page **ptrs = push_array(scratch, Doc_Page*, cluster->page_count);
     i32 counter = 0;
@@ -438,14 +457,17 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
     
     sort_doc_page_array(ptrs, 0, counter);
     
+    fprintf(file_index, "<div class=\"normal\">");
+
+    fprintf(file_index, "<ul class=\"docs_menu\" id=\"docs_menu\">\n");
     for (i32 i = 0; i < counter; i += 1){
         Doc_Page *node = ptrs[i];
-    fprintf(file_index, "<div class=\"normal\">");
-        fprintf(file_index, "<a href=\"%.*s.html\">%.*s</a>",
+        fprintf(file_index, "<li><a href=\"%.*s.html\">%.*s</a></li>",
                 string_expand(node->name),
                 string_expand(node->name));
-        fprintf(file_index, "</div>\n");
     }
+    fprintf(file_index, "</ul>\n");
+    fprintf(file_index, "</div>\n");
     
     fprintf(file_index, html_footer);
 }

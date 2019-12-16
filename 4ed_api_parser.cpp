@@ -220,6 +220,7 @@ api_parse_source__structure(Arena *arena, String_Const_u8 source_name, String_Co
     String_Const_u8 name = {};
     List_String_Const_u8 member_list = {};
     Token *token = api_parse__token_pos(token_it);
+    (void)token;
     if (api_parse__match_identifier(token_it, source, &name)){
         if (api_parse__match(token_it, TokenCppKind_Semicolon)){
             result = true;
@@ -254,6 +255,7 @@ api_parse_source__structure(Arena *arena, String_Const_u8 source_name, String_Co
     }
     if (result){
         Token *token_end = api_parse__token_pos(token_it);
+        (void)token_end;
         // TODO(allen): 
         String_Const_u8 definition = {};
         String_Const_u8 location = api_parse_location(arena, source_name, source, name.str);
