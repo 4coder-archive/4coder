@@ -1,24 +1,32 @@
 #if !defined(FCODER_TYPES_H)
 #define FCODER_TYPES_H
 
+api(custom)
 struct Thread_Context_Extra_Info{
     void *coroutine;
     void *async_thread;
 };
+api(custom)
 struct Application_Links{
     Thread_Context *tctx;
     void *cmd_context;
 };
+api(custom)
 typedef void Custom_Layer_Init_Type(Application_Links *app);
 void custom_layer_init(Application_Links *app);
 
+api(custom)
 typedef b32 _Get_Version_Type(i32 maj, i32 min, i32 patch);
+api(custom)
 typedef Custom_Layer_Init_Type *_Init_APIs_Type(struct API_VTable_custom *custom_vtable,
                                                 struct API_VTable_system *system_vtable);
 
 ////////////////////////////////
 
+api(custom)
 typedef u16 ID_Color;
+
+api(custom)
 union FColor{
     struct{
         u8 padding__[3];
@@ -32,21 +40,25 @@ union FColor{
     };
 };
 
+api(custom)
 struct Theme_Color{
     ID_Color tag;
     ARGB_Color color;
 };
 
+api(custom)
 struct Color_Array{
     ARGB_Color *vals;
     i32 count;
 };
 
+api(custom)
 struct Color_Table{
      Color_Array *arrays;
     u32 count;
 };
 
+api(custom)
 struct Color_Picker{
     String_Const_u8 title;
     ARGB_Color *dest;
@@ -55,8 +67,10 @@ struct Color_Picker{
 
 ////////////////////////////////
 
+api(custom)
 typedef u32 Face_ID;
 
+api(custom)
 struct Fancy_String{
     Fancy_String *next;
     String_Const_u8 value;
@@ -66,6 +80,7 @@ struct Fancy_String{
     f32 post_margin;
 };
 
+api(custom)
 struct Fancy_Line{
     Fancy_Line *next;
     Face_ID face;
@@ -74,6 +89,7 @@ struct Fancy_Line{
     Fancy_String *last;
 };
 
+api(custom)
 struct Fancy_Block{
     Fancy_Line *first;
     Fancy_Line *last;
@@ -82,12 +98,22 @@ struct Fancy_Block{
 
 ////////////////////////////////
 
+api(custom)
 typedef i32 Buffer_ID;
+
+api(custom)
 typedef i32 View_ID;
+
+api(custom)
 typedef i32 Panel_ID;
+
+api(custom)
 typedef u32 Text_Layout_ID;
+
+api(custom)
 typedef u32 Child_Process_ID;
 
+api(custom)
 typedef i32 UI_Highlight_Level;
 enum{
     UIHighlight_None,
@@ -95,21 +121,25 @@ enum{
     UIHighlight_Active,
 };
 
+api(custom)
 struct Buffer_Point{
     i64 line_number;
     Vec2_f32 pixel_shift;
 };
 
+api(custom)
 struct Line_Shift_Vertical{
     i64 line;
     f32 y_delta;
 };
 
+api(custom)
 struct Line_Shift_Character{
     i64 line;
     i64 character_delta;
 };
 
+api(custom)
 typedef u32 Child_Process_Set_Target_Flags;
 enum{
     ChildProcessSet_FailIfBufferAlreadyAttachedToAProcess = 1,
@@ -118,6 +148,7 @@ enum{
     ChildProcessSet_CursorAtEnd = 4,
 };
 
+api(custom)
 typedef u32 Memory_Protect_Flags;
 enum{
     MemProtect_Read    = 0x1,
@@ -125,6 +156,7 @@ enum{
     MemProtect_Execute = 0x4,
 };
 
+api(custom)
 typedef i32 Wrap_Indicator_Mode;
 enum{
     WrapIndicator_Hide,
@@ -132,12 +164,14 @@ enum{
     WrapIndicator_Show_At_Wrap_Edge,
 };
 
+api(custom)
 typedef i32 Global_Setting_ID;
 enum{
     GlobalSetting_Null,
     GlobalSetting_LAltLCtrlIsAltGr,
 };
 
+api(custom)
 typedef i32 Buffer_Setting_ID;
 enum{
     BufferSetting_Null,
@@ -146,16 +180,19 @@ enum{
     BufferSetting_RecordsHistory,
 };
 
+api(custom)
 struct Character_Predicate{
     u8 b[32];
 };
 
+api(custom)
 struct Frame_Info{
     i32 index;
     f32 literal_dt;
     f32 animation_dt;
 };
 
+api(custom)
 typedef i32 View_Setting_ID;
 enum{
     ViewSetting_Null,
@@ -164,6 +201,7 @@ enum{
     ViewSetting_ShowFileBar,
 };
 
+api(custom)
 typedef u32 Buffer_Create_Flag;
 enum{
     BufferCreate_Background = 0x1,
@@ -175,19 +213,23 @@ enum{
     BufferCreate_SuppressNewFileHook = 0x40,
 };
 
+api(custom)
 typedef u32 Buffer_Save_Flag;
 enum{
     BufferSave_IgnoreDirtyFlag = 0x1,
 };
 
+api(custom)
 typedef u32 Buffer_Kill_Flag;
 enum{
     BufferKill_AlwaysKill  = 0x2,
 };
 
+api(custom)
 typedef u32 Buffer_Reopen_Flag;
 enum{};
 
+api(custom)
 typedef u32 Buffer_Kill_Result;
 enum{
     BufferKillResult_Killed = 0,
@@ -196,12 +238,14 @@ enum{
     BufferKillResult_DoesNotExist = 3,
 };
 
+api(custom)
 typedef u32 Buffer_Reopen_Result;
 enum{
     BufferReopenResult_Reopened = 0,
     BufferReopenResult_Failed = 1,
 };
 
+api(custom)
 typedef u32 Access_Flag;
 enum{
     Access_Write = 0x1,
@@ -215,6 +259,7 @@ enum{
     Access_ReadWriteVisible = Access_Write|Access_Read|Access_Visible,
 };
 
+api(custom)
 typedef i32 Dirty_State;
 enum{
     DirtyState_UpToDate = 0,
@@ -223,6 +268,7 @@ enum{
     DirtyState_UnsavedChangesAndUnloadedChanges = 3,
 };
 
+api(custom)
 typedef u32 Command_Line_Interface_Flag;
 enum{
     CLI_OverlapWithConflict = 0x1,
@@ -231,17 +277,20 @@ enum{
     CLI_SendEndSignal       = 0x8,
 };
 
+api(custom)
 typedef u32 Set_Buffer_Flag;
 enum{
     SetBuffer_KeepOriginalGUI = 0x1
 };
 
+api(custom)
 typedef i32 Mouse_Cursor_Show_Type;
 enum{
     MouseCursorShow_Never,
     MouseCursorShow_Always,
 };
 
+api(custom)
 typedef i32 View_Split_Position;
 enum{
     ViewSplit_Top,
@@ -250,6 +299,7 @@ enum{
     ViewSplit_Right,
 };
 
+api(custom)
 typedef i32 Panel_Split_Kind;
 enum{
     PanelSplitKind_Ratio_Min = 0,
@@ -258,8 +308,10 @@ enum{
     PanelSplitKind_FixedPixels_Max = 3,
 };
 
+api(custom)
 typedef u8 Key_Modifier;
 
+api(custom)
 struct Mouse_State{
     b8 l;
     b8 r;
@@ -278,62 +330,73 @@ struct Mouse_State{
     };
 };
 
+api(custom)
 struct Parser_String_And_Type{
     char *str;
     u32 length;
     u32 type;
 };
 
+api(custom)
 typedef u32 File_Attribute_Flag;
 enum{
     FileAttribute_IsDirectory = 1,
 };
 
+api(custom)
 struct File_Attributes{
     u64 size;
     u64 last_write_time;
     File_Attribute_Flag flags;
 };
 
+api(custom)
 struct File_Info{
     File_Info *next;
     String_Const_u8 file_name;
     File_Attributes attributes;
 };
 
+api(custom)
 struct File_List{
     File_Info **infos;
     u32 count;
 };
 
+api(custom)
 struct Buffer_Identifier{
     char *name;
     i32 name_len;
     Buffer_ID id;
 };
 
+api(custom)
 typedef i32 Set_Buffer_Scroll_Rule;
 enum{
     SetBufferScroll_NoCursorChange,
     SetBufferScroll_SnapCursorIntoView,
 };
 
+api(custom)
 struct Buffer_Scroll{
     Buffer_Point position;
     Buffer_Point target;
 };
 
+api(custom)
 struct Basic_Scroll{
     Vec2_f32 position;
     Vec2_f32 target;
 };
 
+api(custom)
 typedef i32 Buffer_Seek_Type;
 enum{
     buffer_seek_pos,
     buffer_seek_line_col,
 };
 
+api(custom)
 struct Buffer_Seek{
     Buffer_Seek_Type type;
     union{
@@ -347,12 +410,14 @@ struct Buffer_Seek{
     };
 };
 
+api(custom)
 struct Buffer_Cursor{
     i64 pos;
     i64 line;
     i64 col;
 };
 
+api(custom)
 struct Range_Cursor{
     struct{
         Buffer_Cursor min;
@@ -368,11 +433,13 @@ struct Range_Cursor{
     };
 };
 
+api(custom)
 struct Marker{
     i64 pos;
     b32 lean_right;
 };
 
+api(custom)
 typedef i32 Managed_Object_Type;
 enum{
     ManagedObjectType_Error = 0,
@@ -382,40 +449,42 @@ enum{
     ManagedObjectType_COUNT = 4,
 };
 
-
+api(custom)
 typedef u64 Managed_ID;
 
+api(custom)
 typedef u64 Managed_Scope;
+api(custom)
 typedef u64 Managed_Object;
 
-static Managed_Scope ManagedScope_NULL = 0;
-static Managed_Object ManagedObject_NULL = 0;
-
-static Managed_ID ManagedIndex_ERROR = 0;
-
+api(custom)
 struct Marker_Visual{
     Managed_Scope scope;
     u32 slot_id;
     u32 gen_id;
 };
 
+api(custom)
 typedef u32 Glyph_Flag;
 enum{
     GlyphFlag_None = 0x0,
     GlyphFlag_Rotate90 = 0x1,
 };
 
+api(custom)
 struct Query_Bar{
     String_Const_u8 prompt;
     String_Const_u8 string;
     umem string_capacity;
 };
 
+api(custom)
 struct Query_Bar_Ptr_Array{
     Query_Bar **ptrs;
     i32 count;
 };
 
+api(custom)
 struct Query_Bar_Group{
     Application_Links *app;
     View_ID view;
@@ -425,10 +494,12 @@ struct Query_Bar_Group{
     ~Query_Bar_Group();
 };
 
+api(custom)
 struct Font_Load_Location{
     String_Const_u8 file_name;
 };
 
+api(custom)
 struct Face_Load_Parameters{
     u32 pt_size;
     b32 bold;
@@ -437,11 +508,13 @@ struct Face_Load_Parameters{
     b32 hinting;
 };
 
+api(custom)
 struct Face_Description{
     Font_Load_Location font;
     Face_Load_Parameters parameters;
 };
 
+api(custom)
 struct Face_Metrics{
     f32 text_height;
     f32 line_height;
@@ -463,6 +536,7 @@ struct Face_Metrics{
     f32 normal_advance;
 };
 
+api(custom)
 struct Codepoint_Index_Map{
     b32 has_zero_index;
     u16 zero_index;
@@ -470,28 +544,33 @@ struct Codepoint_Index_Map{
     Table_u32_u16 table;
 };
 
+api(custom)
 struct Face_Advance_Map{
     Codepoint_Index_Map codepoint_to_index;
     f32 *advance;
     u16 index_count;
 };
 
+api(custom)
 struct Edit{
     String_Const_u8 text;
     Interval_i64 range;
 };
 
+api(custom)
 struct Batch_Edit{
     Batch_Edit *next;
     Edit edit;
 };
 
+api(custom)
 typedef i32 Record_Kind;
 enum{
     RecordKind_Single,
     RecordKind_Group,
 };
 
+api(custom)
 typedef i32 Record_Error;
 enum{
     RecordError_NoError,
@@ -503,6 +582,7 @@ enum{
     RecordError_WrongRecordTypeAtIndex,
 };
 
+api(custom)
 typedef u32 Record_Merge_Flag;
 enum{
     RecordMergeFlag_StateInRange_MoveStateForward = 0x0,
@@ -510,21 +590,23 @@ enum{
     RecordMergeFlag_StateInRange_ErrorOut = 0x2,
 };
 
+api(custom)
 typedef i32 History_Record_Index;
 
+api(custom)
 struct Record_Info{
     Record_Error error;
     Record_Kind kind;
     i32 edit_number;
     union{
         struct{
-            String_Const_u8 string_forward;
-            String_Const_u8 string_backward;
-            i64 first;
-        } single;
+            String_Const_u8 single_string_forward;
+            String_Const_u8 single_string_backward;
+            i64 single_first;
+        };
         struct{
-            i32 count;
-        } group;
+            i32 group_count;
+        };
     };
 };
 
@@ -544,12 +626,13 @@ struct Record_Info{
 #define CUSTOM_ID(group, name) CUSTOM_ID(group, name)
 #endif
 
-// TODO(allen): rename
+api(custom)
 struct User_Input{
     Input_Event event;
     b32 abort;
 };
 
+api(custom)
 typedef i32 Hook_ID;
 enum{
     HookID_Tick,
@@ -567,9 +650,11 @@ enum{
     HookID_Layout,
 };
 
+api(custom)
 typedef i32 Hook_Function(Application_Links *app);
 #define HOOK_SIG(name) i32 name(Application_Links *app)
 
+api(custom)
 struct Buffer_Name_Conflict_Entry{
     Buffer_ID buffer_id;
     String_Const_u8 file_name;
@@ -579,34 +664,44 @@ struct Buffer_Name_Conflict_Entry{
     umem unique_name_capacity;
 };
 
+api(custom)
 typedef void Buffer_Name_Resolver_Function(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count);
 #define BUFFER_NAME_RESOLVER_SIG(n) void n(Application_Links *app, Buffer_Name_Conflict_Entry *conflicts, i32 conflict_count)
 
+api(custom)
 typedef i32 Buffer_Hook_Function(Application_Links *app, Buffer_ID buffer_id);
 #define BUFFER_HOOK_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id)
 
+api(custom)
 typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_id,
                                        Range_i64 new_range, umem original_size);
 #define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id, Interval_i64 new_range, umem original_size)
 
+api(custom)
 typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data);
 #define DELTA_RULE_SIG(name) Vec2_f32 name(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data)
 
+api(custom)
 typedef Rect_f32 Buffer_Region_Function(Application_Links *app, View_ID view_id, Rect_f32 region);
 
+api(custom)
 typedef void New_Clipboard_Contents_Function(Application_Links *app, String_Const_u8 contents);
 #define NEW_CLIPBOARD_CONTENTS_SIG(name) void name(Application_Links *app, String_Const_u8 contents)
 
+api(custom)
 typedef void Tick_Function(Application_Links *app, Frame_Info frame_info);
 
+api(custom)
 typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
 
+api(custom)
 typedef u32 Layout_Item_Flag;
 enum{
     LayoutItemFlag_Special_Character = (1 << 0),
     LayoutItemFlag_Ghost_Character = (1 << 1)
 };
 
+api(custom)
 struct Layout_Item{
     i64 index;
     u32 codepoint;
@@ -614,6 +709,7 @@ struct Layout_Item{
     Rect_f32 rect;
 };
 
+api(custom)
 struct Layout_Item_Block{
     Layout_Item_Block *next;
     Layout_Item *items;
@@ -621,6 +717,7 @@ struct Layout_Item_Block{
     i64 character_count;
 };
 
+api(custom)
 struct Layout_Item_List{
     Layout_Item_Block *first;
     Layout_Item_Block *last;
@@ -633,10 +730,13 @@ struct Layout_Item_List{
     Range_i64 manifested_index_range;
 };
 
+api(custom)
 typedef Layout_Item_List Layout_Function(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width);
 
+api(custom)
 typedef i64 Command_Map_ID;
 
+api(custom)
 struct Command_Trigger{
     Command_Trigger *next;
     Input_Event_Kind kind;
@@ -644,15 +744,18 @@ struct Command_Trigger{
     Input_Modifier_Set mods;
 };
 
+api(custom)
 struct Command_Trigger_List{
     Command_Trigger *first;
     Command_Trigger *last;
 };
 
+api(custom)
 struct Command_Binding{
     Custom_Command_Function *custom;
 };
 
+api(custom)
 struct Command_Modified_Binding{
     Command_Modified_Binding *next;
     SNode order_node;
@@ -660,6 +763,7 @@ struct Command_Modified_Binding{
     Command_Binding binding;
 };
 
+api(custom)
 struct Command_Binding_List{
     Command_Binding_List *next;
     SNode *first;
@@ -667,6 +771,7 @@ struct Command_Binding_List{
     i32 count;
 };
 
+api(custom)
 struct Command_Map{
     Command_Map *next;
     Command_Map_ID id;
@@ -683,6 +788,7 @@ struct Command_Map{
     struct Binding_Unit *real_beginning;
 };
 
+api(custom)
 struct Mapping{
     Arena *node_arena;
     Heap heap;
@@ -694,6 +800,7 @@ struct Mapping{
     Command_Binding_List *free_lists;
 };
 
+api(custom)
 struct View_Context{
     Render_Caller_Function *render_caller;
     Delta_Rule_Function *delta_rule;
@@ -703,6 +810,7 @@ struct View_Context{
     Command_Map_ID map_id;
 };
 
+api(custom)
 typedef u32 String_Match_Flag;
 enum{
     StringMatch_CaseSensitive = 1,
@@ -711,6 +819,7 @@ enum{
     StringMatch_Straddled = 8,
 };
 
+api(custom)
 struct String_Match{
     String_Match *next;
     Buffer_ID buffer;
@@ -719,12 +828,14 @@ struct String_Match{
     Range_i64 range;
 };
 
+api(custom)
 struct String_Match_List{
     String_Match *first;
     String_Match *last;
     i32 count;
 };
 
+api(custom)
 struct Process_State{
     b32 valid;
     b32 is_updating;

@@ -65,7 +65,7 @@ render_doc_page__content(Application_Links *app, Buffer_Insertion *insert, Doc_C
         }
         else{
             if (content->next != 0){
-            insertf(insert, " ");
+                insertf(insert, " ");
             }
         }
     }
@@ -80,11 +80,11 @@ render_doc_page__code(Application_Links *app, Buffer_Insertion *insert, Doc_Code
         switch (sample->language){
             case DocCodeLanguage_Cpp:
             {
-        insertf(insert, "C++\n");
+                insertf(insert, "C++\n");
             }break;
             case DocCodeLanguage_Bat:
             {
-        insertf(insert, "Batch\n\n");
+                insertf(insert, "Batch\n\n");
             }break;
         }
         insertf(insert, "\n%.*s\n", string_expand(sample->contents));
@@ -119,7 +119,7 @@ render_doc_page(Application_Links *app, Doc_Page *page){
         buffer_set_setting(app, buffer, BufferSetting_ReadOnly, true);
         buffer_set_setting(app, buffer, BufferSetting_Unimportant, true);
         
-         i64 size = buffer_get_size(app, buffer);
+        i64 size = buffer_get_size(app, buffer);
         if (size != 0){
             buffer_replace_range(app, buffer, Ii64(0, size), SCu8(""));
         }
@@ -172,16 +172,27 @@ render_doc_page(Application_Links *app, Doc_Page *page){
     return(buffer);
 }
 
-CUSTOM_UI_COMMAND_SIG(open_documentation)
-CUSTOM_DOC("Prompts the user to select an API item then loads a doc buffer for that item")
+CUSTOM_UI_COMMAND_SIG(custom_api_documentation)
+CUSTOM_DOC("Prompts the user to select a Custom API item then loads a doc buffer for that item")
 {
     View_ID view = get_this_ctx_view(app, Access_ReadWrite);
     if (view != 0){
         Scratch_Block scratch(app);
         Doc_Cluster *docs = get_custom_layer_boundary_docs(app, scratch);
         Doc_Page *page = get_doc_page_from_user(app, docs, "Doc Page:");
-        String_Const_u8 string = push_u8_stringf(scratch, "selected page: %.*s\n",
-                                                 string_expand(page->title));
+        Buffer_ID buffer = render_doc_page(app, page);
+        view_set_buffer(app, view, buffer, 0);
+    }
+}
+
+CUSTOM_UI_COMMAND_SIG(command_documentation)
+CUSTOM_DOC("Prompts the user to select a command then loads a doc buffer for that item")
+{
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    if (view != 0){
+        Scratch_Block scratch(app);
+        Doc_Cluster *docs = doc_commands(scratch);
+        Doc_Page *page = get_doc_page_from_user(app, docs, "Doc Page:");
         Buffer_ID buffer = render_doc_page(app, page);
         view_set_buffer(app, view, buffer, 0);
     }

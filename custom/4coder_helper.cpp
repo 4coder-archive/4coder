@@ -2239,7 +2239,7 @@ internal Record_Info
 get_single_record(Application_Links *app, Buffer_ID buffer_id, History_Record_Index index){
     Record_Info record = buffer_history_get_record_info(app, buffer_id, index);
     if (record.error == RecordError_NoError && record.kind == RecordKind_Group){
-        record = buffer_history_get_group_sub_record(app, buffer_id, index, record.group.count - 1);
+        record = buffer_history_get_group_sub_record(app, buffer_id, index, record.group_count - 1);
     }
     return(record);
 }
@@ -2380,14 +2380,24 @@ guess_line_ending_kind_from_buffer(Application_Links *app, Buffer_ID buffer){
 
 ////////////////////////////////
 
+function i32
+get_command_id(Custom_Command_Function *func){
+    i32 result = -1;
+    for (i32 i = 0; i < ArrayCount(fcoder_metacmd_table); i += 1){
+        if (func == fcoder_metacmd_table[i].proc){
+            result = i;
+            break;
+        }
+    }
+    return(result);
+}
+
 function Command_Metadata*
 get_command_metadata(Custom_Command_Function *func){
     Command_Metadata *result = 0;
-    for (i32 i = 0; i < ArrayCount(fcoder_metacmd_table); i += 1){
-        if (func == fcoder_metacmd_table[i].proc){
-            result = &fcoder_metacmd_table[i];
-            break;
-        }
+    i32 id = get_command_id(func);
+    if (id >= 0){
+        result = &fcoder_metacmd_table[id];
     }
     return(result);
 }

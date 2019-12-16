@@ -266,7 +266,7 @@ struct: "struct" <identifier> $(";" | "{")
 union: "union" <identifier> $(";" | "{")
 enum: "enum" <identifier> $(";" | "{")
 typedef: "typedef" [* - (<identifier> (";" | "("))] <identifier> $(";" | "(")
-function: <identifier> >"("
+function: <identifier> >"(" [* - ("(" | ")" | "{" | "}" | ";")] ")" ("{" | ";")
 
 #endif
 
@@ -350,9 +350,41 @@ cpp_parse_function(Code_Index_File *index, Generic_Parse_State *state, Code_Inde
     generic_parse_inc(state);
     generic_parse_skip_soft_tokens(index, state);
     Token *peek = token_it_read(&state->it);
+    Token *reset_point = peek;
     if (peek != 0 && peek->sub_kind == TokenCppKind_ParenOp){
+        b32 at_paren_close = false;
+        for (; peek != 0;){
+            generic_parse_inc(state);
+            generic_parse_skip_soft_tokens(index, state);
+            peek = token_it_read(&state->it);
+            
+            if (peek == 0){
+                break;
+            }
+            if (peek->kind == TokenBaseKind_ParentheticalOpen ||
+                     peek->kind == TokenBaseKind_ScopeOpen ||
+                     peek->kind == TokenBaseKind_ScopeClose ||
+                     peek->kind == TokenBaseKind_StatementClose){
+                break;
+            }
+            if (peek->kind == TokenBaseKind_ParentheticalClose){
+                at_paren_close = true;
+                break;
+            }
+        }
+        
+        if (at_paren_close){
+            generic_parse_inc(state);
+            generic_parse_skip_soft_tokens(index, state);
+            peek = token_it_read(&state->it);
+            if (peek != 0 &&
+                peek->kind == TokenBaseKind_ScopeOpen ||
+                peek->kind == TokenBaseKind_StatementClose){
         index_new_note(index, state, Ii64(token), CodeIndexNote_Function, parent);
+            }
+        }
     }
+    state->it = token_iterator(state->it.user_id, state->it.tokens, state->it.count, reset_point);
 }
 
 function Code_Index_Nest*

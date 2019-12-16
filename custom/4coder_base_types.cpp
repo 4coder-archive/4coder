@@ -6166,6 +6166,20 @@ string_list_reverse(List_String_Const_u32 *list){
     list->last = last;
 }
 
+function b32
+string_list_match(List_String_Const_u8 a, List_String_Const_u8 b){
+    b32 result = true;
+    for (Node_String_Const_u8 *a_node = a.first, *b_node = b.first;
+         a_node != 0 && b_node != 0;
+         a_node = a_node->next, b_node = b_node->next){
+        if (!string_match(a_node->string, b_node->string)){
+            result = false;
+            break;
+        }
+    }
+    return(result);
+}
+
 ////////////////////////////////
 
 global_const u8 utf8_class[32] = {

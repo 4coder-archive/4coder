@@ -23,8 +23,8 @@ write_text(Application_Links *app, String_Const_u8 insert){
         if (insert.str[0] != '\n'){
             Record_Info record = get_single_record(app, buffer, first_index);
             if (record.error == RecordError_NoError && record.kind == RecordKind_Single){
-                String_Const_u8 string = record.single.string_forward;
-                i32 last_end = (i32)(record.single.first + string.size);
+                String_Const_u8 string = record.single_string_forward;
+                i32 last_end = (i32)(record.single_first + string.size);
                 if (last_end == pos && string.size > 0){
                     char c = string.str[string.size - 1];
                     if (c != '\n'){
@@ -1574,12 +1574,12 @@ record_get_new_cursor_position_undo(Application_Links *app, Buffer_ID buffer_id,
         default:
         case RecordKind_Single:
         {
-            new_edit_position = (i32)(record.single.first + record.single.string_backward.size);
+            new_edit_position = (i32)(record.single_first + record.single_string_backward.size);
         }break;
         case RecordKind_Group:
         {
             Record_Info sub_record = buffer_history_get_group_sub_record(app, buffer_id, index, 0);
-            new_edit_position = (i32)(sub_record.single.first + sub_record.single.string_backward.size);
+            new_edit_position = (i32)(sub_record.single_first + sub_record.single_string_backward.size);
         }break;
     }
     return(new_edit_position);
@@ -1598,12 +1598,12 @@ record_get_new_cursor_position_redo(Application_Links *app, Buffer_ID buffer_id,
         default:
         case RecordKind_Single:
         {
-            new_edit_position = record.single.first + record.single.string_forward.size;
+            new_edit_position = record.single_first + record.single_string_forward.size;
         }break;
         case RecordKind_Group:
         {
-            Record_Info sub_record = buffer_history_get_group_sub_record(app, buffer_id, index, record.group.count - 1);
-            new_edit_position = sub_record.single.first + sub_record.single.string_forward.size;
+            Record_Info sub_record = buffer_history_get_group_sub_record(app, buffer_id, index, record.group_count - 1);
+            new_edit_position = sub_record.single_first + sub_record.single_string_forward.size;
         }break;
     }
     return((i32)(new_edit_position));

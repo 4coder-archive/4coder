@@ -668,9 +668,9 @@ CUSTOM_DOC("Interactively opens a file.")
 CUSTOM_UI_COMMAND_SIG(command_lister)
 CUSTOM_DOC("Opens an interactive list of all registered commands.")
 {
-    Command_Lister_Status_Rule rule = {};
-    
     View_ID view = get_this_ctx_view(app, Access_Always);
+    if (view != 0){
+    Command_Lister_Status_Rule rule = {};
     Buffer_ID buffer = view_get_buffer(app, view, Access_Visible);
     Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
     Command_Map_ID *map_id_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
@@ -683,6 +683,7 @@ CUSTOM_DOC("Opens an interactive list of all registered commands.")
     Custom_Command_Function *func = get_command_from_user(app, "Command:", &rule);
     if (func != 0){
         view_enqueue_command_function(app, view, func);
+    }
     }
 }
 

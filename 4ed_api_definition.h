@@ -32,12 +32,62 @@ struct API_Call{
     API_Param_List params;
 };
 
+typedef i32 API_Type_Structure_Kind;
+enum{
+    APITypeStructureKind_Struct,
+    APITypeStructureKind_Union,
+};
+struct API_Type_Structure{
+    API_Type_Structure_Kind kind;
+    List_String_Const_u8 member_names;
+    String_Const_u8 definition_string;
+};
+
+struct API_Enum_Value{
+    API_Enum_Value *next;
+    String_Const_u8 name;
+    String_Const_u8 val;
+};
+struct API_Type_Enum{
+    String_Const_u8 type_name;
+    API_Enum_Value *first_val;
+    API_Enum_Value *last_val;
+    i32 val_count;
+};
+
+struct API_Type_Typedef{
+    String_Const_u8 name;
+    String_Const_u8 definition_text;
+};
+
+typedef i32 API_Type_Kind;
+enum{
+    APITypeKind_Structure,
+    APITypeKind_Enum,
+    APITypeKind_Typedef,
+};
+struct API_Type{
+    API_Type *next;
+    API_Type_Kind kind;
+    String_Const_u8 name;
+    String_Const_u8 location_string;
+    union{
+        API_Type_Structure struct_type;
+        API_Type_Enum enum_type;
+        API_Type_Typedef typedef_type;
+    };
+};
+
 struct API_Definition{
     API_Definition *next;
     
-    API_Call *first;
-    API_Call *last;
-    i32 count;
+    API_Call *first_call;
+    API_Call *last_call;
+    i32 call_count;
+    
+    API_Type *first_type;
+    API_Type *last_type;
+    i32 type_count;
     
     String_Const_u8 name;
 };

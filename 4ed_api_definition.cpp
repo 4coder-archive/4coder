@@ -19,8 +19,8 @@ begin_api(Arena *arena, char *name){
 function API_Call*
 api_call_with_location(Arena *arena, API_Definition *api, String_Const_u8 name, String_Const_u8 type, String_Const_u8 location){
     API_Call *call = push_array_zero(arena, API_Call, 1);
-    sll_queue_push(api->first, api->last, call);
-    api->count += 1;
+    sll_queue_push(api->first_call, api->last_call, call);
+    api->call_count += 1;
     call->name = name;
     call->return_type = type;
     call->location_string = location;
@@ -30,6 +30,25 @@ api_call_with_location(Arena *arena, API_Definition *api, String_Const_u8 name, 
 function API_Call*
 api_call_with_location(Arena *arena, API_Definition *api, char *name, char *type, char *location){
     return(api_call_with_location(arena, api, SCu8(name), SCu8(type), SCu8(location)));
+}
+
+function API_Type*
+api_type_structure_with_location(Arena *arena, API_Definition *api, API_Type_Structure_Kind kind, String_Const_u8 name, List_String_Const_u8 member_list, String_Const_u8 definition, String_Const_u8 location){
+    API_Type *type = push_array_zero(arena, API_Type, 1);
+    sll_queue_push(api->first_type, api->last_type, type);
+    api->type_count += 1;
+    type->kind = APITypeKind_Structure;
+    type->name = name;
+    type->location_string = location;
+    type->struct_type.kind = kind;
+    type->struct_type.member_names = member_list;
+    type->struct_type.definition_string = definition;
+    return(type);
+}
+
+function API_Type*
+api_type_structure_with_location(Arena *arena, API_Definition *api, API_Type_Structure_Kind kind, char *name, List_String_Const_u8 member_list, char *definition, char *location){
+    return(api_type_structure_with_location(arena, api, kind, name, member_list, definition, location));
 }
 
 #define api_call(arena, api, name, type) \
@@ -79,7 +98,7 @@ api_get_api(Arena *arena, API_Definition_List *list, String_Const_u8 name){
 function API_Call*
 api_get_call(API_Definition *api, String_Const_u8 name){
     API_Call *result = 0;
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         if (string_match(name, call->name)){
@@ -109,6 +128,63 @@ api_call_match_sigs(API_Call *a, API_Call *b){
     return(result);
 }
 
+function API_Type*
+api_get_type(API_Definition *api, String_Const_u8 name){
+    API_Type *result = 0;
+    for (API_Type *type = api->first_type;
+         type != 0;
+         type = type->next){
+        if (string_match(type->name, name)){
+            result = type;
+            break;
+        }
+    }
+    return(result);
+}
+
+function b32
+api_type_match(API_Type *a, API_Type *b){
+    b32 result = false;
+    if (a->kind == b->kind && string_match(a->name, b->name)){
+        switch (a->kind){
+            case APITypeKind_Structure:
+            {
+                if (a->kind == b->kind &&
+                    string_list_match(a->struct_type.member_names, b->struct_type.member_names) &&
+                    string_match(a->struct_type.definition_string, b->struct_type.definition_string)){
+                    result = true;
+                }
+            }break;
+            
+            case APITypeKind_Enum:
+            {
+                if (a->enum_type.val_count == b->enum_type.val_count &&
+                    string_match(a->enum_type.type_name, b->enum_type.type_name)){
+                    result = true;
+                    for (API_Enum_Value *a_node = a->enum_type.first_val, *b_node = b->enum_type.first_val;
+                         a_node != 0 && b_node != 0;
+                         a_node = a_node->next, b_node = b_node->next){
+                        if (!string_match(a_node->name, b_node->name) ||
+                            !string_match(a_node->val, b_node->val)){
+                            result = false;
+                        break;
+                        }
+                    }
+                }
+            }break;
+            
+            case APITypeKind_Typedef:
+            {
+                if (string_match(a->typedef_type.name, b->typedef_type.name) &&
+                    string_match(a->typedef_type.definition_text, b->typedef_type.definition_text)){
+                    result = false;
+                }
+            }break;
+            }
+    }
+    return(result);
+}
+
 ////////////////////////////////
 
 #if !defined(SKIP_STDIO)
@@ -133,7 +209,7 @@ api_get_callable_name(Arena *arena, String_Const_u8 api_name, String_Const_u8 na
 
 function void
 generate_api_master_list(Arena *scratch, API_Definition *api, API_Generation_Flag flags, FILE *out){
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         fprintf(out, "api(%.*s) function %.*s %.*s(",
@@ -161,7 +237,7 @@ generate_api_master_list(Arena *scratch, API_Definition *api, API_Generation_Fla
 
 function void
 generate_header(Arena *scratch, API_Definition *api, API_Generation_Flag flags, FILE *out){
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         fprintf(out, "#define %.*s_%.*s_sig() %.*s %.*s_%.*s(",
@@ -188,7 +264,7 @@ generate_header(Arena *scratch, API_Definition *api, API_Generation_Flag flags, 
         fprintf(out, ")\n");
     }
     
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         fprintf(out, "typedef %.*s %.*s_%.*s_type(",
@@ -214,7 +290,7 @@ generate_header(Arena *scratch, API_Definition *api, API_Generation_Flag flags, 
     }
     
     fprintf(out, "struct API_VTable_%.*s{\n", string_expand(api->name));
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         fprintf(out, "%.*s_%.*s_type *",
@@ -227,7 +303,7 @@ generate_header(Arena *scratch, API_Definition *api, API_Generation_Flag flags, 
     fprintf(out, "};\n");
     
     fprintf(out, "#if defined(STATIC_LINK_API)\n");
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         String_Const_u8 callable_name = api_get_callable_name(scratch, api->name, call->name, flags);
@@ -253,7 +329,7 @@ generate_header(Arena *scratch, API_Definition *api, API_Generation_Flag flags, 
     }
     fprintf(out, "#undef STATIC_LINK_API\n");
     fprintf(out, "#elif defined(DYNAMIC_LINK_API)\n");
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         String_Const_u8 callable_name = api_get_callable_name(scratch, api->name, call->name, flags);
@@ -272,7 +348,7 @@ generate_cpp(Arena *scratch, API_Definition *api, API_Generation_Flag flags, FIL
     fprintf(out, "%.*s_api_fill_vtable(API_VTable_%.*s *vtable){\n",
             string_expand(api->name),
             string_expand(api->name));
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         String_Const_u8 callable_name = api_get_callable_name(scratch, api->name, call->name, flags);
@@ -287,7 +363,7 @@ generate_cpp(Arena *scratch, API_Definition *api, API_Generation_Flag flags, FIL
     fprintf(out, "%.*s_api_read_vtable(API_VTable_%.*s *vtable){\n",
             string_expand(api->name),
             string_expand(api->name));
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         String_Const_u8 callable_name = api_get_callable_name(scratch, api->name, call->name, flags);
@@ -308,7 +384,7 @@ generate_constructor(Arena *scratch, API_Definition *api, API_Generation_Flag fl
     fprintf(out, "API_Definition *result = begin_api(arena, \"%.*s\");\n",
             string_expand(api->name));
     
-    for (API_Call *call = api->first;
+    for (API_Call *call = api->first_call;
          call != 0;
          call = call->next){
         fprintf(out, "{\n");
@@ -494,7 +570,7 @@ api_definition_check(Arena *arena, API_Definition *correct, API_Definition *remo
     
     b32 iterate_correct = (report_missing || report_mismatch);
     if (iterate_correct){
-        for (API_Call *call = correct->first;
+        for (API_Call *call = correct->first_call;
              call != 0;
              call = call->next){
             API_Call *remote_call = api_get_call(remote, call->name);
@@ -512,7 +588,7 @@ api_definition_check(Arena *arena, API_Definition *correct, API_Definition *remo
     
     b32 iterate_remote = (report_extra);
     if (iterate_remote){
-        for (API_Call *call = remote->first;
+        for (API_Call *call = remote->first_call;
              call != 0;
              call = call->next){
             API_Call *correct_call = api_get_call(correct, call->name);

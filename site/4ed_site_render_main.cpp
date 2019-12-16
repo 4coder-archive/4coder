@@ -14,15 +14,19 @@
 #include "4coder_doc_content_types.h"
 #include "../docs/4ed_doc_helper.h"
 
+#include "generated/command_metadata.h"
+
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
 #include "4coder_malloc_allocator.cpp"
 #include "../4ed_api_definition.cpp"
-#include "../docs/4ed_doc_content_types.cpp"
+#include "4coder_doc_content_types.cpp"
+#include "../docs/4ed_doc_helper.cpp"
 #include "4coder_file.cpp"
 
 #include "generated/custom_api_constructor.cpp"
 #include "../docs/4ed_doc_custom_api.cpp"
+#include "4coder_doc_commands.cpp"
 
 #include <stdio.h>
 
@@ -408,7 +412,7 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
         
         fprintf(file, "<div class=\"spacer\"></div>\n");
         
-        fprintf(file, "<h2><a href=\"docs/%.*s_index.html\">Index</a></h2>\n",
+        fprintf(file, "<h2><a href=\"%.*s_index.html\">Index</a></h2>\n",
                 string_expand(cluster->name));
         
         fprintf(file, html_footer);
@@ -470,8 +474,9 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster, String_Const_u8
         return;
     }
     
-    render_doc_cluster_to_html(scratch, cluster,
-                               file, file_index);
+    render_doc_cluster_to_html(scratch, cluster, file, file_index);
+    printf("%s:1:1\n", indx_name.str);
+    
     fclose(file);
 }
 
@@ -491,15 +496,23 @@ int main(){
     String_Const_u8 docs_root = push_u8_stringf(&arena, "%.*sdocs/",
                                                 string_expand(site_root));
     
-    API_Definition *api_def = custom_api_construct(&arena);
-    Doc_Cluster *cluster = doc_custom_api(&arena, api_def);
+    (void)root;
     
-    for (Doc_Page *node = cluster->first_page;
+    API_Definition *api_def = custom_api_construct(&arena);
+    Doc_Cluster *cluster_array[] = {
+        doc_custom_api(&arena, api_def),
+        doc_commands(&arena),
+    };
+    
+    for (i32 i = 0; i < ArrayCount(cluster_array); i += 1){
+        Doc_Cluster *cluster = cluster_array[i];
+        for (Doc_Page *node = cluster->first_page;
          node != 0;
          node = node->next){
         render_doc_page_to_html(&arena, node, docs_root);
     }
     render_doc_cluster_to_html(&arena, cluster, docs_root);
+    }
     
     return(0);
 }

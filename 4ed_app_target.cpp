@@ -96,7 +96,8 @@
 #include "4ed_api_definition.cpp"
 #include "generated/custom_api_constructor.cpp"
 #include "4ed_api_parser.cpp"
-#include "docs/4ed_doc_content_types.cpp"
+#include "4coder_doc_content_types.cpp"
+#include "docs/4ed_doc_helper.cpp"
 #include "docs/4ed_doc_custom_api.cpp"
 
 #include "4ed_log.cpp"

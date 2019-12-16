@@ -9,14 +9,14 @@
 
 // TOP
 
-internal void
+function void
 output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value){
     i64 end = buffer_size(&file->state.buffer);
     Edit_Behaviors behaviors = {};
     edit_single(tctx, models, file, Ii64(end), value, behaviors);
 }
 
-internal void
+function void
 file_cursor_to_end(Thread_Context *tctx, Models *models, Editing_File *file){
     Assert(file != 0);
     i64 pos = buffer_size(&file->state.buffer);
@@ -2414,13 +2414,13 @@ buffer_history__fill_record_info(Record *record, Record_Info *out){
     switch (out->kind){
         case RecordKind_Single:
         {
-            out->single.string_forward  = record->single.forward_text ;
-            out->single.string_backward = record->single.backward_text;
-            out->single.first = record->single.first;
+            out->single_string_forward  = record->single.forward_text ;
+            out->single_string_backward = record->single.backward_text;
+            out->single_first = record->single.first;
         }break;
         case RecordKind_Group:
         {
-            out->group.count = record->group.count;
+            out->group_count = record->group.count;
         }break;
         default:
         {

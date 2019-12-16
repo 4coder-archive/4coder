@@ -23,7 +23,8 @@
 #include "generated/lexer_cpp.cpp"
 #include "../4ed_api_definition.cpp"
 #include "../4ed_api_parser.cpp"
-#include "4ed_doc_content_types.cpp"
+#include "4coder_doc_content_types.cpp"
+#include "4ed_doc_helper.cpp"
 #include "4coder_file.cpp"
 
 ////////////////////////////////
