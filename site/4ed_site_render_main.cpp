@@ -38,7 +38,7 @@ char html_header[] = R"HTMLFOO(
 <head>
 <link rel='shortcut icon' type='image/x-icon' href='4coder_icon.ico' />
 <link href="https://fonts.googleapis.com/css?family=Inconsolata:700&display=swap" rel="stylesheet">
-<script src="../search.js"></script> 
+<script src="search.js"></script> 
 <title>%.*s</title>
 <style>
 body {
