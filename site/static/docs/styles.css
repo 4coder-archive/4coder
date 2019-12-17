@@ -67,6 +67,10 @@ pre {
 	text-align: justify;
 }
 
+table.normal td {
+    padding-right: 1em;
+}
+
 .normal li {
 	text-align: left;
 }

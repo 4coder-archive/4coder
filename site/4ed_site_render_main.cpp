@@ -45,7 +45,7 @@ char html_header[] = R"HTMLFOO(
 <html lang="en-US">
 
 <head>
-<link rel='shortcut icon' type='image/x-icon' href='4coder_icon.ico' />
+<link rel='shortcut icon' type='image/x-icon' href='https://4coder.net/4coder_icon.ico' />
 <link href="https://fonts.googleapis.com/css?family=Inconsolata:700&display=swap" rel="stylesheet">
 <script src="search.js"></script> 
 <title>%.*s</title>
@@ -62,9 +62,7 @@ char html_footer[] = R"HTMLFOO(
 )HTMLFOO";
 
 function void
-render_doc_page_to_html__content(Arena *scratch, Doc_Content_List *list, FILE *out){
-    fprintf(out, "<div class=\"normal\">");
-    
+render_doc_page_to_html__content_list(Arena *scratch, Doc_Content_List *list, FILE *out){
     for (Doc_Content *content = list->first;
          content != 0;
          content = content->next){
@@ -93,7 +91,7 @@ render_doc_page_to_html__content(Arena *scratch, Doc_Content_List *list, FILE *o
             {
                 fprintf(out, "<code><pre>");
             }break;
-            }
+        }
         
         b32 close_link = false;
         if (content->page_link.size > 0){
@@ -131,7 +129,12 @@ render_doc_page_to_html__content(Arena *scratch, Doc_Content_List *list, FILE *o
         }
         fprintf(out, " ");
     }
-    
+}
+
+function void
+render_doc_page_to_html__content(Arena *scratch, Doc_Content_List *list, FILE *out){
+    fprintf(out, "<div class=\"normal\">");
+    render_doc_page_to_html__content_list(scratch, list, out);
     fprintf(out, "</div>\n");
 }
 
@@ -154,7 +157,19 @@ render_doc_page_to_html__code(Arena *scratch, Doc_Code_Sample_List *code, FILE *
 
 function void
 render_doc_page_to_html__table(Arena *scratch, Vec2_i32 dim, Doc_Content_List *vals, FILE *out){
-    
+    fprintf(out, "<table class=\"normal\">");
+    for (i32 y = 0; y < dim.y; y += 1){
+        fprintf(out, "<tr>");
+        Doc_Content_List *line = &vals[y*dim.x];
+        for (i32 x = 0; x < dim.x; x += 1){
+            Doc_Content_List *cont = &line[x];
+            fprintf(out, "<td>");
+            render_doc_page_to_html__content_list(scratch, cont, out);
+            fprintf(out, "</td>");
+        }
+        fprintf(out, "</tr>");
+    }
+        fprintf(out, "</table>");
 }
 
 function void

@@ -26,7 +26,8 @@ doc_commands(Arena *arena){
 function Doc_Cluster*
 doc_default_bindings(Arena *arena, Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     Doc_Cluster *cluster = new_doc_cluster(arena, "Bindings", "bindings");
-        Doc_Page *page = new_doc_page(arena, cluster, "Default", "default");
+    
+        Doc_Page *page = new_doc_page(arena, cluster, "Default Bindings", "default_bindings");
     for (Command_Map *map = mapping->first_map;
          map != 0;
          map = map->next){
@@ -43,7 +44,6 @@ doc_default_bindings(Arena *arena, Mapping *mapping, i64 global_id, i64 file_id,
         
         Doc_Block *block = new_doc_block(arena, page, map_name);
         Doc_Paragraph *par = new_doc_par_table(arena, block);
-        (void)par;
         
         struct Bind_Node{
             Bind_Node *next;
@@ -161,6 +161,8 @@ doc_default_bindings(Arena *arena, Mapping *mapping, i64 global_id, i64 file_id,
             content->page_link = SCu8(bnode->binding.name);
         }
         
+        par->table.dim = table_dims;
+        par->table.vals = vals;
         }
     
     return(cluster);
