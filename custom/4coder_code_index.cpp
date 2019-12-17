@@ -839,16 +839,16 @@ layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_F
 }
 
 function void
-layout_index__emit_chunk(LefRig_TopBot_Layout_Vars *pos_vars, Arena *arena, u8 *text_str, i64 range_first, u8 *ptr, u8 *end, Layout_Item_List *list){
+layout_index__emit_chunk(LefRig_TopBot_Layout_Vars *pos_vars, Face_ID face, Arena *arena, u8 *text_str, i64 range_first, u8 *ptr, u8 *end, Layout_Item_List *list){
     for (;ptr < end;){
         Character_Consume_Result consume = utf8_consume(ptr, (umem)(end - ptr));
         if (consume.codepoint != '\r'){
             i64 index = layout_index_from_ptr(ptr, text_str, range_first);
             if (consume.codepoint != max_u32){
-                lr_tb_write(pos_vars, arena, list, index, consume.codepoint);
+                lr_tb_write(pos_vars, face, arena, list, index, consume.codepoint);
             }
             else{
-                lr_tb_write_byte(pos_vars, arena, list, index, *ptr);
+                lr_tb_write_byte(pos_vars, face, arena, list, index, *ptr);
             }
 		}
         ptr += consume.inc;
@@ -886,7 +886,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
     Layout_Reflex reflex = get_layout_reflex(&list, buffer, width, face);
     
     if (text.size == 0){
-        lr_tb_write_blank(&pos_vars, arena, &list, range.start);
+        lr_tb_write_blank(&pos_vars, face, arena, &list, range.start);
     }
     else{
         b32 first_of_the_line = true;
@@ -963,7 +963,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 for (;ptr < word_end;){
                     Character_Consume_Result consume = utf8_consume(ptr, (umem)(word_end - ptr));
                     if (consume.codepoint != max_u32){
-                        word_advance += lr_tb_advance(&pos_vars, consume.codepoint);
+                        word_advance += lr_tb_advance(&pos_vars, face, consume.codepoint);
                     }
                     else{
                         word_advance += lr_tb_advance_byte(&pos_vars);
@@ -976,7 +976,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
             if (!first_of_the_line && (kind == Layout_Wrapped) && lr_tb_crosses_width(&pos_vars, pending_wrap_accumulated_w)){
                 i64 index = layout_index_from_ptr(pending_wrap_ptr, text.str, range.first);
                 lr_tb_align_rightward(&pos_vars, wrap_align_x);
-                lr_tb_write_ghost(&pos_vars, arena, &list, index, '\\');
+                lr_tb_write_ghost(&pos_vars, face, arena, &list, index, '\\');
                 
                 lr_tb_next_line(&pos_vars);
 #if 0
@@ -1060,7 +1060,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 }
                 
                 if (new_wrap_ptr_is_better){
-                    layout_index__emit_chunk(&pos_vars, arena, text.str, range.first, pending_wrap_ptr, new_wrap_ptr, &list);
+                    layout_index__emit_chunk(&pos_vars, face, arena, text.str, range.first, pending_wrap_ptr, new_wrap_ptr, &list);
                     first_of_the_line = false;
                     
                     pending_wrap_ptr = new_wrap_ptr;
@@ -1080,7 +1080,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 default:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    pending_wrap_accumulated_w += lr_tb_advance(&pos_vars, *ptr);
+                    pending_wrap_accumulated_w += lr_tb_advance(&pos_vars, face, *ptr);
                 }break;
                 
                 case '\r':
@@ -1090,12 +1090,12 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 
                 case '\n':
                 {
-                    layout_index__emit_chunk(&pos_vars, arena, text.str, range.first, pending_wrap_ptr, ptr, &list);
+                    layout_index__emit_chunk(&pos_vars, face, arena, text.str, range.first, pending_wrap_ptr, ptr, &list);
                     pending_wrap_ptr = ptr + 1;
                     pending_wrap_accumulated_w = 0.f;
                     
                     u64 newline_index = newline_layout_consume_LF(&newline_vars, index);
-                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
+                    lr_tb_write_blank(&pos_vars, face, arena, &list, newline_index);
                     lr_tb_next_line(&pos_vars);
                     first_of_the_line = true;
                     ptr += 1;
@@ -1106,9 +1106,9 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
         
         finish:
         if (newline_layout_consume_finish(&newline_vars)){
-            layout_index__emit_chunk(&pos_vars, arena, text.str, range.first, pending_wrap_ptr, ptr, &list);
+            layout_index__emit_chunk(&pos_vars, face, arena, text.str, range.first, pending_wrap_ptr, ptr, &list);
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            lr_tb_write_blank(&pos_vars, arena, &list, index);
+            lr_tb_write_blank(&pos_vars, face, arena, &list, index);
         }
     }
     
