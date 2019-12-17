@@ -715,6 +715,7 @@ struct Layout_Item_Block{
     Layout_Item *items;
     i64 item_count;
     i64 character_count;
+    Face_ID face;
 };
 
 api(custom)

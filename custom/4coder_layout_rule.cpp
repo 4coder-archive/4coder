@@ -56,13 +56,15 @@ layout_item_list_finish(Layout_Item_List *list, f32 bottom_padding){
 }
 
 function void
-layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Layout_Item_Flag flags, Rect_f32 rect){
+layout_write(Arena *arena, Layout_Item_List *list, Face_ID face, i64 index, u32 codepoint, Layout_Item_Flag flags, Rect_f32 rect){
     Temp_Memory restore_point = begin_temp(arena);
     Layout_Item *item = push_array(arena, Layout_Item, 1);
-    
     Layout_Item_Block *block = list->last;
     if (block != 0){
-        if (block->items + block->item_count == item){
+        if (block->face != face){
+            block = 0;
+        }
+        else if (block->items + block->item_count == item){
             block->item_count += 1;
         }
         else{
@@ -77,6 +79,7 @@ layout_write(Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Lay
         list->node_count += 1;
         block->items = item;
         block->item_count = 1;
+        block->face = face;
     }
     
     list->item_count += 1;
@@ -165,36 +168,36 @@ lr_tb_crosses_width(LefRig_TopBot_Layout_Vars *vars, f32 advance){
 }
 
 function f32
-lr_tb_advance(LefRig_TopBot_Layout_Vars *vars, u32 codepoint){
+lr_tb_advance(LefRig_TopBot_Layout_Vars *vars, Face_ID face, u32 codepoint){
     return(font_get_glyph_advance(vars->advance_map, vars->metrics, codepoint));
 }
 
 function void
-lr_tb_write_with_advance_with_flags(LefRig_TopBot_Layout_Vars *vars, f32 advance, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Layout_Item_Flag flags){
+lr_tb_write_with_advance_with_flags(LefRig_TopBot_Layout_Vars *vars, Face_ID face, f32 advance, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint, Layout_Item_Flag flags){
     if (codepoint == '\t'){
         codepoint = ' ';
     }
     vars->p.x = f32_ceil32(vars->p.x);
     f32 next_x = vars->p.x + advance;
-    layout_write(arena, list, index, codepoint, flags, Rf32(vars->p, V2f32(next_x, vars->text_y)));
+    layout_write(arena, list, face, index, codepoint, flags, Rf32(vars->p, V2f32(next_x, vars->text_y)));
     vars->p.x = next_x;
 }
 
 function void
-lr_tb_write_with_advance(LefRig_TopBot_Layout_Vars *vars, f32 advance, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint){
-    lr_tb_write_with_advance_with_flags(vars, advance, arena, list, index, codepoint, 0);
+lr_tb_write_with_advance(LefRig_TopBot_Layout_Vars *vars, Face_ID face, f32 advance, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint){
+    lr_tb_write_with_advance_with_flags(vars, face, advance, arena, list, index, codepoint, 0);
 }
 
 function void
-lr_tb_write(LefRig_TopBot_Layout_Vars *vars, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint){
-    f32 advance = lr_tb_advance(vars, codepoint);
-    lr_tb_write_with_advance(vars, advance, arena, list, index, codepoint);
+lr_tb_write(LefRig_TopBot_Layout_Vars *vars, Face_ID face, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint){
+    f32 advance = lr_tb_advance(vars, face, codepoint);
+    lr_tb_write_with_advance(vars, face, advance, arena, list, index, codepoint);
 }
 
 function void
-lr_tb_write_ghost(LefRig_TopBot_Layout_Vars *vars, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint){
-    f32 advance = lr_tb_advance(vars, codepoint);
-    lr_tb_write_with_advance_with_flags(vars, advance, arena, list, index, codepoint, LayoutItemFlag_Ghost_Character);
+lr_tb_write_ghost(LefRig_TopBot_Layout_Vars *vars, Face_ID face, Arena *arena, Layout_Item_List *list, i64 index, u32 codepoint){
+    f32 advance = lr_tb_advance(vars, face, codepoint);
+    lr_tb_write_with_advance_with_flags(vars, face, advance, arena, list, index, codepoint, LayoutItemFlag_Ghost_Character);
 }
 
 function f32
@@ -203,7 +206,7 @@ lr_tb_advance_byte(LefRig_TopBot_Layout_Vars *vars){
 }
 
 function void
-lr_tb_write_byte_with_advance(LefRig_TopBot_Layout_Vars *vars, f32 advance, Arena *arena, Layout_Item_List *list, i64 index, u8 byte){
+lr_tb_write_byte_with_advance(LefRig_TopBot_Layout_Vars *vars, Face_ID face, f32 advance, Arena *arena, Layout_Item_List *list, i64 index, u8 byte){
     Face_Metrics *metrics = vars->metrics;
     
     f32 final_next_x = vars->p.x + advance;
@@ -216,37 +219,37 @@ lr_tb_write_byte_with_advance(LefRig_TopBot_Layout_Vars *vars, f32 advance, Aren
     f32 text_y = vars->text_y;
     
     Layout_Item_Flag flags = LayoutItemFlag_Special_Character;
-    layout_write(arena, list, index, '\\', flags, Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, face, index, '\\', flags, Rf32(p, V2f32(next_x, text_y)));
     p.x = next_x;
     
     flags = LayoutItemFlag_Ghost_Character;
     next_x += metrics->byte_sub_advances[1];
-    layout_write(arena, list, index, integer_symbols[hi], flags, Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, face, index, integer_symbols[hi], flags, Rf32(p, V2f32(next_x, text_y)));
     p.x = next_x;
     next_x += metrics->byte_sub_advances[2];
-    layout_write(arena, list, index, integer_symbols[lo], flags, Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, face, index, integer_symbols[lo], flags, Rf32(p, V2f32(next_x, text_y)));
     
     vars->p.x = final_next_x;
 }
 
 function void
-lr_tb_write_byte(LefRig_TopBot_Layout_Vars *vars,
+lr_tb_write_byte(LefRig_TopBot_Layout_Vars *vars, Face_ID face,
                  Arena *arena, Layout_Item_List *list, i64 index, u8 byte){
-    lr_tb_write_byte_with_advance(vars, vars->metrics->byte_advance,
+    lr_tb_write_byte_with_advance(vars, face, vars->metrics->byte_advance,
                                   arena, list, index, byte);
 }
 
 function void
-lr_tb_write_blank_dim(LefRig_TopBot_Layout_Vars *vars, Vec2_f32 dim,
+lr_tb_write_blank_dim(LefRig_TopBot_Layout_Vars *vars, Face_ID face, Vec2_f32 dim,
                       Arena *arena, Layout_Item_List *list, i64 index){
-    layout_write(arena, list, index, ' ', 0, Rf32_xy_wh(vars->p, dim));
+    layout_write(arena, list, face, index, ' ', 0, Rf32_xy_wh(vars->p, dim));
     vars->p.x += dim.x;
 }
 
 function void
-lr_tb_write_blank(LefRig_TopBot_Layout_Vars *vars,
+lr_tb_write_blank(LefRig_TopBot_Layout_Vars *vars, Face_ID face,
                   Arena *arena, Layout_Item_List *list, i64 index){
-    lr_tb_write_blank_dim(vars, vars->blank_dim, arena, list, index);
+    lr_tb_write_blank_dim(vars, face, vars->blank_dim, arena, list, index);
 }
 
 function void
@@ -292,7 +295,7 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_
     pos_vars.blank_dim = V2f32(metrics.space_advance, metrics.text_height*0.5f);
     
     if (text.size == 0){
-        lr_tb_write_blank(&pos_vars, arena, &list, range.start);
+        lr_tb_write_blank(&pos_vars, face, arena, &list, range.start);
     }
     else{
         Newline_Layout_Vars newline_vars = get_newline_layout_vars();
@@ -320,9 +323,8 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_
                 {
                     newline_layout_consume_default(&newline_vars);
                     Vec2_f32 dim = pos_vars.blank_dim;
-                    dim.x = lr_tb_advance(&pos_vars, '\t');
-                    lr_tb_write_blank_dim(&pos_vars, dim,
-                                          arena, &list, index);
+                    dim.x = lr_tb_advance(&pos_vars, face, '\t');
+                    lr_tb_write_blank_dim(&pos_vars, face, dim, arena, &list, index);
                 }break;
                 
                 case ' ':
@@ -330,13 +332,13 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_
                 case '\v':
                 {
                     newline_layout_consume_default(&newline_vars);
-                    lr_tb_write_blank(&pos_vars, arena, &list, index);
+                    lr_tb_write_blank(&pos_vars, face, arena, &list, index);
                 }break;
                 
                 default:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    lr_tb_write(&pos_vars, arena, &list, index, consume.codepoint);
+                    lr_tb_write(&pos_vars, face, arena, &list, index, consume.codepoint);
                 }break;
                 
                 case '\r':
@@ -347,14 +349,14 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_
                 case '\n':
                 {
                     i64 newline_index = newline_layout_consume_LF(&newline_vars, index);
-                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
+                    lr_tb_write_blank(&pos_vars, face, arena, &list, newline_index);
                     lr_tb_next_line(&pos_vars);
                 }break;
                 
                 case max_u32:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    lr_tb_write_byte(&pos_vars, arena, &list, index, *ptr);
+                    lr_tb_write_byte(&pos_vars, face, arena, &list, index, *ptr);
                 }break;
             }
             
@@ -363,7 +365,7 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_
         
         if (newline_layout_consume_finish(&newline_vars)){
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            lr_tb_write_blank(&pos_vars, arena, &list, index);
+            lr_tb_write_blank(&pos_vars, face, arena, &list, index);
         }
     }
     
@@ -385,7 +387,7 @@ layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer, Ran
     LefRig_TopBot_Layout_Vars pos_vars = get_lr_tb_layout_vars(&advance_map, &metrics, width);
     
     if (text.size == 0){
-        lr_tb_write_blank(&pos_vars, arena, &list, range.first);
+        lr_tb_write_blank(&pos_vars, face, arena, &list, range.first);
     }
     else{
         b32 first_of_the_line = true;
@@ -400,12 +402,11 @@ layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer, Ran
                 default:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    f32 advance = lr_tb_advance(&pos_vars, consume.codepoint);
+                    f32 advance = lr_tb_advance(&pos_vars, face, consume.codepoint);
                     if (!first_of_the_line && lr_tb_crosses_width(&pos_vars, advance)){
                         lr_tb_next_line(&pos_vars);
                     }
-                    lr_tb_write_with_advance(&pos_vars, advance,
-                                             arena, &list, index, consume.codepoint);
+                    lr_tb_write_with_advance(&pos_vars, face, advance, arena, &list, index, consume.codepoint);
                     first_of_the_line = false;
                 }break;
                 
@@ -417,7 +418,7 @@ layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer, Ran
                 case '\n':
                 {
                     i64 newline_index = newline_layout_consume_LF(&newline_vars, index);
-                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
+                    lr_tb_write_blank(&pos_vars, face, arena, &list, newline_index);
                     lr_tb_next_line(&pos_vars);
                     first_of_the_line = true;
                 }break;
@@ -429,8 +430,7 @@ layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer, Ran
                     if (!first_of_the_line && lr_tb_crosses_width(&pos_vars, advance)){
                         lr_tb_next_line(&pos_vars);
                     }
-                    lr_tb_write_byte_with_advance(&pos_vars, advance,
-                                                  arena, &list, index, *ptr);
+                    lr_tb_write_byte_with_advance(&pos_vars, face, advance, arena, &list, index, *ptr);
                     first_of_the_line = false;
                 }break;
             }
@@ -439,7 +439,7 @@ layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer, Ran
         
         if (newline_layout_consume_finish(&newline_vars)){
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            lr_tb_write_blank(&pos_vars, arena, &list, index);
+            lr_tb_write_blank(&pos_vars, face, arena, &list, index);
         }
     }
     
@@ -460,7 +460,7 @@ layout_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, 
     LefRig_TopBot_Layout_Vars pos_vars = get_lr_tb_layout_vars(&advance_map, &metrics, width);
     
     if (text.size == 0){
-        lr_tb_write_blank(&pos_vars, arena, &list, range.first);
+        lr_tb_write_blank(&pos_vars, face, arena, &list, range.first);
     }
     else{
         b32 skipping_leading_whitespace = (virt_indent == LayoutVirtualIndent_On);
@@ -477,9 +477,9 @@ layout_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, 
                 case ' ':
                 {
                     newline_layout_consume_default(&newline_vars);
-                    f32 advance = lr_tb_advance(&pos_vars, consume.codepoint);
+                    f32 advance = lr_tb_advance(&pos_vars, face, consume.codepoint);
                     if (!skipping_leading_whitespace){
-                        lr_tb_write_with_advance(&pos_vars, advance, arena, &list, index, consume.codepoint);
+                        lr_tb_write_with_advance(&pos_vars, face, advance, arena, &list, index, consume.codepoint);
                     }
                     else{
                         lr_tb_advance_x_without_item(&pos_vars, advance);
@@ -489,7 +489,7 @@ layout_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, 
                 default:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    lr_tb_write(&pos_vars, arena, &list, index, consume.codepoint);
+                    lr_tb_write(&pos_vars, face, arena, &list, index, consume.codepoint);
                 }break;
                 
                 case '\r':
@@ -500,14 +500,14 @@ layout_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, 
                 case '\n':
                 {
                     i64 newline_index = newline_layout_consume_LF(&newline_vars, index);
-                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
+                    lr_tb_write_blank(&pos_vars, face, arena, &list, newline_index);
                     lr_tb_next_line(&pos_vars);
                 }break;
                 
                 case max_u32:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    lr_tb_write_byte(&pos_vars, arena, &list, index, *ptr);
+                    lr_tb_write_byte(&pos_vars, face, arena, &list, index, *ptr);
                 }break;
             }
             
@@ -516,7 +516,7 @@ layout_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, 
         
         if (newline_layout_consume_finish(&newline_vars)){
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            lr_tb_write_blank(&pos_vars, arena, &list, index);
+            lr_tb_write_blank(&pos_vars, face, arena, &list, index);
         }
     }
     
@@ -538,7 +538,7 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
     LefRig_TopBot_Layout_Vars pos_vars = get_lr_tb_layout_vars(&advance_map, &metrics, width);
     
     if (text.size == 0){
-        lr_tb_write_blank(&pos_vars, arena, &list, range.first);
+        lr_tb_write_blank(&pos_vars, face, arena, &list, range.first);
     }
     else{
         b32 skipping_leading_whitespace = false;
@@ -574,7 +574,7 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                     Character_Consume_Result consume =
                         utf8_consume(ptr, (umem)(word_end - ptr));
                     if (consume.codepoint != max_u32){
-                        total_advance += lr_tb_advance(&pos_vars, consume.codepoint);
+                        total_advance += lr_tb_advance(&pos_vars, face, consume.codepoint);
                     }
                     else{
                         total_advance += lr_tb_advance_byte(&pos_vars);
@@ -595,10 +595,10 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                 i64 index = layout_index_from_ptr(ptr, text.str, range.first);
                 
                 if (consume.codepoint != max_u32){
-                    lr_tb_write(&pos_vars, arena, &list, index, consume.codepoint);
+                    lr_tb_write(&pos_vars, face, arena, &list, index, consume.codepoint);
                 }
                 else{
-                    lr_tb_write_byte(&pos_vars, arena, &list, index, *ptr);
+                    lr_tb_write_byte(&pos_vars, face, arena, &list, index, *ptr);
                 }
                 
                 ptr += consume.inc;
@@ -620,12 +620,12 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                 case ' ':
                 {
                     newline_layout_consume_default(&newline_vars);
-                    f32 advance = lr_tb_advance(&pos_vars, *ptr);
+                    f32 advance = lr_tb_advance(&pos_vars, face, *ptr);
                     if (!skipping_leading_whitespace){
                         if (!first_of_the_line && lr_tb_crosses_width(&pos_vars, advance)){
                             lr_tb_next_line(&pos_vars);
                         }
-                        lr_tb_write_with_advance(&pos_vars, advance, arena, &list, index, *ptr);
+                        lr_tb_write_with_advance(&pos_vars, face, advance, arena, &list, index, *ptr);
                         first_of_the_line = false;
                     }
                     else{
@@ -636,11 +636,11 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                 default:
                 {
                     newline_layout_consume_default(&newline_vars);
-                    f32 advance = lr_tb_advance(&pos_vars, *ptr);
+                    f32 advance = lr_tb_advance(&pos_vars, face, *ptr);
                     if (!first_of_the_line && lr_tb_crosses_width(&pos_vars, advance)){
                         lr_tb_next_line(&pos_vars);
                     }
-                    lr_tb_write_with_advance(&pos_vars, advance, arena, &list, index, *ptr);
+                    lr_tb_write_with_advance(&pos_vars, face, advance, arena, &list, index, *ptr);
                     first_of_the_line = false;
                 }break;
                 
@@ -652,7 +652,7 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                 case '\n':
                 {
                     u64 newline_index = newline_layout_consume_LF(&newline_vars, index);
-                    lr_tb_write_blank(&pos_vars, arena, &list, newline_index);
+                    lr_tb_write_blank(&pos_vars, face, arena, &list, newline_index);
                     lr_tb_next_line(&pos_vars);
                     first_of_the_line = true;
                 }break;
@@ -661,7 +661,7 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
         
         if (newline_layout_consume_finish(&newline_vars)){
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            lr_tb_write_blank(&pos_vars, arena, &list, index);
+            lr_tb_write_blank(&pos_vars, face, arena, &list, index);
         }
     }
     

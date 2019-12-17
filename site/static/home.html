@@ -1,0 +1,172 @@
+<html lang="en-US">
+
+<head>
+<link rel='shortcut icon' type='image/x-icon' href='4coder_icon.ico' />
+<link href="https://fonts.googleapis.com/css?family=Inconsolata:700&display=swap" rel="stylesheet">
+<title>4coder</title>
+<style>
+body {
+  font-family: 'Inconsolata', monospace;
+  background: #0C0C0C;
+  color: #FF00FF;
+}
+
+h1 {
+  font-size: 4em;
+  color: #50FF30;
+}
+
+h2 {
+  margin-top: 0;
+  margin-bottom: .666em;
+  font-size: 1.5em;
+  color: #00A000;
+}
+
+ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+li {
+  margin-top: 5px;
+}
+
+li.firstli {
+  margin-top: 0px;
+}
+
+.normal a:link, a:link {
+  color: #D08F20;
+}
+.normal a:visited, a:visited {
+  color: #744F14;
+}
+.normal a:hover, a:hover {
+  color: #E0AF60;
+}
+
+.root {
+  width: 50%;
+  margin: auto;
+}
+
+@media only screen and (max-width: 1000px) {
+  .root {
+    width: 70%;
+  }
+}
+@media only screen and (max-width: 800px) {
+  .root {
+    width: 90%;
+  }
+}
+
+.center {
+  text-align: center;
+}
+
+.normal {
+  font-size: 1.25em;
+  color: #90B080;
+  text-align: justify;
+}
+
+.normal li {
+  text-align: left;
+}
+
+.comment {
+  margin-left: 14px;
+  margin-right: 14px;
+  font-size: 1.25em;
+  color: #2090F0;
+  text-align: center;
+}
+
+.emphasize {
+  color: #00A000;
+}
+
+.spacer {
+  height: 2.5em;
+}
+
+.bottom_spacer {
+  height: 20em;
+}
+
+</style>
+
+</head>
+
+
+<body>
+<div class="root">
+<div class="center"><img src="4coder_logo_200_105.png" alt="4coder logo"></div>
+
+<div class="spacer"></div>
+
+<div class="normal"><span class="emphasize">4coder</span> is a modern text editor based loosely on Emacs.  The primary goal of <span class="emphasize">4coder</span> is to maximize the power and ease of <span class="emphasize">customization</span>.  <span class="emphasize">4coder</span> also places high priority on <span class="emphasize">performance</span> and <span class="emphasize">portability</span>.</div>
+
+<div class="spacer"></div>
+
+<div class="comment">Get <span class="emphasize">4coder</span>: <a href="https://4coder.itch.io/">4coder.itch.io</a></div>
+
+<div class="spacer"></div>
+
+<div class="comment"><span class="emphasize">4coder</span> news: <a href="http://newsletter.4coder.net/">newsletter.4coder.net</a></div>
+
+<div class="spacer"></div>
+
+<div class="comment"><a href="docs/custom_api.html">Custom API Documentation</a></div>
+
+<div class="spacer"></div>
+
+<div class="comment"><a href="docs/commands.html">Command Documentation</a></div>
+
+<div class="spacer"></div>
+
+<div class="center">
+<h2>Demo Clips for 4coder 4.1.0</h2>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/OdYvIGMTBBA" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
+
+<div class="spacer"></div>
+
+<h2>Customization in C/C++</h2>
+
+<div class="normal"><span class="emphasize">4coder</span> customizations are written in <span class="emphasize">C/C++</span> and compile to a .dll or .so file that can link to the core.  The downside to this, by comparison to the Emacs approach of elisp, is that customizations must be recompiled and so the user needs their compiler setup separately.  The advantages are that: first C/C++ allow for more <span class="emphasize">performance</span> oriented customization code, and second any user who already has or often works in C/C++ will be able to leverage their own code in their <span class="emphasize">4coder customizations</span>.</div>
+
+<div class="spacer"></div>
+
+<h2>Programmable Buffer Layout</h2>
+
+<div class="normal">One special feature of <span class="emphasize">4coder</span> - and as far as I currently know this feature is unique to <span class="emphasize">4coder</span> - is <span class="emphasize">programmable buffer layout</span>.  In a basic sense this feature allows customization of line wrapping, but it also has many creative uses.  <span class="emphasize">"Virtual Whitespace"</span> is a feature in <span class="emphasize">4coder</span>, powered by <span class="emphasize">programmable buffer layout</span>, where code files are wrapped at points that minimize the disruption of the meaning of the code and automatically positions the wrapped line with an indent in the same way an auto-indenter would.  <span class="emphasize">Programmable buffer layout</span> can also be used as the basis to implement code folding and elastic tabs.</div>
+
+<div class="spacer"></div>
+
+<h2>Custom UIs and "Blocking" Call Wrappers</h2>
+
+<div class="normal"><span class="emphasize">4coder's</span> customization API includes hooks for rendering and functions for drawing strings, primitive shapes, and for rendering more intricate buffer layouts.  To handle user input, a UI implements an input handling loop that handles all the input sent to a view context.  With this architecture a wide range of UI's can be implemented and then wrapped in a <span class="emphasize">"blocking" call</span>.  For instance <span class="emphasize">'get_buffer_from_user'</span> is a call in the default custom layer code that contains all of the user interactions to query the user for a buffer, when the user confirms their decision the call returns the user's choice.</div>
+
+<div class="spacer"></div>
+
+<h2>Information and Links:</h2>
+
+<div class="normal">
+<ul>
+<li class="firstli">Most Recent Version: 4.0.30 (alpha)</li>
+<li>Anticipated Next Version: 4.1.0 (beta), December 2019</li>
+<li>Developed By: Allen Webster, <a href="https://twitter.com/allenwebster4th">@AllenWebster4th</a> </li>
+<li>Contact: editor@4coder.net</li>
+<li>Community: <a href="https://4coder.handmade.network/">Handmade Network forums</a>, <a href="https://discord.gg/cYdhyv">Handmade Network discord</a> </li>
+</ul>
+</div>
+
+<div class="bottom_spacer"></div>
+
+</div>
+</body>
+
+</html>
