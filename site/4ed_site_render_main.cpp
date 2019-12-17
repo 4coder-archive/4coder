@@ -180,7 +180,7 @@ render_doc_page_to_html_no_header(Arena *scratch, Doc_Page *page, FILE *file){
     
     fprintf(file, "<div class=\"small_spacer\"></div>\n");
     
-    fprintf(file, "<div class=\"small\">&gt; <a href=\"https://4coder.net\">home</a>"
+    fprintf(file, "<div class=\"small\">&gt; <a href=\"https://4coder.net\">home</a> "
             "&gt; <a href=\"%.*s.html\">%.*s</a></div>\n",
             string_expand(cluster->name),
             string_expand(cluster->title));
@@ -294,6 +294,10 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
         
         fprintf(file, "<div class=\"small_spacer\"></div>\n");
         fprintf(file, "<h1>%.*s</h1>\n", string_expand(cluster->title));
+        
+        fprintf(file, "<div class=\"small_spacer\"></div>\n");
+        fprintf(file, "<div class=\"small\">&gt; <a href=\"https://4coder.net\">home</a></div>\n");
+        
         fprintf(file, "<div class=\"spacer\"></div>\n");
         
         // TODO(allen): Cluster description.
@@ -326,6 +330,9 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
         // NOTE(rjf): List of API pages, with filter box.
         {
             fprintf(file_index, "<div class=\"sidebar\">\n");
+            
+            fprintf(file_index, "<div class=\"small_spacer\"></div>\n");
+            fprintf(file_index, "<div class=\"small\">&gt; <a href=\"https://4coder.net\">home</a></div>\n");
             
             fprintf(file_index, "<div class=\"small_spacer\"></div>\n");
             fprintf(file_index, "<h1>%.*s Index</h1>\n", string_expand(cluster->title));
