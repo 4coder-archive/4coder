@@ -1,6 +1,11 @@
 const menu_id = "docs_menu";
 const filter_id = "search_input";
 
+window.onload = function()
+{
+	UpdateActiveDoc(window.location.hash.substr(1));
+};
+
 function StringMatch4coderFuzzy(a, b)
 {
 	let match = true;
@@ -29,24 +34,26 @@ function SearchKeyDown(event)
 {
 	if(event.keyCode == 13)
 	{
+		event.preventDefault();
 		let ul = document.getElementById(menu_id);
 		let li = ul.getElementsByTagName("li");
 
 		for (let i = 0; i < li.length; i++)
 		{
-  			if(li[i].style.display == "")
-	  		{
-	    		window.location.href = li[i].getElementsByTagName("a")[0];
+			if(li[i].style.display == "")
+			{
+				UpdateActiveDoc(li[i].getElementsByTagName("a")[0].innerHTML);
+	    		window.location.hash = li[i].getElementsByTagName("a")[0].innerHTML;
 	    		break;
-	  		}
+			}
 		}
 	}
 }
 
 function SearchKeyUp(event)
 {
-  	let ul = document.getElementById(menu_id);
-  	let li = ul.getElementsByTagName("li");
+	let ul = document.getElementById(menu_id);
+	let li = ul.getElementsByTagName("li");
 	let input = document.getElementById(filter_id);
 	let filter = input.value.toUpperCase();
 	for(let i = 0; i < li.length; i++)
@@ -68,4 +75,16 @@ function SearchKeyUp(event)
 			li[i].style.display = "";
 		}
 	}
+}
+
+function UpdateActiveDoc(name)
+{
+	let active_hash = window.location.hash.substr(1);
+	let new_hash = name;
+	if(active_hash.length > 0)
+	{
+		document.getElementById(active_hash).classList.add("hidden");
+	}
+	document.getElementById(new_hash).classList.remove("hidden");
+	document.getElementById(filter_id).focus();
 }
