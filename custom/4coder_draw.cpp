@@ -493,7 +493,7 @@ draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Tok
         FColor color = get_token_color_cpp(*token);
         ARGB_Color argb = fcolor_resolve(color);
         paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
-        if (!token_it_inc_non_whitespace(&it)){
+        if (!token_it_inc_all(&it)){
             break;
         }
     }
