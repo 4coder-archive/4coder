@@ -131,6 +131,13 @@ new_doc_par_single_code(Arena *arena, Doc_Block *block, String_Const_u8 contents
     doc_code_list_push(arena, &paragraph->code, contents, language);
 }
 
+function Doc_Paragraph*
+new_doc_par_table(Arena *arena, Doc_Block *block){
+    Doc_Paragraph *result = new_doc_par(arena, block);
+    result->kind = DocParagraphKind_Table;
+    return(result);
+}
+
 ////////////////////////////////
 
 function void
@@ -169,7 +176,7 @@ doc_logf(Arena *arena, Doc_Cluster *cluster, char *format, ...){
 
 ////////////////////////////////
 
-function void
+function Doc_Content*
 doc_text(Arena *arena, Doc_Block *block, char *str){
     Doc_Paragraph *par = block->last_par;
     if (par != 0){
@@ -183,7 +190,12 @@ doc_text(Arena *arena, Doc_Block *block, char *str){
         par->kind = DocParagraphKind_Text;
     }
     
-    doc_content_push(arena, &par->text, SCu8(str));
+    return(doc_content_push(arena, &par->text, SCu8(str)));
+}
+
+function Doc_Content*
+doc_text(Arena *arena, Doc_Content_List *list, char *string){
+    return(doc_content_push(arena, list, SCu8(string)));
 }
 
 function void

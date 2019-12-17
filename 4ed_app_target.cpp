@@ -34,6 +34,7 @@
 #include "generated/font_api.h"
 
 #include "4coder_profile.h"
+#include "4coder_command_map.h"
 
 #include "4ed_render_target.h"
 #include "4ed.h"

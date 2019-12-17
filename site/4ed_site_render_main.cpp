@@ -10,20 +10,29 @@
 // TOP
 
 #include "4coder_base_types.h"
+#include "4coder_events.h"
+#include "4coder_table.h"
 #include "../4ed_api_definition.h"
 #include "4coder_doc_content_types.h"
 #include "../docs/4ed_doc_helper.h"
+#include "4coder_command_map.h"
 
 #include "generated/command_metadata.h"
 
 #include "4coder_base_types.cpp"
 #include "4coder_stringf.cpp"
+#include "4coder_hash_functions.cpp"
+#include "4coder_table.cpp"
+#include "4coder_events.cpp"
 #include "4coder_malloc_allocator.cpp"
 #include "../4ed_api_definition.cpp"
 #include "4coder_doc_content_types.cpp"
 #include "../docs/4ed_doc_helper.cpp"
 #include "4coder_file.cpp"
 
+#define MAP_METADATA_ONLY 1
+#include "4coder_command_map.cpp"
+#include "4coder_default_map.cpp"
 #include "generated/custom_api_constructor.cpp"
 #include "../docs/4ed_doc_custom_api.cpp"
 #include "4coder_doc_commands.cpp"
@@ -507,6 +516,10 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster, String_Const_u8
 int main(){
     Arena arena = make_arena_malloc();
     
+    Thread_Context tctx_ = {};
+    thread_ctx_init(&tctx_, ThreadKind_Main, get_allocator_malloc(), get_allocator_malloc());
+    Thread_Context *tctx = &tctx_;
+    
     String_Const_u8 self = string_u8_litexpr(__FILE__);
     umem code_pos = string_find_first(self, string_u8_litexpr("code"));
     String_Const_u8 root = string_prefix(self, code_pos + 5);
@@ -520,10 +533,15 @@ int main(){
     
     (void)root;
     
+    Mapping mapping = {};
+    mapping_init(tctx, &mapping);
+    setup_default_mapping(&mapping, 1, 2, 3);
+    
     API_Definition *api_def = custom_api_construct(&arena);
     Doc_Cluster *cluster_array[] = {
         doc_custom_api(&arena, api_def),
         doc_commands(&arena),
+        doc_default_bindings(&arena, &mapping, 1, 2, 3),
     };
     
     for (i32 i = 0; i < ArrayCount(cluster_array); i += 1){
