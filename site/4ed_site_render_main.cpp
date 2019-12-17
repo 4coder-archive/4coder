@@ -180,7 +180,8 @@ render_doc_page_to_html_no_header(Arena *scratch, Doc_Page *page, FILE *file){
     
     fprintf(file, "<div class=\"small_spacer\"></div>\n");
     
-    fprintf(file, "<div class=\"small\">&gt; <a href=\"%.*s.html\">%.*s</a></div>\n",
+    fprintf(file, "<div class=\"small\">&gt; <a href=\"https://4coder.net\">home</a>"
+            "&gt; <a href=\"%.*s.html\">%.*s</a></div>\n",
             string_expand(cluster->name),
             string_expand(cluster->title));
     
