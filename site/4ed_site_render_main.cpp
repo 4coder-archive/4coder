@@ -40,172 +40,14 @@ char html_header[] = R"HTMLFOO(
 <link href="https://fonts.googleapis.com/css?family=Inconsolata:700&display=swap" rel="stylesheet">
 <script src="search.js"></script> 
 <title>%.*s</title>
-<style>
-body {
-  font-family: 'Inconsolata', monospace;
-  background: #0C0C0C;
-  color: #FF00FF;
-}
-
-h1 {
-  margin-top: 0;
-  margin-bottom: .4em;
-font-size: 1.9em;
-  color: #00A000;
-}
-
-h2 {
-  margin-top: 0;
-  margin-bottom: .666em;
-  font-size: 1.5em;
-  color: #00A000;
-}
-
-h3 {
-  margin-top: 0;
-  margin-bottom: 0;
-  font-size: 1.17em;
-  color: #90B080;
-background: #001300;
-padding: 0 .25em 0 .25em;
-display: inline;
-}
-
-ul {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-li {
-  margin-top: 5px;
-}
-
-li.firstli {
-  margin-top: 0px;
-}
-
-pre {
-margin: 0;
-}
-
-.root {
-  width: 50%%;
-  margin: auto;
-}
-
-@media only screen and (max-width: 1000px) {
-  .root {
-    width: 70%%;
-  }
-}
-@media only screen and (max-width: 800px) {
-  .root {
-    width: 90%%;
-  }
-}
-
-.center {
-  text-align: center;
-}
-
-.normal {
-  font-size: 1em;
-  color: #90B080;
-  text-align: justify;
-}
-
-.normal li {
-  text-align: left;
-}
-
-.small {
-  font-size: .8em;
-  color: #90B080;
-  text-align: justify;
-}
-
-.small li {
-  text-align: left;
-}
-
-.normal a:link, .small a:link,
-h1 a:link, h2 a:link, a:link {
-  color: #D08F20;
-}
-.normal a:visited, .small a:visited,
-h1 a:visited, h2 a:visited, a:visited {
-  color: #744F14;
-}
-.normal a:hover, .small a:hover,
-h1 a:hover, h2 a:hover, a:hover {
-  color: #E0AF60;
-}
-
-.sample_code {
-font-size: 1em;
-    color: #90B080;
-padding: 3px;
-background: #323232;
-}
-
-.sample_code div{
-padding: .5em;
-background: #181818;
-}
-
-.comment {
-  margin-left: 14px;
-  margin-right: 14px;
-  font-size: 1.25em;
-  color: #2090F0;
-}
-
-.emphasize {
-  color: #00A000;
-}
-
-.spacer {
-  height: 2.5em;
-}
-
-.small_spacer {
-  height: 1em;
-}
-
-.very_small_spacer {
-  height: .5em;
-}
-
-.bottom_spacer {
-  height: 20em;
-}
-
-.docs_menu {
-  list-style-type:none;
-  padding: 0;
-}
-
-.filter_box {
-  border: 1px solid #90B080;
-  font-size: 1.5em;
-  color: #90B080;
-  background: none;
-  text-align: justify;
-  font-family: 'Inconsolata', monospace;
-  width: 15em;
-}
-
-</style>
-
+<link rel = "stylesheet" type="text/css" href="styles.css" />
 </head>
 
 <body>
-<div class="root">
 )HTMLFOO";
 
 char html_footer[] = R"HTMLFOO(
 <div class="bottom_spacer"></div>
-    </div>
     </body>
     </html>
 )HTMLFOO";
@@ -307,12 +149,10 @@ render_doc_page_to_html__table(Arena *scratch, Vec2_i32 dim, Doc_Content_List *v
 }
 
 function void
-render_doc_page_to_html(Arena *scratch, Doc_Page *page, FILE *file){
+render_doc_page_to_html_no_header(Arena *scratch, Doc_Page *page, FILE *file){
+    
     Temp_Memory_Block temp(scratch);
-    
     Doc_Cluster *cluster = page->owner;
-    
-    fprintf(file, html_header, string_expand(page->title));
     
     fprintf(file, "<div class=\"small_spacer\"></div>\n");
     
@@ -321,7 +161,7 @@ render_doc_page_to_html(Arena *scratch, Doc_Page *page, FILE *file){
             string_expand(cluster->title));
     
     fprintf(file, "<div class=\"small_spacer\"></div>\n");
-        
+    
     fprintf(file, "<h1>%.*s</h1>\n", string_expand(page->name));
     
     fprintf(file, "<div class=\"small\">");
@@ -338,7 +178,7 @@ render_doc_page_to_html(Arena *scratch, Doc_Page *page, FILE *file){
          block = block->next){
         if (block->name.size > 0 &&
             !string_match(block->name, string_u8_litexpr("brief"))){
-        fprintf(file, "<h2>%.*s</h2>\n", string_expand(block->name));
+            fprintf(file, "<h2>%.*s</h2>\n", string_expand(block->name));
         }
         
         for (Doc_Paragraph *par = block->first_par;
@@ -367,10 +207,18 @@ render_doc_page_to_html(Arena *scratch, Doc_Page *page, FILE *file){
         }
         
         if (block->next != 0){
-        fprintf(file, "<div class=\"spacer\"></div>\n");
+            fprintf(file, "<div class=\"spacer\"></div>\n");
         }
     }
     
+}
+
+function void
+render_doc_page_to_html(Arena *scratch, Doc_Page *page, FILE *file){
+    fprintf(file, html_header, string_expand(page->title));
+    fprintf(file, "<div class=\"api_page\">\n");
+    render_doc_page_to_html_no_header(scratch, page, file);
+    fprintf(file, "</div>\n");
     fprintf(file, html_footer);
 }
 
@@ -417,7 +265,7 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
         Temp_Memory_Block temp(scratch);
         
         fprintf(file, html_header, string_expand(cluster->title));
-        
+        fprintf(file, "<div class=\"api_page\">\n");
         
         fprintf(file, "<div class=\"small_spacer\"></div>\n");
         fprintf(file, "<h1>%.*s</h1>\n", string_expand(cluster->title));
@@ -431,6 +279,7 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
         fprintf(file, "<h2><a href=\"%.*s_index.html\">Index</a></h2>\n",
                 string_expand(cluster->name));
         
+        fprintf(file, "</div>\n");
         fprintf(file, html_footer);
     }
     
@@ -439,36 +288,59 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
         
         fprintf(file_index, html_header, string_expand(cluster->title));
     
-    fprintf(file_index, "<div class=\"small_spacer\"></div>\n");
-    fprintf(file_index, "<h1>%.*s Index</h1>\n", string_expand(cluster->title));
-    fprintf(file_index, "<div class=\"spacer\"></div>\n");
-    fprintf(file_index, "<input class=\"filter_box\" type=\"text\" id=\"search_input\" onkeyup=\"SearchKeyUp(event)\" onkeydown=\"SearchKeyDown(event)\""
+        Doc_Page **ptrs = push_array(scratch, Doc_Page*, cluster->page_count);
+        i32 counter = 0;
+        for (Doc_Page *node = cluster->first_page;
+             node != 0;
+             node = node->next){
+            ptrs[counter] = node;
+            counter += 1;
+        }
+        sort_doc_page_array(ptrs, 0, counter);
+        
+        // NOTE(rjf): List of API pages, with filter box.
+        {
+            fprintf(file_index, "<div class=\"sidebar\">\n");
+            
+            fprintf(file_index, "<div class=\"small_spacer\"></div>\n");
+            fprintf(file_index, "<h1>%.*s Index</h1>\n", string_expand(cluster->title));
+            fprintf(file_index, "<div class=\"spacer\"></div>\n");
+            
+            fprintf(file_index, "<input autofocus class=\"filter_box\" type=\"text\" id=\"search_input\" onkeyup=\"SearchKeyUp(event)\" onkeydown=\"SearchKeyDown(event)\""
                         "placeholder=\"Filter...\" title=\"Filter...\">");
     fprintf(file_index, "<div class=\"spacer\"></div>\n");
     
-    Doc_Page **ptrs = push_array(scratch, Doc_Page*, cluster->page_count);
-    i32 counter = 0;
-    for (Doc_Page *node = cluster->first_page;
-         node != 0;
-         node = node->next){
-        ptrs[counter] = node;
-        counter += 1;
-    }
-    
-    sort_doc_page_array(ptrs, 0, counter);
-    
     fprintf(file_index, "<div class=\"normal\">");
-
+        
     fprintf(file_index, "<ul class=\"docs_menu\" id=\"docs_menu\">\n");
     for (i32 i = 0; i < counter; i += 1){
         Doc_Page *node = ptrs[i];
-        fprintf(file_index, "<li><a href=\"%.*s.html\">%.*s</a></li>",
+                fprintf(file_index, "<li><a onclick=\"UpdateActiveDoc(this.innerHTML)\" href=\"#%.*s\">%.*s</a></li>",
                 string_expand(node->name),
                 string_expand(node->name));
     }
     fprintf(file_index, "</ul>\n");
-    fprintf(file_index, "</div>\n");
-    
+            fprintf(file_index, "</div>\n");
+            
+            fprintf(file_index, "</div>\n");
+        }
+        
+        // NOTE(rjf): API pages.
+        {
+            for (i32 i = 0; i < counter; i += 1){
+                Doc_Page *node = ptrs[i];
+                fprintf(file_index, "<div id=\"%.*s\" class=\"api_page_preview hidden\">\n",
+                        string_expand(node->name));
+                render_doc_page_to_html_no_header(scratch, node, file_index);
+                
+                fprintf(file_index, "<div class=\"spacer\"></div>\n");
+                fprintf(file_index, "<div class=\"small\"><a href=\"%.*s.html\">Standalone Page</a></div>\n",
+                        string_expand(node->name));
+                
+                fprintf(file_index, "</div>");
+            }
+        }
+        
     fprintf(file_index, html_footer);
 }
 }
@@ -530,8 +402,8 @@ int main(){
         Doc_Cluster *cluster = cluster_array[i];
         for (Doc_Page *node = cluster->first_page;
          node != 0;
-         node = node->next){
-        render_doc_page_to_html(&arena, node, docs_root);
+             node = node->next){
+            render_doc_page_to_html(&arena, node, docs_root);
     }
     render_doc_cluster_to_html(&arena, cluster, docs_root);
     }
