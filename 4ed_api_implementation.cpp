@@ -363,7 +363,7 @@ buffer_seek_string(Application_Links *app, Buffer_ID buffer, String_Const_u8 nee
             Gap_Buffer *gap_buffer = &file->state.buffer;
             i64 size = buffer_size(gap_buffer);
             List_String_Const_u8 chunks = buffer_get_chunks(scratch, gap_buffer);
-            Interval_i64 range = {};
+            Range_i64 range = {};
             if (direction == Scan_Forward){
                 i64 adjusted_pos = start_pos + 1;
                 start_pos = clamp_top(adjusted_pos, size);
@@ -1979,7 +1979,7 @@ managed_id_get(Application_Links *app, String_Const_u8 group, String_Const_u8 na
 }
 
 api(custom) function void*
-managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Managed_ID id, umem size){
+managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Managed_ID id, u64 size){
     Models *models = (Models*)app->cmd_context;
     Dynamic_Workspace *workspace = get_dynamic_workspace(models, scope);
     void *result = 0;
@@ -2283,7 +2283,7 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
 }
 
 api(custom) function b32
-set_custom_hook_memory_size(Application_Links *app, Hook_ID hook_id, umem size){
+set_custom_hook_memory_size(Application_Links *app, Hook_ID hook_id, u64 size){
     Models *models = (Models*)app->cmd_context;
     b32 result = true;
     switch (hook_id){
@@ -2738,8 +2738,8 @@ set_window_title(Application_Links *app, String_Const_u8 title)
 {
     Models *models = (Models*)app->cmd_context;
     models->has_new_title = true;
-    umem cap_before_null = (umem)(models->title_capacity - 1);
-    umem copy_size = clamp_top(title.size, cap_before_null);
+    u64 cap_before_null = (u64)(models->title_capacity - 1);
+    u64 copy_size = clamp_top(title.size, cap_before_null);
     block_copy(models->title_space, title.str, copy_size);
     models->title_space[copy_size] = 0;
 }
@@ -2824,8 +2824,8 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
             y = next_y;
         }
         
-        Interval_i64 visible_line_number_range = Ii64(buffer_point.line_number, line_number);
-        Interval_i64 visible_range = Ii64(buffer_get_first_pos_from_line_number(buffer, visible_line_number_range.min),
+        Range_i64 visible_line_number_range = Ii64(buffer_point.line_number, line_number);
+        Range_i64 visible_range = Ii64(buffer_get_first_pos_from_line_number(buffer, visible_line_number_range.min),
                                           buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
         
         i64 item_count = range_size_inclusive(visible_range);
@@ -2978,8 +2978,7 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
 }
 
 api(custom) function void
-paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Interval_i64 range,
-                 ARGB_Color color){
+paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color){
     Models *models = (Models*)app->cmd_context;
     Rect_f32 result = {};
     Text_Layout *layout = text_layout_get(&models->text_layouts, layout_id);

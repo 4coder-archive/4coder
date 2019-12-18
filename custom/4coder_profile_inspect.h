@@ -94,7 +94,7 @@ struct Memory_Bucket{
     Memory_Bucket *next;
     Memory_Annotation annotation;
     String_Const_u8 location;
-    umem total_memory;
+    u64 total_memory;
 };
 
 #endif

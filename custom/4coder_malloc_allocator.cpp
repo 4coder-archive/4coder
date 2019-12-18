@@ -8,9 +8,9 @@
 #include <malloc.h>
 
 internal void*
-base_reserve__malloc(void *user_data, umem size, umem *size_out, String_Const_u8 location){
+base_reserve__malloc(void *user_data, u64 size, u64 *size_out, String_Const_u8 location){
     *size_out = size;
-    return(malloc(size));
+    return(malloc((size_t)size));
 }
 
 internal void
@@ -35,13 +35,13 @@ get_allocator_malloc(void){
 }
 
 internal Arena
-make_arena_malloc(umem chunk_size, umem align){
+make_arena_malloc(u64 chunk_size, u64 align){
     Base_Allocator *allocator = get_allocator_malloc();
     return(make_arena(allocator, chunk_size, align));
 }
 
 internal Arena
-make_arena_malloc(umem chunk_size){
+make_arena_malloc(u64 chunk_size){
     return(make_arena_malloc(chunk_size, 8));
 }
 

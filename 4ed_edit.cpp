@@ -9,12 +9,12 @@
 
 // TOP
 
-internal void
+function void
 pre_edit_state_change(Models *models, Editing_File *file){
     file_add_dirty_flag(file, DirtyState_UnsavedChanges);
 }
 
-internal void
+function void
 pre_edit_history_prep(Editing_File *file, Edit_Behaviors behaviors){
     if (!behaviors.do_not_post_to_history){
         history_dump_records_after_index(&file->state.history,
@@ -22,9 +22,9 @@ pre_edit_history_prep(Editing_File *file, Edit_Behaviors behaviors){
     }
 }
 
-internal void
+function void
 post_edit_call_hook(Thread_Context *tctx, Models *models, Editing_File *file,
-                    Range_i64 new_range, umem original_size){
+                    Range_i64 new_range, u64 original_size){
     // NOTE(allen): edit range hook
     if (models->buffer_edit_range != 0){
         Application_Links app = {};
@@ -34,7 +34,7 @@ post_edit_call_hook(Thread_Context *tctx, Models *models, Editing_File *file,
     }
 }
 
-internal void
+function void
 edit_fix_markers__write_workspace_markers(Dynamic_Workspace *workspace, Buffer_ID buffer_id,
                                           Cursor_With_Index *cursors, Cursor_With_Index *r_cursors,
                                           i32 *cursor_count, i32 *r_cursor_count){
@@ -56,7 +56,7 @@ edit_fix_markers__write_workspace_markers(Dynamic_Workspace *workspace, Buffer_I
     }
 }
 
-internal void
+function void
 edit_fix_markers__read_workspace_markers(Dynamic_Workspace *workspace, Buffer_ID buffer_id,
                                          Cursor_With_Index *cursors, Cursor_With_Index *r_cursors, i32 *cursor_count, i32 *r_cursor_count){
     for (Managed_Buffer_Markers_Header *node = workspace->buffer_markers_list.first;
@@ -77,19 +77,19 @@ edit_fix_markers__read_workspace_markers(Dynamic_Workspace *workspace, Buffer_ID
     }
 }
 
-internal f32
+function f32
 edit_fix_markers__compute_scroll_y(i32 line_height, f32 old_y_val, f32 new_y_val_aligned){
     f32 y_offset = mod_f32(old_y_val, line_height);
     f32 y_position = new_y_val_aligned + y_offset;
     return(y_position);
 }
 
-internal i32
+function i32
 edit_fix_markers__compute_scroll_y(i32 line_height, i32 old_y_val, f32 new_y_val_aligned){
     return((i32)edit_fix_markers__compute_scroll_y(line_height, (f32)old_y_val, new_y_val_aligned));
 }
 
-internal void
+function void
 edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file,
                  Batch_Edit *batch){
     Layout *layout = &models->layout;
@@ -200,7 +200,7 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file,
     }
 }
 
-internal void
+function void
 file_end_file(Thread_Context *tctx, Models *models, Editing_File *file){
     if (models->end_buffer != 0){
         Application_Links app = {};
@@ -213,9 +213,8 @@ file_end_file(Thread_Context *tctx, Models *models, Editing_File *file){
     file->lifetime_object = lifetime_alloc_object(lifetime_allocator, DynamicWorkspace_Buffer, file);
 }
 
-internal void
-edit__apply(Thread_Context *tctx, Models *models, Editing_File *file,
-            Interval_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
+function void
+edit__apply(Thread_Context *tctx, Models *models, Editing_File *file, Range_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
     Edit edit = {};
     edit.text = string;
     edit.range = range;
@@ -241,7 +240,7 @@ edit__apply(Thread_Context *tctx, Models *models, Editing_File *file,
     }
 }
 
-internal void
+function void
 edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
             Range_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
     pre_edit_state_change(models, file);
@@ -261,7 +260,7 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
                         Ii64_size(range.first, string.size), range_size(range));
 }
 
-internal void
+function void
 edit__apply_record_forward(Thread_Context *tctx, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
     // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
     // Whenever you change this also change the backward version!
@@ -270,7 +269,7 @@ edit__apply_record_forward(Thread_Context *tctx, Models *models, Editing_File *f
         case RecordKind_Single:
         {
             String_Const_u8 str = record->single.forward_text;
-            Interval_i64 range = Ii64(record->single.first, record->single.first + record->single.backward_text.size);
+            Range_i64 range = Ii64(record->single.first, record->single.first + record->single.backward_text.size);
             edit_single(tctx, models, file, range, str, behaviors_prototype);
         }break;
         
@@ -292,7 +291,7 @@ edit__apply_record_forward(Thread_Context *tctx, Models *models, Editing_File *f
     }
 }
 
-internal void
+function void
 edit__apply_record_backward(Thread_Context *tctx, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
     // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
     // Whenever you change this also change the forward version!
@@ -301,7 +300,7 @@ edit__apply_record_backward(Thread_Context *tctx, Models *models, Editing_File *
         case RecordKind_Single:
         {
             String_Const_u8 str = record->single.backward_text;
-            Interval_i64 range = Ii64(record->single.first, record->single.first + record->single.forward_text.size);
+            Range_i64 range = Ii64(record->single.first, record->single.first + record->single.forward_text.size);
             edit_single(tctx, models, file, range, str, behaviors_prototype);
         }break;
         
@@ -323,7 +322,7 @@ edit__apply_record_backward(Thread_Context *tctx, Models *models, Editing_File *
     }
 }
 
-internal void
+function void
 edit_change_current_history_state(Thread_Context *tctx, Models *models, Editing_File *file, i32 target_index){
     History *history = &file->state.history;
     if (history->activated && file->state.current_record_index != target_index){
@@ -358,7 +357,7 @@ edit_change_current_history_state(Thread_Context *tctx, Models *models, Editing_
     }
 }
 
-internal b32
+function b32
 edit_merge_history_range(Thread_Context *tctx, Models *models, Editing_File *file, History_Record_Index first_index, History_Record_Index last_index, Record_Merge_Flag flags){
     b32 result = false;
     History *history = &file->state.history;
@@ -419,7 +418,7 @@ edit_batch_check(Thread_Context *tctx, Profile_Global_List *list, Batch_Edit *ba
     return(result);
 }
 
-internal b32
+function b32
 edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
            Batch_Edit *batch, Edit_Behaviors behaviors){
     b32 result = true;
@@ -502,7 +501,7 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
 
 ////////////////////////////////
 
-internal Editing_File*
+ function Editing_File*
 create_file(Thread_Context *tctx, Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags){
     Editing_File *result = 0;
     

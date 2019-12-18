@@ -79,7 +79,7 @@ struct Editing_File_State{
 
 struct Editing_File_Name{
     u8 name_space[256];
-    umem name_size;
+    u64 name_size;
 };
 
 struct Editing_File{

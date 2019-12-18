@@ -9,7 +9,7 @@ parse_extension_line_to_extension_list(Application_Links *app,
                                        Arena *arena, String_Const_u8 str){
     ProfileScope(app, "parse extension line to extension list");
     i32 count = 0;
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         if (str.str[i] == '.'){
             count += 1;
         }
@@ -22,7 +22,7 @@ parse_extension_line_to_extension_list(Application_Links *app,
     push_align(arena, 1);
     str = string_skip(str, string_find_first(str, '.') + 1);
     for (i32 i = 0; i < count; i += 1){
-        umem next_period = string_find_first(str, '.');
+        u64 next_period = string_find_first(str, '.');
         String_Const_u8 extension = string_prefix(str, next_period);
         str = string_skip(str, next_period + 1);
         array.strings[i] = push_string_copy(arena, extension);
@@ -748,11 +748,11 @@ config_string_var(Config *config, char *var_name, i32 subscript, String_Const_u8
 }
 
 function b32
-config_placed_string_var(Config *config, String_Const_u8 var_name, i32 subscript, String_Const_u8* var_out, u8 *space, umem space_size){
+config_placed_string_var(Config *config, String_Const_u8 var_name, i32 subscript, String_Const_u8* var_out, u8 *space, u64 space_size){
     Config_Get_Result result = config_var(config, var_name, subscript);
     b32 success = (result.success && result.type == ConfigRValueType_String);
     if (success){
-        umem size = result.string.size;
+        u64 size = result.string.size;
         size = clamp_top(size, space_size);
         block_copy(space, result.string.str, size);
         *var_out = SCu8(space, size);
@@ -761,7 +761,7 @@ config_placed_string_var(Config *config, String_Const_u8 var_name, i32 subscript
 }
 
 function b32
-config_placed_string_var(Config *config, char *var_name, i32 subscript, String_Const_u8* var_out, u8 *space, umem space_size){
+config_placed_string_var(Config *config, char *var_name, i32 subscript, String_Const_u8* var_out, u8 *space, u64 space_size){
     return(config_placed_string_var(config, SCu8(var_name), subscript, var_out, space, space_size));
 }
 
@@ -879,11 +879,11 @@ config_compound_string_member(Config *config, Config_Compound *compound,
 
 function b32
 config_compound_placed_string_member(Config *config, Config_Compound *compound,
-                                     String_Const_u8 var_name, i32 index, String_Const_u8* var_out, u8 *space, umem space_size){
+                                     String_Const_u8 var_name, i32 index, String_Const_u8* var_out, u8 *space, u64 space_size){
     Config_Get_Result result = config_compound_member(config, compound, var_name, index);
     b32 success = (result.success && result.type == ConfigRValueType_String);
     if (success){
-        umem size = result.string.size;
+        u64 size = result.string.size;
         size = clamp_top(size, space_size);
         block_copy(space, result.string.str, size);
         *var_out = SCu8(space, size);
@@ -893,7 +893,7 @@ config_compound_placed_string_member(Config *config, Config_Compound *compound,
 
 function b32
 config_compound_placed_string_member(Config *config, Config_Compound *compound,
-                                     char *var_name, i32 index, String_Const_u8* var_out, u8 *space, umem space_size){
+                                     char *var_name, i32 index, String_Const_u8* var_out, u8 *space, u64 space_size){
     return(config_compound_placed_string_member(config, compound, SCu8(var_name), index, var_out, space, space_size));
 }
 
@@ -978,11 +978,11 @@ typed_string_array_iteration_step(Config *config, Config_Compound *compound, i32
 }
 
 function Iteration_Step_Result
-typed_placed_string_array_iteration_step(Config *config, Config_Compound *compound, i32 index, String_Const_u8* var_out, u8 *space, umem space_size){
+typed_placed_string_array_iteration_step(Config *config, Config_Compound *compound, i32 index, String_Const_u8* var_out, u8 *space, u64 space_size){
     Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_String, index);
     b32 success = (result.step == Iteration_Good);
     if (success){
-        umem size = result.get.string.size;
+        u64 size = result.get.string.size;
         size = clamp_top(size, space_size);
         block_copy(space, result.get.string.str, size);
         *var_out = SCu8(space, size);
@@ -1192,11 +1192,11 @@ config_from_text(Application_Links *app, Arena *arena, String_Const_u8 file_name
 
 function void
 config_init_default(Config_Data *config){
-    config->user_name = SCu8(config->user_name_space, (umem)0);
+    config->user_name = SCu8(config->user_name_space, (u64)0);
     
     block_zero_struct(&config->code_exts);
     
-    config->mode = SCu8(config->mode_space, (umem)0);
+    config->mode = SCu8(config->mode_space, (u64)0);
     
     config->use_scroll_bars = false;
     config->use_file_bars = true;
@@ -1226,19 +1226,19 @@ config_init_default(Config_Data *config){
     block_copy(config->default_theme_name.str, "4coder", config->default_theme_name.size);
     config->highlight_line_at_cursor = true;
     
-    config->default_font_name = SCu8(config->default_font_name_space, (umem)0);
+    config->default_font_name = SCu8(config->default_font_name_space, (u64)0);
     config->default_font_size = 16;
     config->default_font_hinting = false;
     
     config->default_compiler_bat = SCu8(config->default_compiler_bat_space, 2);
     block_copy(config->default_compiler_bat.str, "cl", 2);
     
-    config->default_flags_bat = SCu8(config->default_flags_bat_space, (umem)0);
+    config->default_flags_bat = SCu8(config->default_flags_bat_space, (u64)0);
     
     config->default_compiler_sh = SCu8(config->default_compiler_sh_space, 3);
     block_copy(config->default_compiler_sh.str, "g++", 3);
     
-    config->default_flags_sh = SCu8(config->default_flags_sh_space, (umem)0);
+    config->default_flags_sh = SCu8(config->default_flags_sh_space, (u64)0);
     
     config->lalt_lctrl_is_altgr = false;
 }
@@ -1484,7 +1484,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         print_message(app, string_u8_litexpr("Using default config:\n"));
         Face_Description description = get_face_description(app, 0);
         if (description.font.file_name.str != 0){
-            umem size = Min(description.font.file_name.size, sizeof(config->default_font_name_space));
+            u64 size = Min(description.font.file_name.size, sizeof(config->default_font_name_space));
             block_copy(config->default_font_name_space, description.font.file_name.str, size);
             config->default_font_name.size = size;
         }

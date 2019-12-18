@@ -26,7 +26,7 @@ make_batch_from_indentations(Application_Links *app, Arena *arena, Buffer_ID buf
         }
         
         if (correct_indentation != indent_info.indent_pos){
-            umem str_size = 0;
+            u64 str_size = 0;
             u8 *str = 0;
             if (HasFlag(flags, Indent_UseTab)){
                 i64 tab_count = correct_indentation/tab_width;
@@ -399,7 +399,7 @@ CUSTOM_DOC("Inserts text and auto-indents the line on which the cursor sits if a
     String_Const_u8 insert = to_writable(&in);
     if (insert.str != 0 && insert.size > 0){
         b32 do_auto_indent = false;
-        for (umem i = 0; !do_auto_indent && i < insert.size; i += 1){
+        for (u64 i = 0; !do_auto_indent && i < insert.size; i += 1){
             switch (insert.str[i]){
                 case ';': case ':':
                 case '{': case '}':

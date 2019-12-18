@@ -684,7 +684,7 @@ lister_begin_new_item_set(Application_Links *app, Lister *lister){
 }
 
 function void*
-lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status, void *user_data, umem extra_space){
+lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloced_String status, void *user_data, u64 extra_space){
     void *base_memory = push_array(lister->arena, u8, sizeof(Lister_Node) + extra_space);
     Lister_Node *node = (Lister_Node*)base_memory;
     node->string = string.string;
@@ -699,17 +699,17 @@ lister_add_item(Lister *lister, Lister_Prealloced_String string, Lister_Prealloc
 
 function void*
 lister_add_item(Lister *lister, Lister_Prealloced_String string, String_Const_u8 status,
-                void *user_data, umem  extra_space){
+                void *user_data, u64  extra_space){
     return(lister_add_item(lister, string, lister_prealloced(push_string_copy(lister->arena, status)), user_data, extra_space));
 }
 
 function void*
-lister_add_item(Lister *lister, String_Const_u8 string, Lister_Prealloced_String status, void *user_data, umem extra_space){
+lister_add_item(Lister *lister, String_Const_u8 string, Lister_Prealloced_String status, void *user_data, u64 extra_space){
     return(lister_add_item(lister, lister_prealloced(push_string_copy(lister->arena, string)), status, user_data, extra_space));
 }
 
 function void*
-lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, void *user_data, umem extra_space){
+lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, void *user_data, u64 extra_space){
     return(lister_add_item(lister,
                            lister_prealloced(push_string_copy(lister->arena, string)),
                            lister_prealloced(push_string_copy(lister->arena, status)),
@@ -895,7 +895,7 @@ get_choice_from_user(Application_Links *app, String_Const_u8 query,
     for (Lister_Choice *choice = list.first;
          choice != 0;
          choice = choice->next){
-        umem code_size = sizeof(choice->key_code);
+        u64 code_size = sizeof(choice->key_code);
         void *extra = lister_add_item(lister, choice->string, choice->status,
                                       choice, code_size);
         block_copy(extra, &choice->key_code, code_size);

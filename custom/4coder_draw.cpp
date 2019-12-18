@@ -340,7 +340,7 @@ draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffe
     Rect_f32 prev_clip = draw_set_clip(app, margin);
     draw_rectangle_fcolor(app, margin, 0.f, fcolor_id(defcolor_line_numbers_back));
     
-    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
     
     FColor line_color = fcolor_id(defcolor_line_numbers_text);
     
@@ -391,13 +391,13 @@ draw_fps_hud(Application_Links *app, Frame_Info frame_info,
     
     Scratch_Block scratch(app);
     
-    Range ranges[2];
+    Range_i32 ranges[2] = {};
     ranges[0].first = wrapped_index;
     ranges[0].one_past_last = -1;
     ranges[1].first = fps_history_depth - 1;
     ranges[1].one_past_last = wrapped_index;
     for (i32 i = 0; i < 2; i += 1){
-        Range r = ranges[i];
+        Range_i32 r = ranges[i];
         for (i32 j = r.first; j > r.one_past_last; j -= 1, p.y += line_height){
             f32 dts[2];
             dts[0] = history_literal_dt[j];
@@ -482,7 +482,7 @@ get_token_color_cpp(Token token){
 
 function void
 draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Token_Array *array){
-    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
     i64 first_index = token_index_from_pos(array, visible_range.first);
     Token_Iterator_Array it = token_iterator_index(0, array, first_index);
     for (;;){
@@ -503,7 +503,7 @@ function void
 draw_comment_highlights(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
                         Token_Array *array, Comment_Highlight_Pair *pairs, i32 pair_count){
     Scratch_Block scratch(app);
-    Interval_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
     i64 first_index = token_index_from_pos(array, visible_range.first);
     Token_Iterator_Array it = token_iterator_index(buffer, array, first_index);
     for (;;){
@@ -519,7 +519,7 @@ draw_comment_highlights(Application_Links *app, Buffer_ID buffer, Text_Layout_ID
                  tail = string_skip(tail, 1), index += 1){
                 Comment_Highlight_Pair *pair = pairs;
                 for (i32 i = 0; i < pair_count; i += 1, pair += 1){
-                    umem needle_size = pair->needle.size;
+                    u64 needle_size = pair->needle.size;
                     if (needle_size == 0){
                         continue;
                     }

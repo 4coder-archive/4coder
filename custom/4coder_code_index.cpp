@@ -157,7 +157,7 @@ code_index_get_nest(Code_Index_File *file, i64 pos){
 }
 
 function void
-index_shift(i64 *ptr, Range_i64 old_range, umem new_size){
+index_shift(i64 *ptr, Range_i64 old_range, u64 new_size){
     i64 i = *ptr;
     if (old_range.min <= i && i < old_range.max){
         *ptr = old_range.first;
@@ -169,7 +169,7 @@ index_shift(i64 *ptr, Range_i64 old_range, umem new_size){
 
 function void
 code_index_shift(Code_Index_Nest_Ptr_Array *array,
-                 Range_i64 old_range, umem new_size){
+                 Range_i64 old_range, u64 new_size){
     i32 count = array->count;
     Code_Index_Nest **nest_ptr = array->ptrs;
     for (i32 i = 0; i < count; i += 1, nest_ptr += 1){
@@ -185,7 +185,7 @@ code_index_shift(Code_Index_Nest_Ptr_Array *array,
 }
 
 function void
-code_index_shift(Code_Index_File *file, Range_i64 old_range, umem new_size){
+code_index_shift(Code_Index_File *file, Range_i64 old_range, u64 new_size){
     code_index_shift(&file->nest_array, old_range, new_size);
 }
 
@@ -841,7 +841,7 @@ layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_F
 function void
 layout_index__emit_chunk(LefRig_TopBot_Layout_Vars *pos_vars, Face_ID face, Arena *arena, u8 *text_str, i64 range_first, u8 *ptr, u8 *end, Layout_Item_List *list){
     for (;ptr < end;){
-        Character_Consume_Result consume = utf8_consume(ptr, (umem)(end - ptr));
+        Character_Consume_Result consume = utf8_consume(ptr, (u64)(end - ptr));
         if (consume.codepoint != '\r'){
             i64 index = layout_index_from_ptr(ptr, text_str, range_first);
             if (consume.codepoint != max_u32){
@@ -961,7 +961,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 f32 word_advance = 0.f;
                 ptr = word.str;
                 for (;ptr < word_end;){
-                    Character_Consume_Result consume = utf8_consume(ptr, (umem)(word_end - ptr));
+                    Character_Consume_Result consume = utf8_consume(ptr, (u64)(word_end - ptr));
                     if (consume.codepoint != max_u32){
                         word_advance += lr_tb_advance(&pos_vars, face, consume.codepoint);
                     }

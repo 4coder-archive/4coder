@@ -48,7 +48,7 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
 //
 
 internal void*
-system_memory_allocate_extended(void *base, umem size){
+system_memory_allocate_extended(void *base, u64 size){
     // NOTE(allen): This must return the exact base of the vpage.
     // We will count on the user to keep track of size themselves.
     void *result = mmap(base, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

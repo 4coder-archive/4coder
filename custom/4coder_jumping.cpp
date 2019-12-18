@@ -5,7 +5,7 @@
 // TOP
 
 function b32
-ms_style_verify(String_Const_u8 line, umem left_paren_pos, umem right_paren_pos){
+ms_style_verify(String_Const_u8 line, u64 left_paren_pos, u64 right_paren_pos){
     i32 result = false;
     String_Const_u8 line_part = string_skip(line, right_paren_pos);
     if (string_match(string_prefix(line_part, 4), string_u8_litexpr(") : "))){
@@ -18,7 +18,7 @@ ms_style_verify(String_Const_u8 line, umem left_paren_pos, umem right_paren_pos)
         String_Const_u8 number = string_skip(string_prefix(line, right_paren_pos - 1), left_paren_pos + 1);
         if (!string_is_integer(number, 10)){
             result = false;
-            umem comma_pos = string_find_first(number, ',');
+            u64 comma_pos = string_find_first(number, ',');
             if (comma_pos < number.size){
                 String_Const_u8 sub_number0 = string_prefix(number, comma_pos);
                 String_Const_u8 sub_number1 = string_skip(number, comma_pos + 1);
@@ -31,24 +31,24 @@ ms_style_verify(String_Const_u8 line, umem left_paren_pos, umem right_paren_pos)
     return(result);
 }
 
-function umem
+function u64
 try_skip_rust_arrow(String_Const_u8 line){
-    umem pos = 0;
+    u64 pos = 0;
     if (string_match(string_prefix(line, 3), string_u8_litexpr("-->"))){
         String_Const_u8 sub = string_skip(line, 3);
         sub = string_skip_chop_whitespace(sub);
-        pos = (umem)(sub.str - line.str);
+        pos = (u64)(sub.str - line.str);
     }
     return(pos);
 }
 
 function b32
-check_is_note(String_Const_u8 line, umem colon_pos){
+check_is_note(String_Const_u8 line, u64 colon_pos){
     b32 is_note = false;
-    umem note_pos = colon_pos + string_find_first(string_skip(line, colon_pos), string_u8_litexpr("note"));
+    u64 note_pos = colon_pos + string_find_first(string_skip(line, colon_pos), string_u8_litexpr("note"));
     if (note_pos < line.size){
         b32 is_all_whitespace = true;
-        for (umem i = colon_pos + 1; i < note_pos; i += 1){
+        for (u64 i = colon_pos + 1; i < note_pos; i += 1){
             if (!character_is_whitespace(line.str[i])){
                 is_all_whitespace = false;
                 break;
@@ -67,11 +67,11 @@ parse_jump_location(String_Const_u8 line){
     jump.sub_jump_indented = (string_get_character(line, 0) == ' ');
     
     String_Const_u8 reduced_line = string_skip_chop_whitespace(line);
-    umem whitespace_length = (umem)(reduced_line.str - line.str);
+    u64 whitespace_length = (u64)(reduced_line.str - line.str);
     line = reduced_line;
     
-    umem left_paren_pos = string_find_first(line, '(');
-    umem right_paren_pos = left_paren_pos + string_find_first(string_skip(line, left_paren_pos), ')');
+    u64 left_paren_pos = string_find_first(line, '(');
+    u64 right_paren_pos = left_paren_pos + string_find_first(string_skip(line, left_paren_pos), ')');
     for (;!jump.is_ms_style && right_paren_pos < line.size;){
         if (ms_style_verify(line, left_paren_pos, right_paren_pos)){
             jump.is_ms_style = true;
@@ -96,7 +96,7 @@ parse_jump_location(String_Const_u8 line){
                         line_number = string_skip_chop_whitespace(line_number);
                         
                         if (line_number.size > 0){
-                            umem comma_pos = string_find_first(line_number, ',');
+                            u64 comma_pos = string_find_first(line_number, ',');
                             if (comma_pos < line_number.size){
                                 String_Const_u8 column_number = string_skip(line_number, comma_pos + 1);
                                 line_number = string_prefix(line_number, comma_pos);
@@ -127,15 +127,15 @@ parse_jump_location(String_Const_u8 line){
             jump.has_rust_arrow = true;
         }
         
-        umem colon_pos1 = string_find_first(string_skip(line, start), ':') + start;
+        u64 colon_pos1 = string_find_first(string_skip(line, start), ':') + start;
         if (line.size > colon_pos1 + 1){
             if (character_is_slash(string_get_character(line, colon_pos1 + 1))){
                 colon_pos1 = string_find_first(string_skip(line, colon_pos1 + 1), ':') + colon_pos1 + 1;
             }
         }
         
-        umem colon_pos2 = string_find_first(string_skip(line, colon_pos1 + 1), ':') + colon_pos1 + 1;
-        umem colon_pos3 = string_find_first(string_skip(line, colon_pos2 + 1), ':') + colon_pos2 + 1;
+        u64 colon_pos2 = string_find_first(string_skip(line, colon_pos1 + 1), ':') + colon_pos1 + 1;
+        u64 colon_pos3 = string_find_first(string_skip(line, colon_pos2 + 1), ':') + colon_pos2 + 1;
         
         if (colon_pos3 < line.size){
             if (check_is_note(line, colon_pos3)){

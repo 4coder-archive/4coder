@@ -5,29 +5,28 @@
 // TOP
 
 internal void*
-base_reserve__system(void *user_data, umem size, umem *size_out, String_Const_u8 location){
-    umem extra_size = 128;
-    umem increased_size = size + extra_size;
-    size = round_up_umem(increased_size, KB(4));
+base_reserve__system(void *user_data, u64 size, u64 *size_out, String_Const_u8 location){
+    u64 extra_size = 128;
+    u64 increased_size = size + extra_size;
+    size = round_up_u64(increased_size, KB(4));
     *size_out = size - extra_size;
     void *ptr = system_memory_allocate(size, location);
-    *(umem*)ptr = size;
+    *(u64*)ptr = size;
     ptr = (u8*)ptr + extra_size;
     return(ptr);
 }
 
 internal void
 base_free__system(void *user_data, void *ptr){
-    umem extra_size = 128;
+    u64 extra_size = 128;
     ptr = (u8*)ptr - extra_size;
-    umem size = *(umem*)ptr;
+    u64 size = *(u64*)ptr;
     system_memory_free(ptr, size);
 }
 
 internal Base_Allocator
 make_base_allocator_system(void){
-    return(make_base_allocator(base_reserve__system, 0, 0,
-                               base_free__system, 0, 0));
+    return(make_base_allocator(base_reserve__system, 0, 0, base_free__system, 0, 0));
 }
 
 global Base_Allocator base_allocator_system = {};
@@ -41,12 +40,12 @@ get_base_allocator_system(void){
 }
 
 internal Arena
-make_arena_system(umem chunk_size, umem align){
+make_arena_system(u64 chunk_size, u64 align){
     return(make_arena(get_base_allocator_system(), chunk_size, align));
 }
 
 internal Arena
-make_arena_system(umem chunk_size){
+make_arena_system(u64 chunk_size){
     return(make_arena_system(chunk_size, 8));
 }
 

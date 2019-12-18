@@ -4,7 +4,7 @@
 
 // TOP
 
-function Interval_i64
+function Range_i64
 Ii64(Token *token){
     return(Ii64_size(token->pos, token->size));
 }

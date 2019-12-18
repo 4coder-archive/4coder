@@ -15,13 +15,13 @@ Scratch_Block::Scratch_Block(Application_Links *app){
 ////////////////////////////////
 
 internal Arena*
-reserve_arena(Application_Links *app, umem chunk_size, umem align){
+reserve_arena(Application_Links *app, u64 chunk_size, u64 align){
     Thread_Context *tctx = get_thread_context(app);
     return(reserve_arena(tctx, chunk_size, align));
 }
 
 internal Arena*
-reserve_arena(Application_Links *app, umem chunk_size){
+reserve_arena(Application_Links *app, u64 chunk_size){
     Thread_Context *tctx = get_thread_context(app);
     return(reserve_arena(tctx, chunk_size));
 }

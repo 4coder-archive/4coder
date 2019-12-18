@@ -948,7 +948,7 @@ project_key_strings_query_user(Application_Links *app,
     
     if (get_script_file){
         script_file_bar.prompt = string_u8_litexpr("Script Name: ");
-        script_file_bar.string = SCu8(script_file_space, (umem)0);
+        script_file_bar.string = SCu8(script_file_space, (u64)0);
         script_file_bar.string_capacity = script_file_cap;
         if (!query_user_string(app, &script_file_bar)) return(keys);
         if (script_file_bar.string.size == 0) return(keys);
@@ -956,14 +956,14 @@ project_key_strings_query_user(Application_Links *app,
     
     if (get_code_file){
         code_file_bar.prompt = string_u8_litexpr("Build Target: ");
-        code_file_bar.string = SCu8(code_file_space, (umem)0);
+        code_file_bar.string = SCu8(code_file_space, (u64)0);
         code_file_bar.string_capacity = code_file_cap;
         if (!query_user_string(app, &code_file_bar)) return(keys);
         if (code_file_bar.string.size == 0) return(keys);
     }
     
     output_dir_bar.prompt = string_u8_litexpr("Output Directory: ");
-    output_dir_bar.string = SCu8(output_dir_space, (umem)0);
+    output_dir_bar.string = SCu8(output_dir_space, (u64)0);
     output_dir_bar.string_capacity = output_dir_cap;
     if (!query_user_string(app, &output_dir_bar)) return(keys);
     if (output_dir_bar.string.size == 0 && output_dir_cap > 0){
@@ -972,7 +972,7 @@ project_key_strings_query_user(Application_Links *app,
     }
     
     binary_file_bar.prompt = string_u8_litexpr("Binary Output: ");
-    binary_file_bar.string = SCu8(binary_file_space, (umem)0);
+    binary_file_bar.string = SCu8(binary_file_space, (u64)0);
     binary_file_bar.string_capacity = binary_file_cap;
     if (!query_user_string(app, &binary_file_bar)) return(keys);
     if (binary_file_bar.string.size == 0) return(keys);

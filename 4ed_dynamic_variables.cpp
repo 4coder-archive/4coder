@@ -97,7 +97,7 @@ dynamic_variable_block_init(Base_Allocator *allocator, Dynamic_Variable_Block *b
 }
 
 internal Data
-dynamic_variable_get(Dynamic_Variable_Block *block, Managed_ID id, umem size){
+dynamic_variable_get(Dynamic_Variable_Block *block, Managed_ID id, u64 size){
     Data result = {};
     Table_Lookup lookup = table_lookup(&block->id_to_data_table, id);
     if (lookup.found_match){
@@ -425,7 +425,7 @@ lifetime_get_or_create_intersection_key(Lifetime_Allocator *lifetime_allocator, 
     }
     
     // Initialize
-    umem new_memory_size = sizeof(Lifetime_Object*)*count;
+    u64 new_memory_size = sizeof(Lifetime_Object*)*count;
     Data new_memory = base_allocate(lifetime_allocator->allocator, new_memory_size);
     new_key->members = (Lifetime_Object**)new_memory.data;
     block_copy_dynamic_array(new_key->members, object_ptr_array, count);

@@ -477,7 +477,7 @@ file_dump(Arena *arena, char *name){
             fprintf(stdout, "fatal error: not enough memory in partition for file dumping");
             exit(1);
         }
-        fread(text.str, 1, text.size, file);
+        fread(text.str, 1, (size_t)text.size, file);
         text.str[text.size] = 0;
         fclose(file);
     }

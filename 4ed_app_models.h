@@ -63,7 +63,7 @@ struct Models{
     Tick_Function *tick;
     Render_Caller_Function *render_caller;
     Delta_Rule_Function *delta_rule;
-    umem delta_rule_memory_size;
+    u64 delta_rule_memory_size;
     
     Hook_Function *buffer_viewer_update;
     Custom_Command_Function *view_event_handler;

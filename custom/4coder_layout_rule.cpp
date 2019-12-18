@@ -301,7 +301,7 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_
         Newline_Layout_Vars newline_vars = get_newline_layout_vars();
         
         b32 all_whitespace = true;
-        for (umem i = 0; i < text.size; i += 1){
+        for (u64 i = 0; i < text.size; i += 1){
             if (!character_is_whitespace(text.str[i])){
                 all_whitespace = false;
                 break;
@@ -315,7 +315,7 @@ layout_unwrapped_small_blank_lines(Application_Links *app, Arena *arena, Buffer_
         u8 *ptr = text.str;
         u8 *end_ptr = ptr + text.size;
         for (;ptr < end_ptr;){
-            Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
+            Character_Consume_Result consume = utf8_consume(ptr, (u64)(end_ptr - ptr));
             
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
             switch (consume.codepoint){
@@ -396,7 +396,7 @@ layout_wrap_anywhere(Application_Links *app, Arena *arena, Buffer_ID buffer, Ran
         u8 *ptr = text.str;
         u8 *end_ptr = ptr + text.size;
         for (;ptr < end_ptr;){
-            Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
+            Character_Consume_Result consume = utf8_consume(ptr, (u64)(end_ptr - ptr));
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
             switch (consume.codepoint){
                 default:
@@ -469,7 +469,7 @@ layout_unwrapped__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, 
         u8 *ptr = text.str;
         u8 *end_ptr = ptr + text.size;
         for (;ptr < end_ptr;){
-            Character_Consume_Result consume = utf8_consume(ptr, (umem)(end_ptr - ptr));
+            Character_Consume_Result consume = utf8_consume(ptr, (u64)(end_ptr - ptr));
             
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
             switch (consume.codepoint){
@@ -572,7 +572,7 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
                 ptr = word.str;
                 for (;ptr < word_end;){
                     Character_Consume_Result consume =
-                        utf8_consume(ptr, (umem)(word_end - ptr));
+                        utf8_consume(ptr, (u64)(word_end - ptr));
                     if (consume.codepoint != max_u32){
                         total_advance += lr_tb_advance(&pos_vars, face, consume.codepoint);
                     }
@@ -591,7 +591,7 @@ layout_wrap_whitespace__inner(Application_Links *app, Arena *arena, Buffer_ID bu
             
             for (;ptr < word_end;){
                 Character_Consume_Result consume =
-                    utf8_consume(ptr, (umem)(word_end - ptr));
+                    utf8_consume(ptr, (u64)(word_end - ptr));
                 i64 index = layout_index_from_ptr(ptr, text.str, range.first);
                 
                 if (consume.codepoint != max_u32){

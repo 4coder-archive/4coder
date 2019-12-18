@@ -14,7 +14,7 @@
 function String_Const_u8
 file_load_all(Arena *arena, FILE *file){
     fseek(file, 0, SEEK_END);
-    umem size = ftell(file);
+    u64 size = ftell(file);
     fseek(file, 0, SEEK_SET);
     u8 *buffer = push_array(arena, u8, size + 1);
     fread(buffer, 1, size, file);

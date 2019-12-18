@@ -921,7 +921,7 @@ smi_input_set_construct(Arena *arena, String_Const_u8 characters){
     Input_Set result = {};
     result.count = (i32)characters.size;
     result.inputs = push_array_zero(arena, u16, result.count);
-    for (umem i = 0; i < characters.size; i += 1){
+    for (u64 i = 0; i < characters.size; i += 1){
         result.inputs[i] = (u16)characters.str[i];
     }
     return(result);
@@ -1270,7 +1270,7 @@ internal b32
 sm_op(char *lexeme){
     String_Const_u8 l = SCu8(lexeme);
     List_String_Const_u8 name_list = {};
-    for (umem i = 0; i < l.size; i += 1){
+    for (u64 i = 0; i < l.size; i += 1){
         Table_Lookup lookup = table_lookup(&helper_ctx.char_to_name, l.str[i]);
         // If this fails first check that all the characters in the lexeme are named!
         Assert(lookup.found_match);
@@ -1681,7 +1681,7 @@ smo_remove_ops_without_prefix(Operator_Set *set, char *prefix){
 }
 
 internal void
-smo_ops_string_skip(Operator_Set *set, umem size){
+smo_ops_string_skip(Operator_Set *set, u64 size){
     Operator_Set new_set = {};
     new_set.lexeme_to_ptr = make_table_Data_u64(helper_ctx.primary_ctx.allocator, set->count*2);
     
@@ -1756,7 +1756,7 @@ smo_op_set_lexer_root(Operator_Set *set, State *machine_root, String_Const_u8 fa
          node != 0;
          node = node->next){
         String_Const_u8 lexeme = node->op;
-        for (umem i = 1; i < lexeme.size; i += 1){
+        for (u64 i = 1; i < lexeme.size; i += 1){
             String_Const_u8 prefix = string_prefix(lexeme, i);
             Table_Lookup lookup = table_lookup(&string_to_state, make_data(prefix.str, prefix.size));
             if (!lookup.found_match){
@@ -1833,7 +1833,7 @@ smo_op_set_lexer_root(Operator_Set *set, State *machine_root, String_Const_u8 fa
          node != 0;
          node = node->next){
         String_Const_u8 lexeme = node->op;
-        for (umem i = 1; i < lexeme.size; i += 1){
+        for (u64 i = 1; i < lexeme.size; i += 1){
             String_Const_u8 prefix = string_prefix(lexeme, i);
             Table_Lookup lookup = table_lookup(&string_to_state, make_data(prefix.str, prefix.size));
             Assert(lookup.found_match);
@@ -1924,9 +1924,9 @@ smh_typical_tokens(void){
 
 internal String_Const_u8
 string_char_subtract(String_Const_u8 a, String_Const_u8 b){
-    for (umem i = 0; i < b.size; i += 1){
+    for (u64 i = 0; i < b.size; i += 1){
         u8 c = b.str[i];
-        for (umem j = 0; j < a.size;){
+        for (u64 j = 0; j < a.size;){
             if (a.str[j] == c){
                 a.str[j] = a.str[a.size - 1];
                 a.size -= 1;
@@ -3201,7 +3201,7 @@ gen_keyword_table(Arena *scratch, Token_Kind_Set tokens, Keyword_Set keywords, F
             fprintf(out, "u8 %.*s_key_array_%d[] = {",
                     string_expand(keywords.pretty_name), i);
             String_Const_u8 lexeme = key_layout.slots[i]->lexeme;
-            for (umem j = 0; j < lexeme.size; j += 1){
+            for (u64 j = 0; j < lexeme.size; j += 1){
                 fprintf(out, "0x%02x,", lexeme.str[j]);
             }
             fprintf(out, "};\n");
@@ -3744,8 +3744,8 @@ gen_contiguous_control_flow_lexer(Arena *scratch, Token_Kind_Set tokens, Lexer_M
                 Transition *failure_trans = trans->next;
                 Assert(failure_trans->condition.kind == TransitionCaseKind_DelimMatchFail);
                 
-                fprintf(out, "umem delim_length = state.delim_one_past_last - state.delim_first;\n");
-                fprintf(out, "umem parse_length = 0;\n");
+                fprintf(out, "u64 delim_length = state.delim_one_past_last - state.delim_first;\n");
+                fprintf(out, "u64 parse_length = 0;\n");
                 fprintf(out, "for (;;){\n");
                 {
                     fprintf(out, "if (parse_length == delim_length){\n");

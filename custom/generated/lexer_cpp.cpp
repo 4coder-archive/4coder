@@ -2,9 +2,9 @@
 #define FCODER_LEX_GEN_HAND_WRITTEN
 
 internal u64
-lexeme_hash(u64 seed, u8 *ptr, umem size){
+lexeme_hash(u64 seed, u8 *ptr, u64 size){
     u64 result = 0;
-    for (umem i = 0; i < size; i += 1, ptr += 1){
+    for (u64 i = 0; i < size; i += 1, ptr += 1){
         result ^= ((*ptr) ^ result*59) + seed;
     }
     return(result);
@@ -13,7 +13,7 @@ lexeme_hash(u64 seed, u8 *ptr, umem size){
 internal Lexeme_Table_Lookup
 lexeme_table_lookup(u64 *hash_array, String_Const_u8 *key_array, 
                     Lexeme_Table_Value *value_array, i32 slot_count, u64 seed,
-                    u8 *ptr, umem size){
+                    u8 *ptr, u64 size){
     Lexeme_Table_Lookup result = {};
     u64 hash = lexeme_hash(seed, ptr, size);
     u64 comparison_hash = hash | 1;
@@ -3698,8 +3698,8 @@ goto state_label_47; // raw_string_try_delim
 }
 {
 state_label_47: // raw_string_try_delim
-umem delim_length = state.delim_one_past_last - state.delim_first;
-umem parse_length = 0;
+u64 delim_length = state.delim_one_past_last - state.delim_first;
+u64 parse_length = 0;
 for (;;){
 if (parse_length == delim_length){
 goto state_label_48; // raw_string_try_quote

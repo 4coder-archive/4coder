@@ -97,7 +97,7 @@ struct Doc_Content{
 struct Doc_Content_List{
     Doc_Content *first;
     Doc_Content *last;
-    umem total_size;
+    u64 total_size;
     i32 node_count;
 };
 

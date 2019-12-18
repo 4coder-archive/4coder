@@ -546,7 +546,7 @@ fm_copy_folder(Arena *arena, char *src_dir, char *dst_dir, char *src_folder){
 
 // List Helpers
 internal i32
-listsize(void *p, umem item_size){
+listsize(void *p, u64 item_size){
     u64 zero = 0;
     u8 *ptr = (u8*)p;
     for (;memcmp(ptr, &zero, (size_t)item_size) != 0; ptr += item_size);

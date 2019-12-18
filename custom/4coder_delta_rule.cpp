@@ -4,8 +4,8 @@
 
 // TOP
 
-function umem
-delta_ctx_size(umem base_size){
+function u64
+delta_ctx_size(u64 base_size){
     return(base_size + sizeof(Delta_Context_Header));
 }
 
@@ -175,12 +175,12 @@ DELTA_RULE_SIG(original_delta){
     *velocity = V2f32(step_x.v, step_y.v);
     return(V2f32(step_x.p, step_y.p));
 }
-global_const umem original_delta_memory_size = sizeof(Vec2_f32);
+global_const u64 original_delta_memory_size = sizeof(Vec2_f32);
 
 DELTA_RULE_SIG(snap_delta){
     return(pending);
 }
-global_const umem snap_delta_memory_size = 0;
+global_const u64 snap_delta_memory_size = 0;
 
 function f32
 cubic_reinterpolate(f32 t){
@@ -212,7 +212,7 @@ DELTA_RULE_SIG(fixed_time_cubic_delta){
     }
     return(result);
 }
-global_const umem fixed_time_cubic_delta_memory_size = sizeof(f32);
+global_const u64 fixed_time_cubic_delta_memory_size = sizeof(f32);
 
 // BOTTOM
 

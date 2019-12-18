@@ -512,13 +512,13 @@ osx_get_loadable_fonts(Partition *part, Font_Setup_List *list){
 #include "4ed_shared_init_logic.cpp"
 
 external void*
-osx_allocate(umem size){
+osx_allocate(u64 size){
     void *result = system_memory_allocate(size);
     return(result);
 }
 
 external void
-osx_free(void *ptr, umem size){
+osx_free(void *ptr, u64 size){
     system_memory_free(ptr, size);
 }
 

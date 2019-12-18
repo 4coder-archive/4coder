@@ -22,9 +22,9 @@ make_doc_function(Arena *arena, Doc_Cluster *cluster, API_Call *call){
                                              string_expand(call->return_type),
                                              string_expand(call->name));
     
-    umem indent_size = call->name.size + 1;
+    u64 indent_size = call->name.size + 1;
     u8 *buffer = push_array(arena, u8, indent_size);
-    for (umem i = 0; i < indent_size; i += 1){
+    for (u64 i = 0; i < indent_size; i += 1){
         buffer[i] = ' ';
     }
     String_Const_u8 indent = SCu8(buffer, indent_size);

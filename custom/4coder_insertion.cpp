@@ -23,7 +23,7 @@ begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, 
 }
 
 function Buffer_Insertion
-begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, i64 at, Arena *buffer_memory, umem buffer_memory_size){
+begin_buffer_insertion_at_buffered(Application_Links *app, Buffer_ID buffer_id, i64 at, Arena *buffer_memory, u64 buffer_memory_size){
     Cursor *cursor = push_array(buffer_memory, Cursor, 1);
     *cursor = make_cursor(push_array(buffer_memory, u8, buffer_memory_size), buffer_memory_size);
     return(begin_buffer_insertion_at_buffered(app, buffer_id, at, cursor));
@@ -47,14 +47,14 @@ insert_string__no_buffering(Buffer_Insertion *insertion, String_Const_u8 string)
 static void
 insert__flush(Buffer_Insertion *insertion){
     Cursor *cursor = insertion->cursor;
-    umem pos = insertion->temp.temp_memory_cursor.pos;
+    u64 pos = insertion->temp.temp_memory_cursor.pos;
     String_Const_u8 string = SCu8(cursor->base + pos, cursor->pos - pos);
     insert_string__no_buffering(insertion, string);
     end_temp(insertion->temp);
 }
 
 static char*
-insert__reserve(Buffer_Insertion *insertion, umem size){
+insert__reserve(Buffer_Insertion *insertion, u64 size){
     char *space = push_array(insertion->cursor, char, size);
     if (space == 0){
         insert__flush(insertion);
@@ -86,7 +86,7 @@ insert_string(Buffer_Insertion *insertion, String_Const_u8 string){
     }
 }
 
-static umem
+static u64
 insertf(Buffer_Insertion *insertion, char *format, ...){
     Scratch_Block scratch(insertion->app);
     va_list args;

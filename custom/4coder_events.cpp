@@ -335,9 +335,9 @@ stringize_keyboard_event(Arena *arena, Input_Event *event){
         case InputEventKind_TextInsert:
         {
             string_list_push(arena, &list, string_u8_litexpr("t"));
-            umem size = event->text.string.size;
+            u64 size = event->text.string.size;
             u8 *ptr = event->text.string.str;
-            for (umem i = 0; i < size; i += 1, ptr += 1){
+            for (u64 i = 0; i < size; i += 1, ptr += 1){
                 string_list_pushf(arena, &list, "%02X", (i32)(*ptr));
             }
             string_list_push(arena, &list, string_u8_litexpr("\n"));
@@ -369,14 +369,14 @@ stringize_keyboard_event(Arena *arena, Input_Event *event){
 function Input_Event
 parse_keyboard_event(Arena *arena, String_Const_u8 text){
     Input_Event result = {};
-    umem pos = 0;
+    u64 pos = 0;
     Range_i64 range = {};
     
     if (pos < text.size && text.str[pos] == 't'){
         pos += 1;
         result.kind = InputEventKind_TextInsert;
         
-        umem max_size = text.size/2;
+        u64 max_size = text.size/2;
         result.text.string.str = push_array(arena, u8, max_size);
         for (; pos + 1 < text.size; pos += 2){
             if (character_is_base16(text.str[pos]) &&

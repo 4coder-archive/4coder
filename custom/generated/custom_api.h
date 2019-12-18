@@ -104,7 +104,7 @@
 #define custom_managed_id_group_highest_id_sig() u64 custom_managed_id_group_highest_id(Application_Links* app, String_Const_u8 group)
 #define custom_managed_id_declare_sig() Managed_ID custom_managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name)
 #define custom_managed_id_get_sig() Managed_ID custom_managed_id_get(Application_Links* app, String_Const_u8 group, String_Const_u8 name)
-#define custom_managed_scope_get_attachment_sig() void* custom_managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size)
+#define custom_managed_scope_get_attachment_sig() void* custom_managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, u64 size)
 #define custom_managed_scope_attachment_erase_sig() b32 custom_managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id)
 #define custom_alloc_managed_memory_in_scope_sig() Managed_Object custom_alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count)
 #define custom_alloc_buffer_markers_on_buffer_sig() Managed_Object custom_alloc_buffer_markers_on_buffer(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope)
@@ -122,7 +122,7 @@
 #define custom_set_current_input_sig() void custom_set_current_input(Application_Links* app, User_Input* input)
 #define custom_leave_current_input_unhandled_sig() void custom_leave_current_input_unhandled(Application_Links* app)
 #define custom_set_custom_hook_sig() void custom_set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr)
-#define custom_set_custom_hook_memory_size_sig() b32 custom_set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, umem size)
+#define custom_set_custom_hook_memory_size_sig() b32 custom_set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, u64 size)
 #define custom_get_mouse_state_sig() Mouse_State custom_get_mouse_state(Application_Links* app)
 #define custom_get_active_query_bars_sig() b32 custom_get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out)
 #define custom_start_query_bar_sig() b32 custom_start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags)
@@ -164,7 +164,7 @@
 #define custom_text_layout_get_visible_range_sig() Range_i64 custom_text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_text_layout_line_on_screen_sig() Range_f32 custom_text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number)
 #define custom_text_layout_character_on_screen_sig() Rect_f32 custom_text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos)
-#define custom_paint_text_color_sig() void custom_paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, ARGB_Color color)
+#define custom_paint_text_color_sig() void custom_paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color)
 #define custom_text_layout_free_sig() b32 custom_text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_draw_text_layout_sig() void custom_draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color)
 #define custom_open_color_picker_sig() void custom_open_color_picker(Application_Links* app, Color_Picker* picker)
@@ -278,7 +278,7 @@ typedef Base_Allocator* custom_managed_scope_allocator_type(Application_Links* a
 typedef u64 custom_managed_id_group_highest_id_type(Application_Links* app, String_Const_u8 group);
 typedef Managed_ID custom_managed_id_declare_type(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 typedef Managed_ID custom_managed_id_get_type(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
-typedef void* custom_managed_scope_get_attachment_type(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
+typedef void* custom_managed_scope_get_attachment_type(Application_Links* app, Managed_Scope scope, Managed_ID id, u64 size);
 typedef b32 custom_managed_scope_attachment_erase_type(Application_Links* app, Managed_Scope scope, Managed_ID id);
 typedef Managed_Object custom_alloc_managed_memory_in_scope_type(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);
 typedef Managed_Object custom_alloc_buffer_markers_on_buffer_type(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope);
@@ -296,7 +296,7 @@ typedef User_Input custom_get_current_input_type(Application_Links* app);
 typedef void custom_set_current_input_type(Application_Links* app, User_Input* input);
 typedef void custom_leave_current_input_unhandled_type(Application_Links* app);
 typedef void custom_set_custom_hook_type(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
-typedef b32 custom_set_custom_hook_memory_size_type(Application_Links* app, Hook_ID hook_id, umem size);
+typedef b32 custom_set_custom_hook_memory_size_type(Application_Links* app, Hook_ID hook_id, u64 size);
 typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
 typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 typedef b32 custom_start_query_bar_type(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -338,7 +338,7 @@ typedef Buffer_ID custom_text_layout_get_buffer_type(Application_Links* app, Tex
 typedef Range_i64 custom_text_layout_get_visible_range_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef Range_f32 custom_text_layout_line_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 typedef Rect_f32 custom_text_layout_character_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
-typedef void custom_paint_text_color_type(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, ARGB_Color color);
+typedef void custom_paint_text_color_type(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color);
 typedef b32 custom_text_layout_free_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef void custom_draw_text_layout_type(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 typedef void custom_open_color_picker_type(Application_Links* app, Color_Picker* picker);
@@ -629,7 +629,7 @@ internal Base_Allocator* managed_scope_allocator(Application_Links* app, Managed
 internal u64 managed_id_group_highest_id(Application_Links* app, String_Const_u8 group);
 internal Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 internal Managed_ID managed_id_get(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
-internal void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
+internal void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, u64 size);
 internal b32 managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
 internal Managed_Object alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);
 internal Managed_Object alloc_buffer_markers_on_buffer(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope);
@@ -647,7 +647,7 @@ internal User_Input get_current_input(Application_Links* app);
 internal void set_current_input(Application_Links* app, User_Input* input);
 internal void leave_current_input_unhandled(Application_Links* app);
 internal void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
-internal b32 set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, umem size);
+internal b32 set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, u64 size);
 internal Mouse_State get_mouse_state(Application_Links* app);
 internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 internal b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -689,7 +689,7 @@ internal Buffer_ID text_layout_get_buffer(Application_Links* app, Text_Layout_ID
 internal Range_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
 internal Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 internal Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
-internal void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, ARGB_Color color);
+internal void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color);
 internal b32 text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id);
 internal void draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 internal void open_color_picker(Application_Links* app, Color_Picker* picker);

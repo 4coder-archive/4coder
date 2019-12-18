@@ -482,7 +482,7 @@ BUFFER_NAME_RESOLVER_SIG(default_buffer_name_resolution){
                 i32 conflict_index = unresolved[i];
                 Buffer_Name_Conflict_Entry *conflict = &conflicts[conflict_index];
                 
-                umem size = conflict->base_name.size;
+                u64 size = conflict->base_name.size;
                 size = clamp_top(size, conflict->unique_name_capacity);
                 conflict->unique_name_len_in_out = size;
                 block_copy(conflict->unique_name_in_out, conflict->base_name.str, size);
@@ -1031,9 +1031,9 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
                 
                 i64 token_index_resync = relex.first_resync_index;
                 
-                Interval_i64 head = Ii64(0, token_index_first);
-                Interval_i64 replaced = Ii64(token_index_first, token_index_resync);
-                Interval_i64 tail = Ii64(token_index_resync, ptr->count);
+                Range_i64 head = Ii64(0, token_index_first);
+                Range_i64 replaced = Ii64(token_index_first, token_index_resync);
+                Range_i64 tail = Ii64(token_index_resync, ptr->count);
                 i64 resynced_count = (token_index_resync_guess + 1) - token_index_resync;
                 i64 relexed_count = relex_list.total_count - resynced_count;
                 i64 tail_shift = relexed_count - (token_index_resync - token_index_first);

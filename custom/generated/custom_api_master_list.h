@@ -104,7 +104,7 @@ api(custom) function Base_Allocator* managed_scope_allocator(Application_Links* 
 api(custom) function u64 managed_id_group_highest_id(Application_Links* app, String_Const_u8 group);
 api(custom) function Managed_ID managed_id_declare(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
 api(custom) function Managed_ID managed_id_get(Application_Links* app, String_Const_u8 group, String_Const_u8 name);
-api(custom) function void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, umem size);
+api(custom) function void* managed_scope_get_attachment(Application_Links* app, Managed_Scope scope, Managed_ID id, u64 size);
 api(custom) function b32 managed_scope_attachment_erase(Application_Links* app, Managed_Scope scope, Managed_ID id);
 api(custom) function Managed_Object alloc_managed_memory_in_scope(Application_Links* app, Managed_Scope scope, i32 item_size, i32 count);
 api(custom) function Managed_Object alloc_buffer_markers_on_buffer(Application_Links* app, Buffer_ID buffer_id, i32 count, Managed_Scope* optional_extra_scope);
@@ -122,7 +122,7 @@ api(custom) function User_Input get_current_input(Application_Links* app);
 api(custom) function void set_current_input(Application_Links* app, User_Input* input);
 api(custom) function void leave_current_input_unhandled(Application_Links* app);
 api(custom) function void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
-api(custom) function b32 set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, umem size);
+api(custom) function b32 set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, u64 size);
 api(custom) function Mouse_State get_mouse_state(Application_Links* app);
 api(custom) function b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
 api(custom) function b32 start_query_bar(Application_Links* app, Query_Bar* bar, u32 flags);
@@ -164,7 +164,7 @@ api(custom) function Buffer_ID text_layout_get_buffer(Application_Links* app, Te
 api(custom) function Range_i64 text_layout_get_visible_range(Application_Links* app, Text_Layout_ID text_layout_id);
 api(custom) function Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 api(custom) function Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
-api(custom) function void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Interval_i64 range, ARGB_Color color);
+api(custom) function void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color);
 api(custom) function b32 text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id);
 api(custom) function void draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 api(custom) function void open_color_picker(Application_Links* app, Color_Picker* picker);

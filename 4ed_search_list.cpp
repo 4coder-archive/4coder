@@ -29,7 +29,7 @@ function String_Const_u8
 get_full_path(Arena *arena, Path_Search_List *search_list, String_Const_u8 relative){
     String_Const_u8 result = {};
     Temp_Memory restore_point = begin_temp(arena);
-    umem buffer_cap = search_list->max_member_length + relative.size + 1;
+    u64 buffer_cap = search_list->max_member_length + relative.size + 1;
     u8 *buffer = push_array(arena, u8, buffer_cap);
     u8 *opl = buffer + buffer_cap;
     u8 *relative_base = opl - 1 - relative.size;
@@ -38,7 +38,7 @@ get_full_path(Arena *arena, Path_Search_List *search_list, String_Const_u8 relat
     for (Node_String_Const_u8 *node = search_list->list.first;
          node != 0;
          node = node->next){
-        umem node_size = node->string.size;
+        u64 node_size = node->string.size;
         u8 *path_base = relative_base - node_size;
         block_copy(path_base, node->string.str, node_size);
         String_Const_u8 name = SCu8(path_base, opl);

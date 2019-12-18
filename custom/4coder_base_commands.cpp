@@ -588,8 +588,8 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
     
     String_Const_u8 text = push_whole_buffer(app, scratch, buffer);
     
-    umem whitespace_start = 0;
-    for (umem i = 0; i < text.size; i += 1){
+    u64 whitespace_start = 0;
+    for (u64 i = 0; i < text.size; i += 1){
         u8 v = string_get_character(text, i);
         if (v == '\n' || i + 1 == text.size){
             if (whitespace_start < i){
@@ -752,7 +752,7 @@ CUSTOM_DOC("Queries the user for a number, and jumps the cursor to the correspon
     u8 string_space[256];
     Query_Bar bar = {};
     bar.prompt = string_u8_litexpr("Goto Line: ");
-    bar.string = SCu8(string_space, (umem)0);
+    bar.string = SCu8(string_space, (u64)0);
     bar.string_capacity = sizeof(string_space);
     if (query_user_number(app, &bar)){
         i32 line_number = (i32)string_to_integer(bar.string, 10);
@@ -797,7 +797,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
     String_Const_u8 isearch_str = string_u8_litexpr("I-Search: ");
     String_Const_u8 rsearch_str = string_u8_litexpr("Reverse-I-Search: ");
     
-    umem match_size = bar.string.size;
+    u64 match_size = bar.string.size;
     
     User_Input in = {};
     for (;;){
@@ -830,7 +830,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
                 block_copy(bar.string.str, previous_isearch_query, bar.string.size);
             }
             else{
-                umem size = bar.string.size;
+                u64 size = bar.string.size;
                 size = clamp_top(size, sizeof(previous_isearch_query) - 1);
                 block_copy(previous_isearch_query, bar.string.str, size);
                 previous_isearch_query[size] = 0;
@@ -845,7 +845,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
         }
         else if (match_key_code(&in, KeyCode_Backspace)){
             if (is_unmodified_key(&in.event)){
-                umem old_bar_string_size = bar.string.size;
+                u64 old_bar_string_size = bar.string.size;
                 bar.string = backspace_utf8(bar.string);
                 string_change = (bar.string.size < old_bar_string_size);
             }
@@ -940,7 +940,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
     view_disable_highlight_range(app, view);
     
     if (in.abort){
-        umem size = bar.string.size;
+        u64 size = bar.string.size;
         size = clamp_top(size, sizeof(previous_isearch_query) - 1);
         block_copy(previous_isearch_query, bar.string.str, size);
         previous_isearch_query[size] = 0;
@@ -1008,13 +1008,13 @@ query_user_replace_pair(Application_Links *app, Arena *arena){
     Query_Bar *replace = push_array(arena, Query_Bar, 1);
     u8 *replace_space = push_array(arena, u8, KB(1));
     replace->prompt = string_u8_litexpr("Replace: ");
-    replace->string = SCu8(replace_space, (umem)0);
+    replace->string = SCu8(replace_space, (u64)0);
     replace->string_capacity = KB(1);
     
     Query_Bar *with = push_array(arena, Query_Bar, 1);
     u8 *with_space = push_array(arena, u8, KB(1));
     with->prompt = string_u8_litexpr("With: ");
-    with->string = SCu8(with_space, (umem)0);
+    with->string = SCu8(with_space, (u64)0);
     with->string_capacity = KB(1);
     
     String_Pair result = {};
@@ -1127,7 +1127,7 @@ query_replace_parameter(Application_Links *app, String_Const_u8 replace_str, i64
     Query_Bar with = {};
     u8 with_space[1024];
     with.prompt = string_u8_litexpr("With: ");
-    with.string = SCu8(with_space, (umem)0);
+    with.string = SCu8(with_space, (u64)0);
     with.string_capacity = sizeof(with_space);
     
     if (query_user_string(app, &with)){
@@ -1156,7 +1156,7 @@ CUSTOM_DOC("Queries the user for two strings, and incrementally replaces every o
         Query_Bar replace = {};
         u8 replace_space[1024];
         replace.prompt = string_u8_litexpr("Replace: ");
-        replace.string = SCu8(replace_space, (umem)0);
+        replace.string = SCu8(replace_space, (u64)0);
         replace.string_capacity = sizeof(replace_space);
         if (query_user_string(app, &replace)){
             if (replace.string.size > 0){
@@ -1276,7 +1276,7 @@ CUSTOM_DOC("Queries the user for a file name and saves the contents of the curre
     u8 name_space[4096];
     Query_Bar bar = {};
     bar.prompt = push_u8_stringf(scratch, "Save '%.*s' to: ", string_expand(buffer_name));
-    bar.string = SCu8(name_space, (umem)0);
+    bar.string = SCu8(name_space, (u64)0);
     bar.string_capacity = sizeof(name_space);
     if (query_user_string(app, &bar)){
         if (bar.string.size != 0){
@@ -1311,7 +1311,7 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
         u8 name_space[4096];
         Query_Bar bar = {};
         bar.prompt = push_u8_stringf(scratch, "Rename '%.*s' to: ", string_expand(front));
-        bar.string = SCu8(name_space, (umem)0);
+        bar.string = SCu8(name_space, (u64)0);
         bar.string_capacity = sizeof(name_space);
         if (query_user_string(app, &bar)){
             if (bar.string.size != 0){
@@ -1345,7 +1345,7 @@ CUSTOM_DOC("Queries the user for a name and creates a new directory with the giv
     u8 name_space[4096];
     Query_Bar bar = {};
     bar.prompt = push_u8_stringf(scratch, "Make directory at '%.*s': ", string_expand(hot));
-    bar.string = SCu8(name_space, (umem)0);
+    bar.string = SCu8(name_space, (u64)0);
     bar.string_capacity = sizeof(name_space);
     
     if (!query_user_string(app, &bar)) return;

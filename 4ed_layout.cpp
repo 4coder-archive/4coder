@@ -348,8 +348,8 @@ layout_get_absolute_position_of_split(Panel *panel){
     return(pos);
 }
 
-internal Range
-layout__get_limiting_range_on_split_children(i32 mid, b32 vertical_split, Panel *panel, Range range){
+internal Range_i32
+layout__get_limiting_range_on_split_children(i32 mid, b32 vertical_split, Panel *panel, Range_i32 range){
     if (panel->kind == PanelKind_Intermediate){
         if (vertical_split == panel->vertical_split){
             i32 pos = layout_get_absolute_position_of_split(panel);
@@ -366,10 +366,10 @@ layout__get_limiting_range_on_split_children(i32 mid, b32 vertical_split, Panel 
     return(range);
 }
 
-internal Range
+internal Range_i32
 layout_get_limiting_range_on_split(Layout *layout, Panel *panel){
     // root level min max
-    Range range = {};
+    Range_i32 range = {};
     if (panel->vertical_split){
         range.max = layout->full_dim.x;
     }

@@ -229,21 +229,21 @@ api_call(arena, api, "condition_variable_make",
     
     {
         API_Call *call = api_call(arena, api, "memory_allocate", "void*");
-        api_param(arena, call, "umem", "size");
+        api_param(arena, call, "u64", "size");
         api_param(arena, call, "String_Const_u8", "location");
     }
     
     {
         API_Call *call = api_call(arena, api, "memory_set_protection", "b32");
         api_param(arena, call, "void*", "ptr");
-        api_param(arena, call, "umem", "size");
+        api_param(arena, call, "u64", "size");
         api_param(arena, call, "u32", "flags");
     }
     
     {
         API_Call *call = api_call(arena, api, "memory_free", "void");
         api_param(arena, call, "void*", "ptr");
-        api_param(arena, call, "umem", "size");
+        api_param(arena, call, "u64", "size");
     }
     
     {

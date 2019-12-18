@@ -111,7 +111,7 @@ file_clear_dirty_flags(Editing_File *file){
 
 internal void
 file_name_terminate(Editing_File_Name *name){
-    umem size = name->name_size;
+    u64 size = name->name_size;
     size = clamp_top(size, sizeof(name->name_space) - 1);
     name->name_space[size] = 0;
     name->name_size = size;
@@ -395,7 +395,7 @@ file_line_y_difference(Thread_Context *tctx, Models *models, Editing_File *file,
                        i64 line_a, i64 line_b){
     f32 result = 0.f;
     if (line_a != line_b){
-        Interval_i64 line_range = Ii64(line_a, line_b);
+        Range_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
             Layout_Item_List line = file_get_line_layout(tctx, models, file, layout_func, width, face, i);
             result += line.height;
@@ -522,7 +522,7 @@ internal i64
 file_line_character_difference(Thread_Context *tctx, Models *models, Editing_File *file, Layout_Function *layout_func, f32 width, Face *face, i64 line_a, i64 line_b){
     i64 result = 0;
     if (line_a != line_b){
-        Interval_i64 line_range = Ii64(line_a, line_b);
+        Range_i64 line_range = Ii64(line_a, line_b);
         for (i64 i = line_range.min; i < line_range.max; i += 1){
             Layout_Item_List line = file_get_line_layout(tctx, models, file, layout_func, width, face, i);
             result += line.character_count;

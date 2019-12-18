@@ -1136,7 +1136,7 @@ line_is_blank(Application_Links *app, Buffer_ID buffer, i64 line_number){
     Scratch_Block scratch(app);
     String_Const_u8 line = push_buffer_line(app, scratch, buffer, line_number);
     b32 is_blank = true;
-    for (umem i = 0; i < line.size; i += 1){
+    for (u64 i = 0; i < line.size; i += 1){
         if (!character_is_whitespace(line.str[i])){
             is_blank = false;
             break;
@@ -1206,7 +1206,7 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range,
     info.first_char_pos = range.end;
     info.is_blank = true;
     info.all_space = true;
-    for (umem i = 0; i < s.size; i += 1){
+    for (u64 i = 0; i < s.size; i += 1){
         u8 c = s.str[i];
         if (!character_is_whitespace(c)){
             info.is_blank = false;
@@ -1262,7 +1262,7 @@ replace_in_range(Application_Links *app, Buffer_ID buffer, Range_i64 range, Stri
     i64 new_pos = 0;
     seek_string_forward(app, buffer, pos, range.end, needle, &new_pos);
     i64 shift = replace_range_shift(needle.size, string.size);
-    for (; new_pos + (imem)needle.size <= range.end;){
+    for (; new_pos + (i64)needle.size <= range.end;){
         Range_i64 needle_range = Ii64(new_pos, new_pos + (i32)needle.size);
         buffer_replace_range(app, buffer, needle_range, string);
         range.end += shift;
@@ -1399,7 +1399,7 @@ match_core_code(User_Input *in, Key_Code core_code){
 internal String_Const_u8
 backspace_utf8(String_Const_u8 string){
     if (string.size > 0){
-        umem i = string.size - 1;
+        u64 i = string.size - 1;
         for (; i > 0; --i){
             if (string.str[i] <= 0x7F || string.str[i] >= 0xC0){
                 break;
@@ -1773,7 +1773,7 @@ view_look_at_region(Application_Links *app, View_ID view, i64 major_pos, i64 min
             Rect_f32 region = view_get_buffer_region(app, view);
             f32 view_height = rect_height(region);
             f32 skirt_height = view_height*.1f;
-            Interval_f32 acceptable_y = If32(skirt_height, view_height*.9f);
+            Range_f32 acceptable_y = If32(skirt_height, view_height*.9f);
             
             f32 target_height = view_line_y_difference(app, view, bottom.line + 1, top.line);
             
@@ -1868,7 +1868,7 @@ get_query_string(Application_Links *app, char *query_str, u8 *string_space, i32 
     Query_Bar_Group group(app);
     Query_Bar bar = {};
     bar.prompt = SCu8((u8*)query_str);
-    bar.string = SCu8(string_space, (umem)0);
+    bar.string = SCu8(string_space, (u64)0);
     bar.string_capacity = space_size;
     if (!query_user_string(app, &bar)){
         bar.string.size = 0;
@@ -1897,7 +1897,7 @@ push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buf
     String_Const_u8 result = {};
     Token *token = get_token_from_pos(app, buffer, pos);
     if (token != 0 && token->size > 0 && token->kind != TokenBaseKind_Whitespace){
-        Interval_i64 range = Ii64(token->pos, token->pos + token->size);
+        Range_i64 range = Ii64(token->pos, token->pos + token->size);
         result = push_buffer_range(app, arena, buffer, range);
     }
     return(result);
@@ -1939,11 +1939,11 @@ dump_file_handle(Arena *arena, FILE *file){
     Data result = {};
     if (file != 0){
         fseek(file, 0, SEEK_END);
-        umem size = ftell(file);
+        u64 size = ftell(file);
         char *mem = push_array(arena, char, size);
         if (mem != 0){
             fseek(file, 0, SEEK_SET);
-            fread(mem, 1, size, file);
+            fread(mem, 1, (size_t)size, file);
             result = make_data(mem, size);
         }
     }
@@ -2053,10 +2053,10 @@ sort_pairs_by_key(Sort_Pair_i32 *pairs, i32 count){
     sort_pairs_by_key__quick(pairs, 0, count);
 }
 
-internal Range_Array
+internal Range_i32_Array
 get_ranges_of_duplicate_keys(Arena *arena, i32 *keys, i32 stride, i32 count){
-    Range_Array result = {};
-    result.ranges = push_array(arena, Range, count);
+    Range_i32_Array result = {};
+    result.ranges = push_array(arena, Range_i32, count);
     u8 *ptr = (u8*)keys;
     i32 start_i = 0;
     for (i32 i = 1; i <= count; i += 1){
@@ -2068,13 +2068,13 @@ get_ranges_of_duplicate_keys(Arena *arena, i32 *keys, i32 stride, i32 count){
             is_end = true;
         }
         if (is_end){
-            Range *new_range = &result.ranges[result.count++];
+            Range_i32 *new_range = &result.ranges[result.count++];
             new_range->first = start_i;
             new_range->one_past_last = i;
             start_i = i;
         }
     }
-    pop_array(arena, Range, count - result.count);
+    pop_array(arena, Range_i32, count - result.count);
     return(result);
 }
 
@@ -2371,7 +2371,7 @@ select_scope(Application_Links *app, View_ID view, Range_i64 range){
 
 function Line_Ending_Kind
 guess_line_ending_kind_from_buffer(Application_Links *app, Buffer_ID buffer){
-    umem size = buffer_get_size(app, buffer);
+    u64 size = buffer_get_size(app, buffer);
     size = clamp_top(size, KB(8));
     Scratch_Block scratch(app);
     String_Const_u8 string = push_buffer_range(app, scratch, buffer, Ii64(0, size));

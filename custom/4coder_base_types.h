@@ -104,6 +104,9 @@
 
 #if !defined(SHIP_MODE)
 #define SHIP_MODE 0
+#else
+#undef SHIP_MODE
+#define SHIP_MODE 1
 #endif
 
 ////////////////////////////////
@@ -153,14 +156,6 @@ typedef uint64_t u64;
 typedef i8 b8;
 typedef i32 b32;
 typedef i64 b64;
-
-#if ARCH_32BIT
-typedef u32 umem;
-typedef i32 imem;
-#else
-typedef u64 umem;
-typedef i64 imem;
-#endif
 
 typedef float f32;
 typedef double f64;
@@ -722,12 +717,6 @@ union Range_f32{
     };
 };
 
-typedef Range_i32 Interval_i32;
-typedef Range_i64 Interval_i64;
-typedef Range_u64 Interval_u64;
-typedef Range_f32 Interval_f32;
-typedef Range_i32 Range;
-
 struct Range_i32_Array{
     Range_i32 *ranges;
     i32 count;
@@ -744,7 +733,6 @@ struct Range_f32_Array{
     Range_f32 *ranges;
     i32 count;
 };
-typedef Range_i32_Array Range_Array;
 
 union Rect_i32{
     struct{
@@ -848,7 +836,7 @@ enum{
 
 struct String_Const_char{
     char *str;
-    u64 size;
+      u64 size;
 };
 struct String_Const_u8{
     union{
@@ -936,25 +924,25 @@ struct Node_String_Const_u32{
 struct List_String_Const_char{
     Node_String_Const_char *first;
     Node_String_Const_char *last;
-    u64 total_size;
+     u64 total_size;
     i32 node_count;
 };
 struct List_String_Const_u8{
     Node_String_Const_u8 *first;
     Node_String_Const_u8 *last;
-    u64 total_size;
+     u64 total_size;
     i32 node_count;
 };
 struct List_String_Const_u16{
     Node_String_Const_u16 *first;
     Node_String_Const_u16 *last;
-    u64 total_size;
+     u64 total_size;
     i32 node_count;
 };
 struct List_String_Const_u32{
     Node_String_Const_u32 *first;
     Node_String_Const_u32 *last;
-    u64 total_size;
+     u64 total_size;
     i32 node_count;
 };
 
@@ -965,7 +953,7 @@ struct Node_String_Const_Any{
 struct List_String_Const_Any{
     Node_String_Const_Any *first;
     Node_String_Const_Any *last;
-    u64 total_size;
+     u64 total_size;
     i32 node_count;
 };
 
@@ -974,40 +962,40 @@ struct String_char{
         String_Const_char string;
         struct{
             char *str;
-            umem size;
+             u64 size;
         };
     };
-    umem cap;
+     u64 cap;
 };
 struct String_u8{
     union{
         String_Const_u8 string;
         struct{
             u8 *str;
-            umem size;
+             u64 size;
         };
     };
-    umem cap;
+     u64 cap;
 };
 struct String_u16{
     union{
         String_Const_u16 string;
         struct{
             u16 *str;
-            umem size;
+             u64 size;
         };
     };
-    umem cap;
+     u64 cap;
 };
 struct String_u32{
     union{
         String_Const_u32 string;
         struct{
             u32 *str;
-            umem size;
+             u64 size;
         };
     };
-    umem cap;
+     u64 cap;
 };
 
 struct String_Any{
@@ -1015,8 +1003,8 @@ struct String_Any{
     union{
         struct{
             void *str;
-            umem size;
-            umem cap;
+             u64 size;
+             u64 cap;
         };
         String_char s_char;
         String_u8 s_u8;
@@ -1045,7 +1033,7 @@ global u32 nonchar_max = 0xFDEF;
 
 struct Data{
     u8 *data;
-    umem size;
+    u64 size;
 };
 
 ////////////////////////////////
@@ -1087,11 +1075,11 @@ enum{
 
 ////////////////////////////////
 
-typedef void *Base_Allocator_Reserve_Signature(void *user_data, umem size, umem *size_out, String_Const_u8 location);
-typedef void  Base_Allocator_Commit_Signature(void *user_data, void *ptr, umem size);
-typedef void  Base_Allocator_Uncommit_Signature(void *user_data, void *ptr, umem size);
+typedef void *Base_Allocator_Reserve_Signature(void *user_data, u64 size, u64 *size_out, String_Const_u8 location);
+typedef void  Base_Allocator_Commit_Signature(void *user_data, void *ptr, u64 size);
+typedef void  Base_Allocator_Uncommit_Signature(void *user_data, void *ptr, u64 size);
 typedef void  Base_Allocator_Free_Signature(void *user_data, void *ptr);
-typedef void  Base_Allocator_Set_Access_Signature(void *user_data, void *ptr, umem size, Access_Flag flags);
+typedef void  Base_Allocator_Set_Access_Signature(void *user_data, void *ptr, u64 size, Access_Flag flags);
 struct Base_Allocator{
     Base_Allocator_Reserve_Signature *reserve;
     Base_Allocator_Commit_Signature *commit;
@@ -1103,12 +1091,12 @@ struct Base_Allocator{
 
 struct Cursor{
     u8 *base;
-    umem pos;
-    umem cap;
+     u64 pos;
+    u64 cap;
 };
 struct Temp_Memory_Cursor{
     Cursor *cursor;
-    umem pos;
+    u64 pos;
 };
 struct Cursor_Node{
     union{
@@ -1120,13 +1108,13 @@ struct Cursor_Node{
 struct Arena{
     Base_Allocator *base_allocator;
     Cursor_Node *cursor_node;
-    umem chunk_size;
-    umem alignment;
+    u64 chunk_size;
+    u64 alignment;
 };
 struct Temp_Memory_Arena{
     Arena *arena;
     Cursor_Node *cursor_node;
-    umem pos;
+    u64 pos;
 };
 typedef i32 Linear_Allocator_Kind;
 enum{
@@ -1243,7 +1231,7 @@ struct Heap_Node{
         struct{
             Heap_Basic_Node order;
             Heap_Basic_Node alloc;
-            umem size;
+             u64 size;
         };
         u8 force_size__[64];
     };
@@ -1254,8 +1242,8 @@ struct Heap{
     Arena *arena;
     Heap_Basic_Node in_order;
     Heap_Basic_Node free_nodes;
-    umem used_space;
-    umem total_space;
+     u64 used_space;
+     u64 total_space;
 };
 
 #endif

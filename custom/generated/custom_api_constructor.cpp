@@ -632,7 +632,7 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("manage
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "Managed_Scope", "scope");
 api_param(arena, call, "Managed_ID", "id");
-api_param(arena, call, "umem", "size");
+api_param(arena, call, "u64", "size");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("managed_scope_attachment_erase"), string_u8_litexpr("b32"), string_u8_litexpr(""));
@@ -733,7 +733,7 @@ api_param(arena, call, "Void_Func*", "func_ptr");
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_custom_hook_memory_size"), string_u8_litexpr("b32"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "Hook_ID", "hook_id");
-api_param(arena, call, "umem", "size");
+api_param(arena, call, "u64", "size");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("get_mouse_state"), string_u8_litexpr("Mouse_State"), string_u8_litexpr(""));

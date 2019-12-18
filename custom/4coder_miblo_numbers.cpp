@@ -150,7 +150,7 @@ get_timestamp_at_cursor(Application_Links *app, Buffer_ID buffer, i64 pos, Miblo
         String_Const_u8 string = push_buffer_range(app, scratch, buffer, time_stamp_range);
         if (string.size > 0){
             i32 count_colons = 0;
-            for (umem i = 0; i < string.size; ++i){
+            for (u64 i = 0; i < string.size; ++i){
                 if (string.str[i] == ':'){
                     count_colons += 1;
                 }

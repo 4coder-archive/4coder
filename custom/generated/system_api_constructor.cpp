@@ -181,19 +181,19 @@ api_param(arena, call, "System_Condition_Variable", "cv");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("memory_allocate"), string_u8_litexpr("void*"), string_u8_litexpr(""));
-api_param(arena, call, "umem", "size");
+api_param(arena, call, "u64", "size");
 api_param(arena, call, "String_Const_u8", "location");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("memory_set_protection"), string_u8_litexpr("b32"), string_u8_litexpr(""));
 api_param(arena, call, "void*", "ptr");
-api_param(arena, call, "umem", "size");
+api_param(arena, call, "u64", "size");
 api_param(arena, call, "u32", "flags");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("memory_free"), string_u8_litexpr("void"), string_u8_litexpr(""));
 api_param(arena, call, "void*", "ptr");
-api_param(arena, call, "umem", "size");
+api_param(arena, call, "u64", "size");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("memory_annotation"), string_u8_litexpr("Memory_Annotation"), string_u8_litexpr(""));

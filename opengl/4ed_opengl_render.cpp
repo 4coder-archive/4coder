@@ -55,7 +55,7 @@ gl__fill_texture(Texture_Kind texture_kind, u32 texture, Vec3_i32 p, Vec3_i32 di
     return(result);
 }
 
-internal void CALL_CONVENTION
+internal void
 gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char *message, void *userParam){
     switch (id){
         case 131218:
@@ -189,7 +189,7 @@ gl__make_program(char *header, char *vertex, char *fragment){
         glGetShaderInfoLog(fragment_shader, sizeof(fragment_errors), &ignore, fragment_errors);
         glGetProgramInfoLog(program, sizeof(program_errors), &ignore, program_errors);
 #if SHIP_MODE
-        os_popup_window(string_u8_litexpr("Error"), string_u8_litexpr("Shader compilation failed."));
+        os_popup_error("Error", "Shader compilation failed.");
 #endif
         InvalidPath;
     }

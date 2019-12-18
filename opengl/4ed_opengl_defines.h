@@ -224,7 +224,7 @@ typedef void GL_Debug_Function(GLenum src,
                                void *user_data);
 typedef GL_Debug_Function *GLDEBUGPROC;
 
-#define GL_FUNC(N,R,P) typedef R (N##_Function)P; N##_Function *N = 0;
+#define GL_FUNC(N,R,P) typedef R (CALL_CONVENTION N##_Function)P; N##_Function *N = 0;
 #include "4ed_opengl_funcs.h"
 
 #endif

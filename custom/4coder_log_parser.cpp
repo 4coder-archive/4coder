@@ -173,7 +173,7 @@ make_log_parse(Arena *arena, String_Const_u8 source){
     parse.id_to_string_table = make_table_u64_Data(arena->base_allocator, 500);
     
     for (;source.size > 0;){
-        umem end_of_line = string_find_first(source, '\n');
+        u64 end_of_line = string_find_first(source, '\n');
         String_Const_u8 line = string_prefix(source, end_of_line);
         line = string_skip_chop_whitespace(line);
         source = string_skip(source, end_of_line + 1);
@@ -185,11 +185,11 @@ make_log_parse(Arena *arena, String_Const_u8 source){
         String_Const_u8 whole_line = line;
         
         {
-            umem colon1 = string_find_first(line, ':');
+            u64 colon1 = string_find_first(line, ':');
             src_file_name = string_prefix(line, colon1);
             line = string_skip(line, colon1 + 1);
             
-            umem colon2 = string_find_first(line, ':');
+            u64 colon2 = string_find_first(line, ':');
             src_line_number = string_prefix(line, colon2);
             line = string_skip(line, colon2 + 1);
             
@@ -201,12 +201,12 @@ make_log_parse(Arena *arena, String_Const_u8 source){
         if (!got_source_position){
             line = whole_line;
             
-            umem colon0 = string_find_first(line, ':');
-            umem colon1 = string_find_first(line, colon0 + 1, ':');
+            u64 colon0 = string_find_first(line, ':');
+            u64 colon1 = string_find_first(line, colon0 + 1, ':');
             src_file_name = string_prefix(line, colon1);
             line = string_skip(line, colon1 + 1);
             
-            umem colon2 = string_find_first(line, ':');
+            u64 colon2 = string_find_first(line, ':');
             src_line_number = string_prefix(line, colon2);
             line = string_skip(line, colon2 + 1);
             
@@ -216,7 +216,7 @@ make_log_parse(Arena *arena, String_Const_u8 source){
         }
         
         if (got_source_position){
-            umem bracket_open = string_find_first(line, '[');
+            u64 bracket_open = string_find_first(line, '[');
             String_Const_u8 event_name = string_prefix(line, bracket_open);
             event_name = string_skip_chop_whitespace(event_name);
             line = string_skip(line, bracket_open + 1);
@@ -225,13 +225,13 @@ make_log_parse(Arena *arena, String_Const_u8 source){
                                                 src_file_name, src_line_number, event_name);
             
             for (;line.size > 0;){
-                umem bracket_close = string_find_first(line, ']');
+                u64 bracket_close = string_find_first(line, ']');
                 String_Const_u8 tag = string_prefix(line, bracket_close);
                 line = string_skip(line, bracket_close + 1);
                 bracket_open = string_find_first(line, '[');
                 line = string_skip(line, bracket_open + 1);
                 
-                umem equal_sign = string_find_first(tag, '=');
+                u64 equal_sign = string_find_first(tag, '=');
                 String_Const_u8 tag_name = string_prefix(tag, equal_sign);
                 String_Const_u8 tag_contents = string_skip(tag, equal_sign + 1);
                 

@@ -45,6 +45,7 @@ char html_header[] = R"HTMLFOO(
 <html lang="en-US">
 
 <head>
+<meta charset="UTF-8">
 <link rel='shortcut icon' type='image/x-icon' href='https://4coder.net/4coder_icon.ico' />
 <link href="https://fonts.googleapis.com/css?family=Inconsolata:700&display=swap" rel="stylesheet">
 <script src="search.js"></script> 
@@ -416,7 +417,7 @@ int main(){
     Thread_Context *tctx = &tctx_;
     
     String_Const_u8 self = string_u8_litexpr(__FILE__);
-    umem code_pos = string_find_first(self, string_u8_litexpr("code"));
+    u64 code_pos = string_find_first(self, string_u8_litexpr("code"));
     String_Const_u8 root = string_prefix(self, code_pos + 5);
     String_Const_u8 outside_root = string_prefix(self, code_pos);
     String_Const_u8 build_root = push_u8_stringf(&arena, "%.*sbuild/",

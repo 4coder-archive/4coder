@@ -595,6 +595,12 @@ system_cli_end_update_sig(){
     return(close_me);
 }
 
+function void
+os_popup_error(char *title, char *message){
+    MessageBoxA(0, title, message, MB_OK);
+    ExitProcess(1);
+}
+
 #include "4ed_font_provider_freetype.h"
 #include "4ed_font_provider_freetype.cpp"
 
@@ -815,7 +821,7 @@ system_sleep_sig(){
 
 ////////////////////////////////
 
-internal DWORD
+internal DWORD CALL_CONVENTION
 win32_thread_wrapper(void *ptr){
     Win32_Object *object = (Win32_Object*)ptr;
     Thread_Function *proc = object->thread.proc;
@@ -947,7 +953,7 @@ system_condition_variable_free_sig(){
 
 ////////////////////////////////
 
-internal LRESULT
+internal LRESULT CALL_CONVENTION
 win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     LRESULT result = 0;
     Scratch_Block scratch(win32vars.tctx);
@@ -1320,7 +1326,7 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         {
             String_Const_u8 s = string_skip_whitespace(extensions);
             for (;s.size > 0;){
-                umem end = string_find_first_whitespace(s);
+                u64 end = string_find_first_whitespace(s);
                 String_Const_u8 m = string_prefix(s, end);
                 if (string_match(m, string_u8_litexpr("WGL_EXT_framebuffer_sRGB")) ||
                     string_match(m, string_u8_litexpr("WGL_ARB_framebuffer_sRGB"))){

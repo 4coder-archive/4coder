@@ -87,18 +87,6 @@ round_up_u64(u64 x, u64 b){
     x -= x%b;
     return(x);
 }
-function imem
-round_up_imem(imem x, imem b){
-    x += b - 1;
-    x -= x%b;
-    return(x);
-}
-function umem
-round_up_umem(umem x, umem b){
-    x += b - 1;
-    x -= x%b;
-    return(x);
-}
 
 function i8
 round_down_i8(i8 x, i8 b){
@@ -140,16 +128,6 @@ round_down_u64(u64 x, u64 b){
     x -= x%b;
     return(x);
 }
-function imem
-round_down_imem(imem x, imem b){
-    x -= x%b;
-    return(x);
-}
-function umem
-round_down_umem(umem x, umem b){
-    x -= x%b;
-    return(x);
-}
 
 function f32
 f32_integer(f32 x){
@@ -171,7 +149,7 @@ round_up_pot_u32(u32 x){
 ////////////////////////////////
 
 function Data
-make_data(void *memory, umem size){
+make_data(void *memory, u64 size){
     Data data = {(u8*)memory, size};
     return(data);
 }
@@ -188,7 +166,7 @@ global_const Data zero_data = {};
 ////////////////////////////////
 
 function void
-block_zero(void *mem, umem size){
+block_zero(void *mem, u64 size){
     for (u8 *p = (u8*)mem, *e = p + size; p < e; p += 1){
         *p = 0;
     }
@@ -198,7 +176,7 @@ block_zero(Data data){
     block_zero(data.data, data.size);
 }
 function void
-block_fill_ones(void *mem, umem size){
+block_fill_ones(void *mem, u64 size){
     for (u8 *p = (u8*)mem, *e = p + size; p < e; p += 1){
         *p = 0xFF;
     }
@@ -208,7 +186,7 @@ block_fill_ones(Data data){
     block_fill_ones(data.data, data.size);
 }
 function void
-block_copy(void *dst, const void *src, umem size){
+block_copy(void *dst, const void *src, u64 size){
     u8 *d = (u8*)dst;
     u8 *s = (u8*)src;
     if (d < s){
@@ -227,7 +205,7 @@ block_copy(void *dst, const void *src, umem size){
     }
 }
 function b32
-block_match(void *a, void *b, umem size){
+block_match(void *a, void *b, u64 size){
     b32 result = true;
     for (u8 *pa = (u8*)a, *pb = (u8*)b, *ea = pa + size; pa < ea; pa += 1, pb += 1){
         if (*pa != *pb){
@@ -238,7 +216,7 @@ block_match(void *a, void *b, umem size){
     return(result);
 }
 function i32
-block_compare(void *a, void *b, umem size){
+block_compare(void *a, void *b, u64 size){
     i32 result = 0;
     for (u8 *pa = (u8*)a, *pb = (u8*)b, *ea = pa + size; pa < ea; pa += 1, pb += 1){
         i32 dif = (i32)*pa - (i32)*pb;
@@ -250,31 +228,31 @@ block_compare(void *a, void *b, umem size){
     return(result);
 }
 function void
-block_fill_u8(void *a, umem size, u8 val){
+block_fill_u8(void *a, u64 size, u8 val){
     for (u8 *ptr = (u8*)a, *e = ptr + size; ptr < e; ptr += 1){
         *ptr = val;
     }
 }
 function void
-block_fill_u16(void *a, umem size, u16 val){
+block_fill_u16(void *a, u64 size, u16 val){
     Assert(size%sizeof(u16) == 0);
-    umem count = size/sizeof(u16);
+    u64 count = size/sizeof(u16);
     for (u16 *ptr = (u16*)a, *e = ptr + count; ptr < e; ptr += 1){
         *ptr = val;
     }
 }
 function void
-block_fill_u32(void *a, umem size, u32 val){
+block_fill_u32(void *a, u64 size, u32 val){
     Assert(size%sizeof(u32) == 0);
-    umem count = size/sizeof(u32);
+    u64 count = size/sizeof(u32);
     for (u32 *ptr = (u32*)a, *e = ptr + count; ptr < e; ptr += 1){
         *ptr = val;
     }
 }
 function void
-block_fill_u64(void *a, umem size, u64 val){
+block_fill_u64(void *a, u64 size, u64 val){
     Assert(size%sizeof(u64) == 0);
-    umem count = size/sizeof(u64);
+    u64 count = size/sizeof(u64);
     for (u64 *ptr = (u64*)a, *e = ptr + count; ptr < e; ptr += 1){
         *ptr = val;
     }
@@ -292,12 +270,20 @@ block_fill_u64(void *a, umem size, u64 val){
 #define block_match_array(a,b) block_match((a), (b), sizeof(a))
 
 function void
-block_copy_array_shift__inner(void *dst, void *src, umem it_size, Interval_i64 range, i64 shift){
+block_copy_array_shift__inner(void *dst, void *src, u64 it_size, Range_i64 range, i64 shift){
     u8 *dptr = (u8*)dst;
     u8 *sptr = (u8*)src;
     dptr += it_size*(range.first + shift);
     sptr += it_size*range.first;
-    block_copy(dptr, sptr, it_size*(range.one_past_last - range.first));
+    block_copy(dptr, sptr, (u64)(it_size*(range.one_past_last - range.first)));
+}
+function void
+block_copy_array_shift__inner(void *dst, void *src, u64 it_size, Range_i32 range, i64 shift){
+    u8 *dptr = (u8*)dst;
+    u8 *sptr = (u8*)src;
+    dptr += it_size*(range.first + shift);
+    sptr += it_size*range.first;
+    block_copy(dptr, sptr, (u64)(it_size*(range.one_past_last - range.first)));
 }
 
 #define block_copy_array_shift(d,s,r,h) block_copy_array_shift__inner((d),(s),sizeof(*(d)),(r),(h))
@@ -1507,7 +1493,7 @@ lerp(f32 a, f32 t, f32 b){
 }
 
 function f32
-lerp(f32 t, Interval_f32 x){
+lerp(f32 t, Range_f32 x){
     return(x.min + (x.max - x.min)*t);
 }
 
@@ -1697,36 +1683,36 @@ hsla_to_rgba(Vec4_f32 hsla){
 
 ////////////////////////////////
 
-function Interval_i32
+function Range_i32
 Ii32(i32 a, i32 b){
-    Interval_i32 interval = {a, b};
+    Range_i32 interval = {a, b};
     if (b < a){
         interval.min = b;
         interval.max = a;
     }
     return(interval);
 }
-function Interval_i64
+function Range_i64
 Ii64(i64 a, i64 b){
-    Interval_i64 interval = {a, b};
+    Range_i64 interval = {a, b};
     if (b < a){
         interval.min = b;
         interval.max = a;
     }
     return(interval);
 }
-function Interval_u64
+function Range_u64
 Iu64(u64 a, u64 b){
-    Interval_u64 interval = {a, b};
+    Range_u64 interval = {a, b};
     if (b < a){
         interval.min = b;
         interval.max = a;
     }
     return(interval);
 }
-function Interval_f32
+function Range_f32
 If32(f32 a, f32 b){
-    Interval_f32 interval = {a, b};
+    Range_f32 interval = {a, b};
     if (b < a){
         interval.min = b;
         interval.max = a;
@@ -1734,84 +1720,84 @@ If32(f32 a, f32 b){
     return(interval);
 }
 
-function Interval_i32
+function Range_i32
 Ii32_size(i32 pos, i32 size){
     return(Ii32(pos, pos + size));
 }
-function Interval_i64
+function Range_i64
 Ii64_size(i64 pos, i64 size){
     return(Ii64(pos, pos + size));
 } 
-function Interval_u64
+function Range_u64
 Iu64_size(u64 pos, u64 size){
     return(Iu64(pos, pos + size));
 }
-function Interval_f32
+function Range_f32
 If32_size(f32 pos, f32 size){
     return(If32(pos, pos + size));
 }
 
-function Interval_i32
+function Range_i32
 Ii32(i32 a){
-    Interval_i32 interval = {a, a};
+    Range_i32 interval = {a, a};
     return(interval);
 }
-function Interval_i64
+function Range_i64
 Ii64(i64 a){
-    Interval_i64 interval = {a, a};
+    Range_i64 interval = {a, a};
     return(interval);
 }
-function Interval_u64
+function Range_u64
 Iu64(u64 a){
-    Interval_u64 interval = {a, a};
+    Range_u64 interval = {a, a};
     return(interval);
 }
-function Interval_f32
+function Range_f32
 If32(f32 a){
-    Interval_f32 interval = {a, a};
+    Range_f32 interval = {a, a};
     return(interval);
 }
 
-function Interval_i32
+function Range_i32
 Ii32(){
-    Interval_i32 interval = {};
+    Range_i32 interval = {};
     return(interval);
 }
-function Interval_i64
+function Range_i64
 Ii64(){
-    Interval_i64 interval = {};
+    Range_i64 interval = {};
     return(interval);
 }
-function Interval_u64
+function Range_u64
 Iu64(){
-    Interval_u64 interval = {};
+    Range_u64 interval = {};
     return(interval);
 }
-function Interval_f32
+function Range_f32
 If32(){
-    Interval_f32 interval = {};
+    Range_f32 interval = {};
     return(interval);
 }
 
-global Interval_i32 Ii32_neg_inf = {max_i32, min_i32};
-global Interval_i64 Ii64_neg_inf = {max_i64, min_i64};
-global Interval_u64 Iu64_neg_inf = {max_u64, 0};
-global Interval_f32 If32_neg_inf = {max_f32, -max_f32};
+global Range_i32 Ii32_neg_inf = {max_i32, min_i32};
+global Range_i64 Ii64_neg_inf = {max_i64, min_i64};
+global Range_u64 Iu64_neg_inf = {max_u64, 0};
+global Range_f32 If32_neg_inf = {max_f32, -max_f32};
 
 function b32
-operator==(Interval_i32 a, Interval_i32 b){
+operator==(Range_i32 a, Range_i32 b){
     return(a.min == b.min && a.max == b.max);
 }
 function b32
-operator==(Interval_i64 a, Interval_i64 b){
+operator==(Range_i64 a, Range_i64 b){
     return(a.min == b.min && a.max == b.max);
 }
 function b32
-operator==(Interval_u64 a, Interval_u64 b){
+operator==(Range_u64 a, Range_u64 b){
     return(a.min == b.min && a.max == b.max);
 }
 function b32
-operator==(Interval_f32 a, Interval_f32 b){
+operator==(Range_f32 a, Range_f32 b){
     return(a.min == b.min && a.max == b.max);
 }
 
@@ -1966,185 +1952,185 @@ range_intersect(Range_f32 a, Range_f32 b){
     return(result);
 }
 
-function Interval_i32
-range_union(Interval_i32 a, Interval_i32 b){
+function Range_i32
+range_union(Range_i32 a, Range_i32 b){
     return(Ii32(Min(a.min, b.min), Max(a.max, b.max)));
 }
-function Interval_i64
-range_union(Interval_i64 a, Interval_i64 b){
+function Range_i64
+range_union(Range_i64 a, Range_i64 b){
     return(Ii64(Min(a.min, b.min), Max(a.max, b.max)));
 }
-function Interval_u64
-range_union(Interval_u64 a, Interval_u64 b){
+function Range_u64
+range_union(Range_u64 a, Range_u64 b){
     return(Iu64(Min(a.min, b.min), Max(a.max, b.max)));
 }
-function Interval_f32
-range_union(Interval_f32 a, Interval_f32 b){
+function Range_f32
+range_union(Range_f32 a, Range_f32 b){
     return(If32(Min(a.min, b.min), Max(a.max, b.max)));
 }
 
 function b32
-range_contains_inclusive(Interval_i32 a, i32 p){
+range_contains_inclusive(Range_i32 a, i32 p){
     return(a.min <= p && p <= a.max);
 }
 function b32
-range_contains_inclusive(Interval_i64 a, i64 p){
+range_contains_inclusive(Range_i64 a, i64 p){
     return(a.min <= p && p <= a.max);
 }
 function b32
-range_contains_inclusive(Interval_u64 a, u64 p){
+range_contains_inclusive(Range_u64 a, u64 p){
     return(a.min <= p && p <= a.max);
 }
 function b32
-range_inclusive_contains(Interval_f32 a, f32 p){
+range_inclusive_contains(Range_f32 a, f32 p){
     return(a.min <= p && p <= a.max);
 }
 
 function b32
-range_contains(Interval_i32 a, i32 p){
+range_contains(Range_i32 a, i32 p){
     return(a.min <= p && p < a.max);
 }
 function b32
-range_contains(Interval_i64 a, i64 p){
+range_contains(Range_i64 a, i64 p){
     return(a.min <= p && p < a.max);
 }
 function b32
-range_contains(Interval_u64 a, u64 p){
+range_contains(Range_u64 a, u64 p){
     return(a.min <= p && p < a.max);
 }
 function b32
-range_contains(Interval_f32 a, f32 p){
+range_contains(Range_f32 a, f32 p){
     return(a.min <= p && p < a.max);
 }
 
 function i32
-range_size(Interval_i32 a){
+range_size(Range_i32 a){
     i32 size = a.max - a.min;
     size = clamp_bot(0, size);
     return(size);
 }
 function i64
-range_size(Interval_i64 a){
+range_size(Range_i64 a){
     i64 size = a.max - a.min;
     size = clamp_bot(0, size);
     return(size);
 }
 function u64
-range_size(Interval_u64 a){
+range_size(Range_u64 a){
     u64 size = a.max - a.min;
     size = clamp_bot(0, size);
     return(size);
 }
 function f32
-range_size(Interval_f32 a){
+range_size(Range_f32 a){
     f32 size = a.max - a.min;
     size = clamp_bot(0, size);
     return(size);
 }
 
 function i32
-range_size_inclusive(Interval_i32 a){
+range_size_inclusive(Range_i32 a){
     i32 size = a.max - a.min + 1;
     size = clamp_bot(0, size);
     return(size);
 }
 function i64
-range_size_inclusive(Interval_i64 a){
+range_size_inclusive(Range_i64 a){
     i64 size = a.max - a.min + 1;
     size = clamp_bot(0, size);
     return(size);
 }
 function u64
-range_size_inclusive(Interval_u64 a){
+range_size_inclusive(Range_u64 a){
     u64 size = a.max - a.min + 1;
     size = clamp_bot(0, size);
     return(size);
 }
 function f32
-range_size_inclusive(Interval_f32 a){
+range_size_inclusive(Range_f32 a){
     f32 size = a.max - a.min + 1;
     size = clamp_bot(0, size);
     return(size);
 }
 
-function Interval_i32
-rectify(Interval_i32 a){
+function Range_i32
+rectify(Range_i32 a){
     return(Ii32(a.min, a.max));
 }
-function Interval_i64
-rectify(Interval_i64 a){
+function Range_i64
+rectify(Range_i64 a){
     return(Ii64(a.min, a.max));
 }
-function Interval_u64
-rectify(Interval_u64 a){
+function Range_u64
+rectify(Range_u64 a){
     return(Iu64(a.min, a.max));
 }
-function Interval_f32
-rectify(Interval_f32 a){
+function Range_f32
+rectify(Range_f32 a){
     return(If32(a.min, a.max));
 }
 
-function Interval_i32
-range_clamp_size(Interval_i32 a, i32 max_size){
+function Range_i32
+range_clamp_size(Range_i32 a, i32 max_size){
     i32 max = a.min + max_size;
     a.max = clamp_top(a.max, max);
     return(a);
 }
-function Interval_i64
-range_clamp_size(Interval_i64 a, i64 max_size){
+function Range_i64
+range_clamp_size(Range_i64 a, i64 max_size){
     i64 max = a.min + max_size;
     a.max = clamp_top(a.max, max);
     return(a);
 }
-function Interval_u64
-range_clamp_size(Interval_u64 a, u64 max_size){
+function Range_u64
+range_clamp_size(Range_u64 a, u64 max_size){
     u64 max = a.min + max_size;
     a.max = clamp_top(a.max, max);
     return(a);
 }
-function Interval_f32
-range_clamp_size(Interval_f32 a, f32 max_size){
+function Range_f32
+range_clamp_size(Range_f32 a, f32 max_size){
     f32 max = a.min + max_size;
     a.max = clamp_top(a.max, max);
     return(a);
 }
 
 function b32
-range_is_valid(Interval_i32 a){
+range_is_valid(Range_i32 a){
     return(a.min <= a.max);
 }
 function b32
-range_is_valid(Interval_i64 a){
+range_is_valid(Range_i64 a){
     return(a.min <= a.max);
 }
 function b32
-range_is_valid(Interval_u64 a){
+range_is_valid(Range_u64 a){
     return(a.min <= a.max);
 }
 function b32
-range_is_valid(Interval_f32 a){
+range_is_valid(Range_f32 a){
     return(a.min <= a.max);
 }
 
 function i32
-range_side(Interval_i32 a, Side side){
+range_side(Range_i32 a, Side side){
     return(side == Side_Min?a.min:a.max);
 }
 function i64
-range_side(Interval_i64 a, Side side){
+range_side(Range_i64 a, Side side){
     return(side == Side_Min?a.min:a.max);
 }
 function u64
-range_side(Interval_u64 a, Side side){
+range_side(Range_u64 a, Side side){
     return(side == Side_Min?a.min:a.max);
 }
 function f32
-range_side(Interval_f32 a, Side side){
+range_side(Range_f32 a, Side side){
     return(side == Side_Min?a.min:a.max);
 }
 
 function i32
-range_distance(Interval_i32 a, Interval_i32 b){
+range_distance(Range_i32 a, Range_i32 b){
     i32 result = 0;
     if (!range_overlap(a, b)){
         if (a.max < b.min){
@@ -2157,7 +2143,7 @@ range_distance(Interval_i32 a, Interval_i32 b){
     return(result);
 }
 function i64
-range_distance(Interval_i64 a, Interval_i64 b){
+range_distance(Range_i64 a, Range_i64 b){
     i64 result = 0;
     if (!range_overlap(a, b)){
         if (a.max < b.min){
@@ -2170,7 +2156,7 @@ range_distance(Interval_i64 a, Interval_i64 b){
     return(result);
 }
 function u64
-range_distance(Interval_u64 a, Interval_u64 b){
+range_distance(Range_u64 a, Range_u64 b){
     u64 result = 0;
     if (!range_overlap(a, b)){
         if (a.max < b.min){
@@ -2183,7 +2169,7 @@ range_distance(Interval_u64 a, Interval_u64 b){
     return(result);
 }
 function f32
-range_distance(Interval_f32 a, Interval_f32 b){
+range_distance(Range_f32 a, Range_f32 b){
     f32 result = 0;
     if (!range_overlap(a, b)){
         if (a.max < b.min){
@@ -2207,7 +2193,7 @@ replace_range_shift(i32 start, i32 end, i32 insert_length){
     return(insert_length - (end - start));
 }
 function i32
-replace_range_shift(Interval_i32 range, i32 insert_length){
+replace_range_shift(Range_i32 range, i32 insert_length){
     return(insert_length - (range.end - range.start));
 }
 function i64
@@ -2219,7 +2205,7 @@ replace_range_shift(i64 start, i64 end, i64 insert_length){
     return(insert_length - (end - start));
 }
 function i64
-replace_range_shift(Interval_i64 range, i64 insert_length){
+replace_range_shift(Range_i64 range, i64 insert_length){
     return(insert_length - (range.end - range.start));
 }
 function i64
@@ -2231,7 +2217,7 @@ replace_range_shift(i64 start, i64 end, u64 insert_length){
     return((i64)insert_length - (end - start));
 }
 function i64
-replace_range_shift(Interval_i64 range, u64 insert_length){
+replace_range_shift(Range_i64 range, u64 insert_length){
     return((i64)insert_length - (range.end - range.start));
 }
 
@@ -2378,19 +2364,19 @@ rect_center(Rect_f32 r){
     return((r.p0 + r.p1)*0.5f);
 }
 
-function Interval_i32
+function Range_i32
 rect_range_x(Rect_i32 r){
     return(Ii32(r.x0, r.x1));
 }
-function Interval_i32
+function Range_i32
 rect_range_y(Rect_i32 r){
     return(Ii32(r.y0, r.y1));
 }
-function Interval_f32
+function Range_f32
 rect_range_x(Rect_f32 r){
     return(If32(r.x0, r.x1));
 }
-function Interval_f32
+function Range_f32
 rect_range_y(Rect_f32 r){
     return(If32(r.y0, r.y1));
 }
@@ -2545,54 +2531,54 @@ flip_side(Side side){
 
 ////////////////////////////////
 
-function umem
+function u64
 cstring_length(char *str){
-    umem length = 0;
+    u64 length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
-function umem
+function u64
 cstring_length(u8 *str){
-    umem length = 0;
+    u64 length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
-function umem
+function u64
 cstring_length(u16 *str){
-    umem length = 0;
+    u64 length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
-function umem
+function u64
 cstring_length(u32 *str){
-    umem length = 0;
+    u64 length = 0;
     for (;str[length] != 0; length += 1);
     return(length);
 }
 
 function String_char
-Schar(char *str, umem size, umem cap){
+Schar(char *str, u64 size, u64 cap){
     String_char string = {str, size, cap};
     return(string);
 }
 function String_u8
-Su8(u8 *str, umem size, umem cap){
+Su8(u8 *str, u64 size, u64 cap){
     String_u8 string = {str, size, cap};
     return(string);
 }
 function String_u16
-Su16(u16 *str, umem size, umem cap){
+Su16(u16 *str, u64 size, u64 cap){
     String_u16 string = {str, size, cap};
     return(string);
 }
 function String_u32
-Su32(u32 *str, umem size, umem cap){
+Su32(u32 *str, u64 size, u64 cap){
     String_u32 string = {str, size, cap};
     return(string);
 }
 
 function String_Any
-Sany(void *str, umem size, umem cap, String_Encoding encoding){
+Sany(void *str, u64 size, u64 cap, String_Encoding encoding){
     String_Any string = {encoding};
     switch (encoding){
         case StringEncoding_ASCII: string.s_char = Schar((char*)str, size, cap); break;
@@ -2604,28 +2590,28 @@ Sany(void *str, umem size, umem cap, String_Encoding encoding){
 }
 
 function String_char
-Schar(char *str, umem size){
+Schar(char *str, u64 size){
     String_char string = {str, size, size + 1};
     return(string);
 }
 function String_u8
-Su8(u8 *str, umem size){
+Su8(u8 *str, u64 size){
     String_u8 string = {str, size, size + 1};
     return(string);
 }
 function String_u16
-Su16(u16 *str, umem size){
+Su16(u16 *str, u64 size){
     String_u16 string = {str, size, size + 1};
     return(string);
 }
 function String_u32
-Su32(u32 *str, umem size){
+Su32(u32 *str, u64 size){
     String_u32 string = {str, size, size + 1};
     return(string);
 }
 
 function String_Any
-Sany(void *str, umem size, String_Encoding encoding){
+Sany(void *str, u64 size, String_Encoding encoding){
     String_Any string = {encoding};
     switch (encoding){
         case StringEncoding_ASCII: string.s_char = Schar((char*)str, size); break;
@@ -2638,19 +2624,19 @@ Sany(void *str, umem size, String_Encoding encoding){
 
 function String_char
 Schar(char *str, char *one_past_last){
-    return(Schar(str, (umem)(one_past_last - str)));
+    return(Schar(str, (u64)(one_past_last - str)));
 }
 function String_u8
 Su8(u8 *str, u8 *one_past_last){
-    return(Su8(str, (umem)(one_past_last - str)));
+    return(Su8(str, (u64)(one_past_last - str)));
 }
 function String_u16
 Su16(u16 *str, u16 *one_past_last){
-    return(Su16(str, (umem)(one_past_last - str)));
+    return(Su16(str, (u64)(one_past_last - str)));
 }
 function String_u32
 Su32(u32 *str, u32 *one_past_last){
-    return(Su32(str, (umem)(one_past_last - str)));
+    return(Su32(str, (u64)(one_past_last - str)));
 }
 
 function String_Any
@@ -2667,25 +2653,25 @@ Sany(void *str, void *one_past_last, String_Encoding encoding){
 
 function String_char
 Schar(char *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_char string = {str, size, size + 1};
     return(string);
 }
 function String_u8
 Su8(u8 *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_u8 string = {str, size, size + 1};
     return(string);
 }
 function String_u16
 Su16(u16 *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_u16 string = {str, size, size + 1};
     return(string);
 }
 function String_u32
 Su32(u32 *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_u32 string = {str, size, size + 1};
     return(string);
 }
@@ -2703,22 +2689,22 @@ Sany(void *str, String_Encoding encoding){
 }
 
 function String_char
-Schar(String_Const_char str, umem cap){
+Schar(String_Const_char str, u64 cap){
     String_char string = {str.str, str.size, cap};
     return(string);
 }
 function String_u8
-Su8(String_Const_u8 str, umem cap){
+Su8(String_Const_u8 str, u64 cap){
     String_u8 string = {str.str, str.size, cap};
     return(string);
 }
 function String_u16
-Su16(String_Const_u16 str, umem cap){
+Su16(String_Const_u16 str, u64 cap){
     String_u16 string = {str.str, str.size, cap};
     return(string);
 }
 function String_u32
-Su32(String_Const_u32 str, umem cap){
+Su32(String_Const_u32 str, u64 cap){
     String_u32 string = {str.str, str.size, cap};
     return(string);
 }
@@ -2749,28 +2735,28 @@ SCany(String_u32 str){
 }
 
 function String_Const_char
-SCchar(char *str, umem size){
+SCchar(char *str, u64 size){
     String_Const_char string = {str, size};
     return(string);
 }
 function String_Const_u8
-SCu8(u8 *str, umem size){
+SCu8(u8 *str, u64 size){
     String_Const_u8 string = {str, size};
     return(string);
 }
 function String_Const_u16
-SCu16(u16 *str, umem size){
+SCu16(u16 *str, u64 size){
     String_Const_u16 string = {str, size};
     return(string);
 }
 function String_Const_u32
-SCu32(u32 *str, umem size){
+SCu32(u32 *str, u64 size){
     String_Const_u32 string = {str, size};
     return(string);
 }
 
 function String_Const_Any
-SCany(void *str, umem size, String_Encoding encoding){
+SCany(void *str, u64 size, String_Encoding encoding){
     String_Const_Any string = {encoding};
     switch (encoding){
         case StringEncoding_ASCII: string.s_char = SCchar((char*)str, size); break;
@@ -2804,19 +2790,19 @@ SCu32(void){
 
 function String_Const_char
 SCchar(char *str, char *one_past_last){
-    return(SCchar(str, (umem)(one_past_last - str)));
+    return(SCchar(str, (u64)(one_past_last - str)));
 }
 function String_Const_u8
 SCu8(u8 *str, u8 *one_past_last){
-    return(SCu8(str, (umem)(one_past_last - str)));
+    return(SCu8(str, (u64)(one_past_last - str)));
 }
 function String_Const_u16
 SCu16(u16 *str, u16 *one_past_last){
-    return(SCu16(str, (umem)(one_past_last - str)));
+    return(SCu16(str, (u64)(one_past_last - str)));
 }
 function String_Const_u32
 SCu32(u32 *str, u32 *one_past_last){
-    return(SCu32(str, (umem)(one_past_last - str)));
+    return(SCu32(str, (u64)(one_past_last - str)));
 }
 
 function String_Const_Any
@@ -2833,25 +2819,25 @@ SCany(void *str, void *one_past_last, String_Encoding encoding){
 
 function String_Const_char
 SCchar(char *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_Const_char string = {str, size};
     return(string);
 }
 function String_Const_u8
 SCu8(u8 *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_Const_u8 string = {str, size};
     return(string);
 }
 function String_Const_u16
 SCu16(u16 *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_Const_u16 string = {str, size};
     return(string);
 }
 function String_Const_u32
 SCu32(u32 *str){
-    umem size = cstring_length(str);
+    u64 size = cstring_length(str);
     String_Const_u32 string = {str, size};
     return(string);
 }
@@ -2866,7 +2852,7 @@ SCu8(String_Const_char str){
 }
 
 function String_Const_u8
-SCu8(char *str, umem length){
+SCu8(char *str, u64 length){
     return(SCu8((u8*)str, length));
 }
 function String_Const_u8
@@ -2884,7 +2870,7 @@ SCu8(Data data){
 }
 
 function String_Const_u16
-SCu16(wchar_t *str, umem size){
+SCu16(wchar_t *str, u64 size){
     return(SCu16((u16*)str, size));
 }
 function String_Const_u16
@@ -2931,9 +2917,9 @@ SCany(String_Const_u32 str){
 
 #define string_litexpr(s) SCchar((s), sizeof(s) - 1)
 #define string_litinit(s) {(s), sizeof(s) - 1}
-#define string_u8_litexpr(s) SCu8((u8*)(s), sizeof(s) - 1)
+#define string_u8_litexpr(s) SCu8((u8*)(s), (u64)(sizeof(s) - 1))
 #define string_u8_litinit(s) {(u8*)(s), sizeof(s) - 1}
-#define string_u16_litexpr(s) SCu16((u16*)(s), sizeof(s)/2 - 1)
+#define string_u16_litexpr(s) SCu16((u16*)(s), (u64)(sizeof(s)/2 - 1))
 
 #define string_expand(s) (i32)(s).size, (char*)(s).str
 
@@ -2945,18 +2931,18 @@ function String_Const_u8 string_u8_empty = {(u8*)"", 0};
 ////////////////////////////////
 
 function void*
-base_reserve__noop(void *user_data, umem size, umem *size_out, String_Const_u8 location){
+base_reserve__noop(void *user_data, u64 size, u64 *size_out, String_Const_u8 location){
     *size_out = 0;
     return(0);
 }
 function void
-base_commit__noop(void *user_data, void *ptr, umem size){}
+base_commit__noop(void *user_data, void *ptr, u64 size){}
 function void
-base_uncommit__noop(void *user_data, void *ptr, umem size){}
+base_uncommit__noop(void *user_data, void *ptr, u64 size){}
 function void
 base_free__noop(void *user_data, void *ptr){}
 function void
-base_set_access__noop(void *user_data, void *ptr, umem size, Access_Flag flags){}
+base_set_access__noop(void *user_data, void *ptr, u64 size, Access_Flag flags){}
 
 function Base_Allocator
 make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
@@ -2991,11 +2977,11 @@ make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
     return(base_allocator);
 }
 function Data
-base_allocate__inner(Base_Allocator *allocator, umem size, String_Const_u8 location){
-    umem full_size = 0;
+base_allocate__inner(Base_Allocator *allocator, u64 size, String_Const_u8 location){
+     u64 full_size = 0;
     void *memory = allocator->reserve(allocator->user_data, size, &full_size, location);
     allocator->commit(allocator->user_data, memory, full_size);
-    return(make_data(memory, full_size));
+    return(make_data(memory, (u64)full_size));
 }
 function void
 base_free(Base_Allocator *allocator, void *ptr){
@@ -3011,7 +2997,7 @@ base_free(Base_Allocator *allocator, void *ptr){
 ////////////////////////////////
 
 function Cursor
-make_cursor(void *base, umem size){
+make_cursor(void *base, u64 size){
     Cursor cursor = {(u8*)base, 0, size};
     return(cursor);
 }
@@ -3020,12 +3006,12 @@ make_cursor(Data data){
     return(make_cursor(data.data, data.size));
 }
 function Cursor
-make_cursor(Base_Allocator *allocator, umem size){
+make_cursor(Base_Allocator *allocator, u64 size){
     Data memory = base_allocate(allocator, size);
     return(make_cursor(memory));
 }
 function Data
-linalloc_push(Cursor *cursor, umem size, String_Const_u8 location){
+linalloc_push(Cursor *cursor, u64 size, String_Const_u8 location){
     Data result = {};
     if (cursor->pos + size <= cursor->cap){
         result.data = cursor->base + cursor->pos;
@@ -3035,7 +3021,7 @@ linalloc_push(Cursor *cursor, umem size, String_Const_u8 location){
     return(result);
 }
 function void
-linalloc_pop(Cursor *cursor, umem size){
+linalloc_pop(Cursor *cursor, u64 size){
     if (cursor->pos > size){
         cursor->pos -= size;
     }
@@ -3044,9 +3030,9 @@ linalloc_pop(Cursor *cursor, umem size){
     }
 }
 function Data
-linalloc_align(Cursor *cursor, umem alignment){
-    umem pos = round_up_umem(cursor->pos, alignment);
-    umem new_size = pos - cursor->pos;
+linalloc_align(Cursor *cursor, u64 alignment){
+    u64 pos = round_up_u64(cursor->pos, alignment);
+    u64 new_size = pos - cursor->pos;
     return(linalloc_push(cursor, new_size, file_name_line_number_lit_u8));
 }
 function Temp_Memory_Cursor
@@ -3063,12 +3049,12 @@ linalloc_clear(Cursor *cursor){
     cursor->pos = 0;
 }
 function Arena
-make_arena(Base_Allocator *allocator, umem chunk_size, umem alignment){
+make_arena(Base_Allocator *allocator, u64 chunk_size, u64 alignment){
     Arena arena = {allocator, 0, chunk_size, alignment};
     return(arena);
 }
 function Arena
-make_arena(Base_Allocator *allocator, umem chunk_size){
+make_arena(Base_Allocator *allocator, u64 chunk_size){
     return(make_arena(allocator, chunk_size, 8));
 }
 function Arena
@@ -3076,7 +3062,7 @@ make_arena(Base_Allocator *allocator){
     return(make_arena(allocator, KB(64), 8));
 }
 function Cursor_Node*
-arena__new_node(Arena *arena, umem min_size, String_Const_u8 location){
+arena__new_node(Arena *arena, u64 min_size, String_Const_u8 location){
     min_size = clamp_bot(min_size, arena->chunk_size);
     Data memory = base_allocate__inner(arena->base_allocator, min_size + sizeof(Cursor_Node), location);
     Cursor_Node *cursor_node = (Cursor_Node*)memory.data;
@@ -3085,7 +3071,7 @@ arena__new_node(Arena *arena, umem min_size, String_Const_u8 location){
     return(cursor_node);
 }
 function Data
-linalloc_push(Arena *arena, umem size, String_Const_u8 location){
+linalloc_push(Arena *arena, u64 size, String_Const_u8 location){
     Data result = {};
     if (size > 0){
         Cursor_Node *cursor_node = arena->cursor_node;
@@ -3103,7 +3089,7 @@ linalloc_push(Arena *arena, umem size, String_Const_u8 location){
     return(result);
 }
 function void
-linalloc_pop(Arena *arena, umem size){
+linalloc_pop(Arena *arena, u64 size){
     Base_Allocator *allocator = arena->base_allocator;
     Cursor_Node *cursor_node = arena->cursor_node;
     for (Cursor_Node *prev = 0;
@@ -3122,7 +3108,7 @@ linalloc_pop(Arena *arena, umem size){
     arena->cursor_node = cursor_node;
 }
 function Data
-linalloc_align(Arena *arena, umem alignment){
+linalloc_align(Arena *arena, u64 alignment){
     arena->alignment = alignment;
     Data data = {};
     Cursor_Node *cursor_node = arena->cursor_node;
@@ -3174,7 +3160,7 @@ linalloc_wrap_zero(Data data){
     return(data.data);
 }
 function void*
-linalloc_wrap_write(Data data, umem size, void *src){
+linalloc_wrap_write(Data data, u64 size, void *src){
     block_copy(data.data, src, clamp_top(data.size, size));
     return(data.data);
 }
@@ -3237,7 +3223,7 @@ thread_ctx_release(Thread_Context *tctx){
 }
 
 function Arena*
-reserve_arena(Thread_Context *tctx, umem chunk_size, umem align){
+reserve_arena(Thread_Context *tctx, u64 chunk_size, u64 align){
     Arena_Node *node = tctx->free_arenas;
     if (node != 0){
         sll_stack_pop(tctx->free_arenas);
@@ -3250,7 +3236,7 @@ reserve_arena(Thread_Context *tctx, umem chunk_size, umem align){
 }
 
 function Arena*
-reserve_arena(Thread_Context *tctx, umem chunk_size){
+reserve_arena(Thread_Context *tctx, u64 chunk_size){
     return(reserve_arena(tctx, chunk_size, 8));
 }
 
@@ -3415,7 +3401,7 @@ heap_free_all(Heap *heap){
 }
 
 function void
-heap__extend(Heap *heap, void *memory, umem size){
+heap__extend(Heap *heap, void *memory, u64 size){
     heap_assert_good(heap);
     if (size >= sizeof(Heap_Node)){
         Heap_Node *new_node = (Heap_Node*)memory;
@@ -3428,18 +3414,18 @@ heap__extend(Heap *heap, void *memory, umem size){
 }
 
 function void
-heap__extend_automatic(Heap *heap, umem size){
+heap__extend_automatic(Heap *heap, u64 size){
     void *memory = push_array(heap->arena, u8, size);
     heap__extend(heap, memory, size);
 }
 
 function void*
-heap__reserve_chunk(Heap *heap, Heap_Node *node, umem size){
+heap__reserve_chunk(Heap *heap, Heap_Node *node, u64 size){
     u8 *ptr = (u8*)(node + 1);
     Assert(node->size >= size);
-    umem left_over_size = node->size - size;
+    u64 left_over_size = node->size - size;
     if (left_over_size > sizeof(*node)){
-        umem new_node_size = left_over_size - sizeof(*node);
+        u64 new_node_size = left_over_size - sizeof(*node);
         Heap_Node *new_node = (Heap_Node*)(ptr + size);
         heap__insert_next(&node->order, &new_node->order);
         heap__insert_next(&node->alloc, &new_node->alloc);
@@ -3454,12 +3440,12 @@ heap__reserve_chunk(Heap *heap, Heap_Node *node, umem size){
 }
 
 function void*
-heap_allocate(Heap *heap, umem size){
+heap_allocate(Heap *heap, u64 size){
     b32 first_try = true;
     for (;;){
         if (heap->in_order.next != 0){
             heap_assert_good(heap);
-            umem aligned_size = (size + sizeof(Heap_Node) - 1);
+            u64 aligned_size = (size + sizeof(Heap_Node) - 1);
             aligned_size = aligned_size - (aligned_size%sizeof(Heap_Node));
             for (Heap_Basic_Node *n = heap->free_nodes.next;
                  n != &heap->free_nodes;
@@ -3475,7 +3461,7 @@ heap_allocate(Heap *heap, umem size){
         }
         
         if (first_try){
-            umem extension_size = clamp_bot(KB(64), size*2);
+            u64 extension_size = clamp_bot(KB(64), size*2);
             heap__extend_automatic(heap, extension_size);
             first_try = false;
         }
@@ -3524,7 +3510,7 @@ heap_free(Heap *heap, void *memory){
 ////////////////////////////////
 
 function void*
-base_reserve__heap(void *user_data, umem size, umem *size_out, String_Const_u8 location){
+base_reserve__heap(void *user_data, u64 size, u64 *size_out, String_Const_u8 location){
     Heap *heap = (Heap*)user_data;
     void *memory = heap_allocate(heap, size);
     *size_out = size;
@@ -3545,7 +3531,7 @@ base_allocator_on_heap(Heap *heap){
 ////////////////////////////////
 
 function Data
-push_data(Arena *arena, umem size){
+push_data(Arena *arena, u64 size){
     Data result = {};
     result.data = push_array(arena, u8, size);
     result.size = size;
@@ -3847,7 +3833,7 @@ character_is_alpha_numeric_unicode(u32 c){
 }
 
 function char
-string_get_character(String_Const_char str, umem i){
+string_get_character(String_Const_char str, u64 i){
     char r = 0;
     if (i < str.size){
         r = str.str[i];
@@ -3855,7 +3841,7 @@ string_get_character(String_Const_char str, umem i){
     return(r);
 }
 function u8
-string_get_character(String_Const_u8 str, umem i){
+string_get_character(String_Const_u8 str, u64 i){
     u8 r = 0;
     if (i < str.size){
         r = str.str[i];
@@ -3863,7 +3849,7 @@ string_get_character(String_Const_u8 str, umem i){
     return(r);
 }
 function u16
-string_get_character(String_Const_u16 str, umem i){
+string_get_character(String_Const_u16 str, u64 i){
     u16 r = 0;
     if (i < str.size){
         r = str.str[i];
@@ -3871,7 +3857,7 @@ string_get_character(String_Const_u16 str, umem i){
     return(r);
 }
 function u32
-string_get_character(String_Const_u32 str, umem i){
+string_get_character(String_Const_u32 str, u64 i){
     u32 r = 0;
     if (i < str.size){
         r = str.str[i];
@@ -3880,32 +3866,32 @@ string_get_character(String_Const_u32 str, umem i){
 }
 
 function String_Const_char
-string_prefix(String_Const_char str, umem size){
+string_prefix(String_Const_char str, u64 size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
 function String_Const_u8
-string_prefix(String_Const_u8 str, umem size){
+string_prefix(String_Const_u8 str, u64 size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
 function String_Const_u16
-string_prefix(String_Const_u16 str, umem size){
+string_prefix(String_Const_u16 str, u64 size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
 function String_Const_u32
-string_prefix(String_Const_u32 str, umem size){
+string_prefix(String_Const_u32 str, u64 size){
     size = clamp_top(size, str.size);
     str.size = size;
     return(str);
 }
 
 function String_Const_Any
-string_prefix(String_Const_Any str, umem size){
+string_prefix(String_Const_Any str, u64 size){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_prefix(str.s_char, size); break;
         case StringEncoding_UTF8:  str.s_u8   = string_prefix(str.s_u8  , size); break;
@@ -3916,28 +3902,28 @@ string_prefix(String_Const_Any str, umem size){
 }
 
 function String_Const_char
-string_postfix(String_Const_char str, umem size){
+string_postfix(String_Const_char str, u64 size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
     str.size = size;
     return(str);
 }
 function String_Const_u8
-string_postfix(String_Const_u8 str, umem size){
+string_postfix(String_Const_u8 str, u64 size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
     str.size = size;
     return(str);
 }
 function String_Const_u16
-string_postfix(String_Const_u16 str, umem size){
+string_postfix(String_Const_u16 str, u64 size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
     str.size = size;
     return(str);
 }
 function String_Const_u32
-string_postfix(String_Const_u32 str, umem size){
+string_postfix(String_Const_u32 str, u64 size){
     size = clamp_top(size, str.size);
     str.str += (str.size - size);
     str.size = size;
@@ -3945,7 +3931,7 @@ string_postfix(String_Const_u32 str, umem size){
 }
 
 function String_Const_Any
-string_postfix(String_Const_Any str, umem size){
+string_postfix(String_Const_Any str, u64 size){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_postfix(str.s_char, size); break;
         case StringEncoding_UTF8:  str.s_u8   = string_postfix(str.s_u8  , size); break;
@@ -3956,28 +3942,28 @@ string_postfix(String_Const_Any str, umem size){
 }
 
 function String_Const_char
-string_skip(String_Const_char str, umem n){
+string_skip(String_Const_char str, u64 n){
     n = clamp_top(n, str.size);
     str.str += n;;
     str.size -= n;
     return(str);
 }
 function String_Const_u8
-string_skip(String_Const_u8 str, umem n){
+string_skip(String_Const_u8 str, u64 n){
     n = clamp_top(n, str.size);
     str.str += n;;
     str.size -= n;
     return(str);
 }
 function String_Const_u16
-string_skip(String_Const_u16 str, umem n){
+string_skip(String_Const_u16 str, u64 n){
     n = clamp_top(n, str.size);
     str.str += n;;
     str.size -= n;
     return(str);
 }
 function String_Const_u32
-string_skip(String_Const_u32 str, umem n){
+string_skip(String_Const_u32 str, u64 n){
     n = clamp_top(n, str.size);
     str.str += n;;
     str.size -= n;
@@ -3985,7 +3971,7 @@ string_skip(String_Const_u32 str, umem n){
 }
 
 function String_Const_Any
-string_skip(String_Const_Any str, umem n){
+string_skip(String_Const_Any str, u64 n){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_skip(str.s_char, n); break;
         case StringEncoding_UTF8:  str.s_u8   = string_skip(str.s_u8  , n); break;
@@ -3996,32 +3982,32 @@ string_skip(String_Const_Any str, umem n){
 }
 
 function String_Const_char
-string_chop(String_Const_char str, umem n){
+string_chop(String_Const_char str, u64 n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
 function String_Const_u8
-string_chop(String_Const_u8 str, umem n){
+string_chop(String_Const_u8 str, u64 n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
 function String_Const_u16
-string_chop(String_Const_u16 str, umem n){
+string_chop(String_Const_u16 str, u64 n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
 function String_Const_u32
-string_chop(String_Const_u32 str, umem n){
+string_chop(String_Const_u32 str, u64 n){
     n = clamp_top(n, str.size);
     str.size -= n;
     return(str);
 }
 
 function String_Const_Any
-string_chop(String_Const_Any str, umem n){
+string_chop(String_Const_Any str, u64 n){
     switch (str.encoding){
         case StringEncoding_ASCII: str.s_char = string_chop(str.s_char, n); break;
         case StringEncoding_UTF8:  str.s_u8   = string_chop(str.s_u8  , n); break;
@@ -4048,232 +4034,232 @@ string_substring(String_Const_u32 str, Range_i64 range){
     return(SCu32(str.str + range.min, str.str + range.max));
 }
 
-function umem
-string_find_first(String_Const_char str, umem start_pos, char c){
-    umem i = start_pos;
+function u64
+string_find_first(String_Const_char str, u64 start_pos, char c){
+    u64 i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
-function umem
-string_find_first(String_Const_u8 str, umem start_pos, u8 c){
-    umem i = start_pos;
+function u64
+string_find_first(String_Const_u8 str, u64 start_pos, u8 c){
+    u64 i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
-function umem
-string_find_first(String_Const_u16 str, umem start_pos, u16 c){
-    umem i = start_pos;
+function u64
+string_find_first(String_Const_u16 str, u64 start_pos, u16 c){
+    u64 i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
-function umem
-string_find_first(String_Const_u32 str, umem start_pos, u32 c){
-    umem i = start_pos;
+function u64
+string_find_first(String_Const_u32 str, u64 start_pos, u32 c){
+    u64 i = start_pos;
     for (;i < str.size && c != str.str[i]; i += 1);
     return(i);
 }
 
-function umem
+function u64
 string_find_first(String_Const_char str, char c){
     return(string_find_first(str, 0, c));
 }
-function umem
+function u64
 string_find_first(String_Const_u8 str, u8 c){
     return(string_find_first(str, 0, c));
 }
-function umem
+function u64
 string_find_first(String_Const_u16 str, u16 c){
     return(string_find_first(str, 0, c));
 }
-function umem
+function u64
 string_find_first(String_Const_u32 str, u32 c){
     return(string_find_first(str, 0, c));
 }
 
-function imem
+function i64
 string_find_last(String_Const_char str, char c){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last(String_Const_u8 str, u8 c){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last(String_Const_u16 str, u16 c){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last(String_Const_u32 str, u32 c){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && c != str.str[i]; i -= 1);
     return(i);
 }
 
-function umem
+function u64
 string_find_first_whitespace(String_Const_char str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_whitespace(String_Const_u8 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_whitespace(String_Const_u16 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_whitespace(String_Const_u32 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_whitespace(String_Const_char str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_whitespace(String_Const_u8 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_whitespace(String_Const_u16 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_whitespace(String_Const_u32 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
 
-function umem
+function u64
 string_find_first_non_whitespace(String_Const_char str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_non_whitespace(String_Const_u8 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_non_whitespace(String_Const_u16 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_non_whitespace(String_Const_u32 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && character_is_whitespace(str.str[i]); i += 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_non_whitespace(String_Const_char str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_non_whitespace(String_Const_u8 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_non_whitespace(String_Const_u16 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_non_whitespace(String_Const_u32 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && character_is_whitespace(str.str[i]); i -= 1);
     return(i);
 }
 
-function umem
+function u64
 string_find_first_slash(String_Const_char str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_slash(String_Const_u8 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_slash(String_Const_u16 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-function umem
+function u64
 string_find_first_slash(String_Const_u32 str){
-    umem i = 0;
+    u64 i = 0;
     for (;i < str.size && !character_is_slash(str.str[i]); i += 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_slash(String_Const_char str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_slash(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_slash(String_Const_u8 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_slash(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_slash(String_Const_u16 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_slash(str.str[i]); i -= 1);
     return(i);
 }
-function imem
+function i64
 string_find_last_slash(String_Const_u32 str){
-    imem size = (imem)str.size;
-    imem i = size - 1;
+    i64 size = (i64)str.size;
+    i64 i = size - 1;
     for (;i >= 0 && !character_is_slash(str.str[i]); i -= 1);
     return(i);
 }
@@ -4283,7 +4269,7 @@ string_remove_last_folder(String_Const_char str){
     if (str.size > 0){
         str.size -= 1;
     }
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4297,7 +4283,7 @@ string_remove_last_folder(String_Const_u8 str){
     if (str.size > 0){
         str.size -= 1;
     }
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4311,7 +4297,7 @@ string_remove_last_folder(String_Const_u16 str){
     if (str.size > 0){
         str.size -= 1;
     }
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4325,7 +4311,7 @@ string_remove_last_folder(String_Const_u32 str){
     if (str.size > 0){
         str.size -= 1;
     }
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4337,7 +4323,7 @@ string_remove_last_folder(String_Const_u32 str){
 
 function String_Const_char
 string_remove_front_of_path(String_Const_char str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4348,7 +4334,7 @@ string_remove_front_of_path(String_Const_char str){
 }
 function String_Const_u8
 string_remove_front_of_path(String_Const_u8 str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4359,7 +4345,7 @@ string_remove_front_of_path(String_Const_u8 str){
 }
 function String_Const_u16
 string_remove_front_of_path(String_Const_u16 str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4370,7 +4356,7 @@ string_remove_front_of_path(String_Const_u16 str){
 }
 function String_Const_u32
 string_remove_front_of_path(String_Const_u32 str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos < 0){
         str.size = 0;
     }
@@ -4382,7 +4368,7 @@ string_remove_front_of_path(String_Const_u32 str){
 
 function String_Const_char
 string_front_of_path(String_Const_char str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
         str = string_skip(str, slash_pos + 1);
     }
@@ -4390,7 +4376,7 @@ string_front_of_path(String_Const_char str){
 }
 function String_Const_u8
 string_front_of_path(String_Const_u8 str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
         str = string_skip(str, slash_pos + 1);
     }
@@ -4398,7 +4384,7 @@ string_front_of_path(String_Const_u8 str){
 }
 function String_Const_u16
 string_front_of_path(String_Const_u16 str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
         str = string_skip(str, slash_pos + 1);
     }
@@ -4406,7 +4392,7 @@ string_front_of_path(String_Const_u16 str){
 }
 function String_Const_u32
 string_front_of_path(String_Const_u32 str){
-    imem slash_pos = string_find_last_slash(str);
+    i64 slash_pos = string_find_last_slash(str);
     if (slash_pos >= 0){
         str = string_skip(str, slash_pos + 1);
     }
@@ -4432,7 +4418,7 @@ string_file_extension(String_Const_u32 string){
 
 function String_Const_char
 string_file_without_extension(String_Const_char string){
-    imem pos = string_find_last(string, '.');
+    i64 pos = string_find_last(string, '.');
     if (pos > 0){
         string = string_prefix(string, pos);
     }
@@ -4440,7 +4426,7 @@ string_file_without_extension(String_Const_char string){
 }
 function String_Const_u8
 string_file_without_extension(String_Const_u8 string){
-    imem pos = string_find_last(string, '.');
+    i64 pos = string_find_last(string, '.');
     if (pos > 0){
         string = string_prefix(string, pos);
     }
@@ -4448,7 +4434,7 @@ string_file_without_extension(String_Const_u8 string){
 }
 function String_Const_u16
 string_file_without_extension(String_Const_u16 string){
-    imem pos = string_find_last(string, '.');
+    i64 pos = string_find_last(string, '.');
     if (pos > 0){
         string = string_prefix(string, pos);
     }
@@ -4456,7 +4442,7 @@ string_file_without_extension(String_Const_u16 string){
 }
 function String_Const_u32
 string_file_without_extension(String_Const_u32 string){
-    imem pos = string_find_last(string, '.');
+    i64 pos = string_find_last(string, '.');
     if (pos > 0){
         string = string_prefix(string, pos);
     }
@@ -4465,84 +4451,84 @@ string_file_without_extension(String_Const_u32 string){
 
 function String_Const_char
 string_skip_whitespace(String_Const_char str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
 function String_Const_u8
 string_skip_whitespace(String_Const_u8 str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
 function String_Const_u16
 string_skip_whitespace(String_Const_u16 str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
 function String_Const_u32
 string_skip_whitespace(String_Const_u32 str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
     return(str);
 }
 
 function String_Const_char
 string_chop_whitespace(String_Const_char str){
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 function String_Const_u8
 string_chop_whitespace(String_Const_u8 str){
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 function String_Const_u16
 string_chop_whitespace(String_Const_u16 str){
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 function String_Const_u32
 string_chop_whitespace(String_Const_u32 str){
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 
 function String_Const_char
 string_skip_chop_whitespace(String_Const_char str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 function String_Const_u8
 string_skip_chop_whitespace(String_Const_u8 str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 function String_Const_u16
 string_skip_chop_whitespace(String_Const_u16 str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 function String_Const_u32
 string_skip_chop_whitespace(String_Const_u32 str){
-    umem f = string_find_first_non_whitespace(str);
+    u64 f = string_find_first_non_whitespace(str);
     str = string_skip(str, f);
-    imem e = string_find_last_non_whitespace(str);
-    str = string_prefix(str, (umem)(e + 1));
+    i64 e = string_find_last_non_whitespace(str);
+    str = string_prefix(str, (u64)(e + 1));
     return(str);
 }
 
@@ -4551,7 +4537,7 @@ string_match(String_Const_char a, String_Const_char b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (a.str[i] != b.str[i]){
                 result = false;
                 break;
@@ -4565,7 +4551,7 @@ string_match(String_Const_u8 a, String_Const_u8 b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (a.str[i] != b.str[i]){
                 result = false;
                 break;
@@ -4579,7 +4565,7 @@ string_match(String_Const_u16 a, String_Const_u16 b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (a.str[i] != b.str[i]){
                 result = false;
                 break;
@@ -4593,7 +4579,7 @@ string_match(String_Const_u32 a, String_Const_u32 b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (a.str[i] != b.str[i]){
                 result = false;
                 break;
@@ -4622,7 +4608,7 @@ string_match_insensitive(String_Const_char a, String_Const_char b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (character_to_upper(a.str[i]) != character_to_upper(b.str[i])){
                 result = false;
                 break;
@@ -4636,7 +4622,7 @@ string_match_insensitive(String_Const_u8 a, String_Const_u8 b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (character_to_upper(a.str[i]) != character_to_upper(b.str[i])){
                 result = false;
                 break;
@@ -4650,7 +4636,7 @@ string_match_insensitive(String_Const_u16 a, String_Const_u16 b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (character_to_upper(a.str[i]) != character_to_upper(b.str[i])){
                 result = false;
                 break;
@@ -4664,7 +4650,7 @@ string_match_insensitive(String_Const_u32 a, String_Const_u32 b){
     b32 result = false;
     if (a.size == b.size){
         result = true;
-        for (umem i = 0; i < a.size; i += 1){
+        for (u64 i = 0; i < a.size; i += 1){
             if (character_to_upper(a.str[i]) != character_to_upper(b.str[i])){
                 result = false;
                 break;
@@ -4735,14 +4721,14 @@ string_match(String_Const_u32 a, String_Const_u32 b, String_Match_Rule rule){
     return(result);
 }
 
-function umem
+function u64
 string_find_first(String_Const_char str, String_Const_char needle, String_Match_Rule rule){
-    umem i = 0;
+    u64 i = 0;
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
-            umem one_past_last = str.size - needle.size + 1;
+            u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
                 if (str.str[i] == needle.str[0]){
                     String_Const_char source_part = string_prefix(string_skip(str, i), needle.size);
@@ -4758,14 +4744,14 @@ string_find_first(String_Const_char str, String_Const_char needle, String_Match_
     }
     return(i);
 }
-function umem
+function u64
 string_find_first(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule rule){
-    umem i = 0;
+    u64 i = 0;
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
-            umem one_past_last = str.size - needle.size + 1;
+            u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
                 if (str.str[i] == needle.str[0]){
                     String_Const_u8 source_part = string_prefix(string_skip(str, i), needle.size);
@@ -4781,14 +4767,14 @@ string_find_first(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule
     }
     return(i);
 }
-function umem
+function u64
 string_find_first(String_Const_u16 str, String_Const_u16 needle, String_Match_Rule rule){
-    umem i = 0;
+    u64 i = 0;
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
-            umem one_past_last = str.size - needle.size + 1;
+            u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
                 if (str.str[i] == needle.str[0]){
                     String_Const_u16 source_part = string_prefix(string_skip(str, i), needle.size);
@@ -4804,14 +4790,14 @@ string_find_first(String_Const_u16 str, String_Const_u16 needle, String_Match_Ru
     }
     return(i);
 }
-function umem
+function u64
 string_find_first(String_Const_u32 str, String_Const_u32 needle, String_Match_Rule rule){
-    umem i = 0;
+    u64 i = 0;
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
-            umem one_past_last = str.size - needle.size + 1;
+            u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
                 if (str.str[i] == needle.str[0]){
                     String_Const_u32 source_part = string_prefix(string_skip(str, i), needle.size);
@@ -4828,35 +4814,35 @@ string_find_first(String_Const_u32 str, String_Const_u32 needle, String_Match_Ru
     return(i);
 }
 
-function umem
+function u64
 string_find_first(String_Const_char str, String_Const_char needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-function umem
+function u64
 string_find_first(String_Const_u8 str, String_Const_u8 needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-function umem
+function u64
 string_find_first(String_Const_u16 str, String_Const_u16 needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-function umem
+function u64
 string_find_first(String_Const_u32 str, String_Const_u32 needle){
     return(string_find_first(str, needle, StringMatch_Exact));
 }
-function umem
+function u64
 string_find_first_insensitive(String_Const_char str, String_Const_char needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
-function umem
+function u64
 string_find_first_insensitive(String_Const_u8 str, String_Const_u8 needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
-function umem
+function u64
 string_find_first_insensitive(String_Const_u16 str, String_Const_u16 needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
-function umem
+function u64
 string_find_first_insensitive(String_Const_u32 str, String_Const_u32 needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
 }
@@ -4864,7 +4850,7 @@ string_find_first_insensitive(String_Const_u32 str, String_Const_u32 needle){
 function i32
 string_compare(String_Const_char a, String_Const_char b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         char ca = (i < a.size)?a.str[i]:0;
         char cb = (i < b.size)?b.str[i]:0;
         i32 dif = ((ca) - (cb));
@@ -4878,7 +4864,7 @@ string_compare(String_Const_char a, String_Const_char b){
 function i32
 string_compare(String_Const_u8 a, String_Const_u8 b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         u8 ca = (i < a.size)?a.str[i]:0;
         u8 cb = (i < b.size)?b.str[i]:0;
         i32 dif = ((ca) - (cb));
@@ -4892,7 +4878,7 @@ string_compare(String_Const_u8 a, String_Const_u8 b){
 function i32
 string_compare(String_Const_u16 a, String_Const_u16 b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         u16 ca = (i < a.size)?a.str[i]:0;
         u16 cb = (i < b.size)?b.str[i]:0;
         i32 dif = ((ca) - (cb));
@@ -4906,7 +4892,7 @@ string_compare(String_Const_u16 a, String_Const_u16 b){
 function i32
 string_compare(String_Const_u32 a, String_Const_u32 b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         u32 ca = (i < a.size)?a.str[i]:0;
         u32 cb = (i < b.size)?b.str[i]:0;
         i32 dif = ((ca) - (cb));
@@ -4921,7 +4907,7 @@ string_compare(String_Const_u32 a, String_Const_u32 b){
 function i32
 string_compare_insensitive(String_Const_char a, String_Const_char b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         char ca = (i <= a.size)?0:a.str[i];
         char cb = (i <= b.size)?0:b.str[i];
         i32 dif = character_to_upper(ca) - character_to_upper(cb);
@@ -4935,7 +4921,7 @@ string_compare_insensitive(String_Const_char a, String_Const_char b){
 function i32
 string_compare_insensitive(String_Const_u8 a, String_Const_u8 b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         u8 ca = (i <= a.size)?0:a.str[i];
         u8 cb = (i <= b.size)?0:b.str[i];
         i32 dif = character_to_upper(ca) - character_to_upper(cb);
@@ -4949,7 +4935,7 @@ string_compare_insensitive(String_Const_u8 a, String_Const_u8 b){
 function i32
 string_compare_insensitive(String_Const_u16 a, String_Const_u16 b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         u16 ca = (i <= a.size)?0:a.str[i];
         u16 cb = (i <= b.size)?0:b.str[i];
         i32 dif = character_to_upper(ca) - character_to_upper(cb);
@@ -4963,7 +4949,7 @@ string_compare_insensitive(String_Const_u16 a, String_Const_u16 b){
 function i32
 string_compare_insensitive(String_Const_u32 a, String_Const_u32 b){
     i32 result = 0;
-    for (umem i = 0; i < a.size || i < b.size; i += 1){
+    for (u64 i = 0; i < a.size || i < b.size; i += 1){
         u32 ca = (i <= a.size)?0:a.str[i];
         u32 cb = (i <= b.size)?0:b.str[i];
         i32 dif = character_to_upper(ca) - character_to_upper(cb);
@@ -4977,56 +4963,56 @@ string_compare_insensitive(String_Const_u32 a, String_Const_u32 b){
 
 function String_Const_char
 string_mod_upper(String_Const_char str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
 function String_Const_u8
 string_mod_upper(String_Const_u8 str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
 function String_Const_u16
 string_mod_upper(String_Const_u16 str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
 function String_Const_u32
 string_mod_upper(String_Const_u32 str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_upper(str.str[i]);
     }
     return(str);
 }
 function String_Const_char
 string_mod_lower(String_Const_char str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
     }
     return(str);
 }
 function String_Const_u8
 string_mod_lower(String_Const_u8 str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
     }
     return(str);
 }
 function String_Const_u16
 string_mod_lower(String_Const_u16 str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
     }
     return(str);
 }
 function String_Const_u32
 string_mod_lower(String_Const_u32 str){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         str.str[i] = character_to_lower(str.str[i]);
     }
     return(str);
@@ -5034,7 +5020,7 @@ string_mod_lower(String_Const_u32 str){
 
 function String_Const_char
 string_mod_replace_character(String_Const_char str, char o, char n){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         char c = str.str[i];
         str.str[i] = (c == o)?(n):(c);
     }
@@ -5042,7 +5028,7 @@ string_mod_replace_character(String_Const_char str, char o, char n){
 }
 function String_Const_u8
 string_mod_replace_character(String_Const_u8 str, u8 o, u8 n){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         u8 c = str.str[i];
         str.str[i] = (c == o)?(n):(c);
     }
@@ -5050,7 +5036,7 @@ string_mod_replace_character(String_Const_u8 str, u8 o, u8 n){
 }
 function String_Const_u16
 string_mod_replace_character(String_Const_u16 str, u16 o, u16 n){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         u16 c = str.str[i];
         str.str[i] = (c == o)?(n):(c);
     }
@@ -5058,7 +5044,7 @@ string_mod_replace_character(String_Const_u16 str, u16 o, u16 n){
 }
 function String_Const_u32
 string_mod_replace_character(String_Const_u32 str, u32 o, u32 n){
-    for (umem i = 0; i < str.size; i += 1){
+    for (u64 i = 0; i < str.size; i += 1){
         u32 c = str.str[i];
         str.str[i] = (c == o)?(n):(c);
     }
@@ -5068,11 +5054,11 @@ string_mod_replace_character(String_Const_u32 str, u32 o, u32 n){
 function b32
 string_append(String_char *dst, String_Const_char src){
     b32 result = false;
-    umem available = dst->cap - dst->size;
+    u64 available = dst->cap - dst->size;
     if (src.size <= available){
         result = true;
     }
-    umem copy_size = clamp_top(src.size, available);
+    u64 copy_size = clamp_top(src.size, available);
     block_copy(dst->str + dst->size, src.str, copy_size);
     dst->size += copy_size;
     return(result);
@@ -5080,11 +5066,11 @@ string_append(String_char *dst, String_Const_char src){
 function b32
 string_append(String_u8 *dst, String_Const_u8 src){
     b32 result = false;
-    umem available = dst->cap - dst->size;
+    u64 available = dst->cap - dst->size;
     if (src.size <= available){
         result = true;
     }
-    umem copy_size = clamp_top(src.size, available);
+    u64 copy_size = clamp_top(src.size, available);
     block_copy(dst->str + dst->size, src.str, copy_size);
     dst->size += copy_size;
     return(result);
@@ -5092,11 +5078,11 @@ string_append(String_u8 *dst, String_Const_u8 src){
 function b32
 string_append(String_u16 *dst, String_Const_u16 src){
     b32 result = false;
-    umem available = dst->cap - dst->size;
+    u64 available = dst->cap - dst->size;
     if (src.size <= available){
         result = true;
     }
-    umem copy_size = clamp_top(src.size, available);
+    u64 copy_size = clamp_top(src.size, available);
     block_copy(dst->str + dst->size, src.str, copy_size);
     dst->size += copy_size;
     return(result);
@@ -5104,11 +5090,11 @@ string_append(String_u16 *dst, String_Const_u16 src){
 function b32
 string_append(String_u32 *dst, String_Const_u32 src){
     b32 result = false;
-    umem available = dst->cap - dst->size;
+    u64 available = dst->cap - dst->size;
     if (src.size <= available){
         result = true;
     }
-    umem copy_size = clamp_top(src.size, available);
+    u64 copy_size = clamp_top(src.size, available);
     block_copy(dst->str + dst->size, src.str, copy_size);
     dst->size += copy_size;
     return(result);
@@ -5165,28 +5151,28 @@ string_null_terminate(String_u32 *str){
 }
 
 function String_char
-string_char_push(Arena *arena, umem size){
+string_char_push(Arena *arena, u64 size){
     String_char string = {};
     string.str = push_array(arena, char, size);
     string.cap = size;
     return(string);
 }
 function String_u8
-string_u8_push(Arena *arena, umem size){
+string_u8_push(Arena *arena, u64 size){
     String_u8 string = {};
     string.str = push_array(arena, u8, size);
     string.cap = size;
     return(string);
 }
 function String_u16
-string_u16_push(Arena *arena, umem size){
+string_u16_push(Arena *arena, u64 size){
     String_u16 string = {};
     string.str = push_array(arena, u16, size);
     string.cap = size;
     return(string);
 }
 function String_u32
-string_u32_push(Arena *arena, umem size){
+string_u32_push(Arena *arena, u64 size){
     String_u32 string = {};
     string.str = push_array(arena, u32, size);
     string.cap = size;
@@ -5194,7 +5180,7 @@ string_u32_push(Arena *arena, umem size){
 }
 
 function String_Any
-string_any_push(Arena *arena, umem size, String_Encoding encoding){
+string_any_push(Arena *arena, u64 size, String_Encoding encoding){
     String_Any string = {};
     switch (encoding){
         case StringEncoding_ASCII: string.s_char = string_char_push(arena, size); break;
@@ -5206,28 +5192,28 @@ string_any_push(Arena *arena, umem size, String_Encoding encoding){
 }
 
 function String_Const_char
-string_const_char_push(Arena *arena, umem size){
+string_const_char_push(Arena *arena, u64 size){
     String_Const_char string = {};
     string.str = push_array(arena, char, size);
     string.size = size;
     return(string);
 }
 function String_Const_u8
-string_const_u8_push(Arena *arena, umem size){
+string_const_u8_push(Arena *arena, u64 size){
     String_Const_u8 string = {};
     string.str = push_array(arena, u8, size);
     string.size = size;
     return(string);
 }
 function String_Const_u16
-string_const_u16_push(Arena *arena, umem size){
+string_const_u16_push(Arena *arena, u64 size){
     String_Const_u16 string = {};
     string.str = push_array(arena, u16, size);
     string.size = size;
     return(string);
 }
 function String_Const_u32
-string_const_u32_push(Arena *arena, umem size){
+string_const_u32_push(Arena *arena, u64 size){
     String_Const_u32 string = {};
     string.str = push_array(arena, u32, size);
     string.size = size;
@@ -5235,7 +5221,7 @@ string_const_u32_push(Arena *arena, umem size){
 }
 
 function String_Const_Any
-string_const_any_push(Arena *arena, umem size, String_Encoding encoding){
+string_const_any_push(Arena *arena, u64 size, String_Encoding encoding){
     String_Const_Any string = {};
     switch (encoding){
         case StringEncoding_ASCII: string.s_char = string_const_char_push(arena, size); break;
@@ -5284,7 +5270,7 @@ push_string_copy(Arena *arena, String_Const_u32 src){
 }
 
 function String_Const_Any
-push_string_copy(Arena *arena, umem size, String_Const_Any src){
+push_string_copy(Arena *arena, u64 size, String_Const_Any src){
     String_Const_Any string = {};
     switch (src.encoding){
         case StringEncoding_ASCII: string.s_char = push_string_copy(arena, src.s_char); break;
@@ -5521,9 +5507,9 @@ typedef String_Const_u32 String_u32_Mod_Function_Type(String_Const_u32 string);
 
 function String_Const_char
 string_list_flatten(Arena *arena, List_String_Const_char list, String_char_Mod_Function_Type *mod, String_Const_char separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
-    umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
+    u64 term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
-    umem separator_size = separator.size*(list.node_count + before_first + after_last - 1);
+    u64 separator_size = separator.size*(list.node_count + before_first + after_last - 1);
     String_char string = string_char_push(arena, list.total_size + separator_size + term_padding);
     if (before_first){
         string_append(&string, separator);
@@ -5548,9 +5534,9 @@ string_list_flatten(Arena *arena, List_String_Const_char list, String_char_Mod_F
 }
 function String_Const_u8
 string_list_flatten(Arena *arena, List_String_Const_u8 list, String_u8_Mod_Function_Type *mod, String_Const_u8 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
-    umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
+    u64 term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
-    umem separator_size = separator.size*(list.node_count + before_first + after_last - 1);
+    u64 separator_size = separator.size*(list.node_count + before_first + after_last - 1);
     String_u8 string = string_u8_push(arena, list.total_size + separator_size + term_padding);
     if (before_first){
         string_append(&string, separator);
@@ -5575,9 +5561,9 @@ string_list_flatten(Arena *arena, List_String_Const_u8 list, String_u8_Mod_Funct
 }
 function String_Const_u16
 string_list_flatten(Arena *arena, List_String_Const_u16 list, String_u16_Mod_Function_Type *mod, String_Const_u16 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
-    umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
+    u64 term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
-    umem separator_size = separator.size*(list.node_count + before_first + after_last - 1);
+    u64 separator_size = separator.size*(list.node_count + before_first + after_last - 1);
     String_u16 string = string_u16_push(arena, list.total_size + separator_size + term_padding);
     if (before_first){
         string_append(&string, separator);
@@ -5602,9 +5588,9 @@ string_list_flatten(Arena *arena, List_String_Const_u16 list, String_u16_Mod_Fun
 }
 function String_Const_u32
 string_list_flatten(Arena *arena, List_String_Const_u32 list, String_u32_Mod_Function_Type *mod, String_Const_u32 separator, String_Separator_Flag separator_flags, String_Fill_Terminate_Rule rule){
-    umem term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
+    u64 term_padding = (rule == StringFill_NullTerminate)?(1):(0);b32 before_first = HasFlag(separator_flags, StringSeparator_BeforeFirst);
     b32 after_last = HasFlag(separator_flags, StringSeparator_AfterLast);
-    umem separator_size = separator.size*(list.node_count + before_first + after_last - 1);
+    u64 separator_size = separator.size*(list.node_count + before_first + after_last - 1);
     String_u32 string = string_u32_push(arena, list.total_size + separator_size + term_padding);
     if (before_first){
         string_append(&string, separator);
@@ -5696,10 +5682,10 @@ function List_String_Const_char
 string_split(Arena *arena, String_Const_char string, char *split_characters, i32 split_character_count){
     List_String_Const_char list = {};
     for (;;){
-        umem i = string.size;
+        u64 i = string.size;
         String_Const_char prefix = string;
         for (i32 j = 0; j < split_character_count; j += 1){
-            umem pos = string_find_first(prefix, split_characters[j]);
+            u64 pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
             i = Min(i, pos);
         }
@@ -5717,10 +5703,10 @@ function List_String_Const_u8
 string_split(Arena *arena, String_Const_u8 string, u8 *split_characters, i32 split_character_count){
     List_String_Const_u8 list = {};
     for (;;){
-        umem i = string.size;
+        u64 i = string.size;
         String_Const_u8 prefix = string;
         for (i32 j = 0; j < split_character_count; j += 1){
-            umem pos = string_find_first(prefix, split_characters[j]);
+            u64 pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
             i = Min(i, pos);
         }
@@ -5738,10 +5724,10 @@ function List_String_Const_u16
 string_split(Arena *arena, String_Const_u16 string, u16 *split_characters, i32 split_character_count){
     List_String_Const_u16 list = {};
     for (;;){
-        umem i = string.size;
+        u64 i = string.size;
         String_Const_u16 prefix = string;
         for (i32 j = 0; j < split_character_count; j += 1){
-            umem pos = string_find_first(prefix, split_characters[j]);
+            u64 pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
             i = Min(i, pos);
         }
@@ -5759,10 +5745,10 @@ function List_String_Const_u32
 string_split(Arena *arena, String_Const_u32 string, u32 *split_characters, i32 split_character_count){
     List_String_Const_u32 list = {};
     for (;;){
-        umem i = string.size;
+        u64 i = string.size;
         String_Const_u32 prefix = string;
         for (i32 j = 0; j < split_character_count; j += 1){
-            umem pos = string_find_first(prefix, split_characters[j]);
+            u64 pos = string_find_first(prefix, split_characters[j]);
             prefix = string_prefix(prefix, pos);
             i = Min(i, pos);
         }
@@ -5781,7 +5767,7 @@ function List_String_Const_char
 string_split_needle(Arena *arena, String_Const_char string, String_Const_char needle){
     List_String_Const_char list = {};
     for (;string.size > 0;){
-        umem pos = string_find_first(string, needle);
+        u64 pos = string_find_first(string, needle);
         String_Const_char prefix = string_prefix(string, pos);
         if (pos < string.size){
             string_list_push(arena, &list, needle);
@@ -5797,7 +5783,7 @@ function List_String_Const_u8
 string_split_needle(Arena *arena, String_Const_u8 string, String_Const_u8 needle){
     List_String_Const_u8 list = {};
     for (;string.size > 0;){
-        umem pos = string_find_first(string, needle);
+        u64 pos = string_find_first(string, needle);
         String_Const_u8 prefix = string_prefix(string, pos);
         if (pos < string.size){
             string_list_push(arena, &list, needle);
@@ -5813,7 +5799,7 @@ function List_String_Const_u16
 string_split_needle(Arena *arena, String_Const_u16 string, String_Const_u16 needle){
     List_String_Const_u16 list = {};
     for (;string.size > 0;){
-        umem pos = string_find_first(string, needle);
+        u64 pos = string_find_first(string, needle);
         String_Const_u16 prefix = string_prefix(string, pos);
         if (pos < string.size){
             string_list_push(arena, &list, needle);
@@ -5829,7 +5815,7 @@ function List_String_Const_u32
 string_split_needle(Arena *arena, String_Const_u32 string, String_Const_u32 needle){
     List_String_Const_u32 list = {};
     for (;string.size > 0;){
-        umem pos = string_find_first(string, needle);
+        u64 pos = string_find_first(string, needle);
         String_Const_u32 prefix = string_prefix(string, pos);
         if (pos < string.size){
             string_list_push(arena, &list, needle);
@@ -6085,7 +6071,7 @@ string_wildcard_match(List_String_Const_u8 list, String_Const_u8 string, String_
                 for (Node_String_Const_u8 *node = list.first->next;
                      node != one_past_last;
                      node = node->next){
-                    umem position = string_find_first(string, node->string, rule);
+                    u64 position = string_find_first(string, node->string, rule);
                     if (position < string.size){
                         string = string_skip(string, position + node->string.size);
                     }
@@ -6183,7 +6169,7 @@ global_const u8 utf8_class[32] = {
 };
 
 function Character_Consume_Result
-utf8_consume(u8 *str, umem max){
+utf8_consume(u8 *str, u64 max){
     Character_Consume_Result result = {1, max_u32};
     u8 byte = str[0];
     u8 byte_class = utf8_class[byte >> 3];
@@ -6236,7 +6222,7 @@ utf8_consume(u8 *str, umem max){
 }
 
 function Character_Consume_Result
-utf16_consume(u16 *str, umem max){
+utf16_consume(u16 *str, u64 max){
     Character_Consume_Result result = {1, max_u32};
     result.codepoint = str[0];
     result.inc = 1;
@@ -6307,7 +6293,7 @@ string_u8_from_string_char(Arena *arena, String_Const_char string, String_Fill_T
         out.cap += 1;
     }
     out.str = push_array(arena, u8, out.cap);
-    for (umem i = 0; i < string.size; i += 1){
+    for (u64 i = 0; i < string.size; i += 1){
         out.str[i] = ((u8)string.str[i])&bitmask_7;
     }
     out.size = string.size;
@@ -6325,7 +6311,7 @@ string_u16_from_string_char(Arena *arena, String_Const_char string, String_Fill_
         out.cap += 1;
     }
     out.str = push_array(arena, u16, out.cap);
-    for (umem i = 0; i < string.size; i += 1){
+    for (u64 i = 0; i < string.size; i += 1){
         out.str[i] = ((u16)string.str[i])&bitmask_7;
     }
     out.size = string.size;
@@ -6343,7 +6329,7 @@ string_u32_from_string_char(Arena *arena, String_Const_char string, String_Fill_
         out.cap += 1;
     }
     out.str = push_array(arena, u32, string.size);
-    for (umem i = 0; i < string.size; i += 1){
+    for (u64 i = 0; i < string.size; i += 1){
         out.str[i] = ((u32)string.str[i])&bitmask_7;
     }
     out.size = string.size;
@@ -6363,7 +6349,7 @@ string_char_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Ter
     out.str = push_array(arena, char, out.cap);
     u8 *ptr = string.str;
     u8 *one_past_last = ptr + string.size;
-    umem cap = string.size;
+    u64 cap = string.size;
     Character_Consume_Result consume;
     for (;ptr < one_past_last; ptr += consume.inc, cap -= consume.inc){
         consume = utf8_consume(ptr, cap);
@@ -6385,7 +6371,7 @@ string_u16_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Term
     out.str = push_array(arena, u16, out.cap);
     u8 *ptr = string.str;
     u8 *one_past_last = ptr + string.size;
-    umem cap = string.size;
+    u64 cap = string.size;
     Character_Consume_Result consume;
     for (;ptr < one_past_last; ptr += consume.inc, cap -= consume.inc){
         consume = utf8_consume(ptr, cap);
@@ -6407,7 +6393,7 @@ string_u32_from_string_u8(Arena *arena, String_Const_u8 string, String_Fill_Term
     out.str = push_array(arena, u32, out.cap);
     u8 *ptr = string.str;
     u8 *one_past_last = ptr + string.size;
-    umem cap = string.size;
+    u64 cap = string.size;
     Character_Consume_Result consume;
     for (;ptr < one_past_last; ptr += consume.inc, cap -= consume.inc){
         consume = utf8_consume(ptr, cap);
@@ -6429,7 +6415,7 @@ string_char_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_T
     out.str = push_array(arena, char, out.cap);
     u16 *ptr = string.str;
     u16 *one_past_last = ptr + string.size;
-    umem cap = string.size;
+    u64 cap = string.size;
     Character_Consume_Result consume;
     for (;ptr < one_past_last; ptr += consume.inc, cap -= consume.inc){
         consume = utf16_consume(ptr, cap);
@@ -6451,7 +6437,7 @@ string_u8_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_Ter
     out.str = push_array(arena, u8, out.cap);
     u16 *ptr = string.str;
     u16 *one_past_last = ptr + string.size;
-    umem cap = string.size;
+    u64 cap = string.size;
     Character_Consume_Result consume;
     for (;ptr < one_past_last; ptr += consume.inc, cap -= consume.inc){
         consume = utf16_consume(ptr, cap);
@@ -6473,7 +6459,7 @@ string_u32_from_string_u16(Arena *arena, String_Const_u16 string, String_Fill_Te
     out.str = push_array(arena, u32, out.cap);
     u16 *ptr = string.str;
     u16 *one_past_last = ptr + string.size;
-    umem cap = string.size;
+    u64 cap = string.size;
     Character_Consume_Result consume;
     for (;ptr < one_past_last; ptr += consume.inc, cap -= consume.inc){
         consume = utf16_consume(ptr, cap);
@@ -6699,9 +6685,9 @@ string_list_u32_from_any(Arena *arena, List_String_Const_Any list){
 function Line_Ending_Kind
 string_guess_line_ending_kind(String_Const_u8 string){
     b32 looks_like_binary = false;
-    umem crlf_count = 0;
-    umem lf_count = 0;
-    for (umem i = 0; i < string.size; i += 1){
+    u64 crlf_count = 0;
+    u64 lf_count = 0;
+    for (u64 i = 0; i < string.size; i += 1){
         if (string.str[i] == 0){
             looks_like_binary = true;
             break;
@@ -6738,7 +6724,7 @@ function List_String_Const_char
 string_replace_list(Arena *arena, String_Const_char source, String_Const_char needle, String_Const_char replacement){
     List_String_Const_char list = {};
     for (;;){
-        umem i = string_find_first(source, needle);
+        u64 i = string_find_first(source, needle);
         string_list_push(arena, &list, string_prefix(source, i));
         if (i < source.size){
             string_list_push(arena, &list, replacement);
@@ -6754,7 +6740,7 @@ function List_String_Const_u8
 string_replace_list(Arena *arena, String_Const_u8 source, String_Const_u8 needle, String_Const_u8 replacement){
     List_String_Const_u8 list = {};
     for (;;){
-        umem i = string_find_first(source, needle);
+        u64 i = string_find_first(source, needle);
         string_list_push(arena, &list, string_prefix(source, i));
         if (i < source.size){
             string_list_push(arena, &list, replacement);
@@ -6770,7 +6756,7 @@ function List_String_Const_u16
 string_replace_list(Arena *arena, String_Const_u16 source, String_Const_u16 needle, String_Const_u16 replacement){
     List_String_Const_u16 list = {};
     for (;;){
-        umem i = string_find_first(source, needle);
+        u64 i = string_find_first(source, needle);
         string_list_push(arena, &list, string_prefix(source, i));
         if (i < source.size){
             string_list_push(arena, &list, replacement);
@@ -6786,7 +6772,7 @@ function List_String_Const_u32
 string_replace_list(Arena *arena, String_Const_u32 source, String_Const_u32 needle, String_Const_u32 replacement){
     List_String_Const_u32 list = {};
     for (;;){
-        umem i = string_find_first(source, needle);
+        u64 i = string_find_first(source, needle);
         string_list_push(arena, &list, string_prefix(source, i));
         if (i < source.size){
             string_list_push(arena, &list, replacement);
@@ -6889,7 +6875,7 @@ string_interpret_escapes(Arena *arena, String_Const_char string){
     char *space = push_array(arena, char, string.size + 1);
     String_char result = Schar(space, 0, string.size);
     for (;;){
-        umem back_slash_pos = string_find_first(string, '\\');
+        u64 back_slash_pos = string_find_first(string, '\\');
         string_append(&result, string_prefix(string, back_slash_pos));
         string = string_skip(string, back_slash_pos + 1);
         if (string.size == 0){
@@ -6975,9 +6961,9 @@ global_const u8 base64_reverse[128] = {
     0x19,0x1A,0x1B,0x1C,0x1D,0x1E,0x1F,0x20,0x21,0x22,0x23,0xFF,0xFF,0xFF,0xFF,0xFF,
 };
 
-function umem
+function u64
 digit_count_from_integer(u64 x, u32 radix){
-    umem result = {};
+    u64 result = {};
     if (radix >= 2 && radix <= 16){
         if (x == 0){
             result = 1;
@@ -7001,13 +6987,13 @@ string_from_integer(Arena *arena, u64 x, u32 radix){
         }
         else{
             u8 string_space[64];
-            umem length = 0;
+            u64 length = 0;
             for (u64 X = x;
                  X > 0;
                  X /= radix, length += 1){
                 string_space[length] = integer_symbols[X%radix];
             }
-            for (umem j = 0, i = length - 1;
+            for (u64 j = 0, i = length - 1;
                  j < i;
                  j += 1, i -= 1){
                 Swap(u8, string_space[i], string_space[j]);
@@ -7023,7 +7009,7 @@ string_is_integer(String_Const_u8 string, u32 radix){
     b32 is_integer = false;
     if (radix <= 16){
         is_integer = true;
-        for (umem i = 0; i < string.size; i += 1){
+        for (u64 i = 0; i < string.size; i += 1){
             if (string.str[i] < 128){
                 u8 x = integer_symbol_reverse[character_to_upper(string.str[i])];
                 if (x >= radix){
@@ -7044,7 +7030,7 @@ function u64
 string_to_integer(String_Const_u8 string, u32 radix){
     u64 x = 0;
     if (radix <= 16){
-        for (umem i = 0; i < string.size; i += 1){
+        for (u64 i = 0; i < string.size; i += 1){
             x *= radix;
             if (string.str[i] < 128){
                 x += integer_symbol_reverse[character_to_upper(string.str[i])];
@@ -7063,9 +7049,9 @@ string_to_integer(String_Const_char string, u32 radix){
 }
 
 function String_Const_u8
-string_base64_encode_from_binary(Arena *arena, void *data, umem size){
-    umem char_count = div_round_up_positive(size*8, 6);
-    char_count = round_up_umem(char_count, 4);
+string_base64_encode_from_binary(Arena *arena, void *data, u64 size){
+    u64 char_count = div_round_up_positive(size*8, 6);
+    char_count = round_up_u64(char_count, 4);
     String_Const_u8 string = string_const_u8_push(arena, char_count);
     u8 *s = string.str;
     u8 *d = (u8*)data;
@@ -7102,10 +7088,10 @@ string_base64_encode_from_binary(Arena *arena, void *data, umem size){
 }
 
 function Data
-data_decode_from_base64(Arena *arena, u8 *str, umem size){
+data_decode_from_base64(Arena *arena, u8 *str, u64 size){
     Data data = {};
     if (size%4 == 0){
-        umem data_size = size*6/8;
+        u64 data_size = size*6/8;
         if (str[size - 2] == '?'){
             data_size -= 2;
         }

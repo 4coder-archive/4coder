@@ -137,14 +137,14 @@ enum{
     OPTIMIZATION = 0x20,
     SUPER = 0x40,
     INTERNAL = 0x80,
-    KEEP_ASSERT = 0x100,
+    SHIP = 0x100,
 };
 
 internal char**
 get_defines_from_flags(Arena *arena, u32 flags){
     char **result = 0;
-    if (HasFlag(flags, KEEP_ASSERT)){
-        result = fm_list(arena, fm_list_one_item(arena, "FRED_KEEP_ASSERT"), result);
+    if (HasFlag(flags, SHIP)){
+        result = fm_list(arena, fm_list_one_item(arena, "SHIP_MODE"), result);
     }
     if (HasFlag(flags, INTERNAL)){
         result = fm_list(arena, fm_list_one_item(arena, "FRED_INTERNAL"), result);
@@ -270,6 +270,7 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     
     fm_finish_build_line(&line);
     
+    //printf("%s\n", line.build_options);
     systemf("%s", line.build_options);
     fm_popdir(temp);
     
@@ -420,25 +421,6 @@ build_and_run(Arena *arena, char *cdir, char *filename, char *name, u32 flags){
 }
 
 internal void
-string_build(Arena *arena, char *cdir){
-    char *dir = fm_str(arena, BUILD_DIR);
-    
-    {
-        char *file = fm_str(arena, "string/4ed_string_builder.cpp");
-        BEGIN_TIME_SECTION();
-        build(arena, OPTS | DEBUG_INFO, Arch_X64, cdir, file, dir, "string_builder", 0, 0, includes);
-        END_TIME_SECTION("build string_builder");
-    }
-    
-    if (prev_error == 0){
-        char *cmd = fm_str(arena, cdir, "/", dir, "/string_builder");
-        BEGIN_TIME_SECTION();
-        fm_execute_in_dir(fm_str(arena, cdir, "/string"), cmd, 0);
-        END_TIME_SECTION("run string_builder");
-    }
-}
-
-internal void
 buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
     printf("BUILDSUPER: cdir: %s; file: %s; arch: %u\n", cdir, file, arch);
     
@@ -458,29 +440,6 @@ buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
     fflush(stdout);
 }
 
-// TODO(allen): Remove this
-internal i32
-get_freetype_include(char *out, u32 max){
-    i32 size = 0;
-#if 0
-#if OS_LINUX
-    char freetype_include[512];
-    FILE *file = popen("pkg-config --cflags freetype2", "r");
-    if (file != 0){
-        fgets(freetype_include, sizeof(freetype_include), file);
-        size = strlen(freetype_include);
-        memcpy(out, freetype_include, size);
-        pclose(file);
-    }
-#elif OS_MAC
-    char *freetype_include = "/usr/local/include/freetype2";
-    size = strlen(freetype_include);
-    memcpy(out, freetype_include, size);
-#endif
-#endif
-    return(size);
-}
-
 internal void
 build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch){
     char *dir = fm_str(arena, BUILD_DIR);
@@ -490,14 +449,6 @@ build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch
         char **exports = fm_list_one_item(arena, "app_get_functions");
         
         char **build_includes = includes;
-        
-        char ft_include[512];
-        i32 ft_size = get_freetype_include(ft_include, sizeof(ft_include) - 1);
-        if (ft_size > 0){
-            ft_include[ft_size] = 0;
-            fprintf(stdout, "FREETYPE: %s\n", ft_include);
-            build_includes = fm_list(arena, build_includes, fm_list_one_item(arena, ft_include));
-        }
         
         BEGIN_TIME_SECTION();
         build(arena, OPTS | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, get_defines_from_flags(arena, flags), exports, build_includes);
@@ -564,7 +515,7 @@ package(Arena *arena, char *cdir){
     fflush(stdout);
     
     char *tier_names[] = { "demo", "super", };
-    u32 base_flags = OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO;
+    u32 base_flags = SHIP | DEBUG_INFO | OPTIMIZATION;
     u32 tier_flags[] = { 0, SUPER, };
     
     fm_make_folder_if_missing(arena, pack_dir);
@@ -633,16 +584,20 @@ int main(int argc, char **argv){
     Assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
-#if defined(DEV_BUILD) || defined(OPT_BUILD) || defined(DEV_BUILD_X86)
-    u32 flags = DEBUG_INFO | SUPER | INTERNAL;
+    u32 flags = SUPER;
     u32 arch = Arch_X64;
-#if defined(OPT_BUILD)
-    flags |= OPTIMIZATION;
-#endif
-#if defined(DEV_BUILD_X86)
+    #if defined(DEV_BUILD) || defined(DEV_BUILD_X86)
+    flags |= DEBUG_INFO | INTERNAL;
+    #endif
+#if defined(OPT_BUILD) || defined(OPT_BUILD_X86)
+     flags |= OPTIMIZATION;
+    #endif
+#if defined(DEV_BUILD_X86) || defined(OPT_BUILD_X86)
     arch = Arch_X86;
 #endif
-    standard_build(&arena, cdir, flags, arch);
+    
+#if defined(DEV_BUILD) || defined(OPT_BUILD) || defined(DEV_BUILD_X86)
+standard_build(&arena, cdir, flags, arch);
     
 #elif defined(PACKAGE)
     package(&arena, cdir);

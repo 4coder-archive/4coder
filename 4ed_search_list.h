@@ -14,7 +14,7 @@
 
 struct Path_Search_List{
     List_String_Const_u8 list;
-    umem max_member_length;
+    u64 max_member_length;
 };
 
 #endif

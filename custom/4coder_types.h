@@ -475,7 +475,7 @@ api(custom)
 struct Query_Bar{
     String_Const_u8 prompt;
     String_Const_u8 string;
-    umem string_capacity;
+    u64 string_capacity;
 };
 
 api(custom)
@@ -554,7 +554,7 @@ struct Face_Advance_Map{
 api(custom)
 struct Edit{
     String_Const_u8 text;
-    Interval_i64 range;
+    Range_i64 range;
 };
 
 api(custom)
@@ -660,8 +660,8 @@ struct Buffer_Name_Conflict_Entry{
     String_Const_u8 file_name;
     String_Const_u8 base_name;
     u8 *unique_name_in_out;
-    umem unique_name_len_in_out;
-    umem unique_name_capacity;
+    u64 unique_name_len_in_out;
+    u64 unique_name_capacity;
 };
 
 api(custom)
@@ -674,8 +674,8 @@ typedef i32 Buffer_Hook_Function(Application_Links *app, Buffer_ID buffer_id);
 
 api(custom)
 typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_id,
-                                       Range_i64 new_range, umem original_size);
-#define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id, Interval_i64 new_range, umem original_size)
+                                       Range_i64 new_range, u64 original_size);
+#define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id, Range_i64 new_range, u64 original_size)
 
 api(custom)
 typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data);
@@ -738,7 +738,7 @@ api(custom)
 struct View_Context{
     Render_Caller_Function *render_caller;
     Delta_Rule_Function *delta_rule;
-    umem delta_rule_memory_size;
+    u64 delta_rule_memory_size;
     b32 hides_buffer;
     struct Mapping *mapping;
      i64 map_id;

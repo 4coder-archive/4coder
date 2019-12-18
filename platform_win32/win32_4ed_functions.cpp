@@ -28,7 +28,7 @@ struct Memory_Annotation_Tracker_Node{
     Memory_Annotation_Tracker_Node *next;
     Memory_Annotation_Tracker_Node *prev;
     String_Const_u8 location;
-    umem size;
+    u64 size;
 };
 
 struct Memory_Annotation_Tracker{
@@ -41,9 +41,9 @@ global Memory_Annotation_Tracker memory_tracker = {};
 global CRITICAL_SECTION memory_tracker_mutex;
 
 internal void*
-win32_memory_allocate_extended(void *base, umem size, String_Const_u8 location){
-    umem adjusted_size = size + 64;
-    void *result = VirtualAlloc(base, adjusted_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+win32_memory_allocate_extended(void *base, u64 size, String_Const_u8 location){
+    u64 adjusted_size = size + 64;
+    void *result = VirtualAlloc(base, (SIZE_T)adjusted_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)result;
     EnterCriticalSection(&memory_tracker_mutex);
     zdll_push_back(memory_tracker.first, memory_tracker.last, node);
@@ -89,7 +89,7 @@ system_memory_set_protection_sig(){
     node -= 1;
     
     DWORD old_protect = 0;
-    b32 result = VirtualProtect(node, size, protect, &old_protect);
+    b32 result = VirtualProtect(node, (SIZE_T)size, protect, &old_protect);
     return(result);
 }
 
@@ -167,13 +167,13 @@ win32_remove_unc_prefix_characters(String_Const_u8 path){
         // ?
 #endif
         path.size -= 7;
-        memmove(path.str, path.str + 7, path.size);
+        block_copy(path.str, path.str + 7, path.size);
         path.str[0] = '\\';
     }
     else if (string_match(string_prefix(path, 4), string_u8_litexpr("\\\\?\\"))){
         // TODO(allen): Same questions essentially.
         path.size -= 4;
-        memmove(path.str, path.str + 4, path.size);
+        block_copy(path.str, path.str + 4, path.size);
     }
     return(path);
 }

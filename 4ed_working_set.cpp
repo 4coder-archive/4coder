@@ -207,7 +207,7 @@ get_file_from_identifier(Working_Set *working_set, Buffer_Identifier buffer){
 
 // TODO(allen): Bring the clipboard fully to the custom side.
 internal String_Const_u8*
-working_set_next_clipboard_string(Heap *heap, Working_Set *working, umem str_size){
+working_set_next_clipboard_string(Heap *heap, Working_Set *working, u64 str_size){
     i32 clipboard_current = working->clipboard_current;
     if (working->clipboard_size == 0){
         clipboard_current = 0;
@@ -276,7 +276,7 @@ internal b32
 get_canon_name(Arena *scratch, String_Const_u8 file_name, Editing_File_Name *canon_name){
     Temp_Memory temp = begin_temp(scratch);
     String_Const_u8 canonical = system_get_canonical(scratch, file_name);
-    umem size = Min(sizeof(canon_name->name_space), canonical.size);
+    u64 size = Min(sizeof(canon_name->name_space), canonical.size);
     block_copy(canon_name->name_space, canonical.str, size);
     canon_name->name_size = size;
     end_temp(temp);
@@ -288,7 +288,7 @@ internal void
 file_bind_file_name(Working_Set *working_set, Editing_File *file, String_Const_u8 canon_file_name){
     Assert(file->unique_name.name_size == 0);
     Assert(file->canon.name_size == 0);
-    umem size = canon_file_name.size;
+    u64 size = canon_file_name.size;
     size = clamp_top(size, sizeof(file->canon.name_space) - 1);
     file->canon.name_size = size;
     block_copy(file->canon.name_space, canon_file_name.str, size);
@@ -323,11 +323,11 @@ buffer_name_has_conflict(Working_Set *working_set, String_Const_u8 base_name){
 
 internal void
 buffer_resolve_name_low_level(Arena *scratch, Working_Set *working_set, Editing_File_Name *name, String_Const_u8 base_name){
-    umem size = base_name.size;
+    u64 size = base_name.size;
     size = clamp_top(size, sizeof(name->name_space));
     block_copy(name->name_space, base_name.str, size);
     String_u8 string = Su8(name->name_space, size, sizeof(name->name_space));
-    umem original_size = string.size;
+    u64 original_size = string.size;
     u64 file_x = 0;
     for (b32 hit_conflict = true; hit_conflict;){
         hit_conflict = buffer_name_has_conflict(working_set, string.string);
@@ -354,14 +354,14 @@ buffer_bind_name_low_level(Arena *scratch, Working_Set *working_set, Editing_Fil
     buffer_resolve_name_low_level(scratch, working_set, &new_name, name);
     
     {
-        umem size = base_name.size;
+        u64 size = base_name.size;
         size = clamp_top(size, sizeof(file->base_name.name_space));
         block_copy(file->base_name.name_space, base_name.str, size);
         file->base_name.name_size = size;
     }
     
     {
-        umem size = new_name.name_size;
+        u64 size = new_name.name_size;
         block_copy(file->unique_name.name_space, new_name.name_space, size);
         file->unique_name.name_size = size;
     }
@@ -431,7 +431,7 @@ buffer_bind_name(Thread_Context *tctx, Models *models, Arena *scratch, Working_S
             if (i > 0){
                 b = string_from_file_name(&file_ptr->unique_name);
             }
-            umem unique_name_capacity = 256;
+            u64 unique_name_capacity = 256;
             u8 *unique_name_buffer = push_array(scratch, u8, unique_name_capacity);
             Assert(b.size <= unique_name_capacity);
             block_copy(unique_name_buffer, b.str, b.size);

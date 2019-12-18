@@ -35,7 +35,7 @@ struct Memory_Annotation_Node{
     Memory_Annotation_Node *next;
     String_Const_u8 location;
     void *address;
-    umem size;
+    u64 size;
 };
 
 struct Memory_Annotation{

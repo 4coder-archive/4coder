@@ -49,7 +49,7 @@ typedef struct OSX_Objective_C_Vars{
     b32 just_posted_to_clipboard;
     
     char *clipboard_space;
-    umem clipboard_space_max;
+    u64 clipboard_space_max;
     
     b32 full_screen;
     b32 do_toggle;
@@ -73,10 +73,10 @@ typedef struct OSX_Font_Match{
 extern OSX_Objective_C_Vars osx_objc;
 
 external void*
-osx_allocate(umem size);
+osx_allocate(u64 size);
 
 external void
-osx_free(void *ptr, umem size);
+osx_free(void *ptr, u64 size);
 
 external void
 osx_resize(int width, int height);

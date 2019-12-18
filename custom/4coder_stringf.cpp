@@ -16,7 +16,7 @@ push_stringfv(Arena *arena, char *format, va_list args){
     va_copy(args2, args);
     i32 size = vsnprintf(0, 0, format, args);
     String_Const_char result = string_const_char_push(arena, size + 1);
-    vsnprintf(result.str, result.size, format, args2);
+    vsnprintf(result.str, (size_t)result.size, format, args2);
     result.size -= 1;
     result.str[result.size] = 0;
     return(result);
@@ -45,8 +45,8 @@ push_u8_stringf(Arena *arena, char *format, ...){
 static void
 string_list_pushfv(Arena *arena, List_String_Const_char *list, char *format, va_list args){
     String_Const_char string = push_stringfv(arena, format, args);
-    if (arena->alignment < sizeof(umem)){
-        push_align(arena, sizeof(umem));
+    if (arena->alignment < sizeof(u64)){
+        push_align(arena, sizeof(u64));
     }
     string_list_push(arena, list, string);
 }
@@ -60,8 +60,8 @@ string_list_pushf(Arena *arena, List_String_Const_char *list, char *format, ...)
 static void
 string_list_pushfv(Arena *arena, List_String_Const_u8 *list, char *format, va_list args){
     String_Const_u8 string = push_u8_stringfv(arena, format, args);
-    if (arena->alignment < sizeof(umem)){
-        push_align(arena, sizeof(umem));
+    if (arena->alignment < sizeof(u64)){
+        push_align(arena, sizeof(u64));
     }
     string_list_push(arena, list, string);
 }

@@ -278,7 +278,7 @@ CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
         Query_Bar_Group group(app);
         Query_Bar bar = {};
         bar.prompt = string_u8_litexpr("How Many Slots To Paste: ");
-        bar.string = SCu8(string_space, (umem)0);
+        bar.string = SCu8(string_space, (u64)0);
         bar.string_capacity = sizeof(string_space);
         query_user_number(app, &bar);
         

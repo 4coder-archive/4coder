@@ -106,14 +106,14 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     Scratch_Block scratch(app);
     
     Sticky_Jump_Array jumps = parse_buffer_to_jump_array(app, scratch, buffer);
-    Range_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch, &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps), jumps.count);
+    Range_i32_Array buffer_ranges = get_ranges_of_duplicate_keys(scratch, &jumps.jumps->jump_buffer_id, sizeof(*jumps.jumps), jumps.count);
     Sort_Pair_i32 *range_index_buffer_id_pairs = push_array(scratch, Sort_Pair_i32, buffer_ranges.count);
     for (i32 i = 0; i < buffer_ranges.count; i += 1){
         range_index_buffer_id_pairs[i].index = i;
         range_index_buffer_id_pairs[i].key = jumps.jumps[buffer_ranges.ranges[i].first].jump_buffer_id;
     }
     sort_pairs_by_key(range_index_buffer_id_pairs, buffer_ranges.count);
-    Range_Array scoped_buffer_ranges = get_ranges_of_duplicate_keys(scratch,
+    Range_i32_Array scoped_buffer_ranges = get_ranges_of_duplicate_keys(scratch,
                                                                     &range_index_buffer_id_pairs->key,
                                                                     sizeof(*range_index_buffer_id_pairs),
                                                                     buffer_ranges.count);
@@ -124,14 +124,14 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     scope_array[0] = buffer_get_managed_scope(app, buffer);
     
     for (i32 i = 0; i < scoped_buffer_ranges.count; i += 1){
-        Range buffer_range_indices = scoped_buffer_ranges.ranges[i];
+        Range_i32 buffer_range_indices = scoped_buffer_ranges.ranges[i];
         
         u32 total_jump_count = 0;
         for (i32 j = buffer_range_indices.first;
              j < buffer_range_indices.one_past_last;
              j += 1){
             i32 range_index = range_index_buffer_id_pairs[j].index;
-            Range range = buffer_ranges.ranges[range_index];
+            Range_i32 range = buffer_ranges.ranges[range_index];
             total_jump_count += range_size(range);
         }
         
@@ -143,7 +143,7 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
              j < buffer_range_indices.one_past_last;
              j += 1){
             i32 range_index = range_index_buffer_id_pairs[j].index;
-            Range range = buffer_ranges.ranges[range_index];
+            Range_i32 range = buffer_ranges.ranges[range_index];
             if (target_buffer_id == 0){
                 target_buffer_id = jumps.jumps[range.first].jump_buffer_id;
             }
