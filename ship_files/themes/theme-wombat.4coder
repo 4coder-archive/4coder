@@ -31,7 +31,7 @@ defcolor_paste = defcolor_ghost_character;
 
 defcolor_undo = defcolor_keyword;
 
-defcolor_highlight_junk = 0xFF73186e;
+defcolor_highlight_junk = 0xFF7b1c6e;
 defcolor_highlight_white = 0xFF3e3969;
 
 defcolor_bar = 0xFF888888;

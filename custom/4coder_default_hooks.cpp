@@ -16,6 +16,7 @@ CUSTOM_DOC("Default command for responding to a startup event")
         if (global_config.automatically_load_project){
             load_project(app);
         }
+        load_themes_default_folder(app);
     }
 }
 

@@ -773,10 +773,6 @@ union Rect_f32{
     Vec2_f32 p[2];
 };
 
-typedef Vec2_f32 Vec2;
-typedef Vec3_f32 Vec3;
-typedef Vec4_f32 Vec4;
-
 union Rect_f32_Pair{
     struct{
         Rect_f32 a;

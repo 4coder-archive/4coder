@@ -180,8 +180,10 @@ CUSTOM_DOC("Prompts the user to select a Custom API item then loads a doc buffer
         Scratch_Block scratch(app);
         Doc_Cluster *docs = get_custom_layer_boundary_docs(app, scratch);
         Doc_Page *page = get_doc_page_from_user(app, docs, "Doc Page:");
-        Buffer_ID buffer = render_doc_page(app, page);
-        view_set_buffer(app, view, buffer, 0);
+		if (page != 0){
+            Buffer_ID buffer = render_doc_page(app, page);
+            view_set_buffer(app, view, buffer, 0);
+        }
     }
 }
 

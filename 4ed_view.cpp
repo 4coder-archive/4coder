@@ -147,7 +147,7 @@ view_get_buffer_rect(Thread_Context *tctx, Models *models, View *view){
     Rect_f32 region = Rf32(view->panel->rect_full);
     if (models->buffer_region != 0){
         Rect_f32 rect = region;
-        Rect_f32 sub_region = Rf32(V2(0, 0), rect_dim(rect));
+        Rect_f32 sub_region = Rf32(V2f32(0, 0), rect_dim(rect));
         Application_Links app = {};
         app.tctx = tctx;
         app.cmd_context = models;

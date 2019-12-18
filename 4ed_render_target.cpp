@@ -216,8 +216,8 @@ draw_font_glyph(Render_Target *target, Face *face, u32 codepoint, Vec2_f32 p,
 
 ////////////////////////////////
 
-internal Vec2
-floor32(Vec2 point){
+internal Vec2_f32
+floor32(Vec2_f32 point){
     point.x = f32_floor32(point.x);
     point.y = f32_floor32(point.y);
     return(point);
@@ -276,7 +276,7 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2_f32 
                         cs[1] = ch;
                         cs[2] = cl;
                         
-                        Vec2 pp = point;
+                        Vec2_f32 pp = point;
                         for (u32 j = 0; j < 3; ++j){
                             draw_font_glyph(target, face, cs[j], pp, color, flags);
                             pp += delta*byte_sub_advances[j];
@@ -293,30 +293,28 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2_f32 
 }
 
 internal f32
-draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2 point, u32 color){
-    return(draw_string(target, face, string, point, color, 0, V2(1.f, 0.f)));
+draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2_f32 point, u32 color){
+    return(draw_string(target, face, string, point, color, 0, V2f32(1.f, 0.f)));
 }
 
 internal f32
-draw_string(Render_Target *target, Face *face, u8 *str, Vec2 point,
-            u32 color, u32 flags, Vec2 delta){
+draw_string(Render_Target *target, Face *face, u8 *str, Vec2_f32 point, u32 color, u32 flags, Vec2_f32 delta){
     return(draw_string(target, face, SCu8(str), point, color, flags, delta));
 }
 
 internal f32
-draw_string(Render_Target *target, Face *face, u8 *str, Vec2 point,
-            u32 color){
-    return(draw_string(target, face, SCu8(str), point, color, 0, V2(1.f, 0.f)));
+draw_string(Render_Target *target, Face *face, u8 *str, Vec2_f32 point, u32 color){
+    return(draw_string(target, face, SCu8(str), point, color, 0, V2f32(1.f, 0.f)));
 }
 
 internal f32
 font_string_width(Render_Target *target, Face *face, String_Const_u8 str){
-    return(draw_string(target, face, str, V2(0, 0), 0, 0, V2(0, 0)));
+    return(draw_string(target, face, str, V2f32(0, 0), 0, 0, V2f32(0, 0)));
 }
 
 internal f32
 font_string_width(Render_Target *target, Face *face, u8 *str){
-    return(draw_string(target, face, SCu8(str), V2(0, 0), 0, 0, V2(0, 0)));
+    return(draw_string(target, face, SCu8(str), V2f32(0, 0), 0, 0, V2f32(0, 0)));
 }
 
 // BOTTOM

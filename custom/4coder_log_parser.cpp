@@ -865,7 +865,7 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                     
                     Vec2_f32 right_p = V2f32(box_inner.x1 - 3.f, y_cursor);
                     f32 width = get_fancy_line_width(app, log_graph.face_id, &line);
-                    Vec2 p = V2f32(right_p.x - width, right_p.y);
+                    Vec2_f32 p = V2f32(right_p.x - width, right_p.y);
                     draw_fancy_line(app, log_graph.face_id, fcolor_zero(), &line, p);
                 }
                 
@@ -881,7 +881,7 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                         
                         Vec2_f32 right_p = V2f32(box_inner.x1 - 3.f, y_cursor);
                         f32 width = get_fancy_line_width(app, log_graph.face_id, &line);
-                        Vec2 p = V2f32(right_p.x - width, right_p.y);
+                        Vec2_f32 p = V2f32(right_p.x - width, right_p.y);
                         draw_fancy_line(app, log_graph.face_id, fcolor_zero(),
                                         &line, p);
                         

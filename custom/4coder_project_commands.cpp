@@ -106,8 +106,7 @@ open_files_pattern_match__recursive(Application_Links *app, String_Const_u8 path
             String_Const_u8 new_path = push_u8_stringf(scratch, "%.*s%.*s/",
                                                        string_expand(path),
                                                        string_expand(file_name));
-            open_files_pattern_match__recursive(app, new_path,
-                                                whitelist, blacklist, flags);
+            open_files_pattern_match__recursive(app, new_path, whitelist, blacklist, flags);
         }
         else{
             if (!match_in_pattern_array(file_name, whitelist)){

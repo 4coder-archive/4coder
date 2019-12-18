@@ -34,7 +34,7 @@ get_margin_color(i32 level){
 
 function Vec2_f32
 draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec2_f32 p, ARGB_Color color){
-    return(draw_string_oriented(app, font_id, color, string, p, 0, V2(1.f, 0.f)));
+    return(draw_string_oriented(app, font_id, color, string, p, 0, V2f32(1.f, 0.f)));
 }
 
 function Vec2_f32
@@ -321,7 +321,7 @@ draw_file_bar(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID
         push_fancy_string(scratch, &list, pop2_color, str.string);
     }
     
-    Vec2 p = bar.p0 + V2(2.f, 2.f);
+    Vec2_f32 p = bar.p0 + V2f32(2.f, 2.f);
     draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
 }
 
@@ -331,7 +331,7 @@ draw_query_bar(Application_Links *app, Query_Bar *query_bar, Face_ID face_id, Re
     Fancy_Line list = {};
     push_fancy_string(scratch, &list, fcolor_id(defcolor_pop1)        , query_bar->prompt);
     push_fancy_string(scratch, &list, fcolor_id(defcolor_text_default), query_bar->string);
-    Vec2_f32 p = bar.p0 + V2(2.f, 2.f);
+    Vec2_f32 p = bar.p0 + V2f32(2.f, 2.f);
     draw_fancy_line(app, face_id, fcolor_zero(), &list, p);
 }
 
