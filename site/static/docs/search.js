@@ -1,10 +1,21 @@
 const menu_id = "docs_menu";
 const filter_id = "search_input";
+var last_active_hash = "";
 
 window.onload = function()
 {
-	UpdateActiveDoc(window.location.hash.substr(1));
+	let new_hash = window.location.hash.substr(1);
+	UpdateActiveDoc(last_active_hash, new_hash);
+	last_active_hash = new_hash;
+	UpdateListByFilter();
 };
+
+window.onhashchange = function()
+{
+	let new_hash = window.location.hash.substr(1);
+	UpdateActiveDoc(last_active_hash, new_hash);
+	last_active_hash = new_hash;
+}
 
 function StringMatch4coderFuzzy(a, b)
 {
@@ -30,27 +41,7 @@ function StringMatch4coderFuzzy(a, b)
 	return match;
 }
 
-function SearchKeyDown(event)
-{
-	if(event.keyCode == 13)
-	{
-		event.preventDefault();
-		let ul = document.getElementById(menu_id);
-		let li = ul.getElementsByTagName("li");
-
-		for (let i = 0; i < li.length; i++)
-		{
-			if(li[i].style.display == "")
-			{
-				UpdateActiveDoc(li[i].getElementsByTagName("a")[0].innerHTML);
-	    		window.location.hash = li[i].getElementsByTagName("a")[0].innerHTML;
-	    		break;
-			}
-		}
-	}
-}
-
-function SearchKeyUp(event)
+function UpdateListByFilter()
 {
 	let ul = document.getElementById(menu_id);
 	let li = ul.getElementsByTagName("li");
@@ -77,14 +68,41 @@ function SearchKeyUp(event)
 	}
 }
 
-function UpdateActiveDoc(name)
+function SearchInput(event)
 {
-	let active_hash = window.location.hash.substr(1);
-	let new_hash = name;
-	if(active_hash.length > 0)
+	UpdateListByFilter();
+}
+
+function SearchKeyDown(event)
+{
+	if(event.keyCode == 13)
 	{
-		document.getElementById(active_hash).classList.add("hidden");
+		event.preventDefault();
+		let ul = document.getElementById(menu_id);
+		let li = ul.getElementsByTagName("li");
+
+		for (let i = 0; i < li.length; i++)
+		{
+			if(li[i].style.display == "")
+			{
+				let new_hash = li[i].getElementsByTagName("a")[0].innerHTML;
+				UpdateActiveDoc(last_active_hash, new_hash);
+	    		window.location.hash = new_hash;
+	    		break;
+			}
+		}
 	}
-	document.getElementById(new_hash).classList.remove("hidden");
+}
+
+function UpdateActiveDoc(old_hash, new_hash)
+{
+	if(old_hash != null && old_hash != undefined && old_hash.length > 0)
+	{
+		document.getElementById(old_hash).classList.add("hidden");
+	}
+	if(new_hash != null && new_hash != undefined && new_hash.length > 0)
+	{
+		document.getElementById(new_hash).classList.remove("hidden");
+	}
 	document.getElementById(filter_id).focus();
 }
