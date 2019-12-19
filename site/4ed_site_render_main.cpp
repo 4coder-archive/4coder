@@ -339,7 +339,7 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
             fprintf(file_index, "<h1>%.*s Index</h1>\n", string_expand(cluster->title));
             fprintf(file_index, "<div class=\"spacer\"></div>\n");
             
-            fprintf(file_index, "<input autofocus class=\"filter_box\" type=\"text\" id=\"search_input\" onkeyup=\"SearchKeyUp(event)\" onkeydown=\"SearchKeyDown(event)\""
+            fprintf(file_index, "<input autofocus class=\"filter_box\" type=\"text\" id=\"search_input\" oninput=\"SearchInput(event)\" onkeydown=\"SearchKeyDown(event)\""
                         "placeholder=\"Filter...\" title=\"Filter...\">");
     fprintf(file_index, "<div class=\"spacer\"></div>\n");
     
@@ -348,7 +348,7 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
     fprintf(file_index, "<ul class=\"docs_menu\" id=\"docs_menu\">\n");
     for (i32 i = 0; i < counter; i += 1){
         Doc_Page *node = ptrs[i];
-                fprintf(file_index, "<li><a onclick=\"UpdateActiveDoc(this.innerHTML)\" href=\"#%.*s\">%.*s</a></li>",
+                fprintf(file_index, "<li><a href=\"#%.*s\">%.*s</a></li>",
                 string_expand(node->name),
                 string_expand(node->name));
     }

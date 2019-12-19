@@ -138,14 +138,20 @@ table.normal td {
 }
 
 .sidebar {
-	position: absolute;
 	background: #0C0C0C;
 	border-right: 1px solid #90B080;
 	border-bottom: 1px solid #90B080;
-	width: 20rem;
+	width: 24rem;
 	padding: 2em 2em 2em 2em;
 	display: inline-block;
 	float: left;
+	position: fixed;
+	height: 100%;
+	overflow-y: scroll;
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	-o-box-sizing: border-box;
+	box-sizing: border-box;
 }
 
 .docs_menu {
@@ -190,9 +196,15 @@ table.normal td {
 	.sidebar {
 		position: relative;
 		width: calc(100% - 5em);
+		height: auto;
         display: block;
 		margin-bottom: 2em;
 		border: none;
+		box-sizing: content-box;
+		-webkit-box-sizing: content-box;
+		-moz-box-sizing: content-box;
+		-o-box-sizing: content-box;
+		overflow-y: auto;
 	}
 
 	.api_page_preview {
