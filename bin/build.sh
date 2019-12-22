@@ -4,7 +4,8 @@
 set -e
 
 # Set up directories (mirrors build.bat)
-ME="$(readlink -f "$0")"
+# NOTE(yuval): Temporary fix that works only for macOS
+ME="$(greadlink -f "$0")"
 LOCATION="$(dirname "$ME")"
 SRC_ROOT="$(dirname "$LOCATION")"
 PROJECT_ROOT="$(dirname "$SRC_ROOT")"
@@ -29,7 +30,7 @@ os=$("$BIN_ROOT/detect_os.sh")
 if [[ "$os" == "linux" ]]; then
 WARNINGS="-Wno-write-strings -Wno-comment"
 elif [[ "$os" == "mac" ]]; then
-WARNINGS="-Wno-write-strings -Wno-comment -Wno-logical-op-parentheses -Wno-null-dereference -Wno-switch"
+WARNINGS="-Wno-write-strings -Wno-comment -Wno-null-dereference -Wno-switch"
 fi
 
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"

@@ -1727,7 +1727,7 @@ Ii32_size(i32 pos, i32 size){
 function Range_i64
 Ii64_size(i64 pos, i64 size){
     return(Ii64(pos, pos + size));
-} 
+}
 function Range_u64
 Iu64_size(u64 pos, u64 size){
     return(Iu64(pos, pos + size));
@@ -2978,7 +2978,7 @@ make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
 }
 function Data
 base_allocate__inner(Base_Allocator *allocator, u64 size, String_Const_u8 location){
-     u64 full_size = 0;
+    u64 full_size = 0;
     void *memory = allocator->reserve(allocator->user_data, size, &full_size, location);
     allocator->commit(allocator->user_data, memory, full_size);
     return(make_data(memory, (u64)full_size));
@@ -5281,7 +5281,7 @@ push_string_copy(Arena *arena, u64 size, String_Const_Any src){
     return(string);
 }
 
- function String_Const_u8_Array
+function String_Const_u8_Array
 push_string_array_copy(Arena *arena, String_Const_u8_Array src){
     String_Const_u8_Array result = {};
     result.vals = push_array(arena, String_Const_u8, src.count);
@@ -6943,10 +6943,10 @@ global_const u8 integer_symbol_reverse[128] = {
 
 global_const u8 base64[64] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
     '_', '$',
 };
 

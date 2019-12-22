@@ -245,7 +245,7 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
 (X) = X
 X Y = X and then Y
 X? = zero or one X
-$X = check for X but don't consume
+$X = check for X but dont consume // NOTE(yuval): Removed apostrophe as it was causing a warning when compiling with gcc
 [X] = zero or more Xs
 X | Y = either X or Y
 * = anything that does not match previous options in a X | Y | ... chain
@@ -368,9 +368,9 @@ cpp_parse_function(Code_Index_File *index, Generic_Parse_State *state, Code_Inde
             }
             
             if (peek->kind == TokenBaseKind_ParentheticalOpen ||
-                     peek->kind == TokenBaseKind_ScopeOpen ||
-                     peek->kind == TokenBaseKind_ScopeClose ||
-                     peek->kind == TokenBaseKind_StatementClose){
+                peek->kind == TokenBaseKind_ScopeOpen ||
+                peek->kind == TokenBaseKind_ScopeClose ||
+                peek->kind == TokenBaseKind_StatementClose){
                 break;
             }
             if (peek->kind == TokenBaseKind_ParentheticalClose){
@@ -386,7 +386,7 @@ cpp_parse_function(Code_Index_File *index, Generic_Parse_State *state, Code_Inde
             if (peek != 0 &&
                 peek->kind == TokenBaseKind_ScopeOpen ||
                 peek->kind == TokenBaseKind_StatementClose){
-        index_new_note(index, state, Ii64(token), CodeIndexNote_Function, parent);
+                index_new_note(index, state, Ii64(token), CodeIndexNote_Function, parent);
             }
         }
     }

@@ -35,7 +35,8 @@ done
 PHYS_DIR=`pwd -P`
 SOURCE=$PHYS_DIR/$TARGET_FILE
 
-opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings -g"
+# NOTE(yuval): Removed -Wno-writable-strings as it is the same as -Wno-write-strings
+opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -g"
 arch=-m32
 
 cd "$REAL_PWD"
