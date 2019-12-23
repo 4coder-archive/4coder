@@ -4728,9 +4728,10 @@ string_find_first(String_Const_char str, String_Const_char needle, String_Match_
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+            char c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_char source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
@@ -4751,9 +4752,10 @@ string_find_first(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+             u8 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_u8 source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
@@ -4774,9 +4776,10 @@ string_find_first(String_Const_u16 str, String_Const_u16 needle, String_Match_Ru
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+             u16 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_u16 source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
@@ -4797,9 +4800,10 @@ string_find_first(String_Const_u32 str, String_Const_u32 needle, String_Match_Ru
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+         u32 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_u32 source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
