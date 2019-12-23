@@ -4,8 +4,8 @@
 set -e
 
 # Set up directories (mirrors build.bat)
-# NOTE(yuval): Temporary fix that works only for macOS
-ME="$(greadlink -f "$0")"
+# NOTE(yuval): Replaced readlink with realpath which works for both macOS and Linux
+ME="$(realpath "$0")"
 LOCATION="$(dirname "$ME")"
 SRC_ROOT="$(dirname "$LOCATION")"
 PROJECT_ROOT="$(dirname "$SRC_ROOT")"

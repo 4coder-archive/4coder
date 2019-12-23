@@ -4,7 +4,7 @@
 set -e
 
 # Store the real CWD
-ME="$(readlink -f "$0")"
+ME="$(realpath "$0")"
 LOCATION="$(dirname "$ME")"
 CODE_HOME="$(dirname "$LOCATION")"
 
