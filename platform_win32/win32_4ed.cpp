@@ -335,7 +335,7 @@ system_set_fullscreen_sig(){
 
 internal
 system_is_fullscreen_sig(){
-    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the 
+    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the
     // next frame. That is, take into account all fullscreen toggle requests that have come in
     // already this frame. Read: "full_screen XOR do_toggle"
     b32 result = (win32vars.full_screen != win32vars.do_toggle);
