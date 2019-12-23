@@ -287,18 +287,13 @@ gl_render(Render_Target *t){
          group = group->next){
         Rect_i32 box = Ri32(group->clip_box);
 
-		Rect_i32 scissor_box =
-		{
+		Rect_i32 scissor_box = {
 			box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0,
 		};
-		if (scissor_box.x1 < 0)
-		{
-			scissor_box.x1 = 0;
-		}
-		if (scissor_box.y1 < 0)
-		{
-			scissor_box.y1 = 0;
-		}
+        scissor_box.x0 = clamp_bot(0, scissor_box.x0);
+        scissor_box.y0 = clamp_bot(0, scissor_box.y0);
+        scissor_box.x1 = clamp_bot(0, scissor_box.x1);
+        scissor_box.y1 = clamp_bot(0, scissor_box.y1);
         glScissor(scissor_box.x0, scissor_box.y0, scissor_box.x1, scissor_box.y1);
         
         i32 vertex_count = group->vertex_list.vertex_count;
