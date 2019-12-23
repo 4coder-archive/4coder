@@ -157,12 +157,35 @@ set_default_color_scheme(Application_Links *app){
 ////////////////////////////////
 
 function void
+set_active_color(Color_Table *table){
+    if (table != 0){
+        active_color_table = *table;
+    }
+}
+
+function void
 save_theme(Color_Table table, String_Const_u8 name){
     Color_Table_Node *node = push_array(&global_theme_arena, Color_Table_Node, 1);
     sll_queue_push(global_theme_list.first, global_theme_list.last, node);
     global_theme_list.count += 1;
     node->name = push_string_copy(&global_theme_arena, name);
     node->table = table;
+}
+
+////////////////////////////////
+
+function Color_Table*
+get_color_table_by_name(String_Const_u8 name){
+    Color_Table *result = 0;
+    for (Color_Table_Node *node = global_theme_list.first;
+         node != 0;
+         node = node->next){
+        if (string_match(node->name, name)){
+            result = &node->table;
+            break;
+        }
+    }
+    return(result);
 }
 
 // BOTTOM

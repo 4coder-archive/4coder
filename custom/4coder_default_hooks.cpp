@@ -11,12 +11,12 @@ CUSTOM_DOC("Default command for responding to a startup event")
     User_Input input = get_current_input(app);
     if (match_core_code(&input, CoreCode_Startup)){
         String_Const_u8_Array file_names = input.event.core.file_names;
+        load_themes_default_folder(app);
         default_4coder_initialize(app, file_names);
         default_4coder_side_by_side_panels(app, file_names);
         if (global_config.automatically_load_project){
             load_project(app);
         }
-        load_themes_default_folder(app);
     }
 }
 
@@ -932,8 +932,44 @@ BUFFER_HOOK_SIG(default_begin_buffer){
 }
 
 BUFFER_HOOK_SIG(default_new_file){
-    // buffer_id
-    // no meaning for return
+    Scratch_Block scratch(app);
+    String_Const_u8 file_name = push_buffer_base_name(app, scratch, buffer_id);
+    if (!string_match(string_postfix(file_name, 2), string_u8_litexpr(".h"))) {
+        return(0);
+    }
+    
+    List_String_Const_u8 guard_list = {};
+    for (u64 i = 0; i < file_name.size; ++i){
+        u8 c[2] = {};
+        u64 c_size = 1;
+        u8 ch = file_name.str[i];
+        if (ch == '.'){
+            c[0] = '_';
+        }
+        else if (ch >= 'A' && ch <= 'Z'){
+            c_size = 2;
+            c[0] = '_';
+            c[1] = ch;
+        }
+        else if (ch >= 'a' && ch <= 'z'){
+            c[0] = ch - ('a' - 'A');
+        }
+        String_Const_u8 part = push_string_copy(scratch, SCu8(c, c_size));
+        string_list_push(scratch, &guard_list, part);
+    }
+    String_Const_u8 guard = string_list_flatten(scratch, guard_list);
+    
+    Buffer_Insertion insert = begin_buffer_insertion_at_buffered(app, buffer_id, 0, scratch, KB(16));
+    insertf(&insert,
+            "#ifndef %.*s\n"
+            "#define %.*s\n"
+            "\n"
+            "#endif //%.*s\n",
+            string_expand(guard),
+            string_expand(guard),
+            string_expand(guard));
+    end_buffer_insertion(&insert);
+    
     return(0);
 }
 

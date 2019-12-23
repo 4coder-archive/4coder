@@ -1555,11 +1555,9 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     change_mode(app, config->mode);
     global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
     
-    // TODO(allen): 
-#if 0    
-    change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
-    #endif
-
+    Color_Table *colors = get_color_table_by_name(config->default_theme_name);
+    set_active_color(colors);
+    
     Face_Description description = {};
     if (override_font_size != 0){
         description.parameters.pt_size = override_font_size;
