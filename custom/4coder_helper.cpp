@@ -788,7 +788,7 @@ enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range,
         range.min = new_min;
     }
     i64 new_max       = func(app, buffer, Side_Max, Scan_Forward, range.max - 1);
-    i64 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max - 1);
+    i64 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max);
     if (new_max_check >= new_max && new_max > range.max){
         range.max = new_max;
     }
@@ -1897,7 +1897,7 @@ push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buf
     String_Const_u8 result = {};
     Token *token = get_token_from_pos(app, buffer, pos);
     if (token != 0 && token->size > 0 && token->kind != TokenBaseKind_Whitespace){
-        Range_i64 range = Ii64(token->pos, token->pos + token->size);
+        Range_i64 range = Ii64(token);
         result = push_buffer_range(app, arena, buffer, range);
     }
     return(result);
