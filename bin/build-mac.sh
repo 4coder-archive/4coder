@@ -4,7 +4,8 @@
 set -e
 
 # Set up directories (mirrors build.bat)
-ME="$(readlink -f "$0")"
+# NOTE(yuval): Replaced readlink with realpath which works for both macOS and Linux
+ME="$(realpath "$0")"
 LOCATION="$(dirname "$ME")"
 SRC_ROOT="$(dirname "$LOCATION")"
 PROJECT_ROOT="$(dirname "$SRC_ROOT")"
@@ -29,14 +30,14 @@ os=$("$BIN_ROOT/detect_os.sh")
 if [[ "$os" == "linux" ]]; then
 WARNINGS="-Wno-write-strings -Wno-comment"
 elif [[ "$os" == "mac" ]]; then
-WARNINGS="-Wno-write-strings -Wno-comment -Wno-logical-op-parentheses -Wno-null-dereference -Wno-switch"
+WARNINGS="-Wno-write-strings -Wno-comment -Wno-null-dereference -Wno-switch"
 fi
 
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"
 INCLUDES="-I$SRC_ROOT -I$CUSTOM_ROOT"
 
 # Execute
-g++ $WARNINGS $FLAGS $INCLUDES "$BIN_ROOT/4ed_build.cpp" -g -o "$BUILD_ROOT/build"
+clang++ $WARNINGS $FLAGS $INCLUDES "$BIN_ROOT/4ed_build.cpp" -g -o "$BUILD_ROOT/build"
 pushd "$SRC_ROOT"
 "$BUILD_ROOT/build"
 popd

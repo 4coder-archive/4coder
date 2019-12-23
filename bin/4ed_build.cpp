@@ -90,7 +90,7 @@ char *includes[] = { "custom", FOREIGN "/freetype2", 0, };
 
 char *windows_platform_layer[] = { "platform_win32/win32_4ed.cpp", 0 };
 char *linux_platform_layer[] = { "platform_linux/linux_4ed.cpp", 0 };
-char *mac_platform_layer[] = { "platform_mac/mac_4ed.m", "platform_mac/mac_4ed.cpp", 0 };
+char *mac_platform_layer[] = { "platform_mac/mac_4ed_old.m", 0 };
 
 char **platform_layers[Platform_COUNT] = {
     windows_platform_layer,
@@ -387,6 +387,7 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     fm_finish_build_line(&line);
     
     Temp_Dir temp = fm_pushdir(out_path);
+    printf("Build: g++ %s -o %s\n", line.build_options, out_file);
     systemf("g++ %s -o %s", line.build_options, out_file);
     fm_popdir(temp);
 }

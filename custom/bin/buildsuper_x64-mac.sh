@@ -4,7 +4,7 @@
 set -e
 
 # Store the real CWD
-ME="$(readlink -f "$0")"
+ME="$(realpath "$0")"
 LOCATION="$(dirname "$ME")"
 CODE_HOME="$(dirname "$LOCATION")"
 
@@ -14,7 +14,8 @@ if [ -z "$SOURCE" ]; then
     SOURCE="$(readlink -f "$CODE_HOME/4coder_default_bindings.cpp")"
 fi
 
-opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings -g"
+# NOTE(yuval): Removed -Wno-writable-strings as it is the same as -Wno-write-strings
+opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -g"
 arch=-m64
 
 preproc_file=4coder_command_metadata.i
