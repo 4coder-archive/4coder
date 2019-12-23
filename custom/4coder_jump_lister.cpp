@@ -59,9 +59,10 @@ jump_to_jump_lister_result(Application_Links *app, View_ID view,
 CUSTOM_COMMAND_SIG(view_jump_list_with_lister)
 CUSTOM_DOC("When executed on a buffer with jumps, creates a persistent lister for all the jumps")
 {
+    Heap *heap = &global_heap;
     View_ID view = get_active_view(app, Access_Always);
     Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-    Marker_List *list = get_marker_list_for_buffer(buffer);
+    Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
     if (list != 0){
         Jump_Lister_Result jump = get_jump_index_from_user(app, list, "Jump:");
         jump_to_jump_lister_result(app, view, list, &jump);

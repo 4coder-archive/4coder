@@ -123,7 +123,7 @@ set_default_color_scheme(Application_Links *app){
     default_color_table.arrays[defcolor_list_item] = make_colors(arena, 0xFF181818);
     default_color_table.arrays[defcolor_list_item_hover] = make_colors(arena, 0xFF252525);
     default_color_table.arrays[defcolor_list_item_active] = make_colors(arena, 0xFF323232);
-    default_color_table.arrays[defcolor_cursor] = make_colors(arena, 0xFF00EE00);
+    default_color_table.arrays[defcolor_cursor] = make_colors(arena, 0xFF00EE00, 0xFFEE7700);
     default_color_table.arrays[defcolor_at_cursor] = make_colors(arena, 0xFF0C0C0C);
     default_color_table.arrays[defcolor_highlight_cursor_line] = make_colors(arena, 0xFF1E1E1E);
     default_color_table.arrays[defcolor_highlight] = make_colors(arena, 0xFFDDEE00);
