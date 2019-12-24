@@ -453,7 +453,7 @@ buffer_line_y_difference(Application_Links *app, Buffer_ID buffer_id,
                          i64 line_a, i64 line_b){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    f32 result = {};
+    f32 result = 0.0f;
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
@@ -527,7 +527,7 @@ buffer_relative_character_from_pos(Application_Links *app, Buffer_ID buffer_id,
 {
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    i64 result = {};
+    i64 result = 0;
     if (api_check_buffer(file)){
         Face *face = font_set_face_from_id(&models->font_set, face_id);
         if (face != 0){
@@ -563,7 +563,7 @@ api(custom) function f32
 view_line_y_difference(Application_Links *app, View_ID view_id, i64 line_a, i64 line_b){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    f32 result = {};
+    f32 result = 0.0f;
     if (api_check_view(view)){
         result = view_line_y_difference(app->tctx, models, view, line_a, line_b);
     }
@@ -607,7 +607,7 @@ api(custom) function i64
 view_relative_character_from_pos(Application_Links *app,  View_ID view_id, i64 base_line, i64 pos){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    i64 result = {};
+    i64 result = 0;
     if (api_check_view(view)){
         result = view_relative_character_from_pos(app->tctx, models, view, base_line, pos);
     }
@@ -618,7 +618,7 @@ api(custom) function i64
 view_pos_from_relative_character(Application_Links *app,  View_ID view_id, i64 base_line, i64 character){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
-    i64 result = {};
+    i64 result = 0;
     if (api_check_view(view)){
         result = view_pos_from_relative_character(app->tctx, models, view, base_line, character);
     }
@@ -702,7 +702,7 @@ api(custom) function Dirty_State
 buffer_get_dirty_state(Application_Links *app, Buffer_ID buffer_id){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    Dirty_State result = {};
+    Dirty_State result = 0;
     if (api_check_buffer(file)){
         result = file->state.dirty;
     }
@@ -1680,7 +1680,7 @@ view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Se
 
 // TODO(allen): remove this!
 api(custom) function b32
-view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, 
+view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range,
                ARGB_Color color){
     Models *models = (Models*)app->cmd_context;
     View *view = imp_get_view(models, view_id);
@@ -2390,7 +2390,7 @@ set_global_face(Application_Links *app, Face_ID id)
     b32 result = false;
     Face *face = font_set_face_from_id(&models->font_set, id);
     if (face != 0){
-            models->global_face_id = face->id;
+        models->global_face_id = face->id;
         result = true;
     }
     return(result);
@@ -2796,7 +2796,7 @@ api(custom) function Text_Layout_ID
 text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, Buffer_Point buffer_point){
     Models *models = (Models*)app->cmd_context;
     Editing_File *file = imp_get_file(models, buffer_id);
-    Text_Layout_ID result = {};
+    Text_Layout_ID result = 0;
     if (api_check_buffer(file)){
         Thread_Context *tctx = app->tctx;
         Scratch_Block scratch(tctx);
@@ -2826,10 +2826,10 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
         
         Range_i64 visible_line_number_range = Ii64(buffer_point.line_number, line_number);
         Range_i64 visible_range = Ii64(buffer_get_first_pos_from_line_number(buffer, visible_line_number_range.min),
-                                          buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
+                                       buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
         
         i64 item_count = range_size_inclusive(visible_range);
-         ARGB_Color *colors_array = push_array_zero(arena, ARGB_Color, item_count);
+        ARGB_Color *colors_array = push_array_zero(arena, ARGB_Color, item_count);
         result = text_layout_new(&models->text_layouts, arena, buffer_id, buffer_point,
                                  visible_range, visible_line_number_range, rect, colors_array,
                                  layout_func);
@@ -2944,7 +2944,7 @@ text_layout_character_on_screen(Application_Links *app, Text_Layout_ID layout_id
                     y += line.height;
                 }
                 
-                // TODO(allen): optimization: This is some fairly heavy computation.  We really 
+                // TODO(allen): optimization: This is some fairly heavy computation.  We really
                 // need to accelerate the (pos -> item) lookup within a single
                 // Buffer_Layout_Item_List.
                 b32 is_first_item = true;
@@ -2987,7 +2987,7 @@ paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Range_i64 ran
         range.max = clamp_top(range.max, layout->visible_range.max);
         range.min -= layout->visible_range.min;
         range.max -= layout->visible_range.min;
-         ARGB_Color *color_ptr = layout->item_colors + range.min;
+        ARGB_Color *color_ptr = layout->item_colors + range.min;
         for (i64 i = range.min; i < range.max; i += 1, color_ptr += 1){
             *color_ptr = color;
         }

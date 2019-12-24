@@ -6963,7 +6963,7 @@ global_const u8 base64_reverse[128] = {
 
 function u64
 digit_count_from_integer(u64 x, u32 radix){
-    u64 result = {};
+    u64 result = 0;
     if (radix >= 2 && radix <= 16){
         if (x == 0){
             result = 1;
