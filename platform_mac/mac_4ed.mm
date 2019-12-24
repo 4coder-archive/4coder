@@ -1,5 +1,29 @@
 #include <Cocoa/Cocoa.h>
 
+@interface App_Delegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
+@end
+
+@implementation App_Delegate
+- (void)applicationDidFinishLaunching:(id)sender{
+}
+
+- (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender{
+    return YES;
+}
+
+- (void)applicationWillTerminate:(NSNotification *)notification{
+}
+
+- (NSSize)windowWillResize:(NSWindow*)window toSize:(NSSize)frame_size{
+    // frame_size.height = ((f32)frame_size.width / global_aspect_ratio);
+    return frame_size;
+}
+
+- (void)windowWillClose:(id)sender {
+    // global_running = false;
+}
+@end
+
 int
 main(int arg_count, char **args){
     @autoreleasepool{
