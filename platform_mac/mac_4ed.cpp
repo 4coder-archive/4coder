@@ -1,0 +1,1 @@
+/* Mac C++ layer for 4coder */
