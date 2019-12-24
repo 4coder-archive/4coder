@@ -9,7 +9,6 @@
 
 // TOP
 
-#if 0
 #define IS_OBJC_LAYER
 
 #include "4coder_base_types.h"
@@ -24,8 +23,6 @@
 #define external
 
 #include "osx_objective_c_to_cpp_links.h"
-#endif
-
 
 #include <CoreServices/CoreServices.h>
 #import <Cocoa/Cocoa.h>
@@ -33,7 +30,7 @@
 #import <IOKit/hid/IOHIDLib.h>
 #import <OpenGL/OpenGL.h>
 #import <OpenGL/gl.h>
-#if 0
+
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
@@ -817,9 +814,9 @@ osx_list_loadable_fonts(void){
         NSString *font_n = fonts[i];
         char *font_n_c = (char*)[font_n UTF8String];
         NSFont *font = [font_manager
-                fontWithFamily:font_n
-                traits:NSUnboldFontMask|NSUnitalicFontMask
-                weight:5
+                fontWithFamily:font_n 
+                traits:NSUnboldFontMask|NSUnitalicFontMask 
+                weight:5 
                 size:12];
         NSString *path = get_font_path(font);
         char *path_c = 0;
@@ -843,10 +840,9 @@ OSX_Keyboard_Modifiers
 osx_get_modifiers(void){
     return(osx_mods_nsevent_to_struct([NSEvent modifierFlags]));
 }
-#endif
+
 int
 main(int argc, char **argv){
-#if 0
     memset(&osx_objc, 0, sizeof(osx_objc));
     
     u32 clipboard_size = KB(16);
@@ -891,7 +887,7 @@ main(int argc, char **argv){
         
         [NSApp run];
     }
-#endif
+    
     return(0);
 }
 

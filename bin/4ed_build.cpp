@@ -94,7 +94,7 @@ char *includes[] = { "custom", FOREIGN "/freetype2", 0, };
 
 char *windows_platform_layer[] = { "platform_win32/win32_4ed.cpp", 0 };
 char *linux_platform_layer[] = { "platform_linux/linux_4ed.cpp", 0 };
-char *mac_platform_layer[] = { "platform_mac/mac_4ed.mm", 0 };
+char *mac_platform_layer[] = { "platform_mac/mac_4ed.mm", "platform_mac/mac_4ed.cpp", 0 };
 
 char **platform_layers[Platform_COUNT] = {
     windows_platform_layer,
