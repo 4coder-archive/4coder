@@ -46,10 +46,7 @@ system_get_path_sig(){
 
 function
 system_get_canonical_sig(){
-    String_Const_u8 result = {};
-    
-    NotImplemented;
-    
+    String_Const_u8 result = mac_standardize_path(arena, name);
     return(result);
 }
 
