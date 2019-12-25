@@ -1,6 +1,7 @@
 /* Mac Objective C layer for 4coder */
 
 #include "4coder_base_types.h"
+
 #include "mac_objective_c_to_cpp_links.h"
 
 #undef function
@@ -8,6 +9,13 @@
 #undef global
 #undef external
 #include <Cocoa/Cocoa.h>
+
+#include <libproc.h> // NOTE(yuval): Used for proc_pidpath
+
+#include <sys/types.h>
+#include <unistd.h> // NOTE(yuval): Used for getpid
+
+#define external extern "C"
 
 @interface App_Delegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
 @end
@@ -32,6 +40,14 @@
     // global_running = false;
 }
 @end
+
+external i32
+mac_get_binary_path(void *buffer, u32 size){
+    pid_t pid = getpid();
+    i32 bytes_read = proc_pidpath(pid, buffer, size);
+    
+    return bytes_read;
+}
 
 int
 main(int arg_count, char **args){

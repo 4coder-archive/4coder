@@ -36,6 +36,11 @@
 
 #include "4ed_search_list.cpp"
 
+#include "mac_objective_c_to_cpp_links.h"
+
+#include <stdlib.h>
+#include <unistd.h>
+
 ////////////////////////////////
 
 #define SLASH '\\'
@@ -54,12 +59,14 @@ struct Mac_Vars {
     Thread_Context *tctx;
     
     Arena* frame_arena;
+    
+    String_Const_u8 binary_path;
 };
 
 ////////////////////////////////
 
-Mac_Vars global_mac_vars;
-global Render_Target global_target;
+Mac_Vars mac_vars;
+global Render_Target target;
 
 ////////////////////////////////
 
@@ -75,8 +82,8 @@ mac_init() {
                     get_base_allocator_system(),
                     get_base_allocator_system());
     
-    block_zero_struct(&global_mac_vars);
-    global_mac_vars.tctx = &_tctx;
+    block_zero_struct(&mac_vars);
+    mac_vars.tctx = &_tctx;
     
     API_VTable_system system_vtable = {};
     system_api_fill_vtable(&system_vtable);
@@ -88,6 +95,14 @@ mac_init() {
     font_api_fill_vtable(&font_vtable);
     
     // NOTE(yuval): Memory
-    global_mac_vars.frame_arena = reserve_arena(global_mac_vars.tctx);
-    global_target.arena = make_arena_system(KB(256));
+    mac_vars.frame_arena = reserve_arena(mac_vars.tctx);
+    target.arena = make_arena_system(KB(256));
+    
+#if 0
+    mac_vars.cursor_show = MouseCursorShow_Always;
+    mac_vars.prev_cursor_show = MouseCursorShow_Always;
+    
+    dll_init_sentinel(&mac_vars.free_mac_objects);
+    dll_init_sentinel(&mac_vars.timer_objects);
+#endif
 }

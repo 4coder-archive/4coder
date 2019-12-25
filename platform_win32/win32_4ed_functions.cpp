@@ -444,7 +444,7 @@ color_picker_hook(HWND Window, UINT Message, WPARAM WParam, LPARAM LParam){
             // Would it have killed you to update rgbResult continuously, or at least
             // provide a GetCurrentColor() call???
             //
-            // Anyway, since the color picker doesn't tell us when the color is 
+            // Anyway, since the color picker doesn't tell us when the color is
             // changed, what we do is watch for messages that repaint the color
             // swatch, which is dialog id 0x2c5, and then we sample it to see what
             // color it is. No, I'm not fucking kidding, that's what we do.
@@ -533,7 +533,7 @@ internal
 system_open_color_picker_sig(){
     // TODO(allen): review
     // NOTE(casey): Because this is going to be used by a semi-permanent thread, we need to
-    // copy it to system memory where it can live as long as it wants, no matter what we do 
+    // copy it to system memory where it can live as long as it wants, no matter what we do
     // over here on the 4coder threads.
     Color_Picker *perm = (Color_Picker*)system_memory_allocate(sizeof(Color_Picker), string_u8_litexpr(file_name_line_number));
     *perm = *picker;
