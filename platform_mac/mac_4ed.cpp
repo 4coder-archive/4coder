@@ -48,6 +48,7 @@
 
 #include "4coder_hash_functions.cpp"
 #include "4coder_system_allocator.cpp"
+#include "4coder_malloc_allocator.cpp"
 #include "4coder_codepoint_map.cpp"
 
 #include "4ed_mem.cpp"
@@ -74,8 +75,20 @@ global Render_Target target;
 
 ////////////////////////////////
 
+external String_Const_u8
+mac_SCu8(u8* str, u64 size){
+    String_Const_u8 result = SCu8(str, size);
+    return(result);
+}
+
+external String_Const_u8
+mac_push_string_copy(Arena *arena, String_Const_u8 src){
+    String_Const_u8 result = push_string_copy(arena, src);
+    return(result);
+}
+
 external void
-mac_init() {
+mac_init(){
     // NOTE(yuval): Context Setup
     Thread_Context _tctx = {};
     thread_ctx_init(&_tctx, ThreadKind_Main,

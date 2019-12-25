@@ -47,13 +47,13 @@ mac_standardize_path(Arena* arena, String_Const_u8 path){
         [[NSString alloc] initWithBytes:path.data length:path.size encoding:NSUTF8StringEncoding];
     
     NSString *standardized_path_ns_str = [path_ns_str stringByStandardizingPath];
-    String_Const_u8 standardized_path = SCu8([standardized_path_ns_str UTF8String],[standardized_path_ns_str lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
+    String_Const_u8 standardized_path = mac_SCu8((u8*)[standardized_path_ns_str UTF8String],[standardized_path_ns_str lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
     
-    String_Const_u8 result = push_string_copy(arena, standardized_path);
+    String_Const_u8 result = mac_push_string_copy(arena, standardized_path);
     
-    [path release];
+    [path_ns_str release];
     
-    return result;
+    return(result);
 }
 
 external i32
@@ -61,16 +61,12 @@ mac_get_binary_path(void *buffer, u32 size){
     pid_t pid = getpid();
     i32 bytes_read = proc_pidpath(pid, buffer, size);
     
-    return bytes_read;
+    return(bytes_read);
 }
 
 int
 main(int arg_count, char **args){
     @autoreleasepool{
-        NSFileManager *fileManager = [[NSFileManager alloc] init];
-        NSString *displayNameAtPath = [fileManager displayNameAtPath:@"build"];
-        NSLog(@"Display Name: %@", displayNameAtPath);
-        
         // NOTE(yuval): Create NSApplication & Delegate
         NSApplication* app = [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
