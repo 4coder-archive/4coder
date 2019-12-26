@@ -38,10 +38,12 @@
 
 #include "mac_objective_c_to_cpp_links.h"
 
-#include <unistd.h> // NOTE(yuval): Used for getcwd
 #include <dirent.h> // NOTE(yuval): Used for opendir, readdir
-#include <sys/types.h> // NOTE(yuval): Used for struct stat
+#include <errno.h> // NOTE(yuval): Used for errno
+#include <fcntl.h> // NOTE(yuval): Used for open
+#include <unistd.h> // NOTE(yuval): Used for getcwd, read, write
 #include <sys/stat.h> // NOTE(yuval): Used for stat
+#include <sys/types.h> // NOTE(yuval): Used for struct stat
 
 #include <stdlib.h> // NOTE(yuval): Used for free
 

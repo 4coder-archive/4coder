@@ -14,11 +14,11 @@ external void
 mac_init();
 
 // In Objective-C layer
-external i32
-mac_get_binary_path(void* buffer, u32 size);
-
 external String_Const_u8
 mac_standardize_path(Arena* arena, String_Const_u8 path);
+
+external i32
+mac_get_binary_path(void* buffer, u32 size);
 
 #endif
 

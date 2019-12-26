@@ -50,6 +50,44 @@ system_get_canonical_sig(){
     return(result);
 }
 
+function File_Attributes
+mac_get_file_attributes(struct stat file_stat) {
+    File_Attributes result;
+    result.size = file_stat.st_size;
+    result.last_write_time = file_stat.st_mtimespec.tv_sec;
+    
+    result.flags = 0;
+    if (S_ISDIR(file_stat.st_mode)) {
+        result.flags |= FileAttribute_IsDirectory;
+    }
+    
+    return(result);
+}
+
+function inline File_Attributes
+mac_file_attributes_from_path(char* path) {
+    File_Attributes result = {};
+    
+    struct stat file_stat;
+    if (stat(path, &file_stat) == 0){
+        result = mac_get_file_attributes(file_stat);
+    }
+    
+    return(result);
+}
+
+function inline File_Attributes
+mac_file_attributes_from_fd(i32 fd) {
+    File_Attributes result = {};
+    
+    struct stat file_stat;
+    if (fstat(fd, &file_stat) == 0){
+        result = mac_get_file_attributes(file_stat);
+    }
+    
+    return(result);
+}
+
 function
 system_get_file_list_sig(){
     File_List result = {};
@@ -107,17 +145,7 @@ system_get_file_list_sig(){
                 
                 *file_path_at = 0;
                 
-                struct stat file_stat;
-                if (stat(file_path, &file_stat) == 0){
-                    info->attributes.size = file_stat.st_size;
-                    info->attributes.last_write_time = file_stat.st_mtimespec.tv_sec;
-                    info->attributes.flags = 0;
-                    
-                    if (S_ISDIR(file_stat.st_mode)) {
-                        info->attributes.flags |= FileAttribute_IsDirectory;
-                    }
-                    
-                }
+                info->attributes = mac_file_attributes_from_path(file_path);
                 
                 end_temp(temp);
             }
@@ -142,9 +170,15 @@ system_get_file_list_sig(){
 
 function
 system_quick_file_attributes_sig(){
-    File_Attributes result = {};
+    Temp_Memory temp = begin_temp(scratch);
     
-    NotImplemented;
+    char* c_file_name = push_array(scratch, char, file_name.size + 1);
+    block_copy(c_file_name, file_name.str, file_name.size);
+    c_file_name[file_name.size] = 0;
+    
+    File_Attributes result = mac_file_attributes_from_path(c_file_name);
+    
+    end_temp(temp);
     
     return(result);
 }
@@ -153,34 +187,53 @@ function
 system_load_handle_sig(){
     b32 result = false;
     
-    NotImplemented;
+    i32 fd = open(file_name, O_RDONLY);
+    if ((fd != -1) && (fd != 0)) {
+        *(i32*)out = fd;
+        result = true;
+    }
     
     return(result);
 }
 
 function
 system_load_attributes_sig(){
-    File_Attributes result = {};
-    
-    NotImplemented;
+    i32 fd = *(i32*)(&handle);
+    File_Attributes result = mac_file_attributes_from_fd(fd);
     
     return(result);
 }
 
 function
 system_load_file_sig(){
-    b32 result = false;
+    i32 fd = *(i32*)(&handle);
     
-    NotImplemented;
+    do{
+        ssize_t bytes_read = read(fd, buffer, size);
+        if (bytes_read == -1){
+            if (errno != EINTR){
+                // NOTE(yuval): An error occured while reading from the file descriptor
+                break;
+            }
+        } else{
+            size -= bytes_read;
+            buffer += bytes_read;
+        }
+    } while (size > 0);
     
+    b32 result = (size == 0);
     return(result);
 }
 
 function
 system_load_close_sig(){
-    b32 result = false;
+    b32 result = true;
     
-    NotImplemented;
+    i32 fd = *(i32*)(&handle);
+    if (close(fd) == -1){
+        // NOTE(yuval): An error occured while close the file descriptor
+        result = false;
+    }
     
     return(result);
 }
@@ -189,7 +242,30 @@ function
 system_save_file_sig(){
     File_Attributes result = {};
     
-    NotImplemented;
+    i32 fd = open(file_name, O_WRONLY | O_TRUNC | O_CREAT, 00640);
+    if (fd != -1) {
+        u8* data_str = data.str;
+        u64 data_size = data.size;
+        
+        do{
+            ssize_t bytes_written = write(fd, data.str, data.size);
+            if (bytes_written == -1){
+                if (errno != EINTR){
+                    // NOTE(yuval): An error occured while writing to the file descriptor
+                    break;
+                }
+            } else{
+                data.size -= bytes_written;
+                data.str += bytes_written;
+            }
+        } while (data.size > 0);
+        
+        if (data.size == 0) {
+            result = mac_file_attributes_from_fd(fd);
+        }
+        
+        close(fd);
+    }
     
     return(result);
 }
