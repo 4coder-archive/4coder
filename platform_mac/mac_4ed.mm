@@ -41,6 +41,27 @@
 }
 @end
 
+#if 0
+external File_List
+mac_get_file_list(Arena* arena, String_Const_u8 directory){
+    File_List result = {};
+    
+    NSString *directory_ns_string =
+        [[NSString alloc]
+            initWithBytes:directory.data length:directory.size encoding:NSUTF8StringEncoding];
+    
+    NSFileManager *file_manager = [NSFileManager defaultManager];
+    NSDirectoryEnumerator *dirEnum = [file_manager enumeratorAtPath:directory_ns_string];
+    
+    NSString *filename;
+    while ((filename = [dirEnum nextObject])){
+        NSLog(filename);
+    }
+    
+    [directory_ns_string release];
+}
+#endif
+
 external String_Const_u8
 mac_standardize_path(Arena* arena, String_Const_u8 path){
     NSString *path_ns_str =

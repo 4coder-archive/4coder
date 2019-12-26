@@ -38,8 +38,10 @@
 
 #include "mac_objective_c_to_cpp_links.h"
 
-#include <stdlib.h>
-#include <unistd.h>
+#include <unistd.h> // NOTE(yuval): Used for getcwd
+#include <dirent.h> // NOTE(yuval): Used for opendir, readdir
+
+#include <stdlib.h> // NOTE(yuval): Used for free
 
 ////////////////////////////////
 
@@ -89,6 +91,10 @@ mac_push_string_copy(Arena *arena, String_Const_u8 src){
 
 external void
 mac_init(){
+    Arena test_arena = make_arena_malloc();
+    system_get_file_list(&test_arena,
+                         string_u8_litexpr("/Users/yuvaldolev/Desktop"));
+    
     // NOTE(yuval): Context Setup
     Thread_Context _tctx = {};
     thread_ctx_init(&_tctx, ThreadKind_Main,
