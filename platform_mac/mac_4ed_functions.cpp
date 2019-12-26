@@ -86,7 +86,7 @@ system_get_file_list_sig(){
                 
                 b32 append_slash = false;
                 u64 file_path_size = directory.size + file_name.size;
-                if (string_get_character(directory, directory.size - 1) != '/') {
+                if (string_get_character(directory, directory.size - 1) != '/'){
                     append_slash = true;
                     file_path_size += 1;
                 }
@@ -97,7 +97,7 @@ system_get_file_list_sig(){
                 block_copy(file_path_at, directory.str, directory.size);
                 file_path_at += directory.size;
                 
-                if (append_slash) {
+                if (append_slash){
                     *file_path_at = '/';
                     file_path_at += 1;
                 }
@@ -107,85 +107,34 @@ system_get_file_list_sig(){
                 
                 *file_path_at = 0;
                 
-                printf("File Path: %s  ", file_path);
-                
                 struct stat file_stat;
                 if (stat(file_path, &file_stat) == 0){
                     info->attributes.size = file_stat.st_size;
-                    info->attributes.last_write_time = ;
-                    info->attributes.flags = ;
-                } else {
-                    char* error_message = strerror(errno);
-                    printf("ERROR: stat failed with error message '%s'!\n", error_message);
+                    info->attributes.last_write_time = file_stat.st_mtimespec.tv_sec;
+                    info->attributes.flags = 0;
+                    
+                    if (S_ISDIR(file_stat.st_mode)) {
+                        info->attributes.flags |= FileAttribute_IsDirectory;
+                    }
+                    
                 }
                 
                 end_temp(temp);
             }
-            
-            /*++file_count;
-i32 size = 0;
-for (; fname[size]; ++size);
-character_count += size + 1;*/
         }
-        
-#if 0
-        i32 required_size = character_count + file_count * sizeof(File_Info);
-        if (file_list->block_size < required_size){
-            system_memory_free(file_list->block, file_list->block_size);
-            file_list->block = system_memory_allocate(required_size);
-            file_list->block_size = required_size;
-        }
-        
-        file_list->infos = (File_Info*)file_list->block;
-        char *cursor = (char*)(file_list->infos + file_count);
-        
-        if (file_list->block != 0){
-            rewinddir(d);
-            File_Info *info_ptr = file_list->infos;
-            for (struct dirent *entry = readdir(d);
-                 entry != 0;
-                 entry = readdir(d)){
-                char *fname = entry->d_name;
-                if (match(fname, ".") || match(fname, "..")){
-                    continue;
-                }
-                char *cursor_start = cursor;
-                i32 length = copy_fast_unsafe_cc(cursor_start, fname);
-                cursor += length;
-                
-                if (entry->d_type == DT_LNK){
-                    struct stat st;
-                    if (stat(entry->d_name, &st) != -1){
-                        info_ptr->folder = S_ISDIR(st.st_mode);
-                    }
-                    else{
-                        info_ptr->folder = false;
-                    }
-                }
-                else{
-                    info_ptr->folder = (entry->d_type == DT_DIR);
-                }
-                
-                info_ptr->filename = cursor_start;
-                info_ptr->filename_len = length;
-                *cursor++ = 0;
-                ++info_ptr;
-            }
-        }
-        
-        file_list->count = file_count;
-        
-#endif
         
         closedir(dir);
-    }
-    else{
         
-        /*system_memory_free(file_list->block, file_list->block_size);
-        file_list->block = 0;
-        file_list->block_size = 0;
-        file_list->infos = 0;
-        file_list->count = 0;*/
+        result.infos = push_array(arena, File_Info*, count);
+        result.count = count;
+        
+        i32 index = 0;
+        for (File_Info* node = first;
+             node != 0;
+             node = node->next){
+            result.infos[index] = node;
+            index += 1;
+        }
     }
     
     return(result);

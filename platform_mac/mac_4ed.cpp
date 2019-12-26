@@ -38,9 +38,6 @@
 
 #include "mac_objective_c_to_cpp_links.h"
 
-#include <errno.h>
-#include <string.h>
-
 #include <unistd.h> // NOTE(yuval): Used for getcwd
 #include <dirent.h> // NOTE(yuval): Used for opendir, readdir
 #include <sys/types.h> // NOTE(yuval): Used for struct stat
@@ -97,8 +94,18 @@ mac_push_string_copy(Arena *arena, String_Const_u8 src){
 external void
 mac_init(){
     Arena test_arena = make_arena_malloc();
-    system_get_file_list(&test_arena,
-                         string_u8_litexpr("/Users/yuvaldolev/Desktop"));
+    File_List list = system_get_file_list(&test_arena,
+                                          string_u8_litexpr("/Users/yuvaldolev/Desktop"));
+    
+    for (u32 index = 0; index < list.count; ++index) {
+        File_Info* info = list.infos[index];
+        
+        printf("File_Info{file_name:'%.*s', "
+               "attributes:{size:%llu, last_write_time:%llu, flags:{IsDirectory:%d}}}\n",
+               (i32)info->file_name.size, info->file_name.str,
+               info->attributes.size, info->attributes.last_write_time,
+               ((info->attributes.flags & FileAttribute_IsDirectory) != 0));
+    }
     
 #if 0
     // NOTE(yuval): Context Setup
