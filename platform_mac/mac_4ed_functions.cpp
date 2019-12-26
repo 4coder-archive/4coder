@@ -69,6 +69,7 @@ system_get_file_list_sig(){
              entry = readdir(dir)){
             char *c_file_name = entry->d_name;
             String_Const_u8 file_name = SCu8(c_file_name);
+            
             if (string_match(file_name, string_u8_litexpr(".")) || string_match(file_name, string_u8_litexpr(".."))){
                 continue;
             }
@@ -78,12 +79,53 @@ system_get_file_list_sig(){
             count += 1;
             
             info->file_name = push_string_copy(arena, file_name);
-            //info->attributes.size =
+            
+            // NOTE(yuval): Get file attributes
+            {
+                Temp_Memory temp = begin_temp(arena);
+                
+                b32 append_slash = false;
+                u64 file_path_size = directory.size + file_name.size;
+                if (string_get_character(directory, directory.size - 1) != '/') {
+                    append_slash = true;
+                    file_path_size += 1;
+                }
+                
+                char* file_path = push_array(arena, char, file_path_size + 1);
+                char* file_path_at = file_path;
+                
+                block_copy(file_path_at, directory.str, directory.size);
+                file_path_at += directory.size;
+                
+                if (append_slash) {
+                    *file_path_at = '/';
+                    file_path_at += 1;
+                }
+                
+                block_copy(file_path_at, file_name.str, file_name.size);
+                file_path_at += file_name.size;
+                
+                *file_path_at = 0;
+                
+                printf("File Path: %s  ", file_path);
+                
+                struct stat file_stat;
+                if (stat(file_path, &file_stat) == 0){
+                    info->attributes.size = file_stat.st_size;
+                    info->attributes.last_write_time = ;
+                    info->attributes.flags = ;
+                } else {
+                    char* error_message = strerror(errno);
+                    printf("ERROR: stat failed with error message '%s'!\n", error_message);
+                }
+                
+                end_temp(temp);
+            }
             
             /*++file_count;
-        i32 size = 0;
-        for (; fname[size]; ++size);
-        character_count += size + 1;*/
+i32 size = 0;
+for (; fname[size]; ++size);
+character_count += size + 1;*/
         }
         
 #if 0

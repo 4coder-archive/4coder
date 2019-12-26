@@ -2,9 +2,11 @@
 
 #include "4coder_base_types.h"
 
+#if 0
 #include "4coder_table.h"
 #include "4coder_events.h"
 #include "4coder_types.h"
+#endif
 
 #include "mac_objective_c_to_cpp_links.h"
 
@@ -45,6 +47,7 @@
 }
 @end
 
+#if 0
 external File_List
 mac_get_file_list(Arena* arena, String_Const_u8 directory){
     File_List result = {};
@@ -58,11 +61,12 @@ mac_get_file_list(Arena* arena, String_Const_u8 directory){
     
     NSString *filename;
     while ((filename = [dirEnum nextObject])){
-        NSLog(filename);
+        NSLog(@"%@", filename);
     }
     
     [directory_ns_string release];
 }
+#endif
 
 external String_Const_u8
 mac_standardize_path(Arena* arena, String_Const_u8 path){
