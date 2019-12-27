@@ -2,10 +2,15 @@
 
 #include "4coder_base_types.h"
 
-#if 0
+#if 1
 #include "4coder_table.h"
 #include "4coder_events.h"
+// NOTE(allen): This is a very unfortunate hack, but hopefully there will never be a need to use the Marker
+// type in the platform layer. If that changes then instead change the name of Marker and make a transition
+// macro that is only included in custom code.
+#define Marker Marker__SAVE_THIS_IDENTIFIER
 #include "4coder_types.h"
+#undef Marker
 #endif
 
 #include "mac_objective_c_to_cpp_links.h"
