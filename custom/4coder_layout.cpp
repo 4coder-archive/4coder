@@ -15,7 +15,6 @@ layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
     }
     else{
         if (0.f < p.x && p.x < max_f32){
-            f32 bottom_padding = list.bottom_padding;
             f32 closest_x = -max_f32;
             for (Layout_Item_Block *block = list.first;
                  block != 0;
@@ -30,7 +29,7 @@ layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                     if (p.y < item->rect.y0){
                         goto double_break;
                     }
-                    if (item->rect.y1 + bottom_padding <= p.y){
+                    if (item->padded_y1 <= p.y){
                         continue;
                     }
                     f32 dist0 = p.x - item->rect.x0;
@@ -68,7 +67,7 @@ layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                             goto double_break_2;
                         }
                         prev_item = item;
-                        if (item->rect.y1 <= p.y){
+                        if (item->padded_y1 <= p.y){
                             continue;
                         }
                     }
@@ -97,7 +96,7 @@ layout_nearest_pos_to_xy(Layout_Item_List list, Vec2_f32 p){
                         if (p.y < item->rect.y0){
                             goto double_break_3;
                         }
-                        if (item->rect.y1 <= p.y){
+                        if (item->padded_y1 <= p.y){
                             continue;
                         }
                         closest_item = item;
@@ -156,6 +155,19 @@ layout_box_of_pos(Layout_Item_List list, i64 index){
     Layout_Item *item = layout_get_first_with_index(list, index);
     if (item != 0){
         result = item->rect;
+    }
+    return(result);
+}
+
+function Rect_f32
+layout_padded_box_of_pos(Layout_Item_List list, i64 index){
+    Rect_f32 result = {};
+    Layout_Item *item = layout_get_first_with_index(list, index);
+    if (item != 0){
+        result.x0 = item->rect.x0;
+        result.y0 = item->rect.y0;
+        result.x1 = item->rect.x1;
+        result.y1 = item->padded_y1;
     }
     return(result);
 }

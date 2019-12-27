@@ -56,7 +56,7 @@ layout_item_list_finish(Layout_Item_List *list, f32 bottom_padding){
 }
 
 function void
-layout_write(Arena *arena, Layout_Item_List *list, Face_ID face, i64 index, u32 codepoint, Layout_Item_Flag flags, Rect_f32 rect){
+layout_write(Arena *arena, Layout_Item_List *list, Face_ID face, i64 index, u32 codepoint, Layout_Item_Flag flags, Rect_f32 rect, f32 padded_y1){
     Temp_Memory restore_point = begin_temp(arena);
     Layout_Item *item = push_array(arena, Layout_Item, 1);
     Layout_Item_Block *block = list->last;
@@ -95,6 +95,7 @@ layout_write(Arena *arena, Layout_Item_List *list, Face_ID face, i64 index, u32 
     item->codepoint = codepoint;
     item->flags = flags;
     item->rect = rect;
+    item->padded_y1 = padded_y1;
     list->height = Max(list->height, rect.y1);
 }
 
@@ -179,7 +180,7 @@ lr_tb_write_with_advance_with_flags(LefRig_TopBot_Layout_Vars *vars, Face_ID fac
     }
     vars->p.x = f32_ceil32(vars->p.x);
     f32 next_x = vars->p.x + advance;
-    layout_write(arena, list, face, index, codepoint, flags, Rf32(vars->p, V2f32(next_x, vars->text_y)));
+    layout_write(arena, list, face, index, codepoint, flags, Rf32(vars->p, V2f32(next_x, vars->text_y)), vars->line_y);
     vars->p.x = next_x;
 }
 
@@ -219,15 +220,15 @@ lr_tb_write_byte_with_advance(LefRig_TopBot_Layout_Vars *vars, Face_ID face, f32
     f32 text_y = vars->text_y;
     
     Layout_Item_Flag flags = LayoutItemFlag_Special_Character;
-    layout_write(arena, list, face, index, '\\', flags, Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, face, index, '\\', flags, Rf32(p, V2f32(next_x, text_y)), vars->line_y);
     p.x = next_x;
     
     flags = LayoutItemFlag_Ghost_Character;
     next_x += metrics->byte_sub_advances[1];
-    layout_write(arena, list, face, index, integer_symbols[hi], flags, Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, face, index, integer_symbols[hi], flags, Rf32(p, V2f32(next_x, text_y)), vars->line_y);
     p.x = next_x;
     next_x += metrics->byte_sub_advances[2];
-    layout_write(arena, list, face, index, integer_symbols[lo], flags, Rf32(p, V2f32(next_x, text_y)));
+    layout_write(arena, list, face, index, integer_symbols[lo], flags, Rf32(p, V2f32(next_x, text_y)), vars->line_y);
     
     vars->p.x = final_next_x;
 }
@@ -242,7 +243,7 @@ lr_tb_write_byte(LefRig_TopBot_Layout_Vars *vars, Face_ID face,
 function void
 lr_tb_write_blank_dim(LefRig_TopBot_Layout_Vars *vars, Face_ID face, Vec2_f32 dim,
                       Arena *arena, Layout_Item_List *list, i64 index){
-    layout_write(arena, list, face, index, ' ', 0, Rf32_xy_wh(vars->p, dim));
+    layout_write(arena, list, face, index, ' ', 0, Rf32_xy_wh(vars->p, dim), vars->line_y);
     vars->p.x += dim.x;
 }
 

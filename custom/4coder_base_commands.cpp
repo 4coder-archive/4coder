@@ -281,9 +281,15 @@ move_vertical_pixels(Application_Links *app, View_ID view, f32 pixels){
     ProfileScope(app, "move vertical pixels");
     i64 pos = view_get_cursor_pos(app, view);
     Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-    Vec2_f32 p = view_relative_xy_of_pos(app, view, cursor.line, pos);
+    Rect_f32 r = view_padded_box_of_pos(app, view, cursor.line, pos);
+    Vec2_f32 p = {};
     p.x = view_get_preferred_x(app, view);
-    p.y += pixels;
+    if (pixels > 0.f){
+        p.y = r.y1 + pixels;
+    }
+    else{
+        p.y = r.y0 + pixels;
+    }
     i64 new_pos = view_pos_at_relative_xy(app, view, cursor.line, p);
     view_set_cursor(app, view, seek_pos(new_pos));
     no_mark_snap_to_cursor_if_shift(app, view);
@@ -299,20 +305,12 @@ internal void
 move_vertical_lines(Application_Links *app, View_ID view, i64 lines){
     if (lines > 0){
         for (i64 i = 0; i < lines; i += 1){
-            i64 pos = view_get_cursor_pos(app, view);
-            Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-            Rect_f32 box = view_relative_box_of_pos(app, view, cursor.line, cursor.pos);
-            f32 half_height = rect_height(box)*0.5f;
-            move_vertical_pixels(app, half_height + 2.f);
+            move_vertical_pixels(app, 1.f);
         }
     }
     else{
         for (i64 i = 0; i > lines; i -= 1){
-            i64 pos = view_get_cursor_pos(app, view);
-            Buffer_Cursor cursor = view_compute_cursor(app, view, seek_pos(pos));
-            Rect_f32 box = view_relative_box_of_pos(app, view, cursor.line, cursor.pos);
-            f32 half_height = rect_height(box)*0.5f;
-            move_vertical_pixels(app, -half_height - 2.f);
+            move_vertical_pixels(app, -1.f);
         }
     }
 }

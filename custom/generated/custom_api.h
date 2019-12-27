@@ -23,12 +23,14 @@
 #define custom_buffer_line_shift_y_sig() Line_Shift_Vertical custom_buffer_line_shift_y(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 line, f32 y_shift)
 #define custom_buffer_pos_at_relative_xy_sig() i64 custom_buffer_pos_at_relative_xy(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, Vec2_f32 relative_xy)
 #define custom_buffer_relative_box_of_pos_sig() Rect_f32 custom_buffer_relative_box_of_pos(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos)
+#define custom_buffer_padded_box_of_pos_sig() Rect_f32 custom_buffer_padded_box_of_pos(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos)
 #define custom_buffer_relative_character_from_pos_sig() i64 custom_buffer_relative_character_from_pos(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos)
 #define custom_buffer_pos_from_relative_character_sig() i64 custom_buffer_pos_from_relative_character(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 relative_character)
 #define custom_view_line_y_difference_sig() f32 custom_view_line_y_difference(Application_Links* app, View_ID view_id, i64 line_a, i64 line_b)
 #define custom_view_line_shift_y_sig() Line_Shift_Vertical custom_view_line_shift_y(Application_Links* app, View_ID view_id, i64 line, f32 y_shift)
 #define custom_view_pos_at_relative_xy_sig() i64 custom_view_pos_at_relative_xy(Application_Links* app, View_ID view_id, i64 base_line, Vec2_f32 relative_xy)
 #define custom_view_relative_box_of_pos_sig() Rect_f32 custom_view_relative_box_of_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos)
+#define custom_view_padded_box_of_pos_sig() Rect_f32 custom_view_padded_box_of_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos)
 #define custom_view_relative_character_from_pos_sig() i64 custom_view_relative_character_from_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos)
 #define custom_view_pos_from_relative_character_sig() i64 custom_view_pos_from_relative_character(Application_Links* app, View_ID view_id, i64 base_line, i64 character)
 #define custom_buffer_exists_sig() b32 custom_buffer_exists(Application_Links* app, Buffer_ID buffer_id)
@@ -197,12 +199,14 @@ typedef f32 custom_buffer_line_y_difference_type(Application_Links* app, Buffer_
 typedef Line_Shift_Vertical custom_buffer_line_shift_y_type(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 line, f32 y_shift);
 typedef i64 custom_buffer_pos_at_relative_xy_type(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, Vec2_f32 relative_xy);
 typedef Rect_f32 custom_buffer_relative_box_of_pos_type(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos);
+typedef Rect_f32 custom_buffer_padded_box_of_pos_type(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos);
 typedef i64 custom_buffer_relative_character_from_pos_type(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos);
 typedef i64 custom_buffer_pos_from_relative_character_type(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 relative_character);
 typedef f32 custom_view_line_y_difference_type(Application_Links* app, View_ID view_id, i64 line_a, i64 line_b);
 typedef Line_Shift_Vertical custom_view_line_shift_y_type(Application_Links* app, View_ID view_id, i64 line, f32 y_shift);
 typedef i64 custom_view_pos_at_relative_xy_type(Application_Links* app, View_ID view_id, i64 base_line, Vec2_f32 relative_xy);
 typedef Rect_f32 custom_view_relative_box_of_pos_type(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
+typedef Rect_f32 custom_view_padded_box_of_pos_type(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
 typedef i64 custom_view_relative_character_from_pos_type(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
 typedef i64 custom_view_pos_from_relative_character_type(Application_Links* app, View_ID view_id, i64 base_line, i64 character);
 typedef b32 custom_buffer_exists_type(Application_Links* app, Buffer_ID buffer_id);
@@ -372,12 +376,14 @@ custom_buffer_line_y_difference_type *buffer_line_y_difference;
 custom_buffer_line_shift_y_type *buffer_line_shift_y;
 custom_buffer_pos_at_relative_xy_type *buffer_pos_at_relative_xy;
 custom_buffer_relative_box_of_pos_type *buffer_relative_box_of_pos;
+custom_buffer_padded_box_of_pos_type *buffer_padded_box_of_pos;
 custom_buffer_relative_character_from_pos_type *buffer_relative_character_from_pos;
 custom_buffer_pos_from_relative_character_type *buffer_pos_from_relative_character;
 custom_view_line_y_difference_type *view_line_y_difference;
 custom_view_line_shift_y_type *view_line_shift_y;
 custom_view_pos_at_relative_xy_type *view_pos_at_relative_xy;
 custom_view_relative_box_of_pos_type *view_relative_box_of_pos;
+custom_view_padded_box_of_pos_type *view_padded_box_of_pos;
 custom_view_relative_character_from_pos_type *view_relative_character_from_pos;
 custom_view_pos_from_relative_character_type *view_pos_from_relative_character;
 custom_buffer_exists_type *buffer_exists;
@@ -548,12 +554,14 @@ internal f32 buffer_line_y_difference(Application_Links* app, Buffer_ID buffer_i
 internal Line_Shift_Vertical buffer_line_shift_y(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 line, f32 y_shift);
 internal i64 buffer_pos_at_relative_xy(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, Vec2_f32 relative_xy);
 internal Rect_f32 buffer_relative_box_of_pos(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos);
+internal Rect_f32 buffer_padded_box_of_pos(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos);
 internal i64 buffer_relative_character_from_pos(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos);
 internal i64 buffer_pos_from_relative_character(Application_Links* app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 relative_character);
 internal f32 view_line_y_difference(Application_Links* app, View_ID view_id, i64 line_a, i64 line_b);
 internal Line_Shift_Vertical view_line_shift_y(Application_Links* app, View_ID view_id, i64 line, f32 y_shift);
 internal i64 view_pos_at_relative_xy(Application_Links* app, View_ID view_id, i64 base_line, Vec2_f32 relative_xy);
 internal Rect_f32 view_relative_box_of_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
+internal Rect_f32 view_padded_box_of_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
 internal i64 view_relative_character_from_pos(Application_Links* app, View_ID view_id, i64 base_line, i64 pos);
 internal i64 view_pos_from_relative_character(Application_Links* app, View_ID view_id, i64 base_line, i64 character);
 internal b32 buffer_exists(Application_Links* app, Buffer_ID buffer_id);
@@ -724,12 +732,14 @@ global custom_buffer_line_y_difference_type *buffer_line_y_difference = 0;
 global custom_buffer_line_shift_y_type *buffer_line_shift_y = 0;
 global custom_buffer_pos_at_relative_xy_type *buffer_pos_at_relative_xy = 0;
 global custom_buffer_relative_box_of_pos_type *buffer_relative_box_of_pos = 0;
+global custom_buffer_padded_box_of_pos_type *buffer_padded_box_of_pos = 0;
 global custom_buffer_relative_character_from_pos_type *buffer_relative_character_from_pos = 0;
 global custom_buffer_pos_from_relative_character_type *buffer_pos_from_relative_character = 0;
 global custom_view_line_y_difference_type *view_line_y_difference = 0;
 global custom_view_line_shift_y_type *view_line_shift_y = 0;
 global custom_view_pos_at_relative_xy_type *view_pos_at_relative_xy = 0;
 global custom_view_relative_box_of_pos_type *view_relative_box_of_pos = 0;
+global custom_view_padded_box_of_pos_type *view_padded_box_of_pos = 0;
 global custom_view_relative_character_from_pos_type *view_relative_character_from_pos = 0;
 global custom_view_pos_from_relative_character_type *view_pos_from_relative_character = 0;
 global custom_buffer_exists_type *buffer_exists = 0;

@@ -234,6 +234,17 @@ view_relative_xy_of_pos(Thread_Context *tctx, Models *models, View *view,
     return(rect_center(rect));
 }
 
+function Rect_f32
+view_padded_box_of_pos(Thread_Context *tctx, Models *models, View *view,
+                      i64 base_line, i64 pos){
+    Editing_File *file = view->file;
+    Face *face = file_get_face(models, file);
+    f32 width = view_width(tctx, models, view);
+    Layout_Function *layout_func = file_get_layout_func(file);
+    return(file_padded_box_of_pos(tctx, models, file,
+                                 layout_func, width, face, base_line, pos));
+}
+
 internal Buffer_Point
 view_normalize_buffer_point(Thread_Context *tctx, Models *models, View *view,
                             Buffer_Point point){

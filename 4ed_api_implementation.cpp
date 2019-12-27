@@ -521,6 +521,23 @@ buffer_relative_box_of_pos(Application_Links *app, Buffer_ID buffer_id, f32 widt
     return(result);
 }
 
+api(custom) function Rect_f32
+buffer_padded_box_of_pos(Application_Links *app, Buffer_ID buffer_id, f32 width, Face_ID face_id, i64 base_line, i64 pos){
+    Models *models = (Models*)app->cmd_context;
+    Editing_File *file = imp_get_file(models, buffer_id);
+    Rect_f32 result = {};
+    if (api_check_buffer(file)){
+        Face *face = font_set_face_from_id(&models->font_set, face_id);
+        if (face != 0){
+            Layout_Function *layout_func = file_get_layout_func(file);
+            result = file_padded_box_of_pos(app->tctx, models, file,
+                                              layout_func, width, face,
+                                              base_line, pos);
+        }
+    }
+    return(result);
+}
+
 api(custom) function i64
 buffer_relative_character_from_pos(Application_Links *app, Buffer_ID buffer_id,
                                    f32 width, Face_ID face_id, i64 base_line, i64 pos)
@@ -599,6 +616,17 @@ view_relative_box_of_pos(Application_Links *app, View_ID view_id, i64 base_line,
     Rect_f32 result = {};
     if (api_check_view(view)){
         result = view_relative_box_of_pos(app->tctx, models, view, base_line, pos);
+    }
+    return(result);
+}
+
+api(custom) function Rect_f32
+view_padded_box_of_pos(Application_Links *app, View_ID view_id, i64 base_line, i64 pos){
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    Rect_f32 result = {};
+    if (api_check_view(view)){
+        result = view_padded_box_of_pos(app->tctx, models, view, base_line, pos);
     }
     return(result);
 }
