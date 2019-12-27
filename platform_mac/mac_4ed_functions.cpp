@@ -1,5 +1,9 @@
 /* macOS System/Graphics/Font API Implementations */
 
+//////////////////////
+//    System API    //
+//////////////////////
+
 ////////////////////////////////
 
 function
@@ -49,6 +53,8 @@ system_get_canonical_sig(){
     String_Const_u8 result = mac_standardize_path(arena, name);
     return(result);
 }
+
+////////////////////////////////
 
 function File_Attributes
 mac_get_file_attributes(struct stat file_stat) {
@@ -270,6 +276,8 @@ system_save_file_sig(){
     return(result);
 }
 
+////////////////////////////////
+
 function
 system_load_library_sig(){
     b32 result = false;
@@ -296,6 +304,8 @@ system_get_proc_sig(){
     
     return(result);
 }
+
+////////////////////////////////
 
 function
 system_now_time_sig(){
@@ -335,10 +345,14 @@ system_sleep_sig(){
     NotImplemented;
 }
 
+////////////////////////////////
+
 function
 system_post_clipboard_sig(){
     NotImplemented;
 }
+
+////////////////////////////////
 
 function
 system_cli_call_sig(){
@@ -372,6 +386,8 @@ system_cli_end_update_sig(){
     return(result);
 }
 
+////////////////////////////////
+
 function
 system_open_color_picker_sig(){
     NotImplemented;
@@ -385,6 +401,8 @@ system_get_screen_scale_factor_sig(){
     
     return(result);
 }
+
+////////////////////////////////
 
 function
 system_thread_launch_sig(){
@@ -472,6 +490,8 @@ system_condition_variable_free_sig(){
     NotImplemented;
 }
 
+////////////////////////////////
+
 function
 system_memory_allocate_sig(){
     void* result = 0;
@@ -503,6 +523,8 @@ system_memory_annotation_sig(){
     
     return(result);
 }
+
+////////////////////////////////
 
 function
 system_show_mouse_cursor_sig(){
@@ -538,6 +560,12 @@ system_get_keyboard_modifiers_sig(){
 
 ////////////////////////////////
 
+////////////////////////
+//    Graphics API    //
+////////////////////////
+
+////////////////////////////////
+
 function
 graphics_get_texture_sig(){
     u32 result = 0;
@@ -555,6 +583,12 @@ graphics_fill_texture_sig(){
     
     return(result);
 }
+
+////////////////////////////////
+
+////////////////////
+//    Font API    //
+////////////////////
 
 ////////////////////////////////
 
