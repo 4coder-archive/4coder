@@ -31,7 +31,9 @@ system_get_path_sig(){
             if (!has_stashed_4ed_path){
                 local_const i32 binary_path_capacity = KB(32);
                 u8 *memory = (u8*)system_memory_allocate(binary_path_capacity, string_u8_litexpr(file_name_line_number));
-                i32 size = mac_get_binary_path(memory, binary_path_capacity);
+                
+                pid_t pid = getpid();
+                i32 size = proc_pidpath(pid, memory, binary_path_capacity);
                 Assert(size <= binary_path_capacity - 1);
                 
                 mac_vars.binary_path = SCu8(memory, size);
@@ -50,7 +52,16 @@ system_get_path_sig(){
 
 function
 system_get_canonical_sig(){
-    String_Const_u8 result = mac_standardize_path(arena, name);
+    NSString *path_ns_str =
+        [[NSString alloc] initWithBytes:name.data length:name.size encoding:NSUTF8StringEncoding];
+    
+    NSString *standardized_path_ns_str = [path_ns_str stringByStandardizingPath];
+    String_Const_u8 standardized_path = mac_SCu8((u8*)[standardized_path_ns_str UTF8String],[standardized_path_ns_str lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
+    
+    String_Const_u8 result = push_string_copy(arena, standardized_path);
+    
+    [path_ns_str release];
+    
     return(result);
 }
 
