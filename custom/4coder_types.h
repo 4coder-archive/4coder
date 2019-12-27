@@ -707,6 +707,7 @@ struct Layout_Item{
     u32 codepoint;
     Layout_Item_Flag flags;
     Rect_f32 rect;
+    f32 padded_y1;
 };
 
 api(custom)
