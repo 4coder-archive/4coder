@@ -1,4 +1,4 @@
-/* Mac Objective C layer for 4coder */
+/* Mac Objective-C layer for 4coder */
 
 #include "4coder_base_types.h"
 #include "4coder_version.h"
@@ -54,6 +54,7 @@
 #include <libproc.h> // NOTE(yuval): Used for proc_pidpath
 
 #include <dirent.h> // NOTE(yuval): Used for opendir, readdir
+#include <dlfcn.h> // NOTE(yuval): Used for dlopen, dlclose, dlsym
 #include <errno.h> // NOTE(yuval): Used for errno
 #include <fcntl.h> // NOTE(yuval): Used for open
 #include <unistd.h> // NOTE(yuval): Used for getcwd, read, write, getpid
@@ -66,6 +67,8 @@
 #define internal static
 #define global static
 #define external extern "C"
+
+////////////////////////////////
 
 @interface App_Delegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
 @end
@@ -116,7 +119,7 @@ struct Mac_Vars {
 
 ////////////////////////////////
 
-Mac_Vars mac_vars;
+global Mac_Vars mac_vars;
 global Render_Target target;
 
 ////////////////////////////////
@@ -139,7 +142,7 @@ main(int arg_count, char **args){
         
         Arena test_arena = make_arena_malloc();
         File_List list = system_get_file_list(&test_arena,
-                                              string_u8_litexpr("/Users/yuvaldolev/Desktop/imgui"));
+                                              string_u8_litexpr("/Users/yuvaldolev/Desktop"));
         
         for (u32 index = 0; index < list.count; ++index) {
             File_Info* info = list.infos[index];

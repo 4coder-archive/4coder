@@ -200,13 +200,25 @@ system_quick_file_attributes_sig(){
     return(result);
 }
 
+function inline Plat_Handle
+mac_to_plat_handle(i32 fd){
+    Plat_Handle result = *(Plat_Handle*)(&fd);
+    return result;
+}
+
+function inline i32
+mac_to_fd(Plat_Handle handle){
+    i32 result = *(i32*)(&handle);
+    return result;
+}
+
 function
 system_load_handle_sig(){
     b32 result = false;
     
     i32 fd = open(file_name, O_RDONLY);
     if ((fd != -1) && (fd != 0)) {
-        *(i32*)out = fd;
+        *out = mac_to_plat_handle(fd);
         result = true;
     }
     
@@ -215,7 +227,7 @@ system_load_handle_sig(){
 
 function
 system_load_attributes_sig(){
-    i32 fd = *(i32*)(&handle);
+    i32 fd = mac_to_fd(handle);
     File_Attributes result = mac_file_attributes_from_fd(fd);
     
     return(result);
@@ -223,7 +235,7 @@ system_load_attributes_sig(){
 
 function
 system_load_file_sig(){
-    i32 fd = *(i32*)(&handle);
+    i32 fd = mac_to_fd(handle);
     
     do{
         ssize_t bytes_read = read(fd, buffer, size);
@@ -246,7 +258,7 @@ function
 system_load_close_sig(){
     b32 result = true;
     
-    i32 fd = *(i32*)(&handle);
+    i32 fd = mac_to_fd(handle);
     if (close(fd) == -1){
         // NOTE(yuval): An error occured while close the file descriptor
         result = false;
@@ -289,29 +301,58 @@ system_save_file_sig(){
 
 ////////////////////////////////
 
+function inline System_Library
+mac_to_system_library(void* dl_handle){
+    System_Library result = *(System_Library*)(&dl_handle);
+    return result;
+}
+
+function inline void*
+mac_to_dl_handle(System_Library system_lib){
+    void* result = *(void**)(&system_lib);
+    return result;
+}
+
 function
 system_load_library_sig(){
     b32 result = false;
     
-    NotImplemented;
+    void* lib = 0;
+    
+    // NOTE(yuval): Open library handle
+    {
+        Temp_Memory temp = begin_temp(scratch);
+        
+        char* c_file_name = push_array(scratch, char, file_name.size + 1);
+        block_copy(c_file_name, file_name.str, file_name.size);
+        c_file_name[file_name.size] = 0;
+        
+        lib = dlopen(c_file_name, RTLD_LAZY | RTLD_GLOBAL);
+        
+        end_temp(temp);
+    }
+    
+    if (lib){
+        *out = mac_to_system_library(lib);
+        result = true;
+    }
     
     return(result);
 }
 
 function
 system_release_library_sig(){
-    b32 result = false;
+    void* lib = mac_to_dl_handle(handle);
+    i32 rc = dlclose(lib);
     
-    NotImplemented;
-    
+    b32 result = (rc == 0);
     return(result);
 }
 
 function
 system_get_proc_sig(){
-    Void_Func* result = 0;
-    
-    NotImplemented;
+    void* lib = mac_to_dl_handle(handle);
+    Void_Func* result = (Void_Func*)dlsym(lib, proc_name);
     
     return(result);
 }
