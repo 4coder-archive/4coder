@@ -49,8 +49,8 @@
 
 ////////////////////////////////
 
-#define SLASH '\\'
-#define DLL "dll"
+#define SLASH '/'
+#define DLL "so"
 
 #include "4coder_hash_functions.cpp"
 #include "4coder_system_allocator.cpp"

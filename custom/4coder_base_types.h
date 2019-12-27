@@ -291,8 +291,6 @@ enum{
 
 #define Max(a,b) (((a)>(b))?(a):(b))
 #define Min(a,b) (((a)<(b))?(a):(b))
-#define max(a,b) (((a)>(b))?(a):(b))
-#define min(a,b) (((a)<(b))?(a):(b))
 #define clamp_top(a,b) Min(a,b)
 #define clamp_bot(a,b) Max(a,b)
 #define clamp_(a,x,b) ((a>x)?a:((b<x)?b:x))
