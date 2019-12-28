@@ -56,7 +56,7 @@ system_get_canonical_sig(){
         [[NSString alloc] initWithBytes:name.data length:name.size encoding:NSUTF8StringEncoding];
     
     NSString *standardized_path_ns_str = [path_ns_str stringByStandardizingPath];
-    String_Const_u8 standardized_path = mac_SCu8((u8*)[standardized_path_ns_str UTF8String],[standardized_path_ns_str lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
+    String_Const_u8 standardized_path = SCu8((u8*)[standardized_path_ns_str UTF8String],[standardized_path_ns_str lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
     
     String_Const_u8 result = push_string_copy(arena, standardized_path);
     
@@ -361,9 +361,15 @@ system_get_proc_sig(){
 
 function
 system_now_time_sig(){
-    u64 result = 0;
+    u64 now = mach_absolute_time();
     
-    NotImplemented;
+    // NOTE(yuval): Elapsed nanoseconds calculation
+    u64 result = (u64)(((f32)now) *
+                       ((f32)mac_vars.timebase_info.numer) /
+                       ((f32)mac_vars.timebase_info.denom));
+    
+    // NOTE(yuval): Conversion to useconds
+    result *= 1.0E-3;
     
     return(result);
 }

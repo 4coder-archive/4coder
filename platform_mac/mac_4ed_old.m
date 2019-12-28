@@ -814,9 +814,9 @@ osx_list_loadable_fonts(void){
         NSString *font_n = fonts[i];
         char *font_n_c = (char*)[font_n UTF8String];
         NSFont *font = [font_manager
-                fontWithFamily:font_n 
-                traits:NSUnboldFontMask|NSUnitalicFontMask 
-                weight:5 
+                fontWithFamily:font_n
+                traits:NSUnboldFontMask|NSUnitalicFontMask
+                weight:5
                 size:12];
         NSString *path = get_font_path(font);
         char *path_c = 0;
