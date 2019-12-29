@@ -203,13 +203,13 @@ system_quick_file_attributes_sig(){
 function inline Plat_Handle
 mac_to_plat_handle(i32 fd){
     Plat_Handle result = *(Plat_Handle*)(&fd);
-    return result;
+    return(result);
 }
 
 function inline i32
 mac_to_fd(Plat_Handle handle){
     i32 result = *(i32*)(&handle);
-    return result;
+    return(result);
 }
 
 function
@@ -304,13 +304,13 @@ system_save_file_sig(){
 function inline System_Library
 mac_to_system_library(void* dl_handle){
     System_Library result = *(System_Library*)(&dl_handle);
-    return result;
+    return(result);
 }
 
 function inline void*
 mac_to_dl_handle(System_Library system_lib){
     void* result = *(void**)(&system_lib);
-    return result;
+    return(result);
 }
 
 function
@@ -363,14 +363,13 @@ function
 system_now_time_sig(){
     u64 now = mach_absolute_time();
     
-    // NOTE(yuval): Elapsed nanoseconds calculation
-    u64 result = (u64)(((f32)now) *
-                       ((f32)mac_vars.timebase_info.numer) /
-                       ((f32)mac_vars.timebase_info.denom));
+    // NOTE(yuval): Now time nanoseconds conversion
+    f64 now_nano = (f64)(((f64)now) *
+                         ((f64)mac_vars.timebase_info.numer) /
+                         ((f64)mac_vars.timebase_info.denom));
     
     // NOTE(yuval): Conversion to useconds
-    result *= 1.0E-3;
-    
+    u64 result = (u64)(now_nano * 1.0E-3);
     return(result);
 }
 
@@ -378,7 +377,10 @@ function
 system_wake_up_timer_create_sig(){
     Plat_Handle result = {};
     
-    NotImplemented;
+    NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval: 0.0
+            target: view
+            selector: @selector(requestDisplay)
+            userInfo: nil repeats:NO];
     
     return(result);
 }

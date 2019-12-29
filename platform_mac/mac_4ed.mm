@@ -70,6 +70,113 @@
 
 ////////////////////////////////
 
+#define SLASH '/'
+#define DLL "so"
+
+#include "4coder_hash_functions.cpp"
+#include "4coder_system_allocator.cpp"
+#include "4coder_malloc_allocator.cpp"
+#include "4coder_codepoint_map.cpp"
+
+#include "4ed_mem.cpp"
+#include "4ed_font_set.cpp"
+
+////////////////////////////////
+
+typedef i32 Win32_Object_Kind;
+enum{
+    Win32ObjectKind_ERROR = 0,
+    Win32ObjectKind_Timer = 1,
+    Win32ObjectKind_Thread = 2,
+    Win32ObjectKind_Mutex = 3,
+    Win32ObjectKind_CV = 4,
+};
+
+struct Mac_Object{
+    Node node;
+    Mac_Object_Kind kind;
+    
+    union{
+        struct{
+            NSTimer* timer;
+        } timer;
+    };
+};
+
+struct Mac_Vars {
+    Thread_Context *tctx;
+    
+    Arena* frame_arena;
+    
+    String_Const_u8 binary_path;
+    
+    Node free_mac_objects;
+    Node timer_objects;
+};
+
+////////////////////////////////
+
+global Mac_Vars mac_vars;
+global Render_Target target;
+
+////////////////////////////////
+
+function inline Plat_Handle
+mac_to_plat_handle(Mac_Object* object){
+    Plat_Handle result = *(Plat_Handle*)(&object);
+    return(result);
+}
+
+function inline Mac_Object*
+mac_to_object(Plat_Handle handle){
+    Mac_Object* result = *(Mac_Object**)(&handle);
+    return(result);
+}
+
+function
+mac_alloc_object(Mac_Object_Kind kind){
+    Mac_Object* result = 0;
+    
+    if (mac_vars.free_mac_objects.next != &mac_vars.free_mac_objects){
+        result = CastFromMember(Mac_Object, node, mac_vars.free_mac_objects.next);
+    }
+    
+    if (!result){
+        i32 count = 512;
+        Mac_Object* objects = (Mac_Object*)system_memory_allocate(count * sizeof(Mac_Object), file_name_line_number);
+        
+        // NOTE(yuval): Link the first chain of the dll to the sentinel
+        objects[0].node.prev = &mac_vars.free_mac_objects;
+        mac_vars.free_mac_objects.next = &objects[0].node;
+        
+        // NOTE(yuval): Link all dll chains to each other
+        for (i32 chain_index = 1; chain_index < count; chain_index += 1){
+            objects[chain_index - 1].node.next = &objects[chain_index].node;
+            objects[chain_index].node.prev = &objects[chain_index - 1].node;
+        }
+        
+        // NOTE(yuval): Link the last chain of the dll to the sentinel
+        objects[count - 1].node.next = &mac_vars.free_mac_objects;
+        mac_vars.free_mac_objects.prev = &objects[count - 1].node;
+        
+        result = CastFromMember(Mac_Object, node, mac_vars.free_mac_objects.next);
+    }
+    
+    Assert(result);
+    dll_remove(&result->node);
+    block_zero_struct(result);
+    result->kind = kind;
+    
+    return(result);
+}
+
+
+////////////////////////////////
+
+#import "mac_4ed_functions.mm"
+
+////////////////////////////////
+
 @interface App_Delegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
 @end
 
@@ -93,38 +200,6 @@
     // global_running = false;
 }
 @end
-
-////////////////////////////////
-
-#define SLASH '/'
-#define DLL "so"
-
-#include "4coder_hash_functions.cpp"
-#include "4coder_system_allocator.cpp"
-#include "4coder_malloc_allocator.cpp"
-#include "4coder_codepoint_map.cpp"
-
-#include "4ed_mem.cpp"
-#include "4ed_font_set.cpp"
-
-////////////////////////////////
-
-struct Mac_Vars {
-    Thread_Context *tctx;
-    
-    Arena* frame_arena;
-    
-    String_Const_u8 binary_path;
-};
-
-////////////////////////////////
-
-global Mac_Vars mac_vars;
-global Render_Target target;
-
-////////////////////////////////
-
-#import "mac_4ed_functions.mm"
 
 ////////////////////////////////
 
