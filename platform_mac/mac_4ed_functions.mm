@@ -82,7 +82,7 @@ mac_get_file_attributes(struct stat file_stat) {
 }
 
 function inline File_Attributes
-mac_file_attributes_from_path(char* path) {
+mac_file_attributes_from_path(char *path) {
     File_Attributes result = {};
     
     struct stat file_stat;
@@ -109,7 +109,7 @@ function
 system_get_file_list_sig(){
     File_List result = {};
     
-    u8* c_directory = push_array(arena, u8, directory.size + 1);
+    u8 *c_directory = push_array(arena, u8, directory.size + 1);
     block_copy(c_directory, directory.str, directory.size);
     c_directory[directory.size] = 0;
     
@@ -129,7 +129,7 @@ system_get_file_list_sig(){
                 continue;
             }
             
-            File_Info* info = push_array(arena, File_Info, 1);
+            File_Info *info = push_array(arena, File_Info, 1);
             sll_queue_push(first, last, info);
             count += 1;
             
@@ -146,8 +146,8 @@ system_get_file_list_sig(){
                     file_path_size += 1;
                 }
                 
-                char* file_path = push_array(arena, char, file_path_size + 1);
-                char* file_path_at = file_path;
+                char *file_path = push_array(arena, char, file_path_size + 1);
+                char *file_path_at = file_path;
                 
                 block_copy(file_path_at, directory.str, directory.size);
                 file_path_at += directory.size;
@@ -174,7 +174,7 @@ system_get_file_list_sig(){
         result.count = count;
         
         i32 index = 0;
-        for (File_Info* node = first;
+        for (File_Info *node = first;
              node != 0;
              node = node->next){
             result.infos[index] = node;
@@ -189,7 +189,7 @@ function
 system_quick_file_attributes_sig(){
     Temp_Memory temp = begin_temp(scratch);
     
-    char* c_file_name = push_array(scratch, char, file_name.size + 1);
+    char *c_file_name = push_array(scratch, char, file_name.size + 1);
     block_copy(c_file_name, file_name.str, file_name.size);
     c_file_name[file_name.size] = 0;
     
@@ -273,9 +273,6 @@ system_save_file_sig(){
     
     i32 fd = open(file_name, O_WRONLY | O_TRUNC | O_CREAT, 00640);
     if (fd != -1) {
-        u8* data_str = data.str;
-        u64 data_size = data.size;
-        
         do{
             ssize_t bytes_written = write(fd, data.str, data.size);
             if (bytes_written == -1){
@@ -302,14 +299,14 @@ system_save_file_sig(){
 ////////////////////////////////
 
 function inline System_Library
-mac_to_system_library(void* dl_handle){
+mac_to_system_library(void *dl_handle){
     System_Library result = *(System_Library*)(&dl_handle);
     return(result);
 }
 
 function inline void*
 mac_to_dl_handle(System_Library system_lib){
-    void* result = *(void**)(&system_lib);
+    void *result = *(void**)(&system_lib);
     return(result);
 }
 
@@ -317,13 +314,13 @@ function
 system_load_library_sig(){
     b32 result = false;
     
-    void* lib = 0;
+    void *lib = 0;
     
     // NOTE(yuval): Open library handle
     {
         Temp_Memory temp = begin_temp(scratch);
         
-        char* c_file_name = push_array(scratch, char, file_name.size + 1);
+        char *c_file_name = push_array(scratch, char, file_name.size + 1);
         block_copy(c_file_name, file_name.str, file_name.size);
         c_file_name[file_name.size] = 0;
         
@@ -342,7 +339,7 @@ system_load_library_sig(){
 
 function
 system_release_library_sig(){
-    void* lib = mac_to_dl_handle(handle);
+    void *lib = mac_to_dl_handle(handle);
     i32 rc = dlclose(lib);
     
     b32 result = (rc == 0);
@@ -351,8 +348,8 @@ system_release_library_sig(){
 
 function
 system_get_proc_sig(){
-    void* lib = mac_to_dl_handle(handle);
-    Void_Func* result = (Void_Func*)dlsym(lib, proc_name);
+    void *lib = mac_to_dl_handle(handle);
+    Void_Func *result = (Void_Func*)dlsym(lib, proc_name);
     
     return(result);
 }
@@ -364,9 +361,9 @@ system_now_time_sig(){
     u64 now = mach_absolute_time();
     
     // NOTE(yuval): Now time nanoseconds conversion
-    f64 now_nano = (f64)(((f64)now) *
-                         ((f64)mac_vars.timebase_info.numer) /
-                         ((f64)mac_vars.timebase_info.denom));
+    f64 now_nano = (f64)((f64)now *
+                         (f64)mac_vars.timebase_info.numer /
+                         (f64)mac_vars.timebase_info.denom);
     
     // NOTE(yuval): Conversion to useconds
     u64 result = (u64)(now_nano * 1.0E-3);
@@ -375,24 +372,36 @@ system_now_time_sig(){
 
 function
 system_wake_up_timer_create_sig(){
-    Plat_Handle result = {};
+    Mac_Object *object = mac_alloc_object(MacObjectKind_Timer);
+    dll_insert(&mac_vars.timer_objects, &object->node);
     
-    NSTimer* timer = [NSTimer scheduledTimerWithTimeInterval: 0.0
-            target: view
-            selector: @selector(requestDisplay)
-            userInfo: nil repeats:NO];
+    object->timer.timer = nil;
     
+    Plat_Handle result = mac_to_plat_handle(object);
     return(result);
 }
 
 function
 system_wake_up_timer_release_sig(){
-    NotImplemented;
+    Mac_Object *object = (Mac_Object*)mac_to_object(handle);
+    if (object->kind == MacObjectKind_Timer){
+        if ((object->timer != nil) && [object->timer isValid]) {
+            [object->timer invalidate];
+            mac_free_object(object);
+        }
+    }
 }
 
 function
 system_wake_up_timer_set_sig(){
-    NotImplemented;
+    Mac_Object *object = (Mac_Object*)mac_to_object(handle);
+    if (object->kind == MacObjectKind_Timer){
+        f64 time_seconds = ((f64)time_milliseconds / 1000.0);
+        object->timer = [NSTimer scheduledTimerWithTimeInterval: time_seconds
+                target: mac_vars.view
+                selector: @selector(requestDisplay)
+                userInfo: nil repeats:NO];
+    }
 }
 
 function

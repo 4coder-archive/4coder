@@ -83,13 +83,13 @@
 
 ////////////////////////////////
 
-typedef i32 Win32_Object_Kind;
+typedef i32 Mac_Object_Kind;
 enum{
-    Win32ObjectKind_ERROR = 0,
-    Win32ObjectKind_Timer = 1,
-    Win32ObjectKind_Thread = 2,
-    Win32ObjectKind_Mutex = 3,
-    Win32ObjectKind_CV = 4,
+    MacObjectKind_ERROR = 0,
+    MacObjectKind_Timer = 1,
+    MacObjectKind_Thread = 2,
+    MacObjectKind_Mutex = 3,
+    MacObjectKind_CV = 4,
 };
 
 struct Mac_Object{
@@ -122,7 +122,7 @@ global Render_Target target;
 ////////////////////////////////
 
 function inline Plat_Handle
-mac_to_plat_handle(Mac_Object* object){
+mac_to_plat_handle(Mac_Object *object){
     Plat_Handle result = *(Plat_Handle*)(&object);
     return(result);
 }
@@ -135,7 +135,7 @@ mac_to_object(Plat_Handle handle){
 
 function
 mac_alloc_object(Mac_Object_Kind kind){
-    Mac_Object* result = 0;
+    Mac_Object *result = 0;
     
     if (mac_vars.free_mac_objects.next != &mac_vars.free_mac_objects){
         result = CastFromMember(Mac_Object, node, mac_vars.free_mac_objects.next);
@@ -143,19 +143,19 @@ mac_alloc_object(Mac_Object_Kind kind){
     
     if (!result){
         i32 count = 512;
-        Mac_Object* objects = (Mac_Object*)system_memory_allocate(count * sizeof(Mac_Object), file_name_line_number);
+        Mac_Object *objects = (Mac_Object*)system_memory_allocate(count * sizeof(Mac_Object), file_name_line_number_lit_u8);
         
-        // NOTE(yuval): Link the first chain of the dll to the sentinel
+        // NOTE(yuval): Link the first node of the dll to the sentinel
         objects[0].node.prev = &mac_vars.free_mac_objects;
         mac_vars.free_mac_objects.next = &objects[0].node;
         
-        // NOTE(yuval): Link all dll chains to each other
+        // NOTE(yuval): Link all dll nodes to each other
         for (i32 chain_index = 1; chain_index < count; chain_index += 1){
             objects[chain_index - 1].node.next = &objects[chain_index].node;
             objects[chain_index].node.prev = &objects[chain_index - 1].node;
         }
         
-        // NOTE(yuval): Link the last chain of the dll to the sentinel
+        // NOTE(yuval): Link the last node of the dll to the sentinel
         objects[count - 1].node.next = &mac_vars.free_mac_objects;
         mac_vars.free_mac_objects.prev = &objects[count - 1].node;
         
@@ -170,6 +170,14 @@ mac_alloc_object(Mac_Object_Kind kind){
     return(result);
 }
 
+function
+mac_free_object(Mac_Object *object){
+    if (object->node.next != 0){
+        dll_remove(&object->node);
+    }
+    
+    dll_insert(&mac_vars.free_mac_objects, &object->node);
+}
 
 ////////////////////////////////
 
@@ -188,7 +196,7 @@ mac_alloc_object(Mac_Object_Kind kind){
     return YES;
 }
 
-- (void)applicationWillTerminate:(NSNotification *)notification{
+- (void)applicationWillTerminate:(NSNotification*)notification{
 }
 
 - (NSSize)windowWillResize:(NSWindow*)window toSize:(NSSize)frame_size{
@@ -207,10 +215,10 @@ int
 main(int arg_count, char **args){
     @autoreleasepool{
         // NOTE(yuval): Create NSApplication & Delegate
-        NSApplication* app = [NSApplication sharedApplication];
+        NSApplication *app = [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         
-        App_Delegate* app_delegate = [[App_Delegate alloc] init];
+        App_Delegate *app_delegate = [[App_Delegate alloc] init];
         [app setDelegate:app_delegate];
         
         [NSApp finishLaunching];
