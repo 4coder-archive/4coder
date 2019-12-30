@@ -406,12 +406,18 @@ system_wake_up_timer_set_sig(){
 
 function
 system_signal_step_sig(){
-    NotImplemented;
+    [mac_vars.view requestDisplay];
 }
 
 function
 system_sleep_sig(){
-    NotImplemented;
+    u64 nanoseconds = (microseconds * Thousand(1));
+    u64 abs_sleep_time = (u64)((f64)nanoseconds *
+                               (f64)mac_vars.timebase_info.denom /
+                               (f64)mac_vars.timebase_info.numer);
+    
+    u64 now = mach_absolute_time();
+    mach_wait_until(now + abs_sleep_time);
 }
 
 ////////////////////////////////
@@ -464,10 +470,7 @@ system_open_color_picker_sig(){
 
 function
 system_get_screen_scale_factor_sig(){
-    f32 result = 0.0f;
-    
-    NotImplemented;
-    
+    f32 result = mac_vars.screen_scale_factor;
     return(result);
 }
 

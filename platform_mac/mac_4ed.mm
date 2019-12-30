@@ -124,6 +124,7 @@ struct Mac_Vars {
     
     NSWindow* window;
     OpenGLView* view;
+    f32 screen_scale_factor;
     
     mach_timebase_info_data_t timebase_info;
     
@@ -266,10 +267,12 @@ mac_free_object(Mac_Object *object){
     [self requestDisplay];
 }
 
+/*
 - (void)mouseMoved:(NSEvent*)event{
     printf("Mouse Moved!\n");
     [self requestDisplay];
 }
+*/
 
 - (void)mouseDown:(NSEvent*)event{
     printf("Mouse Down!\n");
@@ -329,9 +332,16 @@ main(int arg_count, char **args){
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
         
-        Arena test_arena = make_arena_malloc();
-        Plat_Handle timer = system_wake_up_timer_create();
-        system_wake_up_timer_set(timer, 5000);
+        // NOTE(yuval): Screen scale factor calculation
+        {
+            NSScreen* screen = [NSScreen mainScreen];
+            NSDictionary* desc = [screen deviceDescription];
+            NSSize size = [[desc valueForKey:NSDeviceResolution] sizeValue];
+            f32 max_dpi = Max(size.width, size.height);
+            mac_vars.screen_scale_factor = (max_dpi / 72.0f);
+        }
+        
+        printf("screen scale factor: %f\n", system_get_screen_scale_factor());
         
         // NOTE(yuval): Start the app's run loop
 #if 1
