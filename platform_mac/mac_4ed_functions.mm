@@ -397,10 +397,10 @@ system_wake_up_timer_set_sig(){
     Mac_Object *object = (Mac_Object*)mac_to_object(handle);
     if (object->kind == MacObjectKind_Timer){
         f64 time_seconds = ((f64)time_milliseconds / 1000.0);
-        object->timer.timer = [NSTimer scheduledTimerWithTimeInterval: time_seconds
-                target: mac_vars.view
-                selector: @selector(requestDisplay)
-                userInfo: nil repeats:NO];
+        object->timer.timer = [NSTimer scheduledTimerWithTimeInterval:time_seconds
+                target:mac_vars.view
+                selector:@selector(requestDisplay)
+                userInfo:nil repeats:NO];
     }
 }
 

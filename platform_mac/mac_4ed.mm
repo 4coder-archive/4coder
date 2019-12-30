@@ -244,8 +244,42 @@ mac_free_object(Mac_Object *object){
     // (GLsizei)bounds.size.height);
 }
 
+- (void)drawRect:(NSRect)bounds{
+    // [self getFrame];
+    printf("Draw Rect!\n");
+}
+
+- (BOOL)acceptsFirstResponder{
+    return YES;
+}
+
+- (BOOL)becomeFirstResponder{
+    return YES;
+}
+
+- (BOOL)resignFirstResponder{
+    return YES;
+}
+
+- (void)keyDown:(NSEvent *)event{
+    printf("Key Down!\n");
+    [self requestDisplay];
+}
+
+- (void)mouseMoved:(NSEvent*)event{
+    printf("Mouse Moved!\n");
+    [self requestDisplay];
+}
+
+- (void)mouseDown:(NSEvent*)event{
+    printf("Mouse Down!\n");
+    [self requestDisplay];
+}
+
 - (void)requestDisplay{
     printf("Display Requested\n");
+    
+    [self setNeedsDisplayInRect:[mac_vars.window frame]];
 }
 @end
 
@@ -269,25 +303,28 @@ main(int arg_count, char **args){
         NSRect screen_rect = [[NSScreen mainScreen] frame];
         NSRect initial_frame = NSMakeRect((screen_rect.size.width - w) * 0.5f, (screen_rect.size.height - h) * 0.5f, w, h);
         
-        NSWindow* window = [[NSWindow alloc] initWithContentRect: initial_frame
-                styleMask: NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
-                backing: NSBackingStoreBuffered
-                defer: NO];
+        u32 style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
         
-        [window setBackgroundColor: NSColor.blackColor];
-        [window setDelegate: app_delegate];
-        [window setTitle: @"4coder"];
-        [window makeKeyAndOrderFront: nil];
+        mac_vars.window = [[NSWindow alloc] initWithContentRect:initial_frame
+                styleMask:style_mask
+                backing:NSBackingStoreBuffered
+                defer:NO];
+        
+        [mac_vars.window setBackgroundColor:NSColor.blackColor];
+        [mac_vars.window setDelegate:app_delegate];
+        [mac_vars.window setTitle:@"4coder"];
+        [mac_vars.window setAcceptsMouseMovedEvents:YES];
         
         // NOTE(yuval): Create OpenGLView
-        NSView* content_view = [window contentView];
+        NSView* content_view = [mac_vars.window contentView];
         
         // TODO(yuval): Finish view setup!
         mac_vars.view = [[OpenGLView alloc] init];
-        [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         [mac_vars.view setFrame:[content_view bounds]];
+        [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         
         [content_view addSubview:mac_vars.view];
+        [mac_vars.window makeKeyAndOrderFront:nil];
         
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
@@ -297,9 +334,32 @@ main(int arg_count, char **args){
         system_wake_up_timer_set(timer, 5000);
         
         // NOTE(yuval): Start the app's run loop
+#if 1
         [NSApp run];
-        
-        
+#else
+        for (;;) {
+            u64 count = 0;
+            
+            NSEvent* event;
+            do {
+                event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                        untilDate:nil//[NSDate distantFuture]
+                        inMode:NSDefaultRunLoopMode
+                        dequeue:YES];
+                
+                if (event != nil) {
+                    // printf("Event: %lu\n", [event type]);
+                    ++count;
+                }
+                
+                [NSApp sendEvent:event];
+            } while (event != nil);
+            
+            if (count > 1) {
+                printf("Count: %llu\n", count);
+            }
+        }
+#endif
         
 #if 0
         // NOTE(yuval): Context Setup
