@@ -385,8 +385,8 @@ function
 system_wake_up_timer_release_sig(){
     Mac_Object *object = (Mac_Object*)mac_to_object(handle);
     if (object->kind == MacObjectKind_Timer){
-        if ((object->timer != nil) && [object->timer isValid]) {
-            [object->timer invalidate];
+        if ((object->timer.timer != nil) && [object->timer.timer isValid]) {
+            [object->timer.timer invalidate];
             mac_free_object(object);
         }
     }
@@ -397,7 +397,7 @@ system_wake_up_timer_set_sig(){
     Mac_Object *object = (Mac_Object*)mac_to_object(handle);
     if (object->kind == MacObjectKind_Timer){
         f64 time_seconds = ((f64)time_milliseconds / 1000.0);
-        object->timer = [NSTimer scheduledTimerWithTimeInterval: time_seconds
+        object->timer.timer = [NSTimer scheduledTimerWithTimeInterval: time_seconds
                 target: mac_vars.view
                 selector: @selector(requestDisplay)
                 userInfo: nil repeats:NO];

@@ -52,6 +52,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include <libproc.h> // NOTE(yuval): Used for proc_pidpath
+#include <mach/mach_time.h> // NOTE(yuval): Used for mach_absolute_time, mach_timebase_info, mach_timebase_info_data_t
 
 #include <dirent.h> // NOTE(yuval): Used for opendir, readdir
 #include <dlfcn.h> // NOTE(yuval): Used for dlopen, dlclose, dlsym
@@ -83,6 +84,16 @@
 
 ////////////////////////////////
 
+@interface App_Delegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
+@end
+
+@interface Opengl_View : NSOpenGLView
+@end
+
+////////////////////////////////
+
+////////////////////////////////
+
 typedef i32 Mac_Object_Kind;
 enum{
     MacObjectKind_ERROR = 0,
@@ -110,6 +121,11 @@ struct Mac_Vars {
     
     String_Const_u8 binary_path;
     
+    NSWindow* window;
+    Opengl_View* view;
+    
+    mach_timebase_info_data_t timebase_info;
+    
     Node free_mac_objects;
     Node timer_objects;
 };
@@ -133,7 +149,7 @@ mac_to_object(Plat_Handle handle){
     return(result);
 }
 
-function
+function Mac_Object*
 mac_alloc_object(Mac_Object_Kind kind){
     Mac_Object *result = 0;
     
@@ -170,7 +186,7 @@ mac_alloc_object(Mac_Object_Kind kind){
     return(result);
 }
 
-function
+function void
 mac_free_object(Mac_Object *object){
     if (object->node.next != 0){
         dll_remove(&object->node);
@@ -184,9 +200,6 @@ mac_free_object(Mac_Object *object){
 #import "mac_4ed_functions.mm"
 
 ////////////////////////////////
-
-@interface App_Delegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
-@end
 
 @implementation App_Delegate
 - (void)applicationDidFinishLaunching:(id)sender{
@@ -206,6 +219,28 @@ mac_free_object(Mac_Object *object){
 
 - (void)windowWillClose:(id)sender{
     // global_running = false;
+}
+@end
+
+@implementation Opengl_View
+- (id)init {
+    self = [super init];
+    return self;
+}
+
+- (void)prepareOpenGL {
+    [super prepareOpenGL];
+    [[self openGLContext] makeCurrentContext];
+}
+
+- (void)reshape {
+    [super reshape];
+    
+    NSRect bounds = [self bounds];
+    // [global_opengl_context makeCurrentContext];
+    // [global_opengl_context update];
+    // glViewport(0, 0, (GLsizei)bounds.size.width,
+    // (GLsizei)bounds.size.height);
 }
 @end
 
@@ -265,6 +300,9 @@ main(int arg_count, char **args){
         
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
+        
+        // NOTE(yuval): Get the timebase info
+        mach_timebase_info(&mac_vars.timebase_info);
 #endif
         
 #if 0
