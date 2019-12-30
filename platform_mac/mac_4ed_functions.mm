@@ -563,9 +563,7 @@ system_condition_variable_free_sig(){
 
 function
 system_memory_allocate_sig(){
-    void* result = 0;
-    
-    NotImplemented;
+    void* result = malloc(size);
     
     return(result);
 }

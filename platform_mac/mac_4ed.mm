@@ -84,10 +84,11 @@
 
 ////////////////////////////////
 
-@interface App_Delegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
+@interface AppDelegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
 @end
 
-@interface Opengl_View : NSOpenGLView
+@interface OpenGLView : NSOpenGLView
+- (void)requestDisplay;
 @end
 
 ////////////////////////////////
@@ -122,7 +123,7 @@ struct Mac_Vars {
     String_Const_u8 binary_path;
     
     NSWindow* window;
-    Opengl_View* view;
+    OpenGLView* view;
     
     mach_timebase_info_data_t timebase_info;
     
@@ -201,7 +202,7 @@ mac_free_object(Mac_Object *object){
 
 ////////////////////////////////
 
-@implementation App_Delegate
+@implementation AppDelegate
 - (void)applicationDidFinishLaunching:(id)sender{
 }
 
@@ -222,18 +223,18 @@ mac_free_object(Mac_Object *object){
 }
 @end
 
-@implementation Opengl_View
+@implementation OpenGLView
 - (id)init {
     self = [super init];
     return self;
 }
 
-- (void)prepareOpenGL {
+- (void)prepareOpenGL{
     [super prepareOpenGL];
     [[self openGLContext] makeCurrentContext];
 }
 
-- (void)reshape {
+- (void)reshape{
     [super reshape];
     
     NSRect bounds = [self bounds];
@@ -242,35 +243,63 @@ mac_free_object(Mac_Object *object){
     // glViewport(0, 0, (GLsizei)bounds.size.width,
     // (GLsizei)bounds.size.height);
 }
+
+- (void)requestDisplay{
+    printf("Display Requested\n");
+}
 @end
 
 ////////////////////////////////
 
 int
 main(int arg_count, char **args){
+    block_zero_struct(&mac_vars);
+    
     @autoreleasepool{
         // NOTE(yuval): Create NSApplication & Delegate
         NSApplication *app = [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         
-        App_Delegate *app_delegate = [[App_Delegate alloc] init];
+        AppDelegate *app_delegate = [[AppDelegate alloc] init];
         [app setDelegate:app_delegate];
         
-        [NSApp finishLaunching];
+        // NOTE(yuval): Create NSWindow
+        float w = 1280.0f;
+        float h = 720.0f;
+        NSRect screen_rect = [[NSScreen mainScreen] frame];
+        NSRect initial_frame = NSMakeRect((screen_rect.size.width - w) * 0.5f, (screen_rect.size.height - h) * 0.5f, w, h);
+        
+        NSWindow* window = [[NSWindow alloc] initWithContentRect: initial_frame
+                styleMask: NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
+                backing: NSBackingStoreBuffered
+                defer: NO];
+        
+        [window setBackgroundColor: NSColor.blackColor];
+        [window setDelegate: app_delegate];
+        [window setTitle: @"4coder"];
+        [window makeKeyAndOrderFront: nil];
+        
+        // NOTE(yuval): Create OpenGLView
+        NSView* content_view = [window contentView];
+        
+        // TODO(yuval): Finish view setup!
+        mac_vars.view = [[OpenGLView alloc] init];
+        [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+        [mac_vars.view setFrame:[content_view bounds]];
+        
+        [content_view addSubview:mac_vars.view];
+        
+        dll_init_sentinel(&mac_vars.free_mac_objects);
+        dll_init_sentinel(&mac_vars.timer_objects);
         
         Arena test_arena = make_arena_malloc();
-        File_List list = system_get_file_list(&test_arena,
-                                              string_u8_litexpr("/Users/yuvaldolev/Desktop"));
+        Plat_Handle timer = system_wake_up_timer_create();
+        system_wake_up_timer_set(timer, 5000);
         
-        for (u32 index = 0; index < list.count; ++index) {
-            File_Info* info = list.infos[index];
-            
-            printf("File_Info{file_name:'%.*s', "
-                   "attributes:{size:%llu, last_write_time:%llu, flags:{IsDirectory:%d}}}\n",
-                   (i32)info->file_name.size, info->file_name.str,
-                   info->attributes.size, info->attributes.last_write_time,
-                   ((info->attributes.flags & FileAttribute_IsDirectory) != 0));
-        }
+        // NOTE(yuval): Start the app's run loop
+        [NSApp run];
+        
+        
         
 #if 0
         // NOTE(yuval): Context Setup
@@ -279,7 +308,6 @@ main(int arg_count, char **args){
                         get_base_allocator_system(),
                         get_base_allocator_system());
         
-        block_zero_struct(&mac_vars);
         mac_vars.tctx = &_tctx;
         
         API_VTable_system system_vtable = {};
