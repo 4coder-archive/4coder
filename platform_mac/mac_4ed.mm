@@ -60,6 +60,7 @@
 #include <fcntl.h> // NOTE(yuval): Used for open
 #include <pthread.h> // NOTE(yuval): Used for threads, mutexes, cvs
 #include <unistd.h> // NOTE(yuval): Used for getcwd, read, write, getpid
+#include <sys/mman.h> // NOTE(yuval): Used for mmap, munmap, mprotect
 #include <sys/stat.h> // NOTE(yuval): Used for stat
 #include <sys/types.h> // NOTE(yuval): Used for struct stat, pid_t
 
@@ -359,29 +360,23 @@ main(int arg_count, char **args){
         
         // NOTE(yuval): Start the app's run loop
 #if 1
+        printf("Running using NSApp run\n");
         [NSApp run];
 #else
+        printf("Running using manual event loop\n");
+        
         for (;;) {
             u64 count = 0;
             
             NSEvent* event;
             do {
                 event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                        untilDate:nil//[NSDate distantFuture]
+                        untilDate:[NSDate distantFuture]
                         inMode:NSDefaultRunLoopMode
                         dequeue:YES];
                 
-                if (event != nil) {
-                    // printf("Event: %lu\n", [event type]);
-                    ++count;
-                }
-                
                 [NSApp sendEvent:event];
             } while (event != nil);
-            
-            if (count > 1) {
-                printf("Count: %llu\n", count);
-            }
         }
 #endif
         

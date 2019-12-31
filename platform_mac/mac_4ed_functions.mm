@@ -623,32 +623,141 @@ system_condition_variable_free_sig(){
 
 ////////////////////////////////
 
+struct Memory_Annotation_Tracker_Node{
+    Memory_Annotation_Tracker_Node *next;
+    Memory_Annotation_Tracker_Node *prev;
+    String_Const_u8 location;
+    u64 size;
+};
+
+struct Memory_Annotation_Tracker{
+    Memory_Annotation_Tracker_Node *first;
+    Memory_Annotation_Tracker_Node *last;
+    i32 count;
+};
+
+global Memory_Annotation_Tracker memory_tracker = {};
+global pthread_mutex_t memory_tracker_mutex;
+
+global_const u64 ALLOCATION_SIZE_ADJUSTMENT = 64;
+
+function void*
+mac_memory_allocate_extended(void *base, u64 size, String_Const_u8 location){
+    u64 adjusted_size = size + ALLOCATION_SIZE_ADJUSTMENT;
+    void *memory = mmap(base, adjusted_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    
+    Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)memory;
+    
+    pthread_mutex_lock(&memory_tracker_mutex);
+    {
+        zdll_push_back(memory_tracker.first, memory_tracker.last, node);
+        memory_tracker.count += 1;
+    }
+    pthread_mutex_unlock(&memory_tracker_mutex);
+    
+    node->location = location;
+    node->size = size;
+    
+    void* result = (node + 1);
+    return(result);
+}
+
+function void
+mac_memory_free_extended(void *ptr){
+    Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)ptr;
+    node -= 1;
+    
+    pthread_mutex_lock(&memory_tracker_mutex);
+    {
+        zdll_remove(memory_tracker.first, memory_tracker.last, node);
+        memory_tracker.count -= 1;
+    }
+    pthread_mutex_unlock(&memory_tracker_mutex);
+    
+    munmap(node, node->size + ALLOCATION_SIZE_ADJUSTMENT);
+}
+
 function
 system_memory_allocate_sig(){
-    void* result = malloc(size);
-    
+    void* result = mac_memory_allocate_extended(0, size, location);
     return(result);
 }
 
 function
 system_memory_set_protection_sig(){
-    b32 result = false;
+    b32 result = true;
     
-    NotImplemented;
+    int protect = 0;
+    switch (flags & 0x7){
+        case 0:
+        {
+            protect = PROT_NONE;
+        } break;
+        
+        case MemProtect_Read:
+        {
+            protect = PROT_READ;
+        } break;
+        
+        case MemProtect_Write:
+        case MemProtect_Read | MemProtect_Write:
+        {
+            protect = PROT_READ | PROT_WRITE;
+        } break;
+        
+        case MemProtect_Execute:
+        {
+            protect = PROT_EXEC;
+        } break;
+        
+        case MemProtect_Execute | MemProtect_Read:
+        {
+            protect = PROT_READ | PROT_EXEC;
+        } break;
+        
+        // NOTE(inso): some W^X protection things might be unhappy about this one
+        case MemProtect_Execute | MemProtect_Write:
+        case MemProtect_Execute | MemProtect_Write | MemProtect_Read:
+        {
+            protect = PROT_READ | PROT_WRITE | PROT_EXEC;
+        } break;
+    }
+    
+    Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)ptr;
+    node -= 1;
+    
+    if(mprotect(node, size, protect) == -1){
+        result = false;
+    }
     
     return(result);
 }
 
 function
 system_memory_free_sig(){
-    NotImplemented;
+    mac_memory_free_extended(ptr);
 }
 
 function
 system_memory_annotation_sig(){
     Memory_Annotation result = {};
     
-    NotImplemented;
+    pthread_mutex_lock(&memory_tracker_mutex);
+    {
+        for (Memory_Annotation_Tracker_Node *node = memory_tracker.first;
+             node != 0;
+             node = node->next){
+            Memory_Annotation_Node *r_node = push_array(arena, Memory_Annotation_Node, 1);
+            sll_queue_push(result.first, result.last, r_node);
+            result.count += 1;
+            
+            r_node->location = node->location;
+            r_node->address = node + 1;
+            r_node->size = node->size;
+        }
+        
+    }
+    pthread_mutex_unlock(&memory_tracker_mutex);
     
     return(result);
 }
