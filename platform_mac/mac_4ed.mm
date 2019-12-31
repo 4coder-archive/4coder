@@ -71,6 +71,37 @@
 #define global static
 #define external extern "C"
 
+struct Control_Keys{
+    b8 l_ctrl;
+    b8 r_ctrl;
+    b8 l_alt;
+    b8 r_alt;
+};
+
+struct Mac_Input_Chunk_Transient{
+    Input_List event_list;
+    b8 mouse_l_press;
+    b8 mouse_l_release;
+    b8 mouse_r_press;
+    b8 mouse_r_release;
+    b8 out_of_window;
+    i8 mouse_wheel;
+    b8 trying_to_kill;
+};
+
+struct Mac_Input_Chunk_Persistent{
+    Vec2_i32 mouse;
+    Control_Keys controls;
+    Input_Modifier_Set_Fixed modifiers;
+    b8 mouse_l;
+    b8 mouse_r;
+};
+
+struct Mac_Input_Chunk{
+    Mac_Input_Chunk_Transient trans;
+    Mac_Input_Chunk_Persistent pers;
+};
+
 ////////////////////////////////
 
 #define SLASH '/'
@@ -128,6 +159,13 @@ struct Mac_Vars {
     Thread_Context *tctx;
     
     Arena* frame_arena;
+    Mac_Input_Chunk input_chunk;
+    
+    b8 full_screen;
+    b8 do_toggle;
+    
+    i32 cursor_show;
+    i32 prev_cursor_show;
     
     String_Const_u8 binary_path;
     

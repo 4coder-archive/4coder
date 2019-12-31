@@ -766,33 +766,28 @@ system_memory_annotation_sig(){
 
 function
 system_show_mouse_cursor_sig(){
-    NotImplemented;
+    mac_vars.cursor_show = show;
 }
 
 function
 system_set_fullscreen_sig(){
-    b32 result = false;
+    // NOTE(yuval): Read comment in system_set_fullscreen_sig in win32_4ed.cpp
+    mac_vars.do_toggle = (mac_vars.full_screen != full_screen);
     
-    NotImplemented;
-    
-    return(result);
+    b32 success = true;
+    return(success);
 }
 
 function
 system_is_fullscreen_sig(){
-    b32 result = false;
-    
-    NotImplemented;
-    
+    // NOTE(yuval): Read comment in system_is_fullscreen_sig in win32_4ed.cpp
+    b32 result = (mac_vars.full_screen != mac_vars.do_toggle);
     return(result);
 }
 
 function
 system_get_keyboard_modifiers_sig(){
-    Input_Modifier_Set result = {};
-    
-    NotImplemented;
-    
+    Input_Modifier_Set result = copy_modifier_set(arena, &mac_vars.input_chunk.pers.modifiers);
     return(result);
 }
 
