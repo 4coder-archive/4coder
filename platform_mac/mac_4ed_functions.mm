@@ -383,7 +383,7 @@ system_wake_up_timer_create_sig(){
 
 function
 system_wake_up_timer_release_sig(){
-    Mac_Object *object = (Mac_Object*)mac_to_object(handle);
+    Mac_Object *object = mac_to_object(handle);
     if (object->kind == MacObjectKind_Timer){
         if ((object->timer.timer != nil) && [object->timer.timer isValid]) {
             [object->timer.timer invalidate];
@@ -394,7 +394,7 @@ system_wake_up_timer_release_sig(){
 
 function
 system_wake_up_timer_set_sig(){
-    Mac_Object *object = (Mac_Object*)mac_to_object(handle);
+    Mac_Object *object = mac_to_object(handle);
     if (object->kind == MacObjectKind_Timer){
         f64 time_seconds = ((f64)time_milliseconds / 1000.0);
         object->timer.timer = [NSTimer scheduledTimerWithTimeInterval:time_seconds
@@ -476,42 +476,65 @@ system_get_screen_scale_factor_sig(){
 
 ////////////////////////////////
 
+function void*
+mac_thread_wrapper(void *ptr){
+    Mac_Object *object = (Mac_Object*)ptr;
+    Thread_Function *proc = object->thread.proc;
+    void *object_ptr = object->thread.ptr;
+    
+    pthread_mutex_lock(&mac_vars.thread_launch_mutex);
+    {
+        mac_vars.waiting_for_launch = false;
+        pthread_cond_signal(&mac_vars.thread_launch_cv);
+    }
+    pthread_mutex_unlock(&mac_vars.thread_launch_mutex);
+    
+    proc(object_ptr);
+    
+    return(0);
+}
+
 function
 system_thread_launch_sig(){
-    System_Thread result = {};
+    Mac_Object *object = mac_alloc_object(MacObjectKind_Thread);
+    object->thread.proc = proc;
+    object->thread.ptr = ptr;
     
-    NotImplemented;
+    pthread_mutex_lock(&mac_vars.thread_launch_mutex);
+    {
+        mac_vars.waiting_for_launch = true;
+        pthread_create(&object->thread.thread, 0, mac_thread_wrapper, object);
+        
+        while (mac_vars.waiting_for_launch){
+            pthread_cond_wait(&mac_vars.thread_launch_cv, &mac_vars.thread_launch_mutex);
+        }
+    }
+    pthread_mutex_unlock(&mac_vars.thread_launch_mutex);
     
+    System_Thread result = mac_to_system_thread(object);
     return(result);
 }
 
 function
 system_thread_join_sig(){
-    NotImplemented;
+    Mac_Object *object = mac_to_object(thread);
+    if (object->kind == MacObjectKind_Thread){
+        pthread_join(object->thread.thread, 0);
+    }
 }
 
 function
 system_thread_free_sig(){
-    NotImplemented;
+    Mac_Object* object = mac_to_object(thread);
+    if (object->kind == MacObjectKind_Thread){
+        mac_free_object(object);
+    }
 }
 
 function
 system_thread_get_id_sig(){
-    i32 result = 0;
-    
-    NotImplemented;
-    
+    i32 result = (i32)pthread_getthreadid_np();
     return(result);
-}
-
-function
-system_acquire_global_frame_mutex_sig(){
-    NotImplemented;
-}
-
-function
-system_release_global_frame_mutex_sig(){
-    NotImplemented;
 }
 
 function
@@ -535,6 +558,16 @@ system_mutex_release_sig(){
 
 function
 system_mutex_free_sig(){
+    NotImplemented;
+}
+
+function
+system_acquire_global_frame_mutex_sig(){
+    NotImplemented;
+}
+
+function
+system_release_global_frame_mutex_sig(){
     NotImplemented;
 }
 

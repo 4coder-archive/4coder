@@ -145,9 +145,22 @@ mac_to_plat_handle(Mac_Object *object){
     return(result);
 }
 
+
+function inline System_Thread
+mac_to_system_thread(Mac_Object *object){
+    System_Thread result = *(System_Thread*)(&object);
+    return(result);
+}
+
 function inline Mac_Object*
 mac_to_object(Plat_Handle handle){
-    Mac_Object* result = *(Mac_Object**)(&handle);
+    Mac_Object *result = *(Mac_Object**)(&handle);
+    return(result);
+}
+
+function inline Mac_Object*
+mac_to_object(System_Thread thread){
+    Mac_Object *result = *(Mac_Object**)(&thread);
     return(result);
 }
 
