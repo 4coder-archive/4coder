@@ -58,6 +58,7 @@
 #include <dlfcn.h> // NOTE(yuval): Used for dlopen, dlclose, dlsym
 #include <errno.h> // NOTE(yuval): Used for errno
 #include <fcntl.h> // NOTE(yuval): Used for open
+#include <pthread.h> // NOTE(yuval): Used for threads, mutexes, cvs
 #include <unistd.h> // NOTE(yuval): Used for getcwd, read, write, getpid
 #include <sys/stat.h> // NOTE(yuval): Used for stat
 #include <sys/types.h> // NOTE(yuval): Used for struct stat, pid_t
@@ -109,9 +110,16 @@ struct Mac_Object{
     Mac_Object_Kind kind;
     
     union{
+        NSTimer* timer;
+        
         struct{
-            NSTimer* timer;
-        } timer;
+            pthread_t thread;
+            Thread_Function *proc;
+            void *ptr;
+        } thread;
+        
+        pthread_mutex_t mutex;
+        pthread_cond_t cv;
     };
 };
 
@@ -130,6 +138,12 @@ struct Mac_Vars {
     
     Node free_mac_objects;
     Node timer_objects;
+    
+    pthread_mutex_t thread_launch_mutex;
+    pthread_cond_t thread_launch_cv;
+    b32 waiting_for_launch;
+    
+    System_Mutex global_frame_mutex;
 };
 
 ////////////////////////////////
@@ -138,31 +152,6 @@ global Mac_Vars mac_vars;
 global Render_Target target;
 
 ////////////////////////////////
-
-function inline Plat_Handle
-mac_to_plat_handle(Mac_Object *object){
-    Plat_Handle result = *(Plat_Handle*)(&object);
-    return(result);
-}
-
-
-function inline System_Thread
-mac_to_system_thread(Mac_Object *object){
-    System_Thread result = *(System_Thread*)(&object);
-    return(result);
-}
-
-function inline Mac_Object*
-mac_to_object(Plat_Handle handle){
-    Mac_Object *result = *(Mac_Object**)(&handle);
-    return(result);
-}
-
-function inline Mac_Object*
-mac_to_object(System_Thread thread){
-    Mac_Object *result = *(Mac_Object**)(&thread);
-    return(result);
-}
 
 function Mac_Object*
 mac_alloc_object(Mac_Object_Kind kind){
@@ -208,6 +197,18 @@ mac_free_object(Mac_Object *object){
     }
     
     dll_insert(&mac_vars.free_mac_objects, &object->node);
+}
+
+function inline Plat_Handle
+mac_to_plat_handle(Mac_Object *object){
+    Plat_Handle result = *(Plat_Handle*)(&object);
+    return(result);
+}
+
+function inline Mac_Object*
+mac_to_object(Plat_Handle handle){
+    Mac_Object *result = *(Mac_Object**)(&handle);
+    return(result);
 }
 
 ////////////////////////////////

@@ -375,7 +375,7 @@ system_wake_up_timer_create_sig(){
     Mac_Object *object = mac_alloc_object(MacObjectKind_Timer);
     dll_insert(&mac_vars.timer_objects, &object->node);
     
-    object->timer.timer = nil;
+    object->timer = nil;
     
     Plat_Handle result = mac_to_plat_handle(object);
     return(result);
@@ -385,8 +385,8 @@ function
 system_wake_up_timer_release_sig(){
     Mac_Object *object = mac_to_object(handle);
     if (object->kind == MacObjectKind_Timer){
-        if ((object->timer.timer != nil) && [object->timer.timer isValid]) {
-            [object->timer.timer invalidate];
+        if ((object->timer != nil) && [object->timer isValid]) {
+            [object->timer invalidate];
             mac_free_object(object);
         }
     }
@@ -397,7 +397,7 @@ system_wake_up_timer_set_sig(){
     Mac_Object *object = mac_to_object(handle);
     if (object->kind == MacObjectKind_Timer){
         f64 time_seconds = ((f64)time_milliseconds / 1000.0);
-        object->timer.timer = [NSTimer scheduledTimerWithTimeInterval:time_seconds
+        object->timer = [NSTimer scheduledTimerWithTimeInterval:time_seconds
                 target:mac_vars.view
                 selector:@selector(requestDisplay)
                 userInfo:nil repeats:NO];
@@ -511,7 +511,7 @@ system_thread_launch_sig(){
     }
     pthread_mutex_unlock(&mac_vars.thread_launch_mutex);
     
-    System_Thread result = mac_to_system_thread(object);
+    System_Thread result = mac_to_plat_handle(object);
     return(result);
 }
 
@@ -533,66 +533,92 @@ system_thread_free_sig(){
 
 function
 system_thread_get_id_sig(){
-    i32 result = (i32)pthread_getthreadid_np();
+    pthread_t id = pthread_self();
+    i32 result = *(i32*)(&id);
     return(result);
 }
 
 function
 system_mutex_make_sig(){
-    System_Mutex result = {};
+    Mac_Object *object = mac_alloc_object(MacObjectKind_Mutex);
+    pthread_mutex_init(&object->mutex, 0);
     
-    NotImplemented;
-    
+    System_Mutex result = mac_to_plat_handle(object);
     return(result);
 }
 
 function
 system_mutex_acquire_sig(){
-    NotImplemented;
+    Mac_Object *object = mac_to_object(mutex);
+    if (object->kind == MacObjectKind_Mutex){
+        pthread_mutex_lock(&object->mutex);
+    }
 }
 
 function
 system_mutex_release_sig(){
-    NotImplemented;
+    Mac_Object *object = mac_to_object(mutex);
+    if (object->kind == MacObjectKind_Mutex){
+        pthread_mutex_unlock(&object->mutex);
+    }
 }
 
 function
 system_mutex_free_sig(){
-    NotImplemented;
+    Mac_Object *object = mac_to_object(mutex);
+    if (object->kind == MacObjectKind_Mutex){
+        pthread_mutex_destroy(&object->mutex);
+        mac_free_object(object);
+    }
 }
 
 function
 system_acquire_global_frame_mutex_sig(){
-    NotImplemented;
+    if (tctx->kind == ThreadKind_AsyncTasks){
+        system_mutex_acquire(mac_vars.global_frame_mutex);
+    }
 }
 
 function
 system_release_global_frame_mutex_sig(){
-    NotImplemented;
+    if (tctx->kind == ThreadKind_AsyncTasks){
+        system_mutex_release(mac_vars.global_frame_mutex);
+    }
 }
 
 function
 system_condition_variable_make_sig(){
-    System_Condition_Variable result = {};
+    Mac_Object *object = mac_alloc_object(MacObjectKind_CV);
+    pthread_cond_init(&object->cv, 0);
     
-    NotImplemented;
-    
+    System_Condition_Variable result = mac_to_plat_handle(object);
     return(result);
 }
 
 function
 system_condition_variable_wait_sig(){
-    NotImplemented;
+    Mac_Object *object_cv = mac_to_object(cv);
+    Mac_Object *object_mutex = mac_to_object(mutex);
+    if ((object_cv->kind == MacObjectKind_CV) && (object_mutex->kind == MacObjectKind_Mutex)){
+        pthread_cond_wait(&object_cv->cv, &object_mutex->mutex);
+    }
 }
 
 function
 system_condition_variable_signal_sig(){
-    NotImplemented;
+    Mac_Object *object = mac_to_object(cv);
+    if (object->kind == MacObjectKind_CV){
+        pthread_cond_signal(&object->cv);
+    }
 }
 
 function
 system_condition_variable_free_sig(){
-    NotImplemented;
+    Mac_Object *object = mac_to_object(cv);
+    if (object->kind == MacObjectKind_CV){
+        pthread_cond_destroy(&object->cv);
+        mac_free_object(object);
+    }
 }
 
 ////////////////////////////////
