@@ -121,6 +121,7 @@ struct Mac_Input_Chunk{
 @end
 
 @interface OpenGLView : NSOpenGLView
+- (void)init_opengl;
 - (void)requestDisplay;
 @end
 
@@ -156,6 +157,8 @@ struct Mac_Object{
 };
 
 struct Mac_Vars {
+    b32 gl_is_initialized;
+    
     Thread_Context *tctx;
     
     Arena* frame_arena;
@@ -266,26 +269,39 @@ mac_to_object(Plat_Handle handle){
 
 - (void)applicationWillTerminate:(NSNotification*)notification{
 }
-
-- (NSSize)windowWillResize:(NSWindow*)window toSize:(NSSize)frame_size{
-    // frame_size.height = ((f32)frame_size.width / global_aspect_ratio);
-    return frame_size;
-}
-
-- (void)windowWillClose:(id)sender{
-    // global_running = false;
-}
 @end
 
 @implementation OpenGLView
-- (id)init {
+- (id)init{
     self = [super init];
+    if (self == nil){
+        return nil;
+    }
+    
+    [self init_opengl];
+    
     return self;
 }
 
-- (void)prepareOpenGL{
+- (void)dealloc
+{
+    [super dealloc];
+}
+
+- (void)prepareOpenGL
+{
     [super prepareOpenGL];
+    
     [[self openGLContext] makeCurrentContext];
+    
+    // NOTE(yuval): Setup vsync
+    GLint swapInt = 1;
+    [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
+}
+
+- (void)awakeFromNib
+{
+    [self init_gl];
 }
 
 - (void)reshape{
@@ -332,6 +348,44 @@ mac_to_object(Plat_Handle handle){
     [self requestDisplay];
 }
 
+- (void)init_opengl{
+    if (mac_vars.gl_is_initialized){
+        return;
+    }
+    
+    [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    
+    // NOTE(yuval): Setup OpenGL
+    NSOpenGLPixelFormatAttribute opengl_attrs[] = {
+        NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
+        NSOpenGLPFAAccelerated,
+        NSOpenGLPFADoubleBuffer,
+        NSOpenGLPFAColorSize, 32,
+        NSOpenGLPFAAlphaSize, 8,
+        NSOpenGLPFADepthSize, 24,
+        // NSOpenGLPFASampleBuffers, 1,
+        // NSOpenGLPFASamples, 16,
+        0
+    };
+    
+    NSOpenGLPixelFormat *pixel_format = [[NSOpenGLPixelFormat alloc] initWithAttributes:opengl_attrs];
+    if (pixel_format == nil){
+        fprintf(stderr, "Error creating OpenGLPixelFormat\n");
+        exit(1);
+    }
+    
+    NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];
+    
+    [self setPixelFormat:format];
+    [self setOpenGLContext:context];
+    
+    [context makeCurrentContext];
+    
+    [pixel_format release];
+    
+    mac_vars.gl_is_initialized = true;
+}
+
 - (void)requestDisplay{
     printf("Display Requested\n");
     
@@ -344,6 +398,8 @@ mac_to_object(Plat_Handle handle){
 int
 main(int arg_count, char **args){
     block_zero_struct(&mac_vars);
+    
+    mac_vars.gl_is_initialized = false;
     
     @autoreleasepool{
         // NOTE(yuval): Create NSApplication & Delegate
