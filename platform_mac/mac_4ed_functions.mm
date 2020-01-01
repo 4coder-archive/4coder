@@ -406,7 +406,10 @@ system_wake_up_timer_set_sig(){
 
 function
 system_signal_step_sig(){
-    [mac_vars.view requestDisplay];
+    [NSTimer scheduledTimerWithTimeInterval:0.0
+            target:mac_vars.view
+            selector:@selector(requestDisplay)
+            userInfo:nil repeats:NO];
 }
 
 function
@@ -801,19 +804,13 @@ system_get_keyboard_modifiers_sig(){
 
 function
 graphics_get_texture_sig(){
-    u32 result = 0;
-    
-    NotImplemented;
-    
+    u32 result = gl__get_texture(dim, texture_kind);
     return(result);
 }
 
 function
 graphics_fill_texture_sig(){
-    b32 result = false;
-    
-    NotImplemented;
-    
+    b32 result = gl__fill_texture(texture_kind, texture, p, dim, data);
     return(result);
 }
 
@@ -827,10 +824,7 @@ graphics_fill_texture_sig(){
 
 function
 font_make_face_sig(){
-    Face* result = 0;
-    
-    NotImplemented;
-    
+    Face* result = ft__font_make_face(arena, description, scale_factor);
     return(result);
 }
 

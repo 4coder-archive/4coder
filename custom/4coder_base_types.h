@@ -144,12 +144,13 @@
 #endif
 #endif
 
+// NOTE(yuval): Changed this so that CALL_CONVENTION will be defined for all platforms
 #if OS_WINDOWS
 # if ARCH_32BIT
 #  define CALL_CONVENTION __stdcall
-# else
-#  define CALL_CONVENTION
 # endif
+#else
+# define CALL_CONVENTION
 #endif
 
 #if defined(JUST_GUESS_INTS)

@@ -54,10 +54,6 @@
 #include <libproc.h> // NOTE(yuval): Used for proc_pidpath
 #include <mach/mach_time.h> // NOTE(yuval): Used for mach_absolute_time, mach_timebase_info, mach_timebase_info_data_t
 
-#define GL_GLEXT_LEGACY
-#include <OpenGL/OpenGL.h>
-#include <OpenGL/gl.h>
-
 #include <dirent.h> // NOTE(yuval): Used for opendir, readdir
 #include <dlfcn.h> // NOTE(yuval): Used for dlopen, dlclose, dlsym
 #include <errno.h> // NOTE(yuval): Used for errno
@@ -74,9 +70,6 @@
 #define internal static
 #define global static
 #define external extern "C"
-
-// NOTE(yuval): This is a hack to fix the CALL_CONVENTION not being defined problem in 4coder_base_types.h
-#define CALL_CONVENTION
 
 struct Control_Keys{
     b8 l_ctrl;
@@ -168,8 +161,11 @@ struct Mac_Vars {
     
     Thread_Context *tctx;
     
-    Arena* frame_arena;
+    Arena *frame_arena;
     Mac_Input_Chunk input_chunk;
+    
+    void *base_ptr;
+    u64 timer_start;
     
     b8 full_screen;
     b8 do_toggle;
@@ -181,8 +177,8 @@ struct Mac_Vars {
     
     String_Const_u8 clipboard_contents;
     
-    NSWindow* window;
-    OpenGLView* view;
+    NSWindow *window;
+    OpenGLView *view;
     f32 screen_scale_factor;
     
     mach_timebase_info_data_t timebase_info;
@@ -203,6 +199,7 @@ struct Mac_Vars {
 
 global Mac_Vars mac_vars;
 global Render_Target target;
+global App_Functions app;
 
 ////////////////////////////////
 
@@ -266,10 +263,12 @@ mac_to_object(Plat_Handle handle){
 
 ////////////////////////////////
 
-#include "4ed_font_provider_freetype.h"
-#include "4ed_font_provider_freetype.h"
+#include <OpenGL/OpenGL.h>
+#include <OpenGL/gl.h>
+#import "mac_4ed_opengl.mm"
 
-#include "opengl/4ed_opengl_render.cpp"
+#include "4ed_font_provider_freetype.h"
+#include "4ed_font_provider_freetype.cpp"
 
 #import "mac_4ed_functions.mm"
 
@@ -295,6 +294,14 @@ function b32
 mac_file_can_be_made(u8* filename){
     b32 result = access((char*)filename, W_OK) == 0;
     return(result);
+}
+
+function void
+mac_resize(float width, float height){
+    if ((width > 0.0f) && (height > 0.0f)){
+        target.width = width;
+        target.height = height;
+    }
 }
 
 ////////////////////////////////
@@ -323,13 +330,11 @@ mac_file_can_be_made(u8* filename){
     return self;
 }
 
-- (void)dealloc
-{
+- (void)dealloc{
     [super dealloc];
 }
 
-- (void)prepareOpenGL
-{
+- (void)prepareOpenGL{
     [super prepareOpenGL];
     
     [[self openGLContext] makeCurrentContext];
@@ -339,8 +344,7 @@ mac_file_can_be_made(u8* filename){
     [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
 }
 
-- (void)awakeFromNib
-{
+- (void)awakeFromNib{
     [self init_opengl];
 }
 
@@ -352,8 +356,23 @@ mac_file_can_be_made(u8* filename){
 }
 
 - (void)drawRect:(NSRect)bounds{
-    // [self getFrame];
-    printf("Draw Rect!\n");
+    // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
+    system_mutex_release(mac_vars.global_frame_mutex);
+    
+    Application_Step_Input input = {};
+    
+    // NOTE(yuval): Application Core Update
+    Application_Step_Result result = {};
+    if (app.step != 0){
+        result = app.step(mac_vars.tctx, &target, mac_vars.base_ptr, &input);
+    }
+    
+    CGLLockContext([[self openGLContext] CGLContextObj]);
+    [[self openGLContext] makeCurrentContext];
+    gl_render(&target);
+    [[self openGLContext] flushBuffer];
+    CGLUnlockContext([[self openGLContext] CGLContextObj]);
+    
 }
 
 - (BOOL)windowShouldClose:(NSWindow*)sender{
@@ -424,8 +443,6 @@ mac_file_can_be_made(u8* filename){
 }
 
 - (void)requestDisplay{
-    printf("Display Requested\n");
-    
     [self setNeedsDisplayInRect:[mac_vars.window frame]];
 }
 @end
@@ -486,7 +503,6 @@ main(int arg_count, char **args){
         
         // NOTE(yuval): Load core
         System_Library core_library = {};
-        App_Functions app = {};
         {
             App_Get_Functions *get_funcs = 0;
             Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
@@ -516,14 +532,14 @@ main(int arg_count, char **args){
         
         // NOTE(yuval): Init & command line parameters
         Plat_Settings plat_settings = {};
-        void *base_ptr = 0;
+        mac_vars.base_ptr = 0;
         {
             Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
             String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
             curdir = string_mod_replace_character(curdir, '\\', '/');
             char **files = 0;
             i32 *file_count = 0;
-            base_ptr = app.read_command_line(mac_vars.tctx, curdir, &plat_settings, &files, &file_count, arg_count, args);
+            mac_vars.base_ptr = app.read_command_line(mac_vars.tctx, curdir, &plat_settings, &files, &file_count, arg_count, args);
             {
                 i32 end = *file_count;
                 i32 i = 0, j = 0;
@@ -593,6 +609,9 @@ main(int arg_count, char **args){
         // Window and GL View Initialization
         //
         
+        // NOTE(yuval): Load OpenGL functions
+        mac_gl_load_functions();
+        
         // NOTE(yuval): Create NSWindow
         float w;
         float h;
@@ -601,8 +620,10 @@ main(int arg_count, char **args){
             h = (float)plat_settings.window_h;
         } else{
             w = 800.0f;
-            h = 800.0f;
+            h = 600.0f;
         }
+        
+        mac_resize(w, h);
         
         NSRect screen_rect = [[NSScreen mainScreen] frame];
         NSRect initial_frame = NSMakeRect((screen_rect.size.width - w) * 0.5f, (screen_rect.size.height - h) * 0.5f, w, h);
@@ -635,6 +656,7 @@ main(int arg_count, char **args){
         
         //
         // TODO(yuval): Misc System Initializations
+        //
         
         // NOTE(yuval): Get the timebase info
         mach_timebase_info(&mac_vars.timebase_info);
@@ -647,8 +669,17 @@ main(int arg_count, char **args){
             Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
             String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
             curdir = string_mod_replace_character(curdir, '\\', '/');
-            app.init(mac_vars.tctx, &target, base_ptr, mac_vars.clipboard_contents, curdir, custom);
+            app.init(mac_vars.tctx, &target, mac_vars.base_ptr, mac_vars.clipboard_contents, curdir, custom);
         }
+        
+        //
+        // Main loop
+        //
+        
+        mac_vars.global_frame_mutex = system_mutex_make();
+        system_mutex_acquire(mac_vars.global_frame_mutex);
+        
+        mac_vars.timer_start = system_now_time();
         
         // NOTE(yuval): Start the app's run loop
 #if 1
@@ -669,14 +700,6 @@ main(int arg_count, char **args){
                 
                 [NSApp sendEvent:event];
             } while (event != nil);
-        }
-#endif
-        
-#if 0
-        // NOTE(yuval): Application Core Update
-        Application_Step_Result result = {};
-        if (app.step != 0){
-            result = app.step(mac_vars.tctx, &target, base_ptr, &input);
         }
 #endif
     }

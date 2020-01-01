@@ -12,10 +12,6 @@
 #if !defined(FRED_OPENGL_DEFINES_H)
 #define FRED_OPENGL_DEFINES_H
 
-// NOTE(yuval): This file does not exist on MacOS.
-// opengl has been included from the platform layer
-// #include <GL/gl.h>
-
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
 #define GL_MULTISAMPLE                    0x809D
@@ -225,9 +221,6 @@ typedef void GL_Debug_Function(GLenum src,
                                GLchar *message,
                                void *user_data);
 typedef GL_Debug_Function *GLDEBUGPROC;
-
-#define GL_FUNC(N,R,P) typedef R (CALL_CONVENTION N##_Function)P; N##_Function *N = 0;
-#include "4ed_opengl_funcs.h"
 
 #endif
 
