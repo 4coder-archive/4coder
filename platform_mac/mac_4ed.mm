@@ -54,6 +54,10 @@
 #include <libproc.h> // NOTE(yuval): Used for proc_pidpath
 #include <mach/mach_time.h> // NOTE(yuval): Used for mach_absolute_time, mach_timebase_info, mach_timebase_info_data_t
 
+#define GL_GLEXT_LEGACY
+#include <OpenGL/OpenGL.h>
+#include <OpenGL/gl.h>
+
 #include <dirent.h> // NOTE(yuval): Used for opendir, readdir
 #include <dlfcn.h> // NOTE(yuval): Used for dlopen, dlclose, dlsym
 #include <errno.h> // NOTE(yuval): Used for errno
@@ -70,6 +74,9 @@
 #define internal static
 #define global static
 #define external extern "C"
+
+// NOTE(yuval): This is a hack to fix the CALL_CONVENTION not being defined problem in 4coder_base_types.h
+#define CALL_CONVENTION
 
 struct Control_Keys{
     b8 l_ctrl;
@@ -172,6 +179,8 @@ struct Mac_Vars {
     
     String_Const_u8 binary_path;
     
+    String_Const_u8 clipboard_contents;
+    
     NSWindow* window;
     OpenGLView* view;
     f32 screen_scale_factor;
@@ -186,6 +195,8 @@ struct Mac_Vars {
     b32 waiting_for_launch;
     
     System_Mutex global_frame_mutex;
+    
+    Log_Function *log_string;
 };
 
 ////////////////////////////////
@@ -255,7 +266,36 @@ mac_to_object(Plat_Handle handle){
 
 ////////////////////////////////
 
+#include "4ed_font_provider_freetype.h"
+#include "4ed_font_provider_freetype.h"
+
+#include "opengl/4ed_opengl_render.cpp"
+
 #import "mac_4ed_functions.mm"
+
+////////////////////////////////
+
+function void
+mac_error_box(char *msg, b32 shutdown = true){
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    
+    NSString *title_string = @"Error";
+    NSString *message_string = [NSString stringWithUTF8String:msg];
+    [alert setMessageText:title_string];
+    [alert setInformativeText:message_string];
+    
+    [alert runModal];
+    
+    if (shutdown){
+        exit(1);
+    }
+}
+
+function b32
+mac_file_can_be_made(u8* filename){
+    b32 result = access((char*)filename, W_OK) == 0;
+    return(result);
+}
 
 ////////////////////////////////
 
@@ -301,22 +341,24 @@ mac_to_object(Plat_Handle handle){
 
 - (void)awakeFromNib
 {
-    [self init_gl];
+    [self init_opengl];
 }
 
 - (void)reshape{
     [super reshape];
     
     NSRect bounds = [self bounds];
-    // [global_opengl_context makeCurrentContext];
-    // [global_opengl_context update];
-    // glViewport(0, 0, (GLsizei)bounds.size.width,
-    // (GLsizei)bounds.size.height);
+    // mac_resize(rect.size.width, rect.size.height);
 }
 
 - (void)drawRect:(NSRect)bounds{
     // [self getFrame];
     printf("Draw Rect!\n");
+}
+
+- (BOOL)windowShouldClose:(NSWindow*)sender{
+    // osx_try_to_close();
+    return(NO);
 }
 
 - (BOOL)acceptsFirstResponder{
@@ -332,19 +374,14 @@ mac_to_object(Plat_Handle handle){
 }
 
 - (void)keyDown:(NSEvent *)event{
-    printf("Key Down!\n");
     [self requestDisplay];
 }
 
-/*
 - (void)mouseMoved:(NSEvent*)event{
-    printf("Mouse Moved!\n");
     [self requestDisplay];
 }
-*/
 
 - (void)mouseDown:(NSEvent*)event{
-    printf("Mouse Down!\n");
     [self requestDisplay];
 }
 
@@ -374,9 +411,9 @@ mac_to_object(Plat_Handle handle){
         exit(1);
     }
     
-    NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:format shareContext:nil];
+    NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:pixel_format shareContext:nil];
     
-    [self setPixelFormat:format];
+    [self setPixelFormat:pixel_format];
     [self setOpenGLContext:context];
     
     [context makeCurrentContext];
@@ -397,90 +434,23 @@ mac_to_object(Plat_Handle handle){
 
 int
 main(int arg_count, char **args){
-    block_zero_struct(&mac_vars);
-    
-    mac_vars.gl_is_initialized = false;
-    
     @autoreleasepool{
         // NOTE(yuval): Create NSApplication & Delegate
-        NSApplication *app = [NSApplication sharedApplication];
+        NSApplication *ns_app = [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         
         AppDelegate *app_delegate = [[AppDelegate alloc] init];
-        [app setDelegate:app_delegate];
+        [ns_app setDelegate:app_delegate];
         
-        // NOTE(yuval): Create NSWindow
-        float w = 1280.0f;
-        float h = 720.0f;
-        NSRect screen_rect = [[NSScreen mainScreen] frame];
-        NSRect initial_frame = NSMakeRect((screen_rect.size.width - w) * 0.5f, (screen_rect.size.height - h) * 0.5f, w, h);
+        pthread_mutex_init(&memory_tracker_mutex, 0);
         
-        u32 style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
-        
-        mac_vars.window = [[NSWindow alloc] initWithContentRect:initial_frame
-                styleMask:style_mask
-                backing:NSBackingStoreBuffered
-                defer:NO];
-        
-        [mac_vars.window setBackgroundColor:NSColor.blackColor];
-        [mac_vars.window setDelegate:app_delegate];
-        [mac_vars.window setTitle:@"4coder"];
-        [mac_vars.window setAcceptsMouseMovedEvents:YES];
-        
-        // NOTE(yuval): Create OpenGLView
-        NSView* content_view = [mac_vars.window contentView];
-        
-        // TODO(yuval): Finish view setup!
-        mac_vars.view = [[OpenGLView alloc] init];
-        [mac_vars.view setFrame:[content_view bounds]];
-        [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-        
-        [content_view addSubview:mac_vars.view];
-        [mac_vars.window makeKeyAndOrderFront:nil];
-        
-        dll_init_sentinel(&mac_vars.free_mac_objects);
-        dll_init_sentinel(&mac_vars.timer_objects);
-        
-        // NOTE(yuval): Screen scale factor calculation
-        {
-            NSScreen* screen = [NSScreen mainScreen];
-            NSDictionary* desc = [screen deviceDescription];
-            NSSize size = [[desc valueForKey:NSDeviceResolution] sizeValue];
-            f32 max_dpi = Max(size.width, size.height);
-            mac_vars.screen_scale_factor = (max_dpi / 72.0f);
-        }
-        
-        printf("screen scale factor: %f\n", system_get_screen_scale_factor());
-        
-        // NOTE(yuval): Start the app's run loop
-#if 1
-        printf("Running using NSApp run\n");
-        [NSApp run];
-#else
-        printf("Running using manual event loop\n");
-        
-        for (;;) {
-            u64 count = 0;
-            
-            NSEvent* event;
-            do {
-                event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                        untilDate:[NSDate distantFuture]
-                        inMode:NSDefaultRunLoopMode
-                        dequeue:YES];
-                
-                [NSApp sendEvent:event];
-            } while (event != nil);
-        }
-#endif
-        
-#if 0
         // NOTE(yuval): Context Setup
         Thread_Context _tctx = {};
         thread_ctx_init(&_tctx, ThreadKind_Main,
                         get_base_allocator_system(),
                         get_base_allocator_system());
         
+        block_zero_struct(&mac_vars);
         mac_vars.tctx = &_tctx;
         
         API_VTable_system system_vtable = {};
@@ -502,8 +472,204 @@ main(int arg_count, char **args){
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
         
+        pthread_mutex_init(&mac_vars.thread_launch_mutex, 0);
+        pthread_cond_init(&mac_vars.thread_launch_cv, 0);
+        
+        // NOTE(yuval): Screen scale factor calculation
+        {
+            NSScreen* screen = [NSScreen mainScreen];
+            NSDictionary* desc = [screen deviceDescription];
+            NSSize size = [[desc valueForKey:NSDeviceResolution] sizeValue];
+            f32 max_dpi = Max(size.width, size.height);
+            mac_vars.screen_scale_factor = (max_dpi / 72.0f);
+        }
+        
+        // NOTE(yuval): Load core
+        System_Library core_library = {};
+        App_Functions app = {};
+        {
+            App_Get_Functions *get_funcs = 0;
+            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            Path_Search_List search_list = {};
+            search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+            
+            String_Const_u8 core_path = get_full_path(scratch, &search_list, SCu8("4ed_app.so"));
+            if (system_load_library(scratch, core_path, &core_library)){
+                get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
+                if (get_funcs != 0){
+                    app = get_funcs();
+                }
+                else{
+                    char msg[] = "Failed to get application code from '4ed_app.so'.";
+                    mac_error_box(msg);
+                }
+            }
+            else{
+                char msg[] = "Could not load '4ed_app.so'. This file should be in the same directory as the main '4ed' executable.";
+                mac_error_box(msg);
+            }
+        }
+        
+        // NOTE(yuval): Send api vtables to core
+        app.load_vtables(&system_vtable, &font_vtable, &graphics_vtable);
+        mac_vars.log_string = app.get_logger();
+        
+        // NOTE(yuval): Init & command line parameters
+        Plat_Settings plat_settings = {};
+        void *base_ptr = 0;
+        {
+            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
+            curdir = string_mod_replace_character(curdir, '\\', '/');
+            char **files = 0;
+            i32 *file_count = 0;
+            base_ptr = app.read_command_line(mac_vars.tctx, curdir, &plat_settings, &files, &file_count, arg_count, args);
+            {
+                i32 end = *file_count;
+                i32 i = 0, j = 0;
+                for (; i < end; ++i){
+                    if (mac_file_can_be_made((u8*)files[i])){
+                        files[j] = files[i];
+                        ++j;
+                    }
+                }
+                *file_count = j;
+            }
+        }
+        
+        // NOTE(yuval): Load custom layer
+        System_Library custom_library = {};
+        Custom_API custom = {};
+        {
+            char custom_not_found_msg[] = "Did not find a library for the custom layer.";
+            char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
+            char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
+            
+            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
+            Path_Search_List search_list = {};
+            search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
+            search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+            String_Const_u8 custom_file_names[2] = {};
+            i32 custom_file_count = 1;
+            if (plat_settings.custom_dll != 0){
+                custom_file_names[0] = SCu8(plat_settings.custom_dll);
+                if (!plat_settings.custom_dll_is_strict){
+                    custom_file_names[1] = default_file_name;
+                    custom_file_count += 1;
+                }
+            }
+            else{
+                custom_file_names[0] = default_file_name;
+            }
+            String_Const_u8 custom_file_name = {};
+            for (i32 i = 0; i < custom_file_count; i += 1){
+                custom_file_name = get_full_path(scratch, &search_list, custom_file_names[i]);
+                if (custom_file_name.size > 0){
+                    break;
+                }
+            }
+            b32 has_library = false;
+            if (custom_file_name.size > 0){
+                if (system_load_library(scratch, custom_file_name, &custom_library)){
+                    has_library = true;
+                }
+            }
+            
+            if (!has_library){
+                mac_error_box(custom_not_found_msg);
+            }
+            custom.get_version = (_Get_Version_Type*)system_get_proc(custom_library, "get_version");
+            if (custom.get_version == 0 || custom.get_version(MAJOR, MINOR, PATCH) == 0){
+                mac_error_box(custom_fail_version_msg);
+            }
+            custom.init_apis = (_Init_APIs_Type*)system_get_proc(custom_library, "init_apis");
+            if (custom.init_apis == 0){
+                mac_error_box(custom_fail_init_apis);
+            }
+        }
+        
+        //
+        // Window and GL View Initialization
+        //
+        
+        // NOTE(yuval): Create NSWindow
+        float w;
+        float h;
+        if (plat_settings.set_window_size){
+            w = (float)plat_settings.window_w;
+            h = (float)plat_settings.window_h;
+        } else{
+            w = 800.0f;
+            h = 800.0f;
+        }
+        
+        NSRect screen_rect = [[NSScreen mainScreen] frame];
+        NSRect initial_frame = NSMakeRect((screen_rect.size.width - w) * 0.5f, (screen_rect.size.height - h) * 0.5f, w, h);
+        
+        u32 style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
+        
+        mac_vars.window = [[NSWindow alloc] initWithContentRect:initial_frame
+                styleMask:style_mask
+                backing:NSBackingStoreBuffered
+                defer:NO];
+        
+        [mac_vars.window setMinSize:NSMakeSize(100, 100)];
+        [mac_vars.window setBackgroundColor:NSColor.blackColor];
+        [mac_vars.window setDelegate:app_delegate];
+        [mac_vars.window setTitle:@"4coder"];
+        [mac_vars.window setAcceptsMouseMovedEvents:YES];
+        
+        // NOTE(yuval): Create OpenGLView
+        NSView* content_view = [mac_vars.window contentView];
+        
+        mac_vars.gl_is_initialized = false;
+        
+        mac_vars.view = [[OpenGLView alloc] init];
+        [mac_vars.view setFrame:[content_view bounds]];
+        [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+        
+        // NOTE(yuval): Display opengl view and window
+        [content_view addSubview:mac_vars.view];
+        [mac_vars.window makeKeyAndOrderFront:nil];
+        
+        //
+        // TODO(yuval): Misc System Initializations
+        
         // NOTE(yuval): Get the timebase info
         mach_timebase_info(&mac_vars.timebase_info);
+        
+        //
+        // App init
+        //
+        
+        {
+            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
+            curdir = string_mod_replace_character(curdir, '\\', '/');
+            app.init(mac_vars.tctx, &target, base_ptr, mac_vars.clipboard_contents, curdir, custom);
+        }
+        
+        // NOTE(yuval): Start the app's run loop
+#if 1
+        printf("Running using NSApp run\n");
+        [NSApp run];
+#else
+        printf("Running using manual event loop\n");
+        
+        for (;;) {
+            u64 count = 0;
+            
+            NSEvent* event;
+            do {
+                event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                        untilDate:[NSDate distantFuture]
+                        inMode:NSDefaultRunLoopMode
+                        dequeue:YES];
+                
+                [NSApp sendEvent:event];
+            } while (event != nil);
+        }
 #endif
         
 #if 0

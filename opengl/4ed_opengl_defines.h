@@ -12,7 +12,9 @@
 #if !defined(FRED_OPENGL_DEFINES_H)
 #define FRED_OPENGL_DEFINES_H
 
-#include <GL/gl.h>
+// NOTE(yuval): This file does not exist on MacOS.
+// opengl has been included from the platform layer
+// #include <GL/gl.h>
 
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 

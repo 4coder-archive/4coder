@@ -467,6 +467,7 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     fm_finish_build_line(&line);
     
     Temp_Dir temp = fm_pushdir(out_path);
+    // systemf("clang++ %s -E -o %s", line.build_options, "4ed.i");
     systemf("clang++ %s -o %s", line.build_options, out_file);
     fm_popdir(temp);
 }
