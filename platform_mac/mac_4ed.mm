@@ -162,6 +162,8 @@ struct Mac_Object{
 struct Mac_Vars {
     b32 gl_is_initialized;
     
+    i32 width, height;
+    
     Thread_Context *tctx;
     
     Arena *frame_arena;
@@ -303,8 +305,14 @@ mac_file_can_be_made(u8* filename){
 function void
 mac_resize(float width, float height){
     if ((width > 0.0f) && (height > 0.0f)){
-        target.width = width;
-        target.height = height;
+        NSSize coord_size = NSMakeSize(width, height);
+        NSSize backing_size = [mac_vars.view convertSizeToBacking:coord_size];
+        
+        mac_vars.width = (i32)backing_size.width;
+        mac_vars.height = (i32)backing_size.height;
+        
+        target.width = (i32)backing_size.width;
+        target.height = (i32)backing_size.height;
     }
     
     system_signal_step(0);
@@ -361,6 +369,20 @@ mac_resize(float width, float height){
     mac_resize(bounds.size.width, bounds.size.height);
 }
 
+- (void)viewDidChangeBackingProperties{
+    
+    // NOTE(yuval): Screen scale factor calculation
+    NSScreen* screen = [NSScreen mainScreen];
+    NSDictionary* desc = [screen deviceDescription];
+    NSSize size = [[desc valueForKey:NSDeviceResolution] sizeValue];
+    f32 max_dpi = Max(size.width, size.height);
+    mac_vars.screen_scale_factor = (max_dpi / 72.0f);
+    
+    NSRect frame = [screen frame];
+    printf("Screen: w:%f  h:%f\n", frame.size.width, frame.size.height);
+    printf("Scale Factor: %f\n\n", mac_vars.screen_scale_factor);
+}
+
 - (void)drawRect:(NSRect)bounds{
     // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
     system_mutex_release(mac_vars.global_frame_mutex);
@@ -388,6 +410,8 @@ mac_resize(float width, float height){
     
     input.trying_to_kill = input_chunk.trans.trying_to_kill;
     
+    block_zero_struct(&mac_vars.input_chunk.trans);
+    
     // NOTE(yuval): See comment in win32_4ed.cpp's main loop
     if (mac_vars.send_exit_signal){
         input.trying_to_kill = true;
@@ -407,6 +431,8 @@ mac_resize(float width, float height){
     CGLUnlockContext([[self openGLContext] CGLContextObj]);
     
     mac_vars.first = false;
+    
+    linalloc_clear(mac_vars.frame_arena);
 }
 
 - (BOOL)windowShouldClose:(NSWindow*)sender{
@@ -428,15 +454,30 @@ mac_resize(float width, float height){
 }
 
 - (void)keyDown:(NSEvent *)event{
-    [self requestDisplay];
+    NSString* characters = [event characters];
+    if ([characters length] != 0) {
+        u32 character_code = [characters characterAtIndex:0];
+        
+        // NOTE(yuval): Control characters generate character_codes < 32
+        if (character_code > 31) {
+            // TODO(yuval): This is actually in utf16!!!
+            String_Const_u32 str_32 = SCu32(&character_code, 1);
+            String_Const_u8 str_8 = string_u8_from_string_u32(mac_vars.frame_arena, str_32).string;
+            
+            Input_Event event = {};
+            event.kind = InputEventKind_TextInsert;
+            event.text.string = str_8;
+            push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list, &event);
+            
+            system_signal_step(0);
+        }
+    }
 }
 
 - (void)mouseMoved:(NSEvent*)event{
-    [self requestDisplay];
 }
 
 - (void)mouseDown:(NSEvent*)event{
-    [self requestDisplay];
 }
 
 - (void)init_opengl{
@@ -478,7 +519,9 @@ mac_resize(float width, float height){
 }
 
 - (void)requestDisplay{
-    [self setNeedsDisplayInRect:[mac_vars.window frame]];
+    CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
+    NSRect rect = NSRectFromCGRect(cg_rect);
+    [self setNeedsDisplayInRect:rect];
 }
 @end
 
@@ -648,20 +691,18 @@ main(int arg_count, char **args){
         mac_gl_load_functions();
         
         // NOTE(yuval): Create NSWindow
-        float w;
-        float h;
+        i32 w;
+        i32 h;
         if (plat_settings.set_window_size){
-            w = (float)plat_settings.window_w;
-            h = (float)plat_settings.window_h;
+            w = plat_settings.window_w;
+            h = plat_settings.window_h;
         } else{
-            w = 800.0f;
-            h = 600.0f;
+            w = 800;
+            h = 600;
         }
         
-        mac_resize(w, h);
-        
         NSRect screen_rect = [[NSScreen mainScreen] frame];
-        NSRect initial_frame = NSMakeRect((screen_rect.size.width - w) * 0.5f, (screen_rect.size.height - h) * 0.5f, w, h);
+        NSRect initial_frame = NSMakeRect((f32)(screen_rect.size.width - w) * 0.5f, (f32)(screen_rect.size.height - h) * 0.5f, w, h);
         
         u32 style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
         
@@ -684,10 +725,13 @@ main(int arg_count, char **args){
         mac_vars.view = [[OpenGLView alloc] init];
         [mac_vars.view setFrame:[content_view bounds]];
         [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+        [mac_vars.view setWantsBestResolutionOpenGLSurface:YES];
         
         // NOTE(yuval): Display opengl view and window
         [content_view addSubview:mac_vars.view];
         [mac_vars.window makeKeyAndOrderFront:nil];
+        
+        mac_resize(w, h);
         
         //
         // TODO(yuval): Misc System Initializations
