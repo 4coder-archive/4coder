@@ -362,8 +362,8 @@ system_now_time_sig(){
     
     // NOTE(yuval): Now time nanoseconds conversion
     f64 now_nano = (f64)((f64)now *
-                         (f64)mac_vars.timebase_info.numer /
-                         (f64)mac_vars.timebase_info.denom);
+                         ((f64)mac_vars.timebase_info.numer /
+                          (f64)mac_vars.timebase_info.denom));
     
     // NOTE(yuval): Conversion to useconds
     u64 result = (u64)(now_nano * 1.0E-3);
@@ -416,8 +416,8 @@ function
 system_sleep_sig(){
     u64 nanoseconds = (microseconds * Thousand(1));
     u64 abs_sleep_time = (u64)((f64)nanoseconds *
-                               (f64)mac_vars.timebase_info.denom /
-                               (f64)mac_vars.timebase_info.numer);
+                               ((f64)mac_vars.timebase_info.denom /
+                                (f64)mac_vars.timebase_info.numer));
     
     u64 now = mach_absolute_time();
     mach_wait_until(now + abs_sleep_time);

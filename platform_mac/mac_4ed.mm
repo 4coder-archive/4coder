@@ -120,11 +120,13 @@ struct Mac_Input_Chunk{
 
 ////////////////////////////////
 
-@interface AppDelegate : NSObject<NSApplicationDelegate, NSWindowDelegate>
+@interface FCoderAppDelegate : NSObject<NSApplicationDelegate>
 @end
 
-@interface OpenGLView : NSOpenGLView
-- (void)init_opengl;
+@interface FCoderWindowDelegate : NSObject<NSWindowDelegate>
+@end
+
+@interface FCoderView : NSView
 - (void)requestDisplay;
 @end
 
@@ -160,8 +162,6 @@ struct Mac_Object{
 };
 
 struct Mac_Vars {
-    b32 gl_is_initialized;
-    
     i32 width, height;
     
     Thread_Context *tctx;
@@ -181,7 +181,7 @@ struct Mac_Vars {
     String_Const_u8 clipboard_contents;
     
     NSWindow *window;
-    OpenGLView *view;
+    FCoderView *view;
     f32 screen_scale_factor;
     
     mach_timebase_info_data_t timebase_info;
@@ -318,69 +318,61 @@ mac_resize(float width, float height){
     system_signal_step(0);
 }
 
+function inline void
+mac_resize(NSWindow *window){
+    NSRect bounds = [[window contentView] bounds];
+    mac_resize(bounds.size.width, bounds.size.height);
+}
+
 ////////////////////////////////
 
-@implementation AppDelegate
+// TODO(yuval): mac_resize(bounds.size.width, bounds.size.height);
+
+@implementation FCoderAppDelegate
 - (void)applicationDidFinishLaunching:(id)sender{
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication*)sender{
-    return YES;
+    return(YES);
 }
 
 - (void)applicationWillTerminate:(NSNotification*)notification{
 }
 @end
 
-@implementation OpenGLView
+@implementation FCoderWindowDelegate
+- (BOOL)windowShouldClose:(id)sender {
+    mac_vars.input_chunk.trans.trying_to_kill = true;
+    system_signal_step(0);
+    
+    return(NO);
+}
+
+- (void)windowDidResize:(NSNotification*)notification {
+    mac_resize(mac_vars.window);
+}
+
+- (void)windowDidMiniaturize:(NSNotification*)notification {
+}
+
+- (void)windowDidDeminiaturize:(NSNotification*)notification {
+}
+@end
+
+@implementation FCoderView
 - (id)init{
     self = [super init];
-    if (self == nil){
-        return nil;
-    }
-    
-    [self init_opengl];
-    
-    return self;
+    return(self);
 }
 
 - (void)dealloc{
     [super dealloc];
 }
 
-- (void)prepareOpenGL{
-    [super prepareOpenGL];
-    
-    [[self openGLContext] makeCurrentContext];
-    
-    // NOTE(yuval): Setup vsync
-    GLint swapInt = 1;
-    [[self openGLContext] setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
-}
-
-- (void)awakeFromNib{
-    [self init_opengl];
-}
-
-- (void)reshape{
-    [super reshape];
-    
-    NSRect bounds = [self bounds];
-    mac_resize(bounds.size.width, bounds.size.height);
-}
-
 - (void)viewDidChangeBackingProperties{
-    
     // NOTE(yuval): Screen scale factor calculation
-    NSScreen* screen = [NSScreen mainScreen];
-    NSDictionary* desc = [screen deviceDescription];
-    NSSize size = [[desc valueForKey:NSDeviceResolution] sizeValue];
-    f32 max_dpi = Max(size.width, size.height);
-    mac_vars.screen_scale_factor = (max_dpi / 72.0f);
-    
-    NSRect frame = [screen frame];
-    printf("Screen: w:%f  h:%f\n", frame.size.width, frame.size.height);
-    printf("Scale Factor: %f\n\n", mac_vars.screen_scale_factor);
+    printf("Backing changed!\n");
+    mac_resize(mac_vars.window);
 }
 
 - (void)drawRect:(NSRect)bounds{
@@ -424,33 +416,29 @@ mac_resize(float width, float height){
         result = app.step(mac_vars.tctx, &target, mac_vars.base_ptr, &input);
     }
     
-    CGLLockContext([[self openGLContext] CGLContextObj]);
-    [[self openGLContext] makeCurrentContext];
-    gl_render(&target);
-    [[self openGLContext] flushBuffer];
-    CGLUnlockContext([[self openGLContext] CGLContextObj]);
+    // NOTE(yuval): Quit the app
+    if (result.perform_kill){
+        printf("Terminating 4coder!\n");
+        [NSApp terminate:nil];
+    }
+    
+    mac_gl_render(&target);
     
     mac_vars.first = false;
     
     linalloc_clear(mac_vars.frame_arena);
 }
 
-- (BOOL)windowShouldClose:(NSWindow*)sender{
-    // osx_try_to_close();
-    printf("Window Closing!\n");
-    return(NO);
-}
-
 - (BOOL)acceptsFirstResponder{
-    return YES;
+    return(YES);
 }
 
 - (BOOL)becomeFirstResponder{
-    return YES;
+    return(YES);
 }
 
 - (BOOL)resignFirstResponder{
-    return YES;
+    return(YES);
 }
 
 - (void)keyDown:(NSEvent *)event{
@@ -480,44 +468,6 @@ mac_resize(float width, float height){
 - (void)mouseDown:(NSEvent*)event{
 }
 
-- (void)init_opengl{
-    if (mac_vars.gl_is_initialized){
-        return;
-    }
-    
-    [self setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    
-    // NOTE(yuval): Setup OpenGL
-    NSOpenGLPixelFormatAttribute opengl_attrs[] = {
-        NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion3_2Core,
-        NSOpenGLPFAAccelerated,
-        NSOpenGLPFADoubleBuffer,
-        NSOpenGLPFAColorSize, 32,
-        NSOpenGLPFAAlphaSize, 8,
-        NSOpenGLPFADepthSize, 24,
-        NSOpenGLPFASampleBuffers, 1,
-        NSOpenGLPFASamples, 16,
-        0
-    };
-    
-    NSOpenGLPixelFormat *pixel_format = [[NSOpenGLPixelFormat alloc] initWithAttributes:opengl_attrs];
-    if (pixel_format == nil){
-        fprintf(stderr, "Error creating OpenGLPixelFormat\n");
-        exit(1);
-    }
-    
-    NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:pixel_format shareContext:nil];
-    
-    [self setPixelFormat:pixel_format];
-    [self setOpenGLContext:context];
-    
-    [context makeCurrentContext];
-    
-    [pixel_format release];
-    
-    mac_vars.gl_is_initialized = true;
-}
-
 - (void)requestDisplay{
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
@@ -531,11 +481,13 @@ int
 main(int arg_count, char **args){
     @autoreleasepool{
         // NOTE(yuval): Create NSApplication & Delegate
-        NSApplication *ns_app = [NSApplication sharedApplication];
+        [NSApplication sharedApplication];
+        Assert(NSApp != nil);
+        
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         
-        AppDelegate *app_delegate = [[AppDelegate alloc] init];
-        [ns_app setDelegate:app_delegate];
+        FCoderAppDelegate *app_delegate = [[FCoderAppDelegate alloc] init];
+        [NSApp setDelegate:app_delegate];
         
         pthread_mutex_init(&memory_tracker_mutex, 0);
         
@@ -687,10 +639,7 @@ main(int arg_count, char **args){
         // Window and GL View Initialization
         //
         
-        // NOTE(yuval): Load OpenGL functions
-        mac_gl_load_functions();
-        
-        // NOTE(yuval): Create NSWindow
+        // NOTE(yuval): Create Window & Window Delegate
         i32 w;
         i32 h;
         if (plat_settings.set_window_size){
@@ -711,23 +660,24 @@ main(int arg_count, char **args){
                 backing:NSBackingStoreBuffered
                 defer:NO];
         
+        FCoderWindowDelegate *window_delegate = [[FCoderWindowDelegate alloc] init];
+        [mac_vars.window setDelegate:window_delegate];
+        
         [mac_vars.window setMinSize:NSMakeSize(100, 100)];
         [mac_vars.window setBackgroundColor:NSColor.blackColor];
-        [mac_vars.window setDelegate:app_delegate];
         [mac_vars.window setTitle:@WINDOW_NAME];
         [mac_vars.window setAcceptsMouseMovedEvents:YES];
         
-        // NOTE(yuval): Create OpenGLView
         NSView* content_view = [mac_vars.window contentView];
         
-        mac_vars.gl_is_initialized = false;
+        // NOTE(yuval): Initialize the renderer
+        mac_gl_init(mac_vars.window);
         
-        mac_vars.view = [[OpenGLView alloc] init];
+        // NOTE(yuval): Create the 4coder view
+        mac_vars.view = [[FCoderView alloc] init];
         [mac_vars.view setFrame:[content_view bounds]];
         [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-        [mac_vars.view setWantsBestResolutionOpenGLSurface:YES];
         
-        // NOTE(yuval): Display opengl view and window
         [content_view addSubview:mac_vars.view];
         [mac_vars.window makeKeyAndOrderFront:nil];
         
