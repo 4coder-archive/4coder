@@ -105,7 +105,8 @@ struct Models{
     
     Hot_Directory hot_directory;
     
-    b32 keep_playing;
+    b8 keep_playing;
+    b8 hard_exit;
     
     b32 has_new_title;
     char *title_space;

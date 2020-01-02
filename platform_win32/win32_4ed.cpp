@@ -640,6 +640,7 @@ win32_keycode_init(void){
     keycode_lookup_table[VK_SPACE] = KeyCode_Space;
     keycode_lookup_table[VK_OEM_3] = KeyCode_Tick;
     keycode_lookup_table[VK_OEM_MINUS] = KeyCode_Minus;
+    keycode_lookup_table[VK_OEM_PLUS] = KeyCode_Equal;
     keycode_lookup_table[VK_OEM_4] = KeyCode_LeftBracket;
     keycode_lookup_table[VK_OEM_6] = KeyCode_RightBracket;
     keycode_lookup_table[VK_OEM_1] = KeyCode_Semicolon;

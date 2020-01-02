@@ -906,6 +906,10 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("send_e
 api_param(arena, call, "Application_Links*", "app");
 }
 {
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("hard_exit"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+}
+{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_window_title"), string_u8_litexpr("void"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "String_Const_u8", "title");

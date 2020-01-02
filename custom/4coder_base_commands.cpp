@@ -65,7 +65,7 @@ CUSTOM_DOC("Inserts whatever text was used to trigger this command.")
 }
 
 CUSTOM_COMMAND_SIG(write_space)
-CUSTOM_DOC("Inserts an underscore.")
+CUSTOM_DOC("Inserts a space.")
 {
     write_text(app, string_u8_litexpr(" "));
 }

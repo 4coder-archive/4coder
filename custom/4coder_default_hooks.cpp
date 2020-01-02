@@ -43,13 +43,7 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
             }
         }
         if (do_exit){
-            // NOTE(allen): By leaving try exit unhandled we indicate
-            // that the core should take responsibility for handling this,
-            // and it will handle it by exiting 4coder.  If we leave this
-            // event marked as handled on the other hand (for instance by 
-            // running a confirmation GUI that cancels the exit) then 4coder
-            // will not exit.
-            leave_current_input_unhandled(app);
+            hard_exit(app);
         }
     }
 }

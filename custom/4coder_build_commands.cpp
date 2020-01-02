@@ -63,7 +63,7 @@ standard_build_exec_command(Application_Links *app, View_ID view, String_Const_u
                         standard_build_exec_flags);
 }
 
-static b32
+ function b32
 standard_search_and_build_from_dir(Application_Links *app, View_ID view, String_Const_u8 start_dir){
     Scratch_Block scratch(app);
     
@@ -83,7 +83,7 @@ standard_search_and_build_from_dir(Application_Links *app, View_ID view, String_
         // NOTE(allen): Build
         String_Const_u8 path = string_remove_last_folder(full_file_path);
 #if OS_WINDOWS
-        String_Const_u8 command = push_u8_stringf(scratch, "%.*s/%.*s",
+        String_Const_u8 command = push_u8_stringf(scratch, "\"%.*s/%.*s\"",
                                                   string_expand(path),
                                                   string_expand(cmd_string));
 #elif OS_LINUX || OS_MAC

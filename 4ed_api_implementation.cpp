@@ -2762,6 +2762,13 @@ send_exit_signal(Application_Links *app)
 }
 
 api(custom) function void
+hard_exit(Application_Links *app)
+{
+    Models *models = (Models*)app->cmd_context;
+    models->hard_exit = true;
+}
+
+api(custom) function void
 set_window_title(Application_Links *app, String_Const_u8 title)
 {
     Models *models = (Models*)app->cmd_context;

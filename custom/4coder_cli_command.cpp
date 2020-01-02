@@ -29,12 +29,16 @@ CUSTOM_DOC("Queries for an output buffer name and system command, runs the syste
     bar_out.string = SCu8(out_buffer_space, (u64)0);
     bar_out.string_capacity = sizeof(out_buffer_space);
     if (!query_user_string(app, &bar_out)) return;
+    bar_out.string.size = clamp_top(bar_out.string.size, sizeof(out_buffer_space) - 1);
+    out_buffer_space[bar_out.string.size] = 0;
     
     Query_Bar bar_cmd = {};
     bar_cmd.prompt = string_u8_litexpr("Command: ");
     bar_cmd.string = SCu8(command_space, (u64)0);
     bar_cmd.string_capacity = sizeof(command_space);
     if (!query_user_string(app, &bar_cmd)) return;
+    bar_cmd.string.size = clamp_top(bar_cmd.string.size, sizeof(command_space) - 1);
+    command_space[bar_cmd.string.size] = 0;
     
     String_Const_u8 hot = push_hot_directory(app, scratch);
     {
