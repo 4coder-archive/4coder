@@ -1,5 +1,8 @@
 /* Mac Objective-C layer for 4coder */
 
+#define FPS 60
+#define frame_useconds (1000000 / FPS)
+
 #include "4coder_base_types.h"
 #include "4coder_version.h"
 #include "4coder_events.h"
@@ -164,11 +167,9 @@ struct Mac_Vars {
     Arena *frame_arena;
     Mac_Input_Chunk input_chunk;
     
-    void *base_ptr;
-    u64 timer_start;
-    
     b8 full_screen;
     b8 do_toggle;
+    b32 send_exit_signal;
     
     i32 cursor_show;
     i32 prev_cursor_show;
@@ -182,6 +183,9 @@ struct Mac_Vars {
     f32 screen_scale_factor;
     
     mach_timebase_info_data_t timebase_info;
+    b32 first;
+    void *base_ptr;
+    u64 timer_start;
     
     Node free_mac_objects;
     Node timer_objects;
@@ -302,6 +306,8 @@ mac_resize(float width, float height){
         target.width = width;
         target.height = height;
     }
+    
+    system_signal_step(0);
 }
 
 ////////////////////////////////
@@ -352,14 +358,41 @@ mac_resize(float width, float height){
     [super reshape];
     
     NSRect bounds = [self bounds];
-    // mac_resize(rect.size.width, rect.size.height);
+    mac_resize(bounds.size.width, bounds.size.height);
 }
 
 - (void)drawRect:(NSRect)bounds{
     // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
     system_mutex_release(mac_vars.global_frame_mutex);
     
+    // NOTE(yuval): Prepare the Frame Input
+    Mac_Input_Chunk input_chunk = mac_vars.input_chunk;
     Application_Step_Input input = {};
+    
+    input.first_step = mac_vars.first;
+    input.dt = frame_useconds / 1000000.0f;
+    input.events = input_chunk.trans.event_list;
+    
+    input.mouse.out_of_window = input_chunk.trans.out_of_window;
+    
+    input.mouse.l = input_chunk.pers.mouse_l;
+    input.mouse.press_l = input_chunk.trans.mouse_l_press;
+    input.mouse.release_l = input_chunk.trans.mouse_l_release;
+    
+    input.mouse.r = input_chunk.pers.mouse_r;
+    input.mouse.press_r = input_chunk.trans.mouse_r_press;
+    input.mouse.release_r = input_chunk.trans.mouse_r_release;
+    
+    input.mouse.wheel = input_chunk.trans.mouse_wheel;
+    input.mouse.p = input_chunk.pers.mouse;
+    
+    input.trying_to_kill = input_chunk.trans.trying_to_kill;
+    
+    // NOTE(yuval): See comment in win32_4ed.cpp's main loop
+    if (mac_vars.send_exit_signal){
+        input.trying_to_kill = true;
+        mac_vars.send_exit_signal = false;
+    }
     
     // NOTE(yuval): Application Core Update
     Application_Step_Result result = {};
@@ -373,10 +406,12 @@ mac_resize(float width, float height){
     [[self openGLContext] flushBuffer];
     CGLUnlockContext([[self openGLContext] CGLContextObj]);
     
+    mac_vars.first = false;
 }
 
 - (BOOL)windowShouldClose:(NSWindow*)sender{
     // osx_try_to_close();
+    printf("Window Closing!\n");
     return(NO);
 }
 
@@ -419,8 +454,8 @@ mac_resize(float width, float height){
         NSOpenGLPFAColorSize, 32,
         NSOpenGLPFAAlphaSize, 8,
         NSOpenGLPFADepthSize, 24,
-        // NSOpenGLPFASampleBuffers, 1,
-        // NSOpenGLPFASamples, 16,
+        NSOpenGLPFASampleBuffers, 1,
+        NSOpenGLPFASamples, 16,
         0
     };
     
@@ -638,7 +673,7 @@ main(int arg_count, char **args){
         [mac_vars.window setMinSize:NSMakeSize(100, 100)];
         [mac_vars.window setBackgroundColor:NSColor.blackColor];
         [mac_vars.window setDelegate:app_delegate];
-        [mac_vars.window setTitle:@"4coder"];
+        [mac_vars.window setTitle:@WINDOW_NAME];
         [mac_vars.window setAcceptsMouseMovedEvents:YES];
         
         // NOTE(yuval): Create OpenGLView
@@ -675,6 +710,8 @@ main(int arg_count, char **args){
         //
         // Main loop
         //
+        
+        mac_vars.first = true;
         
         mac_vars.global_frame_mutex = system_mutex_make();
         system_mutex_acquire(mac_vars.global_frame_mutex);
