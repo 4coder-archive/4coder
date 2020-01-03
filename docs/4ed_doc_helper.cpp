@@ -155,4 +155,19 @@ doc_function_add_related(Arena *arena, Doc_Block *rel, char *name){
     content->page_link = SCu8(name);
 }
 
+////////////////////////////////
+
+function void
+doc_api_check_full_coverage(Arena *arena, Doc_Cluster *cluster, API_Definition *api_def){
+    for (API_Call *call = api_def->first_call;
+         call != 0;
+         call = call->next){
+        String_Const_u8 name = call->name;
+        Doc_Page *page = doc_get_page(cluster, name);
+        if (page == 0){
+            doc_errorf(arena, cluster, "missing documentation for %.*s", string_expand(name));
+        }
+    }
+}
+
 // BOTTOM

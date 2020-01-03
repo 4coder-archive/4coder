@@ -384,6 +384,39 @@ doc_custom_api__buffer(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
     
     ////////////////////////////////
     
+    if (begin_doc_call(arena, cluster, api_def, "buffer_padded_box_of_pos", &func)){
+        doc_function_brief(arena, &func, "Compute the rectangle around a character at a particular byte position, relative to the top left corner of a given line");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "buffer_id");
+        doc_text(arena, params, "the id of the buffer who's layout will be measured");
+        
+        doc_function_param(arena, &func, "width");
+        doc_text(arena, params, "the width parameter of the layout, passed to layout rules as a recommended wrap point");
+        
+        doc_function_param(arena, &func, "face_id");
+        doc_text(arena, params, "the face parameter of the layout, passed to layout rules as a recommended face");
+        
+        doc_function_param(arena, &func, "base_line");
+        doc_text(arena, params, "the line number of the line that serves as the relative starting point of the measurement");
+        
+        doc_function_param(arena, &func, "pos");
+        doc_text(arena, params, "the absolute byte index of the position to query");
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "the rectangle around a character in the layout that is closest to including the given query position in it's span, with coordinates set relative to the top left corner of the base line, on success, when the buffer exists and contains the base line and query position, cleared to zero otherwise");
+        
+        // details
+        Doc_Block *det = doc_function_details(arena, &func);
+        doc_text(arena, det, "Line numbers are 1 based.");
+    }
+    
+    ////////////////////////////////
+    
     if (begin_doc_call(arena, cluster, api_def, "buffer_relative_character_from_pos", &func)){
         doc_function_brief(arena, &func, "Compute a character index relative to a particular lines first character");
         
@@ -623,6 +656,39 @@ doc_custom_api__buffer(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
         // related
         Doc_Block *rel = doc_function_begin_related(arena, &func);
         doc_function_add_related(arena, rel, "Dirty_State");
+    }
+    
+    ////////////////////////////////
+    
+    if (begin_doc_call(arena, cluster, api_def, "buffer_set_layout", &func)){
+        doc_function_brief(arena, &func, "Set the layout function of a buffer");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "buffer_id");
+        doc_text(arena, params, "the id of the buffer to be modified");
+        
+        doc_function_param(arena, &func, "layout_func");
+        doc_text(arena, params, "the new layout function for the buffer's layout");
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "non-zero on success, when the buffer exists, otherwise zero");
+    }
+    
+    ////////////////////////////////
+    
+    if (begin_doc_call(arena, cluster, api_def, "buffer_clear_layout_cache", &func)){
+        doc_function_brief(arena, &func, "Clear all the layout information cached in the buffer");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "buffer_id");
+        doc_text(arena, params, "the id of the buffer to be modified");
     }
     
     ////////////////////////////////

@@ -60,6 +60,8 @@ int main(void){
     API_Definition *api_def = api_get_api(&def_list, string_u8_litexpr("custom"));
     Doc_Cluster *cluster = doc_custom_api(&arena, api_def);
     
+    doc_api_check_full_coverage(&arena, cluster, api_def);
+    
     for (Doc_Log *node = cluster->first_log;
          node != 0;
          node = node->next){
