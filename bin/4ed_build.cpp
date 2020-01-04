@@ -389,7 +389,7 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
 #define CLANG_LIBS_COMMON \
 "-framework Cocoa -framework QuartzCore " \
 "-framework CoreServices " \
-"-framework OpenGL -framework IOKit "
+"-framework OpenGL -framework IOKit -framework Metal -framework MetalKit "
 
 #define CLANG_LIBS_X64 CLANG_LIBS_COMMON \
 FOREIGN "/x64/libfreetype-mac.a"
@@ -398,7 +398,7 @@ FOREIGN "/x64/libfreetype-mac.a"
 FOREIGN "/x86/libfreetype-mac.a"
 
 #else
-# error gcc options not set for this platform
+# error clang options not set for this platform
 #endif
 
 internal void

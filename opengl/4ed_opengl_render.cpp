@@ -285,6 +285,9 @@ gl_render(Render_Target *t){
     t->free_texture_first = 0;
     t->free_texture_last = 0;
     
+    u32 all_vertex_count = 0;
+    
+    u64 begin_draw = system_now_time();
     for (Render_Group *group = t->group_first;
          group != 0;
          group = group->next){
@@ -339,9 +342,18 @@ gl_render(Render_Target *t){
             glDisableVertexAttribArray(gpu_program.vertex_c);
             glDisableVertexAttribArray(gpu_program.vertex_ht);
         }
+        
+        all_vertex_count += vertex_count;
     }
+    u64 end_draw = system_now_time();
+    printf("Draw time: %fs\n", mac_get_time_diff_sec(begin_draw, end_draw));
     
+    u64 begin_flush = system_now_time();
     glFlush();
+    u64 end_flush = system_now_time();
+    printf("Flush time: %fs\n", mac_get_time_diff_sec(begin_flush, end_flush));
+    
+    printf("Drawn %d Vertices\n", all_vertex_count);
 }
 
 // BOTTOM

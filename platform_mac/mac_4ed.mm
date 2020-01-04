@@ -273,10 +273,23 @@ mac_to_object(Plat_Handle handle){
 #include <OpenGL/gl.h>
 #import "mac_4ed_opengl.mm"
 
+#import "mac_4ed_metal.mm"
+
 #include "4ed_font_provider_freetype.h"
 #include "4ed_font_provider_freetype.cpp"
 
 #import "mac_4ed_functions.mm"
+
+
+
+////////////////////////////////
+
+global Key_Code keycode_lookup_table[255];
+
+function void
+mac_key_code_init(void){
+    
+}
 
 ////////////////////////////////
 
@@ -326,8 +339,6 @@ mac_resize(NSWindow *window){
 
 ////////////////////////////////
 
-// TODO(yuval): mac_resize(bounds.size.width, bounds.size.height);
-
 @implementation FCoderAppDelegate
 - (void)applicationDidFinishLaunching:(id)sender{
 }
@@ -376,6 +387,13 @@ mac_resize(NSWindow *window){
 }
 
 - (void)drawRect:(NSRect)bounds{
+    /* NOTE(yuval): Force the graphics context to clear to black so we don't
+get a flash of white until the app is ready to draw. In practice on modern macOS,
+this only gets called for window creation and other extraordinary events.
+(Taken From SDL) */
+    [[NSColor blackColor] setFill];
+    NSRectFill(bounds);
+    
     // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
     system_mutex_release(mac_vars.global_frame_mutex);
     
@@ -422,7 +440,8 @@ mac_resize(NSWindow *window){
         [NSApp terminate:nil];
     }
     
-    mac_gl_render(&target);
+    // mac_gl_render(&target);
+    mac_metal_render(&target);
     
     mac_vars.first = false;
     
@@ -670,16 +689,18 @@ main(int arg_count, char **args){
         
         NSView* content_view = [mac_vars.window contentView];
         
-        // NOTE(yuval): Initialize the renderer
-        mac_gl_init(mac_vars.window);
-        
         // NOTE(yuval): Create the 4coder view
         mac_vars.view = [[FCoderView alloc] init];
         [mac_vars.view setFrame:[content_view bounds]];
         [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         
+        // NOTE(yuval): Display window and view
         [content_view addSubview:mac_vars.view];
         [mac_vars.window makeKeyAndOrderFront:nil];
+        
+        // NOTE(yuval): Initialize the renderer
+        mac_gl_init(mac_vars.window);
+        mac_metal_init(mac_vars.window);
         
         mac_resize(w, h);
         

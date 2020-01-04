@@ -5,14 +5,17 @@
 #define GL_FUNC(N,R,P) typedef R (CALL_CONVENTION N##_Function)P; N##_Function *N = 0;
 #include "mac_4ed_opengl_funcs.h"
 
+f64 mac_get_time_diff_sec(u64 begin, u64 end){
+    f64 result = ((end - begin) / 1000000.0);
+    return result;
+}
+
 #include "opengl/4ed_opengl_render.cpp"
 
 @interface OpenGLView : NSOpenGLView
 - (void)initGL;
 - (void)render:(Render_Target*)target;
 @end
-
-global OpenGLView *opengl_view;
 
 @implementation OpenGLView{
     b32 glIsInitialized;
@@ -95,13 +98,34 @@ global OpenGLView *opengl_view;
 - (void)render:(Render_Target*)target{
     Assert(glIsInitialized);
     
+    u64 context_lock_begin = system_now_time();
     CGLLockContext([[self openGLContext] CGLContextObj]);
+    u64 context_lock_end = system_now_time();
+    printf("Context lock time: %fs\n", mac_get_time_diff_sec(context_lock_begin, context_lock_end));
+    
+    u64 make_current_context_begin = system_now_time();
     [[self openGLContext] makeCurrentContext];
+    u64 make_current_context_end = system_now_time();
+    printf("Make current context time: %fs\n", mac_get_time_diff_sec(make_current_context_begin, make_current_context_end));
+    
+    u64 gl_render_begin = system_now_time();
     gl_render(target);
+    u64 gl_render_end = system_now_time();
+    printf("GL render time: %fs\n", mac_get_time_diff_sec(gl_render_begin, gl_render_end));
+    
+    u64 gl_flush_buffer_begin = system_now_time();
     [[self openGLContext] flushBuffer];
+    u64 gl_flush_buffer_end = system_now_time();
+    printf("GL flush buffer time: %fs\n", mac_get_time_diff_sec(gl_flush_buffer_begin, gl_flush_buffer_end));
+    
+    u64 context_unlock_begin = system_now_time();
     CGLUnlockContext([[self openGLContext] CGLContextObj]);
+    u64 context_unlock_end = system_now_time();
+    printf("Context unlock time: %fs\n", mac_get_time_diff_sec(context_unlock_begin, context_unlock_end));
 }
 @end
+
+global OpenGLView *opengl_view;
 
 function void
 mac_gl_init(NSWindow *window){
@@ -125,8 +149,8 @@ mac_gl_init(NSWindow *window){
 
 function void
 mac_gl_render(Render_Target* target){
-    f64 begin_time = system_now_time() / 1000000.0;
+    u64 begin_time = system_now_time();
     [opengl_view render:target];
-    f64 end_time = system_now_time() / 1000000.0;
-    printf("Render Time: %fs\n", (end_time - begin_time));
+    u64 end_time = system_now_time();
+    printf("Render Time: %fs\n\n", mac_get_time_diff_sec(begin_time, end_time));
 }
