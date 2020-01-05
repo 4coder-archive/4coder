@@ -73,7 +73,7 @@ vertexShader(uint vertexID [[vertex_id]],
     
     // To convert from positions in pixel space to positions in clip-space,
     //  divide the pixel coordinates by half the size of the viewport.
-    out.position = float4(pixelSpacePosition, 0.0, 1.0) * projMatrix;
+    out.position = projMatrix * float4(pixelSpacePosition, 0.0, 1.0);
     
     // Pass the input color directly to the rasterizer.
     out.color = vertices[vertexID].color;
@@ -315,7 +315,7 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
             0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
             0.0f, 0.0f, -1.0f / (far_depth - near_depth), 0.0f,
             -((right + left) / (right - left)), -((top + bottom) / (top - bottom)),
-            (-near_depth) * (far_depth - near_depth), 1.0f
+            (-near_depth) / (far_depth - near_depth), 1.0f
         };
         
         float sLength = 1.0f / (right - left);
@@ -330,21 +330,21 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
         P.x = 2.0f * sLength;
         P.y = 0.0f;
         P.z = 0.0f;
-        P.w = -((right + left) / (right - left));
+        P.w = 0.0f;
         
         Q.x = 0.0f;
         Q.y = 2.0f * sHeight;
         Q.z = 0.0f;
-        Q.w = -((top + bottom) / (top - bottom));
+        Q.w = 0.0f;
         
         R.x = 0.0f;
         R.y = 0.0f;
         R.z = sDepth;
-        R.w = -near_depth  * sDepth;
+        R.w = 0.0f;
         
-        S.x =  0.0f;
-        S.y =  0.0f;
-        S.z =  0.0f;
+        S.x =  -((right + left) / (right - left));
+        S.y =  -((top + bottom) / (top - bottom));
+        S.z =  -near_depth  * sDepth;
         S.w =  1.0f;
         
         simd_float4x4 proj = simd::float4x4(P, Q, R, S);
