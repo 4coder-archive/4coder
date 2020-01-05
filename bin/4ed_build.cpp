@@ -380,11 +380,12 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
 
 #if OS_MAC
 
-# define CLANG_OPTS                                   \
-"-Wno-write-strings -Wno-deprecated-declarations "  \
-"-Wno-comment -Wno-switch -Wno-null-dereference "   \
-"-Wno-tautological-compare "                        \
-"-Wno-unused-result -Wno-missing-declarations -std=c++11 "
+# define CLANG_OPTS \
+"-Wno-write-strings -Wno-deprecated-declarations " \
+"-Wno-comment -Wno-switch -Wno-null-dereference " \
+"-Wno-tautological-compare -Wno-unused-result " \
+"-Wno-missing-declarations -Wno-nullability-completeness " \
+"-std=c++11 "
 
 #define CLANG_LIBS_COMMON \
 "-framework Cocoa -framework QuartzCore " \
