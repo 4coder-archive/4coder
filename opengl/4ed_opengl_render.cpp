@@ -129,7 +129,7 @@ sd = abs(sd + half_thickness) - half_thickness;
 float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
 shape_value *= has_thickness;
 
-out_color = vec4(fragment_color.xyz, fragment_color.a*(sample_value + shape_value));
+out_color = fragment_color;//vec4(fragment_color.xyz, fragment_color.a*(sample_value + shape_value));
 }
 )foo";
 

@@ -440,7 +440,7 @@ this only gets called for window creation and other extraordinary events.
         [NSApp terminate:nil];
     }
     
-    // mac_gl_render(&target);
+    //mac_gl_render(&target);
     mac_metal_render(&target);
     
     mac_vars.first = false;

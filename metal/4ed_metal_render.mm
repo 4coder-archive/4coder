@@ -15,6 +15,7 @@ struct Metal_Renderer{
     id<MTLRenderPipelineState> pipeline_state;
     id<MTLCommandQueue> command_queue;
     id<MTLBuffer> buffer;
+    id<MTLCaptureScope> capture_scope;
 };
 
 global_const u32 metal_max_vertices = (1<<16);
@@ -25,193 +26,94 @@ global_const char *metal__shaders_source = R"(
 
 using namespace metal;
 
-// Buffer index values shared between shader and C code to ensure Metal shader buffer inputs
-// match Metal API buffer set calls.
-typedef enum AAPLVertexInputIndex
-{
-    AAPLVertexInputIndexVertices     = 0,
-    AAPLVertexInputIndexViewportSize = 1,
-} AAPLVertexInputIndex;
+////////////////////////////////
 
-//  This structure defines the layout of vertices sent to the vertex
-//  shader. This header is shared between the .metal shader and C code, to guarantee that
-//  the layout of the vertex array in the C code matches the layout that the .metal
-//  vertex shader expects.
-typedef struct
-{
-    vector_float2 position;
-    vector_float4 color;
-} AAPLVertex;
+typedef struct{
+packed_float2 xy;
+    packed_float3 uvw;
+uint32_t color;
+float half_thickness;
+} Vertex;
 
-// Vertex shader outputs and fragment shader inputs
-typedef struct
-{
-    // The [[position]] attribute of this member indicates that this value
-    // is the clip space position of the vertex when this structure is
-    // returned from the vertex function.
-    float4 position [[position]];
-    
-    // Since this member does not have a special attribute, the rasterizer
-    // interpolates its value with the values of the other triangle vertices
-    // and then passes the interpolated value to the fragment shader for each
-    // fragment in the triangle.
+// NOTE(yuval): Vertex shader outputs and fragment shader inputs
+typedef struct{
+// NOTE(yuval): Vertex shader output
+float4 position [[position]];
+
+// NOTE(yuval): Fragment shader inputs
     float4 color;
-    
-} RasterizerData;
+    float3 uvw;
+    float2 xy;
+    float2 adjusted_half_dim;
+    float half_thickness;
+} Rasterizer_Data;
 
-vertex RasterizerData
-vertexShader(uint vertexID [[vertex_id]],
-             constant AAPLVertex *vertices [[buffer(AAPLVertexInputIndexVertices)]],
-             constant float4x4 &projMatrix[[buffer(AAPLVertexInputIndexViewportSize)]])
-{
-    RasterizerData out;
+////////////////////////////////
+
+vertex Rasterizer_Data
+vertex_shader(uint vertex_id [[vertex_id]], constant Vertex *vertices [[buffer(0)]],
+constant float4x4 &proj [[buffer(1)]]){
+    constant Vertex *in = &vertices[vertex_id];
+    Rasterizer_Data out;
     
-    // Index into the array of positions to get the current vertex.
-    // The positions are specified in pixel dimensions (i.e. a value of 100
-    // is 100 pixels from the origin).
-    float2 pixelSpacePosition = vertices[vertexID].position.xy;
+    // NOTE(yuval): Calculate position in NDC
+    out.position = proj * float4(in->xy, 0.0, 1.0);
     
-    // To convert from positions in pixel space to positions in clip-space,
-    //  divide the pixel coordinates by half the size of the viewport.
-    out.position = projMatrix * float4(pixelSpacePosition, 0.0, 1.0);
+    // NOTE(yuval): Convert color to float4 format
+    out.color.b = ((float((in->color       ) & 0xFFu)) / 255.0);
+    out.color.g = ((float((in->color >>  8u) & 0xFFu)) / 255.0);
+    out.color.r = ((float((in->color >> 16u) & 0xFFu)) / 255.0);
+    out.color.a = ((float((in->color >> 24u) & 0xFFu)) / 255.0);
     
-    // Pass the input color directly to the rasterizer.
-    out.color = vertices[vertexID].color;
+    // NOTE(yuval): Pass uvw coordinates to the fragment shader
+    out.uvw = in->uvw;
     
-    return out;
+    // NOTE(yuval): Calculate adjusted half dim
+    float2 center = in->uvw.xy;
+    float2 half_dim = abs(in->xy - center);
+    out.adjusted_half_dim = (half_dim - in->uvw.zz + float2(0.5, 0.5));
+    
+    // NOTE(yuval): Pass half_thickness to the fragment shader
+    out.half_thickness = in->half_thickness;
+    
+    // NOTE(yuval): Pass xy to the fragment shader
+    out.xy = in->xy;
+    
+    return(out);
 }
 
-fragment float4 fragmentShader(RasterizerData in [[stage_in]])
-{
-    // Return the interpolated color.
-    return in.color;
+////////////////////////////////
+
+float
+rectangle_sd(float2 p, float2 b){
+float2 d = (abs(p) - b);
+float result = (length(max(d, float2(0.0, 0.0))) + min(max(d.x, d.y), 0.0));
+
+return(result);
+}
+
+fragment float4
+fragment_shader(Rasterizer_Data in [[stage_in]]){
+float has_thickness = step(0.49, in.half_thickness);
+// float does_not_have_thickness = (1.0 - has_thickness);
+
+// TODO(yuval): Sample texture here.
+
+float2 center = in.uvw.xy;
+float roundness = in.uvw.z;
+float sd = rectangle_sd(in.xy - center, in.adjusted_half_dim);
+sd = sd - roundness;
+sd = (abs(sd + in.half_thickness) - in.half_thickness);
+float shape_value = (1.0 - smoothstep(-1.0, 0.0, sd));
+shape_value *= has_thickness;
+
+    // TOOD(yuval): Add sample_value to alpha
+   float4 out_color = in.color;// float4(in.color.xyz, in.color.a * (shape_value));
+    return(out_color);
 }
 )";
 
-@interface FCoderMetalRenderer : NSObject<MTKViewDelegate>
-- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView;
-@end
-
-@implementation FCoderMetalRenderer{
-    id<MTLDevice> _device;
-    
-    // The render pipeline generated from the vertex and fragment shaders in the .metal shader file.
-    id<MTLRenderPipelineState> _pipelineState;
-    
-    // The command queue used to pass commands to the device.
-    id<MTLCommandQueue> _commandQueue;
-    
-    // The current size of the view, used as an input to the vertex shader.
-    vector_uint2 _viewportSize;
-}
-
-- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView *)mtkView{
-    self = [super init];
-    if(self)
-    {
-        NSError *error = nil;
-        
-        _device = mtkView.device;
-        
-        // Load all the shader files with a .metal file extension in the project.
-        id<MTLLibrary> defaultLibrary = [_device newLibraryWithFile:@"shaders/AAPLShaders.metallib"
-                error:&error];
-        Assert(error == nil);
-        
-        id<MTLFunction> vertexFunction = [defaultLibrary newFunctionWithName:@"vertexShader"];
-        id<MTLFunction> fragmentFunction = [defaultLibrary newFunctionWithName:@"fragmentShader"];
-        
-        // Configure a pipeline descriptor that is used to create a pipeline state.
-        MTLRenderPipelineDescriptor *pipelineStateDescriptor = [[MTLRenderPipelineDescriptor alloc] init];
-        pipelineStateDescriptor.label = @"Simple Pipeline";
-        pipelineStateDescriptor.vertexFunction = vertexFunction;
-        pipelineStateDescriptor.fragmentFunction = fragmentFunction;
-        pipelineStateDescriptor.colorAttachments[0].pixelFormat = mtkView.colorPixelFormat;
-        
-        _pipelineState = [_device newRenderPipelineStateWithDescriptor:pipelineStateDescriptor
-                error:&error];
-        
-        // Pipeline State creation could fail if the pipeline descriptor isn't set up properly.
-        //  If the Metal API validation is enabled, you can find out more information about what
-        //  went wrong.  (Metal API validation is enabled by default when a debug build is run
-        //  from Xcode.)
-        NSAssert(_pipelineState, @"Failed to created pipeline state: %@", error);
-        
-        // Create the command queue
-        _commandQueue = [_device newCommandQueue];
-        
-        u32 max_buffer_size = (u32)[_device maxBufferLength];
-        printf("Max Buffer Size: %u - Which is %lu vertices\n", max_buffer_size, (max_buffer_size / sizeof(Render_Vertex)));
-    }
-    
-    return self;
-}
-
-/// Called whenever view changes orientation or is resized
-- (void)mtkView:(nonnull MTKView *)view drawableSizeWillChange:(CGSize)size{
-    // Save the size of the drawable to pass to the vertex shader.
-    
-}
-
-/// Called whenever the view needs to render a frame.
-- (void)drawInMTKView:(nonnull MTKView *)view{
-    CGSize size = [view drawableSize];
-    _viewportSize.x = size.width;
-    _viewportSize.y = size.height;
-    
-    static const AAPLVertex triangleVertices[] =
-    {
-        // 2D positions,    RGBA colors
-        { {  250,  -250 }, { 1, 0, 0, 1 } },
-        { { -250,  -250 }, { 0, 1, 0, 1 } },
-        { {    0,   250 }, { 0, 0, 1, 1 } },
-    };
-    
-    // Create a new command buffer for each render pass to the current drawable.
-    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
-    commandBuffer.label = @"MyCommand";
-    
-    // Obtain a renderPassDescriptor generated from the view's drawable textures.
-    MTLRenderPassDescriptor *renderPassDescriptor = view.currentRenderPassDescriptor;
-    
-    if(renderPassDescriptor != nil)
-    {
-        // Create a render command encoder.
-        id<MTLRenderCommandEncoder> renderEncoder =
-            [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
-        renderEncoder.label = @"MyRenderEncoder";
-        
-        // Set the region of the drawable to draw into.
-        [renderEncoder setViewport:(MTLViewport){0.0, 0.0, (double)_viewportSize.x, (double)_viewportSize.y, 0.0, 1.0 }];
-        
-        [renderEncoder setRenderPipelineState:_pipelineState];
-        
-        // Pass in the parameter data.
-        [renderEncoder setVertexBytes:triangleVertices
-                length:sizeof(triangleVertices)
-                atIndex:AAPLVertexInputIndexVertices];
-        
-        [renderEncoder setVertexBytes:&_viewportSize
-                length:sizeof(_viewportSize)
-                atIndex:AAPLVertexInputIndexViewportSize];
-        
-        // Draw the triangle.
-        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                vertexStart:0
-                vertexCount:3];
-        
-        [renderEncoder endEncoding];
-        
-        // Schedule a present once the framebuffer is complete using the current drawable.
-        [commandBuffer presentDrawable:view.currentDrawable];
-    }
-    
-    // Finalize rendering here & push the command buffer to the GPU.
-    [commandBuffer commit];
-}
-@end
-
-function b32
+function void
 metal_init(Metal_Renderer *renderer, MTKView *view){
     NSError *error = nil;
     
@@ -229,15 +131,13 @@ metal_init(Metal_Renderer *renderer, MTKView *view){
         
         id<MTLLibrary> shader_library = [renderer->device newLibraryWithSource:shaders_source_str
                 options:options error:&error];
-        vertex_function = [shader_library newFunctionWithName:@"vertexShader"];
-        fragment_function = [shader_library newFunctionWithName:@"fragmentShader"];
+        vertex_function = [shader_library newFunctionWithName:@"vertex_shader"];
+        fragment_function = [shader_library newFunctionWithName:@"fragment_shader"];
         
         [options release];
     }
     
-    if (error != nil){
-        return(false);
-    }
+    Assert(error == nil);
     
     // NOTE(yuval): Configure the pipeline descriptor
     {
@@ -246,14 +146,17 @@ metal_init(Metal_Renderer *renderer, MTKView *view){
         pipeline_state_descriptor.vertexFunction = vertex_function;
         pipeline_state_descriptor.fragmentFunction = fragment_function;
         pipeline_state_descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat;
+        pipeline_state_descriptor.colorAttachments[0].blendingEnabled = YES;
+        pipeline_state_descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
+        pipeline_state_descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        pipeline_state_descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
+        pipeline_state_descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         
         renderer->pipeline_state = [renderer->device newRenderPipelineStateWithDescriptor:pipeline_state_descriptor
                 error:&error];
     }
     
-    if (error != nil){
-        return(false);
-    }
+    Assert(error == nil);
     
     // NOTE(yuval): Create the command queue
     renderer->command_queue = [renderer->device newCommandQueue];
@@ -266,17 +169,20 @@ metal_init(Metal_Renderer *renderer, MTKView *view){
                 options:options];
     }
     
-    return(true);
+    // NOTE(yuval): Create a capture scope for gpu frame capture
+    renderer->capture_scope = [[MTLCaptureManager sharedCaptureManager]
+            newCaptureScopeWithDevice:renderer->device];
+    renderer->capture_scope.label = @"4coder Metal Capture Scope";
 }
 
 function void
 metal_render(Metal_Renderer *renderer, Render_Target *t){
-    static const AAPLVertex triangleVertices[] = {
-        // 2D positions,    RGBA colors
-        { {  200,  100 }, { 1, 0, 0, 1 } },
-        { { 100,  100 }, { 0, 1, 0, 1 } },
-        { {    150, 200  }, { 0, 0, 1, 1 } },
-    };
+    [renderer->capture_scope beginScope];
+    
+    i32 width = t->width;
+    i32 height = t->height;
+    
+    Font_Set* font_set = (Font_Set*)t->font_set;
     
     // NOTE(yuval): Create the command buffer
     id<MTLCommandBuffer> command_buffer = [renderer->command_queue commandBuffer];
@@ -285,79 +191,95 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
     // NOTE(yuval): Obtain the render pass descriptor from the renderer's view
     MTLRenderPassDescriptor *render_pass_descriptor = renderer->view.currentRenderPassDescriptor;
     if (render_pass_descriptor != nil){
+        render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(1.0f, 0.0f, 1.0f, 1.0f);
+        
         // NOTE(yuval): Create the render command encoder
         id<MTLRenderCommandEncoder> render_encoder
             = [command_buffer renderCommandEncoderWithDescriptor:render_pass_descriptor];
         render_encoder.label = @"4coder Render Encoder";
         
         // NOTE(yuval): Set the region of the drawable to draw into
-        [render_encoder setViewport:(MTLViewport){0.0, 0.0, (double)t->width, (double)t->height, 0.0, 1.0}];
+        [render_encoder setViewport:(MTLViewport){0.0, 0.0, (double)width, (double)height, 0.0, 1.0}];
         
         // NOTE(yuval): Set the render pipeline to use for drawing
         [render_encoder setRenderPipelineState:renderer->pipeline_state];
         
-        // NOTE(yuval): Pass in the parameter data
-        [render_encoder setVertexBytes:triangleVertices
-                length:sizeof(triangleVertices)
-                atIndex:AAPLVertexInputIndexVertices];
-        
-#if 0
-        vector_uint2 viewport_size = {(u32)t->width, (u32)t->height};
-        [render_encoder setVertexBytes:&viewport_size
-                length:sizeof(viewport_size)
-                atIndex:AAPLVertexInputIndexViewportSize];
-#else
-        float left = 0, right = (float)t->width;
-        float bottom = 0, top = (float)t->height;
+        // NOTE(yuval): Calculate and pass in the projection matrix
+        float left = 0, right = (float)width;
+        float bottom = (float)height, top = 0;
         float near_depth = -1.0f, far_depth = 1.0f;
-        float m[16] = {
+        float proj[16] = {
             2.0f / (right - left), 0.0f, 0.0f, 0.0f,
             0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
             0.0f, 0.0f, -1.0f / (far_depth - near_depth), 0.0f,
             -((right + left) / (right - left)), -((top + bottom) / (top - bottom)),
-            (-near_depth) / (far_depth - near_depth), 1.0f
+            -(near_depth / (far_depth - near_depth)), 1.0f
         };
         
-        float sLength = 1.0f / (right - left);
-        float sHeight = 1.0f / (top   - bottom);
-        float sDepth  = 1.0f / (far_depth   - near_depth);
-        
-        simd::float4 P;
-        simd::float4 Q;
-        simd::float4 R;
-        simd::float4 S;
-        
-        P.x = 2.0f * sLength;
-        P.y = 0.0f;
-        P.z = 0.0f;
-        P.w = 0.0f;
-        
-        Q.x = 0.0f;
-        Q.y = 2.0f * sHeight;
-        Q.z = 0.0f;
-        Q.w = 0.0f;
-        
-        R.x = 0.0f;
-        R.y = 0.0f;
-        R.z = sDepth;
-        R.w = 0.0f;
-        
-        S.x =  -((right + left) / (right - left));
-        S.y =  -((top + bottom) / (top - bottom));
-        S.z =  -near_depth  * sDepth;
-        S.w =  1.0f;
-        
-        simd_float4x4 proj = simd::float4x4(P, Q, R, S);
-        
-        [render_encoder setVertexBytes:&proj
-                length:sizeof(proj)
-                atIndex:AAPLVertexInputIndexViewportSize];
-#endif
-        
-        // NOTE(yuval): Draw the triangle
-        [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle
-                vertexStart:0
-                vertexCount:3];
+        for (Render_Group *group = t->group_first;
+             group;
+             group = group->next){
+            // NOTE(yuval): Set scissor rect
+            {
+                Rect_i32 box = Ri32(group->clip_box);
+                MTLScissorRect scissor_rect;
+                
+                CGSize frame = [renderer->view drawableSize];
+                printf("Drawable Size - w:%f  h:%f\n", frame.width, frame.height);
+                
+                NSUInteger x0 = (NSUInteger)Min(Max(0, box.x0), frame.width - 1);
+                NSUInteger x1 = (NSUInteger)Min(Max(0, box.x1), frame.width);
+                NSUInteger y0 = (NSUInteger)Min(Max(0, box.y0), frame.height - 1);
+                NSUInteger y1 = (NSUInteger)Min(Max(0, box.y1), frame.height);
+                
+                scissor_rect.x = x0;
+                scissor_rect.y = y0;
+                scissor_rect.width = (x1 - x0);
+                scissor_rect.height = (y1 - y0);
+                
+                [render_encoder setScissorRect:scissor_rect];
+            }
+            
+            i32 vertex_count = group->vertex_list.vertex_count;
+            if (vertex_count > 0){
+                // TODO(yuval): Bind a texture
+                {
+                    Face* face = font_set_face_from_id(font_set, group->face_id);
+                    if (face != 0){
+                        // TODO(yuval): Bind face texture
+                    } else{
+                        // TODO(yuval): Bind default texture
+                    }
+                }
+                
+                // NOTE(yuval): Copy the vertex data to the vertex buffer
+                {
+                    u8 *cursor = (u8*)[renderer->buffer contents];
+                    for (Render_Vertex_Array_Node *node = group->vertex_list.first;
+                         node;
+                         node = node->next){
+                        i32 size = node->vertex_count * sizeof(*node->vertices);
+                        memcpy(cursor, node->vertices, size);
+                        cursor += size;
+                    }
+                }
+                
+                // NOTE(yuval): Pass the vertex buffer to the vertex shader
+                [render_encoder setVertexBuffer:renderer->buffer
+                        offset:0
+                        atIndex:0];
+                
+                // NOTE(yuval): Pass the projection matrix to the vertex shader
+                [render_encoder setVertexBytes:&proj
+                        length:sizeof(proj)
+                        atIndex:1];
+                
+                // NOTE(yuval): Draw the vertices
+                [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle
+                        vertexStart:0
+                        vertexCount:vertex_count];
+            }
+        }
         
         [render_encoder endEncoding];
         
@@ -366,4 +288,6 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
     }
     
     [command_buffer commit];
+    
+    [renderer->capture_scope endScope];
 }

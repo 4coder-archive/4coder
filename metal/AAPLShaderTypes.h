@@ -12,14 +12,6 @@ Header containing types and enum constants shared between Metal shaders and C/Ob
 #include <simd/simd.h>
 #define clamp(a,x,b) clamp_((a),(x),(b))
 
-// Buffer index values shared between shader and C code to ensure Metal shader buffer inputs
-// match Metal API buffer set calls.
-typedef enum AAPLVertexInputIndex
-{
-    AAPLVertexInputIndexVertices     = 0,
-    AAPLVertexInputIndexViewportSize = 1,
-} AAPLVertexInputIndex;
-
 //  This structure defines the layout of vertices sent to the vertex
 //  shader. This header is shared between the .metal shader and C code, to guarantee that
 //  the layout of the vertex array in the C code matches the layout that the .metal
