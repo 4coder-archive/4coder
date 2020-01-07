@@ -10,14 +10,19 @@
 
 ////////////////////////////////
 
-// TODO(yuval): Convert this to a struct when I handle my own caching solution
-@interface Metal_Buffer : NSObject
-@property (nonatomic, strong) id<MTLBuffer> buffer;
-@property (nonatomic, readonly) u32 size;
-@property (nonatomic, assign) NSTimeInterval last_reuse_time;
+struct Metal_Buffer{
+    Node node;
+    
+    id<MTLBuffer> buffer;
+    u32 size;
+    u64 last_reuse_time;
+};
 
-- (instancetype)initWithSize:(u32)size usingDevice:(id<MTLDevice>)device;
-@end
+struct Metal_Texture{
+    
+};
+
+////////////////////////////////
 
 @interface Metal_Renderer : NSObject<MTKViewDelegate>
 @property (nonatomic) Render_Target *target;
@@ -39,7 +44,7 @@ using namespace metal;
 
 typedef struct{
 float2 xy [[attribute(0)]];
-    float3 uvw [[attribute(1)]];
+float3 uvw [[attribute(1)]];
 uint32_t color [[attribute(2)]];
 float half_thickness [[attribute(3)]];
 } Vertex;
@@ -50,11 +55,11 @@ typedef struct{
 float4 position [[position]];
 
 // NOTE(yuval): Fragment shader inputs
-    float4 color;
-    float3 uvw;
-    float2 xy;
-    float2 adjusted_half_dim;
-    float half_thickness;
+float4 color;
+float3 uvw;
+float2 xy;
+float2 adjusted_half_dim;
+float half_thickness;
 } Rasterizer_Data;
 
 ////////////////////////////////
@@ -62,32 +67,32 @@ float4 position [[position]];
 vertex Rasterizer_Data
 vertex_shader(Vertex in [[stage_in]],
 constant float4x4 &proj [[buffer(1)]]){
-    Rasterizer_Data out;
-    
-    // NOTE(yuval): Calculate position in NDC
-    out.position = proj * float4(in.xy, 0.0, 1.0);
-    
-    // NOTE(yuval): Convert color to float4 format
-    out.color.b = ((float((in.color       ) & 0xFFu)) / 255.0);
-    out.color.g = ((float((in.color >>  8u) & 0xFFu)) / 255.0);
-    out.color.r = ((float((in.color >> 16u) & 0xFFu)) / 255.0);
-    out.color.a = ((float((in.color >> 24u) & 0xFFu)) / 255.0);
-    
-    // NOTE(yuval): Pass uvw coordinates to the fragment shader
-    out.uvw = in.uvw;
-    
-    // NOTE(yuval): Calculate adjusted half dim
-    float2 center = in.uvw.xy;
-    float2 half_dim = abs(in.xy - center);
-    out.adjusted_half_dim = (half_dim - in.uvw.zz + float2(0.5, 0.5));
-    
-    // NOTE(yuval): Pass half_thickness to the fragment shader
-    out.half_thickness = in.half_thickness;
-    
-    // NOTE(yuval): Pass xy to the fragment shader
-    out.xy = in.xy;
-    
-    return(out);
+Rasterizer_Data out;
+
+// NOTE(yuval): Calculate position in NDC
+out.position = proj * float4(in.xy, 0.0, 1.0);
+
+// NOTE(yuval): Convert color to float4 format
+out.color.b = ((float((in.color       ) & 0xFFu)) / 255.0);
+out.color.g = ((float((in.color >>  8u) & 0xFFu)) / 255.0);
+out.color.r = ((float((in.color >> 16u) & 0xFFu)) / 255.0);
+out.color.a = ((float((in.color >> 24u) & 0xFFu)) / 255.0);
+
+// NOTE(yuval): Pass uvw coordinates to the fragment shader
+out.uvw = in.uvw;
+
+// NOTE(yuval): Calculate adjusted half dim
+float2 center = in.uvw.xy;
+float2 half_dim = abs(in.xy - center);
+out.adjusted_half_dim = (half_dim - in.uvw.zz + float2(0.5, 0.5));
+
+// NOTE(yuval): Pass half_thickness to the fragment shader
+out.half_thickness = in.half_thickness;
+
+// NOTE(yuval): Pass xy to the fragment shader
+out.xy = in.xy;
+
+return(out);
 }
 
 ////////////////////////////////
@@ -115,32 +120,28 @@ sd = (abs(sd + in.half_thickness) - in.half_thickness);
 float shape_value = (1.0 - smoothstep(-1.0, 0.0, sd));
 shape_value *= has_thickness;
 
-    // TOOD(yuval): Add sample_value to alpha
-   float4 out_color = in.color;// float4(in.color.xyz, in.color.a * (shape_value));
-    return(out_color);
+// TOOD(yuval): Add sample_value to alpha
+float4 out_color = in.color;// float4(in.color.xyz, in.color.a * (shape_value));
+return(out_color);
 }
 )";
 
 ////////////////////////////////
 
-@implementation Metal_Buffer
-- (instancetype)initWithSize:(u32)size usingDevice:(id<MTLDevice>)device{
-    self = [super init];
-    if (self == nil){
-        return(nil);
-    }
+function Metal_Buffer*
+metal__make_buffer(u32 size, id<MTLDevice> device){
+    Metal_Buffer *result = (Metal_Buffer*)malloc(sizeof(Metal_Buffer));
     
     // NOTE(yuval): Create the vertex buffer
     MTLResourceOptions options = MTLCPUCacheModeWriteCombined|MTLResourceStorageModeManaged;
-    _buffer = [device newBufferWithLength:size options:options];
-    _size = size;
+    result->buffer = [device newBufferWithLength:size options:options];
+    result->size = size;
     
     // NOTE(yuval): Set the last_reuse_time to the current time
-    _last_reuse_time = [NSDate date].timeIntervalSince1970;
+    result->last_reuse_time = system_now_time();
     
-    return(self);
+    return result;
 }
-@end
 
 ////////////////////////////////
 
@@ -150,8 +151,8 @@ shape_value *= has_thickness;
     id<MTLCommandQueue> command_queue;
     id<MTLCaptureScope> capture_scope;
     
-    NSMutableArray<Metal_Buffer*> *buffer_cache;
-    NSTimeInterval last_buffer_cache_purge_time;
+    Node buffer_cache;
+    u64 last_buffer_cache_purge_time;
 }
 
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtk_view{
@@ -182,6 +183,7 @@ shape_value *= has_thickness;
     }
     
     Assert(error == nil);
+    Assert((vertex_function != nil) && (fragment_function != nil));
     
     // NOTE(yuval): Configure the pipeline descriptor
     {
@@ -226,8 +228,8 @@ shape_value *= has_thickness;
     command_queue = [device newCommandQueue];
     
     // NOTE(yuval): Initialize buffer caching
-    buffer_cache = [NSMutableArray array];
-    last_buffer_cache_purge_time = [NSDate date].timeIntervalSince1970;
+    dll_init_sentinel(&buffer_cache);
+    last_buffer_cache_purge_time = system_now_time();
     
     // NOTE(yuval): Create a capture scope for gpu frame capture
     capture_scope = [[MTLCaptureManager sharedCaptureManager]
@@ -249,7 +251,7 @@ shape_value *= has_thickness;
     i32 width = _target->width;
     i32 height = _target->height;
     
-    Font_Set* font_set = (Font_Set*)_target->font_set;
+    Font_Set *font_set = (Font_Set*)_target->font_set;
     
     // NOTE(yuval): Create the command buffer
     id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
@@ -297,7 +299,7 @@ shape_value *= has_thickness;
         Metal_Buffer *buffer = [self get_reusable_buffer_with_size:vertex_buffer_size];
         
         // NOTE(yuval): Pass the vertex buffer to the vertex shader
-        [render_encoder setVertexBuffer:buffer.buffer
+        [render_encoder setVertexBuffer:buffer->buffer
                 offset:0
                 atIndex:0];
         
@@ -344,7 +346,7 @@ shape_value *= has_thickness;
                 // NOTE(yuval): Copy the vertex data to the vertex buffer
                 {
                     
-                    u8 *group_buffer_contents = (u8*)[buffer.buffer contents] + buffer_offset;
+                    u8 *group_buffer_contents = (u8*)[buffer->buffer contents] + buffer_offset;
                     u8 *cursor = group_buffer_contents;
                     for (Render_Vertex_Array_Node *node = group->vertex_list.first;
                          node;
@@ -356,7 +358,7 @@ shape_value *= has_thickness;
                     
                     NSUInteger data_size = (NSUInteger)(cursor - group_buffer_contents);
                     NSRange modify_range = NSMakeRange(buffer_offset, data_size);
-                    [buffer.buffer didModifyRange:modify_range];
+                    [buffer->buffer didModifyRange:modify_range];
                 }
                 
                 // NOTE(yuval): Set the vertex buffer offset to the beginning of the group's vertices
@@ -367,7 +369,7 @@ shape_value *= has_thickness;
                         vertexStart:0
                         vertexCount:vertex_count];
                 
-                buffer_offset += (vertex_count * sizeof(Render_Vertex)); //((((vertex_count * sizeof(Render_Vertex)) + 256) / 256) * 256);
+                buffer_offset += (vertex_count * sizeof(Render_Vertex));
             }
         }
         
@@ -392,39 +394,46 @@ shape_value *= has_thickness;
 - (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size{
     // NOTE(yuval): This routine is a modified version of Dear ImGui's MetalContext::dequeueReusableBufferOfLength in imgui_impl_metal.mm
     
-    NSTimeInterval now = [NSDate date].timeIntervalSince1970;
+    u64 now = system_now_time();
     
     // NOTE(yuval): Purge old buffers that haven't been useful for a while
-    if ((now - last_buffer_cache_purge_time) > 1.0){
-        NSMutableArray *survivors = [NSMutableArray array];
-        for (Metal_Buffer *candidate in buffer_cache){
-            if (candidate.last_reuse_time > last_buffer_cache_purge_time){
-                [survivors addObject:candidate];
+    if ((now - last_buffer_cache_purge_time) > 1000000){
+        Node prev_buffer_cache = buffer_cache;
+        dll_init_sentinel(&buffer_cache);
+        
+        for (Node *node = prev_buffer_cache.next;
+             node != &buffer_cache;
+             node = node->next){
+            Metal_Buffer *candidate = CastFromMember(Metal_Buffer, node, node);
+            if (candidate->last_reuse_time > last_buffer_cache_purge_time){
+                dll_insert(&buffer_cache, node);
             }
         }
         
-        buffer_cache = [survivors mutableCopy];
         last_buffer_cache_purge_time = now;
     }
     
     // NOTE(yuval): See if we have a buffer we can reuse
     Metal_Buffer *best_candidate = 0;
-    for (Metal_Buffer *candidate in buffer_cache){
-        if ((candidate.size >= size) && ((!best_candidate) || (best_candidate.last_reuse_time > candidate.last_reuse_time))){
+    for (Node *node = buffer_cache.next;
+         node != &buffer_cache;
+         node = node->next){
+        Metal_Buffer *candidate = CastFromMember(Metal_Buffer, node, node);
+        if ((candidate->size >= size) && ((!best_candidate) || (best_candidate->last_reuse_time > candidate->last_reuse_time))){
             best_candidate = candidate;
         }
     }
     
     Metal_Buffer *result;
     if (best_candidate){
-        [buffer_cache removeObject:best_candidate];
-        best_candidate.last_reuse_time = now;
+        // NOTE(yuval): A best candidate has been found! Remove it from the buffer list and set its last reuse time.
+        dll_remove(&best_candidate->node);
+        best_candidate->last_reuse_time = now;
         result = best_candidate;
     } else{
-        result = [[Metal_Buffer alloc] initWithSize:size usingDevice:device];
+        // NOTE(yuval): No luck; make a new buffer.
+        result = metal__make_buffer(size, device);
     }
-    
-    // NOTE(yuval): No luck; make a new buffer
     
     return result;
 }
@@ -432,6 +441,6 @@ shape_value *= has_thickness;
 - (void)add_reusable_buffer:(Metal_Buffer*)buffer{
     // NOTE(yuval): This routine is a modified version of Dear ImGui's MetalContext::enqueueReusableBuffer in imgui_impl_metal.mm
     
-    [buffer_cache addObject:buffer];
+    dll_insert(&buffer_cache, &buffer->node);
 }
 @end

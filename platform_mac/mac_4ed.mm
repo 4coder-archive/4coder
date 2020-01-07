@@ -460,8 +460,8 @@ this only gets called for window creation and other extraordinary events.
     return(YES);
 }
 
-- (void)keyDown:(NSEvent *)event{
-    NSString* characters = [event characters];
+- (void)keyDown:(NSEvent*)event{
+    NSString *characters = [event characters];
     if ([characters length] != 0) {
         u32 character_code = [characters characterAtIndex:0];
         
