@@ -8,17 +8,26 @@
 #include "AAPLShaderTypes.h"
 #define function static
 
-struct Metal_Renderer{
-    MTKView *view;
-    
-    id<MTLDevice> device;
-    id<MTLRenderPipelineState> pipeline_state;
-    id<MTLCommandQueue> command_queue;
-    id<MTLBuffer> buffer;
-    id<MTLCaptureScope> capture_scope;
-};
+////////////////////////////////
 
-global_const u32 metal_max_vertices = (1<<16);
+// TODO(yuval): Convert this to a struct when I handle my own caching solution
+@interface Metal_Buffer : NSObject
+@property (nonatomic, strong) id<MTLBuffer> buffer;
+@property (nonatomic, readonly) u32 size;
+@property (nonatomic, assign) NSTimeInterval last_reuse_time;
+
+- (instancetype)initWithSize:(u32)size usingDevice:(id<MTLDevice>)device;
+@end
+
+@interface Metal_Renderer : NSObject<MTKViewDelegate>
+@property (nonatomic) Render_Target *target;
+
+- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtkView;
+- (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size;
+- (void)add_reusable_buffer:(Metal_Buffer*)buffer;
+@end
+
+////////////////////////////////
 
 global_const char *metal__shaders_source = R"(
 #include <metal_stdlib>
@@ -29,10 +38,10 @@ using namespace metal;
 ////////////////////////////////
 
 typedef struct{
-packed_float2 xy;
-    packed_float3 uvw;
-uint32_t color;
-float half_thickness;
+float2 xy [[attribute(0)]];
+    float3 uvw [[attribute(1)]];
+uint32_t color [[attribute(2)]];
+float half_thickness [[attribute(3)]];
 } Vertex;
 
 // NOTE(yuval): Vertex shader outputs and fragment shader inputs
@@ -51,33 +60,32 @@ float4 position [[position]];
 ////////////////////////////////
 
 vertex Rasterizer_Data
-vertex_shader(uint vertex_id [[vertex_id]], constant Vertex *vertices [[buffer(0)]],
+vertex_shader(Vertex in [[stage_in]],
 constant float4x4 &proj [[buffer(1)]]){
-    constant Vertex *in = &vertices[vertex_id];
     Rasterizer_Data out;
     
     // NOTE(yuval): Calculate position in NDC
-    out.position = proj * float4(in->xy, 0.0, 1.0);
+    out.position = proj * float4(in.xy, 0.0, 1.0);
     
     // NOTE(yuval): Convert color to float4 format
-    out.color.b = ((float((in->color       ) & 0xFFu)) / 255.0);
-    out.color.g = ((float((in->color >>  8u) & 0xFFu)) / 255.0);
-    out.color.r = ((float((in->color >> 16u) & 0xFFu)) / 255.0);
-    out.color.a = ((float((in->color >> 24u) & 0xFFu)) / 255.0);
+    out.color.b = ((float((in.color       ) & 0xFFu)) / 255.0);
+    out.color.g = ((float((in.color >>  8u) & 0xFFu)) / 255.0);
+    out.color.r = ((float((in.color >> 16u) & 0xFFu)) / 255.0);
+    out.color.a = ((float((in.color >> 24u) & 0xFFu)) / 255.0);
     
     // NOTE(yuval): Pass uvw coordinates to the fragment shader
-    out.uvw = in->uvw;
+    out.uvw = in.uvw;
     
     // NOTE(yuval): Calculate adjusted half dim
-    float2 center = in->uvw.xy;
-    float2 half_dim = abs(in->xy - center);
-    out.adjusted_half_dim = (half_dim - in->uvw.zz + float2(0.5, 0.5));
+    float2 center = in.uvw.xy;
+    float2 half_dim = abs(in.xy - center);
+    out.adjusted_half_dim = (half_dim - in.uvw.zz + float2(0.5, 0.5));
     
     // NOTE(yuval): Pass half_thickness to the fragment shader
-    out.half_thickness = in->half_thickness;
+    out.half_thickness = in.half_thickness;
     
     // NOTE(yuval): Pass xy to the fragment shader
-    out.xy = in->xy;
+    out.xy = in.xy;
     
     return(out);
 }
@@ -113,12 +121,48 @@ shape_value *= has_thickness;
 }
 )";
 
-function void
-metal_init(Metal_Renderer *renderer, MTKView *view){
+////////////////////////////////
+
+@implementation Metal_Buffer
+- (instancetype)initWithSize:(u32)size usingDevice:(id<MTLDevice>)device{
+    self = [super init];
+    if (self == nil){
+        return(nil);
+    }
+    
+    // NOTE(yuval): Create the vertex buffer
+    MTLResourceOptions options = MTLCPUCacheModeWriteCombined|MTLResourceStorageModeManaged;
+    _buffer = [device newBufferWithLength:size options:options];
+    _size = size;
+    
+    // NOTE(yuval): Set the last_reuse_time to the current time
+    _last_reuse_time = [NSDate date].timeIntervalSince1970;
+    
+    return(self);
+}
+@end
+
+////////////////////////////////
+
+@implementation Metal_Renderer{
+    id<MTLDevice> device;
+    id<MTLRenderPipelineState> pipeline_state;
+    id<MTLCommandQueue> command_queue;
+    id<MTLCaptureScope> capture_scope;
+    
+    NSMutableArray<Metal_Buffer*> *buffer_cache;
+    NSTimeInterval last_buffer_cache_purge_time;
+}
+
+- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtk_view{
+    self = [super init];
+    if (self == nil){
+        return(nil);
+    }
+    
     NSError *error = nil;
     
-    renderer->view = view;
-    renderer->device = view.device;
+    device = mtk_view.device;
     
     // NOTE(yuval): Compile the shaders
     id<MTLFunction> vertex_function = nil;
@@ -129,7 +173,7 @@ metal_init(Metal_Renderer *renderer, MTKView *view){
         MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
         options.fastMathEnabled = YES;
         
-        id<MTLLibrary> shader_library = [renderer->device newLibraryWithSource:shaders_source_str
+        id<MTLLibrary> shader_library = [device newLibraryWithSource:shaders_source_str
                 options:options error:&error];
         vertex_function = [shader_library newFunctionWithName:@"vertex_shader"];
         fragment_function = [shader_library newFunctionWithName:@"fragment_shader"];
@@ -141,55 +185,78 @@ metal_init(Metal_Renderer *renderer, MTKView *view){
     
     // NOTE(yuval): Configure the pipeline descriptor
     {
+        MTLVertexDescriptor *vertexDescriptor = [MTLVertexDescriptor vertexDescriptor];
+        vertexDescriptor.attributes[0].offset = OffsetOfMember(Render_Vertex, xy);
+        vertexDescriptor.attributes[0].format = MTLVertexFormatFloat2; // position
+        vertexDescriptor.attributes[0].bufferIndex = 0;
+        vertexDescriptor.attributes[1].offset = OffsetOfMember(Render_Vertex, uvw);
+        vertexDescriptor.attributes[1].format = MTLVertexFormatFloat3; // texCoords
+        vertexDescriptor.attributes[1].bufferIndex = 0;
+        vertexDescriptor.attributes[2].offset = OffsetOfMember(Render_Vertex, color);
+        vertexDescriptor.attributes[2].format = MTLVertexFormatUInt; // color
+        vertexDescriptor.attributes[2].bufferIndex = 0;
+        vertexDescriptor.attributes[3].offset = OffsetOfMember(Render_Vertex, half_thickness);
+        vertexDescriptor.attributes[3].format = MTLVertexFormatFloat; // position
+        vertexDescriptor.attributes[3].bufferIndex = 0;
+        vertexDescriptor.layouts[0].stepRate = 1;
+        vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
+        vertexDescriptor.layouts[0].stride = sizeof(Render_Vertex);
+        
         MTLRenderPipelineDescriptor *pipeline_state_descriptor = [[MTLRenderPipelineDescriptor alloc] init];
         pipeline_state_descriptor.label = @"4coder Metal Renderer Pipeline";
         pipeline_state_descriptor.vertexFunction = vertex_function;
         pipeline_state_descriptor.fragmentFunction = fragment_function;
-        pipeline_state_descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat;
+        pipeline_state_descriptor.vertexDescriptor = vertexDescriptor;
+        pipeline_state_descriptor.colorAttachments[0].pixelFormat = mtk_view.colorPixelFormat;
         pipeline_state_descriptor.colorAttachments[0].blendingEnabled = YES;
+        pipeline_state_descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+        pipeline_state_descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
         pipeline_state_descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
         pipeline_state_descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-        pipeline_state_descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
-        pipeline_state_descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+        /*pipeline_state_descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
+        pipeline_state_descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;*/
         
-        renderer->pipeline_state = [renderer->device newRenderPipelineStateWithDescriptor:pipeline_state_descriptor
+        pipeline_state = [device newRenderPipelineStateWithDescriptor:pipeline_state_descriptor
                 error:&error];
     }
     
     Assert(error == nil);
     
     // NOTE(yuval): Create the command queue
-    renderer->command_queue = [renderer->device newCommandQueue];
+    command_queue = [device newCommandQueue];
     
-    // NOTE(yuval): Create the vertex buffer
-    {
-        u32 buffer_size = (metal_max_vertices * sizeof(Render_Vertex));
-        MTLResourceOptions options = MTLCPUCacheModeWriteCombined|MTLResourceStorageModeManaged;
-        renderer->buffer = [renderer->device newBufferWithLength:buffer_size
-                options:options];
-    }
+    // NOTE(yuval): Initialize buffer caching
+    buffer_cache = [NSMutableArray array];
+    last_buffer_cache_purge_time = [NSDate date].timeIntervalSince1970;
     
     // NOTE(yuval): Create a capture scope for gpu frame capture
-    renderer->capture_scope = [[MTLCaptureManager sharedCaptureManager]
-            newCaptureScopeWithDevice:renderer->device];
-    renderer->capture_scope.label = @"4coder Metal Capture Scope";
+    capture_scope = [[MTLCaptureManager sharedCaptureManager]
+            newCaptureScopeWithDevice:device];
+    capture_scope.label = @"4coder Metal Capture Scope";
+    
+    return(self);
 }
 
-function void
-metal_render(Metal_Renderer *renderer, Render_Target *t){
-    [renderer->capture_scope beginScope];
+- (void)mtkView:(nonnull MTKView*)view drawableSizeWillChange:(CGSize)size{
+    // NOTE(yuval): Nothing to do here because we use the render target's dimentions for rendering
+}
+
+- (void)drawInMTKView:(nonnull MTKView*)view{
+    printf("Metal Renderer Draw!\n");
     
-    i32 width = t->width;
-    i32 height = t->height;
+    [capture_scope beginScope];
     
-    Font_Set* font_set = (Font_Set*)t->font_set;
+    i32 width = _target->width;
+    i32 height = _target->height;
+    
+    Font_Set* font_set = (Font_Set*)_target->font_set;
     
     // NOTE(yuval): Create the command buffer
-    id<MTLCommandBuffer> command_buffer = [renderer->command_queue commandBuffer];
+    id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
     command_buffer.label = @"4coder Metal Render Command";
     
     // NOTE(yuval): Obtain the render pass descriptor from the renderer's view
-    MTLRenderPassDescriptor *render_pass_descriptor = renderer->view.currentRenderPassDescriptor;
+    MTLRenderPassDescriptor *render_pass_descriptor = view.currentRenderPassDescriptor;
     if (render_pass_descriptor != nil){
         render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(1.0f, 0.0f, 1.0f, 1.0f);
         
@@ -202,7 +269,7 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
         [render_encoder setViewport:(MTLViewport){0.0, 0.0, (double)width, (double)height, 0.0, 1.0}];
         
         // NOTE(yuval): Set the render pipeline to use for drawing
-        [render_encoder setRenderPipelineState:renderer->pipeline_state];
+        [render_encoder setRenderPipelineState:pipeline_state];
         
         // NOTE(yuval): Calculate and pass in the projection matrix
         float left = 0, right = (float)width;
@@ -216,22 +283,44 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
             -(near_depth / (far_depth - near_depth)), 1.0f
         };
         
-        for (Render_Group *group = t->group_first;
+        // NOTE(yuval): Calculate required vertex buffer size
+        i32 all_vertex_count = 0;
+        for (Render_Group *group = _target->group_first;
              group;
              group = group->next){
+            all_vertex_count += group->vertex_list.vertex_count;
+        }
+        
+        u32 vertex_buffer_size = (all_vertex_count * sizeof(Render_Vertex));
+        
+        // NOTE(yuval): Find & Get a vertex buffer matching the required size
+        Metal_Buffer *buffer = [self get_reusable_buffer_with_size:vertex_buffer_size];
+        
+        // NOTE(yuval): Pass the vertex buffer to the vertex shader
+        [render_encoder setVertexBuffer:buffer.buffer
+                offset:0
+                atIndex:0];
+        
+        // NOTE(yuval): Pass the projection matrix to the vertex shader
+        [render_encoder setVertexBytes:&proj
+                length:sizeof(proj)
+                atIndex:1];
+        
+        u32 buffer_offset = 0;
+        i32 count = 0;
+        for (Render_Group *group = _target->group_first;
+             group;
+             group = group->next, ++count){
             // NOTE(yuval): Set scissor rect
             {
                 Rect_i32 box = Ri32(group->clip_box);
+                
+                NSUInteger x0 = (NSUInteger)Min(Max(0, box.x0), width - 1);
+                NSUInteger x1 = (NSUInteger)Min(Max(0, box.x1), width);
+                NSUInteger y0 = (NSUInteger)Min(Max(0, box.y0), height - 1);
+                NSUInteger y1 = (NSUInteger)Min(Max(0, box.y1), height);
+                
                 MTLScissorRect scissor_rect;
-                
-                CGSize frame = [renderer->view drawableSize];
-                printf("Drawable Size - w:%f  h:%f\n", frame.width, frame.height);
-                
-                NSUInteger x0 = (NSUInteger)Min(Max(0, box.x0), frame.width - 1);
-                NSUInteger x1 = (NSUInteger)Min(Max(0, box.x1), frame.width);
-                NSUInteger y0 = (NSUInteger)Min(Max(0, box.y0), frame.height - 1);
-                NSUInteger y1 = (NSUInteger)Min(Max(0, box.y1), frame.height);
-                
                 scissor_rect.x = x0;
                 scissor_rect.y = y0;
                 scissor_rect.width = (x1 - x0);
@@ -254,7 +343,9 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
                 
                 // NOTE(yuval): Copy the vertex data to the vertex buffer
                 {
-                    u8 *cursor = (u8*)[renderer->buffer contents];
+                    
+                    u8 *group_buffer_contents = (u8*)[buffer.buffer contents] + buffer_offset;
+                    u8 *cursor = group_buffer_contents;
                     for (Render_Vertex_Array_Node *node = group->vertex_list.first;
                          node;
                          node = node->next){
@@ -262,32 +353,85 @@ metal_render(Metal_Renderer *renderer, Render_Target *t){
                         memcpy(cursor, node->vertices, size);
                         cursor += size;
                     }
+                    
+                    NSUInteger data_size = (NSUInteger)(cursor - group_buffer_contents);
+                    NSRange modify_range = NSMakeRange(buffer_offset, data_size);
+                    [buffer.buffer didModifyRange:modify_range];
                 }
                 
-                // NOTE(yuval): Pass the vertex buffer to the vertex shader
-                [render_encoder setVertexBuffer:renderer->buffer
-                        offset:0
-                        atIndex:0];
-                
-                // NOTE(yuval): Pass the projection matrix to the vertex shader
-                [render_encoder setVertexBytes:&proj
-                        length:sizeof(proj)
-                        atIndex:1];
+                // NOTE(yuval): Set the vertex buffer offset to the beginning of the group's vertices
+                [render_encoder setVertexBufferOffset:buffer_offset atIndex:0];
                 
                 // NOTE(yuval): Draw the vertices
                 [render_encoder drawPrimitives:MTLPrimitiveTypeTriangle
                         vertexStart:0
                         vertexCount:vertex_count];
+                
+                buffer_offset += (vertex_count * sizeof(Render_Vertex)); //((((vertex_count * sizeof(Render_Vertex)) + 256) / 256) * 256);
             }
         }
         
         [render_encoder endEncoding];
         
         // NOTE(yuval): Schedule a present once the framebuffer is complete using the current drawable
-        [command_buffer presentDrawable:renderer->view.currentDrawable];
+        [command_buffer presentDrawable:view.currentDrawable];
+        
+        [command_buffer addCompletedHandler:^(id<MTLCommandBuffer>){
+                dispatch_async(dispatch_get_main_queue(), ^{
+                               [self add_reusable_buffer:buffer];
+                               });
+            }];
     }
     
+    // NOTE(yuval): Finalize rendering here and push the command buffer to the GPU
     [command_buffer commit];
     
-    [renderer->capture_scope endScope];
+    [capture_scope endScope];
 }
+
+- (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size{
+    // NOTE(yuval): This routine is a modified version of Dear ImGui's MetalContext::dequeueReusableBufferOfLength in imgui_impl_metal.mm
+    
+    NSTimeInterval now = [NSDate date].timeIntervalSince1970;
+    
+    // NOTE(yuval): Purge old buffers that haven't been useful for a while
+    if ((now - last_buffer_cache_purge_time) > 1.0){
+        NSMutableArray *survivors = [NSMutableArray array];
+        for (Metal_Buffer *candidate in buffer_cache){
+            if (candidate.last_reuse_time > last_buffer_cache_purge_time){
+                [survivors addObject:candidate];
+            }
+        }
+        
+        buffer_cache = [survivors mutableCopy];
+        last_buffer_cache_purge_time = now;
+    }
+    
+    // NOTE(yuval): See if we have a buffer we can reuse
+    Metal_Buffer *best_candidate = 0;
+    for (Metal_Buffer *candidate in buffer_cache){
+        if ((candidate.size >= size) && ((!best_candidate) || (best_candidate.last_reuse_time > candidate.last_reuse_time))){
+            best_candidate = candidate;
+        }
+    }
+    
+    Metal_Buffer *result;
+    if (best_candidate){
+        [buffer_cache removeObject:best_candidate];
+        best_candidate.last_reuse_time = now;
+        result = best_candidate;
+    } else{
+        result = [[Metal_Buffer alloc] initWithSize:size usingDevice:device];
+    }
+    
+    // NOTE(yuval): No luck; make a new buffer
+    
+    return result;
+}
+
+- (void)add_reusable_buffer:(Metal_Buffer*)buffer{
+    // NOTE(yuval): This routine is a modified version of Dear ImGui's MetalContext::enqueueReusableBuffer in imgui_impl_metal.mm
+    
+    [buffer_cache addObject:buffer];
+}
+@end
