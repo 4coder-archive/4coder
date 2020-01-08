@@ -12,6 +12,7 @@ mac_metal_init(NSWindow *window){
     [metal_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [metal_view setPaused:YES];
     [metal_view setEnableSetNeedsDisplay:NO];
+    [metal_view setSampleCount:4];
     
     metal_view.device = MTLCreateSystemDefaultDevice();
     
@@ -30,4 +31,23 @@ mac_metal_render(Render_Target* target){
     [metal_view draw];
     u64 end_time = system_now_time();
     printf("Metal Render Time: %fs\n\n", mac_get_time_diff_sec(begin_time, end_time));
+}
+
+function u32
+mac_metal_get_texture(Vec3_i32 dim, Texture_Kind texture_kind){
+    u32 result = [metal_renderer get_texture_of_dim:dim
+            kind:texture_kind];
+    
+    return result;
+}
+
+function b32
+mac_metal_fill_texture(Texture_Kind texture_kind, u32 texture, Vec3_i32 p, Vec3_i32 dim, void *data){
+    b32 result = [metal_renderer fill_texture:texture
+            kind:texture_kind
+            pos:p
+            dim:dim
+            data:data];
+    
+    return result;
 }

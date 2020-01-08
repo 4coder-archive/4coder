@@ -30,7 +30,7 @@ system_get_path_sig(){
             local_persist b32 has_stashed_4ed_path = false;
             if (!has_stashed_4ed_path){
                 local_const i32 binary_path_capacity = KB(32);
-                u8 *memory = (u8*)system_memory_allocate(binary_path_capacity, string_u8_litexpr(file_name_line_number));
+                u8 *memory = (u8*)system_memory_allocate(binary_path_capacity, file_name_line_number_lit_u8);
                 
                 pid_t pid = getpid();
                 i32 size = proc_pidpath(pid, memory, binary_path_capacity);
@@ -804,13 +804,13 @@ system_get_keyboard_modifiers_sig(){
 
 function
 graphics_get_texture_sig(){
-    u32 result = gl__get_texture(dim, texture_kind);
+    u32 result = mac_metal_get_texture(dim, texture_kind);
     return(result);
 }
 
 function
 graphics_fill_texture_sig(){
-    b32 result = gl__fill_texture(texture_kind, texture, p, dim, data);
+    b32 result = mac_metal_fill_texture(texture_kind, texture, p, dim, data);
     return(result);
 }
 

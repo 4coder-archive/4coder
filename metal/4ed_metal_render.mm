@@ -10,6 +10,8 @@
 
 ////////////////////////////////
 
+typedef id<MTLTexture> Metal_Texture;
+
 struct Metal_Buffer{
     Node node;
     
@@ -18,19 +20,21 @@ struct Metal_Buffer{
     u64 last_reuse_time;
 };
 
-struct Metal_Texture{
-    
-};
-
 ////////////////////////////////
 
 @interface Metal_Renderer : NSObject<MTKViewDelegate>
 @property (nonatomic) Render_Target *target;
 
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtkView;
+- (u32)get_texture_of_dim:(Vec3_i32)dim kind:(Texture_Kind)kind;
+- (b32)fill_texture:(u32)texture kind:(Texture_Kind)kind pos:(Vec3_i32)p dim:(Vec3_i32)dim data:(void*)data;
 - (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size;
 - (void)add_reusable_buffer:(Metal_Buffer*)buffer;
 @end
+
+////////////////////////////////
+
+global_const u32 metal__max_textures = 256;
 
 ////////////////////////////////
 
@@ -106,11 +110,14 @@ return(result);
 }
 
 fragment float4
-fragment_shader(Rasterizer_Data in [[stage_in]]){
+fragment_shader(Rasterizer_Data in [[stage_in]],
+texture2d_array<half> in_texture [[texture(0)]]){
 float has_thickness = step(0.49, in.half_thickness);
-// float does_not_have_thickness = (1.0 - has_thickness);
+float does_not_have_thickness = (1.0 - has_thickness);
 
-// TODO(yuval): Sample texture here.
+constexpr sampler texture_sampler(coord::normalized, min_filter::linear, mag_filter::linear, mip_filter::linear);
+half sample_value = in_texture.sample(texture_sampler, in.uvw.xy, in.uvw.z).r;
+sample_value *= does_not_have_thickness;
 
 float2 center = in.uvw.xy;
 float roundness = in.uvw.z;
@@ -121,7 +128,7 @@ float shape_value = (1.0 - smoothstep(-1.0, 0.0, sd));
 shape_value *= has_thickness;
 
 // TOOD(yuval): Add sample_value to alpha
-float4 out_color = in.color;// float4(in.color.xyz, in.color.a * (shape_value));
+float4 out_color = float4(in.color.xyz, in.color.a * (sample_value + shape_value));
 return(out_color);
 }
 )";
@@ -153,6 +160,9 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     
     Node buffer_cache;
     u64 last_buffer_cache_purge_time;
+    
+    Metal_Texture *textures;
+    u32 next_texture_handle_index;
 }
 
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtk_view{
@@ -209,6 +219,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         pipeline_state_descriptor.vertexFunction = vertex_function;
         pipeline_state_descriptor.fragmentFunction = fragment_function;
         pipeline_state_descriptor.vertexDescriptor = vertexDescriptor;
+        pipeline_state_descriptor.sampleCount = mtk_view.sampleCount;
         pipeline_state_descriptor.colorAttachments[0].pixelFormat = mtk_view.colorPixelFormat;
         pipeline_state_descriptor.colorAttachments[0].blendingEnabled = YES;
         pipeline_state_descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
@@ -230,6 +241,10 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     // NOTE(yuval): Initialize buffer caching
     dll_init_sentinel(&buffer_cache);
     last_buffer_cache_purge_time = system_now_time();
+    
+    // NOTE(yuval): Initialize the textures array
+    textures = (Metal_Texture*)system_memory_allocate(metal__max_textures * sizeof(Metal_Texture), file_name_line_number_lit_u8);
+    next_texture_handle_index = 0;
     
     // NOTE(yuval): Create a capture scope for gpu frame capture
     capture_scope = [[MTLCaptureManager sharedCaptureManager]
@@ -338,6 +353,12 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
                     Face* face = font_set_face_from_id(font_set, group->face_id);
                     if (face != 0){
                         // TODO(yuval): Bind face texture
+                        u32 texture_handle = face->texture;
+                        Metal_Texture texture = textures[texture_handle];
+                        if (texture != 0){
+                            [render_encoder setFragmentTexture:texture
+                                    atIndex:0];
+                        }
                     } else{
                         // TODO(yuval): Bind default texture
                     }
@@ -389,6 +410,51 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     [command_buffer commit];
     
     [capture_scope endScope];
+}
+
+- (u32)get_texture_of_dim:(Vec3_i32)dim kind:(Texture_Kind)kind{
+    u32 handle = next_texture_handle_index;
+    
+    // NOTE(yuval): Create a texture descriptor
+    MTLTextureDescriptor *texture_descriptor = [[MTLTextureDescriptor alloc] init];
+    texture_descriptor.textureType = MTLTextureType2DArray;
+    texture_descriptor.pixelFormat = MTLPixelFormatR8Unorm;
+    texture_descriptor.width = dim.x;
+    texture_descriptor.height = dim.y;
+    texture_descriptor.depth = dim.z;
+    
+    // NOTE(yuval): Create the texture from the device using the descriptor and add it to the textures array
+    Metal_Texture texture = [device newTextureWithDescriptor:texture_descriptor];
+    textures[handle] = texture;
+    
+    next_texture_handle_index += 1;
+    
+    return handle;
+}
+
+- (b32)fill_texture:(u32)handle kind:(Texture_Kind)kind pos:(Vec3_i32)p dim:(Vec3_i32)dim data:(void*)data{
+    b32 result = false;
+    
+    if (data){
+        Metal_Texture texture = textures[handle];
+        
+        if (texture != 0){
+            MTLRegion replace_region = {
+                {(NSUInteger)p.x, (NSUInteger)p.y, (NSUInteger)p.z},
+                {(NSUInteger)dim.x, (NSUInteger)dim.y, (NSUInteger)dim.z}
+            };
+            
+            // NOTE(yuval): Fill the texture with data
+            [texture replaceRegion:replace_region
+                    mipmapLevel:0
+                    withBytes:data
+                    bytesPerRow:dim.x];
+            
+            result = true;
+        }
+    }
+    
+    return result;
 }
 
 - (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size{

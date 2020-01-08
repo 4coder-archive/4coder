@@ -318,6 +318,7 @@ mac_file_can_be_made(u8* filename){
 function void
 mac_resize(float width, float height){
     if ((width > 0.0f) && (height > 0.0f)){
+#if 1
         NSSize coord_size = NSMakeSize(width, height);
         NSSize backing_size = [mac_vars.view convertSizeToBacking:coord_size];
         
@@ -326,6 +327,13 @@ mac_resize(float width, float height){
         
         target.width = (i32)backing_size.width;
         target.height = (i32)backing_size.height;
+#else
+        mac_vars.width = (i32)width;
+        mac_vars.height = (i32)height;
+        
+        target.width = (i32)width;
+        target.height = (i32)height;
+#endif
     }
     
     system_signal_step(0);
