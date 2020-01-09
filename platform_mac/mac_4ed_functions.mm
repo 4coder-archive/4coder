@@ -804,13 +804,13 @@ system_get_keyboard_modifiers_sig(){
 
 function
 graphics_get_texture_sig(){
-    u32 result = mac_metal_get_texture(dim, texture_kind);
+    u32 result = renderer->get_texture(renderer, dim, texture_kind);
     return(result);
 }
 
 function
 graphics_fill_texture_sig(){
-    b32 result = mac_metal_fill_texture(texture_kind, texture, p, dim, data);
+    b32 result = renderer->fill_texture(renderer, texture_kind, texture, p, dim, data);
     return(result);
 }
 

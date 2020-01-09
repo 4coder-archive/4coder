@@ -263,8 +263,10 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     
     [capture_scope beginScope];
     
-    i32 width = _target->width;
-    i32 height = _target->height;
+    // HACK(yuval): This is the best way I found to force valid width and height without drawing on the next drawing cycle (1 frame delay).
+    CGSize drawable_size = [view drawableSize];
+    i32 width = (i32)Min(_target->width, drawable_size.width);
+    i32 height = (i32)Min(_target->height, drawable_size.height);
     
     Font_Set *font_set = (Font_Set*)_target->font_set;
     
@@ -331,6 +333,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
             // NOTE(yuval): Set scissor rect
             {
                 Rect_i32 box = Ri32(group->clip_box);
+                
                 
                 NSUInteger x0 = (NSUInteger)Min(Max(0, box.x0), width - 1);
                 NSUInteger x1 = (NSUInteger)Min(Max(0, box.x1), width);

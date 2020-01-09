@@ -132,8 +132,6 @@ struct Mac_Input_Chunk{
 
 ////////////////////////////////
 
-////////////////////////////////
-
 typedef i32 Mac_Object_Kind;
 enum{
     MacObjectKind_ERROR = 0,
@@ -203,7 +201,12 @@ struct Mac_Vars {
 
 ////////////////////////////////
 
+#include "mac_4ed_renderer.h"
+
+////////////////////////////////
+
 global Mac_Vars mac_vars;
+global Mac_Renderer *renderer;
 global Render_Target target;
 global App_Functions app;
 
@@ -269,30 +272,6 @@ mac_to_object(Plat_Handle handle){
 
 ////////////////////////////////
 
-#include <OpenGL/OpenGL.h>
-#include <OpenGL/gl.h>
-#import "mac_4ed_opengl.mm"
-
-#import "mac_4ed_metal.mm"
-
-#include "4ed_font_provider_freetype.h"
-#include "4ed_font_provider_freetype.cpp"
-
-#import "mac_4ed_functions.mm"
-
-
-
-////////////////////////////////
-
-global Key_Code keycode_lookup_table[255];
-
-function void
-mac_key_code_init(void){
-    
-}
-
-////////////////////////////////
-
 function void
 mac_error_box(char *msg, b32 shutdown = true){
     NSAlert *alert = [[[NSAlert alloc] init] autorelease];
@@ -308,6 +287,26 @@ mac_error_box(char *msg, b32 shutdown = true){
         exit(1);
     }
 }
+
+////////////////////////////////
+
+#import "mac_4ed_renderer.mm"
+
+#include "4ed_font_provider_freetype.h"
+#include "4ed_font_provider_freetype.cpp"
+
+#import "mac_4ed_functions.mm"
+
+////////////////////////////////
+
+global Key_Code keycode_lookup_table[255];
+
+function void
+mac_key_code_init(void){
+    
+}
+
+////////////////////////////////
 
 function b32
 mac_file_can_be_made(u8* filename){
@@ -389,7 +388,7 @@ mac_resize(NSWindow *window){
 }
 
 - (void)viewDidChangeBackingProperties{
-    // NOTE(yuval): Screen scale factor calculation
+    // TODO(yuval): Screen scale factor calculation
     printf("Backing changed!\n");
     mac_resize(mac_vars.window);
 }
@@ -449,7 +448,8 @@ this only gets called for window creation and other extraordinary events.
     }
     
     //mac_gl_render(&target);
-    mac_metal_render(&target);
+    //mac_metal_render(&target);
+    renderer->render(renderer, &target);
     
     mac_vars.first = false;
     
@@ -707,8 +707,9 @@ main(int arg_count, char **args){
         [mac_vars.window makeKeyAndOrderFront:nil];
         
         // NOTE(yuval): Initialize the renderer
-        mac_gl_init(mac_vars.window);
-        mac_metal_init(mac_vars.window);
+        //mac_gl_init(mac_vars.window);
+        //mac_metal_init(mac_vars.window, &target);
+        renderer = mac_init_renderer(MacRenderer_OpenGL, mac_vars.window, &target);
         
         mac_resize(w, h);
         
