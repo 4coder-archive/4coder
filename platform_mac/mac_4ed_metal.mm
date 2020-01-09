@@ -1,50 +1,85 @@
+/* Mac Metal layer for 4coder */
+
 #import "metal/4ed_metal_render.mm"
 
-global Metal_Renderer *metal_renderer;
-global MTKView *metal_view;
+////////////////////////////////
 
-function void
-mac_metal_init(NSWindow *window, Render_Target *target){
-    // NOTE(yuval): Create Metal view
-    NSView *content_view = [window contentView];
+struct Mac_Metal{
+    Mac_Renderer base;
     
-    metal_view = [[MTKView alloc] initWithFrame:[content_view bounds]];
-    [metal_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [metal_view setPaused:YES];
-    [metal_view setEnableSetNeedsDisplay:NO];
-    [metal_view setSampleCount:4];
+    Metal_Renderer *renderer;
+    MTKView *view;
+};
+
+////////////////////////////////
+
+function
+mac_render_sig(mac_metal__render){
+    printf("Rendering using Metal!\n");
     
-    metal_view.device = MTLCreateSystemDefaultDevice();
-    
-    // NOTE(yuval): Add the Metal view as a subview of the window
-    [content_view addSubview:metal_view];
-    
-    // NOTE(yuval): Create the Metal renderer and set it as the Metal view's delegate
-    metal_renderer = [[Metal_Renderer alloc] initWithMetalKitView:metal_view];
-    metal_view.delegate = metal_renderer;
+    Mac_Metal *metal = (Mac_Metal*)renderer;
+    metal->renderer.target = target;
+    [metal->view draw];
 }
 
-function void
-mac_metal_render(Render_Target* target){
-    metal_renderer.target = target;
-    [metal_view draw];
-}
-
-function u32
-mac_metal_get_texture(Vec3_i32 dim, Texture_Kind texture_kind){
-    u32 result = [metal_renderer get_texture_of_dim:dim
+function
+mac_get_texture_sig(mac_metal__get_texture){
+    Mac_Metal *metal = (Mac_Metal*)renderer;
+    u32 result = [metal->renderer get_texture_of_dim:dim
             kind:texture_kind];
     
-    return result;
+    return(result);
 }
 
-function b32
-mac_metal_fill_texture(Texture_Kind texture_kind, u32 texture, Vec3_i32 p, Vec3_i32 dim, void *data){
-    b32 result = [metal_renderer fill_texture:texture
+function
+mac_fill_texture_sig(mac_metal__fill_texture){
+    Mac_Metal *metal = (Mac_Metal*)renderer;
+    b32 result = [metal->renderer fill_texture:texture
             kind:texture_kind
             pos:p
             dim:dim
             data:data];
     
-    return result;
+    return(result);
+}
+
+function Mac_Metal*
+mac_metal__init(NSWindow *window, Render_Target *target){
+    // NOTE(yuval): Create the Mac Metal rendere
+    Mac_Metal *metal = (Mac_Metal*)system_memory_allocate(sizeof(Mac_Metal),
+                                                          file_name_line_number_lit_u8);
+    metal->base.render = mac_metal__render;
+    metal->base.get_texture = mac_metal__get_texture;
+    metal->base.fill_texture = mac_metal__fill_texture;
+    
+    // NOTE(yuval): Create the Metal view
+    NSView *content_view = [window contentView];
+    
+    metal->view = [[MTKView alloc] initWithFrame:[content_view bounds]];
+    [metal->view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [metal->view setPaused:YES];
+    [metal->view setEnableSetNeedsDisplay:NO];
+    [metal->view setSampleCount:4];
+    
+    metal->view.device = MTLCreateSystemDefaultDevice();
+    
+    // NOTE(yuval): Add the Metal view as a subview of the window
+    [content_view addSubview:metal->view];
+    
+    // NOTE(yuval): Create the Metal renderer and set it as the Metal view's delegate
+    metal->renderer = [[Metal_Renderer alloc] initWithMetalKitView:metal->view];
+    metal->view.delegate = metal->renderer;
+    
+    return(metal);
+}
+
+////////////////////////////////
+
+// TODO(yuval): This function should be exported to a DLL
+function
+mac_load_renderer_sig(mac_load_metal_renderer){
+    printf("Loding The Metal Renderer!\n");
+    
+    Mac_Renderer *renderer = (Mac_Renderer*)mac_metal__init(window, target);
+    return(renderer);
 }

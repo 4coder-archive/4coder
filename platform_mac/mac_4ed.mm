@@ -447,8 +447,6 @@ this only gets called for window creation and other extraordinary events.
         [NSApp terminate:nil];
     }
     
-    //mac_gl_render(&target);
-    //mac_metal_render(&target);
     renderer->render(renderer, &target);
     
     mac_vars.first = false;
@@ -663,7 +661,7 @@ main(int arg_count, char **args){
         }
         
         //
-        // Window and GL View Initialization
+        // Window and Renderer Initialization
         //
         
         // NOTE(yuval): Create Window & Window Delegate
@@ -707,9 +705,7 @@ main(int arg_count, char **args){
         [mac_vars.window makeKeyAndOrderFront:nil];
         
         // NOTE(yuval): Initialize the renderer
-        //mac_gl_init(mac_vars.window);
-        //mac_metal_init(mac_vars.window, &target);
-        renderer = mac_init_renderer(MacRenderer_OpenGL, mac_vars.window, &target);
+        renderer = mac_init_renderer(MacRenderer_Metal, mac_vars.window, &target);
         
         mac_resize(w, h);
         

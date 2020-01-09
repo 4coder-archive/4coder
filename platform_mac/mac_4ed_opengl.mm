@@ -24,9 +24,10 @@
 
 ////////////////////////////////
 
-struct Mac_OpenGL_Renderer{
+struct Mac_OpenGL{
     Mac_Renderer base;
-    OpenGL_View *opengl_view;
+    
+    OpenGL_View *view;
 };
 
 ////////////////////////////////
@@ -125,44 +126,44 @@ struct Mac_OpenGL_Renderer{
 ////////////////////////////////
 
 function
-mac_render_sig(mac_gl_render){
+mac_render_sig(mac_gl__render){
     printf("Rendering using OpenGL!\n");
     
-    Mac_OpenGL_Renderer *gl = (Mac_OpenGL_Renderer*)renderer;
-    [gl->opengl_view render:target];
+    Mac_OpenGL *gl = (Mac_OpenGL*)renderer;
+    [gl->view render:target];
 }
 
 function
-mac_get_texture_sig(mac_gl_get_texture){
+mac_get_texture_sig(mac_gl__get_texture){
     u32 result = gl__get_texture(dim, texture_kind);
     return(result);
 }
 
 function
-mac_fill_texture_sig(mac_gl_fill_texture){
+mac_fill_texture_sig(mac_gl__fill_texture){
     b32 result = gl__fill_texture(texture_kind, texture, p, dim, data);
     return(result);
 }
 
-function Mac_OpenGL_Renderer*
+function Mac_OpenGL*
 mac_gl__init(NSWindow *window, Render_Target *target){
-    // NOTE(yuval): Create the Mac Renderer
-    Mac_OpenGL_Renderer *gl = (Mac_OpenGL_Renderer*)system_memory_allocate(sizeof(Mac_OpenGL_Renderer),
-                                                                           file_name_line_number_lit_u8);
-    gl->base.render = mac_gl_render;
-    gl->base.get_texture = mac_gl_get_texture;
-    gl->base.fill_texture = mac_gl_fill_texture;
+    // NOTE(yuval): Create the Mac OpenGL Renderer
+    Mac_OpenGL *gl = (Mac_OpenGL*)system_memory_allocate(sizeof(Mac_OpenGL),
+                                                         file_name_line_number_lit_u8);
+    gl->base.render = mac_gl__render;
+    gl->base.get_texture = mac_gl__get_texture;
+    gl->base.fill_texture = mac_gl__fill_texture;
     
     // NOTE(yuval): Create the OpenGL view
     NSView *content_view = [window contentView];
     
-    gl->opengl_view = [[OpenGL_View alloc] init];
-    [gl->opengl_view setFrame:[content_view bounds]];
-    [gl->opengl_view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-    [gl->opengl_view setWantsBestResolutionOpenGLSurface:YES];
+    gl->view = [[OpenGL_View alloc] init];
+    [gl->view setFrame:[content_view bounds]];
+    [gl->view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+    [gl->view setWantsBestResolutionOpenGLSurface:YES];
     
     // NOTE(yuval): Add the OpenGL view as a subview of the window
-    [content_view addSubview:gl->opengl_view];
+    [content_view addSubview:gl->view];
     
     // NOTE(yuval): Load gl functions
     void *gl_image = dlopen("/System/Library/Frameworks/OpenGL.framework/Versions/Current/OpenGL", RTLD_LAZY);
@@ -173,10 +174,12 @@ mac_gl__init(NSWindow *window, Render_Target *target){
     return(gl);
 }
 
+////////////////////////////////
+
 // TODO(yuval): This function should be exported to a DLL
 function
 mac_load_renderer_sig(mac_load_opengl_renderer){
-    printf("Initializing The OpenGL Renderer!\n");
+    printf("Loding The OpenGL Renderer!\n");
     
     Mac_Renderer *renderer = (Mac_Renderer*)mac_gl__init(window, target);
     return(renderer);

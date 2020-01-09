@@ -259,8 +259,6 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
 }
 
 - (void)drawInMTKView:(nonnull MTKView*)view{
-    printf("Metal Renderer Draw!\n");
-    
     [capture_scope beginScope];
     
     // HACK(yuval): This is the best way I found to force valid width and height without drawing on the next drawing cycle (1 frame delay).

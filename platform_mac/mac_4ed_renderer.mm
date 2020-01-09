@@ -18,7 +18,7 @@ mac_init_renderer(Mac_Renderer_Kind kind, NSWindow *window, Render_Target *targe
         
         case MacRenderer_Metal:
         {
-            //result = mac_load_metal_renderer(window, target);
+            result = mac_load_metal_renderer(window, target);
         } break;
         
         default: InvalidPath;
