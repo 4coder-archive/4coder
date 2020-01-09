@@ -430,6 +430,8 @@ this only gets called for window creation and other extraordinary events.
     
     block_zero_struct(&mac_vars.input_chunk.trans);
     
+    printf("Step scroll wheel: %d\n", input.mouse.wheel);
+    
     // NOTE(yuval): See comment in win32_4ed.cpp's main loop
     if (mac_vars.send_exit_signal){
         input.trying_to_kill = true;
@@ -448,7 +450,16 @@ this only gets called for window creation and other extraordinary events.
         [NSApp terminate:nil];
     }
     
+    // NOTE(yuval): Render
+    u64 begin_render = system_now_time();
     renderer->render(renderer, &target);
+    u64 end_render = system_now_time();
+    printf("Render Time: %fs\n\n", (end_render - begin_render) / 1000000.0f);
+    
+    // NOTE(yuval): Schedule another step if needed
+    if (result.animating){
+        system_signal_step(0);
+    }
     
     mac_vars.first = false;
     
@@ -480,10 +491,9 @@ this only gets called for window creation and other extraordinary events.
             String_Const_u32 str_32 = SCu32(&character_code, 1);
             String_Const_u8 str_8 = string_u8_from_string_u32(mac_vars.frame_arena, str_32).string;
             
-            Input_Event event = {};
-            event.kind = InputEventKind_TextInsert;
-            event.text.string = str_8;
-            push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list, &event);
+            Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+            event->kind = InputEventKind_TextInsert;
+            event->text.string = str_8;
             
             system_signal_step(0);
         }
@@ -502,7 +512,14 @@ this only gets called for window creation and other extraordinary events.
     float dx = event.scrollingDeltaX;
     float dy = event.scrollingDeltaY;
     
-    mac_vars.input_chunk.trans.mouse_wheel = -((int32_t)dy);
+    printf("Mouse scroll - dx:%f  dy:%f\n", dx, dy);
+    
+    //mac_vars.input_chunk.trans.mouse_wheel = -((int32_t)dy);
+    i8 scroll_speed = 100;
+    if (dy > 0){
+        scroll_speed *= -1;
+    }
+    mac_vars.input_chunk.trans.mouse_wheel = scroll_speed;
     
     system_signal_step(0);
 }
@@ -759,7 +776,7 @@ main(int arg_count, char **args){
         [mac_vars.window makeKeyAndOrderFront:nil];
         
         // NOTE(yuval): Initialize the renderer
-        renderer = mac_init_renderer(MacRenderer_Metal, mac_vars.window, &target);
+        renderer = mac_init_renderer(MacRenderer_OpenGL, mac_vars.window, &target);
         
         mac_resize(w, h);
         
