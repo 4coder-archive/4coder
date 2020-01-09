@@ -128,6 +128,7 @@ struct Mac_Input_Chunk{
 
 @interface FCoderView : NSView
 - (void)requestDisplay;
+- (void)process_mouse_move_event:(NSEvent*)event;
 @end
 
 ////////////////////////////////
@@ -394,15 +395,15 @@ mac_resize(NSWindow *window){
 }
 
 - (void)drawRect:(NSRect)bounds{
+    // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
+    system_mutex_acquire(mac_vars.global_frame_mutex);
+    
     /* NOTE(yuval): Force the graphics context to clear to black so we don't
 get a flash of white until the app is ready to draw. In practice on modern macOS,
 this only gets called for window creation and other extraordinary events.
 (Taken From SDL) */
     [[NSColor blackColor] setFill];
     NSRectFill(bounds);
-    
-    // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
-    system_mutex_release(mac_vars.global_frame_mutex);
     
     // NOTE(yuval): Prepare the Frame Input
     Mac_Input_Chunk input_chunk = mac_vars.input_chunk;
@@ -452,6 +453,8 @@ this only gets called for window creation and other extraordinary events.
     mac_vars.first = false;
     
     linalloc_clear(mac_vars.frame_arena);
+    
+    system_mutex_release(mac_vars.global_frame_mutex);
 }
 
 - (BOOL)acceptsFirstResponder{
@@ -488,15 +491,66 @@ this only gets called for window creation and other extraordinary events.
 }
 
 - (void)mouseMoved:(NSEvent*)event{
+    [self process_mouse_move_event:event];
+}
+
+- (void)mouseDragged:(NSEvent*)event{
+    [self process_mouse_move_event:event];
+}
+
+- (void)scrollWheel:(NSEvent *)event{
+    float dx = event.scrollingDeltaX;
+    float dy = event.scrollingDeltaY;
+    
+    mac_vars.input_chunk.trans.mouse_wheel = -((int32_t)dy);
+    
+    system_signal_step(0);
 }
 
 - (void)mouseDown:(NSEvent*)event{
+    mac_vars.input_chunk.trans.mouse_l_press = true;
+    mac_vars.input_chunk.pers.mouse_l = true;
+    
+    system_signal_step(0);
+}
+
+- (void)mouseUp:(NSEvent*)event{
+    mac_vars.input_chunk.trans.mouse_l_release = true;
+    mac_vars.input_chunk.pers.mouse_l = false;
+    
+    system_signal_step(0);
+}
+
+- (void)rightMouseDown:(NSEvent*)event{
+    [super rightMouseDown:event];
+    
+    mac_vars.input_chunk.trans.mouse_r_press = true;
+    mac_vars.input_chunk.pers.mouse_r = true;
+    
+    system_signal_step(0);
+}
+
+- (void)rightMouseUp:(NSEvent*)event{
+    mac_vars.input_chunk.trans.mouse_r_release = true;
+    mac_vars.input_chunk.pers.mouse_r = false;
+    
+    system_signal_step(0);
 }
 
 - (void)requestDisplay{
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
+}
+
+- (void)process_mouse_move_event:(NSEvent*)event{
+    NSPoint location = [event locationInWindow];
+    Vec2_i32 new_m = V2i32(location.x, mac_vars.height - location.y);
+    if (new_m != mac_vars.input_chunk.pers.mouse){
+        mac_vars.input_chunk.pers.mouse = new_m;
+    }
+    
+    system_signal_step(0);
 }
 @end
 
@@ -728,13 +782,12 @@ main(int arg_count, char **args){
         }
         
         //
-        // Main loop
+        // Start Main Loop
         //
         
         mac_vars.first = true;
         
         mac_vars.global_frame_mutex = system_mutex_make();
-        system_mutex_acquire(mac_vars.global_frame_mutex);
         
         mac_vars.timer_start = system_now_time();
         
