@@ -25,9 +25,12 @@ struct Metal_Buffer{
 @interface Metal_Renderer : NSObject<MTKViewDelegate>
 @property (nonatomic) Render_Target *target;
 
-- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtkView;
+- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtkView target:(Render_Target*)target;
+
 - (u32)get_texture_of_dim:(Vec3_i32)dim kind:(Texture_Kind)kind;
 - (b32)fill_texture:(u32)texture kind:(Texture_Kind)kind pos:(Vec3_i32)p dim:(Vec3_i32)dim data:(void*)data;
+- (void)bind_texture:(u32)handle encoder:(id<MTLRenderCommandEncoder>)render_encoder;
+
 - (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size;
 - (void)add_reusable_buffer:(Metal_Buffer*)buffer;
 @end
@@ -127,8 +130,8 @@ sd = (abs(sd + in.half_thickness) - in.half_thickness);
 float shape_value = (1.0 - smoothstep(-1.0, 0.0, sd));
 shape_value *= has_thickness;
 
-// TOOD(yuval): Add sample_value to alpha
 float4 out_color = float4(in.color.xyz, in.color.a * (sample_value + shape_value));
+//float4 out_color = float4(1, 1, 1, shape_value);
 return(out_color);
 }
 )";
@@ -165,7 +168,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     u32 next_texture_handle_index;
 }
 
-- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtk_view{
+- (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtk_view target:(Render_Target*)target{
     self = [super init];
     if (self == nil){
         return(nil);
@@ -226,8 +229,8 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         pipeline_state_descriptor.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
         pipeline_state_descriptor.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
         pipeline_state_descriptor.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-        /*pipeline_state_descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
-        pipeline_state_descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;*/
+        pipeline_state_descriptor.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorOne;
+        pipeline_state_descriptor.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
         
         pipeline_state = [device newRenderPipelineStateWithDescriptor:pipeline_state_descriptor
                 error:&error];
@@ -245,6 +248,16 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     // NOTE(yuval): Initialize the textures array
     textures = (Metal_Texture*)system_memory_allocate(metal__max_textures * sizeof(Metal_Texture), file_name_line_number_lit_u8);
     next_texture_handle_index = 0;
+    
+    // NOTE(yuval): Create the fallback texture
+    target->fallback_texture_id = [self get_texture_of_dim:V3i32(2, 2, 1)
+            kind:TextureKind_Mono];
+    u8 white_block[] = {0xFF, 0xFF, 0xFF, 0xFF};
+    [self fill_texture:target->fallback_texture_id
+            kind:TextureKind_Mono
+            pos:V3i32(0, 0, 0)
+            dim:V3i32(2, 2, 1)
+            data:white_block];
     
     // NOTE(yuval): Create a capture scope for gpu frame capture
     capture_scope = [[MTLCaptureManager sharedCaptureManager]
@@ -324,10 +337,9 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
                 atIndex:1];
         
         u32 buffer_offset = 0;
-        i32 count = 0;
         for (Render_Group *group = _target->group_first;
              group;
-             group = group->next, ++count){
+             group = group->next){
             // NOTE(yuval): Set scissor rect
             {
                 Rect_i32 box = Ri32(group->clip_box);
@@ -349,19 +361,17 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
             
             i32 vertex_count = group->vertex_list.vertex_count;
             if (vertex_count > 0){
-                // TODO(yuval): Bind a texture
+                // NOTE(yuval): Bind a texture
                 {
                     Face* face = font_set_face_from_id(font_set, group->face_id);
                     if (face != 0){
-                        // TODO(yuval): Bind face texture
-                        u32 texture_handle = face->texture;
-                        Metal_Texture texture = textures[texture_handle];
-                        if (texture != 0){
-                            [render_encoder setFragmentTexture:texture
-                                    atIndex:0];
-                        }
+                        // NOTE(yuval): Bind face texture
+                        [self bind_texture:face->texture
+                                encoder:render_encoder];
                     } else{
-                        // TODO(yuval): Bind default texture
+                        // NOTE(yuval): Bind fallback texture
+                        [self bind_texture:_target->fallback_texture_id
+                                encoder:render_encoder];
                     }
                 }
                 
@@ -456,6 +466,14 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     }
     
     return result;
+}
+
+- (void)bind_texture:(u32)handle encoder:(id<MTLRenderCommandEncoder>)render_encoder{
+    Metal_Texture texture = textures[handle];
+    if (texture != 0){
+        [render_encoder setFragmentTexture:texture
+                atIndex:0];
+    }
 }
 
 - (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size{

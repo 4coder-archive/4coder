@@ -67,7 +67,7 @@ mac_metal__init(NSWindow *window, Render_Target *target){
     [content_view addSubview:metal->view];
     
     // NOTE(yuval): Create the Metal renderer and set it as the Metal view's delegate
-    metal->renderer = [[Metal_Renderer alloc] initWithMetalKitView:metal->view];
+    metal->renderer = [[Metal_Renderer alloc] initWithMetalKitView:metal->view target:target];
     metal->view.delegate = metal->renderer;
     
     return(metal);

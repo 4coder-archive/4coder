@@ -360,21 +360,35 @@ mac_resize(NSWindow *window){
 @end
 
 @implementation FCoderWindowDelegate
-- (BOOL)windowShouldClose:(id)sender {
+- (BOOL)windowShouldClose:(id)sender{
     mac_vars.input_chunk.trans.trying_to_kill = true;
     system_signal_step(0);
     
     return(NO);
 }
 
-- (void)windowDidResize:(NSNotification*)notification {
+- (void)windowDidResize:(NSNotification*)notification{
     mac_resize(mac_vars.window);
 }
 
-- (void)windowDidMiniaturize:(NSNotification*)notification {
+- (void)windowDidMiniaturize:(NSNotification*)notification{
 }
 
-- (void)windowDidDeminiaturize:(NSNotification*)notification {
+- (void)windowDidDeminiaturize:(NSNotification*)notification{
+}
+
+- (void)windowDidBecomeKey:(NSNotification *)notification{
+    printf("Focus\n");
+    system_signal_step(0);
+}
+
+- (void)windowDidResignKey:(NSNotification *)notification{
+    printf("Lost Focus\n");
+    system_signal_step(0);
+}
+
+- (void)windowDidEnterFullScreen:(NSNotification *)notification{
+    system_signal_step(0);
 }
 @end
 
@@ -429,8 +443,6 @@ this only gets called for window creation and other extraordinary events.
     input.trying_to_kill = input_chunk.trans.trying_to_kill;
     
     block_zero_struct(&mac_vars.input_chunk.trans);
-    
-    printf("Step scroll wheel: %d\n", input.mouse.wheel);
     
     // NOTE(yuval): See comment in win32_4ed.cpp's main loop
     if (mac_vars.send_exit_signal){
@@ -512,9 +524,6 @@ this only gets called for window creation and other extraordinary events.
     float dx = event.scrollingDeltaX;
     float dy = event.scrollingDeltaY;
     
-    printf("Mouse scroll - dx:%f  dy:%f\n", dx, dy);
-    
-    //mac_vars.input_chunk.trans.mouse_wheel = -((int32_t)dy);
     i8 scroll_speed = 100;
     if (dy > 0){
         scroll_speed *= -1;
@@ -567,7 +576,7 @@ this only gets called for window creation and other extraordinary events.
         mac_vars.input_chunk.pers.mouse = new_m;
     }
     
-    system_signal_step(0);
+    //system_signal_step(0);
 }
 @end
 
@@ -776,7 +785,7 @@ main(int arg_count, char **args){
         [mac_vars.window makeKeyAndOrderFront:nil];
         
         // NOTE(yuval): Initialize the renderer
-        renderer = mac_init_renderer(MacRenderer_OpenGL, mac_vars.window, &target);
+        renderer = mac_init_renderer(MacRenderer_Metal, mac_vars.window, &target);
         
         mac_resize(w, h);
         
