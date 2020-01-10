@@ -1241,10 +1241,10 @@ win32_wgl_good(Void_Func *f){
            f != (Void_Func*)-1);
 }
 
-typedef HGLRC (wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
-typedef BOOL (wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
-typedef char* (wglGetExtensionsStringEXT_Function)();
-typedef VOID (wglSwapIntervalEXT_Function)(i32);
+typedef HGLRC (CALL_CONVENTION wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
+typedef BOOL  (CALL_CONVENTION wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
+typedef char* (CALL_CONVENTION wglGetExtensionsStringEXT_Function)();
+typedef VOID  (CALL_CONVENTION wglSwapIntervalEXT_Function)(i32);
 
 global wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
 global wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
@@ -1309,7 +1309,7 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         
         // NOTE(allen): Load wgl extensions
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
-        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
+(l) = (l) && win32_wgl_good((Void_Func*)(f));)
         
         b32 load_success = true;
         LoadWGL(wglCreateContextAttribsARB, load_success);
@@ -1414,10 +1414,10 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 /*0*/WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
                 /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 2,
                 /*4*/WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-#if GL_DEBUG_MODE
-                    |WGL_CONTEXT_DEBUG_BIT_ARB
-#endif
-                    ,
+    #if GL_DEBUG_MODE
+                |WGL_CONTEXT_DEBUG_BIT_ARB
+    #endif
+                ,
                 /*6*/WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
                 /*8*/0
             };

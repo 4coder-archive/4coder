@@ -471,8 +471,8 @@ build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch
         fm_copy_all(source_themes_folder, themes_folder);
         END_TIME_SECTION("move files");
     }
-        
-        fflush(stdout);
+    
+    fflush(stdout);
 }
 
 internal void
@@ -539,7 +539,7 @@ package(Arena *arena, char *cdir){
             printf("zip_dir: %s\n", zip_dir);
             fflush(stdout);
             
-                buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
+            buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
             build_main(arena, cdir, false, flags, arch);
             
             fm_make_folder_if_missing(arena, parent_dir);
@@ -584,20 +584,20 @@ int main(int argc, char **argv){
     Assert(n < sizeof(cdir));
     END_TIME_SECTION("current directory");
     
-    u32 flags = SUPER;
+    u32 flags = DEBUG_INFO | SUPER;
     u32 arch = Arch_X64;
-    #if defined(DEV_BUILD) || defined(DEV_BUILD_X86)
-    flags |= DEBUG_INFO | INTERNAL;
-    #endif
+#if defined(DEV_BUILD) || defined(DEV_BUILD_X86)
+    flags |= INTERNAL;
+#endif
 #if defined(OPT_BUILD) || defined(OPT_BUILD_X86)
-     flags |= OPTIMIZATION;
-    #endif
+    flags |= OPTIMIZATION;
+#endif
 #if defined(DEV_BUILD_X86) || defined(OPT_BUILD_X86)
     arch = Arch_X86;
 #endif
     
-#if defined(DEV_BUILD) || defined(OPT_BUILD) || defined(DEV_BUILD_X86)
-standard_build(&arena, cdir, flags, arch);
+#if defined(DEV_BUILD) || defined(OPT_BUILD) || defined(DEV_BUILD_X86) || defined(OPT_BUILD_X86)
+    standard_build(&arena, cdir, flags, arch);
     
 #elif defined(PACKAGE)
     package(&arena, cdir);
