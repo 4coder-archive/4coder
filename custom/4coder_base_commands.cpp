@@ -1311,11 +1311,10 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
         bar.prompt = push_u8_stringf(scratch, "Rename '%.*s' to: ", string_expand(front));
         bar.string = SCu8(name_space, (u64)0);
         bar.string_capacity = sizeof(name_space);
-        if (query_user_string(app, &bar)){
-            if (bar.string.size != 0){
+        if (query_user_string(app, &bar) && bar.string.size != 0){
                 // TODO(allen): There should be a way to say, "detach a buffer's file" and "attach this file to a buffer"
                 List_String_Const_u8 new_file_name_list = {};
-                string_list_push(scratch, &new_file_name_list, file_name);
+                string_list_push(scratch, &new_file_name_list, string_remove_front_of_path(file_name));
                 string_list_push(scratch, &new_file_name_list, bar.string);
                 String_Const_u8 new_file_name = string_list_flatten(scratch, new_file_name_list, StringFill_NullTerminate);
                 if (buffer_save(app, buffer, new_file_name, BufferSave_IgnoreDirtyFlag)){
@@ -1325,9 +1324,7 @@ CUSTOM_DOC("Queries the user for a new name and renames the file of the current 
                         view_set_buffer(app, view, new_buffer, 0);
                     }
                 }
-            }
         }
-        
     }
 }
 
