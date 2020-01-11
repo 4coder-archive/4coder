@@ -80,6 +80,10 @@ struct Control_Keys{
     b8 r_ctrl;
     b8 l_alt;
     b8 r_alt;
+    b8 l_shift;
+    b8 r_shift;
+    b8 l_command;
+    b8 r_command;
 };
 
 struct Mac_Input_Chunk_Transient{
@@ -129,7 +133,7 @@ struct Mac_Input_Chunk{
 
 @interface FCoder_View : NSView
 - (void)request_display;
-- (void)process_keyboard_event:(NSEvent*)event;
+- (void)process_keyboard_event:(NSEvent*)event down:(b8)down;
 - (void)process_mouse_move_event:(NSEvent*)event;
 @end
 
@@ -305,6 +309,8 @@ mac_error_box(char *msg, b32 shutdown = true){
 
 ////////////////////////////////
 
+global_const u8 kVK_Menu = 0x6E;
+
 global Key_Code keycode_lookup_table[255] = {};
 
 function void
@@ -381,7 +387,19 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_CapsLock] = KeyCode_CapsLock;
     keycode_lookup_table[kVK_ANSI_KeypadClear] = KeyCode_NumLock;
     // NOTE(yuval): No Scroll Lock key on macOS!
-    keycode_lookup_table[0x6E] = KeyCode_Menu;
+    keycode_lookup_table[kVK_Menu] = KeyCode_Menu;
+    
+    keycode_lookup_table[kVK_Shift] = KeyCode_Shift;
+    keycode_lookup_table[kVK_RightShift] = KeyCode_Shift;
+    
+    keycode_lookup_table[kVK_Control] = KeyCode_Control;
+    keycode_lookup_table[kVK_RightControl] = KeyCode_Control;
+    
+    keycode_lookup_table[kVK_Option] = KeyCode_Alt;
+    keycode_lookup_table[kVK_RightOption] = KeyCode_Alt;
+    
+    keycode_lookup_table[kVK_Command] = KeyCode_Command;
+    keycode_lookup_table[kVK_RightCommand] = KeyCode_Command; // NOTE(yuval): Right Command
     
     keycode_lookup_table[kVK_F1] = KeyCode_F1;
     keycode_lookup_table[kVK_F2] = KeyCode_F2;
@@ -589,16 +607,83 @@ this only gets called for window creation and other extraordinary events.
 
 - (void)keyDown:(NSEvent*)event{
     printf("Key Down: %#X\n", [event keyCode]);
-    [self process_keyboard_event:event];
+    
+    // NOTE(yuval): Process keyboard event
+    [self process_keyboard_event:event down:true];
+    
+    // NOTE(yuval): Process TextInsert event
+    {
+        NSString *characters = [event characters];
+        if ([characters length] > 0){
+            // NOTE(yuval): Get the first utf-16 character
+            u32 c = [characters characterAtIndex:0];
+            if (c == '\r'){
+                c = '\n';
+            }
+            
+            // NOTE(yuval): Check for a valid text input
+            if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n') || (c == '\r')){
+                String_Const_u16 str_16 = SCu16((u16*)&c, 1);
+                String_Const_u8 str_8 = string_u8_from_string_u16(mac_vars.frame_arena, str_16).string;
+                
+                Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+                event->kind = InputEventKind_TextInsert;
+                event->text.string = str_8;
+                event->text.next_text = 0;
+                event->text.blocked = false;
+                if (mac_vars.active_text_input){
+                    mac_vars.active_text_input->text.next_text = event;
+                } else if (mac_vars.active_key_stroke){
+                    mac_vars.active_key_stroke->key.first_dependent_text = event;
+                }
+                
+                mac_vars.active_text_input = event;
+                
+                system_signal_step(0);
+            }
+        }
+    }
 }
 
 - (void)keyUp:(NSEvent*)event{
     printf("Key Up: %#X\n", [event keyCode]);
-    [self process_keyboard_event:event];
+    [self process_keyboard_event:event down:false];
 }
 
 - (void)flagsChanged:(NSEvent *)event{
     NSEventModifierFlags flags = [event modifierFlags];
+    b8 ctrl_pressed = ((flags & NSEventModifierFlagControl) != 0);
+    b8 alt_pressed = ((flags & NSEventModifierFlagOption) != 0);
+    b8 shift_pressed = ((flags & NSEventModifierFlagShift) != 0);
+    b8 command_pressed = ((flags & NSEventModifierFlagCommand) != 0);
+    
+    Control_Keys *controls = &mac_vars.input_chunk.pers.controls;
+    u16 event_key_code = [event keyCode];
+    if (event_key_code == kVK_Control){
+        controls->l_ctrl = ctrl_pressed;
+        [self process_keyboard_event:event down:ctrl_pressed];
+    } else if (event_key_code == kVK_RightControl){
+        controls->r_ctrl = ctrl_pressed;
+        [self process_keyboard_event:event down:ctrl_pressed];
+    } else if (event_key_code == kVK_Option){
+        controls->l_alt = alt_pressed;
+        [self process_keyboard_event:event down:alt_pressed];
+    }  else if (event_key_code == kVK_RightOption){
+        controls->r_alt = alt_pressed;
+        [self process_keyboard_event:event down:alt_pressed];
+    } else if (event_key_code == kVK_Shift){
+        controls->l_shift = shift_pressed;
+        [self process_keyboard_event:event down:shift_pressed];
+    } else if (event_key_code == kVK_RightShift){
+        controls->r_shift = shift_pressed;
+        [self process_keyboard_event:event down:shift_pressed];
+    } else if (event_key_code == kVK_Command){
+        controls->l_command = command_pressed;
+        [self process_keyboard_event:event down:command_pressed];
+    } else if (event_key_code == kVK_RightCommand){
+        controls->r_command = command_pressed;
+        [self process_keyboard_event:event down:command_pressed];
+    }
 }
 
 - (void)mouseMoved:(NSEvent*)event{
@@ -658,15 +743,15 @@ this only gets called for window creation and other extraordinary events.
     [self setNeedsDisplayInRect:rect];
 }
 
-- (void)process_keyboard_event:(NSEvent*)event{
-    b8 release = ([event type] == NSEventTypeKeyUp);
-    b8 down = !release;
+- (void)process_keyboard_event:(NSEvent*)event down:(b8)down{
+    b8 release = !down;
     
     Input_Modifier_Set_Fixed *mods = &mac_vars.input_chunk.pers.modifiers;
     
     // NOTE(yuval): Set control modifiers
     {
         Control_Keys *controls = &mac_vars.input_chunk.pers.controls;
+        
         b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
         b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
         if (mac_vars.lctrl_lalt_is_altgr && controls->l_alt && controls->l_ctrl){
@@ -674,8 +759,13 @@ this only gets called for window creation and other extraordinary events.
             alt = false;
         }
         
+        b8 shift = (controls->r_shift || controls->l_shift);
+        b8 command = (controls->r_command || controls->l_command);
+        
         set_modifier(mods, KeyCode_Control, ctrl);
         set_modifier(mods, KeyCode_Alt, alt);
+        set_modifier(mods, KeyCode_Shift, shift);
+        set_modifier(mods, KeyCode_Command, command);
     }
     
     // NOTE(yuval): Process KeyStroke / KeyRelease event
@@ -709,41 +799,6 @@ this only gets called for window creation and other extraordinary events.
             }
             
             system_signal_step(0);
-        }
-    }
-    
-    // NOTE(yuval): Process TextInput event
-    {
-        if (down){
-            NSString *characters = [event characters];
-            if ([characters length] > 0){
-                // NOTE(yuval): Get the first utf-16 character
-                u32 c = [characters characterAtIndex:0];
-                if (c == '\r'){
-                    c = '\n';
-                }
-                
-                // NOTE(yuval): Check for a valid text input
-                if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n') || (c == '\r')){
-                    String_Const_u16 str_16 = SCu16((u16*)&c, 1);
-                    String_Const_u8 str_8 = string_u8_from_string_u16(mac_vars.frame_arena, str_16).string;
-                    
-                    Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
-                    event->kind = InputEventKind_TextInsert;
-                    event->text.string = str_8;
-                    event->text.next_text = 0;
-                    event->text.blocked = false;
-                    if (mac_vars.active_text_input){
-                        mac_vars.active_text_input->text.next_text = event;
-                    } else if (mac_vars.active_key_stroke){
-                        mac_vars.active_key_stroke->key.first_dependent_text = event;
-                    }
-                    
-                    mac_vars.active_text_input = event;
-                    
-                    system_signal_step(0);
-                }
-            }
         }
     }
 }
