@@ -399,7 +399,7 @@ system_wake_up_timer_set_sig(){
         f64 time_seconds = ((f64)time_milliseconds / 1000.0);
         object->timer = [NSTimer scheduledTimerWithTimeInterval:time_seconds
                 target:mac_vars.view
-                selector:@selector(requestDisplay)
+                selector:@selector(request_display)
                 userInfo:nil repeats:NO];
     }
 }
@@ -408,7 +408,7 @@ function
 system_signal_step_sig(){
     [NSTimer scheduledTimerWithTimeInterval:0.0
             target:mac_vars.view
-            selector:@selector(requestDisplay)
+            selector:@selector(request_display)
             userInfo:nil repeats:NO];
 }
 

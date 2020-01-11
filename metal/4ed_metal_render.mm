@@ -174,6 +174,8 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         return(nil);
     }
     
+    _target = target;
+    
     NSError *error = nil;
     
     device = mtk_view.device;
@@ -250,10 +252,10 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     next_texture_handle_index = 0;
     
     // NOTE(yuval): Create the fallback texture
-    target->fallback_texture_id = [self get_texture_of_dim:V3i32(2, 2, 1)
+    _target->fallback_texture_id = [self get_texture_of_dim:V3i32(2, 2, 1)
             kind:TextureKind_Mono];
     u8 white_block[] = {0xFF, 0xFF, 0xFF, 0xFF};
-    [self fill_texture:target->fallback_texture_id
+    [self fill_texture:_target->fallback_texture_id
             kind:TextureKind_Mono
             pos:V3i32(0, 0, 0)
             dim:V3i32(2, 2, 1)

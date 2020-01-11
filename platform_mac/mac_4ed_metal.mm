@@ -18,7 +18,6 @@ mac_render_sig(mac_metal__render){
     printf("Rendering using Metal!\n");
     
     Mac_Metal *metal = (Mac_Metal*)renderer;
-    metal->renderer.target = target;
     [metal->view draw];
 }
 

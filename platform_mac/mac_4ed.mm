@@ -55,6 +55,7 @@
 #import <Cocoa/Cocoa.h>
 
 #include <libproc.h> // NOTE(yuval): Used for proc_pidpath
+#include <Carbon/Carbon.h> // NOTE(yuval): Used for virtual key codes
 #include <mach/mach_time.h> // NOTE(yuval): Used for mach_absolute_time, mach_timebase_info, mach_timebase_info_data_t
 
 #include <dirent.h> // NOTE(yuval): Used for opendir, readdir
@@ -120,14 +121,15 @@ struct Mac_Input_Chunk{
 
 ////////////////////////////////
 
-@interface FCoderAppDelegate : NSObject<NSApplicationDelegate>
+@interface FCoder_App_Delegate : NSObject<NSApplicationDelegate>
 @end
 
-@interface FCoderWindowDelegate : NSObject<NSWindowDelegate>
+@interface FCoder_Window_Delegate : NSObject<NSWindowDelegate>
 @end
 
-@interface FCoderView : NSView
-- (void)requestDisplay;
+@interface FCoder_View : NSView
+- (void)request_display;
+- (void)process_keyboard_event:(NSEvent*)event;
 - (void)process_mouse_move_event:(NSEvent*)event;
 @end
 
@@ -166,7 +168,10 @@ struct Mac_Vars {
     Thread_Context *tctx;
     
     Arena *frame_arena;
+    Input_Event *active_key_stroke;
+    Input_Event *active_text_input;
     Mac_Input_Chunk input_chunk;
+    b8 lctrl_lalt_is_altgr;
     
     b8 full_screen;
     b8 do_toggle;
@@ -180,7 +185,7 @@ struct Mac_Vars {
     String_Const_u8 clipboard_contents;
     
     NSWindow *window;
-    FCoderView *view;
+    FCoder_View *view;
     f32 screen_scale_factor;
     
     mach_timebase_info_data_t timebase_info;
@@ -300,11 +305,101 @@ mac_error_box(char *msg, b32 shutdown = true){
 
 ////////////////////////////////
 
-global Key_Code keycode_lookup_table[255];
+global Key_Code keycode_lookup_table[255] = {};
 
 function void
-mac_key_code_init(void){
+mac_keycode_init(void){
+    keycode_lookup_table[kVK_ANSI_A] = KeyCode_A;
+    keycode_lookup_table[kVK_ANSI_B] = KeyCode_B;
+    keycode_lookup_table[kVK_ANSI_C] = KeyCode_C;
+    keycode_lookup_table[kVK_ANSI_D] = KeyCode_D;
+    keycode_lookup_table[kVK_ANSI_E] = KeyCode_E;
+    keycode_lookup_table[kVK_ANSI_F] = KeyCode_F;
+    keycode_lookup_table[kVK_ANSI_G] = KeyCode_G;
+    keycode_lookup_table[kVK_ANSI_H] = KeyCode_H;
+    keycode_lookup_table[kVK_ANSI_I] = KeyCode_I;
+    keycode_lookup_table[kVK_ANSI_J] = KeyCode_J;
+    keycode_lookup_table[kVK_ANSI_K] = KeyCode_K;
+    keycode_lookup_table[kVK_ANSI_L] = KeyCode_L;
+    keycode_lookup_table[kVK_ANSI_M] = KeyCode_M;
+    keycode_lookup_table[kVK_ANSI_N] = KeyCode_N;
+    keycode_lookup_table[kVK_ANSI_O] = KeyCode_O;
+    keycode_lookup_table[kVK_ANSI_P] = KeyCode_P;
+    keycode_lookup_table[kVK_ANSI_Q] = KeyCode_Q;
+    keycode_lookup_table[kVK_ANSI_R] = KeyCode_R;
+    keycode_lookup_table[kVK_ANSI_S] = KeyCode_S;
+    keycode_lookup_table[kVK_ANSI_T] = KeyCode_T;
+    keycode_lookup_table[kVK_ANSI_U] = KeyCode_U;
+    keycode_lookup_table[kVK_ANSI_V] = KeyCode_V;
+    keycode_lookup_table[kVK_ANSI_W] = KeyCode_W;
+    keycode_lookup_table[kVK_ANSI_X] = KeyCode_X;
+    keycode_lookup_table[kVK_ANSI_Y] = KeyCode_Y;
+    keycode_lookup_table[kVK_ANSI_Z] = KeyCode_Z;
     
+    keycode_lookup_table[kVK_ANSI_0] = KeyCode_0;
+    keycode_lookup_table[kVK_ANSI_1] = KeyCode_1;
+    keycode_lookup_table[kVK_ANSI_2] = KeyCode_2;
+    keycode_lookup_table[kVK_ANSI_3] = KeyCode_3;
+    keycode_lookup_table[kVK_ANSI_4] = KeyCode_4;
+    keycode_lookup_table[kVK_ANSI_5] = KeyCode_5;
+    keycode_lookup_table[kVK_ANSI_6] = KeyCode_6;
+    keycode_lookup_table[kVK_ANSI_7] = KeyCode_7;
+    keycode_lookup_table[kVK_ANSI_8] = KeyCode_8;
+    keycode_lookup_table[kVK_ANSI_9] = KeyCode_9;
+    
+    keycode_lookup_table[kVK_Space] = KeyCode_Space;
+    keycode_lookup_table[kVK_ANSI_Grave] = KeyCode_Tick;
+    keycode_lookup_table[kVK_ANSI_Minus] = KeyCode_Minus;
+    keycode_lookup_table[kVK_ANSI_LeftBracket] = KeyCode_LeftBracket;
+    keycode_lookup_table[kVK_ANSI_RightBracket] = KeyCode_RightBracket;
+    keycode_lookup_table[kVK_ANSI_Semicolon] = KeyCode_Semicolon;
+    keycode_lookup_table[kVK_ANSI_Quote] = KeyCode_Quote;
+    keycode_lookup_table[kVK_ANSI_Comma] = KeyCode_Comma;
+    keycode_lookup_table[kVK_ANSI_Period] = KeyCode_Period;
+    keycode_lookup_table[kVK_ANSI_Slash] = KeyCode_ForwardSlash;
+    keycode_lookup_table[kVK_ANSI_Backslash] = KeyCode_BackwardSlash;
+    
+    keycode_lookup_table[kVK_Tab] = KeyCode_Tab;
+    // NOTE(yuval): No Pause key on macOS!
+    keycode_lookup_table[kVK_Escape] = KeyCode_Escape;
+    
+    keycode_lookup_table[kVK_UpArrow] = KeyCode_Up;
+    keycode_lookup_table[kVK_DownArrow] = KeyCode_Down;
+    keycode_lookup_table[kVK_LeftArrow] = KeyCode_Left;
+    keycode_lookup_table[kVK_RightArrow] = KeyCode_Right;
+    
+    keycode_lookup_table[kVK_Delete] = KeyCode_Backspace;
+    keycode_lookup_table[kVK_Return] = KeyCode_Return;
+    
+    keycode_lookup_table[kVK_ForwardDelete] = KeyCode_Delete;
+    //keycode_lookup_table[] = KeyCode_Insert; // TODO(yuval): Figure how to get keyDown events for the insert key
+    keycode_lookup_table[kVK_Home] = KeyCode_Home;
+    keycode_lookup_table[kVK_End] = KeyCode_End;
+    keycode_lookup_table[kVK_PageUp] = KeyCode_PageUp;
+    keycode_lookup_table[kVK_PageDown] = KeyCode_PageDown;
+    
+    keycode_lookup_table[kVK_CapsLock] = KeyCode_CapsLock;
+    keycode_lookup_table[kVK_ANSI_KeypadClear] = KeyCode_NumLock;
+    // NOTE(yuval): No Scroll Lock key on macOS!
+    keycode_lookup_table[0x6E] = KeyCode_Menu;
+    
+    keycode_lookup_table[kVK_F1] = KeyCode_F1;
+    keycode_lookup_table[kVK_F2] = KeyCode_F2;
+    keycode_lookup_table[kVK_F3] = KeyCode_F3;
+    keycode_lookup_table[kVK_F4] = KeyCode_F4;
+    keycode_lookup_table[kVK_F5] = KeyCode_F5;
+    keycode_lookup_table[kVK_F6] = KeyCode_F6;
+    keycode_lookup_table[kVK_F7] = KeyCode_F7;
+    keycode_lookup_table[kVK_F8] = KeyCode_F8;
+    keycode_lookup_table[kVK_F9] = KeyCode_F9;
+    
+    keycode_lookup_table[kVK_F10] = KeyCode_F10;
+    keycode_lookup_table[kVK_F11] = KeyCode_F11;
+    keycode_lookup_table[kVK_F12] = KeyCode_F12;
+    keycode_lookup_table[kVK_F13] = KeyCode_F13;
+    keycode_lookup_table[kVK_F14] = KeyCode_F14;
+    keycode_lookup_table[kVK_F15] = KeyCode_F15;
+    keycode_lookup_table[kVK_F16] = KeyCode_F16;
 }
 
 ////////////////////////////////
@@ -347,7 +442,7 @@ mac_resize(NSWindow *window){
 
 ////////////////////////////////
 
-@implementation FCoderAppDelegate
+@implementation FCoder_App_Delegate
 - (void)applicationDidFinishLaunching:(id)sender{
 }
 
@@ -359,7 +454,7 @@ mac_resize(NSWindow *window){
 }
 @end
 
-@implementation FCoderWindowDelegate
+@implementation FCoder_Window_Delegate
 - (BOOL)windowShouldClose:(id)sender{
     mac_vars.input_chunk.trans.trying_to_kill = true;
     system_signal_step(0);
@@ -392,7 +487,7 @@ mac_resize(NSWindow *window){
 }
 @end
 
-@implementation FCoderView
+@implementation FCoder_View
 - (id)init{
     self = [super init];
     return(self);
@@ -493,23 +588,17 @@ this only gets called for window creation and other extraordinary events.
 }
 
 - (void)keyDown:(NSEvent*)event{
-    NSString *characters = [event characters];
-    if ([characters length] != 0) {
-        u32 character_code = [characters characterAtIndex:0];
-        
-        // NOTE(yuval): Control characters generate character_codes < 32
-        if (character_code > 31) {
-            // TODO(yuval): This is actually in utf16!!!
-            String_Const_u32 str_32 = SCu32(&character_code, 1);
-            String_Const_u8 str_8 = string_u8_from_string_u32(mac_vars.frame_arena, str_32).string;
-            
-            Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
-            event->kind = InputEventKind_TextInsert;
-            event->text.string = str_8;
-            
-            system_signal_step(0);
-        }
-    }
+    printf("Key Down: %#X\n", [event keyCode]);
+    [self process_keyboard_event:event];
+}
+
+- (void)keyUp:(NSEvent*)event{
+    printf("Key Up: %#X\n", [event keyCode]);
+    [self process_keyboard_event:event];
+}
+
+- (void)flagsChanged:(NSEvent *)event{
+    NSEventModifierFlags flags = [event modifierFlags];
 }
 
 - (void)mouseMoved:(NSEvent*)event{
@@ -563,10 +652,100 @@ this only gets called for window creation and other extraordinary events.
     system_signal_step(0);
 }
 
-- (void)requestDisplay{
+- (void)request_display{
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
+}
+
+- (void)process_keyboard_event:(NSEvent*)event{
+    b8 release = ([event type] == NSEventTypeKeyUp);
+    b8 down = !release;
+    
+    Input_Modifier_Set_Fixed *mods = &mac_vars.input_chunk.pers.modifiers;
+    
+    // NOTE(yuval): Set control modifiers
+    {
+        Control_Keys *controls = &mac_vars.input_chunk.pers.controls;
+        b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
+        b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
+        if (mac_vars.lctrl_lalt_is_altgr && controls->l_alt && controls->l_ctrl){
+            ctrl = false;
+            alt = false;
+        }
+        
+        set_modifier(mods, KeyCode_Control, ctrl);
+        set_modifier(mods, KeyCode_Alt, alt);
+    }
+    
+    // NOTE(yuval): Process KeyStroke / KeyRelease event
+    {
+        u16 event_key_code = [event keyCode];
+        Key_Code key = keycode_lookup_table[(u8)event_key_code];
+        if (down){
+            if (key != 0){
+                add_modifier(mods, key);
+                
+                Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+                event->kind = InputEventKind_KeyStroke;
+                event->key.code = key;
+                event->key.modifiers = copy_modifier_set(mac_vars.frame_arena, mods);
+                
+                mac_vars.active_key_stroke = event;
+                
+                system_signal_step(0);
+            }
+        } else{
+            mac_vars.active_key_stroke = 0;
+            mac_vars.active_text_input = 0;
+            
+            if (key != 0){
+                Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+                event->kind = InputEventKind_KeyRelease;
+                event->key.code = key;
+                event->key.modifiers = copy_modifier_set(mac_vars.frame_arena, mods);
+                
+                remove_modifier(mods, key);
+            }
+            
+            system_signal_step(0);
+        }
+    }
+    
+    // NOTE(yuval): Process TextInput event
+    {
+        if (down){
+            NSString *characters = [event characters];
+            if ([characters length] > 0){
+                // NOTE(yuval): Get the first utf-16 character
+                u32 c = [characters characterAtIndex:0];
+                if (c == '\r'){
+                    c = '\n';
+                }
+                
+                // NOTE(yuval): Check for a valid text input
+                if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n') || (c == '\r')){
+                    String_Const_u16 str_16 = SCu16((u16*)&c, 1);
+                    String_Const_u8 str_8 = string_u8_from_string_u16(mac_vars.frame_arena, str_16).string;
+                    
+                    Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+                    event->kind = InputEventKind_TextInsert;
+                    event->text.string = str_8;
+                    event->text.next_text = 0;
+                    event->text.blocked = false;
+                    if (mac_vars.active_text_input){
+                        mac_vars.active_text_input->text.next_text = event;
+                    } else if (mac_vars.active_key_stroke){
+                        mac_vars.active_key_stroke->key.first_dependent_text = event;
+                    }
+                    
+                    mac_vars.active_text_input = event;
+                    
+                    system_signal_step(0);
+                }
+            }
+        }
+    }
 }
 
 - (void)process_mouse_move_event:(NSEvent*)event{
@@ -576,7 +755,7 @@ this only gets called for window creation and other extraordinary events.
         mac_vars.input_chunk.pers.mouse = new_m;
     }
     
-    //system_signal_step(0);
+    system_signal_step(0);
 }
 @end
 
@@ -591,7 +770,7 @@ main(int arg_count, char **args){
         
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
         
-        FCoderAppDelegate *app_delegate = [[FCoderAppDelegate alloc] init];
+        FCoder_App_Delegate *app_delegate = [[FCoder_App_Delegate alloc] init];
         [NSApp setDelegate:app_delegate];
         
         pthread_mutex_init(&memory_tracker_mutex, 0);
@@ -765,7 +944,7 @@ main(int arg_count, char **args){
                 backing:NSBackingStoreBuffered
                 defer:NO];
         
-        FCoderWindowDelegate *window_delegate = [[FCoderWindowDelegate alloc] init];
+        FCoder_Window_Delegate *window_delegate = [[FCoder_Window_Delegate alloc] init];
         [mac_vars.window setDelegate:window_delegate];
         
         [mac_vars.window setMinSize:NSMakeSize(100, 100)];
@@ -776,7 +955,7 @@ main(int arg_count, char **args){
         NSView* content_view = [mac_vars.window contentView];
         
         // NOTE(yuval): Create the 4coder view
-        mac_vars.view = [[FCoderView alloc] init];
+        mac_vars.view = [[FCoder_View alloc] init];
         [mac_vars.view setFrame:[content_view bounds]];
         [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         
@@ -792,6 +971,8 @@ main(int arg_count, char **args){
         //
         // TODO(yuval): Misc System Initializations
         //
+        
+        mac_keycode_init();
         
         // NOTE(yuval): Get the timebase info
         mach_timebase_info(&mac_vars.timebase_info);
