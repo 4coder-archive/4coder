@@ -730,7 +730,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): if the exit signal has been sent, run the exit hook.
     if (!models->keep_playing || input->trying_to_kill){
         co_send_core_event(tctx, models, CoreCode_TryExit);
-            models->keep_playing = true;
+        models->keep_playing = true;
     }
     
     // NOTE(allen): rendering

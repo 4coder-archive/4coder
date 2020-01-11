@@ -1130,7 +1130,6 @@ build_language_model(void){
         sm_case_eof_peek(emit);
     }
     sm_fallback(comment_line);
-    
 }
 
 // BOTTOM
