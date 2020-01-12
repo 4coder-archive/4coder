@@ -266,7 +266,7 @@ struct: "struct" <identifier> $(";" | "{")
 union: "union" <identifier> $(";" | "{")
 enum: "enum" <identifier> $(";" | "{")
 typedef: "typedef" [* - (<identifier> (";" | "("))] <identifier> $(";" | "(")
-function: <identifier> >"(" [* - ("(" | ")" | "{" | "}" | ";")] ")" ("{" | ";")
+function: <identifier> >"(" ["(" ")" | * - ("(" | ")")] ")" ("{" | ";")
 
 #endif
 
@@ -359,6 +359,7 @@ cpp_parse_function(Code_Index_File *index, Generic_Parse_State *state, Code_Inde
     Token *reset_point = peek;
     if (peek != 0 && peek->sub_kind == TokenCppKind_ParenOp){
         b32 at_paren_close = false;
+        i32 paren_nest_level = 0;
         for (; peek != 0;){
             generic_parse_inc(state);
             generic_parse_skip_soft_tokens(index, state);
@@ -367,15 +368,17 @@ cpp_parse_function(Code_Index_File *index, Generic_Parse_State *state, Code_Inde
                 break;
             }
             
-            if (peek->kind == TokenBaseKind_ParentheticalOpen ||
-                     peek->kind == TokenBaseKind_ScopeOpen ||
-                     peek->kind == TokenBaseKind_ScopeClose ||
-                     peek->kind == TokenBaseKind_StatementClose){
-                break;
+            if (peek->kind == TokenBaseKind_ParentheticalOpen){
+                paren_nest_level += 1;
             }
-            if (peek->kind == TokenBaseKind_ParentheticalClose){
-                at_paren_close = true;
-                break;
+            else if (peek->kind == TokenBaseKind_ParentheticalClose){
+                if (paren_nest_level > 0){
+                    paren_nest_level -= 1;
+                }
+                else{
+                    at_paren_close = true;
+                    break;
+                }
             }
         }
         
@@ -386,7 +389,7 @@ cpp_parse_function(Code_Index_File *index, Generic_Parse_State *state, Code_Inde
             if (peek != 0 &&
                 peek->kind == TokenBaseKind_ScopeOpen ||
                 peek->kind == TokenBaseKind_StatementClose){
-        index_new_note(index, state, Ii64(token), CodeIndexNote_Function, parent);
+                index_new_note(index, state, Ii64(token), CodeIndexNote_Function, parent);
             }
         }
     }
@@ -573,15 +576,22 @@ generic_parse_scope(Code_Index_File *index, Generic_Parse_State *state){
             continue;
         }
         
+        if (token->kind == TokenBaseKind_ParentheticalClose){
+            generic_parse_inc(state);
+            continue;
+        }
+        
         if (token->kind == TokenBaseKind_ParentheticalOpen){
             Code_Index_Nest *nest = generic_parse_paren(index, state);
             nest->parent = result;
             code_index_push_nest(&result->nest_list, nest);
-            continue;
-        }
-        
-        if (token->kind == TokenBaseKind_ParentheticalClose){
-            generic_parse_inc(state);
+            
+            // NOTE(allen): after a parenthetical group we consider ourselves immediately
+            // transitioning into a statement
+            nest = generic_parse_statement(index, state);
+            nest->parent = result;
+            code_index_push_nest(&result->nest_list, nest);
+            
             continue;
         }
         

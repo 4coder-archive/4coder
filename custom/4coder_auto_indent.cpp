@@ -265,7 +265,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         if (nest != 0){
                             following_indent = nest->indent;
                         }
-                        ignore_unfinished_statement = true;
+                        //ignore_unfinished_statement = true;
                     }break;
                 }
             }
