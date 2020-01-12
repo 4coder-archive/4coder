@@ -129,6 +129,7 @@ struct Mac_Input_Chunk{
 @end
 
 @interface FCoder_Window_Delegate : NSObject<NSWindowDelegate>
+- (void)process_focus_event;
 @end
 
 @interface FCoder_View : NSView
@@ -458,6 +459,15 @@ mac_resize(NSWindow *window){
     mac_resize(bounds.size.width, bounds.size.height);
 }
 
+function inline void
+mac_profile(char *name, u64 begin, u64 end){
+    printf("%s Time: %fs\n", name, ((end - begin) / 1000000.0f));
+}
+
+#define MacProfileScope(name) for (u64 i = 0, begin = system_now_time();\
+i < 1;\
+++i, mac_profile(name, begin, system_now_time()))
+
 ////////////////////////////////
 
 @implementation FCoder_App_Delegate
@@ -491,16 +501,23 @@ mac_resize(NSWindow *window){
 }
 
 - (void)windowDidBecomeKey:(NSNotification *)notification{
-    printf("Focus\n");
-    system_signal_step(0);
+    // NOTE(yuval): The window is the focused window
+    [self process_focus_event];
 }
 
 - (void)windowDidResignKey:(NSNotification *)notification{
-    printf("Lost Focus\n");
-    system_signal_step(0);
+    // NOTE(yuval): The window has lost focus
+    [self process_focus_event];
 }
 
-- (void)windowDidEnterFullScreen:(NSNotification *)notification{
+- (void)process_focus_event{
+    mac_vars.input_chunk.pers.mouse_l = false;
+    mac_vars.input_chunk.pers.mouse_r = false;
+    block_zero_struct(&mac_vars.input_chunk.pers.controls);
+    block_zero_struct(&mac_vars.input_chunk.pers.modifiers);
+    mac_vars.active_key_stroke = 0;
+    mac_vars.active_text_input = 0;
+    
     system_signal_step(0);
 }
 @end
@@ -522,75 +539,82 @@ mac_resize(NSWindow *window){
 }
 
 - (void)drawRect:(NSRect)bounds{
-    // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
-    system_mutex_acquire(mac_vars.global_frame_mutex);
-    
-    /* NOTE(yuval): Force the graphics context to clear to black so we don't
-get a flash of white until the app is ready to draw. In practice on modern macOS,
-this only gets called for window creation and other extraordinary events.
-(Taken From SDL) */
-    [[NSColor blackColor] setFill];
-    NSRectFill(bounds);
-    
-    // NOTE(yuval): Prepare the Frame Input
-    Mac_Input_Chunk input_chunk = mac_vars.input_chunk;
-    Application_Step_Input input = {};
-    
-    input.first_step = mac_vars.first;
-    input.dt = frame_useconds / 1000000.0f;
-    input.events = input_chunk.trans.event_list;
-    
-    input.mouse.out_of_window = input_chunk.trans.out_of_window;
-    
-    input.mouse.l = input_chunk.pers.mouse_l;
-    input.mouse.press_l = input_chunk.trans.mouse_l_press;
-    input.mouse.release_l = input_chunk.trans.mouse_l_release;
-    
-    input.mouse.r = input_chunk.pers.mouse_r;
-    input.mouse.press_r = input_chunk.trans.mouse_r_press;
-    input.mouse.release_r = input_chunk.trans.mouse_r_release;
-    
-    input.mouse.wheel = input_chunk.trans.mouse_wheel;
-    input.mouse.p = input_chunk.pers.mouse;
-    
-    input.trying_to_kill = input_chunk.trans.trying_to_kill;
-    
-    block_zero_struct(&mac_vars.input_chunk.trans);
-    
-    // NOTE(yuval): See comment in win32_4ed.cpp's main loop
-    if (mac_vars.send_exit_signal){
-        input.trying_to_kill = true;
-        mac_vars.send_exit_signal = false;
+    MacProfileScope("Frame"){
+        MacProfileScope("Acquire System Mutex"){
+            // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
+            system_mutex_acquire(mac_vars.global_frame_mutex);
+        }
+        
+        Mac_Input_Chunk input_chunk = mac_vars.input_chunk;
+        Application_Step_Input input = {};
+        
+        // NOTE(yuval): Prepare the Frame Input
+        MacProfileScope("Prepare Input"){
+            input.first_step = mac_vars.first;
+            input.dt = frame_useconds / 1000000.0f;
+            input.events = input_chunk.trans.event_list;
+            
+            input.mouse.out_of_window = input_chunk.trans.out_of_window;
+            
+            input.mouse.l = input_chunk.pers.mouse_l;
+            input.mouse.press_l = input_chunk.trans.mouse_l_press;
+            input.mouse.release_l = input_chunk.trans.mouse_l_release;
+            
+            input.mouse.r = input_chunk.pers.mouse_r;
+            input.mouse.press_r = input_chunk.trans.mouse_r_press;
+            input.mouse.release_r = input_chunk.trans.mouse_r_release;
+            
+            input.mouse.wheel = input_chunk.trans.mouse_wheel;
+            input.mouse.p = input_chunk.pers.mouse;
+            
+            input.trying_to_kill = input_chunk.trans.trying_to_kill;
+            
+            block_zero_struct(&mac_vars.input_chunk.trans);
+            mac_vars.active_key_stroke = 0;
+            mac_vars.active_text_input = 0;
+            
+            // NOTE(yuval): See comment in win32_4ed.cpp's main loop
+            if (mac_vars.send_exit_signal){
+                input.trying_to_kill = true;
+                mac_vars.send_exit_signal = false;
+            }
+        }
+        
+        Application_Step_Result result = {};
+        MacProfileScope("Step"){
+            // NOTE(yuval): Application Core Update
+            if (app.step != 0){
+                result = app.step(mac_vars.tctx, &target, mac_vars.base_ptr, &input);
+            }
+        }
+        
+        MacProfileScope("Perform Kill"){
+            // NOTE(yuval): Quit the app
+            if (result.perform_kill){
+                printf("Terminating 4coder!\n");
+                [NSApp terminate:nil];
+            }
+        }
+        
+        MacProfileScope("Render"){
+            // NOTE(yuval): Render
+            renderer->render(renderer, &target);
+            
+            // NOTE(yuval): Schedule another step if needed
+            if (result.animating){
+                system_signal_step(0);
+            }
+        }
+        
+        MacProfileScope("Cleanup"){
+            mac_vars.first = false;
+            
+            linalloc_clear(mac_vars.frame_arena);
+            
+            system_mutex_release(mac_vars.global_frame_mutex);
+        }
     }
-    
-    // NOTE(yuval): Application Core Update
-    Application_Step_Result result = {};
-    if (app.step != 0){
-        result = app.step(mac_vars.tctx, &target, mac_vars.base_ptr, &input);
-    }
-    
-    // NOTE(yuval): Quit the app
-    if (result.perform_kill){
-        printf("Terminating 4coder!\n");
-        [NSApp terminate:nil];
-    }
-    
-    // NOTE(yuval): Render
-    u64 begin_render = system_now_time();
-    renderer->render(renderer, &target);
-    u64 end_render = system_now_time();
-    printf("Render Time: %fs\n\n", (end_render - begin_render) / 1000000.0f);
-    
-    // NOTE(yuval): Schedule another step if needed
-    if (result.animating){
-        system_signal_step(0);
-    }
-    
-    mac_vars.first = false;
-    
-    linalloc_clear(mac_vars.frame_arena);
-    
-    system_mutex_release(mac_vars.global_frame_mutex);
+    printf("\n");
 }
 
 - (BOOL)acceptsFirstResponder{
