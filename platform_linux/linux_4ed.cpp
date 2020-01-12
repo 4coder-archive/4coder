@@ -48,7 +48,10 @@
 
 #include "4ed_search_list.cpp"
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <dirent.h>
 
 internal
 system_get_path_sig(){
@@ -79,6 +82,93 @@ system_get_path_sig(){
         }break;
     }
     return(result);
+}
+
+
+internal
+system_get_canonical_sig(){
+    // TODO(andrew): Resolve symlinks ?
+    // TODO(andrew): Resolve . and .. in paths
+    // TODO(andrew): Use realpath(3)
+	return name;
+}
+
+
+internal int
+linux_system_get_file_list_filter(const struct dirent *dirent) {
+    String_Const_u8 file_name = SCu8((u8*)dirent->d_name);
+    if (string_match(file_name, string_u8_litexpr("."))) {
+        return 0;
+    }
+    else if (string_match(file_name, string_u8_litexpr(".."))) {
+        return 0;
+    }
+    return 1;
+}
+
+internal int
+linux_u64_from_timespec(const struct timespec timespec) {
+    return timespec.tv_nsec + 1000000000 * timespec.tv_sec;
+}
+
+internal File_Attribute_Flag
+linux_convert_file_attribute_flags(int mode) {
+    File_Attribute_Flag result = {};
+    MovFlag(mode, S_IFDIR, result, FileAttribute_IsDirectory);
+    return result;
+}
+
+internal File_Attributes
+linux_get_file_attributes(String_Const_u8 file_name) {
+    struct stat file_stat;
+    stat((const char*)file_name.str, &file_stat);
+
+    File_Attributes result = {};
+    result.size = file_stat.st_size;
+    result.last_write_time = linux_u64_from_timespec(file_stat.st_mtim);
+    result.flags = linux_convert_file_attribute_flags(file_stat.st_mode);
+    return result;
+}
+
+internal
+system_get_file_list_sig(){
+    File_List result = {};
+    String_Const_u8 search_pattern = {};
+    if (character_is_slash(string_get_character(directory, directory.size - 1))){
+        search_pattern = push_u8_stringf(arena, "%.*s*", string_expand(directory));
+    }
+    else{
+        search_pattern = push_u8_stringf(arena, "%.*s/*", string_expand(directory));
+    }
+
+    struct dirent** dir_ents = NULL;
+    int num_ents = scandir(
+        (const char*)search_pattern.str, &dir_ents, linux_system_get_file_list_filter, alphasort);
+
+    File_Info *first = 0;
+    File_Info *last = 0;
+    for (int i = 0; i < num_ents; ++i) {
+        struct dirent* dirent = dir_ents[i];
+        File_Info *info = push_array(arena, File_Info, 1);
+        sll_queue_push(first, last, info);
+
+        info->file_name = SCu8((u8*)dirent->d_name);
+        info->attributes = linux_get_file_attributes(info->file_name);
+    }
+
+    result.infos = push_array(arena, File_Info*, num_ents);
+    result.count = num_ents;
+    i32 info_index = 0;
+    for (File_Info* node = first; node != NULL; node = node->next) {
+        result.infos[info_index] = node;
+        info_index += 1;
+    }
+    return result;
+}
+
+internal
+system_quick_file_attributes_sig(){
+    return linux_get_file_attributes(file_name);
 }
 
 int main(int argc, char **argv){
