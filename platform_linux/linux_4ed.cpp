@@ -74,6 +74,8 @@
 struct Linux_Vars {
     int epoll;
     Node free_linux_objects;
+
+    System_Mutex global_frame_mutex;
 };
 
 enum {
@@ -83,6 +85,8 @@ enum {
 typedef i32 Linux_Object_Kind;
 enum {
     LinuxObjectKind_Thread = 1,
+    LinuxObjectKind_Mutex = 2,
+    LinuxObjectKind_ConditionVariable = 3,
 };
 
 struct Linux_Object {
@@ -94,6 +98,8 @@ struct Linux_Object {
             Thread_Function* proc;
             void* ptr;
         } thread;
+        pthread_mutex_t mutex;
+        pthread_cond_t condition_variable;
     };
 };
 
@@ -610,9 +616,93 @@ system_thread_join_sig(){
 internal
 system_thread_free_sig(){
     Linux_Object* object = *(Linux_Object**)&thread;
-    if (object->kind == LinuxObjectKind_Thread) {
-        linux_free_object(object);
+    Assert(object->kind == LinuxObjectKind_Thread);
+    linux_free_object(object);
+}
+
+internal
+system_thread_get_id_sig(){
+    pthread_t tid = pthread_self();
+    Assert(tid <= (u64)max_i32);
+    return (i32)tid;
+}
+
+internal
+system_acquire_global_frame_mutex_sig(){
+    if (tctx->kind == ThreadKind_AsyncTasks){
+        system_mutex_acquire(linuxvars.global_frame_mutex);
     }
+}
+
+internal
+system_release_global_frame_mutex_sig(){
+    if (tctx->kind == ThreadKind_AsyncTasks){
+        system_mutex_release(linuxvars.global_frame_mutex);
+    }
+}
+
+internal
+system_mutex_make_sig(){
+    System_Mutex result = {};
+    Linux_Object* object = linux_alloc_object(LinuxObjectKind_Mutex);
+    pthread_mutex_init(&object->mutex, NULL);
+    *(Linux_Object**)&result = object;
+    return result;
+}
+
+internal
+system_mutex_acquire_sig(){
+    Linux_Object* object = *(Linux_Object**)&mutex;
+    Assert(object->kind == LinuxObjectKind_Mutex);
+    pthread_mutex_lock(&object->mutex);
+}
+
+internal
+system_mutex_release_sig(){
+    Linux_Object* object = *(Linux_Object**)&mutex;
+    Assert(object->kind == LinuxObjectKind_Mutex);
+    pthread_mutex_unlock(&object->mutex);
+}
+
+internal
+system_mutex_free_sig(){
+    Linux_Object* object = *(Linux_Object**)&mutex;
+    Assert(object->kind == LinuxObjectKind_Mutex);
+    pthread_mutex_destroy(&object->mutex);
+    linux_free_object(object);
+}
+
+internal
+system_condition_variable_make_sig(){
+    System_Condition_Variable result = {};
+    Linux_Object* object = linux_alloc_object(LinuxObjectKind_ConditionVariable);
+    pthread_cond_init(&object->condition_variable, NULL);
+    *(Linux_Object**)&result = object;
+    return result;
+}
+
+internal
+system_condition_variable_wait_sig(){
+    Linux_Object* cv_object = *(Linux_Object**)&cv;
+    Linux_Object* mutex_object = *(Linux_Object**)&mutex;
+    Assert(cv_object->kind == LinuxObjectKind_ConditionVariable);
+    Assert(mutex_object->kind == LinuxObjectKind_Mutex);
+    pthread_cond_wait(&cv_object->condition_variable, &mutex_object->mutex);
+}
+
+internal
+system_condition_variable_signal_sig(){
+    Linux_Object* object = *(Linux_Object**)&cv;
+    Assert(object->kind == LinuxObjectKind_ConditionVariable);
+    pthread_cond_signal(&object->condition_variable);
+}
+
+internal
+system_condition_variable_free_sig(){
+    Linux_Object* object = *(Linux_Object**)&cv;
+    Assert(object->kind == LinuxObjectKind_ConditionVariable);
+    pthread_cond_destroy(&object->condition_variable);
+    linux_free_object(object);
 }
 
 internal
@@ -621,6 +711,16 @@ system_memory_allocate_sig(){
         NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     // TODO(andrew): Allocation tracking?
     return result;
+}
+
+internal
+system_memory_set_protection_sig(){
+    int protect = 0;
+    MovFlag(flags, MemProtect_Read, protect, PROT_READ);
+    MovFlag(flags, MemProtect_Write, protect, PROT_WRITE);
+    MovFlag(flags, MemProtect_Execute, protect, PROT_EXEC);
+    int result = mprotect(ptr, size, protect);
+    return result == 0;
 }
 
 internal
