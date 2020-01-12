@@ -72,7 +72,18 @@
 ////////////////////////////
 
 struct Linux_Vars {
+    Display *XDisplay;
+    Window XWindow;
+
     int epoll;
+
+    b32 is_full_screen;
+    b32 should_be_full_screen;
+
+    Application_Mouse_Cursor cursor;
+    b32 hide_cursor;
+    XCursor hidden_cursor;
+
     Node free_linux_objects;
 
     System_Mutex global_frame_mutex;
@@ -726,6 +737,47 @@ system_memory_set_protection_sig(){
 internal
 system_memory_free_sig(){
     munmap(ptr, size);
+}
+
+// system_memory_annotation_sig
+
+internal
+system_show_mouse_cursor_sig(){
+    linuxvars.hide_cursor = !show;
+    XDefineCursor(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        show ? None : linuxvars.hidden_cursor);
+}
+
+internal
+system_set_fullscreen_sig(){
+    linuxvars.should_be_full_screen = full_screen;
+    return true;
+}
+
+internal
+system_is_fullscreen_sig(){
+    return linuxvars.is_full_screen;
+}
+
+// system_get_keyboard_modifiers_sig()
+
+internal void
+linux_handle_x11_events() {
+    static XEvent prev_event = {};
+    b32 should_step = false;
+    while (XPending(linuxvars.XDisplay)) {
+        XEvent event;
+        XNextEvent(linuxvars.XDisplay, &event);
+
+        if (XFilterEvent(&event, None) == True){
+            continue;
+        }
+
+        switch (event.type) {
+        }
+    }
 }
 
 int main(int argc, char **argv){
