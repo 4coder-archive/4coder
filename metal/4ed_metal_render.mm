@@ -290,7 +290,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     // NOTE(yuval): Obtain the render pass descriptor from the renderer's view
     MTLRenderPassDescriptor *render_pass_descriptor = view.currentRenderPassDescriptor;
     if (render_pass_descriptor != nil){
-        render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(1.0f, 0.0f, 1.0f, 1.0f);
+        render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.0f, 0.0f, 0.0f, 1.0f);
         
         // NOTE(yuval): Create the render command encoder
         id<MTLRenderCommandEncoder> render_encoder

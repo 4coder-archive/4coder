@@ -195,6 +195,7 @@ struct Mac_Vars {
     
     mach_timebase_info_data_t timebase_info;
     b32 first;
+    b32 step_requested;
     void *base_ptr;
     u64 timer_start;
     
@@ -459,15 +460,18 @@ mac_resize(NSWindow *window){
     mac_resize(bounds.size.width, bounds.size.height);
 }
 
+#if defined(FRED_INTERNAL)
 function inline void
 mac_profile(char *name, u64 begin, u64 end){
     printf("%s Time: %fs\n", name, ((end - begin) / 1000000.0f));
 }
 
 #define MacProfileScope(name) for (u64 i = 0, begin = system_now_time();\
-i < 1;\
-++i, mac_profile(name, begin, system_now_time()))
-
+i == 0;\
+i = 1, mac_profile(name, begin, system_now_time()))
+#else
+# define MacProfileScope(...)
+#endif
 ////////////////////////////////
 
 @implementation FCoder_App_Delegate
@@ -539,8 +543,10 @@ i < 1;\
 }
 
 - (void)drawRect:(NSRect)bounds{
-    MacProfileScope("Frame"){
-        MacProfileScope("Acquire System Mutex"){
+    u64 prev_timer_start;
+    
+    MacProfileScope("Draw Rect"){
+        MacProfileScope("Acquire Frame Mutex"){
             // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
             system_mutex_acquire(mac_vars.global_frame_mutex);
         }
@@ -606,14 +612,44 @@ i < 1;\
             }
         }
         
+        // NOTE(yuval): Sleep a bit to cool off
+        MacProfileScope("Cool Down"){
+            system_mutex_release(mac_vars.global_frame_mutex);
+            {
+                u64 timer_end = system_now_time();
+                u64 end_target = (mac_vars.timer_start + frame_useconds);
+                
+                if (timer_end < end_target){
+                    if ((end_target - timer_end) > 1000){
+                        // NOTE(yuval): Sleep until the end target minus a millisecond (to allow the scheduler to wake the process in time)
+                        system_sleep(end_target - timer_end - 1000);
+                    }
+                    
+                    // NOTE(yuval): Iterate through the rest of the time that's left using a regular for loop to make sure that we hit the end target
+                    u64 now = system_now_time();
+                    while (now < end_target){
+                        now = system_now_time();
+                    }
+                }
+                
+                prev_timer_start = mac_vars.timer_start;
+                mac_vars.timer_start = system_now_time();
+            }
+            system_mutex_acquire(mac_vars.global_frame_mutex);
+        }
+        
         MacProfileScope("Cleanup"){
             mac_vars.first = false;
+            mac_vars.step_requested = false;
             
             linalloc_clear(mac_vars.frame_arena);
             
+            // NOTE(yuval): Release the global frame mutex until the next drawRect call
             system_mutex_release(mac_vars.global_frame_mutex);
         }
     }
+    
+    mac_profile("Frame", prev_timer_start, mac_vars.timer_start);
     printf("\n");
 }
 
@@ -762,6 +798,7 @@ i < 1;\
 }
 
 - (void)request_display{
+    printf("Display Requested!\n");
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
@@ -829,7 +866,9 @@ i < 1;\
 
 - (void)process_mouse_move_event:(NSEvent*)event{
     NSPoint location = [event locationInWindow];
-    Vec2_i32 new_m = V2i32(location.x, mac_vars.height - location.y);
+    NSPoint backing_location = [self convertPointToBacking:location];
+    
+    Vec2_i32 new_m = V2i32(backing_location.x, mac_vars.height - backing_location.y);
     if (new_m != mac_vars.input_chunk.pers.mouse){
         mac_vars.input_chunk.pers.mouse = new_m;
     }
@@ -854,7 +893,7 @@ main(int arg_count, char **args){
         
         pthread_mutex_init(&memory_tracker_mutex, 0);
         
-        // NOTE(yuval): Context Setup
+        // NOTE(yuval): Context setup
         Thread_Context _tctx = {};
         thread_ctx_init(&_tctx, ThreadKind_Main,
                         get_base_allocator_system(),
@@ -1048,8 +1087,10 @@ main(int arg_count, char **args){
         mac_resize(w, h);
         
         //
-        // TODO(yuval): Misc System Initializations
+        // NOTE(yuval): Misc System Initializations
         //
+        
+        // TODO(yuval): Initialize clipboard buffer
         
         mac_keycode_init();
         
@@ -1072,6 +1113,7 @@ main(int arg_count, char **args){
         //
         
         mac_vars.first = true;
+        mac_vars.step_requested = false;
         
         mac_vars.global_frame_mutex = system_mutex_make();
         

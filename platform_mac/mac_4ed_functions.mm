@@ -406,10 +406,15 @@ system_wake_up_timer_set_sig(){
 
 function
 system_signal_step_sig(){
-    [NSTimer scheduledTimerWithTimeInterval:0.0
-            target:mac_vars.view
-            selector:@selector(request_display)
-            userInfo:nil repeats:NO];
+    printf("Signal Step!\n");
+    if (!mac_vars.step_requested){
+        [NSTimer scheduledTimerWithTimeInterval:0.0
+                target:mac_vars.view
+                selector:@selector(request_display)
+                userInfo:nil repeats:NO];
+        
+        mac_vars.step_requested = true;
+    }
 }
 
 function

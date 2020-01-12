@@ -21,7 +21,9 @@ typedef mac_fill_texture_sig(mac_fill_texture_type);
 typedef i32 Mac_Renderer_Kind;
 enum{
     MacRenderer_OpenGL,
-    MacRenderer_Metal
+    MacRenderer_Metal,
+    //
+    MacRenderer_COUNT
 };
 
 struct Mac_Renderer{
