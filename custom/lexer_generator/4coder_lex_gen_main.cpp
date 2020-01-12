@@ -2700,7 +2700,7 @@ opt_key_layout(Arena *arena, Keyword_Set keywords, i32 slot_count, u64 seed){
         else{
             run_length += 1;
             layout.error_score += run_length;
-            max_run_length = max(max_run_length, run_length);
+            max_run_length = Max(max_run_length, run_length);
         }
     }
     i32 total_run_length = run_length;
@@ -2711,7 +2711,7 @@ opt_key_layout(Arena *arena, Keyword_Set keywords, i32 slot_count, u64 seed){
         else{
             layout.error_score += run_length;
             total_run_length += 1;
-            max_run_length = max(max_run_length, total_run_length);
+            max_run_length = Max(max_run_length, total_run_length);
         }
     }
     layout.max_single_error_score = max_run_length;

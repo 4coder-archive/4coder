@@ -90,8 +90,7 @@ edit_fix_markers__compute_scroll_y(i32 line_height, i32 old_y_val, f32 new_y_val
 }
 
 function void
-edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file,
-                 Batch_Edit *batch){
+edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Batch_Edit *batch){
     Layout *layout = &models->layout;
     
     Lifetime_Object *file_lifetime_object = file->lifetime_object;
@@ -135,7 +134,10 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file,
             File_Edit_Positions edit_pos = view_get_edit_pos(view);
             write_cursor_with_index(cursors, &cursor_count, (i32)edit_pos.cursor_pos);
             write_cursor_with_index(cursors, &cursor_count, (i32)view->mark);
-            // TODO(allen): write a cursor for the current scroll line
+            Buffer_Cursor pos_cursor = file_compute_cursor(file, seek_line_col(edit_pos.scroll.position.line_number, 1));
+            Buffer_Cursor targ_cursor = file_compute_cursor(file, seek_line_col(edit_pos.scroll.target.line_number, 1));
+            write_cursor_with_index(cursors, &cursor_count, pos_cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, targ_cursor.pos);
         }
     }
     
@@ -155,6 +157,8 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file,
             key_index += count;
         }
     }
+    
+    buffer_remeasure_starts(tctx, &file->state.buffer, batch);
     
     if (cursor_count > 0 || r_cursor_count > 0){
         buffer_sort_cursors(  cursors,   cursor_count);
@@ -178,8 +182,15 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file,
                 i64 cursor_pos = cursors[cursor_count++].pos;
                 view->mark = cursors[cursor_count++].pos;
                 File_Edit_Positions edit_pos = view_get_edit_pos(view);
+                
+                i64 scroll_pos = cursors[cursor_count++].pos;
+                i64 scroll_targ = cursors[cursor_count++].pos;
+                Buffer_Cursor pos_cursor = file_compute_cursor(file, seek_pos(scroll_pos));
+                Buffer_Cursor targ_cursor = file_compute_cursor(file, seek_pos(scroll_targ));
+                edit_pos.scroll.position.line_number = pos_cursor.line;
+                edit_pos.scroll.target.line_number = targ_cursor.line;
+                
                 view_set_cursor_and_scroll(tctx, models, view, cursor_pos, edit_pos.scroll);
-                // TODO(allen): read a cursor for the current scroll line
             }
         }
         
@@ -254,7 +265,6 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
     batch.edit.text = string;
     batch.edit.range = range;
     
-    buffer_remeasure_starts(tctx, &file->state.buffer, &batch);
     edit_fix_markers(tctx, models, file, &batch);
     post_edit_call_hook(tctx, models, file,
                         Ii64_size(range.first, string.size), range_size(range));
@@ -489,7 +499,6 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
             
             file_clear_layout_cache(file);
             
-            buffer_remeasure_starts(tctx, buffer, batch);
             edit_fix_markers(tctx, models, file, batch);
             
             post_edit_call_hook(tctx, models, file, new_range, range_size(old_range));
@@ -501,7 +510,7 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
 
 ////////////////////////////////
 
- function Editing_File*
+function Editing_File*
 create_file(Thread_Context *tctx, Models *models, String_Const_u8 file_name, Buffer_Create_Flag flags){
     Editing_File *result = 0;
     
