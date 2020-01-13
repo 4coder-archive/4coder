@@ -193,6 +193,9 @@ struct Mac_Vars {
     u32 clipboard_change_count;
     b32 next_clipboard_is_self;
     
+    Arena clip_post_arena;
+    String_Const_u8 clip_post;
+    
     NSWindow *window;
     FCoder_View *view;
     f32 screen_scale_factor;
@@ -480,8 +483,8 @@ mac_read_clipboard_contents(Arena *scratch){
     {
         NSPasteboard *board = [NSPasteboard generalPasteboard];
         NSString *utf8_type = @"public.utf8-plain-text";
-        NSArray *array = [NSArray arrayWithObjects:utf8_type, nil];
-        NSString *has_string = [board availableTypeFromArray:array];
+        NSArray *types_array = [NSArray arrayWithObjects:utf8_type, nil];
+        NSString *has_string = [board availableTypeFromArray:types_array];
         if (has_string != nil){
             NSData *data = [board dataForType:utf8_type];
             if (data != nil){
@@ -502,6 +505,25 @@ mac_read_clipboard_contents(Arena *scratch){
     end_temp(temp);
     
     return(result);
+}
+
+function void
+mac_post_clipboard(Arena *scratch, char *text, i32 len){
+    NSPasteboard *board = [NSPasteboard generalPasteboard];
+    
+    NSString *utf8_type = @"public.utf8-plain-text";
+    NSArray<NSString*> *types_array = [NSArray arrayWithObjects:utf8_type, nil];
+    [board declareTypes:types_array
+            owner:nil];
+    
+    NSString *paste_string = [[NSString alloc] initWithBytes:text
+            length:len
+            encoding:NSUTF8StringEncoding];
+    [board setString:paste_string
+            forType:utf8_type];
+    [paste_string release];
+    
+    mac_vars.next_clipboard_is_self = true;
 }
 
 #if defined(FRED_INTERNAL)
@@ -659,6 +681,8 @@ i = 1, mac_profile(name, begin, system_now_time()))
             input.clipboard = mac_vars.clipboard_contents;
         }
         
+        mac_vars.clip_post.size = 0;
+        
         Application_Step_Result result = {};
         MacProfileScope("Step"){
             // NOTE(yuval): Application Core Update
@@ -672,6 +696,14 @@ i = 1, mac_profile(name, begin, system_now_time()))
             if (result.perform_kill){
                 printf("Terminating 4coder!\n");
                 [NSApp terminate:nil];
+            }
+        }
+        
+        // NOTE(yuval): Post new clipboard content
+        MacProfileScope("Post Clipboard"){
+            if (mac_vars.clip_post.size > 0){
+                Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+                mac_post_clipboard(scratch, (char*)mac_vars.clip_post.str, (i32)mac_vars.clip_post.size);
             }
         }
         

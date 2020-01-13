@@ -431,7 +431,21 @@ system_sleep_sig(){
 
 function
 system_post_clipboard_sig(){
-    NotImplemented;
+    Arena *arena = &mac_vars.clip_post_arena;
+    if (arena->base_allocator == 0){
+        *arena = make_arena_system();
+    } else{
+        linalloc_clear(arena);
+    }
+    
+    mac_vars.clip_post.str = push_array(arena, u8, str.size + 1);
+    if (mac_vars.clip_post.str != 0){
+        block_copy(mac_vars.clip_post.str, str.str, str.size);
+        mac_vars.clip_post.str[str.size] = 0;
+        mac_vars.clip_post.size = str.size;
+    } else{
+        // NOTE(yuval): Failed to allocate buffer for clipboard post
+    }
 }
 
 ////////////////////////////////
