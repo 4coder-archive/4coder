@@ -630,6 +630,8 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
     u64 prev_timer_start;
     
     MacProfileScope("Draw Rect"){
+        mac_vars.step_requested = false;
+        
         MacProfileScope("Acquire Frame Mutex"){
             // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
             system_mutex_acquire(mac_vars.global_frame_mutex);
@@ -827,7 +829,6 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
         
         MacProfileScope("Cleanup"){
             mac_vars.first = false;
-            mac_vars.step_requested = false;
             
             linalloc_clear(mac_vars.frame_arena);
             
@@ -985,6 +986,7 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
 }
 
 - (void)request_display{
+    printf("Display Requested!\n");
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
