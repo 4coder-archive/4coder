@@ -185,6 +185,10 @@ struct Mac_Vars {
     
     i32 cursor_show;
     i32 prev_cursor_show;
+    NSCursor *cursor_ibeam;
+    NSCursor *cursor_arrow;
+    NSCursor *cursor_leftright;
+    NSCursor *cursor_updown;
     
     String_Const_u8 binary_path;
     
@@ -437,6 +441,8 @@ mac_file_can_be_made(u8* filename){
     return(result);
 }
 
+////////////////////////////////
+
 function void
 mac_resize(float width, float height){
     if ((width > 0.0f) && (height > 0.0f)){
@@ -466,6 +472,8 @@ mac_resize(NSWindow *window){
     NSRect bounds = [[window contentView] bounds];
     mac_resize(bounds.size.width, bounds.size.height);
 }
+
+////////////////////////////////
 
 function u32
 mac_get_clipboard_change_count(void){
@@ -526,18 +534,28 @@ mac_post_clipboard(Arena *scratch, char *text, i32 len){
     mac_vars.next_clipboard_is_self = true;
 }
 
+////////////////////////////////
+
+function void
+mac_toggle_fullscreen(void){
+    [mac_vars.window toggleFullScreen:nil];
+}
+
+////////////////////////////////
+
 #if defined(FRED_INTERNAL)
 function inline void
 mac_profile(char *name, u64 begin, u64 end){
     printf("%s Time: %fs\n", name, ((end - begin) / 1000000.0f));
 }
 
-#define MacProfileScope(name) for (u64 i = 0, begin = system_now_time();\
-i == 0;\
-i = 1, mac_profile(name, begin, system_now_time()))
+#define MacProfileScope(name) for (u64 glue(_i_, __LINE__) = 0, glue(_begin_, __LINE__) = system_now_time();\
+glue(_i_, __LINE__) == 0;\
+glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_time()))
 #else
 # define MacProfileScope(...)
 #endif
+
 ////////////////////////////////
 
 @implementation FCoder_App_Delegate
@@ -683,16 +701,16 @@ i = 1, mac_profile(name, begin, system_now_time()))
         
         mac_vars.clip_post.size = 0;
         
+        // NOTE(yuval): Application Core Update
         Application_Step_Result result = {};
         MacProfileScope("Step"){
-            // NOTE(yuval): Application Core Update
             if (app.step != 0){
                 result = app.step(mac_vars.tctx, &target, mac_vars.base_ptr, &input);
             }
         }
         
+        // NOTE(yuval): Quit the app if requested by the application core
         MacProfileScope("Perform Kill"){
-            // NOTE(yuval): Quit the app
             if (result.perform_kill){
                 printf("Terminating 4coder!\n");
                 [NSApp terminate:nil];
@@ -707,11 +725,75 @@ i = 1, mac_profile(name, begin, system_now_time()))
             }
         }
         
-        MacProfileScope("Render"){
-            // NOTE(yuval): Render
-            renderer->render(renderer, &target);
+        // NOTE(yuval): Switch to a new title
+        MacProfileScope("Switch Title"){
+            if (result.has_new_title){
+                NSString *str = [NSString stringWithUTF8String:result.title_string];
+                [mac_vars.window setTitle:str];
+            }
+        }
+        
+        // NOTE(yuval): Switch to new cursor
+        MacProfileScope("Switch Cursor"){
+            // NOTE(yuval): Switch cursor type
+            switch (result.mouse_cursor_type){
+                case APP_MOUSE_CURSOR_ARROW:
+                {
+                    [mac_vars.cursor_arrow set];
+                } break;
+                
+                case APP_MOUSE_CURSOR_IBEAM:
+                {
+                    [mac_vars.cursor_ibeam set];
+                } break;
+                
+                case APP_MOUSE_CURSOR_LEFTRIGHT:
+                {
+                    [mac_vars.cursor_leftright set];
+                } break;
+                
+                case APP_MOUSE_CURSOR_UPDOWN:
+                {
+                    [mac_vars.cursor_updown set];
+                } break;
+            }
             
-            // NOTE(yuval): Schedule another step if needed
+            // NOTE(yuval): Show or hide cursor
+            if (mac_vars.cursor_show != mac_vars.prev_cursor_show){
+                switch (mac_vars.cursor_show){
+                    case MouseCursorShow_Never:
+                    {
+                        [NSCursor hide];
+                    } break;
+                    
+                    case MouseCursorShow_Always:
+                    {
+                        [NSCursor unhide];
+                    } break;
+                }
+                
+                mac_vars.prev_cursor_show = mac_vars.cursor_show;
+            }
+        }
+        
+        // NOTE(yuval): Update lctrl_lalt_is_altgr status
+        mac_vars.lctrl_lalt_is_altgr = (b8)result.lctrl_lalt_is_altgr;
+        
+        // NOTE(yuval): Render
+        MacProfileScope("Render"){
+            renderer->render(renderer, &target);
+        }
+        
+        // NOTE(yuval): Toggle full screen
+        MacProfileScope("Toggle Full Screen"){
+            if (mac_vars.do_toggle){
+                mac_toggle_fullscreen();
+                mac_vars.do_toggle = false;
+            }
+        }
+        
+        // NOTE(yuval): Schedule another step if needed
+        MacProfileScope("Schedule Animations"){
             if (result.animating){
                 system_signal_step(0);
             }
@@ -1026,9 +1108,6 @@ main(int arg_count, char **args){
         mac_vars.frame_arena = reserve_arena(mac_vars.tctx);
         target.arena = make_arena_system(KB(256));
         
-        mac_vars.cursor_show = MouseCursorShow_Always;
-        mac_vars.prev_cursor_show = MouseCursorShow_Always;
-        
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
         
@@ -1178,7 +1257,7 @@ main(int arg_count, char **args){
         
         [mac_vars.window setMinSize:NSMakeSize(100, 100)];
         [mac_vars.window setBackgroundColor:NSColor.blackColor];
-        [mac_vars.window setTitle:@WINDOW_NAME];
+        [mac_vars.window setTitle:@"GRAPHICS"];
         [mac_vars.window setAcceptsMouseMovedEvents:YES];
         
         NSView* content_view = [mac_vars.window contentView];
@@ -1223,6 +1302,17 @@ main(int arg_count, char **args){
         // NOTE(yuval): Initialize the virtul keycodes table
         mac_keycode_init();
         
+        // NOTE(yuval): Initialize cursors
+        {
+            mac_vars.cursor_show = MouseCursorShow_Always;
+            mac_vars.prev_cursor_show = MouseCursorShow_Always;
+            
+            mac_vars.cursor_arrow = [NSCursor arrowCursor];
+            mac_vars.cursor_ibeam = [NSCursor IBeamCursor];
+            mac_vars.cursor_leftright = [NSCursor resizeLeftRightCursor];
+            mac_vars.cursor_updown = [NSCursor resizeUpDownCursor];
+        }
+        
         // NOTE(yuval): Get the timebase info
         mach_timebase_info(&mac_vars.timebase_info);
         
@@ -1243,6 +1333,10 @@ main(int arg_count, char **args){
         
         mac_vars.first = true;
         mac_vars.step_requested = false;
+        
+        if (plat_settings.fullscreen_window){
+            mac_toggle_fullscreen();
+        }
         
         mac_vars.global_frame_mutex = system_mutex_make();
         
