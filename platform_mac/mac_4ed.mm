@@ -134,6 +134,7 @@ struct Mac_Input_Chunk{
 
 @interface FCoder_View : NSView
 - (void)request_display;
+- (void)check_clipboard;
 - (void)process_keyboard_event:(NSEvent*)event down:(b8)down;
 - (void)process_mouse_move_event:(NSEvent*)event;
 @end
@@ -187,7 +188,10 @@ struct Mac_Vars {
     
     String_Const_u8 binary_path;
     
+    Arena *clipboard_arena;
     String_Const_u8 clipboard_contents;
+    u32 clipboard_change_count;
+    b32 next_clipboard_is_self;
     
     NSWindow *window;
     FCoder_View *view;
@@ -460,6 +464,46 @@ mac_resize(NSWindow *window){
     mac_resize(bounds.size.width, bounds.size.height);
 }
 
+function u32
+mac_get_clipboard_change_count(void){
+    NSPasteboard *board = [NSPasteboard generalPasteboard];
+    u32 result = board.changeCount;
+    
+    return(result);
+}
+
+function b32
+mac_read_clipboard_contents(Arena *scratch){
+    b32 result = false;
+    
+    Temp_Memory temp = begin_temp(scratch);
+    {
+        NSPasteboard *board = [NSPasteboard generalPasteboard];
+        NSString *utf8_type = @"public.utf8-plain-text";
+        NSArray *array = [NSArray arrayWithObjects:utf8_type, nil];
+        NSString *has_string = [board availableTypeFromArray:array];
+        if (has_string != nil){
+            NSData *data = [board dataForType:utf8_type];
+            if (data != nil){
+                u32 copy_length = data.length;
+                if (copy_length > 0){
+                    Arena *clip_arena = mac_vars.clipboard_arena;
+                    linalloc_clear(clip_arena);
+                    
+                    mac_vars.clipboard_contents = string_const_u8_push(clip_arena, copy_length);
+                    [data getBytes:mac_vars.clipboard_contents.str
+                            length:mac_vars.clipboard_contents.size];
+                    
+                    result = true;
+                }
+            }
+        }
+    }
+    end_temp(temp);
+    
+    return(result);
+}
+
 #if defined(FRED_INTERNAL)
 function inline void
 mac_profile(char *name, u64 begin, u64 end){
@@ -551,11 +595,12 @@ i = 1, mac_profile(name, begin, system_now_time()))
             system_mutex_acquire(mac_vars.global_frame_mutex);
         }
         
-        Mac_Input_Chunk input_chunk = mac_vars.input_chunk;
         Application_Step_Input input = {};
         
         // NOTE(yuval): Prepare the Frame Input
         MacProfileScope("Prepare Input"){
+            Mac_Input_Chunk input_chunk = mac_vars.input_chunk;
+            
             input.first_step = mac_vars.first;
             input.dt = frame_useconds / 1000000.0f;
             input.events = input_chunk.trans.event_list;
@@ -584,6 +629,34 @@ i = 1, mac_profile(name, begin, system_now_time()))
                 input.trying_to_kill = true;
                 mac_vars.send_exit_signal = false;
             }
+        }
+        
+        // NOTE(yuval): Frame clipboard input
+        MacProfileScope("Frame Clipboard Input"){
+            block_zero_struct(&mac_vars.clipboard_contents);
+            input.clipboard_changed = false;
+            
+            if (mac_vars.clipboard_change_count != 0){
+                u32 change_count = mac_get_clipboard_change_count();
+                if (change_count != mac_vars.clipboard_change_count){
+                    if (mac_vars.next_clipboard_is_self){
+                        mac_vars.next_clipboard_is_self = false;
+                    } else{
+                        for (i32 r = 0; r < 4; ++r){
+                            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+                            
+                            if (mac_read_clipboard_contents(scratch)){
+                                input.clipboard_changed = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    mac_vars.clipboard_change_count = change_count;
+                }
+            }
+            
+            input.clipboard = mac_vars.clipboard_contents;
         }
         
         Application_Step_Result result = {};
@@ -798,10 +871,16 @@ i = 1, mac_profile(name, begin, system_now_time()))
 }
 
 - (void)request_display{
-    printf("Display Requested!\n");
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
+}
+
+- (void)check_clipboard{
+    u32 change_count = mac_get_clipboard_change_count();
+    if (change_count != mac_vars.clipboard_change_count){
+        system_signal_step(0);
+    }
 }
 
 - (void)process_keyboard_event:(NSEvent*)event down:(b8)down{
@@ -1090,8 +1169,26 @@ main(int arg_count, char **args){
         // NOTE(yuval): Misc System Initializations
         //
         
-        // TODO(yuval): Initialize clipboard buffer
+        // NOTE(yuval): Initialize clipboard
+        {
+            mac_vars.clipboard_arena = reserve_arena(mac_vars.tctx);
+            mac_vars.clipboard_change_count = mac_get_clipboard_change_count();
+            mac_vars.next_clipboard_is_self = false;
+            
+            // NOTE(yuval): Read the current clipboard
+            {
+                Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+                mac_read_clipboard_contents(scratch);
+            }
+            
+            // NOTE(yuval): Start the clipboard polling timer
+            [NSTimer scheduledTimerWithTimeInterval: 0.5
+                    target:mac_vars.view
+                    selector:@selector(check_clipboard)
+                    userInfo:nil repeats:YES];
+        }
         
+        // NOTE(yuval): Initialize the virtul keycodes table
         mac_keycode_init();
         
         // NOTE(yuval): Get the timebase info
