@@ -454,32 +454,108 @@ function
 system_cli_call_sig(){
     b32 result = false;
     
-    NotImplemented;
+    int pipe_fds[2];
+    if (pipe(pipe_fds) == -1){
+        perror("system_cli_call: pipe");
+        return(false);
+    }
     
-    return(result);
+    pid_t child_pid = fork();
+    if (child_pid == -1){
+        perror("system_cli_call: fork");
+        return(false);
+    }
+    
+    enum { PIPE_FD_READ, PIPE_FD_WRITE };
+    
+    if (child_pid == 0){
+        // NOTE(yuval): Child Process
+        close(pipe_fds[PIPE_FD_READ]);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
+        
+        if (chdir(path) == -1){
+            perror("system_cli_call: chdir");
+            exit(1);
+        }
+        
+        char* argv[] = {"sh", "-c", script, 0};
+        
+        if (execv("/bin/sh", argv) == -1){
+            perror("system_cli_call: execv");
+        }
+        
+        exit(1);
+    } else{
+        // NOTE(yuval): Parent Process
+        close(pipe_fds[PIPE_FD_WRITE]);
+        
+        *(pid_t*)&cli_out->proc = child_pid;
+        *(int*)&cli_out->out_read = pipe_fds[PIPE_FD_READ];
+        *(int*)&cli_out->out_write = pipe_fds[PIPE_FD_WRITE];
+        
+        mac_vars.running_cli += 1;
+    }
+    
+    return(true);
 }
 
 function
 system_cli_begin_update_sig(){
-    NotImplemented;
+    // NOTE(yuval): Nothing to do here.
 }
 
 function
 system_cli_update_step_sig(){
-    b32 result = false;
+    int pipe_read_fd = *(int*)&cli->out_read;
     
-    NotImplemented;
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(pipe_read_fd, &fds);
     
+    struct timeval tv = {};
+    
+    size_t space_left = max;
+    char* ptr = dest;
+    
+    while (space_left > 0 && (select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1)){
+        ssize_t num = read(pipe_read_fd, ptr, space_left);
+        if (num == -1){
+            perror("system_cli_update_step: read");
+        } else if (num == 0){
+            // NOTE(inso): EOF
+            break;
+        } else{
+            ptr += num;
+            space_left -= num;
+        }
+    }
+    
+    *amount = (ptr - dest);
+    
+    b32 result = ((ptr - dest) > 0);
     return(result);
 }
 
 function
 system_cli_end_update_sig(){
-    b32 result = false;
+    b32 close_me = false;
     
-    NotImplemented;
+    pid_t pid = *(pid_t*)&cli->proc;
     
-    return(result);
+    int status;
+    if (pid && (waitpid(pid, &status, WNOHANG) > 0)){
+        cli->exit = WEXITSTATUS(status);
+        
+        close(*(int*)&cli->out_read);
+        close(*(int*)&cli->out_write);
+        
+        mac_vars.running_cli -= 1;
+        
+        close_me = true;
+    }
+    
+    return(close_me);
 }
 
 ////////////////////////////////

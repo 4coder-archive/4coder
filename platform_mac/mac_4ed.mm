@@ -206,9 +206,11 @@ struct Mac_Vars {
     
     mach_timebase_info_data_t timebase_info;
     b32 first;
-    b32 step_requested;
     void *base_ptr;
+    
     u64 timer_start;
+    b32 step_requested;
+    i32 running_cli;
     
     Node free_mac_objects;
     Node timer_objects;
@@ -795,8 +797,8 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
         }
         
         // NOTE(yuval): Schedule another step if needed
-        MacProfileScope("Schedule Animations"){
-            if (result.animating){
+        MacProfileScope("Schedule Step"){
+            if (result.animating || (mac_vars.running_cli > 0)){
                 system_signal_step(0);
             }
         }
@@ -1335,6 +1337,7 @@ main(int arg_count, char **args){
         
         mac_vars.first = true;
         mac_vars.step_requested = false;
+        mac_vars.running_cli = 0;
         
         if (plat_settings.fullscreen_window){
             mac_toggle_fullscreen();
