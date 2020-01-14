@@ -472,7 +472,7 @@ run_lister(Application_Links *app, Lister *lister){
             case InputEventKind_TextInsert:
             {
                 if (lister->handlers.write_character != 0){
-                    lister->handlers.write_character(app);
+                    result = lister->handlers.write_character(app);
                 }
             }break;
             
@@ -627,7 +627,7 @@ run_lister(Application_Links *app, Lister *lister){
                 switch (in.event.core.code){
                     case CoreCode_Animate:
                     {
-                lister_update_filtered_list(app, lister);
+                        lister_update_filtered_list(app, lister);
                     }break;
                     
                     default:
@@ -716,8 +716,9 @@ lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, 
                            user_data, extra_space));
 }
 
-function void
+function Lister_Activation_Code
 lister__write_string__default(Application_Links *app){
+    Lister_Activation_Code result = ListerActivation_Continue;
     View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
@@ -731,6 +732,7 @@ lister__write_string__default(Application_Links *app){
             lister_update_filtered_list(app, lister);
         }
     }
+    return(result);
 }
 
 function void
