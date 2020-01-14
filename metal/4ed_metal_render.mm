@@ -131,7 +131,6 @@ float shape_value = (1.0 - smoothstep(-1.0, 0.0, sd));
 shape_value *= has_thickness;
 
 float4 out_color = float4(in.color.xyz, in.color.a * (sample_value + shape_value));
-//float4 out_color = float4(1, 1, 1, shape_value);
 return(out_color);
 }
 )";
@@ -274,9 +273,12 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
 }
 
 - (void)drawInMTKView:(nonnull MTKView*)view{
+#if FRED_INTERNAL
     [capture_scope beginScope];
+#endif
     
-    // HACK(yuval): This is the best way I found to force valid width and height without drawing on the next drawing cycle (1 frame delay).
+    // HACK(yuval): This is the best way I found to force valid width and height without drawing on the next draw cycle (1 frame delay).
+    
     CGSize drawable_size = [view drawableSize];
     i32 width = (i32)Min(_target->width, drawable_size.width);
     i32 height = (i32)Min(_target->height, drawable_size.height);
@@ -293,8 +295,8 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         render_pass_descriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.0f, 0.0f, 0.0f, 1.0f);
         
         // NOTE(yuval): Create the render command encoder
-        id<MTLRenderCommandEncoder> render_encoder
-            = [command_buffer renderCommandEncoderWithDescriptor:render_pass_descriptor];
+        id<MTLRenderCommandEncoder> render_encoder =
+            [command_buffer renderCommandEncoderWithDescriptor:render_pass_descriptor];
         render_encoder.label = @"4coder Render Encoder";
         
         // NOTE(yuval): Set the region of the drawable to draw into
@@ -303,7 +305,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         // NOTE(yuval): Set the render pipeline to use for drawing
         [render_encoder setRenderPipelineState:pipeline_state];
         
-        // NOTE(yuval): Calculate and pass in the projection matrix
+        // NOTE(yuval): Calculate the projection matrix
         float left = 0, right = (float)width;
         float bottom = (float)height, top = 0;
         float near_depth = -1.0f, far_depth = 1.0f;
@@ -325,6 +327,8 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         
         u32 vertex_buffer_size = (all_vertex_count * sizeof(Render_Vertex));
         
+        printf("Vertices to render: %d\n", all_vertex_count);
+        
         // NOTE(yuval): Find & Get a vertex buffer matching the required size
         Metal_Buffer *buffer = [self get_reusable_buffer_with_size:vertex_buffer_size];
         
@@ -338,6 +342,8 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
                 length:sizeof(proj)
                 atIndex:1];
         
+        u32 group_count = 0;
+        
         u32 buffer_offset = 0;
         for (Render_Group *group = _target->group_first;
              group;
@@ -345,7 +351,6 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
             // NOTE(yuval): Set scissor rect
             {
                 Rect_i32 box = Ri32(group->clip_box);
-                
                 
                 NSUInteger x0 = (NSUInteger)Min(Max(0, box.x0), width - 1);
                 NSUInteger x1 = (NSUInteger)Min(Max(0, box.x1), width);
@@ -405,7 +410,11 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
                 
                 buffer_offset += (vertex_count * sizeof(Render_Vertex));
             }
+            
+            ++group_count;
         }
+        
+        printf("Group Count: %u\n", group_count);
         
         [render_encoder endEncoding];
         
@@ -422,7 +431,9 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     // NOTE(yuval): Finalize rendering here and push the command buffer to the GPU
     [command_buffer commit];
     
+#if FRED_INTERNAL
     [capture_scope endScope];
+#endif
 }
 
 - (u32)get_texture_of_dim:(Vec3_i32)dim kind:(Texture_Kind)kind{

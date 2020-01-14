@@ -315,6 +315,22 @@ mac_error_box(char *msg, b32 shutdown = true){
 
 ////////////////////////////////
 
+#if defined(FRED_INTERNAL)
+function inline void
+mac_profile(char *name, u64 begin, u64 end){
+    printf("%s Time: %fs\n", name, ((end - begin) / 1000000.0f));
+}
+
+#define MacProfileScope(name) for (u64 glue(_i_, __LINE__) = 0, glue(_begin_, __LINE__) = system_now_time();\
+glue(_i_, __LINE__) == 0;\
+glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_time()))
+#else
+# define mac_profile(...)
+# define MacProfileScope(...)
+#endif
+
+////////////////////////////////
+
 #import "mac_4ed_renderer.mm"
 
 #include "4ed_font_provider_freetype.h"
@@ -545,21 +561,6 @@ mac_toggle_fullscreen(void){
 
 ////////////////////////////////
 
-#if defined(FRED_INTERNAL)
-function inline void
-mac_profile(char *name, u64 begin, u64 end){
-    printf("%s Time: %fs\n", name, ((end - begin) / 1000000.0f));
-}
-
-#define MacProfileScope(name) for (u64 glue(_i_, __LINE__) = 0, glue(_begin_, __LINE__) = system_now_time();\
-glue(_i_, __LINE__) == 0;\
-glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_time()))
-#else
-# define MacProfileScope(...)
-#endif
-
-////////////////////////////////
-
 @implementation FCoder_App_Delegate
 - (void)applicationDidFinishLaunching:(id)sender{
 }
@@ -628,7 +629,12 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
     mac_resize(mac_vars.window);
 }
 
-- (void)drawRect:(NSRect)bounds{
+- (BOOL)wantsUpdateLayer
+{
+    return YES;
+}
+
+- (void)updateLayer{
     u64 prev_timer_start;
     
     MacProfileScope("Draw Rect"){
@@ -840,7 +846,9 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
     }
     
     mac_profile("Frame", prev_timer_start, mac_vars.timer_start);
+#if FRED_INTERNAL
     printf("\n");
+#endif
 }
 
 - (BOOL)acceptsFirstResponder{
@@ -856,8 +864,6 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
 }
 
 - (void)keyDown:(NSEvent*)event{
-    printf("Key Down: %#X\n", [event keyCode]);
-    
     // NOTE(yuval): Process keyboard event
     [self process_keyboard_event:event down:true];
     
@@ -896,7 +902,6 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
 }
 
 - (void)keyUp:(NSEvent*)event{
-    printf("Key Up: %#X\n", [event keyCode]);
     [self process_keyboard_event:event down:false];
 }
 
@@ -988,7 +993,7 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
 }
 
 - (void)request_display{
-    printf("Display Requested!\n");
+    //printf("Display Requested!\n");
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
@@ -1068,6 +1073,10 @@ glue(_i_, __LINE__) = 1, mac_profile(name, glue(_begin_, __LINE__), system_now_t
     Vec2_i32 new_m = V2i32(backing_location.x, mac_vars.height - backing_location.y);
     if (new_m != mac_vars.input_chunk.pers.mouse){
         mac_vars.input_chunk.pers.mouse = new_m;
+        
+        Rect_i32 screen = Ri32(0, 0, target.width, target.height);
+        mac_vars.input_chunk.trans.out_of_window = !rect_contains_point(screen, new_m);
+        
     }
     
     system_signal_step(0);
@@ -1270,6 +1279,7 @@ main(int arg_count, char **args){
         mac_vars.view = [[FCoder_View alloc] init];
         [mac_vars.view setFrame:[content_view bounds]];
         [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+        mac_vars.view.wantsLayer = true;
         
         // NOTE(yuval): Display window and view
         [content_view addSubview:mac_vars.view];

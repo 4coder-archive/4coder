@@ -844,7 +844,9 @@ system_memory_annotation_sig(){
         for (Memory_Annotation_Tracker_Node *node = memory_tracker.first;
              node != 0;
              node = node->next){
-            Memory_Annotation_Node *r_node = push_array(arena, Memory_Annotation_Node, 1);
+            // TODO(yuval): Fix the API so that annotations would not mess with the system memory.
+            // Memory_Annotation_Node *r_node = push_array(arena, Memory_Annotation_Node, 1);
+            Memory_Annotation_Node *r_node = (Memory_Annotation_Node*)malloc(sizeof(Memory_Annotation_Node));
             sll_queue_push(result.first, result.last, r_node);
             result.count += 1;
             

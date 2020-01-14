@@ -15,8 +15,6 @@ struct Mac_Metal{
 
 function
 mac_render_sig(mac_metal__render){
-    printf("Rendering using Metal!\n");
-    
     Mac_Metal *metal = (Mac_Metal*)renderer;
     [metal->view draw];
 }
@@ -77,8 +75,6 @@ mac_metal__init(NSWindow *window, Render_Target *target){
 // TODO(yuval): This function should be exported to a DLL
 function
 mac_load_renderer_sig(mac_load_metal_renderer){
-    printf("Loding The Metal Renderer!\n");
-    
     Mac_Renderer *renderer = (Mac_Renderer*)mac_metal__init(window, target);
     return(renderer);
 }
