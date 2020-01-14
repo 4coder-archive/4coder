@@ -682,6 +682,19 @@ CUSTOM_DOC("Interactively creates a new file.")
             continue;
         }
         
+        if (character_is_slash(file_name.str[file_name.size - 1])){
+            File_Attributes attribs = system_quick_file_attributes(scratch, full_file_name);
+            if (HasFlag(attribs.flags, FileAttribute_IsDirectory)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            if (query_create_folder(app, file_name)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            break;
+        }
+        
         Buffer_Create_Flag flags = BufferCreate_AlwaysNew;
         Buffer_ID buffer = create_buffer(app, full_file_name, flags);
         if (buffer != 0){
@@ -712,6 +725,19 @@ CUSTOM_DOC("Interactively opens a file.")
         if (result.is_folder){
             set_hot_directory(app, full_file_name);
             continue;
+        }
+        
+        if (character_is_slash(file_name.str[file_name.size - 1])){
+            File_Attributes attribs = system_quick_file_attributes(scratch, full_file_name);
+            if (HasFlag(attribs.flags, FileAttribute_IsDirectory)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            if (query_create_folder(app, file_name)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            break;
         }
         
         Buffer_Create_Flag flags = BufferCreate_NeverNew;
