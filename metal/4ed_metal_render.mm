@@ -223,7 +223,6 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         pipeline_state_descriptor.vertexFunction = vertex_function;
         pipeline_state_descriptor.fragmentFunction = fragment_function;
         pipeline_state_descriptor.vertexDescriptor = vertexDescriptor;
-        pipeline_state_descriptor.sampleCount = mtk_view.sampleCount;
         pipeline_state_descriptor.colorAttachments[0].pixelFormat = mtk_view.colorPixelFormat;
         pipeline_state_descriptor.colorAttachments[0].blendingEnabled = YES;
         pipeline_state_descriptor.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;

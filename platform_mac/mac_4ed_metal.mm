@@ -56,7 +56,6 @@ mac_metal__init(NSWindow *window, Render_Target *target){
     [metal->view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
     [metal->view setPaused:YES];
     [metal->view setEnableSetNeedsDisplay:NO];
-    [metal->view setSampleCount:4];
     
     metal->view.device = MTLCreateSystemDefaultDevice();
     
