@@ -1286,7 +1286,7 @@ main(int arg_count, char **args){
         [mac_vars.window makeKeyAndOrderFront:nil];
         
         // NOTE(yuval): Initialize the renderer
-        renderer = mac_init_renderer(MacRenderer_Metal, mac_vars.window, &target);
+        renderer = mac_init_renderer(MacRenderer_OpenGL, mac_vars.window, &target);
         
         mac_resize(w, h);
         

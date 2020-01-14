@@ -87,8 +87,6 @@ struct Mac_OpenGL{
         NSOpenGLPFAColorSize, 32,
         NSOpenGLPFAAlphaSize, 8,
         NSOpenGLPFADepthSize, 24,
-        NSOpenGLPFASampleBuffers, 1,
-        NSOpenGLPFASamples, 16,
         0
     };
     

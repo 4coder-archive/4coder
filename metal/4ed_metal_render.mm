@@ -326,8 +326,6 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         
         u32 vertex_buffer_size = (all_vertex_count * sizeof(Render_Vertex));
         
-        printf("Vertices to render: %d\n", all_vertex_count);
-        
         // NOTE(yuval): Find & Get a vertex buffer matching the required size
         Metal_Buffer *buffer = [self get_reusable_buffer_with_size:vertex_buffer_size];
         
@@ -340,8 +338,6 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         [render_encoder setVertexBytes:&proj
                 length:sizeof(proj)
                 atIndex:1];
-        
-        u32 group_count = 0;
         
         u32 buffer_offset = 0;
         for (Render_Group *group = _target->group_first;
@@ -409,11 +405,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
                 
                 buffer_offset += (vertex_count * sizeof(Render_Vertex));
             }
-            
-            ++group_count;
         }
-        
-        printf("Group Count: %u\n", group_count);
         
         [render_encoder endEncoding];
         
