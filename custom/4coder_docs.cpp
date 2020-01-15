@@ -195,8 +195,10 @@ CUSTOM_DOC("Prompts the user to select a command then loads a doc buffer for tha
         Scratch_Block scratch(app);
         Doc_Cluster *docs = doc_commands(scratch);
         Doc_Page *page = get_doc_page_from_user(app, docs, "Doc Page:");
-        Buffer_ID buffer = render_doc_page(app, page);
-        view_set_buffer(app, view, buffer, 0);
+        if (page != 0){
+            Buffer_ID buffer = render_doc_page(app, page);
+            view_set_buffer(app, view, buffer, 0);
+        }
     }
 }
 
