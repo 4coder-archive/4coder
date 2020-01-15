@@ -118,8 +118,6 @@
 
 #include "4coder_default_hooks.cpp"
 
-#include "generated/managed_id_metadata.cpp"
-
 #endif
 
 // BOTTOM

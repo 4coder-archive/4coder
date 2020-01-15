@@ -531,8 +531,8 @@ buffer_padded_box_of_pos(Application_Links *app, Buffer_ID buffer_id, f32 width,
         if (face != 0){
             Layout_Function *layout_func = file_get_layout_func(file);
             result = file_padded_box_of_pos(app->tctx, models, file,
-                                              layout_func, width, face,
-                                              base_line, pos);
+                                            layout_func, width, face,
+                                            base_line, pos);
         }
     }
     return(result);
@@ -1706,23 +1706,6 @@ view_set_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id, Se
     return(result);
 }
 
-// TODO(allen): remove this!
-api(custom) function b32
-view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, 
-               ARGB_Color color){
-    Models *models = (Models*)app->cmd_context;
-    View *view = imp_get_view(models, view_id);
-    b32 result = false;
-    if (api_check_view(view)){
-        i64 size = range_size(range);
-        if (size > 0){
-            view_post_paste_effect(view, seconds, (i32)range.start, (i32)size, color);
-            result = true;
-        }
-    }
-    return(result);
-}
-
 api(custom) function b32
 view_push_context(Application_Links *app, View_ID view_id, View_Context *ctx){
     Models *models = (Models*)app->cmd_context;
@@ -2019,7 +2002,7 @@ managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Manage
         }
         else{
 #define M \
-            "ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
+"ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
             print_message(app, string_u8_litexpr(M));
 #undef M
         }
@@ -2418,7 +2401,7 @@ set_global_face(Application_Links *app, Face_ID id)
     b32 result = false;
     Face *face = font_set_face_from_id(&models->font_set, id);
     if (face != 0){
-            models->global_face_id = face->id;
+        models->global_face_id = face->id;
         result = true;
     }
     return(result);
@@ -2861,10 +2844,10 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
         
         Range_i64 visible_line_number_range = Ii64(buffer_point.line_number, line_number);
         Range_i64 visible_range = Ii64(buffer_get_first_pos_from_line_number(buffer, visible_line_number_range.min),
-                                          buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
+                                       buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
         
         i64 item_count = range_size_inclusive(visible_range);
-         ARGB_Color *colors_array = push_array_zero(arena, ARGB_Color, item_count);
+        ARGB_Color *colors_array = push_array_zero(arena, ARGB_Color, item_count);
         result = text_layout_new(&models->text_layouts, arena, buffer_id, buffer_point,
                                  visible_range, visible_line_number_range, rect, colors_array,
                                  layout_func);
@@ -3022,9 +3005,31 @@ paint_text_color(Application_Links *app, Text_Layout_ID layout_id, Range_i64 ran
         range.max = clamp_top(range.max, layout->visible_range.max);
         range.min -= layout->visible_range.min;
         range.max -= layout->visible_range.min;
-         ARGB_Color *color_ptr = layout->item_colors + range.min;
+        ARGB_Color *color_ptr = layout->item_colors + range.min;
         for (i64 i = range.min; i < range.max; i += 1, color_ptr += 1){
             *color_ptr = color;
+        }
+    }
+}
+
+api(custom) function void
+paint_text_color_blend(Application_Links *app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color, f32 blend){
+    Models *models = (Models*)app->cmd_context;
+    Rect_f32 result = {};
+    Text_Layout *layout = text_layout_get(&models->text_layouts, layout_id);
+    if (layout != 0){
+        range.min = clamp_bot(layout->visible_range.min, range.min);
+        range.max = clamp_top(range.max, layout->visible_range.max);
+        range.min -= layout->visible_range.min;
+        range.max -= layout->visible_range.min;
+        Vec4_f32 color_v4f32 = unpack_color(color);
+        Vec4_f32 color_pm_v4f32 = color_v4f32*blend;
+        f32 neg_blend = 1.f - blend;
+        ARGB_Color *color_ptr = layout->item_colors + range.min;
+        for (i64 i = range.min; i < range.max; i += 1, color_ptr += 1){
+            Vec4_f32 color_ptr_v4f32 = unpack_color(*color_ptr);
+            Vec4_f32 blended_v4f32 = color_ptr_v4f32*neg_blend + color_pm_v4f32;
+            *color_ptr = pack_color(blended_v4f32);
         }
     }
 }

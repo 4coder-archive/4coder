@@ -289,7 +289,7 @@ layout_initialize(Arena *arena, Layout *layout){
     Panel *panel = panels;
     layout->free_panels.next = &panel->node;
     panel->node.prev = &layout->free_panels;
-    for (i32 i = 1; i < MAX_VIEWS; i += 1, panel += 1){
+    for (i32 i = 1; i < panel_alloc_count; i += 1, panel += 1){
         panel[1].node.prev = &panel[0].node;
         panel[0].node.next = &panel[1].node;
     }

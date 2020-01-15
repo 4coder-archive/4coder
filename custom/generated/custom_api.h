@@ -90,7 +90,6 @@
 #define custom_view_set_mark_sig() b32 custom_view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek)
 #define custom_view_quit_ui_sig() b32 custom_view_quit_ui(Application_Links* app, View_ID view_id)
 #define custom_view_set_buffer_sig() b32 custom_view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags)
-#define custom_view_post_fade_sig() b32 custom_view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color)
 #define custom_view_push_context_sig() b32 custom_view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx)
 #define custom_view_pop_context_sig() b32 custom_view_pop_context(Application_Links* app, View_ID view_id)
 #define custom_view_alter_context_sig() b32 custom_view_alter_context(Application_Links* app, View_ID view_id, View_Context* ctx)
@@ -168,6 +167,7 @@
 #define custom_text_layout_line_on_screen_sig() Range_f32 custom_text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number)
 #define custom_text_layout_character_on_screen_sig() Rect_f32 custom_text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos)
 #define custom_paint_text_color_sig() void custom_paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color)
+#define custom_paint_text_color_blend_sig() void custom_paint_text_color_blend(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color, f32 blend)
 #define custom_text_layout_free_sig() b32 custom_text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id)
 #define custom_draw_text_layout_sig() void custom_draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color)
 #define custom_open_color_picker_sig() void custom_open_color_picker(Application_Links* app, Color_Picker* picker)
@@ -267,7 +267,6 @@ typedef b32 custom_view_set_buffer_scroll_type(Application_Links* app, View_ID v
 typedef b32 custom_view_set_mark_type(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 typedef b32 custom_view_quit_ui_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_set_buffer_type(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
-typedef b32 custom_view_post_fade_type(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color);
 typedef b32 custom_view_push_context_type(Application_Links* app, View_ID view_id, View_Context* ctx);
 typedef b32 custom_view_pop_context_type(Application_Links* app, View_ID view_id);
 typedef b32 custom_view_alter_context_type(Application_Links* app, View_ID view_id, View_Context* ctx);
@@ -345,6 +344,7 @@ typedef Range_i64 custom_text_layout_get_visible_range_type(Application_Links* a
 typedef Range_f32 custom_text_layout_line_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 typedef Rect_f32 custom_text_layout_character_on_screen_type(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 typedef void custom_paint_text_color_type(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color);
+typedef void custom_paint_text_color_blend_type(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color, f32 blend);
 typedef b32 custom_text_layout_free_type(Application_Links* app, Text_Layout_ID text_layout_id);
 typedef void custom_draw_text_layout_type(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 typedef void custom_open_color_picker_type(Application_Links* app, Color_Picker* picker);
@@ -445,7 +445,6 @@ custom_view_set_buffer_scroll_type *view_set_buffer_scroll;
 custom_view_set_mark_type *view_set_mark;
 custom_view_quit_ui_type *view_quit_ui;
 custom_view_set_buffer_type *view_set_buffer;
-custom_view_post_fade_type *view_post_fade;
 custom_view_push_context_type *view_push_context;
 custom_view_pop_context_type *view_pop_context;
 custom_view_alter_context_type *view_alter_context;
@@ -523,6 +522,7 @@ custom_text_layout_get_visible_range_type *text_layout_get_visible_range;
 custom_text_layout_line_on_screen_type *text_layout_line_on_screen;
 custom_text_layout_character_on_screen_type *text_layout_character_on_screen;
 custom_paint_text_color_type *paint_text_color;
+custom_paint_text_color_blend_type *paint_text_color_blend;
 custom_text_layout_free_type *text_layout_free;
 custom_draw_text_layout_type *draw_text_layout;
 custom_open_color_picker_type *open_color_picker;
@@ -624,7 +624,6 @@ internal b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buf
 internal b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 internal b32 view_quit_ui(Application_Links* app, View_ID view_id);
 internal b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
-internal b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color);
 internal b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);
 internal b32 view_pop_context(Application_Links* app, View_ID view_id);
 internal b32 view_alter_context(Application_Links* app, View_ID view_id, View_Context* ctx);
@@ -702,6 +701,7 @@ internal Range_i64 text_layout_get_visible_range(Application_Links* app, Text_La
 internal Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 internal Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 internal void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color);
+internal void paint_text_color_blend(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color, f32 blend);
 internal b32 text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id);
 internal void draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 internal void open_color_picker(Application_Links* app, Color_Picker* picker);
@@ -803,7 +803,6 @@ global custom_view_set_buffer_scroll_type *view_set_buffer_scroll = 0;
 global custom_view_set_mark_type *view_set_mark = 0;
 global custom_view_quit_ui_type *view_quit_ui = 0;
 global custom_view_set_buffer_type *view_set_buffer = 0;
-global custom_view_post_fade_type *view_post_fade = 0;
 global custom_view_push_context_type *view_push_context = 0;
 global custom_view_pop_context_type *view_pop_context = 0;
 global custom_view_alter_context_type *view_alter_context = 0;
@@ -881,6 +880,7 @@ global custom_text_layout_get_visible_range_type *text_layout_get_visible_range 
 global custom_text_layout_line_on_screen_type *text_layout_line_on_screen = 0;
 global custom_text_layout_character_on_screen_type *text_layout_character_on_screen = 0;
 global custom_paint_text_color_type *paint_text_color = 0;
+global custom_paint_text_color_blend_type *paint_text_color_blend = 0;
 global custom_text_layout_free_type *text_layout_free = 0;
 global custom_draw_text_layout_type *draw_text_layout = 0;
 global custom_open_color_picker_type *open_color_picker = 0;

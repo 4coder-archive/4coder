@@ -90,7 +90,6 @@ api(custom) function b32 view_set_buffer_scroll(Application_Links* app, View_ID 
 api(custom) function b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 api(custom) function b32 view_quit_ui(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_set_buffer(Application_Links* app, View_ID view_id, Buffer_ID buffer_id, Set_Buffer_Flag flags);
-api(custom) function b32 view_post_fade(Application_Links* app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color);
 api(custom) function b32 view_push_context(Application_Links* app, View_ID view_id, View_Context* ctx);
 api(custom) function b32 view_pop_context(Application_Links* app, View_ID view_id);
 api(custom) function b32 view_alter_context(Application_Links* app, View_ID view_id, View_Context* ctx);
@@ -168,6 +167,7 @@ api(custom) function Range_i64 text_layout_get_visible_range(Application_Links* 
 api(custom) function Range_f32 text_layout_line_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 line_number);
 api(custom) function Rect_f32 text_layout_character_on_screen(Application_Links* app, Text_Layout_ID layout_id, i64 pos);
 api(custom) function void paint_text_color(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color);
+api(custom) function void paint_text_color_blend(Application_Links* app, Text_Layout_ID layout_id, Range_i64 range, ARGB_Color color, f32 blend);
 api(custom) function b32 text_layout_free(Application_Links* app, Text_Layout_ID text_layout_id);
 api(custom) function void draw_text_layout(Application_Links* app, Text_Layout_ID layout_id, ARGB_Color special_color, ARGB_Color ghost_color);
 api(custom) function void open_color_picker(Application_Links* app, Color_Picker* picker);

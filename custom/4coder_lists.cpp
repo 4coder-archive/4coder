@@ -710,8 +710,7 @@ CUSTOM_DOC("Interactively opens a file.")
     for (;;){
         Scratch_Block scratch(app);
         View_ID view = get_this_ctx_view(app, Access_Always);
-        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:",
-                                                          view);
+        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:", view);
         if (result.canceled) break;
         
         String_Const_u8 file_name = result.file_name_activated;

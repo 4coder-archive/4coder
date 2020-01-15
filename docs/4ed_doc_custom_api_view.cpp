@@ -915,13 +915,6 @@ doc_custom_api__view(Arena *arena, API_Definition *api_def, Doc_Cluster *cluster
     
     ////////////////////////////////
     
-    // TODO(allen): remove view_post_fade
-    if (begin_doc_call(arena, cluster, api_def, "view_post_fade", &func)){
-        doc_function_brief(arena, &func, "Plans to deprecate - do not rely on this call!");
-    }
-    
-    ////////////////////////////////
-    
     if (begin_doc_call(arena, cluster, api_def, "view_push_context", &func)){
         doc_function_brief(arena, &func, "Push a view's stack of context details with a pointer to the new values for the context");
         

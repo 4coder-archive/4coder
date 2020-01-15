@@ -111,16 +111,13 @@ draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 ra
         }
         draw_rectangle(app, Rf32(x, y), roundness, color);
     }
-    for (i64 i = range.first; i < range.one_past_last; i += 1){
-        draw_character_block(app, layout, i, roundness, color);
-    }
 }
 
 function void
 draw_character_block(Application_Links *app, Text_Layout_ID layout, Range_i64 range, f32 roundness, FColor color){
     ARGB_Color argb = fcolor_resolve(color);
     draw_character_block(app, layout, range, roundness, argb);
-    }
+}
 
 function void
 draw_character_wire_frame(Application_Links *app, Text_Layout_ID layout, i64 pos, f32 roundness, f32 thickness, ARGB_Color color){
@@ -428,7 +425,7 @@ draw_fps_hud(Application_Links *app, Frame_Info frame_info,
 
 function FColor
 get_token_color_cpp(Token token){
-     Managed_ID color = defcolor_text_default;
+    Managed_ID color = defcolor_text_default;
     switch (token.kind){
         case TokenBaseKind_Preprocessor:
         {
@@ -699,7 +696,7 @@ draw_highlight_range(Application_Links *app, View_ID view_id,
                 draw_character_block(app, text_layout_id, range, roundness,
                                      fcolor_id(defcolor_highlight));
                 paint_text_color_fcolor(app, text_layout_id, range,
-                                 fcolor_id(defcolor_at_highlight));
+                                        fcolor_id(defcolor_at_highlight));
             }
         }
     }
@@ -755,10 +752,8 @@ draw_notepad_style_cursor_highlight(Application_Links *app, View_ID view_id,
         i64 mark_pos = view_get_mark_pos(app, view_id);
         if (cursor_pos != mark_pos){
             Range_i64 range = Ii64(cursor_pos, mark_pos);
-            draw_character_block(app, text_layout_id, range, roundness, 
-                                 fcolor_id(defcolor_highlight));
-            paint_text_color_fcolor(app, text_layout_id, range,
-                             fcolor_id(defcolor_at_highlight));
+            draw_character_block(app, text_layout_id, range, roundness, fcolor_id(defcolor_highlight));
+            paint_text_color_fcolor(app, text_layout_id, range, fcolor_id(defcolor_at_highlight));
         }
         draw_character_i_bar(app, text_layout_id, cursor_pos, fcolor_id(defcolor_cursor, cursor_sub_id));
     }
