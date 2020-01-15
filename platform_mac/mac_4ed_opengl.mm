@@ -59,7 +59,6 @@ struct Mac_OpenGL{
     
     // NOTE(yuval): Setup vsync
     GLint swap_int = 1;
-    printf("Using vsync: %d\n", swap_int);
     [[self openGLContext] setValues:&swap_int forParameter:NSOpenGLCPSwapInterval];
 }
 
@@ -125,7 +124,9 @@ struct Mac_OpenGL{
 
 function
 mac_render_sig(mac_gl__render){
-    printf("Rendering using OpenGL!\n");
+#if defined(FRED_INTERNAL)
+    printf("Redering using OpenGL!\n");
+#endif
     
     Mac_OpenGL *gl = (Mac_OpenGL*)renderer;
     [gl->view render:target];
@@ -177,8 +178,6 @@ mac_gl__init(NSWindow *window, Render_Target *target){
 // TODO(yuval): This function should be exported to a DLL
 function
 mac_load_renderer_sig(mac_load_opengl_renderer){
-    printf("Loding The OpenGL Renderer!\n");
-    
     Mac_Renderer *renderer = (Mac_Renderer*)mac_gl__init(window, target);
     return(renderer);
 }

@@ -15,6 +15,10 @@ struct Mac_Metal{
 
 function
 mac_render_sig(mac_metal__render){
+#if defined(FRED_INTERNAL)
+    printf("Redering using Metal!\n");
+#endif
+    
     Mac_Metal *metal = (Mac_Metal*)renderer;
     [metal->view draw];
 }
