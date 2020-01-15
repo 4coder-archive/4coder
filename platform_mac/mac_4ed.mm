@@ -624,8 +624,7 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)viewDidChangeBackingProperties{
-    // TODO(yuval): Screen scale factor calculation
-    printf("Backing changed!\n");
+    // TODO(yuval): If the screen scale factor changed, modify the current face to use the new screen scale factor.
     mac_resize(mac_vars.window);
 }
 
@@ -722,7 +721,6 @@ mac_toggle_fullscreen(void){
         // NOTE(yuval): Quit the app if requested by the application core
         MacProfileScope("Perform Kill"){
             if (result.perform_kill){
-                printf("Terminating 4coder!\n");
                 [NSApp terminate:nil];
             }
         }
@@ -993,7 +991,6 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)request_display{
-    //printf("Display Requested!\n");
     CGRect cg_rect = CGRectMake(0, 0, mac_vars.width, mac_vars.height);
     NSRect rect = NSRectFromCGRect(cg_rect);
     [self setNeedsDisplayInRect:rect];
@@ -1358,25 +1355,6 @@ main(int arg_count, char **args){
         mac_vars.timer_start = system_now_time();
         
         // NOTE(yuval): Start the app's run loop
-#if 1
-        printf("Running using NSApp run\n");
         [NSApp run];
-#else
-        printf("Running using manual event loop\n");
-        
-        for (;;) {
-            u64 count = 0;
-            
-            NSEvent* event;
-            do {
-                event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                        untilDate:[NSDate distantFuture]
-                        inMode:NSDefaultRunLoopMode
-                        dequeue:YES];
-                
-                [NSApp sendEvent:event];
-            } while (event != nil);
-        }
-#endif
     }
 }
