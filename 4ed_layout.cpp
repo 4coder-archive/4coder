@@ -124,6 +124,16 @@ layout_get_first_open_panel(Layout *layout){
 }
 
 internal Panel*
+layout_get_last_open_panel(Layout *layout){
+    Panel *panel = CastFromMember(Panel, node, layout->open_panels.prev);
+    if (panel != 0 && &panel->node == &layout->open_panels){
+        panel = 0;
+    }
+    AssertImplies(panel != 0, panel->kind == PanelKind_Final);
+    return(panel);
+}
+
+internal Panel*
 layout_get_next_open_panel(Layout *layout, Panel *panel){
     panel = CastFromMember(Panel, node, panel->node.next);
     if (&panel->node == &layout->open_panels){

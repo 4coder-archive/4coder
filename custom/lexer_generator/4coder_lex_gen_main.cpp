@@ -3181,7 +3181,7 @@ gen_keyword_table(Arena *scratch, Token_Kind_Set tokens, Keyword_Set keywords, F
     Temp_Memory temp = begin_temp(scratch);
     Keyword_Layout key_layout = opt_key_layout(scratch, keywords);
     
-    fprintf(out, "u64 %.*s_hash_array[%d] = {\n",
+    fprintf(out, "u64 " LANG_NAME_LOWER_STR "_%.*s_hash_array[%d] = {\n",
             string_expand(keywords.pretty_name), key_layout.slot_count);
     for (i32 i = 0; i < key_layout.slot_count; i += 1){
         if (key_layout.slots[i] == 0){
@@ -3198,7 +3198,7 @@ gen_keyword_table(Arena *scratch, Token_Kind_Set tokens, Keyword_Set keywords, F
     
     for (i32 i = 0; i < key_layout.slot_count; i += 1){
         if (key_layout.slots[i] != 0){
-            fprintf(out, "u8 %.*s_key_array_%d[] = {",
+            fprintf(out, "u8 " LANG_NAME_LOWER_STR "_%.*s_key_array_%d[] = {",
                     string_expand(keywords.pretty_name), i);
             String_Const_u8 lexeme = key_layout.slots[i]->lexeme;
             for (u64 j = 0; j < lexeme.size; j += 1){
@@ -3208,20 +3208,20 @@ gen_keyword_table(Arena *scratch, Token_Kind_Set tokens, Keyword_Set keywords, F
         }
     }
     
-    fprintf(out, "String_Const_u8 %.*s_key_array[%d] = {\n",
+    fprintf(out, "String_Const_u8 " LANG_NAME_LOWER_STR "_%.*s_key_array[%d] = {\n",
             string_expand(keywords.pretty_name), key_layout.slot_count);
     for (i32 i = 0; i < key_layout.slot_count; i += 1){
         if (key_layout.slots[i] == 0){
             fprintf(out, "{0, 0},\n");
         }
         else{
-            fprintf(out, "{%.*s_key_array_%d, %llu},\n",
+            fprintf(out, "{" LANG_NAME_LOWER_STR "_%.*s_key_array_%d, %llu},\n",
                     string_expand(keywords.pretty_name), i, key_layout.slots[i]->lexeme.size);
         }
     }
     fprintf(out, "};\n");
     
-    fprintf(out, "Lexeme_Table_Value %.*s_value_array[%d] = {\n",
+    fprintf(out, "Lexeme_Table_Value " LANG_NAME_LOWER_STR "_%.*s_value_array[%d] = {\n",
             string_expand(keywords.pretty_name), key_layout.slot_count);
     for (i32 i = 0; i < key_layout.slot_count; i += 1){
         if (key_layout.slots[i] == 0){
@@ -3245,9 +3245,9 @@ gen_keyword_table(Arena *scratch, Token_Kind_Set tokens, Keyword_Set keywords, F
     }
     fprintf(out, "};\n");
     
-    fprintf(out, "i32 %.*s_slot_count = %d;\n",
+    fprintf(out, "i32 " LANG_NAME_LOWER_STR "_%.*s_slot_count = %d;\n",
             string_expand(keywords.pretty_name), key_layout.slot_count);
-    fprintf(out, "u64 %.*s_seed = 0x%016llx;\n",
+    fprintf(out, "u64 " LANG_NAME_LOWER_STR "_%.*s_seed = 0x%016llx;\n",
             string_expand(keywords.pretty_name), key_layout.seed);
     
     end_temp(temp);
@@ -3453,8 +3453,12 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                         {
                             Keyword_Set *keywords = handler->keywords;
                             fprintf(out, "Lexeme_Table_Lookup lookup = "
-                                    "lexeme_table_lookup(%.*s_hash_array, %.*s_key_array, "
-                                    "%.*s_value_array, %.*s_slot_count, %.*s_seed, "
+                                    "lexeme_table_lookup("
+                                    LANG_NAME_LOWER_STR "_%.*s_hash_array, "
+                                    LANG_NAME_LOWER_STR "_%.*s_key_array, "
+                                    LANG_NAME_LOWER_STR "_%.*s_value_array, "
+                                    LANG_NAME_LOWER_STR "_%.*s_slot_count, "
+                                    LANG_NAME_LOWER_STR "_%.*s_seed, "
                                     "state.emit_ptr, token.size);\n",
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),
@@ -3477,8 +3481,12 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                         {
                             Keyword_Set *keywords = handler->keywords;
                             fprintf(out, "Lexeme_Table_Lookup lookup = "
-                                    "lexeme_table_lookup(%.*s_hash_array, %.*s_key_array, "
-                                    "%.*s_value_array, %.*s_slot_count, %.*s_seed, "
+                                    "lexeme_table_lookup("
+                                    LANG_NAME_LOWER_STR "_%.*s_hash_array, "
+                                    LANG_NAME_LOWER_STR "_%.*s_key_array, "
+                                    LANG_NAME_LOWER_STR "_%.*s_value_array, "
+                                    LANG_NAME_LOWER_STR "_%.*s_slot_count, "
+                                    LANG_NAME_LOWER_STR "_%.*s_seed, "
                                     "state.delim_first, (state.delim_one_past_last - state.delim_first));\n",
                                     string_expand(keywords->pretty_name),
                                     string_expand(keywords->pretty_name),

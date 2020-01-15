@@ -1108,7 +1108,7 @@ get_view_prev__inner(Layout *layout, View *view){
         }
     }
     else{
-        Panel *panel = layout_get_first_open_panel(layout);
+        Panel *panel = layout_get_last_open_panel(layout);
         view = panel->view;
     }
     return(view);
