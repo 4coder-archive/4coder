@@ -387,6 +387,7 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_Space] = KeyCode_Space;
     keycode_lookup_table[kVK_ANSI_Grave] = KeyCode_Tick;
     keycode_lookup_table[kVK_ANSI_Minus] = KeyCode_Minus;
+    keycode_lookup_table[kVK_ANSI_Equal] = KeyCode_Equal;
     keycode_lookup_table[kVK_ANSI_LeftBracket] = KeyCode_LeftBracket;
     keycode_lookup_table[kVK_ANSI_RightBracket] = KeyCode_RightBracket;
     keycode_lookup_table[kVK_ANSI_Semicolon] = KeyCode_Semicolon;
