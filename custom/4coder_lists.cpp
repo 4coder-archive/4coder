@@ -397,7 +397,7 @@ get_file_name_from_user(Application_Links *app, Arena *arena, String_Const_u8 qu
         result.file_name_in_text_field = string_front_of_path(l_result.text_field);
         
         String_Const_u8 path = {};
-        if (!result.is_folder && result.file_name_in_text_field.size == 0 && l_result.text_field.size > 0){
+        if (l_result.user_data == 0 && result.file_name_in_text_field.size == 0 && l_result.text_field.size > 0){
             result.file_name_in_text_field = string_front_folder_of_path(l_result.text_field);
             path = string_remove_front_folder_of_path(l_result.text_field);
         }
