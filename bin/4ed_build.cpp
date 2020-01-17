@@ -69,11 +69,8 @@ char *compiler_names[] = {
 # define This_Compiler Compiler_CL
 #elif COMPILER_GCC
 # define This_Compiler Compiler_GCC
-<<<<<<< HEAD
-=======
 #elif COMPILER_CLANG
 # define This_Compiler Compiler_Clang
->>>>>>> yuval_macos_platform_layer
 #else
 # error This compilers is not enumerated.
 #endif
@@ -306,29 +303,6 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
 #define GCC_LIBS_X64 GCC_LIBS_COMMON
 #define GCC_LIBS_X86 GCC_LIBS_COMMON
 
-<<<<<<< HEAD
-#elif OS_MAC
-
-# define GCC_OPTS                                   \
-"-Wno-write-strings -Wno-deprecated-declarations "  \
-"-Wno-comment -Wno-switch -Wno-null-dereference "   \
-"-Wno-tautological-compare "                        \
-"-Wno-unused-result "
-
-#define GCC_LIBS_COMMON \
-"-framework Cocoa -framework QuartzCore " \
-"-framework CoreServices " \
-"-framework OpenGL -framework IOKit "
-
-#define GCC_LIBS_X64 GCC_LIBS_COMMON \
-FOREIGN "/x64/libfreetype-mac.a"
-
-#define GCC_LIBS_X86 GCC_LIBS_COMMON \
-FOREIGN "/x86/libfreetype-mac.a"
-
-#else
-# error gcc options not set for this platform
-=======
 #else
 # error gcc options not set for this platform
 #endif
@@ -427,7 +401,6 @@ FOREIGN "/x86/libfreetype-mac.a"
 
 #else
 # error clang options not set for this platform
->>>>>>> yuval_macos_platform_layer
 #endif
 
 internal void
@@ -448,11 +421,7 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     }
     
     if (flags & OPTS){
-        <<<<<<< HEAD
-            fm_add_to_line(line, GCC_OPTS);
-        =======
-            fm_add_to_line(line, CLANG_OPTS);
-        >>>>>>> yuval_macos_platform_layer
+        fm_add_to_line(line, CLANG_OPTS);
     }
     
     fm_add_to_line(line, "-I%s", code_path);
@@ -489,32 +458,21 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     
     if (flags & LIBS){
         if (arch == Arch_X64){
-            <<<<<<< HEAD
-                fm_add_to_line(line, GCC_LIBS_X64);
-        }
-        else if (arch == Arch_X86)
-        {
-            fm_add_to_line(line, GCC_LIBS_X86);
-            =======
-                fm_add_to_line(line, CLANG_LIBS_X64);
+            fm_add_to_line(line, CLANG_LIBS_X64);
         }
         else if (arch == Arch_X86)
         {
             fm_add_to_line(line, CLANG_LIBS_X86);
-            >>>>>>> yuval_macos_platform_layer
         }
     }
     
     fm_finish_build_line(&line);
     
     Temp_Dir temp = fm_pushdir(out_path);
-    <<<<<<< HEAD
-        systemf("g++ %s -o %s", line.build_options, out_file);
-    =======
-        // systemf("clang++ %s -E -o %s", line.build_options, "4ed.i");
-        systemf("clang++ %s -o %s", line.build_options, out_file);
-    >>>>>>> yuval_macos_platform_layer
-        fm_popdir(temp);
+    
+    // systemf("clang++ %s -E -o %s", line.build_options, "4ed.i");
+    systemf("clang++ %s -o %s", line.build_options, out_file);
+    fm_popdir(temp);
 }
 
 #else
