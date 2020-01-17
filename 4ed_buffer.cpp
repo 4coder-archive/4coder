@@ -658,7 +658,7 @@ buffer_get_pos_range_from_line_number(Gap_Buffer *buffer, i64 line_number){
 
 internal i64
 buffer_get_first_pos_from_line_number(Gap_Buffer *buffer, i64 line_number){
-    i64 result = {};
+    i64 result = 0;
     if (line_number < 1){
         result = 0;
     }
@@ -673,7 +673,7 @@ buffer_get_first_pos_from_line_number(Gap_Buffer *buffer, i64 line_number){
 
 internal i64
 buffer_get_last_pos_from_line_number(Gap_Buffer *buffer, i64 line_number){
-    i64 result = {};
+    i64 result = 0;
     if (line_number < 1){
         result = 0;
     }

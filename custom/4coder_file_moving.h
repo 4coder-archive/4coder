@@ -115,7 +115,7 @@ internal void fm__swap_ptr(char **A, char **B);
     fm__swap_ptr(&line.build_options, &line.build_options_prev); \
 }while(0)
 
-#elif COMPILER_GCC
+#elif COMPILER_GCC | COMPILER_CLANG
 
 #define fm_add_to_line(line, str, ...) do{                   \
     snprintf(line.build_options, line.build_max, "%s " str,  \
@@ -259,9 +259,9 @@ extern "C"{
 #define OPEN_ALWAYS                      4
 #define TRUNCATE_EXISTING                5
 
-#define FILE_ATTRIBUTE_READONLY          0x00000001  
-#define FILE_ATTRIBUTE_NORMAL            0x00000080  
-#define FILE_ATTRIBUTE_TEMPORARY         0x00000100 
+#define FILE_ATTRIBUTE_READONLY          0x00000001
+#define FILE_ATTRIBUTE_NORMAL            0x00000080
+#define FILE_ATTRIBUTE_TEMPORARY         0x00000100
 
 global u64 perf_frequency;
 
@@ -370,9 +370,9 @@ fm_copy_file(char *file, char *newname){
 
 internal void
 fm_copy_all(char *source, char *folder){
-        fprintf(stdout, "copy %s to %s\n", source, folder);
-        fflush(stdout);
-        systemf("xcopy /s /e /y /q %s %s > nul", source, folder);
+    fprintf(stdout, "copy %s to %s\n", source, folder);
+    fflush(stdout);
+    systemf("xcopy /s /e /y /q %s %s > nul", source, folder);
 }
 
 internal void

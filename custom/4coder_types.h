@@ -54,7 +54,7 @@ struct Color_Array{
 
 api(custom)
 struct Color_Table{
-     Color_Array *arrays;
+    Color_Array *arrays;
     u32 count;
 };
 
@@ -742,7 +742,7 @@ struct View_Context{
     u64 delta_rule_memory_size;
     b32 hides_buffer;
     struct Mapping *mapping;
-     i64 map_id;
+    i64 map_id;
 };
 
 api(custom)
@@ -778,4 +778,3 @@ struct Process_State{
 };
 
 #endif
-

@@ -9,8 +9,6 @@
 
 // TOP
 
-#include "4ed_opengl_defines.h"
-
 internal void
 gl__bind_texture(Render_Target *t, i32 texid){
     if (t->bound_texture != texid){
@@ -225,11 +223,16 @@ gl_render(Render_Target *t){
 #if !SHIP_MODE
         glEnable(GL_DEBUG_OUTPUT);
         glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, 0, false);
-        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_LOW, 0, 0, false);
-        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_MEDIUM, 0, 0, true);
-        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0, 0, true);
-        glDebugMessageCallback(gl__error_callback, 0);
+        if (glDebugMessageControl){
+            glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, 0, false);
+            glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_LOW, 0, 0, false);
+            glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_MEDIUM, 0, 0, true);
+            glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0, 0, true);
+        }
+        
+        if (glDebugMessageCallback){
+            glDebugMessageCallback(gl__error_callback, 0);
+        }
 #endif
         
         ////////////////////////////////
@@ -256,7 +259,7 @@ gl_render(Render_Target *t){
         
         ////////////////////////////////
         
-        {        
+        {
             t->fallback_texture_id = gl__get_texture(V3i32(2, 2, 1), TextureKind_Mono);
             u8 white_block[] = { 0xFF, 0xFF, 0xFF, 0xFF, };
             gl__fill_texture(TextureKind_Mono, 0, V3i32(0, 0, 0), V3i32(2, 2, 1), white_block);
@@ -282,6 +285,7 @@ gl_render(Render_Target *t){
     t->free_texture_first = 0;
     t->free_texture_last = 0;
     
+    u64 begin_draw = system_now_time();
     for (Render_Group *group = t->group_first;
          group != 0;
          group = group->next){

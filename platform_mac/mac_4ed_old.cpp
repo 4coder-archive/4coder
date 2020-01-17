@@ -782,7 +782,7 @@ osx_init(){
     osxvars.input.first_step = true;
     
     //
-    // HACK(allen): 
+    // HACK(allen):
     // Previously zipped stuff is here, it should be zipped in the new pattern now.
     //
     

@@ -64,7 +64,7 @@ Sys_Memory_Allocate_Sig(system_memory_allocate){
     return(result);
 }
 
-internal 
+internal
 Sys_Memory_Set_Protection_Sig(system_memory_set_protection){
     bool32 result = true;
     

@@ -335,7 +335,7 @@ system_set_fullscreen_sig(){
 
 internal
 system_is_fullscreen_sig(){
-    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the 
+    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the
     // next frame. That is, take into account all fullscreen toggle requests that have come in
     // already this frame. Read: "full_screen XOR do_toggle"
     b32 result = (win32vars.full_screen != win32vars.do_toggle);
@@ -605,6 +605,9 @@ os_popup_error(char *title, char *message){
 #include "4ed_font_provider_freetype.cpp"
 
 #include <GL/gl.h>
+#include "opengl/4ed_opengl_defines.h"
+#define GL_FUNC(N,R,P) typedef R (CALL_CONVENTION N##_Function)P; N##_Function *N = 0;
+#include "opengl/4ed_opengl_funcs.h"
 #include "opengl/4ed_opengl_render.cpp"
 
 internal

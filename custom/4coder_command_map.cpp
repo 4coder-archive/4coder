@@ -425,21 +425,21 @@ function Command_Trigger_List
 map_get_triggers_recursive(Arena *arena, Mapping *mapping, Command_Map *map, Command_Binding binding){
     Command_Trigger_List result = {};
     if (mapping != 0){
-    for (i32 safety_counter = 0;
-         map != 0 && safety_counter < 40;
-         safety_counter += 1){
-        Command_Trigger_List list = map_get_triggers_non_recursive(mapping, map, binding);
-        
-        for (Command_Trigger *node = list.first, *next = 0;
-             node != 0;
-             node = next){
-            next = node->next;
-            Command_Trigger *nnode = push_array_write(arena, Command_Trigger, 1, node);
-            sll_queue_push(result.first, result.last, nnode);
+        for (i32 safety_counter = 0;
+             map != 0 && safety_counter < 40;
+             safety_counter += 1){
+            Command_Trigger_List list = map_get_triggers_non_recursive(mapping, map, binding);
+            
+            for (Command_Trigger *node = list.first, *next = 0;
+                 node != 0;
+                 node = next){
+                next = node->next;
+                Command_Trigger *nnode = push_array_write(arena, Command_Trigger, 1, node);
+                sll_queue_push(result.first, result.last, nnode);
+            }
+            
+            map = mapping_get_map(mapping, map->parent);
         }
-        
-        map = mapping_get_map(mapping, map->parent);
-    }
     }
     return(result);
 }
@@ -721,7 +721,7 @@ map_set_binding_l(Mapping *mapping, Command_Map *map, Custom_Command_Function *c
     va_start(args, code2);
     Command_Binding binding = {};
     binding.custom = custom;
-        map_set_binding_lv(mapping, map, binding, code1, code2, args);
+    map_set_binding_lv(mapping, map, binding, code1, code2, args);
     va_end(args);
 }
 #endif
@@ -755,7 +755,7 @@ map_set_binding_l(m, map, BindFWrap_(F), InputEventKind_MouseMove, 0, __VA_ARGS_
 #define BindCore(F, K, ...) \
 map_set_binding_l(m, map, BindFWrap_(F), InputEventKind_Core, (K), __VA_ARGS__, 0)
 
-#elif COMPILER_GCC
+#elif COMPILER_GCC | COMPILER_CLANG
 
 #define Bind(F, K, ...) \
 map_set_binding_l(m, map, BindFWrap_(F), InputEventKind_KeyStroke, (K), ##__VA_ARGS__, 0)

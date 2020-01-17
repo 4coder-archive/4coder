@@ -1727,7 +1727,7 @@ Ii32_size(i32 pos, i32 size){
 function Range_i64
 Ii64_size(i64 pos, i64 size){
     return(Ii64(pos, pos + size));
-} 
+}
 function Range_u64
 Iu64_size(u64 pos, u64 size){
     return(Iu64(pos, pos + size));
@@ -6967,10 +6967,10 @@ global_const u8 integer_symbol_reverse[128] = {
 
 global_const u8 base64[64] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
     '_', '$',
 };
 
@@ -6987,7 +6987,7 @@ global_const u8 base64_reverse[128] = {
 
 function u64
 digit_count_from_integer(u64 x, u32 radix){
-    u64 result = {};
+    u64 result = 0;
     if (radix >= 2 && radix <= 16){
         if (x == 0){
             result = 1;

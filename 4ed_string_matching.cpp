@@ -125,7 +125,7 @@ find_all_matches_forward(Arena *arena, i32 maximum_output_count,
                 jump_back_0:
                 
                 if (n + 1 == needle.size){
-                    String_Match_Flag flags = {};
+                    String_Match_Flag flags = 0;
                     if (!(last_insensitive >= 0 &&
                           j <= (u64)last_insensitive &&
                           (u64)last_insensitive < j + needle.size)){
@@ -245,7 +245,7 @@ find_all_matches_backward(Arena *arena, i32 maximum_output_count,
                 jump_back_0:
                 
                 if (n + 1 == needle.size){
-                    String_Match_Flag flags = {};
+                    String_Match_Flag flags = 0;
                     if (!(last_insensitive < size &&
                           j >= last_insensitive &&
                           last_insensitive > j - (i64)needle.size)){

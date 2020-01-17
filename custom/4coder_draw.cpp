@@ -40,7 +40,7 @@ draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec
 function Vec2_f32
 draw_string(Application_Links *app, Face_ID font_id, String_Const_u8 string, Vec2_f32 p, FColor color){
     ARGB_Color argb = fcolor_resolve(color);
-    draw_string(app, font_id, string, p, argb);
+    return(draw_string(app, font_id, string, p, argb));
 }
 
 function void
@@ -356,7 +356,7 @@ draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffe
         Vec2_f32 p = V2f32(margin.x0, line_y.min);
         Temp_Memory_Block temp(scratch);
         Fancy_String *string = push_fancy_stringf(scratch, 0, line_color,
-                                                  "%*lld", 
+                                                  "%*lld",
                                                   line_count_digit_count,
                                                   line_number);
         draw_fancy_string(app, face_id, fcolor_zero(), string, p);
@@ -719,6 +719,7 @@ draw_original_4coder_style_cursor_mark_highlight(Application_Links *app, View_ID
     b32 has_highlight_range = draw_highlight_range(app, view_id, buffer, text_layout_id, roundness);
     if (!has_highlight_range){
         i32 cursor_sub_id = default_cursor_sub_id();
+        
         i64 cursor_pos = view_get_cursor_pos(app, view_id);
         i64 mark_pos = view_get_mark_pos(app, view_id);
         if (is_active_view){
