@@ -952,9 +952,11 @@ mac_toggle_fullscreen(void){
     float dx = event.scrollingDeltaX;
     float dy = event.scrollingDeltaY;
     
-    i8 scroll_speed = 100;
+    i8 scroll_speed = 0;
     if (dy > 0){
-        scroll_speed *= -1;
+        scroll_speed = -100;
+    } else if (dy < 0){
+        scroll_speed = 100;
     }
     mac_vars.input_chunk.trans.mouse_wheel = scroll_speed;
     

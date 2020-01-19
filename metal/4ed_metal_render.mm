@@ -310,12 +310,22 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
 #endif
     
     // HACK(yuval): This is the best way I found to force valid width and height without drawing on the next draw cycle (1 frame delay).
-    
     CGSize drawable_size = [view drawableSize];
     i32 width = (i32)Min(_target->width, drawable_size.width);
     i32 height = (i32)Min(_target->height, drawable_size.height);
     
     Font_Set *font_set = (Font_Set*)_target->font_set;
+    
+    // TODO(yuval): Free any textures in the target's texture free list
+#if 0
+    for (Render_Free_Texture *free_texture = _target->free_texture_first;
+         free_texture;
+         free_texture = free_texture->next){
+        /*sll_queue_push(texture_slots.first_free_slot, texture_slots.last_free_slot, free_texture)*/
+    }
+    _target->free_texture_first = 0;
+    _taget->free_texture_last = 0;
+#endif
     
     // NOTE(yuval): Create the command buffer
     id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
