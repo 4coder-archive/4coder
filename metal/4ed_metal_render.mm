@@ -465,6 +465,9 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     
     // NOTE(yuval): Check for a free texture slot and allocate another slot bucket if no free slot has been found
     if (!texture_slots.first_free_slot){
+        // NOTE(yuval): Assert that the next bucket's index can fit in a u16
+        Assert(texture_slots.bucket_count < ((u16)-1));
+        
         Metal_Texture_Slot_Bucket *bucket =
             (Metal_Texture_Slot_Bucket*)system_memory_allocate(sizeof(Metal_Texture_Slot_Bucket) + (sizeof(Metal_Texture_Slot_Locator_Node) * metal__texture_slots_per_bucket), file_name_line_number_lit_u8);
         
@@ -480,7 +483,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         }
         
         sll_queue_push(texture_slots.first_bucket, texture_slots.last_bucket, bucket);
-        ++texture_slots.bucket_count;
+        texture_slots.bucket_count += 1;
     }
     Assert(texture_slots.first_free_slot);
     

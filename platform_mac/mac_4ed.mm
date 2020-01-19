@@ -583,8 +583,8 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)windowDidResize:(NSNotification*)notification{
-    printf("Resize!\n");
     mac_resize(mac_vars.window);
+    [mac_vars.view display];
 }
 
 - (void)windowDidMiniaturize:(NSNotification*)notification{
@@ -630,8 +630,7 @@ mac_toggle_fullscreen(void){
     mac_resize(mac_vars.window);
 }
 
-- (BOOL)wantsUpdateLayer
-{
+- (BOOL)wantsUpdateLayer{
     return YES;
 }
 
