@@ -29,12 +29,12 @@ system_get_path_sig(){
         {
             local_persist b32 has_stashed_4ed_path = false;
             if (!has_stashed_4ed_path){
-                local_const i32 binary_path_capacity = KB(32);
+                local_const u32 binary_path_capacity = PATH_MAX;
                 u8 *memory = (u8*)system_memory_allocate(binary_path_capacity, file_name_line_number_lit_u8);
                 
                 pid_t pid = getpid();
                 i32 size = proc_pidpath(pid, memory, binary_path_capacity);
-                Assert(size <= binary_path_capacity - 1);
+                Assert(size < binary_path_capacity);
                 
                 mac_vars.binary_path = SCu8(memory, size);
                 mac_vars.binary_path = string_remove_last_folder(mac_vars.binary_path);
@@ -742,6 +742,7 @@ function void*
 mac_memory_allocate_extended(void *base, u64 size, String_Const_u8 location){
     u64 adjusted_size = size + ALLOCATION_SIZE_ADJUSTMENT;
     void *memory = mmap(base, adjusted_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    Assert(memory != MAP_FAILED);
     
     Memory_Annotation_Tracker_Node *node = (Memory_Annotation_Tracker_Node*)memory;
     
