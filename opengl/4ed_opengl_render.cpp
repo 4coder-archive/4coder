@@ -285,12 +285,11 @@ gl_render(Render_Target *t){
     t->free_texture_first = 0;
     t->free_texture_last = 0;
     
-    u64 begin_draw = system_now_time();
     for (Render_Group *group = t->group_first;
          group != 0;
          group = group->next){
         Rect_i32 box = Ri32(group->clip_box);
-
+        
 		Rect_i32 scissor_box = {
 			box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0,
 		};

@@ -67,6 +67,7 @@
 #include <sys/mman.h> // NOTE(yuval): Used for mmap, munmap, mprotect
 #include <sys/stat.h> // NOTE(yuval): Used for stat
 #include <sys/types.h> // NOTE(yuval): Used for struct stat, pid_t
+#include <sys/syslimits.h> // NOTE(yuval): Used for PATH_MAX
 
 #include <stdlib.h> // NOTE(yuval): Used for free
 
@@ -293,6 +294,15 @@ function inline Mac_Object*
 mac_to_object(Plat_Handle handle){
     Mac_Object *result = *(Mac_Object**)(&handle);
     return(result);
+}
+
+////////////////////////////////
+
+function void
+mac_init_recursive_mutex(pthread_mutex_t *mutex){
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(mutex, &attr);
 }
 
 ////////////////////////////////
@@ -584,6 +594,7 @@ mac_toggle_fullscreen(void){
 
 - (void)windowDidResize:(NSNotification*)notification{
     mac_resize(mac_vars.window);
+    [mac_vars.view display];
 }
 
 - (void)windowDidMiniaturize:(NSNotification*)notification{
@@ -629,8 +640,7 @@ mac_toggle_fullscreen(void){
     mac_resize(mac_vars.window);
 }
 
-- (BOOL)wantsUpdateLayer
-{
+- (BOOL)wantsUpdateLayer{
     return YES;
 }
 
@@ -952,11 +962,13 @@ mac_toggle_fullscreen(void){
     float dx = event.scrollingDeltaX;
     float dy = event.scrollingDeltaY;
     
-    i8 scroll_speed = 100;
+    i8 wheel_delta = 0;
     if (dy > 0){
-        scroll_speed *= -1;
+        wheel_delta = -100;
+    } else if (dy < 0){
+        wheel_delta = 100;
     }
-    mac_vars.input_chunk.trans.mouse_wheel = scroll_speed;
+    mac_vars.input_chunk.trans.mouse_wheel = wheel_delta;
     
     system_signal_step(0);
 }
@@ -1095,7 +1107,7 @@ main(int arg_count, char **args){
         FCoder_App_Delegate *app_delegate = [[FCoder_App_Delegate alloc] init];
         [NSApp setDelegate:app_delegate];
         
-        pthread_mutex_init(&memory_tracker_mutex, 0);
+        mac_init_recursive_mutex(&memory_tracker_mutex);
         
         // NOTE(yuval): Context setup
         Thread_Context _tctx = {};
@@ -1122,7 +1134,7 @@ main(int arg_count, char **args){
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
         
-        pthread_mutex_init(&mac_vars.thread_launch_mutex, 0);
+        mac_init_recursive_mutex(&mac_vars.thread_launch_mutex);
         pthread_cond_init(&mac_vars.thread_launch_cv, 0);
         
         // NOTE(yuval): Screen scale factor calculation
