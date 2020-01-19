@@ -12,6 +12,7 @@
 // NOTE(allen): Users can declare their own managed IDs here.
 
 #include "4coder_default_map.cpp"
+#include "4coder_mac_map.cpp"
 #include "generated/managed_id_metadata.cpp"
 
 void

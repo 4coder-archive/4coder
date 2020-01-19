@@ -3,8 +3,7 @@
 // "choose"          - Ask 4coder to choose based on platform.
 // "default"         - Use the default keybindings 4coder has always had.
 // "mac-default"     - Use keybindings similar to those found in other Mac applications.
-// <my-own-string>   - If you use the custom layer to make a named mapping you can use that here too.
-mapping = "";
+mapping = "choose";
 
 // MODE
 // "4coder"       - The default 4coder mode that has been around since the beginning of time (2015)
