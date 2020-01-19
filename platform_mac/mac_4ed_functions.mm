@@ -638,7 +638,7 @@ system_thread_get_id_sig(){
 function
 system_mutex_make_sig(){
     Mac_Object *object = mac_alloc_object(MacObjectKind_Mutex);
-    pthread_mutex_init(&object->mutex, 0);
+    mac_init_recursive_mutex(&object->mutex);
     
     System_Mutex result = mac_to_plat_handle(object);
     return(result);
@@ -846,8 +846,8 @@ system_memory_annotation_sig(){
              node != 0;
              node = node->next){
             // TODO(yuval): Fix the API so that annotations would not mess with the system memory.
-            // Memory_Annotation_Node *r_node = push_array(arena, Memory_Annotation_Node, 1);
-            Memory_Annotation_Node *r_node = (Memory_Annotation_Node*)malloc(sizeof(Memory_Annotation_Node));
+            Memory_Annotation_Node *r_node = push_array(arena, Memory_Annotation_Node, 1);
+            //Memory_Annotation_Node *r_node = (Memory_Annotation_Node*)malloc(sizeof(Memory_Annotation_Node));
             sll_queue_push(result.first, result.last, r_node);
             result.count += 1;
             

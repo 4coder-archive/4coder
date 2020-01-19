@@ -67,6 +67,7 @@
 #include <sys/mman.h> // NOTE(yuval): Used for mmap, munmap, mprotect
 #include <sys/stat.h> // NOTE(yuval): Used for stat
 #include <sys/types.h> // NOTE(yuval): Used for struct stat, pid_t
+#include <sys/syslimits.h> // NOTE(yuval): Used for PATH_MAX
 
 #include <stdlib.h> // NOTE(yuval): Used for free
 
@@ -293,6 +294,15 @@ function inline Mac_Object*
 mac_to_object(Plat_Handle handle){
     Mac_Object *result = *(Mac_Object**)(&handle);
     return(result);
+}
+
+////////////////////////////////
+
+function void
+mac_init_recursive_mutex(pthread_mutex_t *mutex){
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(mutex, &attr);
 }
 
 ////////////////////////////////
@@ -1097,7 +1107,7 @@ main(int arg_count, char **args){
         FCoder_App_Delegate *app_delegate = [[FCoder_App_Delegate alloc] init];
         [NSApp setDelegate:app_delegate];
         
-        pthread_mutex_init(&memory_tracker_mutex, 0);
+        mac_init_recursive_mutex(&memory_tracker_mutex);
         
         // NOTE(yuval): Context setup
         Thread_Context _tctx = {};
@@ -1124,7 +1134,7 @@ main(int arg_count, char **args){
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
         
-        pthread_mutex_init(&mac_vars.thread_launch_mutex, 0);
+        mac_init_recursive_mutex(&mac_vars.thread_launch_mutex);
         pthread_cond_init(&mac_vars.thread_launch_cv, 0);
         
         // NOTE(yuval): Screen scale factor calculation
