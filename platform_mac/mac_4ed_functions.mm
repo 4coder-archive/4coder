@@ -748,10 +748,8 @@ mac_memory_allocate_extended(void *base, u64 size, String_Const_u8 location){
     
     pthread_mutex_lock(&memory_tracker_mutex);
     {
-        zdll_assert_good(Memory_Annotation_Tracker_Node, memory_tracker.first);
         zdll_push_back(memory_tracker.first, memory_tracker.last, node);
         memory_tracker.count += 1;
-        zdll_assert_good(Memory_Annotation_Tracker_Node, memory_tracker.first);
     }
     pthread_mutex_unlock(&memory_tracker_mutex);
     
@@ -769,10 +767,8 @@ mac_memory_free_extended(void *ptr){
     
     pthread_mutex_lock(&memory_tracker_mutex);
     {
-        zdll_assert_good(Memory_Annotation_Tracker_Node, memory_tracker.first);
         zdll_remove(memory_tracker.first, memory_tracker.last, node);
         memory_tracker.count -= 1;
-        zdll_assert_good(Memory_Annotation_Tracker_Node, memory_tracker.first);
     }
     pthread_mutex_unlock(&memory_tracker_mutex);
     
