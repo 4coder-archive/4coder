@@ -583,6 +583,7 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)windowDidResize:(NSNotification*)notification{
+    printf("Resize!\n");
     mac_resize(mac_vars.window);
 }
 

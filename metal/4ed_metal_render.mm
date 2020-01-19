@@ -4,13 +4,9 @@
 #undef function
 #import <simd/simd.h>
 #import <MetalKit/MetalKit.h>
-
-#include "AAPLShaderTypes.h"
 #define function static
 
 ////////////////////////////////
-
-typedef id<MTLTexture> Metal_Texture;
 
 struct Metal_Buffer{
     Node node;
@@ -22,6 +18,47 @@ struct Metal_Buffer{
 
 ////////////////////////////////
 
+typedef id<MTLTexture> Metal_Texture;
+
+global_const u32 metal__texture_slots_per_bucket = 256;
+
+// NOTE(yuval): This a bucket of ACTUAL texture slots.
+struct Metal_Texture_Slot_Bucket{
+    Metal_Texture_Slot_Bucket *next;
+    Metal_Texture textures[metal__texture_slots_per_bucket];
+};
+
+// NOTE(yuval): This is a locator used to describe where a specific slot is located.
+union Metal_Texture_Slot_Locator{
+    u32 packed;
+    
+    struct{
+        u16 bucket_index;
+        u16 slot_index;
+    };
+};
+
+// NOTE(yuval): This is a node containing the locator inside the free slot list.
+// This is a separate struct from the Texture_Slot_Locator because the locator's size has to be exactly 32 bits (to support returning the packed slot from get_texture_of_dim).
+struct Metal_Texture_Slot_Locator_Node{
+    Metal_Texture_Slot_Locator_Node *next;
+    Metal_Texture_Slot_Locator locator;
+};
+
+// NOTE(yuval): This a struct contaning all texture slot buckets and the texture slot free list (a list of free texture slots described by their locators).
+struct Metal_Texture_Slot_List{
+    Metal_Texture_Slot_Bucket *first_bucket;
+    Metal_Texture_Slot_Bucket *last_bucket;
+    u16 bucket_count;
+    
+    Metal_Texture_Slot_Locator_Node *first_free_slot;
+    Metal_Texture_Slot_Locator_Node *last_free_slot;
+};
+
+global_const u32 metal__invalid_texture_slot_locator = (u32)-1;
+
+////////////////////////////////
+
 @interface Metal_Renderer : NSObject<MTKViewDelegate>
 @property (nonatomic) Render_Target *target;
 
@@ -30,14 +67,12 @@ struct Metal_Buffer{
 - (u32)get_texture_of_dim:(Vec3_i32)dim kind:(Texture_Kind)kind;
 - (b32)fill_texture:(u32)texture kind:(Texture_Kind)kind pos:(Vec3_i32)p dim:(Vec3_i32)dim data:(void*)data;
 - (void)bind_texture:(u32)handle encoder:(id<MTLRenderCommandEncoder>)render_encoder;
+- (Metal_Texture*)get_texture_slot_at_locator:(Metal_Texture_Slot_Locator)locator;
+- (Metal_Texture*)get_texture_slot_at_handle:(u32)handle;
 
 - (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size;
 - (void)add_reusable_buffer:(Metal_Buffer*)buffer;
 @end
-
-////////////////////////////////
-
-global_const u32 metal__max_textures = 256;
 
 ////////////////////////////////
 
@@ -163,8 +198,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     Node buffer_cache;
     u64 last_buffer_cache_purge_time;
     
-    Metal_Texture *textures;
-    u32 next_texture_handle_index;
+    Metal_Texture_Slot_List texture_slots;
 }
 
 - (nonnull instancetype)initWithMetalKitView:(nonnull MTKView*)mtk_view target:(Render_Target*)target{
@@ -245,9 +279,8 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     dll_init_sentinel(&buffer_cache);
     last_buffer_cache_purge_time = system_now_time();
     
-    // NOTE(yuval): Initialize the textures array
-    textures = (Metal_Texture*)system_memory_allocate(metal__max_textures * sizeof(Metal_Texture), file_name_line_number_lit_u8);
-    next_texture_handle_index = 0;
+    // NOTE(yuval): Initialize the texture slot list
+    block_zero_struct(&texture_slots);
     
     // NOTE(yuval): Create the fallback texture
     _target->fallback_texture_id = [self get_texture_of_dim:V3i32(2, 2, 1)
@@ -428,21 +461,50 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
 }
 
 - (u32)get_texture_of_dim:(Vec3_i32)dim kind:(Texture_Kind)kind{
-    u32 handle = next_texture_handle_index;
+    u32 handle = metal__invalid_texture_slot_locator;
     
-    // NOTE(yuval): Create a texture descriptor
-    MTLTextureDescriptor *texture_descriptor = [[MTLTextureDescriptor alloc] init];
-    texture_descriptor.textureType = MTLTextureType2DArray;
-    texture_descriptor.pixelFormat = MTLPixelFormatR8Unorm;
-    texture_descriptor.width = dim.x;
-    texture_descriptor.height = dim.y;
-    texture_descriptor.depth = dim.z;
+    // NOTE(yuval): Check for a free texture slot and allocate another slot bucket if no free slot has been found
+    if (!texture_slots.first_free_slot){
+        Metal_Texture_Slot_Bucket *bucket =
+            (Metal_Texture_Slot_Bucket*)system_memory_allocate(sizeof(Metal_Texture_Slot_Bucket) + (sizeof(Metal_Texture_Slot_Locator_Node) * metal__texture_slots_per_bucket), file_name_line_number_lit_u8);
+        
+        Metal_Texture_Slot_Locator_Node *locator_array = (Metal_Texture_Slot_Locator_Node*)(bucket + 1);
+        for (u32 locator_index = 0;
+             locator_index < metal__texture_slots_per_bucket;
+             ++locator_index){
+            Metal_Texture_Slot_Locator_Node *node = &locator_array[locator_index];
+            node->locator.bucket_index = texture_slots.bucket_count;
+            node->locator.slot_index = locator_index;
+            
+            sll_queue_push(texture_slots.first_free_slot, texture_slots.last_free_slot, node);
+        }
+        
+        sll_queue_push(texture_slots.first_bucket, texture_slots.last_bucket, bucket);
+        ++texture_slots.bucket_count;
+    }
+    Assert(texture_slots.first_free_slot);
     
-    // NOTE(yuval): Create the texture from the device using the descriptor and add it to the textures array
-    Metal_Texture texture = [device newTextureWithDescriptor:texture_descriptor];
-    textures[handle] = texture;
+    // NOTE(yuval): Get the first free texture slot's locator and remove it from the free list
+    Metal_Texture_Slot_Locator locator = texture_slots.first_free_slot->locator;
+    sll_queue_pop(texture_slots.first_free_slot, texture_slots.last_free_slot);
     
-    next_texture_handle_index += 1;
+    Metal_Texture *texture_slot =
+        [self get_texture_slot_at_locator:locator];
+    if (texture_slot){
+        // NOTE(yuval): Create a texture descriptor
+        MTLTextureDescriptor *texture_descriptor = [[MTLTextureDescriptor alloc] init];
+        texture_descriptor.textureType = MTLTextureType2DArray;
+        texture_descriptor.pixelFormat = MTLPixelFormatR8Unorm;
+        texture_descriptor.width = dim.x;
+        texture_descriptor.height = dim.y;
+        texture_descriptor.depth = dim.z;
+        
+        // NOTE(yuval): Create the texture from the device using the descriptor and add it to the textures array
+        Metal_Texture texture = [device newTextureWithDescriptor:texture_descriptor];
+        *texture_slot = texture;
+        
+        handle = locator.packed;
+    }
     
     return handle;
 }
@@ -451,33 +513,64 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
     b32 result = false;
     
     if (data){
-        Metal_Texture texture = textures[handle];
-        
-        if (texture != 0){
-            MTLRegion replace_region = {
-                {(NSUInteger)p.x, (NSUInteger)p.y, (NSUInteger)p.z},
-                {(NSUInteger)dim.x, (NSUInteger)dim.y, (NSUInteger)dim.z}
-            };
+        Metal_Texture *texture_slot = [self get_texture_slot_at_handle:handle];
+        if (texture_slot){
+            Metal_Texture texture = *texture_slot;
             
-            // NOTE(yuval): Fill the texture with data
-            [texture replaceRegion:replace_region
-                    mipmapLevel:0
-                    withBytes:data
-                    bytesPerRow:dim.x];
-            
-            result = true;
+            if (texture != 0){
+                MTLRegion replace_region = {
+                    {(NSUInteger)p.x, (NSUInteger)p.y, (NSUInteger)p.z},
+                    {(NSUInteger)dim.x, (NSUInteger)dim.y, (NSUInteger)dim.z}
+                };
+                
+                // NOTE(yuval): Fill the texture with data
+                [texture replaceRegion:replace_region
+                        mipmapLevel:0
+                        withBytes:data
+                        bytesPerRow:dim.x];
+                
+                result = true;
+            }
         }
     }
     
-    return result;
+    return(result);
 }
 
 - (void)bind_texture:(u32)handle encoder:(id<MTLRenderCommandEncoder>)render_encoder{
-    Metal_Texture texture = textures[handle];
-    if (texture != 0){
-        [render_encoder setFragmentTexture:texture
-                atIndex:0];
+    Metal_Texture *texture_slot = [self get_texture_slot_at_handle:handle];
+    if (texture_slot){
+        Metal_Texture texture = *texture_slot;
+        if (texture != 0){
+            [render_encoder setFragmentTexture:texture
+                    atIndex:0];
+        }
     }
+}
+
+- (Metal_Texture*)get_texture_slot_at_locator:(Metal_Texture_Slot_Locator)locator{
+    Metal_Texture *result = 0;
+    
+    if (locator.packed != metal__invalid_texture_slot_locator){
+        Metal_Texture_Slot_Bucket *bucket = texture_slots.first_bucket;
+        for (u16 bucket_index = 0;
+             (bucket_index < locator.bucket_index) && bucket;
+             ++bucket_index, bucket = bucket->next);
+        
+        if (bucket && (locator.slot_index < metal__texture_slots_per_bucket)){
+            result = &bucket->textures[locator.slot_index];
+        }
+    }
+    
+    return(result);
+}
+
+- (Metal_Texture*)get_texture_slot_at_handle:(u32)handle{
+    Metal_Texture_Slot_Locator locator;
+    locator.packed = handle;
+    
+    Metal_Texture *texture_slot = [self get_texture_slot_at_locator:locator];
+    return(texture_slot);
 }
 
 - (Metal_Buffer*)get_reusable_buffer_with_size:(NSUInteger)size{
@@ -524,7 +617,7 @@ metal__make_buffer(u32 size, id<MTLDevice> device){
         result = metal__make_buffer(size, device);
     }
     
-    return result;
+    return(result);
 }
 
 - (void)add_reusable_buffer:(Metal_Buffer*)buffer{
