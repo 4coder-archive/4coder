@@ -1196,6 +1196,7 @@ config_init_default(Config_Data *config){
     
     block_zero_struct(&config->code_exts);
     
+    config->mapping = SCu8(config->mapping_space, (u64)0);
     config->mode = SCu8(config->mode_space, (u64)0);
     
     config->use_scroll_bars = false;
@@ -1211,16 +1212,12 @@ config_init_default(Config_Data *config){
     
     config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
-    config->automatically_adjust_wrapping = true;
     config->automatically_indent_text_on_save = true;
     config->automatically_save_changes_on_build = true;
     config->automatically_load_project = false;
     
     config->indent_with_tabs = false;
     config->indent_width = 4;
-    
-    config->default_wrap_width = 672;
-    config->default_min_base_width = 550;
     
     config->default_theme_name = SCu8(config->default_theme_name_space, sizeof("4coder") - 1);
     block_copy(config->default_theme_name.str, "4coder", config->default_theme_name.size);
@@ -1263,8 +1260,8 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
                 parse_extension_line_to_extension_list(app, arena, str);
         }
         
-        config_fixed_string_var(parsed, "mode", 0,
-                                &config->mode, config->mode_space);
+        config_fixed_string_var(parsed, "mapping", 0, &config->mapping, config->mapping_space);
+        config_fixed_string_var(parsed, "mode", 0, &config->mode, config->mode_space);
         
         config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
         config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
@@ -1280,16 +1277,12 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         
         config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
         config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
-        config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
         config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
         config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
         config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
         
         config_bool_var(parsed, "indent_with_tabs", 0, &config->indent_with_tabs);
         config_int_var(parsed, "indent_width", 0, &config->indent_width);
-        
-        config_int_var(parsed, "default_wrap_width", 0, &config->default_wrap_width);
-        config_int_var(parsed, "default_min_base_width", 0, &config->default_min_base_width);
         
         config_fixed_string_var(parsed, "default_theme_name", 0,
                                 &config->default_theme_name, config->default_theme_name_space);
@@ -1365,22 +1358,22 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
             String_Const_u8 l_name = push_string_copy(scratch, l->identifier);
             Managed_ID id = managed_id_get(app, string_u8_litexpr("colors"), l_name);
             if (id != 0){
-            u32 color = 0;
-            if (config_uint_var(parsed, l_name, 0, &color)){
+                u32 color = 0;
+                if (config_uint_var(parsed, l_name, 0, &color)){
                     color_table->arrays[id%color_table->count] = make_colors(color_arena, color);
                 }
                 else{
                     Config_Compound *compound = 0;
-                if (config_compound_var(parsed, l_name, 0, &compound)){
+                    if (config_compound_var(parsed, l_name, 0, &compound)){
                         local_persist u32 color_array[256];
                         i32 counter = 0;
                         for (i32 i = 0;; i += 1){
-                        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Integer, i);
-                        if (result.step == Iteration_Skip){
-                            continue;
-                        }
-                        else if (result.step == Iteration_Quit){
-                            break;
+                            Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Integer, i);
+                            if (result.step == Iteration_Skip){
+                                continue;
+                            }
+                            else if (result.step == Iteration_Quit){
+                                break;
                             }
                             
                             color_array[counter] = result.get.uinteger;
@@ -1391,7 +1384,7 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
                         }
                         
                         color_table->arrays[id%color_table->count] = make_colors(color_arena, color_array, counter);
-                }
+                    }
                 }
             }
             
@@ -1402,7 +1395,7 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
 
 function Config*
 theme_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file, Arena *color_arena, Color_Table *color_table){
-     Data data = dump_file_handle(arena, file);
+    Data data = dump_file_handle(arena, file);
     Config *parsed = 0;
     if (data.data != 0){
         parsed = theme_parse__data(app, arena, file_name, SCu8(data), color_arena, color_table);
@@ -1415,7 +1408,7 @@ theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Ar
     Config *parsed = 0;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-         Data data = dump_file_handle(arena, file);
+        Data data = dump_file_handle(arena, file);
         fclose(file);
         parsed = theme_parse__data(app, arena, SCu8(file_name), SCu8(data), color_arena, color_table);
     }
@@ -1505,6 +1498,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_string(scratch, &list, "user_name", config->user_name);
         config_feedback_extension_list(scratch, &list, "treat_as_code", &config->code_exts);
         
+        config_feedback_string(scratch, &list, "mapping", config->mapping);
         config_feedback_string(scratch, &list, "mode", config->mode);
         
         config_feedback_bool(scratch, &list, "use_scroll_bars", config->use_scroll_bars);
@@ -1522,14 +1516,10 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_bool(scratch, &list, "enable_code_wrapping", config->enable_code_wrapping);
         config_feedback_bool(scratch, &list, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
         config_feedback_bool(scratch, &list, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
-        config_feedback_bool(scratch, &list, "automatically_adjust_wrapping", config->automatically_adjust_wrapping);
         config_feedback_bool(scratch, &list, "automatically_load_project", config->automatically_load_project);
         
         config_feedback_bool(scratch, &list, "indent_with_tabs", config->indent_with_tabs);
         config_feedback_int(scratch, &list, "indent_width", config->indent_width);
-        
-        config_feedback_int(scratch, &list, "default_wrap_width", config->default_wrap_width);
-        config_feedback_int(scratch, &list, "default_min_base_width", config->default_min_base_width);
         
         config_feedback_string(scratch, &list, "default_theme_name", config->default_theme_name);
         config_feedback_bool(scratch, &list, "highlight_line_at_cursor", config->highlight_line_at_cursor);
@@ -1552,6 +1542,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     }
     
     // Apply config
+    setup_built_in_mapping(app, config->mapping, &framework_mapping, mapid_global, mapid_file, mapid_code);
     change_mode(app, config->mode);
     global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
     
@@ -1566,7 +1557,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         description.parameters.pt_size = config->default_font_size;
     }
     description.parameters.hinting = config->default_font_hinting || override_hinting;
-     
+    
     description.font.file_name = config->default_font_name;
     if (!modify_global_face_by_description(app, description)){
         description.font.file_name = get_file_path_in_fonts_folder(scratch, config->default_font_name);

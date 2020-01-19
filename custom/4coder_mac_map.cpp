@@ -52,7 +52,7 @@ setup_mac_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     Bind(project_fkey_command, KeyCode_F14);
     Bind(project_fkey_command, KeyCode_F15);
     Bind(project_fkey_command, KeyCode_F16);
-    Bind(exit_4coder,          KeyCode_F4, KeyCode_Control);
+    Bind(exit_4coder,          KeyCode_F4, KeyCode_Alt);
     BindMouseWheel(mouse_wheel_scroll);
     BindMouseWheel(mouse_wheel_change_face_size, KeyCode_Command);
     
@@ -79,13 +79,13 @@ setup_mac_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     Bind(move_down_to_blank_line_end,      KeyCode_Down, KeyCode_Command);
     Bind(move_left_whitespace_boundary,    KeyCode_Left, KeyCode_Command);
     Bind(move_right_whitespace_boundary,   KeyCode_Right, KeyCode_Command);
-    Bind(move_line_up,                     KeyCode_Up, KeyCode_Control);
-    Bind(move_line_down,                   KeyCode_Down, KeyCode_Control);
+    Bind(move_line_up,                     KeyCode_Up, KeyCode_Alt);
+    Bind(move_line_down,                   KeyCode_Down, KeyCode_Alt);
     Bind(backspace_alpha_numeric_boundary, KeyCode_Backspace, KeyCode_Command);
     Bind(delete_alpha_numeric_boundary,    KeyCode_Delete, KeyCode_Command);
     Bind(snipe_backward_whitespace_or_token_boundary, KeyCode_Backspace, KeyCode_Control);
     Bind(snipe_forward_whitespace_or_token_boundary,  KeyCode_Delete, KeyCode_Control);
-    Bind(set_mark,                    KeyCode_Space, KeyCode_Command);
+    Bind(set_mark,                    KeyCode_Space, KeyCode_Control);
     Bind(replace_in_range,            KeyCode_A, KeyCode_Command);
     Bind(copy,                        KeyCode_C, KeyCode_Command);
     Bind(delete_range,                KeyCode_D, KeyCode_Command);

@@ -1,5 +1,5 @@
 // Command Mapping
-// ""                - Leave the bindings unaltered from their startup value.
+// ""                - Leave the bindings unaltered.
 // "choose"          - Ask 4coder to choose based on platform.
 // "default"         - Use the default keybindings 4coder has always had.
 // "mac-default"     - Use keybindings similar to those found in other Mac applications.
@@ -25,9 +25,6 @@ show_line_number_margins = false;
 treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m.mm";
 enable_virtual_whitespace = true;
 enable_code_wrapping = true;
-automatically_adjust_wrapping = true;
-default_wrap_width = 672;
-default_min_base_width = 550;
 
 // This only applies to code files in code-wrapping mode.
 // Plain text and code files without virtual-whitespace will not be effected.
