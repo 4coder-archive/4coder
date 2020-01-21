@@ -612,7 +612,9 @@ mac_toggle_fullscreen(void){
 
 - (void)windowDidResize:(NSNotification*)notification{
     mac_resize(mac_vars.window);
-    [mac_vars.view display];
+    if (!mac_vars.do_toggle){
+        [mac_vars.view display];
+    }
 }
 
 - (void)windowDidMiniaturize:(NSNotification*)notification{
@@ -824,8 +826,8 @@ mac_toggle_fullscreen(void){
         // NOTE(yuval): Toggle full screen
         MacProfileScope("Toggle Full Screen"){
             if (mac_vars.do_toggle){
-                mac_vars.do_toggle = false;
                 mac_toggle_fullscreen();
+                mac_vars.do_toggle = false;
             }
         }
         
