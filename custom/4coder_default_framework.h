@@ -114,11 +114,6 @@ struct Fade_Range_List{
     i32 count;
 };
 
-////////////////////////////////
-
-function void
-setup_built_in_mapping(Application_Links *app, String_Const_u8 name, Mapping *mapping, i64 global_id, i64 file_id, i64 code_id);
-
 #endif
 
 // BOTTOM
