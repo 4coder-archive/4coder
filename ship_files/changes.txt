@@ -1,3 +1,29 @@
+
+4.1.2
+ + Cursor color changes when recording macro if the theme provides a second cursor color
+ + Default custom layer now has a feature for supporting fade ranges as used in pasting and undoing
+ + Ability to "partially" paint text with a blend factor to create blends
+ + In file lister, typing a slash with a name for a folder that does not exist asks the user if they would like to create a folder
+ + Fix: parser in code index recognizes functions with more than one parameter
+ + Fix: trying to create a face with a font file that doesn't exist doesn't crash
+ + Fix: escaping command documentation lister doesn't crash
+ + Fix: lexer generator switched to new macro names Max and Min
+ + Fix: implementation for getting previous view iterates from null to the last view in order (instead of the first)
+ + Fix: auto-indent when a file with virtual whitespace is saved
+ + Fix: can create up to sixteen panels, and doesn't crash when trying to create more
+ + Fix: faster text range highlighting
+ + Fix: side by side editing a single buffer doesn't scroll the lower view down when insterting lines in the higher view
+ + Fix: indentation after paren group is correct
+
+4.1.1
+ Changes not documented
+
+4.1.0
+ Initial beta version
+
+**************************************************
+**************************************************
+
 New in alpha 4.0.30:
 -Mouse events (clicking, scroll wheel, mouse move) can now be bound with modifier keys
 -New and changed commands:
