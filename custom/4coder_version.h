@@ -1,6 +1,6 @@
 #define MAJOR 4
 #define MINOR 1
-#define PATCH 1
+#define PATCH 2
 
 // string
 #define VN__(a,b,c) #a "." #b "." #c
