@@ -824,8 +824,8 @@ mac_toggle_fullscreen(void){
         // NOTE(yuval): Toggle full screen
         MacProfileScope("Toggle Full Screen"){
             if (mac_vars.do_toggle){
-                mac_toggle_fullscreen();
                 mac_vars.do_toggle = false;
+                mac_toggle_fullscreen();
             }
         }
         
