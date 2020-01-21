@@ -603,8 +603,9 @@ package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack
     buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
     build_main(arena, cdir, false, flags, arch);
     
-    fm_make_folder_if_missing(arena, parent_dir);
     fm_clear_folder(parent_dir);
+    fm_make_folder_if_missing(arena, parent_dir);
+    
     fm_make_folder_if_missing(arena, dir);
     fm_copy_file(fm_str(arena, build_dir, "/4ed" EXE), fm_str(arena, dir, "/4ed" EXE));
     fm_copy_file(fm_str(arena, build_dir, "/4ed_app" DLL), fm_str(arena, dir, "/4ed_app" DLL));
@@ -622,9 +623,9 @@ package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack
         char *custom_src_dir = fm_str(arena, cdir, SLASH, "custom");
         char *custom_dst_dir = fm_str(arena, dir, SLASH, "custom");
         // HACK(yuval): make_folder_if_missing seems to cause a second custom folder to be created inside the custom folder on macOS.
-        if (This_OS != Platform_Mac){
-            fm_make_folder_if_missing(arena, custom_dst_dir);
-        }
+        //if (This_OS != Platform_Mac){
+        fm_make_folder_if_missing(arena, custom_dst_dir);
+        //}
         fm_copy_all(custom_src_dir, custom_dst_dir);
     }
     
@@ -662,12 +663,17 @@ package(Arena *arena, char *cdir){
         Temp_Memory temp = begin_temp(arena);
         char *current_dist_tier = fm_str(arena, ".." SLASH "current_dist_", tier_name);
         
+        i32 arch_count = Arch_COUNT;
+        u32 arch_array[2] = {
+            Arch_X64,
+            Arch_X86,
+        };
         if (This_OS == Platform_Mac){
-            package_for_arch(arena, Arch_X64, cdir, build_dir, pack_dir, i, tier_name, current_dist_tier, flags, dist_files, ArrayCount(dist_files));
-        } else{
-            for (u32 arch = 0; arch < Arch_COUNT; ++arch){
-                package_for_arch(arena, arch, cdir, build_dir, pack_dir, i, tier_name, current_dist_tier, flags, dist_files, ArrayCount(dist_files));
-            }
+            arch_count = 1;
+        }
+        for (u32 arch_ind = 0; arch_ind < arch_count; ++arch_ind){
+            u32 arch = arch_array[arch_ind];
+            package_for_arch(arena, arch, cdir, build_dir, pack_dir, i, tier_name, current_dist_tier, flags, dist_files, ArrayCount(dist_files));
         }
         
         end_temp(temp);
