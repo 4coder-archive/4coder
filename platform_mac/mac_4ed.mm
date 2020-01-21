@@ -324,6 +324,23 @@ mac_error_box(char *msg, b32 shutdown = true){
     }
 }
 
+
+function void
+os_popup_error(char *title, char *message){
+    // TODO(yuval): Condense this with mac_error_box
+    
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    
+    NSString *title_string = [NSString stringWithUTF8String:title];
+    NSString *message_string = [NSString stringWithUTF8String:message];
+    [alert setMessageText:title_string];
+    [alert setInformativeText:message_string];
+    
+    [alert runModal];
+    
+    exit(1);
+}
+
 ////////////////////////////////
 
 #if defined(FRED_INTERNAL)
@@ -533,7 +550,7 @@ mac_read_clipboard_contents(Arena *scratch){
                     
                     mac_vars.clipboard_contents = string_const_u8_push(clip_arena, copy_length);
                     [data getBytes:mac_vars.clipboard_contents.str
-                            length:mac_vars.clipboard_contents.size];
+                     length:mac_vars.clipboard_contents.size];
                     
                     result = true;
                 }
@@ -552,13 +569,13 @@ mac_post_clipboard(Arena *scratch, char *text, i32 len){
     NSString *utf8_type = @"public.utf8-plain-text";
     NSArray<NSString*> *types_array = [NSArray arrayWithObjects:utf8_type, nil];
     [board declareTypes:types_array
-            owner:nil];
+     owner:nil];
     
     NSString *paste_string = [[NSString alloc] initWithBytes:text
-            length:len
-            encoding:NSUTF8StringEncoding];
+                              length:len
+                              encoding:NSUTF8StringEncoding];
     [board setString:paste_string
-            forType:utf8_type];
+     forType:utf8_type];
     [paste_string release];
     
     mac_vars.next_clipboard_is_self = true;
@@ -1272,9 +1289,9 @@ main(int arg_count, char **args){
         u32 style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
         
         mac_vars.window = [[NSWindow alloc] initWithContentRect:initial_frame
-                styleMask:style_mask
-                backing:NSBackingStoreBuffered
-                defer:NO];
+                           styleMask:style_mask
+                           backing:NSBackingStoreBuffered
+                           defer:NO];
         
         FCoder_Window_Delegate *window_delegate = [[FCoder_Window_Delegate alloc] init];
         [mac_vars.window setDelegate:window_delegate];
@@ -1319,9 +1336,9 @@ main(int arg_count, char **args){
             
             // NOTE(yuval): Start the clipboard polling timer
             [NSTimer scheduledTimerWithTimeInterval: 0.5
-                    target:mac_vars.view
-                    selector:@selector(check_clipboard)
-                    userInfo:nil repeats:YES];
+             target:mac_vars.view
+             selector:@selector(check_clipboard)
+             userInfo:nil repeats:YES];
         }
         
         // NOTE(yuval): Initialize the virtul keycodes table
