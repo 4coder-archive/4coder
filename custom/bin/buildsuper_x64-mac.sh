@@ -11,7 +11,7 @@ CODE_HOME="$(dirname "$LOCATION")"
 # Find the most reasonable candidate build file
 SOURCE="$1"
 if [ -z "$SOURCE" ]; then
-    SOURCE="$(readlink -f "$CODE_HOME/4coder_default_bindings.cpp")"
+    SOURCE="$(realpath "$CODE_HOME/4coder_default_bindings.cpp")"
 fi
 
 # NOTE(yuval): Removed -Wno-writable-strings as it is the same as -Wno-write-strings
