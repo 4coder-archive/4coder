@@ -663,7 +663,7 @@ package(Arena *arena, char *cdir){
         Temp_Memory temp = begin_temp(arena);
         char *current_dist_tier = fm_str(arena, ".." SLASH "current_dist_", tier_name);
         
-        i32 arch_count = Arch_COUNT;
+        u32 arch_count = Arch_COUNT;
         u32 arch_array[2] = {
             Arch_X64,
             Arch_X86,
@@ -671,7 +671,7 @@ package(Arena *arena, char *cdir){
         if (This_OS == Platform_Mac){
             arch_count = 1;
         }
-        for (u32 arch_ind = 0; arch_ind < arch_count; ++arch_ind){
+        for (u32 arch_ind = 0; arch_ind < arch_count; arch_ind += 1){
             u32 arch = arch_array[arch_ind];
             package_for_arch(arena, arch, cdir, build_dir, pack_dir, i, tier_name, current_dist_tier, flags, dist_files, ArrayCount(dist_files));
         }
