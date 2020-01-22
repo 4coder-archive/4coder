@@ -34,6 +34,32 @@ parse_extension_line_to_extension_list(Application_Links *app,
 
 ////////////////////////////////
 
+function void
+setup_built_in_mapping(Application_Links *app, String_Const_u8 name, Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
+    Thread_Context *tctx = get_thread_context(app);
+    if (string_match(name, string_u8_litexpr("default"))){
+        mapping_release(tctx, mapping);
+        mapping_init(tctx, mapping);
+        setup_default_mapping(mapping, global_id, file_id, code_id);
+    }
+    else if (string_match(name, string_u8_litexpr("mac-default"))){
+        mapping_release(tctx, mapping);
+        mapping_init(tctx, mapping);
+        setup_mac_mapping(mapping, global_id, file_id, code_id);
+    }
+    else if (string_match(name, string_u8_litexpr("choose"))){
+        mapping_release(tctx, mapping);
+        mapping_init(tctx, mapping);
+#if OS_MAC
+        setup_mac_mapping(mapping, global_id, file_id, code_id);
+#else
+        setup_default_mapping(mapping, global_id, file_id, code_id);
+#endif
+    }
+}
+
+////////////////////////////////
+
 function Error_Location
 get_error_location(Application_Links *app, u8 *base, u8 *pos){
     ProfileScope(app, "get error location");

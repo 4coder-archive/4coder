@@ -78,6 +78,8 @@
 #include "4coder_token.cpp"
 #include "generated/lexer_cpp.cpp"
 #include "4coder_command_map.cpp"
+#include "4coder_default_map.cpp"
+#include "4coder_mac_map.cpp"
 #include "4coder_default_framework_variables.cpp"
 #include "4coder_default_colors.cpp"
 #include "4coder_helper.cpp"

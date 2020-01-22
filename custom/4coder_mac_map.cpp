@@ -86,6 +86,7 @@ setup_mac_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     Bind(snipe_backward_whitespace_or_token_boundary, KeyCode_Backspace, KeyCode_Control);
     Bind(snipe_forward_whitespace_or_token_boundary,  KeyCode_Delete, KeyCode_Control);
     Bind(set_mark,                    KeyCode_Space, KeyCode_Control);
+    Bind(set_mark,                    KeyCode_ForwardSlash, KeyCode_Command);
     Bind(replace_in_range,            KeyCode_A, KeyCode_Command);
     Bind(copy,                        KeyCode_C, KeyCode_Command);
     Bind(delete_range,                KeyCode_D, KeyCode_Command);

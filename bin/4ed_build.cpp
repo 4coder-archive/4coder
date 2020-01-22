@@ -587,6 +587,54 @@ enum{
     Tier_COUNT,
 };
 
+function void
+package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack_dir, i32 tier, char *tier_name,  char *current_dist_tier, u32 flags, char** dist_files, i32 dist_file_count){
+    char *arch_name = arch_names[arch];
+    char *parent_dir = fm_str(arena, current_dist_tier, "_", arch_name);
+    char *dir        = fm_str(arena, parent_dir, SLASH "4coder");
+    char *zip_dir    = fm_str(arena, pack_dir, SLASH, tier_name, "_", arch_name);
+    
+    printf("\nbuild: %s_%s\n", tier_name, arch_name);
+    printf("parent_dir: %s\n", parent_dir);
+    printf("dir: %s\n", dir);
+    printf("zip_dir: %s\n", zip_dir);
+    fflush(stdout);
+    
+    buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
+    build_main(arena, cdir, false, flags, arch);
+    
+    fm_clear_folder(parent_dir);
+    fm_make_folder_if_missing(arena, parent_dir);
+    
+    fm_make_folder_if_missing(arena, dir);
+    fm_copy_file(fm_str(arena, build_dir, "/4ed" EXE), fm_str(arena, dir, "/4ed" EXE));
+    fm_copy_file(fm_str(arena, build_dir, "/4ed_app" DLL), fm_str(arena, dir, "/4ed_app" DLL));
+    fm_copy_file(fm_str(arena, build_dir, "/custom_4coder" DLL), fm_str(arena, dir, "/custom_4coder" DLL));
+    
+    if (tier == Tier_Demo){
+        dist_file_count -= 1;
+    }
+    
+    for (i32 j = 0; j < dist_file_count; j += 1){
+        fm_copy_all(dist_files[j], dir);
+    }
+    
+    if (tier == Tier_Super){
+        char *custom_src_dir = fm_str(arena, cdir, SLASH, "custom");
+        char *custom_dst_dir = fm_str(arena, dir, SLASH, "custom");
+        // HACK(yuval): make_folder_if_missing seems to cause a second custom folder to be created inside the custom folder on macOS.
+        //if (This_OS != Platform_Mac){
+        fm_make_folder_if_missing(arena, custom_dst_dir);
+        //}
+        fm_copy_all(custom_src_dir, custom_dst_dir);
+    }
+    
+    char *dist_name = get_4coder_dist_name(arena, This_OS, tier_name, arch);
+    char *zip_name = fm_str(arena, zip_dir, SLASH, dist_name, ".zip");
+    fm_make_folder_if_missing(arena, zip_dir);
+    fm_zip(parent_dir, "4coder", zip_name);
+}
+
 internal void
 package(Arena *arena, char *cdir){
     // NOTE(allen): meta
@@ -615,48 +663,17 @@ package(Arena *arena, char *cdir){
         Temp_Memory temp = begin_temp(arena);
         char *current_dist_tier = fm_str(arena, ".." SLASH "current_dist_", tier_name);
         
-        for (u32 arch = 0; arch < Arch_COUNT; ++arch){
-            char *arch_name = arch_names[arch];
-            char *parent_dir = fm_str(arena, current_dist_tier, "_", arch_name);
-            char *dir        = fm_str(arena, parent_dir, SLASH "4coder");
-            char *zip_dir    = fm_str(arena, pack_dir, SLASH, tier_name, "_", arch_name);
-            
-            printf("\nbuild: %s_%s\n", tier_name, arch_name);
-            printf("parent_dir: %s\n", parent_dir);
-            printf("dir: %s\n", dir);
-            printf("zip_dir: %s\n", zip_dir);
-            fflush(stdout);
-            
-            buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
-            build_main(arena, cdir, false, flags, arch);
-            
-            fm_make_folder_if_missing(arena, parent_dir);
-            fm_clear_folder(parent_dir);
-            fm_make_folder_if_missing(arena, dir);
-            fm_copy_file(fm_str(arena, build_dir, "/4ed" EXE), fm_str(arena, dir, "/4ed" EXE));
-            fm_copy_file(fm_str(arena, build_dir, "/4ed_app" DLL), fm_str(arena, dir, "/4ed_app" DLL));
-            fm_copy_file(fm_str(arena, build_dir, "/custom_4coder" DLL), fm_str(arena, dir, "/custom_4coder" DLL));
-            
-            i32 dist_file_count = ArrayCount(dist_files);
-            if (i == Tier_Demo){
-                dist_file_count -= 1;
-            }
-            
-            for (i32 j = 0; j < dist_file_count; j += 1){
-                fm_copy_all(dist_files[j], dir);
-            }
-            
-            if (i == Tier_Super){
-                char *custom_src_dir = fm_str(arena, cdir, SLASH, "custom");
-                char *custom_dst_dir = fm_str(arena, dir, SLASH, "custom");
-                fm_make_folder_if_missing(arena, custom_dst_dir);
-                fm_copy_all(custom_src_dir, custom_dst_dir);
-            }
-            
-            char *dist_name = get_4coder_dist_name(arena, This_OS, tier_name, arch);
-            char *zip_name = fm_str(arena, zip_dir, SLASH, dist_name, ".zip");
-            fm_make_folder_if_missing(arena, zip_dir);
-            fm_zip(parent_dir, "4coder", zip_name);
+        i32 arch_count = Arch_COUNT;
+        u32 arch_array[2] = {
+            Arch_X64,
+            Arch_X86,
+        };
+        if (This_OS == Platform_Mac){
+            arch_count = 1;
+        }
+        for (u32 arch_ind = 0; arch_ind < arch_count; ++arch_ind){
+            u32 arch = arch_array[arch_ind];
+            package_for_arch(arena, arch, cdir, build_dir, pack_dir, i, tier_name, current_dist_tier, flags, dist_files, ArrayCount(dist_files));
         }
         
         end_temp(temp);
