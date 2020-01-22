@@ -33,6 +33,7 @@
 #define MAP_METADATA_ONLY 1
 #include "4coder_command_map.cpp"
 #include "4coder_default_map.cpp"
+#include "4coder_mac_map.cpp"
 #include "generated/custom_api_constructor.cpp"
 #include "../docs/4ed_doc_custom_api.cpp"
 #include "4coder_doc_commands.cpp"
@@ -151,7 +152,7 @@ render_doc_page_to_html__code(Arena *scratch, Doc_Code_Sample_List *code, FILE *
                 "</div></div>",
                 string_expand(node->contents));
         if (node->next != 0){
-        fprintf(out, "<div class=\"small_spacer\"></div>\n");
+            fprintf(out, "<div class=\"small_spacer\"></div>\n");
         }
     }
 }
@@ -170,7 +171,7 @@ render_doc_page_to_html__table(Arena *scratch, Vec2_i32 dim, Doc_Content_List *v
         }
         fprintf(out, "</tr>");
     }
-        fprintf(out, "</table>");
+    fprintf(out, "</table>");
 }
 
 function void
@@ -313,11 +314,11 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
         fprintf(file, html_footer);
     }
     
-{
+    {
         Temp_Memory_Block temp(scratch);
         
         fprintf(file_index, html_header, string_expand(cluster->title));
-    
+        
         Doc_Page **ptrs = push_array(scratch, Doc_Page*, cluster->page_count);
         i32 counter = 0;
         for (Doc_Page *node = cluster->first_page;
@@ -340,19 +341,19 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
             fprintf(file_index, "<div class=\"spacer\"></div>\n");
             
             fprintf(file_index, "<input autofocus class=\"filter_box\" type=\"text\" id=\"search_input\" oninput=\"SearchInput(event)\" onkeydown=\"SearchKeyDown(event)\""
-                        "placeholder=\"Filter...\" title=\"Filter...\">");
-    fprintf(file_index, "<div class=\"spacer\"></div>\n");
-    
-    fprintf(file_index, "<div class=\"normal\">");
-        
-    fprintf(file_index, "<ul class=\"docs_menu\" id=\"docs_menu\">\n");
-    for (i32 i = 0; i < counter; i += 1){
-        Doc_Page *node = ptrs[i];
+                    "placeholder=\"Filter...\" title=\"Filter...\">");
+            fprintf(file_index, "<div class=\"spacer\"></div>\n");
+            
+            fprintf(file_index, "<div class=\"normal\">");
+            
+            fprintf(file_index, "<ul class=\"docs_menu\" id=\"docs_menu\">\n");
+            for (i32 i = 0; i < counter; i += 1){
+                Doc_Page *node = ptrs[i];
                 fprintf(file_index, "<li><a href=\"#%.*s\">%.*s</a></li>",
-                string_expand(node->name),
-                string_expand(node->name));
-    }
-    fprintf(file_index, "</ul>\n");
+                        string_expand(node->name),
+                        string_expand(node->name));
+            }
+            fprintf(file_index, "</ul>\n");
             fprintf(file_index, "</div>\n");
             
             fprintf(file_index, "</div>\n");
@@ -374,8 +375,8 @@ render_doc_cluster_to_html(Arena *scratch, Doc_Cluster *cluster,
             }
         }
         
-    fprintf(file_index, html_footer);
-}
+        fprintf(file_index, html_footer);
+    }
 }
 
 function void
@@ -421,33 +422,49 @@ int main(){
     String_Const_u8 root = string_prefix(self, code_pos + 5);
     String_Const_u8 outside_root = string_prefix(self, code_pos);
     String_Const_u8 build_root = push_u8_stringf(&arena, "%.*sbuild/",
-                                             string_expand(outside_root));
+                                                 string_expand(outside_root));
     String_Const_u8 site_root = push_u8_stringf(&arena, "%.*ssite/",
-                                             string_expand(build_root));
+                                                string_expand(build_root));
     String_Const_u8 docs_root = push_u8_stringf(&arena, "%.*sdocs/",
                                                 string_expand(site_root));
     
     (void)root;
     
-    Mapping mapping = {};
-    mapping_init(tctx, &mapping);
-    setup_default_mapping(&mapping, 1, 2, 3);
+    i64 global_id = 1;
+    i64 file_id = 2;
+    i64 code_id = 3;
+    
+    local_const i32 map_count = 2;
+    Mapping mapping_array[map_count] = {};
+    char *page_tiles[map_count] = {};
+    char *page_names[map_count] = {};
+    
+    mapping_init(tctx, &mapping_array[0]);
+    setup_default_mapping(&mapping_array[0], global_id, file_id, code_id);
+    page_tiles[0] = "Default Bindings";
+    page_names[0] = "default_bindings";
+    
+    mapping_init(tctx, &mapping_array[1]);
+    setup_mac_mapping(&mapping_array[1], global_id, file_id, code_id);
+    page_tiles[1] = "Default Mac Bindings";
+    page_names[1] = "default_mac_bindings";
     
     API_Definition *api_def = custom_api_construct(&arena);
     Doc_Cluster *cluster_array[] = {
         doc_custom_api(&arena, api_def),
         doc_commands(&arena),
-        doc_default_bindings(&arena, &mapping, 1, 2, 3),
+        doc_default_bindings(&arena, map_count, mapping_array, page_tiles, page_names,
+                             global_id, file_id, code_id),
     };
     
     for (i32 i = 0; i < ArrayCount(cluster_array); i += 1){
         Doc_Cluster *cluster = cluster_array[i];
         for (Doc_Page *node = cluster->first_page;
-         node != 0;
+             node != 0;
              node = node->next){
             render_doc_page_to_html(&arena, node, docs_root);
-    }
-    render_doc_cluster_to_html(&arena, cluster, docs_root);
+        }
+        render_doc_cluster_to_html(&arena, cluster, docs_root);
     }
     
     return(0);
