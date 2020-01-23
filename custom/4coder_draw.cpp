@@ -302,9 +302,9 @@ draw_file_bar(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID
         }break;
     }
     
+    u8 space[3];
     {
         Dirty_State dirty = buffer_get_dirty_state(app, buffer);
-        u8 space[3];
         String_u8 str = Su8(space, 0, 3);
         if (dirty != 0){
             string_append(&str, string_u8_litexpr(" "));

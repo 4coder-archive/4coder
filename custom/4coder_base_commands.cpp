@@ -112,6 +112,17 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
     }
 }
 
+CUSTOM_COMMAND_SIG(test_double_backspace)
+CUSTOM_DOC("Made for testing purposes (I should have deleted this if you are reading it let me know)")
+{
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    History_Group group = history_group_begin(app, buffer);
+    backspace_char(app);
+    backspace_char(app);
+    history_group_end(group);
+}
+
 CUSTOM_COMMAND_SIG(set_mark)
 CUSTOM_DOC("Sets the mark to the current position of the cursor.")
 {
@@ -1077,10 +1088,8 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
     i64 new_pos = 0;
     seek_string_forward(app, buffer_id, pos - 1, 0, r, &new_pos);
     
-    i64 buffer_size = buffer_get_size(app, buffer_id);
-    
     User_Input in = {};
-    for (;new_pos < buffer_size;){
+    for (;;){
         Range_i64 match = Ii64(new_pos, new_pos + r.size);
         isearch__update_highlight(app, view, match);
         
@@ -1089,9 +1098,11 @@ query_replace_base(Application_Links *app, View_ID view, Buffer_ID buffer_id, i6
             break;
         }
         
-        if (match_key_code(&in, KeyCode_Y) ||
-            match_key_code(&in, KeyCode_Return) ||
-            match_key_code(&in, KeyCode_Tab)){
+        i64 size = buffer_get_size(app, buffer_id);
+        if (match.max <= size &&
+            (match_key_code(&in, KeyCode_Y) ||
+             match_key_code(&in, KeyCode_Return) ||
+             match_key_code(&in, KeyCode_Tab))){
             buffer_replace_range(app, buffer_id, match, w);
             pos = match.start + w.size;
         }

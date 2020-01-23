@@ -314,6 +314,7 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
             String_Const_u8 merged_forward = {};
             String_Const_u8 merged_backward = {};
             
+            i64 merged_first = 0;
             if (left->single.first + (i64)left->single.forward_text.size == right->single.first){
                 do_merge = true;
                 merged_forward = push_u8_stringf(scratch, "%.*s%.*s",
@@ -322,6 +323,7 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
                 merged_backward = push_u8_stringf(scratch, "%.*s%.*s",
                                                   string_expand(left->single.backward_text),
                                                   string_expand(right->single.backward_text));
+                merged_first = left->single.first;
             }
             else if (right->single.first + (i64)right->single.backward_text.size == left->single.first){
                 do_merge = true;
@@ -331,6 +333,7 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
                 merged_backward = push_u8_stringf(scratch, "%.*s%.*s",
                                                   string_expand(right->single.backward_text),
                                                   string_expand(left->single.backward_text));
+                merged_first = right->single.first;
             }
             else{
                 break;
@@ -340,6 +343,7 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
                 end_temp(left->restore_point);
                 
                 left->edit_number = right->edit_number;
+                left->single.first = merged_first;
                 left->single.forward_text  = push_string_copy(history->arena, merged_forward);
                 left->single.backward_text = push_string_copy(history->arena, merged_backward);
                 
