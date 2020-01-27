@@ -1,10 +1,15 @@
 
 4.1.3
+ + Unkillable buffer setting
+ + UI elements in listers and buttons can have different highlight backgrounds
+ + command 'load_theme_current_buffer' for loading the current file as a theme and setting it as the theme
  + Fix: search and replace never exits early
  + Fix: optimized builds of the custom layer display the dirty * on the file bar correclty
  + Fix: can merge "backwards" strings in the history correctly
  + Fix: the helper user_list_definition_array matches both LF and CRLF line endings
  + Fix: line number background and text colors in the built in theme files
+ + Fix: a drive letter by itself is recognized as an existing path
+ + Fix: the margin colors for panels are determined by the margins in theme files
 
 4.1.2
  + Cursor color changes when recording macro if the theme provides a second cursor color
