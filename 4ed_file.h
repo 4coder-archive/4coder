@@ -31,6 +31,7 @@ struct Editing_File_Settings{
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;
+    b8 unkillable;
     b8 never_kill;
 };
 

@@ -799,6 +799,11 @@ buffer_get_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
                 *value_out = file->settings.unimportant;
             }break;
             
+            case BufferSetting_Unkillable:
+            {
+                *value_out = (file->settings.never_kill || file->settings.unkillable);
+            }break;
+            
             case BufferSetting_ReadOnly:
             {
                 *value_out = file->settings.read_only;
@@ -837,14 +842,14 @@ buffer_set_setting(Application_Links *app, Buffer_ID buffer_id, Buffer_Setting_I
                 }
             }break;
             
+            case BufferSetting_Unkillable:
+            {
+                file->settings.unkillable = (value != 0);
+            }break;
+            
             case BufferSetting_ReadOnly:
             {
-                if (value){
-                    file->settings.read_only = true;
-                }
-                else{
-                    file->settings.read_only = false;
-                }
+                file->settings.read_only = (value != 0);
             }break;
             
             case BufferSetting_RecordsHistory:
@@ -943,7 +948,7 @@ buffer_kill(Application_Links *app, Buffer_ID buffer_id, Buffer_Kill_Flag flags)
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Kill_Result result = BufferKillResult_DoesNotExist;
     if (api_check_buffer(file)){
-        if (!file->settings.never_kill){
+        if (!file->settings.never_kill && !file->settings.unkillable){
             b32 needs_to_save = file_needs_save(file);
             if (!needs_to_save || (flags & BufferKill_AlwaysKill) != 0){
                 Thread_Context *tctx = app->tctx;

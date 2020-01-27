@@ -4321,6 +4321,18 @@ string_remove_last_folder(String_Const_u32 str){
     return(str);
 }
 
+function b32
+string_looks_like_drive_letter(String_Const_u8 string){
+    b32 result = false;
+    if (string.size == 3 &&
+        character_is_alpha(string.str[0]) &&
+        string.str[1] == ':' &&
+        character_is_slash(string.str[2])){
+        result = true;
+    }
+    return(result);
+}
+
 function String_Const_char
 string_remove_front_of_path(String_Const_char str){
     i64 slash_pos = string_find_last_slash(str);
