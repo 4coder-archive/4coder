@@ -1143,7 +1143,7 @@ function i32
 typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_Type type){
     i32 count = 0;
     for (i32 i = 0;; ++i){
-        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
+            Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
         if (result.step == Iteration_Skip){
             continue;
         }
@@ -1630,7 +1630,6 @@ CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the th
     if (file_name.size > 0){
         Arena *arena = &global_theme_arena;
         Color_Table color_table = make_color_table(app, arena);
-        Scratch_Block scratch(app);
         Config *config = theme_parse__buffer(app, scratch, buffer, arena, &color_table);
         String_Const_u8 error_text = config_stringize_errors(app, scratch, config);
         print_message(app, error_text);
