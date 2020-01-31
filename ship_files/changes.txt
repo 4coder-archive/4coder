@@ -10,6 +10,8 @@
  + Fix: line number background and text colors in the built in theme files
  + Fix: a drive letter by itself is recognized as an existing path
  + Fix: the margin colors for panels are determined by the margins in theme files
+ + Fix: when a file is deleted outside of 4coder, the '!' dirty status is added to the buffer
+ + Fix: on mac file changes outside of 4coder are detected and do not stall the UI
 
 4.1.2
  + Cursor color changes when recording macro if the theme provides a second cursor color
