@@ -63,7 +63,7 @@ standard_build_exec_command(Application_Links *app, View_ID view, String_Const_u
                         standard_build_exec_flags);
 }
 
- function b32
+function b32
 standard_search_and_build_from_dir(Application_Links *app, View_ID view, String_Const_u8 start_dir){
     Scratch_Block scratch(app);
     
@@ -82,15 +82,9 @@ standard_search_and_build_from_dir(Application_Links *app, View_ID view, String_
     if (result){
         // NOTE(allen): Build
         String_Const_u8 path = string_remove_last_folder(full_file_path);
-#if OS_WINDOWS
         String_Const_u8 command = push_u8_stringf(scratch, "\"%.*s/%.*s\"",
                                                   string_expand(path),
                                                   string_expand(cmd_string));
-#elif OS_LINUX || OS_MAC
-        String_Const_u8 command = cmd_string;
-#else
-#error OS needs standard search and build rules
-#endif
         if (global_config.automatically_save_changes_on_build){
             save_all_dirty_buffers(app);
         }
@@ -153,7 +147,7 @@ get_or_open_build_panel(Application_Links *app){
     return(view);
 }
 
- function void
+function void
 set_fancy_compilation_buffer_font(Application_Links *app){
     Buffer_ID buffer = get_comp_buffer(app);
     Font_Load_Location font = {};
