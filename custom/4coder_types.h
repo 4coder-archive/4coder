@@ -178,6 +178,7 @@ enum{
     BufferSetting_Unimportant,
     BufferSetting_ReadOnly,
     BufferSetting_RecordsHistory,
+    BufferSetting_Unkillable,
 };
 
 api(custom)

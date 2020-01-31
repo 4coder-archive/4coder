@@ -1420,6 +1420,17 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
 }
 
 function Config*
+theme_parse__buffer(Application_Links *app, Arena *arena, Buffer_ID buffer, Arena *color_arena, Color_Table *color_table){
+    String_Const_u8 contents = push_whole_buffer(app, arena, buffer);
+    Config *parsed = 0;
+    if (contents.str != 0){
+        String_Const_u8 file_name = push_buffer_file_name(app, arena, buffer);
+        parsed = theme_parse__data(app, arena, file_name, contents, color_arena, color_table);
+    }
+    return(parsed);
+}
+
+function Config*
 theme_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file, Arena *color_arena, Color_Table *color_table){
     Data data = dump_file_handle(arena, file);
     Config *parsed = 0;
@@ -1606,6 +1617,35 @@ load_theme_file_into_live_set(Application_Links *app, char *file_name){
         name = string_chop(name, 7);
     }
     save_theme(color_table, name);
+}
+
+CUSTOM_COMMAND_SIG(load_theme_current_buffer)
+CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the theme list. If the buffer has a .4coder postfix in it's name, it is removed when the name is saved.")
+{
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
+    
+    Scratch_Block scratch(app);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+    if (file_name.size > 0){
+        Arena *arena = &global_theme_arena;
+        Color_Table color_table = make_color_table(app, arena);
+        Scratch_Block scratch(app);
+        Config *config = theme_parse__buffer(app, scratch, buffer, arena, &color_table);
+        String_Const_u8 error_text = config_stringize_errors(app, scratch, config);
+        print_message(app, error_text);
+        
+        String_Const_u8 name = string_front_of_path(file_name);
+        if (string_match(string_postfix(name, 7), string_u8_litexpr(".4coder"))){
+            name = string_chop(name, 7);
+        }
+        save_theme(color_table, name);
+        
+        Color_Table_Node *node = global_theme_list.last;
+        if (node != 0 && string_match(node->name, name)){
+            active_color_table = node->table;
+        }
+    }
 }
 
 function void

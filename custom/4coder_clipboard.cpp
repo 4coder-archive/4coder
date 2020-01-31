@@ -46,23 +46,25 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         
         Managed_Scope scope = view_get_managed_scope(app, view);
         Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-        *next_rewrite = Rewrite_Paste;
-        i32 *paste_index = scope_attachment(app, scope, view_paste_index_loc, i32);
-        *paste_index = 0;
-        
-        Scratch_Block scratch(app);
-        
-        String_Const_u8 string = push_clipboard_index(app, scratch, 0, *paste_index);
-        if (string.size > 0){
-            Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+        if (next_rewrite != 0){
+            *next_rewrite = Rewrite_Paste;
+            i32 *paste_index = scope_attachment(app, scope, view_paste_index_loc, i32);
+            *paste_index = 0;
             
-            i64 pos = view_get_cursor_pos(app, view);
-            buffer_replace_range(app, buffer, Ii64(pos), string);
-            view_set_mark(app, view, seek_pos(pos));
-            view_set_cursor_and_preferred_x(app, view, seek_pos(pos + (i32)string.size));
+            Scratch_Block scratch(app);
             
-            ARGB_Color argb = fcolor_resolve(fcolor_id(defcolor_paste));
-            buffer_post_fade(app, buffer, 0.667f, Ii64_size(pos, string.size), argb);
+            String_Const_u8 string = push_clipboard_index(app, scratch, 0, *paste_index);
+            if (string.size > 0){
+                Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+                
+                i64 pos = view_get_cursor_pos(app, view);
+                buffer_replace_range(app, buffer, Ii64(pos), string);
+                view_set_mark(app, view, seek_pos(pos));
+                view_set_cursor_and_preferred_x(app, view, seek_pos(pos + (i32)string.size));
+                
+                ARGB_Color argb = fcolor_resolve(fcolor_id(defcolor_paste));
+                buffer_post_fade(app, buffer, 0.667f, Ii64_size(pos, string.size), argb);
+            }
         }
     }
 }
@@ -79,29 +81,31 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
         no_mark_snap_to_cursor(app, scope);
         
         Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
-        if (*rewrite == Rewrite_Paste){
-            Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-            *next_rewrite = Rewrite_Paste;
-            
-            i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
-            i32 paste_index = (*paste_index_ptr) + 1;
-            *paste_index_ptr = paste_index;
-            
-            String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
-            
-            Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-            
-            Range_i64 range = get_view_range(app, view);
-            i64 pos = range.min;
-            
-            buffer_replace_range(app, buffer, range, string);
-            view_set_cursor_and_preferred_x(app, view, seek_pos(pos + string.size));
-            
-            ARGB_Color argb = fcolor_resolve(fcolor_id(defcolor_paste));
-            buffer_post_fade(app, buffer, 0.667f, Ii64_size(pos, string.size), argb);
-        }
-        else{
-            paste(app);
+        if (rewrite != 0){
+            if (*rewrite == Rewrite_Paste){
+                Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+                *next_rewrite = Rewrite_Paste;
+                
+                i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
+                i32 paste_index = (*paste_index_ptr) + 1;
+                *paste_index_ptr = paste_index;
+                
+                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                
+                Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+                
+                Range_i64 range = get_view_range(app, view);
+                i64 pos = range.min;
+                
+                buffer_replace_range(app, buffer, range, string);
+                view_set_cursor_and_preferred_x(app, view, seek_pos(pos + string.size));
+                
+                ARGB_Color argb = fcolor_resolve(fcolor_id(defcolor_paste));
+                buffer_post_fade(app, buffer, 0.667f, Ii64_size(pos, string.size), argb);
+            }
+            else{
+                paste(app);
+            }
         }
     }
 }
@@ -131,28 +135,30 @@ CUSTOM_COMMAND_SIG(multi_paste){
         Managed_Scope scope = view_get_managed_scope(app, view);
         
         Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
-        if (*rewrite == Rewrite_Paste){
-            Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-            *next_rewrite = Rewrite_Paste;
-            i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
-            i32 paste_index = (*paste_index_ptr) + 1;
-            *paste_index_ptr = paste_index;
-            
-            String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
-            
-            String_Const_u8 insert_string = push_u8_stringf(scratch, "\n%.*s", string_expand(string));
-            
-            Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-            Range_i64 range = get_view_range(app, view);
-            buffer_replace_range(app, buffer, Ii64(range.max), insert_string);
-            view_set_mark(app, view, seek_pos(range.max + 1));
-            view_set_cursor_and_preferred_x(app, view, seek_pos(range.max + insert_string.size));
-            
-            ARGB_Color argb = fcolor_resolve(fcolor_id(defcolor_paste));
-            view_post_fade(app, buffer, 0.667f, Ii64(range.max + 1, range.max + insert_string.size), argb);
-        }
-        else{
-            paste(app);
+        if (rewrite != 0){
+            if (*rewrite == Rewrite_Paste){
+                Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+                *next_rewrite = Rewrite_Paste;
+                i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
+                i32 paste_index = (*paste_index_ptr) + 1;
+                *paste_index_ptr = paste_index;
+                
+                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                
+                String_Const_u8 insert_string = push_u8_stringf(scratch, "\n%.*s", string_expand(string));
+                
+                Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+                Range_i64 range = get_view_range(app, view);
+                buffer_replace_range(app, buffer, Ii64(range.max), insert_string);
+                view_set_mark(app, view, seek_pos(range.max + 1));
+                view_set_cursor_and_preferred_x(app, view, seek_pos(range.max + insert_string.size));
+                
+                ARGB_Color argb = fcolor_resolve(fcolor_id(defcolor_paste));
+                view_post_fade(app, buffer, 0.667f, Ii64(range.max + 1, range.max + insert_string.size), argb);
+            }
+            else{
+                paste(app);
+            }
         }
     }
 }

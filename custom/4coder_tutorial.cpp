@@ -121,7 +121,7 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     View_ID active_view = get_active_view(app, Access_Always);
     b32 is_active_view = (active_view == view_id);
     
-    FColor margin_color = get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
+    FColor margin_color = get_panel_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
     Rect_f32 region = draw_background_and_margin(app, view_id, margin_color, margin_color);
     Rect_f32 prev_clip = draw_set_clip(app, region);
     
@@ -152,9 +152,9 @@ tutorial_render(Application_Links *app, Frame_Info frame_info, View_ID view_id){
             Rect_f32_Pair pair = rect_split_left_right(footer, b_width);
             footer = pair.max;
             footer.x0 += 10.f;
-                if (draw_button(app, pair.min, m_p, face, string_u8_litexpr("minimize"))){
-                    tutorial.hover_action = TutorialAction_Minimize;
-                }
+            if (draw_button(app, pair.min, m_p, face, string_u8_litexpr("minimize"))){
+                tutorial.hover_action = TutorialAction_Minimize;
+            }
         }
         
         {
@@ -241,7 +241,7 @@ tutorial_run_loop(Application_Links *app){
                     case CoreCode_ClickActivateView:
                     {
                         tutorial_maximize(app);
-                            tutorial_action(app, tutorial.hover_action);
+                        tutorial_action(app, tutorial.hover_action);
                         change_active_panel(app);
                     }break;
                     

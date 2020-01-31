@@ -12,21 +12,45 @@ draw_text_layout_default(Application_Links *app, Text_Layout_ID layout_id){
 }
 
 function FColor
-get_margin_color(i32 level){
+get_item_margin_color(i32 level, i32 sub_id){
     FColor margin = fcolor_zero();
     switch (level){
         default:
         case UIHighlight_None:
         {
-            margin = fcolor_id(defcolor_list_item);
+            margin = fcolor_id(defcolor_list_item, sub_id);
         }break;
         case UIHighlight_Hover:
         {
-            margin = fcolor_id(defcolor_list_item_hover);
+            margin = fcolor_id(defcolor_list_item_hover, sub_id);
         }break;
         case UIHighlight_Active:
         {
-            margin = fcolor_id(defcolor_list_item_active);
+            margin = fcolor_id(defcolor_list_item_active, sub_id);
+        }break;
+    }
+    return(margin);
+}
+function FColor
+get_item_margin_color(i32 level){
+    return(get_item_margin_color(level, 0));
+}
+function FColor
+get_panel_margin_color(i32 level){
+    FColor margin = fcolor_zero();
+    switch (level){
+        default:
+        case UIHighlight_None:
+        {
+            margin = fcolor_id(defcolor_margin);
+        }break;
+        case UIHighlight_Hover:
+        {
+            margin = fcolor_id(defcolor_margin_hover);
+        }break;
+        case UIHighlight_Active:
+        {
+            margin = fcolor_id(defcolor_margin_active);
         }break;
     }
     return(margin);
@@ -254,7 +278,7 @@ draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, 
 
 function Rect_f32
 draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view){
-    FColor margin_color = get_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
+    FColor margin_color = get_panel_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
     return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back)));
 }
 
@@ -302,9 +326,9 @@ draw_file_bar(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID
         }break;
     }
     
+    u8 space[3];
     {
         Dirty_State dirty = buffer_get_dirty_state(app, buffer);
-        u8 space[3];
         String_u8 str = Su8(space, 0, 3);
         if (dirty != 0){
             string_append(&str, string_u8_litexpr(" "));
@@ -832,10 +856,10 @@ draw_button(Application_Links *app, Rect_f32 rect, Vec2_f32 mouse_p, Face_ID fac
         hovered = true;
     }
     
-    FColor margin_color = get_margin_color(hovered?UIHighlight_Active:UIHighlight_None);
-    draw_rectangle_fcolor(app, rect, 3.f, margin_color);
+    UI_Highlight_Level highlight = hovered?UIHighlight_Active:UIHighlight_None;
+    draw_rectangle_fcolor(app, rect, 3.f, get_item_margin_color(highlight));
     rect = rect_inner(rect, 3.f);
-    draw_rectangle_fcolor(app, rect, 3.f, fcolor_id(defcolor_back));
+    draw_rectangle_fcolor(app, rect, 3.f, get_item_margin_color(highlight, 1));
     
     Scratch_Block scratch(app);
     Fancy_String *fancy = push_fancy_string(scratch, 0, face, fcolor_id(defcolor_text_default), text);

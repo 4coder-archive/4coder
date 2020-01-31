@@ -638,7 +638,11 @@ CUSTOM_DOC("Interactively open a file out of the file system.")
             if (HasFlag(attribs.flags, FileAttribute_IsDirectory)){
                 set_hot_directory(app, full_file_name);
                 continue;
-            }
+			}
+			if (string_looks_like_drive_letter(file_name)){
+				set_hot_directory(app, file_name);
+				continue;
+			}
             if (query_create_folder(app, file_name)){
                 set_hot_directory(app, full_file_name);
                 continue;
@@ -687,7 +691,11 @@ CUSTOM_DOC("Interactively creates a new file.")
             if (HasFlag(attribs.flags, FileAttribute_IsDirectory)){
                 set_hot_directory(app, full_file_name);
                 continue;
-            }
+			}
+			if (string_looks_like_drive_letter(file_name)){
+				set_hot_directory(app, file_name);
+				continue;
+			}
             if (query_create_folder(app, file_name)){
                 set_hot_directory(app, full_file_name);
                 continue;

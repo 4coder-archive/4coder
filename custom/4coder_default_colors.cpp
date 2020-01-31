@@ -104,7 +104,7 @@ make_color_table(Application_Links *app, Arena *arena){
 function void
 set_default_color_scheme(Application_Links *app){
     if (global_theme_arena.base_allocator == 0){
-    global_theme_arena = make_arena_system();
+        global_theme_arena = make_arena_system();
     }
     
     Arena *arena = &global_theme_arena;
@@ -120,9 +120,9 @@ set_default_color_scheme(Application_Links *app){
     default_color_table.arrays[defcolor_margin] = make_colors(arena, 0xFF181818);
     default_color_table.arrays[defcolor_margin_hover] = make_colors(arena, 0xFF252525);
     default_color_table.arrays[defcolor_margin_active] = make_colors(arena, 0xFF323232);
-    default_color_table.arrays[defcolor_list_item] = make_colors(arena, 0xFF181818);
-    default_color_table.arrays[defcolor_list_item_hover] = make_colors(arena, 0xFF252525);
-    default_color_table.arrays[defcolor_list_item_active] = make_colors(arena, 0xFF323232);
+    default_color_table.arrays[defcolor_list_item] = make_colors(arena, 0xFF181818, 0xFF0C0C0C);
+    default_color_table.arrays[defcolor_list_item_hover] = make_colors(arena, 0xFF252525, 0xFF181818);
+    default_color_table.arrays[defcolor_list_item_active] = make_colors(arena, 0xFF323232, 0xFF323232);
     default_color_table.arrays[defcolor_cursor] = make_colors(arena, 0xFF00EE00, 0xFFEE7700);
     default_color_table.arrays[defcolor_at_cursor] = make_colors(arena, 0xFF0C0C0C);
     default_color_table.arrays[defcolor_highlight_cursor_line] = make_colors(arena, 0xFF1E1E1E);

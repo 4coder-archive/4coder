@@ -91,17 +91,20 @@ internal String_Const_u8_Array
 user_list_definition_array(Application_Links *app, Arena *arena, String_Const_u8 base_needle){
     String_Const_u8_Array result = {};
     if (base_needle.size > 0){
-        result.count = 9;
+        result.count = 12;
         result.vals = push_array(arena, String_Const_u8, result.count);
         i32 i = 0;
         result.vals[i++] = (push_u8_stringf(arena, "struct %.*s{"  , string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "struct %.*s\n{", string_expand(base_needle)));
+        result.vals[i++] = (push_u8_stringf(arena, "struct %.*s\r\n{", string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "struct %.*s {" , string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "union %.*s{"   , string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "union %.*s\n{" , string_expand(base_needle)));
+        result.vals[i++] = (push_u8_stringf(arena, "union %.*s\r\n{" , string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "union %.*s {"  , string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "enum %.*s{"    , string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "enum %.*s\n{"  , string_expand(base_needle)));
+        result.vals[i++] = (push_u8_stringf(arena, "enum %.*s\r\n{"  , string_expand(base_needle)));
         result.vals[i++] = (push_u8_stringf(arena, "enum %.*s {"   , string_expand(base_needle)));
         Assert(i == result.count);
     }
