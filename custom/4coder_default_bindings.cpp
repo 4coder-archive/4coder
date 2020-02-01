@@ -8,7 +8,10 @@
 #define FCODER_DEFAULT_BINDINGS_CPP
 
 #include "4coder_default_include.cpp"
-#include "4coder_default_map.cpp"
+
+// NOTE(allen): Users can declare their own managed IDs here.
+
+#include "generated/managed_id_metadata.cpp"
 
 void
 custom_layer_init(Application_Links *app){

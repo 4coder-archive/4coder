@@ -335,7 +335,7 @@ system_set_fullscreen_sig(){
 
 internal
 system_is_fullscreen_sig(){
-    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the 
+    // NOTE(allen): Report the fullscreen status as it would be set at the beginning of the
     // next frame. That is, take into account all fullscreen toggle requests that have come in
     // already this frame. Read: "full_screen XOR do_toggle"
     b32 result = (win32vars.full_screen != win32vars.do_toggle);
@@ -605,6 +605,9 @@ os_popup_error(char *title, char *message){
 #include "4ed_font_provider_freetype.cpp"
 
 #include <GL/gl.h>
+#include "opengl/4ed_opengl_defines.h"
+#define GL_FUNC(N,R,P) typedef R (CALL_CONVENTION N##_Function)P; N##_Function *N = 0;
+#include "opengl/4ed_opengl_funcs.h"
 #include "opengl/4ed_opengl_render.cpp"
 
 internal
@@ -640,6 +643,7 @@ win32_keycode_init(void){
     keycode_lookup_table[VK_SPACE] = KeyCode_Space;
     keycode_lookup_table[VK_OEM_3] = KeyCode_Tick;
     keycode_lookup_table[VK_OEM_MINUS] = KeyCode_Minus;
+    keycode_lookup_table[VK_OEM_PLUS] = KeyCode_Equal;
     keycode_lookup_table[VK_OEM_4] = KeyCode_LeftBracket;
     keycode_lookup_table[VK_OEM_6] = KeyCode_RightBracket;
     keycode_lookup_table[VK_OEM_1] = KeyCode_Semicolon;
@@ -1240,10 +1244,10 @@ win32_wgl_good(Void_Func *f){
            f != (Void_Func*)-1);
 }
 
-typedef HGLRC (wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
-typedef BOOL (wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
-typedef char* (wglGetExtensionsStringEXT_Function)();
-typedef VOID (wglSwapIntervalEXT_Function)(i32);
+typedef HGLRC (CALL_CONVENTION wglCreateContextAttribsARB_Function)(HDC,HGLRC,i32*);
+typedef BOOL  (CALL_CONVENTION wglChoosePixelFormatARB_Function)(HDC,i32*,f32*,u32,i32*,u32*);
+typedef char* (CALL_CONVENTION wglGetExtensionsStringEXT_Function)();
+typedef VOID  (CALL_CONVENTION wglSwapIntervalEXT_Function)(i32);
 
 global wglCreateContextAttribsARB_Function *wglCreateContextAttribsARB = 0;
 global wglChoosePixelFormatARB_Function *wglChoosePixelFormatARB = 0;
@@ -1308,7 +1312,7 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         
         // NOTE(allen): Load wgl extensions
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
-        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
+(l) = (l) && win32_wgl_good((Void_Func*)(f));)
         
         b32 load_success = true;
         LoadWGL(wglCreateContextAttribsARB, load_success);
@@ -1413,10 +1417,10 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 /*0*/WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
                 /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 2,
                 /*4*/WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-#if GL_DEBUG_MODE
-                    |WGL_CONTEXT_DEBUG_BIT_ARB
-#endif
-                    ,
+    #if GL_DEBUG_MODE
+                |WGL_CONTEXT_DEBUG_BIT_ARB
+    #endif
+                ,
                 /*6*/WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
                 /*8*/0
             };

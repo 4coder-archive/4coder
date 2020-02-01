@@ -94,6 +94,26 @@ struct Buffer_Modified_Set{
     Table_u64_u64 id_to_node;
 };
 
+////////////////////////////////
+
+struct Fade_Range{
+    Fade_Range *next;
+    union{
+        Buffer_ID buffer_id;
+        View_ID view_id;
+    };
+    f32 t;
+    f32 full_t;
+    Range_i64 range;
+    ARGB_Color color;
+};
+
+struct Fade_Range_List{
+    Fade_Range *first;
+    Fade_Range *last;
+    i32 count;
+};
+
 #endif
 
 // BOTTOM

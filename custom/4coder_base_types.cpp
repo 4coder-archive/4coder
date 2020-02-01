@@ -1727,7 +1727,7 @@ Ii32_size(i32 pos, i32 size){
 function Range_i64
 Ii64_size(i64 pos, i64 size){
     return(Ii64(pos, pos + size));
-} 
+}
 function Range_u64
 Iu64_size(u64 pos, u64 size){
     return(Iu64(pos, pos + size));
@@ -2978,7 +2978,7 @@ make_base_allocator(Base_Allocator_Reserve_Signature *func_reserve,
 }
 function Data
 base_allocate__inner(Base_Allocator *allocator, u64 size, String_Const_u8 location){
-     u64 full_size = 0;
+    u64 full_size = 0;
     void *memory = allocator->reserve(allocator->user_data, size, &full_size, location);
     allocator->commit(allocator->user_data, memory, full_size);
     return(make_data(memory, (u64)full_size));
@@ -4321,6 +4321,18 @@ string_remove_last_folder(String_Const_u32 str){
     return(str);
 }
 
+function b32
+string_looks_like_drive_letter(String_Const_u8 string){
+    b32 result = false;
+    if (string.size == 3 &&
+        character_is_alpha(string.str[0]) &&
+        string.str[1] == ':' &&
+        character_is_slash(string.str[2])){
+        result = true;
+    }
+    return(result);
+}
+
 function String_Const_char
 string_remove_front_of_path(String_Const_char str){
     i64 slash_pos = string_find_last_slash(str);
@@ -4393,6 +4405,26 @@ string_front_of_path(String_Const_u16 str){
 function String_Const_u32
 string_front_of_path(String_Const_u32 str){
     i64 slash_pos = string_find_last_slash(str);
+    if (slash_pos >= 0){
+        str = string_skip(str, slash_pos + 1);
+    }
+    return(str);
+}
+
+function String_Const_u8
+string_remove_front_folder_of_path(String_Const_u8 str){
+    i64 slash_pos = string_find_last_slash(string_chop(str, 1));
+    if (slash_pos < 0){
+        str.size = 0;
+    }
+    else{
+        str.size = slash_pos + 1;
+    }
+    return(str);
+}
+function String_Const_u8
+string_front_folder_of_path(String_Const_u8 str){
+    i64 slash_pos = string_find_last_slash(string_chop(str, 1));
     if (slash_pos >= 0){
         str = string_skip(str, slash_pos + 1);
     }
@@ -4728,9 +4760,10 @@ string_find_first(String_Const_char str, String_Const_char needle, String_Match_
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+            char c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_char source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
@@ -4751,9 +4784,10 @@ string_find_first(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+            u8 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_u8 source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
@@ -4774,9 +4808,10 @@ string_find_first(String_Const_u16 str, String_Const_u16 needle, String_Match_Ru
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+            u16 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_u16 source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
@@ -4797,9 +4832,10 @@ string_find_first(String_Const_u32 str, String_Const_u32 needle, String_Match_Ru
         i = str.size;
         if (str.size >= needle.size){
 			i = 0;
+            u32 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
-                if (str.str[i] == needle.str[0]){
+                if (character_to_upper(str.str[i]) == c){
                     String_Const_u32 source_part = string_prefix(string_skip(str, i), needle.size);
                     if (string_match(source_part, needle, rule)){
                         break;
@@ -5281,7 +5317,7 @@ push_string_copy(Arena *arena, u64 size, String_Const_Any src){
     return(string);
 }
 
- function String_Const_u8_Array
+function String_Const_u8_Array
 push_string_array_copy(Arena *arena, String_Const_u8_Array src){
     String_Const_u8_Array result = {};
     result.vals = push_array(arena, String_Const_u8, src.count);
@@ -6943,10 +6979,10 @@ global_const u8 integer_symbol_reverse[128] = {
 
 global_const u8 base64[64] = {
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
     '_', '$',
 };
 
@@ -6963,7 +6999,7 @@ global_const u8 base64_reverse[128] = {
 
 function u64
 digit_count_from_integer(u64 x, u32 radix){
-    u64 result = {};
+    u64 result = 0;
     if (radix >= 2 && radix <= 16){
         if (x == 0){
             result = 1;

@@ -4,9 +4,6 @@
 
 // TOP
 
-global b32 global_keyboard_macro_is_recording = false;
-global Range_i64 global_keyboard_macro_range = {};
-
 function Buffer_ID
 get_keyboard_log_buffer(Application_Links *app){
     return(get_buffer_by_name(app, string_u8_litexpr("*keyboard*"), Access_Always));

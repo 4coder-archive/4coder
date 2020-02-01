@@ -1,3 +1,43 @@
+
+4.1.3
+ + Unkillable buffer setting
+ + UI elements in listers and buttons can have different highlight backgrounds
+ + command 'load_theme_current_buffer' for loading the current file as a theme and setting it as the theme
+ + Fix: search and replace never exits early
+ + Fix: optimized builds of the custom layer display the dirty * on the file bar correclty
+ + Fix: can merge "backwards" strings in the history correctly
+ + Fix: the helper user_list_definition_array matches both LF and CRLF line endings
+ + Fix: line number background and text colors in the built in theme files
+ + Fix: a drive letter by itself is recognized as an existing path
+ + Fix: the margin colors for panels are determined by the margins in theme files
+ + Fix: when a file is deleted outside of 4coder, the '!' dirty status is added to the buffer
+ + Fix: on mac file changes outside of 4coder are detected and do not stall the UI
+
+4.1.2
+ + Cursor color changes when recording macro if the theme provides a second cursor color
+ + Default custom layer now has a feature for supporting fade ranges as used in pasting and undoing
+ + Ability to "partially" paint text with a blend factor to create blends
+ + In file lister, typing a slash with a name for a folder that does not exist asks the user if they would like to create a folder
+ + Fix: parser in code index recognizes functions with more than one parameter
+ + Fix: trying to create a face with a font file that doesn't exist doesn't crash
+ + Fix: escaping command documentation lister doesn't crash
+ + Fix: lexer generator switched to new macro names Max and Min
+ + Fix: implementation for getting previous view iterates from null to the last view in order (instead of the first)
+ + Fix: auto-indent when a file with virtual whitespace is saved
+ + Fix: can create up to sixteen panels, and doesn't crash when trying to create more
+ + Fix: faster text range highlighting
+ + Fix: side by side editing a single buffer doesn't scroll the lower view down when insterting lines in the higher view
+ + Fix: indentation after paren group is correct
+
+4.1.1
+ Changes not documented
+
+4.1.0
+ Initial beta version
+
+**************************************************
+**************************************************
+
 New in alpha 4.0.30:
 -Mouse events (clicking, scroll wheel, mouse move) can now be bound with modifier keys
 -New and changed commands:

@@ -39,6 +39,7 @@ struct Lister_Node_Ptr_Array{
     i32 count;
 };
 
+typedef Lister_Activation_Code Lister_Write_Character_Function(Application_Links *app);
 typedef Lister_Activation_Code Lister_Key_Stroke_Function(Application_Links *app);
 typedef void Lister_Navigate_Function(Application_Links *app,
                                       View_ID view, struct Lister *lister,
@@ -46,7 +47,7 @@ typedef void Lister_Navigate_Function(Application_Links *app,
 
 struct Lister_Handlers{
     Lister_Regenerate_List_Function_Type *refresh;
-    Custom_Command_Function *write_character;
+    Lister_Write_Character_Function *write_character;
     Custom_Command_Function *backspace;
     Lister_Navigate_Function *navigate;
     Lister_Key_Stroke_Function *key_stroke;

@@ -31,14 +31,34 @@
 #  error architecture not supported yet
 # endif
 
+#elif defined(__clang__)
+
+# define COMPILER_CLANG 1
+
+# if defined(__APPLE__) && defined(__MACH__)
+#  define OS_MAC 1
+# else
+#  error This compiler/platform combo is not supported yet
+# endif
+
+# if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64)
+#  define ARCH_X64 1
+# elif defined(i386) || defined(__i386) || defined(__i386__)
+#  define ARCH_X86 1
+# elif defined(__aarch64__)
+#  define ARCH_ARM64 1
+# elif defined(__arm__)
+#  define ARCH_ARM32 1
+# else
+#  error architecture not supported yet
+# endif
+
 #elif defined(__GNUC__) || defined(__GNUG__)
 
 # define COMPILER_GCC 1
 
 # if defined(__gnu_linux__)
 #  define OS_LINUX 1
-# elif defined(__APPLE__) && defined(__MACH__)
-#  define OS_MAC 1
 # else
 #  error This compiler/platform combo is not supported yet
 # endif
@@ -92,6 +112,9 @@
 #if !defined(COMPILER_GCC)
 #define COMPILER_GCC 0
 #endif
+#if !defined(COMPILER_CLANG)
+#define COMPILER_CLANG 0
+#endif
 #if !defined(OS_WINDOWS)
 #define OS_WINDOWS 0
 #endif
@@ -121,12 +144,11 @@
 #endif
 #endif
 
-#if OS_WINDOWS
-# if ARCH_32BIT
-#  define CALL_CONVENTION __stdcall
-# else
-#  define CALL_CONVENTION
-# endif
+// NOTE(yuval): Changed this so that CALL_CONVENTION will be defined for all platforms
+#if ARCH_32BIT
+# define CALL_CONVENTION __stdcall
+#else
+# define CALL_CONVENTION
 #endif
 
 #if defined(JUST_GUESS_INTS)
@@ -268,8 +290,6 @@ enum{
 
 #define Max(a,b) (((a)>(b))?(a):(b))
 #define Min(a,b) (((a)<(b))?(a):(b))
-#define max(a,b) (((a)>(b))?(a):(b))
-#define min(a,b) (((a)<(b))?(a):(b))
 #define clamp_top(a,b) Min(a,b)
 #define clamp_bot(a,b) Max(a,b)
 #define clamp_(a,x,b) ((a>x)?a:((b<x)?b:x))
@@ -510,6 +530,9 @@ union SNode{
 #define zdll_remove_back(f,l) zdll_remove_back_NP_((f),(l),next,prev)
 #define zdll_remove_front(f,l) zdll_remove_back_NP_((l),(f),prev,next)
 #define zdll_remove(f,l,n) zdll_remove_NP_((f),(l),(n),next,prev)
+
+#define zdll_assert_good(T,f) Stmnt( if (f != 0){ Assert(f->prev == 0); \
+for(T *p_ = f; p_ != 0; p_ = p_->next){ Assert(p_->prev == 0 || p_->prev->next == p_); Assert(p_->next == 0 || p_->next->prev == p_); }  } )
 
 ////////////////////////////////
 
@@ -836,7 +859,7 @@ enum{
 
 struct String_Const_char{
     char *str;
-      u64 size;
+    u64 size;
 };
 struct String_Const_u8{
     union{
@@ -924,25 +947,25 @@ struct Node_String_Const_u32{
 struct List_String_Const_char{
     Node_String_Const_char *first;
     Node_String_Const_char *last;
-     u64 total_size;
+    u64 total_size;
     i32 node_count;
 };
 struct List_String_Const_u8{
     Node_String_Const_u8 *first;
     Node_String_Const_u8 *last;
-     u64 total_size;
+    u64 total_size;
     i32 node_count;
 };
 struct List_String_Const_u16{
     Node_String_Const_u16 *first;
     Node_String_Const_u16 *last;
-     u64 total_size;
+    u64 total_size;
     i32 node_count;
 };
 struct List_String_Const_u32{
     Node_String_Const_u32 *first;
     Node_String_Const_u32 *last;
-     u64 total_size;
+    u64 total_size;
     i32 node_count;
 };
 
@@ -953,7 +976,7 @@ struct Node_String_Const_Any{
 struct List_String_Const_Any{
     Node_String_Const_Any *first;
     Node_String_Const_Any *last;
-     u64 total_size;
+    u64 total_size;
     i32 node_count;
 };
 
@@ -962,40 +985,40 @@ struct String_char{
         String_Const_char string;
         struct{
             char *str;
-             u64 size;
+            u64 size;
         };
     };
-     u64 cap;
+    u64 cap;
 };
 struct String_u8{
     union{
         String_Const_u8 string;
         struct{
             u8 *str;
-             u64 size;
+            u64 size;
         };
     };
-     u64 cap;
+    u64 cap;
 };
 struct String_u16{
     union{
         String_Const_u16 string;
         struct{
             u16 *str;
-             u64 size;
+            u64 size;
         };
     };
-     u64 cap;
+    u64 cap;
 };
 struct String_u32{
     union{
         String_Const_u32 string;
         struct{
             u32 *str;
-             u64 size;
+            u64 size;
         };
     };
-     u64 cap;
+    u64 cap;
 };
 
 struct String_Any{
@@ -1003,8 +1026,8 @@ struct String_Any{
     union{
         struct{
             void *str;
-             u64 size;
-             u64 cap;
+            u64 size;
+            u64 cap;
         };
         String_char s_char;
         String_u8 s_u8;
@@ -1091,7 +1114,7 @@ struct Base_Allocator{
 
 struct Cursor{
     u8 *base;
-     u64 pos;
+    u64 pos;
     u64 cap;
 };
 struct Temp_Memory_Cursor{
@@ -1231,7 +1254,7 @@ struct Heap_Node{
         struct{
             Heap_Basic_Node order;
             Heap_Basic_Node alloc;
-             u64 size;
+            u64 size;
         };
         u8 force_size__[64];
     };
@@ -1242,8 +1265,8 @@ struct Heap{
     Arena *arena;
     Heap_Basic_Node in_order;
     Heap_Basic_Node free_nodes;
-     u64 used_space;
-     u64 total_space;
+    u64 used_space;
+    u64 total_space;
 };
 
 #endif

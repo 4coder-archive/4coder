@@ -21,7 +21,8 @@ file_change_notification_check(Arena *scratch, Working_Set *working_set, Editing
     if (file->canon.name_size > 0 && !file->settings.unimportant){
         String_Const_u8 name = SCu8(file->canon.name_space, file->canon.name_size);
         File_Attributes attributes = system_quick_file_attributes(scratch, name);
-        if (attributes.last_write_time > file->attributes.last_write_time){
+        if ((attributes.last_write_time > file->attributes.last_write_time) ||
+            (attributes.last_write_time == 0 && file->attributes.last_write_time > 0)){
             if (file->state.save_state == FileSaveState_SavedWaitingForNotification){
                 file->state.save_state = FileSaveState_Normal;
                 file->attributes = attributes;

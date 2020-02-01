@@ -646,53 +646,6 @@ buffer_remeasure_starts(Thread_Context *tctx, Gap_Buffer *buffer, Batch_Edit *ba
     }
 }
 
-#if 0
-internal void
-buffer_remeasure_starts(Arena *scratch, Gap_Buffer *buffer,
-                        Range_i64 old_line_indexes, i64 line_shift, i64 text_shift){
-    Temp_Memory temp = begin_temp(scratch);
-    buffer_starts__ensure_max_size(buffer, buffer->line_start_count + line_shift);
-    
-    i64 new_line_indexes_opl = old_line_indexes.one_past_last + line_shift;
-    i64 old_line_start_count = buffer->line_start_count;
-    i64 *line_start_ptr = buffer->line_starts + old_line_indexes.one_past_last;
-    for (i64 i = old_line_indexes.one_past_last;
-         i < old_line_start_count;
-         i += 1, line_start_ptr += 1){
-        *line_start_ptr += text_shift;
-    }
-    block_copy_dynamic_array(buffer->line_starts + new_line_indexes_opl,
-                             buffer->line_starts + old_line_indexes.one_past_last,
-                             buffer->line_start_count - old_line_indexes.one_past_last);
-    
-    i64 first_pos = buffer->line_starts[old_line_indexes.first];
-    i64 write_counter = old_line_indexes.first + 1;
-    i64 pos = first_pos;
-    List_String_Const_u8 list = buffer_get_chunks(scratch, buffer);
-    buffer_chunks_clamp(&list, Ii64(first_pos, buffer_size(buffer)));
-    for (Node_String_Const_u8 *node = list.first;
-         node != 0;
-         node = node->next){
-        u8 *byte = node->string.str;
-        u8 *byte_opl = byte + node->string.size;
-        for (;byte < byte_opl; byte += 1){
-            pos += 1;
-            if (*byte == '\n'){
-                buffer->line_starts[write_counter] = pos;
-                write_counter += 1;
-                if (write_counter == new_line_indexes_opl){
-                    goto double_break;
-                }
-            }
-        }
-    }
-    double_break:;
-    
-    buffer->line_start_count += line_shift;
-    end_temp(temp);
-}
-#endif
-
 internal Range_i64
 buffer_get_pos_range_from_line_number(Gap_Buffer *buffer, i64 line_number){
     Range_i64 result = {};
@@ -705,7 +658,7 @@ buffer_get_pos_range_from_line_number(Gap_Buffer *buffer, i64 line_number){
 
 internal i64
 buffer_get_first_pos_from_line_number(Gap_Buffer *buffer, i64 line_number){
-    i64 result = {};
+    i64 result = 0;
     if (line_number < 1){
         result = 0;
     }
@@ -720,7 +673,7 @@ buffer_get_first_pos_from_line_number(Gap_Buffer *buffer, i64 line_number){
 
 internal i64
 buffer_get_last_pos_from_line_number(Gap_Buffer *buffer, i64 line_number){
-    i64 result = {};
+    i64 result = 0;
     if (line_number < 1){
         result = 0;
     }

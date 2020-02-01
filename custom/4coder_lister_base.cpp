@@ -266,8 +266,8 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             highlight = UIHighlight_Hover;
         }
         
-        draw_rectangle_fcolor(app, item_rect, 6.f, get_margin_color(highlight));
-        draw_rectangle_fcolor(app, item_inner, 6.f, fcolor_id(defcolor_back));
+        draw_rectangle_fcolor(app, item_rect, 6.f, get_item_margin_color(highlight));
+        draw_rectangle_fcolor(app, item_inner, 6.f, get_item_margin_color(highlight, 1));
         
         Fancy_Line line = {};
         push_fancy_string(scratch, &line, fcolor_id(defcolor_text_default), node->string);
@@ -472,7 +472,7 @@ run_lister(Application_Links *app, Lister *lister){
             case InputEventKind_TextInsert:
             {
                 if (lister->handlers.write_character != 0){
-                    lister->handlers.write_character(app);
+                    result = lister->handlers.write_character(app);
                 }
             }break;
             
@@ -627,7 +627,7 @@ run_lister(Application_Links *app, Lister *lister){
                 switch (in.event.core.code){
                     case CoreCode_Animate:
                     {
-                lister_update_filtered_list(app, lister);
+                        lister_update_filtered_list(app, lister);
                     }break;
                     
                     default:
@@ -716,8 +716,9 @@ lister_add_item(Lister *lister, String_Const_u8 string, String_Const_u8 status, 
                            user_data, extra_space));
 }
 
-function void
+function Lister_Activation_Code
 lister__write_string__default(Application_Links *app){
+    Lister_Activation_Code result = ListerActivation_Continue;
     View_ID view = get_active_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
@@ -731,6 +732,7 @@ lister__write_string__default(Application_Links *app){
             lister_update_filtered_list(app, lister);
         }
     }
+    return(result);
 }
 
 function void

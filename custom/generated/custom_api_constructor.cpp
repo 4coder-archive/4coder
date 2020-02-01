@@ -161,6 +161,15 @@ api_param(arena, call, "i64", "base_line");
 api_param(arena, call, "i64", "pos");
 }
 {
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("buffer_padded_box_of_pos"), string_u8_litexpr("Rect_f32"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+api_param(arena, call, "Buffer_ID", "buffer_id");
+api_param(arena, call, "f32", "width");
+api_param(arena, call, "Face_ID", "face_id");
+api_param(arena, call, "i64", "base_line");
+api_param(arena, call, "i64", "pos");
+}
+{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("buffer_relative_character_from_pos"), string_u8_litexpr("i64"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "Buffer_ID", "buffer_id");
@@ -201,6 +210,13 @@ api_param(arena, call, "Vec2_f32", "relative_xy");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("view_relative_box_of_pos"), string_u8_litexpr("Rect_f32"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+api_param(arena, call, "View_ID", "view_id");
+api_param(arena, call, "i64", "base_line");
+api_param(arena, call, "i64", "pos");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("view_padded_box_of_pos"), string_u8_litexpr("Rect_f32"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "View_ID", "view_id");
 api_param(arena, call, "i64", "base_line");
@@ -890,6 +906,10 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("send_e
 api_param(arena, call, "Application_Links*", "app");
 }
 {
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("hard_exit"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+}
+{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_window_title"), string_u8_litexpr("void"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "String_Const_u8", "title");
@@ -968,7 +988,7 @@ api_param(arena, call, "i64", "pos");
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("paint_text_color"), string_u8_litexpr("void"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "Text_Layout_ID", "layout_id");
-api_param(arena, call, "Interval_i64", "range");
+api_param(arena, call, "Range_i64", "range");
 api_param(arena, call, "ARGB_Color", "color");
 }
 {

@@ -1174,6 +1174,16 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
     
     ////////////////////////////////
     
+    if (begin_doc_call(arena, cluster, api_def, "hard_exit", &func)){
+        doc_function_brief(arena, &func, "Exits 4coder at the end of the frame, no matter what; for instance, call from the exit signal handler to actual exit 4coder.");
+        
+        // params
+        doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+    }
+    
+    ////////////////////////////////
+    
     if (begin_doc_call(arena, cluster, api_def, "set_window_title", &func)){
         doc_function_brief(arena, &func, "Set the title of the 4coder window");
         

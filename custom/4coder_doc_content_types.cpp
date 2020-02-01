@@ -204,5 +204,21 @@ doc_paragraph(Arena *arena, Doc_Block *block){
     par->kind = DocParagraphKind_Text;
 }
 
+////////////////////////////////
+
+function Doc_Page*
+doc_get_page(Doc_Cluster *cluster, String_Const_u8 name){
+    Doc_Page *result = 0;
+    for (Doc_Page *page = cluster->first_page;
+         page != 0;
+         page = page->next){
+        if (string_match(name, page->name)){
+            result = page;
+            break;
+        }
+    }
+    return(result);
+}
+
 // BOTTOM
 

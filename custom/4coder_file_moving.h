@@ -33,11 +33,11 @@ static i32 prev_error = 0;
 #endif
 
 #define systemf(...) do{                                       \
-    i32 n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__);     \
-    Assert(n < sizeof(SF_CMD));                                \
-    SYSTEMF_PRINTF("%s\n", SF_CMD);                            \
-    prev_error = system(SF_CMD);                               \
-    if (prev_error != 0) error_state = 1;                      \
+i32 n = snprintf(SF_CMD, sizeof(SF_CMD), __VA_ARGS__);     \
+Assert(n < sizeof(SF_CMD));                                \
+SYSTEMF_PRINTF("%s\n", SF_CMD);                            \
+prev_error = system(SF_CMD);                               \
+if (prev_error != 0) error_state = 1;                      \
 }while(0)
 
 internal void fm_execute_in_dir(char *dir, char *str, char *args);
@@ -109,18 +109,18 @@ internal void fm__swap_ptr(char **A, char **B);
 #if COMPILER_CL
 
 #define fm_add_to_line(line, str, ...) do{  \
-    snprintf(line.build_options,            \
-    line.build_max, "%s "str,               \
-    line.build_options_prev, __VA_ARGS__);  \
-    fm__swap_ptr(&line.build_options, &line.build_options_prev); \
+snprintf(line.build_options,            \
+line.build_max, "%s "str,               \
+line.build_options_prev, __VA_ARGS__);  \
+fm__swap_ptr(&line.build_options, &line.build_options_prev); \
 }while(0)
 
-#elif COMPILER_GCC
+#elif COMPILER_GCC | COMPILER_CLANG
 
 #define fm_add_to_line(line, str, ...) do{                   \
-    snprintf(line.build_options, line.build_max, "%s " str,  \
-    line.build_options_prev, ##__VA_ARGS__);                 \
-    fm__swap_ptr(&line.build_options, &line.build_options_prev); \
+snprintf(line.build_options, line.build_max, "%s " str,  \
+line.build_options_prev, ##__VA_ARGS__);                 \
+fm__swap_ptr(&line.build_options, &line.build_options_prev); \
 }while(0)
 
 #endif
@@ -259,9 +259,9 @@ extern "C"{
 #define OPEN_ALWAYS                      4
 #define TRUNCATE_EXISTING                5
 
-#define FILE_ATTRIBUTE_READONLY          0x00000001  
-#define FILE_ATTRIBUTE_NORMAL            0x00000080  
-#define FILE_ATTRIBUTE_TEMPORARY         0x00000100 
+#define FILE_ATTRIBUTE_READONLY          0x00000001
+#define FILE_ATTRIBUTE_NORMAL            0x00000080
+#define FILE_ATTRIBUTE_TEMPORARY         0x00000100
 
 global u64 perf_frequency;
 
@@ -370,9 +370,9 @@ fm_copy_file(char *file, char *newname){
 
 internal void
 fm_copy_all(char *source, char *folder){
-        fprintf(stdout, "copy %s to %s\n", source, folder);
-        fflush(stdout);
-        systemf("xcopy /s /e /y /q %s %s > nul", source, folder);
+    fprintf(stdout, "copy %s to %s\n", source, folder);
+    fflush(stdout);
+    systemf("xcopy /s /e /y /q %s %s > nul", source, folder);
 }
 
 internal void
@@ -510,7 +510,7 @@ fm_copy_file(char *file, char *newname){
 internal void
 fm_copy_all(char *source, char *folder){
     fprintf(stdout, "copy %s to %s\n", source, folder);
-    systemf("cp -rf %s %s > /dev/null", source, folder);
+    systemf("cp -rf %s/* %s > /dev/null", source, folder);
 }
 
 internal void

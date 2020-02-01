@@ -68,15 +68,15 @@ character_predicate_from_function(Character_Predicate_Function *func){
             v[bit_index] = func((u8)i);
         }
         predicate.b[byte_index] = (
-            (v[0] << 0) |
-            (v[1] << 1) |
-            (v[2] << 2) |
-            (v[3] << 3) |
-            (v[4] << 4) |
-            (v[5] << 5) |
-            (v[6] << 6) |
-            (v[7] << 7)
-            );
+                                   (v[0] << 0) |
+                                   (v[1] << 1) |
+                                   (v[2] << 2) |
+                                   (v[3] << 3) |
+                                   (v[4] << 4) |
+                                   (v[5] << 5) |
+                                   (v[6] << 6) |
+                                   (v[7] << 7)
+                                   );
         byte_index += 1;
     }
     return(predicate);
@@ -788,7 +788,7 @@ enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range,
         range.min = new_min;
     }
     i64 new_max       = func(app, buffer, Side_Max, Scan_Forward, range.max - 1);
-    i64 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max - 1);
+    i64 new_max_check = func(app, buffer, Side_Min, Scan_Forward, range.max);
     if (new_max_check >= new_max && new_max > range.max){
         range.max = new_max;
     }
@@ -797,7 +797,7 @@ enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range,
 
 internal Range_i64
 left_enclose_boundary(Application_Links *app, Buffer_ID buffer, Range_i64 range,
-                       Boundary_Function *func){
+                      Boundary_Function *func){
     i64 new_min       = func(app, buffer, Side_Min, Scan_Backward, range.min + 1);
     i64 new_min_check = func(app, buffer, Side_Max, Scan_Backward, range.min + 1);
     if (new_min_check <= new_min && new_min < range.min){
@@ -1227,8 +1227,8 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range,
 }
 
 internal Indent_Info
-get_indent_info_line_start(Application_Links *app, Buffer_ID buffer, i64 line_start, i32 tab_width){
-    i64 end = get_line_side_pos_from_pos(app, buffer, line_start, Side_Max);
+get_indent_info_line_number_and_start(Application_Links *app, Buffer_ID buffer, i64 line_number, i64 line_start, i32 tab_width){
+    i64 end = get_line_side_pos(app, buffer, line_number, Side_Max);
     return(get_indent_info_range(app, buffer, Ii64(line_start, end), tab_width));
 }
 
@@ -1897,7 +1897,7 @@ push_token_or_word_under_pos(Application_Links *app, Arena *arena, Buffer_ID buf
     String_Const_u8 result = {};
     Token *token = get_token_from_pos(app, buffer, pos);
     if (token != 0 && token->size > 0 && token->kind != TokenBaseKind_Whitespace){
-        Range_i64 range = Ii64(token->pos, token->pos + token->size);
+        Range_i64 range = Ii64(token);
         result = push_buffer_range(app, arena, buffer, range);
     }
     return(result);

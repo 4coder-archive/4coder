@@ -104,7 +104,7 @@ make_color_table(Application_Links *app, Arena *arena){
 function void
 set_default_color_scheme(Application_Links *app){
     if (global_theme_arena.base_allocator == 0){
-    global_theme_arena = make_arena_system();
+        global_theme_arena = make_arena_system();
     }
     
     Arena *arena = &global_theme_arena;
@@ -120,10 +120,10 @@ set_default_color_scheme(Application_Links *app){
     default_color_table.arrays[defcolor_margin] = make_colors(arena, 0xFF181818);
     default_color_table.arrays[defcolor_margin_hover] = make_colors(arena, 0xFF252525);
     default_color_table.arrays[defcolor_margin_active] = make_colors(arena, 0xFF323232);
-    default_color_table.arrays[defcolor_list_item] = make_colors(arena, 0xFF181818);
-    default_color_table.arrays[defcolor_list_item_hover] = make_colors(arena, 0xFF252525);
-    default_color_table.arrays[defcolor_list_item_active] = make_colors(arena, 0xFF323232);
-    default_color_table.arrays[defcolor_cursor] = make_colors(arena, 0xFF00EE00);
+    default_color_table.arrays[defcolor_list_item] = make_colors(arena, 0xFF181818, 0xFF0C0C0C);
+    default_color_table.arrays[defcolor_list_item_hover] = make_colors(arena, 0xFF252525, 0xFF181818);
+    default_color_table.arrays[defcolor_list_item_active] = make_colors(arena, 0xFF323232, 0xFF323232);
+    default_color_table.arrays[defcolor_cursor] = make_colors(arena, 0xFF00EE00, 0xFFEE7700);
     default_color_table.arrays[defcolor_at_cursor] = make_colors(arena, 0xFF0C0C0C);
     default_color_table.arrays[defcolor_highlight_cursor_line] = make_colors(arena, 0xFF1E1E1E);
     default_color_table.arrays[defcolor_highlight] = make_colors(arena, 0xFFDDEE00);
@@ -157,12 +157,35 @@ set_default_color_scheme(Application_Links *app){
 ////////////////////////////////
 
 function void
+set_active_color(Color_Table *table){
+    if (table != 0){
+        active_color_table = *table;
+    }
+}
+
+function void
 save_theme(Color_Table table, String_Const_u8 name){
     Color_Table_Node *node = push_array(&global_theme_arena, Color_Table_Node, 1);
     sll_queue_push(global_theme_list.first, global_theme_list.last, node);
     global_theme_list.count += 1;
     node->name = push_string_copy(&global_theme_arena, name);
     node->table = table;
+}
+
+////////////////////////////////
+
+function Color_Table*
+get_color_table_by_name(String_Const_u8 name){
+    Color_Table *result = 0;
+    for (Color_Table_Node *node = global_theme_list.first;
+         node != 0;
+         node = node->next){
+        if (string_match(node->name, name)){
+            result = &node->table;
+            break;
+        }
+    }
+    return(result);
 }
 
 // BOTTOM

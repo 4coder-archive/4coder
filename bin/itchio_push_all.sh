@@ -1,7 +1,5 @@
 #!/bin/sh
 
-#todo rewrite this as a build.cpp script
-
 if [ "$#" -lt "3" ]
 then
 echo need 3 parameters

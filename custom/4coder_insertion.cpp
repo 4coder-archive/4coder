@@ -44,7 +44,7 @@ insert_string__no_buffering(Buffer_Insertion *insertion, String_Const_u8 string)
     insertion->at += string.size;
 }
 
-static void
+function void
 insert__flush(Buffer_Insertion *insertion){
     Cursor *cursor = insertion->cursor;
     u64 pos = insertion->temp.temp_memory_cursor.pos;
@@ -53,7 +53,7 @@ insert__flush(Buffer_Insertion *insertion){
     end_temp(insertion->temp);
 }
 
-static char*
+function char*
 insert__reserve(Buffer_Insertion *insertion, u64 size){
     char *space = push_array(insertion->cursor, char, size);
     if (space == 0){
@@ -63,14 +63,14 @@ insert__reserve(Buffer_Insertion *insertion, u64 size){
     return(space);
 }
 
-static void
+function void
 end_buffer_insertion(Buffer_Insertion *insertion){
     if (insertion->buffering){
         insert__flush(insertion);
     }
 }
 
-static void
+function void
 insert_string(Buffer_Insertion *insertion, String_Const_u8 string){
     if (!insertion->buffering){
         insert_string__no_buffering(insertion, string);
@@ -86,7 +86,7 @@ insert_string(Buffer_Insertion *insertion, String_Const_u8 string){
     }
 }
 
-static u64
+function u64
 insertf(Buffer_Insertion *insertion, char *format, ...){
     Scratch_Block scratch(insertion->app);
     va_list args;
@@ -97,12 +97,12 @@ insertf(Buffer_Insertion *insertion, char *format, ...){
     return(string.size);
 }
 
-static void
+function void
 insertc(Buffer_Insertion *insertion, char C){
     insert_string(insertion, SCu8(&C, 1));
 }
 
-static b32
+function b32
 insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 line, i32 truncate_at){
     b32 success = is_valid_line(insertion->app, buffer_id, line);
     if (success){
@@ -112,7 +112,7 @@ insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 li
     return(success);
 }
 
-static b32
+function b32
 insert_line_from_buffer(Buffer_Insertion *insertion, Buffer_ID buffer_id, i32 line){
     return(insert_line_from_buffer(insertion, buffer_id, line, 0));
 }

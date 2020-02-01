@@ -185,6 +185,9 @@ struct Config_Data{
     
     String_Const_u8_Array code_exts;
     
+    u8 mapping_space[64];
+    String_Const_u8 mapping;
+    
     u8 mode_space[64];
     String_Const_u8 mode;
     
@@ -203,14 +206,10 @@ struct Config_Data{
     b8 enable_code_wrapping;
     b8 automatically_indent_text_on_save;
     b8 automatically_save_changes_on_build;
-    b8 automatically_adjust_wrapping;
     b8 automatically_load_project;
     
     b8 indent_with_tabs;
     i32 indent_width;
-    
-    i32 default_wrap_width;
-    i32 default_min_base_width;
     
     u8 default_theme_name_space[256];
     String_Const_u8 default_theme_name;

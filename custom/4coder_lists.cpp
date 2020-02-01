@@ -222,7 +222,7 @@ get_color_table_from_user(Application_Links *app, String_Const_u8 query, Color_T
     
     Lister_Result l_result = run_lister(app, lister);
     
-     Color_Table *result = 0;
+    Color_Table *result = 0;
     if (!l_result.canceled){
         result = (Color_Table*)l_result.user_data;
     }
@@ -236,8 +236,9 @@ get_color_table_from_user(Application_Links *app){
 
 ////////////////////////////////
 
-function void
+function Lister_Activation_Code
 lister__write_character__file_path(Application_Links *app){
+    Lister_Activation_Code result = ListerActivation_Continue;
     View_ID view = get_this_ctx_view(app, Access_Always);
     Lister *lister = view_get_lister(view);
     if (lister != 0){
@@ -245,18 +246,20 @@ lister__write_character__file_path(Application_Links *app){
         String_Const_u8 string = to_writable(&in);
         if (string.str != 0 && string.size > 0){
             lister_append_text_field(lister, string);
-            String_Const_u8 front_name = string_front_of_path(lister->text_field.string);
-            lister_set_key(lister, front_name);
             if (character_is_slash(string.str[0])){
-                String_Const_u8 new_hot = lister->text_field.string;
-                set_hot_directory(app, new_hot);
-                lister_call_refresh_handler(app, lister);
+                lister->out.text_field = lister->text_field.string;
+                result = ListerActivation_Finished;
+            }
+            else{
+                String_Const_u8 front_name = string_front_of_path(lister->text_field.string);
+                lister_set_key(lister, front_name);
             }
             lister->item_index = 0;
             lister_zero_scroll(lister);
             lister_update_filtered_list(app, lister);
         }
     }
+    return(result);
 }
 
 function void
@@ -374,15 +377,13 @@ struct File_Name_Result{
 };
 
 function File_Name_Result
-get_file_name_from_user(Application_Links *app, Arena *arena, String_Const_u8 query,
-                        View_ID view){
+get_file_name_from_user(Application_Links *app, Arena *arena, String_Const_u8 query, View_ID view){
     Lister_Handlers handlers = lister_get_default_handlers();
     handlers.refresh = generate_hot_directory_file_list;
     handlers.write_character = lister__write_character__file_path;
     handlers.backspace = lister__backspace_text_field__file_path;
     
-    Lister_Result l_result =
-        run_lister_with_refresh_handler(app, arena, query, handlers);
+    Lister_Result l_result = run_lister_with_refresh_handler(app, arena, query, handlers);
     
     File_Name_Result result = {};
     result.canceled = l_result.canceled;
@@ -391,12 +392,18 @@ get_file_name_from_user(Application_Links *app, Arena *arena, String_Const_u8 qu
         if (l_result.user_data != 0){
             String_Const_u8 name = SCu8((u8*)l_result.user_data);
             result.file_name_activated = name;
-            result.is_folder =
-                character_is_slash(string_get_character(name, name.size -1 ));
+            result.is_folder = character_is_slash(string_get_character(name, name.size - 1));
         }
         result.file_name_in_text_field = string_front_of_path(l_result.text_field);
         
-        String_Const_u8 path = string_remove_front_of_path(l_result.text_field);
+        String_Const_u8 path = {};
+        if (l_result.user_data == 0 && result.file_name_in_text_field.size == 0 && l_result.text_field.size > 0){
+            result.file_name_in_text_field = string_front_folder_of_path(l_result.text_field);
+            path = string_remove_front_folder_of_path(l_result.text_field);
+        }
+        else{
+            path = string_remove_front_of_path(l_result.text_field);
+        }
         if (character_is_slash(string_get_character(path, path.size - 1))){
             path = string_chop(path, 1);
         }
@@ -407,8 +414,7 @@ get_file_name_from_user(Application_Links *app, Arena *arena, String_Const_u8 qu
 }
 
 function File_Name_Result
-get_file_name_from_user(Application_Links *app, Arena *arena, char *query,
-                        View_ID view){
+get_file_name_from_user(Application_Links *app, Arena *arena, char *query, View_ID view){
     return(get_file_name_from_user(app, arena, SCu8(query), view));
 }
 
@@ -429,8 +435,7 @@ do_buffer_kill_user_check(Application_Links *app, Buffer_ID buffer, View_ID view
     lister_choice(scratch, &list, "(Y)es" , "", KeyCode_Y, SureToKill_Yes);
     lister_choice(scratch, &list, "(S)ave", "", KeyCode_S, SureToKill_Save);
     
-    Lister_Choice *choice =
-        get_choice_from_user(app, "There are unsaved changes, close anyway?", list);
+    Lister_Choice *choice = get_choice_from_user(app, "There are unsaved changes, close anyway?", list);
     
     b32 do_kill = false;
     if (choice != 0){
@@ -507,7 +512,7 @@ CUSTOM_DOC("Interactively switch to an open buffer.")
 {
     Buffer_ID buffer = get_buffer_from_user(app, "Switch:");
     if (buffer != 0){
-    View_ID view = get_this_ctx_view(app, Access_Always);
+        View_ID view = get_this_ctx_view(app, Access_Always);
         view_set_buffer(app, view, buffer, 0);
     }
 }
@@ -520,6 +525,50 @@ CUSTOM_DOC("Interactively kill an open buffer.")
         View_ID view = get_this_ctx_view(app, Access_Always);
         try_buffer_kill(app, buffer, view, 0);
     }
+}
+
+////////////////////////////////
+
+enum{
+    SureToCreateFolder_NULL = 0,
+    SureToCreateFolder_No = 1,
+    SureToCreateFolder_Yes = 2,
+};
+
+function b32
+query_create_folder(Application_Links *app, String_Const_u8 folder_name){
+    Scratch_Block scratch(app);
+    Lister_Choice_List list = {};
+    lister_choice(scratch, &list, "(N)o"  , "", KeyCode_N, SureToKill_No);
+    lister_choice(scratch, &list, "(Y)es" , "", KeyCode_Y, SureToKill_Yes);
+    
+    String_Const_u8 message = push_u8_stringf(scratch, "Create the folder %.*s?", string_expand(folder_name));
+    Lister_Choice *choice = get_choice_from_user(app, message, list);
+    
+    b32 did_create_folder = false;
+    if (choice != 0){
+        switch (choice->user_data){
+            case SureToCreateFolder_No:
+            {}break;
+            
+            case SureToCreateFolder_Yes:
+            {
+                String_Const_u8 hot = push_hot_directory(app, scratch);
+                String_Const_u8 fixed_folder_name = folder_name;
+                for (;fixed_folder_name.size > 0 &&
+                     character_is_slash(fixed_folder_name.str[fixed_folder_name.size - 1]);){
+                    fixed_folder_name = string_chop(fixed_folder_name, 1);
+                }
+                if (fixed_folder_name.size > 0){
+                    String_Const_u8 cmd = push_u8_stringf(scratch, "mkdir %.*s", string_expand(fixed_folder_name));
+                    exec_system_command(app, 0, buffer_identifier(0), hot, cmd, 0);
+                    did_create_folder = true;
+                }
+            }break;
+        }
+    }
+    
+    return(did_create_folder);
 }
 
 ////////////////////////////////
@@ -566,8 +615,7 @@ CUSTOM_DOC("Interactively open a file out of the file system.")
     for (;;){
         Scratch_Block scratch(app);
         View_ID view = get_this_ctx_view(app, Access_Always);
-        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:",
-                                                          view);
+        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:", view);
         if (result.canceled) break;
         
         String_Const_u8 file_name = result.file_name_activated;
@@ -577,13 +625,29 @@ CUSTOM_DOC("Interactively open a file out of the file system.")
         if (file_name.size == 0) break;
         
         String_Const_u8 path = result.path_in_text_field;
-        String_Const_u8 full_file_name =
-            push_u8_stringf(scratch, "%.*s/%.*s",
-                            string_expand(path), string_expand(file_name));
+        String_Const_u8 full_file_name = push_u8_stringf(scratch, "%.*s/%.*s",
+                                                         string_expand(path), string_expand(file_name));
         
         if (result.is_folder){
             set_hot_directory(app, full_file_name);
             continue;
+        }
+        
+        if (character_is_slash(file_name.str[file_name.size - 1])){
+            File_Attributes attribs = system_quick_file_attributes(scratch, full_file_name);
+            if (HasFlag(attribs.flags, FileAttribute_IsDirectory)){
+                set_hot_directory(app, full_file_name);
+                continue;
+			}
+			if (string_looks_like_drive_letter(file_name)){
+				set_hot_directory(app, file_name);
+				continue;
+			}
+            if (query_create_folder(app, file_name)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            break;
         }
         
         Buffer_ID buffer = create_buffer(app, full_file_name, 0);
@@ -622,6 +686,23 @@ CUSTOM_DOC("Interactively creates a new file.")
             continue;
         }
         
+        if (character_is_slash(file_name.str[file_name.size - 1])){
+            File_Attributes attribs = system_quick_file_attributes(scratch, full_file_name);
+            if (HasFlag(attribs.flags, FileAttribute_IsDirectory)){
+                set_hot_directory(app, full_file_name);
+                continue;
+			}
+			if (string_looks_like_drive_letter(file_name)){
+				set_hot_directory(app, file_name);
+				continue;
+			}
+            if (query_create_folder(app, file_name)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            break;
+        }
+        
         Buffer_Create_Flag flags = BufferCreate_AlwaysNew;
         Buffer_ID buffer = create_buffer(app, full_file_name, flags);
         if (buffer != 0){
@@ -637,8 +718,7 @@ CUSTOM_DOC("Interactively opens a file.")
     for (;;){
         Scratch_Block scratch(app);
         View_ID view = get_this_ctx_view(app, Access_Always);
-        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:",
-                                                          view);
+        File_Name_Result result = get_file_name_from_user(app, scratch, "Open:", view);
         if (result.canceled) break;
         
         String_Const_u8 file_name = result.file_name_activated;
@@ -652,6 +732,19 @@ CUSTOM_DOC("Interactively opens a file.")
         if (result.is_folder){
             set_hot_directory(app, full_file_name);
             continue;
+        }
+        
+        if (character_is_slash(file_name.str[file_name.size - 1])){
+            File_Attributes attribs = system_quick_file_attributes(scratch, full_file_name);
+            if (HasFlag(attribs.flags, FileAttribute_IsDirectory)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            if (query_create_folder(app, file_name)){
+                set_hot_directory(app, full_file_name);
+                continue;
+            }
+            break;
         }
         
         Buffer_Create_Flag flags = BufferCreate_NeverNew;
@@ -670,20 +763,20 @@ CUSTOM_DOC("Opens an interactive list of all registered commands.")
 {
     View_ID view = get_this_ctx_view(app, Access_Always);
     if (view != 0){
-    Command_Lister_Status_Rule rule = {};
-    Buffer_ID buffer = view_get_buffer(app, view, Access_Visible);
-    Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
-    Command_Map_ID *map_id_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
-    if (map_id_ptr != 0){
-        rule = command_lister_status_bindings(&framework_mapping, *map_id_ptr);
-    }
-    else{
-        rule = command_lister_status_descriptions();
-    }
-    Custom_Command_Function *func = get_command_from_user(app, "Command:", &rule);
-    if (func != 0){
-        view_enqueue_command_function(app, view, func);
-    }
+        Command_Lister_Status_Rule rule = {};
+        Buffer_ID buffer = view_get_buffer(app, view, Access_Visible);
+        Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
+        Command_Map_ID *map_id_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
+        if (map_id_ptr != 0){
+            rule = command_lister_status_bindings(&framework_mapping, *map_id_ptr);
+        }
+        else{
+            rule = command_lister_status_descriptions();
+        }
+        Custom_Command_Function *func = get_command_from_user(app, "Command:", &rule);
+        if (func != 0){
+            view_enqueue_command_function(app, view, func);
+        }
     }
 }
 

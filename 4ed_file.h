@@ -24,15 +24,6 @@ struct File_Edit_Positions{
     i64 cursor_pos;
 };
 
-// TODO(allen): do(replace Text_Effect with IM rendering over time)
-struct Text_Effect{
-    i64 start;
-    i64 end;
-    u32 color;
-    f32 seconds_down;
-    f32 seconds_max;
-};
-
 struct Editing_File_Settings{
     Layout_Function *layout_func;
     Face_ID face_id;
@@ -40,6 +31,7 @@ struct Editing_File_Settings{
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;
+    b8 unkillable;
     b8 never_kill;
 };
 
@@ -61,8 +53,6 @@ struct Editing_File_State{
     
     History history;
     i32 current_record_index;
-    
-    Text_Effect paste_effect;
     
     Dirty_State dirty;
     File_Save_State save_state;

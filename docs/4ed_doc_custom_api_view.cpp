@@ -133,6 +133,33 @@ doc_custom_api__view(Arena *arena, API_Definition *api_def, Doc_Cluster *cluster
     
     ////////////////////////////////
     
+    if (begin_doc_call(arena, cluster, api_def, "view_padded_box_of_pos", &func)){
+        doc_function_brief(arena, &func, "Compute the rectangle around a character at a particular byte position, relative to the top left corner of a given line");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "view_id");
+        doc_text(arena, params, "the id of the view who's layout will be measured");
+        
+        doc_function_param(arena, &func, "base_line");
+        doc_text(arena, params, "the line number of the line that serves as the relative starting point of the measurement");
+        
+        doc_function_param(arena, &func, "pos");
+        doc_text(arena, params, "the absolute byte index of the position to query");
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "the rectangle around a character in the layout that is closest to including the given query position in it's span, with coordinates set relative to the top left corner of the base line, on success, when the view exists and contains the base line and query position, cleared to zero otherwise");
+        
+        // details
+        Doc_Block *det = doc_function_details(arena, &func);
+        doc_text(arena, det, "Line numbers are 1 based.");
+    }
+    
+    ////////////////////////////////
+    
     if (begin_doc_call(arena, cluster, api_def, "view_relative_character_from_pos", &func)){
         doc_function_brief(arena, &func, "Compute a character index relative to a particular lines first character");
         
@@ -884,13 +911,6 @@ doc_custom_api__view(Arena *arena, API_Definition *api_def, Doc_Cluster *cluster
         // related
         Doc_Block *rel = doc_function_begin_related(arena, &func);
         doc_function_add_related(arena, rel, "Set_Buffer_Flag");
-    }
-    
-    ////////////////////////////////
-    
-    // TODO(allen): remove view_post_fade
-    if (begin_doc_call(arena, cluster, api_def, "view_post_fade", &func)){
-        doc_function_brief(arena, &func, "Plans to deprecate - do not rely on this call!");
     }
     
     ////////////////////////////////

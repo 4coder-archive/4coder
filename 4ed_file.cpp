@@ -440,6 +440,21 @@ file_relative_xy_of_pos(Thread_Context *tctx, Models *models, Editing_File *file
     return(rect_center(rect));
 }
 
+function Rect_f32
+file_padded_box_of_pos(Thread_Context *tctx, Models *models, Editing_File *file,
+                      Layout_Function *layout_func, f32 width, Face *face,
+                      i64 base_line, i64 pos){
+    i64 line_number = buffer_get_line_index(&file->state.buffer, pos) + 1;
+    Layout_Item_List line = file_get_line_layout(tctx, models, file, layout_func, width, face, line_number);
+    Rect_f32 result = layout_padded_box_of_pos(line, pos);
+    
+    f32 y_difference = file_line_y_difference(tctx, models, file, layout_func, width, face, line_number, base_line);
+    result.y0 += y_difference;
+    result.y1 += y_difference;
+    
+    return(result);
+}
+
 internal Buffer_Point
 file_normalize_buffer_point(Thread_Context *tctx, Models *models, Editing_File *file,
                             Layout_Function *layout_func, f32 width, Face *face,

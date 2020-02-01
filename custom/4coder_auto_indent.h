@@ -24,6 +24,14 @@ struct Nest_Alloc{
     Nest *free_nest;
 };
 
+struct Indent_Line_Cache{
+    i64 where_token_starts;
+    i64 line_number_for_cached_indent;
+    i64 start_pos;
+    i64 one_past_last_pos;
+    Indent_Info indent_info;
+};
+
 #endif
 
 // BOTTOM

@@ -124,6 +124,16 @@ layout_get_first_open_panel(Layout *layout){
 }
 
 internal Panel*
+layout_get_last_open_panel(Layout *layout){
+    Panel *panel = CastFromMember(Panel, node, layout->open_panels.prev);
+    if (panel != 0 && &panel->node == &layout->open_panels){
+        panel = 0;
+    }
+    AssertImplies(panel != 0, panel->kind == PanelKind_Final);
+    return(panel);
+}
+
+internal Panel*
 layout_get_next_open_panel(Layout *layout, Panel *panel){
     panel = CastFromMember(Panel, node, panel->node.next);
     if (&panel->node == &layout->open_panels){
@@ -289,7 +299,7 @@ layout_initialize(Arena *arena, Layout *layout){
     Panel *panel = panels;
     layout->free_panels.next = &panel->node;
     panel->node.prev = &layout->free_panels;
-    for (i32 i = 1; i < MAX_VIEWS; i += 1, panel += 1){
+    for (i32 i = 1; i < panel_alloc_count; i += 1, panel += 1){
         panel[1].node.prev = &panel[0].node;
         panel[0].node.next = &panel[1].node;
     }

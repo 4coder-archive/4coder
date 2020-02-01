@@ -4,10 +4,10 @@ defcolor_back = 0xFF161616;
 defcolor_margin = 0xFF262626;
 defcolor_margin_hover = 0xFF333333;
 defcolor_margin_active = 0xFF404040;
-defcolor_list_item = defcolor_margin;
-defcolor_list_item_hover = defcolor_margin_hover;
-defcolor_list_item_active = defcolor_margin_active;
-defcolor_cursor = 0xFF40FF40;
+defcolor_list_item = {defcolor_margin, defcolor_back};
+defcolor_list_item_hover = {defcolor_margin_hover, defcolor_margin};
+defcolor_list_item_active = {defcolor_margin_active, defcolor_margin_active};
+defcolor_cursor = {0xFF40FF40, 0xFFFF4040};
 defcolor_at_cursor = defcolor_back;
 defcolor_highlight_cursor_line = 0xFF121E12;
 defcolor_highlight = 0xFF703419;
@@ -43,6 +43,5 @@ defcolor_pop2 = 0xFFFF0000;
 defcolor_back_cycle = {0x0CA00000, 0x0800A000, 0x080000A0, 0x08A0A000};
 defcolor_text_cycle = {0xFFA00000, 0xFF00A000, 0xFF0020B0, 0xFFA0A000};
 
-
-
-
+defcolor_line_numbers_back = 0xFF202020;
+defcolor_line_numbers_text = 0xFF484848;

@@ -484,7 +484,7 @@ CUSTOM_DOC("Clear the theme list")
         global_theme_arena = make_arena_system();
     }
     else{
-    linalloc_clear(&global_theme_arena);
+        linalloc_clear(&global_theme_arena);
     }
     
     block_zero_struct(&global_theme_list);
@@ -500,13 +500,18 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     heap_init(&global_heap, tctx->allocator);
     
 #define M \
-    "Welcome to " VERSION "\n" \
-        "If you're new to 4coder there are some tutorials at http://4coder.net/tutorials.html\n" \
-        "Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n" \
-        "Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n" \
-        "The change log can be found in CHANGES.txt\n" \
-        "\n"
-        print_message(app, string_u8_litexpr(M));
+"Welcome to " VERSION "\n" \
+"If you're new to 4coder there is a built in tutorial\n" \
+"Use the key combination [ X Alt ] (on mac [ X Control ])\n" \
+"Type in 'hms_demo_tutorial' and press enter\n" \
+"\n" \
+"Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n" \
+"\n" \
+"Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n" \
+"\n" \
+"The change log can be found in CHANGES.txt\n" \
+"\n"
+    print_message(app, string_u8_litexpr(M));
 #undef M
     
 #if 0
@@ -529,6 +534,8 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
             create_buffer(app, input_name, 0);
         }
     }
+    
+    fade_range_arena = make_arena_system(KB(8));
 }
 
 function void
@@ -684,6 +691,103 @@ buffer_modified_set_clear(void){
         set->free = set->first;
         set->first = 0;
         set->last = 0;
+    }
+}
+
+////////////////////////////////
+
+function Fade_Range*
+alloc_fade_range(void){
+    Fade_Range *result = free_fade_ranges;
+    if (result == 0){
+        result = push_array(&fade_range_arena, Fade_Range, 1);
+    }
+    else{
+        sll_stack_pop(free_fade_ranges);
+    }
+    return(result);
+}
+
+function void
+free_fade_range(Fade_Range *range){
+    sll_stack_push(free_fade_ranges, range);
+}
+
+function void
+buffer_post_fade(Application_Links *app, Buffer_ID buffer_id, f32 seconds, Range_i64 range, ARGB_Color color){
+    Fade_Range *fade_range = alloc_fade_range();
+    sll_queue_push(buffer_fade_ranges.first, buffer_fade_ranges.last, fade_range);
+    buffer_fade_ranges.count += 1;
+    fade_range->buffer_id = buffer_id;
+    fade_range->t = seconds;
+    fade_range->full_t = seconds;
+    fade_range->range = range;
+    fade_range->color= color;
+}
+
+function void
+view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color){
+    Fade_Range *fade_range = alloc_fade_range();
+    sll_queue_push(view_fade_ranges.first, view_fade_ranges.last, fade_range);
+    view_fade_ranges.count += 1;
+    fade_range->view_id = view_id;
+    fade_range->t = seconds;
+    fade_range->full_t = seconds;
+    fade_range->range = range;
+    fade_range->color= color;
+}
+
+function b32
+tick_all_fade_ranges(f32 t){
+    Fade_Range **prev_next = &buffer_fade_ranges.first;
+    for (Fade_Range *node = buffer_fade_ranges.first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        node->t -= t;
+        if (node->t <= 0.f){
+            *prev_next = next;
+            buffer_fade_ranges.count -= 1;
+        }
+        else{
+            prev_next = &node->next;
+        }
+    }
+    
+    prev_next = &view_fade_ranges.first;
+    for (Fade_Range *node = view_fade_ranges.first, *next = 0;
+         node != 0;
+         node = next){
+        next = node->next;
+        node->t -= t;
+        if (node->t <= 0.f){
+            *prev_next = next;
+            view_fade_ranges.count -= 1;
+        }
+        else{
+            prev_next = &node->next;
+        }
+    }
+    
+    return(buffer_fade_ranges.count > 0 || view_fade_ranges.count > 0);
+}
+
+function void
+paint_fade_ranges(Application_Links *app, Text_Layout_ID layout, Buffer_ID buffer, View_ID view){
+    for (Fade_Range *node = buffer_fade_ranges.first;
+         node != 0;
+         node = node->next){
+        if (node->buffer_id == buffer){
+            paint_text_color_blend(app, layout, node->range, node->color, node->t/node->full_t);
+        }
+    }
+    
+    for (Fade_Range *node = view_fade_ranges.first;
+         node != 0;
+         node = node->next){
+        if (node->view_id == view){
+            paint_text_color_blend(app, layout, node->range, node->color, node->t/node->full_t);
+        }
     }
 }
 

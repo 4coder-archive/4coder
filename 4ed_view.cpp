@@ -234,6 +234,17 @@ view_relative_xy_of_pos(Thread_Context *tctx, Models *models, View *view,
     return(rect_center(rect));
 }
 
+function Rect_f32
+view_padded_box_of_pos(Thread_Context *tctx, Models *models, View *view,
+                       i64 base_line, i64 pos){
+    Editing_File *file = view->file;
+    Face *face = file_get_face(models, file);
+    f32 width = view_width(tctx, models, view);
+    Layout_Function *layout_func = file_get_layout_func(file);
+    return(file_padded_box_of_pos(tctx, models, file,
+                                  layout_func, width, face, base_line, pos));
+}
+
 internal Buffer_Point
 view_normalize_buffer_point(Thread_Context *tctx, Models *models, View *view,
                             Buffer_Point point){
@@ -430,16 +441,6 @@ view_set_cursor_and_scroll(Thread_Context *tctx, Models *models, View *view, i64
     view_set_edit_pos(view, edit_pos);
 }
 
-internal void
-view_post_paste_effect(View *view, f32 seconds, i64 start, i64 size, ARGB_Color color){
-    Editing_File *file = view->file;
-    file->state.paste_effect.start = start;
-    file->state.paste_effect.end = start + size;
-    file->state.paste_effect.color = color;
-    file->state.paste_effect.seconds_down = seconds;
-    file->state.paste_effect.seconds_max = seconds;
-}
-
 ////////////////////////////////
 
 internal void
@@ -518,7 +519,7 @@ co_handle_request(Models *models, Coroutine *co, Co_Out *out){
             Face_Description *description = out->face_description;
             Face *face = font_set_new_face(&models->font_set, description);
             Co_In in = {};
-            in.face_id = face->id;
+            in.face_id = (face != 0)?face->id:0;
             result = coroutine_run(&models->coroutines, co, &in, out);
         }break;
         

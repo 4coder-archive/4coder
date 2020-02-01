@@ -34,6 +34,32 @@ parse_extension_line_to_extension_list(Application_Links *app,
 
 ////////////////////////////////
 
+function void
+setup_built_in_mapping(Application_Links *app, String_Const_u8 name, Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
+    Thread_Context *tctx = get_thread_context(app);
+    if (string_match(name, string_u8_litexpr("default"))){
+        mapping_release(tctx, mapping);
+        mapping_init(tctx, mapping);
+        setup_default_mapping(mapping, global_id, file_id, code_id);
+    }
+    else if (string_match(name, string_u8_litexpr("mac-default"))){
+        mapping_release(tctx, mapping);
+        mapping_init(tctx, mapping);
+        setup_mac_mapping(mapping, global_id, file_id, code_id);
+    }
+    else if (string_match(name, string_u8_litexpr("choose"))){
+        mapping_release(tctx, mapping);
+        mapping_init(tctx, mapping);
+#if OS_MAC
+        setup_mac_mapping(mapping, global_id, file_id, code_id);
+#else
+        setup_default_mapping(mapping, global_id, file_id, code_id);
+#endif
+    }
+}
+
+////////////////////////////////
+
 function Error_Location
 get_error_location(Application_Links *app, u8 *base, u8 *pos){
     ProfileScope(app, "get error location");
@@ -1117,7 +1143,7 @@ function i32
 typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_Type type){
     i32 count = 0;
     for (i32 i = 0;; ++i){
-        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
+            Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
         if (result.step == Iteration_Skip){
             continue;
         }
@@ -1196,6 +1222,7 @@ config_init_default(Config_Data *config){
     
     block_zero_struct(&config->code_exts);
     
+    config->mapping = SCu8(config->mapping_space, (u64)0);
     config->mode = SCu8(config->mode_space, (u64)0);
     
     config->use_scroll_bars = false;
@@ -1211,16 +1238,12 @@ config_init_default(Config_Data *config){
     
     config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
-    config->automatically_adjust_wrapping = true;
     config->automatically_indent_text_on_save = true;
     config->automatically_save_changes_on_build = true;
     config->automatically_load_project = false;
     
     config->indent_with_tabs = false;
     config->indent_width = 4;
-    
-    config->default_wrap_width = 672;
-    config->default_min_base_width = 550;
     
     config->default_theme_name = SCu8(config->default_theme_name_space, sizeof("4coder") - 1);
     block_copy(config->default_theme_name.str, "4coder", config->default_theme_name.size);
@@ -1263,8 +1286,8 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
                 parse_extension_line_to_extension_list(app, arena, str);
         }
         
-        config_fixed_string_var(parsed, "mode", 0,
-                                &config->mode, config->mode_space);
+        config_fixed_string_var(parsed, "mapping", 0, &config->mapping, config->mapping_space);
+        config_fixed_string_var(parsed, "mode", 0, &config->mode, config->mode_space);
         
         config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
         config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
@@ -1280,16 +1303,12 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         
         config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
         config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
-        config_bool_var(parsed, "automatically_adjust_wrapping", 0, &config->automatically_adjust_wrapping);
         config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
         config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
         config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
         
         config_bool_var(parsed, "indent_with_tabs", 0, &config->indent_with_tabs);
         config_int_var(parsed, "indent_width", 0, &config->indent_width);
-        
-        config_int_var(parsed, "default_wrap_width", 0, &config->default_wrap_width);
-        config_int_var(parsed, "default_min_base_width", 0, &config->default_min_base_width);
         
         config_fixed_string_var(parsed, "default_theme_name", 0,
                                 &config->default_theme_name, config->default_theme_name_space);
@@ -1365,22 +1384,22 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
             String_Const_u8 l_name = push_string_copy(scratch, l->identifier);
             Managed_ID id = managed_id_get(app, string_u8_litexpr("colors"), l_name);
             if (id != 0){
-            u32 color = 0;
-            if (config_uint_var(parsed, l_name, 0, &color)){
+                u32 color = 0;
+                if (config_uint_var(parsed, l_name, 0, &color)){
                     color_table->arrays[id%color_table->count] = make_colors(color_arena, color);
                 }
                 else{
                     Config_Compound *compound = 0;
-                if (config_compound_var(parsed, l_name, 0, &compound)){
+                    if (config_compound_var(parsed, l_name, 0, &compound)){
                         local_persist u32 color_array[256];
                         i32 counter = 0;
                         for (i32 i = 0;; i += 1){
-                        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Integer, i);
-                        if (result.step == Iteration_Skip){
-                            continue;
-                        }
-                        else if (result.step == Iteration_Quit){
-                            break;
+                            Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, ConfigRValueType_Integer, i);
+                            if (result.step == Iteration_Skip){
+                                continue;
+                            }
+                            else if (result.step == Iteration_Quit){
+                                break;
                             }
                             
                             color_array[counter] = result.get.uinteger;
@@ -1391,7 +1410,7 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
                         }
                         
                         color_table->arrays[id%color_table->count] = make_colors(color_arena, color_array, counter);
-                }
+                    }
                 }
             }
             
@@ -1401,8 +1420,19 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
 }
 
 function Config*
+theme_parse__buffer(Application_Links *app, Arena *arena, Buffer_ID buffer, Arena *color_arena, Color_Table *color_table){
+    String_Const_u8 contents = push_whole_buffer(app, arena, buffer);
+    Config *parsed = 0;
+    if (contents.str != 0){
+        String_Const_u8 file_name = push_buffer_file_name(app, arena, buffer);
+        parsed = theme_parse__data(app, arena, file_name, contents, color_arena, color_table);
+    }
+    return(parsed);
+}
+
+function Config*
 theme_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file, Arena *color_arena, Color_Table *color_table){
-     Data data = dump_file_handle(arena, file);
+    Data data = dump_file_handle(arena, file);
     Config *parsed = 0;
     if (data.data != 0){
         parsed = theme_parse__data(app, arena, file_name, SCu8(data), color_arena, color_table);
@@ -1415,7 +1445,7 @@ theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Ar
     Config *parsed = 0;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
-         Data data = dump_file_handle(arena, file);
+        Data data = dump_file_handle(arena, file);
         fclose(file);
         parsed = theme_parse__data(app, arena, SCu8(file_name), SCu8(data), color_arena, color_table);
     }
@@ -1505,6 +1535,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_string(scratch, &list, "user_name", config->user_name);
         config_feedback_extension_list(scratch, &list, "treat_as_code", &config->code_exts);
         
+        config_feedback_string(scratch, &list, "mapping", config->mapping);
         config_feedback_string(scratch, &list, "mode", config->mode);
         
         config_feedback_bool(scratch, &list, "use_scroll_bars", config->use_scroll_bars);
@@ -1522,14 +1553,10 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_bool(scratch, &list, "enable_code_wrapping", config->enable_code_wrapping);
         config_feedback_bool(scratch, &list, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
         config_feedback_bool(scratch, &list, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
-        config_feedback_bool(scratch, &list, "automatically_adjust_wrapping", config->automatically_adjust_wrapping);
         config_feedback_bool(scratch, &list, "automatically_load_project", config->automatically_load_project);
         
         config_feedback_bool(scratch, &list, "indent_with_tabs", config->indent_with_tabs);
         config_feedback_int(scratch, &list, "indent_width", config->indent_width);
-        
-        config_feedback_int(scratch, &list, "default_wrap_width", config->default_wrap_width);
-        config_feedback_int(scratch, &list, "default_min_base_width", config->default_min_base_width);
         
         config_feedback_string(scratch, &list, "default_theme_name", config->default_theme_name);
         config_feedback_bool(scratch, &list, "highlight_line_at_cursor", config->highlight_line_at_cursor);
@@ -1552,14 +1579,13 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     }
     
     // Apply config
+    setup_built_in_mapping(app, config->mapping, &framework_mapping, mapid_global, mapid_file, mapid_code);
     change_mode(app, config->mode);
     global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
     
-    // TODO(allen): 
-#if 0    
-    change_theme(app, config->default_theme_name.str, config->default_theme_name.size);
-    #endif
-
+    Color_Table *colors = get_color_table_by_name(config->default_theme_name);
+    set_active_color(colors);
+    
     Face_Description description = {};
     if (override_font_size != 0){
         description.parameters.pt_size = override_font_size;
@@ -1568,7 +1594,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         description.parameters.pt_size = config->default_font_size;
     }
     description.parameters.hinting = config->default_font_hinting || override_hinting;
-     
+    
     description.font.file_name = config->default_font_name;
     if (!modify_global_face_by_description(app, description)){
         description.font.file_name = get_file_path_in_fonts_folder(scratch, config->default_font_name);
@@ -1591,6 +1617,34 @@ load_theme_file_into_live_set(Application_Links *app, char *file_name){
         name = string_chop(name, 7);
     }
     save_theme(color_table, name);
+}
+
+CUSTOM_COMMAND_SIG(load_theme_current_buffer)
+CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the theme list. If the buffer has a .4coder postfix in it's name, it is removed when the name is saved.")
+{
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadVisible);
+    
+    Scratch_Block scratch(app);
+    String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer);
+    if (file_name.size > 0){
+        Arena *arena = &global_theme_arena;
+        Color_Table color_table = make_color_table(app, arena);
+        Config *config = theme_parse__buffer(app, scratch, buffer, arena, &color_table);
+        String_Const_u8 error_text = config_stringize_errors(app, scratch, config);
+        print_message(app, error_text);
+        
+        String_Const_u8 name = string_front_of_path(file_name);
+        if (string_match(string_postfix(name, 7), string_u8_litexpr(".4coder"))){
+            name = string_chop(name, 7);
+        }
+        save_theme(color_table, name);
+        
+        Color_Table_Node *node = global_theme_list.last;
+        if (node != 0 && string_match(node->name, name)){
+            active_color_table = node->table;
+        }
+    }
 }
 
 function void

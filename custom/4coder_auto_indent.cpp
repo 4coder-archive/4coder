@@ -15,7 +15,7 @@ make_batch_from_indentations(Application_Links *app, Arena *arena, Buffer_ID buf
          line_number <= lines.max;
          ++line_number){
         i64 line_start_pos = get_line_start_pos(app, buffer, line_number);
-        Indent_Info indent_info = get_indent_info_line_start(app, buffer, line_start_pos, tab_width);
+        Indent_Info indent_info = get_indent_info_line_number_and_start(app, buffer, line_number, line_start_pos, tab_width);
         
         i64 correct_indentation = shifted_indentations[line_number];
         if (indent_info.is_blank && HasFlag(flags, Indent_ClearLine)){
@@ -63,6 +63,7 @@ set_line_indents(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i
 
 internal Token*
 find_anchor_token(Application_Links *app, Buffer_ID buffer, Token_Array *tokens, i64 invalid_line){
+    ProfileScope(app, "find anchor token");
     Token *result = 0;
     
     if (tokens != 0 && tokens->tokens != 0){
@@ -146,8 +147,20 @@ indent__unfinished_statement(Token *token, Nest *current_nest){
     return(result);
 }
 
+function void
+line_indent_cache_update(Application_Links *app, Buffer_ID buffer, i32 tab_width, Indent_Line_Cache *line_cache){
+    if (line_cache->line_number_for_cached_indent != line_cache->where_token_starts){
+        ProfileScope(app, "get indent info");
+        line_cache->line_number_for_cached_indent = line_cache->where_token_starts;
+        line_cache->start_pos = get_line_start_pos(app, buffer, line_cache->where_token_starts);
+        Range_i64 range = Ii64(line_cache->start_pos, line_cache->one_past_last_pos);
+        line_cache->indent_info = get_indent_info_range(app, buffer, range, tab_width);
+    }
+}
+
 internal i64*
 get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 lines, Indent_Flag flags, i32 tab_width, i32 indent_width){
+    ProfileScope(app, "get indentation array");
     i64 count = lines.max - lines.min + 1;
     i64 *indentations = push_array(arena, i64, count);
     i64 *shifted_indentations = indentations - lines.first;
@@ -174,11 +187,17 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
         i64 actual_indent = 0;
         b32 in_unfinished_statement = false;
         
+        Indent_Line_Cache line_cache = {};
+        
         for (;;){
             Token *token = token_it_read(&token_it);
-            i64 line_where_token_starts = get_line_number_from_pos(app, buffer, token->pos);
-            i64 line_start_pos = get_line_start_pos(app, buffer, line_where_token_starts);
-            Indent_Info line_indent_info = get_indent_info_line_start(app, buffer, line_start_pos, tab_width);
+            
+            if (line_cache.where_token_starts == 0 ||
+                token->pos >= line_cache.one_past_last_pos){
+                ProfileScope(app, "get line number");
+                line_cache.where_token_starts = get_line_number_from_pos(app, buffer, token->pos);
+                line_cache.one_past_last_pos = get_line_end_pos(app, buffer, line_cache.where_token_starts);
+            }
             
             i64 current_indent = 0;
             if (nest != 0){
@@ -229,7 +248,8 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         Nest *new_nest = indent__new_nest(arena, &nest_alloc);
                         sll_stack_push(nest, new_nest);
                         nest->kind = TokenBaseKind_ParentheticalOpen;
-                        nest->indent = (token->pos - line_indent_info.first_char_pos) + 1;
+                        line_indent_cache_update(app, buffer, tab_width, &line_cache);
+                        nest->indent = (token->pos - line_cache.indent_info.first_char_pos) + 1;
                         following_indent = nest->indent;
                         shift_by_actual_indent = true;
                     }break;
@@ -245,7 +265,7 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         if (nest != 0){
                             following_indent = nest->indent;
                         }
-                        ignore_unfinished_statement = true;
+                        //ignore_unfinished_statement = true;
                     }break;
                 }
             }
@@ -255,30 +275,42 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
             }
             
 #define EMIT(N) \
-            Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
-            if (line_it == lines.end){goto finished;} \
-            actual_indent = N; )
+Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
+if (line_it == lines.end){goto finished;} \
+actual_indent = N; )
             
             i64 line_it = line_last_indented;
-            for (;line_it < line_where_token_starts;){
-                line_it += 1;
-                if (line_it == line_where_token_starts){
-                    EMIT(this_indent);
-                }
-                else{
-                    EMIT(last_indent);
+            if (lines.first <= line_cache.where_token_starts){
+                for (;line_it < line_cache.where_token_starts;){
+                    line_it += 1;
+                    if (line_it == line_cache.where_token_starts){
+                        EMIT(this_indent);
+                    }
+                    else{
+                        EMIT(last_indent);
+                    }
                 }
             }
+            else{
+                actual_indent = this_indent;
+                line_it = line_cache.where_token_starts;
+            }
             
-            i64 line_where_token_starts_shift = this_indent - line_indent_info.indent_pos;
             i64 line_where_token_ends = get_line_number_from_pos(app, buffer, token->pos + token->size);
-            for (;line_it < line_where_token_ends;){
-                line_it += 1;
-                i64 line_it_start_pos = get_line_start_pos(app, buffer, line_it);
-                Indent_Info line_it_indent_info = get_indent_info_line_start(app, buffer, line_it_start_pos, tab_width);
-                i64 new_indent = line_it_indent_info.indent_pos + line_where_token_starts_shift;
-                new_indent = clamp_bot(0, new_indent);
-                EMIT(new_indent);
+            if (lines.first <= line_where_token_ends){
+                line_indent_cache_update(app, buffer, tab_width, &line_cache);
+                i64 line_where_token_starts_shift = this_indent - line_cache.indent_info.indent_pos;
+                for (;line_it < line_where_token_ends;){
+                    line_it += 1;
+                    i64 line_it_start_pos = get_line_start_pos(app, buffer, line_it);
+                    Indent_Info line_it_indent_info = get_indent_info_line_number_and_start(app, buffer, line_it, line_it_start_pos, tab_width);
+                    i64 new_indent = line_it_indent_info.indent_pos + line_where_token_starts_shift;
+                    new_indent = clamp_bot(0, new_indent);
+                    EMIT(new_indent);
+                }
+            }
+            else{
+                line_it = line_where_token_ends;
             }
 #undef EMIT
             
@@ -395,6 +427,7 @@ CUSTOM_DOC("Auto-indents the range between the cursor and the mark.")
 CUSTOM_COMMAND_SIG(write_text_and_auto_indent)
 CUSTOM_DOC("Inserts text and auto-indents the line on which the cursor sits if any of the text contains 'layout punctuation' such as ;:{}()[]# and new lines.")
 {
+    ProfileScope(app, "write and auto indent");
     User_Input in = get_current_input(app);
     String_Const_u8 insert = to_writable(&in);
     if (insert.str != 0 && insert.size > 0){

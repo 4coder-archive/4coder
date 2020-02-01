@@ -201,6 +201,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
 App_Init_Sig(app_init){
     Models *models = (Models*)base_ptr;
     models->keep_playing = true;
+    models->hard_exit = false;
     
     models->config_api = api;
     models->virtual_event_arena = reserve_arena(tctx);
@@ -727,13 +728,9 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): if the exit signal has been sent, run the exit hook.
-    if (input->trying_to_kill){
-        models->keep_playing = false;
-    }
-    if (!models->keep_playing){
-        if (co_send_core_event(tctx, models, CoreCode_TryExit)){
-            models->keep_playing = true;
-        }
+    if (!models->keep_playing || input->trying_to_kill){
+        co_send_core_event(tctx, models, CoreCode_TryExit);
+        models->keep_playing = true;
     }
     
     // NOTE(allen): rendering
@@ -806,7 +803,7 @@ App_Step_Sig(app_step){
     
     models->prev_mouse_panel = mouse_panel;
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
-    app_result.perform_kill = !models->keep_playing;
+    app_result.perform_kill = models->hard_exit;
     app_result.animating = models->animate_next_frame;
     if (models->animate_next_frame){
         // NOTE(allen): Silence the timer, because we're going to do another frame right away anyways.

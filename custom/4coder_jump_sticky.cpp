@@ -114,9 +114,9 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
     }
     sort_pairs_by_key(range_index_buffer_id_pairs, buffer_ranges.count);
     Range_i32_Array scoped_buffer_ranges = get_ranges_of_duplicate_keys(scratch,
-                                                                    &range_index_buffer_id_pairs->key,
-                                                                    sizeof(*range_index_buffer_id_pairs),
-                                                                    buffer_ranges.count);
+                                                                        &range_index_buffer_id_pairs->key,
+                                                                        sizeof(*range_index_buffer_id_pairs),
+                                                                        buffer_ranges.count);
     
     Sticky_Jump_Stored *stored = push_array(scratch, Sticky_Jump_Stored, jumps.count);
     
@@ -171,7 +171,9 @@ init_marker_list(Application_Links *app, Heap *heap, Buffer_ID buffer, Marker_Li
         Assert(managed_object_get_type(app, marker_handle) == ManagedObjectType_Markers);
         
         Managed_Object *marker_handle_ptr = scope_attachment(app, scope, sticky_jump_marker_handle, Managed_Object);
-        *marker_handle_ptr = marker_handle;
+        if (marker_handle_ptr != 0){
+            *marker_handle_ptr = marker_handle;
+        }
     }
     
     Managed_Object stored_jump_array = alloc_managed_memory_in_scope(app, scope_array[0], sizeof(Sticky_Jump_Stored), jumps.count);
@@ -279,7 +281,7 @@ get_jump_from_list(Application_Links *app, Marker_List *list, i32 index, ID_Pos_
         Managed_Scope scope = get_managed_scope_with_multiple_dependencies(app, scope_array, ArrayCount(scope_array));
         
         Managed_Object *marker_array = scope_attachment(app, scope, sticky_jump_marker_handle, Managed_Object);
-        if (*marker_array != 0){
+        if (marker_array != 0 && *marker_array != 0){
             Marker marker = {};
             managed_object_load_data(app, *marker_array, stored.index_into_marker_array, 1, &marker);
             location->buffer_id = target_buffer_id;

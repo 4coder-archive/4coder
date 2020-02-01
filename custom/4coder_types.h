@@ -54,7 +54,7 @@ struct Color_Array{
 
 api(custom)
 struct Color_Table{
-     Color_Array *arrays;
+    Color_Array *arrays;
     u32 count;
 };
 
@@ -178,6 +178,7 @@ enum{
     BufferSetting_Unimportant,
     BufferSetting_ReadOnly,
     BufferSetting_RecordsHistory,
+    BufferSetting_Unkillable,
 };
 
 api(custom)
@@ -707,6 +708,7 @@ struct Layout_Item{
     u32 codepoint;
     Layout_Item_Flag flags;
     Rect_f32 rect;
+    f32 padded_y1;
 };
 
 api(custom)
@@ -741,7 +743,7 @@ struct View_Context{
     u64 delta_rule_memory_size;
     b32 hides_buffer;
     struct Mapping *mapping;
-     i64 map_id;
+    i64 map_id;
 };
 
 api(custom)
@@ -777,4 +779,3 @@ struct Process_State{
 };
 
 #endif
-
