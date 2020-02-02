@@ -100,6 +100,13 @@
     #define LINUX_FN_DEBUG(fmt, ...) do { \
         fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__);\
     } while (0)
+
+// I want to see a message
+    #undef AssertBreak
+    #define AssertBreak(m) ({\
+        fprintf(stderr, "\n** ASSERTION FAILURE: %s:%d: %s\n\n", __FILE__, __LINE__, #m);\
+        *((volatile u64*)0) = 0xba771e70ad5;\
+    })
 #else
     #define LINUX_FN_DEBUG(...)
 #endif
@@ -107,6 +114,9 @@
 ////////////////////////////
 
 struct Linux_Vars {
+    Thread_Context tctx;
+    Arena *frame_arena;
+
     Display* dpy;
     Window win;
 
@@ -130,8 +140,6 @@ struct Linux_Vars {
 
     Node free_linux_objects;
     Node timer_objects;
-
-    Thread_Context tctx;
 
     System_Mutex global_frame_mutex;
 
@@ -216,22 +224,31 @@ handle_to_object(Plat_Handle ph){
 internal Linux_Object*
 linux_alloc_object(Linux_Object_Kind kind){
     Linux_Object* result = NULL;
+
     if (linuxvars.free_linux_objects.next != &linuxvars.free_linux_objects) {
         result = CastFromMember(Linux_Object, node, linuxvars.free_linux_objects.next);
     }
+
     if (result == NULL) {
         i32 count = 512;
+
         Linux_Object* objects = (Linux_Object*)system_memory_allocate(
-            sizeof(Linux_Object), file_name_line_number_lit_u8);
+            sizeof(Linux_Object) * count,
+            file_name_line_number_lit_u8
+        );
+
         objects[0].node.prev = &linuxvars.free_linux_objects;
+        linuxvars.free_linux_objects.next = &objects[0].node;
         for (i32 i = 1; i < count; ++i) {
             objects[i - 1].node.next = &objects[i].node;
             objects[i].node.prev = &objects[i - 1].node;
         }
         objects[count - 1].node.next = &linuxvars.free_linux_objects;
         linuxvars.free_linux_objects.prev = &objects[count - 1].node;
+
         result = CastFromMember(Linux_Object, node, linuxvars.free_linux_objects.next);
     }
+
     Assert(result != 0);
     dll_remove(&result->node);
     block_zero_struct(result);
@@ -462,6 +479,15 @@ graphics_fill_texture_sig(){
 internal
 font_make_face_sig() {
     Face* result = ft__font_make_face(arena, description, scale_factor);
+
+    if(!result) {
+        // is this fatal? 4ed.cpp:277 (caller) does not check for null.
+        String_Const_u8 s = description->font.file_name;
+        char msg[4096];
+        snprintf(msg, sizeof(msg), "Unable to load font: %.*s", (int)s.size, s.str);
+        system_error_box(msg);
+    }
+
     return(result);
 }
 
@@ -469,17 +495,123 @@ font_make_face_sig() {
 
 internal b32
 glx_init(void) {
-    return false;
+    int glx_maj, glx_min;
+
+    if(!glXQueryVersion(linuxvars.dpy, &glx_maj, &glx_min)) {
+        return false;
+    }
+
+    return glx_maj > 1 || (glx_maj == 1 && glx_min >= 3);
 }
 
 internal b32
 glx_get_config(GLXFBConfig* fb_config, XVisualInfo* vi) {
-    return false;
+
+    static const int attrs[] = {
+        GLX_X_RENDERABLE , True,
+        GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+        GLX_RENDER_TYPE  , GLX_RGBA_BIT,
+        GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+        GLX_RED_SIZE     , 8,
+        GLX_GREEN_SIZE   , 8,
+        GLX_BLUE_SIZE    , 8,
+        GLX_ALPHA_SIZE   , 8,
+        GLX_DEPTH_SIZE   , 24,
+        GLX_STENCIL_SIZE , 8,
+        GLX_DOUBLEBUFFER , True,
+        None
+    };
+
+    int conf_count = 0;
+    GLXFBConfig* conf_list = glXChooseFBConfig(linuxvars.dpy, DefaultScreen(linuxvars.dpy), attrs, &conf_count);
+    if(!conf_count || conf_count <= 0) {
+        return false;
+    }
+
+    *fb_config = *conf_list;
+    XFree(conf_list);
+
+    XVisualInfo* xvi = glXGetVisualFromFBConfig(linuxvars.dpy, *fb_config);
+    if(!xvi) {
+        return false;
+    }
+
+    *vi = *xvi;
+    XFree(xvi);
+
+    return true;
 }
 
+internal b32 glx_ctx_error;
+
+internal int
+glx_error_handler(Display* dpy, XErrorEvent* ev){
+    glx_ctx_error = true;
+    return 0;
+}
+
+typedef GLXContext (glXCreateContextAttribsARB_Function)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
+typedef void       (glXSwapIntervalEXT_Function)        (Display *dpy, GLXDrawable drawable, int interval);
+typedef int        (glXSwapIntervalMESA_Function)       (unsigned int interval);
+typedef int        (glXGetSwapIntervalMESA_Function)    (void);
+typedef int        (glXSwapIntervalSGI_Function)        (int interval);
+
 internal b32
-glx_create_context(GLXFBConfig* fb_config){
-    return false;
+glx_create_context(GLXFBConfig fb_config){
+    const char *glx_exts = glXQueryExtensionsString(linuxvars.dpy, DefaultScreen(linuxvars.dpy));
+
+    glXCreateContextAttribsARB_Function *glXCreateContextAttribsARB = 0;
+    glXSwapIntervalEXT_Function         *glXSwapIntervalEXT = 0;
+    glXSwapIntervalMESA_Function        *glXSwapIntervalMESA = 0;
+    glXGetSwapIntervalMESA_Function     *glXGetSwapIntervalMESA = 0;
+    glXSwapIntervalSGI_Function         *glXSwapIntervalSGI = 0;
+
+#define GLXLOAD(f) f = (f##_Function*) glXGetProcAddressARB((const GLubyte*) #f);
+    GLXLOAD(glXCreateContextAttribsARB);
+
+    GLXContext ctx = NULL;
+    int (*old_handler)(Display*, XErrorEvent*) = XSetErrorHandler(&glx_error_handler);
+
+    if (glXCreateContextAttribsARB == NULL){
+        //LOG("glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
+        ctx = glXCreateNewContext(linuxvars.dpy, fb_config, GLX_RGBA_TYPE, 0, True);
+    } else {
+        static const int context_attribs[] = {
+            GLX_CONTEXT_MAJOR_VERSION_ARB, 2,
+            GLX_CONTEXT_MINOR_VERSION_ARB, 1,
+            GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+#if defined(FRED_INTERNAL)
+            GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
+#endif
+            None
+        };
+
+        //LOG("Creating GL 2.1 context... ");
+        ctx = glXCreateContextAttribsARB(linuxvars.dpy, fb_config, 0, True, context_attribs);
+    }
+
+    XSync(linuxvars.dpy, False);
+    if(glx_ctx_error || !ctx) {
+        return false;
+    }
+
+    XSync(linuxvars.dpy, False);
+    XSetErrorHandler(old_handler);
+
+    //b32 direct = glXIsDirect(linuxvars.dpy, ctx);
+
+    //LOG("Making context current\n");
+    glXMakeCurrent(linuxvars.dpy, linuxvars.win, ctx);
+
+    //glx_enable_vsync();
+
+    // NOTE(allen): Load gl functions
+#define GL_FUNC(f,R,P) GLXLOAD(f)
+#include "opengl/4ed_opengl_funcs.h"
+
+#undef GLXLOAD
+
+    return true;
 }
 
 ////////////////////////////
@@ -513,8 +645,7 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
 #undef LOAD_ATOM
 
     if (!glx_init()){
-        //system_error_box("Your XServer's GLX version is too old. GLX 1.3+ is required.");
-        system_error_box("TODO: Everything.");
+        system_error_box("Your XServer's GLX version is too old. GLX 1.3+ is required.");
     }
 
     GLXFBConfig fb_config;
@@ -528,6 +659,10 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
 #define WINDOW_H_DEFAULT 600
     int w = WINDOW_W_DEFAULT;
     int h = WINDOW_H_DEFAULT;
+
+    // TEMP
+    render_target.width = w;
+    render_target.height = h;
 
     XSetWindowAttributes swa = {};
     swa.backing_store = WhenMapped;
@@ -593,7 +728,7 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     // NOTE(inso): make the window visible
     XMapWindow(linuxvars.dpy, linuxvars.win);
 
-    if(!glx_create_context(&fb_config)) {
+    if(!glx_create_context(fb_config)) {
         system_error_box("Unable to create GLX context.");
     }
 
@@ -659,29 +794,34 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     }
 
     XIMStyles *styles = NULL;
-    XIMStyle got_style = None;
+    const XIMStyle style_want = (XIMPreeditNothing | XIMStatusNothing);
+    b32 found_style = false;
 
     if (!XGetIMValues(linuxvars.xim, XNQueryInputStyle, &styles, NULL) && styles){
         for (i32 i = 0; i < styles->count_styles; ++i){
             XIMStyle style = styles->supported_styles[i];
-            if (style == (XIMPreeditNothing | XIMStatusNothing)){
-                got_style = true;
+            if (style == style_want) {
+                found_style = true;
                 break;
             }
         }
     }
 
-    if(got_style == None) {
+    if(!found_style) {
         system_error_box("Could not find supported X Input style.");
     }
 
     XFree(styles);
 
     linuxvars.xic = XCreateIC(linuxvars.xim,
-                              XNInputStyle, got_style,
+                              XNInputStyle, style_want,
                               XNClientWindow, linuxvars.win,
                               XNFocusWindow, linuxvars.win,
                               NULL);
+
+    if(!linuxvars.xic) {
+        system_error_box("Error creating X Input context.");
+    }
 
     int xim_event_mask;
     if (XGetICValues(linuxvars.xic, XNFilterEvents, &xim_event_mask, NULL)){
@@ -779,9 +919,9 @@ main(int argc, char **argv){
     font_api_fill_vtable(&font_vtable);
 
     // NOTE(allen): memory
-    //win32vars.frame_arena = reserve_arena(win32vars.tctx);
+    linuxvars.frame_arena = reserve_arena(&linuxvars.tctx);
     // TODO(allen): *arena;
-    //target.arena = make_arena_system(KB(256));
+    render_target.arena = make_arena_system(KB(256));
 
     linuxvars.cursor_show = MouseCursorShow_Always;
     linuxvars.prev_cursor_show = MouseCursorShow_Always;
@@ -822,6 +962,8 @@ main(int argc, char **argv){
 
     // NOTE(allen): send system vtable to core
     app.load_vtables(&system_vtable, &font_vtable, &graphics_vtable);
+    // get_logger calls log_init which is needed.
+    app.get_logger();
     //linuxvars.log_string = app.get_logger();
 
     // NOTE(allen): init & command line parameters
@@ -942,7 +1084,7 @@ main(int argc, char **argv){
     {
         Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
-        //app.init(&linuxvars.tctx, &render_target, base_ptr, linuxvars.clipboard_contents, curdir, custom);
+        app.init(&linuxvars.tctx, &render_target, base_ptr, linuxvars.clipboard_contents, curdir, custom);
     }
 
     linuxvars.global_frame_mutex = system_mutex_make();
@@ -1030,6 +1172,9 @@ main(int argc, char **argv){
             }
             linuxvars.cursor = result.mouse_cursor_type;
         }
+
+        gl_render(&render_target);
+        glXSwapBuffers(linuxvars.dpy, linuxvars.win);
 
         first_step = false;
     }

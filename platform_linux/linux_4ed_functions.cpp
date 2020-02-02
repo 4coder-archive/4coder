@@ -53,6 +53,7 @@ system_get_path(Arena* arena, System_Path_Code path_code){
 
 internal String_Const_u8
 system_get_canonical(Arena* arena, String_Const_u8 name){
+    LINUX_FN_DEBUG("%.*s", (int)name.size, name.str);
     // TODO(andrew): Resolve symlinks ?
     // TODO(andrew): Resolve . and .. in paths
     // TODO(andrew): Use realpath(3)
@@ -61,6 +62,7 @@ system_get_canonical(Arena* arena, String_Const_u8 name){
 
 internal File_List
 system_get_file_list(Arena* arena, String_Const_u8 directory){
+    LINUX_FN_DEBUG("%.*s", (int)directory.size, directory.str);
     File_List result = {};
     String_Const_u8 search_pattern = {};
 
@@ -103,6 +105,7 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
 
 internal File_Attributes
 system_quick_file_attributes(Arena* scratch, String_Const_u8 file_name){
+    LINUX_FN_DEBUG("%.*s", (int)file_name.size, file_name.str);
     struct stat file_stat;
     stat((const char*)file_name.str, &file_stat);
     return linux_file_attributes_from_struct_stat(file_stat);
@@ -110,6 +113,7 @@ system_quick_file_attributes(Arena* scratch, String_Const_u8 file_name){
 
 internal b32
 system_load_handle(Arena* scratch, char* file_name, Plat_Handle* out){
+    LINUX_FN_DEBUG("%s", file_name);
     int fd = open(file_name, O_RDONLY);
     if (fd != -1) {
         *(int*)out = fd;
@@ -120,6 +124,7 @@ system_load_handle(Arena* scratch, char* file_name, Plat_Handle* out){
 
 internal File_Attributes
 system_load_attributes(Plat_Handle handle){
+    LINUX_FN_DEBUG();
     struct stat file_stat;
     fstat(*(int*)&handle, &file_stat);
     return linux_file_attributes_from_struct_stat(file_stat);
@@ -127,6 +132,7 @@ system_load_attributes(Plat_Handle handle){
 
 internal b32
 system_load_file(Plat_Handle handle, char* buffer, u32 size){
+    LINUX_FN_DEBUG("%.*s", size, buffer);
     int fd = *(int*)&handle;
     int bytes_read = read(fd, buffer, size);
     if (bytes_read == size) {
@@ -137,12 +143,14 @@ system_load_file(Plat_Handle handle, char* buffer, u32 size){
 
 internal b32
 system_load_close(Plat_Handle handle){
+    LINUX_FN_DEBUG();
     int fd = *(int*)&handle;
     return close(fd) == 0;
 }
 
 internal File_Attributes
 system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
+    LINUX_FN_DEBUG("%s", file_name);
     File_Attributes result = {};
     int fd = open(file_name, O_WRONLY, O_CREAT);
     if (fd != -1) {
@@ -158,6 +166,7 @@ system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
 
 internal b32
 system_load_library(Arena* scratch, String_Const_u8 file_name, System_Library* out){
+    LINUX_FN_DEBUG("%.*s", (int)file_name.size, file_name.str);
     void* library = dlopen((const char*)file_name.str, RTLD_LAZY);
     if (library != NULL) {
         *(void**)out = library;
@@ -168,16 +177,19 @@ system_load_library(Arena* scratch, String_Const_u8 file_name, System_Library* o
 
 internal b32
 system_release_library(System_Library handle){
+    LINUX_FN_DEBUG();
     return dlclose(*(void**)&handle) == 0;
 }
 
 internal Void_Func*
 system_get_proc(System_Library handle, char* proc_name){
+    LINUX_FN_DEBUG("%s", proc_name);
     return (Void_Func*)dlsym(*(void**)&handle, proc_name);
 }
 
 internal u64
 system_now_time(void){
+    LINUX_FN_DEBUG();
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &time);
     return linux_u64_from_timespec(time);
@@ -185,6 +197,7 @@ system_now_time(void){
 
 internal Plat_Handle
 system_wake_up_timer_create(void){
+    LINUX_FN_DEBUG();
     Linux_Object* object = linux_alloc_object(LinuxObjectKind_Timer);
     dll_insert(&linuxvars.timer_objects, &object->node);
 
@@ -194,6 +207,7 @@ system_wake_up_timer_create(void){
 
 internal void
 system_wake_up_timer_release(Plat_Handle handle){
+    LINUX_FN_DEBUG();
     Linux_Object* object = handle_to_object(handle);
     if (object->kind == LinuxObjectKind_Timer){
         if(object->timer.fd != -1) {
@@ -207,6 +221,7 @@ system_wake_up_timer_release(Plat_Handle handle){
 
 internal void
 system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds){
+    LINUX_FN_DEBUG("%d", time_milliseconds);
     Linux_Object* object = handle_to_object(handle);
 
     if (object->kind == LinuxObjectKind_Timer){
@@ -229,11 +244,13 @@ system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds){
 
 internal void
 system_signal_step(u32 code){
+    LINUX_FN_DEBUG("%d", code);
     linux_schedule_step();
 }
 
 internal void
 system_sleep(u64 microseconds){
+    LINUX_FN_DEBUG("%" PRIu64, microseconds);
     struct timespec requested;
     struct timespec remaining;
     u64 seconds = microseconds / Million(1);
@@ -244,6 +261,7 @@ system_sleep(u64 microseconds){
 
 internal void
 system_post_clipboard(String_Const_u8 str){
+    LINUX_FN_DEBUG("%.*s", (int)str.size, str.str);
     linalloc_clear(&linuxvars.clipboard_out_arena);
     char* p = push_array(&linuxvars.clipboard_out_arena, char, str.size + 1);
     block_copy(p, str.data, str.size);
@@ -253,6 +271,7 @@ system_post_clipboard(String_Const_u8 str){
 
 internal b32
 system_cli_call(Arena* scratch, char* path, char* script, CLI_Handles* cli_out){
+    LINUX_FN_DEBUG("%s / %s", path, script);
     int pipe_fds[2];
     if (pipe(pipe_fds) == -1){
         perror("system_cli_call: pipe");
@@ -304,10 +323,12 @@ system_cli_call(Arena* scratch, char* path, char* script, CLI_Handles* cli_out){
 internal void
 system_cli_begin_update(CLI_Handles* cli){
     // NOTE(inso): I don't think anything needs to be done here.
+    LINUX_FN_DEBUG();
 }
 
 internal b32
 system_cli_update_step(CLI_Handles* cli, char* dest, u32 max, u32* amount){
+    LINUX_FN_DEBUG();
     int pipe_read_fd = *(int*)&cli->out_read;
 
     fd_set fds;
@@ -338,6 +359,7 @@ system_cli_update_step(CLI_Handles* cli, char* dest, u32 max, u32* amount){
 
 internal b32
 system_cli_end_update(CLI_Handles* cli){
+    LINUX_FN_DEBUG();
     pid_t pid = *(pid_t*)&cli->proc;
     b32 close_me = false;
 
@@ -359,10 +381,12 @@ system_cli_end_update(CLI_Handles* cli){
 internal void
 system_open_color_picker(Color_Picker* picker){
     // TODO?
+    LINUX_FN_DEBUG();
 }
 
 internal f32
 system_get_screen_scale_factor(void){
+    LINUX_FN_DEBUG();
     // TODO: correct screen number somehow
     int dpi = linux_get_xsettings_dpi(linuxvars.dpy, 0);
     if(dpi == -1){
@@ -380,6 +404,7 @@ system_get_screen_scale_factor(void){
 
 internal System_Thread
 system_thread_launch(Thread_Function* proc, void* ptr){
+    LINUX_FN_DEBUG();
     System_Thread result = {};
 
     Linux_Object* thread_info = linux_alloc_object(LinuxObjectKind_Thread);
@@ -408,6 +433,7 @@ system_thread_launch(Thread_Function* proc, void* ptr){
 
 internal void
 system_thread_join(System_Thread thread){
+    LINUX_FN_DEBUG();
     Linux_Object* object = *(Linux_Object**)&thread;
     void* retval_ignored;
     int result = pthread_join(object->thread.pthread, &retval_ignored);
@@ -415,6 +441,7 @@ system_thread_join(System_Thread thread){
 
 internal void
 system_thread_free(System_Thread thread){
+    LINUX_FN_DEBUG();
     Linux_Object* object = *(Linux_Object**)&thread;
     Assert(object->kind == LinuxObjectKind_Thread);
     linux_free_object(object);
@@ -422,13 +449,18 @@ system_thread_free(System_Thread thread){
 
 internal i32
 system_thread_get_id(void){
+    LINUX_FN_DEBUG();
     pthread_t tid = pthread_self();
-    Assert(tid <= (u64)max_i32);
-    return (i32)tid;
+
+    // WELP hope it doesn't collide
+    i32 shorter_id = ((u64)tid >> 32) ^ ((u32)tid & bitmask_32);
+
+    return shorter_id;
 }
 
 internal void
 system_acquire_global_frame_mutex(Thread_Context* tctx){
+    LINUX_FN_DEBUG();
     if (tctx->kind == ThreadKind_AsyncTasks){
         system_mutex_acquire(linuxvars.global_frame_mutex);
     }
@@ -436,6 +468,7 @@ system_acquire_global_frame_mutex(Thread_Context* tctx){
 
 internal void
 system_release_global_frame_mutex(Thread_Context* tctx){
+    LINUX_FN_DEBUG();
     if (tctx->kind == ThreadKind_AsyncTasks){
         system_mutex_release(linuxvars.global_frame_mutex);
     }
@@ -447,12 +480,14 @@ system_mutex_make(void){
     Linux_Object* object = linux_alloc_object(LinuxObjectKind_Mutex);
     pthread_mutex_init(&object->mutex, NULL);
     *(Linux_Object**)&result = object;
+    LINUX_FN_DEBUG("%p", object);
     return result;
 }
 
 internal void
 system_mutex_acquire(System_Mutex mutex){
     Linux_Object* object = *(Linux_Object**)&mutex;
+    LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_Mutex);
     pthread_mutex_lock(&object->mutex);
 }
@@ -460,6 +495,7 @@ system_mutex_acquire(System_Mutex mutex){
 internal void
 system_mutex_release(System_Mutex mutex){
     Linux_Object* object = *(Linux_Object**)&mutex;
+    LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_Mutex);
     pthread_mutex_unlock(&object->mutex);
 }
@@ -467,6 +503,7 @@ system_mutex_release(System_Mutex mutex){
 internal void
 system_mutex_free(System_Mutex mutex){
     Linux_Object* object = *(Linux_Object**)&mutex;
+    LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_Mutex);
     pthread_mutex_destroy(&object->mutex);
     linux_free_object(object);
@@ -476,6 +513,7 @@ internal System_Condition_Variable
 system_condition_variable_make(void){
     System_Condition_Variable result = {};
     Linux_Object* object = linux_alloc_object(LinuxObjectKind_ConditionVariable);
+    LINUX_FN_DEBUG("%p", object);
     pthread_cond_init(&object->condition_variable, NULL);
     *(Linux_Object**)&result = object;
     return result;
@@ -485,6 +523,7 @@ internal void
 system_condition_variable_wait(System_Condition_Variable cv, System_Mutex mutex){
     Linux_Object* cv_object = *(Linux_Object**)&cv;
     Linux_Object* mutex_object = *(Linux_Object**)&mutex;
+    LINUX_FN_DEBUG("%p / %p", cv_object, mutex_object);
     Assert(cv_object->kind == LinuxObjectKind_ConditionVariable);
     Assert(mutex_object->kind == LinuxObjectKind_Mutex);
     pthread_cond_wait(&cv_object->condition_variable, &mutex_object->mutex);
@@ -493,6 +532,7 @@ system_condition_variable_wait(System_Condition_Variable cv, System_Mutex mutex)
 internal void
 system_condition_variable_signal(System_Condition_Variable cv){
     Linux_Object* object = *(Linux_Object**)&cv;
+    LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_ConditionVariable);
     pthread_cond_signal(&object->condition_variable);
 }
@@ -500,6 +540,7 @@ system_condition_variable_signal(System_Condition_Variable cv){
 internal void
 system_condition_variable_free(System_Condition_Variable cv){
     Linux_Object* object = *(Linux_Object**)&cv;
+    LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_ConditionVariable);
     pthread_cond_destroy(&object->condition_variable);
     linux_free_object(object);
@@ -507,14 +548,17 @@ system_condition_variable_free(System_Condition_Variable cv){
 
 internal void*
 system_memory_allocate(u64 size, String_Const_u8 location){
+
     void* result = mmap(
         NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     // TODO(andrew): Allocation tracking?
+    LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
     return result;
 }
 
 internal b32
 system_memory_set_protection(void* ptr, u64 size, u32 flags){
+    LINUX_FN_DEBUG("%p / %ld / %d", ptr, size, flags);
     int protect = 0;
     MovFlag(flags, MemProtect_Read, protect, PROT_READ);
     MovFlag(flags, MemProtect_Write, protect, PROT_WRITE);
@@ -525,16 +569,20 @@ system_memory_set_protection(void* ptr, u64 size, u32 flags){
 
 internal void
 system_memory_free(void* ptr, u64 size){
+    LINUX_FN_DEBUG("%p / %ld", ptr, size);
     munmap(ptr, size);
 }
 
 internal Memory_Annotation
 system_memory_annotation(Arena* arena){
+    LINUX_FN_DEBUG();
     // TODO;
 }
 
 internal void
 system_show_mouse_cursor(i32 show){
+    LINUX_FN_DEBUG("%d", show);
+
     linuxvars.cursor_show = show;
 
     XDefineCursor(
@@ -545,17 +593,21 @@ system_show_mouse_cursor(i32 show){
 
 internal b32
 system_set_fullscreen(b32 full_screen){
+    LINUX_FN_DEBUG("%d", full_screen);
+
     linuxvars.should_be_full_screen = full_screen;
     return true;
 }
 
 internal b32
 system_is_fullscreen(void){
+    LINUX_FN_DEBUG();
     return linuxvars.is_full_screen;
 }
 
 internal Input_Modifier_Set
 system_get_keyboard_modifiers(Arena* arena){
+    LINUX_FN_DEBUG();
     // TODO:
     //return(copy_modifier_set(arena, &linuxvars.input_chunk.pers.modifiers));
 }

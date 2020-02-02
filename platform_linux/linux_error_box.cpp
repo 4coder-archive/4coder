@@ -76,12 +76,11 @@ system_error_box(char *msg, b32 shutdown = true){
 
     int button_trigger = 0;
     int button_hi = 0;
+    int redraw = 1;
 
     XEvent ev;
     while (1){
         XNextEvent(dpy, &ev);
-
-        int redraw = 0;
 
         if (ev.type == Expose) redraw = 1;
 
@@ -137,6 +136,7 @@ system_error_box(char *msg, b32 shutdown = true){
         XDrawString(dpy, w, gc1, (x)  , (y)  , (str), (len))
 
         if (redraw){
+            redraw = 0;
             XClearWindow(dpy, w);
 
             const char* line_start = msg;
