@@ -1206,6 +1206,7 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range,
     info.first_char_pos = range.end;
     info.is_blank = true;
     info.all_space = true;
+    
     for (u64 i = 0; i < s.size; i += 1){
         u8 c = s.str[i];
         if (!character_is_whitespace(c)){
@@ -1214,13 +1215,15 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range,
             info.first_char_pos = range.start + (i64)i;
             break;
         }
-        if (c != ' '){
+        if (c == ' '){
+            info.indent_pos += 1;
+        }
+        else{
             info.all_space = false;
         }
         if (c == '\t'){
             info.indent_pos += tab_additional_width;
         }
-        info.indent_pos += 1;
     }
     
     return(info);
