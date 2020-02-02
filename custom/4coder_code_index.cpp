@@ -937,7 +937,11 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                     lr_tb_advance_x_without_item(&pos_vars, shift);
                     goto consuming_non_whitespace;
                 }
-                if (*ptr == '\n'){
+                if (*ptr == '\r'){
+                    i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+                    newline_layout_consume_CR(&newline_vars, index);
+                }
+                else if (*ptr == '\n'){
                     pending_wrap_ptr = ptr;
                     i64 index = layout_index_from_ptr(ptr, text.str, range.first);
                     f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
@@ -2112,7 +2116,11 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                     lr_tb_advance_x_without_item(&pos_vars, shift);
                     goto consuming_non_whitespace;
                 }
-                if (*ptr == '\n'){
+                if (*ptr == '\r'){
+                    i64 index = layout_index_from_ptr(ptr, text.str, range.first);
+                    newline_layout_consume_CR(&newline_vars, index);
+                }
+                else if (*ptr == '\n'){
                     pending_wrap_ptr = ptr;
                     i64 index = layout_index_from_ptr(ptr, text.str, range.first);
                     f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
