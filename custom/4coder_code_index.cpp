@@ -241,6 +241,7 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
 ////////////////////////////////
 
 #if 0
+/*
 // NOTE(allen): grammar syntax
 (X) = X
 X Y = X and then Y
@@ -267,7 +268,7 @@ union: "union" <identifier> $(";" | "{")
 enum: "enum" <identifier> $(";" | "{")
 typedef: "typedef" [* - (<identifier> (";" | "("))] <identifier> $(";" | "(")
 function: <identifier> >"(" ["(" ")" | * - ("(" | ")")] ")" ("{" | ";")
-
+*/
 #endif
 
 ////////////////////////////////

@@ -54,7 +54,11 @@ gl__fill_texture(Texture_Kind texture_kind, u32 texture, Vec3_i32 p, Vec3_i32 di
 }
 
 internal void
+#ifdef OS_LINUX
+gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam){
+#else
 gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char *message, void *userParam){
+#endif
     switch (id){
         case 131218:
         {

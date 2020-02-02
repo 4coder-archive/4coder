@@ -24,6 +24,13 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#ifdef OS_LINUX
+    #include <inttypes.h>
+    #define FMTi64 PRIi64
+#else
+    #define FMTi64 "lld"
+#endif
+
 ///////////////////////////////
 
 struct Line_Column_Coordinates{
@@ -121,7 +128,7 @@ line_number(String_Const_u8 text, i64 pos){
 static void
 error(u8 *source_name, String_Const_u8 text, i64 pos, u8 *msg){
     Line_Column_Coordinates coords = line_column_coordinates(text, pos);
-    fprintf(stdout, "%s:%lld:%lld: %s\n",
+    fprintf(stdout, "%s:%" FMTi64 ":%" FMTi64 ": %s\n",
             source_name, coords.line, coords.column, msg);
     fflush(stdout);
 }
@@ -904,7 +911,7 @@ main(int argc, char **argv){
             
             fprintf(cmd_out,
                     "{ PROC_LINKS(%.*s, 0), %s, \"%.*s\", %d, "
-                    "\"%.*s\", %d, \"%s\", %d, %lld },\n",
+                    "\"%.*s\", %d, \"%s\", %d, %" FMTi64 " },\n",
                     string_expand(entry->name),
                     is_ui,
                     string_expand(entry->name),

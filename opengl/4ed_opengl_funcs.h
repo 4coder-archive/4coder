@@ -16,8 +16,11 @@
 GL_FUNC(glDebugMessageControl, void, (GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint *ids, GLboolean enabled))
 GL_FUNC(glDebugMessageCallback, void, (GLDEBUGPROC callback, const void *userParam))
 
+#ifndef OS_LINUX
 GL_FUNC(glTexImage3D, void, (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void *pixels))
 GL_FUNC(glTexSubImage3D, void, (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels))
+GL_FUNC(glActiveTexture, void, (GLenum texture))
+#endif
 
 GL_FUNC(glGenVertexArrays,    void, (GLsizei n, GLuint *arrays))
 GL_FUNC(glBindVertexArray,    void, (GLuint array))
@@ -72,8 +75,6 @@ GL_FUNC(glUniform4iv, void, (GLint location, GLsizei count, const GLint *value))
 GL_FUNC(glUniformMatrix2fv, void, (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value))
 GL_FUNC(glUniformMatrix3fv, void, (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value))
 GL_FUNC(glUniformMatrix4fv, void, (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value))
-
-GL_FUNC(glActiveTexture, void, (GLenum texture))
 
 GL_FUNC(glGenFramebuffers, void, (GLsizei n, GLuint *framebuffers))
 GL_FUNC(glBindFramebuffer, void, (GLenum target, GLuint framebuffer))

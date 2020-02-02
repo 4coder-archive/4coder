@@ -1,5 +1,6 @@
 /*
- * chr - Andrew Chronister
+ * chr  - Andrew Chronister &
+ * inso - Alex Baines
  *
  * 12.19.2019
  *
@@ -11,6 +12,13 @@
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
+#define SLASH '/'
+#define DLL "so"
+
+#define container_of(ptr, type, member) ({            \
+	const typeof(((type*)0)->member)* __mptr = (ptr); \
+	(type*)((char*)__mptr - offsetof(type, member));  \
+})
 
 #include "4coder_base_types.h"
 #include "4coder_version.h"
@@ -19,14 +27,15 @@
 #include "4coder_table.h"
 #include "4coder_types.h"
 #include "4coder_default_colors.h"
-
 #include "4coder_system_types.h"
+#include "4ed_font_interface.h"
+
 #define STATIC_LINK_API
 #include "generated/system_api.h"
 
-#include "4ed_font_interface.h"
 #define STATIC_LINK_API
 #include "generated/graphics_api.h"
+
 #define STATIC_LINK_API
 #include "generated/font_api.h"
 
@@ -46,7 +55,16 @@
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"
 
+#include "4coder_hash_functions.cpp"
+#include "4coder_system_allocator.cpp"
+#include "4coder_malloc_allocator.cpp"
+#include "4coder_codepoint_map.cpp"
+
+#include "4ed_mem.cpp"
+#include "4ed_font_set.cpp"
 #include "4ed_search_list.cpp"
+#include "4ed_font_provider_freetype.h"
+#include "4ed_font_provider_freetype.cpp"
 
 #include <dirent.h>
 #include <dlfcn.h>
@@ -54,7 +72,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
+#include <locale.h>
+#include <errno.h>
 #include <pthread.h>
 
 #include <sys/epoll.h>
@@ -62,48 +81,123 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/timerfd.h>
 
 #define Cursor XCursor
 #undef function
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/cursorfont.h>
+#include <X11/Xatom.h>
+#include <X11/extensions/Xfixes.h>
 #define function static
 #undef Cursor
+
+#include <GL/glx.h>
+#include <GL/glext.h>
+
+#ifdef INSO_DEBUG
+    #define LINUX_FN_DEBUG(fmt, ...) do { \
+        fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__);\
+    } while (0)
+#else
+    #define LINUX_FN_DEBUG(...)
+#endif
 
 ////////////////////////////
 
 struct Linux_Vars {
-    Display *XDisplay;
-    Window XWindow;
+    Display* dpy;
+    Window win;
+
+    b32 has_xfixes;
+    int xfixes_selection_event;
+    XIM xim;
+    XIC xic;
+
+    Application_Step_Input input;
 
     int epoll;
-
+    int step_timer_fd;
+    u64 last_step_time;
     b32 is_full_screen;
     b32 should_be_full_screen;
 
     Application_Mouse_Cursor cursor;
-    b32 hide_cursor;
     XCursor hidden_cursor;
+    i32 cursor_show;
+    i32 prev_cursor_show;
 
     Node free_linux_objects;
+    Node timer_objects;
+
+    Thread_Context tctx;
 
     System_Mutex global_frame_mutex;
+
+    Arena clipboard_out_arena;
+    String_Const_u8 clipboard_contents;
+    b32 received_new_clipboard;
+
+    Atom atom_TARGETS;
+    Atom atom_CLIPBOARD;
+    Atom atom_UTF8_STRING;
+    Atom atom__NET_WM_STATE;
+    Atom atom__NET_WM_STATE_MAXIMIZED_HORZ;
+    Atom atom__NET_WM_STATE_MAXIMIZED_VERT;
+    Atom atom__NET_WM_STATE_FULLSCREEN;
+    Atom atom__NET_WM_PING;
+    Atom atom__NET_WM_WINDOW_TYPE;
+    Atom atom__NET_WM_WINDOW_TYPE_NORMAL;
+    Atom atom__NET_WM_PID;
+    Atom atom_WM_DELETE_WINDOW;
 };
 
+global Linux_Vars linuxvars;
+global Render_Target render_target;
+
+////////////////////////////
+
+// Defererencing an epoll_event's .data.ptr will always give one of these event types.
+
+typedef i32 Epoll_Kind;
 enum {
-    LINUX_4ED_EVENT_CLI          = (UINT64_C(5) << 32),
+    EPOLL_FRAME_TIMER,
+    EPOLL_X11,
+    EPOLL_X11_INTERNAL,
+    EPOLL_CLI_PIPE,
+    EPOLL_USER_TIMER,
 };
+
+// Where per-event epoll data is not needed, .data.ptr will point to one of
+// these static vars below.
+// If per-event data is needed, container_of can be used on data.ptr
+// to access the containing struct and all its other members.
+
+internal Epoll_Kind epoll_tag_frame_timer = EPOLL_FRAME_TIMER;
+internal Epoll_Kind epoll_tag_x11 = EPOLL_X11;
+internal Epoll_Kind epoll_tag_x11_internal = EPOLL_X11_INTERNAL;
+internal Epoll_Kind epoll_tag_cli_pipe = EPOLL_CLI_PIPE;
+
+////////////////////////////
 
 typedef i32 Linux_Object_Kind;
 enum {
-    LinuxObjectKind_Thread = 1,
-    LinuxObjectKind_Mutex = 2,
-    LinuxObjectKind_ConditionVariable = 3,
+    LinuxObjectKind_ERROR = 0,
+    LinuxObjectKind_Timer = 1,
+    LinuxObjectKind_Thread = 2,
+    LinuxObjectKind_Mutex = 3,
+    LinuxObjectKind_ConditionVariable = 4,
 };
 
 struct Linux_Object {
     Linux_Object_Kind kind;
     Node node;
     union {
+        struct {
+            int fd;
+            Epoll_Kind epoll_tag;
+        } timer;
         struct {
             pthread_t pthread;
             Thread_Function* proc;
@@ -114,12 +208,10 @@ struct Linux_Object {
     };
 };
 
-
-////////////////////////////
-
-global Linux_Vars linuxvars;
-
-////////////////////////////
+Linux_Object*
+handle_to_object(Plat_Handle ph){
+    return *(Linux_Object**)&ph;
+}
 
 internal Linux_Object*
 linux_alloc_object(Linux_Object_Kind kind){
@@ -155,45 +247,7 @@ linux_free_object(Linux_Object *object){
     dll_insert(&linuxvars.free_linux_objects, &object->node);
 }
 
-internal
-system_get_path_sig(){
-    // Arena* arena, System_Path_Code path_code
-    String_Const_u8 result = {};
-    switch (path_code){
-        case SystemPath_CurrentDirectory:
-        {
-            // glibc extension: getcwd allocates its own memory if passed NULL
-            char *working_dir = getcwd(NULL, 0);
-            u64 working_dir_len = cstring_length(working_dir);
-            u8 *out = push_array(arena, u8, working_dir_len);
-            block_copy(out, working_dir, working_dir_len);
-            free(working_dir);
-            result = SCu8(out, working_dir_len);
-        }break;
-
-        case SystemPath_Binary:
-        {
-            // linux-specific: binary path symlinked at /proc/self/exe
-            ssize_t binary_path_len = readlink("/proc/self/exe", NULL, 0);
-            u8* out = push_array(arena, u8, binary_path_len);
-            readlink("/proc/self/exe", (char*)out, binary_path_len);
-            String_u8 out_str = Su8(out, binary_path_len);
-            out_str.string = string_remove_last_folder(out_str.string);
-            string_null_terminate(&out_str);
-            result = out_str.string;
-        }break;
-    }
-    return(result);
-}
-
-internal
-system_get_canonical_sig(){
-    // TODO(andrew): Resolve symlinks ?
-    // TODO(andrew): Resolve . and .. in paths
-    // TODO(andrew): Use realpath(3)
-	return name;
-}
-
+////////////////////////////
 
 internal int
 linux_system_get_file_list_filter(const struct dirent *dirent) {
@@ -228,327 +282,97 @@ linux_file_attributes_from_struct_stat(struct stat file_stat) {
     return result;
 }
 
-internal
-system_get_file_list_sig(){
-    File_List result = {};
-    String_Const_u8 search_pattern = {};
-    if (character_is_slash(string_get_character(directory, directory.size - 1))){
-        search_pattern = push_u8_stringf(arena, "%.*s*", string_expand(directory));
-    }
-    else{
-        search_pattern = push_u8_stringf(arena, "%.*s/*", string_expand(directory));
-    }
+internal void
+linux_schedule_step(){
+    u64 now  = system_now_time();
+    u64 diff = (now - linuxvars.last_step_time);
 
-    struct dirent** dir_ents = NULL;
-    int num_ents = scandir(
-        (const char*)search_pattern.str, &dir_ents, linux_system_get_file_list_filter, alphasort);
+    struct itimerspec its = {};
+    timerfd_gettime(linuxvars.step_timer_fd, &its);
 
-    File_Info *first = 0;
-    File_Info *last = 0;
-    for (int i = 0; i < num_ents; ++i) {
-        struct dirent* dirent = dir_ents[i];
-        File_Info *info = push_array(arena, File_Info, 1);
-        sll_queue_push(first, last, info);
-
-        info->file_name = SCu8((u8*)dirent->d_name);
-
-        struct stat file_stat;
-        stat((const char*)dirent->d_name, &file_stat);
-        info->attributes = linux_file_attributes_from_struct_stat(file_stat);
-    }
-
-    result.infos = push_array(arena, File_Info*, num_ents);
-    result.count = num_ents;
-    i32 info_index = 0;
-    for (File_Info* node = first; node != NULL; node = node->next) {
-        result.infos[info_index] = node;
-        info_index += 1;
-    }
-    return result;
-}
-
-internal
-system_quick_file_attributes_sig(){
-    struct stat file_stat;
-    stat((const char*)file_name.str, &file_stat);
-    return linux_file_attributes_from_struct_stat(file_stat);
-}
-
-internal
-system_load_handle_sig(){
-    int fd = open(file_name, O_RDONLY);
-    if (fd != -1) {
-        *(int*)out = fd;
-        return true;
-    }
-    return false;
-}
-
-internal
-system_load_attributes_sig(){
-    struct stat file_stat;
-    fstat(*(int*)&handle, &file_stat);
-    return linux_file_attributes_from_struct_stat(file_stat);
-}
-
-internal
-system_load_file_sig(){
-    int fd = *(int*)&handle;
-    int bytes_read = read(fd, buffer, size);
-    if (bytes_read == size) {
-        return true;
-    }
-    return false;
-}
-
-internal
-system_load_close_sig(){
-    int fd = *(int*)&handle;
-    return close(fd) == 0;
-}
-
-internal
-system_save_file_sig(){
-    File_Attributes result = {};
-    int fd = open(file_name, O_WRONLY, O_CREAT);
-    if (fd != -1) {
-        int bytes_written = write(fd, data.str, data.size);
-        if (bytes_written != -1) {
-            struct stat file_stat;
-            fstat(fd, &file_stat);
-            return linux_file_attributes_from_struct_stat(file_stat);
-        }
-    }
-    return result;
-}
-
-typedef void* shared_object_handle;
-
-internal
-system_load_library_sig(){
-    shared_object_handle library = dlopen((const char*)file_name.str, RTLD_LAZY);
-    if (library != NULL) {
-        *(shared_object_handle*)out = library;
-        return true;
-    }
-    return false;
-}
-
-internal
-system_release_library_sig(){
-    return dlclose(*(shared_object_handle*)&handle) == 0;
-}
-
-internal
-system_get_proc_sig(){
-    return (Void_Func*)dlsym(*(shared_object_handle*)&handle, proc_name);
-}
-
-internal
-system_now_time_sig(){
-    struct timespec time;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &time);
-    return linux_u64_from_timespec(time);
-}
-
-// system_wake_up_timer_create_sig
-// system_wake_up_timer_release_sig
-// system_wake_up_timer_set_sig
-// system_signal_step_sig
-
-internal
-system_sleep_sig(){
-    struct timespec requested;
-    struct timespec remaining;
-    u64 seconds = microseconds / Million(1);
-    requested.tv_sec = seconds;
-    requested.tv_nsec = (microseconds - seconds * Million(1)) * Thousand(1);
-    nanosleep(&requested, &remaining);
-}
-
-// system_post_clipboard_sig
-
-internal
-system_cli_call_sig() {
-    int pipe_fds[2];
-    if (pipe(pipe_fds) == -1){
-        perror("system_cli_call: pipe");
-        return 0;
-    }
-    
-    pid_t child_pid = fork();
-    if (child_pid == -1){
-        perror("system_cli_call: fork");
-        return 0;
-    }
-    
-    enum { PIPE_FD_READ, PIPE_FD_WRITE };
-    
-    // child
-    if (child_pid == 0){
-        close(pipe_fds[PIPE_FD_READ]);
-        dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
-        dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
-        
-        if (chdir(path) == -1){
-            perror("system_cli_call: chdir");
-            exit(1);
-        }
-        
-        char* argv[] = { "sh", "-c", script, NULL };
-        
-        if (execv("/bin/sh", argv) == -1){
-            perror("system_cli_call: execv");
-        }
-        exit(1);
-    }
-    else{
-        close(pipe_fds[PIPE_FD_WRITE]);
-        
-        *(pid_t*)&cli_out->proc = child_pid;
-        *(int*)&cli_out->out_read = pipe_fds[PIPE_FD_READ];
-        *(int*)&cli_out->out_write = pipe_fds[PIPE_FD_WRITE];
-        
-        struct epoll_event e = {};
-        e.events = EPOLLIN | EPOLLET;
-        e.data.u64 = LINUX_4ED_EVENT_CLI;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, pipe_fds[PIPE_FD_READ], &e);
-    }
-    
-    return(true);
-}
-
-internal
-system_cli_begin_update_sig() {
-    // NOTE(inso): I don't think anything needs to be done here.
-}
-
-internal
-system_cli_update_step_sig(){
-    int pipe_read_fd = *(int*)&cli->out_read;
-    
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(pipe_read_fd, &fds);
-    
-    struct timeval tv = {};
-    
-    size_t space_left = max;
-    char* ptr = dest;
-    
-    while (space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
-        ssize_t num = read(pipe_read_fd, ptr, space_left);
-        if (num == -1){
-            perror("system_cli_update_step: read");
-        } else if (num == 0){
-            // NOTE(inso): EOF
-            break;
+    if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
+        if(diff > (u64)frame_useconds) {
+            its.it_value.tv_nsec = 1;
         } else {
-            ptr += num;
-            space_left -= num;
+            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
         }
+        timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
     }
-    
-    *amount = (ptr - dest);
-    return((ptr - dest) > 0);
 }
-
-internal
-system_cli_end_update_sig(){
-    pid_t pid = *(pid_t*)&cli->proc;
-    b32 close_me = false;
-    
-    int status;
-    if (pid && waitpid(pid, &status, WNOHANG) > 0){
-        cli->exit = WEXITSTATUS(status);
-        
-        close_me = true;
-        close(*(int*)&cli->out_read);
-        close(*(int*)&cli->out_write);
-        
-        struct epoll_event e = {};
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_DEL, *(int*)&cli->out_read, &e);
-    }
-    
-    return(close_me);
-}
-
-// system_open_color_picker
 
 internal int
-linux_get_xsettings_dpi(Display* dpy, int screen)
-{
+linux_get_xsettings_dpi(Display* dpy, int screen){
     struct XSettingHeader {
         u8 type;
         u8 pad0;
         u16 name_len;
         char name[0];
     };
-    
+
     struct XSettings {
         u8 byte_order;
         u8 pad[3];
         u32 serial;
         u32 num_settings;
     };
-    
+
     enum { XSettingsTypeInt, XSettingsTypeString, XSettingsTypeColor };
-    
+
     int dpi = -1;
     unsigned char* prop = NULL;
     char sel_buffer[64];
     struct XSettings* xs;
     const char* p;
-    
+
     snprintf(sel_buffer, sizeof(sel_buffer), "_XSETTINGS_S%d", screen);
-    
+
     Atom XSET_SEL = XInternAtom(dpy, sel_buffer, True);
     Atom XSET_SET = XInternAtom(dpy, "_XSETTINGS_SETTINGS", True);
-    
+
     if (XSET_SEL == None || XSET_SET == None){
         //LOG("XSETTINGS unavailable.\n");
         return(dpi);
     }
-    
+
     Window xset_win = XGetSelectionOwner(dpy, XSET_SEL);
     if (xset_win == None){
         // TODO(inso): listen for the ClientMessage about it becoming available?
         //             there's not much point atm if DPI scaling is only done at startup 
         goto out;
     }
-    
+
     {
         Atom type;
         int fmt;
         unsigned long pad, num;
-        
+
         if (XGetWindowProperty(dpy, xset_win, XSET_SET, 0, 1024, False, XSET_SET, &type, &fmt, &num, &pad, &prop) != Success){
             //LOG("XSETTINGS: GetWindowProperty failed.\n");
             goto out;
         }
-        
+
         if (fmt != 8){
             //LOG("XSETTINGS: Wrong format.\n");
             goto out;
         }
     }
-    
+
     xs = (struct XSettings*)prop;
     p  = (char*)(xs + 1);
-    
+
     if (xs->byte_order != 0){
         //LOG("FIXME: XSETTINGS not host byte order?\n");
         goto out;
     }
-    
+
     for (int i = 0; i < xs->num_settings; ++i){
         struct XSettingHeader* h = (struct XSettingHeader*)p;
-        
+
         p += sizeof(struct XSettingHeader);
         p += h->name_len;
         p += ((4 - (h->name_len & 3)) & 3);
         p += 4; // serial
-        
+
         switch (h->type){
             case XSettingsTypeInt: {
                 if (strncmp(h->name, "Xft/DPI", h->name_len) == 0){
@@ -557,37 +381,32 @@ linux_get_xsettings_dpi(Display* dpy, int screen)
                 }
                 p += 4;
             } break;
-            
+
             case XSettingsTypeString: {
                 u32 len = *(u32*)p;
                 p += 4;
                 p += len;
                 p += ((4 - (len & 3)) & 3);
             } break;
-            
+
             case XSettingsTypeColor: {
                 p += 8;
             } break;
-            
+
             default: {
                 //LOG("XSETTINGS: Got invalid type...\n");
                 goto out;
             } break;
         }
     }
-    
+
     out:
-    if (prop){
-        XFree(prop);
-    }
-    
+        if (prop){
+            XFree(prop);
+        }
+
     return dpi;
 }
-
-// internal
-// system_get_screen_scale_factor_sig(){
-//     return linux_get_xsettings_dpi() / 96.0f;
-// }
 
 internal void*
 linux_thread_proc_start(void* arg) {
@@ -597,179 +416,298 @@ linux_thread_proc_start(void* arg) {
     return NULL;
 }
 
+internal void
+linux_window_maximize(b32 enable){
+
+}
+
+internal void
+linux_window_fullscreen_toggle(){
+
+}
+
+#include "linux_icon.h"
+internal void
+linux_set_icon(Display* d, Window w){
+    Atom WM_ICON = XInternAtom(d, "_NET_WM_ICON", False);
+    XChangeProperty(d, w, WM_ICON, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)linux_icon, sizeof(linux_icon) / sizeof(long));
+}
+
+#include "linux_error_box.cpp"
+
+////////////////////////////
+
+#include "linux_4ed_functions.cpp"
+
+////////////////////////////
+
+#include <GL/gl.h>
+#include "opengl/4ed_opengl_defines.h"
+#define GL_FUNC(N,R,P) typedef R (CALL_CONVENTION N##_Function)P; N##_Function *N = 0;
+#include "opengl/4ed_opengl_funcs.h"
+#include "opengl/4ed_opengl_render.cpp"
+
 internal
-system_thread_launch_sig(){
-    System_Thread result = {};
-    Linux_Object* thread_info = linux_alloc_object(LinuxObjectKind_Thread);
-    thread_info->thread.proc = proc;
-    thread_info->thread.ptr = ptr;
-    pthread_attr_t thread_attr;
-    pthread_attr_init(&thread_attr);
-    int create_result = pthread_create(
-        &thread_info->thread.pthread, &thread_attr, linux_thread_proc_start, (void*)thread_info);
-    pthread_attr_destroy(&thread_attr);
-    // TODO(andrew): Need to wait for thread to confirm it launched?
-    if (create_result == 0) {
-        static_assert(sizeof(Linux_Object*) <= sizeof(System_Thread));
-        *(Linux_Object**)&result = thread_info;
-        return result;
+graphics_get_texture_sig(){
+    return(gl__get_texture(dim, texture_kind));
+}
+
+internal
+graphics_fill_texture_sig(){
+    return(gl__fill_texture(texture_kind, texture, p, dim, data));
+}
+
+////////////////////////////
+
+internal
+font_make_face_sig() {
+    Face* result = ft__font_make_face(arena, description, scale_factor);
+    return(result);
+}
+
+////////////////////////////
+
+internal b32
+glx_init(void) {
+    return false;
+}
+
+internal b32
+glx_get_config(GLXFBConfig* fb_config, XVisualInfo* vi) {
+    return false;
+}
+
+internal b32
+glx_create_context(GLXFBConfig* fb_config){
+    return false;
+}
+
+////////////////////////////
+
+internal void
+linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
+
+    Display* dpy = XOpenDisplay(0);
+    if (!dpy){
+        fprintf(stderr, "FATAL: Cannot open X11 Display!\n");
+        exit(1);
     }
-    return result;
-}
 
-internal
-system_thread_join_sig(){
-    Linux_Object* object = *(Linux_Object**)&thread;
-    void* retval_ignored;
-    int result = pthread_join(object->thread.pthread, &retval_ignored);
-}
+    linuxvars.dpy = dpy;
 
-internal
-system_thread_free_sig(){
-    Linux_Object* object = *(Linux_Object**)&thread;
-    Assert(object->kind == LinuxObjectKind_Thread);
-    linux_free_object(object);
-}
+#define LOAD_ATOM(x) linuxvars.atom_##x = XInternAtom(linuxvars.dpy, #x, False);
 
-internal
-system_thread_get_id_sig(){
-    pthread_t tid = pthread_self();
-    Assert(tid <= (u64)max_i32);
-    return (i32)tid;
-}
+    LOAD_ATOM(TARGETS);
+    LOAD_ATOM(CLIPBOARD);
+    LOAD_ATOM(UTF8_STRING);
+    LOAD_ATOM(_NET_WM_STATE);
+    LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_HORZ);
+    LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_VERT);
+    LOAD_ATOM(_NET_WM_STATE_FULLSCREEN);
+    LOAD_ATOM(_NET_WM_PING);
+    LOAD_ATOM(_NET_WM_WINDOW_TYPE);
+    LOAD_ATOM(_NET_WM_WINDOW_TYPE_NORMAL);
+    LOAD_ATOM(_NET_WM_PID);
+    LOAD_ATOM(WM_DELETE_WINDOW);
 
-internal
-system_acquire_global_frame_mutex_sig(){
-    if (tctx->kind == ThreadKind_AsyncTasks){
-        system_mutex_acquire(linuxvars.global_frame_mutex);
+#undef LOAD_ATOM
+
+    if (!glx_init()){
+        //system_error_box("Your XServer's GLX version is too old. GLX 1.3+ is required.");
+        system_error_box("TODO: Everything.");
     }
-}
 
-internal
-system_release_global_frame_mutex_sig(){
-    if (tctx->kind == ThreadKind_AsyncTasks){
-        system_mutex_release(linuxvars.global_frame_mutex);
+    GLXFBConfig fb_config;
+    XVisualInfo vi;
+    if (!glx_get_config(&fb_config, &vi)){
+        system_error_box("Could not get a matching GLX FBConfig. Check your OpenGL drivers are installed correctly.");
     }
+
+    // TODO: window size
+#define WINDOW_W_DEFAULT 800
+#define WINDOW_H_DEFAULT 600
+    int w = WINDOW_W_DEFAULT;
+    int h = WINDOW_H_DEFAULT;
+
+    XSetWindowAttributes swa = {};
+    swa.backing_store = WhenMapped;
+    swa.event_mask = StructureNotifyMask;
+    swa.bit_gravity = NorthWestGravity;
+    swa.colormap = XCreateColormap(dpy, RootWindow(dpy, vi.screen), vi.visual, AllocNone);
+
+    u32 CWflags = CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask;
+    linuxvars.win = XCreateWindow(dpy, RootWindow(dpy, vi.screen), 0, 0, w, h, 0, vi.depth, InputOutput, vi.visual, CWflags, &swa);
+
+    if (!linuxvars.win){
+        system_error_box("XCreateWindow failed. Make sure your display is set up correctly.");
+    }
+
+    //NOTE(inso): Set the window's type to normal
+    XChangeProperty(linuxvars.dpy, linuxvars.win, linuxvars.atom__NET_WM_WINDOW_TYPE, XA_ATOM, 32, PropModeReplace, (unsigned char*)&linuxvars.atom__NET_WM_WINDOW_TYPE_NORMAL, 1);
+
+    //NOTE(inso): window managers want the PID as a window property for some reason.
+    pid_t pid = getpid();
+    XChangeProperty(linuxvars.dpy, linuxvars.win, linuxvars.atom__NET_WM_PID, XA_CARDINAL, 32, PropModeReplace, (unsigned char*)&pid, 1);
+
+    //NOTE(inso): set wm properties
+    XStoreName(linuxvars.dpy, linuxvars.win, WINDOW_NAME);
+
+    XSizeHints *sz_hints = XAllocSizeHints();
+    XWMHints   *wm_hints = XAllocWMHints();
+    XClassHint *cl_hints = XAllocClassHint();
+
+    sz_hints->flags = PMinSize | PMaxSize | PWinGravity;
+
+    sz_hints->min_width = 50;
+    sz_hints->min_height = 50;
+
+    sz_hints->max_width = sz_hints->max_height = (1UL << 16UL);
+    sz_hints->win_gravity = NorthWestGravity;
+
+    if (settings->set_window_pos){
+        sz_hints->flags |= USPosition;
+        sz_hints->x = settings->window_x;
+        sz_hints->y = settings->window_y;
+    }
+
+    wm_hints->flags |= InputHint | StateHint;
+    wm_hints->input = True;
+    wm_hints->initial_state = NormalState;
+
+    cl_hints->res_name = "4coder";
+    cl_hints->res_class = "4coder";
+
+    char* win_name_list[] = { WINDOW_NAME };
+    XTextProperty win_name;
+    XStringListToTextProperty(win_name_list, 1, &win_name);
+
+    XSetWMProperties(linuxvars.dpy, linuxvars.win, &win_name, NULL, argv, argc, sz_hints, wm_hints, cl_hints);
+
+    XFree(win_name.value);
+    XFree(sz_hints);
+    XFree(wm_hints);
+    XFree(cl_hints);
+
+    linux_set_icon(linuxvars.dpy, linuxvars.win);
+
+    // NOTE(inso): make the window visible
+    XMapWindow(linuxvars.dpy, linuxvars.win);
+
+    if(!glx_create_context(&fb_config)) {
+        system_error_box("Unable to create GLX context.");
+    }
+
+    XRaiseWindow(linuxvars.dpy, linuxvars.win);
+
+    if (settings->set_window_pos){
+        XMoveWindow(linuxvars.dpy, linuxvars.win, settings->window_x, settings->window_y);
+    }
+
+    if (settings->maximize_window){
+        linux_window_maximize(true);
+    } else if (settings->fullscreen_window){
+        linux_window_fullscreen_toggle();
+    }
+
+    XSync(linuxvars.dpy, False);
+
+    XWindowAttributes attr;
+    if (XGetWindowAttributes(linuxvars.dpy, linuxvars.win, &attr)){
+        //*window_width = WinAttribs.width;
+        //*window_height = WinAttribs.height;
+    }
+
+    Atom wm_protos[] = {
+        linuxvars.atom_WM_DELETE_WINDOW,
+        linuxvars.atom__NET_WM_PING
+    };
+
+    XSetWMProtocols(linuxvars.dpy, linuxvars.win, wm_protos, 2);
+
+    // XFixes extension for clipboard notification.
+    {
+        int xfixes_version_unused, xfixes_err_unused;
+        Bool has_xfixes = XQueryExtension(linuxvars.dpy, "XFIXES", &xfixes_version_unused, &linuxvars.xfixes_selection_event, &xfixes_err_unused);
+        linuxvars.has_xfixes = (has_xfixes == True);
+    }
+
+    // Input handling init
+
+    setlocale(LC_ALL, "");
+    XSetLocaleModifiers("");
+    b32 locale_supported = XSupportsLocale();
+
+    //LOGF("Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
+    if (!locale_supported){
+        //LOG("Reverting to 'C' ... ");
+        setlocale(LC_ALL, "C");
+        locale_supported = XSupportsLocale();
+        //LOGF("C is supported? %s.\n", locale_supported ? "Yes" : "No");
+    }
+
+    linuxvars.xim = XOpenIM(dpy, 0, 0, 0);
+    if (!linuxvars.xim){
+        // NOTE(inso): Try falling back to the internal XIM implementation that
+        // should in theory always exist.
+        XSetLocaleModifiers("@im=none");
+        linuxvars.xim = XOpenIM(dpy, 0, 0, 0);
+    }
+
+    // If it still isn't there we're screwed.
+    if (!linuxvars.xim){
+        system_error_box("Could not initialize X Input.");
+    }
+
+    XIMStyles *styles = NULL;
+    XIMStyle got_style = None;
+
+    if (!XGetIMValues(linuxvars.xim, XNQueryInputStyle, &styles, NULL) && styles){
+        for (i32 i = 0; i < styles->count_styles; ++i){
+            XIMStyle style = styles->supported_styles[i];
+            if (style == (XIMPreeditNothing | XIMStatusNothing)){
+                got_style = true;
+                break;
+            }
+        }
+    }
+
+    if(got_style == None) {
+        system_error_box("Could not find supported X Input style.");
+    }
+
+    XFree(styles);
+
+    linuxvars.xic = XCreateIC(linuxvars.xim,
+                              XNInputStyle, got_style,
+                              XNClientWindow, linuxvars.win,
+                              XNFocusWindow, linuxvars.win,
+                              NULL);
+
+    int xim_event_mask;
+    if (XGetICValues(linuxvars.xic, XNFilterEvents, &xim_event_mask, NULL)){
+        xim_event_mask = 0;
+    }
+
+    u32 event_mask = ExposureMask
+        | KeyPressMask | KeyReleaseMask
+        | ButtonPressMask | ButtonReleaseMask
+        | EnterWindowMask | LeaveWindowMask
+        | PointerMotionMask
+        | FocusChangeMask
+        | StructureNotifyMask | MappingNotify
+        | ExposureMask | VisibilityChangeMask
+        | xim_event_mask;
+
+    XSelectInput(linuxvars.dpy, linuxvars.win, event_mask);
 }
-
-internal
-system_mutex_make_sig(){
-    System_Mutex result = {};
-    Linux_Object* object = linux_alloc_object(LinuxObjectKind_Mutex);
-    pthread_mutex_init(&object->mutex, NULL);
-    *(Linux_Object**)&result = object;
-    return result;
-}
-
-internal
-system_mutex_acquire_sig(){
-    Linux_Object* object = *(Linux_Object**)&mutex;
-    Assert(object->kind == LinuxObjectKind_Mutex);
-    pthread_mutex_lock(&object->mutex);
-}
-
-internal
-system_mutex_release_sig(){
-    Linux_Object* object = *(Linux_Object**)&mutex;
-    Assert(object->kind == LinuxObjectKind_Mutex);
-    pthread_mutex_unlock(&object->mutex);
-}
-
-internal
-system_mutex_free_sig(){
-    Linux_Object* object = *(Linux_Object**)&mutex;
-    Assert(object->kind == LinuxObjectKind_Mutex);
-    pthread_mutex_destroy(&object->mutex);
-    linux_free_object(object);
-}
-
-internal
-system_condition_variable_make_sig(){
-    System_Condition_Variable result = {};
-    Linux_Object* object = linux_alloc_object(LinuxObjectKind_ConditionVariable);
-    pthread_cond_init(&object->condition_variable, NULL);
-    *(Linux_Object**)&result = object;
-    return result;
-}
-
-internal
-system_condition_variable_wait_sig(){
-    Linux_Object* cv_object = *(Linux_Object**)&cv;
-    Linux_Object* mutex_object = *(Linux_Object**)&mutex;
-    Assert(cv_object->kind == LinuxObjectKind_ConditionVariable);
-    Assert(mutex_object->kind == LinuxObjectKind_Mutex);
-    pthread_cond_wait(&cv_object->condition_variable, &mutex_object->mutex);
-}
-
-internal
-system_condition_variable_signal_sig(){
-    Linux_Object* object = *(Linux_Object**)&cv;
-    Assert(object->kind == LinuxObjectKind_ConditionVariable);
-    pthread_cond_signal(&object->condition_variable);
-}
-
-internal
-system_condition_variable_free_sig(){
-    Linux_Object* object = *(Linux_Object**)&cv;
-    Assert(object->kind == LinuxObjectKind_ConditionVariable);
-    pthread_cond_destroy(&object->condition_variable);
-    linux_free_object(object);
-}
-
-internal
-system_memory_allocate_sig(){
-    void* result = mmap(
-        NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    // TODO(andrew): Allocation tracking?
-    return result;
-}
-
-internal
-system_memory_set_protection_sig(){
-    int protect = 0;
-    MovFlag(flags, MemProtect_Read, protect, PROT_READ);
-    MovFlag(flags, MemProtect_Write, protect, PROT_WRITE);
-    MovFlag(flags, MemProtect_Execute, protect, PROT_EXEC);
-    int result = mprotect(ptr, size, protect);
-    return result == 0;
-}
-
-internal
-system_memory_free_sig(){
-    munmap(ptr, size);
-}
-
-// system_memory_annotation_sig
-
-internal
-system_show_mouse_cursor_sig(){
-    linuxvars.hide_cursor = !show;
-    XDefineCursor(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        show ? None : linuxvars.hidden_cursor);
-}
-
-internal
-system_set_fullscreen_sig(){
-    linuxvars.should_be_full_screen = full_screen;
-    return true;
-}
-
-internal
-system_is_fullscreen_sig(){
-    return linuxvars.is_full_screen;
-}
-
-// system_get_keyboard_modifiers_sig()
 
 internal void
 linux_handle_x11_events() {
     static XEvent prev_event = {};
     b32 should_step = false;
-    while (XPending(linuxvars.XDisplay)) {
+    while (XPending(linuxvars.dpy)) {
         XEvent event;
-        XNextEvent(linuxvars.XDisplay, &event);
+        XNextEvent(linuxvars.dpy, &event);
 
         if (XFilterEvent(&event, None) == True){
             continue;
@@ -780,5 +718,321 @@ linux_handle_x11_events() {
     }
 }
 
-int main(int argc, char **argv){
+internal b32
+linux_epoll_process(struct epoll_event* events, int num_events) {
+    b32 do_step = false;
+
+    for (int i = 0; i < num_events; ++i){
+        struct epoll_event* ev = events + i;
+        Epoll_Kind* tag = (Epoll_Kind*)ev->data.ptr;
+
+        switch (*tag){
+            case EPOLL_X11: {
+                linux_handle_x11_events();
+            } break;
+
+            case EPOLL_X11_INTERNAL: {
+                //XProcessInternalConnection(linuxvars.dpy, fd);
+            } break;
+
+            case EPOLL_FRAME_TIMER: {
+                u64 count;
+                int ret;
+                do {
+                    ret = read(linuxvars.step_timer_fd, &count, 8);
+                } while (ret != -1 || errno != EAGAIN);
+                do_step = true;
+            } break;
+
+            case EPOLL_CLI_PIPE: {
+                linux_schedule_step();
+            } break;
+
+            case EPOLL_USER_TIMER: {
+                Linux_Object* obj = container_of(tag, Linux_Object, timer.epoll_tag);
+                close(obj->timer.fd);
+                obj->timer.fd = -1;
+                do_step = true;
+            } break;
+        }
+    }
+
+    return do_step;
+}
+
+int
+main(int argc, char **argv){
+
+    // NOTE(allen): context setup
+    {
+        Base_Allocator* alloc = get_base_allocator_system();
+        thread_ctx_init(&linuxvars.tctx, ThreadKind_Main, alloc, alloc);
+    }
+
+    API_VTable_system system_vtable = {};
+    system_api_fill_vtable(&system_vtable);
+
+    API_VTable_graphics graphics_vtable = {};
+    graphics_api_fill_vtable(&graphics_vtable);
+
+    API_VTable_font font_vtable = {};
+    font_api_fill_vtable(&font_vtable);
+
+    // NOTE(allen): memory
+    //win32vars.frame_arena = reserve_arena(win32vars.tctx);
+    // TODO(allen): *arena;
+    //target.arena = make_arena_system(KB(256));
+
+    linuxvars.cursor_show = MouseCursorShow_Always;
+    linuxvars.prev_cursor_show = MouseCursorShow_Always;
+
+    dll_init_sentinel(&linuxvars.free_linux_objects);
+    dll_init_sentinel(&linuxvars.timer_objects);
+
+    //InitializeCriticalSection(&win32vars.thread_launch_mutex);
+    //InitializeConditionVariable(&win32vars.thread_launch_cv);
+
+    // dpi ?
+
+    // NOTE(allen): load core
+    System_Library core_library = {};
+    App_Functions app = {};
+    {
+        App_Get_Functions *get_funcs = 0;
+        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        Path_Search_List search_list = {};
+        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+
+        String_Const_u8 core_path = get_full_path(scratch, &search_list, SCu8("4ed_app.so"));
+        if (system_load_library(scratch, core_path, &core_library)){
+            get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
+            if (get_funcs != 0){
+                app = get_funcs();
+            }
+            else{
+                char msg[] = "Failed to get application code from '4ed_app.so'.";
+                system_error_box(msg);
+            }
+        }
+        else{
+            char msg[] = "Could not load '4ed_app.so'. This file should be in the same directory as the main '4ed' executable.";
+            system_error_box(msg);
+        }
+    }
+
+    // NOTE(allen): send system vtable to core
+    app.load_vtables(&system_vtable, &font_vtable, &graphics_vtable);
+    //linuxvars.log_string = app.get_logger();
+
+    // NOTE(allen): init & command line parameters
+    Plat_Settings plat_settings = {};
+    void *base_ptr = 0;
+    {
+        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
+
+        char **files = 0;
+        i32 *file_count = 0;
+        base_ptr = app.read_command_line(&linuxvars.tctx, curdir, &plat_settings, &files, &file_count, argc, argv);
+        /* TODO(inso): what is this doing?
+        {
+            i32 end = *file_count;
+            i32 i = 0, j = 0;
+            for (; i < end; ++i){
+                if (system_file_can_be_made(scratch, (u8*)files[i])){
+                    files[j] = files[i];
+                    ++j;
+                }
+            }
+            *file_count = j;
+        }*/
+    }
+
+    // NOTE(allen): load custom layer
+    System_Library custom_library = {};
+    Custom_API custom = {};
+    {
+        char custom_not_found_msg[] = "Did not find a library for the custom layer.";
+        char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
+        char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
+
+        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
+        Path_Search_List search_list = {};
+        search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
+        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        String_Const_u8 custom_file_names[2] = {};
+        i32 custom_file_count = 1;
+        if (plat_settings.custom_dll != 0){
+            custom_file_names[0] = SCu8(plat_settings.custom_dll);
+            if (!plat_settings.custom_dll_is_strict){
+                custom_file_names[1] = default_file_name;
+                custom_file_count += 1;
+            }
+        }
+        else{
+            custom_file_names[0] = default_file_name;
+        }
+        String_Const_u8 custom_file_name = {};
+        for (i32 i = 0; i < custom_file_count; i += 1){
+            custom_file_name = get_full_path(scratch, &search_list, custom_file_names[i]);
+            if (custom_file_name.size > 0){
+                break;
+            }
+        }
+        b32 has_library = false;
+        if (custom_file_name.size > 0){
+            if (system_load_library(scratch, custom_file_name, &custom_library)){
+                has_library = true;
+            }
+        }
+
+        if (!has_library){
+            system_error_box(custom_not_found_msg);
+        }
+        custom.get_version = (_Get_Version_Type*)system_get_proc(custom_library, "get_version");
+        if (custom.get_version == 0 || custom.get_version(MAJOR, MINOR, PATCH) == 0){
+            system_error_box(custom_fail_version_msg);
+        }
+        custom.init_apis = (_Init_APIs_Type*)system_get_proc(custom_library, "init_apis");
+        if (custom.init_apis == 0){
+            system_error_box(custom_fail_init_apis);
+        }
+    }
+
+    linux_x11_init(argc, argv, &plat_settings);
+
+    // TODO(inso): move to x11 init?
+    XCursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
+        None,
+        None,
+        XCreateFontCursor(linuxvars.dpy, XC_xterm),
+        XCreateFontCursor(linuxvars.dpy, XC_sb_h_double_arrow),
+        XCreateFontCursor(linuxvars.dpy, XC_sb_v_double_arrow)
+    };
+
+    // sneaky invisible cursor
+    {
+        char data = 0;
+        XColor c  = {};
+        Pixmap p  = XCreateBitmapFromData(linuxvars.dpy, linuxvars.win, &data, 1, 1);
+
+        linuxvars.hidden_cursor = XCreatePixmapCursor(linuxvars.dpy, p, p, &c, &c, 0, 0);
+
+        XFreePixmap(linuxvars.dpy, p);
+    }
+
+    // epoll init
+    {
+        struct epoll_event e = {};
+        e.events = EPOLLIN | EPOLLET;
+
+        //linuxvars.inotify_fd    = inotify_init1(IN_NONBLOCK);
+        linuxvars.step_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+        linuxvars.epoll         = epoll_create(16);
+
+        e.data.ptr = &epoll_tag_x11;
+        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, ConnectionNumber(linuxvars.dpy), &e);
+
+        e.data.ptr = &epoll_tag_frame_timer;
+        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
+    }
+
+    // app init
+    {
+        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
+        //app.init(&linuxvars.tctx, &render_target, base_ptr, linuxvars.clipboard_contents, curdir, custom);
+    }
+
+    linuxvars.global_frame_mutex = system_mutex_make();
+    system_mutex_acquire(linuxvars.global_frame_mutex);
+
+    linux_schedule_step();
+
+    b32 keep_running = true;
+    for (;keep_running;){
+
+        if (XEventsQueued(linuxvars.dpy, QueuedAlready)){
+            linux_handle_x11_events();
+        }
+
+        system_mutex_release(linuxvars.global_frame_mutex);
+
+        struct epoll_event events[16];
+        int num_events = epoll_wait(linuxvars.epoll, events, ArrayCount(events), -1);
+
+        system_mutex_acquire(linuxvars.global_frame_mutex);
+
+        if (num_events == -1){
+            if (errno != EINTR){
+                perror("epoll_wait");
+                //LOG("epoll_wait\n");
+            }
+            continue;
+        }
+
+        if(!linux_epoll_process(events, num_events)) {
+            continue;
+        }
+
+        b32 first_step = true;
+        linuxvars.last_step_time = system_now_time();
+
+        // NOTE(allen): Frame Clipboard Input
+        // Request clipboard contents from X11 on first step, or every step if they don't have XFixes notification ability.
+        if (first_step || !linuxvars.has_xfixes){
+            XConvertSelection(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
+        }
+
+        if (linuxvars.received_new_clipboard){
+            linuxvars.input.clipboard = linuxvars.clipboard_contents;
+            linuxvars.received_new_clipboard = false;
+        } else {
+            linuxvars.input.clipboard = {};
+        }
+
+        Application_Step_Input frame_input = linuxvars.input;
+        // TODO:
+        frame_input.trying_to_kill = !keep_running;
+
+        // NOTE(allen): Application Core Update
+        // render_target.buffer.pos = 0;
+        Application_Step_Result result = {};
+        if (app.step != 0){
+            result = app.step(&linuxvars.tctx, &render_target, base_ptr, &frame_input);
+        }
+        else{
+            //LOG("app.step == 0 -- skipping\n");
+        }
+
+        // NOTE(allen): Finish the Loop
+        if (result.perform_kill){
+            break;
+        }
+        // TODO
+#if 0
+        else if (!keep_running && !linuxvars.keep_running){
+            linuxvars.keep_running = true;
+        }
+#endif
+
+        // NOTE(NAME): Switch to New Title
+        if (result.has_new_title){
+            XStoreName(linuxvars.dpy, linuxvars.win, result.title_string);
+        }
+
+        // NOTE(allen): Switch to New Cursor
+        if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
+            XCursor c = xcursors[result.mouse_cursor_type];
+            if (linuxvars.cursor_show){
+                XDefineCursor(linuxvars.dpy, linuxvars.win, c);
+            }
+            linuxvars.cursor = result.mouse_cursor_type;
+        }
+
+        first_step = false;
+    }
+
+    return 0;
 }

@@ -218,8 +218,14 @@ typedef void GL_Debug_Function(GLenum src,
                                GLuint id,
                                GLenum severity,
                                GLsizei length,
+#ifdef OS_LINUX
+                               const GLchar* message,
+                               const void *user_data
+#else
                                GLchar *message,
-                               void *user_data);
+                               void *user_data
+#endif
+                               );
 typedef GL_Debug_Function *GLDEBUGPROC;
 
 #endif

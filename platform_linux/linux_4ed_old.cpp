@@ -36,6 +36,7 @@
 #include "4ed_math.h"
 
 #include "4ed_font.h"
+#include "4ed_font_provider_freetype.cpp"
 #include "4ed_system.h"
 #include "4ed_render_target.h"
 #include "4ed_render_format.h"
