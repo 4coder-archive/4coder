@@ -82,6 +82,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/timerfd.h>
+#include <sys/syscall.h>
 
 #define Cursor XCursor
 #undef function
@@ -90,6 +91,7 @@
 #include <X11/cursorfont.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/Xfixes.h>
+#include <X11/keysym.h>
 #define function static
 #undef Cursor
 
@@ -113,6 +115,29 @@
 
 ////////////////////////////
 
+struct Linux_Input_Chunk_Transient {
+    Input_List event_list;
+    b8 mouse_l_press;
+    b8 mouse_l_release;
+    b8 mouse_r_press;
+    b8 mouse_r_release;
+    b8 out_of_window;
+    i8 mouse_wheel;
+    b8 trying_to_kill;
+};
+
+struct Linux_Input_Chunk_Persistent {
+    Vec2_i32 mouse;
+    Input_Modifier_Set_Fixed modifiers;
+    b8 mouse_l;
+    b8 mouse_r;
+};
+
+struct Linux_Input_Chunk {
+    Linux_Input_Chunk_Transient trans;
+    Linux_Input_Chunk_Persistent pers;
+};
+
 struct Linux_Vars {
     Thread_Context tctx;
     Arena *frame_arena;
@@ -125,7 +150,7 @@ struct Linux_Vars {
     XIM xim;
     XIC xic;
 
-    Application_Step_Input input;
+    Linux_Input_Chunk input;
 
     int epoll;
     int step_timer_fd;
@@ -280,7 +305,7 @@ linux_system_get_file_list_filter(const struct dirent *dirent) {
 
 internal int
 linux_u64_from_timespec(const struct timespec timespec) {
-    return timespec.tv_nsec + 1000000000 * timespec.tv_sec;
+    return timespec.tv_nsec + UINT64_C(1000000000) * timespec.tv_sec;
 }
 
 internal File_Attribute_Flag
@@ -841,10 +866,102 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     XSelectInput(linuxvars.dpy, linuxvars.win, event_mask);
 }
 
+global Key_Code keycode_lookup_table[255];
+
 internal void
+linux_keycode_init(Display* dpy){
+
+    struct SymCode { KeySym sym; Key_Code code; };
+    SymCode sym_table[100];
+
+    block_zero_array(sym_table);
+    block_zero_array(keycode_lookup_table);
+
+    SymCode* p = sym_table;
+    for(Key_Code k = KeyCode_A; k <= KeyCode_Z; ++k) {
+        *p++ = { XK_a + (k - KeyCode_A), k };
+    }
+
+    for(Key_Code k = KeyCode_0; k <= KeyCode_9; ++k) {
+        *p++ = { XK_0 + (k - KeyCode_0), k };
+    }
+
+    *p++ = { XK_space, KeyCode_Space };
+    *p++ = { XK_grave, KeyCode_Tick };
+    *p++ = { XK_minus, KeyCode_Minus };
+    *p++ = { XK_equal, KeyCode_Equal };
+    *p++ = { XK_bracketleft, KeyCode_LeftBracket };
+    *p++ = { XK_bracketright, KeyCode_RightBracket };
+    *p++ = { XK_bracketright, KeyCode_RightBracket };
+    *p++ = { XK_semicolon, KeyCode_Semicolon };
+    *p++ = { XK_apostrophe, KeyCode_Quote };
+    *p++ = { XK_comma, KeyCode_Comma };
+    *p++ = { XK_period, KeyCode_Period };
+    *p++ = { XK_slash, KeyCode_ForwardSlash };
+    *p++ = { XK_backslash, KeyCode_BackwardSlash };
+    *p++ = { XK_Tab, KeyCode_Tab };
+    *p++ = { XK_Escape, KeyCode_Escape };
+    *p++ = { XK_Pause, KeyCode_Pause };
+    *p++ = { XK_Up, KeyCode_Up };
+    *p++ = { XK_Down, KeyCode_Down };
+    *p++ = { XK_Left, KeyCode_Left };
+    *p++ = { XK_Right, KeyCode_Right };
+    *p++ = { XK_BackSpace, KeyCode_Backspace };
+    *p++ = { XK_Return, KeyCode_Return };
+    *p++ = { XK_Delete, KeyCode_Delete };
+    *p++ = { XK_Insert, KeyCode_Insert };
+    *p++ = { XK_Home, KeyCode_Home };
+    *p++ = { XK_End, KeyCode_End };
+    *p++ = { XK_Page_Up, KeyCode_PageUp };
+    *p++ = { XK_Page_Down, KeyCode_PageDown };
+    *p++ = { XK_Caps_Lock, KeyCode_CapsLock };
+    *p++ = { XK_Num_Lock, KeyCode_NumLock };
+    *p++ = { XK_Scroll_Lock, KeyCode_ScrollLock };
+    *p++ = { XK_Menu, KeyCode_Menu };
+    *p++ = { XK_Shift_L, KeyCode_Shift };
+    *p++ = { XK_Shift_R, KeyCode_Shift };
+    *p++ = { XK_Control_L, KeyCode_Control };
+    *p++ = { XK_Control_R, KeyCode_Control };
+    *p++ = { XK_Alt_L, KeyCode_Alt };
+    *p++ = { XK_Alt_R, KeyCode_Alt };
+    *p++ = { XK_Super_L, KeyCode_Command };
+    *p++ = { XK_Super_R, KeyCode_Command };
+
+    for(Key_Code k = KeyCode_F1; k <= KeyCode_F16; ++k) {
+        *p++ = { XK_F1 + (k - KeyCode_F1), k };
+    }
+
+    const int table_size = p - sym_table;
+    Assert(table_size < ArrayCount(sym_table));
+
+    int key_min, key_max, syms_per_code;
+    XDisplayKeycodes(dpy, &key_min, &key_max);
+
+    int key_count = (key_max - key_min) + 1;
+    KeySym* syms = XGetKeyboardMapping(dpy, key_min, key_count, &syms_per_code);
+
+    if (syms == 0){
+        return;
+    }
+
+    int key = key_min;
+    for(int i = 0; i < key_count * syms_per_code; ++i){
+        for(int j = 0; j < table_size; ++j){
+            if (sym_table[j].sym == syms[i]){
+                keycode_lookup_table[key + (i/syms_per_code)] = sym_table[j].code;
+                break;
+            }
+        }
+    }
+
+    XFree(syms);
+}
+
+internal b32
 linux_handle_x11_events() {
     static XEvent prev_event = {};
     b32 should_step = false;
+
     while (XPending(linuxvars.dpy)) {
         XEvent event;
         XNextEvent(linuxvars.dpy, &event);
@@ -853,7 +970,59 @@ linux_handle_x11_events() {
             continue;
         }
 
-        switch (event.type) {
+        switch(event.type) {
+            case KeyPress: {
+                should_step = true;
+
+                /*
+                b32 is_hold = (prev_event.type         == KeyRelease &&
+                               prev_event.xkey.time    == event.xkey.time &&
+                               prev_event.xkey.keycode == event.xkey.keycode);
+                */
+
+                Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
+                block_zero_struct(mods);
+
+                int state = event.xkey.state;
+                set_modifier(mods, KeyCode_Shift, state & ShiftMask);
+                set_modifier(mods, KeyCode_Control, state & ControlMask);
+                set_modifier(mods, KeyCode_CapsLock, state & LockMask);
+                set_modifier(mods, KeyCode_Alt, state & Mod1Mask);
+
+                event.xkey.state &= ~(ControlMask);
+
+                Status status;
+                KeySym keysym = NoSymbol;
+                u8 buff[32] = {};
+
+                Xutf8LookupString(linuxvars.xic, &event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
+
+                if (status == XBufferOverflow){
+                    //TODO(inso): handle properly
+                    Xutf8ResetIC(linuxvars.xic);
+                    XSetICFocus(linuxvars.xic);
+                }
+
+                // don't push modifiers
+                if (keysym >= XK_Shift_L && keysym <= XK_Hyper_R){
+                    break;
+                }
+
+                if (keysym == XK_ISO_Left_Tab){
+                    //text = '\t';
+                    add_modifier(mods, KeyCode_Shift);
+                }
+
+                // TODO: use keycode_lookup_table, push the key and text.
+
+            } break;
+
+            case MappingNotify: {
+                if (event.xmapping.request == MappingModifier || event.xmapping.request == MappingKeyboard){
+                    XRefreshKeyboardMapping(&event.xmapping);
+                    linux_keycode_init(linuxvars.dpy);
+                }
+            } break;
         }
     }
 }
@@ -1043,6 +1212,7 @@ main(int argc, char **argv){
     }
 
     linux_x11_init(argc, argv, &plat_settings);
+    linux_keycode_init(linuxvars.dpy);
 
     // TODO(inso): move to x11 init?
     XCursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
@@ -1127,15 +1297,14 @@ main(int argc, char **argv){
             XConvertSelection(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
         }
 
+        Application_Step_Input frame_input = {};
+
         if (linuxvars.received_new_clipboard){
-            linuxvars.input.clipboard = linuxvars.clipboard_contents;
+            frame_input.clipboard = linuxvars.clipboard_contents;
             linuxvars.received_new_clipboard = false;
-        } else {
-            linuxvars.input.clipboard = {};
         }
 
-        Application_Step_Input frame_input = linuxvars.input;
-        // TODO:
+        // TODO: fill the rest of it
         frame_input.trying_to_kill = !keep_running;
 
         // NOTE(allen): Application Core Update
@@ -1165,7 +1334,7 @@ main(int argc, char **argv){
         }
 
         // NOTE(allen): Switch to New Cursor
-        if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
+        if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.pers.mouse_l){
             XCursor c = xcursors[result.mouse_cursor_type];
             if (linuxvars.cursor_show){
                 XDefineCursor(linuxvars.dpy, linuxvars.win, c);

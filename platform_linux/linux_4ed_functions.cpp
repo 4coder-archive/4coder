@@ -231,7 +231,7 @@ system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds){
 
         struct itimerspec it = {};
         it.it_value.tv_sec = time_milliseconds / 1000;
-        it.it_value.tv_nsec = (time_milliseconds % 1000) * 1000000UL;
+        it.it_value.tv_nsec = (time_milliseconds % 1000) * UINT64_C(1000000);
 
         struct epoll_event ev;
         ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
@@ -449,13 +449,9 @@ system_thread_free(System_Thread thread){
 
 internal i32
 system_thread_get_id(void){
-    LINUX_FN_DEBUG();
-    pthread_t tid = pthread_self();
-
-    // WELP hope it doesn't collide
-    i32 shorter_id = ((u64)tid >> 32) ^ ((u32)tid & bitmask_32);
-
-    return shorter_id;
+    pid_t id = syscall(__NR_gettid);
+    LINUX_FN_DEBUG("%d", id);
+    return id;
 }
 
 internal void
