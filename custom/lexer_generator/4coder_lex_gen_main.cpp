@@ -3531,12 +3531,12 @@ gen_SLOW_action_list__cont_flow(Arena *scratch, Token_Kind_Set tokens, Flag_Set 
                 
                 fprintf(out, "token_list_push(arena, list, &token);\n");
                 fprintf(out, "emit_counter += 1;\n");
+                fprintf(out, "state.emit_ptr = state.ptr;\n");
                 if (context != ActionContext_EndOfFile){
                     fprintf(out, "if (emit_counter == max){\n");
                     fprintf(out, "goto end;\n");
                     fprintf(out, "}\n");
                 }
-                fprintf(out, "state.emit_ptr = state.ptr;\n");
                 fprintf(out, "}\n");
             }break;
         }
