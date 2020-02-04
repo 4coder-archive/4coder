@@ -15,11 +15,6 @@
 #define SLASH '/'
 #define DLL "so"
 
-#define container_of(ptr, type, member) ({            \
-	const typeof(((type*)0)->member)* __mptr = (ptr); \
-	(type*)((char*)__mptr - offsetof(type, member));  \
-})
-
 #include "4coder_base_types.h"
 #include "4coder_version.h"
 #include "4coder_events.h"
@@ -95,6 +90,10 @@
 #define function static
 #undef Cursor
 
+#undef internal
+#include <fontconfig/fontconfig.h>
+#define internal static
+
 #include <GL/glx.h>
 #include <GL/glext.h>
 
@@ -149,6 +148,7 @@ struct Linux_Vars {
     int xfixes_selection_event;
     XIM xim;
     XIC xic;
+    FcConfig* fontconfig;
 
     Linux_Input_Chunk input;
 
@@ -292,6 +292,20 @@ linux_free_object(Linux_Object *object){
 ////////////////////////////
 
 internal int
+linux_compare_file_infos(File_Info** a, File_Info** b) {
+    b32 a_hidden = (*a)->file_name.str[0] == '.';
+    b32 b_hidden = (*b)->file_name.str[0] == '.';
+
+    // hidden files lower in list
+    if(a_hidden != b_hidden) {
+        return a_hidden - b_hidden;
+    }
+
+    // push_stringf seems to null terminate
+    return strcoll((char*)(*a)->file_name.str, (char*)(*b)->file_name.str);
+}
+
+internal int
 linux_system_get_file_list_filter(const struct dirent *dirent) {
     String_Const_u8 file_name = SCu8((u8*)dirent->d_name);
     if (string_match(file_name, string_u8_litexpr("."))) {
@@ -316,11 +330,11 @@ linux_convert_file_attribute_flags(int mode) {
 }
 
 internal File_Attributes
-linux_file_attributes_from_struct_stat(struct stat file_stat) {
+linux_file_attributes_from_struct_stat(struct stat* file_stat) {
     File_Attributes result = {};
-    result.size = file_stat.st_size;
-    result.last_write_time = linux_u64_from_timespec(file_stat.st_mtim);
-    result.flags = linux_convert_file_attribute_flags(file_stat.st_mode);
+    result.size = file_stat->st_size;
+    result.last_write_time = linux_u64_from_timespec(file_stat->st_mtim);
+    result.flags = linux_convert_file_attribute_flags(file_stat->st_mode);
     return result;
 }
 
@@ -501,8 +515,74 @@ graphics_fill_texture_sig(){
 
 ////////////////////////////
 
+internal Face_Description
+linux_find_font(Face_Description* desc) {
+    Face_Description result = *desc;
+
+    char* name = strndupa((char*)desc->font.file_name.str, desc->font.file_name.size);
+
+    double size;
+    const char* style;
+    {
+        Face_Load_Parameters* p = &desc->parameters;
+        size = p->pt_size;
+
+        if(p->bold && p->italic) {
+            style = "Bold Italic";
+        } else if(p->bold) {
+            style = "Bold";
+        } else if(p->italic) {
+            style = "Italic";
+        } else {
+            style = "Regular";
+        }
+    }
+
+    FcPattern *pattern = FcPatternBuild(
+        0,
+        FC_POSTSCRIPT_NAME, FcTypeString, name,
+        FC_SIZE, FcTypeDouble, size,
+        FC_FONTFORMAT, FcTypeString, "TrueType",
+        FC_STYLE, FcTypeString, (FcChar8*)style,
+        NULL);
+
+    if(!pattern) {
+        return result;
+    }
+
+    if (FcConfigSubstitute(linuxvars.fontconfig, pattern, FcMatchPattern)){
+        FcDefaultSubstitute(pattern);
+
+        FcResult res;
+        FcPattern *font = FcFontMatch(linuxvars.fontconfig, pattern, &res);
+        if (!font){
+            return result;
+        }
+
+        FcChar8 *filename = 0;
+        FcPatternGetString(font, FC_FILE, 0, &filename);
+        if(filename) {
+            printf("FONTCONFIG FILENAME = %s\n", filename);
+            result.font.file_name = push_u8_stringf(linuxvars.frame_arena, "%s", filename);
+        }
+
+        FcPatternDestroy(font);
+    }
+
+    FcPatternDestroy(pattern);
+
+    return result;
+}
+
 internal
 font_make_face_sig() {
+
+    // FIXME
+    if(description->font.file_name.str[0] != '/') {
+        Face_Description desc2 = linux_find_font(description);
+        description = &desc2;
+    }
+
     Face* result = ft__font_make_face(arena, description, scale_factor);
 
     if(!result) {
@@ -690,7 +770,7 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     render_target.height = h;
 
     XSetWindowAttributes swa = {};
-    swa.backing_store = WhenMapped;
+    swa.backing_store = NotUseful;
     swa.event_mask = StructureNotifyMask;
     swa.bit_gravity = NorthWestGravity;
     swa.colormap = XCreateColormap(dpy, RootWindow(dpy, vi.screen), vi.visual, AllocNone);
@@ -892,7 +972,6 @@ linux_keycode_init(Display* dpy){
     *p++ = { XK_equal, KeyCode_Equal };
     *p++ = { XK_bracketleft, KeyCode_LeftBracket };
     *p++ = { XK_bracketright, KeyCode_RightBracket };
-    *p++ = { XK_bracketright, KeyCode_RightBracket };
     *p++ = { XK_semicolon, KeyCode_Semicolon };
     *p++ = { XK_apostrophe, KeyCode_Quote };
     *p++ = { XK_comma, KeyCode_Comma };
@@ -957,7 +1036,7 @@ linux_keycode_init(Display* dpy){
     XFree(syms);
 }
 
-internal b32
+internal void
 linux_handle_x11_events() {
     static XEvent prev_event = {};
     b32 should_step = false;
@@ -993,9 +1072,9 @@ linux_handle_x11_events() {
 
                 Status status;
                 KeySym keysym = NoSymbol;
-                u8 buff[32] = {};
+                u8 buff[256] = {};
 
-                Xutf8LookupString(linuxvars.xic, &event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
+                int len = Xutf8LookupString(linuxvars.xic, &event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
 
                 if (status == XBufferOverflow){
                     //TODO(inso): handle properly
@@ -1003,17 +1082,27 @@ linux_handle_x11_events() {
                     XSetICFocus(linuxvars.xic);
                 }
 
-                // don't push modifiers
-                if (keysym >= XK_Shift_L && keysym <= XK_Hyper_R){
-                    break;
-                }
-
                 if (keysym == XK_ISO_Left_Tab){
                     //text = '\t';
                     add_modifier(mods, KeyCode_Shift);
                 }
 
-                // TODO: use keycode_lookup_table, push the key and text.
+                Key_Code key = keycode_lookup_table[(u8)event.xkey.keycode];
+                printf("key [%d] = %s\n", event.xkey.keycode, key_code_name[key]);
+
+                if(key) {
+                    Input_Event *ev = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                    ev->kind = InputEventKind_KeyStroke;
+                    ev->key.code = key;
+                    ev->key.modifiers = copy_modifier_set(linuxvars.frame_arena, mods);
+                }
+
+                if(status == XLookupChars || status == XLookupBoth) {
+                    u8* ptr = push_array_write(linuxvars.frame_arena, u8, len, buff);
+                    Input_Event* ev = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                    ev->kind = InputEventKind_TextInsert;
+                    ev->text.string = SCu8(ptr, len);
+                }
 
             } break;
 
@@ -1023,7 +1112,22 @@ linux_handle_x11_events() {
                     linux_keycode_init(linuxvars.dpy);
                 }
             } break;
+
+            case ConfigureNotify: {
+                should_step = true;
+                i32 w = event.xconfigure.width;
+                i32 h = event.xconfigure.height;
+
+                if (w != render_target.width || h != render_target.height){
+                    render_target.width = w;
+                    render_target.height = h;
+                }
+            } break;
         }
+    }
+
+    if(should_step) {
+        linux_schedule_step();
     }
 }
 
@@ -1058,7 +1162,7 @@ linux_epoll_process(struct epoll_event* events, int num_events) {
             } break;
 
             case EPOLL_USER_TIMER: {
-                Linux_Object* obj = container_of(tag, Linux_Object, timer.epoll_tag);
+                Linux_Object* obj = CastFromMember(Linux_Object, timer.epoll_tag, tag);
                 close(obj->timer.fd);
                 obj->timer.fd = -1;
                 do_step = true;
@@ -1091,6 +1195,8 @@ main(int argc, char **argv){
     linuxvars.frame_arena = reserve_arena(&linuxvars.tctx);
     // TODO(allen): *arena;
     render_target.arena = make_arena_system(KB(256));
+
+    linuxvars.fontconfig = FcInitLoadConfigAndFonts();
 
     linuxvars.cursor_show = MouseCursorShow_Always;
     linuxvars.prev_cursor_show = MouseCursorShow_Always;
@@ -1262,6 +1368,7 @@ main(int argc, char **argv){
 
     linux_schedule_step();
 
+    b32 first_step = true;
     b32 keep_running = true;
     for (;keep_running;){
 
@@ -1288,7 +1395,6 @@ main(int argc, char **argv){
             continue;
         }
 
-        b32 first_step = true;
         linuxvars.last_step_time = system_now_time();
 
         // NOTE(allen): Frame Clipboard Input
@@ -1297,21 +1403,24 @@ main(int argc, char **argv){
             XConvertSelection(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
         }
 
-        Application_Step_Input frame_input = {};
+        Application_Step_Input input = {};
 
         if (linuxvars.received_new_clipboard){
-            frame_input.clipboard = linuxvars.clipboard_contents;
+            input.clipboard = linuxvars.clipboard_contents;
             linuxvars.received_new_clipboard = false;
         }
 
         // TODO: fill the rest of it
-        frame_input.trying_to_kill = !keep_running;
+        input.trying_to_kill = !keep_running;
+        input.dt = frame_useconds/1000000.f;
+        input.events = linuxvars.input.trans.event_list;
+        input.first_step = first_step;
 
         // NOTE(allen): Application Core Update
         // render_target.buffer.pos = 0;
         Application_Step_Result result = {};
         if (app.step != 0){
-            result = app.step(&linuxvars.tctx, &render_target, base_ptr, &frame_input);
+            result = app.step(&linuxvars.tctx, &render_target, base_ptr, &input);
         }
         else{
             //LOG("app.step == 0 -- skipping\n");
@@ -1346,6 +1455,9 @@ main(int argc, char **argv){
         glXSwapBuffers(linuxvars.dpy, linuxvars.win);
 
         first_step = false;
+
+        linalloc_clear(linuxvars.frame_arena);
+        block_zero_struct(&linuxvars.input.trans);
     }
 
     return 0;

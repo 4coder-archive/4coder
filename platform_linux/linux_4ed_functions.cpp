@@ -64,41 +64,52 @@ internal File_List
 system_get_file_list(Arena* arena, String_Const_u8 directory){
     LINUX_FN_DEBUG("%.*s", (int)directory.size, directory.str);
     File_List result = {};
-    String_Const_u8 search_pattern = {};
 
-    if (character_is_slash(string_get_character(directory, directory.size - 1))){
-        search_pattern = push_u8_stringf(arena, "%.*s*", string_expand(directory));
-    }
-    else{
-        search_pattern = push_u8_stringf(arena, "%.*s/*", string_expand(directory));
-    }
-
-    struct dirent** dir_ents = NULL;
-    int num_ents = scandir(
-        (const char*)search_pattern.str, &dir_ents, linux_system_get_file_list_filter, alphasort);
-
-    File_Info *first = 0;
-    File_Info *last = 0;
-    for (int i = 0; i < num_ents; ++i) {
-        struct dirent* dirent = dir_ents[i];
-        File_Info *info = push_array(arena, File_Info, 1);
-        sll_queue_push(first, last, info);
-
-        info->file_name = SCu8((u8*)dirent->d_name);
-
-        struct stat file_stat;
-        stat((const char*)dirent->d_name, &file_stat);
-        info->attributes = linux_file_attributes_from_struct_stat(file_stat);
+    char* path = strndupa((char*)directory.str, directory.size);
+    int fd = open(path, O_RDONLY | O_DIRECTORY);
+    if(fd == -1) {
+        perror("open");
+        return result;
     }
 
-    result.infos = push_array(arena, File_Info*, num_ents);
-    result.count = num_ents;
+    DIR* dir = fdopendir(fd);
+    struct dirent* d;
 
-    i32 info_index = 0;
-    for (File_Info* node = first; node != NULL; node = node->next) {
-        result.infos[info_index] = node;
-        info_index += 1;
+    File_Info* head = NULL;
+    File_Info** fip = &head;
+
+    while((d = readdir(dir))) {
+        const char* name = d->d_name;
+
+        // ignore . and ..
+        if(*name == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+            continue;
+        }
+
+        *fip = push_array(arena, File_Info, 1);
+        (*fip)->file_name = push_u8_stringf(arena, "%.*s", d->d_reclen, name);
+
+        struct stat st;
+        if(fstatat(fd, name, &st, 0) == -1){
+            perror("fstatat");
+        }
+
+        (*fip)->attributes = linux_file_attributes_from_struct_stat(&st);
+        fip = &(*fip)->next;
+        result.count++;
     }
+    closedir(dir);
+
+    result.infos = fip = push_array(arena, File_Info*, result.count);
+
+    for(File_Info* f = head; f; f = f->next) {
+        *fip++ = f;
+    }
+
+    qsort(result.infos, result.count, sizeof(File_Info*), (__compar_fn_t)&linux_compare_file_infos);
+
+
+    // TODO: relink in new order?
 
     return result;
 }
@@ -108,7 +119,7 @@ system_quick_file_attributes(Arena* scratch, String_Const_u8 file_name){
     LINUX_FN_DEBUG("%.*s", (int)file_name.size, file_name.str);
     struct stat file_stat;
     stat((const char*)file_name.str, &file_stat);
-    return linux_file_attributes_from_struct_stat(file_stat);
+    return linux_file_attributes_from_struct_stat(&file_stat);
 }
 
 internal b32
@@ -127,7 +138,7 @@ system_load_attributes(Plat_Handle handle){
     LINUX_FN_DEBUG();
     struct stat file_stat;
     fstat(*(int*)&handle, &file_stat);
-    return linux_file_attributes_from_struct_stat(file_stat);
+    return linux_file_attributes_from_struct_stat(&file_stat);
 }
 
 internal b32
@@ -158,7 +169,7 @@ system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
         if (bytes_written != -1) {
             struct stat file_stat;
             fstat(fd, &file_stat);
-            return linux_file_attributes_from_struct_stat(file_stat);
+            return linux_file_attributes_from_struct_stat(&file_stat);
         }
     }
     return result;
