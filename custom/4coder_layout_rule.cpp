@@ -17,6 +17,7 @@ get_layout_reflex(Layout_Item_List *list, Buffer_ID buffer, f32 width, Face_ID f
 function Rect_f32
 layout_reflex_get_rect(Application_Links *app, Layout_Reflex *reflex, i64 pos, b32 *unresolved_dependence){
     Rect_f32 rect = {};
+	pos = clamp_bot(0, pos);
     if (range_contains(reflex->list->input_index_range, pos)){
         if (range_contains(reflex->list->manifested_index_range, pos)){
             rect = layout_box_of_pos(*reflex->list, pos);
