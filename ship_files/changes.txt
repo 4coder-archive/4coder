@@ -3,6 +3,7 @@
  + Unkillable buffer setting
  + UI elements in listers and buttons can have different highlight backgrounds
  + command 'load_theme_current_buffer' for loading the current file as a theme and setting it as the theme
+ + command 'write_block' for writing a block comment uses mark and cursor range to insert block comment ends
  + Fix: search and replace never exits early
  + Fix: optimized builds of the custom layer display the dirty * on the file bar correclty
  + Fix: can merge "backwards" strings in the history correctly
@@ -15,6 +16,10 @@
  + Fix: in virtual whitespace layouts blank lines correctly mark carriage return characters before newline characters
  + Fix: auto-indentation leaves the carriage return in CRLF line endings in place and does not count them as indentation
  + Fix: lexer emit pointer advances correctly when the output buffer becomes full
+ + Fix: when include gaurds are inserted into new header files, the generated name isn't killed by numbers or underscores
+ + Fix: base library function string_is_integer returns false on empty string
+ + Fix: preprocessor directives after incomplete statements are aligned to zero by auto-indent
+ + Fix: command 'list_all_functions_current_buffer_lister' and command 'list_all_functions_all_buffers_lister' are marked as UI commands and thus do not infinite loop when they set the buffer
  + Improvement: optimization in clean_all_lines command, handles CRLF line endings
 
 4.1.2

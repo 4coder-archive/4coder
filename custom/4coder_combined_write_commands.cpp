@@ -94,7 +94,7 @@ CUSTOM_DOC("At the cursor, insert a '// NOTE' comment, includes user name if it 
 CUSTOM_COMMAND_SIG(write_block)
 CUSTOM_DOC("At the cursor, insert a block comment.")
 {
-    write_string(app, string_u8_litexpr("/*  */"));
+    place_begin_and_end_on_own_lines(app, "/* ", " */");
 }
 
 CUSTOM_COMMAND_SIG(write_zero_struct)

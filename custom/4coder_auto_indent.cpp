@@ -268,10 +268,10 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         //ignore_unfinished_statement = true;
                     }break;
                 }
-            }
-            
-            if (in_unfinished_statement && !ignore_unfinished_statement){
-                this_indent += indent_width;
+                
+                if (in_unfinished_statement && !ignore_unfinished_statement){
+                    this_indent += indent_width;
+                }
             }
             
 #define EMIT(N) \

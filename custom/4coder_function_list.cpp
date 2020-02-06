@@ -274,7 +274,7 @@ CUSTOM_DOC("Creates a jump list of lines of the current buffer that appear to de
     }
 }
 
-CUSTOM_COMMAND_SIG(list_all_functions_current_buffer_lister)
+CUSTOM_UI_COMMAND_SIG(list_all_functions_current_buffer_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations in the buffer.")
 {
     Heap *heap = &global_heap;
@@ -286,8 +286,7 @@ CUSTOM_DOC("Creates a lister of locations that look like function definitions an
         buffer = view_get_buffer(app, view, Access_Always);
         Marker_List *list = get_or_make_list_for_buffer(app, heap, buffer);
         if (list != 0){
-            Jump_Lister_Result jump = get_jump_index_from_user(app, list,
-                                                               "Function:");
+            Jump_Lister_Result jump = get_jump_index_from_user(app, list, "Function:");
             jump_to_jump_lister_result(app, view, list, &jump);
         }
     }
@@ -299,7 +298,7 @@ CUSTOM_DOC("Creates a jump list of lines from all buffers that appear to define 
     list_all_functions(app, 0);
 }
 
-CUSTOM_COMMAND_SIG(list_all_functions_all_buffers_lister)
+CUSTOM_UI_COMMAND_SIG(list_all_functions_all_buffers_lister)
 CUSTOM_DOC("Creates a lister of locations that look like function definitions and declarations all buffers.")
 {
     Heap *heap = &global_heap;

@@ -4759,7 +4759,7 @@ string_find_first(String_Const_char str, String_Const_char needle, String_Match_
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
-			i = 0;
+            i = 0;
             char c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
@@ -4783,7 +4783,7 @@ string_find_first(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
-			i = 0;
+            i = 0;
             u8 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
@@ -4807,7 +4807,7 @@ string_find_first(String_Const_u16 str, String_Const_u16 needle, String_Match_Ru
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
-			i = 0;
+            i = 0;
             u16 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
@@ -4831,7 +4831,7 @@ string_find_first(String_Const_u32 str, String_Const_u32 needle, String_Match_Ru
     if (needle.size > 0){
         i = str.size;
         if (str.size >= needle.size){
-			i = 0;
+            i = 0;
             u32 c = character_to_upper(needle.str[0]);
             u64 one_past_last = str.size - needle.size + 1;
             for (;i < one_past_last; i += 1){
@@ -7043,7 +7043,7 @@ string_from_integer(Arena *arena, u64 x, u32 radix){
 function b32
 string_is_integer(String_Const_u8 string, u32 radix){
     b32 is_integer = false;
-    if (radix <= 16){
+    if (string.size > 0 && radix <= 16){
         is_integer = true;
         for (u64 i = 0; i < string.size; i += 1){
             if (string.str[i] < 128){

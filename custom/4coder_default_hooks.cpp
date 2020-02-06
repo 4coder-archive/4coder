@@ -944,16 +944,19 @@ BUFFER_HOOK_SIG(default_new_file){
         u8 c[2] = {};
         u64 c_size = 1;
         u8 ch = file_name.str[i];
-        if (ch == '.'){
-            c[0] = '_';
-        }
-        else if (ch >= 'A' && ch <= 'Z'){
+        if ('A' <= ch && ch <= 'Z'){
             c_size = 2;
             c[0] = '_';
             c[1] = ch;
         }
-        else if (ch >= 'a' && ch <= 'z'){
+        else if ('0' <= ch && ch <= '9'){
+            c[0] = ch;
+        }
+        else if ('a' <= ch && ch <= 'z'){
             c[0] = ch - ('a' - 'A');
+        }
+        else{
+            c[0] = '_';
         }
         String_Const_u8 part = push_string_copy(scratch, SCu8(c, c_size));
         string_list_push(scratch, &guard_list, part);
