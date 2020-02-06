@@ -6,7 +6,7 @@ SET fake=%1
 SET maj=%2
 SET min=%3
 
-SET vr=%fake%-%maj%-%min%
+SET vr=%fake%.%maj%.%min%
 SET fv=%fake%-%maj%-%min%
 
 SET flags=--fix-permissions --userversion=%vr%
