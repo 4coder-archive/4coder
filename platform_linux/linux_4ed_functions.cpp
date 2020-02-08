@@ -256,7 +256,7 @@ system_now_time(void){
     //LINUX_FN_DEBUG();
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &time);
-    return linux_u64_from_timespec(time);
+    return linux_ns_from_timespec(time);
 }
 
 internal Plat_Handle
@@ -275,7 +275,6 @@ system_wake_up_timer_release(Plat_Handle handle){
     Linux_Object* object = handle_to_object(handle);
     if (object->kind == LinuxObjectKind_Timer){
         if(object->timer.fd != -1) {
-            epoll_ctl(linuxvars.epoll, EPOLL_CTL_DEL, object->timer.fd, NULL);
             close(object->timer.fd);
             object->timer.fd = -1;
         }
@@ -432,9 +431,6 @@ system_cli_end_update(CLI_Handles* cli){
         close_me = true;
         close(*(int*)&cli->out_read);
         close(*(int*)&cli->out_write);
-
-        struct epoll_event e = {};
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_DEL, *(int*)&cli->out_read, &e);
     }
 
     return(close_me);
@@ -651,7 +647,7 @@ system_show_mouse_cursor(i32 show){
 
 internal b32
 system_set_fullscreen(b32 full_screen){
-    linux_set_wm_state(linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, full_screen);
+    linux_window_fullscreen(full_screen ? WM_STATE_ADD : WM_STATE_DEL);
     return true;
 }
 

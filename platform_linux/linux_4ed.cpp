@@ -12,6 +12,7 @@
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
+#define frame_nseconds (UINT64_C(1000000000) / FPS)
 #define SLASH '/'
 #define DLL "so"
 
@@ -121,7 +122,6 @@ struct Linux_Input_Chunk_Transient {
     b8 mouse_l_release;
     b8 mouse_r_press;
     b8 mouse_r_release;
-    b8 out_of_window;
     i8 mouse_wheel;
     b8 trying_to_kill;
 };
@@ -131,6 +131,7 @@ struct Linux_Input_Chunk_Persistent {
     Input_Modifier_Set_Fixed modifiers;
     b8 mouse_l;
     b8 mouse_r;
+    b8 mouse_out_of_window;
 };
 
 struct Linux_Input_Chunk {
@@ -154,9 +155,9 @@ struct Linux_Vars {
     Linux_Input_Chunk input;
 
     int epoll;
-    int step_event_fd;
     int step_timer_fd;
     u64 last_step_time;
+    b32 step_pending;
 
     XCursor xcursors[APP_MOUSE_CURSOR_COUNT];
     Application_Mouse_Cursor cursor;
@@ -198,7 +199,6 @@ global Render_Target render_target;
 
 typedef i32 Epoll_Kind;
 enum {
-    EPOLL_STEP_EVENT,
     EPOLL_STEP_TIMER,
     EPOLL_X11,
     EPOLL_X11_INTERNAL,
@@ -211,7 +211,6 @@ enum {
 // If per-event data is needed, container_of can be used on data.ptr
 // to access the containing struct and all its other members.
 
-internal Epoll_Kind epoll_tag_step_event = EPOLL_STEP_EVENT;
 internal Epoll_Kind epoll_tag_step_timer = EPOLL_STEP_TIMER;
 internal Epoll_Kind epoll_tag_x11 = EPOLL_X11;
 internal Epoll_Kind epoll_tag_x11_internal = EPOLL_X11_INTERNAL;
@@ -322,8 +321,8 @@ linux_system_get_file_list_filter(const struct dirent *dirent) {
     return 1;
 }
 
-internal int
-linux_u64_from_timespec(const struct timespec timespec) {
+internal u64
+linux_ns_from_timespec(const struct timespec timespec) {
     return timespec.tv_nsec + UINT64_C(1000000000) * timespec.tv_sec;
 }
 
@@ -338,34 +337,40 @@ internal File_Attributes
 linux_file_attributes_from_struct_stat(struct stat* file_stat) {
     File_Attributes result = {};
     result.size = file_stat->st_size;
-    result.last_write_time = linux_u64_from_timespec(file_stat->st_mtim);
+    result.last_write_time = linux_ns_from_timespec(file_stat->st_mtim);
     result.flags = linux_convert_file_attribute_flags(file_stat->st_mode);
     return result;
 }
 
 internal void
 linux_schedule_step(){
+    if(!__sync_bool_compare_and_swap(&linuxvars.step_pending, 0, 1)) {
+        return;
+    }
+
     u64 now  = system_now_time();
     u64 diff = (now - linuxvars.last_step_time);
-    if (diff > (u64)frame_useconds){
-        u64 ev = 1;
-        write(linuxvars.step_event_fd, &ev, sizeof(ev));
+
+    struct itimerspec its = {};
+
+    if(diff >= frame_nseconds) {
+        its.it_value.tv_nsec = 1;
+    } else {
+        its.it_value.tv_nsec = frame_nseconds - diff;
     }
-    else{
-        struct itimerspec its = {};
-        timerfd_gettime(linuxvars.step_timer_fd, &its);
-        if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
-            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
-            timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
-        }
-    }
+
+    timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
 }
 
-internal void
-linux_set_wm_state(Atom one, Atom two, int mode){
-    //NOTE(inso): this will only work after the window has been mapped
+enum wm_state_mode {
+    WM_STATE_DEL = 0,
+    WM_STATE_ADD = 1,
+    WM_STATE_TOGGLE = 2,
+};
 
-    enum { STATE_REMOVE, STATE_ADD, STATE_TOGGLE };
+internal void
+linux_set_wm_state(Atom one, Atom two, enum wm_state_mode mode){
+    //NOTE(inso): this will only work after the window has been mapped
 
     XEvent e = {};
     e.xany.type = ClientMessage;
@@ -380,6 +385,16 @@ linux_set_wm_state(Atom one, Atom two, int mode){
     XSendEvent(linuxvars.dpy,
                RootWindow(linuxvars.dpy, 0),
                0, SubstructureNotifyMask | SubstructureRedirectMask, &e);
+}
+
+internal void
+linux_window_maximize(enum wm_state_mode mode){
+    linux_set_wm_state(linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ, linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT, mode);
+}
+
+internal void
+linux_window_fullscreen(enum wm_state_mode mode) {
+    linux_set_wm_state(linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, mode);
 }
 
 internal int
@@ -496,16 +511,6 @@ linux_thread_proc_start(void* arg) {
     Assert(info->kind == LinuxObjectKind_Thread);
     info->thread.proc(info->thread.ptr);
     return NULL;
-}
-
-internal void
-linux_window_maximize(b32 enable){
-
-}
-
-internal void
-linux_window_fullscreen_toggle(){
-
 }
 
 #include "linux_icon.h"
@@ -870,9 +875,9 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     }
 
     if (settings->maximize_window){
-        linux_window_maximize(true);
+        linux_set_wm_state(linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ, linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT, WM_STATE_ADD);
     } else if (settings->fullscreen_window){
-        linux_window_fullscreen_toggle();
+        linux_set_wm_state(linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, WM_STATE_ADD);
     }
 
     XSync(linuxvars.dpy, False);
@@ -1093,15 +1098,11 @@ linux_epoll_init(void) {
     e.events = EPOLLIN | EPOLLET;
 
     //linuxvars.inotify_fd    = inotify_init1(IN_NONBLOCK);
-    linuxvars.step_event_fd = eventfd(0, EFD_NONBLOCK);
     linuxvars.step_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
     linuxvars.epoll         = epoll_create(16);
 
     e.data.ptr = &epoll_tag_x11;
     epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, ConnectionNumber(linuxvars.dpy), &e);
-
-    e.data.ptr = &epoll_tag_step_event;
-    epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_event_fd, &e);
 
     e.data.ptr = &epoll_tag_step_timer;
     epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
@@ -1244,7 +1245,6 @@ linux_handle_x11_events() {
                 should_step = true;
 
                 Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
-                block_zero_struct(mods);
 
                 int state = event.xkey.state;
                 set_modifier(mods, KeyCode_Shift, state & ShiftMask);
@@ -1276,6 +1276,7 @@ linux_handle_x11_events() {
 
                 Input_Event* key_event = NULL;
                 if(key) {
+                    add_modifier(mods, key);
                     key_event = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
                     key_event->kind = InputEventKind_KeyStroke;
                     key_event->key.code = key;
@@ -1299,7 +1300,26 @@ linux_handle_x11_events() {
             } break;
 
             case KeyRelease: {
+                should_step = true;
 
+                Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
+
+                int state = event.xkey.state;
+                set_modifier(mods, KeyCode_Shift, state & ShiftMask);
+                set_modifier(mods, KeyCode_Control, state & ControlMask);
+                set_modifier(mods, KeyCode_CapsLock, state & LockMask);
+                set_modifier(mods, KeyCode_Alt, state & Mod1Mask);
+
+                Key_Code key = keycode_lookup_table[(u8)event.xkey.keycode];
+
+                Input_Event* key_event = NULL;
+                if(key) {
+                    remove_modifier(mods, key);
+                    key_event = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                    key_event->kind = InputEventKind_KeyRelease;
+                    key_event->key.code = key;
+                    key_event->key.modifiers = copy_modifier_set(linuxvars.frame_arena, mods);
+                }
             } break;
 
             case MotionNotify: {
@@ -1352,12 +1372,19 @@ linux_handle_x11_events() {
                 }
             } break;
 
-            case FocusIn: {
-                XSetICFocus(linuxvars.xic);
+            case FocusIn:
+            case FocusOut: {
+                linuxvars.input.pers.mouse_l = false;
+                linuxvars.input.pers.mouse_r = false;
+                block_zero_struct(&linuxvars.input.pers.modifiers);
             } break;
 
-            case FocusOut: {
-                XUnsetICFocus(linuxvars.xic);
+            case EnterNotify: {
+                linuxvars.input.pers.mouse_out_of_window = 0;
+            } break;
+
+            case LeaveNotify: {
+                linuxvars.input.pers.mouse_out_of_window = 1;
             } break;
 
             case ConfigureNotify: {
@@ -1453,15 +1480,6 @@ linux_epoll_process(struct epoll_event* events, int num_events) {
                 //XProcessInternalConnection(linuxvars.dpy, fd);
             } break;
 
-            case EPOLL_STEP_EVENT: {
-                u64 ev;
-                int ret;
-                do {
-                    ret = read(linuxvars.step_event_fd, &ev, 8);
-                } while (ret != -1 || errno != EAGAIN);
-                do_step = true;
-            } break;
-
             case EPOLL_STEP_TIMER: {
                 u64 count;
                 int ret;
@@ -1479,7 +1497,7 @@ linux_epoll_process(struct epoll_event* events, int num_events) {
                 Linux_Object* obj = CastFromMember(Linux_Object, timer.epoll_tag, tag);
                 close(obj->timer.fd);
                 obj->timer.fd = -1;
-                do_step = true;
+                linux_schedule_step();
             } break;
         }
     }
@@ -1674,9 +1692,7 @@ main(int argc, char **argv){
             continue;
         }
 
-        u64 now = system_now_time();
-        printf(" ***** STEP DIFF = %.2f\n", (now - linuxvars.last_step_time) / 1000000.0);
-        linuxvars.last_step_time = now;
+        linuxvars.last_step_time = system_now_time();
 
         // NOTE(allen): Frame Clipboard Input
         // Request clipboard contents from X11 on first step, or every step if they don't have XFixes notification ability.
@@ -1697,7 +1713,7 @@ main(int argc, char **argv){
         input.events = linuxvars.input.trans.event_list;
         input.trying_to_kill = linuxvars.input.trans.trying_to_kill;
 
-        input.mouse.out_of_window = false;
+        input.mouse.out_of_window = linuxvars.input.pers.mouse_out_of_window;
         input.mouse.p = linuxvars.input.pers.mouse;
         input.mouse.l = linuxvars.input.pers.mouse_l;
         input.mouse.r = linuxvars.input.pers.mouse_r;
@@ -1739,6 +1755,7 @@ main(int argc, char **argv){
 
         linalloc_clear(linuxvars.frame_arena);
         block_zero_struct(&linuxvars.input.trans);
+        linuxvars.step_pending = false;
     }
 
     return 0;
