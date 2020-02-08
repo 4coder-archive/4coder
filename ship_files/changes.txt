@@ -1,4 +1,12 @@
 
+4.1.4
+ + clipboard is only read when the requests to, or when the collect-all mode is started via the command 'begin_clipboard_collection_mode'
+ + 'clear_clipboard' command
+ + in config.4coder the variable virtual_whitespace_regular_indent determines the number of space-widths to use as the regular indentation in a virtual whitespace layout
+ + Fix: tabs are measured with the correct amount of width for the user's settings
+ + Fix: virtual whitespace toggling works when the config initially diabled virtual whitespace
+ + Fix: never miss the most recent post to the clipboard on windows
+
 4.1.3
  + Unkillable buffer setting
  + UI elements in listers and buttons can have different highlight backgrounds

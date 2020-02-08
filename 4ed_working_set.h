@@ -42,7 +42,6 @@ struct Working_Set{
     i32 clipboard_size;
     i32 clipboard_max_size;
     i32 clipboard_current;
-    i32 clipboard_rolling;
 };
 
 #endif

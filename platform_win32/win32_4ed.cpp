@@ -165,10 +165,10 @@ struct Win32_Vars{
     
     String_Const_u8 binary_path;
     
-    Arena *clipboard_arena;
-    String_Const_u8 clipboard_contents;
-    b32 next_clipboard_is_self;
+    b8 clip_catch_all;
+    b8 next_clipboard_is_self;
     DWORD clipboard_sequence;
+    Plat_Handle clip_wakeup_timer;
     
     Arena clip_post_arena;
     String_Const_u8 clip_post;
@@ -351,6 +351,51 @@ system_get_keyboard_modifiers_sig(){
 // Clipboard
 //
 
+internal String_Const_u8
+win32_read_clipboard_contents(Thread_Context *tctx, Arena *arena){
+    Scratch_Block scratch(tctx);
+    
+    String_Const_u8 result = {};
+    
+    b32 has_text = false;
+    b32 has_unicode = IsClipboardFormatAvailable(CF_UNICODETEXT);
+    if (!has_unicode){
+        has_text = IsClipboardFormatAvailable(CF_TEXT);
+    }
+    b32 can_read = has_unicode || has_text;
+    
+    if (can_read){
+        if (OpenClipboard(win32vars.window_handle)){
+            if (has_unicode){
+                HANDLE clip_data = GetClipboardData(CF_UNICODETEXT);
+                if (clip_data != 0){
+                    u16 *clip_16_ptr = (u16*)GlobalLock(clip_data);
+                    if (clip_16_ptr != 0){
+                        String_Const_u16 clip_16 = SCu16(clip_16_ptr);
+                        result = string_u8_from_string_u16(arena, clip_16, StringFill_NullTerminate).string;
+                    }
+                }
+                GlobalUnlock(clip_data);
+            }
+            else{
+                HANDLE clip_data = GetClipboardData(CF_TEXT);
+                if (clip_data != 0){
+                    char *clip_ascii_ptr = (char*)GlobalLock(clip_data);
+                    if (clip_ascii_ptr != 0){
+                        String_Const_char clip_ascii = SCchar(clip_ascii_ptr);
+                        result = string_u8_from_string_char(arena, clip_ascii, StringFill_NullTerminate).string;
+                    }
+                }
+                GlobalUnlock(clip_data);
+            }
+            
+            CloseClipboard();
+        }
+    }
+    
+    return(result);
+}
+
 internal void
 win32_post_clipboard(Arena *scratch, char *text, i32 len){
     if (OpenClipboard(win32vars.window_handle)){
@@ -368,6 +413,27 @@ win32_post_clipboard(Arena *scratch, char *text, i32 len){
         }
         CloseClipboard();
     }
+}
+
+internal
+system_get_clipboard_sig(){
+    String_Const_u8 result = {};
+    DWORD new_number = GetClipboardSequenceNumber();
+    if (new_number != win32vars.clipboard_sequence){
+        win32vars.clipboard_sequence = new_number;
+        if (win32vars.next_clipboard_is_self){
+            win32vars.next_clipboard_is_self = false;
+        }
+        else{
+            for (i32 R = 0; R < 8; ++R){
+                result = win32_read_clipboard_contents(win32vars.tctx, arena);
+                if (result.str == 0){
+                    break;
+                }
+            }
+        }
+    }
+    return(result);
 }
 
 internal
@@ -390,60 +456,15 @@ system_post_clipboard_sig(){
     }
 }
 
-internal b32
-win32_read_clipboard_contents(Arena *scratch){
-    Temp_Memory temp = begin_temp(scratch);
-    
-    b32 result = false;
-    
-    b32 has_text = false;
-    b32 has_unicode = IsClipboardFormatAvailable(CF_UNICODETEXT);
-    if (!has_unicode){
-        has_text = IsClipboardFormatAvailable(CF_TEXT);
-    }
-    b32 can_read = has_unicode || has_text;
-    
-    if (can_read){
-        if (OpenClipboard(win32vars.window_handle)){
-            result = true;
-            String_u8 contents = {};
-            Arena *clip_arena = win32vars.clipboard_arena;
-            if (has_unicode){
-                HANDLE clip_data = GetClipboardData(CF_UNICODETEXT);
-                if (clip_data != 0){
-                    u16 *clip_16_ptr = (u16*)GlobalLock(clip_data);
-                    if (clip_16_ptr != 0){
-                        linalloc_clear(clip_arena);
-                        String_Const_u16 clip_16 = SCu16(clip_16_ptr);
-                        contents = string_u8_from_string_u16(clip_arena, clip_16, StringFill_NullTerminate);
-                    }
-                }
-                GlobalUnlock(clip_data);
-            }
-            else{
-                HANDLE clip_data = GetClipboardData(CF_TEXT);
-                if (clip_data != 0){
-                    char *clip_ascii_ptr = (char*)GlobalLock(clip_data);
-                    if (clip_ascii_ptr != 0){
-                        linalloc_clear(clip_arena);
-                        String_Const_char clip_ascii = SCchar(clip_ascii_ptr);
-                        contents = string_u8_from_string_char(clip_arena, clip_ascii, StringFill_NullTerminate);
-                    }
-                }
-                GlobalUnlock(clip_data);
-            }
-            
-            win32vars.clipboard_contents = contents.string;
-            
-            CloseClipboard();
-        }
-    }
-    
-    end_temp(temp);
-    
-    return(result);
+internal
+system_set_clipboard_catch_all_sig(){
+    win32vars.clip_catch_all = enabled?true:false;
 }
 
+internal
+system_get_clipboard_catch_all_sig(){
+    return(win32vars.clip_catch_all);
+}
 
 //
 // Command Line Exectuion
@@ -1200,9 +1221,11 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_CLIPBOARDUPDATE:
         {
-            win32vars.got_useful_event = true;
-            LogEventLit(win32vars.log_string(M), scratch, 0, 0, system_thread_get_id(),
-                        "new clipboard contents");
+            if (win32vars.clip_catch_all){
+                win32vars.got_useful_event = true;
+                LogEventLit(win32vars.log_string(M), scratch, 0, 0, system_thread_get_id(),
+                            "new clipboard contents");
+            }
         }break;
         
         case WM_CLOSE:
@@ -1312,9 +1335,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         
         // NOTE(allen): Load wgl extensions
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
-(l) = (l) && win32_wgl_good((Void_Func*)(f));)
-        
-        b32 load_success = true;
+        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
+            
+            b32 load_success = true;
         LoadWGL(wglCreateContextAttribsARB, load_success);
         LoadWGL(wglChoosePixelFormatARB, load_success);
         LoadWGL(wglGetExtensionsStringEXT, load_success);
@@ -1417,9 +1440,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 /*0*/WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
                 /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 2,
                 /*4*/WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
-    #if GL_DEBUG_MODE
+#if GL_DEBUG_MODE
                 |WGL_CONTEXT_DEBUG_BIT_ARB
-    #endif
+#endif
                 ,
                 /*6*/WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
                 /*8*/0
@@ -1652,23 +1675,16 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         win32_output_error_string(scratch, ErrorString_UseLog);
     }
     
-    win32vars.clipboard_arena = reserve_arena(win32vars.tctx);
-    
+    win32vars.clip_wakeup_timer = system_wake_up_timer_create();
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     if (win32vars.clipboard_sequence == 0){
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         win32_post_clipboard(scratch, "", 0);
-        
         win32vars.clipboard_sequence = GetClipboardSequenceNumber();
         win32vars.next_clipboard_is_self = 0;
-        
         if (win32vars.clipboard_sequence == 0){
             OutputDebugStringA("Failure while initializing clipboard\n");
         }
-    }
-    else{
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-        win32_read_clipboard_contents(scratch);
     }
     
     win32_keycode_init();
@@ -1696,7 +1712,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         Scratch_Block scratch(win32vars.tctx, Scratch_Share);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
-        app.init(win32vars.tctx, &target, base_ptr, win32vars.clipboard_contents, curdir, custom);
+        app.init(win32vars.tctx, &target, base_ptr, curdir, custom);
     }
     
     //
@@ -1835,6 +1851,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // TODO(allen): CROSS REFERENCE WITH LINUX SPECIAL CODE "TIC898989"
         Win32_Input_Chunk input_chunk = win32vars.input_chunk;
         
+        Scratch_Block scratch(win32vars.tctx);
         Application_Step_Input input = {};
         
         input.first_step = win32vars.first;
@@ -1864,39 +1881,15 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         // NOTE(allen): Frame Clipboard Input
-        block_zero_struct(&win32vars.clipboard_contents);
-        input.clipboard_changed = false;
-        if (win32vars.clipboard_sequence != 0){
-            DWORD new_number = GetClipboardSequenceNumber();
-            if (new_number != win32vars.clipboard_sequence){
-                if (win32vars.next_clipboard_is_self){
-                    win32vars.next_clipboard_is_self = false;
-                }
-                else{
-                    for (i32 R = 0; R < 4; ++R){
-                        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
-                        if (win32_read_clipboard_contents(scratch)){
-                            input.clipboard_changed = true;
-                            break;
-                        }
-                    }
-                }
-                win32vars.clipboard_sequence = new_number;
-            }
+        if (win32vars.clip_catch_all){
+            input.clipboard = system_get_clipboard(scratch);
         }
-        input.clipboard = win32vars.clipboard_contents;
         
         win32vars.clip_post.size = 0;
         
         
         // NOTE(allen): Application Core Update
-        Application_Step_Result result = {};
-        if (app.step != 0){
-            result = app.step(win32vars.tctx, &target, base_ptr, &input);
-        }
-        else{
-            //LOG("app.step == 0 -- skipping\n");
-        }
+        Application_Step_Result result = app.step(win32vars.tctx, &target, base_ptr, &input);
         
         // NOTE(allen): Finish the Loop
         if (result.perform_kill){
@@ -1905,13 +1898,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): Post New Clipboard Content
         if (win32vars.clip_post.size > 0){
-            Scratch_Block scratch(win32vars.tctx, Scratch_Share);
             win32_post_clipboard(scratch, (char*)win32vars.clip_post.str, (i32)win32vars.clip_post.size);
         }
         
         // NOTE(allen): Switch to New Title
         if (result.has_new_title){
-            Scratch_Block scratch(win32vars.tctx, Scratch_Share);
             SetWindowText_utf8(scratch, win32vars.window_handle, (u8*)result.title_string);
         }
         
@@ -1958,6 +1949,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         // NOTE(allen): schedule another step if needed
         if (result.animating){
             system_schedule_step(0);
+        }
+        else if (win32vars.clip_catch_all){
+            system_wake_up_timer_set(win32vars.clip_wakeup_timer, 250);
         }
         
         // NOTE(allen): sleep a bit to cool off :)

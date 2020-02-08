@@ -1200,8 +1200,6 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range,
     Scratch_Block scratch(app);
     String_Const_u8 s = push_buffer_range(app, scratch, buffer, range);
     
-    i32 tab_additional_width = tab_width - 1;
-    
     Indent_Info info = {};
     info.first_char_pos = range.end;
     info.is_blank = true;
@@ -1222,7 +1220,7 @@ get_indent_info_range(Application_Links *app, Buffer_ID buffer, Range_i64 range,
             info.all_space = false;
         }
         if (c == '\t'){
-            info.indent_pos += tab_additional_width;
+            info.indent_pos += tab_width;
         }
     }
     
@@ -2403,6 +2401,15 @@ get_command_metadata(Custom_Command_Function *func){
         result = &fcoder_metacmd_table[id];
     }
     return(result);
+}
+
+////////////////////////////////
+
+function b32
+clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string){
+    clipboard_post_internal_only(app, clipboard_id, string);
+    system_post_clipboard(string);
+    return(true);
 }
 
 ////////////////////////////////

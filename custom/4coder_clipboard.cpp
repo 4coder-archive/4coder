@@ -16,6 +16,64 @@ clipboard_post_buffer_range(Application_Links *app, i32 clipboard_index, Buffer_
     return(success);
 }
 
+function void
+clipboard_update_history_from_system(Application_Links *app, i32 clipboard_id){
+    Scratch_Block scratch(app);
+    String_Const_u8 string = system_get_clipboard(scratch);
+    if (string.str != 0){
+        clipboard_post_internal_only(app, clipboard_id, string);
+    }
+}
+
+function void
+clipboard_collection_render(Application_Links *app, Frame_Info frame_info, View_ID view){
+    Scratch_Block scratch(app);
+    Rect_f32 region = draw_background_and_margin(app, view);
+    Vec2_f32 mid_p = (region.p1 + region.p0)*0.5f;
+    
+    Fancy_Line message = {};
+    push_fancy_string(scratch, &message, fcolor_id(defcolor_pop2),
+                      string_u8_litexpr("Collecting all clipboard events "));
+    push_fancy_string(scratch, &message, fcolor_id(defcolor_pop1),
+                      string_u8_litexpr("press [escape] to stop"));
+    
+    Face_ID face_id = get_face_id(app, 0);
+    
+    Vec2_f32 dim = get_fancy_line_dim(app, face_id, &message);
+    Vec2_f32 half_dim = dim*0.5f;
+    
+    draw_fancy_line(app, face_id, fcolor_zero(), &message, mid_p - half_dim);
+}
+
+CUSTOM_UI_COMMAND_SIG(begin_clipboard_collection_mode)
+CUSTOM_DOC("Allows the user to copy multiple strings from other applications before switching to 4coder and pasting them all.")
+{
+    local_persist b32 in_clipboard_collection_mode = false;
+    if (!in_clipboard_collection_mode){
+        in_clipboard_collection_mode = true;
+        system_set_clipboard_catch_all(true);
+        
+        View_ID view = get_this_ctx_view(app, Access_Always);
+        View_Context ctx = view_current_context(app, view);
+        ctx.render_caller = clipboard_collection_render;
+        ctx.hides_buffer = true;
+        View_Context_Block ctx_block(app, view, &ctx);
+        
+        for (;;){
+            User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
+            if (in.abort){
+                break;
+            }
+            if (in.event.kind == InputEventKind_KeyStroke && in.event.key.code == KeyCode_Escape){
+                break;
+            }
+        }
+        
+        system_set_clipboard_catch_all(false);
+        in_clipboard_collection_mode = false;
+    }
+}
+
 CUSTOM_COMMAND_SIG(copy)
 CUSTOM_DOC("Copy the text in the range from the cursor to the mark onto the clipboard.")
 {
@@ -39,6 +97,7 @@ CUSTOM_DOC("Cut the text in the range from the cursor to the mark onto the clipb
 CUSTOM_COMMAND_SIG(paste)
 CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
 {
+    clipboard_update_history_from_system(app, 0);
     i32 count = clipboard_count(app, 0);
     if (count > 0){
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
@@ -122,6 +181,12 @@ CUSTOM_DOC("Paste the next item on the clipboard and run auto-indent on the newl
 {
     paste_next(app);
     auto_indent_range(app);
+}
+
+CUSTOM_COMMAND_SIG(clear_clipboard)
+CUSTOM_DOC("Clears the history of the clipboard")
+{
+    clipboard_clear(app, 0);
 }
 
 ////////////////////////////////
@@ -266,14 +331,18 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
     }
 }
 
-CUSTOM_COMMAND_SIG(multi_paste_interactive){
+CUSTOM_COMMAND_SIG(multi_paste_interactive)
+CUSTOM_DOC("Paste multiple lines from the clipboard history, controlled with arrow keys")
+{
     i32 clip_count = clipboard_count(app, 0);
     if (clip_count > 0){
         multi_paste_interactive_up_down(app, 1, clip_count);
     }
 }
 
-CUSTOM_COMMAND_SIG(multi_paste_interactive_quick){
+CUSTOM_COMMAND_SIG(multi_paste_interactive_quick)
+CUSTOM_DOC("Paste multiple lines from the clipboard history, controlled by inputing the number of lines to paste")
+{
     i32 clip_count = clipboard_count(app, 0);
     if (clip_count > 0){
         u8 string_space[256];

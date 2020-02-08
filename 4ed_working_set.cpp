@@ -207,6 +207,17 @@ get_file_from_identifier(Working_Set *working_set, Buffer_Identifier buffer){
 ////////////////////////////////
 
 // TODO(allen): Bring the clipboard fully to the custom side.
+internal void
+working_set_clipboard_clear(Heap *heap, Working_Set *working){
+    String_Const_u8 *str = working->clipboards;
+    for (i32 i = 0; i < working->clipboard_size; i += 1, str += 1){
+        heap_free(heap, str->str);
+        block_zero_struct(str);
+    }
+    working->clipboard_size = 0;
+    working->clipboard_current = 0;
+}
+
 internal String_Const_u8*
 working_set_next_clipboard_string(Heap *heap, Working_Set *working, u64 str_size){
     i32 clipboard_current = working->clipboard_current;
@@ -225,7 +236,6 @@ working_set_next_clipboard_string(Heap *heap, Working_Set *working, u64 str_size
     }
     String_Const_u8 *result = &working->clipboards[clipboard_current];
     working->clipboard_current = clipboard_current;
-    working->clipboard_rolling = clipboard_current;
     if (result->str != 0){
         heap_free(heap, result->str);
     }
@@ -244,28 +254,6 @@ working_set_clipboard_index(Working_Set *working, i32 index){
         index = current + size - index;
         index = index % size;
         result = &working->clipboards[index];
-    }
-    return(result);
-}
-
-internal String_Const_u8*
-working_set_clipboard_head(Working_Set *working){
-    String_Const_u8 *result = 0;
-    if (working->clipboard_size > 0){
-        working->clipboard_rolling = 0;
-        result = working_set_clipboard_index(working, working->clipboard_rolling);
-    }
-    return(result);
-}
-
-internal String_Const_u8*
-working_set_clipboard_roll_down(Working_Set *working){
-    String_Const_u8 *result = 0;
-    if (working->clipboard_size > 0){
-        i32 clipboard_index = working->clipboard_rolling;
-        ++clipboard_index;
-        working->clipboard_rolling = clipboard_index;
-        result = working_set_clipboard_index(working, working->clipboard_rolling);
     }
     return(result);
 }

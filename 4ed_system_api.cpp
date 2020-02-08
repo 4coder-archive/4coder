@@ -118,8 +118,20 @@ define_api(Arena *arena){
     }
     
     {
+        API_Call *call = api_call(arena, api, "get_clipboard", "String_Const_u8");
+        api_param(arena, call, "Arena*", "arena");
+    }
+    {
         API_Call *call = api_call(arena, api, "post_clipboard", "void");
         api_param(arena, call, "String_Const_u8", "str");
+    }
+    
+    {
+        API_Call *call = api_call(arena, api, "set_clipboard_catch_all", "void");
+        api_param(arena, call, "b32", "enabled");
+    }
+    {
+        api_call(arena, api, "get_clipboard_catch_all", "b32");
     }
     
     {
@@ -174,7 +186,7 @@ define_api(Arena *arena){
     }
     
     {
-api_call(arena, api, "thread_get_id", "i32");
+        api_call(arena, api, "thread_get_id", "i32");
     }
     
     {
@@ -188,7 +200,7 @@ api_call(arena, api, "thread_get_id", "i32");
     }
     
     {
-api_call(arena, api, "mutex_make", "System_Mutex");
+        api_call(arena, api, "mutex_make", "System_Mutex");
     }
     
     {
@@ -207,8 +219,8 @@ api_call(arena, api, "mutex_make", "System_Mutex");
     }
     
     {
-api_call(arena, api, "condition_variable_make",
-                                  "System_Condition_Variable");
+        api_call(arena, api, "condition_variable_make",
+                 "System_Condition_Variable");
     }
     
     {
@@ -262,7 +274,7 @@ api_call(arena, api, "condition_variable_make",
     }
     
     {
-api_call(arena, api, "is_fullscreen", "b32");
+        api_call(arena, api, "is_fullscreen", "b32");
     }
     
     {

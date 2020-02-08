@@ -171,8 +171,8 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
     
     ////////////////////////////////
     
-    if (begin_doc_call(arena, cluster, api_def, "clipboard_post", &func)){
-        doc_function_brief(arena, &func, "Post a string to 4coder internal clipboard and the system clipboard");
+    if (begin_doc_call(arena, cluster, api_def, "clipboard_post_internal_only", &func)){
+        doc_function_brief(arena, &func, "Post a string to 4coder's internal list clipboard history; the string is not posted to the system's clipboard with this call");
         
         // params
         Doc_Block *params = doc_function_begin_params(arena, &func);

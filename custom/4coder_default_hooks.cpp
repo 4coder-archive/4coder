@@ -892,11 +892,9 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
-    b32 use_virtual_whitespace = false;
     b32 use_lexer = false;
     if (treat_as_code){
         wrap_lines = global_config.enable_code_wrapping;
-        use_virtual_whitespace = global_config.enable_virtual_whitespace;
         use_lexer = true;
     }
     
@@ -916,16 +914,16 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         *wrap_lines_ptr = wrap_lines;
     }
     
-    if (use_virtual_whitespace){
-        if (use_lexer){
-            buffer_set_layout(app, buffer_id, layout_virt_indent_index_generic);
-        }
-        else{
-            buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
-        }
+    if (use_lexer){
+        buffer_set_layout(app, buffer_id, layout_virt_indent_index_generic);
     }
     else{
-        buffer_set_layout(app, buffer_id, layout_generic);
+        if (treat_as_code){
+            buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
+        }
+        else{
+            buffer_set_layout(app, buffer_id, layout_generic);
+        }
     }
     
     // no meaning for return
@@ -980,6 +978,7 @@ BUFFER_HOOK_SIG(default_new_file){
 BUFFER_HOOK_SIG(default_file_save){
     // buffer_id
     ProfileScope(app, "default file save");
+    
     b32 is_virtual = global_config.enable_virtual_whitespace;
     if (global_config.automatically_indent_text_on_save && is_virtual){ 
         auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));

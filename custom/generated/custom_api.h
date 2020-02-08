@@ -6,7 +6,8 @@
 #define custom_buffer_get_attached_child_process_sig() Child_Process_ID custom_buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id)
 #define custom_child_process_get_attached_buffer_sig() Buffer_ID custom_child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id)
 #define custom_child_process_get_state_sig() Process_State custom_child_process_get_state(Application_Links* app, Child_Process_ID child_process_id)
-#define custom_clipboard_post_sig() b32 custom_clipboard_post(Application_Links* app, i32 clipboard_id, String_Const_u8 string)
+#define custom_clipboard_clear_sig() b32 custom_clipboard_clear(Application_Links* app, i32 clipboard_id)
+#define custom_clipboard_post_internal_only_sig() b32 custom_clipboard_post_internal_only(Application_Links* app, i32 clipboard_id, String_Const_u8 string)
 #define custom_clipboard_count_sig() i32 custom_clipboard_count(Application_Links* app, i32 clipboard_id)
 #define custom_push_clipboard_index_sig() String_Const_u8 custom_push_clipboard_index(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index)
 #define custom_enqueue_virtual_event_sig() b32 custom_enqueue_virtual_event(Application_Links* app, Input_Event* event)
@@ -183,7 +184,8 @@ typedef b32 custom_child_process_set_target_buffer_type(Application_Links* app, 
 typedef Child_Process_ID custom_buffer_get_attached_child_process_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Buffer_ID custom_child_process_get_attached_buffer_type(Application_Links* app, Child_Process_ID child_process_id);
 typedef Process_State custom_child_process_get_state_type(Application_Links* app, Child_Process_ID child_process_id);
-typedef b32 custom_clipboard_post_type(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
+typedef b32 custom_clipboard_clear_type(Application_Links* app, i32 clipboard_id);
+typedef b32 custom_clipboard_post_internal_only_type(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
 typedef i32 custom_clipboard_count_type(Application_Links* app, i32 clipboard_id);
 typedef String_Const_u8 custom_push_clipboard_index_type(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index);
 typedef b32 custom_enqueue_virtual_event_type(Application_Links* app, Input_Event* event);
@@ -361,7 +363,8 @@ custom_child_process_set_target_buffer_type *child_process_set_target_buffer;
 custom_buffer_get_attached_child_process_type *buffer_get_attached_child_process;
 custom_child_process_get_attached_buffer_type *child_process_get_attached_buffer;
 custom_child_process_get_state_type *child_process_get_state;
-custom_clipboard_post_type *clipboard_post;
+custom_clipboard_clear_type *clipboard_clear;
+custom_clipboard_post_internal_only_type *clipboard_post_internal_only;
 custom_clipboard_count_type *clipboard_count;
 custom_push_clipboard_index_type *push_clipboard_index;
 custom_enqueue_virtual_event_type *enqueue_virtual_event;
@@ -540,7 +543,8 @@ internal b32 child_process_set_target_buffer(Application_Links* app, Child_Proce
 internal Child_Process_ID buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id);
 internal Buffer_ID child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id);
 internal Process_State child_process_get_state(Application_Links* app, Child_Process_ID child_process_id);
-internal b32 clipboard_post(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
+internal b32 clipboard_clear(Application_Links* app, i32 clipboard_id);
+internal b32 clipboard_post_internal_only(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
 internal i32 clipboard_count(Application_Links* app, i32 clipboard_id);
 internal String_Const_u8 push_clipboard_index(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index);
 internal b32 enqueue_virtual_event(Application_Links* app, Input_Event* event);
@@ -719,7 +723,8 @@ global custom_child_process_set_target_buffer_type *child_process_set_target_buf
 global custom_buffer_get_attached_child_process_type *buffer_get_attached_child_process = 0;
 global custom_child_process_get_attached_buffer_type *child_process_get_attached_buffer = 0;
 global custom_child_process_get_state_type *child_process_get_state = 0;
-global custom_clipboard_post_type *clipboard_post = 0;
+global custom_clipboard_clear_type *clipboard_clear = 0;
+global custom_clipboard_post_internal_only_type *clipboard_post_internal_only = 0;
 global custom_clipboard_count_type *clipboard_count = 0;
 global custom_push_clipboard_index_type *push_clipboard_index = 0;
 global custom_enqueue_virtual_event_type *enqueue_virtual_event = 0;

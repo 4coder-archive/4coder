@@ -793,26 +793,26 @@ layout_token_pair(Token_Array *tokens, i64 pos){
 }
 
 function f32
-layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_Nest *nest, i64 pos, f32 space_advance, b32 *unresolved_dependence){
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_Nest *nest, i64 pos, f32 regular_indent, b32 *unresolved_dependence){
     f32 result = 0.f;
     if (nest != 0){
         switch (nest->kind){
             case CodeIndexNest_Scope:
             case CodeIndexNest_Preprocessor:
             {
-                result = layout_index_x_shift(app, reflex, nest->parent, pos, space_advance, unresolved_dependence);
+                result = layout_index_x_shift(app, reflex, nest->parent, pos, regular_indent, unresolved_dependence);
                 if (nest->open.min < pos && nest->open.max <= pos &&
                     (!nest->is_closed || pos < nest->close.min)){
-                    result += 4.f*space_advance;
+                    result += regular_indent;
                 }
             }break;
             
             case CodeIndexNest_Statement:
             {
-                result = layout_index_x_shift(app, reflex, nest->parent, pos, space_advance, unresolved_dependence);
+                result = layout_index_x_shift(app, reflex, nest->parent, pos, regular_indent, unresolved_dependence);
                 if (nest->open.min < pos && nest->open.max <= pos &&
                     (!nest->is_closed || pos < nest->close.min)){
-                    result += 4.f*space_advance;
+                    result += regular_indent;
                 }
             }break;
             
@@ -827,25 +827,25 @@ layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_N
 }
 
 function f32
-layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_Nest *nest, i64 pos, f32 space_advance){
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_Nest *nest, i64 pos, f32 regular_indent){
     b32 ignore;
-    return(layout_index_x_shift(app, reflex, nest, pos, space_advance, &ignore));
+    return(layout_index_x_shift(app, reflex, nest, pos, regular_indent, &ignore));
 }
 
 function f32
-layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_File *file, i64 pos, f32 space_advance, b32 *unresolved_dependence){
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_File *file, i64 pos, f32 regular_indent, b32 *unresolved_dependence){
     f32 indent = 0;
     Code_Index_Nest *nest = code_index_get_nest(file, pos);
     if (nest != 0){
-        indent = layout_index_x_shift(app, reflex, nest, pos, space_advance, unresolved_dependence);
+        indent = layout_index_x_shift(app, reflex, nest, pos, regular_indent, unresolved_dependence);
     }
     return(indent);
 }
 
 function f32
-layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_File *file, i64 pos, f32 space_advance){
+layout_index_x_shift(Application_Links *app, Layout_Reflex *reflex, Code_Index_File *file, i64 pos, f32 regular_indent){
     b32 ignore;
-    return(layout_index_x_shift(app, reflex, file, pos, space_advance, &ignore));
+    return(layout_index_x_shift(app, reflex, file, pos, regular_indent, &ignore));
 }
 
 function void
@@ -860,7 +860,7 @@ layout_index__emit_chunk(LefRig_TopBot_Layout_Vars *pos_vars, Face_ID face, Aren
             else{
                 lr_tb_write_byte(pos_vars, face, arena, list, index, *ptr);
             }
-		}
+        }
         ptr += consume.inc;
     }
 }
@@ -891,6 +891,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
     Face_Metrics metrics = get_face_metrics(app, face);
     LefRig_TopBot_Layout_Vars pos_vars = get_lr_tb_layout_vars(&advance_map, &metrics, width);
     
+    f32 regular_indent = metrics.space_advance*global_config.virtual_whitespace_regular_indent;
     f32 wrap_align_x = width - metrics.normal_advance;
     
     Layout_Reflex reflex = get_layout_reflex(&list, buffer, width, face);
@@ -915,14 +916,14 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
         start:
         if (ptr == end_ptr){
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+            f32 shift = layout_index_x_shift(app, &reflex, file, index, regular_indent);
             lr_tb_advance_x_without_item(&pos_vars, shift);
             goto finish;
         }
         
         if (!character_is_whitespace(*ptr)){
             i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-            f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+            f32 shift = layout_index_x_shift(app, &reflex, file, index, regular_indent);
             lr_tb_advance_x_without_item(&pos_vars, shift);
             goto consuming_non_whitespace;
         }
@@ -933,7 +934,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                     pending_wrap_ptr = ptr;
                     word_ptr = ptr;
                     i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-                    f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+                    f32 shift = layout_index_x_shift(app, &reflex, file, index, regular_indent);
                     lr_tb_advance_x_without_item(&pos_vars, shift);
                     goto consuming_non_whitespace;
                 }
@@ -944,7 +945,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 else if (*ptr == '\n'){
                     pending_wrap_ptr = ptr;
                     i64 index = layout_index_from_ptr(ptr, text.str, range.first);
-                    f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+                    f32 shift = layout_index_x_shift(app, &reflex, file, index, regular_indent);
                     lr_tb_advance_x_without_item(&pos_vars, shift);
                     goto consuming_normal_whitespace;
                 }
@@ -953,7 +954,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
             if (ptr == end_ptr){
                 pending_wrap_ptr = ptr;
                 i64 index = layout_index_from_ptr(ptr - 1, text.str, range.first);
-                f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+                f32 shift = layout_index_x_shift(app, &reflex, file, index, regular_indent);
                 lr_tb_advance_x_without_item(&pos_vars, shift);
                 goto finish;
             }
@@ -994,7 +995,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 
                 lr_tb_next_line(&pos_vars);
 #if 0
-                f32 shift = layout_index_x_shift(app, &reflex, file, index, metrics.space_advance);
+                f32 shift = layout_index_x_shift(app, &reflex, file, index, regular_indent);
                 lr_tb_advance_x_without_item(&pos_vars, shift);
 #endif
                 
@@ -1013,7 +1014,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                 i64 index = layout_index_from_ptr(new_wrap_ptr, text.str, range.first);
                 Code_Index_Nest *new_wrap_nest = code_index_get_nest(file, index);
                 b32 invalid_wrap_x = false;
-                f32 new_wrap_x = layout_index_x_shift(app, &reflex, new_wrap_nest, index, metrics.space_advance, &invalid_wrap_x);
+                f32 new_wrap_x = layout_index_x_shift(app, &reflex, new_wrap_nest, index, regular_indent, &invalid_wrap_x);
                 if (invalid_wrap_x){
                     new_wrap_x = max_f32;
                 }
@@ -1079,7 +1080,7 @@ layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Rang
                     
                     pending_wrap_ptr = new_wrap_ptr;
                     pending_wrap_paren_nest_count = new_wrap_paren_nest_count;
-                    pending_wrap_x = layout_index_x_shift(app, &reflex, new_wrap_nest, index, metrics.space_advance);
+                    pending_wrap_x = layout_index_x_shift(app, &reflex, new_wrap_nest, index, regular_indent);
                     pending_wrap_paren_nest_count = new_wrap_paren_nest_count;
                     pending_wrap_token_score = new_wrap_token_score;
                     pending_wrap_accumulated_w = 0.f;
@@ -1172,7 +1173,7 @@ layout_virt_indent_index_generic(Application_Links *app, Arena *arena, Buffer_ID
 }
 
 CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
-CUSTOM_DOC("Toggles the current buffer's virtual whitespace status.")
+CUSTOM_DOC("Toggles virtual whitespace for all files.")
 {
     global_config.enable_virtual_whitespace = !global_config.enable_virtual_whitespace;
     

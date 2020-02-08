@@ -260,13 +260,6 @@ App_Init_Sig(app_init){
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
     models->working_set.clipboard_size = 0;
     models->working_set.clipboard_current = 0;
-    models->working_set.clipboard_rolling = 0;
-    
-    // TODO(allen): do(better clipboard allocation)
-    if (clipboard.str != 0){
-        String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
-        block_copy(dest->str, clipboard.str, clipboard.size);
-    }
     
     // NOTE(allen): style setup
     {
@@ -350,9 +343,7 @@ App_Step_Sig(app_step){
     if (clipboard.str != 0){
         String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
         dest->size = eol_convert_in((char*)dest->str, (char*)clipboard.str, (i32)clipboard.size);
-        if (input->clipboard_changed){
-            co_send_core_event(tctx, models, CoreCode_NewClipboardContents, *dest);
-        }
+        co_send_core_event(tctx, models, CoreCode_NewClipboardContents, *dest);
     }
     
     // NOTE(allen): reorganizing panels on screen

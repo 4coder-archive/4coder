@@ -207,12 +207,18 @@ child_process_get_state(Application_Links *app, Child_Process_ID child_process_i
 }
 
 api(custom) function b32
-clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
+clipboard_clear(Application_Links *app, i32 clipboard_id){
+    Models *models = (Models*)app->cmd_context;
+    working_set_clipboard_clear(&models->heap, &models->working_set);
+    return(true);
+}
+
+api(custom) function b32
+clipboard_post_internal_only(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
 {
     Models *models = (Models*)app->cmd_context;
     String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, (i32)string.size);
     block_copy(dest->str, string.str, string.size);
-    system_post_clipboard(*dest);
     return(true);
 }
 
