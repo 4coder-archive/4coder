@@ -1639,15 +1639,31 @@ CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the th
         String_Const_u8 error_text = config_stringize_errors(app, scratch, config);
         print_message(app, error_text);
         
-        String_Const_u8 name = string_front_of_path(file_name);
-        if (string_match(string_postfix(name, 7), string_u8_litexpr(".4coder"))){
-            name = string_chop(name, 7);
+        u64 problem_score = 0;
+        if (color_table.count < defcolor_line_numbers_text){
+            problem_score = defcolor_line_numbers_text - color_table.count;
         }
-        save_theme(color_table, name);
+        for (u32 i = 0; i < color_table.count; i += 1){
+            if (color_table.arrays[i].count == 0){
+                problem_score += 1;
+            }
+        }
         
-        Color_Table_Node *node = global_theme_list.last;
-        if (node != 0 && string_match(node->name, name)){
-            active_color_table = node->table;
+        if (error_text.size > 0 || problem_score >= 10){
+            String_Const_u8 string = push_u8_stringf(scratch, "There appears to be a problem parsing %.*s; no theme change applied\n", string_expand(file_name));
+            print_message(app, string);
+        }
+        else{
+            String_Const_u8 name = string_front_of_path(file_name);
+            if (string_match(string_postfix(name, 7), string_u8_litexpr(".4coder"))){
+                name = string_chop(name, 7);
+            }
+            save_theme(color_table, name);
+            
+            Color_Table_Node *node = global_theme_list.last;
+            if (node != 0 && string_match(node->name, name)){
+                active_color_table = node->table;
+            }
         }
     }
 }

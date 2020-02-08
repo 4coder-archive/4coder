@@ -288,6 +288,13 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     b32 is_active_view = (active_view == view_id);
     Rect_f32 prev_clip = draw_set_clip(app, rect);
     
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    
+    // NOTE(allen): Cursor shape
+    Face_Metrics metrics = get_face_metrics(app, face_id);
+    f32 cursor_roundness = (metrics.normal_advance*0.5f)*0.9f;
+    f32 mark_thickness = 2.f;
+    
     // NOTE(allen): Token colorizing
     Token_Array token_array = get_token_array_from_buffer(app, buffer);
     if (token_array.tokens != 0){
@@ -304,7 +311,6 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
         }
     }
     else{
-        Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
         paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
     }
     
@@ -349,10 +355,17 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
                             fcolor_id(defcolor_highlight_cursor_line));
     }
     
-    // NOTE(allen): Cursor shape
-    Face_Metrics metrics = get_face_metrics(app, face_id);
-    f32 cursor_roundness = (metrics.normal_advance*0.5f)*0.9f;
-    f32 mark_thickness = 2.f;
+    // NOTE(allen): Whitespace highlight
+    b64 show_whitespace = false;
+    view_get_setting(app, view_id, ViewSetting_ShowWhitespace, &show_whitespace);
+    if (show_whitespace){
+        if (token_array.tokens == 0){
+            draw_whitespace_highlight(app, buffer, text_layout_id, cursor_roundness);
+        }
+        else{
+            draw_whitespace_highlight(app, text_layout_id, &token_array, cursor_roundness);
+        }
+    }
     
     // NOTE(allen): Cursor
     switch (fcoder_mode){

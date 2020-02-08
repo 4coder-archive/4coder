@@ -521,6 +521,51 @@ draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Tok
 }
 
 function void
+draw_whitespace_highlight(Application_Links *app, Text_Layout_ID text_layout_id, Token_Array *array, f32 roundness){
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    i64 first_index = token_index_from_pos(array, visible_range.first);
+    Token_Iterator_Array it = token_iterator_index(0, array, first_index);
+    for (;;){
+        Token *token = token_it_read(&it);
+        if (token->pos >= visible_range.one_past_last){
+            break;
+        }
+        if (token->kind == TokenBaseKind_Whitespace){
+            Range_i64 range = Ii64(token);
+            draw_character_block(app, text_layout_id, range, roundness,
+                                 fcolor_id(defcolor_highlight_white));
+        }
+        if (!token_it_inc_all(&it)){
+            break;
+        }
+    }
+}
+
+function void
+draw_whitespace_highlight(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id, f32 roundness){
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    for (i64 i = visible_range.first; i < visible_range.one_past_last;){
+        u8 c = buffer_get_char(app, buffer, i);
+        if (character_is_whitespace(c)){
+            i64 s = i;
+            i += 1;
+            for (; i < visible_range.one_past_last; i += 1){
+                c = buffer_get_char(app, buffer, i);
+                if (!character_is_whitespace(c)){
+                    break;
+                }
+            }
+            Range_i64 range = Ii64(s, i);
+            draw_character_block(app, text_layout_id, range, roundness,
+                                 fcolor_id(defcolor_highlight_white));
+        }
+        else{
+            i += 1;
+        }
+    }
+}
+
+function void
 draw_comment_highlights(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id,
                         Token_Array *array, Comment_Highlight_Pair *pairs, i32 pair_count){
     Scratch_Block scratch(app);
