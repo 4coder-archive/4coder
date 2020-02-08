@@ -1,5 +1,6 @@
 
 4.1.4
+ + buildsuper scripts now all come with '-win' '-linux' '-mac' postfixes and pass their OS identifier macro on the build line
  + clipboard is only read when the requests to, or when the collect-all mode is started via the command 'begin_clipboard_collection_mode'
  + 'clear_clipboard' command
  + in config.4coder the variable virtual_whitespace_regular_indent determines the number of space-widths to use as the regular indentation in a virtual whitespace layout
