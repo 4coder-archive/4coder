@@ -708,6 +708,26 @@ CUSTOM_DOC("Toggles the visibility of the FPS performance meter")
     show_fps_hud = !show_fps_hud;
 }
 
+CUSTOM_COMMAND_SIG(set_face_size)
+CUSTOM_DOC("Set face size of the face used by the current buffer.")
+{
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Description description = get_face_description(app, face_id);
+    
+    Query_Bar_Group group(app);
+    u8 string_space[256];
+    Query_Bar bar = {};
+    bar.prompt = string_u8_litexpr("Face Size: ");
+    bar.string = SCu8(string_space, (u64)0);
+    bar.string_capacity = sizeof(string_space);
+    if (query_user_number(app, &bar, description.parameters.pt_size)){
+        description.parameters.pt_size = (u32)string_to_integer(bar.string, 10);
+        try_modify_face(app, face_id, &description);
+    }
+}
+
 CUSTOM_COMMAND_SIG(increase_face_size)
 CUSTOM_DOC("Increase the size of the face used by the current buffer.")
 {
@@ -728,6 +748,37 @@ CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
     Face_Description description = get_face_description(app, face_id);
     --description.parameters.pt_size;
     try_modify_face(app, face_id, &description);
+}
+
+CUSTOM_COMMAND_SIG(set_face_size_this_buffer)
+CUSTOM_DOC("Set face size of the face used by the current buffer; if any other buffers are using the same face a new face is created so that only this buffer is effected")
+{
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Face_ID face_id = get_face_id(app, buffer);
+    
+    b32 is_shared = false;
+    for (Buffer_ID buf_it = get_buffer_next(app, 0, Access_Always);
+         buf_it != 0;
+         buf_it = get_buffer_next(app, buf_it, Access_Always)){
+        if (buf_it == buffer){
+            continue;
+        }
+        Face_ID buf_it_face_id = get_face_id(app, buf_it);
+        if (buf_it_face_id == face_id){
+            is_shared = true;
+        }
+    }
+    
+    if (is_shared){
+        Face_Description description = get_face_description(app, face_id);
+        face_id = try_create_new_face(app, &description);
+        if (face_id != 0){
+            buffer_set_face(app, buffer, face_id);
+        }
+    }
+    
+    set_face_size(app);
 }
 
 CUSTOM_COMMAND_SIG(mouse_wheel_change_face_size)

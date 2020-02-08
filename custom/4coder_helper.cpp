@@ -1428,7 +1428,7 @@ Query_Bar_Group::~Query_Bar_Group(){
 }
 
 internal b32
-query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
+query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number, String_Const_u8 init_string){
     // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
     // start a query bar, but it will be unusual behavior from the point of view of the
     // user, if this command starts intercepting input even though no prompt is shown.
@@ -1436,6 +1436,12 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
     // doesn't support query bars.
     if (start_query_bar(app, bar, 0) == 0){
         return(false);
+    }
+    
+    if (init_string.size > 0){
+        String_u8 string = Su8(bar->string.str, bar->string.size, bar->string_capacity);
+        string_append(&string, init_string);
+        bar->string.size = string.string.size;
     }
     
     b32 success = true;
@@ -1490,7 +1496,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
         else if (good_insert){
             String_u8 string = Su8(bar->string.str, bar->string.size, bar->string_capacity);
             string_append(&string, insert_string);
-            bar->string = string.string;
+            bar->string.size = string.string.size;
         }
         else{
             leave_current_input_unhandled(app);
@@ -1502,12 +1508,19 @@ query_user_general(Application_Links *app, Query_Bar *bar, b32 force_number){
 
 internal b32
 query_user_string(Application_Links *app, Query_Bar *bar){
-    return(query_user_general(app, bar, false));
+    return(query_user_general(app, bar, false, string_u8_empty));
 }
 
 internal b32
 query_user_number(Application_Links *app, Query_Bar *bar){
-    return(query_user_general(app, bar, true));
+    return(query_user_general(app, bar, true, string_u8_empty));
+}
+
+internal b32
+query_user_number(Application_Links *app, Query_Bar *bar, i32 x){
+    Scratch_Block scratch(app);
+    String_Const_u8 string = push_u8_stringf(scratch, "%d", x);
+    return(query_user_general(app, bar, true, string));
 }
 
 ////////////////////////////////
