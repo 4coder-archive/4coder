@@ -158,6 +158,7 @@ struct Linux_Vars {
     int step_timer_fd;
     u64 last_step_time;
 
+    XCursor xcursors[APP_MOUSE_CURSOR_COUNT];
     Application_Mouse_Cursor cursor;
     XCursor hidden_cursor;
     i32 cursor_show;
@@ -168,7 +169,9 @@ struct Linux_Vars {
 
     System_Mutex global_frame_mutex;
 
-    Arena clipboard_out_arena;
+    Arena* clipboard_out_arena;
+    Arena* clipboard_arena;
+    String_Const_u8 clipboard_out_contents;
     String_Const_u8 clipboard_contents;
     b32 received_new_clipboard;
 
@@ -892,6 +895,11 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
         int xfixes_version_unused, xfixes_err_unused;
         Bool has_xfixes = XQueryExtension(linuxvars.dpy, "XFIXES", &xfixes_version_unused, &linuxvars.xfixes_selection_event, &xfixes_err_unused);
         linuxvars.has_xfixes = (has_xfixes == True);
+
+        // request notifications for CLIPBOARD updates.
+        if(has_xfixes) {
+            XFixesSelectSelectionInput(linuxvars.dpy, linuxvars.win, linuxvars.atom_CLIPBOARD, XFixesSetSelectionOwnerNotifyMask);
+        }
     }
 
     // Input handling init
@@ -967,6 +975,26 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
         | xim_event_mask;
 
     XSelectInput(linuxvars.dpy, linuxvars.win, event_mask);
+
+    XCursor cursors[APP_MOUSE_CURSOR_COUNT] = {
+        None,
+        None,
+        XCreateFontCursor(linuxvars.dpy, XC_xterm),
+        XCreateFontCursor(linuxvars.dpy, XC_sb_h_double_arrow),
+        XCreateFontCursor(linuxvars.dpy, XC_sb_v_double_arrow)
+    };
+    block_copy(linuxvars.xcursors, cursors, sizeof(cursors));
+
+    // sneaky invisible cursor
+    {
+        char data = 0;
+        XColor c  = {};
+        Pixmap p  = XCreateBitmapFromData(linuxvars.dpy, linuxvars.win, &data, 1, 1);
+
+        linuxvars.hidden_cursor = XCreatePixmapCursor(linuxvars.dpy, p, p, &c, &c, 0, 0);
+
+        XFreePixmap(linuxvars.dpy, p);
+    }
 }
 
 global Key_Code keycode_lookup_table[255];
@@ -1059,10 +1087,130 @@ linux_keycode_init(Display* dpy){
     XFree(syms);
 }
 
+internal void
+linux_epoll_init(void) {
+    struct epoll_event e = {};
+    e.events = EPOLLIN | EPOLLET;
+
+    //linuxvars.inotify_fd    = inotify_init1(IN_NONBLOCK);
+    linuxvars.step_event_fd = eventfd(0, EFD_NONBLOCK);
+    linuxvars.step_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    linuxvars.epoll         = epoll_create(16);
+
+    e.data.ptr = &epoll_tag_x11;
+    epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, ConnectionNumber(linuxvars.dpy), &e);
+
+    e.data.ptr = &epoll_tag_step_event;
+    epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_event_fd, &e);
+
+    e.data.ptr = &epoll_tag_step_timer;
+    epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
+}
+
+internal void
+linux_clipboard_send(XSelectionRequestEvent* req) {
+
+    XSelectionEvent rsp = {};
+    rsp.type = SelectionNotify;
+    rsp.requestor = req->requestor;
+    rsp.selection = req->selection;
+    rsp.target = req->target;
+    rsp.time = req->time;
+    rsp.property = None;
+
+    Atom formats[] = {
+        linuxvars.atom_UTF8_STRING,
+        XA_STRING,
+    };
+
+    if(linuxvars.clipboard_out_contents.size == 0) {
+        goto done;
+    }
+
+    if(req->selection != linuxvars.atom_CLIPBOARD || req->property == None) {
+        goto done;
+    }
+
+    if (req->target == linuxvars.atom_TARGETS){
+
+        XChangeProperty(
+            req->display,
+            req->requestor,
+            req->property,
+            XA_ATOM,
+            32,
+            PropModeReplace,
+            (u8*)formats,
+            ArrayCount(formats));
+
+        rsp.property = req->property;
+
+    } else {
+
+        int i;
+        for(i = 0; i < ArrayCount(formats); ++i){
+            if (req->target == formats[i]){
+                break;
+            }
+        }
+
+        if (i != ArrayCount(formats)){
+            XChangeProperty(
+                req->display,
+                req->requestor,
+                req->property,
+                req->target,
+                8,
+                PropModeReplace,
+                linuxvars.clipboard_out_contents.str,
+                linuxvars.clipboard_out_contents.size
+            );
+
+            rsp.property = req->property;
+        }
+    }
+
+done:
+    XSendEvent(req->display, req->requestor, True, 0, (XEvent*)&rsp);
+}
+
+internal void
+linux_clipboard_recv(XSelectionEvent* ev) {
+
+    if(ev->selection != linuxvars.atom_CLIPBOARD ||
+        ev->target != linuxvars.atom_UTF8_STRING ||
+        ev->property == None) {
+        return;
+    }
+
+    Atom type;
+    int fmt;
+    unsigned long nitems;
+    unsigned long bytes_left;
+    u8 *data;
+
+    int result = XGetWindowProperty(
+        linuxvars.dpy,
+        linuxvars.win,
+        linuxvars.atom_CLIPBOARD,
+        0L, 0x20000000L, False,
+        linuxvars.atom_UTF8_STRING,
+        &type, &fmt, &nitems,
+        &bytes_left, &data);
+
+    if(result == Success && fmt == 8){
+        linalloc_clear(linuxvars.clipboard_arena);
+        linuxvars.clipboard_contents = push_u8_stringf(linuxvars.clipboard_arena, "%.*s", nitems, data);
+        linuxvars.received_new_clipboard = true;
+        XFree(data);
+        XDeleteProperty(linuxvars.dpy, linuxvars.win, linuxvars.atom_CLIPBOARD);
+        linux_schedule_step();
+    }
+}
+
 internal String_Const_u8
 linux_filter_text(Arena* arena, u8* buf, int len) {
     u8* const result = push_array(arena, u8, len);
-    u8* const endp = buf + len;
     u8* outp = result;
 
     for(int i = 0; i < len; ++i) {
@@ -1204,6 +1352,14 @@ linux_handle_x11_events() {
                 }
             } break;
 
+            case FocusIn: {
+                XSetICFocus(linuxvars.xic);
+            } break;
+
+            case FocusOut: {
+                XUnsetICFocus(linuxvars.xic);
+            } break;
+
             case ConfigureNotify: {
                 i32 w = event.xconfigure.width;
                 i32 h = event.xconfigure.height;
@@ -1234,6 +1390,43 @@ linux_handle_x11_events() {
                         SubstructureRedirectMask | SubstructureNotifyMask,
                         &event);
                 }
+            } break;
+
+            case SelectionRequest: {
+                linux_clipboard_send((XSelectionRequestEvent*)&event);
+            } break;
+
+            case SelectionNotify: {
+                linux_clipboard_recv((XSelectionEvent*)&event);
+            } break;
+
+            case SelectionClear: {
+                if(event.xselectionclear.selection == linuxvars.atom_CLIPBOARD) {
+                    linalloc_clear(linuxvars.clipboard_out_arena);
+                    block_zero_struct(&linuxvars.clipboard_out_contents);
+                }
+            } break;
+
+            case Expose:
+            case VisibilityNotify: {
+                should_step = true;
+            } break;
+
+            default: {
+                // clipboard update notification - ask for the new content
+                if (event.type == linuxvars.xfixes_selection_event) {
+                    XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&event;
+                    if (sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.win){
+                        XConvertSelection(
+                            linuxvars.dpy,
+                            linuxvars.atom_CLIPBOARD,
+                            linuxvars.atom_UTF8_STRING,
+                            linuxvars.atom_CLIPBOARD,
+                            linuxvars.win,
+                            CurrentTime);
+                    }
+                }
+
             } break;
         }
     }
@@ -1314,7 +1507,8 @@ main(int argc, char **argv){
 
     // NOTE(allen): memory
     linuxvars.frame_arena = reserve_arena(&linuxvars.tctx);
-    // TODO(allen): *arena;
+    linuxvars.clipboard_arena = reserve_arena(&linuxvars.tctx);
+    linuxvars.clipboard_out_arena = reserve_arena(&linuxvars.tctx);
     render_target.arena = make_arena_system(KB(256));
 
     linuxvars.fontconfig = FcInitLoadConfigAndFonts();
@@ -1440,46 +1634,7 @@ main(int argc, char **argv){
 
     linux_x11_init(argc, argv, &plat_settings);
     linux_keycode_init(linuxvars.dpy);
-
-    // TODO(inso): move to x11 init?
-    XCursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
-        None,
-        None,
-        XCreateFontCursor(linuxvars.dpy, XC_xterm),
-        XCreateFontCursor(linuxvars.dpy, XC_sb_h_double_arrow),
-        XCreateFontCursor(linuxvars.dpy, XC_sb_v_double_arrow)
-    };
-
-    // sneaky invisible cursor
-    {
-        char data = 0;
-        XColor c  = {};
-        Pixmap p  = XCreateBitmapFromData(linuxvars.dpy, linuxvars.win, &data, 1, 1);
-
-        linuxvars.hidden_cursor = XCreatePixmapCursor(linuxvars.dpy, p, p, &c, &c, 0, 0);
-
-        XFreePixmap(linuxvars.dpy, p);
-    }
-
-    // epoll init
-    {
-        struct epoll_event e = {};
-        e.events = EPOLLIN | EPOLLET;
-
-        //linuxvars.inotify_fd    = inotify_init1(IN_NONBLOCK);
-        linuxvars.step_event_fd = eventfd(0, EFD_NONBLOCK);
-        linuxvars.step_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-        linuxvars.epoll         = epoll_create(16);
-
-        e.data.ptr = &epoll_tag_x11;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, ConnectionNumber(linuxvars.dpy), &e);
-
-        e.data.ptr = &epoll_tag_step_event;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_event_fd, &e);
-
-        e.data.ptr = &epoll_tag_step_timer;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
-    }
+    linux_epoll_init();
 
     // app init
     {
@@ -1533,6 +1688,7 @@ main(int argc, char **argv){
 
         if (linuxvars.received_new_clipboard){
             input.clipboard = linuxvars.clipboard_contents;
+            input.clipboard_changed = true;
             linuxvars.received_new_clipboard = false;
         }
 
@@ -1569,7 +1725,7 @@ main(int argc, char **argv){
 
         // NOTE(allen): Switch to New Cursor
         if (result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.pers.mouse_l){
-            XCursor c = xcursors[result.mouse_cursor_type];
+            XCursor c = linuxvars.xcursors[result.mouse_cursor_type];
             if (linuxvars.cursor_show){
                 XDefineCursor(linuxvars.dpy, linuxvars.win, c);
             }

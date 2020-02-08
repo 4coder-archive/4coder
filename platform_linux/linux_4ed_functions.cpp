@@ -326,10 +326,8 @@ system_sleep(u64 microseconds){
 internal void
 system_post_clipboard(String_Const_u8 str){
     LINUX_FN_DEBUG("%.*s", (int)str.size, str.str);
-    linalloc_clear(&linuxvars.clipboard_out_arena);
-    char* p = push_array(&linuxvars.clipboard_out_arena, char, str.size + 1);
-    block_copy(p, str.data, str.size);
-    p[str.size] = '\0';
+    linalloc_clear(linuxvars.clipboard_out_arena);
+    linuxvars.clipboard_out_contents = push_u8_stringf(linuxvars.clipboard_out_arena, "%.*s", str.size, str.str);
     XSetSelectionOwner(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
 }
 
