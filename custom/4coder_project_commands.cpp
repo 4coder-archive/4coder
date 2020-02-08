@@ -507,7 +507,8 @@ project_deep_copy__pattern_array(Arena *arena, Project_File_Pattern_Array *src_a
         for (Node_String_Const_u8 *node = src->absolutes.first;
              node != 0;
              node = node->next){
-            string_list_push(arena, &dst->absolutes, node->string);
+            String_Const_u8 string = push_string_copy(arena, node->string);
+            string_list_push(arena, &dst->absolutes, string);
         }
     }
 }

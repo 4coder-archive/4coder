@@ -10,6 +10,7 @@
  + Fix: virtual whitespace toggling works when the config initially diabled virtual whitespace
  + Fix: never miss the most recent post to the clipboard on windows
  + Fix: command `load_theme_current_buffer` gaurds against destroying the active color palette when bad files are loaded
+ + Fix: project deep copy routine copies strings in the whitelist and blacklist pattern arrays
 
 4.1.3
  + Unkillable buffer setting
