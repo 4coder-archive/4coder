@@ -77,6 +77,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/timerfd.h>
+#include <sys/eventfd.h>
 #include <sys/syscall.h>
 
 #define Cursor XCursor
@@ -153,10 +154,9 @@ struct Linux_Vars {
     Linux_Input_Chunk input;
 
     int epoll;
+    int step_event_fd;
     int step_timer_fd;
     u64 last_step_time;
-    b32 is_full_screen;
-    b32 should_be_full_screen;
 
     Application_Mouse_Cursor cursor;
     XCursor hidden_cursor;
@@ -195,7 +195,8 @@ global Render_Target render_target;
 
 typedef i32 Epoll_Kind;
 enum {
-    EPOLL_FRAME_TIMER,
+    EPOLL_STEP_EVENT,
+    EPOLL_STEP_TIMER,
     EPOLL_X11,
     EPOLL_X11_INTERNAL,
     EPOLL_CLI_PIPE,
@@ -207,7 +208,8 @@ enum {
 // If per-event data is needed, container_of can be used on data.ptr
 // to access the containing struct and all its other members.
 
-internal Epoll_Kind epoll_tag_frame_timer = EPOLL_FRAME_TIMER;
+internal Epoll_Kind epoll_tag_step_event = EPOLL_STEP_EVENT;
+internal Epoll_Kind epoll_tag_step_timer = EPOLL_STEP_TIMER;
 internal Epoll_Kind epoll_tag_x11 = EPOLL_X11;
 internal Epoll_Kind epoll_tag_x11_internal = EPOLL_X11_INTERNAL;
 internal Epoll_Kind epoll_tag_cli_pipe = EPOLL_CLI_PIPE;
@@ -342,18 +344,39 @@ internal void
 linux_schedule_step(){
     u64 now  = system_now_time();
     u64 diff = (now - linuxvars.last_step_time);
-
-    struct itimerspec its = {};
-    timerfd_gettime(linuxvars.step_timer_fd, &its);
-
-    if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
-        if(diff > (u64)frame_useconds) {
-            its.it_value.tv_nsec = 1;
-        } else {
-            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
-        }
-        timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
+    if (diff > (u64)frame_useconds){
+        u64 ev = 1;
+        write(linuxvars.step_event_fd, &ev, sizeof(ev));
     }
+    else{
+        struct itimerspec its = {};
+        timerfd_gettime(linuxvars.step_timer_fd, &its);
+        if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
+            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
+            timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
+        }
+    }
+}
+
+internal void
+linux_set_wm_state(Atom one, Atom two, int mode){
+    //NOTE(inso): this will only work after the window has been mapped
+
+    enum { STATE_REMOVE, STATE_ADD, STATE_TOGGLE };
+
+    XEvent e = {};
+    e.xany.type = ClientMessage;
+    e.xclient.message_type = linuxvars.atom__NET_WM_STATE;
+    e.xclient.format = 32;
+    e.xclient.window = linuxvars.win;
+    e.xclient.data.l[0] = mode;
+    e.xclient.data.l[1] = one;
+    e.xclient.data.l[2] = two;
+    e.xclient.data.l[3] = 1L;
+
+    XSendEvent(linuxvars.dpy,
+               RootWindow(linuxvars.dpy, 0),
+               0, SubstructureNotifyMask | SubstructureRedirectMask, &e);
 }
 
 internal int
@@ -770,7 +793,7 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     render_target.height = h;
 
     XSetWindowAttributes swa = {};
-    swa.backing_store = NotUseful;
+    swa.backing_store = WhenMapped;
     swa.event_mask = StructureNotifyMask;
     swa.bit_gravity = NorthWestGravity;
     swa.colormap = XCreateColormap(dpy, RootWindow(dpy, vi.screen), vi.visual, AllocNone);
@@ -1036,6 +1059,25 @@ linux_keycode_init(Display* dpy){
     XFree(syms);
 }
 
+internal String_Const_u8
+linux_filter_text(Arena* arena, u8* buf, int len) {
+    u8* const result = push_array(arena, u8, len);
+    u8* const endp = buf + len;
+    u8* outp = result;
+
+    for(int i = 0; i < len; ++i) {
+        u8 c = buf[i];
+
+        if(c == '\r') {
+            *outp++ = '\n';
+        } else if(c > 127 || (' ' <= c && c <= '~') || c == '\t') {
+            *outp++ = c;
+        }
+    }
+
+    return SCu8(result, outp - result);
+}
+
 internal void
 linux_handle_x11_events() {
     static XEvent prev_event = {};
@@ -1053,12 +1095,6 @@ linux_handle_x11_events() {
             case KeyPress: {
                 should_step = true;
 
-                /*
-                b32 is_hold = (prev_event.type         == KeyRelease &&
-                               prev_event.xkey.time    == event.xkey.time &&
-                               prev_event.xkey.keycode == event.xkey.keycode);
-                */
-
                 Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
                 block_zero_struct(mods);
 
@@ -1072,9 +1108,9 @@ linux_handle_x11_events() {
 
                 Status status;
                 KeySym keysym = NoSymbol;
-                u8 buff[256] = {};
+                u8 buf[256] = {};
 
-                int len = Xutf8LookupString(linuxvars.xic, &event.xkey, (char*)buff, sizeof(buff) - 1, &keysym, &status);
+                int len = Xutf8LookupString(linuxvars.xic, &event.xkey, (char*)buf, sizeof(buf) - 1, &keysym, &status);
 
                 if (status == XBufferOverflow){
                     //TODO(inso): handle properly
@@ -1083,27 +1119,82 @@ linux_handle_x11_events() {
                 }
 
                 if (keysym == XK_ISO_Left_Tab){
-                    //text = '\t';
+                    printf("left tab? [%.*s]\n", len, buf);
                     add_modifier(mods, KeyCode_Shift);
                 }
 
                 Key_Code key = keycode_lookup_table[(u8)event.xkey.keycode];
                 printf("key [%d] = %s\n", event.xkey.keycode, key_code_name[key]);
 
+                Input_Event* key_event = NULL;
                 if(key) {
-                    Input_Event *ev = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
-                    ev->kind = InputEventKind_KeyStroke;
-                    ev->key.code = key;
-                    ev->key.modifiers = copy_modifier_set(linuxvars.frame_arena, mods);
+                    key_event = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                    key_event->kind = InputEventKind_KeyStroke;
+                    key_event->key.code = key;
+                    key_event->key.modifiers = copy_modifier_set(linuxvars.frame_arena, mods);
                 }
 
+                Input_Event* text_event = NULL;
                 if(status == XLookupChars || status == XLookupBoth) {
-                    u8* ptr = push_array_write(linuxvars.frame_arena, u8, len, buff);
-                    Input_Event* ev = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
-                    ev->kind = InputEventKind_TextInsert;
-                    ev->text.string = SCu8(ptr, len);
+                    String_Const_u8 str = linux_filter_text(linuxvars.frame_arena, buf, len);
+                    if(str.size) {
+                        text_event = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                        text_event->kind = InputEventKind_TextInsert;
+                        text_event->text.string = str;
+                    }
                 }
 
+                if(key_event && text_event) {
+                    key_event->key.first_dependent_text = text_event;
+                }
+
+            } break;
+
+            case KeyRelease: {
+
+            } break;
+
+            case MotionNotify: {
+                linuxvars.input.pers.mouse = { event.xmotion.x, event.xmotion.y };
+                should_step = true;
+            } break;
+
+            case ButtonPress: {
+                should_step = true;
+                switch(event.xbutton.button) {
+                    case Button1: {
+                        linuxvars.input.trans.mouse_l_press = true;
+                        linuxvars.input.pers.mouse_l = true;
+                    } break;
+
+                    case Button3: {
+                        linuxvars.input.trans.mouse_r_press = true;
+                        linuxvars.input.pers.mouse_r = true;
+                    } break;
+
+                    case Button4: {
+                        linuxvars.input.trans.mouse_wheel = -100;
+                    } break;
+
+                    case Button5: {
+                        linuxvars.input.trans.mouse_wheel = +100;
+                    } break;
+                }
+            } break;
+
+            case ButtonRelease: {
+                should_step = true;
+                switch(event.xbutton.button) {
+                    case Button1: {
+                        linuxvars.input.trans.mouse_l_release = true;
+                        linuxvars.input.pers.mouse_l = false;
+                    } break;
+
+                    case Button3: {
+                        linuxvars.input.trans.mouse_r_release = true;
+                        linuxvars.input.pers.mouse_r = false;
+                    } break;
+                }
             } break;
 
             case MappingNotify: {
@@ -1114,13 +1205,34 @@ linux_handle_x11_events() {
             } break;
 
             case ConfigureNotify: {
-                should_step = true;
                 i32 w = event.xconfigure.width;
                 i32 h = event.xconfigure.height;
 
                 if (w != render_target.width || h != render_target.height){
+                    should_step = true;
                     render_target.width = w;
                     render_target.height = h;
+                }
+            } break;
+
+            case ClientMessage: {
+                Atom atom = event.xclient.data.l[0];
+
+                // Window X button clicked
+                if(atom == linuxvars.atom_WM_DELETE_WINDOW) {
+                    should_step = true;
+                    linuxvars.input.trans.trying_to_kill = true;
+                }
+
+                // Notify WM that we're still responding (don't grey our window out).
+                else if(atom == linuxvars.atom__NET_WM_PING) {
+                    event.xclient.window = DefaultRootWindow(linuxvars.dpy);
+                    XSendEvent(
+                        linuxvars.dpy,
+                        event.xclient.window,
+                        False,
+                        SubstructureRedirectMask | SubstructureNotifyMask,
+                        &event);
                 }
             } break;
         }
@@ -1148,7 +1260,16 @@ linux_epoll_process(struct epoll_event* events, int num_events) {
                 //XProcessInternalConnection(linuxvars.dpy, fd);
             } break;
 
-            case EPOLL_FRAME_TIMER: {
+            case EPOLL_STEP_EVENT: {
+                u64 ev;
+                int ret;
+                do {
+                    ret = read(linuxvars.step_event_fd, &ev, 8);
+                } while (ret != -1 || errno != EAGAIN);
+                do_step = true;
+            } break;
+
+            case EPOLL_STEP_TIMER: {
                 u64 count;
                 int ret;
                 do {
@@ -1346,13 +1467,17 @@ main(int argc, char **argv){
         e.events = EPOLLIN | EPOLLET;
 
         //linuxvars.inotify_fd    = inotify_init1(IN_NONBLOCK);
+        linuxvars.step_event_fd = eventfd(0, EFD_NONBLOCK);
         linuxvars.step_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
         linuxvars.epoll         = epoll_create(16);
 
         e.data.ptr = &epoll_tag_x11;
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, ConnectionNumber(linuxvars.dpy), &e);
 
-        e.data.ptr = &epoll_tag_frame_timer;
+        e.data.ptr = &epoll_tag_step_event;
+        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_event_fd, &e);
+
+        e.data.ptr = &epoll_tag_step_timer;
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
     }
 
@@ -1367,10 +1492,9 @@ main(int argc, char **argv){
     system_mutex_acquire(linuxvars.global_frame_mutex);
 
     linux_schedule_step();
-
     b32 first_step = true;
-    b32 keep_running = true;
-    for (;keep_running;){
+
+    for (;;) {
 
         if (XEventsQueued(linuxvars.dpy, QueuedAlready)){
             linux_handle_x11_events();
@@ -1395,7 +1519,9 @@ main(int argc, char **argv){
             continue;
         }
 
-        linuxvars.last_step_time = system_now_time();
+        u64 now = system_now_time();
+        printf(" ***** STEP DIFF = %.2f\n", (now - linuxvars.last_step_time) / 1000000.0);
+        linuxvars.last_step_time = now;
 
         // NOTE(allen): Frame Clipboard Input
         // Request clipboard contents from X11 on first step, or every step if they don't have XFixes notification ability.
@@ -1410,32 +1536,31 @@ main(int argc, char **argv){
             linuxvars.received_new_clipboard = false;
         }
 
-        // TODO: fill the rest of it
-        input.trying_to_kill = !keep_running;
-        input.dt = frame_useconds/1000000.f;
-        input.events = linuxvars.input.trans.event_list;
         input.first_step = first_step;
+        input.dt = frame_useconds/1000000.f; // variable?
+        input.events = linuxvars.input.trans.event_list;
+        input.trying_to_kill = linuxvars.input.trans.trying_to_kill;
+
+        input.mouse.out_of_window = false;
+        input.mouse.p = linuxvars.input.pers.mouse;
+        input.mouse.l = linuxvars.input.pers.mouse_l;
+        input.mouse.r = linuxvars.input.pers.mouse_r;
+        input.mouse.press_l = linuxvars.input.trans.mouse_l_press;
+        input.mouse.release_l = linuxvars.input.trans.mouse_l_release;
+        input.mouse.press_r = linuxvars.input.trans.mouse_r_press;
+        input.mouse.release_r = linuxvars.input.trans.mouse_r_release;
+        input.mouse.wheel = linuxvars.input.trans.mouse_wheel;
 
         // NOTE(allen): Application Core Update
-        // render_target.buffer.pos = 0;
         Application_Step_Result result = {};
         if (app.step != 0){
             result = app.step(&linuxvars.tctx, &render_target, base_ptr, &input);
-        }
-        else{
-            //LOG("app.step == 0 -- skipping\n");
         }
 
         // NOTE(allen): Finish the Loop
         if (result.perform_kill){
             break;
         }
-        // TODO
-#if 0
-        else if (!keep_running && !linuxvars.keep_running){
-            linuxvars.keep_running = true;
-        }
-#endif
 
         // NOTE(NAME): Switch to New Title
         if (result.has_new_title){
@@ -1462,3 +1587,6 @@ main(int argc, char **argv){
 
     return 0;
 }
+
+// NOTE(inso): to prevent me continuously messing up indentation
+// vim: et:ts=4:sts=4:sw=4

@@ -53,11 +53,53 @@ system_get_path(Arena* arena, System_Path_Code path_code){
 
 internal String_Const_u8
 system_get_canonical(Arena* arena, String_Const_u8 name){
-    LINUX_FN_DEBUG("%.*s", (int)name.size, name.str);
-    // TODO(andrew): Resolve symlinks ?
-    // TODO(andrew): Resolve . and .. in paths
-    // TODO(andrew): Use realpath(3)
-    return name;
+
+    // first remove redundant ../, //, ./ parts
+
+    const u8* input = (u8*) strndupa((char*)name.str, name.size);
+    u8* output = push_array(arena, u8, name.size + 1);
+
+    const u8* p = input;
+    u8* q = output;
+
+    while(*p) {
+
+        // not a slash - copy char
+        if(p[0] != '/') {
+            *q++ = *p++;
+            continue;
+        }
+
+        // two slashes in a row, skip one.
+        if(p[1] == '/') {
+            ++p;
+        }
+        else if(p[1] == '.') {
+
+            // skip "/./" or trailing "/."
+            if(p[2] == '/' || p[2] == '\0') {
+                p += 2;
+            }
+
+            // if we encounter "/../" or trailing "/..", remove last directory instead
+            else if(p[2] == '.' && (p[3] == '/' || p[3] == '\0')) {
+                while(q > output && *--q != '/'){};
+                p += 3;
+            }
+
+            else {
+                *q++ = *p++;
+            }
+        }
+        else {
+            *q++ = *p++;
+        }
+    }
+
+    LINUX_FN_DEBUG("[%.*s] -> [%.*s]", (int)name.size, name.str, (int)(q - output), output);
+
+    // TODO: use realpath at this point to resolve symlinks?
+    return SCu8(output, q - output);
 }
 
 internal File_List
@@ -100,16 +142,27 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
     }
     closedir(dir);
 
-    result.infos = fip = push_array(arena, File_Info*, result.count);
+    if(result.count > 0) {
+        result.infos = fip = push_array(arena, File_Info*, result.count);
 
-    for(File_Info* f = head; f; f = f->next) {
-        *fip++ = f;
+        for(File_Info* f = head; f; f = f->next) {
+            *fip++ = f;
+        }
+
+        // NOTE(inso): I want to sort them like this (. files lower), but it looks like
+        // the sorting is done on the custom-layer side (lister), so this is pointless.
+        // TODO(inso): add linux-specific custom layer code?
+
+        /*
+        qsort(result.infos, result.count, sizeof(File_Info*), (__compar_fn_t)&linux_compare_file_infos);
+
+        for(u32 i = 0; i < result.count - 1; ++i) {
+            result.infos[i]->next = result.infos[i+1];
+        }
+
+        result.infos[result.count-1]->next = NULL;
+        */
     }
-
-    qsort(result.infos, result.count, sizeof(File_Info*), (__compar_fn_t)&linux_compare_file_infos);
-
-
-    // TODO: relink in new order?
 
     return result;
 }
@@ -200,7 +253,7 @@ system_get_proc(System_Library handle, char* proc_name){
 
 internal u64
 system_now_time(void){
-    LINUX_FN_DEBUG();
+    //LINUX_FN_DEBUG();
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC_RAW, &time);
     return linux_u64_from_timespec(time);
@@ -232,23 +285,23 @@ system_wake_up_timer_release(Plat_Handle handle){
 
 internal void
 system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds){
-    LINUX_FN_DEBUG("%d", time_milliseconds);
+    LINUX_FN_DEBUG("%u", time_milliseconds);
     Linux_Object* object = handle_to_object(handle);
 
     if (object->kind == LinuxObjectKind_Timer){
         if(object->timer.fd == -1) {
             object->timer.fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+
+            struct epoll_event ev;
+            ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+            ev.data.ptr = &object->timer.epoll_tag;
+            epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, object->timer.fd, &ev);
         }
 
         struct itimerspec it = {};
         it.it_value.tv_sec = time_milliseconds / 1000;
         it.it_value.tv_nsec = (time_milliseconds % 1000) * UINT64_C(1000000);
-
-        struct epoll_event ev;
-        ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
-        ev.data.ptr = &object->timer.epoll_tag;
-
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, object->timer.fd, &ev);
+        timerfd_settime(object->timer.fd, 0, &it, NULL);
     }
 
 }
@@ -461,7 +514,7 @@ system_thread_free(System_Thread thread){
 internal i32
 system_thread_get_id(void){
     pid_t id = syscall(__NR_gettid);
-    LINUX_FN_DEBUG("%d", id);
+    //LINUX_FN_DEBUG("%d", id);
     return id;
 }
 
@@ -487,14 +540,14 @@ system_mutex_make(void){
     Linux_Object* object = linux_alloc_object(LinuxObjectKind_Mutex);
     pthread_mutex_init(&object->mutex, NULL);
     *(Linux_Object**)&result = object;
-    LINUX_FN_DEBUG("%p", object);
+    //LINUX_FN_DEBUG("%p", object);
     return result;
 }
 
 internal void
 system_mutex_acquire(System_Mutex mutex){
     Linux_Object* object = *(Linux_Object**)&mutex;
-    LINUX_FN_DEBUG("%p", object);
+    //LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_Mutex);
     pthread_mutex_lock(&object->mutex);
 }
@@ -502,7 +555,7 @@ system_mutex_acquire(System_Mutex mutex){
 internal void
 system_mutex_release(System_Mutex mutex){
     Linux_Object* object = *(Linux_Object**)&mutex;
-    LINUX_FN_DEBUG("%p", object);
+    //LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_Mutex);
     pthread_mutex_unlock(&object->mutex);
 }
@@ -510,7 +563,7 @@ system_mutex_release(System_Mutex mutex){
 internal void
 system_mutex_free(System_Mutex mutex){
     Linux_Object* object = *(Linux_Object**)&mutex;
-    LINUX_FN_DEBUG("%p", object);
+    //LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_Mutex);
     pthread_mutex_destroy(&object->mutex);
     linux_free_object(object);
@@ -520,7 +573,7 @@ internal System_Condition_Variable
 system_condition_variable_make(void){
     System_Condition_Variable result = {};
     Linux_Object* object = linux_alloc_object(LinuxObjectKind_ConditionVariable);
-    LINUX_FN_DEBUG("%p", object);
+    //LINUX_FN_DEBUG("%p", object);
     pthread_cond_init(&object->condition_variable, NULL);
     *(Linux_Object**)&result = object;
     return result;
@@ -530,7 +583,7 @@ internal void
 system_condition_variable_wait(System_Condition_Variable cv, System_Mutex mutex){
     Linux_Object* cv_object = *(Linux_Object**)&cv;
     Linux_Object* mutex_object = *(Linux_Object**)&mutex;
-    LINUX_FN_DEBUG("%p / %p", cv_object, mutex_object);
+    //LINUX_FN_DEBUG("%p / %p", cv_object, mutex_object);
     Assert(cv_object->kind == LinuxObjectKind_ConditionVariable);
     Assert(mutex_object->kind == LinuxObjectKind_Mutex);
     pthread_cond_wait(&cv_object->condition_variable, &mutex_object->mutex);
@@ -539,7 +592,7 @@ system_condition_variable_wait(System_Condition_Variable cv, System_Mutex mutex)
 internal void
 system_condition_variable_signal(System_Condition_Variable cv){
     Linux_Object* object = *(Linux_Object**)&cv;
-    LINUX_FN_DEBUG("%p", object);
+    //LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_ConditionVariable);
     pthread_cond_signal(&object->condition_variable);
 }
@@ -547,7 +600,7 @@ system_condition_variable_signal(System_Condition_Variable cv){
 internal void
 system_condition_variable_free(System_Condition_Variable cv){
     Linux_Object* object = *(Linux_Object**)&cv;
-    LINUX_FN_DEBUG("%p", object);
+    //LINUX_FN_DEBUG("%p", object);
     Assert(object->kind == LinuxObjectKind_ConditionVariable);
     pthread_cond_destroy(&object->condition_variable);
     linux_free_object(object);
@@ -559,7 +612,7 @@ system_memory_allocate(u64 size, String_Const_u8 location){
     void* result = mmap(
         NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     // TODO(andrew): Allocation tracking?
-    LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
+    //LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
     return result;
 }
 
@@ -576,7 +629,7 @@ system_memory_set_protection(void* ptr, u64 size, u32 flags){
 
 internal void
 system_memory_free(void* ptr, u64 size){
-    LINUX_FN_DEBUG("%p / %ld", ptr, size);
+    //LINUX_FN_DEBUG("%p / %ld", ptr, size);
     munmap(ptr, size);
 }
 
@@ -600,21 +653,38 @@ system_show_mouse_cursor(i32 show){
 
 internal b32
 system_set_fullscreen(b32 full_screen){
-    LINUX_FN_DEBUG("%d", full_screen);
-
-    linuxvars.should_be_full_screen = full_screen;
+    linux_set_wm_state(linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, full_screen);
     return true;
 }
 
 internal b32
 system_is_fullscreen(void){
-    LINUX_FN_DEBUG();
-    return linuxvars.is_full_screen;
+    b32 result = 0;
+
+    // NOTE(inso): This will get the "true" state of fullscreen,
+    // even if it was toggled outside of 4coder.
+    // (e.g. super-F11 on some WMs sets fullscreen for any window/program)
+
+    Atom type, *prop;
+    unsigned long nitems, pad;
+    int fmt;
+    int ret = XGetWindowProperty(linuxvars.dpy,
+                                 linuxvars.win,
+                                 linuxvars.atom__NET_WM_STATE,
+                                 0, 32, False, XA_ATOM,
+                                 &type, &fmt, &nitems, &pad,
+                                 (unsigned char**)&prop);
+
+    if(ret == Success && prop){
+        result = *prop == linuxvars.atom__NET_WM_STATE_FULLSCREEN;
+        XFree((unsigned char*)prop);
+    }
+
+    return result;
 }
 
 internal Input_Modifier_Set
 system_get_keyboard_modifiers(Arena* arena){
     LINUX_FN_DEBUG();
-    // TODO:
-    //return(copy_modifier_set(arena, &linuxvars.input_chunk.pers.modifiers));
+    return(copy_modifier_set(arena, &linuxvars.input.pers.modifiers));
 }
