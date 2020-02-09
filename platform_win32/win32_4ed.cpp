@@ -1335,9 +1335,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         
         // NOTE(allen): Load wgl extensions
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
-        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
-            
-            b32 load_success = true;
+(l) = (l) && win32_wgl_good((Void_Func*)(f));)
+        
+        b32 load_success = true;
         LoadWGL(wglCreateContextAttribsARB, load_success);
         LoadWGL(wglChoosePixelFormatARB, load_success);
         LoadWGL(wglGetExtensionsStringEXT, load_success);
@@ -1882,7 +1882,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         // NOTE(allen): Frame Clipboard Input
         if (win32vars.clip_catch_all){
-            input.clipboard = system_get_clipboard(scratch);
+            input.clipboard = system_get_clipboard(scratch, 0);
         }
         
         win32vars.clip_post.size = 0;

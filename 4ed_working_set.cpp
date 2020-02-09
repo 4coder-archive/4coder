@@ -206,6 +206,7 @@ get_file_from_identifier(Working_Set *working_set, Buffer_Identifier buffer){
 
 ////////////////////////////////
 
+#if 0
 // TODO(allen): Bring the clipboard fully to the custom side.
 internal void
 working_set_clipboard_clear(Heap *heap, Working_Set *working){
@@ -257,6 +258,7 @@ working_set_clipboard_index(Working_Set *working, i32 index){
     }
     return(result);
 }
+#endif
 
 ////////////////////////////////
 

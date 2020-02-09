@@ -19,6 +19,7 @@ custom_layer_init(Application_Links *app){
     
     // NOTE(allen): setup for default framework
     async_task_handler_init(app, &global_async_system);
+    clipboard_init(get_base_allocator_system(), /*history_depth*/ 64, &clipboard0);
     code_index_init();
     buffer_modified_set_init();
     Profile_Global_List *list = get_core_profile_list(app);

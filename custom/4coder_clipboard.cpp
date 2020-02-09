@@ -4,13 +4,129 @@
 
 // TOP
 
+global Clipboard clipboard0 = {};
+
+function void
+clipboard_init_empty(Clipboard *clipboard, u32 history_depth){
+    history_depth = clamp_bot(1, history_depth);
+    heap_init(&clipboard->heap, &clipboard->arena);
+    clipboard->clip_index = 0;
+    clipboard->clip_capacity = history_depth;
+    clipboard->clips = push_array_zero(&clipboard->arena, String_Const_u8, history_depth);
+}
+
+function void
+clipboard_init(Base_Allocator *allocator, u32 history_depth, Clipboard *clipboard_out){
+    u64 memsize = sizeof(String_Const_u8)*history_depth;
+    memsize = round_up_u64(memsize, KB(4));
+    clipboard_out->arena = make_arena(allocator, memsize, 8);
+    clipboard_init_empty(clipboard_out, history_depth);
+}
+
+function void
+clipboard_clear(Clipboard *clipboard){
+    linalloc_clear(&clipboard->arena);
+    clipboard_init_empty(clipboard, clipboard->clip_capacity);
+}
+
+function String_Const_u8
+clipboard_post_internal_only(Clipboard *clipboard, String_Const_u8 string){
+    u32 rolled_index = clipboard->clip_index%clipboard->clip_capacity;
+    clipboard->clip_index += 1;
+    String_Const_u8 *slot = &clipboard->clips[rolled_index];
+    if (slot->str != 0){
+        if (slot->size < string.size ||
+            (slot->size - string.size) > KB(1)){
+            heap_free(&clipboard->heap, slot->str);
+            goto alloc_new;
+        }
+    }
+    else{
+        alloc_new:;
+        u8 *new_buf = (u8*)heap_allocate(&clipboard->heap, string.size);
+        slot->str = new_buf;
+    }
+    block_copy(slot->str, string.str, string.size);
+    slot->size = string.size;
+    return(*slot);
+}
+
+function u32
+clipboard_count(Clipboard *clipboard){
+    u32 result = clipboard->clip_index;
+    result = clamp_top(result, clipboard->clip_capacity);
+    return(result);
+}
+
+function String_Const_u8
+get_clipboard_index(Clipboard *clipboard, u32 item_index){
+    String_Const_u8 result = {};
+    u32 top = Min(clipboard->clip_index, clipboard->clip_capacity);
+    if (top > 0){
+        item_index = item_index%top;
+        i32 array_index = ((clipboard->clip_index - 1) - item_index)%top;
+        result = clipboard->clips[array_index];
+    }
+    return(result);
+}
+
+function String_Const_u8
+push_clipboard_index(Arena *arena, Clipboard *clipboard, i32 item_index){
+    String_Const_u8 result = get_clipboard_index(clipboard, item_index);
+    result = push_string_copy(arena, result);
+    return(result);
+}
+
+////////////////////////////////
+
+function void
+clipboard_clear(i32 clipboard_id){
+    clipboard_clear(&clipboard0);
+}
+
+function String_Const_u8
+clipboard_post_internal_only(i32 clipboard_id, String_Const_u8 string){
+    return(clipboard_post_internal_only(&clipboard0, string));
+}
+
+function b32
+clipboard_post(i32 clipboard_id, String_Const_u8 string){
+    clipboard_post_internal_only(clipboard_id, string);
+    system_post_clipboard(string, clipboard_id);
+    return(true);
+}
+
+function i32
+clipboard_count(i32 clipboard_id){
+    return(clipboard_count(&clipboard0));
+}
+
+function String_Const_u8
+push_clipboard_index(Arena *arena, i32 clipboard_id, i32 item_index){
+    return(push_clipboard_index(arena, &clipboard0, item_index));
+}
+
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(clipboard_record_clip)
+CUSTOM_DOC("In response to a new clipboard contents events, saves the new clip onto the clipboard history")
+{
+    User_Input in = get_current_input(app);
+    if (in.event.kind == InputEventKind_Core &&
+        in.event.core.code == CoreCode_NewClipboardContents){
+        clipboard_post_internal_only(0, in.event.core.string);
+    }
+}
+
+////////////////////////////////
+
 function b32
 clipboard_post_buffer_range(Application_Links *app, i32 clipboard_index, Buffer_ID buffer, Range_i64 range){
     b32 success = false;
     Scratch_Block scratch(app);
     String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
     if (string.size > 0){
-        clipboard_post(app, clipboard_index, string);
+        clipboard_post(clipboard_index, string);
         success = true;
     }
     return(success);
@@ -19,11 +135,13 @@ clipboard_post_buffer_range(Application_Links *app, i32 clipboard_index, Buffer_
 function void
 clipboard_update_history_from_system(Application_Links *app, i32 clipboard_id){
     Scratch_Block scratch(app);
-    String_Const_u8 string = system_get_clipboard(scratch);
+    String_Const_u8 string = system_get_clipboard(scratch, clipboard_id);
     if (string.str != 0){
-        clipboard_post_internal_only(app, clipboard_id, string);
+        clipboard_post_internal_only(clipboard_id, string);
     }
 }
+
+global List_String_Const_u8 clipboard_collection_list = {};
 
 function void
 clipboard_collection_render(Application_Links *app, Frame_Info frame_info, View_ID view){
@@ -31,18 +149,24 @@ clipboard_collection_render(Application_Links *app, Frame_Info frame_info, View_
     Rect_f32 region = draw_background_and_margin(app, view);
     Vec2_f32 mid_p = (region.p1 + region.p0)*0.5f;
     
-    Fancy_Line message = {};
-    push_fancy_string(scratch, &message, fcolor_id(defcolor_pop2),
+    Fancy_Block message = {};
+    Fancy_Line *line = push_fancy_line(scratch, &message);
+    push_fancy_string(scratch, line, fcolor_id(defcolor_pop2),
                       string_u8_litexpr("Collecting all clipboard events "));
-    push_fancy_string(scratch, &message, fcolor_id(defcolor_pop1),
+    push_fancy_string(scratch, line, fcolor_id(defcolor_pop1),
                       string_u8_litexpr("press [escape] to stop"));
     
+    for (Node_String_Const_u8 *node = clipboard_collection_list.first;
+         node != 0;
+         node = node->next){
+        line = push_fancy_line(scratch, &message);
+        push_fancy_string(scratch, line, fcolor_id(defcolor_text_default), node->string);
+    }
+    
     Face_ID face_id = get_face_id(app, 0);
-    
-    Vec2_f32 dim = get_fancy_line_dim(app, face_id, &message);
+    Vec2_f32 dim = get_fancy_block_dim(app, face_id, &message);
     Vec2_f32 half_dim = dim*0.5f;
-    
-    draw_fancy_line(app, face_id, fcolor_zero(), &message, mid_p - half_dim);
+    draw_fancy_block(app, face_id, fcolor_zero(), &message, mid_p - half_dim);
 }
 
 CUSTOM_UI_COMMAND_SIG(begin_clipboard_collection_mode)
@@ -52,6 +176,9 @@ CUSTOM_DOC("Allows the user to copy multiple strings from other applications bef
     if (!in_clipboard_collection_mode){
         in_clipboard_collection_mode = true;
         system_set_clipboard_catch_all(true);
+        
+        Scratch_Block scratch(app);
+        block_zero_struct(&clipboard_collection_list);
         
         View_ID view = get_this_ctx_view(app, Access_Always);
         View_Context ctx = view_current_context(app, view);
@@ -67,7 +194,14 @@ CUSTOM_DOC("Allows the user to copy multiple strings from other applications bef
             if (in.event.kind == InputEventKind_KeyStroke && in.event.key.code == KeyCode_Escape){
                 break;
             }
+            if (in.event.kind == InputEventKind_Core &&
+                in.event.core.code == CoreCode_NewClipboardContents){
+                String_Const_u8 stable_clip = clipboard_post_internal_only(0, in.event.core.string);
+                string_list_push(scratch, &clipboard_collection_list, stable_clip);
+            }
         }
+        
+        block_zero_struct(&clipboard_collection_list);
         
         system_set_clipboard_catch_all(false);
         in_clipboard_collection_mode = false;
@@ -98,7 +232,7 @@ CUSTOM_COMMAND_SIG(paste)
 CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
 {
     clipboard_update_history_from_system(app, 0);
-    i32 count = clipboard_count(app, 0);
+    i32 count = clipboard_count(0);
     if (count > 0){
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
         if_view_has_highlighted_range_delete_range(app, view);
@@ -112,7 +246,7 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
             
             Scratch_Block scratch(app);
             
-            String_Const_u8 string = push_clipboard_index(app, scratch, 0, *paste_index);
+            String_Const_u8 string = push_clipboard_index(scratch, 0, *paste_index);
             if (string.size > 0){
                 Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
                 
@@ -133,7 +267,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
 {
     Scratch_Block scratch(app);
     
-    i32 count = clipboard_count(app, 0);
+    i32 count = clipboard_count(0);
     if (count > 0){
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
         Managed_Scope scope = view_get_managed_scope(app, view);
@@ -149,7 +283,7 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
                 i32 paste_index = (*paste_index_ptr) + 1;
                 *paste_index_ptr = paste_index;
                 
-                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                String_Const_u8 string = push_clipboard_index(scratch, 0, paste_index);
                 
                 Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
                 
@@ -186,7 +320,7 @@ CUSTOM_DOC("Paste the next item on the clipboard and run auto-indent on the newl
 CUSTOM_COMMAND_SIG(clear_clipboard)
 CUSTOM_DOC("Clears the history of the clipboard")
 {
-    clipboard_clear(app, 0);
+    clipboard_clear(0);
 }
 
 ////////////////////////////////
@@ -194,7 +328,7 @@ CUSTOM_DOC("Clears the history of the clipboard")
 CUSTOM_COMMAND_SIG(multi_paste){
     Scratch_Block scratch(app);
     
-    i32 count = clipboard_count(app, 0);
+    i32 count = clipboard_count(0);
     if (count > 0){
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
         Managed_Scope scope = view_get_managed_scope(app, view);
@@ -208,7 +342,7 @@ CUSTOM_COMMAND_SIG(multi_paste){
                 i32 paste_index = (*paste_index_ptr) + 1;
                 *paste_index_ptr = paste_index;
                 
-                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                String_Const_u8 string = push_clipboard_index(scratch, 0, paste_index);
                 
                 String_Const_u8 insert_string = push_u8_stringf(scratch, "\n%.*s", string_expand(string));
                 
@@ -239,7 +373,7 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
             i64 total_size = 0;
             for (i32 paste_index = 0; paste_index < paste_count; ++paste_index){
                 Temp_Memory temp = begin_temp(scratch);
-                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                String_Const_u8 string = push_clipboard_index(scratch, 0, paste_index);
                 total_size += string.size + 1;
                 end_temp(temp);
             }
@@ -260,7 +394,7 @@ multi_paste_range(Application_Links *app, View_ID view, Range_i64 range, i32 pas
                 if (paste_index != first){
                     string_list_push(scratch, &list, SCu8("\n", 1));
                 }
-                String_Const_u8 string = push_clipboard_index(app, scratch, 0, paste_index);
+                String_Const_u8 string = push_clipboard_index(scratch, 0, paste_index);
                 if (string.size > 0){
                     string_list_push(scratch, &list, string);
                 }
@@ -334,7 +468,7 @@ multi_paste_interactive_up_down(Application_Links *app, i32 paste_count, i32 cli
 CUSTOM_COMMAND_SIG(multi_paste_interactive)
 CUSTOM_DOC("Paste multiple lines from the clipboard history, controlled with arrow keys")
 {
-    i32 clip_count = clipboard_count(app, 0);
+    i32 clip_count = clipboard_count(0);
     if (clip_count > 0){
         multi_paste_interactive_up_down(app, 1, clip_count);
     }
@@ -343,7 +477,7 @@ CUSTOM_DOC("Paste multiple lines from the clipboard history, controlled with arr
 CUSTOM_COMMAND_SIG(multi_paste_interactive_quick)
 CUSTOM_DOC("Paste multiple lines from the clipboard history, controlled by inputing the number of lines to paste")
 {
-    i32 clip_count = clipboard_count(app, 0);
+    i32 clip_count = clipboard_count(0);
     if (clip_count > 0){
         u8 string_space[256];
         Query_Bar_Group group(app);
@@ -360,6 +494,27 @@ CUSTOM_DOC("Paste multiple lines from the clipboard history, controlled by input
         multi_paste_interactive_up_down(app, initial_paste_count, clip_count);
     }
 }
+
+////////////////////////////////
+
+#if FCODER_TRANSITION_TO < 4001004
+function void
+clipboard_clear(Application_Links *app, i32 clipboard_id){
+    clipboard_clear(clipboard_id);
+}
+function b32
+clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string){
+    return(clipboard_post(clipboard_id, string));
+}
+function i32
+clipboard_count(Application_Links *app, i32 clipboard_id){
+    return(clipboard_count(clipboard_id));
+}
+function String_Const_u8
+push_clipboard_index(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index){
+    return(push_clipboard_index(arena, clipboard_id, item_index));
+}
+#endif
 
 // BOTTOM
 

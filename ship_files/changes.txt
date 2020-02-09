@@ -1,5 +1,6 @@
 
 4.1.4
+ + MAJOR: The clipboard history is now a fully custom layer implemented system. Users maintaining a customization layer should try to update their call sites to the old clipboard API. #define FCODER_TRANSITION_TO 4001004 to disable the transitional function wrappers when you are ready to make the transition.
  + buildsuper scripts now all come with '-win' '-linux' '-mac' postfixes and pass their OS identifier macro on the build line
  + clipboard is only read when the requests to, or when the collect-all mode is started via the command 'begin_clipboard_collection_mode'
  + 'clear_clipboard' command

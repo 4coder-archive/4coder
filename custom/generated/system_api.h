@@ -16,8 +16,8 @@
 #define system_wake_up_timer_set_sig() void system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds)
 #define system_signal_step_sig() void system_signal_step(u32 code)
 #define system_sleep_sig() void system_sleep(u64 microseconds)
-#define system_get_clipboard_sig() String_Const_u8 system_get_clipboard(Arena* arena)
-#define system_post_clipboard_sig() void system_post_clipboard(String_Const_u8 str)
+#define system_get_clipboard_sig() String_Const_u8 system_get_clipboard(Arena* arena, i32 index)
+#define system_post_clipboard_sig() void system_post_clipboard(String_Const_u8 str, i32 index)
 #define system_set_clipboard_catch_all_sig() void system_set_clipboard_catch_all(b32 enabled)
 #define system_get_clipboard_catch_all_sig() b32 system_get_clipboard_catch_all(void)
 #define system_cli_call_sig() b32 system_cli_call(Arena* scratch, char* path, char* script, CLI_Handles* cli_out)
@@ -66,8 +66,8 @@ typedef void system_wake_up_timer_release_type(Plat_Handle handle);
 typedef void system_wake_up_timer_set_type(Plat_Handle handle, u32 time_milliseconds);
 typedef void system_signal_step_type(u32 code);
 typedef void system_sleep_type(u64 microseconds);
-typedef String_Const_u8 system_get_clipboard_type(Arena* arena);
-typedef void system_post_clipboard_type(String_Const_u8 str);
+typedef String_Const_u8 system_get_clipboard_type(Arena* arena, i32 index);
+typedef void system_post_clipboard_type(String_Const_u8 str, i32 index);
 typedef void system_set_clipboard_catch_all_type(b32 enabled);
 typedef b32 system_get_clipboard_catch_all_type(void);
 typedef b32 system_cli_call_type(Arena* scratch, char* path, char* script, CLI_Handles* cli_out);
@@ -169,8 +169,8 @@ internal void system_wake_up_timer_release(Plat_Handle handle);
 internal void system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds);
 internal void system_signal_step(u32 code);
 internal void system_sleep(u64 microseconds);
-internal String_Const_u8 system_get_clipboard(Arena* arena);
-internal void system_post_clipboard(String_Const_u8 str);
+internal String_Const_u8 system_get_clipboard(Arena* arena, i32 index);
+internal void system_post_clipboard(String_Const_u8 str, i32 index);
 internal void system_set_clipboard_catch_all(b32 enabled);
 internal b32 system_get_clipboard_catch_all(void);
 internal b32 system_cli_call(Arena* scratch, char* path, char* script, CLI_Handles* cli_out);

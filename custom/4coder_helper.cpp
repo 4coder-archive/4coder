@@ -2418,15 +2418,6 @@ get_command_metadata(Custom_Command_Function *func){
 
 ////////////////////////////////
 
-function b32
-clipboard_post(Application_Links *app, i32 clipboard_id, String_Const_u8 string){
-    clipboard_post_internal_only(app, clipboard_id, string);
-    system_post_clipboard(string);
-    return(true);
-}
-
-////////////////////////////////
-
 // TODO(allen): REWRITE THIS EXACTLY HOW YOU WANT IT --- start ---
 
 internal Child_Process_Set_Target_Flags
