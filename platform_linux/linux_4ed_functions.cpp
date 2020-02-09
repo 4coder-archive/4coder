@@ -149,19 +149,12 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
             *fip++ = f;
         }
 
-        // NOTE(inso): I want to sort them like this (. files lower), but it looks like
-        // the sorting is done on the custom-layer side (lister), so this is pointless.
-        // TODO(inso): add linux-specific custom layer code?
-
-        /*
         qsort(result.infos, result.count, sizeof(File_Info*), (__compar_fn_t)&linux_compare_file_infos);
 
         for(u32 i = 0; i < result.count - 1; ++i) {
             result.infos[i]->next = result.infos[i+1];
         }
-
         result.infos[result.count-1]->next = NULL;
-        */
     }
 
     return result;

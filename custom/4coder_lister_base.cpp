@@ -329,7 +329,8 @@ lister_get_filtered(Arena *arena, Lister *lister){
             if (string_match_insensitive(node_string, key) && filtered.exact_matches.count == 0){
                 filtered.exact_matches.node_ptrs[filtered.exact_matches.count++] = node;
             }
-            else if (!has_wildcard &&
+            else if (key.size > 0 &&
+                     !has_wildcard &&
                      string_match_insensitive(string_prefix(node_string, key.size), key) &&
                      node->string.size > key.size &&
                      node->string.str[key.size] == '.'){
