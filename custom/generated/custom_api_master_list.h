@@ -152,6 +152,8 @@ api(custom) function void set_hot_directory(Application_Links* app, String_Const
 api(custom) function void send_exit_signal(Application_Links* app);
 api(custom) function void hard_exit(Application_Links* app);
 api(custom) function void set_window_title(Application_Links* app, String_Const_u8 title);
+api(custom) function void acquire_global_frame_mutex(Application_Links* app);
+api(custom) function void release_global_frame_mutex(Application_Links* app);
 api(custom) function Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 api(custom) function f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 api(custom) function void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);

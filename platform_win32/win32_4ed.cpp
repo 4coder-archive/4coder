@@ -920,16 +920,24 @@ system_mutex_release_sig(){
     }
 }
 
+global i32 global_frame_mutex_state_ticker = 0;
+
 internal
 system_acquire_global_frame_mutex_sig(){
-    if (tctx->kind == ThreadKind_AsyncTasks){
+    if (tctx->kind == ThreadKind_AsyncTasks ||
+        tctx->kind == ThreadKind_Main){
         system_mutex_acquire(win32vars.global_frame_mutex);
+        Assert(global_frame_mutex_state_ticker == 0);
+        global_frame_mutex_state_ticker = 1;
     }
 }
 
 internal
 system_release_global_frame_mutex_sig(){
-    if (tctx->kind == ThreadKind_AsyncTasks){
+    if (tctx->kind == ThreadKind_AsyncTasks ||
+        tctx->kind == ThreadKind_Main){
+        Assert(global_frame_mutex_state_ticker == 1);
+        global_frame_mutex_state_ticker = 0;
         system_mutex_release(win32vars.global_frame_mutex);
     }
 }
@@ -1732,7 +1740,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     ShowWindow(win32vars.window_handle, SW_SHOW);
     
     win32vars.global_frame_mutex = system_mutex_make();
-    system_mutex_acquire(win32vars.global_frame_mutex);
+    system_acquire_global_frame_mutex(win32vars.tctx);
     
     u64 timer_start = system_now_time();
     MSG msg;
@@ -1753,7 +1761,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
             
             // NOTE(allen): while we're doing this (and possibly sleeping)
             // we can let async processes get there time in.
-            system_mutex_release(win32vars.global_frame_mutex);
+			system_release_global_frame_mutex(win32vars.tctx);
             
             b32 get_more_messages = true;
             do{
@@ -1830,7 +1838,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 }
             }while (get_more_messages);
             
-            system_mutex_acquire(win32vars.global_frame_mutex);
+			system_acquire_global_frame_mutex(win32vars.tctx);
         }
         
         // NOTE(allen): Mouse Out of Window Detection
@@ -1955,7 +1963,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         
         // NOTE(allen): sleep a bit to cool off :)
-        system_mutex_release(win32vars.global_frame_mutex);
+		system_release_global_frame_mutex(win32vars.tctx);
         
         u64 timer_end = system_now_time();
         u64 end_target = timer_start + frame_useconds;
@@ -1969,7 +1977,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         timer_start = system_now_time();
         
-        system_mutex_acquire(win32vars.global_frame_mutex);
+        system_acquire_global_frame_mutex(win32vars.tctx);
         
         win32vars.first = false;
     }

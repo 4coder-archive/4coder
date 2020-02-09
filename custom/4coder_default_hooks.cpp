@@ -150,26 +150,19 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
 }
 
 function void
-default_tick(Application_Links *app, Frame_Info frame_info){
+code_index_update_tick(Application_Links *app){
     Scratch_Block scratch(app);
-    
     for (Buffer_Modified_Node *node = global_buffer_modified_set.first;
          node != 0;
          node = node->next){
         Temp_Memory_Block temp(scratch);
         Buffer_ID buffer_id = node->buffer;
         
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        
         String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
-        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-        if (tokens_ptr == 0){
+        Token_Array tokens = get_token_array_from_buffer(app, buffer_id);
+        if (tokens.count == 0){
             continue;
         }
-        if (tokens_ptr->count == 0){
-            continue;
-        }
-        Token_Array tokens = *tokens_ptr;
         
         Arena arena = make_arena_system(KB(16));
         Code_Index_File *index = push_array_zero(&arena, Code_Index_File, 1);
@@ -178,7 +171,8 @@ default_tick(Application_Links *app, Frame_Info frame_info){
         Generic_Parse_State state = {};
         generic_parse_init(app, &arena, contents, &tokens, &state);
         // TODO(allen): Actually determine this in a fair way.
-        // Maybe switch to an enum.
+        // Maybe switch to an enum?
+        // Actually probably a pointer to a struct that defines the language.
         state.do_cpp_parse = true;
         generic_parse_full_input_breaks(index, &state, max_i32);
         
@@ -189,7 +183,11 @@ default_tick(Application_Links *app, Frame_Info frame_info){
     }
     
     buffer_modified_set_clear();
-    
+}
+
+function void
+default_tick(Application_Links *app, Frame_Info frame_info){
+    code_index_update_tick(app);
     if (tick_all_fade_ranges(frame_info.animation_dt)){
         animate_in_n_milliseconds(app, 0);
     }
@@ -613,13 +611,12 @@ parse_async__inner(Async_Context *actx, Buffer_ID buffer_id,
     }
     
     if (!canceled){
-        Thread_Context *tctx = get_thread_context(app);
-        system_acquire_global_frame_mutex(tctx);
+        acquire_global_frame_mutex(app);
         code_index_lock();
         code_index_set_file(buffer_id, arena, index);
         code_index_unlock();
         buffer_clear_layout_cache(app, buffer_id);
-        system_release_global_frame_mutex(tctx);
+        release_global_frame_mutex(app);
     }
     else{
         linalloc_clear(&arena);
@@ -630,16 +627,15 @@ function void
 do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Application_Links *app = actx->app;
     ProfileScope(app, "async lex");
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
+    Scratch_Block scratch(app);
     
     String_Const_u8 contents = {};
     {
         ProfileBlock(app, "async lex contents (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
+        acquire_global_frame_mutex(app);
         ProfileBlock(app, "async lex contents (after mutex)");
         contents = push_whole_buffer(app, scratch, buffer_id);
-        system_release_global_frame_mutex(tctx);
+        release_global_frame_mutex(app);
     }
     
     i32 limit_factor = 10000;
@@ -662,13 +658,12 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     
     if (!canceled){
         ProfileBlock(app, "async lex save results (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
+        acquire_global_frame_mutex(app);
         ProfileBlock(app, "async lex save results (after mutex)");
         Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
         if (scope != 0){
             Base_Allocator *allocator = managed_scope_allocator(app, scope);
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
+            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
             base_free(allocator, tokens_ptr->tokens);
             Token_Array tokens = {};
             tokens.tokens = base_array(allocator, Token, list.total_count);
@@ -678,7 +673,7 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
             block_copy_struct(tokens_ptr, &tokens);
         }
         buffer_mark_as_modified(buffer_id);
-        system_release_global_frame_mutex(tctx);
+        release_global_frame_mutex(app);
     }
 }
 
@@ -689,132 +684,6 @@ do_full_lex_async(Async_Context *actx, Data data){
         do_full_lex_async__inner(actx, buffer);
     }
 }
-
-#if 0
-function void
-do_full_lex_and_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
-    Application_Links *app = actx->app;
-    ProfileScope(app, "async lex");
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
-    
-    String_Const_u8 contents = {};
-    {
-        ProfileBlock(app, "async lex contents (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
-        ProfileBlock(app, "async lex contents (after mutex)");
-        
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        if (scope != 0){
-            Base_Allocator *allocator = managed_scope_allocator(app, scope);
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
-            base_free(allocator, tokens_ptr->tokens);
-            block_zero_struct(tokens_ptr);
-        }
-        
-        contents = push_whole_buffer(app, scratch, buffer_id);
-        system_release_global_frame_mutex(tctx);
-    }
-    
-    i32 limit_factor = 10000;
-    
-    Token_List list = {};
-    b32 canceled = false;
-    
-    {
-        Lex_State_Cpp state = {};
-        lex_full_input_cpp_init(&state, contents);
-        for (;;){
-            ProfileBlock(app, "async lex block");
-            if (lex_full_input_cpp_breaks(scratch, &list, &state, limit_factor)){
-                break;
-            }
-            if (async_check_canceled(actx)){
-                canceled = true;
-                break;
-            }
-        }
-    }
-    
-    Token_Array tokens = {};
-    if (!canceled){
-        ProfileBlock(app, "async lex save results (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
-        ProfileBlock(app, "async lex save results (after mutex)");
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        if (scope != 0){
-            Base_Allocator *allocator = managed_scope_allocator(app, scope);
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
-            base_free(allocator, tokens_ptr->tokens);
-            tokens.tokens = base_array(allocator, Token, list.total_count);
-            tokens.count = list.total_count;
-            tokens.max = list.total_count;
-            token_fill_memory_from_list(tokens.tokens, &list);
-            block_copy_struct(tokens_ptr, &tokens);
-        }
-        system_release_global_frame_mutex(tctx);
-    }
-    
-    if (tokens.count > 0){
-        parse_async__inner(actx, buffer_id, contents, &tokens, limit_factor);
-    }
-}
-
-function void
-do_full_lex_and_parse_async(Async_Context *actx, Data data){
-    if (data.size == sizeof(Buffer_ID)){
-        Buffer_ID buffer = *(Buffer_ID*)data.data;
-        do_full_lex_and_parse_async__inner(actx, buffer);
-    }
-}
-#endif
-
-#if 0
-function void
-do_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
-    Application_Links *app = actx->app;
-    ProfileScope(app, "async lex");
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
-    
-    String_Const_u8 contents = {};
-    Token_Array tokens = {};
-    {
-        ProfileBlock(app, "async parse contents (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
-        ProfileBlock(app, "async parse contents (after mutex)");
-        
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        if (scope != 0){
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
-            tokens.count = tokens_ptr->count;
-            tokens.tokens = push_array_write(scratch, Token, tokens.count, tokens_ptr->tokens);
-            if (tokens.count > 0){
-                contents = push_whole_buffer(app, scratch, buffer_id);
-            }
-        }
-        
-        system_release_global_frame_mutex(tctx);
-    }
-    
-    i32 limit_factor = 10000;
-    
-    if (tokens.count > 0){
-        parse_async__inner(actx, buffer_id, contents, &tokens, limit_factor);
-    }
-}
-
-function void
-do_parse_async(Async_Context *actx, Data data){
-    if (data.size == sizeof(Buffer_ID)){
-        Buffer_ID buffer = *(Buffer_ID*)data.data;
-        do_parse_async__inner(actx, buffer);
-    }
-}
-#endif
 
 BUFFER_HOOK_SIG(default_begin_buffer){
     ProfileScope(app, "begin buffer");
@@ -829,7 +698,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         for (i32 i = 0; i < extensions.count; ++i){
             if (string_match(ext, extensions.strings[i])){
                 
-                if (string_match(ext, string_u8_litexpr("cpp")) || 
+                if (string_match(ext, string_u8_litexpr("cpp")) ||
                     string_match(ext, string_u8_litexpr("h")) ||
                     string_match(ext, string_u8_litexpr("c")) ||
                     string_match(ext, string_u8_litexpr("hpp")) ||
@@ -837,7 +706,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
                     treat_as_code = true;
                 }
                 
-#if 0                
+#if 0
                 treat_as_code = true;
                 
                 if (string_match(ext, string_u8_litexpr("cs"))){
@@ -861,7 +730,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
                     parse_context_id = parse_context_language_rust;
                 }
                 
-                if (string_match(ext, string_u8_litexpr("cpp")) || 
+                if (string_match(ext, string_u8_litexpr("cpp")) ||
                     string_match(ext, string_u8_litexpr("h")) ||
                     string_match(ext, string_u8_litexpr("c")) ||
                     string_match(ext, string_u8_litexpr("hpp")) ||
@@ -1043,7 +912,7 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     b32 do_full_relex = false;
     
     if (async_task_is_running_or_pending(&global_async_system, *lex_task_ptr)){
-        async_task_cancel(&global_async_system, *lex_task_ptr);
+        async_task_cancel(app, &global_async_system, *lex_task_ptr);
         buffer_unmark_as_modified(buffer_id);
         do_full_relex = true;
         *lex_task_ptr = 0;
@@ -1129,7 +998,7 @@ BUFFER_HOOK_SIG(default_end_buffer){
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
     if (lex_task_ptr != 0){
-        async_task_cancel(&global_async_system, *lex_task_ptr);
+        async_task_cancel(app, &global_async_system, *lex_task_ptr);
     }
     buffer_unmark_as_modified(buffer_id);
     code_index_lock();

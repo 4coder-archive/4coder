@@ -881,8 +881,8 @@ function Layout_Item_List
 layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Code_Index_File *file, Layout_Wrap_Kind kind){
     Scratch_Block scratch(app);
     
-    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
-    Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    Token_Array tokens = get_token_array_from_buffer(app, buffer);
+    Token_Array *tokens_ptr = &tokens;
     
     Layout_Item_List list = get_empty_item_list(range);
     String_Const_u8 text = push_buffer_range(app, scratch, buffer, range);

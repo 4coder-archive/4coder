@@ -2738,6 +2738,40 @@ set_window_title(Application_Links *app, String_Const_u8 title)
     models->title_space[copy_size] = 0;
 }
 
+api(custom) function void
+acquire_global_frame_mutex(Application_Links *app){
+    Thread_Context *tctx = app->tctx;
+    Thread_Context_Extra_Info *tctx_info = (Thread_Context_Extra_Info*)tctx->user_data;
+    if (tctx_info != 0 && tctx_info->coroutine != 0){
+        Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
+        Assert(coroutine != 0);
+        Co_Out *out = (Co_Out*)coroutine->out;
+        out->request = CoRequest_AcquireGlobalFrameMutex;
+        coroutine_yield(coroutine);
+    }
+    else{
+        system_acquire_global_frame_mutex(tctx);
+    }
+}
+
+api(custom) function void
+release_global_frame_mutex(Application_Links *app){
+    Thread_Context *tctx = app->tctx;
+    Thread_Context_Extra_Info *tctx_info = (Thread_Context_Extra_Info*)tctx->user_data;
+    if (tctx_info != 0 && tctx_info->coroutine != 0){
+        Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
+        Assert(coroutine != 0);
+        Co_Out *out = (Co_Out*)coroutine->out;
+        out->request = CoRequest_ReleaseGlobalFrameMutex;
+        coroutine_yield(coroutine);
+    }
+    else{
+        system_release_global_frame_mutex(tctx);
+    }
+}
+
+////////////////////////////////
+
 api(custom) function Vec2_f32
 draw_string_oriented(Application_Links *app, Face_ID font_id, ARGB_Color color,
                      String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta)

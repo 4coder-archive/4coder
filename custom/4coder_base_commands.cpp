@@ -1,5 +1,5 @@
 /*
-4coder_base_commands.cpp - Base commands such as inserting characters, and 
+4coder_base_commands.cpp - Base commands such as inserting characters, and
 moving the cursor, which work even without the default 4coder framework.
 */
 
@@ -626,13 +626,15 @@ clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer){
                     }
                 }
                 
-                i64 start = start_offset + line_start;
-                i64 end   = end_offset   + line_start;
-                
-                Batch_Edit *batch = push_array(scratch, Batch_Edit, 1);
-                sll_queue_push(batch_first, batch_last, batch);
-                batch->edit.text = SCu8();
-                batch->edit.range = Ii64(start, end);
+                if (start_offset > 0){
+                    i64 start = start_offset + line_start;
+                    i64 end   = end_offset   + line_start;
+                    
+                    Batch_Edit *batch = push_array(scratch, Batch_Edit, 1);
+                    sll_queue_push(batch_first, batch_last, batch);
+                    batch->edit.text = SCu8();
+                    batch->edit.range = Ii64(start, end);
+                }
             }
         }
     }

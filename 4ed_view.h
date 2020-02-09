@@ -29,6 +29,8 @@ enum{
     CoRequest_None = 0,
     CoRequest_NewFontFace = 1,
     CoRequest_ModifyFace = 2,
+    CoRequest_AcquireGlobalFrameMutex = 3,
+    CoRequest_ReleaseGlobalFrameMutex = 4,
 };
 
 struct Co_Out{

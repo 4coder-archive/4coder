@@ -92,21 +92,17 @@ async_task_thread(void *thread_ptr){
         thread->node = node;
         thread->task = node->task;
         thread->cancel_signal = false;
-        thread->join_signal = false;
         system_mutex_release(async_system->mutex);
         
         node->func(&ctx, node->data);
         
         system_mutex_acquire(async_system->mutex);
-        if (thread->join_signal){
-            system_condition_variable_signal(async_system->join_cv);
-        }
         node->thread = 0;
         thread->node = 0;
         thread->task = 0;
         thread->cancel_signal = false;
-        thread->join_signal = false;
         async_free_node(async_system, node);
+        system_condition_variable_signal(async_system->join_cv);
         system_mutex_release(async_system->mutex);
     }
 }
@@ -179,19 +175,42 @@ async_task_is_running(Async_System *async_system, Async_Task task){
 }
 
 function b32
-async_task_is_running_or_pending(Async_System *async_system, Async_Task task){
-    system_mutex_acquire(async_system->mutex);
+async_task_is_running_or_pending__inner(Async_System *async_system, Async_Task task){
     Async_Node *node = async_get_pending_node(async_system, task);
-    if (node != 0){
+    if (node == 0){
         node = async_get_running_node(async_system, task);
     }
-    system_mutex_release(async_system->mutex);
     return(node != 0);
 }
 
-// TODO(allen): ensure that the job is canceled before this returns.
+function b32
+async_task_is_running_or_pending(Async_System *async_system, Async_Task task){
+    system_mutex_acquire(async_system->mutex);
+    b32 result = async_task_is_running_or_pending__inner(async_system, task);
+    system_mutex_release(async_system->mutex);
+    return(result);
+}
+
 function void
-async_task_cancel(Async_System *async_system, Async_Task task){
+async_task_wait__inner(Application_Links *app, Async_System *async_system, Async_Task task){
+    release_global_frame_mutex(app);
+    for (;async_task_is_running_or_pending__inner(async_system, task);){
+        system_condition_variable_wait(async_system->join_cv, async_system->mutex);
+    }
+    acquire_global_frame_mutex(app);
+}
+
+function void
+async_task_wait(Application_Links *app, Async_System *async_system, Async_Task task){
+    system_mutex_acquire(async_system->mutex);
+    if (async_task_is_running_or_pending__inner(async_system, task)){
+        async_task_wait__inner(app, async_system, task);
+    }
+    system_mutex_release(async_system->mutex);
+}
+
+function void
+async_task_cancel(Application_Links *app, Async_System *async_system, Async_Task task){
     system_mutex_acquire(async_system->mutex);
     Async_Node *node = async_get_pending_node(async_system, task);
     if (node != 0){
@@ -204,6 +223,7 @@ async_task_cancel(Async_System *async_system, Async_Task task){
         if (node != 0){
             b32 *cancel_signal = &node->thread->cancel_signal;
             atomic_write_b32(cancel_signal, true);
+            async_task_wait__inner(app, async_system, task);
         }
     }
     system_mutex_release(async_system->mutex);

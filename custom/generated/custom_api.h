@@ -152,6 +152,8 @@
 #define custom_send_exit_signal_sig() void custom_send_exit_signal(Application_Links* app)
 #define custom_hard_exit_sig() void custom_hard_exit(Application_Links* app)
 #define custom_set_window_title_sig() void custom_set_window_title(Application_Links* app, String_Const_u8 title)
+#define custom_acquire_global_frame_mutex_sig() void custom_acquire_global_frame_mutex(Application_Links* app)
+#define custom_release_global_frame_mutex_sig() void custom_release_global_frame_mutex(Application_Links* app)
 #define custom_draw_string_oriented_sig() Vec2_f32 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta)
 #define custom_get_string_advance_sig() f32 custom_get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str)
 #define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color)
@@ -326,6 +328,8 @@ typedef void custom_set_hot_directory_type(Application_Links* app, String_Const_
 typedef void custom_send_exit_signal_type(Application_Links* app);
 typedef void custom_hard_exit_type(Application_Links* app);
 typedef void custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
+typedef void custom_acquire_global_frame_mutex_type(Application_Links* app);
+typedef void custom_release_global_frame_mutex_type(Application_Links* app);
 typedef Vec2_f32 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 typedef f32 custom_get_string_advance_type(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
@@ -501,6 +505,8 @@ custom_set_hot_directory_type *set_hot_directory;
 custom_send_exit_signal_type *send_exit_signal;
 custom_hard_exit_type *hard_exit;
 custom_set_window_title_type *set_window_title;
+custom_acquire_global_frame_mutex_type *acquire_global_frame_mutex;
+custom_release_global_frame_mutex_type *release_global_frame_mutex;
 custom_draw_string_oriented_type *draw_string_oriented;
 custom_get_string_advance_type *get_string_advance;
 custom_draw_rectangle_type *draw_rectangle;
@@ -677,6 +683,8 @@ internal void set_hot_directory(Application_Links* app, String_Const_u8 string);
 internal void send_exit_signal(Application_Links* app);
 internal void hard_exit(Application_Links* app);
 internal void set_window_title(Application_Links* app, String_Const_u8 title);
+internal void acquire_global_frame_mutex(Application_Links* app);
+internal void release_global_frame_mutex(Application_Links* app);
 internal Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 internal f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 internal void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
@@ -853,6 +861,8 @@ global custom_set_hot_directory_type *set_hot_directory = 0;
 global custom_send_exit_signal_type *send_exit_signal = 0;
 global custom_hard_exit_type *hard_exit = 0;
 global custom_set_window_title_type *set_window_title = 0;
+global custom_acquire_global_frame_mutex_type *acquire_global_frame_mutex = 0;
+global custom_release_global_frame_mutex_type *release_global_frame_mutex = 0;
 global custom_draw_string_oriented_type *draw_string_oriented = 0;
 global custom_get_string_advance_type *get_string_advance = 0;
 global custom_draw_rectangle_type *draw_rectangle = 0;
