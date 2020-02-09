@@ -12,6 +12,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     SelectMap(global_id);
     BindCore(default_startup, CoreCode_Startup);
     BindCore(default_try_exit, CoreCode_TryExit);
+    BindCore(clipboard_record_clip, CoreCode_NewClipboardContents);
     Bind(keyboard_macro_start_recording , KeyCode_U, KeyCode_Control);
     Bind(keyboard_macro_finish_recording, KeyCode_U, KeyCode_Control, KeyCode_Shift);
     Bind(keyboard_macro_replay,           KeyCode_U, KeyCode_Alt);

@@ -207,41 +207,6 @@ child_process_get_state(Application_Links *app, Child_Process_ID child_process_i
 }
 
 api(custom) function b32
-clipboard_clear(Application_Links *app, i32 clipboard_id){
-    Models *models = (Models*)app->cmd_context;
-    working_set_clipboard_clear(&models->heap, &models->working_set);
-    return(true);
-}
-
-api(custom) function b32
-clipboard_post_internal_only(Application_Links *app, i32 clipboard_id, String_Const_u8 string)
-{
-    Models *models = (Models*)app->cmd_context;
-    String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, (i32)string.size);
-    block_copy(dest->str, string.str, string.size);
-    return(true);
-}
-
-api(custom) function i32
-clipboard_count(Application_Links *app, i32 clipboard_id)
-{
-    Models *models = (Models*)app->cmd_context;
-    return(models->working_set.clipboard_size);
-}
-
-api(custom) function String_Const_u8
-push_clipboard_index(Application_Links *app, Arena *arena, i32 clipboard_id, i32 item_index)
-{
-    Models *models = (Models*)app->cmd_context;
-    String_Const_u8 *str = working_set_clipboard_index(&models->working_set, item_index);
-    String_Const_u8 result = {};
-    if (str != 0){
-        result = push_string_copy(arena, *str);
-    }
-    return(result);
-}
-
-api(custom) function b32
 enqueue_virtual_event(Application_Links *app, Input_Event *event){
     Models *models = (Models*)app->cmd_context;
     b32 result = false;
@@ -2013,8 +1978,8 @@ managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Manage
         }
         else{
 #define M \
-            "ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
-                print_message(app, string_u8_litexpr(M));
+"ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
+            print_message(app, string_u8_litexpr(M));
 #undef M
         }
     }

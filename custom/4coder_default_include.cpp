@@ -7,6 +7,10 @@
 #if !defined(FCODER_DEFAULT_INCLUDE_CPP)
 #define FCODER_DEFAULT_INCLUDE_CPP
 
+#if !defined(FCODER_TRANSITION_TO)
+#define FCODER_TRANSITION_TO 0
+#endif
+
 #include "4coder_base_types.h"
 #include "4coder_version.h"
 #include "4coder_table.h"
@@ -33,6 +37,7 @@
 #include "4coder_insertion.h"
 #include "4coder_command_map.h"
 #include "4coder_lister_base.h"
+#include "4coder_clipboard.h"
 #include "4coder_default_framework.h"
 #include "4coder_config.h"
 #include "4coder_auto_indent.h"
@@ -91,6 +96,7 @@
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
 #include "4coder_default_framework.cpp"
+#include "4coder_clipboard.cpp"
 #include "4coder_lister_base.cpp"
 #include "4coder_base_commands.cpp"
 #include "4coder_insertion.cpp"
@@ -103,7 +109,6 @@
 #include "4coder_jump_lister.cpp"
 #include "4coder_code_index_listers.cpp"
 #include "4coder_log_parser.cpp"
-#include "4coder_clipboard.cpp"
 #include "4coder_keyboard_macro.cpp"
 #include "4coder_cli_command.cpp"
 #include "4coder_build_commands.cpp"

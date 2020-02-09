@@ -120,10 +120,12 @@ define_api(Arena *arena){
     {
         API_Call *call = api_call(arena, api, "get_clipboard", "String_Const_u8");
         api_param(arena, call, "Arena*", "arena");
+        api_param(arena, call, "i32", "index");
     }
     {
         API_Call *call = api_call(arena, api, "post_clipboard", "void");
         api_param(arena, call, "String_Const_u8", "str");
+        api_param(arena, call, "i32", "index");
     }
     
     {

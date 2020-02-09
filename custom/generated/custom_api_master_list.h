@@ -6,10 +6,6 @@ api(custom) function b32 child_process_set_target_buffer(Application_Links* app,
 api(custom) function Child_Process_ID buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Buffer_ID child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id);
 api(custom) function Process_State child_process_get_state(Application_Links* app, Child_Process_ID child_process_id);
-api(custom) function b32 clipboard_clear(Application_Links* app, i32 clipboard_id);
-api(custom) function b32 clipboard_post_internal_only(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
-api(custom) function i32 clipboard_count(Application_Links* app, i32 clipboard_id);
-api(custom) function String_Const_u8 push_clipboard_index(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index);
 api(custom) function b32 enqueue_virtual_event(Application_Links* app, Input_Event* event);
 api(custom) function i32 get_buffer_count(Application_Links* app);
 api(custom) function Buffer_ID get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
