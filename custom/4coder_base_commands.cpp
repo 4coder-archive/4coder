@@ -584,13 +584,9 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     view_set_cursor_and_preferred_x(app, view, seek_pos(range.max));
 }
 
-CUSTOM_COMMAND_SIG(clean_all_lines)
-CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
-{
+function void
+clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer){
     ProfileScope(app, "clean all lines");
-    View_ID view = get_active_view(app, Access_ReadWriteVisible);
-    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-    
     Scratch_Block scratch(app);
     Batch_Edit *batch_first = 0;
     Batch_Edit *batch_last = 0;
@@ -644,6 +640,15 @@ CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
     if (batch_first != 0){
         buffer_batch_edit(app, buffer, batch_first);
     }
+}
+
+CUSTOM_COMMAND_SIG(clean_all_lines)
+CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
+{
+    ProfileScope(app, "clean all lines");
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    clean_all_lines_buffer(app, buffer);
 }
 
 ////////////////////////////////

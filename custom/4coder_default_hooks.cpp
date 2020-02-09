@@ -993,7 +993,8 @@ BUFFER_HOOK_SIG(default_file_save){
     ProfileScope(app, "default file save");
     
     b32 is_virtual = global_config.enable_virtual_whitespace;
-    if (global_config.automatically_indent_text_on_save && is_virtual){ 
+    if (global_config.automatically_indent_text_on_save && is_virtual){
+        clean_all_lines_buffer(app, buffer_id);
         auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
     }
     

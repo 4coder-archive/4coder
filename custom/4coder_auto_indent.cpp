@@ -21,7 +21,7 @@ make_batch_from_indentations(Application_Links *app, Arena *arena, Buffer_ID buf
         if (indent_info.is_blank && HasFlag(flags, Indent_ClearLine)){
             correct_indentation = 0;
         }
-        if (correct_indentation == -1){
+        if (correct_indentation <= -1){
             correct_indentation = indent_info.indent_pos;
         }
         
@@ -275,11 +275,11 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
             }
             
 #define EMIT(N) \
-Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
-if (line_it == lines.end){goto finished;} \
-actual_indent = N; )
-            
-            i64 line_it = line_last_indented;
+            Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
+                  if (line_it == lines.end){goto finished;} \
+                  actual_indent = N; )
+                
+                i64 line_it = line_last_indented;
             if (lines.first <= line_cache.where_token_starts){
                 for (;line_it < line_cache.where_token_starts;){
                     line_it += 1;
