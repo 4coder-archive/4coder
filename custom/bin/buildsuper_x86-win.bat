@@ -10,7 +10,7 @@ REM   1. preprocess the build target
 REM   2. build the metadata generator
 REM   3. run the metadata generator on the result from (1)
 REM   4. build the build target
-REM   5. cleanup after the metadata generator 
+REM   5. cleanup after the metadata generator
 REM  All output files are generated in the current directory when the script is run
 
 set location=%cd%
@@ -30,6 +30,9 @@ set debug=/Zi
 set release=/O2 /Zi
 set mode=%debug%
 if "%2" == "release" (set mode=%release%)
+
+set binname=%3
+if "%binname%" == "" set binname="custom_4coder"
 
 set opts=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4457 /WX
 set opts=%opts% /GR- /nologo /FC

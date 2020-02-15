@@ -158,10 +158,10 @@ make_data(void *memory, u64 size){
 
 global_const Data zero_data = {};
 
-#define data_initr(m,s) {(m), (s)}
-#define data_initr_struct(s) {(s), sizeof(*(s))}
-#define data_initr_array(a) {(a), sizeof(a)}
-#define data_initr_string(s) {(s), sizeof(s) - 1}
+#define data_initr(m,s) {(u8*)(m), (s)}
+#define data_initr_struct(s) {(u8*)(s), sizeof(*(s))}
+#define data_initr_array(a) {(u8*)(a), sizeof(a)}
+#define data_initr_string(s) {(u8*)(s), sizeof(s) - 1}
 
 ////////////////////////////////
 
@@ -268,6 +268,23 @@ block_fill_u64(void *a, u64 size, u64 val){
 
 #define block_match_struct(a,b) block_match((a), (b), sizeof(*(a)))
 #define block_match_array(a,b) block_match((a), (b), sizeof(a))
+
+function void
+block_range_copy__inner(void *dst, void *src, Range_u64 range, i64 shift){
+    block_copy((u8*)dst + range.first + shift, (u8*)src + range.first, range.max - range.min);
+}
+
+function void
+block_range_copy__inner(void *dst, void *src, Range_u64 range, i64 shift, u64 item_size){
+    range.first *= item_size;
+    range.one_past_last *= item_size;
+    shift *= item_size;
+    block_range_copy__inner(dst, src, range, shift);
+}
+
+#define block_range_copy(d,s,r,h) block_range_copy__inner((d),(s),Iu64(r),(i64)(h))
+#define block_range_copy_sized(d,s,r,h,i) block_range_copy__inner((d),(s),Iu64(r),(i64)(h),(i))
+#define block_range_copy_typed(d,s,r,h) block_range_copy_sized((d),(s),(r),(h),sizeof(*(d)))
 
 function void
 block_copy_array_shift__inner(void *dst, void *src, u64 it_size, Range_i64 range, i64 shift){
@@ -1540,6 +1557,20 @@ unlerp(u64 a, u64 x, u64 b){
     return(r);
 }
 
+function Range_f32
+unlerp(f32 a, Range_f32 x, f32 b){
+    x.min = unlerp(a, x.min, b);
+    x.max = unlerp(a, x.max, b);
+    return(x);
+}
+
+function Range_f32
+lerp(f32 a, Range_f32 x, f32 b){
+    x.min = lerp(a, x.min, b);
+    x.max = lerp(a, x.max, b);
+    return(x);
+}
+
 function f32
 lerp(Range_f32 range, f32 t){
     return(lerp(range.min, t, range.max));
@@ -1777,6 +1808,11 @@ function Range_f32
 If32(){
     Range_f32 interval = {};
     return(interval);
+}
+
+function Range_u64
+Iu64(Range_i32 r){
+    return(Iu64(r.min, r.max));
 }
 
 global Range_i32 Ii32_neg_inf = {max_i32, min_i32};
@@ -2333,6 +2369,14 @@ rect_dim(Rect_i32 r){
     Vec2_i32 v = {r.x1 - r.x0, r.y1 - r.y0};
     return(v);
 }
+function Range_i32
+rect_x(Rect_i32 r){
+    return(Ii32(r.x0, r.x1));
+}
+function Range_i32
+rect_y(Rect_i32 r){
+    return(Ii32(r.y0, r.y1));
+}
 function i32
 rect_width(Rect_i32 r){
     return(r.x1 - r.x0);
@@ -2345,6 +2389,14 @@ function Vec2_f32
 rect_dim(Rect_f32 r){
     Vec2_f32 v = {r.x1 - r.x0, r.y1 - r.y0};
     return(v);
+}
+function Range_f32
+rect_x(Rect_f32 r){
+    return(If32(r.x0, r.x1));
+}
+function Range_f32
+rect_y(Rect_f32 r){
+    return(If32(r.y0, r.y1));
 }
 function f32
 rect_width(Rect_f32 r){
@@ -4881,6 +4933,16 @@ string_find_first_insensitive(String_Const_u16 str, String_Const_u16 needle){
 function u64
 string_find_first_insensitive(String_Const_u32 str, String_Const_u32 needle){
     return(string_find_first(str, needle, StringMatch_CaseInsensitive));
+}
+
+function b32
+string_has_substr(String_Const_u8 str, String_Const_u8 needle, String_Match_Rule rule){
+    return(string_find_first(str, needle, rule) < str.size);
+}
+
+function b32
+string_has_substr(String_Const_u8 str, String_Const_u8 needle){
+    return(string_find_first(str, needle, StringMatch_Exact) < str.size);
 }
 
 function i32

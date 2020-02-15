@@ -386,6 +386,24 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     draw_set_clip(app, prev_clip);
 }
 
+function Rect_f32
+default_draw_query_bars(Application_Links *app, Rect_f32 region, View_ID view_id, Face_ID face_id){
+    Face_Metrics face_metrics = get_face_metrics(app, face_id);
+    f32 line_height = face_metrics.line_height;
+    
+    Query_Bar *space[32];
+    Query_Bar_Ptr_Array query_bars = {};
+    query_bars.ptrs = space;
+    if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
+        for (i32 i = 0; i < query_bars.count; i += 1){
+            Rect_f32_Pair pair = layout_query_bar_on_top(region, line_height, 1);
+            draw_query_bar(app, query_bars.ptrs[i], face_id, pair.min);
+            region = pair.max;
+        }
+    }
+    return(region);
+}
+
 function void
 default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID view_id){
     ProfileScope(app, "default render caller");
@@ -422,18 +440,7 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     }
     
     // NOTE(allen): query bars
-    {
-        Query_Bar *space[32];
-        Query_Bar_Ptr_Array query_bars = {};
-        query_bars.ptrs = space;
-        if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
-            for (i32 i = 0; i < query_bars.count; i += 1){
-                Rect_f32_Pair pair = layout_query_bar_on_top(region, line_height, 1);
-                draw_query_bar(app, query_bars.ptrs[i], face_id, pair.min);
-                region = pair.max;
-            }
-        }
-    }
+    region = default_draw_query_bars(app, region, view_id, face_id);
     
     // NOTE(allen): FPS hud
     if (show_fps_hud){

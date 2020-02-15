@@ -261,25 +261,45 @@ layout_fps_hud_on_bottom(Rect_f32 rect, f32 line_height){
 }
 
 function Rect_f32
-draw_background_and_margin(Application_Links *app, View_ID view, ARGB_Color margin, ARGB_Color back){
+draw_background_and_margin(Application_Links *app, View_ID view, ARGB_Color margin, ARGB_Color back, f32 width){
     Rect_f32 view_rect = view_get_screen_rect(app, view);
-    Rect_f32 inner = rect_inner(view_rect, 3.f);
+    Rect_f32 inner = rect_inner(view_rect, width);
     draw_rectangle(app, inner, 0.f, back);
-    draw_margin(app, view_rect, inner, margin);
+    if (width > 0.f){
+        draw_margin(app, view_rect, inner, margin);
+    }
     return(inner);
+}
+
+function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, ARGB_Color margin, ARGB_Color back){
+    return(draw_background_and_margin(app, view, margin, back, 3.f));
+}
+
+function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, FColor back, f32 width){
+    ARGB_Color margin_argb = fcolor_resolve(margin);
+    ARGB_Color back_argb = fcolor_resolve(back);
+    return(draw_background_and_margin(app, view, margin_argb, back_argb, width));
 }
 
 function Rect_f32
 draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, FColor back){
     ARGB_Color margin_argb = fcolor_resolve(margin);
     ARGB_Color back_argb = fcolor_resolve(back);
-    return(draw_background_and_margin(app, view, margin_argb, back_argb));
+    return(draw_background_and_margin(app, view, margin_argb, back_argb, 3.f));
+}
+
+function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view, f32 width){
+    FColor margin_color = get_panel_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
+    return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back), width));
 }
 
 function Rect_f32
 draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view){
     FColor margin_color = get_panel_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
-    return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back)));
+    return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back), 3.f));
 }
 
 function Rect_f32
@@ -456,7 +476,7 @@ get_token_color_cpp(Token token){
             color = defcolor_preproc;
         }break;
         case TokenBaseKind_Keyword:
-        {            
+        {
             color = defcolor_keyword;
         }break;
         case TokenBaseKind_Comment:

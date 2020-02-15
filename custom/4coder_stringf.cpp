@@ -10,45 +10,45 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-static String_Const_char
+static String_Const_u8
 push_stringfv(Arena *arena, char *format, va_list args){
     va_list args2;
     va_copy(args2, args);
     i32 size = vsnprintf(0, 0, format, args);
-    String_Const_char result = string_const_char_push(arena, size + 1);
-    vsnprintf(result.str, (size_t)result.size, format, args2);
+    String_Const_u8 result = string_const_u8_push(arena, size + 1);
+    vsnprintf((char*)result.str, (size_t)result.size, format, args2);
     result.size -= 1;
     result.str[result.size] = 0;
     return(result);
 }
-static String_Const_char
+static String_Const_u8
 push_stringf(Arena *arena, char *format, ...){
     va_list args;
     va_start(args, format);
-    String_Const_char result = push_stringfv(arena, format, args);
+    String_Const_u8 result = push_stringfv(arena, format, args);
     va_end(args);
     return(result);
 }
-static String_Const_u8 
+static String_Const_u8
 push_u8_stringfv(Arena *arena, char *format, va_list args){
-    return(SCu8(push_stringfv(arena, format, args)));
+    return(push_stringfv(arena, format, args));
 }
 static String_Const_u8
 push_u8_stringf(Arena *arena, char *format, ...){
     va_list args;
     va_start(args, format);
-    String_Const_u8 result = SCu8(push_stringfv(arena, format, args));
+    String_Const_u8 result = push_stringfv(arena, format, args);
     va_end(args);
     return(result);
 }
 
 static void
 string_list_pushfv(Arena *arena, List_String_Const_char *list, char *format, va_list args){
-    String_Const_char string = push_stringfv(arena, format, args);
+    String_Const_u8 string = push_stringfv(arena, format, args);
     if (arena->alignment < sizeof(u64)){
         push_align(arena, sizeof(u64));
     }
-    string_list_push(arena, list, string);
+    string_list_push(arena, list, SCchar(string));
 }
 static void
 string_list_pushf(Arena *arena, List_String_Const_char *list, char *format, ...){
