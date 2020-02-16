@@ -535,7 +535,8 @@ system_thread_get_id(void){
 internal void
 system_acquire_global_frame_mutex(Thread_Context* tctx){
     //LINUX_FN_DEBUG();
-    if (tctx->kind == ThreadKind_AsyncTasks){
+    if (tctx->kind == ThreadKind_AsyncTasks ||
+        tctx->kind == ThreadKind_Main){
         system_mutex_acquire(linuxvars.global_frame_mutex);
     }
 }
@@ -543,7 +544,8 @@ system_acquire_global_frame_mutex(Thread_Context* tctx){
 internal void
 system_release_global_frame_mutex(Thread_Context* tctx){
     //LINUX_FN_DEBUG();
-    if (tctx->kind == ThreadKind_AsyncTasks){
+    if (tctx->kind == ThreadKind_AsyncTasks ||
+        tctx->kind == ThreadKind_Main){
         system_mutex_release(linuxvars.global_frame_mutex);
     }
 }
