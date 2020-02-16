@@ -16,8 +16,6 @@ system_get_path(Arena* arena, System_Path_Code path_code){
         case SystemPath_CurrentDirectory: {
             // glibc extension: getcwd allocates its own memory if passed NULL
             char *working_dir = getcwd(NULL, 0);
-            LINUX_FN_DEBUG("cwd = [%s]", working_dir);
-
             u64 working_dir_len = cstring_length(working_dir);
             u8 *out = push_array(arena, u8, working_dir_len + 1);
             block_copy(out, working_dir, working_dir_len);
@@ -43,8 +41,6 @@ system_get_path(Arena* arena, System_Path_Code path_code){
             }
 
             result = string_remove_last_folder(SCu8(buf, n));
-
-            LINUX_FN_DEBUG("bin dir = [%.*s]", (int)result.size, result.str);
         } break;
     }
 
@@ -104,7 +100,7 @@ system_get_canonical(Arena* arena, String_Const_u8 name){
 
 internal File_List
 system_get_file_list(Arena* arena, String_Const_u8 directory){
-    LINUX_FN_DEBUG("%.*s", (int)directory.size, directory.str);
+    //LINUX_FN_DEBUG("%.*s", (int)directory.size, directory.str);
     File_List result = {};
 
     char* path = strndupa((char*)directory.str, directory.size);
@@ -162,7 +158,7 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
 
 internal File_Attributes
 system_quick_file_attributes(Arena* scratch, String_Const_u8 file_name){
-    LINUX_FN_DEBUG("%.*s", (int)file_name.size, file_name.str);
+    //LINUX_FN_DEBUG("%.*s", (int)file_name.size, file_name.str);
     struct stat file_stat;
     stat((const char*)file_name.str, &file_stat);
     return linux_file_attributes_from_struct_stat(&file_stat);
@@ -306,7 +302,7 @@ system_signal_step(u32 code){
 
 internal void
 system_sleep(u64 microseconds){
-    LINUX_FN_DEBUG("%" PRIu64, microseconds);
+    //LINUX_FN_DEBUG("%" PRIu64, microseconds);
     struct timespec requested;
     struct timespec remaining;
     u64 seconds = microseconds / Million(1);
@@ -317,7 +313,7 @@ system_sleep(u64 microseconds){
 
 internal void
 system_post_clipboard(String_Const_u8 str){
-    LINUX_FN_DEBUG("%.*s", (int)str.size, str.str);
+    //LINUX_FN_DEBUG("%.*s", (int)str.size, str.str);
     linalloc_clear(linuxvars.clipboard_out_arena);
     linuxvars.clipboard_out_contents = push_u8_stringf(linuxvars.clipboard_out_arena, "%.*s", str.size, str.str);
     XSetSelectionOwner(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
@@ -377,7 +373,7 @@ system_cli_call(Arena* scratch, char* path, char* script, CLI_Handles* cli_out){
 internal void
 system_cli_begin_update(CLI_Handles* cli){
     // NOTE(inso): I don't think anything needs to be done here.
-    LINUX_FN_DEBUG();
+    //LINUX_FN_DEBUG();
 }
 
 internal b32
@@ -507,7 +503,7 @@ system_thread_get_id(void){
 
 internal void
 system_acquire_global_frame_mutex(Thread_Context* tctx){
-    LINUX_FN_DEBUG();
+    //LINUX_FN_DEBUG();
     if (tctx->kind == ThreadKind_AsyncTasks){
         system_mutex_acquire(linuxvars.global_frame_mutex);
     }
@@ -515,7 +511,7 @@ system_acquire_global_frame_mutex(Thread_Context* tctx){
 
 internal void
 system_release_global_frame_mutex(Thread_Context* tctx){
-    LINUX_FN_DEBUG();
+    //LINUX_FN_DEBUG();
     if (tctx->kind == ThreadKind_AsyncTasks){
         system_mutex_release(linuxvars.global_frame_mutex);
     }
@@ -599,7 +595,7 @@ system_memory_allocate(u64 size, String_Const_u8 location){
     void* result = mmap(
         NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     // TODO(andrew): Allocation tracking?
-    //LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
+    LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
     return result;
 }
 
@@ -672,6 +668,6 @@ system_is_fullscreen(void){
 
 internal Input_Modifier_Set
 system_get_keyboard_modifiers(Arena* arena){
-    LINUX_FN_DEBUG();
+    //LINUX_FN_DEBUG();
     return(copy_modifier_set(arena, &linuxvars.input.pers.modifiers));
 }

@@ -83,16 +83,17 @@
 
 #define Cursor XCursor
 #undef function
+#undef internal
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/Xfixes.h>
+#include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #define function static
 #undef Cursor
 
-#undef internal
 #include <fontconfig/fontconfig.h>
 #define internal static
 
@@ -151,8 +152,11 @@ struct Linux_Vars {
     XIM xim;
     XIC xic;
     FcConfig* fontconfig;
+    XkbDescPtr xkb;
 
     Linux_Input_Chunk input;
+    int xkb_event;
+    int xkb_group; // active keyboard layout (0-3)
 
     int epoll;
     int step_timer_fd;
@@ -593,7 +597,7 @@ linux_find_font(Face_Description* desc) {
         FcChar8 *filename = 0;
         FcPatternGetString(font, FC_FILE, 0, &filename);
         if(filename) {
-            printf("FONTCONFIG FILENAME = %s\n", filename);
+            LINUX_FN_DEBUG("FONTCONFIG FILENAME = %s\n", filename);
             result.font.file_name = push_u8_stringf(linuxvars.frame_arena, "%s", filename);
         }
 
@@ -608,13 +612,18 @@ linux_find_font(Face_Description* desc) {
 internal
 font_make_face_sig() {
 
-    // FIXME
-    if(description->font.file_name.str[0] != '/') {
-        Face_Description desc2 = linux_find_font(description);
-        description = &desc2;
-    }
-
     Face* result = ft__font_make_face(arena, description, scale_factor);
+
+    // if it failed to load the font directly, try via fontconfig.
+    if(!result) {
+        Face_Description desc2 = {};
+        desc2.parameters = description->parameters;
+        desc2.font.file_name = string_front_of_path(description->font.file_name);
+
+        printf("FONT %.*s\n", string_expand(desc2.font.file_name));
+        desc2 = linux_find_font(&desc2);
+        result = ft__font_make_face(arena, &desc2, scale_factor);
+    }
 
     if(!result) {
         // is this fatal? 4ed.cpp:277 (caller) does not check for null.
@@ -882,12 +891,6 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
 
     XSync(linuxvars.dpy, False);
 
-    XWindowAttributes attr;
-    if (XGetWindowAttributes(linuxvars.dpy, linuxvars.win, &attr)){
-        //*window_width = WinAttribs.width;
-        //*window_height = WinAttribs.height;
-    }
-
     Atom wm_protos[] = {
         linuxvars.atom_WM_DELETE_WINDOW,
         linuxvars.atom__NET_WM_PING
@@ -913,12 +916,8 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     XSetLocaleModifiers("");
     b32 locale_supported = XSupportsLocale();
 
-    //LOGF("Supported locale?: %s.\n", locale_supported ? "Yes" : "No");
     if (!locale_supported){
-        //LOG("Reverting to 'C' ... ");
         setlocale(LC_ALL, "C");
-        locale_supported = XSupportsLocale();
-        //LOGF("C is supported? %s.\n", locale_supported ? "Yes" : "No");
     }
 
     linuxvars.xim = XOpenIM(dpy, 0, 0, 0);
@@ -975,11 +974,26 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
         | EnterWindowMask | LeaveWindowMask
         | PointerMotionMask
         | FocusChangeMask
-        | StructureNotifyMask | MappingNotify
+        | StructureNotifyMask
         | ExposureMask | VisibilityChangeMask
         | xim_event_mask;
 
     XSelectInput(linuxvars.dpy, linuxvars.win, event_mask);
+
+    // init XKB keyboard extension
+
+    if(!XkbQueryExtension(linuxvars.dpy, 0, &linuxvars.xkb_event, 0, 0, 0)) {
+        system_error_box("XKB Extension not available.");
+    }
+
+    XkbSelectEvents(linuxvars.dpy, XkbUseCoreKbd, XkbAllEventsMask, XkbAllEventsMask);
+    linuxvars.xkb = XkbGetKeyboard(linuxvars.dpy, XkbAllComponentsMask, XkbUseCoreKbd);
+    if(!linuxvars.xkb) {
+        system_error_box("Error getting XKB keyboard details.");
+    }
+
+    // closer to windows behaviour (holding key doesn't generate release events)
+    XkbSetDetectableAutoRepeat(linuxvars.dpy, True, NULL);
 
     XCursor cursors[APP_MOUSE_CURSOR_COUNT] = {
         None,
@@ -1007,33 +1021,56 @@ global Key_Code keycode_lookup_table[255];
 internal void
 linux_keycode_init(Display* dpy){
 
-    struct SymCode { KeySym sym; Key_Code code; };
-    SymCode sym_table[100];
-
-    block_zero_array(sym_table);
     block_zero_array(keycode_lookup_table);
 
-    SymCode* p = sym_table;
-    for(Key_Code k = KeyCode_A; k <= KeyCode_Z; ++k) {
-        *p++ = { XK_a + (k - KeyCode_A), k };
+    // Find these keys by physical position, and map to QWERTY KeyCodes
+#define K(k) glue(KeyCode_, k)
+    static const u8 positional_keys[] = {
+        K(1), K(2), K(3), K(4), K(5), K(6), K(7), K(8), K(9), K(0), K(Minus), K(Equal),
+        K(Q), K(W), K(E), K(R), K(T), K(Y), K(U), K(I), K(O), K(P), K(LeftBracket), K(RightBracket),
+        K(A), K(S), K(D), K(F), K(G), K(H), K(J), K(K), K(L), K(Semicolon), K(Quote), /*uk hash*/0,
+        K(Z), K(X), K(C), K(V), K(B), K(N), K(M), K(Comma), K(Period), K(ForwardSlash), 0, 0
+    };
+#undef K
+
+    // XKB gives the alphanumeric keys names like AE01 -> E is the row (from B-E), 01 is the column (01-12).
+    // to get key names in .ps file: setxkbmap -print | xkbcomp - - | xkbprint -label name - out.ps
+
+    static const int ncols = 12;
+    static const int nrows = 4;
+
+    for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
+        const char* name = linuxvars.xkb->names->keys[i].name;
+
+        if(name[0] == 'A' && name[1] >= 'B' && name[1] <= 'E') {
+            int row = (nrows - 1) - (name[1] - 'B');
+            int col = (name[2] - '0') * 10 + (name[3] - '0') - 1;
+
+            if(row >= 0 && row < nrows && col >= 0 && col < ncols) {
+                keycode_lookup_table[i] = positional_keys[row * ncols + col];
+            }
+        }
+
+        // a few special cases:
+
+        else if(memcmp(name, "TLDE", XkbKeyNameLength) == 0) {
+            keycode_lookup_table[i] = KeyCode_Tick;
+        } else if(memcmp(name, "BKSL", XkbKeyNameLength) == 0) {
+            keycode_lookup_table[i] = KeyCode_BackwardSlash;
+        } else if(memcmp(name, "LSGT", XkbKeyNameLength) == 0) {
+            // UK extra key between left shift and Z, not sure what to do with it...
+            // Setting to F13-F16 seems to break text input.
+            // it prints \ and | with shift. KeyCode_Backslash will be where UK # is.
+            // keycode_lookup_table[i] =
+        }
     }
 
-    for(Key_Code k = KeyCode_0; k <= KeyCode_9; ++k) {
-        *p++ = { XK_0 + (k - KeyCode_0), k };
-    }
+    // Find the rest by their key label
+    struct SymCode { KeySym sym; Key_Code code; };
+    SymCode sym_table[100];
+    SymCode* p = sym_table;
 
     *p++ = { XK_space, KeyCode_Space };
-    *p++ = { XK_grave, KeyCode_Tick };
-    *p++ = { XK_minus, KeyCode_Minus };
-    *p++ = { XK_equal, KeyCode_Equal };
-    *p++ = { XK_bracketleft, KeyCode_LeftBracket };
-    *p++ = { XK_bracketright, KeyCode_RightBracket };
-    *p++ = { XK_semicolon, KeyCode_Semicolon };
-    *p++ = { XK_apostrophe, KeyCode_Quote };
-    *p++ = { XK_comma, KeyCode_Comma };
-    *p++ = { XK_period, KeyCode_Period };
-    *p++ = { XK_slash, KeyCode_ForwardSlash };
-    *p++ = { XK_backslash, KeyCode_BackwardSlash };
     *p++ = { XK_Tab, KeyCode_Tab };
     *p++ = { XK_Escape, KeyCode_Escape };
     *p++ = { XK_Pause, KeyCode_Pause };
@@ -1069,27 +1106,21 @@ linux_keycode_init(Display* dpy){
     const int table_size = p - sym_table;
     Assert(table_size < ArrayCount(sym_table));
 
-    int key_min, key_max, syms_per_code;
-    XDisplayKeycodes(dpy, &key_min, &key_max);
+    for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
+        KeySym sym = NoSymbol;
 
-    int key_count = (key_max - key_min) + 1;
-    KeySym* syms = XGetKeyboardMapping(dpy, key_min, key_count, &syms_per_code);
+        // lookup key in current layout with no modifiers held (0)
+        if(!XkbTranslateKeyCode(linuxvars.xkb, i, XkbBuildCoreState(0, linuxvars.xkb_group), NULL, &sym)) {
+            continue;
+        }
 
-    if (syms == 0){
-        return;
-    }
-
-    int key = key_min;
-    for(int i = 0; i < key_count * syms_per_code; ++i){
-        for(int j = 0; j < table_size; ++j){
-            if (sym_table[j].sym == syms[i]){
-                keycode_lookup_table[key + (i/syms_per_code)] = sym_table[j].code;
+        for(int j = 0; j < table_size; ++j) {
+            if(sym_table[j].sym == sym) {
+                keycode_lookup_table[i] = sym_table[j].code;
                 break;
             }
         }
     }
-
-    XFree(syms);
 }
 
 internal void
@@ -1097,9 +1128,8 @@ linux_epoll_init(void) {
     struct epoll_event e = {};
     e.events = EPOLLIN | EPOLLET;
 
-    //linuxvars.inotify_fd    = inotify_init1(IN_NONBLOCK);
     linuxvars.step_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    linuxvars.epoll         = epoll_create(16);
+    linuxvars.epoll = epoll_create(16);
 
     e.data.ptr = &epoll_tag_x11;
     epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, ConnectionNumber(linuxvars.dpy), &e);
@@ -1261,18 +1291,16 @@ linux_handle_x11_events() {
                 int len = Xutf8LookupString(linuxvars.xic, &event.xkey, (char*)buf, sizeof(buf) - 1, &keysym, &status);
 
                 if (status == XBufferOverflow){
-                    //TODO(inso): handle properly
                     Xutf8ResetIC(linuxvars.xic);
                     XSetICFocus(linuxvars.xic);
                 }
 
                 if (keysym == XK_ISO_Left_Tab){
-                    printf("left tab? [%.*s]\n", len, buf);
                     add_modifier(mods, KeyCode_Shift);
                 }
 
                 Key_Code key = keycode_lookup_table[(u8)event.xkey.keycode];
-                printf("key [%d] = %s\n", event.xkey.keycode, key_code_name[key]);
+                //printf("key %d = %s\n", event.xkey.keycode, key_code_name[key]);
 
                 Input_Event* key_event = NULL;
                 if(key) {
@@ -1323,7 +1351,9 @@ linux_handle_x11_events() {
             } break;
 
             case MotionNotify: {
-                linuxvars.input.pers.mouse = { event.xmotion.x, event.xmotion.y };
+                int x = clamp(0, event.xmotion.x, render_target.width - 1);
+                int y = clamp(0, event.xmotion.y, render_target.height - 1);
+                linuxvars.input.pers.mouse = { x, y };
                 should_step = true;
             } break;
 
@@ -1333,6 +1363,16 @@ linux_handle_x11_events() {
                     case Button1: {
                         linuxvars.input.trans.mouse_l_press = true;
                         linuxvars.input.pers.mouse_l = true;
+
+                        // NOTE(inso): improves selection dragging (especially in notepad-like mode).
+                        // we will still get mouse events when the pointer leaves the window if it's dragging.
+                        XGrabPointer(
+                            linuxvars.dpy,
+                            linuxvars.win,
+                            True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+                            GrabModeAsync, GrabModeAsync,
+                            None, None, CurrentTime);
+
                     } break;
 
                     case Button3: {
@@ -1356,19 +1396,14 @@ linux_handle_x11_events() {
                     case Button1: {
                         linuxvars.input.trans.mouse_l_release = true;
                         linuxvars.input.pers.mouse_l = false;
+
+                        XUngrabPointer(linuxvars.dpy, CurrentTime);
                     } break;
 
                     case Button3: {
                         linuxvars.input.trans.mouse_r_release = true;
                         linuxvars.input.pers.mouse_r = false;
                     } break;
-                }
-            } break;
-
-            case MappingNotify: {
-                if (event.xmapping.request == MappingModifier || event.xmapping.request == MappingKeyboard){
-                    XRefreshKeyboardMapping(&event.xmapping);
-                    linux_keycode_init(linuxvars.dpy);
                 }
             } break;
 
@@ -1454,6 +1489,16 @@ linux_handle_x11_events() {
                     }
                 }
 
+                else if(event.type == linuxvars.xkb_event) {
+                    XkbEvent* kb = (XkbEvent*)&event;
+
+                    // Keyboard layout changed, refresh lookup table.
+                    if(kb->any.xkb_type == XkbStateNotify && kb->state.group != linuxvars.xkb_group) {
+                        linuxvars.xkb_group = kb->state.group;
+                        XkbRefreshKeyboardMapping((XkbMapNotifyEvent*)kb);
+                        linux_keycode_init(linuxvars.dpy);
+                    }
+                }
             } break;
         }
     }
