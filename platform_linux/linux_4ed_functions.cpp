@@ -92,7 +92,11 @@ system_get_canonical(Arena* arena, String_Const_u8 name){
         }
     }
 
-    LINUX_FN_DEBUG("[%.*s] -> [%.*s]", (int)name.size, name.str, (int)(q - output), output);
+#ifdef INSO_DEBUG
+    if(name.size != q - output) {
+        LINUX_FN_DEBUG("[%.*s] -> [%.*s]", (int)name.size, name.str, (int)(q - output), output);
+    }
+#endif
 
     // TODO: use realpath at this point to resolve symlinks?
     return SCu8(output, q - output);
@@ -205,15 +209,23 @@ internal File_Attributes
 system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
     LINUX_FN_DEBUG("%s", file_name);
     File_Attributes result = {};
+
+    // TODO(inso): should probably put a \n on the end if it's a text file.
+
     int fd = open(file_name, O_WRONLY, O_CREAT);
     if (fd != -1) {
         int bytes_written = write(fd, data.str, data.size);
-        if (bytes_written != -1) {
+        if (bytes_written == -1) {
+            perror("write");
+        } else if(bytes_written == data.size) {
             struct stat file_stat;
             fstat(fd, &file_stat);
             return linux_file_attributes_from_struct_stat(&file_stat);
         }
+    } else {
+        perror("open");
     }
+
     return result;
 }
 
@@ -273,7 +285,7 @@ system_wake_up_timer_release(Plat_Handle handle){
 
 internal void
 system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds){
-    LINUX_FN_DEBUG("%u", time_milliseconds);
+    //LINUX_FN_DEBUG("%u", time_milliseconds);
     Linux_Object* object = handle_to_object(handle);
 
     if (object->kind == LinuxObjectKind_Timer){
@@ -311,12 +323,31 @@ system_sleep(u64 microseconds){
     nanosleep(&requested, &remaining);
 }
 
+internal String_Const_u8
+system_get_clipboard(Arena* arena, i32 index){
+    // TODO(inso): index?
+    u8* ptr = push_array_write(arena, u8, linuxvars.clipboard_contents.size, linuxvars.clipboard_contents.str);
+    return SCu8(ptr, linuxvars.clipboard_contents.size);
+}
+
 internal void
-system_post_clipboard(String_Const_u8 str){
-    //LINUX_FN_DEBUG("%.*s", (int)str.size, str.str);
-    linalloc_clear(linuxvars.clipboard_out_arena);
-    linuxvars.clipboard_out_contents = push_u8_stringf(linuxvars.clipboard_out_arena, "%.*s", str.size, str.str);
+system_post_clipboard(String_Const_u8 str, i32 index){
+    // TODO(inso): index?
+    //LINUX_FN_DEBUG("%.*s", string_expand(str));
+    linalloc_clear(linuxvars.clipboard_arena);
+    linuxvars.clipboard_contents = push_u8_stringf(linuxvars.clipboard_arena, "%.*s", str.size, str.str);
     XSetSelectionOwner(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
+}
+
+internal void
+system_set_clipboard_catch_all(b32 enabled){
+    LINUX_FN_DEBUG("%d", enabled);
+    linuxvars.clipboard_catch_all = !!enabled;
+}
+
+internal b32
+system_get_clipboard_catch_all(void){
+    return linuxvars.clipboard_catch_all;
 }
 
 internal b32
@@ -595,7 +626,7 @@ system_memory_allocate(u64 size, String_Const_u8 location){
     void* result = mmap(
         NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     // TODO(andrew): Allocation tracking?
-    LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
+    //LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
     return result;
 }
 
@@ -671,3 +702,6 @@ system_get_keyboard_modifiers(Arena* arena){
     //LINUX_FN_DEBUG();
     return(copy_modifier_set(arena, &linuxvars.input.pers.modifiers));
 }
+
+// NOTE(inso): to prevent me continuously messing up indentation
+// vim: et:ts=4:sts=4:sw=4

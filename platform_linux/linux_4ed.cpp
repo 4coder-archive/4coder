@@ -174,11 +174,10 @@ struct Linux_Vars {
 
     System_Mutex global_frame_mutex;
 
-    Arena* clipboard_out_arena;
     Arena* clipboard_arena;
-    String_Const_u8 clipboard_out_contents;
     String_Const_u8 clipboard_contents;
     b32 received_new_clipboard;
+    b32 clipboard_catch_all;
 
     Atom atom_TARGETS;
     Atom atom_CLIPBOARD;
@@ -1154,7 +1153,7 @@ linux_clipboard_send(XSelectionRequestEvent* req) {
         XA_STRING,
     };
 
-    if(linuxvars.clipboard_out_contents.size == 0) {
+    if(linuxvars.clipboard_contents.size == 0) {
         goto done;
     }
 
@@ -1193,8 +1192,8 @@ linux_clipboard_send(XSelectionRequestEvent* req) {
                 req->target,
                 8,
                 PropModeReplace,
-                linuxvars.clipboard_out_contents.str,
-                linuxvars.clipboard_out_contents.size
+                linuxvars.clipboard_contents.str,
+                linuxvars.clipboard_contents.size
             );
 
             rsp.property = req->property;
@@ -1464,8 +1463,8 @@ linux_handle_x11_events() {
 
             case SelectionClear: {
                 if(event.xselectionclear.selection == linuxvars.atom_CLIPBOARD) {
-                    linalloc_clear(linuxvars.clipboard_out_arena);
-                    block_zero_struct(&linuxvars.clipboard_out_contents);
+                    linalloc_clear(linuxvars.clipboard_arena);
+                    block_zero_struct(&linuxvars.clipboard_contents);
                 }
             } break;
 
@@ -1476,7 +1475,7 @@ linux_handle_x11_events() {
 
             default: {
                 // clipboard update notification - ask for the new content
-                if (event.type == linuxvars.xfixes_selection_event) {
+                if (linuxvars.clipboard_catch_all && event.type == linuxvars.xfixes_selection_event) {
                     XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&event;
                     if (sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.win){
                         XConvertSelection(
@@ -1571,7 +1570,6 @@ main(int argc, char **argv){
     // NOTE(allen): memory
     linuxvars.frame_arena = reserve_arena(&linuxvars.tctx);
     linuxvars.clipboard_arena = reserve_arena(&linuxvars.tctx);
-    linuxvars.clipboard_out_arena = reserve_arena(&linuxvars.tctx);
     render_target.arena = make_arena_system(KB(256));
 
     linuxvars.fontconfig = FcInitLoadConfigAndFonts();
@@ -1585,7 +1583,7 @@ main(int argc, char **argv){
     //InitializeCriticalSection(&win32vars.thread_launch_mutex);
     //InitializeConditionVariable(&win32vars.thread_launch_cv);
 
-    // dpi ?
+    linuxvars.clipboard_catch_all = true;
 
     // NOTE(allen): load core
     System_Library core_library = {};
@@ -1703,7 +1701,7 @@ main(int argc, char **argv){
     {
         Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
-        app.init(&linuxvars.tctx, &render_target, base_ptr, linuxvars.clipboard_contents, curdir, custom);
+        app.init(&linuxvars.tctx, &render_target, base_ptr, curdir, custom);
     }
 
     linuxvars.global_frame_mutex = system_mutex_make();
@@ -1741,7 +1739,7 @@ main(int argc, char **argv){
 
         // NOTE(allen): Frame Clipboard Input
         // Request clipboard contents from X11 on first step, or every step if they don't have XFixes notification ability.
-        if (first_step || !linuxvars.has_xfixes){
+        if (first_step || (!linuxvars.has_xfixes && linuxvars.clipboard_catch_all)){
             XConvertSelection(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.atom_UTF8_STRING, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
         }
 
@@ -1749,7 +1747,6 @@ main(int argc, char **argv){
 
         if (linuxvars.received_new_clipboard){
             input.clipboard = linuxvars.clipboard_contents;
-            input.clipboard_changed = true;
             linuxvars.received_new_clipboard = false;
         }
 
