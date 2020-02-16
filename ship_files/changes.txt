@@ -1,8 +1,23 @@
 
+4.1.4
+ + MAJOR: The clipboard history is now a fully custom layer implemented system. Users maintaining a customization layer should try to update their call sites to the old clipboard API. #define FCODER_TRANSITION_TO 4001004 to disable the transitional function wrappers when you are ready to make the transition.
+ + buildsuper scripts now all come with '-win' '-linux' '-mac' postfixes and pass their OS identifier macro on the build line
+ + clipboard is only read when the requests to, or when the collect-all mode is started via the command 'begin_clipboard_collection_mode'
+ + 'clear_clipboard' command
+ + in config.4coder the variable virtual_whitespace_regular_indent determines the number of space-widths to use as the regular indentation in a virtual whitespace layout
+ + show whitespace mode implemented in 'default_render_buffer'
+ + `set_face_size` and `set_face_size_this_buffer` commands
+ + Fix: tabs are measured with the correct amount of width for the user's settings
+ + Fix: virtual whitespace toggling works when the config initially diabled virtual whitespace
+ + Fix: never miss the most recent post to the clipboard on windows
+ + Fix: command `load_theme_current_buffer` gaurds against destroying the active color palette when bad files are loaded
+ + Fix: project deep copy routine copies strings in the whitelist and blacklist pattern arrays
+
 4.1.3
  + Unkillable buffer setting
  + UI elements in listers and buttons can have different highlight backgrounds
  + command 'load_theme_current_buffer' for loading the current file as a theme and setting it as the theme
+ + command 'write_block' for writing a block comment uses mark and cursor range to insert block comment ends
  + Fix: search and replace never exits early
  + Fix: optimized builds of the custom layer display the dirty * on the file bar correclty
  + Fix: can merge "backwards" strings in the history correctly
@@ -12,6 +27,14 @@
  + Fix: the margin colors for panels are determined by the margins in theme files
  + Fix: when a file is deleted outside of 4coder, the '!' dirty status is added to the buffer
  + Fix: on mac file changes outside of 4coder are detected and do not stall the UI
+ + Fix: in virtual whitespace layouts blank lines correctly mark carriage return characters before newline characters
+ + Fix: auto-indentation leaves the carriage return in CRLF line endings in place and does not count them as indentation
+ + Fix: lexer emit pointer advances correctly when the output buffer becomes full
+ + Fix: when include gaurds are inserted into new header files, the generated name isn't killed by numbers or underscores
+ + Fix: base library function string_is_integer returns false on empty string
+ + Fix: preprocessor directives after incomplete statements are aligned to zero by auto-indent
+ + Fix: command 'list_all_functions_current_buffer_lister' and command 'list_all_functions_all_buffers_lister' are marked as UI commands and thus do not infinite loop when they set the buffer
+ + Improvement: optimization in clean_all_lines command, handles CRLF line endings
 
 4.1.2
  + Cursor color changes when recording macro if the theme provides a second cursor color

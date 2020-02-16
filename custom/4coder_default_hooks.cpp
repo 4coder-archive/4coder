@@ -150,26 +150,19 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
 }
 
 function void
-default_tick(Application_Links *app, Frame_Info frame_info){
+code_index_update_tick(Application_Links *app){
     Scratch_Block scratch(app);
-    
     for (Buffer_Modified_Node *node = global_buffer_modified_set.first;
          node != 0;
          node = node->next){
         Temp_Memory_Block temp(scratch);
         Buffer_ID buffer_id = node->buffer;
         
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        
         String_Const_u8 contents = push_whole_buffer(app, scratch, buffer_id);
-        Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
-        if (tokens_ptr == 0){
+        Token_Array tokens = get_token_array_from_buffer(app, buffer_id);
+        if (tokens.count == 0){
             continue;
         }
-        if (tokens_ptr->count == 0){
-            continue;
-        }
-        Token_Array tokens = *tokens_ptr;
         
         Arena arena = make_arena_system(KB(16));
         Code_Index_File *index = push_array_zero(&arena, Code_Index_File, 1);
@@ -178,7 +171,8 @@ default_tick(Application_Links *app, Frame_Info frame_info){
         Generic_Parse_State state = {};
         generic_parse_init(app, &arena, contents, &tokens, &state);
         // TODO(allen): Actually determine this in a fair way.
-        // Maybe switch to an enum.
+        // Maybe switch to an enum?
+        // Actually probably a pointer to a struct that defines the language.
         state.do_cpp_parse = true;
         generic_parse_full_input_breaks(index, &state, max_i32);
         
@@ -189,7 +183,11 @@ default_tick(Application_Links *app, Frame_Info frame_info){
     }
     
     buffer_modified_set_clear();
-    
+}
+
+function void
+default_tick(Application_Links *app, Frame_Info frame_info){
+    code_index_update_tick(app);
     if (tick_all_fade_ranges(frame_info.animation_dt)){
         animate_in_n_milliseconds(app, 0);
     }
@@ -288,6 +286,13 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     b32 is_active_view = (active_view == view_id);
     Rect_f32 prev_clip = draw_set_clip(app, rect);
     
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    
+    // NOTE(allen): Cursor shape
+    Face_Metrics metrics = get_face_metrics(app, face_id);
+    f32 cursor_roundness = (metrics.normal_advance*0.5f)*0.9f;
+    f32 mark_thickness = 2.f;
+    
     // NOTE(allen): Token colorizing
     Token_Array token_array = get_token_array_from_buffer(app, buffer);
     if (token_array.tokens != 0){
@@ -304,7 +309,6 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
         }
     }
     else{
-        Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
         paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
     }
     
@@ -349,10 +353,17 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
                             fcolor_id(defcolor_highlight_cursor_line));
     }
     
-    // NOTE(allen): Cursor shape
-    Face_Metrics metrics = get_face_metrics(app, face_id);
-    f32 cursor_roundness = (metrics.normal_advance*0.5f)*0.9f;
-    f32 mark_thickness = 2.f;
+    // NOTE(allen): Whitespace highlight
+    b64 show_whitespace = false;
+    view_get_setting(app, view_id, ViewSetting_ShowWhitespace, &show_whitespace);
+    if (show_whitespace){
+        if (token_array.tokens == 0){
+            draw_whitespace_highlight(app, buffer, text_layout_id, cursor_roundness);
+        }
+        else{
+            draw_whitespace_highlight(app, text_layout_id, &token_array, cursor_roundness);
+        }
+    }
     
     // NOTE(allen): Cursor
     switch (fcoder_mode){
@@ -373,6 +384,24 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     draw_text_layout_default(app, text_layout_id);
     
     draw_set_clip(app, prev_clip);
+}
+
+function Rect_f32
+default_draw_query_bars(Application_Links *app, Rect_f32 region, View_ID view_id, Face_ID face_id){
+    Face_Metrics face_metrics = get_face_metrics(app, face_id);
+    f32 line_height = face_metrics.line_height;
+    
+    Query_Bar *space[32];
+    Query_Bar_Ptr_Array query_bars = {};
+    query_bars.ptrs = space;
+    if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
+        for (i32 i = 0; i < query_bars.count; i += 1){
+            Rect_f32_Pair pair = layout_query_bar_on_top(region, line_height, 1);
+            draw_query_bar(app, query_bars.ptrs[i], face_id, pair.min);
+            region = pair.max;
+        }
+    }
+    return(region);
 }
 
 function void
@@ -411,18 +440,7 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     }
     
     // NOTE(allen): query bars
-    {
-        Query_Bar *space[32];
-        Query_Bar_Ptr_Array query_bars = {};
-        query_bars.ptrs = space;
-        if (get_active_query_bars(app, view_id, ArrayCount(space), &query_bars)){
-            for (i32 i = 0; i < query_bars.count; i += 1){
-                Rect_f32_Pair pair = layout_query_bar_on_top(region, line_height, 1);
-                draw_query_bar(app, query_bars.ptrs[i], face_id, pair.min);
-                region = pair.max;
-            }
-        }
-    }
+    region = default_draw_query_bars(app, region, view_id, face_id);
     
     // NOTE(allen): FPS hud
     if (show_fps_hud){
@@ -600,13 +618,12 @@ parse_async__inner(Async_Context *actx, Buffer_ID buffer_id,
     }
     
     if (!canceled){
-        Thread_Context *tctx = get_thread_context(app);
-        system_acquire_global_frame_mutex(tctx);
+        acquire_global_frame_mutex(app);
         code_index_lock();
         code_index_set_file(buffer_id, arena, index);
         code_index_unlock();
         buffer_clear_layout_cache(app, buffer_id);
-        system_release_global_frame_mutex(tctx);
+        release_global_frame_mutex(app);
     }
     else{
         linalloc_clear(&arena);
@@ -617,16 +634,15 @@ function void
 do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     Application_Links *app = actx->app;
     ProfileScope(app, "async lex");
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
+    Scratch_Block scratch(app);
     
     String_Const_u8 contents = {};
     {
         ProfileBlock(app, "async lex contents (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
+        acquire_global_frame_mutex(app);
         ProfileBlock(app, "async lex contents (after mutex)");
         contents = push_whole_buffer(app, scratch, buffer_id);
-        system_release_global_frame_mutex(tctx);
+        release_global_frame_mutex(app);
     }
     
     i32 limit_factor = 10000;
@@ -649,13 +665,12 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
     
     if (!canceled){
         ProfileBlock(app, "async lex save results (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
+        acquire_global_frame_mutex(app);
         ProfileBlock(app, "async lex save results (after mutex)");
         Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
         if (scope != 0){
             Base_Allocator *allocator = managed_scope_allocator(app, scope);
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
+            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens, Token_Array);
             base_free(allocator, tokens_ptr->tokens);
             Token_Array tokens = {};
             tokens.tokens = base_array(allocator, Token, list.total_count);
@@ -665,7 +680,7 @@ do_full_lex_async__inner(Async_Context *actx, Buffer_ID buffer_id){
             block_copy_struct(tokens_ptr, &tokens);
         }
         buffer_mark_as_modified(buffer_id);
-        system_release_global_frame_mutex(tctx);
+        release_global_frame_mutex(app);
     }
 }
 
@@ -676,132 +691,6 @@ do_full_lex_async(Async_Context *actx, Data data){
         do_full_lex_async__inner(actx, buffer);
     }
 }
-
-#if 0
-function void
-do_full_lex_and_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
-    Application_Links *app = actx->app;
-    ProfileScope(app, "async lex");
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
-    
-    String_Const_u8 contents = {};
-    {
-        ProfileBlock(app, "async lex contents (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
-        ProfileBlock(app, "async lex contents (after mutex)");
-        
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        if (scope != 0){
-            Base_Allocator *allocator = managed_scope_allocator(app, scope);
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
-            base_free(allocator, tokens_ptr->tokens);
-            block_zero_struct(tokens_ptr);
-        }
-        
-        contents = push_whole_buffer(app, scratch, buffer_id);
-        system_release_global_frame_mutex(tctx);
-    }
-    
-    i32 limit_factor = 10000;
-    
-    Token_List list = {};
-    b32 canceled = false;
-    
-    {
-        Lex_State_Cpp state = {};
-        lex_full_input_cpp_init(&state, contents);
-        for (;;){
-            ProfileBlock(app, "async lex block");
-            if (lex_full_input_cpp_breaks(scratch, &list, &state, limit_factor)){
-                break;
-            }
-            if (async_check_canceled(actx)){
-                canceled = true;
-                break;
-            }
-        }
-    }
-    
-    Token_Array tokens = {};
-    if (!canceled){
-        ProfileBlock(app, "async lex save results (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
-        ProfileBlock(app, "async lex save results (after mutex)");
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        if (scope != 0){
-            Base_Allocator *allocator = managed_scope_allocator(app, scope);
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
-            base_free(allocator, tokens_ptr->tokens);
-            tokens.tokens = base_array(allocator, Token, list.total_count);
-            tokens.count = list.total_count;
-            tokens.max = list.total_count;
-            token_fill_memory_from_list(tokens.tokens, &list);
-            block_copy_struct(tokens_ptr, &tokens);
-        }
-        system_release_global_frame_mutex(tctx);
-    }
-    
-    if (tokens.count > 0){
-        parse_async__inner(actx, buffer_id, contents, &tokens, limit_factor);
-    }
-}
-
-function void
-do_full_lex_and_parse_async(Async_Context *actx, Data data){
-    if (data.size == sizeof(Buffer_ID)){
-        Buffer_ID buffer = *(Buffer_ID*)data.data;
-        do_full_lex_and_parse_async__inner(actx, buffer);
-    }
-}
-#endif
-
-#if 0
-function void
-do_parse_async__inner(Async_Context *actx, Buffer_ID buffer_id){
-    Application_Links *app = actx->app;
-    ProfileScope(app, "async lex");
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
-    
-    String_Const_u8 contents = {};
-    Token_Array tokens = {};
-    {
-        ProfileBlock(app, "async parse contents (before mutex)");
-        system_acquire_global_frame_mutex(tctx);
-        ProfileBlock(app, "async parse contents (after mutex)");
-        
-        Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
-        if (scope != 0){
-            Token_Array *tokens_ptr = scope_attachment(app, scope, attachment_tokens,
-                                                       Token_Array);
-            tokens.count = tokens_ptr->count;
-            tokens.tokens = push_array_write(scratch, Token, tokens.count, tokens_ptr->tokens);
-            if (tokens.count > 0){
-                contents = push_whole_buffer(app, scratch, buffer_id);
-            }
-        }
-        
-        system_release_global_frame_mutex(tctx);
-    }
-    
-    i32 limit_factor = 10000;
-    
-    if (tokens.count > 0){
-        parse_async__inner(actx, buffer_id, contents, &tokens, limit_factor);
-    }
-}
-
-function void
-do_parse_async(Async_Context *actx, Data data){
-    if (data.size == sizeof(Buffer_ID)){
-        Buffer_ID buffer = *(Buffer_ID*)data.data;
-        do_parse_async__inner(actx, buffer);
-    }
-}
-#endif
 
 BUFFER_HOOK_SIG(default_begin_buffer){
     ProfileScope(app, "begin buffer");
@@ -816,7 +705,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         for (i32 i = 0; i < extensions.count; ++i){
             if (string_match(ext, extensions.strings[i])){
                 
-                if (string_match(ext, string_u8_litexpr("cpp")) || 
+                if (string_match(ext, string_u8_litexpr("cpp")) ||
                     string_match(ext, string_u8_litexpr("h")) ||
                     string_match(ext, string_u8_litexpr("c")) ||
                     string_match(ext, string_u8_litexpr("hpp")) ||
@@ -824,7 +713,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
                     treat_as_code = true;
                 }
                 
-#if 0                
+#if 0
                 treat_as_code = true;
                 
                 if (string_match(ext, string_u8_litexpr("cs"))){
@@ -848,7 +737,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
                     parse_context_id = parse_context_language_rust;
                 }
                 
-                if (string_match(ext, string_u8_litexpr("cpp")) || 
+                if (string_match(ext, string_u8_litexpr("cpp")) ||
                     string_match(ext, string_u8_litexpr("h")) ||
                     string_match(ext, string_u8_litexpr("c")) ||
                     string_match(ext, string_u8_litexpr("hpp")) ||
@@ -892,11 +781,9 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     
     // NOTE(allen): Decide buffer settings
     b32 wrap_lines = true;
-    b32 use_virtual_whitespace = false;
     b32 use_lexer = false;
     if (treat_as_code){
         wrap_lines = global_config.enable_code_wrapping;
-        use_virtual_whitespace = global_config.enable_virtual_whitespace;
         use_lexer = true;
     }
     
@@ -916,16 +803,16 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         *wrap_lines_ptr = wrap_lines;
     }
     
-    if (use_virtual_whitespace){
-        if (use_lexer){
-            buffer_set_layout(app, buffer_id, layout_virt_indent_index_generic);
-        }
-        else{
-            buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
-        }
+    if (use_lexer){
+        buffer_set_layout(app, buffer_id, layout_virt_indent_index_generic);
     }
     else{
-        buffer_set_layout(app, buffer_id, layout_generic);
+        if (treat_as_code){
+            buffer_set_layout(app, buffer_id, layout_virt_indent_literal_generic);
+        }
+        else{
+            buffer_set_layout(app, buffer_id, layout_generic);
+        }
     }
     
     // no meaning for return
@@ -944,16 +831,19 @@ BUFFER_HOOK_SIG(default_new_file){
         u8 c[2] = {};
         u64 c_size = 1;
         u8 ch = file_name.str[i];
-        if (ch == '.'){
-            c[0] = '_';
-        }
-        else if (ch >= 'A' && ch <= 'Z'){
+        if ('A' <= ch && ch <= 'Z'){
             c_size = 2;
             c[0] = '_';
             c[1] = ch;
         }
-        else if (ch >= 'a' && ch <= 'z'){
+        else if ('0' <= ch && ch <= '9'){
+            c[0] = ch;
+        }
+        else if ('a' <= ch && ch <= 'z'){
             c[0] = ch - ('a' - 'A');
+        }
+        else{
+            c[0] = '_';
         }
         String_Const_u8 part = push_string_copy(scratch, SCu8(c, c_size));
         string_list_push(scratch, &guard_list, part);
@@ -977,8 +867,10 @@ BUFFER_HOOK_SIG(default_new_file){
 BUFFER_HOOK_SIG(default_file_save){
     // buffer_id
     ProfileScope(app, "default file save");
+    
     b32 is_virtual = global_config.enable_virtual_whitespace;
-    if (global_config.automatically_indent_text_on_save && is_virtual){ 
+    if (global_config.automatically_indent_text_on_save && is_virtual){
+        clean_all_lines_buffer(app, buffer_id);
         auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
     }
     
@@ -1027,7 +919,7 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     b32 do_full_relex = false;
     
     if (async_task_is_running_or_pending(&global_async_system, *lex_task_ptr)){
-        async_task_cancel(&global_async_system, *lex_task_ptr);
+        async_task_cancel(app, &global_async_system, *lex_task_ptr);
         buffer_unmark_as_modified(buffer_id);
         do_full_relex = true;
         *lex_task_ptr = 0;
@@ -1113,7 +1005,7 @@ BUFFER_HOOK_SIG(default_end_buffer){
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Async_Task *lex_task_ptr = scope_attachment(app, scope, buffer_lex_task, Async_Task);
     if (lex_task_ptr != 0){
-        async_task_cancel(&global_async_system, *lex_task_ptr);
+        async_task_cancel(app, &global_async_system, *lex_task_ptr);
     }
     buffer_unmark_as_modified(buffer_id);
     code_index_lock();

@@ -14,7 +14,7 @@ if [ -z "$SOURCE" ]; then
     SOURCE="$(readlink -f "$CODE_HOME/4coder_default_bindings.cpp")"
 fi
 
-opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings -g"
+opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings -g -DOS_LINUX=1 -DOS_WINDOWS=0 -DOS_MAC=1"
 arch=-m64
 
 preproc_file=4coder_command_metadata.i

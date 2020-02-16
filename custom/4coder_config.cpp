@@ -1143,7 +1143,7 @@ function i32
 typed_array_get_count(Config *parsed, Config_Compound *compound, Config_RValue_Type type){
     i32 count = 0;
     for (i32 i = 0;; ++i){
-            Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
+        Config_Iteration_Step_Result result = typed_array_iteration_step(parsed, compound, type, i);
         if (result.step == Iteration_Skip){
             continue;
         }
@@ -1242,6 +1242,8 @@ config_init_default(Config_Data *config){
     config->automatically_save_changes_on_build = true;
     config->automatically_load_project = false;
     
+    config->virtual_whitespace_regular_indent = 4;
+    
     config->indent_with_tabs = false;
     config->indent_width = 4;
     
@@ -1306,6 +1308,8 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
         config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
         config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
+        
+        config_int_var(parsed, "virtual_whitespace_regular_indent", 0, &config->virtual_whitespace_regular_indent);
         
         config_bool_var(parsed, "indent_with_tabs", 0, &config->indent_with_tabs);
         config_int_var(parsed, "indent_width", 0, &config->indent_width);
@@ -1550,6 +1554,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
         
         config_feedback_bool(scratch, &list, "enable_virtual_whitespace", config->enable_virtual_whitespace);
+        config_feedback_int(scratch, &list, "virtual_whitespace_regular_indent", config->virtual_whitespace_regular_indent);
         config_feedback_bool(scratch, &list, "enable_code_wrapping", config->enable_code_wrapping);
         config_feedback_bool(scratch, &list, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
         config_feedback_bool(scratch, &list, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
@@ -1634,15 +1639,31 @@ CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the th
         String_Const_u8 error_text = config_stringize_errors(app, scratch, config);
         print_message(app, error_text);
         
-        String_Const_u8 name = string_front_of_path(file_name);
-        if (string_match(string_postfix(name, 7), string_u8_litexpr(".4coder"))){
-            name = string_chop(name, 7);
+        u64 problem_score = 0;
+        if (color_table.count < defcolor_line_numbers_text){
+            problem_score = defcolor_line_numbers_text - color_table.count;
         }
-        save_theme(color_table, name);
+        for (u32 i = 0; i < color_table.count; i += 1){
+            if (color_table.arrays[i].count == 0){
+                problem_score += 1;
+            }
+        }
         
-        Color_Table_Node *node = global_theme_list.last;
-        if (node != 0 && string_match(node->name, name)){
-            active_color_table = node->table;
+        if (error_text.size > 0 || problem_score >= 10){
+            String_Const_u8 string = push_u8_stringf(scratch, "There appears to be a problem parsing %.*s; no theme change applied\n", string_expand(file_name));
+            print_message(app, string);
+        }
+        else{
+            String_Const_u8 name = string_front_of_path(file_name);
+            if (string_match(string_postfix(name, 7), string_u8_litexpr(".4coder"))){
+                name = string_chop(name, 7);
+            }
+            save_theme(color_table, name);
+            
+            Color_Table_Node *node = global_theme_list.last;
+            if (node != 0 && string_match(node->name, name)){
+                active_color_table = node->table;
+            }
         }
     }
 }

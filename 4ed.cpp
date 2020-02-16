@@ -256,18 +256,6 @@ App_Init_Sig(app_init){
     global_history_init(&models->global_history);
     text_layout_init(tctx, &models->text_layouts);
     
-    // NOTE(allen): clipboard setup
-    models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
-    models->working_set.clipboard_size = 0;
-    models->working_set.clipboard_current = 0;
-    models->working_set.clipboard_rolling = 0;
-    
-    // TODO(allen): do(better clipboard allocation)
-    if (clipboard.str != 0){
-        String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
-        block_copy(dest->str, clipboard.str, clipboard.size);
-    }
-    
     // NOTE(allen): style setup
     {
         Scratch_Block scratch(tctx);
@@ -335,7 +323,7 @@ App_Step_Sig(app_step){
     Models *models = (Models*)base_ptr;
     
     Mutex_Lock file_order_lock(models->working_set.mutex);
-    Scratch_Block scratch(tctx, Scratch_Share);
+    Scratch_Block scratch(tctx);
     
     models->next_animate_delay = max_u32;
     models->animate_next_frame = false;
@@ -346,13 +334,8 @@ App_Step_Sig(app_step){
     models->input = input;
     
     // NOTE(allen): OS clipboard event handling
-    String_Const_u8 clipboard = input->clipboard;
-    if (clipboard.str != 0){
-        String_Const_u8 *dest = working_set_next_clipboard_string(&models->heap, &models->working_set, clipboard.size);
-        dest->size = eol_convert_in((char*)dest->str, (char*)clipboard.str, (i32)clipboard.size);
-        if (input->clipboard_changed){
-            co_send_core_event(tctx, models, CoreCode_NewClipboardContents, *dest);
-        }
+    if (input->clipboard.str != 0){
+        co_send_core_event(tctx, models, CoreCode_NewClipboardContents, input->clipboard);
     }
     
     // NOTE(allen): reorganizing panels on screen
@@ -387,7 +370,6 @@ App_Step_Sig(app_step){
             system_cli_begin_update(cli);
             if (system_cli_update_step(cli, dest, max, &amount)){
                 if (file != 0 && amount > 0){
-                    amount = eol_in_place_convert_in(dest, amount);
                     output_file_append(tctx, models, file, SCu8(dest, amount));
                     edited_file = true;
                 }

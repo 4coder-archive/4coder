@@ -16,7 +16,6 @@ struct Async_Thread{
     struct Async_Node *node;
     Async_Task task;
     b32 cancel_signal;
-    b32 join_signal;
 };
 
 struct Async_Node{

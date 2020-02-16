@@ -261,25 +261,45 @@ layout_fps_hud_on_bottom(Rect_f32 rect, f32 line_height){
 }
 
 function Rect_f32
-draw_background_and_margin(Application_Links *app, View_ID view, ARGB_Color margin, ARGB_Color back){
+draw_background_and_margin(Application_Links *app, View_ID view, ARGB_Color margin, ARGB_Color back, f32 width){
     Rect_f32 view_rect = view_get_screen_rect(app, view);
-    Rect_f32 inner = rect_inner(view_rect, 3.f);
+    Rect_f32 inner = rect_inner(view_rect, width);
     draw_rectangle(app, inner, 0.f, back);
-    draw_margin(app, view_rect, inner, margin);
+    if (width > 0.f){
+        draw_margin(app, view_rect, inner, margin);
+    }
     return(inner);
+}
+
+function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, ARGB_Color margin, ARGB_Color back){
+    return(draw_background_and_margin(app, view, margin, back, 3.f));
+}
+
+function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, FColor back, f32 width){
+    ARGB_Color margin_argb = fcolor_resolve(margin);
+    ARGB_Color back_argb = fcolor_resolve(back);
+    return(draw_background_and_margin(app, view, margin_argb, back_argb, width));
 }
 
 function Rect_f32
 draw_background_and_margin(Application_Links *app, View_ID view, FColor margin, FColor back){
     ARGB_Color margin_argb = fcolor_resolve(margin);
     ARGB_Color back_argb = fcolor_resolve(back);
-    return(draw_background_and_margin(app, view, margin_argb, back_argb));
+    return(draw_background_and_margin(app, view, margin_argb, back_argb, 3.f));
+}
+
+function Rect_f32
+draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view, f32 width){
+    FColor margin_color = get_panel_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
+    return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back), width));
 }
 
 function Rect_f32
 draw_background_and_margin(Application_Links *app, View_ID view, b32 is_active_view){
     FColor margin_color = get_panel_margin_color(is_active_view?UIHighlight_Active:UIHighlight_None);
-    return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back)));
+    return(draw_background_and_margin(app, view, margin_color, fcolor_id(defcolor_back), 3.f));
 }
 
 function Rect_f32
@@ -456,7 +476,7 @@ get_token_color_cpp(Token token){
             color = defcolor_preproc;
         }break;
         case TokenBaseKind_Keyword:
-        {            
+        {
             color = defcolor_keyword;
         }break;
         case TokenBaseKind_Comment:
@@ -516,6 +536,51 @@ draw_cpp_token_colors(Application_Links *app, Text_Layout_ID text_layout_id, Tok
         paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
         if (!token_it_inc_all(&it)){
             break;
+        }
+    }
+}
+
+function void
+draw_whitespace_highlight(Application_Links *app, Text_Layout_ID text_layout_id, Token_Array *array, f32 roundness){
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    i64 first_index = token_index_from_pos(array, visible_range.first);
+    Token_Iterator_Array it = token_iterator_index(0, array, first_index);
+    for (;;){
+        Token *token = token_it_read(&it);
+        if (token->pos >= visible_range.one_past_last){
+            break;
+        }
+        if (token->kind == TokenBaseKind_Whitespace){
+            Range_i64 range = Ii64(token);
+            draw_character_block(app, text_layout_id, range, roundness,
+                                 fcolor_id(defcolor_highlight_white));
+        }
+        if (!token_it_inc_all(&it)){
+            break;
+        }
+    }
+}
+
+function void
+draw_whitespace_highlight(Application_Links *app, Buffer_ID buffer, Text_Layout_ID text_layout_id, f32 roundness){
+    Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
+    for (i64 i = visible_range.first; i < visible_range.one_past_last;){
+        u8 c = buffer_get_char(app, buffer, i);
+        if (character_is_whitespace(c)){
+            i64 s = i;
+            i += 1;
+            for (; i < visible_range.one_past_last; i += 1){
+                c = buffer_get_char(app, buffer, i);
+                if (!character_is_whitespace(c)){
+                    break;
+                }
+            }
+            Range_i64 range = Ii64(s, i);
+            draw_character_block(app, text_layout_id, range, roundness,
+                                 fcolor_id(defcolor_highlight_white));
+        }
+        else{
+            i += 1;
         }
     }
 }

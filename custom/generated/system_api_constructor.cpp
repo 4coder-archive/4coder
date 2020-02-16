@@ -88,8 +88,22 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("sleep"
 api_param(arena, call, "u64", "microseconds");
 }
 {
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("get_clipboard"), string_u8_litexpr("String_Const_u8"), string_u8_litexpr(""));
+api_param(arena, call, "Arena*", "arena");
+api_param(arena, call, "i32", "index");
+}
+{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("post_clipboard"), string_u8_litexpr("void"), string_u8_litexpr(""));
 api_param(arena, call, "String_Const_u8", "str");
+api_param(arena, call, "i32", "index");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_clipboard_catch_all"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "b32", "enabled");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("get_clipboard_catch_all"), string_u8_litexpr("b32"), string_u8_litexpr(""));
+(void)call;
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("cli_call"), string_u8_litexpr("b32"), string_u8_litexpr(""));

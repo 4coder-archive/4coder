@@ -35,7 +35,7 @@ done
 PHYS_DIR=`pwd -P`
 SOURCE=$PHYS_DIR/$TARGET_FILE
 
-opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings -g"
+opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings -g -DOS_LINUX=1 -DOS_WINDOWS=0 -DOS_MAC=1"
 arch=-m32
 
 cd "$REAL_PWD"

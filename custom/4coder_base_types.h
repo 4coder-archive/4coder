@@ -320,6 +320,11 @@ global_const f32 epsilon_f32 = 5.96046448e-8f;
 global_const f32 pi_f32 = 3.14159265359f;
 global_const f32 half_pi_f32 = 1.5707963267f;
 
+global_const f64 max_f64 = 1.79769313486231e+308;
+global_const f64 min_f64 = -max_f64;
+global_const f64 smallest_positive_f64 = 4.94065645841247e-324;
+global_const f64 epsilon_f64 = 1.11022302462515650e-16;
+
 #define clamp_signed_to_i8(x) (i8)(clamp((i64)i8_min, (i64)(x), (i64)i8_max))
 #define clamp_signed_to_i16(x) (i16)(clamp((i64)i16_min, (i64)(x), (i64)i16_max))
 #define clamp_signed_to_i32(x) (i32)(clamp((i64)i32_min, (i64)(x), (i64)i32_max))
@@ -522,8 +527,8 @@ union SNode{
 #define zdll_remove_back_NP_(f,l,next,prev) ((f==l)?(f=l=0):(l->prev->next=0,l=l->prev))
 #define zdll_remove_NP_(f,l,n,next,prev)       \
 ((l==n)?(zdll_remove_back_NP_(f,l,next,prev))  \
-:(f==n)?(zdll_remove_back_NP_(l,f,prev,next)) \
-:       (dll_remove_NP_(n,n,next,prev)))
+ :(f==n)?(zdll_remove_back_NP_(l,f,prev,next)) \
+ :       (dll_remove_NP_(n,n,next,prev)))
 
 #define zdll_push_back(f,l,n) zdll_push_back_NP_((f),(l),(n),next,prev)
 #define zdll_push_front(f,l,n) zdll_push_back_NP_((l),(f),(n),prev,next)
@@ -804,19 +809,19 @@ typedef u32 ARGB_Color;
 
 struct i8_Array{
     i8 *vals;
-    i32 coint;
+    i32 count;
 };
 struct i16_Array{
     i16 *vals;
-    i32 coint;
+    i32 count;
 };
 struct i32_Array{
     i32 *vals;
-    i32 coint;
+    i32 count;
 };
 struct i64_Array{
     i64 *vals;
-    i32 coint;
+    i32 count;
 };
 
 struct u8_Array{

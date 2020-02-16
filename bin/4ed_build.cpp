@@ -512,8 +512,19 @@ buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
     Temp_Dir temp = fm_pushdir(fm_str(arena, BUILD_DIR));
     
     char *build_script_postfix = "";
-    if (This_OS == Platform_Mac){
-        build_script_postfix = "-mac";
+    switch (This_OS){
+        case Platform_Windows:
+        {
+            build_script_postfix = "-win";
+        }break;
+        case Platform_Linux:
+        {
+            build_script_postfix = "-linux";
+        }break;
+        case Platform_Mac:
+        {
+            build_script_postfix = "-mac";
+        }break;
     }
     char *build_script = fm_str(arena, "custom/bin/buildsuper_", arch_names[arch], build_script_postfix, BAT);
     

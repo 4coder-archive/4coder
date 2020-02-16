@@ -44,7 +44,12 @@ api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "Child_Process_ID", "child_process_id");
 }
 {
-API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("clipboard_post"), string_u8_litexpr("b32"), string_u8_litexpr(""));
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("clipboard_clear"), string_u8_litexpr("b32"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+api_param(arena, call, "i32", "clipboard_id");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("clipboard_post_internal_only"), string_u8_litexpr("b32"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "i32", "clipboard_id");
 api_param(arena, call, "String_Const_u8", "string");
@@ -557,14 +562,6 @@ api_param(arena, call, "Buffer_ID", "buffer_id");
 api_param(arena, call, "Set_Buffer_Flag", "flags");
 }
 {
-API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("view_post_fade"), string_u8_litexpr("b32"), string_u8_litexpr(""));
-api_param(arena, call, "Application_Links*", "app");
-api_param(arena, call, "View_ID", "view_id");
-api_param(arena, call, "f32", "seconds");
-api_param(arena, call, "Range_i64", "range");
-api_param(arena, call, "ARGB_Color", "color");
-}
-{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("view_push_context"), string_u8_litexpr("b32"), string_u8_litexpr(""));
 api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "View_ID", "view_id");
@@ -990,6 +987,14 @@ api_param(arena, call, "Application_Links*", "app");
 api_param(arena, call, "Text_Layout_ID", "layout_id");
 api_param(arena, call, "Range_i64", "range");
 api_param(arena, call, "ARGB_Color", "color");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("paint_text_color_blend"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Application_Links*", "app");
+api_param(arena, call, "Text_Layout_ID", "layout_id");
+api_param(arena, call, "Range_i64", "range");
+api_param(arena, call, "ARGB_Color", "color");
+api_param(arena, call, "f32", "blend");
 }
 {
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("text_layout_free"), string_u8_litexpr("b32"), string_u8_litexpr(""));

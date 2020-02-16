@@ -208,6 +208,8 @@ struct Config_Data{
     b8 automatically_save_changes_on_build;
     b8 automatically_load_project;
     
+    i32 virtual_whitespace_regular_indent;
+    
     b8 indent_with_tabs;
     i32 indent_width;
     

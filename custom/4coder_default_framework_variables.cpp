@@ -98,5 +98,9 @@ global Fade_Range_List view_fade_ranges = {};
 global Arena fade_range_arena = {};
 global Fade_Range *free_fade_ranges = 0;
 
+////////////////////////////////
+
+global Clipboard clipboard0 = {};
+
 // BOTTOM
 

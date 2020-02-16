@@ -24,6 +24,7 @@ show_line_number_margins = false;
 // Code Wrapping
 treat_as_code = ".cpp.c.hpp.h.cc.cs.java.rs.glsl.m.mm";
 enable_virtual_whitespace = true;
+virtual_whitespace_regular_indent = 4;
 enable_code_wrapping = true;
 
 // This only applies to code files in code-wrapping mode.

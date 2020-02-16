@@ -1,5 +1,5 @@
 /*
-4coder_base_commands.cpp - Base commands such as inserting characters, and 
+4coder_base_commands.cpp - Base commands such as inserting characters, and
 moving the cursor, which work even without the default 4coder framework.
 */
 
@@ -584,37 +584,73 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     view_set_cursor_and_preferred_x(app, view, seek_pos(range.max));
 }
 
+function void
+clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer){
+    ProfileScope(app, "clean all lines");
+    Scratch_Block scratch(app);
+    Batch_Edit *batch_first = 0;
+    Batch_Edit *batch_last = 0;
+    
+    i64 line_count = buffer_get_line_count(app, buffer);
+    for (i64 line_number = 1; line_number <= line_count; line_number += 1){
+        i64 line_start = get_line_side_pos(app, buffer, line_number, Side_Min);
+        i64 line_end = get_line_side_pos(app, buffer, line_number, Side_Max);
+        u8 prev = buffer_get_char(app, buffer, line_end - 1);
+        b32 has_cr_character = false;
+        b32 has_tail_whitespace = false;
+        if (prev == '\r'){
+            has_cr_character = true;
+            if (line_end - 2 >= line_start){
+                prev = buffer_get_char(app, buffer, line_end - 2);
+                has_tail_whitespace = character_is_whitespace(prev);
+            }
+        }
+        else{
+            has_tail_whitespace = character_is_whitespace(prev);
+        }
+        if (has_tail_whitespace){
+            String_Const_u8 line = push_buffer_range(app, scratch, buffer,
+                                                     Ii64(line_start, line_end));
+            if (line.size > 0){
+                i64 end_offset = line.size;
+                i64 i = line.size - 1;
+                if (has_cr_character){
+                    end_offset -= 1;
+                    i -= 1;
+                }
+                i64 start_offset = 0;
+                for (; i >= 0; i -= 1){
+                    if (!character_is_whitespace(line.str[i])){
+                        start_offset = i + 1;
+                        break;
+                    }
+                }
+                
+                if (start_offset > 0){
+                    i64 start = start_offset + line_start;
+                    i64 end   = end_offset   + line_start;
+                    
+                    Batch_Edit *batch = push_array(scratch, Batch_Edit, 1);
+                    sll_queue_push(batch_first, batch_last, batch);
+                    batch->edit.text = SCu8();
+                    batch->edit.range = Ii64(start, end);
+                }
+            }
+        }
+    }
+    
+    if (batch_first != 0){
+        buffer_batch_edit(app, buffer, batch_first);
+    }
+}
+
 CUSTOM_COMMAND_SIG(clean_all_lines)
 CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
 {
     ProfileScope(app, "clean all lines");
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-    
-    Scratch_Block scratch(app);
-    Batch_Edit *batch_first = 0;
-    Batch_Edit *batch_last = 0;
-    
-    String_Const_u8 text = push_whole_buffer(app, scratch, buffer);
-    
-    u64 whitespace_start = 0;
-    for (u64 i = 0; i < text.size; i += 1){
-        u8 v = string_get_character(text, i);
-        if (v == '\n' || i + 1 == text.size){
-            if (whitespace_start < i){
-                Batch_Edit *batch = push_array(scratch, Batch_Edit, 1);
-                sll_queue_push(batch_first, batch_last, batch);
-                batch->edit.text = SCu8();
-                batch->edit.range = Ii64(whitespace_start, i);
-            }
-            whitespace_start = i + 1;
-        }
-        else if (!character_is_whitespace(v)){
-            whitespace_start = i + 1;
-        }
-    }
-    
-    buffer_batch_edit(app, buffer, batch_first);
+    clean_all_lines_buffer(app, buffer);
 }
 
 ////////////////////////////////
@@ -679,6 +715,26 @@ CUSTOM_DOC("Toggles the visibility of the FPS performance meter")
     show_fps_hud = !show_fps_hud;
 }
 
+CUSTOM_COMMAND_SIG(set_face_size)
+CUSTOM_DOC("Set face size of the face used by the current buffer.")
+{
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Face_ID face_id = get_face_id(app, buffer);
+    Face_Description description = get_face_description(app, face_id);
+    
+    Query_Bar_Group group(app);
+    u8 string_space[256];
+    Query_Bar bar = {};
+    bar.prompt = string_u8_litexpr("Face Size: ");
+    bar.string = SCu8(string_space, (u64)0);
+    bar.string_capacity = sizeof(string_space);
+    if (query_user_number(app, &bar, description.parameters.pt_size)){
+        description.parameters.pt_size = (u32)string_to_integer(bar.string, 10);
+        try_modify_face(app, face_id, &description);
+    }
+}
+
 CUSTOM_COMMAND_SIG(increase_face_size)
 CUSTOM_DOC("Increase the size of the face used by the current buffer.")
 {
@@ -699,6 +755,37 @@ CUSTOM_DOC("Decrease the size of the face used by the current buffer.")
     Face_Description description = get_face_description(app, face_id);
     --description.parameters.pt_size;
     try_modify_face(app, face_id, &description);
+}
+
+CUSTOM_COMMAND_SIG(set_face_size_this_buffer)
+CUSTOM_DOC("Set face size of the face used by the current buffer; if any other buffers are using the same face a new face is created so that only this buffer is effected")
+{
+    View_ID view = get_active_view(app, Access_Always);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Face_ID face_id = get_face_id(app, buffer);
+    
+    b32 is_shared = false;
+    for (Buffer_ID buf_it = get_buffer_next(app, 0, Access_Always);
+         buf_it != 0;
+         buf_it = get_buffer_next(app, buf_it, Access_Always)){
+        if (buf_it == buffer){
+            continue;
+        }
+        Face_ID buf_it_face_id = get_face_id(app, buf_it);
+        if (buf_it_face_id == face_id){
+            is_shared = true;
+        }
+    }
+    
+    if (is_shared){
+        Face_Description description = get_face_description(app, face_id);
+        face_id = try_create_new_face(app, &description);
+        if (face_id != 0){
+            buffer_set_face(app, buffer, face_id);
+        }
+    }
+    
+    set_face_size(app);
 }
 
 CUSTOM_COMMAND_SIG(mouse_wheel_change_face_size)

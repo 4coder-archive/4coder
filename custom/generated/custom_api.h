@@ -6,9 +6,6 @@
 #define custom_buffer_get_attached_child_process_sig() Child_Process_ID custom_buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id)
 #define custom_child_process_get_attached_buffer_sig() Buffer_ID custom_child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id)
 #define custom_child_process_get_state_sig() Process_State custom_child_process_get_state(Application_Links* app, Child_Process_ID child_process_id)
-#define custom_clipboard_post_sig() b32 custom_clipboard_post(Application_Links* app, i32 clipboard_id, String_Const_u8 string)
-#define custom_clipboard_count_sig() i32 custom_clipboard_count(Application_Links* app, i32 clipboard_id)
-#define custom_push_clipboard_index_sig() String_Const_u8 custom_push_clipboard_index(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index)
 #define custom_enqueue_virtual_event_sig() b32 custom_enqueue_virtual_event(Application_Links* app, Input_Event* event)
 #define custom_get_buffer_count_sig() i32 custom_get_buffer_count(Application_Links* app)
 #define custom_get_buffer_next_sig() Buffer_ID custom_get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access)
@@ -155,6 +152,8 @@
 #define custom_send_exit_signal_sig() void custom_send_exit_signal(Application_Links* app)
 #define custom_hard_exit_sig() void custom_hard_exit(Application_Links* app)
 #define custom_set_window_title_sig() void custom_set_window_title(Application_Links* app, String_Const_u8 title)
+#define custom_acquire_global_frame_mutex_sig() void custom_acquire_global_frame_mutex(Application_Links* app)
+#define custom_release_global_frame_mutex_sig() void custom_release_global_frame_mutex(Application_Links* app)
 #define custom_draw_string_oriented_sig() Vec2_f32 custom_draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta)
 #define custom_get_string_advance_sig() f32 custom_get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str)
 #define custom_draw_rectangle_sig() void custom_draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color)
@@ -183,9 +182,6 @@ typedef b32 custom_child_process_set_target_buffer_type(Application_Links* app, 
 typedef Child_Process_ID custom_buffer_get_attached_child_process_type(Application_Links* app, Buffer_ID buffer_id);
 typedef Buffer_ID custom_child_process_get_attached_buffer_type(Application_Links* app, Child_Process_ID child_process_id);
 typedef Process_State custom_child_process_get_state_type(Application_Links* app, Child_Process_ID child_process_id);
-typedef b32 custom_clipboard_post_type(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
-typedef i32 custom_clipboard_count_type(Application_Links* app, i32 clipboard_id);
-typedef String_Const_u8 custom_push_clipboard_index_type(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index);
 typedef b32 custom_enqueue_virtual_event_type(Application_Links* app, Input_Event* event);
 typedef i32 custom_get_buffer_count_type(Application_Links* app);
 typedef Buffer_ID custom_get_buffer_next_type(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
@@ -332,6 +328,8 @@ typedef void custom_set_hot_directory_type(Application_Links* app, String_Const_
 typedef void custom_send_exit_signal_type(Application_Links* app);
 typedef void custom_hard_exit_type(Application_Links* app);
 typedef void custom_set_window_title_type(Application_Links* app, String_Const_u8 title);
+typedef void custom_acquire_global_frame_mutex_type(Application_Links* app);
+typedef void custom_release_global_frame_mutex_type(Application_Links* app);
 typedef Vec2_f32 custom_draw_string_oriented_type(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 typedef f32 custom_get_string_advance_type(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 typedef void custom_draw_rectangle_type(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
@@ -361,9 +359,6 @@ custom_child_process_set_target_buffer_type *child_process_set_target_buffer;
 custom_buffer_get_attached_child_process_type *buffer_get_attached_child_process;
 custom_child_process_get_attached_buffer_type *child_process_get_attached_buffer;
 custom_child_process_get_state_type *child_process_get_state;
-custom_clipboard_post_type *clipboard_post;
-custom_clipboard_count_type *clipboard_count;
-custom_push_clipboard_index_type *push_clipboard_index;
 custom_enqueue_virtual_event_type *enqueue_virtual_event;
 custom_get_buffer_count_type *get_buffer_count;
 custom_get_buffer_next_type *get_buffer_next;
@@ -510,6 +505,8 @@ custom_set_hot_directory_type *set_hot_directory;
 custom_send_exit_signal_type *send_exit_signal;
 custom_hard_exit_type *hard_exit;
 custom_set_window_title_type *set_window_title;
+custom_acquire_global_frame_mutex_type *acquire_global_frame_mutex;
+custom_release_global_frame_mutex_type *release_global_frame_mutex;
 custom_draw_string_oriented_type *draw_string_oriented;
 custom_get_string_advance_type *get_string_advance;
 custom_draw_rectangle_type *draw_rectangle;
@@ -540,9 +537,6 @@ internal b32 child_process_set_target_buffer(Application_Links* app, Child_Proce
 internal Child_Process_ID buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id);
 internal Buffer_ID child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id);
 internal Process_State child_process_get_state(Application_Links* app, Child_Process_ID child_process_id);
-internal b32 clipboard_post(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
-internal i32 clipboard_count(Application_Links* app, i32 clipboard_id);
-internal String_Const_u8 push_clipboard_index(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index);
 internal b32 enqueue_virtual_event(Application_Links* app, Input_Event* event);
 internal i32 get_buffer_count(Application_Links* app);
 internal Buffer_ID get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
@@ -689,6 +683,8 @@ internal void set_hot_directory(Application_Links* app, String_Const_u8 string);
 internal void send_exit_signal(Application_Links* app);
 internal void hard_exit(Application_Links* app);
 internal void set_window_title(Application_Links* app, String_Const_u8 title);
+internal void acquire_global_frame_mutex(Application_Links* app);
+internal void release_global_frame_mutex(Application_Links* app);
 internal Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 internal f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 internal void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
@@ -719,9 +715,6 @@ global custom_child_process_set_target_buffer_type *child_process_set_target_buf
 global custom_buffer_get_attached_child_process_type *buffer_get_attached_child_process = 0;
 global custom_child_process_get_attached_buffer_type *child_process_get_attached_buffer = 0;
 global custom_child_process_get_state_type *child_process_get_state = 0;
-global custom_clipboard_post_type *clipboard_post = 0;
-global custom_clipboard_count_type *clipboard_count = 0;
-global custom_push_clipboard_index_type *push_clipboard_index = 0;
 global custom_enqueue_virtual_event_type *enqueue_virtual_event = 0;
 global custom_get_buffer_count_type *get_buffer_count = 0;
 global custom_get_buffer_next_type *get_buffer_next = 0;
@@ -868,6 +861,8 @@ global custom_set_hot_directory_type *set_hot_directory = 0;
 global custom_send_exit_signal_type *send_exit_signal = 0;
 global custom_hard_exit_type *hard_exit = 0;
 global custom_set_window_title_type *set_window_title = 0;
+global custom_acquire_global_frame_mutex_type *acquire_global_frame_mutex = 0;
+global custom_release_global_frame_mutex_type *release_global_frame_mutex = 0;
 global custom_draw_string_oriented_type *draw_string_oriented = 0;
 global custom_get_string_advance_type *get_string_advance = 0;
 global custom_draw_rectangle_type *draw_rectangle = 0;

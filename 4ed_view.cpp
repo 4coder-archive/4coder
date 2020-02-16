@@ -511,7 +511,7 @@ view_current_context(View *view){
 ////////////////////////////////
 
 internal Coroutine*
-co_handle_request(Models *models, Coroutine *co, Co_Out *out){
+co_handle_request(Thread_Context *tctx, Models *models, Coroutine *co, Co_Out *out){
     Coroutine *result = 0;
     switch (out->request){
         case CoRequest_NewFontFace:
@@ -531,6 +531,18 @@ co_handle_request(Models *models, Coroutine *co, Co_Out *out){
             in.success = font_set_modify_face(&models->font_set, face_id, description);
             result = coroutine_run(&models->coroutines, co, &in, out);
         }break;
+        
+        case CoRequest_AcquireGlobalFrameMutex:
+        {
+            system_acquire_global_frame_mutex(tctx);
+            result = coroutine_run(&models->coroutines, co, 0, out);
+        }break;
+        
+        case CoRequest_ReleaseGlobalFrameMutex:
+        {
+            system_release_global_frame_mutex(tctx);
+            result = coroutine_run(&models->coroutines, co, 0, out);
+        }break;
     }
     return(result);
 }
@@ -539,7 +551,7 @@ internal Coroutine*
 co_run(Thread_Context *tctx, Models *models, Coroutine *co, Co_In *in, Co_Out *out){
     Coroutine *result = coroutine_run(&models->coroutines, co, in, out);
     for (;result != 0 && out->request != CoRequest_None;){
-        result = co_handle_request(models, result, out);
+        result = co_handle_request(tctx, models, result, out);
     }
     return(result);
 }

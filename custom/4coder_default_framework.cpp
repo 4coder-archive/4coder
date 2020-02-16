@@ -496,28 +496,21 @@ CUSTOM_DOC("Clear the theme list")
 function void
 default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_names,
                           i32 override_font_size, b32 override_hinting){
-    Thread_Context *tctx = get_thread_context(app);
-    heap_init(&global_heap, tctx->allocator);
-    
 #define M \
-"Welcome to " VERSION "\n" \
-"If you're new to 4coder there is a built in tutorial\n" \
-"Use the key combination [ X Alt ] (on mac [ X Control ])\n" \
-"Type in 'hms_demo_tutorial' and press enter\n" \
-"\n" \
-"Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n" \
-"\n" \
-"Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n" \
-"\n" \
-"The change log can be found in CHANGES.txt\n" \
-"\n"
-    print_message(app, string_u8_litexpr(M));
+    "Welcome to " VERSION "\n" \
+        "If you're new to 4coder there is a built in tutorial\n" \
+        "Use the key combination [ X Alt ] (on mac [ X Control ])\n" \
+        "Type in 'hms_demo_tutorial' and press enter\n" \
+        "\n" \
+        "Direct bug reports and feature requests to https://github.com/4coder-editor/4coder/issues\n" \
+        "\n" \
+        "Other questions and discussion can be directed to editor@4coder.net or 4coder.handmade.network\n" \
+        "\n" \
+        "The change log can be found in CHANGES.txt\n" \
+        "\n"
+        print_message(app, string_u8_litexpr(M));
 #undef M
     
-#if 0
-    load_folder_of_themes_into_live_set(app, &global_part, "themes");
-#endif
-    global_config_arena = reserve_arena(app);
     load_config_and_apply(app, global_config_arena, &global_config, override_font_size, override_hinting);
     
     // open command line files
@@ -534,8 +527,6 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
             create_buffer(app, input_name, 0);
         }
     }
-    
-    fade_range_arena = make_arena_system(KB(8));
 }
 
 function void
@@ -789,6 +780,129 @@ paint_fade_ranges(Application_Links *app, Text_Layout_ID layout, Buffer_ID buffe
             paint_text_color_blend(app, layout, node->range, node->color, node->t/node->full_t);
         }
     }
+}
+
+////////////////////////////////
+
+function void
+clipboard_init_empty(Clipboard *clipboard, u32 history_depth){
+    history_depth = clamp_bot(1, history_depth);
+    heap_init(&clipboard->heap, &clipboard->arena);
+    clipboard->clip_index = 0;
+    clipboard->clip_capacity = history_depth;
+    clipboard->clips = push_array_zero(&clipboard->arena, String_Const_u8, history_depth);
+}
+
+function void
+clipboard_init(Base_Allocator *allocator, u32 history_depth, Clipboard *clipboard_out){
+    u64 memsize = sizeof(String_Const_u8)*history_depth;
+    memsize = round_up_u64(memsize, KB(4));
+    clipboard_out->arena = make_arena(allocator, memsize, 8);
+    clipboard_init_empty(clipboard_out, history_depth);
+}
+
+function void
+clipboard_clear(Clipboard *clipboard){
+    linalloc_clear(&clipboard->arena);
+    clipboard_init_empty(clipboard, clipboard->clip_capacity);
+}
+
+function String_Const_u8
+clipboard_post_internal_only(Clipboard *clipboard, String_Const_u8 string){
+    u32 rolled_index = clipboard->clip_index%clipboard->clip_capacity;
+    clipboard->clip_index += 1;
+    String_Const_u8 *slot = &clipboard->clips[rolled_index];
+    if (slot->str != 0){
+        if (slot->size < string.size ||
+            (slot->size - string.size) > KB(1)){
+            heap_free(&clipboard->heap, slot->str);
+            goto alloc_new;
+        }
+    }
+    else{
+        alloc_new:;
+        u8 *new_buf = (u8*)heap_allocate(&clipboard->heap, string.size);
+        slot->str = new_buf;
+    }
+    block_copy(slot->str, string.str, string.size);
+    slot->size = string.size;
+    return(*slot);
+}
+
+function u32
+clipboard_count(Clipboard *clipboard){
+    u32 result = clipboard->clip_index;
+    result = clamp_top(result, clipboard->clip_capacity);
+    return(result);
+}
+
+function String_Const_u8
+get_clipboard_index(Clipboard *clipboard, u32 item_index){
+    String_Const_u8 result = {};
+    u32 top = Min(clipboard->clip_index, clipboard->clip_capacity);
+    if (top > 0){
+        item_index = item_index%top;
+        i32 array_index = ((clipboard->clip_index - 1) - item_index)%top;
+        result = clipboard->clips[array_index];
+    }
+    return(result);
+}
+
+function String_Const_u8
+push_clipboard_index(Arena *arena, Clipboard *clipboard, i32 item_index){
+    String_Const_u8 result = get_clipboard_index(clipboard, item_index);
+    result = push_string_copy(arena, result);
+    return(result);
+}
+
+////////////////////////////////
+
+function void
+clipboard_clear(i32 clipboard_id){
+    clipboard_clear(&clipboard0);
+}
+
+function String_Const_u8
+clipboard_post_internal_only(i32 clipboard_id, String_Const_u8 string){
+    return(clipboard_post_internal_only(&clipboard0, string));
+}
+
+function b32
+clipboard_post(i32 clipboard_id, String_Const_u8 string){
+    clipboard_post_internal_only(clipboard_id, string);
+    system_post_clipboard(string, clipboard_id);
+    return(true);
+}
+
+function i32
+clipboard_count(i32 clipboard_id){
+    return(clipboard_count(&clipboard0));
+}
+
+function String_Const_u8
+push_clipboard_index(Arena *arena, i32 clipboard_id, i32 item_index){
+    return(push_clipboard_index(arena, &clipboard0, item_index));
+}
+
+////////////////////////////////
+
+function void
+initialize_managed_id_metadata(Application_Links *app);
+
+function void
+default_framework_init(Application_Links *app){
+    Thread_Context *tctx = get_thread_context(app);
+    async_task_handler_init(app, &global_async_system);
+    clipboard_init(get_base_allocator_system(), /*history_depth*/ 64, &clipboard0);
+    code_index_init();
+    buffer_modified_set_init();
+    Profile_Global_List *list = get_core_profile_list(app);
+    ProfileThreadName(tctx, list, string_u8_litexpr("main"));
+    initialize_managed_id_metadata(app);
+    set_default_color_scheme(app);
+    heap_init(&global_heap, tctx->allocator);
+    global_config_arena = reserve_arena(app);
+    fade_range_arena = make_arena_system(KB(8));
 }
 
 // BOTTOM

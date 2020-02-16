@@ -21,7 +21,7 @@ make_batch_from_indentations(Application_Links *app, Arena *arena, Buffer_ID buf
         if (indent_info.is_blank && HasFlag(flags, Indent_ClearLine)){
             correct_indentation = 0;
         }
-        if (correct_indentation == -1){
+        if (correct_indentation <= -1){
             correct_indentation = indent_info.indent_pos;
         }
         
@@ -166,8 +166,14 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
     i64 *shifted_indentations = indentations - lines.first;
     block_fill_u64(indentations, sizeof(*indentations)*count, (u64)(-1));
     
+#if 0
     Managed_Scope scope = buffer_get_managed_scope(app, buffer);
     Token_Array *tokens = scope_attachment(app, scope, attachment_tokens, Token_Array);
+#endif
+    
+    Token_Array token_array = get_token_array_from_buffer(app, buffer);
+    Token_Array *tokens = &token_array;
+    
     i64 anchor_line = clamp_bot(1, lines.first - 1);
     Token *anchor_token = find_anchor_token(app, buffer, tokens, anchor_line);
     if (anchor_token != 0 &&
@@ -268,10 +274,10 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                         //ignore_unfinished_statement = true;
                     }break;
                 }
-            }
-            
-            if (in_unfinished_statement && !ignore_unfinished_statement){
-                this_indent += indent_width;
+                
+                if (in_unfinished_statement && !ignore_unfinished_statement){
+                    this_indent += indent_width;
+                }
             }
             
 #define EMIT(N) \
@@ -342,11 +348,11 @@ actual_indent = N; )
 internal b32
 auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos, Indent_Flag flags, i32 tab_width, i32 indent_width){
     ProfileScope(app, "auto indent buffer");
-    Managed_Scope scope = buffer_get_managed_scope(app, buffer);
-    Token_Array *tokens = scope_attachment(app, scope, attachment_tokens, Token_Array);
+    Token_Array token_array = get_token_array_from_buffer(app, buffer);
+    Token_Array *tokens = &token_array;
     
     b32 result = false;
-    if (tokens != 0 && tokens->tokens != 0){
+    if (tokens->tokens != 0){
         result = true;
         
         Scratch_Block scratch(app);

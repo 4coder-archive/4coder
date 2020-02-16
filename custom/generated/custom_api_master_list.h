@@ -6,9 +6,6 @@ api(custom) function b32 child_process_set_target_buffer(Application_Links* app,
 api(custom) function Child_Process_ID buffer_get_attached_child_process(Application_Links* app, Buffer_ID buffer_id);
 api(custom) function Buffer_ID child_process_get_attached_buffer(Application_Links* app, Child_Process_ID child_process_id);
 api(custom) function Process_State child_process_get_state(Application_Links* app, Child_Process_ID child_process_id);
-api(custom) function b32 clipboard_post(Application_Links* app, i32 clipboard_id, String_Const_u8 string);
-api(custom) function i32 clipboard_count(Application_Links* app, i32 clipboard_id);
-api(custom) function String_Const_u8 push_clipboard_index(Application_Links* app, Arena* arena, i32 clipboard_id, i32 item_index);
 api(custom) function b32 enqueue_virtual_event(Application_Links* app, Input_Event* event);
 api(custom) function i32 get_buffer_count(Application_Links* app);
 api(custom) function Buffer_ID get_buffer_next(Application_Links* app, Buffer_ID buffer_id, Access_Flag access);
@@ -155,6 +152,8 @@ api(custom) function void set_hot_directory(Application_Links* app, String_Const
 api(custom) function void send_exit_signal(Application_Links* app);
 api(custom) function void hard_exit(Application_Links* app);
 api(custom) function void set_window_title(Application_Links* app, String_Const_u8 title);
+api(custom) function void acquire_global_frame_mutex(Application_Links* app);
+api(custom) function void release_global_frame_mutex(Application_Links* app);
 api(custom) function Vec2_f32 draw_string_oriented(Application_Links* app, Face_ID font_id, ARGB_Color color, String_Const_u8 str, Vec2_f32 point, u32 flags, Vec2_f32 delta);
 api(custom) function f32 get_string_advance(Application_Links* app, Face_ID font_id, String_Const_u8 str);
 api(custom) function void draw_rectangle(Application_Links* app, Rect_f32 rect, f32 roundness, ARGB_Color color);
