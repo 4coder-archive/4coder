@@ -140,6 +140,13 @@ struct Linux_Input_Chunk {
     Linux_Input_Chunk_Persistent pers;
 };
 
+struct Linux_Memory_Tracker_Node {
+    Linux_Memory_Tracker_Node* prev;
+    Linux_Memory_Tracker_Node* next;
+    String_Const_u8 location;
+    u64 size;
+};
+
 struct Linux_Vars {
     Thread_Context tctx;
     Arena *frame_arena;
@@ -173,6 +180,10 @@ struct Linux_Vars {
     Node timer_objects;
 
     System_Mutex global_frame_mutex;
+    pthread_mutex_t memory_tracker_mutex;
+    Linux_Memory_Tracker_Node* memory_tracker_head;
+    Linux_Memory_Tracker_Node* memory_tracker_tail;
+    int memory_tracker_count;
 
     Arena* clipboard_arena;
     String_Const_u8 clipboard_contents;
@@ -1551,6 +1562,11 @@ linux_epoll_process(struct epoll_event* events, int num_events) {
 
 int
 main(int argc, char **argv){
+
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&linuxvars.memory_tracker_mutex, &attr);
 
     // NOTE(allen): context setup
     {

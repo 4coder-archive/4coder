@@ -616,20 +616,42 @@ system_condition_variable_signal(System_Condition_Variable cv){
 internal void
 system_condition_variable_free(System_Condition_Variable cv){
     Linux_Object* object = *(Linux_Object**)&cv;
-    //LINUX_FN_DEBUG("%p", object);
+    LINUX_FN_DEBUG("%p", &object->condition_variable);
     Assert(object->kind == LinuxObjectKind_ConditionVariable);
     pthread_cond_destroy(&object->condition_variable);
     linux_free_object(object);
 }
 
+#define MEMORY_PREFIX_SIZE 64
+
 internal void*
 system_memory_allocate(u64 size, String_Const_u8 location){
 
-    void* result = mmap(
-        NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    // TODO(andrew): Allocation tracking?
-    //LINUX_FN_DEBUG("%" PRIu64 ", %.*s %p", size, (int)location.size, location.str, result);
-    return result;
+    static_assert(MEMORY_PREFIX_SIZE >= sizeof(Memory_Annotation_Node));
+    u64 adjusted_size = size + MEMORY_PREFIX_SIZE;
+
+    Assert(adjusted_size > size);
+
+    const int prot  = PROT_READ | PROT_WRITE;
+    const int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+
+    void* result = mmap(NULL, adjusted_size, prot, flags, -1, 0);
+
+    if(result == MAP_FAILED) {
+        perror("mmap");
+        return NULL;
+    }
+
+    Linux_Memory_Tracker_Node* node = (Linux_Memory_Tracker_Node*)result;
+    node->location = location;
+    node->size = size;
+
+    pthread_mutex_lock(&linuxvars.memory_tracker_mutex);
+    zdll_push_back(linuxvars.memory_tracker_head, linuxvars.memory_tracker_tail, node);
+    linuxvars.memory_tracker_count++;
+    pthread_mutex_unlock(&linuxvars.memory_tracker_mutex);
+
+    return (u8*)result + MEMORY_PREFIX_SIZE;
 }
 
 internal b32
@@ -645,14 +667,43 @@ system_memory_set_protection(void* ptr, u64 size, u32 flags){
 
 internal void
 system_memory_free(void* ptr, u64 size){
-    //LINUX_FN_DEBUG("%p / %ld", ptr, size);
-    munmap(ptr, size);
+    u64 adjusted_size = size + MEMORY_PREFIX_SIZE;
+    Linux_Memory_Tracker_Node* node = (Linux_Memory_Tracker_Node*)((u8*)ptr - MEMORY_PREFIX_SIZE);
+
+    pthread_mutex_lock(&linuxvars.memory_tracker_mutex);
+    zdll_remove(linuxvars.memory_tracker_head, linuxvars.memory_tracker_tail, node);
+    linuxvars.memory_tracker_count--;
+    pthread_mutex_unlock(&linuxvars.memory_tracker_mutex);
+
+    if(munmap(node, adjusted_size) == -1) {
+        perror("munmap");
+    }
 }
 
 internal Memory_Annotation
 system_memory_annotation(Arena* arena){
     LINUX_FN_DEBUG();
-    // TODO;
+
+    Memory_Annotation result;
+    Memory_Annotation_Node** ptr = &result.first;
+
+    pthread_mutex_lock(&linuxvars.memory_tracker_mutex);
+
+    for(Linux_Memory_Tracker_Node* node = linuxvars.memory_tracker_head; node; node = node->next) {
+        *ptr = push_array(arena, Memory_Annotation_Node, 1);
+        (*ptr)->location = node->location;
+        (*ptr)->size = node->size;
+        (*ptr)->address = (u8*)node + MEMORY_PREFIX_SIZE;
+        ptr = &(*ptr)->next;
+        result.count++;
+    }
+
+    pthread_mutex_unlock(&linuxvars.memory_tracker_mutex);
+
+    *ptr = NULL;
+    result.last = CastFromMember(Memory_Annotation_Node, next, ptr);
+
+    return result;
 }
 
 internal void
