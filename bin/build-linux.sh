@@ -3,7 +3,7 @@
 # If any command errors, stop the script
 set -e
 
-# Set up directories (mirrors build.bat)
+# Set up directories
 
 ME="$(readlink -f "$0")"
 LOCATION="$(dirname "$ME")"
@@ -23,16 +23,13 @@ if [ -z "$BUILD_MODE" ]; then
     BUILD_MODE="-DDEV_BUILD"
 fi
 
-# Get the OS specific flags
-chmod +rx "$BIN_ROOT/detect_os.sh"
-os=$("$BIN_ROOT/detect_os.sh")
-
 WARNINGS="-Wno-write-strings -Wno-comment"
 
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"
 INCLUDES="-I$SRC_ROOT -I$CUSTOM_ROOT"
 
 # Execute
+echo g++ $WARNINGS $FLAGS $INCLUDES "$BIN_ROOT/4ed_build.cpp" -g -o "$BUILD_ROOT/build"
 g++ $WARNINGS $FLAGS $INCLUDES "$BIN_ROOT/4ed_build.cpp" -g -o "$BUILD_ROOT/build"
 pushd "$SRC_ROOT"
 "$BUILD_ROOT/build"
