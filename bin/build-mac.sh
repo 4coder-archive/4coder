@@ -27,11 +27,7 @@ fi
 chmod +rx "$BIN_ROOT/detect_os.sh"
 os=$("$BIN_ROOT/detect_os.sh")
 
-if [[ "$os" == "linux" ]]; then
-WARNINGS="-Wno-write-strings -Wno-comment"
-elif [[ "$os" == "mac" ]]; then
 WARNINGS="-Wno-write-strings -Wno-comment -Wno-null-dereference -Wno-logical-op-parentheses -Wno-switch"
-fi
 
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"
 INCLUDES="-I$SRC_ROOT -I$CUSTOM_ROOT"
