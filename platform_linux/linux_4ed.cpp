@@ -109,7 +109,7 @@ fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__);\
 #undef AssertBreak
 #define AssertBreak(m) ({\
 fprintf(stderr, "\n** ASSERTION FAILURE: %s:%d: %s\n\n", __FILE__, __LINE__, #m);\
-        *((volatile u64*)0) = 0xba771e70ad5;\
+*((volatile u64*)0) = 0xba771e70ad5;\
 })
 #else
 #define LINUX_FN_DEBUG(...)
@@ -1662,7 +1662,8 @@ main(int argc, char **argv){
     Custom_API custom = {};
     {
         char custom_not_found_msg[] = "Did not find a library for the custom layer.";
-        char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
+        char custom_fail_load_msg[] = "Failed to load custom code due to missing version information.  Try rebuilding with buildsuper.";
+        char custom_fail_version_msg[] = "Failed to load custom code due to a version mismatch.  Try rebuilding with buildsuper.";
         char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
         
         Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
@@ -1701,7 +1702,10 @@ main(int argc, char **argv){
         }
         custom.get_version = (_Get_Version_Type*)system_get_proc(custom_library, "get_version");
         fprintf(stderr, "VER: %d.%d.%d\n", MAJOR, MINOR, PATCH);
-        if (custom.get_version == 0 || custom.get_version(MAJOR, MINOR, PATCH) == 0){
+        if (custom.get_version == 0){
+            system_error_box(custom_fail_load_msg);
+        }
+        else if (custom.get_version(MAJOR, MINOR, PATCH) == 0){
             system_error_box(custom_fail_version_msg);
         }
         custom.init_apis = (_Init_APIs_Type*)system_get_proc(custom_library, "init_apis");
