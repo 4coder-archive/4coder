@@ -6,6 +6,7 @@
 
 extern "C" b32
 get_version(i32 maj, i32 min, i32 patch){
+    printf("CUS: %d.%d.%d\n", MAJOR, MINOR, PATCH);
     return(maj == MAJOR && min == MINOR && patch == PATCH);
 }
 
