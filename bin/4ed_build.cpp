@@ -294,7 +294,7 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
 "-Wno-write-strings "                 \
 "-D_GNU_SOURCE -fPIC "                \
 "-fno-threadsafe-statics -pthread "   \
-"-Wno-unused-result"                  \
+"-Wno-unused-result "                 \
 "-std=c++11"
 
 #define GCC_LIBS_COMMON                        \
@@ -374,7 +374,6 @@ build(Arena *arena, u32 flags, u32 arch, char *code_path, char **code_files, cha
     fm_finish_build_line(&line);
     
     Temp_Dir temp = fm_pushdir(out_path);
-    printf("g++ %s -o %s", line.build_options, out_file);
     systemf("g++ %s -o %s", line.build_options, out_file);
     fm_popdir(temp);
 }
