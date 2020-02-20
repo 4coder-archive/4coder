@@ -1697,8 +1697,6 @@ main(int argc, char **argv){
             }
         }
         
-#error FUCKING HELL
-        
         if (!has_library){
             system_error_box(custom_not_found_msg);
         }
