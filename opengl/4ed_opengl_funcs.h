@@ -13,18 +13,20 @@
 #include "4ed_opengl_funcs.h"
 */
 
+#if OS_WINDOWS || OS_LINUX
 GL_FUNC(glDebugMessageControl, void, (GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint *ids, GLboolean enabled))
 GL_FUNC(glDebugMessageCallback, void, (GLDEBUGPROC callback, const void *userParam))
 
-#ifndef OS_LINUX
+GL_FUNC(glGenVertexArrays,    void, (GLsizei n, GLuint *arrays))
+GL_FUNC(glBindVertexArray,    void, (GLuint array))
+
+GL_FUNC(glDeleteVertexArrays, void, (GLsizei n, const GLuint *arrays))
+
+#if !OS_LINUX
 GL_FUNC(glTexImage3D, void, (GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void *pixels))
 GL_FUNC(glTexSubImage3D, void, (GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels))
 GL_FUNC(glActiveTexture, void, (GLenum texture))
 #endif
-
-GL_FUNC(glGenVertexArrays,    void, (GLsizei n, GLuint *arrays))
-GL_FUNC(glBindVertexArray,    void, (GLuint array))
-GL_FUNC(glDeleteVertexArrays, void, (GLsizei n, const GLuint *arrays))
 
 GL_FUNC(glGenBuffers, void, (GLsizei n, GLuint *buffers))
 GL_FUNC(glBindBuffer, void, (GLenum target, GLuint buffer))
@@ -54,6 +56,7 @@ GL_FUNC(glDisableVertexAttribArray, void, (GLuint index))
 GL_FUNC(glEnableVertexAttribArray, void, (GLuint index))
 
 GL_FUNC(glVertexAttribPointer, void, (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer))
+
 GL_FUNC(glVertexAttribIPointer, void, (GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer))
 
 GL_FUNC(glUniform1f, void, (GLint location, GLfloat v0))
@@ -86,6 +89,18 @@ GL_FUNC(glFramebufferTexture3D, void, (GLenum target, GLenum attachment, GLenum 
 GL_FUNC(glBlitFramebuffer, void, (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter))
 
 GL_FUNC(glTexImage2DMultisample, void, (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height, GLboolean fixedsamplelocations))
+
+#elif OS_MAC
+
+GL_FUNC(glDebugMessageControl, void, (GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint *ids, GLboolean enabled))
+GL_FUNC(glDebugMessageCallback, void, (GLDEBUGPROC callback, const void *userParam))
+
+GL_FUNC(glGenVertexArrays,    void, (GLsizei n, GLuint *arrays))
+GL_FUNC(glBindVertexArray,    void, (GLuint array))
+
+GL_FUNC(glVertexAttribIPointer, void, (GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer))
+
+#endif
 
 #undef GL_FUNC
 
