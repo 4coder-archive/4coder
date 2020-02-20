@@ -1343,9 +1343,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         
         // NOTE(allen): Load wgl extensions
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
-(l) = (l) && win32_wgl_good((Void_Func*)(f));)
-        
-        b32 load_success = true;
+        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
+            
+            b32 load_success = true;
         LoadWGL(wglCreateContextAttribsARB, load_success);
         LoadWGL(wglChoosePixelFormatARB, load_success);
         LoadWGL(wglGetExtensionsStringEXT, load_success);
@@ -1443,7 +1443,6 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 goto fail_window_init;
             }
             
-#if 1
             i32 context_attrib_list[] = {
                 /*0*/WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
                 /*2*/WGL_CONTEXT_MINOR_VERSION_ARB, 2,
@@ -1455,15 +1454,6 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 /*6*/WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
                 /*8*/0
             };
-#else
-            i32 context_attrib_list[] = {
-                WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
-                WGL_CONTEXT_MINOR_VERSION_ARB, 1,
-                WGL_CONTEXT_FLAGS_ARB, 0,
-                WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-                0
-            };
-#endif
             
             HGLRC context = wglCreateContextAttribsARB(dc, 0, context_attrib_list);
             if (context == 0){
