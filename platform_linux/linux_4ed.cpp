@@ -1701,7 +1701,6 @@ main(int argc, char **argv){
             system_error_box(custom_not_found_msg);
         }
         custom.get_version = (_Get_Version_Type*)system_get_proc(custom_library, "get_version");
-        fprintf(stderr, "VER: %d.%d.%d\n", MAJOR, MINOR, PATCH);
         if (custom.get_version == 0){
             system_error_box(custom_fail_load_msg);
         }
