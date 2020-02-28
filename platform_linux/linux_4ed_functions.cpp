@@ -554,7 +554,10 @@ internal System_Mutex
 system_mutex_make(void){
     System_Mutex result = {};
     Linux_Object* object = linux_alloc_object(LinuxObjectKind_Mutex);
-    pthread_mutex_init(&object->mutex, NULL);
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&object->mutex, &attr);
     *(Linux_Object**)&result = object;
     //LINUX_FN_DEBUG("%p", object);
     return result;
