@@ -86,7 +86,7 @@
 #define frame_useconds (1000000UL / FPS)
 
 #define LINUX_FN_DEBUG(fmt, ...) do { \
-    /*LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__);*/ \
+/*LOGF("%s: " fmt "\n", __func__, ##__VA_ARGS__);*/ \
 } while (0)
 
 // TODO(allen): Make an intrinsics header that uses the cracked OS to define a single set of intrinsic names.
@@ -547,41 +547,41 @@ Sys_Font_Path(name, parameters){
     Font_Path path = {};
     
     FcPattern *pattern_regular = FcPatternBuild(
-        0,
-        FC_POSTSCRIPT_NAME, FcTypeString, name,
-        FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
-        FC_FONTFORMAT, FcTypeString, "TrueType",
-        FC_STYLE, FcTypeString, (FcChar8*)"Regular",
-        (void*)0);
+                                                0,
+                                                FC_POSTSCRIPT_NAME, FcTypeString, name,
+                                                FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+                                                FC_FONTFORMAT, FcTypeString, "TrueType",
+                                                FC_STYLE, FcTypeString, (FcChar8*)"Regular",
+                                                (void*)0);
     
     FcPattern *pattern_styled = 0;
     if (parameters->italics || parameters->bold){
         if (parameters->italics && !parameters->bold){
             pattern_styled = FcPatternBuild(
-                0,
-                FC_POSTSCRIPT_NAME, FcTypeString, name,
-                FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
-                FC_FONTFORMAT, FcTypeString, "TrueType",
-                FC_STYLE, FcTypeString, (FcChar8*)"Italic",
-                (void*)0);
+                                            0,
+                                            FC_POSTSCRIPT_NAME, FcTypeString, name,
+                                            FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+                                            FC_FONTFORMAT, FcTypeString, "TrueType",
+                                            FC_STYLE, FcTypeString, (FcChar8*)"Italic",
+                                            (void*)0);
         }
         else if (!parameters->italics && parameters->bold){
             pattern_styled = FcPatternBuild(
-                0,
-                FC_POSTSCRIPT_NAME, FcTypeString, name,
-                FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
-                FC_FONTFORMAT, FcTypeString, "TrueType",
-                FC_STYLE, FcTypeString, (FcChar8*)"Bold",
-                (void*)0);
+                                            0,
+                                            FC_POSTSCRIPT_NAME, FcTypeString, name,
+                                            FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+                                            FC_FONTFORMAT, FcTypeString, "TrueType",
+                                            FC_STYLE, FcTypeString, (FcChar8*)"Bold",
+                                            (void*)0);
         }
         else{
             pattern_styled = FcPatternBuild(
-                0,
-                FC_POSTSCRIPT_NAME, FcTypeString, name,
-                FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
-                FC_FONTFORMAT, FcTypeString, "TrueType",
-                FC_STYLE, FcTypeString, (FcChar8*)"Bold Italic",
-                (void*)0);
+                                            0,
+                                            FC_POSTSCRIPT_NAME, FcTypeString, name,
+                                            FC_SIZE, FcTypeDouble, (double)parameters->pt_size,
+                                            FC_FONTFORMAT, FcTypeString, "TrueType",
+                                            FC_STYLE, FcTypeString, (FcChar8*)"Bold Italic",
+                                            (void*)0);
         }
     }
     
@@ -672,9 +672,9 @@ linux_get_loadable_fonts(Partition *part, Font_Setup_List *list){
     }
     
     FcPattern* pat = FcPatternBuild(
-        0,
-        FC_STYLE, FcTypeString, (FcChar8*)"Regular",
-        (void*)0);
+                                    0,
+                                    FC_STYLE, FcTypeString, (FcChar8*)"Regular",
+                                    (void*)0);
     FcObjectSet* os = FcObjectSetBuild(FC_FAMILY, FC_FILE, (char*)0);
     FcFontSet* fs = FcFontList(fc_config, pat, os);
     if (fs != 0){
@@ -778,7 +778,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig *best_con
     if (glXCreateContextAttribsARB == 0){
         //LOG("glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
         ctx = glXCreateNewContext( XDisplay, *best_config, GLX_RGBA_TYPE, 0, True );
-    } 
+    }
     else{
         int context_attribs[] = {
             GLX_CONTEXT_MAJOR_VERSION_ARB, 2,
@@ -926,7 +926,7 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
         GLX_STENCIL_SIZE    , 8,
         GLX_DOUBLEBUFFER    , True,
         None
-    };    
+    };
     
     int ConfigCount = 0;
     GLXFBConfig *Configs = glXChooseFBConfig(XDisplay, XScreenIndex, DesiredAttributes, &ConfigCount);
@@ -1196,7 +1196,7 @@ LinuxGetXSettingsDPI(Display* dpy, int screen)
     Window xset_win = XGetSelectionOwner(dpy, XSET_SEL);
     if (xset_win == None){
         // TODO(inso): listen for the ClientMessage about it becoming available?
-        //             there's not much point atm if DPI scaling is only done at startup 
+        //             there's not much point atm if DPI scaling is only done at startup
         goto out;
     }
     
@@ -1760,11 +1760,11 @@ linux_handle_x11_events(void)
                 else if ((Atom)event.xclient.data.l[0] == linuxvars.atom__NET_WM_PING){
                     event.xclient.window = DefaultRootWindow(linuxvars.XDisplay);
                     XSendEvent(
-                        linuxvars.XDisplay,
-                        event.xclient.window,
-                        False,
-                        SubstructureRedirectMask | SubstructureNotifyMask,
-                        &event);
+                               linuxvars.XDisplay,
+                               event.xclient.window,
+                               False,
+                               SubstructureRedirectMask | SubstructureNotifyMask,
+                               &event);
                 }
             }break;
             
@@ -1792,14 +1792,14 @@ linux_handle_x11_events(void)
                     
                     if (request.target == linuxvars.atom_TARGETS){
                         XChangeProperty(
-                            request.display,
-                            request.requestor,
-                            request.property,
-                            XA_ATOM,
-                            32,
-                            PropModeReplace,
-                            (u8*)atoms,
-                            ArrayCount(atoms));
+                                        request.display,
+                                        request.requestor,
+                                        request.property,
+                                        XA_ATOM,
+                                        32,
+                                        PropModeReplace,
+                                        (u8*)atoms,
+                                        ArrayCount(atoms));
                         
                         response.property = request.property;
                         
@@ -1814,15 +1814,15 @@ linux_handle_x11_events(void)
                         
                         if (found){
                             XChangeProperty(
-                                request.display,
-                                request.requestor,
-                                request.property,
-                                request.target,
-                                8,
-                                PropModeReplace,
-                                (u8*)linuxvars.clipboard_outgoing.str,
-                                linuxvars.clipboard_outgoing.size
-                                );
+                                            request.display,
+                                            request.requestor,
+                                            request.property,
+                                            request.target,
+                                            8,
+                                            PropModeReplace,
+                                            (u8*)linuxvars.clipboard_outgoing.str,
+                                            linuxvars.clipboard_outgoing.size
+                                            );
                             
                             response.property = request.property;
                         }
@@ -1915,7 +1915,7 @@ main(int argc, char **argv){
     memory_init();
     
     //
-    // HACK(allen): 
+    // HACK(allen):
     // Previously zipped stuff is here, it should be zipped in the new pattern now.
     //
     

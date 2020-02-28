@@ -9,6 +9,8 @@
 
 // TOP
 
+#error IS THIS STILL REAL? (February 27th 2020)
+
 union Library{
     void *lib;
     FixSize(LIBRARY_TYPE_SIZE);

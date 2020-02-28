@@ -11,8 +11,8 @@
 // TOP
 
 #define FPS 60
-#define frame_useconds (1000000 / FPS)
-#define frame_nseconds (UINT64_C(1000000000) / FPS)
+#define frame_useconds (Million(1) / FPS)
+#define frame_nseconds (Billion(1) / FPS)
 #define SLASH '/'
 #define DLL "so"
 
@@ -168,7 +168,6 @@ struct Linux_Vars {
     int epoll;
     int step_timer_fd;
     u64 last_step_time;
-    b32 step_pending;
     
     XCursor xcursors[APP_MOUSE_CURSOR_COUNT];
     Application_Mouse_Cursor cursor;
@@ -336,8 +335,8 @@ linux_system_get_file_list_filter(const struct dirent *dirent) {
 }
 
 internal u64
-linux_ns_from_timespec(const struct timespec timespec) {
-    return timespec.tv_nsec + UINT64_C(1000000000) * timespec.tv_sec;
+linux_us_from_timespec(const struct timespec timespec) {
+    return timespec.tv_nsec/Thousand(1) + Million(1) * timespec.tv_sec;
 }
 
 internal File_Attribute_Flag
@@ -351,29 +350,28 @@ internal File_Attributes
 linux_file_attributes_from_struct_stat(struct stat* file_stat) {
     File_Attributes result = {};
     result.size = file_stat->st_size;
-    result.last_write_time = linux_ns_from_timespec(file_stat->st_mtim);
+    result.last_write_time = linux_us_from_timespec(file_stat->st_mtim);
     result.flags = linux_convert_file_attribute_flags(file_stat->st_mode);
-    return result;
+    return(result);
 }
 
 internal void
 linux_schedule_step(){
-    if(!__sync_bool_compare_and_swap(&linuxvars.step_pending, 0, 1)) {
-        return;
-    }
-    
     u64 now  = system_now_time();
     u64 diff = (now - linuxvars.last_step_time);
     
     struct itimerspec its = {};
+    timerfd_gettime(linuxvars.step_timer_fd, &its);
     
-    if(diff >= frame_nseconds) {
+    if (diff > frame_useconds) {
         its.it_value.tv_nsec = 1;
+        timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
     } else {
-        its.it_value.tv_nsec = frame_nseconds - diff;
+        if (its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
+            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
+            timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
+        }
     }
-    
-    timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
 }
 
 enum wm_state_mode {
@@ -583,8 +581,7 @@ linux_find_font(Face_Description* desc) {
         }
     }
     
-    FcPattern *pattern = FcPatternBuild(
-                                        0,
+    FcPattern *pattern = FcPatternBuild(0,
                                         FC_POSTSCRIPT_NAME, FcTypeString, name,
                                         FC_SIZE, FcTypeDouble, size,
                                         FC_FONTFORMAT, FcTypeString, "TrueType",
@@ -1455,8 +1452,7 @@ linux_handle_x11_events() {
                 // Notify WM that we're still responding (don't grey our window out).
                 else if(atom == linuxvars.atom__NET_WM_PING) {
                     event.xclient.window = DefaultRootWindow(linuxvars.dpy);
-                    XSendEvent(
-                               linuxvars.dpy,
+                    XSendEvent(linuxvars.dpy,
                                event.xclient.window,
                                False,
                                SubstructureRedirectMask | SubstructureNotifyMask,
@@ -1599,7 +1595,7 @@ main(int argc, char **argv){
     //InitializeCriticalSection(&win32vars.thread_launch_mutex);
     //InitializeConditionVariable(&win32vars.thread_launch_cv);
     
-    linuxvars.clipboard_catch_all = true;
+    linuxvars.clipboard_catch_all = false;
     
     // NOTE(allen): load core
     System_Library core_library = {};
@@ -1666,7 +1662,7 @@ main(int argc, char **argv){
         char custom_fail_version_msg[] = "Failed to load custom code due to a version mismatch.  Try rebuilding with buildsuper.";
         char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
         
-        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        Scratch_Block scratch(&linuxvars.tctx);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
         Path_Search_List search_list = {};
         search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
@@ -1729,6 +1725,7 @@ main(int argc, char **argv){
     
     linux_schedule_step();
     b32 first_step = true;
+    u64 timer_start = system_now_time();
     
     for (;;) {
         
@@ -1813,11 +1810,17 @@ main(int argc, char **argv){
         gl_render(&render_target);
         glXSwapBuffers(linuxvars.dpy, linuxvars.win);
         
+        // TODO(allen): don't let the screen size change until HERE after the render
+        
+        // NOTE(allen): Schedule a step if necessary
+        if (result.animating){
+            linux_schedule_step();
+        }
+        
         first_step = false;
         
         linalloc_clear(linuxvars.frame_arena);
         block_zero_struct(&linuxvars.input.trans);
-        linuxvars.step_pending = false;
     }
     
     return 0;
