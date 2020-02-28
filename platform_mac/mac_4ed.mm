@@ -193,10 +193,9 @@ struct Mac_Vars {
     
     String_Const_u8 binary_path;
     
-    Arena *clipboard_arena;
-    String_Const_u8 clipboard_contents;
     u32 clipboard_change_count;
     b32 next_clipboard_is_self;
+    b32 clip_catch_all;
     
     Arena clip_post_arena;
     String_Const_u8 clip_post;
@@ -530,39 +529,7 @@ mac_get_clipboard_change_count(void){
     return(result);
 }
 
-function b32
-mac_read_clipboard_contents(Arena *scratch){
-    b32 result = false;
-    
-    Temp_Memory temp = begin_temp(scratch);
-    {
-        NSPasteboard *board = [NSPasteboard generalPasteboard];
-        NSString *utf8_type = @"public.utf8-plain-text";
-        NSArray *types_array = [NSArray arrayWithObjects:utf8_type, nil];
-        NSString *has_string = [board availableTypeFromArray:types_array];
-        if (has_string != nil){
-            NSData *data = [board dataForType:utf8_type];
-            if (data != nil){
-                u32 copy_length = data.length;
-                if (copy_length > 0){
-                    Arena *clip_arena = mac_vars.clipboard_arena;
-                    linalloc_clear(clip_arena);
-                    
-                    mac_vars.clipboard_contents = string_const_u8_push(clip_arena, copy_length);
-                    [data getBytes:mac_vars.clipboard_contents.str
-                     length:mac_vars.clipboard_contents.size];
-                    
-                    result = true;
-                }
-            }
-        }
-    }
-    end_temp(temp);
-    
-    return(result);
-}
-
-function void
+internal void
 mac_post_clipboard(Arena *scratch, char *text, i32 len){
     NSPasteboard *board = [NSPasteboard generalPasteboard];
     
@@ -579,6 +546,65 @@ mac_post_clipboard(Arena *scratch, char *text, i32 len){
     [paste_string release];
     
     mac_vars.next_clipboard_is_self = true;
+}
+
+////////////////////////////////
+
+internal
+system_get_clipboard_sig(){
+    String_Const_u8 result = {};
+    u32 change_count = mac_get_clipboard_change_count();
+    if (change_count != mac_vars.clipboard_change_count){
+        if (mac_vars.next_clipboard_is_self){
+            mac_vars.next_clipboard_is_self = false;
+        } else {
+            NSPasteboard *board = [NSPasteboard generalPasteboard];
+            NSString *utf8_type = @"public.utf8-plain-text";
+            NSArray *types_array = [NSArray arrayWithObjects:utf8_type, nil];
+            NSString *has_string = [board availableTypeFromArray:types_array];
+            if (has_string != nil){
+                NSData *data = [board dataForType:utf8_type];
+                if (data != nil){
+                    u32 copy_length = data.length;
+                    if (copy_length > 0){
+                        result = string_const_u8_push(arena, copy_length);
+                        [data getBytes:result.str length:result.size];
+                    }
+                }
+            }
+        }
+        mac_vars.clipboard_change_count = change_count;
+    }
+    return(result);
+}
+
+internal
+system_post_clipboard_sig(){
+    Arena *arena = &mac_vars.clip_post_arena;
+    if (arena->base_allocator == 0){
+        *arena = make_arena_system();
+    } else{
+        linalloc_clear(arena);
+    }
+
+    mac_vars.clip_post.str = push_array(arena, u8, str.size + 1);
+    if (mac_vars.clip_post.str != 0){
+        block_copy(mac_vars.clip_post.str, str.str, str.size);
+        mac_vars.clip_post.str[str.size] = 0;
+        mac_vars.clip_post.size = str.size;
+    } else{
+        // NOTE(yuval): Failed to allocate buffer for clipboard post
+    }
+}
+
+internal
+system_set_clipboard_catch_all_sig(){
+    mac_vars.clip_catch_all = enabled?true:false;
+}
+
+internal
+system_get_clipboard_catch_all_sig(){
+    return(mac_vars.clip_catch_all);
 }
 
 ////////////////////////////////
@@ -712,31 +738,11 @@ mac_toggle_fullscreen(void){
         }
         
         // NOTE(yuval): Frame clipboard input
+        Scratch_Block scratch(mac_vars.tctx);
         MacProfileScope("Frame Clipboard Input"){
-            block_zero_struct(&mac_vars.clipboard_contents);
-            input.clipboard_changed = false;
-            
-            if (mac_vars.clipboard_change_count != 0){
-                u32 change_count = mac_get_clipboard_change_count();
-                if (change_count != mac_vars.clipboard_change_count){
-                    if (mac_vars.next_clipboard_is_self){
-                        mac_vars.next_clipboard_is_self = false;
-                    } else{
-                        for (i32 r = 0; r < 4; ++r){
-                            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
-                            
-                            if (mac_read_clipboard_contents(scratch)){
-                                input.clipboard_changed = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    mac_vars.clipboard_change_count = change_count;
-                }
+            if (mac_vars.clipboard_change_count != 0 && mac_vars.clip_catch_all){
+                input.clipboard = system_get_clipboard(scratch, 0);
             }
-            
-            input.clipboard = mac_vars.clipboard_contents;
         }
         
         mac_vars.clip_post.size = 0;
@@ -759,7 +765,6 @@ mac_toggle_fullscreen(void){
         // NOTE(yuval): Post new clipboard content
         MacProfileScope("Post Clipboard"){
             if (mac_vars.clip_post.size > 0){
-                Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
                 mac_post_clipboard(scratch, (char*)mac_vars.clip_post.str, (i32)mac_vars.clip_post.size);
             }
         }
@@ -1326,15 +1331,10 @@ main(int arg_count, char **args){
         
         // NOTE(yuval): Initialize clipboard
         {
-            mac_vars.clipboard_arena = reserve_arena(mac_vars.tctx);
+            Scratch_Block scratch(mac_vars.tctx);
+            mac_post_clipboard(scratch, "", 0);
             mac_vars.clipboard_change_count = mac_get_clipboard_change_count();
             mac_vars.next_clipboard_is_self = false;
-            
-            // NOTE(yuval): Read the current clipboard
-            {
-                Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
-                mac_read_clipboard_contents(scratch);
-            }
             
             // NOTE(yuval): Start the clipboard polling timer
             [NSTimer scheduledTimerWithTimeInterval: 0.5
@@ -1368,7 +1368,7 @@ main(int arg_count, char **args){
             Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
             String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
             curdir = string_mod_replace_character(curdir, '\\', '/');
-            app.init(mac_vars.tctx, &target, mac_vars.base_ptr, mac_vars.clipboard_contents, curdir, custom);
+            app.init(mac_vars.tctx, &target, mac_vars.base_ptr, curdir, custom);
         }
         
         //
