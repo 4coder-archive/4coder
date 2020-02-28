@@ -53,7 +53,7 @@ delta_apply(Application_Links *app, View_ID view,
 }
 
 function Buffer_Point_Delta_Result
-delta_apply(Application_Links *app, View_ID view, 
+delta_apply(Application_Links *app, View_ID view,
             Delta_Rule_Function *func, Data delta_ctx,
             f32 dt, Buffer_Scroll scroll){
     return(delta_apply(app, view, func, delta_ctx,
@@ -61,7 +61,7 @@ delta_apply(Application_Links *app, View_ID view,
 }
 
 function Buffer_Point_Delta_Result
-delta_apply(Application_Links *app, View_ID view, 
+delta_apply(Application_Links *app, View_ID view,
             f32 dt, Buffer_Point position, Buffer_Point target){
     View_Context ctx = view_current_context(app, view);
     Data delta_ctx = view_current_context_hook_memory(app, view, HookID_DeltaRule);
@@ -70,7 +70,7 @@ delta_apply(Application_Links *app, View_ID view,
 }
 
 function Buffer_Point_Delta_Result
-delta_apply(Application_Links *app, View_ID view, 
+delta_apply(Application_Links *app, View_ID view,
             f32 dt, Buffer_Scroll scroll){
     View_Context ctx = view_current_context(app, view);
     Data delta_ctx = view_current_context_hook_memory(app, view, HookID_DeltaRule);
@@ -119,7 +119,7 @@ delta_apply(Application_Links *app, View_ID view,
 }
 
 function Vec2_f32_Delta_Result
-delta_apply(Application_Links *app, View_ID view, 
+delta_apply(Application_Links *app, View_ID view,
             f32 dt, Vec2_f32 position, Vec2_f32 target){
     View_Context ctx = view_current_context(app, view);
     Data delta_ctx = view_current_context_hook_memory(app, view, HookID_DeltaRule);
@@ -128,7 +128,7 @@ delta_apply(Application_Links *app, View_ID view,
 }
 
 function Vec2_f32_Delta_Result
-delta_apply(Application_Links *app, View_ID view, 
+delta_apply(Application_Links *app, View_ID view,
             f32 dt, Basic_Scroll scroll){
     View_Context ctx = view_current_context(app, view);
     Data delta_ctx = view_current_context_hook_memory(app, view, HookID_DeltaRule);

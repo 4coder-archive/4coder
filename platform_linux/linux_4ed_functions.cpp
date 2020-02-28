@@ -267,8 +267,8 @@ internal u64
 system_now_time(void){
     //LINUX_FN_DEBUG();
     struct timespec time;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &time);
-    return linux_ns_from_timespec(time);
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    return linux_us_from_timespec(time);
 }
 
 internal Plat_Handle
