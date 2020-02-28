@@ -1666,7 +1666,7 @@ main(int argc, char **argv){
         char custom_fail_version_msg[] = "Failed to load custom code due to a version mismatch.  Try rebuilding with buildsuper.";
         char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
         
-        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        Scratch_Block scratch(&linuxvars.tctx);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
         Path_Search_List search_list = {};
         search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);

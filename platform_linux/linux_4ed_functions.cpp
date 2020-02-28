@@ -212,7 +212,7 @@ system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
     
     // TODO(inso): should probably put a \n on the end if it's a text file.
     
-    int fd = open(file_name, O_WRONLY|O_CREAT, 0666);
+    int fd = open(file_name, O_TRUNC|O_WRONLY|O_CREAT, 0666);
     if (fd != -1) {
         int bytes_written = write(fd, data.str, data.size);
         if (bytes_written == -1) {
