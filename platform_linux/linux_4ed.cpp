@@ -353,7 +353,7 @@ linux_file_attributes_from_struct_stat(struct stat* file_stat) {
     result.size = file_stat->st_size;
     result.last_write_time = linux_ns_from_timespec(file_stat->st_mtim);
     result.flags = linux_convert_file_attribute_flags(file_stat->st_mode);
-    return result;
+    return(result);
 }
 
 internal void

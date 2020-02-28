@@ -42,11 +42,9 @@ get_full_path(Arena *arena, Path_Search_List *search_list, String_Const_u8 relat
         u8 *path_base = relative_base - node_size;
         block_copy(path_base, node->string.str, node_size);
         String_Const_u8 name = SCu8(path_base, opl);
-        printf("get_full_path: trying %.*s\n", string_expand(name));
         File_Attributes attribs = system_quick_file_attributes(arena, name);
         if (attribs.size > 0){
             result = name;
-            printf("hit\n");
             break;
         }
     }

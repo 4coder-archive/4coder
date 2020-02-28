@@ -132,11 +132,13 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
         (*fip)->file_name = push_u8_stringf(arena, "%.*s", d->d_reclen, name);
         
         struct stat st;
-        if(fstatat(fd, name, &st, 0) == -1){
+        if (fstatat(fd, name, &st, 0) == -1){
             perror("fstatat");
         }
+        else{
+            (*fip)->attributes = linux_file_attributes_from_struct_stat(&st);
+        }
         
-        (*fip)->attributes = linux_file_attributes_from_struct_stat(&st);
         fip = &(*fip)->next;
         result.count++;
     }
@@ -163,9 +165,14 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
 internal File_Attributes
 system_quick_file_attributes(Arena* scratch, String_Const_u8 file_name){
     //LINUX_FN_DEBUG("%.*s", (int)file_name.size, file_name.str);
+    Temp_Memory_Block temp(scratch);
+    file_name = push_string_copy(scratch, file_name);
+    File_Attributes result = {};
     struct stat file_stat;
-    stat((const char*)file_name.str, &file_stat);
-    return linux_file_attributes_from_struct_stat(&file_stat);
+    if (stat((const char*)file_name.str, &file_stat) == 0){
+        result = linux_file_attributes_from_struct_stat(&file_stat);
+    }
+    return(result);
 }
 
 internal b32
@@ -182,9 +189,12 @@ system_load_handle(Arena* scratch, char* file_name, Plat_Handle* out){
 internal File_Attributes
 system_load_attributes(Plat_Handle handle){
     LINUX_FN_DEBUG();
+    File_Attributes result = {};
     struct stat file_stat;
-    fstat(*(int*)&handle, &file_stat);
-    return linux_file_attributes_from_struct_stat(&file_stat);
+    if (fstat(*(int*)&handle, &file_stat) == 0){
+        result = linux_file_attributes_from_struct_stat(&file_stat);
+    }
+    return(result);
 }
 
 internal b32
@@ -217,10 +227,11 @@ system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
         int bytes_written = write(fd, data.str, data.size);
         if (bytes_written == -1) {
             perror("write");
-        } else if(bytes_written == data.size) {
+        } else if (bytes_written == data.size) {
             struct stat file_stat;
-            fstat(fd, &file_stat);
-            return linux_file_attributes_from_struct_stat(&file_stat);
+            if (fstat(fd, &file_stat) == 0){
+                result = linux_file_attributes_from_struct_stat(&file_stat);
+            }
         }
     } else {
         perror("open");
