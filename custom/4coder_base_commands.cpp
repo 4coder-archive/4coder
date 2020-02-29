@@ -112,17 +112,6 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
     }
 }
 
-CUSTOM_COMMAND_SIG(test_double_backspace)
-CUSTOM_DOC("Made for testing purposes (I should have deleted this if you are reading it let me know)")
-{
-    View_ID view = get_active_view(app, Access_ReadWriteVisible);
-    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-    History_Group group = history_group_begin(app, buffer);
-    backspace_char(app);
-    backspace_char(app);
-    history_group_end(group);
-}
-
 CUSTOM_COMMAND_SIG(set_mark)
 CUSTOM_DOC("Sets the mark to the current position of the cursor.")
 {
