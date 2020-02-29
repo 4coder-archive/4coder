@@ -7,9 +7,9 @@
 function Doc_Page*
 get_doc_page_from_user(Application_Links *app, Doc_Cluster *doc, String_Const_u8 query){
     Scratch_Block scratch(app, Scratch_Share);
-    Lister *lister = begin_lister(app, scratch);
+    Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
-    lister->handlers = lister_get_default_handlers();
+    lister_set_default_handlers(lister);
     
     for (Doc_Page *page = doc->first_page;
          page != 0;
@@ -125,7 +125,7 @@ render_doc_page(Application_Links *app, Doc_Page *page){
         }
         Buffer_Insertion insert = begin_buffer_insertion_at_buffered(app, buffer, 0, scratch, KB(16));
         
-        char dashes[] = 
+        char dashes[] =
             "----------------------------------------------------------------"
             "----------------------------------------------------------------"
             "----------------------------------------------------------------"

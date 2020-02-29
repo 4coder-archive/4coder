@@ -10,9 +10,9 @@ get_jump_index_from_user(Application_Links *app, Marker_List *list,
     Jump_Lister_Result result = {};
     if (list != 0){
         Scratch_Block scratch(app);
-        Lister *lister = begin_lister(app, scratch);
+        Lister_Block lister(app, scratch);
         lister_set_query(lister, query);
-        lister->handlers = lister_get_default_handlers();
+        lister_set_default_handlers(lister);
         
         Buffer_ID list_buffer = list->buffer_id;
         
