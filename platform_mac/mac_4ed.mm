@@ -94,8 +94,8 @@ struct Mac_Input_Chunk_Transient{
     b8 mouse_r_press;
     b8 mouse_r_release;
     b8 out_of_window;
-    i8 mouse_wheel;
     b8 trying_to_kill;
+    i32 mouse_wheel;
 };
 
 struct Mac_Input_Chunk_Persistent{
@@ -984,17 +984,9 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)scrollWheel:(NSEvent *)event{
-    float dx = event.scrollingDeltaX;
-    float dy = event.scrollingDeltaY;
-    
-    i8 wheel_delta = 0;
-    if (dy > 0){
-        wheel_delta = -100;
-    } else if (dy < 0){
-        wheel_delta = 100;
-    }
-    mac_vars.input_chunk.trans.mouse_wheel = wheel_delta;
-    
+    f32 dx = event.scrollingDeltaX;
+    f32 dy = event.scrollingDeltaY;
+    mac_vars.input_chunk.trans.mouse_wheel = (i32)(-dy);
     system_signal_step(0);
 }
 
