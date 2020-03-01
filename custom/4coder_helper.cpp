@@ -94,16 +94,14 @@ character_predicate_from_function(Character_Predicate_Function *func){
         for (i32 bit_index = 0; bit_index < 8; i += 1, bit_index += 1){
             v[bit_index] = func((u8)i);
         }
-        predicate.b[byte_index] = (
-                                   (v[0] << 0) |
+        predicate.b[byte_index] = ((v[0] << 0) |
                                    (v[1] << 1) |
                                    (v[2] << 2) |
                                    (v[3] << 3) |
                                    (v[4] << 4) |
                                    (v[5] << 5) |
                                    (v[6] << 6) |
-                                   (v[7] << 7)
-                                   );
+                                   (v[7] << 7));
         byte_index += 1;
     }
     return(predicate);
