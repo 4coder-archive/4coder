@@ -135,17 +135,17 @@
 ////////////////////////////////
 
 #if COMPILER_CL
-#if _MSC_VER <= 1800
-# define snprintf _snprintf
-#endif
+# if _MSC_VER <= 1800
+#  define snprintf _snprintf
+# endif
 
-#if (_MSC_VER <= 1500)
-#define JUST_GUESS_INTS
-#endif
+# if (_MSC_VER <= 1500)
+#  define JUST_GUESS_INTS
+# endif
 #endif
 
 // NOTE(yuval): Changed this so that CALL_CONVENTION will be defined for all platforms
-#if ARCH_32BIT
+#if ARCH_32BIT && OS_WINDOWS
 # define CALL_CONVENTION __stdcall
 #else
 # define CALL_CONVENTION
@@ -527,8 +527,8 @@ union SNode{
 #define zdll_remove_back_NP_(f,l,next,prev) ((f==l)?(f=l=0):(l->prev->next=0,l=l->prev))
 #define zdll_remove_NP_(f,l,n,next,prev)       \
 ((l==n)?(zdll_remove_back_NP_(f,l,next,prev))  \
- :(f==n)?(zdll_remove_back_NP_(l,f,prev,next)) \
- :       (dll_remove_NP_(n,n,next,prev)))
+:(f==n)?(zdll_remove_back_NP_(l,f,prev,next)) \
+:       (dll_remove_NP_(n,n,next,prev)))
 
 #define zdll_push_back(f,l,n) zdll_push_back_NP_((f),(l),(n),next,prev)
 #define zdll_push_front(f,l,n) zdll_push_back_NP_((l),(f),(n),prev,next)

@@ -534,6 +534,12 @@ linux_set_icon(Display* d, Window w){
 
 #include "linux_error_box.cpp"
 
+function void
+os_popup_error(char *title, char *message){
+    system_error_box(message);
+    exit(1);
+}
+
 ////////////////////////////
 
 #include "linux_4ed_functions.cpp"

@@ -492,24 +492,20 @@ build_and_run(Arena *arena, char *cdir, char *filename, char *name, u32 flags){
     
     {
         char *file = fm_str(arena, filename);
-        BEGIN_TIME_SECTION();
         build(arena, flags, Arch_X64, cdir, file, dir, name, get_defines_from_flags(arena, flags), 0, includes);
-        END_TIME_SECTION(fm_str(arena, "build ", name));
     }
     
     if (prev_error == 0){
         char *cmd = fm_str(arena, dir, "/", name);
-        BEGIN_TIME_SECTION();
         fm_execute_in_dir(cdir, cmd, 0);
-        END_TIME_SECTION(fm_str(arena, "run ", name));
     }
 }
 
 internal void
 buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
-    printf("BUILDSUPER: cdir: %s; file: %s; arch: %u\n", cdir, file, arch);
+    printf("BUILDSUPER:\n cdir = %s;\n file = %s;\n arch = %s;\n", cdir, file, arch_names[arch]);
+    fflush(stdout);
     
-    BEGIN_TIME_SECTION();
     Temp_Dir temp = fm_pushdir(fm_str(arena, BUILD_DIR));
     
     char *build_script_postfix = "";
@@ -536,7 +532,6 @@ buildsuper(Arena *arena, char *cdir, char *file, u32 arch){
     systemf("%s", build_command);
     
     fm_popdir(temp);
-    END_TIME_SECTION("build custom");
     fflush(stdout);
 }
 
@@ -550,26 +545,20 @@ build_main(Arena *arena, char *cdir, b32 update_local_theme, u32 flags, u32 arch
         
         char **build_includes = includes;
         
-        BEGIN_TIME_SECTION();
         build(arena, OPTS | SHARED_CODE | flags, arch, cdir, file, dir, "4ed_app" DLL, get_defines_from_flags(arena, flags), exports, build_includes);
-        END_TIME_SECTION("build 4ed_app");
     }
     
     {
-        BEGIN_TIME_SECTION();
         char **inc = (char**)fm_list(arena, includes, platform_includes[This_OS][This_Compiler]);
         build(arena, OPTS | LIBS | ICON | flags, arch, cdir, platform_layers[This_OS], dir, "4ed", get_defines_from_flags(arena, flags), 0, inc);
-        END_TIME_SECTION("build 4ed");
     }
     
     if (update_local_theme){
-        BEGIN_TIME_SECTION();
         char *themes_folder = fm_str(arena, "../build/themes");
         char *source_themes_folder = fm_str(arena, "ship_files/themes");
         fm_clear_folder(themes_folder);
         fm_make_folder_if_missing(arena, themes_folder);
         fm_copy_all(source_themes_folder, themes_folder);
-        END_TIME_SECTION("move files");
     }
     
     fflush(stdout);
@@ -606,10 +595,10 @@ package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack
     char *dir        = fm_str(arena, parent_dir, SLASH "4coder");
     char *zip_dir    = fm_str(arena, pack_dir, SLASH, tier_name, "_", arch_name);
     
-    printf("\nbuild: %s_%s\n", tier_name, arch_name);
-    printf("parent_dir: %s\n", parent_dir);
-    printf("dir: %s\n", dir);
-    printf("zip_dir: %s\n", zip_dir);
+    printf("\nBUILD: %s_%s\n", tier_name, arch_name);
+    printf(" parent_dir = %s;\n", parent_dir);
+    printf(" dir = %s;\n", dir);
+    printf(" zip_dir = %s;\n", zip_dir);
     fflush(stdout);
     
     buildsuper(arena, cdir, fm_str(arena, default_custom_target), arch);
@@ -634,10 +623,7 @@ package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack
     if (tier == Tier_Super){
         char *custom_src_dir = fm_str(arena, cdir, SLASH, "custom");
         char *custom_dst_dir = fm_str(arena, dir, SLASH, "custom");
-        // HACK(yuval): make_folder_if_missing seems to cause a second custom folder to be created inside the custom folder on macOS.
-        //if (This_OS != Platform_Mac){
         fm_make_folder_if_missing(arena, custom_dst_dir);
-        //}
         fm_copy_all(custom_src_dir, custom_dst_dir);
     }
     
@@ -693,13 +679,11 @@ package(Arena *arena, char *cdir){
 }
 
 int main(int argc, char **argv){
-    Arena arena = fm_init_system();
+    Arena arena = fm_init_system(DetailLevel_FileOperations);
     
     char cdir[256];
-    BEGIN_TIME_SECTION();
     i32 n = fm_get_current_directory(cdir, sizeof(cdir));
     Assert(n < sizeof(cdir));
-    END_TIME_SECTION("current directory");
     
     u32 flags = SUPER;
     u32 arch = Arch_X64;

@@ -46,9 +46,9 @@ command_list = {
  
  { .name = "package",
    .out = "*compilation*", .footer_panel = false, .save_dirty_files = true,
-   .cmd = { {"echo package & bin\\package.bat", .os = "win"  },
-            {"echo package & bin/package.sh"  , .os = "linux"},
-            {"echo package & bin/package.sh"  , .os = "mac"  }, }, },
+   .cmd = { {"echo package & bin\\package.bat"    , .os = "win"  },
+            {"echo package & bin/package-linux.sh", .os = "linux"},
+            {"echo package & bin/package-max.sh"  , .os = "mac"  }, }, },
  
  { .name = "run one time",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,

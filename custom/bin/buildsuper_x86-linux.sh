@@ -1,52 +1,31 @@
 #!/bin/bash
 
-# Store the real CWD
-REAL_PWD="$PWD"
+# If any command errors, stop the script
+set -e
 
-# Find the code home folder
-TARGET_FILE="$0"
-cd `dirname $TARGET_FILE`
-TARGET_FILE=`basename $TARGET_FILE`
-while [ -L "$TARGET_FILE" ]
-do
-    TARGET_FILE=`readlink $TARGET_FILE`
-    cd `dirname $TARGET_FILE`
-    TARGET_FILE=`basename $TARGET_FILE`
-done
-PHYS_DIR=`pwd -P`
-SCRIPT_FILE=$PHYS_DIR/$TARGET_FILE
-code_home=$(dirname "$SCRIPT_FILE")
+# Store the real CWD
+ME="$(readlink -f "$0")"
+LOCATION="$(dirname "$ME")"
+CODE_HOME="$(dirname "$LOCATION")"
 
 # Find the most reasonable candidate build file
 SOURCE="$1"
 if [ -z "$SOURCE" ]; then
-    SOURCE="$code_home/4coder_default_bindings.cpp"
+    SOURCE="$(readlink -f "$CODE_HOME/4coder_default_bindings.cpp")"
 fi
 
-TARGET_FILE="$SOURCE"
-cd `dirname $TARGET_FILE`
-TARGET_FILE=`basename $TARGET_FILE`
-while [ -L "$TARGET_FILE" ]
-do
-    TARGET_FILE=`readlink $TARGET_FILE`
-    cd `dirname $TARGET_FILE`
-    TARGET_FILE=`basename $TARGET_FILE`
-done
-PHYS_DIR=`pwd -P`
-SOURCE=$PHYS_DIR/$TARGET_FILE
-
-opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-writable-strings -g -DOS_LINUX=1 -DOS_WINDOWS=0 -DOS_MAC=1"
+opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-missing-declarations -Wno-logical-op-parentheses -g -DOS_LINUX=1 -DOS_WINDOWS=0 -DOS_MAC=1"
 arch=-m32
 
-cd "$REAL_PWD"
 preproc_file=4coder_command_metadata.i
 meta_macros="-DMETA_PASS"
-g++ -I"$code_home" $meta_macros $arch $opts $debug -std=gnu++0x "$SOURCE" -E -o $preproc_file
-g++ -I"$code_home" $opts $debug -std=gnu++0x "$code_home/4coder_metadata_generator.cpp" -o metadata_generator
-./metadata_generator -R "$code_home" "$PWD/$preproc_file"
+g++ -I"$CODE_HOME" $meta_macros $arch $opts $debug -std=c++11 "$SOURCE" -E -o $preproc_file
+g++ -I"$CODE_HOME" $opts $debug -std=c++11 "$CODE_HOME/4coder_metadata_generator.cpp" -o "$CODE_HOME/metadata_generator"
+"$CODE_HOME/metadata_generator" -R "$CODE_HOME" "$PWD/$preproc_file"
 
-g++ -I"$code_home" $arch $opts $debug -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
+g++ -I"$CODE_HOME" $arch $opts $debug -std=gnu++0x "$SOURCE" -shared -o custom_4coder.so -fPIC
 
-rm metadata_generator
+rm "$CODE_HOME/metadata_generator"
 rm $preproc_file
+
 
