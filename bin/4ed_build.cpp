@@ -25,6 +25,19 @@
 // OS and compiler index
 //
 
+typedef u32 Tier_Code;
+enum{
+    Tier_Demo,
+    Tier_Super,
+    Tier_COUNT,
+};
+
+char *tier_names[] = {
+    "demo",
+    "super",
+};
+
+typedef u32 Platform_Code;
 enum{
     Platform_Windows,
     Platform_Linux,
@@ -40,6 +53,7 @@ char *platform_names[] = {
     "mac",
 };
 
+typedef u32 Compiler_Code;
 enum{
     Compiler_CL,
     Compiler_GCC,
@@ -53,6 +67,21 @@ char *compiler_names[] = {
     "cl",
     "gcc",
     "clang",
+};
+
+typedef u32 Arch_Code;
+enum{
+    Arch_X64,
+    Arch_X86,
+    
+    //
+    Arch_COUNT,
+    Arch_None = Arch_COUNT,
+};
+
+char *arch_names[] = {
+    "x64",
+    "x86",
 };
 
 #if OS_WINDOWS
@@ -114,22 +143,6 @@ char **platform_includes[Platform_COUNT][Compiler_COUNT] = {
 };
 
 char *default_custom_target = "../code/custom/4coder_default_bindings.cpp";
-
-// NOTE(allen): Architectures
-
-enum{
-    Arch_X64,
-    Arch_X86,
-    
-    //
-    Arch_COUNT,
-    Arch_None = Arch_COUNT,
-};
-
-char *arch_names[] = {
-    "x64",
-    "x86",
-};
 
 // NOTE(allen): Build flags
 
@@ -582,12 +595,6 @@ get_4coder_dist_name(Arena *arena, u32 platform, char *tier, u32 arch){
     return(name);
 }
 
-enum{
-    Tier_Demo,
-    Tier_Super,
-    Tier_COUNT,
-};
-
 function void
 package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack_dir, i32 tier, char *tier_name,  char *current_dist_tier, u32 flags, char** dist_files, i32 dist_file_count){
     char *arch_name = arch_names[arch];
@@ -633,8 +640,20 @@ package_for_arch(Arena *arena, u32 arch, char *cdir, char *build_dir, char *pack
     fm_zip(parent_dir, "4coder", zip_name);
 }
 
+internal u32
+tier_flags(Tier_Code code){
+    u32 result = 0;
+    switch (code){
+        case Tier_Super:
+        {
+            result = SUPER;
+        }break;
+    }
+    return(result);
+}
+
 internal void
-package(Arena *arena, char *cdir){
+package(Arena *arena, char *cdir, Tier_Code tier, Arch_Code arch){
     // NOTE(allen): meta
     char *build_dir = fm_str(arena, BUILD_DIR);
     char *pack_dir = fm_str(arena, PACK_DIR);
@@ -648,34 +667,16 @@ package(Arena *arena, char *cdir){
     printf("dist files: %s, %s, %s\n", dist_files[0], dist_files[1], dist_files[2]);
     fflush(stdout);
     
-    char *tier_names[] = { "demo", "super", };
     u32 base_flags = SHIP | DEBUG_INFO | OPTIMIZATION;
-    u32 tier_flags[] = { 0, SUPER, };
     
     fm_make_folder_if_missing(arena, pack_dir);
     
-    for (u32 i = 0; i < Tier_COUNT; i += 1){
-        char *tier_name = tier_names[i];
-        u32 flags = base_flags | tier_flags[i];
-        
-        Temp_Memory temp = begin_temp(arena);
-        char *current_dist_tier = fm_str(arena, ".." SLASH "current_dist_", tier_name);
-        
-        u32 arch_count = Arch_COUNT;
-        u32 arch_array[2] = {
-            Arch_X64,
-            Arch_X86,
-        };
-        if (This_OS == Platform_Mac){
-            arch_count = 1;
-        }
-        for (u32 arch_ind = 0; arch_ind < arch_count; arch_ind += 1){
-            u32 arch = arch_array[arch_ind];
-            package_for_arch(arena, arch, cdir, build_dir, pack_dir, i, tier_name, current_dist_tier, flags, dist_files, ArrayCount(dist_files));
-        }
-        
-        end_temp(temp);
-    }
+    char *tier_name = tier_names[tier];
+    u32 flags = base_flags | tier_flags(tier);
+    Temp_Memory temp = begin_temp(arena);
+    char *current_dist_tier = fm_str(arena, ".." SLASH "current_dist_", tier_name);
+    package_for_arch(arena, arch, cdir, build_dir, pack_dir, tier, tier_name, current_dist_tier, flags, dist_files, ArrayCount(dist_files));
+    end_temp(temp);
 }
 
 int main(int argc, char **argv){
@@ -700,8 +701,17 @@ int main(int argc, char **argv){
 #if defined(DEV_BUILD) || defined(OPT_BUILD) || defined(DEV_BUILD_X86) || defined(OPT_BUILD_X86)
     standard_build(&arena, cdir, flags, arch);
     
-#elif defined(PACKAGE)
-    package(&arena, cdir);
+#elif defined(PACKAGE_DEMO_X64)
+    package(&arena, cdir, Tier_Demo, Arch_X64);
+    
+#elif defined(PACKAGE_DEMO_X86)
+    package(&arena, cdir, Tier_Demo, Arch_X86);
+    
+#elif defined(PACKAGE_SUPER_X64)
+    package(&arena, cdir, Tier_Super, Arch_X64);
+    
+#elif defined(PACKAGE_SUPER_X86)
+    package(&arena, cdir, Tier_Super, Arch_X86);
     
 #else
 # error No build type specified.
