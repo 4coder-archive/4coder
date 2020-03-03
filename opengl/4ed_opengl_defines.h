@@ -216,7 +216,6 @@ typedef ptrdiff_t GLsizeiptr;
 typedef ptrdiff_t GLintptr;
 #endif
 
-#if OS_LINUX
 typedef void GL_Debug_Function(GLenum src,
                                GLenum type,
                                GLuint id,
@@ -224,15 +223,6 @@ typedef void GL_Debug_Function(GLenum src,
                                GLsizei length,
                                const GLchar* message,
                                const void *user_data);
-#else
-typedef void GL_Debug_Function(GLenum src,
-                               GLenum type,
-                               GLuint id,
-                               GLenum severity,
-                               GLsizei length,
-                               GLchar *message,
-                               void *user_data);
-#endif
 
 typedef GL_Debug_Function *GLDEBUGPROC;
 

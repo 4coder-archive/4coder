@@ -148,7 +148,7 @@ isn't happening, so command bindings don't trigger unless you trigger them yours
     }
     
     u8 buffer[256];
-    u32 size = 0;
+    u64 size = 0;
     
     for (;;){
         User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
