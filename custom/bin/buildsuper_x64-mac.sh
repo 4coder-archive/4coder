@@ -18,6 +18,8 @@ fi
 opts="-Wno-write-strings -Wno-null-dereference -Wno-comment -Wno-switch -Wno-missing-declarations -Wno-logical-op-parentheses -g -DOS_MAC=1 -DOS_WINDOWS=0 -DOS_LINUX=0"
 arch=-m64
 
+debug=-g
+
 preproc_file=4coder_command_metadata.i
 meta_macros="-DMETA_PASS"
 clang++ -I"$CODE_HOME" $meta_macros $arch $opts $debug -std=c++11 "$SOURCE" -E -o $preproc_file

@@ -7,6 +7,8 @@
  + in config.4coder the variable virtual_whitespace_regular_indent determines the number of space-widths to use as the regular indentation in a virtual whitespace layout
  + show whitespace mode implemented in 'default_render_buffer'
  + `set_face_size` and `set_face_size_this_buffer` commands
+ + `HookID_WholeScreenRenderCaller` hook runs once per frame after all views render
+ + Extended key codes list
  + Fix: tabs are measured with the correct amount of width for the user's settings
  + Fix: virtual whitespace toggling works when the config initially diabled virtual whitespace
  + Fix: never miss the most recent post to the clipboard on windows

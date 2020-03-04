@@ -1080,7 +1080,7 @@ linux_keycode_init(Display* dpy){
     
     // Find the rest by their key label
     struct SymCode { KeySym sym; Key_Code code; };
-    SymCode sym_table[100];
+    SymCode sym_table[108];
     SymCode* p = sym_table;
     
     *p++ = { XK_space, KeyCode_Space };
@@ -1112,7 +1112,7 @@ linux_keycode_init(Display* dpy){
     *p++ = { XK_Super_L, KeyCode_Command };
     *p++ = { XK_Super_R, KeyCode_Command };
     
-    for(Key_Code k = KeyCode_F1; k <= KeyCode_F16; ++k) {
+    for (Key_Code k = KeyCode_F1; k <= KeyCode_F24; ++k){
         *p++ = { XK_F1 + (k - KeyCode_F1), k };
     }
     

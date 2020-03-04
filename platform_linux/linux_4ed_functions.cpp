@@ -233,6 +233,7 @@ system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
                 result = linux_file_attributes_from_struct_stat(&file_stat);
             }
         }
+        close(fd);
     } else {
         perror("open");
     }
