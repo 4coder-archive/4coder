@@ -62,6 +62,7 @@ struct Models{
     
     Tick_Function *tick;
     Render_Caller_Function *render_caller;
+    Whole_Screen_Render_Caller_Function *whole_screen_render_caller;
     Delta_Rule_Function *delta_rule;
     u64 delta_rule_memory_size;
     

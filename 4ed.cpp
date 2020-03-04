@@ -748,6 +748,10 @@ App_Step_Sig(app_step){
             }
         }
         
+        if (models->whole_screen_render_caller != 0){
+            models->whole_screen_render_caller(&app, frame);
+        }
+        
         models->in_render_mode = false;
         end_render_section(target);
     }
