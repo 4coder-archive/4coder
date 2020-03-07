@@ -48,6 +48,7 @@ view_highlight_range = managed_id_declare(app, string_u8_litexpr("attachment"), 
 view_highlight_buffer = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("view_highlight_buffer"));
 view_render_hook = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("view_render_hook"));
 view_word_complete_menu = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("view_word_complete_menu"));
+view_lister_loc = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("view_lister_loc"));
 buffer_map_id = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("buffer_map_id"));
 buffer_eol_setting = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("buffer_eol_setting"));
 buffer_lex_task = managed_id_declare(app, string_u8_litexpr("attachment"), string_u8_litexpr("buffer_lex_task"));

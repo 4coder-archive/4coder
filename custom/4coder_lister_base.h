@@ -92,6 +92,19 @@ struct Lister{
     Lister_Result out;
 };
 
+struct Lister_Prev_Current{
+    Lister *prev;
+    Lister *current;
+};
+
+struct Lister_Block{
+    Application_Links *app;
+    Lister_Prev_Current lister;
+    Lister_Block(Application_Links *app, Arena *arena);
+    ~Lister_Block();
+    operator Lister *();
+};
+
 struct Lister_Prealloced_String{
     String_Const_u8 string;
 };

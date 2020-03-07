@@ -132,14 +132,17 @@ enum{
     EventPropertyGroup_AnyUserInput =
         EventPropertyGroup_AnyKeyboardEvent|
         EventPropertyGroup_AnyMouseEvent,
-    EventPropertyGroup_Any =
-        EventPropertyGroup_AnyUserInput|
+    EventPropertyGroup_AnyCore =
         EventProperty_Animate|
         EventProperty_ViewActivation|
         EventProperty_AnyFile|
         EventProperty_Startup|
         EventProperty_Exit|
         EventProperty_Clipboard|
+        EventProperty_Animate,
+    EventPropertyGroup_Any =
+        EventPropertyGroup_AnyUserInput|
+        EventPropertyGroup_AnyCore|
         EventProperty_CustomFunction,
 };
 

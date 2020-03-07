@@ -125,6 +125,8 @@
 #include "4coder_doc_commands.cpp"
 #include "4coder_docs.cpp"
 
+#include "4coder_examples.cpp"
+
 #include "4coder_default_hooks.cpp"
 
 #endif

@@ -112,17 +112,6 @@ CUSTOM_DOC("Deletes the character to the left of the cursor.")
     }
 }
 
-CUSTOM_COMMAND_SIG(test_double_backspace)
-CUSTOM_DOC("Made for testing purposes (I should have deleted this if you are reading it let me know)")
-{
-    View_ID view = get_active_view(app, Access_ReadWriteVisible);
-    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-    History_Group group = history_group_begin(app, buffer);
-    backspace_char(app);
-    backspace_char(app);
-    history_group_end(group);
-}
-
 CUSTOM_COMMAND_SIG(set_mark)
 CUSTOM_DOC("Sets the mark to the current position of the cursor.")
 {
@@ -909,8 +898,7 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
         }
         isearch__update_highlight(app, view, Ii64_size(pos, match_size));
         
-        in = get_next_input(app, EventPropertyGroup_AnyKeyboardEvent,
-                            EventProperty_Escape|EventProperty_ViewActivation);
+        in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
         if (in.abort){
             break;
         }
@@ -953,9 +941,6 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
             }
         }
         
-        // TODO(allen): how to detect if the input corresponds to
-        // a search or rsearch command, a scroll wheel command?
-        
         b32 do_scan_action = false;
         b32 do_scroll_wheel = false;
         Scan_Direction change_scan = scan;
@@ -965,17 +950,41 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
                 change_scan = Scan_Forward;
                 do_scan_action = true;
             }
-            if (match_key_code(&in, KeyCode_PageUp) ||
-                match_key_code(&in, KeyCode_Up)){
+            else if (match_key_code(&in, KeyCode_PageUp) ||
+                     match_key_code(&in, KeyCode_Up)){
                 change_scan = Scan_Backward;
                 do_scan_action = true;
             }
-            
-#if 0
-            if (in.command == mouse_wheel_scroll){
-                do_scroll_wheel = true;
+            else{
+                // NOTE(allen): is the user trying to execute another command?
+                View_Context ctx = view_current_context(app, view);
+                Mapping *mapping = ctx.mapping;
+                Command_Map *map = mapping_get_map(mapping, ctx.map_id);
+                Command_Binding binding = map_get_binding_recursive(mapping, map, &in.event);
+                if (binding.custom != 0){
+                    if (binding.custom == search){
+                        change_scan = Scan_Forward;
+                        do_scan_action = true;
+                    }
+                    else if (binding.custom == reverse_search){
+                        change_scan = Scan_Backward;
+                        do_scan_action = true;
+                    }
+                    else{
+                        Command_Metadata *metadata = get_command_metadata(binding.custom);
+                        if (metadata != 0){
+                            if (metadata->is_ui){
+                                view_enqueue_command_function(app, view, binding.custom);
+                                break;
+                            }
+                        }
+                        binding.custom(app);
+                    }
+                }
+                else{
+                    leave_current_input_unhandled(app);
+                }
             }
-#endif
         }
         
         if (string_change){
@@ -1027,9 +1036,6 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
         }
         else if (do_scroll_wheel){
             mouse_wheel_scroll(app);
-        }
-        else{
-            leave_current_input_unhandled(app);
         }
     }
     

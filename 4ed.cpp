@@ -252,7 +252,7 @@ App_Init_Sig(app_init){
     working_set_init(models, &models->working_set);
     Mutex_Lock file_order_lock(models->working_set.mutex);
     
-    // NOTE(allen): 
+    // NOTE(allen):
     global_history_init(&models->global_history);
     text_layout_init(tctx, &models->text_layouts);
     
@@ -746,6 +746,10 @@ App_Step_Sig(app_step){
                     render_caller(&app, frame, view_get_id(live_views, view));
                 }
             }
+        }
+        
+        if (models->whole_screen_render_caller != 0){
+            models->whole_screen_render_caller(&app, frame);
         }
         
         models->in_render_mode = false;

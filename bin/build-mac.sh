@@ -3,7 +3,7 @@
 # If any command errors, stop the script
 set -e
 
-# Set up directories (mirrors build.bat)
+# Set up directories
 # NOTE(yuval): Replaced readlink with realpath which works for both macOS and Linux
 ME="$(realpath "$0")"
 LOCATION="$(dirname "$ME")"
@@ -23,15 +23,7 @@ if [ -z "$BUILD_MODE" ]; then
     BUILD_MODE="-DDEV_BUILD"
 fi
 
-# Get the OS specific flags
-chmod +rx "$BIN_ROOT/detect_os.sh"
-os=$("$BIN_ROOT/detect_os.sh")
-
-if [[ "$os" == "linux" ]]; then
-WARNINGS="-Wno-write-strings -Wno-comment"
-elif [[ "$os" == "mac" ]]; then
 WARNINGS="-Wno-write-strings -Wno-comment -Wno-null-dereference -Wno-logical-op-parentheses -Wno-switch"
-fi
 
 FLAGS="-D_GNU_SOURCE -fPIC -fpermissive $BUILD_MODE"
 INCLUDES="-I$SRC_ROOT -I$CUSTOM_ROOT"

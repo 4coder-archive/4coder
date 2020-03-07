@@ -17,10 +17,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-//
-// API
-//
-
 // System commands
 static char SF_CMD[4096];
 static i32 error_state = 0;
@@ -43,14 +39,17 @@ if (prev_error != 0) error_state = 1;                      \
 internal void fm_execute_in_dir(char *dir, char *str, char *args);
 
 // Init
-internal Arena fm_init_system();
+enum{
+    DetailLevel_Basics = 0,
+    DetailLevel_FileOperations = 1,
+    DetailLevel_Everything = 2,
+};
+global i32 detail_level = 0;
+
+internal Arena fm_init_system(i32 detail_level);
 
 // Timing
 internal u64 fm_get_time();
-
-#define LLU_CAST(n) (long long unsigned int)(n)
-#define BEGIN_TIME_SECTION() u64 start = fm_get_time()
-#define END_TIME_SECTION(n) u64 total = fm_get_time() - start; printf("%-20s: %.2llu.%.6llu\n", (n), LLU_CAST(total/1000000), LLU_CAST(total%1000000));
 
 // Files and Folders Manipulation
 internal void fm_make_folder_if_missing(Arena *arena, char *dir);
@@ -183,6 +182,16 @@ fm__init_memory(void){
     return(make_arena_malloc(MB(512), 8));
 }
 
+function b32
+fm__show_details_for_file_operations(void){
+    return(detail_level >= DetailLevel_FileOperations);
+}
+
+function b32
+fm__show_details_for_zip_output(void){
+    return(detail_level >= DetailLevel_Everything);
+}
+
 //
 // Windows implementation
 //
@@ -266,7 +275,8 @@ extern "C"{
 global u64 perf_frequency;
 
 internal Arena
-fm_init_system(void){
+fm_init_system(i32 det){
+    detail_level = det;
     LARGE_INTEGER lint;
     if (QueryPerformanceFrequency(&lint)){
         perf_frequency = lint.QuadPart;
@@ -351,7 +361,9 @@ fm_make_folder_if_missing(Arena *arena, char *dir){
 
 internal void
 fm_clear_folder(char *folder){
-    fprintf(stdout, "clearing folder %s\n", folder);
+    if (fm__show_details_for_file_operations()){
+        fprintf(stdout, "clearing folder %s\n", folder);
+    }
     fflush(stdout);
     systemf("del /S /Q /F %s\\* > nul & rmdir /S /Q %s > nul & mkdir %s > nul", folder, folder, folder);
 }
@@ -363,14 +375,18 @@ fm_delete_file(char *file){
 
 internal void
 fm_copy_file(char *file, char *newname){
-    printf("copy %s to %s\n", file, newname);
+    if (fm__show_details_for_file_operations()){
+        printf("copy %s to %s\n", file, newname);
+    }
     fflush(stdout);
     CopyFileA(file, newname, 0);
 }
 
 internal void
 fm_copy_all(char *source, char *folder){
-    fprintf(stdout, "copy %s to %s\n", source, folder);
+    if (fm__show_details_for_file_operations()){
+        fprintf(stdout, "copy %s to %s\n", source, folder);
+    }
     fflush(stdout);
     systemf("xcopy /s /e /y /q %s %s > nul", source, folder);
 }
@@ -394,17 +410,27 @@ fm_write_file(char *file_name, char *data, u32 size){
 
 internal void
 fm_zip(char *parent, char *folder, char *dest){
-    printf("zipping %s\\%s to %s\n", parent, folder, dest);
+    if (fm__show_details_for_file_operations()){
+        printf("zipping %s\\%s to %s\n", parent, folder, dest);
+    }
     fflush(stdout);
     
     char cdir[512];
     fm_get_current_directory(cdir, sizeof(cdir));
     
+    char *hide_output = " > nul >> nul";
+    char *show_output = "";
+    char *output_rule = hide_output;
+    if (fm__show_details_for_zip_output()){
+        output_rule = show_output;
+    }
+    
     Temp_Dir temp = fm_pushdir(parent);
-    systemf("%s\\bin\\zip %s\\4ed_gobble.zip > nul", cdir, cdir);
+    systemf("%s\\bin\\zip %s\\4ed_gobble.zip%s", cdir, cdir, output_rule);
     fm_popdir(temp);
     
-    systemf("copy %s\\4ed_gobble.zip %s > nul & del %s\\4ed_gobble.zip > nul", cdir, dest, cdir);
+    systemf("copy %s\\4ed_gobble.zip %s%s & del %s\\4ed_gobble.zip%s",
+            cdir, dest, output_rule, cdir, output_rule);
 }
 
 //
@@ -435,7 +461,8 @@ fm_popdir(Temp_Dir temp){
 }
 
 internal Arena
-fm_init_system(){
+fm_init_system(i32 det){
+    detail_level = det;
     return(fm__init_memory());
 }
 
@@ -492,7 +519,9 @@ fm_make_folder_if_missing(Arena *arena, char *dir){
 
 internal void
 fm_clear_folder(char *folder){
-    fprintf(stdout, "clearing folder %s\n", folder);
+    if (fm__show_details_for_file_operations()){
+        fprintf(stdout, "clearing folder %s\n", folder);
+    }
     fflush(stdout);
     systemf("rm -rf %s* > /dev/null", folder);
 }
@@ -504,12 +533,19 @@ fm_delete_file(char *file){
 
 internal void
 fm_copy_file(char *file, char *newname){
+    if (fm__show_details_for_file_operations()){
+        printf("copy %s to %s\n", file, newname);
+    }
+    fflush(stdout);
     systemf("cp %s %s", file, newname);
 }
 
 internal void
 fm_copy_all(char *source, char *folder){
-    fprintf(stdout, "copy %s to %s\n", source, folder);
+    if (fm__show_details_for_file_operations()){
+        fprintf(stdout, "copy %s to %s\n", source, folder);
+    }
+    fflush(stdout);
     systemf("cp -rf %s/* %s > /dev/null", source, folder);
 }
 
@@ -525,9 +561,20 @@ fm_write_file(char *file_name, char *data, u32 size){
 
 internal void
 fm_zip(char *parent, char *folder, char *file){
+    if (fm__show_details_for_file_operations()){
+        printf("zipping %s/%s to %s\n", parent, folder, file);
+    }
+    fflush(stdout);
+    
+    char *hide_output = " > nul 2> nul";
+    char *show_output = "";
+    char *output_rule = hide_output;
+    if (fm__show_details_for_zip_output()){
+        output_rule = show_output;
+    }
+    
     Temp_Dir temp = fm_pushdir(parent);
-    printf("PARENT DIR: %s\n", parent);
-    systemf("zip -r %s %s", file, folder);
+    systemf("zip -r %s %s%s", file, folder, output_rule);
     fm_popdir(temp);
 }
 

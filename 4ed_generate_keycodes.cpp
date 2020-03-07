@@ -123,8 +123,19 @@ make_key_list(Arena *arena){
     add_code(arena, &list, string_u8_litexpr("Control"));
     add_code(arena, &list, string_u8_litexpr("Alt"));
     add_code(arena, &list, string_u8_litexpr("Command"));
-    for (u32 i = 1; i <= 16; i += 1){
+    for (u32 i = 1; i <= 24; i += 1){
         add_code(arena, &list, push_u8_stringf(arena, "F%d", i));
+    }
+    for (u32 i = '0'; i <= '9'; i += 1){
+        add_code(arena, &list, push_u8_stringf(arena, "NumPad%c", i));
+    }
+    add_code(arena, &list, string_u8_litexpr("NumPadStar"));
+    add_code(arena, &list, string_u8_litexpr("NumPadPlus"));
+    add_code(arena, &list, string_u8_litexpr("NumPadMinus"));
+    add_code(arena, &list, string_u8_litexpr("NumPadDot"));
+    add_code(arena, &list, string_u8_litexpr("NumPadSlash"));
+    for (i32 i = 0; i < 30; i += 1){
+        add_code(arena, &list, push_u8_stringf(arena, "Ex%d", i));
     }
     return(list);
 }

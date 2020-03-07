@@ -54,11 +54,7 @@ gl__fill_texture(Texture_Kind texture_kind, u32 texture, Vec3_i32 p, Vec3_i32 di
 }
 
 internal void
-#ifdef OS_LINUX
 gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam){
-#else
-gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char *message, void *userParam){
-#endif
     switch (id){
         case 131218:
         {
@@ -72,70 +68,70 @@ gl__error_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsiz
     }
 }
 
-char *gl__header = R"foo(#version 150
-)foo";
+char *gl__header = R"foo(#version 130
+        )foo";
 
 char *gl__vertex = R"foo(
-uniform vec2 view_t;
-uniform mat2x2 view_m;
-in vec2 vertex_p;
-in vec3 vertex_t;
-in uint vertex_c;
-in float vertex_ht;
-smooth out vec4 fragment_color;
-smooth out vec3 uvw;
-smooth out vec2 xy;
-smooth out vec2 adjusted_half_dim;
-smooth out float half_thickness;
-void main(void)
-{
-gl_Position = vec4(view_m*(vertex_p - view_t), 0.0, 1.0);
- fragment_color.b = (float((vertex_c     )&0xFFu))/255.0;
-fragment_color.g = (float((vertex_c>> 8u)&0xFFu))/255.0;
-fragment_color.r = (float((vertex_c>>16u)&0xFFu))/255.0;
-fragment_color.a = (float((vertex_c>>24u)&0xFFu))/255.0;
-uvw = vertex_t;
-vec2 center = vertex_t.xy;
-vec2 half_dim = abs(vertex_p - center);
-adjusted_half_dim = half_dim - vertex_t.zz + vec2(0.5, 0.5);
-half_thickness = vertex_ht;
-xy = vertex_p;
-}
-)foo";
+        uniform vec2 view_t;
+        uniform mat2x2 view_m;
+        in vec2 vertex_p;
+        in vec3 vertex_t;
+        in uint vertex_c;
+        in float vertex_ht;
+        smooth out vec4 fragment_color;
+        smooth out vec3 uvw;
+        smooth out vec2 xy;
+        smooth out vec2 adjusted_half_dim;
+        smooth out float half_thickness;
+        void main(void)
+        {
+        gl_Position = vec4(view_m*(vertex_p - view_t), 0.0, 1.0);
+         fragment_color.b = (float((vertex_c     )&0xFFu))/255.0;
+        fragment_color.g = (float((vertex_c>> 8u)&0xFFu))/255.0;
+        fragment_color.r = (float((vertex_c>>16u)&0xFFu))/255.0;
+        fragment_color.a = (float((vertex_c>>24u)&0xFFu))/255.0;
+        uvw = vertex_t;
+        vec2 center = vertex_t.xy;
+        vec2 half_dim = abs(vertex_p - center);
+        adjusted_half_dim = half_dim - vertex_t.zz + vec2(0.5, 0.5);
+        half_thickness = vertex_ht;
+        xy = vertex_p;
+        }
+        )foo";
 
 char *gl__fragment = R"foo(
-smooth in vec4 fragment_color;
-smooth in vec3 uvw;
-smooth in vec2 xy;
-smooth in vec2 adjusted_half_dim;
-smooth in float half_thickness;
-uniform sampler2DArray sampler;
-out vec4 out_color;
-
-float rectangle_sd(vec2 p, vec2 b){
-vec2 d = abs(p) - b;
-return(length(max(d, vec2(0.0, 0.0))) + min(max(d.x, d.y), 0.0));
-}
-
-void main(void)
-{
-float has_thickness = (step(0.49, half_thickness));
-float does_not_have_thickness = 1.0 - has_thickness;
-
-float sample_value = texture(sampler, uvw).r;
-sample_value *= does_not_have_thickness;
-
-vec2 center = uvw.xy;
-float roundness = uvw.z;
-float sd = rectangle_sd(xy - center, adjusted_half_dim);
-sd = sd - roundness;
-sd = abs(sd + half_thickness) - half_thickness;
-float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
-shape_value *= has_thickness;
-
-out_color = vec4(fragment_color.xyz, fragment_color.a*(sample_value + shape_value));
-}
-)foo";
+        smooth in vec4 fragment_color;
+        smooth in vec3 uvw;
+        smooth in vec2 xy;
+        smooth in vec2 adjusted_half_dim;
+        smooth in float half_thickness;
+        uniform sampler2DArray sampler;
+        out vec4 out_color;
+        
+        float rectangle_sd(vec2 p, vec2 b){
+        vec2 d = abs(p) - b;
+        return(length(max(d, vec2(0.0, 0.0))) + min(max(d.x, d.y), 0.0));
+        }
+        
+        void main(void)
+        {
+        float has_thickness = (step(0.49, half_thickness));
+        float does_not_have_thickness = 1.0 - has_thickness;
+        
+        float sample_value = texture(sampler, uvw).r;
+        sample_value *= does_not_have_thickness;
+        
+        vec2 center = uvw.xy;
+        float roundness = uvw.z;
+        float sd = rectangle_sd(xy - center, adjusted_half_dim);
+        sd = sd - roundness;
+        sd = abs(sd + half_thickness) - half_thickness;
+        float shape_value = 1.0 - smoothstep(-1.0, 0.0, sd);
+        shape_value *= has_thickness;
+        
+        out_color = vec4(fragment_color.xyz, fragment_color.a*(sample_value + shape_value));
+        }
+        )foo";
 
 #define AttributeList(X) \
 X(vertex_p) \
@@ -154,7 +150,7 @@ struct GL_Program{
     AttributeList(GetAttributeLocation)
 #undef GetAttributeLocation
 #define GetUniformLocation(N) i32 N;
-        UniformList(GetUniformLocation)
+    UniformList(GetUniformLocation)
 #undef GetUniformLocation
 };
 
@@ -205,9 +201,9 @@ gl__make_program(char *header, char *vertex, char *fragment){
     AttributeList(GetAttributeLocation)
 #undef GetAttributeLocation
 #define GetUniformLocation(N) result.N = glGetUniformLocation(program, #N);
-        UniformList(GetUniformLocation)
+    UniformList(GetUniformLocation)
 #undef GetUniformLocation
-        return(result);
+    return(result);
 }
 
 #define GLOffsetStruct(p,m) ((void*)(OffsetOfMemberStruct(p,m)))
@@ -294,9 +290,9 @@ gl_render(Render_Target *t){
          group = group->next){
         Rect_i32 box = Ri32(group->clip_box);
         
-		Rect_i32 scissor_box = {
-			box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0,
-		};
+        Rect_i32 scissor_box = {
+            box.x0, height - box.y1, box.x1 - box.x0, box.y1 - box.y0,
+        };
         scissor_box.x0 = clamp_bot(0, scissor_box.x0);
         scissor_box.y0 = clamp_bot(0, scissor_box.y0);
         scissor_box.x1 = clamp_bot(0, scissor_box.x1);

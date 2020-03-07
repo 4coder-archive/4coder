@@ -2234,6 +2234,10 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->render_caller = (Render_Caller_Function*)func_ptr;
         }break;
+        case HookID_WholeScreenRenderCaller:
+        {
+            models->whole_screen_render_caller = (Whole_Screen_Render_Caller_Function*)func_ptr;
+        }break;
         case HookID_BufferNameResolver:
         {
             models->buffer_name_resolver = (Buffer_Name_Resolver_Function*)func_ptr;

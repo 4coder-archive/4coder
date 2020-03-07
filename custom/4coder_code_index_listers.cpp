@@ -15,9 +15,9 @@ CUSTOM_DOC("List all definitions in the code index and jump to one chosen by the
     char *query = "Definition:";
     
     Scratch_Block scratch(app);
-    Lister *lister = begin_lister(app, scratch);
+    Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
-    lister->handlers = lister_get_default_handlers();
+    lister_set_default_handlers(lister);
     
     code_index_lock();
     for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);

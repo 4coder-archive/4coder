@@ -38,11 +38,27 @@ lister_get_top_level_layout(Rect_f32 rect, f32 text_field_height){
 
 ////////////////////////////////
 
-Lister *global_lister_state[16] = {};
+function Lister*
+view_get_lister(Application_Links *app, View_ID view){
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    Lister **ptr = scope_attachment(app, scope, view_lister_loc, Lister*);
+    Lister *result = 0;
+    if (ptr != 0){
+        result = *ptr;
+    }
+    return(result);
+}
 
 function Lister*
-view_get_lister(View_ID view){
-    return(global_lister_state[view - 1]);
+view_set_lister(Application_Links *app, View_ID view, Lister *lister){
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    Lister **ptr = scope_attachment(app, scope, view_lister_loc, Lister*);
+    Lister *result = 0;
+    if (ptr != 0){
+        result = *ptr;
+        *ptr = lister;
+    }
+    return(result);
 }
 
 function void
@@ -57,19 +73,36 @@ lister_set_map(Lister *lister, Mapping *mapping, Command_Map_ID map){
     lister->map = mapping_get_map(mapping, map);
 }
 
-function Lister*
+function Lister_Prev_Current
 begin_lister(Application_Links *app, Arena *arena){
+    Lister_Prev_Current result = {};
     Lister *lister = push_array_zero(arena, Lister, 1);
     lister->arena = arena;
     lister->query = Su8(lister->query_space, 0, sizeof(lister->query_space));
     lister->text_field = Su8(lister->text_field_space, 0, sizeof(lister->text_field_space));
     lister->key_string = Su8(lister->key_string_space, 0, sizeof(lister->key_string_space));
     View_ID view = get_this_ctx_view(app, Access_Always);
-    global_lister_state[view - 1] = lister;
+    result.prev = view_set_lister(app, view, lister);
+    result.current = lister;
     lister->restore_all_point = begin_temp(lister->arena);
     View_Context ctx = view_current_context(app, view);
     lister_set_map(lister, ctx.mapping, ctx.map_id);
-    return(lister);
+    return(result);
+}
+
+Lister_Block::Lister_Block(Application_Links *a, Arena *arena){
+    Lister_Prev_Current new_lister = begin_lister(a, arena);
+    this->app = a;
+    this->lister = new_lister;
+}
+
+Lister_Block::~Lister_Block(){
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    view_set_lister(this->app, view, this->lister.prev);
+}
+
+Lister_Block::operator Lister *(){
+    return(this->lister.current);
 }
 
 function void
@@ -133,6 +166,11 @@ lister_append_key(Lister *lister, char *string){
 }
 
 function void
+lister_set_handlers(Lister *lister, Lister_Handlers *handlers){
+    block_copy_struct(&lister->handlers, handlers);
+}
+
+function void
 lister_zero_scroll(Lister *lister){
     block_zero_struct(&lister->scroll);
 }
@@ -141,7 +179,7 @@ function void
 lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
     Scratch_Block scratch(app);
     
-    Lister *lister = view_get_lister(view);
+    Lister *lister = view_get_lister(app, view);
     if (lister == 0){
         return;
     }
@@ -721,7 +759,7 @@ function Lister_Activation_Code
 lister__write_string__default(Application_Links *app){
     Lister_Activation_Code result = ListerActivation_Continue;
     View_ID view = get_active_view(app, Access_Always);
-    Lister *lister = view_get_lister(view);
+    Lister *lister = view_get_lister(app, view);
     if (lister != 0){
         User_Input in = get_current_input(app);
         String_Const_u8 string = to_writable(&in);
@@ -739,7 +777,7 @@ lister__write_string__default(Application_Links *app){
 function void
 lister__backspace_text_field__default(Application_Links *app){
     View_ID view = get_active_view(app, Access_Always);
-    Lister *lister = view_get_lister(view);
+    Lister *lister = view_get_lister(app, view);
     if (lister != 0){
         lister->text_field.string = backspace_utf8(lister->text_field.string);
         lister->key_string.string = backspace_utf8(lister->key_string.string);
@@ -775,15 +813,21 @@ lister_get_default_handlers(void){
     return(handlers);
 }
 
+function void
+lister_set_default_handlers(Lister *lister){
+    Lister_Handlers handlers = lister_get_default_handlers();
+    lister_set_handlers(lister, &handlers);
+}
+
 ////////////////////////////////
 
 function Lister_Result
 run_lister_with_refresh_handler(Application_Links *app, Arena *arena, String_Const_u8 query, Lister_Handlers handlers){
     Lister_Result result = {};
     if (handlers.refresh != 0){
-        Lister *lister = begin_lister(app, arena);
+        Lister_Block lister(app, arena);
         lister_set_query(lister, query);
-        lister->handlers = handlers;
+        lister_set_handlers(lister, &handlers);
         handlers.refresh(app, lister);
         result = run_lister(app, lister);
     }
@@ -865,7 +909,7 @@ function Lister_Activation_Code
 lister__key_stroke__choice_list(Application_Links *app){
     Lister_Activation_Code result = ListerActivation_Continue;
     View_ID view = get_active_view(app, Access_Always);
-    Lister *lister = view_get_lister(view);
+    Lister *lister = view_get_lister(app, view);
     if (lister != 0){
         User_Input in = get_current_input(app);
         if (in.event.kind == InputEventKind_KeyStroke){
@@ -894,7 +938,7 @@ function Lister_Choice*
 get_choice_from_user(Application_Links *app, String_Const_u8 query,
                      Lister_Choice_List list){
     Scratch_Block scratch(app);
-    Lister *lister = begin_lister(app, scratch);
+    Lister_Block lister(app, scratch);
     for (Lister_Choice *choice = list.first;
          choice != 0;
          choice = choice->next){
@@ -907,8 +951,7 @@ get_choice_from_user(Application_Links *app, String_Const_u8 query,
     Lister_Handlers handlers = {};
     handlers.navigate        = lister__navigate__default;
     handlers.key_stroke      = lister__key_stroke__choice_list;
-    lister->handlers = handlers;
-    lister->handlers.refresh = 0;
+    lister_set_handlers(lister, &handlers);
     
     Lister_Result l_result = run_lister(app, lister);
     Lister_Choice *result = 0;

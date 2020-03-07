@@ -1367,7 +1367,7 @@ config_parse__file_name(Application_Links *app, Arena *arena, char *file_name, C
         if (data.data != 0){
             parsed = config_parse__data(app, arena, SCu8(file_name), SCu8(data),
                                         config);
-            success = true; 
+            success = true;
         }
     }
     if (!success){

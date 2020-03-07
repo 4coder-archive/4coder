@@ -26,8 +26,8 @@ load_paths = {
 
 build_x64_win32 = "echo build: x64 & bin\\build.bat";
 build_x86_win32 = "echo build: x86 & bin\\build.bat /DDEV_BUILD_X86";
-build_x64_linux = "echo build: x64 & bin/build.sh";
-build_x86_linux = "echo build: x86 & bin/build.sh -DDEV_BUILD_X86";
+build_x64_linux = "echo build: x64 & bin/build-linux.sh";
+build_x86_linux = "echo build: x86 & bin/build-linux.sh -DDEV_BUILD_X86";
 build_x64_mac = "echo build: x64 & bin/build-mac.sh";
 build_x86_mac = "echo build: x86 & bin/build-mac.sh -DDEV_BUILD_X86";
 
@@ -46,18 +46,20 @@ command_list = {
  
  { .name = "package",
    .out = "*compilation*", .footer_panel = false, .save_dirty_files = true,
-   .cmd = { {"echo package & bin\\package.bat", .os = "win"  }, 
-            {"echo package & bin/package.sh"  , .os = "linux"}, 
-            {"echo package & bin/package.sh"  , .os = "mac"  }, }, },
+   .cmd = { {"echo package & bin\\package.bat"    , .os = "win"  },
+            {"echo package & bin/package-linux.sh", .os = "linux"},
+            {"echo package & bin/package-max.sh"  , .os = "mac"  }, }, },
  
  { .name = "run one time",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,
    .cmd = { { "pushd ..\\build & one_time", .os = "win"   },
-            { "pushd ../build & one_time", .os = "mac"   }, }, },
+            { "cd ../build && ./one_time"    , .os = "linux" },
+            { "pushd ../build && ./one_time" , .os = "mac"   }, }, },
  
  { .name = "build custom api docs",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
    .cmd = { { "custom\\bin\\build_one_time docs\\4ed_doc_custom_api_main.cpp ..\\build", .os = "win" },
+            { "custom/bin/build_one_time.sh docs/4ed_doc_custom_api_main.cpp ../build", .os = "linux" },
             { "custom/bin/build_one_time.sh docs/4ed_doc_custom_api_main.cpp ../build", .os = "mac" }, }, },
  
  { .name = "build C++ lexer generator",
@@ -90,7 +92,8 @@ command_list = {
  
  { .name = "build keycode generator",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_generate_keycodes.cpp ..\\build", .os = "win" }, }, },
+   .cmd = { { "custom\\bin\\build_one_time 4ed_generate_keycodes.cpp ..\\build", .os = "win" },
+            { "custom/bin/build_one_time.sh 4ed_generate_keycodes.cpp ../build", .os = "linux" }, }, },
  
  { .name = "build site render",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,

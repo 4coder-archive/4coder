@@ -132,9 +132,9 @@ get_command_from_user(Application_Links *app, String_Const_u8 query, i32 *comman
     }
     
     Scratch_Block scratch(app, Scratch_Share);
-    Lister *lister = begin_lister(app, scratch);
+    Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
-    lister->handlers = lister_get_default_handlers();
+    lister_set_default_handlers(lister);
     
     for (i32 i = 0; i < command_id_count; i += 1){
         i32 j = i;
@@ -206,9 +206,9 @@ get_color_table_from_user(Application_Links *app, String_Const_u8 query, Color_T
     }
     
     Scratch_Block scratch(app, Scratch_Share);
-    Lister *lister = begin_lister(app, scratch);
+    Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
-    lister->handlers = lister_get_default_handlers();
+    lister_set_default_handlers(lister);
     
     lister_add_item(lister, string_u8_litexpr("4coder"), string_u8_litexpr(""),
                     (void*)&default_color_table, 0);
@@ -240,7 +240,7 @@ function Lister_Activation_Code
 lister__write_character__file_path(Application_Links *app){
     Lister_Activation_Code result = ListerActivation_Continue;
     View_ID view = get_this_ctx_view(app, Access_Always);
-    Lister *lister = view_get_lister(view);
+    Lister *lister = view_get_lister(app, view);
     if (lister != 0){
         User_Input in = get_current_input(app);
         String_Const_u8 string = to_writable(&in);
@@ -265,7 +265,7 @@ lister__write_character__file_path(Application_Links *app){
 function void
 lister__backspace_text_field__file_path(Application_Links *app){
     View_ID view = get_this_ctx_view(app, Access_Always);
-    Lister *lister = view_get_lister(view);
+    Lister *lister = view_get_lister(app, view);
     if (lister != 0){
         if (lister->text_field.size > 0){
             char last_char = lister->text_field.str[lister->text_field.size - 1];

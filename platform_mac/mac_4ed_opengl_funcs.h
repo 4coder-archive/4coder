@@ -6,6 +6,7 @@
 #include "4ed_opengl_funcs.h"
 */
 
+// TODO(allen): eliminate this
 GL_FUNC(glDebugMessageControl, void, (GLenum source, GLenum type, GLenum severity, GLsizei count, const GLuint *ids, GLboolean enabled))
 GL_FUNC(glDebugMessageCallback, void, (GLDEBUGPROC callback, const void *userParam))
 
