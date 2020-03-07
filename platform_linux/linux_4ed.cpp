@@ -1054,7 +1054,9 @@ linux_keycode_init(Display* dpy){
     
     for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
         const char* name = linuxvars.xkb->names->keys[i].name;
-        
+
+        // alphanumeric keys
+
         if(name[0] == 'A' && name[1] >= 'B' && name[1] <= 'E') {
             int row = (nrows - 1) - (name[1] - 'B');
             int col = (name[2] - '0') * 10 + (name[3] - '0') - 1;
@@ -1064,6 +1066,12 @@ linux_keycode_init(Display* dpy){
             }
         }
         
+        // numpad
+
+        else if(name[0] == 'K' && name[1] == 'P' && name[2] >= '0' && name[2] <= '9' && !name[3]) {
+            keycode_lookup_table[i] = KeyCode_NumPad0 + name[2] - '0';
+        }
+        
         // a few special cases:
         
         else if(memcmp(name, "TLDE", XkbKeyNameLength) == 0) {
@@ -1071,10 +1079,9 @@ linux_keycode_init(Display* dpy){
         } else if(memcmp(name, "BKSL", XkbKeyNameLength) == 0) {
             keycode_lookup_table[i] = KeyCode_BackwardSlash;
         } else if(memcmp(name, "LSGT", XkbKeyNameLength) == 0) {
-            // UK extra key between left shift and Z, not sure what to do with it...
-            // Setting to F13-F16 seems to break text input.
+            // UK extra key between left shift and Z
             // it prints \ and | with shift. KeyCode_Backslash will be where UK # is.
-            // keycode_lookup_table[i] =
+            keycode_lookup_table[i] = KeyCode_Ex0;
         }
     }
     
@@ -1116,9 +1123,24 @@ linux_keycode_init(Display* dpy){
         *p++ = { XK_F1 + (k - KeyCode_F1), k };
     }
     
+    for (Key_Code k = KeyCode_NumPad0; k <= KeyCode_NumPad9; ++k){
+        *p++ = { XK_KP_0 + (k - KeyCode_NumPad0), k };
+    }
+    
+    *p++ = { XK_KP_Multiply, KeyCode_NumPadStar };
+    *p++ = { XK_KP_Add, KeyCode_NumPadPlus };
+    *p++ = { XK_KP_Subtract, KeyCode_NumPadMinus };
+    *p++ = { XK_KP_Decimal, KeyCode_NumPadDot };
+    *p++ = { XK_KP_Delete, KeyCode_NumPadDot }; // seems to take precedence over Decimal...
+    *p++ = { XK_KP_Divide, KeyCode_NumPadSlash };
+    *p++ = { XK_KP_Enter, KeyCode_Return }; // NumPadEnter?
+    
     const int table_size = p - sym_table;
     Assert(table_size < ArrayCount(sym_table));
-    
+
+    Key_Code next_extra = KeyCode_Ex1;
+    const Key_Code max_extra = KeyCode_Ex29;
+
     for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
         KeySym sym = NoSymbol;
         
@@ -1126,12 +1148,18 @@ linux_keycode_init(Display* dpy){
         if(!XkbTranslateKeyCode(linuxvars.xkb, i, XkbBuildCoreState(0, linuxvars.xkb_group), NULL, &sym)) {
             continue;
         }
-        
-        for(int j = 0; j < table_size; ++j) {
+
+        int j;
+        for(j = 0; j < table_size; ++j) {
             if(sym_table[j].sym == sym) {
                 keycode_lookup_table[i] = sym_table[j].code;
                 break;
             }
+        }
+
+        // something unknown bound, put it in extra
+        if(j == table_size && sym != NoSymbol && next_extra <= max_extra && keycode_lookup_table[i] == 0) {
+            keycode_lookup_table[i] = next_extra++;
         }
     }
 }
