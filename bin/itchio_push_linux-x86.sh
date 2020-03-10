@@ -14,7 +14,7 @@ vr=$fake.$maj.$min
 fv=$fake-$maj-$min
 
 flags="--fix-permissions --userversion=$vr"
-dir=../current_dist_all_os
+dir=../distributions
 
 butler push $flags $dir/demo_x86/4coder-$fv-demo-linux-x86.zip   4coder/4coder:linux-x86-demo
 butler push $flags $dir/super_x86/4coder-$fv-super-linux-x86.zip 4coder/4coder:linux-x86
