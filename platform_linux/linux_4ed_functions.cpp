@@ -233,6 +233,7 @@ system_save_file(Arena* scratch, char* file_name, String_Const_u8 data){
                 result = linux_file_attributes_from_struct_stat(&file_stat);
             }
         }
+        close(fd);
     } else {
         perror("open");
     }
@@ -332,33 +333,6 @@ system_sleep(u64 microseconds){
     requested.tv_sec = seconds;
     requested.tv_nsec = (microseconds - seconds * Million(1)) * Thousand(1);
     nanosleep(&requested, &remaining);
-}
-
-internal String_Const_u8
-system_get_clipboard(Arena* arena, i32 index){
-    // TODO(inso): index?
-    u8* ptr = push_array_write(arena, u8, linuxvars.clipboard_contents.size, linuxvars.clipboard_contents.str);
-    return SCu8(ptr, linuxvars.clipboard_contents.size);
-}
-
-internal void
-system_post_clipboard(String_Const_u8 str, i32 index){
-    // TODO(inso): index?
-    //LINUX_FN_DEBUG("%.*s", string_expand(str));
-    linalloc_clear(linuxvars.clipboard_arena);
-    linuxvars.clipboard_contents = push_u8_stringf(linuxvars.clipboard_arena, "%.*s", str.size, str.str);
-    XSetSelectionOwner(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
-}
-
-internal void
-system_set_clipboard_catch_all(b32 enabled){
-    LINUX_FN_DEBUG("%d", enabled);
-    linuxvars.clipboard_catch_all = !!enabled;
-}
-
-internal b32
-system_get_clipboard_catch_all(void){
-    return linuxvars.clipboard_catch_all;
 }
 
 internal b32

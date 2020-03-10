@@ -55,7 +55,7 @@ struct Color_Array{
 api(custom)
 struct Color_Table{
     Color_Array *arrays;
-    u32 count;
+    i32 count;
 };
 
 api(custom)
@@ -638,6 +638,7 @@ typedef i32 Hook_ID;
 enum{
     HookID_Tick,
     HookID_RenderCaller,
+    HookID_WholeScreenRenderCaller,
     HookID_DeltaRule,
     HookID_BufferViewerUpdate,
     HookID_ViewEventHandler,
@@ -694,6 +695,9 @@ typedef void Tick_Function(Application_Links *app, Frame_Info frame_info);
 
 api(custom)
 typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_info, View_ID view);
+
+api(custom)
+typedef void Whole_Screen_Render_Caller_Function(Application_Links *app, Frame_Info frame_info);
 
 api(custom)
 typedef u32 Layout_Item_Flag;

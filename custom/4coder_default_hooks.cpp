@@ -474,6 +474,20 @@ default_render_caller(Application_Links *app, Frame_Info frame_info, View_ID vie
     draw_set_clip(app, prev_clip);
 }
 
+function void
+default_whole_screen_render_caller(Application_Links *app, Frame_Info frame_info){
+#if 0
+    Rect_f32 region = global_get_screen_rectangle(app);
+    Vec2_f32 center = rect_center(region);
+    
+    Face_ID face_id = get_face_id(app, 0);
+    Scratch_Block scratch(app);
+    draw_string_oriented(app, face_id, finalize_color(defcolor_text_default, 0),
+                         SCu8("Hello, World!"), center,
+                         GlyphFlag_Rotate90, V2f32(0.f, 1.f));
+#endif
+}
+
 HOOK_SIG(default_view_adjust){
     // NOTE(allen): Called whenever the view layout/sizes have been modified,
     // including by full window resize.
@@ -1022,6 +1036,7 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_ViewEventHandler, default_view_input_handler);
     set_custom_hook(app, HookID_Tick, default_tick);
     set_custom_hook(app, HookID_RenderCaller, default_render_caller);
+    set_custom_hook(app, HookID_WholeScreenRenderCaller, default_whole_screen_render_caller);
 #if 0
     set_custom_hook(app, HookID_DeltaRule, original_delta);
     set_custom_hook_memory_size(app, HookID_DeltaRule,

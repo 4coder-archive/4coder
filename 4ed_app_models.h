@@ -20,7 +20,6 @@ struct App_Settings{
     char **custom_flags;
     i32 custom_flags_count;
     
-    i32 initial_line;
     b32 lctrl_lalt_is_altgr;
     
     i32 font_size;
@@ -62,6 +61,7 @@ struct Models{
     
     Tick_Function *tick;
     Render_Caller_Function *render_caller;
+    Whole_Screen_Render_Caller_Function *whole_screen_render_caller;
     Delta_Rule_Function *delta_rule;
     u64 delta_rule_memory_size;
     
@@ -174,7 +174,6 @@ enum Command_Line_Action{
     CLAct_Ignore,
     CLAct_UserFile,
     CLAct_CustomDLL,
-    CLAct_InitialFilePosition,
     CLAct_WindowSize,
     CLAct_WindowMaximize,
     CLAct_WindowPosition,

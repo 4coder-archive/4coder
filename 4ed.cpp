@@ -45,8 +45,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'd': action = CLAct_CustomDLL; strict = false; break;
                                 case 'D': action = CLAct_CustomDLL; strict = true; break;
                                 
-                                case 'i': action = CLAct_InitialFilePosition; break;
-                                
                                 case 'w': action = CLAct_WindowSize; break;
                                 case 'W': action = CLAct_WindowMaximize; break;
                                 case 'p': action = CLAct_WindowPosition; break;
@@ -69,14 +67,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         plat_settings->custom_dll_is_strict = (b8)strict;
                         if (i < argc){
                             plat_settings->custom_dll = argv[i];
-                        }
-                        action = CLAct_Nothing;
-                    }break;
-                    
-                    case CLAct_InitialFilePosition:
-                    {
-                        if (i < argc){
-                            settings->initial_line = (i32)string_to_integer(SCu8(argv[i]), 10);
                         }
                         action = CLAct_Nothing;
                     }break;
@@ -746,6 +736,10 @@ App_Step_Sig(app_step){
                     render_caller(&app, frame, view_get_id(live_views, view));
                 }
             }
+        }
+        
+        if (models->whole_screen_render_caller != 0){
+            models->whole_screen_render_caller(&app, frame);
         }
         
         models->in_render_mode = false;

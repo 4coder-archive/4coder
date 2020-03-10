@@ -1367,7 +1367,7 @@ config_parse__file_name(Application_Links *app, Arena *arena, char *file_name, C
         if (data.data != 0){
             parsed = config_parse__data(app, arena, SCu8(file_name), SCu8(data),
                                         config);
-            success = true; 
+            success = true;
         }
     }
     if (!success){
@@ -1643,7 +1643,7 @@ CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the th
         if (color_table.count < defcolor_line_numbers_text){
             problem_score = defcolor_line_numbers_text - color_table.count;
         }
-        for (u32 i = 0; i < color_table.count; i += 1){
+        for (i32 i = 0; i < color_table.count; i += 1){
             if (color_table.arrays[i].count == 0){
                 problem_score += 1;
             }

@@ -718,8 +718,8 @@ win32_keycode_init(void){
     keycode_lookup_table[VK_F6] = KeyCode_F6;
     keycode_lookup_table[VK_F7] = KeyCode_F7;
     keycode_lookup_table[VK_F8] = KeyCode_F8;
-    keycode_lookup_table[VK_F9] = KeyCode_F9;
     
+    keycode_lookup_table[VK_F9] = KeyCode_F9;
     keycode_lookup_table[VK_F10] = KeyCode_F10;
     keycode_lookup_table[VK_F11] = KeyCode_F11;
     keycode_lookup_table[VK_F12] = KeyCode_F12;
@@ -727,6 +727,36 @@ win32_keycode_init(void){
     keycode_lookup_table[VK_F14] = KeyCode_F14;
     keycode_lookup_table[VK_F15] = KeyCode_F15;
     keycode_lookup_table[VK_F16] = KeyCode_F16;
+    
+    keycode_lookup_table[VK_F17] = KeyCode_F17;
+    keycode_lookup_table[VK_F18] = KeyCode_F18;
+    keycode_lookup_table[VK_F19] = KeyCode_F19;
+    keycode_lookup_table[VK_F20] = KeyCode_F20;
+    keycode_lookup_table[VK_F21] = KeyCode_F21;
+    keycode_lookup_table[VK_F22] = KeyCode_F22;
+    keycode_lookup_table[VK_F23] = KeyCode_F23;
+    keycode_lookup_table[VK_F24] = KeyCode_F24;
+    
+    keycode_lookup_table[VK_NUMPAD0] = KeyCode_NumPad0;
+    keycode_lookup_table[VK_NUMPAD1] = KeyCode_NumPad1;
+    keycode_lookup_table[VK_NUMPAD2] = KeyCode_NumPad2;
+    keycode_lookup_table[VK_NUMPAD3] = KeyCode_NumPad3;
+    keycode_lookup_table[VK_NUMPAD4] = KeyCode_NumPad4;
+    keycode_lookup_table[VK_NUMPAD5] = KeyCode_NumPad5;
+    keycode_lookup_table[VK_NUMPAD6] = KeyCode_NumPad6;
+    keycode_lookup_table[VK_NUMPAD7] = KeyCode_NumPad7;
+    keycode_lookup_table[VK_NUMPAD8] = KeyCode_NumPad8;
+    keycode_lookup_table[VK_NUMPAD9] = KeyCode_NumPad9;
+    
+    keycode_lookup_table[VK_MULTIPLY] = KeyCode_NumPadStar;
+    keycode_lookup_table[VK_ADD]      = KeyCode_NumPadPlus;
+    keycode_lookup_table[VK_SUBTRACT] = KeyCode_NumPadMinus;
+    keycode_lookup_table[VK_DECIMAL]  = KeyCode_NumPadDot;
+    keycode_lookup_table[VK_DIVIDE]   = KeyCode_NumPadSlash;
+    
+    for (i32 i = 0xDF; i < 0xFF; i += 1){
+        keycode_lookup_table[i] = KeyCode_Ex0 + 1;
+    }
 }
 
 internal void
@@ -1343,9 +1373,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         
         // NOTE(allen): Load wgl extensions
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
-(l) = (l) && win32_wgl_good((Void_Func*)(f));)
-        
-        b32 load_success = true;
+        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
+            
+            b32 load_success = true;
         LoadWGL(wglCreateContextAttribsARB, load_success);
         LoadWGL(wglChoosePixelFormatARB, load_success);
         LoadWGL(wglGetExtensionsStringEXT, load_success);

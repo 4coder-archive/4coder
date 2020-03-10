@@ -1080,7 +1080,7 @@ linux_keycode_init(Display* dpy){
     
     // Find the rest by their key label
     struct SymCode { KeySym sym; Key_Code code; };
-    SymCode sym_table[100];
+    SymCode sym_table[108];
     SymCode* p = sym_table;
     
     *p++ = { XK_space, KeyCode_Space };
@@ -1112,7 +1112,7 @@ linux_keycode_init(Display* dpy){
     *p++ = { XK_Super_L, KeyCode_Command };
     *p++ = { XK_Super_R, KeyCode_Command };
     
-    for(Key_Code k = KeyCode_F1; k <= KeyCode_F16; ++k) {
+    for (Key_Code k = KeyCode_F1; k <= KeyCode_F24; ++k){
         *p++ = { XK_F1 + (k - KeyCode_F1), k };
     }
     
@@ -1218,6 +1218,32 @@ linux_clipboard_send(XSelectionRequestEvent* req) {
     XSendEvent(req->display, req->requestor, True, 0, (XEvent*)&rsp);
 }
 
+internal String_Const_u8
+linux_clipboard_recv(Arena *arena){
+    Atom type;
+    int fmt;
+    unsigned long nitems;
+    unsigned long bytes_left;
+    u8 *data;
+    
+    int result = XGetWindowProperty(linuxvars.dpy,
+                                    linuxvars.win,
+                                    linuxvars.atom_CLIPBOARD,
+                                    0L, 0x20000000L, False,
+                                    linuxvars.atom_UTF8_STRING,
+                                    &type, &fmt, &nitems,
+                                    &bytes_left, &data);
+    
+    String_Const_u8 clip = {};
+    if(result == Success && fmt == 8){
+        clip= push_string_copy(arena, SCu8(data, nitems));
+        XFree(data);
+        XDeleteProperty(linuxvars.dpy, linuxvars.win, linuxvars.atom_CLIPBOARD);
+    }
+    
+    return(clip);
+}
+
 internal void
 linux_clipboard_recv(XSelectionEvent* ev) {
     
@@ -1227,29 +1253,40 @@ linux_clipboard_recv(XSelectionEvent* ev) {
         return;
     }
     
-    Atom type;
-    int fmt;
-    unsigned long nitems;
-    unsigned long bytes_left;
-    u8 *data;
-    
-    int result = XGetWindowProperty(
-                                    linuxvars.dpy,
-                                    linuxvars.win,
-                                    linuxvars.atom_CLIPBOARD,
-                                    0L, 0x20000000L, False,
-                                    linuxvars.atom_UTF8_STRING,
-                                    &type, &fmt, &nitems,
-                                    &bytes_left, &data);
-    
-    if(result == Success && fmt == 8){
+    Scratch_Block scratch(&linuxvars.tctx);
+    String_Const_u8 clip = linux_clipboard_recv(scratch);
+    if (clip.size > 0){
         linalloc_clear(linuxvars.clipboard_arena);
-        linuxvars.clipboard_contents = push_u8_stringf(linuxvars.clipboard_arena, "%.*s", nitems, data);
+        linuxvars.clipboard_contents = push_string_copy(linuxvars.clipboard_arena, clip);
         linuxvars.received_new_clipboard = true;
-        XFree(data);
-        XDeleteProperty(linuxvars.dpy, linuxvars.win, linuxvars.atom_CLIPBOARD);
         linux_schedule_step();
     }
+}
+
+internal
+system_get_clipboard_sig(){
+    // TODO(inso): index?
+    return(push_string_copy(arena, linuxvars.clipboard_contents));
+}
+
+internal void
+system_post_clipboard(String_Const_u8 str, i32 index){
+    // TODO(inso): index?
+    //LINUX_FN_DEBUG("%.*s", string_expand(str));
+    linalloc_clear(linuxvars.clipboard_arena);
+    linuxvars.clipboard_contents = push_u8_stringf(linuxvars.clipboard_arena, "%.*s", str.size, str.str);
+    XSetSelectionOwner(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
+}
+
+internal void
+system_set_clipboard_catch_all(b32 enabled){
+    LINUX_FN_DEBUG("%d", enabled);
+    linuxvars.clipboard_catch_all = !!enabled;
+}
+
+internal b32
+system_get_clipboard_catch_all(void){
+    return linuxvars.clipboard_catch_all;
 }
 
 internal String_Const_u8
@@ -1488,11 +1525,10 @@ linux_handle_x11_events() {
             
             default: {
                 // clipboard update notification - ask for the new content
-                if (linuxvars.clipboard_catch_all && event.type == linuxvars.xfixes_selection_event) {
+                if (event.type == linuxvars.xfixes_selection_event) {
                     XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&event;
                     if (sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.win){
-                        XConvertSelection(
-                                          linuxvars.dpy,
+                        XConvertSelection(linuxvars.dpy,
                                           linuxvars.atom_CLIPBOARD,
                                           linuxvars.atom_UTF8_STRING,
                                           linuxvars.atom_CLIPBOARD,
@@ -1768,10 +1804,10 @@ main(int argc, char **argv){
         
         Application_Step_Input input = {};
         
-        if (linuxvars.received_new_clipboard){
+        if (linuxvars.received_new_clipboard && linuxvars.clipboard_catch_all){
             input.clipboard = linuxvars.clipboard_contents;
-            linuxvars.received_new_clipboard = false;
         }
+        linuxvars.received_new_clipboard = false;
         
         input.first_step = first_step;
         input.dt = frame_useconds/1000000.f; // variable?

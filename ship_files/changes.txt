@@ -7,11 +7,14 @@
  + in config.4coder the variable virtual_whitespace_regular_indent determines the number of space-widths to use as the regular indentation in a virtual whitespace layout
  + show whitespace mode implemented in 'default_render_buffer'
  + `set_face_size` and `set_face_size_this_buffer` commands
+ + `HookID_WholeScreenRenderCaller` hook runs once per frame after all views render
+ + Extended key codes list
  + Fix: tabs are measured with the correct amount of width for the user's settings
  + Fix: virtual whitespace toggling works when the config initially diabled virtual whitespace
  + Fix: never miss the most recent post to the clipboard on windows
  + Fix: command `load_theme_current_buffer` gaurds against destroying the active color palette when bad files are loaded
  + Fix: project deep copy routine copies strings in the whitelist and blacklist pattern arrays
+ + Fix: footer panel manipulation functions check if the view exists
 
 4.1.3
  + Unkillable buffer setting
@@ -85,7 +88,7 @@ New in alpha 4.0.29:
 -Highlighting and marking API, supporting customizable line higlights, range highlights, cursors and marks
 -In config.4coder "use_line_highlight" enables the highlight at the cursor in the active view
 -In config.4coder "use_scope_highlight" enables background highlighting to distinguish scopes in code files
--In config.4coder "use_paren_helper" enalbes distinct coloring for matching parentheses 
+-In config.4coder "use_paren_helper" enalbes distinct coloring for matching parentheses
 -In config.4coder "use_comment_keyword" enables special coloring for the strings 'TODO' and 'NOTE' anywhere they occur, in code or text
 -In config.4coder "mode" sets the editing mode
  "4coder" the default 4coder mode

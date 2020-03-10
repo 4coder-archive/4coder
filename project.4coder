@@ -53,8 +53,8 @@ command_list = {
  { .name = "run one time",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,
    .cmd = { { "pushd ..\\build & one_time", .os = "win"   },
-            { "pushd ../build & one_time", .os = "linux"  },
-            { "pushd ../build & one_time", .os = "mac"    }, }, },
+            { "cd ../build && ./one_time"    , .os = "linux" },
+            { "pushd ../build && ./one_time" , .os = "mac"   }, }, },
  
  { .name = "build custom api docs",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
@@ -92,7 +92,8 @@ command_list = {
  
  { .name = "build keycode generator",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "custom\\bin\\build_one_time 4ed_generate_keycodes.cpp ..\\build", .os = "win" }, }, },
+   .cmd = { { "custom\\bin\\build_one_time 4ed_generate_keycodes.cpp ..\\build", .os = "win" },
+            { "custom/bin/build_one_time.sh 4ed_generate_keycodes.cpp ../build", .os = "linux" }, }, },
  
  { .name = "build site render",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
