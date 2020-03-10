@@ -8,6 +8,7 @@
  + show whitespace mode implemented in 'default_render_buffer'
  + `set_face_size` and `set_face_size_this_buffer` commands
  + `HookID_WholeScreenRenderCaller` hook runs once per frame after all views render
+ + Bindings use exact matches for modifiers, instead of most recent sub-set matches
  + Extended key codes list
  + Fix: tabs are measured with the correct amount of width for the user's settings
  + Fix: virtual whitespace toggling works when the config initially diabled virtual whitespace
