@@ -425,7 +425,7 @@ App_Step_Sig(app_step){
         event.kind = InputEventKind_MouseWheel;
         event.mouse_wheel.value = (f32)(input->mouse.wheel);
         event.mouse_wheel.p = input->mouse.p;
-        event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
+        event.mouse_wheel.modifiers = copy_modifier_set(scratch, &modifiers);
         push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.p != models->prev_p){
@@ -435,7 +435,7 @@ App_Step_Sig(app_step){
             Input_Event event = {};
             event.kind = InputEventKind_MouseMove;
             event.mouse_move.p = input->mouse.p;
-            event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
+            event.mouse_move.modifiers = copy_modifier_set(scratch, &modifiers);
             push_input_event(scratch, &input_list, &event);
         }
     }
