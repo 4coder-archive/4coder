@@ -3268,87 +3268,137 @@ thread_ctx_release(Thread_Context *tctx){
          node = node->next){
         linalloc_clear(&node->arena);
     }
+    for (Arena_Node *node = tctx->used_first;
+         node != 0;
+         node = node->next){
+        linalloc_clear(&node->arena);
+    }
     linalloc_clear(&tctx->node_arena);
     block_zero_struct(tctx);
 }
 
-function Arena*
-reserve_arena(Thread_Context *tctx, u64 chunk_size, u64 align){
-    Arena_Node *node = tctx->free_arenas;
-    if (node != 0){
+function Arena_Node*
+tctx__alloc_arena_node(Thread_Context *tctx){
+    Arena_Node *result = tctx->free_arenas;
+    if (result != 0){
         sll_stack_pop(tctx->free_arenas);
     }
     else{
-        node = push_array_zero(&tctx->node_arena, Arena_Node, 1);
+        result = push_array_zero(&tctx->node_arena, Arena_Node, 1);
+        result->arena = make_arena(tctx->allocator, KB(16), 8);
     }
-    node->arena = make_arena(tctx->allocator, chunk_size, align);
+    return(result);
+}
+
+function void
+tctx__free_arena_node(Thread_Context *tctx, Arena_Node *node){
+    sll_stack_push(tctx->free_arenas, node);
+}
+
+function Arena*
+tctx_reserve(Thread_Context *tctx){
+    Arena_Node *node = tctx->used_first;
+    if (node == 0){
+        node = tctx__alloc_arena_node(tctx);
+        zdll_push_back(tctx->used_first, tctx->used_last, node);
+    }
+    node->ref_counter += 1;
     return(&node->arena);
 }
 
 function Arena*
-reserve_arena(Thread_Context *tctx, u64 chunk_size){
-    return(reserve_arena(tctx, chunk_size, 8));
+tctx_reserve(Thread_Context *tctx, Arena *a1){
+    Arena_Node *node = tctx->used_first;
+    for (; node != 0; node = node->next){
+        Arena *na = &node->arena;
+        if (na != a1){
+            break;
+        }
+    }
+    if (node == 0){
+        node = tctx__alloc_arena_node(tctx);
+        zdll_push_back(tctx->used_first, tctx->used_last, node);
+    }
+    node->ref_counter += 1;
+    return(&node->arena);
 }
 
 function Arena*
-reserve_arena(Thread_Context *tctx){
-    return(reserve_arena(tctx, KB(64), 8));
+tctx_reserve(Thread_Context *tctx, Arena *a1, Arena *a2){
+    Arena_Node *node = tctx->used_first;
+    for (; node != 0; node = node->next){
+        Arena *na = &node->arena;
+        if (na != a1 && na != a2){
+            break;
+        }
+    }
+    if (node == 0){
+        node = tctx__alloc_arena_node(tctx);
+        zdll_push_back(tctx->used_first, tctx->used_last, node);
+    }
+    node->ref_counter += 1;
+    return(&node->arena);
+}
+
+function Arena*
+tctx_reserve(Thread_Context *tctx, Arena *a1, Arena *a2, Arena *a3){
+    Arena_Node *node = tctx->used_first;
+    for (; node != 0; node = node->next){
+        Arena *na = &node->arena;
+        if (na != a1 && na != a2 && na != a3){
+            break;
+        }
+    }
+    if (node == 0){
+        node = tctx__alloc_arena_node(tctx);
+        zdll_push_back(tctx->used_first, tctx->used_last, node);
+    }
+    node->ref_counter += 1;
+    return(&node->arena);
 }
 
 function void
-release_arena(Thread_Context *tctx, Arena *arena){
+tctx_release(Thread_Context *tctx, Arena *arena){
     Arena_Node *node = CastFromMember(Arena_Node, arena, arena);
-    linalloc_clear(arena);
-    sll_stack_push(tctx->free_arenas, node);
+    node->ref_counter -= 1;
+    if (node->ref_counter == 0){
+        // TODO(allen): make a version of clear that keeps memory allocated from the sytem level
+        // but still resets to zero.
+        linalloc_clear(&node->arena);
+        zdll_remove(tctx->used_first, tctx->used_last, node);
+        sll_stack_push(tctx->free_arenas, node);
+    }
 }
 
 ////////////////////////////////
 
-function void
-scratch_block__init(Scratch_Block *block, Thread_Context *tctx, Scratch_Share_Code share){
-    Arena *arena = tctx->sharable_scratch;
-    if (arena != 0){
-        block->arena = arena;
-        block->temp = begin_temp(arena);
-        block->do_full_clear = false;
-    }
-    else{
-        arena = reserve_arena(tctx);
-        block->arena = arena;
-        block_zero_struct(&block->temp);
-        block->do_full_clear = true;
-    }
-    block->tctx = tctx;
-    block->sharable_restore = tctx->sharable_scratch;
-    if (share == Scratch_Share){
-        tctx->sharable_scratch = arena;
-    }
-    else{
-        tctx->sharable_scratch = 0;
-    }
+Scratch_Block::Scratch_Block(Thread_Context *t){
+    this->tctx = t;
+    this->arena = tctx_reserve(t);
+    this->temp = begin_temp(this->arena);
 }
 
-global_const Scratch_Share_Code share_code_default = Scratch_DontShare;
-
-Scratch_Block::Scratch_Block(Thread_Context *tctx, Scratch_Share_Code share){
-    scratch_block__init(this, tctx, share);
+Scratch_Block::Scratch_Block(Thread_Context *t, Arena *a1){
+    this->tctx = t;
+    this->arena = tctx_reserve(t, a1);
+    this->temp = begin_temp(this->arena);
 }
 
-Scratch_Block::Scratch_Block(Thread_Context *tctx){
-    scratch_block__init(this, tctx, share_code_default);
+Scratch_Block::Scratch_Block(Thread_Context *t, Arena *a1, Arena *a2){
+    this->tctx = t;
+    this->arena = tctx_reserve(t, a1, a2);
+    this->temp = begin_temp(this->arena);
+}
+
+Scratch_Block::Scratch_Block(Thread_Context *t, Arena *a1, Arena *a2, Arena *a3){
+    this->tctx = t;
+    this->arena = tctx_reserve(t, a1, a2, a3);
+    this->temp = begin_temp(this->arena);
 }
 
 Scratch_Block::~Scratch_Block(){
-    if (this->do_full_clear){
-        Assert(this->tctx != 0);
-        release_arena(this->tctx, this->arena);
-    }
-    else{
-        end_temp(this->temp);
-    }
-    if (this->tctx != 0){
-        this->tctx->sharable_scratch = this->sharable_restore;
-    }
+    end_temp(this->temp);
+    tctx_release(this->tctx, this->arena);
 }
 
 Scratch_Block::operator Arena*(){
@@ -3357,12 +3407,7 @@ Scratch_Block::operator Arena*(){
 
 void
 Scratch_Block::restore(void){
-    if (this->do_full_clear){
-        linalloc_clear(this->arena);
-    }
-    else{
-        end_temp(this->temp);
-    }
+    end_temp(this->temp);
 }
 
 Temp_Memory_Block::Temp_Memory_Block(Temp_Memory t){

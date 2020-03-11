@@ -83,7 +83,7 @@ struct View{
     Coroutine *co;
     Co_Out co_out;
     
-    Arena *node_arena;
+    Arena node_arena;
     View_Context_Node *ctx;
     
     b8 hide_scrollbar;

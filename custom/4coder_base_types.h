@@ -1305,11 +1305,6 @@ struct Temp_Memory{
     };
 };
 
-struct Arena_Node{
-    Arena_Node *next;
-    Arena arena;
-};
-
 ////////////////////////////////
 
 typedef u64 Profile_ID;
@@ -1348,12 +1343,20 @@ enum{
     ThreadKind_AsyncTasks,
 };
 
+struct Arena_Node{
+    Arena_Node *next;
+    Arena_Node *prev;
+    Arena arena;
+    i32 ref_counter;
+};
+
 struct Thread_Context{
     Thread_Kind kind;
     Base_Allocator *allocator;
     Arena node_arena;
+    Arena_Node *used_first;
+    Arena_Node *used_last;
     Arena_Node *free_arenas;
-    Arena *sharable_scratch;
     
     Base_Allocator *prof_allocator;
     Profile_ID prof_id_counter;
@@ -1365,23 +1368,19 @@ struct Thread_Context{
     void *user_data;
 };
 
-typedef i32 Scratch_Share_Code;
-enum{
-    Scratch_DontShare,
-    Scratch_Share,
-};
-
 struct Scratch_Block{
+    Thread_Context *tctx;
     Arena *arena;
     Temp_Memory temp;
-    b32 do_full_clear;
-    Thread_Context *tctx;
-    Arena *sharable_restore;
     
-    Scratch_Block(struct Thread_Context *tctx, Scratch_Share_Code share);
     Scratch_Block(struct Thread_Context *tctx);
-    Scratch_Block(struct Application_Links *app, Scratch_Share_Code share);
+    Scratch_Block(struct Thread_Context *tctx, Arena *a1);
+    Scratch_Block(struct Thread_Context *tctx, Arena *a1, Arena *a2);
+    Scratch_Block(struct Thread_Context *tctx, Arena *a1, Arena *a2, Arena *a3);
     Scratch_Block(struct Application_Links *app);
+    Scratch_Block(struct Application_Links *app, Arena *a1);
+    Scratch_Block(struct Application_Links *app, Arena *a1, Arena *a2);
+    Scratch_Block(struct Application_Links *app, Arena *a1, Arena *a2, Arena *a3);
     ~Scratch_Block();
     operator Arena*();
     void restore(void);

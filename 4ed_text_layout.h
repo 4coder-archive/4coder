@@ -21,13 +21,13 @@ union Text_Layout{
         Range_i64 visible_range;
         Range_i64 visible_line_number_range;
         Rect_f32 rect;
-         ARGB_Color *item_colors;
+        ARGB_Color *item_colors;
         Layout_Function *layout_func;
     };
 };
 
 struct Text_Layout_Container{
-    Arena *node_arena;
+    Arena node_arena;
     Text_Layout *free_nodes;
     Table_u64_u64 table;
     Text_Layout_ID id_counter;

@@ -82,7 +82,7 @@ struct Models{
     Model_View_Command_Function *first_view_cmd_func;
     Model_View_Command_Function *last_view_cmd_func;
     
-    Arena *virtual_event_arena;
+    Arena virtual_event_arena;
     Model_Input_Event_Node *free_virtual_event;
     Model_Input_Event_Node *first_virtual_event;
     Model_Input_Event_Node *last_virtual_event;

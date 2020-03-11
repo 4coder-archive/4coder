@@ -194,7 +194,7 @@ App_Init_Sig(app_init){
     models->hard_exit = false;
     
     models->config_api = api;
-    models->virtual_event_arena = reserve_arena(tctx);
+    models->virtual_event_arena = make_arena_system();
     
     profile_init(&models->profile_list);
     
@@ -640,7 +640,7 @@ App_Step_Sig(app_step){
         }
     }
     
-    linalloc_clear(models->virtual_event_arena);
+    linalloc_clear(&models->virtual_event_arena);
     models->free_virtual_event = 0;
     models->first_virtual_event = 0;
     models->last_virtual_event = 0;

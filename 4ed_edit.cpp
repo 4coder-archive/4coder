@@ -117,7 +117,7 @@ edit_fix_markers(Thread_Context *tctx, Models *models, Editing_File *file, Batch
     }
     cursor_max += total_marker_count;
     
-    Scratch_Block scratch(tctx, Scratch_Share);
+    Scratch_Block scratch(tctx);
     
     Cursor_With_Index *cursors = push_array(scratch, Cursor_With_Index, cursor_max);
     Cursor_With_Index *r_cursors = push_array(scratch, Cursor_With_Index, cursor_max);
@@ -272,7 +272,7 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
 
 function void
 edit__apply_record_forward(Thread_Context *tctx, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
-    // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
+    // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen):
     // Whenever you change this also change the backward version!
     
     switch (record->kind){
@@ -303,7 +303,7 @@ edit__apply_record_forward(Thread_Context *tctx, Models *models, Editing_File *f
 
 function void
 edit__apply_record_backward(Thread_Context *tctx, Models *models, Editing_File *file, Record *record, Edit_Behaviors behaviors_prototype){
-    // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): 
+    // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen): // NOTE(allen):
     // Whenever you change this also change the forward version!
     
     switch (record->kind){
@@ -398,7 +398,7 @@ edit_merge_history_range(Thread_Context *tctx, Models *models, Editing_File *fil
                         }break;
                     }
                 }
-                Scratch_Block scratch(tctx, Scratch_Share);
+                Scratch_Block scratch(tctx);
                 history_merge_records(scratch, history, first_index, last_index);
                 if (current_index >= last_index){
                     current_index -= (last_index - first_index);
@@ -469,7 +469,7 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
                 edit_range.one_past_last += shift;
                 
                 new_range.min = Min(new_range.min, edit_range.min);
-                i64 new_max = (i64)(edit_range.min + insert_string.size); 
+                i64 new_max = (i64)(edit_range.min + insert_string.size);
                 new_range.max = Max(new_range.max, new_max);
                 
                 i64 size = buffer_size(buffer);

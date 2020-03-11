@@ -144,7 +144,7 @@ struct Win32_Object{
 struct Win32_Vars{
     Thread_Context *tctx;
     
-    Arena *frame_arena;
+    Arena frame_arena;
     Input_Event *active_key_stroke;
     Input_Event *active_text_input;
     Win32_Input_Chunk input_chunk;
@@ -1146,10 +1146,10 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 if (key != 0){
                     add_modifier(mods, key);
                     
-                    Input_Event *event = push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
+                    Input_Event *event = push_input_event(&win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
                     event->kind = InputEventKind_KeyStroke;
                     event->key.code = key;
-                    event->key.modifiers = copy_modifier_set(win32vars.frame_arena, mods);
+                    event->key.modifiers = copy_modifier_set(&win32vars.frame_arena, mods);
                     win32vars.active_key_stroke = event;
                     
                     win32vars.got_useful_event = true;
@@ -1161,10 +1161,10 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 win32vars.got_useful_event = true;
                 
                 if (key != 0){
-                    Input_Event *event = push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
+                    Input_Event *event = push_input_event(&win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
                     event->kind = InputEventKind_KeyRelease;
                     event->key.code = key;
-                    event->key.modifiers = copy_modifier_set(win32vars.frame_arena, mods);
+                    event->key.modifiers = copy_modifier_set(&win32vars.frame_arena, mods);
                     
                     remove_modifier(mods, key);
                 }
@@ -1179,8 +1179,8 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
             if (c > 127 || (' ' <= c && c <= '~') || c == '\t' || c == '\n'){
                 String_Const_u16 str_16 = SCu16(&c, 1);
-                String_Const_u8 str_8 = string_u8_from_string_u16(win32vars.frame_arena, str_16).string;
-                Input_Event *event = push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
+                String_Const_u8 str_8 = string_u8_from_string_u16(&win32vars.frame_arena, str_16).string;
+                Input_Event *event = push_input_event(&win32vars.frame_arena, &win32vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_TextInsert;
                 event->text.string = str_8;
                 event->text.next_text = 0;
@@ -1209,11 +1209,11 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 }
                 if (c > 127 || (' ' <= c && c <= '~') || c == '\t' || c == '\n'){
                     String_Const_u32 str_32 = SCu32(&c, 1);
-                    String_Const_u8 str_8 = string_u8_from_string_u32(win32vars.frame_arena, str_32).string;
+                    String_Const_u8 str_8 = string_u8_from_string_u32(&win32vars.frame_arena, str_32).string;
                     Input_Event event = {};
                     event.kind = InputEventKind_TextInsert;
                     event.text.string = str_8;
-                    push_input_event(win32vars.frame_arena, &win32vars.input_chunk.trans.event_list, &event);
+                    push_input_event(&win32vars.frame_arena, &win32vars.input_chunk.trans.event_list, &event);
                     win32vars.got_useful_event = true;
                 }
             }
@@ -1596,7 +1596,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     font_api_fill_vtable(&font_vtable);
     
     // NOTE(allen): memory
-    win32vars.frame_arena = reserve_arena(win32vars.tctx);
+    win32vars.frame_arena = make_arena_system();
     // TODO(allen): *arena;
     target.arena = make_arena_system(KB(256));
     
@@ -1625,7 +1625,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     App_Functions app = {};
     {
         App_Get_Functions *get_funcs = 0;
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        Scratch_Block scratch(win32vars.tctx);
         Path_Search_List search_list = {};
         search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
@@ -1654,7 +1654,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     Plat_Settings plat_settings = {};
     void *base_ptr = 0;
     {
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        Scratch_Block scratch(win32vars.tctx);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
         char **files = 0;
@@ -1681,7 +1681,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
         char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
         
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        Scratch_Block scratch(win32vars.tctx);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.dll");
         Path_Search_List search_list = {};
         search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
@@ -1758,14 +1758,14 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     if (!AddClipboardFormatListener(win32vars.window_handle)){
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        Scratch_Block scratch(win32vars.tctx);
         win32_output_error_string(scratch, ErrorString_UseLog);
     }
     
     win32vars.clip_wakeup_timer = system_wake_up_timer_create();
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     if (win32vars.clipboard_sequence == 0){
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        Scratch_Block scratch(win32vars.tctx);
         win32_post_clipboard(scratch, "", 0);
         win32vars.clipboard_sequence = GetClipboardSequenceNumber();
         win32vars.next_clipboard_is_self = 0;
@@ -1796,7 +1796,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     //
     
     {
-        Scratch_Block scratch(win32vars.tctx, Scratch_Share);
+        Scratch_Block scratch(win32vars.tctx);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         curdir = string_mod_replace_character(curdir, '\\', '/');
         app.init(win32vars.tctx, &target, base_ptr, curdir, custom);
@@ -1824,7 +1824,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     u64 timer_start = system_now_time();
     MSG msg;
     for (;keep_running;){
-        linalloc_clear(win32vars.frame_arena);
+        linalloc_clear(&win32vars.frame_arena);
         block_zero_struct(&win32vars.input_chunk.trans);
         win32vars.active_key_stroke = 0;
         win32vars.active_text_input = 0;

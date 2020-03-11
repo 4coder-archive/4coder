@@ -42,7 +42,7 @@ mapping__alloc_map(Mapping *mapping){
         sll_stack_pop(mapping->free_maps);
     }
     else{
-        result = push_array(mapping->node_arena, Command_Map, 1);
+        result = push_array(&mapping->node_arena, Command_Map, 1);
     }
     zdll_push_back(mapping->first_map, mapping->last_map, result);
     return(result);
@@ -61,7 +61,7 @@ mapping__alloc_modified_binding(Mapping *mapping){
         sll_stack_pop(mapping->free_bindings);
     }
     else{
-        result = push_array(mapping->node_arena, Command_Modified_Binding, 1);
+        result = push_array(&mapping->node_arena, Command_Modified_Binding, 1);
     }
     return(result);
 }
@@ -78,7 +78,7 @@ mapping__alloc_binding_list(Mapping *mapping){
         sll_stack_pop(mapping->free_lists);
     }
     else{
-        result = push_array(mapping->node_arena, Command_Binding_List, 1);
+        result = push_array(&mapping->node_arena, Command_Binding_List, 1);
     }
     return(result);
 }
@@ -117,8 +117,8 @@ map__get_or_make_list(Mapping *mapping, Command_Map *map, u64 key){
 function void
 mapping_init(Thread_Context *tctx, Mapping *mapping){
     block_zero_struct(mapping);
-    mapping->node_arena = reserve_arena(tctx);
-    heap_init(&mapping->heap, mapping->node_arena);
+    mapping->node_arena = make_arena_system();
+    heap_init(&mapping->heap, &mapping->node_arena);
     mapping->heap_wrapper = base_allocator_on_heap(&mapping->heap);
     mapping->id_to_map = make_table_u64_u64(tctx->allocator, 10);
     mapping->id_counter = 1;
@@ -126,10 +126,8 @@ mapping_init(Thread_Context *tctx, Mapping *mapping){
 
 function void
 mapping_release(Thread_Context *tctx, Mapping *mapping){
-    if (mapping->node_arena != 0){
-        release_arena(tctx, mapping->node_arena);
-        table_free(&mapping->id_to_map);
-    }
+    linalloc_clear(&mapping->node_arena);
+    table_free(&mapping->id_to_map);
 }
 
 function void
@@ -235,91 +233,94 @@ map_loose_match(Input_Modifier_Set *binding_mod_set, Input_Modifier_Set *event_m
     return(result);
 }
 
+function Map_Event_Breakdown
+map_get_event_breakdown(Input_Event *event){
+    Map_Event_Breakdown result = {};
+    
+    switch (event->kind){
+        case InputEventKind_KeyStroke:
+        {
+            result.key = mapping__key(InputEventKind_KeyStroke, event->key.code);
+            result.mod_set = &event->key.modifiers;
+            result.skip_self_mod = event->key.code;
+        }break;
+        
+        case InputEventKind_MouseButton:
+        {
+            result.key = mapping__key(InputEventKind_MouseButton, event->mouse.code);
+            result.mod_set = &event->mouse.modifiers;
+        }break;
+        
+        case InputEventKind_MouseWheel:
+        {
+            result.key = mapping__key(InputEventKind_MouseWheel, 0);
+            result.mod_set = &event->mouse_wheel.modifiers;
+        }break;
+        
+        case InputEventKind_MouseMove:
+        {
+            result.key = mapping__key(InputEventKind_MouseMove, 0);
+            result.mod_set = &event->mouse_move.modifiers;
+        }break;
+        
+        case InputEventKind_Core:
+        {
+            result.key = mapping__key(InputEventKind_Core, event->core.code);
+        }break;
+    }
+    
+    return(result);
+}
+
 function Command_Binding
-map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
+map_get_binding_non_recursive(Command_Map *map, Input_Event *event, Binding_Match_Rule rule){
     Command_Binding result = {};
     
     if (event->kind == InputEventKind_CustomFunction){
         result.custom = event->custom_func;
     }
     else if (map != 0){
-        b32 do_table_lookup = false;
-        Input_Modifier_Set *mod_set = 0;
-        u64 key = 0;
-		Key_Code skip_self_mod = 0;
-        
-        // TODO(allen): extract and make sure we only do this once for recursive version.
-        switch (event->kind){
-            case InputEventKind_TextInsert:
-            {
-                result = map->text_input_command;
-            }break;
-            
-            case InputEventKind_KeyStroke:
-            {
-                key = mapping__key(InputEventKind_KeyStroke, event->key.code);
-                do_table_lookup = true;
-                mod_set = &event->key.modifiers;
-				skip_self_mod = event->key.code;
-            }break;
-            
-            case InputEventKind_MouseButton:
-            {
-                key = mapping__key(InputEventKind_MouseButton, event->mouse.code);
-                do_table_lookup = true;
-                mod_set = &event->mouse.modifiers;
-            }break;
-            
-            case InputEventKind_MouseWheel:
-            {
-                key = mapping__key(InputEventKind_MouseWheel, 0);
-                do_table_lookup = true;
-                mod_set = &event->mouse_wheel.modifiers;
-            }break;
-            
-            case InputEventKind_MouseMove:
-            {
-                key = mapping__key(InputEventKind_MouseMove, 0);
-                do_table_lookup = true;
-                mod_set = &event->mouse_move.modifiers;
-            }break;
-            
-            case InputEventKind_Core:
-            {
-                key = mapping__key(InputEventKind_Core, event->core.code);
-                do_table_lookup = true;
-            }break;
+        if (event->kind == InputEventKind_TextInsert){
+            result = map->text_input_command;
         }
-        
-        if (do_table_lookup){
-            Table_Lookup lookup = table_lookup(&map->event_code_to_binding_list, key);
+        else{
+            Map_Event_Breakdown breakdown = map_get_event_breakdown(event);
+            Table_Lookup lookup = table_lookup(&map->event_code_to_binding_list, breakdown.key);
             if (lookup.found_match){
                 u64 val = 0;
                 table_read(&map->event_code_to_binding_list, lookup, &val);
                 Command_Binding_List *list = (Command_Binding_List*)IntAsPtr(val);
-                if (mod_set != 0){
-                    for (SNode *node = list->first;
-                         node != 0;
-                         node = node->next){
-                        Command_Modified_Binding *mod_binding = CastFromMember(Command_Modified_Binding, order_node, node);
-                        Input_Modifier_Set *binding_mod_set = &mod_binding->mods;
-                        if (map_strict_match(binding_mod_set, mod_set, skip_self_mod)){
-                            result = mod_binding->binding;
-                            break;
-                        }
-                    }
-                    if (result.custom == 0){
-                        for (SNode *node = list->first;
-                             node != 0;
-                             node = node->next){
-                            Command_Modified_Binding *mod_binding = CastFromMember(Command_Modified_Binding, order_node, node);
-                            Input_Modifier_Set *binding_mod_set = &mod_binding->mods;
-                            if (map_loose_match(binding_mod_set, mod_set)){
-                                result = mod_binding->binding;
-                                break;
+                if (breakdown.mod_set != 0){
+                    switch (rule){
+                        case BindingMatchRule_Strict:
+                        {
+                            for (SNode *node = list->first;
+                                 node != 0;
+                                 node = node->next){
+                                Command_Modified_Binding *mod_binding = CastFromMember(Command_Modified_Binding, order_node, node);
+                                Input_Modifier_Set *binding_mod_set = &mod_binding->mods;
+                                if (map_strict_match(binding_mod_set, breakdown.mod_set, breakdown.skip_self_mod)){
+                                    result = mod_binding->binding;
+                                    goto done;
+                                }
                             }
-                        }
+                        }break;
+                        
+                        case BindingMatchRule_Loose:
+                        {
+                            for (SNode *node = list->first;
+                                 node != 0;
+                                 node = node->next){
+                                Command_Modified_Binding *mod_binding = CastFromMember(Command_Modified_Binding, order_node, node);
+                                Input_Modifier_Set *binding_mod_set = &mod_binding->mods;
+                                if (map_loose_match(binding_mod_set, breakdown.mod_set)){
+                                    result = mod_binding->binding;
+                                    goto done;
+                                }
+                            }
+                        }break;
                     }
+                    done:;
                 }
                 else{
                     Command_Modified_Binding *mod_binding = CastFromMember(Command_Modified_Binding, order_node, list->first);
@@ -333,16 +334,34 @@ map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
 }
 
 function Command_Binding
-map_get_binding_recursive(Mapping *mapping, Command_Map *map, Input_Event *event){
+map_get_binding_non_recursive(Command_Map *map, Input_Event *event){
+    Command_Binding result = map_get_binding_non_recursive(map, event, BindingMatchRule_Strict);
+    if (result.custom == 0){
+        result = map_get_binding_non_recursive(map, event, BindingMatchRule_Loose);
+    }
+    return(result);
+}
+
+function Command_Binding
+map_get_binding_recursive(Mapping *mapping, Command_Map *map, Input_Event *event, Binding_Match_Rule rule){
     Command_Binding result = {};
     for (i32 safety_counter = 0;
          map != 0 && safety_counter < 40;
          safety_counter += 1){
-        result = map_get_binding_non_recursive(map, event);
+        result = map_get_binding_non_recursive(map, event, rule);
         if (result.custom != 0){
             break;
         }
         map = mapping_get_map(mapping, map->parent);
+    }
+    return(result);
+}
+
+function Command_Binding
+map_get_binding_recursive(Mapping *mapping, Command_Map *map, Input_Event *event){
+    Command_Binding result = map_get_binding_recursive(mapping, map, event, BindingMatchRule_Strict);
+    if (result.custom == 0){
+        result = map_get_binding_recursive(mapping, map, event, BindingMatchRule_Loose);
     }
     return(result);
 }

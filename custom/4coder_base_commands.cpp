@@ -1744,7 +1744,7 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 CUSTOM_COMMAND_SIG(undo_all_buffers)
 CUSTOM_DOC("Advances backward through the undo history in the buffer containing the most recent regular edit.")
 {
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     i32 highest_edit_number = -1;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
@@ -1815,7 +1815,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
 CUSTOM_COMMAND_SIG(redo_all_buffers)
 CUSTOM_DOC("Advances forward through the undo history in the buffer containing the most recent regular edit.")
 {
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     
     i32 lowest_edit_number = 0x7FFFFFFF;
     Buffer_ID first_buffer_match = 0;

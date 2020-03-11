@@ -131,7 +131,7 @@ global_history_adjust_edit_grouping_counter(Global_History *global_history, i32 
 internal void
 history_init(Thread_Context *tctx, Models *models, History *history){
     history->activated = true;
-    history->arena = reserve_arena(tctx, KB(32));
+    history->arena = make_arena_system();
     heap_init(&history->heap, tctx->allocator);
     history->heap_wrapper = base_allocator_on_heap(&history->heap);
     dll_init_sentinel(&history->free_records);
@@ -148,7 +148,7 @@ history_is_activated(History *history){
 internal void
 history_free(Thread_Context *tctx, History *history){
     if (history->activated){
-        release_arena(tctx, history->arena);
+        linalloc_clear(&history->arena);
         heap_free_all(&history->heap);
         block_zero_struct(history);
     }
@@ -248,13 +248,13 @@ history_record_edit(Global_History *global_history, History *history, Gap_Buffer
         Record *new_record = history__allocate_record(history);
         history__stash_record(history, new_record);
         
-        new_record->restore_point = begin_temp(history->arena);
+        new_record->restore_point = begin_temp(&history->arena);
         new_record->edit_number = global_history_get_edit_number(global_history);
         
         new_record->kind = RecordKind_Single;
         
-        new_record->single.forward_text = push_string_copy(history->arena, edit.text);
-        new_record->single.backward_text = buffer_stringify(history->arena, buffer, edit.range);
+        new_record->single.forward_text = push_string_copy(&history->arena, edit.text);
+        new_record->single.backward_text = buffer_stringify(&history->arena, buffer, edit.range);
         new_record->single.first = edit.range.first;
         
         Assert(history->record_lookup.count == history->record_count);
@@ -344,8 +344,8 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
                 
                 left->edit_number = right->edit_number;
                 left->single.first = merged_first;
-                left->single.forward_text  = push_string_copy(history->arena, merged_forward);
-                left->single.backward_text = push_string_copy(history->arena, merged_backward);
+                left->single.forward_text  = push_string_copy(&history->arena, merged_forward);
+                left->single.backward_text = push_string_copy(&history->arena, merged_backward);
                 
                 history__free_single_node(history, &right->node);
                 record->group.count -= 1;

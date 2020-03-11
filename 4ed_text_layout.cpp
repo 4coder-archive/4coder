@@ -12,7 +12,7 @@
 internal void
 text_layout_init(Thread_Context *tctx, Text_Layout_Container *container){
     block_zero_struct(container);
-    container->node_arena = reserve_arena(tctx);
+    container->node_arena = make_arena_system();
     container->table = make_table_u64_u64(tctx->allocator, 20);
 }
 
@@ -20,7 +20,7 @@ internal Text_Layout*
 text_layout_new__alloc_layout(Text_Layout_Container *container){
     Text_Layout *node = container->free_nodes;
     if (node == 0){
-        node = push_array(container->node_arena, Text_Layout, 1);
+        node = push_array(&container->node_arena, Text_Layout, 1);
     }
     else{
         sll_stack_pop(container->free_nodes);
@@ -30,7 +30,8 @@ text_layout_new__alloc_layout(Text_Layout_Container *container){
 
 internal void
 text_layout_release(Thread_Context *tctx, Models *models, Text_Layout_Container *container, Text_Layout *layout){
-    release_arena(tctx, layout->arena);
+    Arena arena = *layout->arena;
+    linalloc_clear(&arena);
     sll_stack_push(container->free_nodes, layout);
 }
 
@@ -105,7 +106,7 @@ text_layout_render(Thread_Context *tctx, Models *models, Text_Layout *layout,
                  block = block->next){
                 Layout_Item *item = block->items;
                 i64 count = block->item_count;
-                 ARGB_Color *item_colors = layout->item_colors;
+                ARGB_Color *item_colors = layout->item_colors;
                 for (i32 i = 0; i < count; i += 1, item += 1){
                     if (item->codepoint != 0){
                         ARGB_Color color = 0;

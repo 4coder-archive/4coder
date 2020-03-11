@@ -399,7 +399,8 @@ lister_update_selection_values(Lister *lister){
 
 function void
 lister_update_filtered_list(Application_Links *app, Lister *lister){
-    Scratch_Block scratch(app, Scratch_Share);
+    Arena *arena = lister->arena;
+    Scratch_Block scratch(app, arena);
     
     Lister_Filtered filtered = lister_get_filtered(scratch, lister);
     
@@ -409,7 +410,6 @@ lister_update_filtered_list(Application_Links *app, Lister *lister){
         filtered.substring_matches,
     };
     
-    Arena *arena = lister->arena;
     end_temp(lister->filter_restore_point);
     
     i32 total_count = 0;

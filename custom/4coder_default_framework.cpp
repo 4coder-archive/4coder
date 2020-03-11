@@ -221,7 +221,7 @@ ui_fallback_command_dispatch(Application_Links *app, View_ID view, User_Input *i
 function void
 view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
     if (count > 0){
-        Scratch_Block scratch(app, Scratch_Share);
+        Scratch_Block scratch(app);
         
         struct View_Node{
             View_Node *next;
@@ -511,7 +511,7 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     print_message(app, string_u8_litexpr(M));
 #undef M
     
-    load_config_and_apply(app, global_config_arena, &global_config, override_font_size, override_hinting);
+    load_config_and_apply(app, &global_config_arena, &global_config, override_font_size, override_hinting);
     
     // open command line files
     Scratch_Block scratch(app);
@@ -901,7 +901,7 @@ default_framework_init(Application_Links *app){
     initialize_managed_id_metadata(app);
     set_default_color_scheme(app);
     heap_init(&global_heap, tctx->allocator);
-    global_config_arena = reserve_arena(app);
+    global_config_arena = make_arena_system();
     fade_range_arena = make_arena_system(KB(8));
 }
 

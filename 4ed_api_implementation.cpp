@@ -64,13 +64,13 @@ function void
 models_push_virtual_event(Models *models, Input_Event *event){
     Model_Input_Event_Node *node = models->free_virtual_event;
     if (node == 0){
-        node = push_array(models->virtual_event_arena, Model_Input_Event_Node, 1);
+        node = push_array(&models->virtual_event_arena, Model_Input_Event_Node, 1);
     }
     else{
         sll_stack_pop(models->free_virtual_event);
     }
     sll_queue_push(models->first_virtual_event, models->last_virtual_event, node);
-    node->event = copy_input_event(models->virtual_event_arena, event);
+    node->event = copy_input_event(&models->virtual_event_arena, event);
 }
 
 function Input_Event
@@ -901,7 +901,7 @@ buffer_save(Application_Links *app, Buffer_ID buffer_id, String_Const_u8 file_na
         
         if (!skip_save){
             Thread_Context *tctx = app->tctx;
-            Scratch_Block scratch(app->tctx, Scratch_Share);
+            Scratch_Block scratch(tctx);
             String_Const_u8 name = push_string_copy(scratch, file_name);
             save_file_to_name(tctx, models, file, name.str);
             result = true;
@@ -973,7 +973,7 @@ buffer_reopen(Application_Links *app, Buffer_ID buffer_id, Buffer_Reopen_Flag fl
 {
     Models *models = (Models*)app->cmd_context;
     Thread_Context *tctx = app->tctx;
-    Scratch_Block scratch(tctx, Scratch_Share);
+    Scratch_Block scratch(tctx);
     Editing_File *file = imp_get_file(models, buffer_id);
     Buffer_Reopen_Result result = BufferReopenResult_Failed;
     if (api_check_buffer(file)){
@@ -1825,7 +1825,7 @@ get_managed_scope_with_multiple_dependencies(Application_Links *app, Managed_Sco
     Models *models = (Models*)app->cmd_context;
     Lifetime_Allocator *lifetime_allocator = &models->lifetime_allocator;
     
-    Scratch_Block scratch(app->tctx, Scratch_Share);
+    Scratch_Block scratch(app);
     
     // TODO(allen): revisit this
     struct Node_Ptr{
@@ -2832,7 +2832,6 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
     if (api_check_buffer(file)){
         Thread_Context *tctx = app->tctx;
         Scratch_Block scratch(tctx);
-        Arena *arena = reserve_arena(tctx);
         Face *face = file_get_face(models, file);
         
         Gap_Buffer *buffer = &file->state.buffer;
@@ -2861,8 +2860,12 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
                                        buffer_get_last_pos_from_line_number(buffer, visible_line_number_range.max));
         
         i64 item_count = range_size_inclusive(visible_range);
-        ARGB_Color *colors_array = push_array_zero(arena, ARGB_Color, item_count);
-        result = text_layout_new(&models->text_layouts, arena, buffer_id, buffer_point,
+        
+        Arena arena = make_arena_system();
+        Arena *arena_ptr = push_array_zero(&arena, Arena, 1);
+        *arena_ptr = arena;
+        ARGB_Color *colors_array = push_array_zero(arena_ptr, ARGB_Color, item_count);
+        result = text_layout_new(&models->text_layouts, arena_ptr, buffer_id, buffer_point,
                                  visible_range, visible_line_number_range, rect, colors_array,
                                  layout_func);
     }

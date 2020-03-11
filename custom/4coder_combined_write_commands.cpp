@@ -210,7 +210,7 @@ write_snippet(Application_Links *app, View_ID view, Buffer_ID buffer,
 function Snippet*
 get_snippet_from_user(Application_Links *app, Snippet *snippets, i32 snippet_count,
                       String_Const_u8 query){
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
     lister_set_default_handlers(lister);

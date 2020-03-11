@@ -1670,7 +1670,7 @@ CUSTOM_DOC("Parse the current buffer as a theme file and add the theme to the th
 
 function void
 load_folder_of_themes_into_live_set(Application_Links *app, String_Const_u8 path){
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     
     File_List list = system_get_file_list(scratch, path);
     for (File_Info **ptr = list.infos, **end = list.infos + list.count;

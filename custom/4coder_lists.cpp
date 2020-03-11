@@ -15,7 +15,7 @@ generate_all_buffers_list__output_buffer(Application_Links *app, Lister *lister,
         case DirtyState_UnloadedChanges: status = string_u8_litexpr("!"); break;
         case DirtyState_UnsavedChangesAndUnloadedChanges: status = string_u8_litexpr("*!"); break;
     }
-    Scratch_Block scratch(app);
+    Scratch_Block scratch(app, lister->arena);
     String_Const_u8 buffer_name = push_buffer_unique_name(app, scratch, buffer);
     lister_add_item(lister, buffer_name, status, IntAsPtr(buffer), 0);
 }
@@ -131,7 +131,7 @@ get_command_from_user(Application_Links *app, String_Const_u8 query, i32 *comman
         command_id_count = command_one_past_last_id;
     }
     
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
     lister_set_default_handlers(lister);
@@ -205,7 +205,7 @@ get_color_table_from_user(Application_Links *app, String_Const_u8 query, Color_T
         color_table_list = &global_theme_list;
     }
     
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     Lister_Block lister(app, scratch);
     lister_set_query(lister, query);
     lister_set_default_handlers(lister);
@@ -301,7 +301,7 @@ lister__backspace_text_field__file_path(Application_Links *app){
 
 function void
 generate_hot_directory_file_list(Application_Links *app, Lister *lister){
-    Scratch_Block scratch(app);
+    Scratch_Block scratch(app, lister->arena);
     
     Temp_Memory temp = begin_temp(lister->arena);
     String_Const_u8 hot = push_hot_directory(app, lister->arena);
@@ -575,8 +575,7 @@ query_create_folder(Application_Links *app, String_Const_u8 folder_name){
 
 function Lister_Activation_Code
 activate_open_or_new__generic(Application_Links *app, View_ID view,
-                              String_Const_u8 path, String_Const_u8 file_name,
-                              b32 is_folder,
+                              String_Const_u8 path, String_Const_u8 file_name, b32 is_folder,
                               Buffer_Create_Flag flags){
     Lister_Activation_Code result = 0;
     
@@ -587,7 +586,7 @@ activate_open_or_new__generic(Application_Links *app, View_ID view,
         result = ListerActivation_Finished;
     }
     else{
-        Scratch_Block scratch(app, Scratch_Share);
+        Scratch_Block scratch(app);
         String_Const_u8 full_file_name = {};
         if (character_is_slash(string_get_character(path, path.size - 1))){
             path = string_chop(path, 1);
