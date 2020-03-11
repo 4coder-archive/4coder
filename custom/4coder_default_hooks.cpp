@@ -864,7 +864,15 @@ BUFFER_HOOK_SIG(default_new_file){
     }
     String_Const_u8 guard = string_list_flatten(scratch, guard_list);
     
+    Date_Time date_time = system_now_date_time_universal();
+    date_time = system_local_date_time_from_universal(&date_time);
+    String_Const_u8 date_string = date_time_format(scratch, "month day yyyy h:mimi ampm", &date_time);
+    
     Buffer_Insertion insert = begin_buffer_insertion_at_buffered(app, buffer_id, 0, scratch, KB(16));
+    insertf(&insert,
+            "/* date = %.*s */\n"
+            "\n",
+            string_expand(date_string));
     insertf(&insert,
             "#ifndef %.*s\n"
             "#define %.*s\n"

@@ -2968,9 +2968,7 @@ SCany(String_Const_u32 str){
 }
 
 #define string_litexpr(s) SCchar((s), sizeof(s) - 1)
-#define string_litinit(s) {(s), sizeof(s) - 1}
 #define string_u8_litexpr(s) SCu8((u8*)(s), (u64)(sizeof(s) - 1))
-#define string_u8_litinit(s) {(u8*)(s), sizeof(s) - 1}
 #define string_u16_litexpr(s) SCu16((u16*)(s), (u64)(sizeof(s)/2 - 1))
 
 #define string_expand(s) (i32)(s).size, (char*)(s).str
@@ -7228,6 +7226,46 @@ data_decode_from_base64(Arena *arena, u8 *str, u64 size){
         }
     }
     return(data);
+}
+
+////////////////////////////////
+
+function u64
+time_stamp_from_date_time(Date_Time *date_time){
+    u64 result = 0;
+    result += date_time->year;
+    result *= 12;
+    result += date_time->mon;
+    result *= 30;
+    result += date_time->day;
+    result *= 24;
+    result += date_time->hour;
+    result *= 60;
+    result += date_time->min;
+    result *= 61;
+    result += date_time->sec;
+    result *= 1000;
+    result += date_time->msec;
+    return(result);
+}
+
+function Date_Time
+date_time_from_time_stamp(u64 time_stamp){
+    Date_Time result = {};
+    result.msec = time_stamp%1000;
+    time_stamp /= 1000;
+    result.sec = time_stamp%61;
+    time_stamp /= 61;
+    result.min = time_stamp%60;
+    time_stamp /= 60;
+    result.hour = time_stamp%24;
+    time_stamp /= 24;
+    result.day = time_stamp%30;
+    time_stamp /= 30;
+    result.mon = time_stamp%12;
+    time_stamp /= 12;
+    result.year = (u32)time_stamp;
+    return(result);
 }
 
 #endif

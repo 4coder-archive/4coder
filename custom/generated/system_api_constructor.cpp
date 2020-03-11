@@ -67,6 +67,18 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("now_ti
 (void)call;
 }
 {
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("now_date_time_universal"), string_u8_litexpr("Date_Time"), string_u8_litexpr(""));
+(void)call;
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("local_date_time_from_universal"), string_u8_litexpr("Date_Time"), string_u8_litexpr(""));
+api_param(arena, call, "Date_Time*", "date_time");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("universal_date_time_from_local"), string_u8_litexpr("Date_Time"), string_u8_litexpr(""));
+api_param(arena, call, "Date_Time*", "date_time");
+}
+{
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("wake_up_timer_create"), string_u8_litexpr("Plat_Handle"), string_u8_litexpr(""));
 (void)call;
 }

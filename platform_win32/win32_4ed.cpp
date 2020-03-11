@@ -838,6 +838,65 @@ system_now_time_sig(){
     return(result);
 }
 
+internal void
+date_time_from_win32_system_time(Date_Time *out, SYSTEMTIME *in){
+    out->year = in->wYear;
+    out->mon = (u8)(in->wMonth - 1);
+	out->day = (u8)(in->wDay - 1);
+	out->hour = (u8)(in->wHour);
+	out->min = (u8)(in->wMinute);
+	out->sec = (u8)(in->wSecond);
+    out->msec = in->wMilliseconds;
+}
+
+internal void
+win32_system_time_from_date_time(SYSTEMTIME *out, Date_Time *in){
+    out->wYear = (WORD)(in->year);
+    out->wMonth = in->mon + 1;
+    out->wDay = in->day + 1;
+    out->wHour = in->hour;
+    out->wMinute = in->min;
+    out->wSecond = in->sec;
+    out->wMilliseconds = in->msec;
+}
+
+internal
+system_now_date_time_universal_sig(){
+    SYSTEMTIME systime = {};
+    GetSystemTime(&systime);
+    Date_Time result = {};
+    date_time_from_win32_system_time(&result, &systime);
+    return(result);
+}
+
+internal
+system_local_date_time_from_universal_sig(){
+    SYSTEMTIME systime = {};
+    win32_system_time_from_date_time(&systime, date_time);
+    FILETIME ftime = {};
+    SystemTimeToFileTime(&systime, &ftime);
+    FILETIME ftime_local = {};
+    FileTimeToLocalFileTime(&ftime, &ftime_local);
+    FileTimeToSystemTime(&ftime_local, &systime);
+    Date_Time result = {};
+    date_time_from_win32_system_time(&result, &systime);
+    return(result);
+}
+
+internal
+system_universal_date_time_from_local_sig(){
+    SYSTEMTIME systime = {};
+    win32_system_time_from_date_time(&systime, date_time);
+    FILETIME ftime = {};
+    SystemTimeToFileTime(&systime, &ftime);
+    FILETIME ftime_local = {};
+    LocalFileTimeToFileTime(&ftime, &ftime_local);
+    FileTimeToSystemTime(&ftime_local, &systime);
+    Date_Time result = {};
+    date_time_from_win32_system_time(&result, &systime);
+    return(result);
+}
+
 internal
 system_wake_up_timer_create_sig(){
     Win32_Object *object = win32_alloc_object(Win32ObjectKind_Timer);
@@ -1373,9 +1432,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
         
         // NOTE(allen): Load wgl extensions
 #define LoadWGL(f,l) Stmnt((f) = (f##_Function*)wglGetProcAddress(#f); \
-        (l) = (l) && win32_wgl_good((Void_Func*)(f));)
-            
-            b32 load_success = true;
+(l) = (l) && win32_wgl_good((Void_Func*)(f));)
+        
+        b32 load_success = true;
         LoadWGL(wglCreateContextAttribsARB, load_success);
         LoadWGL(wglChoosePixelFormatARB, load_success);
         LoadWGL(wglGetExtensionsStringEXT, load_success);

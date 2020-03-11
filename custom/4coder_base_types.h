@@ -933,6 +933,9 @@ struct String_Const_Any{
     };
 };
 
+#define string_litinit(s) {(s), sizeof(s) - 1}
+#define string_u8_litinit(s) {(u8*)(s), sizeof(s) - 1}
+
 struct Node_String_Const_char{
     Node_String_Const_char *next;
     String_Const_char string;
@@ -1099,6 +1102,151 @@ typedef i32 Scan_Direction;
 enum{
     Scan_Backward = -1,
     Scan_Forward  =  1,
+};
+
+////////////////////////////////
+
+struct Date_Time{
+    u32 year; // Real year, no adjustment
+    u8 mon;   // [0,11]
+    u8 day;   // [0,30]
+    u8 hour;  // [0,23]
+    u8 min;   // [0,59]
+    u8 sec;   // [0,60]
+    u16 msec; // [0,999]
+};
+
+global String_Const_u8 month_full_name[] = {
+    string_u8_litinit("January"),
+    string_u8_litinit("February"),
+    string_u8_litinit("March"),
+    string_u8_litinit("April"),
+    string_u8_litinit("May"),
+    string_u8_litinit("June"),
+    string_u8_litinit("July"),
+    string_u8_litinit("August"),
+    string_u8_litinit("September"),
+    string_u8_litinit("October"),
+    string_u8_litinit("November"),
+    string_u8_litinit("December"),
+};
+
+global String_Const_u8 month_abrev_name[] = {
+    string_u8_litinit("Jan"),
+    string_u8_litinit("Feb"),
+    string_u8_litinit("Mar"),
+    string_u8_litinit("Apr"),
+    string_u8_litinit("May"),
+    string_u8_litinit("Jun"),
+    string_u8_litinit("Jul"),
+    string_u8_litinit("Aug"),
+    string_u8_litinit("Sep"),
+    string_u8_litinit("Oct"),
+    string_u8_litinit("Nov"),
+    string_u8_litinit("Dec"),
+};
+
+global String_Const_u8 ordinal_numeric_name[] = {
+    string_u8_litinit("1st"),
+    string_u8_litinit("2nd"),
+    string_u8_litinit("3rd"),
+    string_u8_litinit("4th"),
+    string_u8_litinit("5th"),
+    string_u8_litinit("6th"),
+    string_u8_litinit("7th"),
+    string_u8_litinit("8th"),
+    string_u8_litinit("9th"),
+    string_u8_litinit("10th"),
+    string_u8_litinit("11th"),
+    string_u8_litinit("12th"),
+    string_u8_litinit("13th"),
+    string_u8_litinit("14th"),
+    string_u8_litinit("15th"),
+    string_u8_litinit("16th"),
+    string_u8_litinit("17th"),
+    string_u8_litinit("18th"),
+    string_u8_litinit("19th"),
+    string_u8_litinit("20th"),
+    string_u8_litinit("21st"),
+    string_u8_litinit("22nd"),
+    string_u8_litinit("23rd"),
+    string_u8_litinit("24th"),
+    string_u8_litinit("25th"),
+    string_u8_litinit("26th"),
+    string_u8_litinit("27th"),
+    string_u8_litinit("28th"),
+    string_u8_litinit("29th"),
+    string_u8_litinit("30th"),
+    string_u8_litinit("31st"),
+    string_u8_litinit("32nd"),
+    string_u8_litinit("33rd"),
+    string_u8_litinit("34th"),
+    string_u8_litinit("35th"),
+    string_u8_litinit("36th"),
+    string_u8_litinit("37th"),
+    string_u8_litinit("38th"),
+    string_u8_litinit("39th"),
+    string_u8_litinit("40th"),
+    string_u8_litinit("41st"),
+    string_u8_litinit("42nd"),
+    string_u8_litinit("43rd"),
+    string_u8_litinit("44th"),
+    string_u8_litinit("45th"),
+    string_u8_litinit("46th"),
+    string_u8_litinit("47th"),
+    string_u8_litinit("48th"),
+    string_u8_litinit("49th"),
+    string_u8_litinit("50th"),
+    string_u8_litinit("51st"),
+    string_u8_litinit("52nd"),
+    string_u8_litinit("53rd"),
+    string_u8_litinit("54th"),
+    string_u8_litinit("55th"),
+    string_u8_litinit("56th"),
+    string_u8_litinit("57th"),
+    string_u8_litinit("58th"),
+    string_u8_litinit("59th"),
+    string_u8_litinit("60th"),
+    string_u8_litinit("61st"),
+    string_u8_litinit("62nd"),
+    string_u8_litinit("63rd"),
+    string_u8_litinit("64th"),
+    string_u8_litinit("65th"),
+    string_u8_litinit("66th"),
+    string_u8_litinit("67th"),
+    string_u8_litinit("68th"),
+    string_u8_litinit("69th"),
+    string_u8_litinit("70th"),
+    string_u8_litinit("71st"),
+    string_u8_litinit("72nd"),
+    string_u8_litinit("73rd"),
+    string_u8_litinit("74th"),
+    string_u8_litinit("75th"),
+    string_u8_litinit("76th"),
+    string_u8_litinit("77th"),
+    string_u8_litinit("78th"),
+    string_u8_litinit("79th"),
+    string_u8_litinit("80th"),
+    string_u8_litinit("81st"),
+    string_u8_litinit("82nd"),
+    string_u8_litinit("83rd"),
+    string_u8_litinit("84th"),
+    string_u8_litinit("85th"),
+    string_u8_litinit("86th"),
+    string_u8_litinit("87th"),
+    string_u8_litinit("88th"),
+    string_u8_litinit("89th"),
+    string_u8_litinit("90th"),
+    string_u8_litinit("91st"),
+    string_u8_litinit("92nd"),
+    string_u8_litinit("93rd"),
+    string_u8_litinit("94th"),
+    string_u8_litinit("95th"),
+    string_u8_litinit("96th"),
+    string_u8_litinit("97th"),
+    string_u8_litinit("98th"),
+    string_u8_litinit("99th"),
+    string_u8_litinit("100th"),
 };
 
 ////////////////////////////////
