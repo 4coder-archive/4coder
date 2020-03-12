@@ -3097,7 +3097,7 @@ buffer_find_all_matches(Application_Links *app, Arena *arena, Buffer_ID buffer,
     String_Match_List list = {};
     if (api_check_buffer(file)){
         if (needle.size > 0){
-            Scratch_Block scratch(app);
+            Scratch_Block scratch(app, arena);
             List_String_Const_u8 chunks = buffer_get_chunks(scratch,
                                                             &file->state.buffer);
             buffer_chunks_clamp(&chunks, range);
