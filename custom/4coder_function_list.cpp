@@ -4,14 +4,14 @@
 
 // TOP
 
-// NOTE(allen|a4.0.14): This turned out to be a nasty little routine.  There might 
-// be a better way to do it with just tokens that I didn't see the first time 
-// through.  Once I build a real parser this should become almost just as easy as 
+// NOTE(allen|a4.0.14): This turned out to be a nasty little routine.  There might
+// be a better way to do it with just tokens that I didn't see the first time
+// through.  Once I build a real parser this should become almost just as easy as
 // iterating tokens is now.
 //
 // NOTE(allen|b4.1.0): This routine assumes C++ sub_kinds in the tokens of the buffer.
 
-static Get_Positions_Results
+function Get_Positions_Results
 get_function_positions(Application_Links *app, Buffer_ID buffer, i64 first_token_index, Function_Positions *positions_array, i64 positions_max){
     Get_Positions_Results result = {};
     
@@ -118,7 +118,7 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i64 first_token
                 }
             }
             
-            // When this loop ends by going all the way back to the beginning set the 
+            // When this loop ends by going all the way back to the beginning set the
             // signature start to 0 and fall through to the printing phase.
             signature_start_index = 0;
             
@@ -146,7 +146,7 @@ get_function_positions(Application_Links *app, Buffer_ID buffer, i64 first_token
     return(result);
 }
 
-static void
+function void
 print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_ID buffer, Function_Positions *positions_array, i64 positions_count){
     Scratch_Block scratch(app);
     
@@ -203,7 +203,7 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_I
     }
 }
 
-static void
+function void
 list_all_functions(Application_Links *app, Buffer_ID optional_target_buffer){
     // TODO(allen): Use create or switch to buffer and clear here?
     String_Const_u8 decls_name = string_u8_litexpr("*decls*");

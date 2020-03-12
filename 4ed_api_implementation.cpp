@@ -1978,8 +1978,8 @@ managed_scope_get_attachment(Application_Links *app, Managed_Scope scope, Manage
         }
         else{
 #define M \
-"ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
-            print_message(app, string_u8_litexpr(M));
+            "ERROR: scope attachment already exists with a size smaller than the requested size; no attachment pointer can be returned."
+                print_message(app, string_u8_litexpr(M));
 #undef M
         }
     }
@@ -2831,7 +2831,6 @@ text_layout_create(Application_Links *app, Buffer_ID buffer_id, Rect_f32 rect, B
     Text_Layout_ID result = 0;
     if (api_check_buffer(file)){
         Thread_Context *tctx = app->tctx;
-        Scratch_Block scratch(tctx);
         Face *face = file_get_face(models, file);
         
         Gap_Buffer *buffer = &file->state.buffer;
@@ -3098,12 +3097,10 @@ buffer_find_all_matches(Application_Links *app, Arena *arena, Buffer_ID buffer,
     if (api_check_buffer(file)){
         if (needle.size > 0){
             Scratch_Block scratch(app, arena);
-            List_String_Const_u8 chunks = buffer_get_chunks(scratch,
-                                                            &file->state.buffer);
+            List_String_Const_u8 chunks = buffer_get_chunks(scratch, &file->state.buffer);
             buffer_chunks_clamp(&chunks, range);
             if (chunks.node_count > 0){
-                u64_Array jump_table = string_compute_needle_jump_table(arena, needle,
-                                                                        direction);
+                u64_Array jump_table = string_compute_needle_jump_table(arena, needle, direction);
                 Character_Predicate dummy = {};
                 if (predicate == 0){
                     predicate = &dummy;

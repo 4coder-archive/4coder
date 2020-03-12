@@ -221,7 +221,9 @@ CUSTOM_DOC("Clears the history of the clipboard")
 
 ////////////////////////////////
 
-CUSTOM_COMMAND_SIG(multi_paste){
+CUSTOM_COMMAND_SIG(multi_paste)
+CUSTOM_DOC("Paste multiple entries from the clipboard at once")
+{
     Scratch_Block scratch(app);
     
     i32 count = clipboard_count(0);

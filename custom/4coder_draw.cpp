@@ -411,8 +411,7 @@ draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffe
 }
 
 function void
-draw_fps_hud(Application_Links *app, Frame_Info frame_info,
-             Face_ID face_id, Rect_f32 rect){
+draw_fps_hud(Application_Links *app, Frame_Info frame_info, Face_ID face_id, Rect_f32 rect){
     Face_Metrics face_metrics = get_face_metrics(app, face_id);
     f32 line_height = face_metrics.line_height;
     

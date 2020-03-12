@@ -1383,7 +1383,7 @@ theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_nam
         for (Config_Assignment *node = parsed->first;
              node != 0;
              node = node->next){
-            Scratch_Block scratch(app);
+            Scratch_Block scratch(app, arena);
             Config_LValue *l = node->l;
             String_Const_u8 l_name = push_string_copy(scratch, l->identifier);
             Managed_ID id = managed_id_get(app, string_u8_litexpr("colors"), l_name);
@@ -1454,8 +1454,8 @@ theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Ar
         parsed = theme_parse__data(app, arena, SCu8(file_name), SCu8(data), color_arena, color_table);
     }
     if (parsed == 0){
-        Scratch_Block scratch(app);
-        String_Const_u8 str = push_u8_stringf(arena, "Did not find %s, theme not loaded", file_name);
+        Scratch_Block scratch(app, arena);
+        String_Const_u8 str = push_u8_stringf(scratch, "Did not find %s, theme not loaded", file_name);
         print_message(app, str);
     }
     return(parsed);
@@ -1499,7 +1499,7 @@ config_feedback_int(Arena *arena, List_String_Const_u8 *list, char *name, i32 va
 function void
 load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *config,
                       i32 override_font_size, b32 override_hinting){
-    Scratch_Block scratch(app);
+    Scratch_Block scratch(app, out_arena);
     
     linalloc_clear(out_arena);
     Config *parsed = config_parse__file_name(app, out_arena, "config.4coder", config);
@@ -1611,7 +1611,7 @@ function void
 load_theme_file_into_live_set(Application_Links *app, char *file_name){
     Arena *arena = &global_theme_arena;
     Color_Table color_table = make_color_table(app, arena);
-    Scratch_Block scratch(app);
+    Scratch_Block scratch(app, arena);
     Config *config = theme_parse__file_name(app, scratch, file_name, arena, &color_table);
     String_Const_u8 error_text = config_stringize_errors(app, scratch, config);
     print_message(app, error_text);

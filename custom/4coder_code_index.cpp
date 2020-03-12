@@ -880,7 +880,7 @@ layout_token_score_wrap_token(Token_Pair *pair, Token_Cpp_Kind kind){
 
 function Layout_Item_List
 layout_index__inner(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Code_Index_File *file, Layout_Wrap_Kind kind){
-    Scratch_Block scratch(app);
+    Scratch_Block scratch(app, arena);
     
     Token_Array tokens = get_token_array_from_buffer(app, buffer);
     Token_Array *tokens_ptr = &tokens;

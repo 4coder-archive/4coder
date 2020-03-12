@@ -248,7 +248,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): style setup
     {
-        Scratch_Block scratch(tctx);
+        Scratch_Block scratch(tctx, arena);
         Face_Description description = {};
         description.font.file_name = get_file_path_in_fonts_folder(scratch, string_u8_litexpr("liberation-mono.ttf"));
         description.parameters.pt_size = 12;
