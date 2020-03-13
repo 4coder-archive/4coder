@@ -370,6 +370,58 @@ system_now_time_sig(){
     return(result);
 }
 
+function void
+mac_date_time_from_tm(Date_Time *out, struct tm *in){
+    out->year = in->tm_year + 1900;
+    out->mon = in->tm_mon;
+    out->day = in->tm_mday - 1;
+    out->hour = in->tm_hour;
+    out->min = in->tm_min;
+    out->sec = in->tm_sec;
+    out->msec = 0;
+}
+
+function void
+mac_tm_from_date_time(struct tm *out, Date_Time *in){
+    out->tm_year = in->year - 1900;
+    out->tm_mon = in->mon;
+    out->tm_mday = in->day + 1;
+    out->tm_hour = in->hour;
+    out->tm_min = in->min;
+    out->tm_sec = in->sec;
+}
+
+function
+system_now_date_time_universal_sig(){
+    time_t now_time = time(0);
+    struct tm *now_tm = gmtime(&now_time);
+    Date_Time result = {};
+    mac_date_time_from_tm(&result, now_tm);
+    return(result);
+}
+
+function
+system_local_date_time_from_universal_sig(){
+    struct tm univ_tm = {};
+    mac_tm_from_date_time(&univ_tm, date_time);
+    time_t utc_time = timegm(&univ_tm);
+    struct tm *local_tm = localtime(&utc_time);
+    Date_Time result = {};
+    mac_date_time_from_tm(&result, local_tm);
+    return(result);
+}
+
+function
+system_universal_date_time_from_local_sig(){
+    struct tm local_tm = {};
+    mac_tm_from_date_time(&local_tm, date_time);
+    time_t loc_time = timelocal(&local_tm);
+    struct tm *utc_tm = gmtime(&loc_time);
+    Date_Time result = {};
+    mac_date_time_from_tm(&result, utc_tm);
+    return(result);
+}
+
 function
 system_wake_up_timer_create_sig(){
     Mac_Object *object = mac_alloc_object(MacObjectKind_Timer);
