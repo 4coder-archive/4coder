@@ -1000,9 +1000,13 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     }
     
     XkbSelectEvents(linuxvars.dpy, XkbUseCoreKbd, XkbAllEventsMask, XkbAllEventsMask);
-    linuxvars.xkb = XkbGetKeyboard(linuxvars.dpy, XkbAllComponentsMask, XkbUseCoreKbd);
+    linuxvars.xkb = XkbGetMap(linuxvars.dpy, XkbKeyTypesMask | XkbKeySymsMask, XkbUseCoreKbd);
     if(!linuxvars.xkb) {
-        system_error_box("Error getting XKB keyboard details.");
+        system_error_box("Error getting XKB keyboard map.");
+    }
+
+    if(XkbGetNames(linuxvars.dpy, XkbKeyNamesMask, linuxvars.xkb) != Success) {
+        system_error_box("Error getting XKB key names.");
     }
     
     // closer to windows behaviour (holding key doesn't generate release events)
