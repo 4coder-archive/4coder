@@ -478,6 +478,23 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_F14] = KeyCode_F14;
     keycode_lookup_table[kVK_F15] = KeyCode_F15;
     keycode_lookup_table[kVK_F16] = KeyCode_F16;
+    
+    keycode_lookup_table[kVK_ANSI_Keypad0] = KeyCode_NumPad0;
+    keycode_lookup_table[kVK_ANSI_Keypad1] = KeyCode_NumPad1;
+    keycode_lookup_table[kVK_ANSI_Keypad2] = KeyCode_NumPad2;
+    keycode_lookup_table[kVK_ANSI_Keypad3] = KeyCode_NumPad3;
+    keycode_lookup_table[kVK_ANSI_Keypad4] = KeyCode_NumPad4;
+    keycode_lookup_table[kVK_ANSI_Keypad5] = KeyCode_NumPad5;
+    keycode_lookup_table[kVK_ANSI_Keypad6] = KeyCode_NumPad6;
+    keycode_lookup_table[kVK_ANSI_Keypad7] = KeyCode_NumPad7;
+    keycode_lookup_table[kVK_ANSI_Keypad8] = KeyCode_NumPad8;
+    keycode_lookup_table[kVK_ANSI_Keypad9] = KeyCode_NumPad9;
+    
+    keycode_lookup_table[kVK_ANSI_KeypadMultiply] = KeyCode_NumPadStar;
+    keycode_lookup_table[kVK_ANSI_KeypadPlus] = KeyCode_NumPadPlus;
+    keycode_lookup_table[kVK_ANSI_KeypadMinus] = KeyCode_NumPadMinus;
+    keycode_lookup_table[kVK_ANSI_KeypadDecimal] = KeyCode_NumPadDot;
+    keycode_lookup_table[kVK_ANSI_KeypadDivide] = KeyCode_NumPadSlash;
 }
 
 ////////////////////////////////
@@ -587,7 +604,7 @@ system_post_clipboard_sig(){
     } else{
         linalloc_clear(arena);
     }
-
+    
     mac_vars.clip_post.str = push_array(arena, u8, str.size + 1);
     if (mac_vars.clip_post.str != 0){
         block_copy(mac_vars.clip_post.str, str.str, str.size);
