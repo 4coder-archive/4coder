@@ -149,7 +149,7 @@ struct Linux_Memory_Tracker_Node {
 
 struct Linux_Vars {
     Thread_Context tctx;
-    Arena *frame_arena;
+    Arena frame_arena;
     
     Display* dpy;
     Window win;
@@ -184,7 +184,7 @@ struct Linux_Vars {
     Linux_Memory_Tracker_Node* memory_tracker_tail;
     int memory_tracker_count;
     
-    Arena* clipboard_arena;
+    Arena clipboard_arena;
     String_Const_u8 clipboard_contents;
     b32 received_new_clipboard;
     b32 clipboard_catch_all;
@@ -611,7 +611,7 @@ linux_find_font(Face_Description* desc) {
         FcPatternGetString(font, FC_FILE, 0, &filename);
         if(filename) {
             LINUX_FN_DEBUG("FONTCONFIG FILENAME = %s\n", filename);
-            result.font.file_name = push_u8_stringf(linuxvars.frame_arena, "%s", filename);
+            result.font.file_name = push_u8_stringf(&linuxvars.frame_arena, "%s", filename);
         }
         
         FcPatternDestroy(font);
@@ -1256,8 +1256,8 @@ linux_clipboard_recv(XSelectionEvent* ev) {
     Scratch_Block scratch(&linuxvars.tctx);
     String_Const_u8 clip = linux_clipboard_recv(scratch);
     if (clip.size > 0){
-        linalloc_clear(linuxvars.clipboard_arena);
-        linuxvars.clipboard_contents = push_string_copy(linuxvars.clipboard_arena, clip);
+        linalloc_clear(&linuxvars.clipboard_arena);
+        linuxvars.clipboard_contents = push_string_copy(&linuxvars.clipboard_arena, clip);
         linuxvars.received_new_clipboard = true;
         linux_schedule_step();
     }
@@ -1273,8 +1273,8 @@ internal void
 system_post_clipboard(String_Const_u8 str, i32 index){
     // TODO(inso): index?
     //LINUX_FN_DEBUG("%.*s", string_expand(str));
-    linalloc_clear(linuxvars.clipboard_arena);
-    linuxvars.clipboard_contents = push_u8_stringf(linuxvars.clipboard_arena, "%.*s", str.size, str.str);
+    linalloc_clear(&linuxvars.clipboard_arena);
+    linuxvars.clipboard_contents = push_u8_stringf(&linuxvars.clipboard_arena, "%.*s", str.size, str.str);
     XSetSelectionOwner(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
 }
 
@@ -1355,17 +1355,17 @@ linux_handle_x11_events() {
                 Input_Event* key_event = NULL;
                 if(key) {
                     add_modifier(mods, key);
-                    key_event = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                    key_event = push_input_event(&linuxvars.frame_arena, &linuxvars.input.trans.event_list);
                     key_event->kind = InputEventKind_KeyStroke;
                     key_event->key.code = key;
-                    key_event->key.modifiers = copy_modifier_set(linuxvars.frame_arena, mods);
+                    key_event->key.modifiers = copy_modifier_set(&linuxvars.frame_arena, mods);
                 }
                 
                 Input_Event* text_event = NULL;
                 if(status == XLookupChars || status == XLookupBoth) {
-                    String_Const_u8 str = linux_filter_text(linuxvars.frame_arena, buf, len);
+                    String_Const_u8 str = linux_filter_text(&linuxvars.frame_arena, buf, len);
                     if(str.size) {
-                        text_event = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                        text_event = push_input_event(&linuxvars.frame_arena, &linuxvars.input.trans.event_list);
                         text_event->kind = InputEventKind_TextInsert;
                         text_event->text.string = str;
                     }
@@ -1393,10 +1393,10 @@ linux_handle_x11_events() {
                 Input_Event* key_event = NULL;
                 if(key) {
                     remove_modifier(mods, key);
-                    key_event = push_input_event(linuxvars.frame_arena, &linuxvars.input.trans.event_list);
+                    key_event = push_input_event(&linuxvars.frame_arena, &linuxvars.input.trans.event_list);
                     key_event->kind = InputEventKind_KeyRelease;
                     key_event->key.code = key;
-                    key_event->key.modifiers = copy_modifier_set(linuxvars.frame_arena, mods);
+                    key_event->key.modifiers = copy_modifier_set(&linuxvars.frame_arena, mods);
                 }
             } break;
             
@@ -1513,7 +1513,7 @@ linux_handle_x11_events() {
             
             case SelectionClear: {
                 if(event.xselectionclear.selection == linuxvars.atom_CLIPBOARD) {
-                    linalloc_clear(linuxvars.clipboard_arena);
+                    linalloc_clear(&linuxvars.clipboard_arena);
                     block_zero_struct(&linuxvars.clipboard_contents);
                 }
             } break;
@@ -1622,8 +1622,8 @@ main(int argc, char **argv){
     font_api_fill_vtable(&font_vtable);
     
     // NOTE(allen): memory
-    linuxvars.frame_arena = reserve_arena(&linuxvars.tctx);
-    linuxvars.clipboard_arena = reserve_arena(&linuxvars.tctx);
+    linuxvars.frame_arena = make_arena_system();
+    linuxvars.clipboard_arena = make_arena_system();
     render_target.arena = make_arena_system(KB(256));
     
     linuxvars.fontconfig = FcInitLoadConfigAndFonts();
@@ -1644,7 +1644,7 @@ main(int argc, char **argv){
     App_Functions app = {};
     {
         App_Get_Functions *get_funcs = 0;
-        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        Scratch_Block scratch(&linuxvars.tctx);
         Path_Search_List search_list = {};
         search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
@@ -1675,7 +1675,7 @@ main(int argc, char **argv){
     Plat_Settings plat_settings = {};
     void *base_ptr = 0;
     {
-        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        Scratch_Block scratch(&linuxvars.tctx);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         
         char **files = 0;
@@ -1757,7 +1757,7 @@ main(int argc, char **argv){
     
     // app init
     {
-        Scratch_Block scratch(&linuxvars.tctx, Scratch_Share);
+        Scratch_Block scratch(&linuxvars.tctx);
         String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
         app.init(&linuxvars.tctx, &render_target, base_ptr, curdir, custom);
     }
@@ -1861,7 +1861,7 @@ main(int argc, char **argv){
         
         first_step = false;
         
-        linalloc_clear(linuxvars.frame_arena);
+        linalloc_clear(&linuxvars.frame_arena);
         block_zero_struct(&linuxvars.input.trans);
     }
     
