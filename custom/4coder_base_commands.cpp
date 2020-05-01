@@ -622,8 +622,7 @@ clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer, Clean_All_Lines
                     }
                 }
                 
-                if (mode == CleanAllLinesMode_RemoveBlankLines ||
-                    start > 0){
+                if (mode == CleanAllLinesMode_RemoveBlankLines || start_offset > 0){
                     i64 start = start_offset + line_start;
                     i64 end   = end_offset   + line_start;
                     
