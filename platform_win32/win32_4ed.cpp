@@ -1854,7 +1854,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                 if (get_more_messages){
                     if (msg.message == WM_QUIT){
                         keep_running = false;
-                    }else{
+                    }
+                    else{
                         b32 treat_normally = true;
                         if (msg.message == WM_KEYDOWN || msg.message == WM_SYSKEYDOWN){
                             switch (msg.wParam){

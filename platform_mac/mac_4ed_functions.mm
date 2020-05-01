@@ -714,7 +714,7 @@ system_mutex_free_sig(){
 function
 system_acquire_global_frame_mutex_sig(){
     if (tctx->kind == ThreadKind_AsyncTasks ||
-        tctx->kind == ThreadKind_MainCoroutine){
+        tctx->kind == ThreadKind_Main){
         system_mutex_acquire(mac_vars.global_frame_mutex);
     }
 }
@@ -722,7 +722,7 @@ system_acquire_global_frame_mutex_sig(){
 function
 system_release_global_frame_mutex_sig(){
     if (tctx->kind == ThreadKind_AsyncTasks ||
-        tctx->kind == ThreadKind_MainCoroutine){
+        tctx->kind == ThreadKind_Main){
         system_mutex_release(mac_vars.global_frame_mutex);
     }
 }

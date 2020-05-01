@@ -23,7 +23,9 @@
 #include "4coder_system_types.h"
 #define DYNAMIC_LINK_API
 #include "generated/system_api.h"
+#if !defined(META_PASS)
 #include "generated/command_metadata.h"
+#endif
 
 #include "4coder_profile.h"
 #include "4coder_async_tasks.h"
