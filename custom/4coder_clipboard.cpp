@@ -251,7 +251,7 @@ CUSTOM_DOC("Paste multiple entries from the clipboard at once")
                 view_set_cursor_and_preferred_x(app, view, seek_pos(range.max + insert_string.size));
                 
                 ARGB_Color argb = fcolor_resolve(fcolor_id(defcolor_paste));
-                view_post_fade(app, buffer, 0.667f, Ii64(range.max + 1, range.max + insert_string.size), argb);
+                buffer_post_fade(app, buffer, 0.667f, Ii64(range.max + 1, range.max + insert_string.size), argb);
             }
             else{
                 paste(app);

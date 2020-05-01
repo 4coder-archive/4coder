@@ -717,15 +717,20 @@ buffer_post_fade(Application_Links *app, Buffer_ID buffer_id, f32 seconds, Range
 }
 
 function void
-view_post_fade(Application_Links *app, View_ID view_id, f32 seconds, Range_i64 range, ARGB_Color color){
-    Fade_Range *fade_range = alloc_fade_range();
-    sll_queue_push(view_fade_ranges.first, view_fade_ranges.last, fade_range);
-    view_fade_ranges.count += 1;
-    fade_range->view_id = view_id;
-    fade_range->t = seconds;
-    fade_range->full_t = seconds;
-    fade_range->range = range;
-    fade_range->color= color;
+buffer_shift_fade_ranges(Buffer_ID buffer_id, i64 shift_after_p, i64 shift_amount){
+    for (Fade_Range *node = buffer_fade_ranges.first;
+         node != 0;
+         node = node->next){
+        if (node->buffer_id == buffer_id){
+            if (node->range.min >= shift_after_p){
+                node->range.min += shift_amount;
+                node->range.max += shift_amount;
+            }
+            else if (node->range.max >= shift_after_p){
+                node->range.max += shift_amount;
+            }
+        }
+    }
 }
 
 function b32
@@ -742,41 +747,18 @@ tick_all_fade_ranges(f32 t){
         }
         else{
             prev_next = &node->next;
+            buffer_fade_ranges.last = node;
         }
     }
-    
-    prev_next = &view_fade_ranges.first;
-    for (Fade_Range *node = view_fade_ranges.first, *next = 0;
-         node != 0;
-         node = next){
-        next = node->next;
-        node->t -= t;
-        if (node->t <= 0.f){
-            *prev_next = next;
-            view_fade_ranges.count -= 1;
-        }
-        else{
-            prev_next = &node->next;
-        }
-    }
-    
     return(buffer_fade_ranges.count > 0 || view_fade_ranges.count > 0);
 }
 
 function void
-paint_fade_ranges(Application_Links *app, Text_Layout_ID layout, Buffer_ID buffer, View_ID view){
+paint_fade_ranges(Application_Links *app, Text_Layout_ID layout, Buffer_ID buffer){
     for (Fade_Range *node = buffer_fade_ranges.first;
          node != 0;
          node = node->next){
         if (node->buffer_id == buffer){
-            paint_text_color_blend(app, layout, node->range, node->color, node->t/node->full_t);
-        }
-    }
-    
-    for (Fade_Range *node = view_fade_ranges.first;
-         node != 0;
-         node = node->next){
-        if (node->view_id == view){
             paint_text_color_blend(app, layout, node->range, node->color, node->t/node->full_t);
         }
     }

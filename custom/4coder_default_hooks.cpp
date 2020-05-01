@@ -378,7 +378,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
     }
     
     // NOTE(allen): Fade ranges
-    paint_fade_ranges(app, text_layout_id, buffer, view_id);
+    paint_fade_ranges(app, text_layout_id, buffer);
     
     // NOTE(allen): put the actual text on the actual screen
     draw_text_layout_default(app, text_layout_id);
@@ -918,6 +918,8 @@ BUFFER_EDIT_RANGE_SIG(default_buffer_edit_range){
     ProfileScope(app, "default edit range");
     
     Range_i64 old_range = Ii64(new_range.first, new_range.first + original_size);
+    
+    buffer_shift_fade_ranges(buffer_id, old_range.max, (new_range.max - old_range.max));
     
     {
         code_index_lock();
