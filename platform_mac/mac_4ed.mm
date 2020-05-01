@@ -937,6 +937,12 @@ mac_toggle_fullscreen(void){
                 [characters getCharacters:utf16 range:NSMakeRange(0, len)];
                 String_Const_u16 str_16 = SCu16(utf16, len);
                 String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
+                for (i64 i = 0; i < str_8.size; i += 1){
+                    if (str_8.str[i] == '\r'){
+                        str_8.str[i] = '\n';
+                    }
+                }
+
                 
                 Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_TextInsert;
