@@ -11,6 +11,9 @@ api(system) function b32 load_library(Arena* scratch, String_Const_u8 file_name,
 api(system) function b32 release_library(System_Library handle);
 api(system) function Void_Func* get_proc(System_Library handle, char* proc_name);
 api(system) function u64 now_time(void);
+api(system) function Date_Time now_date_time_universal(void);
+api(system) function Date_Time local_date_time_from_universal(Date_Time* date_time);
+api(system) function Date_Time universal_date_time_from_local(Date_Time* date_time);
 api(system) function Plat_Handle wake_up_timer_create(void);
 api(system) function void wake_up_timer_release(Plat_Handle handle);
 api(system) function void wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds);

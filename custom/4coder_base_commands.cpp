@@ -155,16 +155,14 @@ CUSTOM_COMMAND_SIG(backspace_alpha_numeric_boundary)
 CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the left.")
 {
     Scratch_Block scratch(app);
-    current_view_boundary_delete(app, Scan_Backward,
-                                 push_boundary_list(scratch, boundary_alpha_numeric));
+    current_view_boundary_delete(app, Scan_Backward, push_boundary_list(scratch, boundary_alpha_numeric));
 }
 
 CUSTOM_COMMAND_SIG(delete_alpha_numeric_boundary)
 CUSTOM_DOC("Delete characters between the cursor position and the first alphanumeric boundary to the right.")
 {
     Scratch_Block scratch(app);
-    current_view_boundary_delete(app, Scan_Forward,
-                                 push_boundary_list(scratch, boundary_alpha_numeric));
+    current_view_boundary_delete(app, Scan_Forward, push_boundary_list(scratch, boundary_alpha_numeric));
 }
 
 function void
@@ -1744,7 +1742,7 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 CUSTOM_COMMAND_SIG(undo_all_buffers)
 CUSTOM_DOC("Advances backward through the undo history in the buffer containing the most recent regular edit.")
 {
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     i32 highest_edit_number = -1;
     Buffer_ID first_buffer_match = 0;
     Buffer_ID last_buffer_match = 0;
@@ -1815,7 +1813,7 @@ CUSTOM_DOC("Advances backward through the undo history in the buffer containing 
 CUSTOM_COMMAND_SIG(redo_all_buffers)
 CUSTOM_DOC("Advances forward through the undo history in the buffer containing the most recent regular edit.")
 {
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     
     i32 lowest_edit_number = 0x7FFFFFFF;
     Buffer_ID first_buffer_match = 0;

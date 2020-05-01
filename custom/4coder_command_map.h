@@ -24,7 +24,7 @@ struct Command_Trigger_List{
 struct Command_Binding{
     union{
         Custom_Command_Function *custom;
-    char *name;
+        char *name;
     };
     
     Command_Binding();
@@ -67,7 +67,7 @@ struct Command_Map{
 };
 
 struct Mapping{
-    Arena *node_arena;
+    Arena node_arena;
     Heap heap;
     Base_Allocator heap_wrapper;
     Table_u64_u64 id_to_map;
@@ -77,6 +77,18 @@ struct Mapping{
     Command_Map *free_maps;
     Command_Modified_Binding *free_bindings;
     Command_Binding_List *free_lists;
+};
+
+typedef i32 Binding_Match_Rule;
+enum{
+    BindingMatchRule_Strict,
+    BindingMatchRule_Loose,
+};
+
+struct Map_Event_Breakdown{
+    Input_Modifier_Set *mod_set;
+    u64 key;
+    Key_Code skip_self_mod;
 };
 
 #endif

@@ -93,6 +93,20 @@ define_api(Arena *arena){
     }
     
     {
+        api_call(arena, api, "now_date_time_universal", "Date_Time");
+    }
+    
+    {
+        API_Call *call = api_call(arena, api, "local_date_time_from_universal", "Date_Time");
+        api_param(arena, call, "Date_Time*", "date_time");
+    }
+    
+    {
+        API_Call *call = api_call(arena, api, "universal_date_time_from_local", "Date_Time");
+        api_param(arena, call, "Date_Time*", "date_time");
+    }
+    
+    {
         api_call(arena, api, "wake_up_timer_create", "Plat_Handle");
     }
     

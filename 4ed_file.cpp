@@ -142,7 +142,7 @@ save_file_to_name(Thread_Context *tctx, Models *models, Editing_File *file, u8 *
         Gap_Buffer *buffer = &file->state.buffer;
         b32 dos_write_mode = file->settings.dos_write_mode;
         
-        Scratch_Block scratch(tctx, Scratch_Share);
+        Scratch_Block scratch(tctx);
         
         if (!using_actual_file_name){
             String_Const_u8 s_file_name = SCu8(file_name);
@@ -199,7 +199,7 @@ file_get_layout_func(Editing_File *file){
 
 internal void
 file_create_from_string(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 val, File_Attributes attributes){
-    Scratch_Block scratch(tctx, Scratch_Share);
+    Scratch_Block scratch(tctx);
     
     Base_Allocator *allocator = tctx->allocator;
     block_zero_struct(&file->state);

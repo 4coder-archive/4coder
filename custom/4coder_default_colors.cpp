@@ -1,4 +1,4 @@
-/* 
+/*
 * Default color slots
 */
 
@@ -94,7 +94,7 @@ make_color_table(Application_Links *app, Arena *arena){
     result.arrays = push_array(arena, Color_Array, result.count);
     u32 *dummy = push_array(arena, u32, 1);
     *dummy = 0xFF990099;
-    for (u32 i = 0; i < result.count; i += 1){
+    for (i32 i = 0; i < result.count; i += 1){
         result.arrays[i].vals = dummy;
         result.arrays[i].count = 1;
     }

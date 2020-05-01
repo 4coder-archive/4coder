@@ -55,7 +55,7 @@ struct Color_Array{
 api(custom)
 struct Color_Table{
     Color_Array *arrays;
-    u32 count;
+    i32 count;
 };
 
 api(custom)

@@ -20,7 +20,7 @@ keyboard_macro_play_single_line(Application_Links *app, String_Const_u8 macro_li
 
 function void
 keyboard_macro_play(Application_Links *app, String_Const_u8 macro){
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     List_String_Const_u8 lines = string_split(scratch, macro, (u8*)"\n", 1);
     for (Node_String_Const_u8 *node = lines.first;
          node != 0;
@@ -47,8 +47,8 @@ CUSTOM_DOC("Start macro recording, do nothing if macro recording is already star
     }
     
     Buffer_ID buffer = get_keyboard_log_buffer(app);
-        global_keyboard_macro_is_recording = true;
-        global_keyboard_macro_range.first = buffer_get_size(app, buffer);
+    global_keyboard_macro_is_recording = true;
+    global_keyboard_macro_range.first = buffer_get_size(app, buffer);
 }
 
 CUSTOM_COMMAND_SIG(keyboard_macro_finish_recording)
@@ -60,17 +60,17 @@ CUSTOM_DOC("Stop macro recording, do nothing if macro recording is not already s
     }
     
     Buffer_ID buffer = get_keyboard_log_buffer(app);
-        global_keyboard_macro_is_recording = false;
-        i64 end = buffer_get_size(app, buffer);
-        Buffer_Cursor cursor = buffer_compute_cursor(app, buffer, seek_pos(end));
-        Buffer_Cursor back_cursor = buffer_compute_cursor(app, buffer, seek_line_col(cursor.line - 1, 1));
-        global_keyboard_macro_range.one_past_last = back_cursor.pos;
-        
+    global_keyboard_macro_is_recording = false;
+    i64 end = buffer_get_size(app, buffer);
+    Buffer_Cursor cursor = buffer_compute_cursor(app, buffer, seek_pos(end));
+    Buffer_Cursor back_cursor = buffer_compute_cursor(app, buffer, seek_line_col(cursor.line - 1, 1));
+    global_keyboard_macro_range.one_past_last = back_cursor.pos;
+    
 #if 0
-        Scratch_Block scratch(app);
-        String_Const_u8 macro = push_buffer_range(app, scratch, buffer, global_keyboard_macro_range);
-        print_message(app, string_u8_litexpr("recorded:\n"));
-        print_message(app, macro);
+    Scratch_Block scratch(app);
+    String_Const_u8 macro = push_buffer_range(app, scratch, buffer, global_keyboard_macro_range);
+    print_message(app, string_u8_litexpr("recorded:\n"));
+    print_message(app, macro);
 #endif
 }
 
@@ -83,12 +83,8 @@ CUSTOM_DOC("Replay the most recently recorded keyboard macro")
     }
     
     Buffer_ID buffer = get_keyboard_log_buffer(app);
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     String_Const_u8 macro = push_buffer_range(app, scratch, buffer, global_keyboard_macro_range);
-#if 0
-    print_message(app, string_u8_litexpr("replaying:\n"));
-    print_message(app, macro);
-#endif
     keyboard_macro_play(app, macro);
 }
 

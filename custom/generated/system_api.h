@@ -11,6 +11,9 @@
 #define system_release_library_sig() b32 system_release_library(System_Library handle)
 #define system_get_proc_sig() Void_Func* system_get_proc(System_Library handle, char* proc_name)
 #define system_now_time_sig() u64 system_now_time(void)
+#define system_now_date_time_universal_sig() Date_Time system_now_date_time_universal(void)
+#define system_local_date_time_from_universal_sig() Date_Time system_local_date_time_from_universal(Date_Time* date_time)
+#define system_universal_date_time_from_local_sig() Date_Time system_universal_date_time_from_local(Date_Time* date_time)
 #define system_wake_up_timer_create_sig() Plat_Handle system_wake_up_timer_create(void)
 #define system_wake_up_timer_release_sig() void system_wake_up_timer_release(Plat_Handle handle)
 #define system_wake_up_timer_set_sig() void system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds)
@@ -61,6 +64,9 @@ typedef b32 system_load_library_type(Arena* scratch, String_Const_u8 file_name, 
 typedef b32 system_release_library_type(System_Library handle);
 typedef Void_Func* system_get_proc_type(System_Library handle, char* proc_name);
 typedef u64 system_now_time_type(void);
+typedef Date_Time system_now_date_time_universal_type(void);
+typedef Date_Time system_local_date_time_from_universal_type(Date_Time* date_time);
+typedef Date_Time system_universal_date_time_from_local_type(Date_Time* date_time);
 typedef Plat_Handle system_wake_up_timer_create_type(void);
 typedef void system_wake_up_timer_release_type(Plat_Handle handle);
 typedef void system_wake_up_timer_set_type(Plat_Handle handle, u32 time_milliseconds);
@@ -112,6 +118,9 @@ system_load_library_type *load_library;
 system_release_library_type *release_library;
 system_get_proc_type *get_proc;
 system_now_time_type *now_time;
+system_now_date_time_universal_type *now_date_time_universal;
+system_local_date_time_from_universal_type *local_date_time_from_universal;
+system_universal_date_time_from_local_type *universal_date_time_from_local;
 system_wake_up_timer_create_type *wake_up_timer_create;
 system_wake_up_timer_release_type *wake_up_timer_release;
 system_wake_up_timer_set_type *wake_up_timer_set;
@@ -164,6 +173,9 @@ internal b32 system_load_library(Arena* scratch, String_Const_u8 file_name, Syst
 internal b32 system_release_library(System_Library handle);
 internal Void_Func* system_get_proc(System_Library handle, char* proc_name);
 internal u64 system_now_time(void);
+internal Date_Time system_now_date_time_universal(void);
+internal Date_Time system_local_date_time_from_universal(Date_Time* date_time);
+internal Date_Time system_universal_date_time_from_local(Date_Time* date_time);
 internal Plat_Handle system_wake_up_timer_create(void);
 internal void system_wake_up_timer_release(Plat_Handle handle);
 internal void system_wake_up_timer_set(Plat_Handle handle, u32 time_milliseconds);
@@ -216,6 +228,9 @@ global system_load_library_type *system_load_library = 0;
 global system_release_library_type *system_release_library = 0;
 global system_get_proc_type *system_get_proc = 0;
 global system_now_time_type *system_now_time = 0;
+global system_now_date_time_universal_type *system_now_date_time_universal = 0;
+global system_local_date_time_from_universal_type *system_local_date_time_from_universal = 0;
+global system_universal_date_time_from_local_type *system_universal_date_time_from_local = 0;
 global system_wake_up_timer_create_type *system_wake_up_timer_create = 0;
 global system_wake_up_timer_release_type *system_wake_up_timer_release = 0;
 global system_wake_up_timer_set_type *system_wake_up_timer_set = 0;

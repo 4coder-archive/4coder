@@ -45,8 +45,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'd': action = CLAct_CustomDLL; strict = false; break;
                                 case 'D': action = CLAct_CustomDLL; strict = true; break;
                                 
-                                case 'i': action = CLAct_InitialFilePosition; break;
-                                
                                 case 'w': action = CLAct_WindowSize; break;
                                 case 'W': action = CLAct_WindowMaximize; break;
                                 case 'p': action = CLAct_WindowPosition; break;
@@ -69,14 +67,6 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         plat_settings->custom_dll_is_strict = (b8)strict;
                         if (i < argc){
                             plat_settings->custom_dll = argv[i];
-                        }
-                        action = CLAct_Nothing;
-                    }break;
-                    
-                    case CLAct_InitialFilePosition:
-                    {
-                        if (i < argc){
-                            settings->initial_line = (i32)string_to_integer(SCu8(argv[i]), 10);
                         }
                         action = CLAct_Nothing;
                     }break;
@@ -204,7 +194,7 @@ App_Init_Sig(app_init){
     models->hard_exit = false;
     
     models->config_api = api;
-    models->virtual_event_arena = reserve_arena(tctx);
+    models->virtual_event_arena = make_arena_system();
     
     profile_init(&models->profile_list);
     
@@ -258,7 +248,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): style setup
     {
-        Scratch_Block scratch(tctx);
+        Scratch_Block scratch(tctx, arena);
         Face_Description description = {};
         description.font.file_name = get_file_path_in_fonts_folder(scratch, string_u8_litexpr("liberation-mono.ttf"));
         description.parameters.pt_size = 12;
@@ -435,7 +425,7 @@ App_Step_Sig(app_step){
         event.kind = InputEventKind_MouseWheel;
         event.mouse_wheel.value = (f32)(input->mouse.wheel);
         event.mouse_wheel.p = input->mouse.p;
-        event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
+        event.mouse_wheel.modifiers = copy_modifier_set(scratch, &modifiers);
         push_input_event(scratch, &input_list, &event);
     }
     if (input->mouse.p != models->prev_p){
@@ -445,7 +435,7 @@ App_Step_Sig(app_step){
             Input_Event event = {};
             event.kind = InputEventKind_MouseMove;
             event.mouse_move.p = input->mouse.p;
-            event.mouse.modifiers = copy_modifier_set(scratch, &modifiers);
+            event.mouse_move.modifiers = copy_modifier_set(scratch, &modifiers);
             push_input_event(scratch, &input_list, &event);
         }
     }
@@ -650,7 +640,7 @@ App_Step_Sig(app_step){
         }
     }
     
-    linalloc_clear(models->virtual_event_arena);
+    linalloc_clear(&models->virtual_event_arena);
     models->free_virtual_event = 0;
     models->first_virtual_event = 0;
     models->last_virtual_event = 0;

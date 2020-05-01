@@ -367,7 +367,7 @@ log_event_array_from_list(Arena *arena, Log_Event_List list){
 ////////////////////////////////
 
 global View_ID log_view = 0;
-global Arena *log_arena = {};
+global Arena log_arena = {};
 global Log_Parse log_parse = {};
 global Log_Graph log_graph = {};
 global Log_Filter_Set log_filter_set = {};
@@ -438,7 +438,7 @@ log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
         }
         block_zero_struct(&log_graph);
         log_graph.holding_temp = true;
-        log_graph.temp = begin_temp(log_arena);
+        log_graph.temp = begin_temp(&log_arena);
         log_graph.layout_region = layout_region;
         log_graph.face_id = face_id;
         log_graph.filter_alter_counter = log_filter_set.alter_counter;
@@ -465,7 +465,7 @@ log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
             for (Log_Event *event = log_parse.first_event;
                  event != 0;
                  event = event->next){
-                Log_Event_Ptr_Node *node = push_array(log_arena, Log_Event_Ptr_Node, 1);
+                Log_Event_Ptr_Node *node = push_array(&log_arena, Log_Event_Ptr_Node, 1);
                 node->event = event;
                 sll_queue_push(log_graph.filtered_list.first, log_graph.filtered_list.last, node);
                 log_graph.filtered_list.count += 1;
@@ -489,7 +489,7 @@ log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
                     for (Log_Event_Ptr_Node *node = filter_list->first;
                          node != 0;
                          node = node->next){
-                        Log_Event_Ptr_Node *new_node = push_array(log_arena, Log_Event_Ptr_Node, 1);
+                        Log_Event_Ptr_Node *new_node = push_array(&log_arena, Log_Event_Ptr_Node, 1);
                         new_node->event = node->event;
                         sll_queue_push(log_graph.filtered_list.first, log_graph.filtered_list.last, new_node);
                         log_graph.filtered_list.count += 1;
@@ -525,9 +525,8 @@ log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
             }
         }
         
-        log_graph.event_array = log_event_array_from_list(log_arena,
-                                                          log_graph.filtered_list);
-        log_events_sort_by_tag(log_arena, log_graph.event_array, thread_code);
+        log_graph.event_array = log_event_array_from_list(&log_arena, log_graph.filtered_list);
+        log_events_sort_by_tag(&log_arena, log_graph.event_array, thread_code);
         
         b32 had_a_tag = true;
         u64 thread_id_value = 0;
@@ -561,7 +560,7 @@ log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
             }
             
             if (emit_next_bucket){
-                Log_Graph_Thread_Bucket *bucket = push_array(log_arena, Log_Graph_Thread_Bucket, 1);
+                Log_Graph_Thread_Bucket *bucket = push_array(&log_arena, Log_Graph_Thread_Bucket, 1);
                 sll_queue_push(log_graph.first_bucket, log_graph.last_bucket, bucket);
                 log_graph.bucket_count += 1;
                 bucket->range.first = i;
@@ -612,7 +611,7 @@ log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
                 
                 bucket_with_next_event->range.first += 1;
                 
-                Log_Graph_Box *box_node = push_array(log_arena, Log_Graph_Box, 1);
+                Log_Graph_Box *box_node = push_array(&log_arena, Log_Graph_Box, 1);
                 sll_queue_push(log_graph.first_box, log_graph.last_box, box_node);
                 log_graph.box_count += 1;
                 Rect_f32 rect = Rf32(box_w*bucket_with_next_event_index      , y_cursor,
@@ -632,17 +631,17 @@ log_graph_fill(Application_Links *app, Rect_f32 layout_region, Face_ID face_id){
 
 internal void
 log_parse_fill(Application_Links *app, Buffer_ID buffer){
-    if (log_arena == 0){
-        log_arena = reserve_arena(app);
+    if (log_arena.base_allocator == 0){
+        log_arena = make_arena_system();
     }
     
-    linalloc_clear(log_arena);
+    linalloc_clear(&log_arena);
     block_zero_struct(&log_graph);
     log_filter_set_init(&log_filter_set);
     log_filter_set_init(&log_preview_set);
     
-    String_Const_u8 log_text = push_whole_buffer(app, log_arena, buffer);
-    log_parse = make_log_parse(log_arena, log_text);
+    String_Const_u8 log_text = push_whole_buffer(app, &log_arena, buffer);
+    log_parse = make_log_parse(&log_arena, log_text);
 }
 
 internal void
@@ -789,7 +788,7 @@ log_graph_render(Application_Links *app, Frame_Info frame_info, View_ID view){
                         x_cursor += width + metrics.normal_advance;
                         
                         if (log_graph.has_unused_click){
-                            Rect_f32 click_rect = Rf32_xy_wh(p.x, p.y, 
+                            Rect_f32 click_rect = Rf32_xy_wh(p.x, p.y,
                                                              width, line_height);
                             if (rect_contains_point(click_rect, log_graph.unused_click)){
                                 log_graph.has_unused_click = false;

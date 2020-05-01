@@ -382,13 +382,15 @@ word_complete_iter_is_at_base_slot(Word_Complete_Iterator *it){
 
 function Word_Complete_Iterator*
 word_complete_get_shared_iter(Application_Links *app){
-    local_persist Arena *completion_arena = {};
+    local_persist Arena completion_arena = {};
     local_persist Word_Complete_Iterator it = {};
-    if (completion_arena == 0){
-        completion_arena = reserve_arena(app);
+    local_persist b32 first_call = true;
+    if (first_call){
+        first_call = false;
+        completion_arena = make_arena_system();
     }
     it.app = app;
-    it.arena = completion_arena;
+    it.arena = &completion_arena;
     return(&it);
 }
 

@@ -20,7 +20,6 @@ struct App_Settings{
     char **custom_flags;
     i32 custom_flags_count;
     
-    i32 initial_line;
     b32 lctrl_lalt_is_altgr;
     
     i32 font_size;
@@ -83,7 +82,7 @@ struct Models{
     Model_View_Command_Function *first_view_cmd_func;
     Model_View_Command_Function *last_view_cmd_func;
     
-    Arena *virtual_event_arena;
+    Arena virtual_event_arena;
     Model_Input_Event_Node *free_virtual_event;
     Model_Input_Event_Node *first_virtual_event;
     Model_Input_Event_Node *last_virtual_event;
@@ -175,7 +174,6 @@ enum Command_Line_Action{
     CLAct_Ignore,
     CLAct_UserFile,
     CLAct_CustomDLL,
-    CLAct_InitialFilePosition,
     CLAct_WindowSize,
     CLAct_WindowMaximize,
     CLAct_WindowPosition,

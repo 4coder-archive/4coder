@@ -388,7 +388,7 @@ draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffe
     i64 line_count = buffer_get_line_count(app, buffer);
     i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
     
-    Scratch_Block scratch(app, Scratch_Share);
+    Scratch_Block scratch(app);
     
     Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(visible_range.first));
     i64 line_number = cursor.line;
@@ -411,8 +411,7 @@ draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffe
 }
 
 function void
-draw_fps_hud(Application_Links *app, Frame_Info frame_info,
-             Face_ID face_id, Rect_f32 rect){
+draw_fps_hud(Application_Links *app, Frame_Info frame_info, Face_ID face_id, Rect_f32 rect){
     Face_Metrics face_metrics = get_face_metrics(app, face_id);
     f32 line_height = face_metrics.line_height;
     

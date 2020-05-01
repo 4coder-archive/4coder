@@ -1,4 +1,10 @@
 
+4.1.5
+ + MAJOR: Scratch_Blocks now take arena pointer parameters in their constructor to specify arenas that should be treated as having distinct lifetimes, without doing this it is possible that a local scratch and another arena will actually refer to the same allocator and freeing the local scratch will also free memory that was meant to be in a separate arena.
+ + New Date_Time system APIs, and Date_Time string formatting
+ + Fix: when generated/metadata* files are missing buildsuper still succeeds
+ + Fix: mac does not hang opening multiple files
+
 4.1.4
  + MAJOR: The clipboard history is now a fully custom layer implemented system. Users maintaining a customization layer should try to update their call sites to the old clipboard API. #define FCODER_TRANSITION_TO 4001004 to disable the transitional function wrappers when you are ready to make the transition.
  + buildsuper scripts now all come with '-win' '-linux' '-mac' postfixes and pass their OS identifier macro on the build line
@@ -8,6 +14,7 @@
  + show whitespace mode implemented in 'default_render_buffer'
  + `set_face_size` and `set_face_size_this_buffer` commands
  + `HookID_WholeScreenRenderCaller` hook runs once per frame after all views render
+ + Bindings use exact matches for modifiers, instead of most recent sub-set matches
  + Extended key codes list
  + Fix: tabs are measured with the correct amount of width for the user's settings
  + Fix: virtual whitespace toggling works when the config initially diabled virtual whitespace

@@ -4,38 +4,28 @@
 
 // TOP
 
-Scratch_Block::Scratch_Block(Application_Links *app, Scratch_Share_Code share){
-    scratch_block__init(this, get_thread_context(app), share);
-}
-
 Scratch_Block::Scratch_Block(Application_Links *app){
-    scratch_block__init(this, get_thread_context(app), share_code_default);
+    Thread_Context *t = this->tctx = get_thread_context(app);
+    this->arena = tctx_reserve(t);
+    this->temp = begin_temp(this->arena);
 }
 
-////////////////////////////////
-
-internal Arena*
-reserve_arena(Application_Links *app, u64 chunk_size, u64 align){
-    Thread_Context *tctx = get_thread_context(app);
-    return(reserve_arena(tctx, chunk_size, align));
+Scratch_Block::Scratch_Block(Application_Links *app, Arena *a1){
+    Thread_Context *t = this->tctx = get_thread_context(app);
+    this->arena = tctx_reserve(t, a1);
+    this->temp = begin_temp(this->arena);
 }
 
-internal Arena*
-reserve_arena(Application_Links *app, u64 chunk_size){
-    Thread_Context *tctx = get_thread_context(app);
-    return(reserve_arena(tctx, chunk_size));
+Scratch_Block::Scratch_Block(Application_Links *app, Arena *a1, Arena *a2){
+    Thread_Context *t = this->tctx = get_thread_context(app);
+    this->arena = tctx_reserve(t, a1, a2);
+    this->temp = begin_temp(this->arena);
 }
 
-internal Arena*
-reserve_arena(Application_Links *app){
-    Thread_Context *tctx = get_thread_context(app);
-    return(reserve_arena(tctx));
-}
-
-internal void
-release_arena(Application_Links *app, Arena *arena){
-    Thread_Context *tctx = get_thread_context(app);
-    release_arena(tctx, arena);
+Scratch_Block::Scratch_Block(Application_Links *app, Arena *a1, Arena *a2, Arena *a3){
+    Thread_Context *t = this->tctx = get_thread_context(app);
+    this->arena = tctx_reserve(t, a1, a2, a3);
+    this->temp = begin_temp(this->arena);
 }
 
 // BOTTOM

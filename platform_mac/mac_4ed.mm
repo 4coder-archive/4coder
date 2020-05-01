@@ -70,6 +70,7 @@
 #include <sys/syslimits.h> // NOTE(yuval): Used for PATH_MAX
 
 #include <stdlib.h> // NOTE(yuval): Used for free
+#include <time.h> // NOTE(allen): I don't know a better way to get Date_Time data; replace if there is a Mac low-level option time.h doesn't give milliseconds
 
 #define function static
 #define internal static
@@ -174,7 +175,7 @@ struct Mac_Vars {
     
     Thread_Context *tctx;
     
-    Arena *frame_arena;
+    Arena frame_arena;
     Input_Event *active_key_stroke;
     Input_Event *active_text_input;
     Mac_Input_Chunk input_chunk;
@@ -477,6 +478,23 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_F14] = KeyCode_F14;
     keycode_lookup_table[kVK_F15] = KeyCode_F15;
     keycode_lookup_table[kVK_F16] = KeyCode_F16;
+    
+    keycode_lookup_table[kVK_ANSI_Keypad0] = KeyCode_NumPad0;
+    keycode_lookup_table[kVK_ANSI_Keypad1] = KeyCode_NumPad1;
+    keycode_lookup_table[kVK_ANSI_Keypad2] = KeyCode_NumPad2;
+    keycode_lookup_table[kVK_ANSI_Keypad3] = KeyCode_NumPad3;
+    keycode_lookup_table[kVK_ANSI_Keypad4] = KeyCode_NumPad4;
+    keycode_lookup_table[kVK_ANSI_Keypad5] = KeyCode_NumPad5;
+    keycode_lookup_table[kVK_ANSI_Keypad6] = KeyCode_NumPad6;
+    keycode_lookup_table[kVK_ANSI_Keypad7] = KeyCode_NumPad7;
+    keycode_lookup_table[kVK_ANSI_Keypad8] = KeyCode_NumPad8;
+    keycode_lookup_table[kVK_ANSI_Keypad9] = KeyCode_NumPad9;
+    
+    keycode_lookup_table[kVK_ANSI_KeypadMultiply] = KeyCode_NumPadStar;
+    keycode_lookup_table[kVK_ANSI_KeypadPlus] = KeyCode_NumPadPlus;
+    keycode_lookup_table[kVK_ANSI_KeypadMinus] = KeyCode_NumPadMinus;
+    keycode_lookup_table[kVK_ANSI_KeypadDecimal] = KeyCode_NumPadDot;
+    keycode_lookup_table[kVK_ANSI_KeypadDivide] = KeyCode_NumPadSlash;
 }
 
 ////////////////////////////////
@@ -586,7 +604,7 @@ system_post_clipboard_sig(){
     } else{
         linalloc_clear(arena);
     }
-
+    
     mac_vars.clip_post.str = push_array(arena, u8, str.size + 1);
     if (mac_vars.clip_post.str != 0){
         block_copy(mac_vars.clip_post.str, str.str, str.size);
@@ -872,7 +890,7 @@ mac_toggle_fullscreen(void){
         MacProfileScope("Cleanup"){
             mac_vars.first = false;
             
-            linalloc_clear(mac_vars.frame_arena);
+            linalloc_clear(&mac_vars.frame_arena);
             
             // NOTE(yuval): Release the global frame mutex until the next drawRect call
             system_mutex_release(mac_vars.global_frame_mutex);
@@ -914,9 +932,9 @@ mac_toggle_fullscreen(void){
             // NOTE(yuval): Check for a valid text input
             if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n') || (c == '\r')){
                 String_Const_u16 str_16 = SCu16((u16*)&c, 1);
-                String_Const_u8 str_8 = string_u8_from_string_u16(mac_vars.frame_arena, str_16).string;
+                String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
                 
-                Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+                Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_TextInsert;
                 event->text.string = str_8;
                 event->text.next_text = 0;
@@ -1066,10 +1084,10 @@ mac_toggle_fullscreen(void){
             if (key != 0){
                 add_modifier(mods, key);
                 
-                Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+                Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_KeyStroke;
                 event->key.code = key;
-                event->key.modifiers = copy_modifier_set(mac_vars.frame_arena, mods);
+                event->key.modifiers = copy_modifier_set(&mac_vars.frame_arena, mods);
                 
                 mac_vars.active_key_stroke = event;
                 
@@ -1080,10 +1098,10 @@ mac_toggle_fullscreen(void){
             mac_vars.active_text_input = 0;
             
             if (key != 0){
-                Input_Event *event = push_input_event(mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+                Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_KeyRelease;
                 event->key.code = key;
-                event->key.modifiers = copy_modifier_set(mac_vars.frame_arena, mods);
+                event->key.modifiers = copy_modifier_set(&mac_vars.frame_arena, mods);
                 
                 remove_modifier(mods, key);
             }
@@ -1145,7 +1163,7 @@ main(int arg_count, char **args){
         font_api_fill_vtable(&font_vtable);
         
         // NOTE(yuval): Memory
-        mac_vars.frame_arena = reserve_arena(mac_vars.tctx);
+        mac_vars.frame_arena = make_arena_system();
         target.arena = make_arena_system(KB(256));
         
         dll_init_sentinel(&mac_vars.free_mac_objects);
@@ -1167,7 +1185,7 @@ main(int arg_count, char **args){
         System_Library core_library = {};
         {
             App_Get_Functions *get_funcs = 0;
-            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            Scratch_Block scratch(mac_vars.tctx);
             Path_Search_List search_list = {};
             search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
             
@@ -1196,7 +1214,7 @@ main(int arg_count, char **args){
         Plat_Settings plat_settings = {};
         mac_vars.base_ptr = 0;
         {
-            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            Scratch_Block scratch(mac_vars.tctx);
             String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
             curdir = string_mod_replace_character(curdir, '\\', '/');
             char **files = 0;
@@ -1223,7 +1241,7 @@ main(int arg_count, char **args){
             char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
             char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
             
-            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            Scratch_Block scratch(mac_vars.tctx);
             String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
             Path_Search_List search_list = {};
             search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
@@ -1357,7 +1375,7 @@ main(int arg_count, char **args){
         //
         
         {
-            Scratch_Block scratch(mac_vars.tctx, Scratch_Share);
+            Scratch_Block scratch(mac_vars.tctx);
             String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
             curdir = string_mod_replace_character(curdir, '\\', '/');
             app.init(mac_vars.tctx, &target, mac_vars.base_ptr, curdir, custom);
