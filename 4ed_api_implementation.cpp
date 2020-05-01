@@ -2221,6 +2221,71 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
     }
 }
 
+api(custom) function Void_Func*
+get_custom_hook(Application_Links *app, Hook_ID hook_id){
+    Void_Func *result = 0;
+    Models *models = (Models*)app->cmd_context;
+    switch (hook_id){
+        case HookID_BufferViewerUpdate:
+        {
+            result = (Void_Func*)models->buffer_viewer_update;
+        }break;
+        case HookID_DeltaRule:
+        {
+            result = (Void_Func*)models->delta_rule;
+        }break;
+        case HookID_ViewEventHandler:
+        {
+            result = (Void_Func*)models->view_event_handler;
+        }break;
+        case HookID_Tick:
+        {
+            result = (Void_Func*)models->tick;
+        }break;
+        case HookID_RenderCaller:
+        {
+            result = (Void_Func*)models->render_caller;
+        }break;
+        case HookID_WholeScreenRenderCaller:
+        {
+            result = (Void_Func*)models->whole_screen_render_caller;
+        }break;
+        case HookID_BufferNameResolver:
+        {
+            result = (Void_Func*)models->buffer_name_resolver;
+        }break;
+        case HookID_BeginBuffer:
+        {
+            result = (Void_Func*)models->begin_buffer;
+        }break;
+        case HookID_EndBuffer:
+        {
+            result = (Void_Func*)models->end_buffer;
+        }break;
+        case HookID_NewFile:
+        {
+            result = (Void_Func*)models->new_file;
+        }break;
+        case HookID_SaveFile:
+        {
+            result = (Void_Func*)models->save_file;
+        }break;
+        case HookID_BufferEditRange:
+        {
+            result = (Void_Func*)models->buffer_edit_range;
+        }break;
+        case HookID_BufferRegion:
+        {
+            result = (Void_Func*)models->buffer_region;
+        }break;
+        case HookID_Layout:
+        {
+            result = (Void_Func*)models->layout_func;
+        }break;
+    }
+    return(result);
+}
+
 api(custom) function b32
 set_custom_hook_memory_size(Application_Links *app, Hook_ID hook_id, u64 size){
     Models *models = (Models*)app->cmd_context;

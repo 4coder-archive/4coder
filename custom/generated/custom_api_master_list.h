@@ -120,6 +120,7 @@ api(custom) function User_Input get_current_input(Application_Links* app);
 api(custom) function void set_current_input(Application_Links* app, User_Input* input);
 api(custom) function void leave_current_input_unhandled(Application_Links* app);
 api(custom) function void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
+api(custom) function Void_Func* get_custom_hook(Application_Links* app, Hook_ID hook_id);
 api(custom) function b32 set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, u64 size);
 api(custom) function Mouse_State get_mouse_state(Application_Links* app);
 api(custom) function b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);

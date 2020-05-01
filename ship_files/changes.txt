@@ -4,6 +4,7 @@
  + New Date_Time system APIs, and Date_Time string formatting
  + clean_all_lines remves trailing whitespace and removes blank lines
  + New command, clean_trailing_whitespace leaves blank lines
+ + In config.4coder "enable_output_wrapping" determine whether to wrap buffers like *compilation*, *search*, etc.
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
  + Fix: line number margin performance

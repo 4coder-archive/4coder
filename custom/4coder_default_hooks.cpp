@@ -802,8 +802,8 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     }
     
     String_Const_u8 buffer_name = push_buffer_base_name(app, scratch, buffer_id);
-    if (string_match(buffer_name, string_u8_litexpr("*compilation*"))){
-        wrap_lines = false;
+    if (buffer_name.size > 0 && buffer_name.str[0] == '*' && buffer_name.str[buffer_name.size - 1] == '*'){
+        wrap_lines = global_config.enable_output_wrapping;
     }
     
     if (use_lexer){

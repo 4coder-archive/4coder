@@ -1235,6 +1235,7 @@ config_init_default(Config_Data *config){
     config->use_comment_keyword = true;
     config->lister_whole_word_backspace_when_modified = false;
     config->show_line_number_margins = false;
+    config->enable_output_wrapping = false;
     
     config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
@@ -1301,6 +1302,7 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_bool_var(parsed, "use_comment_keyword", 0, &config->use_comment_keyword);
         config_bool_var(parsed, "lister_whole_word_backspace_when_modified", 0, &config->lister_whole_word_backspace_when_modified);
         config_bool_var(parsed, "show_line_number_margins", 0, &config->show_line_number_margins);
+        config_bool_var(parsed, "enable_output_wrapping", 0, &config->enable_output_wrapping);
         
         
         config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
@@ -1552,6 +1554,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_bool(scratch, &list, "use_comment_keyword", config->use_comment_keyword);
         config_feedback_bool(scratch, &list, "lister_whole_word_backspace_when_modified", config->lister_whole_word_backspace_when_modified);
         config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
+        config_feedback_bool(scratch, &list, "enable_output_wrapping", config->enable_output_wrapping);
         
         config_feedback_bool(scratch, &list, "enable_virtual_whitespace", config->enable_virtual_whitespace);
         config_feedback_int(scratch, &list, "virtual_whitespace_regular_indent", config->virtual_whitespace_regular_indent);

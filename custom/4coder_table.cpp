@@ -65,14 +65,17 @@ table_lookup(Table_u64_u64 *table, u64 key){
                 break;
             }
             if (table_empty_key == keys[index]){
-                result.index = index;
-                result.found_empty_slot = true;
-                result.found_erased_slot = false;
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_empty_slot = true;
+                }
                 break;
             }
-            if (table_erased_key == keys[index] && !result.found_erased_slot){
-                result.index = index;
-                result.found_erased_slot = true;
+            if (table_erased_key == keys[index]){
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_erased_slot = true;
+                }
             }
             index += 1;
             if (index >= slot_count){
@@ -229,14 +232,17 @@ table_lookup(Table_u32_u16 *table, u32 key){
                 break;
             }
             if (table_empty_u32_key == keys[index]){
-                result.index = index;
-                result.found_empty_slot = true;
-                result.found_erased_slot = false;
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_empty_slot = true;
+                }
                 break;
             }
-            if (table_erased_u32_key == keys[index] && !result.found_erased_slot){
-                result.index = index;
-                result.found_erased_slot = true;
+            if (table_erased_u32_key == keys[index]){
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_erased_slot = true;
+                }
             }
             index += 1;
             if (index >= slot_count){
@@ -392,14 +398,17 @@ table_lookup(Table_Data_u64 *table, Data key){
                 }
             }
             if (table_empty_slot == hashes[index]){
-                result.index = index;
-                result.found_empty_slot = true;
-                result.found_erased_slot = false;
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_empty_slot = true;
+                }
                 break;
             }
-            if (table_erased_slot == hashes[index] && !result.found_erased_slot){
-                result.index = index;
-                result.found_erased_slot = true;
+            if (table_erased_slot == hashes[index]){
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_erased_slot = true;
+                }
             }
             index += 1;
             if (index >= slot_count){
@@ -565,14 +574,17 @@ table_lookup(Table_u64_Data *table, u64 key){
                 break;
             }
             if (table_empty_key == keys[index]){
-                result.index = index;
-                result.found_empty_slot = true;
-                result.found_erased_slot = false;
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_empty_slot = true;
+                }
                 break;
             }
-            if (table_erased_key == keys[index] && !result.found_erased_slot){
-                result.index = index;
-                result.found_erased_slot = true;
+            if (table_erased_key == keys[index]){
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_erased_slot = true;
+                }
             }
             index += 1;
             if (index >= slot_count){
@@ -734,9 +746,10 @@ table_lookup(Table_Data_Data *table, Data key){
                 }
             }
             if (table_empty_slot == hashes[index]){
-                result.index = index;
-                result.found_empty_slot = true;
-                result.found_erased_slot = false;
+                if (!result.found_erased_slot){
+                    result.index = index;
+                    result.found_empty_slot = true;
+                }
                 break;
             }
             if (table_erased_slot == hashes[index] && !result.found_erased_slot){

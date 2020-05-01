@@ -807,7 +807,7 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
     ////////////////////////////////
     
     if (begin_doc_call(arena, cluster, api_def, "set_custom_hook", &func)){
-        doc_function_brief(arena, &func, "Modify the a global hook binding");
+        doc_function_brief(arena, &func, "Modify a global hook binding");
         
         // params
         Doc_Block *params = doc_function_begin_params(arena, &func);
@@ -818,6 +818,28 @@ doc_custom_api__global(Arena *arena, API_Definition *api_def, Doc_Cluster *clust
         
         doc_function_param(arena, &func, "func_ptr");
         doc_text(arena, params, "a pointer to the hook function, the function pointer must have a specific signature to match the hook_id's expected signature, but this call does not do the type checking for this, so watch out for that");
+        
+        // related
+        Doc_Block *rel = doc_function_begin_related(arena, &func);
+        doc_function_add_related(arena, rel, "Hook_ID");
+    }
+    
+    ////////////////////////////////
+    
+    if (begin_doc_call(arena, cluster, api_def, "get_custom_hook", &func)){
+        doc_function_brief(arena, &func, "Get back a global hook binding");
+        
+        // params
+        Doc_Block *params = doc_function_begin_params(arena, &func);
+        doc_custom_app_ptr(arena, &func);
+        
+        doc_function_param(arena, &func, "hook_id");
+        doc_text(arena, params, "the id of the hook to be modified");
+        
+        
+        // return
+        Doc_Block *ret = doc_function_return(arena, &func);
+        doc_text(arena, ret, "when the hook id is valid the function pointer to the current hook function, otherwise zero");
         
         // related
         Doc_Block *rel = doc_function_begin_related(arena, &func);

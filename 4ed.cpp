@@ -281,6 +281,9 @@ App_Init_Sig(app_init){
         { string_u8_litinit("*keyboard*"), &models->keyboard_buffer, true , },
     };
     
+    Buffer_Hook_Function *begin_buffer_func = models->begin_buffer;
+    models->begin_buffer = 0;
+    
     Heap *heap = &models->heap;
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
         Editing_File *file = working_set_allocate_file(&models->working_set, &models->lifetime_allocator);
@@ -300,6 +303,8 @@ App_Init_Sig(app_init){
         file->settings.never_kill = true;
         file_set_unimportant(file, true);
     }
+    
+    models->begin_buffer = begin_buffer_func;
     
     // NOTE(allen): setup first panel
     {
@@ -501,6 +506,18 @@ App_Step_Sig(app_step){
         event.core.flag_strings = flags;
         event.core.file_names = file_names;
         co_send_event(tctx, models, &event);
+        
+        // NOTE(allen): Actually do the buffer settings for the built ins now.
+        Buffer_Hook_Function *begin_buffer_func = models->begin_buffer;
+        if (begin_buffer_func != 0){
+            Application_Links app = {};
+            app.tctx = tctx;
+            app.cmd_context = models;
+            begin_buffer_func(&app, models->message_buffer->id);
+            begin_buffer_func(&app, models->scratch_buffer->id);
+            begin_buffer_func(&app, models->log_buffer->id);
+            begin_buffer_func(&app, models->keyboard_buffer->id);
+        }
     }
     
     // NOTE(allen): consume event stream

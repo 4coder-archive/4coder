@@ -120,6 +120,7 @@
 #define custom_set_current_input_sig() void custom_set_current_input(Application_Links* app, User_Input* input)
 #define custom_leave_current_input_unhandled_sig() void custom_leave_current_input_unhandled(Application_Links* app)
 #define custom_set_custom_hook_sig() void custom_set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr)
+#define custom_get_custom_hook_sig() Void_Func* custom_get_custom_hook(Application_Links* app, Hook_ID hook_id)
 #define custom_set_custom_hook_memory_size_sig() b32 custom_set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, u64 size)
 #define custom_get_mouse_state_sig() Mouse_State custom_get_mouse_state(Application_Links* app)
 #define custom_get_active_query_bars_sig() b32 custom_get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out)
@@ -296,6 +297,7 @@ typedef User_Input custom_get_current_input_type(Application_Links* app);
 typedef void custom_set_current_input_type(Application_Links* app, User_Input* input);
 typedef void custom_leave_current_input_unhandled_type(Application_Links* app);
 typedef void custom_set_custom_hook_type(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
+typedef Void_Func* custom_get_custom_hook_type(Application_Links* app, Hook_ID hook_id);
 typedef b32 custom_set_custom_hook_memory_size_type(Application_Links* app, Hook_ID hook_id, u64 size);
 typedef Mouse_State custom_get_mouse_state_type(Application_Links* app);
 typedef b32 custom_get_active_query_bars_type(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
@@ -473,6 +475,7 @@ custom_get_current_input_type *get_current_input;
 custom_set_current_input_type *set_current_input;
 custom_leave_current_input_unhandled_type *leave_current_input_unhandled;
 custom_set_custom_hook_type *set_custom_hook;
+custom_get_custom_hook_type *get_custom_hook;
 custom_set_custom_hook_memory_size_type *set_custom_hook_memory_size;
 custom_get_mouse_state_type *get_mouse_state;
 custom_get_active_query_bars_type *get_active_query_bars;
@@ -651,6 +654,7 @@ internal User_Input get_current_input(Application_Links* app);
 internal void set_current_input(Application_Links* app, User_Input* input);
 internal void leave_current_input_unhandled(Application_Links* app);
 internal void set_custom_hook(Application_Links* app, Hook_ID hook_id, Void_Func* func_ptr);
+internal Void_Func* get_custom_hook(Application_Links* app, Hook_ID hook_id);
 internal b32 set_custom_hook_memory_size(Application_Links* app, Hook_ID hook_id, u64 size);
 internal Mouse_State get_mouse_state(Application_Links* app);
 internal b32 get_active_query_bars(Application_Links* app, View_ID view_id, i32 max_result_count, Query_Bar_Ptr_Array* array_out);
@@ -829,6 +833,7 @@ global custom_get_current_input_type *get_current_input = 0;
 global custom_set_current_input_type *set_current_input = 0;
 global custom_leave_current_input_unhandled_type *leave_current_input_unhandled = 0;
 global custom_set_custom_hook_type *set_custom_hook = 0;
+global custom_get_custom_hook_type *get_custom_hook = 0;
 global custom_set_custom_hook_memory_size_type *set_custom_hook_memory_size = 0;
 global custom_get_mouse_state_type *get_mouse_state = 0;
 global custom_get_active_query_bars_type *get_active_query_bars = 0;

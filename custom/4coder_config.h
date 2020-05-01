@@ -201,6 +201,7 @@ struct Config_Data{
     b8 use_comment_keyword;
     b8 lister_whole_word_backspace_when_modified;
     b8 show_line_number_margins;
+    b8 enable_output_wrapping;
     
     b8 enable_virtual_whitespace;
     b8 enable_code_wrapping;

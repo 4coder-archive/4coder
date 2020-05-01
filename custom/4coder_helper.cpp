@@ -2442,6 +2442,11 @@ set_buffer_system_command(Application_Links *app, Child_Process_ID process, Buff
         clear_buffer(app, buffer);
         if (HasFlag(flags, CLI_SendEndSignal)){
             buffer_send_end_signal(app, buffer);
+            
+            Buffer_Hook_Function *begin_buffer = (Buffer_Hook_Function*)get_custom_hook(app, HookID_BeginBuffer);
+            if (begin_buffer != 0){
+                begin_buffer(app, buffer);
+            }
         }
         result = true;
     }
