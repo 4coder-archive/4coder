@@ -574,8 +574,14 @@ CUSTOM_DOC("Converts all ascii text in the range between the cursor and the mark
     view_set_cursor_and_preferred_x(app, view, seek_pos(range.max));
 }
 
+typedef i32 Clean_All_Lines_Mode;
+enum{
+    CleanAllLinesMode_RemoveBlankLines,
+    CleanAllLinesMode_LeaveBlankLines,
+};
+
 function void
-clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer){
+clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer, Clean_All_Lines_Mode mode){
     ProfileScope(app, "clean all lines");
     Scratch_Block scratch(app);
     Batch_Edit *batch_first = 0;
@@ -616,7 +622,8 @@ clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer){
                     }
                 }
                 
-                if (start_offset > 0){
+                if (mode == CleanAllLinesMode_RemoveBlankLines ||
+                    start > 0){
                     i64 start = start_offset + line_start;
                     i64 end   = end_offset   + line_start;
                     
@@ -635,12 +642,21 @@ clean_all_lines_buffer(Application_Links *app, Buffer_ID buffer){
 }
 
 CUSTOM_COMMAND_SIG(clean_all_lines)
+CUSTOM_DOC("Removes trailing whitespace from all lines and removes all blank lines in the current buffer.")
+{
+    ProfileScope(app, "clean all lines");
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    clean_all_lines_buffer(app, buffer, CleanAllLinesMode_RemoveBlankLines);
+}
+
+CUSTOM_COMMAND_SIG(clean_trailing_whitespace)
 CUSTOM_DOC("Removes trailing whitespace from all lines in the current buffer.")
 {
     ProfileScope(app, "clean all lines");
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
-    clean_all_lines_buffer(app, buffer);
+    clean_all_lines_buffer(app, buffer, CleanAllLinesMode_LeaveBlankLines);
 }
 
 ////////////////////////////////
