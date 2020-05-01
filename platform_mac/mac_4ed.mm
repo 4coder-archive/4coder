@@ -922,7 +922,8 @@ mac_toggle_fullscreen(void){
     // NOTE(yuval): Process TextInsert event
     {
         NSString *characters = [event characters];
-        if ([characters length] > 0){
+        u32 len = [characters length];
+        if (len > 0){
             // NOTE(yuval): Get the first utf-16 character
             u32 c = [characters characterAtIndex:0];
             if (c == '\r'){
@@ -930,8 +931,11 @@ mac_toggle_fullscreen(void){
             }
             
             // NOTE(yuval): Check for a valid text input
-            if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n') || (c == '\r')){
-                String_Const_u16 str_16 = SCu16((u16*)&c, 1);
+            if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n')){
+                Scratch_Block scratch(mac_vars.tctx);
+                u16 *utf16 = push_array(scratch, u16, len);
+                [characters getCharacters:utf16 range:NSMakeRange(0, len)];
+                String_Const_u16 str_16 = SCu16(utf16, len);
                 String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
                 
                 Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
@@ -1078,6 +1082,9 @@ mac_toggle_fullscreen(void){
     
     // NOTE(yuval): Process KeyStroke / KeyRelease event
     {
+        // TODO(allen): We need to make sure we're mapping from this event's key code to the
+        // universal key code value for the given key, which will be given by mapping through
+        // the physical position/scan code in the standard US keyboard.
         u16 event_key_code = [event keyCode];
         Key_Code key = keycode_lookup_table[(u8)event_key_code];
         if (down){
