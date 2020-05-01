@@ -281,11 +281,11 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
             }
             
 #define EMIT(N) \
-            Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
-                  if (line_it == lines.end){goto finished;} \
-                  actual_indent = N; )
-                
-                i64 line_it = line_last_indented;
+Stmnt(if (lines.first <= line_it){shifted_indentations[line_it]=N;} \
+if (line_it == lines.end){goto finished;} \
+actual_indent = N; )
+            
+            i64 line_it = line_last_indented;
             if (lines.first <= line_cache.where_token_starts){
                 for (;line_it < line_cache.where_token_starts;){
                     line_it += 1;
@@ -454,10 +454,21 @@ CUSTOM_DOC("Inserts text and auto-indents the line on which the cursor sits if a
         if (do_auto_indent){
             View_ID view = get_active_view(app, Access_ReadWriteVisible);
             Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+            
             Range_i64 pos = {};
-            pos.min = view_get_cursor_pos(app, view);
+            if (view_has_highlighted_range(app, view)){
+                pos = get_view_range(app, view);
+            }
+            else{
+                pos.min = pos.max = view_get_cursor_pos(app, view);
+            }
+            
             write_text_input(app);
-            pos.max= view_get_cursor_pos(app, view);
+            
+            i64 end_pos = view_get_cursor_pos(app, view);
+            pos.min = Min(pos.min, end_pos);
+            pos.max = Max(pos.max, end_pos);
+            
             auto_indent_buffer(app, buffer, pos, 0);
             move_past_lead_whitespace(app, view, buffer);
         }
