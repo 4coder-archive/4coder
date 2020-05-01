@@ -944,7 +944,7 @@ function b32
 config_compound_compound_member(Config *config, Config_Compound *compound,
                                 String_Const_u8 var_name, i32 index, Config_Compound** var_out){
     Config_Get_Result result = config_compound_member(config, compound, var_name, index);
-    b32 success = result.success && result.type == ConfigRValueType_Compound;
+    b32 success = (result.success && result.type == ConfigRValueType_Compound);
     if (success){
         *var_out = result.compound;
     }

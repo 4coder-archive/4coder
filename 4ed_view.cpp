@@ -591,11 +591,16 @@ view_init(Thread_Context *tctx, Models *models, View *view, Editing_File *initia
     Assert(view->co != 0);
 }
 
+// TODO(allen): This doesn't make any sense!!!!!! COROUTINE SHUTDOWN? VIEW CLOSING? WADAFUQ?
+
 function b32
 view_close(Models *models, View *view){
     Layout *layout = &models->layout;
     b32 result = false;
     if (layout_close_panel(layout, view->panel)){
+        if (view->co != 0){
+            models_push_wind_down(models, view->co);
+        }
         live_set_free_view(&models->lifetime_allocator, &models->view_set, view);
         result = true;
     }
@@ -613,6 +618,8 @@ view_check_co_exited(Models *models, View *view){
         Assert(result);
     }
 }
+
+// TODO(allen): This is dumb. Let's rethink view cleanup strategy.
 
 internal void
 co_single_abort(Thread_Context *tctx, Models *models, View *view){

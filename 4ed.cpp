@@ -746,6 +746,36 @@ App_Step_Sig(app_step){
         end_render_section(target);
     }
     
+    // TODO(allen): This is dumb. Let's rethink view cleanup strategy.
+    // NOTE(allen): wind down coroutines
+    for (;;){
+        Model_Wind_Down_Co *node = models->wind_down_stack;
+        if (node == 0){
+            break;
+        }
+        sll_stack_pop(models->wind_down_stack);
+        Coroutine *co = node->co;
+        
+        for (i32 j = 0; co != 0; j += 1){
+            Co_In in = {};
+            in.user_input.abort = true;
+            Co_Out ignore = {};
+            co = co_run(tctx, models, co, &in, &ignore);
+            if (j == 100){
+                Application_Links app = {};
+                app.tctx = tctx;
+                app.cmd_context = models;
+#define M "SERIOUS ERROR: coroutine wind down did not complete"
+                print_message(&app, string_u8_litexpr(M));
+#undef M
+                break;
+            }
+        }
+        
+        sll_stack_push(models->free_wind_downs, node);
+    }
+    
+    
     // NOTE(allen): flush the log
     log_flush(tctx, models);
     

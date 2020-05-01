@@ -44,6 +44,11 @@ struct Model_Input_Event_Node{
     Input_Event event;
 };
 
+struct Model_Wind_Down_Co{
+    Model_Wind_Down_Co *next;
+    Coroutine *co;
+};
+
 struct Models{
     Arena arena_;
     Arena *arena;
@@ -55,6 +60,8 @@ struct Models{
     Face_ID global_face_id;
     
     Coroutine_Group coroutines;
+    Model_Wind_Down_Co *wind_down_stack;
+    Model_Wind_Down_Co *free_wind_downs;
     
     Child_Process_Container child_processes;
     Custom_API config_api;

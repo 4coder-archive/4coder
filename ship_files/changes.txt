@@ -5,7 +5,9 @@
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
  + Fix: line number margin performance
- + Fix: crash in notepade like mode when replacing a highlighted range in a parsed file
+ + Fix: no crash in notepade like mode when replacing a highlighted range in a parsed file
+ + Fix: no thread handle leak when closing a view
+ + Fix: no crash when a project file .cmd is not the right type
 
 4.1.4
  + MAJOR: The clipboard history is now a fully custom layer implemented system. Users maintaining a customization layer should try to update their call sites to the old clipboard API. #define FCODER_TRANSITION_TO 4001004 to disable the transitional function wrappers when you are ready to make the transition.

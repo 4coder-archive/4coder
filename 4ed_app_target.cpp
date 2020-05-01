@@ -108,6 +108,7 @@
 #include "4ed_font_set.cpp"
 #include "4ed_translation.cpp"
 #include "4ed_render_target.cpp"
+#include "4ed_app_models.cpp"
 #include "4ed_buffer.cpp"
 #include "4ed_string_matching.cpp"
 #include "4ed_history.cpp"
