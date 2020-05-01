@@ -1107,25 +1107,25 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
                 {
-                        switch (vk){
-						    case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
-                            {
-                                if (is_right){
-                                    controls->r_ctrl = down;
-                                }
-                                else{
-                                    controls->l_ctrl = down;
-                                }
-                            }break;
-							case VK_MENU:case VK_LMENU:case VK_RMENU:
-                            {
-                                if (is_right){
-                                    controls->r_alt = down;
-                                }
-                                else{
-                                    controls->l_alt = down;
-                                }
-                            }break;
+                    switch (vk){
+                        case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
+                        {
+                            if (is_right){
+                                controls->r_ctrl = down;
+                            }
+                            else{
+                                controls->l_ctrl = down;
+                            }
+                        }break;
+                        case VK_MENU:case VK_LMENU:case VK_RMENU:
+                        {
+                            if (is_right){
+                                controls->r_alt = down;
+                            }
+                            else{
+                                controls->l_alt = down;
+                            }
+                        }break;
                     }
                 }break;
             }
@@ -1245,6 +1245,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_LBUTTONDOWN:
         {
+            SetCapture(hwnd);
             win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_l_press = true;
             win32vars.input_chunk.pers.mouse_l = true;
@@ -1252,6 +1253,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_RBUTTONDOWN:
         {
+            SetCapture(hwnd);
             win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_r_press = true;
             win32vars.input_chunk.pers.mouse_r = true;
@@ -1259,6 +1261,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_LBUTTONUP:
         {
+            ReleaseCapture();
             win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_l_release = true;
             win32vars.input_chunk.pers.mouse_l = false;
@@ -1266,6 +1269,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_RBUTTONUP:
         {
+            ReleaseCapture();
             win32vars.got_useful_event = true;
             win32vars.input_chunk.trans.mouse_r_release = true;
             win32vars.input_chunk.pers.mouse_r = false;
@@ -1274,6 +1278,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_KILLFOCUS:
         case WM_SETFOCUS:
         {
+            ReleaseCapture();
             win32vars.got_useful_event = true;
             win32vars.input_chunk.pers.mouse_l = false;
             win32vars.input_chunk.pers.mouse_r = false;
