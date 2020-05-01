@@ -151,6 +151,8 @@ struct Win32_Vars{
     b8 lctrl_lalt_is_altgr;
     b8 got_useful_event;
     
+    HKL kl_universal;
+    
     b8 full_screen;
     b8 do_toggle;
     WINDOWPLACEMENT bordered_win_pos;
@@ -1095,16 +1097,18 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             b8 down = !release;
             b8 is_right = HasFlag(lParam, bit_25);
             
+            UINT scan_code = ((lParam >> 16) & bitmask_8);
+            UINT vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, win32vars.kl_universal);
+            
             Input_Modifier_Set_Fixed *mods = &win32vars.input_chunk.pers.modifiers;
             
             Control_Keys *controls = &win32vars.input_chunk.pers.controls;
-            switch (wParam){
+            switch (vk){
                 case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
                 {
-                    if (wParam != 255){
-                        switch (wParam){
-                            case VK_CONTROL:
+                        switch (vk){
+						    case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                             {
                                 if (is_right){
                                     controls->r_ctrl = down;
@@ -1113,7 +1117,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                                     controls->l_ctrl = down;
                                 }
                             }break;
-                            case VK_MENU:
+							case VK_MENU:case VK_LMENU:case VK_RMENU:
                             {
                                 if (is_right){
                                     controls->r_alt = down;
@@ -1122,11 +1126,10 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                                     controls->l_alt = down;
                                 }
                             }break;
-                        }
                     }
                 }break;
             }
-            
+			
             b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
             b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
             if (win32vars.lctrl_lalt_is_altgr && controls->l_alt && controls->l_ctrl){
@@ -1141,7 +1144,7 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 set_modifier(mods, KeyCode_Shift, shift);
             }
             
-            Key_Code key = keycode_lookup_table[(u8)wParam];
+            Key_Code key = keycode_lookup_table[(u8)vk];
             if (down){
                 if (key != 0){
                     add_modifier(mods, key);
@@ -1774,6 +1777,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     
+    win32vars.kl_universal = LoadKeyboardLayoutW(L"00000409", 0);
     win32_keycode_init();
     
     win32vars.cursor_ibeam = LoadCursor(NULL, IDC_IBEAM);
