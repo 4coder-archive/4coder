@@ -534,27 +534,25 @@ get_token_color_cpp(Token token){
         {
             color = defcolor_float_constant;
         }break;
-        default:
+    }
+    // specifics override generals
+    switch (token.sub_kind){
+        case TokenCppKind_LiteralTrue:
+        case TokenCppKind_LiteralFalse:
         {
-            switch (token.sub_kind){
-                case TokenCppKind_LiteralTrue:
-                case TokenCppKind_LiteralFalse:
-                {
-                    color = defcolor_bool_constant;
-                }break;
-                case TokenCppKind_LiteralCharacter:
-                case TokenCppKind_LiteralCharacterWide:
-                case TokenCppKind_LiteralCharacterUTF8:
-                case TokenCppKind_LiteralCharacterUTF16:
-                case TokenCppKind_LiteralCharacterUTF32:
-                {
-                    color = defcolor_char_constant;
-                }break;
-                case TokenCppKind_PPIncludeFile:
-                {
-                    color = defcolor_include;
-                }break;
-            }
+            color = defcolor_bool_constant;
+        }break;
+        case TokenCppKind_LiteralCharacter:
+        case TokenCppKind_LiteralCharacterWide:
+        case TokenCppKind_LiteralCharacterUTF8:
+        case TokenCppKind_LiteralCharacterUTF16:
+        case TokenCppKind_LiteralCharacterUTF32:
+        {
+            color = defcolor_char_constant;
+        }break;
+        case TokenCppKind_PPIncludeFile:
+        {
+            color = defcolor_include;
         }break;
     }
     return(fcolor_id(color));
