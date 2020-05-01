@@ -4,6 +4,7 @@
  + New Date_Time system APIs, and Date_Time string formatting
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
+ + Fix: line number margin performance
 
 4.1.4
  + MAJOR: The clipboard history is now a fully custom layer implemented system. Users maintaining a customization layer should try to update their call sites to the old clipboard API. #define FCODER_TRANSITION_TO 4001004 to disable the transitional function wrappers when you are ready to make the transition.

@@ -107,14 +107,21 @@ push_fancy_line(Fancy_Block *block, Fancy_Line *line){
 ////////////////////////////////
 
 function Fancy_String*
+fill_fancy_string(Fancy_String *ptr, Face_ID face, FColor fore, f32 pre_margin, f32 post_margin,
+                  String_Const_u8 value){
+    ptr->value = value;
+    ptr->face = face;
+    ptr->fore = fore;
+    ptr->pre_margin = pre_margin;
+    ptr->post_margin = post_margin;
+    return(ptr);
+}
+
+function Fancy_String*
 push_fancy_string(Arena *arena, Fancy_Line *line, Face_ID face, FColor fore,
                   f32 pre_margin, f32 post_margin, String_Const_u8 value){
     Fancy_String *result = push_array_zero(arena, Fancy_String, 1);
-    result->value = value;
-    result->face = face;
-    result->fore = fore;
-    result->pre_margin = pre_margin;
-    result->post_margin = post_margin;
+    fill_fancy_string(result, face, fore, pre_margin, post_margin, value);
     if (line != 0){
         push_fancy_string(line, result);
     }

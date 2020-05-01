@@ -378,33 +378,73 @@ draw_query_bar(Application_Links *app, Query_Bar *query_bar, Face_ID face_id, Re
 
 function void
 draw_line_number_margin(Application_Links *app, View_ID view_id, Buffer_ID buffer, Face_ID face_id, Text_Layout_ID text_layout_id, Rect_f32 margin){
+    ProfileScope(app, "draw line number margin");
+    
+    Scratch_Block scratch(app);
+    FColor line_color = fcolor_id(defcolor_line_numbers_text);
+    
     Rect_f32 prev_clip = draw_set_clip(app, margin);
     draw_rectangle_fcolor(app, margin, 0.f, fcolor_id(defcolor_line_numbers_back));
     
     Range_i64 visible_range = text_layout_get_visible_range(app, text_layout_id);
-    
-    FColor line_color = fcolor_id(defcolor_line_numbers_text);
-    
     i64 line_count = buffer_get_line_count(app, buffer);
     i64 line_count_digit_count = digit_count_from_integer(line_count, 10);
     
-    Scratch_Block scratch(app);
+    Fancy_String fstring = {};
+    u8 *digit_buffer = push_array(scratch, u8, line_count_digit_count);
+    String_Const_u8 digit_string = SCu8(digit_buffer, line_count_digit_count);
+    for (i32 i = 0; i < line_count_digit_count; i += 1){
+        digit_buffer[i] = ' ';
+    }
     
     Buffer_Cursor cursor = view_compute_cursor(app, view_id, seek_pos(visible_range.first));
     i64 line_number = cursor.line;
-    for (;cursor.pos <= visible_range.one_past_last;){
-        if (line_number > line_count){
-            break;
+    
+    Buffer_Cursor cursor_opl = view_compute_cursor(app, view_id, seek_pos(visible_range.one_past_last));
+    i64 one_past_last_line_number = cursor_opl.line + 1;
+    
+    u8 *small_digit = digit_buffer + line_count_digit_count - 1;
+    {
+        u8 *ptr = small_digit;
+        if (line_number == 0){
+            *ptr = '0';
         }
+        else{
+            for (u64 X = line_number; X > 0; X /= 10){
+                *ptr = '0' + (X%10);
+                ptr -= 1;
+            }
+        }
+    }
+    
+    for (;line_number < one_past_last_line_number &&
+         line_number < line_count;){
         Range_f32 line_y = text_layout_line_on_screen(app, text_layout_id, line_number);
         Vec2_f32 p = V2f32(margin.x0, line_y.min);
-        Temp_Memory_Block temp(scratch);
-        Fancy_String *string = push_fancy_stringf(scratch, 0, line_color,
-                                                  "%*lld",
-                                                  line_count_digit_count,
-                                                  line_number);
-        draw_fancy_string(app, face_id, fcolor_zero(), string, p);
+        
+        fill_fancy_string(&fstring, 0, line_color, 0, 0, digit_string);
+        draw_fancy_string(app, face_id, fcolor_zero(), &fstring, p);
+        
         line_number += 1;
+        {
+            u8 *ptr = small_digit;
+            for (;;){
+                if (ptr < digit_buffer){
+                    break;
+                }
+                if (*ptr == ' '){
+                    *ptr = '0';
+                }
+                if (*ptr == '9'){
+                    *ptr = '0';
+                    ptr -= 1;
+                }
+                else{
+                    *ptr += 1;
+                    break;
+                }
+            }
+        }
     }
     
     draw_set_clip(app, prev_clip);
