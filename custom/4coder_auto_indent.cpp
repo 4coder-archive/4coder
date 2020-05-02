@@ -387,16 +387,15 @@ auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos, Inde
     return(result);
 }
 
-global_const i32 auto_indent_tab_width = 4;
-
 function void
 auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos, Indent_Flag flags){
     i32 indent_width = global_config.indent_width;
+    i32 tab_width = global_config.default_tab_width;
     AddFlag(flags, Indent_FullTokens);
     if (global_config.indent_with_tabs){
         AddFlag(flags, Indent_UseTab);
     }
-    auto_indent_buffer(app, buffer, pos, flags, indent_width, auto_indent_tab_width);
+    auto_indent_buffer(app, buffer, pos, flags, indent_width, tab_width);
 }
 
 function void

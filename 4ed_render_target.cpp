@@ -248,13 +248,14 @@ draw_string(Render_Target *target, Face *face, String_Const_u8 string, Vec2_f32 
                 if (behavior.do_codepoint_advance){
                     u32 codepoint = step.value;
                     if (color != 0){
-                    u32 draw_codepoint = step.value;
-                    if (draw_codepoint == '\t'){
-                        draw_codepoint = ' ';
-                    }
+                        u32 draw_codepoint = step.value;
+                        if (draw_codepoint == '\t'){
+                            draw_codepoint = ' ';
+                        }
                         draw_font_glyph(target, face, draw_codepoint, point, color, flags);
                     }
-                    f32 d = font_get_glyph_advance(&face->advance_map, &face->metrics, codepoint);
+                    local_const f32 internal_tab_width = 4.f;
+                    f32 d = font_get_glyph_advance(&face->advance_map, &face->metrics, codepoint, internal_tab_width);
                     point += d*delta;
                     total_delta += d;
                 }

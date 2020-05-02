@@ -41,6 +41,7 @@ automatically_load_project = false;
 // Indentation
 indent_with_tabs = false;
 indent_width = 4;
+default_tab_width = 4;
 
 // Theme
 default_theme_name = "4coder";

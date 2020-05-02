@@ -2475,5 +2475,24 @@ exec_system_command(Application_Links *app, View_ID view, Buffer_Identifier buff
 
 // TODO(allen): --- end ---
 
+////////////////////////////////
+
+function f32
+font_get_glyph_advance(Face_Advance_Map *map, Face_Metrics *metrics, u32 codepoint){
+    return(font_get_glyph_advance(map, metrics, codepoint, (f32)global_config.default_tab_width));
+}
+function f32
+font_get_max_glyph_advance_range(Face_Advance_Map *map, Face_Metrics *metrics,
+                                 u32 codepoint_first, u32 codepoint_last){
+    return(font_get_max_glyph_advance_range(map, metrics, codepoint_first, codepoint_last,
+                                            (f32)global_config.default_tab_width));
+}
+function f32
+font_get_average_glyph_advance_range(Face_Advance_Map *map, Face_Metrics *metrics,
+                                     u32 codepoint_first, u32 codepoint_last){
+    return(font_get_average_glyph_advance_range(map, metrics, codepoint_first, codepoint_last,
+                                                (f32)global_config.default_tab_width));
+}
+
 // BOTTOM
 

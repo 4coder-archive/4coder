@@ -1247,6 +1247,7 @@ config_init_default(Config_Data *config){
     
     config->indent_with_tabs = false;
     config->indent_width = 4;
+    config->default_tab_width = 4;
     
     config->default_theme_name = SCu8(config->default_theme_name_space, sizeof("4coder") - 1);
     block_copy(config->default_theme_name.str, "4coder", config->default_theme_name.size);
@@ -1315,6 +1316,7 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         
         config_bool_var(parsed, "indent_with_tabs", 0, &config->indent_with_tabs);
         config_int_var(parsed, "indent_width", 0, &config->indent_width);
+        config_int_var(parsed, "default_tab_width", 0, &config->default_tab_width);
         
         config_fixed_string_var(parsed, "default_theme_name", 0,
                                 &config->default_theme_name, config->default_theme_name_space);
@@ -1565,6 +1567,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         
         config_feedback_bool(scratch, &list, "indent_with_tabs", config->indent_with_tabs);
         config_feedback_int(scratch, &list, "indent_width", config->indent_width);
+        config_feedback_int(scratch, &list, "default_tab_width", config->default_tab_width);
         
         config_feedback_string(scratch, &list, "default_theme_name", config->default_theme_name);
         config_feedback_bool(scratch, &list, "highlight_line_at_cursor", config->highlight_line_at_cursor);

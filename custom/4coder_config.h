@@ -202,6 +202,7 @@ struct Config_Data{
     b8 lister_whole_word_backspace_when_modified;
     b8 show_line_number_margins;
     b8 enable_output_wrapping;
+    b8 indent_with_tabs;
     
     b8 enable_virtual_whitespace;
     b8 enable_code_wrapping;
@@ -211,8 +212,8 @@ struct Config_Data{
     
     i32 virtual_whitespace_regular_indent;
     
-    b8 indent_with_tabs;
     i32 indent_width;
+    i32 default_tab_width;
     
     u8 default_theme_name_space[256];
     String_Const_u8 default_theme_name;

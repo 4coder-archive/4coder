@@ -325,15 +325,15 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
         {
             Face_Advance_Map *advance_map = &face->advance_map;
             
-            met->space_advance = font_get_glyph_advance(advance_map, met, ' ');
+            met->space_advance = font_get_glyph_advance(advance_map, met, ' ', 0);
             met->decimal_digit_advance =
-                font_get_max_glyph_advance_range(advance_map, met, '0', '9');
+                font_get_max_glyph_advance_range(advance_map, met, '0', '9', 0);
             met->hex_digit_advance =
-                font_get_max_glyph_advance_range(advance_map, met, 'A', 'F');
+                font_get_max_glyph_advance_range(advance_map, met, 'A', 'F', 0);
             met->hex_digit_advance =
                 Max(met->hex_digit_advance, met->decimal_digit_advance);
             met->byte_sub_advances[0] =
-                font_get_glyph_advance(advance_map, met, '\\');
+                font_get_glyph_advance(advance_map, met, '\\', 0);
             met->byte_sub_advances[1] = met->hex_digit_advance;
             met->byte_sub_advances[2] = met->hex_digit_advance;
             met->byte_advance =
@@ -341,9 +341,9 @@ ft__font_make_face(Arena *arena, Face_Description *description, f32 scale_factor
                 met->byte_sub_advances[1] +
                 met->byte_sub_advances[2];
             met->normal_lowercase_advance =
-                font_get_average_glyph_advance_range(advance_map, met, 'a', 'z');
+                font_get_average_glyph_advance_range(advance_map, met, 'a', 'z', 0);
             met->normal_uppercase_advance =
-                font_get_average_glyph_advance_range(advance_map, met, 'A', 'Z');
+                font_get_average_glyph_advance_range(advance_map, met, 'A', 'Z', 0);
             met->normal_advance = (26*met->normal_lowercase_advance +
                                    26*met->normal_uppercase_advance +
                                    10*met->decimal_digit_advance)/62.f;
