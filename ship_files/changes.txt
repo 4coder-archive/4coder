@@ -6,6 +6,7 @@
  + 'clean_trailing_whitespace' leaves blank lines
  + In config.4coder "enable_output_wrapping" determine whether to wrap buffers like *compilation*, *search*, etc.
  + In config.4coder "default_tab_width" determines the width of a tab character in number of spaces
+ + In config.4coder "cursor_roundness" "lister_roundness" "mark_thickness"
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
  + Fix: line number margin performance

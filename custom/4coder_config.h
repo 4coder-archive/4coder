@@ -210,6 +210,10 @@ struct Config_Data{
     b8 automatically_save_changes_on_build;
     b8 automatically_load_project;
     
+    f32 cursor_roundness;
+    f32 mark_thickness;
+    f32 lister_roundness;
+    
     i32 virtual_whitespace_regular_indent;
     
     i32 indent_width;

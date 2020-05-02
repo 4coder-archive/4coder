@@ -304,8 +304,9 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             highlight = UIHighlight_Hover;
         }
         
-        draw_rectangle_fcolor(app, item_rect, 6.f, get_item_margin_color(highlight));
-        draw_rectangle_fcolor(app, item_inner, 6.f, get_item_margin_color(highlight, 1));
+        f32 roundness = block_height*global_config.lister_roundness;
+        draw_rectangle_fcolor(app, item_rect, roundness, get_item_margin_color(highlight));
+        draw_rectangle_fcolor(app, item_inner, roundness, get_item_margin_color(highlight, 1));
         
         Fancy_Line line = {};
         push_fancy_string(scratch, &line, fcolor_id(defcolor_text_default), node->string);

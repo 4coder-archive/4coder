@@ -1243,6 +1243,10 @@ config_init_default(Config_Data *config){
     config->automatically_save_changes_on_build = true;
     config->automatically_load_project = false;
     
+    config->cursor_roundness = .45f;
+    config->mark_thickness = 2.f;
+    config->lister_roundness = .45f;
+    
     config->virtual_whitespace_regular_indent = 4;
     
     config->indent_with_tabs = false;
@@ -1311,6 +1315,19 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
         config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
         config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
+        
+        {
+            i32 x = 0;
+            if (config_int_var(parsed, "cursor_roundness", 0, &x)){
+                config->cursor_roundness = ((f32)x)*0.01f;
+            }
+            if (config_int_var(parsed, "mark_thickness", 0, &x)){
+                config->mark_thickness = (f32)x;
+            }
+            if (config_int_var(parsed, "lister_roundness", 0, &x)){
+                config->lister_roundness = ((f32)x)*0.01f;
+            }
+        }
         
         config_int_var(parsed, "virtual_whitespace_regular_indent", 0, &config->virtual_whitespace_regular_indent);
         
@@ -1557,6 +1574,10 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_bool(scratch, &list, "lister_whole_word_backspace_when_modified", config->lister_whole_word_backspace_when_modified);
         config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
         config_feedback_bool(scratch, &list, "enable_output_wrapping", config->enable_output_wrapping);
+        
+        config_feedback_int(scratch, &list, "cursor_roundness", (i32)(config->cursor_roundness*100.f));
+        config_feedback_int(scratch, &list, "mark_thickness", (i32)(config->mark_thickness));
+        config_feedback_int(scratch, &list, "lister_roundness", (i32)(config->lister_roundness*100.f));
         
         config_feedback_bool(scratch, &list, "enable_virtual_whitespace", config->enable_virtual_whitespace);
         config_feedback_int(scratch, &list, "virtual_whitespace_regular_indent", config->virtual_whitespace_regular_indent);
