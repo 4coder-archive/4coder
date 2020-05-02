@@ -456,6 +456,7 @@ build_language_model(void){
     ////
     
     sm_select_state(error_body);
+    sm_case("\r", error_body);
     {
         Emit_Rule *emit = sm_emit_rule();
         sm_emit_handler_direct("PPErrorMessage");
@@ -471,6 +472,7 @@ build_language_model(void){
     ////
     
     sm_select_state(backslash);
+    sm_case("\r", backslash);
     {
         Emit_Rule *emit = sm_emit_rule();
         sm_emit_handler_direct("Backslash");

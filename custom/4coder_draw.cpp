@@ -555,7 +555,8 @@ get_token_color_cpp(Token token){
             color = defcolor_include;
         }break;
     }
-    return(fcolor_id(color));
+    FColor result = fcolor_id(color);
+    return(result);
 }
 
 function void
