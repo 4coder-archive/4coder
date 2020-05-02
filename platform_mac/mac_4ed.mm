@@ -714,6 +714,14 @@ mac_toggle_fullscreen(void){
     MacProfileScope("Draw Rect"){
         mac_vars.step_requested = false;
         
+        // NOTE(yuval): Toggle full screen
+        MacProfileScope("Toggle Full Screen"){
+            if (mac_vars.do_toggle){
+                mac_toggle_fullscreen();
+                mac_vars.do_toggle = false;
+            }
+        }
+        
         MacProfileScope("Acquire Frame Mutex"){
             // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
             system_mutex_acquire(mac_vars.global_frame_mutex);
@@ -1440,7 +1448,7 @@ main(int arg_count, char **args){
         mac_vars.running_cli = 0;
         
         if (plat_settings.fullscreen_window){
-            mac_toggle_fullscreen();
+            mac_vars.do_toggle = true;
         }
         
         mac_vars.global_frame_mutex = system_mutex_make();
