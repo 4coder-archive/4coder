@@ -919,7 +919,7 @@ mac_toggle_fullscreen(void){
     // NOTE(yuval): Process keyboard event
     [self process_keyboard_event:event down:true];
     
-    [self interpretKeyEvents:[NSArray arrayWithObject:event]]
+    [self interpretKeyEvents:[NSArray arrayWithObject:event]];
     
 #if 0
     // NOTE(yuval): Process TextInsert event
