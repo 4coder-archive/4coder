@@ -916,7 +916,7 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)insertText:(NSString*)text{
-    u32 len = [characters length];
+    u32 len = [text length];
     Scratch_Block scratch(mac_vars.tctx);
     u16 *utf16 = push_array(scratch, u16, len);
     [text getCharacters:utf16 range:NSMakeRange(0, len)];
