@@ -1040,9 +1040,18 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)scrollWheel:(NSEvent *)event{
-    f32 dx = event.scrollingDeltaX;
     f32 dy = event.scrollingDeltaY;
-    mac_vars.input_chunk.trans.mouse_wheel = (i32)(-dy*mac_vars.screen_scale_factor);
+    if ([event hasPreciseScrollingDeltas]){
+        mac_vars.input_chunk.trans.mouse_wheel = (i32)(-dy);
+    }
+    else{
+        if (dy > 0){
+            mac_vars.input_chunk.trans.mouse_wheel = -100;
+        }
+        else{
+            mac_vars.input_chunk.trans.mouse_wheel = 100;
+        }
+    }
     system_signal_step(0);
 }
 
