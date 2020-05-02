@@ -355,7 +355,7 @@ system_get_keyboard_modifiers_sig(){
 
 internal String_Const_u8
 win32_read_clipboard_contents(Thread_Context *tctx, Arena *arena){
-    Scratch_Block scratch(tctx);
+    Scratch_Block scratch(tctx, arena);
     
     String_Const_u8 result = {};
     

@@ -1004,7 +1004,7 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     if(!linuxvars.xkb) {
         system_error_box("Error getting XKB keyboard map.");
     }
-
+    
     if(XkbGetNames(linuxvars.dpy, XkbKeyNamesMask, linuxvars.xkb) != Success) {
         system_error_box("Error getting XKB key names.");
     }
@@ -1058,9 +1058,9 @@ linux_keycode_init(Display* dpy){
     
     for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
         const char* name = linuxvars.xkb->names->keys[i].name;
-
+        
         // alphanumeric keys
-
+        
         if(name[0] == 'A' && name[1] >= 'B' && name[1] <= 'E') {
             int row = (nrows - 1) - (name[1] - 'B');
             int col = (name[2] - '0') * 10 + (name[3] - '0') - 1;
@@ -1071,7 +1071,7 @@ linux_keycode_init(Display* dpy){
         }
         
         // numpad
-
+        
         else if(name[0] == 'K' && name[1] == 'P' && name[2] >= '0' && name[2] <= '9' && !name[3]) {
             keycode_lookup_table[i] = KeyCode_NumPad0 + name[2] - '0';
         }
@@ -1141,10 +1141,10 @@ linux_keycode_init(Display* dpy){
     
     const int table_size = p - sym_table;
     Assert(table_size < ArrayCount(sym_table));
-
+    
     Key_Code next_extra = KeyCode_Ex1;
     const Key_Code max_extra = KeyCode_Ex29;
-
+    
     for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
         KeySym sym = NoSymbol;
         
@@ -1152,7 +1152,7 @@ linux_keycode_init(Display* dpy){
         if(!XkbTranslateKeyCode(linuxvars.xkb, i, XkbBuildCoreState(0, linuxvars.xkb_group), NULL, &sym)) {
             continue;
         }
-
+        
         int j;
         for(j = 0; j < table_size; ++j) {
             if(sym_table[j].sym == sym) {
@@ -1160,7 +1160,7 @@ linux_keycode_init(Display* dpy){
                 break;
             }
         }
-
+        
         // something unknown bound, put it in extra
         if(j == table_size && sym != NoSymbol && next_extra <= max_extra && keycode_lookup_table[i] == 0) {
             keycode_lookup_table[i] = next_extra++;
@@ -1306,7 +1306,7 @@ system_post_clipboard(String_Const_u8 str, i32 index){
     // TODO(inso): index?
     //LINUX_FN_DEBUG("%.*s", string_expand(str));
     linalloc_clear(&linuxvars.clipboard_arena);
-    linuxvars.clipboard_contents = push_u8_stringf(&linuxvars.clipboard_arena, "%.*s", str.size, str.str);
+    linuxvars.clipboard_contents = push_u8_stringf(&linuxvars.clipboard_arena, "%.*s", string_expand(str));
     XSetSelectionOwner(linuxvars.dpy, linuxvars.atom_CLIPBOARD, linuxvars.win, CurrentTime);
 }
 
