@@ -275,6 +275,11 @@ get_indentation_array(Application_Links *app, Arena *arena, Buffer_ID buffer, Ra
                     }break;
                 }
                 
+                if (token->sub_kind == TokenCppKind_BlockComment ||
+                    token->sub_kind == TokenCppKind_LiteralStringRaw){
+                    ignore_unfinished_statement = true;
+                }
+                
                 if (in_unfinished_statement && !ignore_unfinished_statement){
                     this_indent += indent_width;
                 }
