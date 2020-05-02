@@ -914,7 +914,7 @@ mac_toggle_fullscreen(void){
 - (BOOL)resignFirstResponder{
     return(YES);
 }
-
+#if 0
 - (void)insertText:(NSString*)text{
     u32 len = [text length];
     Scratch_Block scratch(mac_vars.tctx);
@@ -943,15 +943,11 @@ mac_toggle_fullscreen(void){
     
     system_signal_step(0);
 }
-
+#endif
 - (void)keyDown:(NSEvent*)event{
     // NOTE(yuval): Process keyboard event
     [self process_keyboard_event:event down:true];
     
-    [self interpretKeyEvents:[NSArray arrayWithObject:event]];
-    
-    
-#if 0
     // NOTE(yuval): Process TextInsert event
     {
         NSString *characters = [event characters];
@@ -993,7 +989,6 @@ mac_toggle_fullscreen(void){
             }
         }
     }
-#endif
 }
 
 - (void)keyUp:(NSEvent*)event{
@@ -1047,7 +1042,7 @@ mac_toggle_fullscreen(void){
 - (void)scrollWheel:(NSEvent *)event{
     f32 dx = event.scrollingDeltaX;
     f32 dy = event.scrollingDeltaY;
-    mac_vars.input_chunk.trans.mouse_wheel = (i32)(-dy);
+    mac_vars.input_chunk.trans.mouse_wheel = (i32)(-dy*mac_vars.screen_scale_factor);
     system_signal_step(0);
 }
 

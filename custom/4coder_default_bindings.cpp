@@ -25,7 +25,11 @@ custom_layer_init(Application_Links *app){
     // NOTE(allen): default hooks and command maps
     set_all_default_hooks(app);
     mapping_init(tctx, &framework_mapping);
+#if OS_MAC
+    setup_mac_mapping(&framework_mapping, mapid_global, mapid_file, mapid_code);
+#else
     setup_default_mapping(&framework_mapping, mapid_global, mapid_file, mapid_code);
+#endif
 }
 
 #endif //FCODER_DEFAULT_BINDINGS

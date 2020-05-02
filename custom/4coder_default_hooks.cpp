@@ -1046,15 +1046,11 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_Tick, default_tick);
     set_custom_hook(app, HookID_RenderCaller, default_render_caller);
     set_custom_hook(app, HookID_WholeScreenRenderCaller, default_whole_screen_render_caller);
-#if 0
-    set_custom_hook(app, HookID_DeltaRule, original_delta);
-    set_custom_hook_memory_size(app, HookID_DeltaRule,
-                                delta_ctx_size(original_delta_memory_size));
-#else
+    
     set_custom_hook(app, HookID_DeltaRule, fixed_time_cubic_delta);
     set_custom_hook_memory_size(app, HookID_DeltaRule,
                                 delta_ctx_size(fixed_time_cubic_delta_memory_size));
-#endif
+    
     set_custom_hook(app, HookID_BufferNameResolver, default_buffer_name_resolution);
     
     set_custom_hook(app, HookID_BeginBuffer, default_begin_buffer);
