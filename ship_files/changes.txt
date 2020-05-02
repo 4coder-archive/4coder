@@ -22,6 +22,7 @@
  + Fix: on mac full screen flag -F does not cause a crash
  + Fix: auto-indenting multi-line tokens does not shift them for being in incomplete statements.
  + Fix: lexer does not exit a line continuation from backslash when it is followed by a CR
+ + Fix: lexer understands backslash at end of single line comment as continuation to next line
 
 4.1.4
  + MAJOR: The clipboard history is now a fully custom layer implemented system. Users maintaining a customization layer should try to update their call sites to the old clipboard API. #define FCODER_TRANSITION_TO 4001004 to disable the transitional function wrappers when you are ready to make the transition.

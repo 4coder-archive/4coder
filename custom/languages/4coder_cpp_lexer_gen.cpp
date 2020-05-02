@@ -352,6 +352,7 @@ build_language_model(void){
     AddState(comment_block_try_close);
     AddState(comment_block_newline);
     AddState(comment_line);
+    AddState(comment_line_backslashing);
     
     Operator_Set *main_ops_without_dot_or_slash = smo_copy_op_set(main_ops);
     smo_remove_ops_with_prefix(main_ops_without_dot_or_slash, ".");
@@ -1131,6 +1132,11 @@ build_language_model(void){
         sm_emit_handler_direct("LineComment");
         sm_case_eof_peek(emit);
     }
+    sm_case("\\", comment_line_backslashing);
+    sm_fallback(comment_line);
+    
+    sm_select_state(comment_line_backslashing);
+    sm_case("\r", comment_line_backslashing);
     sm_fallback(comment_line);
 }
 
