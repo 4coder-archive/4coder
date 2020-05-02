@@ -919,6 +919,9 @@ mac_toggle_fullscreen(void){
     // NOTE(yuval): Process keyboard event
     [self process_keyboard_event:event down:true];
     
+    [self interpretKeyEvents:[NSArray arrayWithObject:event]]
+    
+#if 0
     // NOTE(yuval): Process TextInsert event
     {
         NSString *characters = [event characters];
@@ -942,7 +945,6 @@ mac_toggle_fullscreen(void){
                         str_8.str[i] = '\n';
                     }
                 }
-
                 
                 Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_TextInsert;
@@ -961,6 +963,7 @@ mac_toggle_fullscreen(void){
             }
         }
     }
+#endif
 }
 
 - (void)keyUp:(NSEvent*)event{
