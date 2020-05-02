@@ -24,13 +24,13 @@ pre_edit_history_prep(Editing_File *file, Edit_Behaviors behaviors){
 
 function void
 post_edit_call_hook(Thread_Context *tctx, Models *models, Editing_File *file,
-                    Range_i64 new_range, u64 original_size){
+                    Range_i64 new_range, Range_Cursor old_cursor_range){
     // NOTE(allen): edit range hook
     if (models->buffer_edit_range != 0){
         Application_Links app = {};
         app.tctx = tctx;
         app.cmd_context = models;
-        models->buffer_edit_range(&app, file->id, new_range, original_size);
+        models->buffer_edit_range(&app, file->id, new_range, old_cursor_range);
     }
 }
 
@@ -254,6 +254,10 @@ edit__apply(Thread_Context *tctx, Models *models, Editing_File *file, Range_i64 
 function void
 edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
             Range_i64 range, String_Const_u8 string, Edit_Behaviors behaviors){
+    Range_Cursor cursor_range = {};
+    cursor_range.min = file_compute_cursor(file, seek_pos(range.min));
+    cursor_range.max = file_compute_cursor(file, seek_pos(range.max));
+    
     pre_edit_state_change(models, file);
     pre_edit_history_prep(file, behaviors);
     
@@ -266,8 +270,7 @@ edit_single(Thread_Context *tctx, Models *models, Editing_File *file,
     batch.edit.range = range;
     
     edit_fix_markers(tctx, models, file, &batch);
-    post_edit_call_hook(tctx, models, file,
-                        Ii64_size(range.first, string.size), range_size(range));
+    post_edit_call_hook(tctx, models, file, Ii64_size(range.first, string.size), cursor_range);
 }
 
 function void
@@ -447,13 +450,24 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
                 start_index = file->state.current_record_index;
             }
             
-            Range_i64 old_range = Ii64_neg_inf;
-            Range_i64 new_range = Ii64_neg_inf;
+            ProfileTLBlockNamed(tctx, &models->profile_list, "batch text edits", profile_edits);
             
+            Range_i64 old_range = {};
+            old_range.min = batch->edit.range.min;
+            for (Batch_Edit *edit = batch;
+                 edit != 0;
+                 edit = edit->next){
+                if (edit->next == 0){
+                    old_range.max = edit->edit.range.max;
+                }
+            }
+            Range_Cursor cursor_range = {};
+            cursor_range.min = file_compute_cursor(file, seek_pos(old_range.min));
+            cursor_range.max = file_compute_cursor(file, seek_pos(old_range.max));
+            
+            Range_i64 new_range = Ii64_neg_inf;
             Gap_Buffer *buffer = &file->state.buffer;
             
-            ProfileTLBlockNamed(tctx, &models->profile_list, "batch text edits",
-                                profile_edits);
             i32 batch_count = 0;
             i64 shift = 0;
             for (Batch_Edit *edit = batch;
@@ -462,9 +476,6 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
                 String_Const_u8 insert_string = edit->edit.text;
                 
                 Range_i64 edit_range = edit->edit.range;
-                old_range.min = Min(old_range.min, edit_range.min);
-                old_range.max = Max(old_range.max, edit_range.max);
-                
                 edit_range.first += shift;
                 edit_range.one_past_last += shift;
                 
@@ -501,7 +512,7 @@ edit_batch(Thread_Context *tctx, Models *models, Editing_File *file,
             
             edit_fix_markers(tctx, models, file, batch);
             
-            post_edit_call_hook(tctx, models, file, new_range, range_size(old_range));
+            post_edit_call_hook(tctx, models, file, new_range, cursor_range);
         }
     }
     

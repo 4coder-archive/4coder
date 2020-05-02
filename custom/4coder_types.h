@@ -676,8 +676,8 @@ typedef i32 Buffer_Hook_Function(Application_Links *app, Buffer_ID buffer_id);
 
 api(custom)
 typedef i32 Buffer_Edit_Range_Function(Application_Links *app, Buffer_ID buffer_id,
-                                       Range_i64 new_range, u64 original_size);
-#define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id, Range_i64 new_range, u64 original_size)
+                                       Range_i64 new_range, Range_Cursor old_range);
+#define BUFFER_EDIT_RANGE_SIG(name) i32 name(Application_Links *app, Buffer_ID buffer_id, Range_i64 new_range, Range_Cursor old_cursor_range)
 
 api(custom)
 typedef Vec2_f32 Delta_Rule_Function(Vec2_f32 pending, b32 is_new_target, f32 dt, void *data);
