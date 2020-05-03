@@ -36,6 +36,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(execute_previous_cli,          KeyCode_Z, KeyCode_Alt, KeyCode_Shift);
     Bind(command_lister,                KeyCode_X, KeyCode_Alt);
     Bind(project_command_lister,        KeyCode_X, KeyCode_Alt, KeyCode_Shift);
+    Bind(quick_swap_buffer,             KeyCode_BackwardSlash, KeyCode_Alt);
     Bind(list_all_functions_current_buffer_lister, KeyCode_I, KeyCode_Control, KeyCode_Shift);
     Bind(exit_4coder,          KeyCode_F4, KeyCode_Alt);
     Bind(project_fkey_command, KeyCode_F1);

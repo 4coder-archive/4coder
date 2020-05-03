@@ -701,7 +701,8 @@ api(custom)
 typedef void Whole_Screen_Render_Caller_Function(Application_Links *app, Frame_Info frame_info);
 
 api(custom)
-typedef void View_Change_Buffer_Function(Application_Links *app, View_ID view_id, Buffer_ID buffer_id);
+typedef void View_Change_Buffer_Function(Application_Links *app, View_ID view_id,
+                                         Buffer_ID old_buffer_id, Buffer_ID new_buffer_id);
 
 api(custom)
 typedef u32 Layout_Item_Flag;

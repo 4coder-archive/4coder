@@ -1652,6 +1652,24 @@ CUSTOM_DOC("Swaps the active panel with it's sibling.")
     }
 }
 
+CUSTOM_COMMAND_SIG(quick_swap_buffer)
+CUSTOM_DOC("Change to the most recently used buffer in this view - or to the top of the buffer stack if the most recent doesn't exist anymore")
+{
+    View_ID view = get_active_view(app, Access_Visible);
+    Managed_Scope scope = view_get_managed_scope(app, view);
+    Buffer_ID *prev_buffer = scope_attachment(app, scope, view_previous_buffer, Buffer_ID);
+    b32 fallback = true;
+    if (prev_buffer != 0 && *prev_buffer != 0){
+        if (view_set_buffer(app, view, *prev_buffer, 0)){
+            fallback = false;
+        }
+    }
+    if (fallback){
+        Buffer_ID top_buffer = get_buffer_next(app, 0, Access_Always);
+        view_set_buffer(app, view, top_buffer, 0);
+    }
+}
+
 ////////////////////////////////
 
 CUSTOM_COMMAND_SIG(kill_buffer)

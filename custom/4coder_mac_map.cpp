@@ -36,6 +36,7 @@ setup_mac_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     Bind(execute_previous_cli,          KeyCode_Z, KeyCode_Control, KeyCode_Shift);
     Bind(command_lister,                KeyCode_X, KeyCode_Control);
     Bind(project_command_lister,        KeyCode_X, KeyCode_Control, KeyCode_Shift);
+    Bind(quick_swap_buffer,             KeyCode_BackwardSlash, KeyCode_Command);
     Bind(list_all_functions_current_buffer, KeyCode_I, KeyCode_Command, KeyCode_Shift);
     Bind(project_fkey_command, KeyCode_F1);
     Bind(project_fkey_command, KeyCode_F2);

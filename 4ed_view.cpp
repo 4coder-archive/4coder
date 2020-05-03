@@ -447,14 +447,16 @@ internal void
 view_set_file(Thread_Context *tctx, Models *models, View *view, Editing_File *file){
     Assert(file != 0);
     
+    Editing_File *old_file = view->file;
+    
     if (models->view_change_buffer != 0){
         Application_Links app = {};
         app.tctx = tctx;
         app.cmd_context = models;
-        models->view_change_buffer(&app, view_get_id(&models->view_set, view), file->id);
+        models->view_change_buffer(&app, view_get_id(&models->view_set, view),
+                                   (old_file != 0)?old_file->id:0, file->id);
     }
     
-    Editing_File *old_file = view->file;
     if (old_file != 0){
         file_touch(&models->working_set, old_file);
         file_edit_positions_push(old_file, view_get_edit_pos(view));

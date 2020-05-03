@@ -167,7 +167,7 @@ api_type_match(API_Type *a, API_Type *b){
                         if (!string_match(a_node->name, b_node->name) ||
                             !string_match(a_node->val, b_node->val)){
                             result = false;
-                        break;
+                            break;
                         }
                     }
                 }
@@ -180,7 +180,7 @@ api_type_match(API_Type *a, API_Type *b){
                     result = false;
                 }
             }break;
-            }
+        }
     }
     return(result);
 }
@@ -396,7 +396,7 @@ generate_constructor(Arena *scratch, API_Definition *api, API_Generation_Flag fl
                 string_expand(call->return_type));
         
         if (call->params.count == 0){
-        fprintf(out, "(void)call;\n");
+            fprintf(out, "(void)call;\n");
         }
         else{
             for (API_Param *param = call->params.first;

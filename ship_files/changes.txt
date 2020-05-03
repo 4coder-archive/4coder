@@ -9,6 +9,8 @@
  + In config.4coder "default_tab_width" determines the width of a tab character in number of spaces
  + In config.4coder "cursor_roundness" "lister_roundness" "mark_thickness"
  + The lister text field keeps the right hand side in view when the string gets too long to fit
+ + Hook called whenever a view's buffer is changed
+ + 'quick_swap_buffer` command bound to [ Backslash Alt ] and on mac [ Backslash Command ]
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
  + Fix: line number margin performance

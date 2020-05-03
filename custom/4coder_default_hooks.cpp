@@ -1039,8 +1039,13 @@ BUFFER_HOOK_SIG(default_end_buffer){
 }
 
 function void
-default_view_change_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id){
-    // do nothing
+default_view_change_buffer(Application_Links *app, View_ID view_id,
+                           Buffer_ID old_buffer_id, Buffer_ID new_buffer_id){
+    Managed_Scope scope = view_get_managed_scope(app, view_id);
+    Buffer_ID *prev_buffer_id = scope_attachment(app, scope, view_previous_buffer, Buffer_ID);
+	if (prev_buffer_id != 0){
+		*prev_buffer_id = old_buffer_id;
+	}
 }
 
 internal void
