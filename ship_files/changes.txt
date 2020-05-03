@@ -8,6 +8,7 @@
  + In config.4coder "enable_output_wrapping" determine whether to wrap buffers like *compilation*, *search*, etc.
  + In config.4coder "default_tab_width" determines the width of a tab character in number of spaces
  + In config.4coder "cursor_roundness" "lister_roundness" "mark_thickness"
+ + The lister text field keeps the right hand side in view when the string gets too long to fit
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
  + Fix: line number margin performance
@@ -21,6 +22,7 @@
  + Fix: on windows releasing click off window is detected
  + Fix: on mac mouse scroll wheel is handled with extra multipliers
  + Fix: on mac full screen flag -F does not cause a crash
+ + Fix: on mac handles diacritical text input via dead keys
  + Fix: auto-indenting multi-line tokens does not shift them for being in incomplete statements.
  + Fix: lexer does not exit a line continuation from backslash when it is followed by a CR
  + Fix: lexer understands backslash at end of single line comment as continuation to next line
