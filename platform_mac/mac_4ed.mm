@@ -134,7 +134,7 @@ struct Mac_Input_Chunk{
 - (void)process_focus_event;
 @end
 
-@interface FCoder_View : NSTextView
+@interface FCoder_View : NSView <NSTextInputClient>
 - (void)request_display;
 - (void)check_clipboard;
 - (void)process_keyboard_event:(NSEvent*)event down:(b8)down;
@@ -924,32 +924,6 @@ mac_toggle_fullscreen(void){
 }
 
 - (void)insertText:(NSString*)text{
-    u32 len = [text length];
-    Scratch_Block scratch(mac_vars.tctx);
-    u16 *utf16 = push_array(scratch, u16, len);
-    [text getCharacters:utf16 range:NSMakeRange(0, len)];
-    String_Const_u16 str_16 = SCu16(utf16, len);
-    String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
-    for (i64 i = 0; i < str_8.size; i += 1){
-        if (str_8.str[i] == '\r'){
-            str_8.str[i] = '\n';
-        }
-    }
-
-    Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
-    event->kind = InputEventKind_TextInsert;
-    event->text.string = str_8;
-    event->text.next_text = 0;
-    event->text.blocked = false;
-    if (mac_vars.active_text_input){
-        mac_vars.active_text_input->text.next_text = event;
-    } else if (mac_vars.active_key_stroke){
-        mac_vars.active_key_stroke->key.first_dependent_text = event;
-    }
-
-    mac_vars.active_text_input = event;
-
-    system_signal_step(0);
 }
 
 - (void)keyDown:(NSEvent*)event{
@@ -1042,6 +1016,78 @@ mac_toggle_fullscreen(void){
         controls->r_command = command_pressed;
         [self process_keyboard_event:event down:command_pressed];
     }
+}
+
+- (void)unmarkText{
+}
+
+- (NSArray<NSAttributedStringKey>*)validAttributesForMarkedText{
+	return [NSArray array];
+}
+
+- (NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range
+                                                actualRange:(NSRangePointer)actualRange{
+	return nil;
+}
+
+- (void)insertText:(id)string
+  replacementRange:(NSRange)replacementRange{
+  	NSString *text = (NSString*)string;
+	u32 len = [text length];
+	Scratch_Block scratch(mac_vars.tctx);
+	u16 *utf16 = push_array(scratch, u16, len);
+	[text getCharacters:utf16 range:NSMakeRange(0, len)];
+	String_Const_u16 str_16 = SCu16(utf16, len);
+	String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
+	for (i64 i = 0; i < str_8.size; i += 1){
+	  if (str_8.str[i] == '\r'){
+		  str_8.str[i] = '\n';
+	  }
+	}
+
+	Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+	event->kind = InputEventKind_TextInsert;
+	event->text.string = str_8;
+	event->text.next_text = 0;
+	event->text.blocked = false;
+	if (mac_vars.active_text_input){
+	  mac_vars.active_text_input->text.next_text = event;
+	} else if (mac_vars.active_key_stroke){
+	  mac_vars.active_key_stroke->key.first_dependent_text = event;
+	}
+
+	mac_vars.active_text_input = event;
+
+	system_signal_step(0);
+}
+
+- (NSUInteger)characterIndexForPoint:(NSPoint)point{
+	return NSNotFound;
+}
+
+- (NSRect)firstRectForCharacterRange:(NSRange)range
+                         actualRange:(NSRangePointer)actualRange{
+	return NSMakeRect(0, 0, 0, 0);
+}
+
+- (void)doCommandBySelector:(SEL)selector{
+}
+
+- (BOOL)hasMarkedText{
+	return NO;
+}
+
+- (NSRange)markedRange{
+	return NSMakeRange(NSNotFound, 0);
+}
+
+- (NSRange)selectedRange{
+	return NSMakeRange(NSNotFound, 0);
+}
+
+- (void)setMarkedText:(id)string
+        selectedRange:(NSRange)selectedRange
+     replacementRange:(NSRange)replacementRange{
 }
 
 - (void)mouseMoved:(NSEvent*)event{
