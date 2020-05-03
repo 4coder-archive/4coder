@@ -650,6 +650,7 @@ enum{
     HookID_BufferEditRange,
     HookID_BufferRegion,
     HookID_Layout,
+    HookID_ViewChangeBuffer,
 };
 
 api(custom)
@@ -698,6 +699,9 @@ typedef void Render_Caller_Function(Application_Links *app, Frame_Info frame_inf
 
 api(custom)
 typedef void Whole_Screen_Render_Caller_Function(Application_Links *app, Frame_Info frame_info);
+
+api(custom)
+typedef void View_Change_Buffer_Function(Application_Links *app, View_ID view_id, Buffer_ID buffer_id);
 
 api(custom)
 typedef u32 Layout_Item_Flag;

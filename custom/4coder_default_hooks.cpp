@@ -1038,6 +1038,11 @@ BUFFER_HOOK_SIG(default_end_buffer){
     return(0);
 }
 
+function void
+default_view_change_buffer(Application_Links *app, View_ID view_id, Buffer_ID buffer_id){
+    // do nothing
+}
+
 internal void
 set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_BufferViewerUpdate, default_view_adjust);
@@ -1059,6 +1064,7 @@ set_all_default_hooks(Application_Links *app){
     set_custom_hook(app, HookID_SaveFile, default_file_save);
     set_custom_hook(app, HookID_BufferEditRange, default_buffer_edit_range);
     set_custom_hook(app, HookID_BufferRegion, default_buffer_region);
+    set_custom_hook(app, HookID_ViewChangeBuffer, default_view_change_buffer);
     
     set_custom_hook(app, HookID_Layout, layout_unwrapped);
     //set_custom_hook(app, HookID_Layout, layout_wrap_anywhere);

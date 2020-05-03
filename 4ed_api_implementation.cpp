@@ -2218,6 +2218,10 @@ set_custom_hook(Application_Links *app, Hook_ID hook_id, Void_Func *func_ptr){
         {
             models->layout_func = (Layout_Function*)func_ptr;
         }break;
+        case HookID_ViewChangeBuffer:
+        {
+            models->view_change_buffer = (View_Change_Buffer_Function*)func_ptr;
+        }break;
     }
 }
 
@@ -2281,6 +2285,10 @@ get_custom_hook(Application_Links *app, Hook_ID hook_id){
         case HookID_Layout:
         {
             result = (Void_Func*)models->layout_func;
+        }break;
+        case HookID_ViewChangeBuffer:
+        {
+            result = (Void_Func*)models->view_change_buffer;
         }break;
     }
     return(result);

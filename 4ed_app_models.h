@@ -82,6 +82,7 @@ struct Models{
     Buffer_Edit_Range_Function *buffer_edit_range;
     Buffer_Region_Function *buffer_region;
     Layout_Function *layout_func;
+    View_Change_Buffer_Function *view_change_buffer;
     
     Color_Table color_table_;
     
