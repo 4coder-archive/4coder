@@ -134,7 +134,7 @@ struct Mac_Input_Chunk{
 - (void)process_focus_event;
 @end
 
-@interface FCoder_View : NSView
+@interface FCoder_View : NSView <NSTextInputClient>
 - (void)request_display;
 - (void)check_clipboard;
 - (void)process_keyboard_event:(NSEvent*)event down:(b8)down;
@@ -155,16 +155,16 @@ enum{
 struct Mac_Object{
     Node node;
     Mac_Object_Kind kind;
-    
+
     union{
         NSTimer* timer;
-        
+
         struct{
             pthread_t thread;
             Thread_Function *proc;
             void *ptr;
         } thread;
-        
+
         pthread_mutex_t mutex;
         pthread_cond_t cv;
     };
@@ -172,56 +172,56 @@ struct Mac_Object{
 
 struct Mac_Vars {
     i32 width, height;
-    
+
     Thread_Context *tctx;
-    
+
     Arena frame_arena;
     Input_Event *active_key_stroke;
     Input_Event *active_text_input;
     Mac_Input_Chunk input_chunk;
     b8 lctrl_lalt_is_altgr;
-    
+
     b8 full_screen;
     b8 do_toggle;
     b32 send_exit_signal;
-    
+
     i32 cursor_show;
     i32 prev_cursor_show;
     NSCursor *cursor_ibeam;
     NSCursor *cursor_arrow;
     NSCursor *cursor_leftright;
     NSCursor *cursor_updown;
-    
+
     String_Const_u8 binary_path;
-    
+
     u32 clipboard_change_count;
     b32 next_clipboard_is_self;
     b32 clip_catch_all;
-    
+
     Arena clip_post_arena;
     String_Const_u8 clip_post;
-    
+
     NSWindow *window;
     FCoder_View *view;
     f32 screen_scale_factor;
-    
+
     mach_timebase_info_data_t timebase_info;
     b32 first;
     void *base_ptr;
-    
+
     u64 timer_start;
     b32 step_requested;
     i32 running_cli;
-    
+
     Node free_mac_objects;
     Node timer_objects;
-    
+
     pthread_mutex_t thread_launch_mutex;
     pthread_cond_t thread_launch_cv;
     b32 waiting_for_launch;
-    
+
     System_Mutex global_frame_mutex;
-    
+
     Log_Function *log_string;
 };
 
@@ -241,37 +241,37 @@ global App_Functions app;
 function Mac_Object*
 mac_alloc_object(Mac_Object_Kind kind){
     Mac_Object *result = 0;
-    
+
     if (mac_vars.free_mac_objects.next != &mac_vars.free_mac_objects){
         result = CastFromMember(Mac_Object, node, mac_vars.free_mac_objects.next);
     }
-    
+
     if (!result){
         i32 count = 512;
         Mac_Object *objects = (Mac_Object*)system_memory_allocate(count * sizeof(Mac_Object), file_name_line_number_lit_u8);
-        
+
         // NOTE(yuval): Link the first node of the dll to the sentinel
         objects[0].node.prev = &mac_vars.free_mac_objects;
         mac_vars.free_mac_objects.next = &objects[0].node;
-        
+
         // NOTE(yuval): Link all dll nodes to each other
         for (i32 chain_index = 1; chain_index < count; chain_index += 1){
             objects[chain_index - 1].node.next = &objects[chain_index].node;
             objects[chain_index].node.prev = &objects[chain_index - 1].node;
         }
-        
+
         // NOTE(yuval): Link the last node of the dll to the sentinel
         objects[count - 1].node.next = &mac_vars.free_mac_objects;
         mac_vars.free_mac_objects.prev = &objects[count - 1].node;
-        
+
         result = CastFromMember(Mac_Object, node, mac_vars.free_mac_objects.next);
     }
-    
+
     Assert(result);
     dll_remove(&result->node);
     block_zero_struct(result);
     result->kind = kind;
-    
+
     return(result);
 }
 
@@ -280,7 +280,7 @@ mac_free_object(Mac_Object *object){
     if (object->node.next != 0){
         dll_remove(&object->node);
     }
-    
+
     dll_insert(&mac_vars.free_mac_objects, &object->node);
 }
 
@@ -311,14 +311,14 @@ mac_init_recursive_mutex(pthread_mutex_t *mutex){
 function void
 mac_error_box(char *msg, b32 shutdown = true){
     NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-    
+
     NSString *title_string = @"Error";
     NSString *message_string = [NSString stringWithUTF8String:msg];
     [alert setMessageText:title_string];
     [alert setInformativeText:message_string];
-    
+
     [alert runModal];
-    
+
     if (shutdown){
         exit(1);
     }
@@ -328,16 +328,16 @@ mac_error_box(char *msg, b32 shutdown = true){
 function void
 os_popup_error(char *title, char *message){
     // TODO(yuval): Condense this with mac_error_box
-    
+
     NSAlert *alert = [[[NSAlert alloc] init] autorelease];
-    
+
     NSString *title_string = [NSString stringWithUTF8String:title];
     NSString *message_string = [NSString stringWithUTF8String:message];
     [alert setMessageText:title_string];
     [alert setInformativeText:message_string];
-    
+
     [alert runModal];
-    
+
     exit(1);
 }
 
@@ -400,7 +400,7 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_ANSI_X] = KeyCode_X;
     keycode_lookup_table[kVK_ANSI_Y] = KeyCode_Y;
     keycode_lookup_table[kVK_ANSI_Z] = KeyCode_Z;
-    
+
     keycode_lookup_table[kVK_ANSI_0] = KeyCode_0;
     keycode_lookup_table[kVK_ANSI_1] = KeyCode_1;
     keycode_lookup_table[kVK_ANSI_2] = KeyCode_2;
@@ -411,7 +411,7 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_ANSI_7] = KeyCode_7;
     keycode_lookup_table[kVK_ANSI_8] = KeyCode_8;
     keycode_lookup_table[kVK_ANSI_9] = KeyCode_9;
-    
+
     keycode_lookup_table[kVK_Space] = KeyCode_Space;
     keycode_lookup_table[kVK_ANSI_Grave] = KeyCode_Tick;
     keycode_lookup_table[kVK_ANSI_Minus] = KeyCode_Minus;
@@ -424,43 +424,43 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_ANSI_Period] = KeyCode_Period;
     keycode_lookup_table[kVK_ANSI_Slash] = KeyCode_ForwardSlash;
     keycode_lookup_table[kVK_ANSI_Backslash] = KeyCode_BackwardSlash;
-    
+
     keycode_lookup_table[kVK_Tab] = KeyCode_Tab;
     // NOTE(yuval): No Pause key on macOS!
     keycode_lookup_table[kVK_Escape] = KeyCode_Escape;
-    
+
     keycode_lookup_table[kVK_UpArrow] = KeyCode_Up;
     keycode_lookup_table[kVK_DownArrow] = KeyCode_Down;
     keycode_lookup_table[kVK_LeftArrow] = KeyCode_Left;
     keycode_lookup_table[kVK_RightArrow] = KeyCode_Right;
-    
+
     keycode_lookup_table[kVK_Delete] = KeyCode_Backspace;
     keycode_lookup_table[kVK_Return] = KeyCode_Return;
-    
+
     keycode_lookup_table[kVK_ForwardDelete] = KeyCode_Delete;
     //keycode_lookup_table[] = KeyCode_Insert; // TODO(yuval): Figure how to get keyDown events for the insert key
     keycode_lookup_table[kVK_Home] = KeyCode_Home;
     keycode_lookup_table[kVK_End] = KeyCode_End;
     keycode_lookup_table[kVK_PageUp] = KeyCode_PageUp;
     keycode_lookup_table[kVK_PageDown] = KeyCode_PageDown;
-    
+
     keycode_lookup_table[kVK_CapsLock] = KeyCode_CapsLock;
     keycode_lookup_table[kVK_ANSI_KeypadClear] = KeyCode_NumLock;
     // NOTE(yuval): No Scroll Lock key on macOS!
     keycode_lookup_table[kVK_Menu] = KeyCode_Menu;
-    
+
     keycode_lookup_table[kVK_Shift] = KeyCode_Shift;
     keycode_lookup_table[kVK_RightShift] = KeyCode_Shift;
-    
+
     keycode_lookup_table[kVK_Control] = KeyCode_Control;
     keycode_lookup_table[kVK_RightControl] = KeyCode_Control;
-    
+
     keycode_lookup_table[kVK_Option] = KeyCode_Alt;
     keycode_lookup_table[kVK_RightOption] = KeyCode_Alt;
-    
+
     keycode_lookup_table[kVK_Command] = KeyCode_Command;
     keycode_lookup_table[kVK_RightCommand] = KeyCode_Command; // NOTE(yuval): Right Command
-    
+
     keycode_lookup_table[kVK_F1] = KeyCode_F1;
     keycode_lookup_table[kVK_F2] = KeyCode_F2;
     keycode_lookup_table[kVK_F3] = KeyCode_F3;
@@ -470,7 +470,7 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_F7] = KeyCode_F7;
     keycode_lookup_table[kVK_F8] = KeyCode_F8;
     keycode_lookup_table[kVK_F9] = KeyCode_F9;
-    
+
     keycode_lookup_table[kVK_F10] = KeyCode_F10;
     keycode_lookup_table[kVK_F11] = KeyCode_F11;
     keycode_lookup_table[kVK_F12] = KeyCode_F12;
@@ -478,7 +478,7 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_F14] = KeyCode_F14;
     keycode_lookup_table[kVK_F15] = KeyCode_F15;
     keycode_lookup_table[kVK_F16] = KeyCode_F16;
-    
+
     keycode_lookup_table[kVK_ANSI_Keypad0] = KeyCode_NumPad0;
     keycode_lookup_table[kVK_ANSI_Keypad1] = KeyCode_NumPad1;
     keycode_lookup_table[kVK_ANSI_Keypad2] = KeyCode_NumPad2;
@@ -489,7 +489,7 @@ mac_keycode_init(void){
     keycode_lookup_table[kVK_ANSI_Keypad7] = KeyCode_NumPad7;
     keycode_lookup_table[kVK_ANSI_Keypad8] = KeyCode_NumPad8;
     keycode_lookup_table[kVK_ANSI_Keypad9] = KeyCode_NumPad9;
-    
+
     keycode_lookup_table[kVK_ANSI_KeypadMultiply] = KeyCode_NumPadStar;
     keycode_lookup_table[kVK_ANSI_KeypadPlus] = KeyCode_NumPadPlus;
     keycode_lookup_table[kVK_ANSI_KeypadMinus] = KeyCode_NumPadMinus;
@@ -513,21 +513,21 @@ mac_resize(float width, float height){
 #if 1
         NSSize coord_size = NSMakeSize(width, height);
         NSSize backing_size = [mac_vars.view convertSizeToBacking:coord_size];
-        
+
         mac_vars.width = (i32)backing_size.width;
         mac_vars.height = (i32)backing_size.height;
-        
+
         target.width = (i32)backing_size.width;
         target.height = (i32)backing_size.height;
 #else
         mac_vars.width = (i32)width;
         mac_vars.height = (i32)height;
-        
+
         target.width = (i32)width;
         target.height = (i32)height;
 #endif
     }
-    
+
     system_signal_step(0);
 }
 
@@ -543,26 +543,26 @@ function u32
 mac_get_clipboard_change_count(void){
     NSPasteboard *board = [NSPasteboard generalPasteboard];
     u32 result = board.changeCount;
-    
+
     return(result);
 }
 
 internal void
 mac_post_clipboard(Arena *scratch, char *text, i32 len){
     NSPasteboard *board = [NSPasteboard generalPasteboard];
-    
+
     NSString *utf8_type = @"public.utf8-plain-text";
     NSArray<NSString*> *types_array = [NSArray arrayWithObjects:utf8_type, nil];
     [board declareTypes:types_array
      owner:nil];
-    
+
     NSString *paste_string = [[NSString alloc] initWithBytes:text
                               length:len
                               encoding:NSUTF8StringEncoding];
     [board setString:paste_string
      forType:utf8_type];
     [paste_string release];
-    
+
     mac_vars.next_clipboard_is_self = true;
 }
 
@@ -604,7 +604,7 @@ system_post_clipboard_sig(){
     } else{
         linalloc_clear(arena);
     }
-    
+
     mac_vars.clip_post.str = push_array(arena, u8, str.size + 1);
     if (mac_vars.clip_post.str != 0){
         block_copy(mac_vars.clip_post.str, str.str, str.size);
@@ -650,7 +650,7 @@ mac_toggle_fullscreen(void){
 - (BOOL)windowShouldClose:(id)sender{
     mac_vars.input_chunk.trans.trying_to_kill = true;
     system_signal_step(0);
-    
+
     return(NO);
 }
 
@@ -684,7 +684,7 @@ mac_toggle_fullscreen(void){
     block_zero_struct(&mac_vars.input_chunk.pers.modifiers);
     mac_vars.active_key_stroke = 0;
     mac_vars.active_text_input = 0;
-    
+
     system_signal_step(0);
 }
 @end
@@ -710,10 +710,10 @@ mac_toggle_fullscreen(void){
 
 - (void)updateLayer{
     u64 prev_timer_start;
-    
+
     MacProfileScope("Draw Rect"){
         mac_vars.step_requested = false;
-        
+
         // NOTE(yuval): Toggle full screen
         MacProfileScope("Toggle Full Screen"){
             if (mac_vars.do_toggle){
@@ -721,48 +721,48 @@ mac_toggle_fullscreen(void){
                 mac_vars.do_toggle = false;
             }
         }
-        
+
         MacProfileScope("Acquire Frame Mutex"){
             // NOTE(yuval): Read comment in win32_4ed.cpp's main loop
             system_mutex_acquire(mac_vars.global_frame_mutex);
         }
-        
+
         Application_Step_Input input = {};
-        
+
         // NOTE(yuval): Prepare the Frame Input
         MacProfileScope("Prepare Input"){
             Mac_Input_Chunk input_chunk = mac_vars.input_chunk;
-            
+
             input.first_step = mac_vars.first;
             input.dt = frame_useconds / 1000000.0f;
             input.events = input_chunk.trans.event_list;
-            
+
             input.mouse.out_of_window = input_chunk.trans.out_of_window;
-            
+
             input.mouse.l = input_chunk.pers.mouse_l;
             input.mouse.press_l = input_chunk.trans.mouse_l_press;
             input.mouse.release_l = input_chunk.trans.mouse_l_release;
-            
+
             input.mouse.r = input_chunk.pers.mouse_r;
             input.mouse.press_r = input_chunk.trans.mouse_r_press;
             input.mouse.release_r = input_chunk.trans.mouse_r_release;
-            
+
             input.mouse.wheel = input_chunk.trans.mouse_wheel;
             input.mouse.p = input_chunk.pers.mouse;
-            
+
             input.trying_to_kill = input_chunk.trans.trying_to_kill;
-            
+
             block_zero_struct(&mac_vars.input_chunk.trans);
             mac_vars.active_key_stroke = 0;
             mac_vars.active_text_input = 0;
-            
+
             // NOTE(yuval): See comment in win32_4ed.cpp's main loop
             if (mac_vars.send_exit_signal){
                 input.trying_to_kill = true;
                 mac_vars.send_exit_signal = false;
             }
         }
-        
+
         // NOTE(yuval): Frame clipboard input
         Scratch_Block scratch(mac_vars.tctx);
         MacProfileScope("Frame Clipboard Input"){
@@ -770,9 +770,9 @@ mac_toggle_fullscreen(void){
                 input.clipboard = system_get_clipboard(scratch, 0);
             }
         }
-        
+
         mac_vars.clip_post.size = 0;
-        
+
         // NOTE(yuval): Application Core Update
         Application_Step_Result result = {};
         MacProfileScope("Step"){
@@ -780,21 +780,21 @@ mac_toggle_fullscreen(void){
                 result = app.step(mac_vars.tctx, &target, mac_vars.base_ptr, &input);
             }
         }
-        
+
         // NOTE(yuval): Quit the app if requested by the application core
         MacProfileScope("Perform Kill"){
             if (result.perform_kill){
                 [NSApp terminate:nil];
             }
         }
-        
+
         // NOTE(yuval): Post new clipboard content
         MacProfileScope("Post Clipboard"){
             if (mac_vars.clip_post.size > 0){
                 mac_post_clipboard(scratch, (char*)mac_vars.clip_post.str, (i32)mac_vars.clip_post.size);
             }
         }
-        
+
         // NOTE(yuval): Switch to a new title
         MacProfileScope("Switch Title"){
             if (result.has_new_title){
@@ -802,7 +802,7 @@ mac_toggle_fullscreen(void){
                 [mac_vars.window setTitle:str];
             }
         }
-        
+
         // NOTE(yuval): Switch to new cursor
         MacProfileScope("Switch Cursor"){
             // NOTE(yuval): Switch cursor type
@@ -811,23 +811,23 @@ mac_toggle_fullscreen(void){
                 {
                     [mac_vars.cursor_arrow set];
                 } break;
-                
+
                 case APP_MOUSE_CURSOR_IBEAM:
                 {
                     [mac_vars.cursor_ibeam set];
                 } break;
-                
+
                 case APP_MOUSE_CURSOR_LEFTRIGHT:
                 {
                     [mac_vars.cursor_leftright set];
                 } break;
-                
+
                 case APP_MOUSE_CURSOR_UPDOWN:
                 {
                     [mac_vars.cursor_updown set];
                 } break;
             }
-            
+
             // NOTE(yuval): Show or hide cursor
             if (mac_vars.cursor_show != mac_vars.prev_cursor_show){
                 switch (mac_vars.cursor_show){
@@ -835,25 +835,25 @@ mac_toggle_fullscreen(void){
                     {
                         [NSCursor hide];
                     } break;
-                    
+
                     case MouseCursorShow_Always:
                     {
                         [NSCursor unhide];
                     } break;
                 }
-                
+
                 mac_vars.prev_cursor_show = mac_vars.cursor_show;
             }
         }
-        
+
         // NOTE(yuval): Update lctrl_lalt_is_altgr status
         mac_vars.lctrl_lalt_is_altgr = (b8)result.lctrl_lalt_is_altgr;
-        
+
         // NOTE(yuval): Render
         MacProfileScope("Render"){
             renderer->render(renderer, &target);
         }
-        
+
         // NOTE(yuval): Toggle full screen
         MacProfileScope("Toggle Full Screen"){
             if (mac_vars.do_toggle){
@@ -861,55 +861,73 @@ mac_toggle_fullscreen(void){
                 mac_vars.do_toggle = false;
             }
         }
-        
+
         // NOTE(yuval): Schedule another step if needed
         MacProfileScope("Schedule Step"){
             if (result.animating || (mac_vars.running_cli > 0)){
                 system_signal_step(0);
             }
         }
-        
+
         // NOTE(yuval): Sleep a bit to cool off
         MacProfileScope("Cool Down"){
             system_mutex_release(mac_vars.global_frame_mutex);
             {
                 u64 timer_end = system_now_time();
                 u64 end_target = (mac_vars.timer_start + frame_useconds);
-                
+
                 if (timer_end < end_target){
                     if ((end_target - timer_end) > 1000){
                         // NOTE(yuval): Sleep until the end target minus a millisecond (to allow the scheduler to wake the process in time)
                         system_sleep(end_target - timer_end - 1000);
                     }
-                    
+
                     // NOTE(yuval): Iterate through the rest of the time that's left using a regular for loop to make sure that we hit the end target
                     u64 now = system_now_time();
                     while (now < end_target){
                         now = system_now_time();
                     }
                 }
-                
+
                 prev_timer_start = mac_vars.timer_start;
                 mac_vars.timer_start = system_now_time();
             }
             system_mutex_acquire(mac_vars.global_frame_mutex);
         }
-        
+
         MacProfileScope("Cleanup"){
             mac_vars.first = false;
-            
+
             linalloc_clear(&mac_vars.frame_arena);
-            
+
             // NOTE(yuval): Release the global frame mutex until the next drawRect call
             system_mutex_release(mac_vars.global_frame_mutex);
         }
     }
-    
+
     mac_profile("Frame", prev_timer_start, mac_vars.timer_start);
 #if FRED_INTERNAL
     printf("\n");
 #endif
 }
+
+// NOTE(allen): Trying to figure out a way to stop the error bonk
+// sound every time I use a key combo. This stopped the sound as the
+// docs suggested, but also stopped the key combo from being processed?
+// Maybe put process_keyboard_event in there? But is this only sent
+// for key downs? And why doesn't this block normal text input but
+// only key combos??
+#if 1
+- (BOOL)performKeyEquivalent:(NSEvent *)event{
+    [self process_keyboard_event:event down:true];
+    return(YES);
+}
+#endif
+
+#if 1
+- (void)cancelOperation:(id)sender
+{}
+#endif
 
 - (BOOL)acceptsFirstResponder{
     return(YES);
@@ -922,52 +940,27 @@ mac_toggle_fullscreen(void){
 - (BOOL)resignFirstResponder{
     return(YES);
 }
-#if 0
-- (void)insertText:(NSString*)text{
-    u32 len = [text length];
-    Scratch_Block scratch(mac_vars.tctx);
-    u16 *utf16 = push_array(scratch, u16, len);
-    [text getCharacters:utf16 range:NSMakeRange(0, len)];
-    String_Const_u16 str_16 = SCu16(utf16, len);
-    String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
-    for (i64 i = 0; i < str_8.size; i += 1){
-        if (str_8.str[i] == '\r'){
-            str_8.str[i] = '\n';
-        }
-    }
-    
-    Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
-    event->kind = InputEventKind_TextInsert;
-    event->text.string = str_8;
-    event->text.next_text = 0;
-    event->text.blocked = false;
-    if (mac_vars.active_text_input){
-        mac_vars.active_text_input->text.next_text = event;
-    } else if (mac_vars.active_key_stroke){
-        mac_vars.active_key_stroke->key.first_dependent_text = event;
-    }
-    
-    mac_vars.active_text_input = event;
-    
-    system_signal_step(0);
-}
-#endif
+
 - (void)keyDown:(NSEvent*)event{
     // NOTE(yuval): Process keyboard event
     [self process_keyboard_event:event down:true];
-    
+	[self interpretKeyEvents:[NSArray arrayWithObject:event]];
+
+#if 0
     // NOTE(yuval): Process TextInsert event
     {
         NSString *characters = [event characters];
         u32 len = [characters length];
+		NSLog(@"%u characters: %@", len, characters);
         if (len > 0){
             // NOTE(yuval): Get the first utf-16 character
             u32 c = [characters characterAtIndex:0];
             if (c == '\r'){
                 c = '\n';
             }
-            
+
             // NOTE(yuval): Check for a valid text input
+			printf("Input: %d\n", c);
             if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n')){
                 Scratch_Block scratch(mac_vars.tctx);
                 u16 *utf16 = push_array(scratch, u16, len);
@@ -979,7 +972,7 @@ mac_toggle_fullscreen(void){
                         str_8.str[i] = '\n';
                     }
                 }
-                
+
                 Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_TextInsert;
                 event->text.string = str_8;
@@ -990,13 +983,14 @@ mac_toggle_fullscreen(void){
                 } else if (mac_vars.active_key_stroke){
                     mac_vars.active_key_stroke->key.first_dependent_text = event;
                 }
-                
+
                 mac_vars.active_text_input = event;
-                
+
                 system_signal_step(0);
             }
         }
     }
+	#endif
 }
 
 - (void)keyUp:(NSEvent*)event{
@@ -1009,7 +1003,7 @@ mac_toggle_fullscreen(void){
     b8 alt_pressed = ((flags & NSEventModifierFlagOption) != 0);
     b8 shift_pressed = ((flags & NSEventModifierFlagShift) != 0);
     b8 command_pressed = ((flags & NSEventModifierFlagCommand) != 0);
-    
+
     Control_Keys *controls = &mac_vars.input_chunk.pers.controls;
     u16 event_key_code = [event keyCode];
     if (event_key_code == kVK_Control){
@@ -1039,6 +1033,78 @@ mac_toggle_fullscreen(void){
     }
 }
 
+- (void)unmarkText{
+}
+
+- (NSArray<NSAttributedStringKey>*)validAttributesForMarkedText{
+	return [NSArray array];
+}
+
+- (NSAttributedString *)attributedSubstringForProposedRange:(NSRange)range
+                                                actualRange:(NSRangePointer)actualRange{
+	return nil;
+}
+
+- (void)insertText:(id)string
+  replacementRange:(NSRange)replacementRange{
+  	NSString *text = (NSString*)string;
+	u32 len = [text length];
+	Scratch_Block scratch(mac_vars.tctx);
+	u16 *utf16 = push_array(scratch, u16, len);
+	[text getCharacters:utf16 range:NSMakeRange(0, len)];
+	String_Const_u16 str_16 = SCu16(utf16, len);
+	String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
+	for (i64 i = 0; i < str_8.size; i += 1){
+	  if (str_8.str[i] == '\r'){
+		  str_8.str[i] = '\n';
+	  }
+	}
+
+	Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+	event->kind = InputEventKind_TextInsert;
+	event->text.string = str_8;
+	event->text.next_text = 0;
+	event->text.blocked = false;
+	if (mac_vars.active_text_input){
+	  mac_vars.active_text_input->text.next_text = event;
+	} else if (mac_vars.active_key_stroke){
+	  mac_vars.active_key_stroke->key.first_dependent_text = event;
+	}
+
+	mac_vars.active_text_input = event;
+
+	system_signal_step(0);
+}
+
+- (NSUInteger)characterIndexForPoint:(NSPoint)point{
+	return NSNotFound;
+}
+
+- (NSRect)firstRectForCharacterRange:(NSRange)range
+                         actualRange:(NSRangePointer)actualRange{
+	return NSMakeRect(0, 0, 0, 0);
+}
+
+- (void)doCommandBySelector:(SEL)selector{
+}
+
+- (BOOL)hasMarkedText{
+	return NO;
+}
+
+- (NSRange)markedRange{
+	return NSMakeRange(NSNotFound, 0);
+}
+
+- (NSRange)selectedRange{
+	return NSMakeRange(NSNotFound, 0);
+}
+
+- (void)setMarkedText:(id)string
+        selectedRange:(NSRange)selectedRange
+     replacementRange:(NSRange)replacementRange{
+}
+
 - (void)mouseMoved:(NSEvent*)event{
     [self process_mouse_move_event:event];
 }
@@ -1066,30 +1132,30 @@ mac_toggle_fullscreen(void){
 - (void)mouseDown:(NSEvent*)event{
     mac_vars.input_chunk.trans.mouse_l_press = true;
     mac_vars.input_chunk.pers.mouse_l = true;
-    
+
     system_signal_step(0);
 }
 
 - (void)mouseUp:(NSEvent*)event{
     mac_vars.input_chunk.trans.mouse_l_release = true;
     mac_vars.input_chunk.pers.mouse_l = false;
-    
+
     system_signal_step(0);
 }
 
 - (void)rightMouseDown:(NSEvent*)event{
     [super rightMouseDown:event];
-    
+
     mac_vars.input_chunk.trans.mouse_r_press = true;
     mac_vars.input_chunk.pers.mouse_r = true;
-    
+
     system_signal_step(0);
 }
 
 - (void)rightMouseUp:(NSEvent*)event{
     mac_vars.input_chunk.trans.mouse_r_release = true;
     mac_vars.input_chunk.pers.mouse_r = false;
-    
+
     system_signal_step(0);
 }
 
@@ -1108,29 +1174,29 @@ mac_toggle_fullscreen(void){
 
 - (void)process_keyboard_event:(NSEvent*)event down:(b8)down{
     b8 release = !down;
-    
+
     Input_Modifier_Set_Fixed *mods = &mac_vars.input_chunk.pers.modifiers;
-    
+
     // NOTE(yuval): Set control modifiers
     {
         Control_Keys *controls = &mac_vars.input_chunk.pers.controls;
-        
+
         b8 ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
         b8 alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
         if (mac_vars.lctrl_lalt_is_altgr && controls->l_alt && controls->l_ctrl){
             ctrl = false;
             alt = false;
         }
-        
+
         b8 shift = (controls->r_shift || controls->l_shift);
         b8 command = (controls->r_command || controls->l_command);
-        
+
         set_modifier(mods, KeyCode_Control, ctrl);
         set_modifier(mods, KeyCode_Alt, alt);
         set_modifier(mods, KeyCode_Shift, shift);
         set_modifier(mods, KeyCode_Command, command);
     }
-    
+
     // NOTE(yuval): Process KeyStroke / KeyRelease event
     {
         // TODO(allen): We need to make sure we're mapping from this event's key code to the
@@ -1141,29 +1207,29 @@ mac_toggle_fullscreen(void){
         if (down){
             if (key != 0){
                 add_modifier(mods, key);
-                
+
                 Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_KeyStroke;
                 event->key.code = key;
                 event->key.modifiers = copy_modifier_set(&mac_vars.frame_arena, mods);
-                
+
                 mac_vars.active_key_stroke = event;
-                
+
                 system_signal_step(0);
             }
         } else{
             mac_vars.active_key_stroke = 0;
             mac_vars.active_text_input = 0;
-            
+
             if (key != 0){
                 Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_KeyRelease;
                 event->key.code = key;
                 event->key.modifiers = copy_modifier_set(&mac_vars.frame_arena, mods);
-                
+
                 remove_modifier(mods, key);
             }
-            
+
             system_signal_step(0);
         }
     }
@@ -1172,16 +1238,16 @@ mac_toggle_fullscreen(void){
 - (void)process_mouse_move_event:(NSEvent*)event{
     NSPoint location = [event locationInWindow];
     NSPoint backing_location = [self convertPointToBacking:location];
-    
+
     Vec2_i32 new_m = V2i32(backing_location.x, mac_vars.height - backing_location.y);
     if (new_m != mac_vars.input_chunk.pers.mouse){
         mac_vars.input_chunk.pers.mouse = new_m;
-        
+
         Rect_i32 screen = Ri32(0, 0, target.width, target.height);
         mac_vars.input_chunk.trans.out_of_window = !rect_contains_point(screen, new_m);
-        
+
     }
-    
+
     system_signal_step(0);
 }
 @end
@@ -1194,42 +1260,42 @@ main(int arg_count, char **args){
         // NOTE(yuval): Create NSApplication & Delegate
         [NSApplication sharedApplication];
         Assert(NSApp != nil);
-        
+
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-        
+
         FCoder_App_Delegate *app_delegate = [[FCoder_App_Delegate alloc] init];
         [NSApp setDelegate:app_delegate];
-        
+
         mac_init_recursive_mutex(&memory_tracker_mutex);
-        
+
         // NOTE(yuval): Context setup
         Thread_Context _tctx = {};
         thread_ctx_init(&_tctx, ThreadKind_Main,
                         get_base_allocator_system(),
                         get_base_allocator_system());
-        
+
         block_zero_struct(&mac_vars);
         mac_vars.tctx = &_tctx;
-        
+
         API_VTable_system system_vtable = {};
         system_api_fill_vtable(&system_vtable);
-        
+
         API_VTable_graphics graphics_vtable = {};
         graphics_api_fill_vtable(&graphics_vtable);
-        
+
         API_VTable_font font_vtable = {};
         font_api_fill_vtable(&font_vtable);
-        
+
         // NOTE(yuval): Memory
         mac_vars.frame_arena = make_arena_system();
         target.arena = make_arena_system(KB(256));
-        
+
         dll_init_sentinel(&mac_vars.free_mac_objects);
         dll_init_sentinel(&mac_vars.timer_objects);
-        
+
         mac_init_recursive_mutex(&mac_vars.thread_launch_mutex);
         pthread_cond_init(&mac_vars.thread_launch_cv, 0);
-        
+
         // NOTE(yuval): Screen scale factor calculation
         {
             NSScreen* screen = [NSScreen mainScreen];
@@ -1238,7 +1304,7 @@ main(int arg_count, char **args){
             f32 max_dpi = Max(size.width, size.height);
             mac_vars.screen_scale_factor = (max_dpi / 72.0f);
         }
-        
+
         // NOTE(yuval): Load core
         System_Library core_library = {};
         {
@@ -1246,7 +1312,7 @@ main(int arg_count, char **args){
             Scratch_Block scratch(mac_vars.tctx);
             Path_Search_List search_list = {};
             search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
-            
+
             String_Const_u8 core_path = get_full_path(scratch, &search_list, SCu8("4ed_app.so"));
             if (system_load_library(scratch, core_path, &core_library)){
                 get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
@@ -1263,11 +1329,11 @@ main(int arg_count, char **args){
                 mac_error_box(msg);
             }
         }
-        
+
         // NOTE(yuval): Send api vtables to core
         app.load_vtables(&system_vtable, &font_vtable, &graphics_vtable);
         mac_vars.log_string = app.get_logger();
-        
+
         // NOTE(yuval): Init & command line parameters
         Plat_Settings plat_settings = {};
         mac_vars.base_ptr = 0;
@@ -1290,7 +1356,7 @@ main(int arg_count, char **args){
                 *file_count = j;
             }
         }
-        
+
         // NOTE(yuval): Load custom layer
         System_Library custom_library = {};
         Custom_API custom = {};
@@ -1298,7 +1364,7 @@ main(int arg_count, char **args){
             char custom_not_found_msg[] = "Did not find a library for the custom layer.";
             char custom_fail_version_msg[] = "Failed to load custom code due to missing version information or a version mismatch.  Try rebuilding with buildsuper.";
             char custom_fail_init_apis[] = "Failed to load custom code due to missing 'init_apis' symbol.  Try rebuilding with buildsuper";
-            
+
             Scratch_Block scratch(mac_vars.tctx);
             String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
             Path_Search_List search_list = {};
@@ -1329,7 +1395,7 @@ main(int arg_count, char **args){
                     has_library = true;
                 }
             }
-            
+
             if (!has_library){
                 mac_error_box(custom_not_found_msg);
             }
@@ -1342,11 +1408,11 @@ main(int arg_count, char **args){
                 mac_error_box(custom_fail_init_apis);
             }
         }
-        
+
         //
         // Window and Renderer Initialization
         //
-        
+
         // NOTE(yuval): Create Window & Window Delegate
         i32 w;
         i32 h;
@@ -1357,104 +1423,104 @@ main(int arg_count, char **args){
             w = 800;
             h = 600;
         }
-        
+
         NSRect screen_rect = [[NSScreen mainScreen] frame];
         NSRect initial_frame = NSMakeRect((f32)(screen_rect.size.width - w) * 0.5f, (f32)(screen_rect.size.height - h) * 0.5f, w, h);
-        
+
         u32 style_mask = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable;
-        
+
         mac_vars.window = [[NSWindow alloc] initWithContentRect:initial_frame
                            styleMask:style_mask
                            backing:NSBackingStoreBuffered
                            defer:NO];
-        
+
         FCoder_Window_Delegate *window_delegate = [[FCoder_Window_Delegate alloc] init];
         [mac_vars.window setDelegate:window_delegate];
-        
+
         [mac_vars.window setMinSize:NSMakeSize(100, 100)];
         [mac_vars.window setBackgroundColor:NSColor.blackColor];
         [mac_vars.window setTitle:@"GRAPHICS"];
         [mac_vars.window setAcceptsMouseMovedEvents:YES];
-        
+
         NSView* content_view = [mac_vars.window contentView];
-        
+
         // NOTE(yuval): Create the 4coder view
         mac_vars.view = [[FCoder_View alloc] init];
         [mac_vars.view setFrame:[content_view bounds]];
         [mac_vars.view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
         mac_vars.view.wantsLayer = true;
-        
+
         // NOTE(yuval): Display window and view
         [content_view addSubview:mac_vars.view];
         [mac_vars.window makeKeyAndOrderFront:nil];
-        
+
         // NOTE(yuval): Initialize the renderer
         renderer = mac_init_renderer(MacRenderer_Metal, mac_vars.window, &target);
-        
+
         mac_resize(w, h);
-        
+
         //
         // NOTE(yuval): Misc System Initializations
         //
-        
+
         // NOTE(yuval): Initialize clipboard
         {
             Scratch_Block scratch(mac_vars.tctx);
             mac_post_clipboard(scratch, "", 0);
             mac_vars.clipboard_change_count = mac_get_clipboard_change_count();
             mac_vars.next_clipboard_is_self = false;
-            
+
             // NOTE(yuval): Start the clipboard polling timer
             [NSTimer scheduledTimerWithTimeInterval: 0.5
              target:mac_vars.view
              selector:@selector(check_clipboard)
              userInfo:nil repeats:YES];
         }
-        
+
         // NOTE(yuval): Initialize the virtul keycodes table
         mac_keycode_init();
-        
+
         // NOTE(yuval): Initialize cursors
         {
             mac_vars.cursor_show = MouseCursorShow_Always;
             mac_vars.prev_cursor_show = MouseCursorShow_Always;
-            
+
             mac_vars.cursor_arrow = [NSCursor arrowCursor];
             mac_vars.cursor_ibeam = [NSCursor IBeamCursor];
             mac_vars.cursor_leftright = [NSCursor resizeLeftRightCursor];
             mac_vars.cursor_updown = [NSCursor resizeUpDownCursor];
         }
-        
+
         // NOTE(yuval): Get the timebase info
         mach_timebase_info(&mac_vars.timebase_info);
-        
+
         //
         // App init
         //
-        
+
         {
             Scratch_Block scratch(mac_vars.tctx);
             String_Const_u8 curdir = system_get_path(scratch, SystemPath_CurrentDirectory);
             curdir = string_mod_replace_character(curdir, '\\', '/');
             app.init(mac_vars.tctx, &target, mac_vars.base_ptr, curdir, custom);
         }
-        
+
         //
         // Start Main Loop
         //
-        
+
         mac_vars.first = true;
         mac_vars.step_requested = false;
         mac_vars.running_cli = 0;
-        
+
         if (plat_settings.fullscreen_window){
             mac_vars.do_toggle = true;
         }
-        
+
         mac_vars.global_frame_mutex = system_mutex_make();
-        
+
         mac_vars.timer_start = system_now_time();
-        
+
         // NOTE(yuval): Start the app's run loop
         [NSApp run];
     }
