@@ -1790,6 +1790,7 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
     History_Record_Index current = buffer_history_get_current_state_index(app, buffer);
     if (current > 0){
         Record_Info record = buffer_history_get_record_info(app, buffer, current);
+        i64 new_position = record_get_new_cursor_position_undo(app, buffer, current, record);
         
         b32 do_immedite_undo = true;
         f32 undo_fade_time = 0.33f;
@@ -1815,9 +1816,13 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
         
         if (do_immedite_undo){
             buffer_history_set_current_state_index(app, buffer, current - 1);
+            if (record.single_string_backward.size > 0){
+                Range_i64 range = Ii64_size(record.single_first, record.single_string_backward.size);
+                ARGB_Color color = fcolor_resolve(fcolor_id(defcolor_undo));
+                buffer_post_fade(app, buffer, undo_fade_time, range, color);
+            }
         }
         
-        i64 new_position = record_get_new_cursor_position_undo(app, buffer, current, record);
         view_set_cursor_and_preferred_x(app, view, seek_pos(new_position));
     }
 }
@@ -1827,11 +1832,23 @@ CUSTOM_DOC("Advances forwards through the undo history of the current buffer.")
 {
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    undo__flush_fades(app, buffer);
+    
     History_Record_Index current = buffer_history_get_current_state_index(app, buffer);
     History_Record_Index max_index = buffer_history_get_max_record_index(app, buffer);
     if (current < max_index){
-        i64 new_position = record_get_new_cursor_position_redo(app, buffer, current + 1);
+        Record_Info record = buffer_history_get_record_info(app, buffer, current);
+        i64 new_position = record_get_new_cursor_position_redo(app, buffer, current + 1, record);
+        
         buffer_history_set_current_state_index(app, buffer, current + 1);
+        
+        if (record.single_string_forward.size > 0){
+            Range_i64 range = Ii64_size(record.single_first, record.single_string_forward.size);
+            ARGB_Color color = fcolor_resolve(fcolor_id(defcolor_undo));
+            f32 undo_fade_time = 0.33f;
+            buffer_post_fade(app, buffer, undo_fade_time, range, color);
+        }
+        
         view_set_cursor_and_preferred_x(app, view, seek_pos(new_position));
     }
 }
