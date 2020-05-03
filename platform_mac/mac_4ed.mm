@@ -911,6 +911,17 @@ mac_toggle_fullscreen(void){
 #endif
 }
 
+// NOTE(allen): Trying to figure out a way to stop the error bonk sound every time I use a key combo.
+// This stopped the sound as the docs suggested, but also stopped the key combo from being processed?
+// Maybe put process_keyboard_event in there? But is this only sent for key downs? And why doesn't
+// this block normal text input but only key combos??
+#if 1
+- (BOOL)performKeyEquivalent:(NSEvent *)event{
+    [self process_keyboard_event:event down:true];
+    return(YES);
+}
+#endif
+
 - (BOOL)acceptsFirstResponder{
     return(YES);
 }
