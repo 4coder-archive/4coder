@@ -241,7 +241,8 @@ history__free_nodes(History *history, i32 first_index, Node *first_node, Node *l
 }
 
 internal void
-history_record_edit(Global_History *global_history, History *history, Gap_Buffer *buffer, Edit edit){
+history_record_edit(Global_History *global_history, History *history, Gap_Buffer *buffer,
+                    i64 pos_before_edit, Edit edit){
     if (history->activated){
         Assert(history->record_lookup.count == history->record_count);
         
@@ -249,6 +250,13 @@ history_record_edit(Global_History *global_history, History *history, Gap_Buffer
         history__stash_record(history, new_record);
         
         new_record->restore_point = begin_temp(&history->arena);
+        if (pos_before_edit >= 0){
+            new_record->pos_before_edit = pos_before_edit;
+        }
+        else{
+            new_record->pos_before_edit = edit.range.min;
+        }
+        
         new_record->edit_number = global_history_get_edit_number(global_history);
         
         new_record->kind = RecordKind_Single;
@@ -294,6 +302,7 @@ history__optimize_group(Arena *scratch, History *history, Record *record){
         if (record->group.count == 1){
             Record *child = right;
             record->restore_point = child->restore_point;
+            record->pos_before_edit = child->pos_before_edit;
             record->edit_number = child->edit_number;
             record->kind = RecordKind_Single;
             record->single = child->single;
@@ -383,6 +392,7 @@ history_merge_records(Arena *scratch, History *history, i32 first_index, i32 las
         Record *last_record  = CastFromMember(Record, node, last_node);
         
         new_record->restore_point = first_record->restore_point;
+        new_record->pos_before_edit = first_record->pos_before_edit;
         new_record->edit_number = last_record->edit_number;
         new_record->kind = RecordKind_Group;
         

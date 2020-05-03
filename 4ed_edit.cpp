@@ -239,7 +239,7 @@ edit__apply(Thread_Context *tctx, Models *models, Editing_File *file, Range_i64 
     if (!behaviors.do_not_post_to_history){
         ProfileTLBlock(tctx, &models->profile_list, "edit apply history");
         history_record_edit(&models->global_history, &file->state.history, buffer,
-                            edit);
+                            behaviors.pos_before_edit, edit);
         file->state.current_record_index =
             history_get_record_count(&file->state.history);
     }
@@ -348,6 +348,7 @@ edit_change_current_history_state(Thread_Context *tctx, Models *models, Editing_
         
         Edit_Behaviors behaviors_prototype = {};
         behaviors_prototype.do_not_post_to_history = true;
+        behaviors_prototype.pos_before_edit = -1;
         
         if (current < target_index){
             do{

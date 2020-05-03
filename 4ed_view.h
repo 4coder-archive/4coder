@@ -79,16 +79,15 @@ struct View{
     f32 preferred_x;
     
     b8 new_scroll_target;
+    b8 hide_scrollbar;
+    b8 hide_file_bar;
+    b8 show_whitespace;
     
     Coroutine *co;
     Co_Out co_out;
     
     Arena node_arena;
     View_Context_Node *ctx;
-    
-    b8 hide_scrollbar;
-    b8 hide_file_bar;
-    b8 show_whitespace;
     
     Query_Set query_set;
 };

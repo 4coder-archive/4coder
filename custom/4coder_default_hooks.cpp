@@ -188,7 +188,7 @@ code_index_update_tick(Application_Links *app){
 function void
 default_tick(Application_Links *app, Frame_Info frame_info){
     code_index_update_tick(app);
-    if (tick_all_fade_ranges(frame_info.animation_dt)){
+    if (tick_all_fade_ranges(app, frame_info.animation_dt)){
         animate_in_n_milliseconds(app, 0);
     }
 }

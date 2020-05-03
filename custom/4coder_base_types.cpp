@@ -2895,6 +2895,23 @@ SCu32(u32 *str){
 }
 
 function String_Const_char
+SCchar(String_char string){
+    return(string.string);
+}
+function String_Const_u8
+SCu8(String_u8 string){
+    return(string.string);
+}
+function String_Const_u16
+SCu16(String_u16 string){
+    return(string.string);
+}
+function String_Const_u32
+SCu32(String_u32 string){
+    return(string.string);
+}
+
+function String_Const_char
 SCchar(String_Const_u8 str){
     return(SCchar((char*)str.str, str.size));
 }
@@ -5332,6 +5349,11 @@ string_any_push(Arena *arena, u64 size, String_Encoding encoding){
     return(string);
 }
 
+#define push_string_u8 string_u8_push
+#define push_string_u16 string_u16_push
+#define push_string_u32 string_u32_push
+#define push_string_u64 string_u64_push
+
 function String_Const_char
 string_const_char_push(Arena *arena, u64 size){
     String_Const_char string = {};
@@ -5372,6 +5394,11 @@ string_const_any_push(Arena *arena, u64 size, String_Encoding encoding){
     }
     return(string);
 }
+
+#define push_string_const_u8 string_const_u8_push
+#define push_string_const_u16 string_const_u16_push
+#define push_string_const_u32 string_const_u32_push
+#define push_string_const_u64 string_const_u64_push
 
 function String_Const_char
 push_string_copy(Arena *arena, String_Const_char src){
@@ -5640,6 +5667,11 @@ string_list_push_overlap(Arena *arena, List_String_Const_u32 *list, u32 overlap,
         string_list_push(arena, list, string);
     }
 }
+
+#define push_string_list string_list_push
+#define push_string_list_lit(a,l,s) string_list_push_lit(a,l,s)
+#define push_string_list_u8_lit(a,l,s) string_list_u8_push_lit(a,l,s)
+#define push_string_list_overlap(a,l,o,s) string_list_push_overlap(a,l,o,s)
 
 typedef String_Const_char String_char_Mod_Function_Type(String_Const_char string);
 typedef String_Const_u8 String_u8_Mod_Function_Type(String_Const_u8 string);

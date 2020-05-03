@@ -598,6 +598,7 @@ api(custom)
 struct Record_Info{
     Record_Error error;
     Record_Kind kind;
+    i64 pos_before_edit;
     i32 edit_number;
     union{
         struct{

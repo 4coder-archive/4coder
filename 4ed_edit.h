@@ -14,6 +14,7 @@
 
 struct Edit_Behaviors{
     b32 do_not_post_to_history;
+    i64 pos_before_edit;
 };
 
 #endif

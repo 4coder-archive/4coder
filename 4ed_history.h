@@ -21,6 +21,7 @@ struct Record_Batch_Slot{
 struct Record{
     Node node;
     Temp_Memory restore_point;
+    i64 pos_before_edit;
     i32 edit_number;
     Record_Kind kind;
     union{

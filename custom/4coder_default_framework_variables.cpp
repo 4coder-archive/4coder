@@ -96,7 +96,6 @@ global Range_i64 global_keyboard_macro_range = {};
 ////////////////////////////////
 
 global Fade_Range_List buffer_fade_ranges = {};
-global Fade_Range_List view_fade_ranges = {};
 global Arena fade_range_arena = {};
 global Fade_Range *free_fade_ranges = 0;
 

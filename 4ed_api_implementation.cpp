@@ -13,6 +13,7 @@ function void
 output_file_append(Thread_Context *tctx, Models *models, Editing_File *file, String_Const_u8 value){
     i64 end = buffer_size(&file->state.buffer);
     Edit_Behaviors behaviors = {};
+    behaviors.pos_before_edit = end;
     edit_single(tctx, models, file, Ii64(end), value, behaviors);
 }
 
@@ -237,6 +238,22 @@ buffer_read_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, 
     return(result);
 }
 
+function Edit_Behaviors
+get_active_edit_behaviors(Models *models, Editing_File *file){
+    Panel *panel = layout_get_active_panel(&models->layout);
+    Assert(panel != 0);
+    View *view = panel->view;
+    Assert(view != 0);
+    Edit_Behaviors behaviors = {};
+    if (view->file == file){
+        behaviors.pos_before_edit = view->edit_pos_.cursor_pos;
+    }
+    else{
+        behaviors.pos_before_edit = -1;
+    }
+    return(behaviors);
+}
+
 api(custom) function b32
 buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 range, String_Const_u8 string)
 {
@@ -246,7 +263,7 @@ buffer_replace_range(Application_Links *app, Buffer_ID buffer_id, Range_i64 rang
     if (api_check_buffer(file)){
         i64 size = buffer_size(&file->state.buffer);
         if (0 <= range.first && range.first <= range.one_past_last && range.one_past_last <= size){
-            Edit_Behaviors behaviors = {};
+            Edit_Behaviors behaviors = get_active_edit_behaviors(models, file);
             edit_single(app->tctx, models, file, range, string, behaviors);
             result = true;
         }
@@ -261,7 +278,7 @@ buffer_batch_edit(Application_Links *app, Buffer_ID buffer_id, Batch_Edit *batch
     Editing_File *file = imp_get_file(models, buffer_id);
     b32 result = false;
     if (api_check_buffer(file)){
-        Edit_Behaviors behaviors = {};
+        Edit_Behaviors behaviors = get_active_edit_behaviors(models, file);
         result = edit_batch(app->tctx, models, file, batch, behaviors);
     }
     return(result);
@@ -2422,6 +2439,7 @@ buffer_history_get_max_record_index(Application_Links *app, Buffer_ID buffer_id)
 function void
 buffer_history__fill_record_info(Record *record, Record_Info *out){
     out->kind = record->kind;
+    out->pos_before_edit = record->pos_before_edit;
     out->edit_number = record->edit_number;
     switch (out->kind){
         case RecordKind_Single:

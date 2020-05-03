@@ -219,7 +219,7 @@ ui_fallback_command_dispatch(Application_Links *app, View_ID view, User_Input *i
 ////////////////////////////////
 
 function void
-view_buffer_set(Application_Links *app, Buffer_ID *buffers, i32 *positions, i32 count){
+view_buffer_set(Application_Links *app, Buffer_ID *buffers, i64 *positions, i32 count){
     if (count > 0){
         Scratch_Block scratch(app);
         
@@ -696,6 +696,7 @@ alloc_fade_range(void){
     else{
         sll_stack_pop(free_fade_ranges);
     }
+    block_zero_struct(result);
     return(result);
 }
 
@@ -704,7 +705,7 @@ free_fade_range(Fade_Range *range){
     sll_stack_push(free_fade_ranges, range);
 }
 
-function void
+function Fade_Range*
 buffer_post_fade(Application_Links *app, Buffer_ID buffer_id, f32 seconds, Range_i64 range, ARGB_Color color){
     Fade_Range *fade_range = alloc_fade_range();
     sll_queue_push(buffer_fade_ranges.first, buffer_fade_ranges.last, fade_range);
@@ -713,7 +714,8 @@ buffer_post_fade(Application_Links *app, Buffer_ID buffer_id, f32 seconds, Range
     fade_range->t = seconds;
     fade_range->full_t = seconds;
     fade_range->range = range;
-    fade_range->color= color;
+    fade_range->color = color;
+    return(fade_range);
 }
 
 function void
@@ -734,7 +736,7 @@ buffer_shift_fade_ranges(Buffer_ID buffer_id, i64 shift_after_p, i64 shift_amoun
 }
 
 function b32
-tick_all_fade_ranges(f32 t){
+tick_all_fade_ranges(Application_Links *app, f32 t){
     Fade_Range **prev_next = &buffer_fade_ranges.first;
     for (Fade_Range *node = buffer_fade_ranges.first, *next = 0;
          node != 0;
@@ -742,7 +744,11 @@ tick_all_fade_ranges(f32 t){
         next = node->next;
         node->t -= t;
         if (node->t <= 0.f){
+            if (node->finish_call != 0){
+                node->finish_call(app, node);
+            }
             *prev_next = next;
+            free_fade_range(node);
             buffer_fade_ranges.count -= 1;
         }
         else{
@@ -750,7 +756,7 @@ tick_all_fade_ranges(f32 t){
             buffer_fade_ranges.last = node;
         }
     }
-    return(buffer_fade_ranges.count > 0 || view_fade_ranges.count > 0);
+    return(buffer_fade_ranges.count > 0);
 }
 
 function void
@@ -759,7 +765,11 @@ paint_fade_ranges(Application_Links *app, Text_Layout_ID layout, Buffer_ID buffe
          node != 0;
          node = node->next){
         if (node->buffer_id == buffer){
-            paint_text_color_blend(app, layout, node->range, node->color, node->t/node->full_t);
+            f32 blend = node->t/node->full_t;
+            if (node->negate_fade_direction){
+                blend = 1.f - blend; 
+            }
+            paint_text_color_blend(app, layout, node->range, node->color, blend);
         }
     }
 }
