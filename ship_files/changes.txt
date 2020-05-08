@@ -13,7 +13,7 @@
  + 'quick_swap_buffer` command bound to [ Backslash Alt ] and on mac [ Backslash Command ]
  + Record_Info now reports a pos_before_edit member - which is not gauranteed to be accurate but is when it can be,
    and when it can't be is based at the first character of the edit range
- + When undoing a string it briefly fades away if there is nothing to replace it
+ + When undoing a string it briefly fades away; controlled by config.4coder "enable_undo_fade_out"
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
  + Fix: line number margin performance

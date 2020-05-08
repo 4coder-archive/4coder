@@ -1236,6 +1236,7 @@ config_init_default(Config_Data *config){
     config->lister_whole_word_backspace_when_modified = false;
     config->show_line_number_margins = false;
     config->enable_output_wrapping = false;
+    config->enable_undo_fade_out = true;
     
     config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
@@ -1245,7 +1246,7 @@ config_init_default(Config_Data *config){
     
     config->cursor_roundness = .45f;
     config->mark_thickness = 2.f;
-    config->lister_roundness = .45f;
+    config->lister_roundness = .20f;
     
     config->virtual_whitespace_regular_indent = 4;
     
@@ -1308,6 +1309,7 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_bool_var(parsed, "lister_whole_word_backspace_when_modified", 0, &config->lister_whole_word_backspace_when_modified);
         config_bool_var(parsed, "show_line_number_margins", 0, &config->show_line_number_margins);
         config_bool_var(parsed, "enable_output_wrapping", 0, &config->enable_output_wrapping);
+        config_bool_var(parsed, "enable_undo_fade_out", 0, &config->enable_undo_fade_out);
         
         
         config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
@@ -1574,6 +1576,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_bool(scratch, &list, "lister_whole_word_backspace_when_modified", config->lister_whole_word_backspace_when_modified);
         config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
         config_feedback_bool(scratch, &list, "enable_output_wrapping", config->enable_output_wrapping);
+        config_feedback_bool(scratch, &list, "enable_undo_fade_out", config->enable_undo_fade_out);
         
         config_feedback_int(scratch, &list, "cursor_roundness", (i32)(config->cursor_roundness*100.f));
         config_feedback_int(scratch, &list, "mark_thickness", (i32)(config->mark_thickness));
