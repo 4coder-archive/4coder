@@ -22,6 +22,8 @@ lister_whole_word_backspace_when_modified = false;
 show_line_number_margins = false;
 enable_output_wrapping = false;
 
+enable_undo_fade_out = true;
+
 // cursor_roundess is a value [0,50] setting the radius of
 // the cursor and mark's roundness as a percentage of their width
 // (At 50 the left and right corners will be so round they form a semi-circle,

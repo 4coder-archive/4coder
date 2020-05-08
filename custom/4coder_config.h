@@ -203,6 +203,7 @@ struct Config_Data{
     b8 show_line_number_margins;
     b8 enable_output_wrapping;
     b8 indent_with_tabs;
+    b8 enable_undo_fade_out;
     
     b8 enable_virtual_whitespace;
     b8 enable_code_wrapping;
