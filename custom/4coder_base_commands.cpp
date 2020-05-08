@@ -1811,6 +1811,9 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
                 fade->negate_fade_direction = true;
                 fade->finish_call = undo__fade_finish;
                 do_immedite_undo = false;
+                if (new_position > range.max){
+                    new_position -= range_size(range);
+                }
             }
         }
         
