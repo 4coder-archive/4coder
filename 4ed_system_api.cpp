@@ -298,6 +298,11 @@ define_api(Arena *arena){
         api_param(arena, call, "Arena*", "arena");
     }
     
+    {
+        API_Call *call = api_call(arena, api, "set_key_mode", "void");
+        api_param(arena, call, "Key_Mode", "mode");
+    }
+    
     return(api);
 }
 

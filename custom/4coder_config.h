@@ -191,6 +191,7 @@ struct Config_Data{
     u8 mode_space[64];
     String_Const_u8 mode;
     
+    b8 bind_by_physical_key;
     b8 use_scroll_bars;
     b8 use_file_bars;
     b8 hide_file_bar_in_ui;

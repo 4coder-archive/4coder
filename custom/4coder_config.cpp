@@ -1225,6 +1225,7 @@ config_init_default(Config_Data *config){
     config->mapping = SCu8(config->mapping_space, (u64)0);
     config->mode = SCu8(config->mode_space, (u64)0);
     
+    config->bind_by_physical_key = false;
     config->use_scroll_bars = false;
     config->use_file_bars = true;
     config->hide_file_bar_in_ui = true;
@@ -1298,6 +1299,7 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_fixed_string_var(parsed, "mapping", 0, &config->mapping, config->mapping_space);
         config_fixed_string_var(parsed, "mode", 0, &config->mode, config->mode_space);
         
+        config_bool_var(parsed, "bind_by_physical_key", 0, &config->bind_by_physical_key);
         config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
         config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
         config_bool_var(parsed, "hide_file_bar_in_ui", 0, &config->hide_file_bar_in_ui);
@@ -1565,6 +1567,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         config_feedback_string(scratch, &list, "mapping", config->mapping);
         config_feedback_string(scratch, &list, "mode", config->mode);
         
+        config_feedback_bool(scratch, &list, "bind_by_physical_key", config->bind_by_physical_key);
         config_feedback_bool(scratch, &list, "use_scroll_bars", config->use_scroll_bars);
         config_feedback_bool(scratch, &list, "use_file_bars", config->use_file_bars);
         config_feedback_bool(scratch, &list, "hide_file_bar_in_ui", config->hide_file_bar_in_ui);
@@ -1634,6 +1637,13 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     if (!modify_global_face_by_description(app, description)){
         description.font.file_name = get_file_path_in_fonts_folder(scratch, config->default_font_name);
         modify_global_face_by_description(app, description);
+    }
+    
+    if (config->bind_by_physical_key){
+        system_set_key_mode(KeyMode_Physical);
+    }
+    else{
+        system_set_key_mode(KeyMode_LanguageArranged);
     }
 }
 

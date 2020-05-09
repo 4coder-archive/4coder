@@ -7,6 +7,12 @@
 #if !defined(FCODER_SYSTEM_TYPES_H)
 #define FCODER_SYSTEM_TYPES_H
 
+typedef i32 Key_Mode;
+enum{
+    KeyMode_LanguageArranged,
+    KeyMode_Physical,
+};
+
 struct Plat_Handle{
     u32 d[4];
 };

@@ -151,6 +151,7 @@ struct Win32_Vars{
     b8 lctrl_lalt_is_altgr;
     b8 got_useful_event;
     
+    Key_Mode key_mode;
     HKL kl_universal;
     
     b8 full_screen;
@@ -347,6 +348,11 @@ system_is_fullscreen_sig(){
 internal
 system_get_keyboard_modifiers_sig(){
     return(copy_modifier_set(arena, &win32vars.input_chunk.pers.modifiers));
+}
+
+internal
+system_set_key_mode_sig(){
+    win32vars.key_mode = mode;
 }
 
 //
@@ -1097,8 +1103,12 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             b8 down = !release;
             b8 is_right = HasFlag(lParam, bit_25);
             
-            UINT scan_code = ((lParam >> 16) & bitmask_8);
-            UINT vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, win32vars.kl_universal);
+            u64 vk = wParam;
+            
+            if (win32vars.key_mode == KeyMode_Physical){
+                UINT scan_code = ((lParam >> 16) & bitmask_8);
+                vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, win32vars.kl_universal);
+            }
             
             Input_Modifier_Set_Fixed *mods = &win32vars.input_chunk.pers.modifiers;
             

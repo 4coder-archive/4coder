@@ -241,5 +241,9 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("is_ful
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("get_keyboard_modifiers"), string_u8_litexpr("Input_Modifier_Set"), string_u8_litexpr(""));
 api_param(arena, call, "Arena*", "arena");
 }
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_key_mode"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Key_Mode", "mode");
+}
 return(result);
 }
