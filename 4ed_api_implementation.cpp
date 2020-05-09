@@ -2156,7 +2156,7 @@ managed_object_load_data(Application_Links *app, Managed_Object object, u32 firs
 }
 
 api(custom) function User_Input
-get_next_input(Application_Links *app, Event_Property get_properties, Event_Property abort_properties)
+get_next_input_raw(Application_Links *app)
 {
     Models *models = (Models*)app->cmd_context;
     Thread_Context *tctx = app->tctx;
@@ -2166,8 +2166,6 @@ get_next_input(Application_Links *app, Event_Property get_properties, Event_Prop
         Coroutine *coroutine = (Coroutine*)tctx_info->coroutine;
         Co_Out *out = (Co_Out*)coroutine->out;
         out->request = CoRequest_None;
-        out->get_flags = get_properties;
-        out->abort_flags = abort_properties;
         coroutine_yield(coroutine);
         Co_In *in = (Co_In*)coroutine->in;
         result = in->user_input;

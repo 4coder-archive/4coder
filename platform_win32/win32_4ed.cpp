@@ -1210,6 +1210,13 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             }
         }break;
         
+        case WM_DEADCHAR:
+        {
+            if (win32vars.active_key_stroke != 0){
+                AddFlag(win32vars.active_key_stroke->key.flags, KeyFlag_IsDeadKey);
+            }
+        }break;
+        
         case WM_UNICHAR:
         {
             if (wParam == UNICODE_NOCHAR){

@@ -681,19 +681,16 @@ co_send_event(Thread_Context *tctx, Models *models, View *view, Input_Event *eve
     
     Coroutine *co = view->co;
     Co_Out *co_out = &view->co_out;
-    Event_Property abort_flags = co_out->abort_flags;
-    Event_Property get_flags = co_out->get_flags|abort_flags;
     
-    Event_Property event_flags = get_event_properties(event);
-    if ((get_flags&event_flags) != 0){
+    {
         models->current_input_unhandled = false;
         Co_In in = {};
         in.user_input.event = *event;
-        in.user_input.abort = ((abort_flags & event_flags) != 0);
+        in.user_input.abort = false;
         begin_handling_input(models, &in.user_input);
         view->co = co_run(tctx, models, view->co, &in, &view->co_out);
         view_check_co_exited(models, view);
-        if (!HasFlag(event_flags, EventProperty_Animate)){
+        if (!(event->kind == InputEventKind_Core && event->core.code == CoreCode_Animate)){
             models->animate_next_frame = true;
         }
         event_was_handled = !models->current_input_unhandled;

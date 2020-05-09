@@ -104,6 +104,7 @@ isn't happening, so command bindings don't trigger unless you trigger them yours
     }
     
     Key_Code code = 0;
+    b32 is_dead_key = false;
     
     for (;;){
         Scratch_Block scratch(app);
@@ -111,7 +112,8 @@ isn't happening, so command bindings don't trigger unless you trigger them yours
             bar.string = SCu8("...");
         }
         else{
-            bar.string = push_stringf(scratch, "KeyCode_%s (%d)", key_code_name[code], code);
+            bar.string = push_stringf(scratch, "KeyCode_%s (%d)%s", key_code_name[code], code,
+                                      is_dead_key?" dead-key":"");
         }
         User_Input in = get_next_input(app, EventPropertyGroup_Any, EventProperty_Escape);
         if (in.abort){
@@ -119,6 +121,7 @@ isn't happening, so command bindings don't trigger unless you trigger them yours
         }
         if (in.event.kind == InputEventKind_KeyStroke){
             code = in.event.key.code;
+            is_dead_key = event_is_dead_key(&in.event);
         }
         else{
             /* Marking inputs as handled lets the core determine if certain inputs should
@@ -204,6 +207,61 @@ CUSTOM_DOC("Example of query_user_string and query_user_number")
         }
     }
 }
+
+
+CUSTOM_COMMAND_SIG(test_the_new_api)
+CUSTOM_DOC("If you are reading this I forgot to delete this test, please let me know")
+{
+    Query_Bar_Group group(app);
+    Query_Bar bar = {};
+    bar.prompt = SCu8("Testing ... ");
+    if (!start_query_bar(app, &bar, 0)){
+        return;
+    }
+    
+    Input_Event events[10];
+    i32 count = 0;
+    
+    User_Input in = {};
+    
+    for (;;) {
+        in = get_next_input(app, EventProperty_AnyKey, 0);
+        if (in.abort){
+            return;
+        }
+		events[count] = in.event;
+		count += 1;
+		if (!event_is_dead_key(&in.event)) {
+			break;
+		}
+    }
+    
+    u64 codepoints[10] = {};
+    i32 index = 0;
+    
+    for (Input_Event event_text = event_next_text_event(&in.event);
+		 event_text.kind != InputEventKind_None;
+         event_text = event_next_text_event(&event_text)){
+        String_Const_u8 writable = to_writable(&event_text);
+		if (writable.size) {
+			codepoints[index] = utf8_consume(writable.str, writable.size).codepoint;
+			index += 1;
+		}
+    }
+    
+    Scratch_Block scratch(app);
+    for (i32 i = 0; i < count; i += 1){
+        String_Const_u8 string = stringize_keyboard_event(scratch, &events[i]);
+        print_message(app, string);
+    }
+    
+    for (i32 i = 0; i < index; i += 1){
+        String_Const_u8 string = push_u8_stringf(scratch, "%llu\n", codepoints[i]);
+        print_message(app, string);
+    }
+    
+}
+
 
 // BOTTOM
 

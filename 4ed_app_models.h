@@ -116,9 +116,9 @@ struct Models{
     b8 keep_playing;
     b8 hard_exit;
     
-    b32 has_new_title;
-    char *title_space;
+    b8 has_new_title;
     i32 title_capacity;
+    char *title_space;
     
     Panel *resizing_intermediate_panel;
     

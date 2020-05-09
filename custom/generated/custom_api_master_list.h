@@ -116,7 +116,7 @@ api(custom) function Managed_Scope managed_object_get_containing_scope(Applicati
 api(custom) function b32 managed_object_free(Application_Links* app, Managed_Object object);
 api(custom) function b32 managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 api(custom) function b32 managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-api(custom) function User_Input get_next_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
+api(custom) function User_Input get_next_input_raw(Application_Links* app);
 api(custom) function i64 get_current_input_sequence_number(Application_Links* app);
 api(custom) function User_Input get_current_input(Application_Links* app);
 api(custom) function void set_current_input(Application_Links* app, User_Input* input);

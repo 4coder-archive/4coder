@@ -30,6 +30,11 @@ enum{
     InputEventKind_COUNT,
 };
 
+typedef u32 Key_Flags;
+enum{
+    KeyFlag_IsDeadKey = (1 << 0),
+};
+
 global_const i32 Input_MaxModifierCount = 8;
 
 struct Input_Modifier_Set{
@@ -55,6 +60,7 @@ struct Input_Event{
         } text;
         struct{
             Key_Code code;
+            Key_Flags flags;
             Input_Modifier_Set modifiers;
             
             // used internally

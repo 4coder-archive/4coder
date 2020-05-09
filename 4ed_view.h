@@ -35,16 +35,8 @@ enum{
 
 struct Co_Out{
     Co_Request request;
-    union{
-        struct{
-            Event_Property get_flags;
-            Event_Property abort_flags;
-        };
-        struct{
-            Face_Description *face_description;
-            Face_ID face_id;
-        };
-    };
+    Face_Description *face_description;
+    Face_ID face_id;
 };
 
 struct Query_Slot{

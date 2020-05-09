@@ -116,7 +116,7 @@
 #define custom_managed_object_free_sig() b32 custom_managed_object_free(Application_Links* app, Managed_Object object)
 #define custom_managed_object_store_data_sig() b32 custom_managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem)
 #define custom_managed_object_load_data_sig() b32 custom_managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out)
-#define custom_get_next_input_sig() User_Input custom_get_next_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties)
+#define custom_get_next_input_raw_sig() User_Input custom_get_next_input_raw(Application_Links* app)
 #define custom_get_current_input_sequence_number_sig() i64 custom_get_current_input_sequence_number(Application_Links* app)
 #define custom_get_current_input_sig() User_Input custom_get_current_input(Application_Links* app)
 #define custom_set_current_input_sig() void custom_set_current_input(Application_Links* app, User_Input* input)
@@ -295,7 +295,7 @@ typedef Managed_Scope custom_managed_object_get_containing_scope_type(Applicatio
 typedef b32 custom_managed_object_free_type(Application_Links* app, Managed_Object object);
 typedef b32 custom_managed_object_store_data_type(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 typedef b32 custom_managed_object_load_data_type(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-typedef User_Input custom_get_next_input_type(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
+typedef User_Input custom_get_next_input_raw_type(Application_Links* app);
 typedef i64 custom_get_current_input_sequence_number_type(Application_Links* app);
 typedef User_Input custom_get_current_input_type(Application_Links* app);
 typedef void custom_set_current_input_type(Application_Links* app, User_Input* input);
@@ -475,7 +475,7 @@ custom_managed_object_get_containing_scope_type *managed_object_get_containing_s
 custom_managed_object_free_type *managed_object_free;
 custom_managed_object_store_data_type *managed_object_store_data;
 custom_managed_object_load_data_type *managed_object_load_data;
-custom_get_next_input_type *get_next_input;
+custom_get_next_input_raw_type *get_next_input_raw;
 custom_get_current_input_sequence_number_type *get_current_input_sequence_number;
 custom_get_current_input_type *get_current_input;
 custom_set_current_input_type *set_current_input;
@@ -656,7 +656,7 @@ internal Managed_Scope managed_object_get_containing_scope(Application_Links* ap
 internal b32 managed_object_free(Application_Links* app, Managed_Object object);
 internal b32 managed_object_store_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem);
 internal b32 managed_object_load_data(Application_Links* app, Managed_Object object, u32 first_index, u32 count, void* mem_out);
-internal User_Input get_next_input(Application_Links* app, Event_Property get_properties, Event_Property abort_properties);
+internal User_Input get_next_input_raw(Application_Links* app);
 internal i64 get_current_input_sequence_number(Application_Links* app);
 internal User_Input get_current_input(Application_Links* app);
 internal void set_current_input(Application_Links* app, User_Input* input);
@@ -837,7 +837,7 @@ global custom_managed_object_get_containing_scope_type *managed_object_get_conta
 global custom_managed_object_free_type *managed_object_free = 0;
 global custom_managed_object_store_data_type *managed_object_store_data = 0;
 global custom_managed_object_load_data_type *managed_object_load_data = 0;
-global custom_get_next_input_type *get_next_input = 0;
+global custom_get_next_input_raw_type *get_next_input_raw = 0;
 global custom_get_current_input_sequence_number_type *get_current_input_sequence_number = 0;
 global custom_get_current_input_type *get_current_input = 0;
 global custom_set_current_input_type *set_current_input = 0;

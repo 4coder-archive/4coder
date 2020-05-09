@@ -140,6 +140,27 @@ is_modified(Input_Event *event){
     return(result);
 }
 
+function b32
+event_is_dead_key(Input_Event *event){
+    return(event->kind == InputEventKind_KeyStroke && HasFlag(event->key.flags, KeyFlag_IsDeadKey));
+}
+
+function Input_Event
+event_next_text_event(Input_Event *event){
+    Input_Event result = {};
+    if (event != 0){
+        if (event->kind == InputEventKind_KeyStroke &&
+            event->key.first_dependent_text != 0){
+            block_copy_struct(&result, event->key.first_dependent_text);
+        }
+        else if (event->kind == InputEventKind_TextInsert &&
+                 event->text.next_text != 0){
+            block_copy_struct(&result, event->text.next_text);
+        }
+    }
+    return(result);
+}
+
 function String_Const_u8
 to_writable(Input_Event *event){
     String_Const_u8 result = {};
@@ -346,22 +367,22 @@ stringize_keyboard_event(Arena *arena, Input_Event *event){
         case InputEventKind_KeyStroke:
         case InputEventKind_KeyRelease:
         {
-    string_list_pushf(arena, &list, "k%X ", event->key.code);
-    if (event->kind == InputEventKind_KeyRelease){
-        string_list_push(arena, &list, string_u8_litexpr("^"));
-    }
-    i32 count = event->key.modifiers.count;
-    if (count > 0){
-    Key_Code *m = event->key.modifiers.mods;
-        string_list_push(arena, &list, string_u8_litexpr("m{"));
-    for (i32 i = 0; i < count; i += 1, m += 1){
-        string_list_pushf(arena, &list, "%X ", *m);
-    }
-        string_list_push(arena, &list, string_u8_litexpr("}"));
-    }
-    string_list_push(arena, &list, string_u8_litexpr("\n"));
+            string_list_pushf(arena, &list, "k%X ", event->key.code);
+            if (event->kind == InputEventKind_KeyRelease){
+                string_list_push(arena, &list, string_u8_litexpr("^"));
+            }
+            i32 count = event->key.modifiers.count;
+            if (count > 0){
+                Key_Code *m = event->key.modifiers.mods;
+                string_list_push(arena, &list, string_u8_litexpr("m{"));
+                for (i32 i = 0; i < count; i += 1, m += 1){
+                    string_list_pushf(arena, &list, "%X ", *m);
+                }
+                string_list_push(arena, &list, string_u8_litexpr("}"));
+            }
+            string_list_push(arena, &list, string_u8_litexpr("\n"));
         }break;
-        }
+    }
     
     return(string_list_flatten(arena, list));
 }
