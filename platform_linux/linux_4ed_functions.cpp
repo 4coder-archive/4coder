@@ -128,7 +128,7 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
             continue;
         }
         
-        *fip = push_array(arena, File_Info, 1);
+        *fip = push_array_zero(arena, File_Info, 1);
         (*fip)->file_name = push_u8_stringf(arena, "%.*s", d->d_reclen, name);
         
         struct stat st;
@@ -147,7 +147,9 @@ system_get_file_list(Arena* arena, String_Const_u8 directory){
     if(result.count > 0) {
         result.infos = fip = push_array(arena, File_Info*, result.count);
         
-        for(File_Info* f = head; f; f = f->next) {
+        for(File_Info* f = head;
+            f != 0;
+            f = f->next) {
             *fip++ = f;
         }
         
