@@ -933,6 +933,11 @@ system_get_keyboard_modifiers_sig(){
     return(result);
 }
 
+function
+system_set_key_mode_sig(){
+    mac_vars.key_mode = mode;
+}
+
 ////////////////////////////////
 
 /**********************/

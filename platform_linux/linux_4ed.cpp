@@ -165,6 +165,8 @@ struct Linux_Vars {
     int xkb_event;
     int xkb_group; // active keyboard layout (0-3)
     
+    Key_Mode key_mode;
+    
     int epoll;
     int step_timer_fd;
     u64 last_step_time;

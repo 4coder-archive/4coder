@@ -181,6 +181,8 @@ struct Mac_Vars {
     Mac_Input_Chunk input_chunk;
     b8 lctrl_lalt_is_altgr;
 
+    Key_Mode key_mode;
+
     b8 full_screen;
     b8 do_toggle;
     b32 send_exit_signal;

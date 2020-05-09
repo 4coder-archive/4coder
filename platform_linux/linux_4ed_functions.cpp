@@ -796,5 +796,10 @@ system_get_keyboard_modifiers(Arena* arena){
     return(copy_modifier_set(arena, &linuxvars.input.pers.modifiers));
 }
 
+function
+system_set_key_mode_sig(){
+    linuxvars.key_mode = mode;
+}
+
 // NOTE(inso): to prevent me continuously messing up indentation
 // vim: et:ts=4:sts=4:sw=4
