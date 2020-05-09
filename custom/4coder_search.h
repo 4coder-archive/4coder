@@ -20,6 +20,7 @@ struct Word_Complete_Iterator{
     Temp_Memory arena_restore;
     Buffer_ID first_buffer;
     Buffer_ID current_buffer;
+    b32 scan_all_buffers;
     String_Const_u8 needle;
     
     List_String_Const_u8 list;

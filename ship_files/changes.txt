@@ -1,6 +1,7 @@
 
 4.1.6
  + In config.4coder "bind_by_physical_key" uses a key-layout that does not change with language
+ + Deprecated GlyphFlag_Rotate90, rotation of immediate mode text is entirely derived from the delta vector
  + Fix: notepad like mode scrolling only creates selection when holding mouse L-buttoon
  + Fix: on windows the window has the 4coder icon
  + Fix: by default platform layer uses key codes arranged by the system language
