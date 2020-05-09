@@ -164,6 +164,7 @@ struct Linux_Vars {
     Linux_Input_Chunk input;
     int xkb_event;
     int xkb_group; // active keyboard layout (0-3)
+    KeyCode prev_filtered_key;
     
     Key_Mode key_mode;
     
@@ -1035,67 +1036,17 @@ linux_x11_init(int argc, char** argv, Plat_Settings* settings) {
     }
 }
 
-global Key_Code keycode_lookup_table[255];
+global Key_Code keycode_lookup_table_physical[255];
+global Key_Code keycode_lookup_table_language[255];
+
+struct SymCode {
+    KeySym sym;
+    Key_Code code;
+};
 
 internal void
-linux_keycode_init(Display* dpy){
-    
-    block_zero_array(keycode_lookup_table);
-    
-    // Find these keys by physical position, and map to QWERTY KeyCodes
-#define K(k) glue(KeyCode_, k)
-    static const u8 positional_keys[] = {
-        K(1), K(2), K(3), K(4), K(5), K(6), K(7), K(8), K(9), K(0), K(Minus), K(Equal),
-        K(Q), K(W), K(E), K(R), K(T), K(Y), K(U), K(I), K(O), K(P), K(LeftBracket), K(RightBracket),
-        K(A), K(S), K(D), K(F), K(G), K(H), K(J), K(K), K(L), K(Semicolon), K(Quote), /*uk hash*/0,
-        K(Z), K(X), K(C), K(V), K(B), K(N), K(M), K(Comma), K(Period), K(ForwardSlash), 0, 0
-    };
-#undef K
-    
-    // XKB gives the alphanumeric keys names like AE01 -> E is the row (from B-E), 01 is the column (01-12).
-    // to get key names in .ps file: setxkbmap -print | xkbcomp - - | xkbprint -label name - out.ps
-    
-    static const int ncols = 12;
-    static const int nrows = 4;
-    
-    for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
-        const char* name = linuxvars.xkb->names->keys[i].name;
-        
-        // alphanumeric keys
-        
-        if(name[0] == 'A' && name[1] >= 'B' && name[1] <= 'E') {
-            int row = (nrows - 1) - (name[1] - 'B');
-            int col = (name[2] - '0') * 10 + (name[3] - '0') - 1;
-            
-            if(row >= 0 && row < nrows && col >= 0 && col < ncols) {
-                keycode_lookup_table[i] = positional_keys[row * ncols + col];
-            }
-        }
-        
-        // numpad
-        
-        else if(name[0] == 'K' && name[1] == 'P' && name[2] >= '0' && name[2] <= '9' && !name[3]) {
-            keycode_lookup_table[i] = KeyCode_NumPad0 + name[2] - '0';
-        }
-        
-        // a few special cases:
-        
-        else if(memcmp(name, "TLDE", XkbKeyNameLength) == 0) {
-            keycode_lookup_table[i] = KeyCode_Tick;
-        } else if(memcmp(name, "BKSL", XkbKeyNameLength) == 0) {
-            keycode_lookup_table[i] = KeyCode_BackwardSlash;
-        } else if(memcmp(name, "LSGT", XkbKeyNameLength) == 0) {
-            // UK extra key between left shift and Z
-            // it prints \ and | with shift. KeyCode_Backslash will be where UK # is.
-            keycode_lookup_table[i] = KeyCode_Ex0;
-        }
-    }
-    
-    // Find the rest by their key label
-    struct SymCode { KeySym sym; Key_Code code; };
-    SymCode sym_table[108];
-    SymCode* p = sym_table;
-    
+linux_keycode_init_common(Display* dpy, Key_Code* keycode_lookup_table, SymCode* sym_table, SymCode* p, size_t sym_table_size){
+
     *p++ = { XK_space, KeyCode_Space };
     *p++ = { XK_Tab, KeyCode_Tab };
     *p++ = { XK_Escape, KeyCode_Escape };
@@ -1142,7 +1093,7 @@ linux_keycode_init(Display* dpy){
     *p++ = { XK_KP_Enter, KeyCode_Return }; // NumPadEnter?
     
     const int table_size = p - sym_table;
-    Assert(table_size < ArrayCount(sym_table));
+    Assert(table_size < sym_table_size);
     
     Key_Code next_extra = KeyCode_Ex1;
     const Key_Code max_extra = KeyCode_Ex29;
@@ -1159,15 +1110,138 @@ linux_keycode_init(Display* dpy){
         for(j = 0; j < table_size; ++j) {
             if(sym_table[j].sym == sym) {
                 keycode_lookup_table[i] = sym_table[j].code;
+                //printf("lookup %s = %d\n", key_code_name[sym_table[j].code], i);
                 break;
             }
         }
-        
+
+        if(j != table_size){
+            continue;
+        }
+
+        // nothing found - try with shift held (needed for e.g. belgian numbers to bind).
+        KeySym shift_sym = NoSymbol;
+
+        if(!XkbTranslateKeyCode(linuxvars.xkb, i, XkbBuildCoreState(ShiftMask, linuxvars.xkb_group), NULL, &shift_sym)) {
+            continue;
+        }
+
+        for(j = 0; j < table_size; ++j) {
+            if(sym_table[j].sym == shift_sym) {
+                keycode_lookup_table[i] = sym_table[j].code;
+                //printf("lookup %s = %d\n", key_code_name[sym_table[j].code], i);
+                break;
+            }
+        }
+
         // something unknown bound, put it in extra
         if(j == table_size && sym != NoSymbol && next_extra <= max_extra && keycode_lookup_table[i] == 0) {
             keycode_lookup_table[i] = next_extra++;
         }
     }
+
+}
+
+internal void
+linux_keycode_init_language(Display* dpy, Key_Code* keycode_lookup_table){
+    SymCode sym_table[300];
+    SymCode* p = sym_table;
+
+    for(unsigned int i = 0; i <= 26; ++i) {
+        *p++ = { XK_a + i, KeyCode_A + i};
+    }
+
+    for(unsigned int i = 0; i <= 26; ++i) {
+        *p++ = { XK_A + i, KeyCode_A + i};
+    }
+
+    for(unsigned int i = 0; i <= 9; ++i) {
+        *p++ = { XK_0 + i, KeyCode_0 + i};
+    }
+
+    *p++ = { XK_grave, KeyCode_Tick };
+    *p++ = { XK_minus, KeyCode_Minus };
+    *p++ = { XK_equal, KeyCode_Equal };
+    *p++ = { XK_bracketleft, KeyCode_LeftBracket };
+    *p++ = { XK_bracketright, KeyCode_RightBracket };
+    *p++ = { XK_semicolon, KeyCode_Semicolon };
+    *p++ = { XK_apostrophe, KeyCode_Quote };
+    *p++ = { XK_comma, KeyCode_Comma };
+    *p++ = { XK_period, KeyCode_Period };
+    *p++ = { XK_slash, KeyCode_ForwardSlash };
+    *p++ = { XK_backslash, KeyCode_BackwardSlash };
+
+    linux_keycode_init_common(dpy, keycode_lookup_table, sym_table, p, ArrayCount(sym_table));
+}
+
+internal void
+linux_keycode_init_physical(Display* dpy, Key_Code* keycode_lookup_table){
+    
+    // Find common keys by their key label
+    SymCode sym_table[100];
+    linux_keycode_init_common(dpy, keycode_lookup_table, sym_table, sym_table, ArrayCount(sym_table));
+    
+    // Find these keys by physical position, and map to QWERTY KeyCodes
+#define K(k) glue(KeyCode_, k)
+    static const u8 positional_keys[] = {
+        K(1), K(2), K(3), K(4), K(5), K(6), K(7), K(8), K(9), K(0), K(Minus), K(Equal),
+        K(Q), K(W), K(E), K(R), K(T), K(Y), K(U), K(I), K(O), K(P), K(LeftBracket), K(RightBracket),
+        K(A), K(S), K(D), K(F), K(G), K(H), K(J), K(K), K(L), K(Semicolon), K(Quote), /*uk hash*/0,
+        K(Z), K(X), K(C), K(V), K(B), K(N), K(M), K(Comma), K(Period), K(ForwardSlash), 0, 0
+    };
+#undef K
+    
+    // XKB gives the alphanumeric keys names like AE01 -> E is the row (from B-E), 01 is the column (01-12).
+    // to get key names in .ps file: setxkbmap -print | xkbcomp - - | xkbprint -label name - out.ps
+    
+    static const int ncols = 12;
+    static const int nrows = 4;
+    
+    for(int i = XkbMinLegalKeyCode; i <= XkbMaxLegalKeyCode; ++i) {
+        const char* name = linuxvars.xkb->names->keys[i].name;
+        
+        // alphanumeric keys
+        
+        if(name[0] == 'A' && name[1] >= 'B' && name[1] <= 'E') {
+            int row = (nrows - 1) - (name[1] - 'B');
+            int col = (name[2] - '0') * 10 + (name[3] - '0') - 1;
+            
+            if(row >= 0 && row < nrows && col >= 0 && col < ncols) {
+                keycode_lookup_table[i] = positional_keys[row * ncols + col];
+            }
+        }
+        
+        // numpad
+        
+        else if(name[0] == 'K' && name[1] == 'P' && name[2] >= '0' && name[2] <= '9' && !name[3]) {
+            
+            // don't overwrite - for e.g. laptops with numpad keys embedded in the normal ones, toggling with numlock
+            if(keycode_lookup_table[i] == 0) {
+                keycode_lookup_table[i] = KeyCode_NumPad0 + name[2] - '0';
+            }
+        }
+        
+        // a few special cases:
+        
+        else if(memcmp(name, "TLDE", XkbKeyNameLength) == 0) {
+            keycode_lookup_table[i] = KeyCode_Tick;
+        } else if(memcmp(name, "BKSL", XkbKeyNameLength) == 0) {
+            keycode_lookup_table[i] = KeyCode_BackwardSlash;
+        } else if(memcmp(name, "LSGT", XkbKeyNameLength) == 0) {
+            // UK extra key between left shift and Z
+            // it prints \ and | with shift. KeyCode_Backslash will be where UK # is.
+            keycode_lookup_table[i] = KeyCode_Ex0;
+        }
+    }
+}
+
+internal void
+linux_keycode_init(Display* dpy){
+    block_zero_array(keycode_lookup_table_physical);
+    block_zero_array(keycode_lookup_table_language);
+
+    linux_keycode_init_physical(dpy, keycode_lookup_table_physical);
+    linux_keycode_init_language(dpy, keycode_lookup_table_language);
 }
 
 internal void
@@ -1341,6 +1415,33 @@ linux_filter_text(Arena* arena, u8* buf, int len) {
     return SCu8(result, outp - result);
 }
 
+internal KeyCode
+linux_numlock_convert(KeyCode in){
+    static const KeyCode lookup[] = {
+        KeyCode_Insert,
+        KeyCode_End,
+        KeyCode_Down,
+        KeyCode_PageDown,
+        KeyCode_Left,
+        0,
+        KeyCode_Right,
+        KeyCode_Home,
+        KeyCode_Up,
+        KeyCode_PageUp,
+        0, 0, 0,
+        KeyCode_Delete,
+    };
+
+    if(in >= KeyCode_NumPad0 && in <= KeyCode_NumPadDot) {
+        KeyCode ret = lookup[in - KeyCode_NumPad0];
+        if(ret != 0) {
+            return ret;
+        }
+    }
+
+    return in;
+}
+
 internal void
 linux_handle_x11_events() {
     static XEvent prev_event = {};
@@ -1349,13 +1450,23 @@ linux_handle_x11_events() {
     while (XPending(linuxvars.dpy)) {
         XEvent event;
         XNextEvent(linuxvars.dpy, &event);
-        
+
+        b32 filtered = false;
         if (XFilterEvent(&event, None) == True){
-            continue;
+            filtered = true;
+            if(event.type != KeyPress && event.type != KeyRelease) {
+                continue;
+            }
         }
         
+        u64 event_id = (u64)event.xkey.serial << 32 | event.xkey.time;
+
         switch(event.type) {
             case KeyPress: {
+
+                // DEBUG
+                linuxvars.key_mode = KeyMode_Physical;
+
                 should_step = true;
                 
                 Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
@@ -1382,13 +1493,42 @@ linux_handle_x11_events() {
                 if (keysym == XK_ISO_Left_Tab){
                     add_modifier(mods, KeyCode_Shift);
                 }
-                
-                Key_Code key = keycode_lookup_table[(u8)event.xkey.keycode];
-                //printf("key %d = %s\n", event.xkey.keycode, key_code_name[key]);
-                
+
+                Key_Code key;
+                if(linuxvars.key_mode == KeyMode_Physical) {
+                    key = keycode_lookup_table_physical[(u8)event.xkey.keycode];
+                } else {
+                    key = keycode_lookup_table_language[(u8)event.xkey.keycode];
+                }
+
+                if(!(state & Mod2Mask)) {
+                    key = linux_numlock_convert(key);
+                }
+
+                //printf("key %d = %s (f:%d)\n", event.xkey.keycode, key_code_name[key], filtered);
+
+                b32 is_dead = false;
+                if (keysym >= XK_dead_grave && keysym <= XK_dead_greek && len == 0) {
+                    is_dead = true;
+                    printf(" *** Set Dead Key flag here!\n");
+                }
+
+                if(!is_dead && filtered) {
+                    linuxvars.prev_filtered_key = key;
+                    break;
+                }
+
+                // send a keycode for the key after the dead key
+                if(!key && linuxvars.prev_filtered_key) {
+                    key = linuxvars.prev_filtered_key;
+                    linuxvars.prev_filtered_key = 0;
+                }
+
                 Input_Event* key_event = NULL;
                 if(key) {
                     add_modifier(mods, key);
+                    // printf(" push key %d\n", key);
+
                     key_event = push_input_event(&linuxvars.frame_arena, &linuxvars.input.trans.event_list);
                     key_event->kind = InputEventKind_KeyStroke;
                     key_event->key.code = key;
@@ -1399,6 +1539,7 @@ linux_handle_x11_events() {
                 if(status == XLookupChars || status == XLookupBoth) {
                     String_Const_u8 str = linux_filter_text(&linuxvars.frame_arena, buf, len);
                     if(str.size) {
+                        // printf(" push txt %d\n", key);
                         text_event = push_input_event(&linuxvars.frame_arena, &linuxvars.input.trans.event_list);
                         text_event->kind = InputEventKind_TextInsert;
                         text_event->text.string = str;
@@ -1408,12 +1549,11 @@ linux_handle_x11_events() {
                 if(key_event && text_event) {
                     key_event->key.first_dependent_text = text_event;
                 }
-                
             } break;
             
             case KeyRelease: {
                 should_step = true;
-                
+
                 Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
                 
                 int state = event.xkey.state;
@@ -1422,7 +1562,17 @@ linux_handle_x11_events() {
                 set_modifier(mods, KeyCode_CapsLock, state & LockMask);
                 set_modifier(mods, KeyCode_Alt, state & Mod1Mask);
                 
-                Key_Code key = keycode_lookup_table[(u8)event.xkey.keycode];
+                Key_Code key;
+                if(linuxvars.key_mode == KeyMode_Physical) {
+                    key = keycode_lookup_table_physical[(u8)event.xkey.keycode];
+                } else {
+                    key = keycode_lookup_table_language[(u8)event.xkey.keycode];
+                }
+
+                // num lock off -> convert KP keys to Insert, Home, End etc.
+                if(!(state & Mod2Mask)) {
+                    key = linux_numlock_convert(key);
+                }
                 
                 Input_Event* key_event = NULL;
                 if(key) {
