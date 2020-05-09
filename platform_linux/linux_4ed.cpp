@@ -1463,10 +1463,6 @@ linux_handle_x11_events() {
 
         switch(event.type) {
             case KeyPress: {
-
-                // DEBUG
-                linuxvars.key_mode = KeyMode_Physical;
-
                 should_step = true;
                 
                 Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
