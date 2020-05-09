@@ -767,6 +767,40 @@ win32_keycode_init(void){
     }
 }
 
+internal b32
+keycode_physical_translaion_is_wrong(u64 vk){
+    b32 result = false;
+    switch (vk){
+        case VK_UP: case VK_DOWN: case VK_LEFT: case VK_RIGHT:
+        case VK_DELETE:
+        case VK_INSERT:
+        case VK_HOME:
+        case VK_END:
+        case VK_PRIOR:
+        case VK_NEXT:
+        case VK_NUMPAD0:
+        case VK_NUMPAD1:
+        case VK_NUMPAD2:
+        case VK_NUMPAD3:
+        case VK_NUMPAD4:
+        case VK_NUMPAD5:
+        case VK_NUMPAD6:
+        case VK_NUMPAD7:
+        case VK_NUMPAD8:
+        case VK_NUMPAD9:
+        case VK_MULTIPLY:
+        case VK_ADD     :
+        case VK_SUBTRACT:
+        case VK_DECIMAL :
+        case VK_DIVIDE  :
+        {
+            result = true;
+        }break;
+        
+    }
+    return(result);
+}
+
 internal void
 win32_resize(i32 width, i32 height){
     if (width > 0 && height > 0){
@@ -1105,7 +1139,8 @@ win32_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             
             u64 vk = wParam;
             
-            if (win32vars.key_mode == KeyMode_Physical){
+            if (win32vars.key_mode == KeyMode_Physical &&
+                !keycode_physical_translaion_is_wrong(vk)){
                 UINT scan_code = ((lParam >> 16) & bitmask_8);
                 vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, win32vars.kl_universal);
             }
@@ -1895,8 +1930,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
                         }
                         
                         if (treat_normally){
-                            DispatchMessage(&msg);
                             TranslateMessage(&msg);
+                            DispatchMessage(&msg);
                         }
                         else{
                             Control_Keys *controls = &win32vars.input_chunk.pers.controls;
