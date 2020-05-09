@@ -1,7 +1,11 @@
 
+4.1.6
+ + Fix: notepad like mode scrolling only creates selection when holding mouse L-buttoon
+ + Fix: on windows the window has the 4coder icon
+
 4.1.5
  + MAJOR: Scratch_Blocks now take arena pointer parameters in their constructor to specify arenas that should be treated as having distinct lifetimes, without doing this it is possible that a local scratch and another arena will actually refer to the same allocator and freeing the local scratch will also free memory that was meant to be in a separate arena.
- + MAJOR: HookID_BufferEditRange now takes a the "old_cursor_range" instead of the "original_size"
+ + MAJOR: HookID_BufferEditRange now takes the "old_cursor_range" instead of the "original_size"
  + Date_Time system APIs, and Date_Time string formatting
  + 'clean_all_lines' removes trailing whitespace and removes blank lines
  + 'clean_trailing_whitespace' leaves blank lines
@@ -17,7 +21,7 @@
  + Fix: when generated/metadata* files are missing buildsuper still succeeds
  + Fix: mac does not hang opening multiple files
  + Fix: line number margin performance
- + Fix: no crash in notepade like mode when replacing a highlighted range in a parsed file
+ + Fix: no crash in notepad like mode when replacing a highlighted range in a parsed file
  + Fix: no thread handle leak when closing a view
  + Fix: no crash when a project file .cmd is not the right type
  + Fix: windows layer now generates layout independent key stroke events

@@ -419,7 +419,7 @@ struct Buffer_Cursor{
 };
 
 api(custom)
-struct Range_Cursor{
+union Range_Cursor{
     struct{
         Buffer_Cursor min;
         Buffer_Cursor max;

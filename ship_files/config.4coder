@@ -1,9 +1,9 @@
 // Command Mapping
-// ""                - Leave the bindings unaltered.
+// ""                - Leave the bindings unaltered - use this when writing your own customization!
 // "choose"          - Ask 4coder to choose based on platform.
 // "default"         - Use the default keybindings 4coder has always had.
 // "mac-default"     - Use keybindings similar to those found in other Mac applications.
-mapping = "choose";
+mapping = "";
 
 // MODE
 // "4coder"       - The default 4coder mode that has been around since the beginning of time (2015)

@@ -272,7 +272,9 @@ CUSTOM_DOC("Reads the scroll wheel value from the mouse state and scrolls accord
         scroll.target = view_move_buffer_point(app, view, scroll.target, V2f32(0.f, (f32)mouse.wheel));
         view_set_buffer_scroll(app, view, scroll, SetBufferScroll_SnapCursorIntoView);
     }
-    no_mark_snap_to_cursor(app, view);
+    if (mouse.l){
+        no_mark_snap_to_cursor(app, view);
+    }
 }
 
 ////////////////////////////////
