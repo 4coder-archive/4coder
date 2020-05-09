@@ -948,36 +948,24 @@ mac_toggle_fullscreen(void){
     [self process_keyboard_event:event down:true];
 	[self interpretKeyEvents:[NSArray arrayWithObject:event]];
 
-#if 0
-    // NOTE(yuval): Process TextInsert event
+    // TODO(allen): Deduplicate with insertText version
+    // NOTE(allen): We need to manually send text for '\n' and '\t'
     {
         NSString *characters = [event characters];
         u32 len = [characters length];
-		NSLog(@"%u characters: %@", len, characters);
-        if (len > 0){
+        if (len == 1){
             // NOTE(yuval): Get the first utf-16 character
             u32 c = [characters characterAtIndex:0];
             if (c == '\r'){
                 c = '\n';
             }
+            if ((c == '\t') || (c == '\n')){
+                u8 *str = push_array(&mac_vars.frame_arena, u8, 1);
+	            str[0] = (u8)c;
 
-            // NOTE(yuval): Check for a valid text input
-			printf("Input: %d\n", c);
-            if ((c > 127) || ((' ' <= c) && (c <= '~')) || (c == '\t') || (c == '\n')){
-                Scratch_Block scratch(mac_vars.tctx);
-                u16 *utf16 = push_array(scratch, u16, len);
-                [characters getCharacters:utf16 range:NSMakeRange(0, len)];
-                String_Const_u16 str_16 = SCu16(utf16, len);
-                String_Const_u8 str_8 = string_u8_from_string_u16(&mac_vars.frame_arena, str_16).string;
-                for (i64 i = 0; i < str_8.size; i += 1){
-                    if (str_8.str[i] == '\r'){
-                        str_8.str[i] = '\n';
-                    }
-                }
-
-                Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
+Input_Event *event = push_input_event(&mac_vars.frame_arena, &mac_vars.input_chunk.trans.event_list);
                 event->kind = InputEventKind_TextInsert;
-                event->text.string = str_8;
+                event->text.string = SCu8(str, 1);
                 event->text.next_text = 0;
                 event->text.blocked = false;
                 if (mac_vars.active_text_input){
@@ -992,7 +980,6 @@ mac_toggle_fullscreen(void){
             }
         }
     }
-	#endif
 }
 
 - (void)keyUp:(NSEvent*)event{
