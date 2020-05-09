@@ -1541,6 +1541,38 @@ view_compute_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek){
 }
 
 api(custom) function b32
+view_set_camera_bounds(Application_Links *app, View_ID view_id, Vec2_f32 margin, Vec2_f32 push_in_multiplier)
+{
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (api_check_view(view)){
+        result = true;
+        margin.x = clamp_bot(0.f, margin.x);
+        margin.y = clamp_bot(0.f, margin.y);
+        push_in_multiplier.x = clamp_bot(1.5f, push_in_multiplier.x);
+        push_in_multiplier.y = clamp_bot(1.5f, push_in_multiplier.y);
+        view->cursor_margin = margin;
+        view->cursor_push_in_multiplier = push_in_multiplier;
+    }
+    return(result);
+}
+
+api(custom) function b32
+view_get_camera_bounds(Application_Links *app, View_ID view_id, Vec2_f32 *margin, Vec2_f32 *push_in_multiplier)
+{
+    Models *models = (Models*)app->cmd_context;
+    View *view = imp_get_view(models, view_id);
+    b32 result = false;
+    if (api_check_view(view)){
+        result = true;
+        *margin = view->cursor_margin;
+        *push_in_multiplier = view->cursor_push_in_multiplier;
+    }
+    return(result);
+}
+
+api(custom) function b32
 view_set_cursor(Application_Links *app, View_ID view_id, Buffer_Seek seek)
 {
     Models *models = (Models*)app->cmd_context;

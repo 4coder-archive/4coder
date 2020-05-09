@@ -82,6 +82,8 @@ api(custom) function b32 view_set_setting(Application_Links* app, View_ID view_i
 api(custom) function Managed_Scope view_get_managed_scope(Application_Links* app, View_ID view_id);
 api(custom) function Buffer_Cursor buffer_compute_cursor(Application_Links* app, Buffer_ID buffer, Buffer_Seek seek);
 api(custom) function Buffer_Cursor view_compute_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
+api(custom) function b32 view_set_camera_bounds(Application_Links* app, View_ID view_id, Vec2_f32 margin, Vec2_f32 push_in_multiplier);
+api(custom) function b32 view_get_camera_bounds(Application_Links* app, View_ID view_id, Vec2_f32* margin, Vec2_f32* push_in_multiplier);
 api(custom) function b32 view_set_cursor(Application_Links* app, View_ID view_id, Buffer_Seek seek);
 api(custom) function b32 view_set_buffer_scroll(Application_Links* app, View_ID view_id, Buffer_Scroll scroll, Set_Buffer_Scroll_Rule rule);
 api(custom) function b32 view_set_mark(Application_Links* app, View_ID view_id, Buffer_Seek seek);

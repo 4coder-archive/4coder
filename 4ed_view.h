@@ -77,6 +77,8 @@ struct View{
     File_Edit_Positions edit_pos_;
     i64 mark;
     f32 preferred_x;
+    Vec2_f32 cursor_margin;
+    Vec2_f32 cursor_push_in_multiplier;
     
     b8 new_scroll_target;
     b8 hide_scrollbar;

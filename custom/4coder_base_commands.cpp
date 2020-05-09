@@ -890,6 +890,14 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
         return;
     }
     
+    Vec2_f32 old_margin = {};
+    Vec2_f32 old_push_in = {};
+    view_get_camera_bounds(app, view, &old_margin, &old_push_in);
+    
+    Vec2_f32 margin = old_margin;
+    margin.y = clamp_bot(200.f, margin.y);
+    view_set_camera_bounds(app, view, margin, old_push_in);
+    
     Scan_Direction scan = start_scan;
     i64 pos = first_pos;
     
@@ -1066,6 +1074,8 @@ isearch(Application_Links *app, Scan_Direction start_scan, i64 first_pos,
         previous_isearch_query[size] = 0;
         view_set_cursor_and_preferred_x(app, view, seek_pos(first_pos));
     }
+    
+    view_set_camera_bounds(app, view, old_margin, old_push_in);
 }
 
 function void

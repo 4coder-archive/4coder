@@ -347,18 +347,31 @@ view_move_view_to_cursor(Thread_Context *tctx, Models *models, View *view, Buffe
     f32 line_height = face->metrics.line_height;
     f32 normal_advance = face->metrics.normal_advance;
     
+    Vec2_f32 margin = view->cursor_margin;
+    Vec2_f32 push_in = view->cursor_push_in_multiplier;
+    
+    Vec2_f32 lim_dim = view_dim*0.45f;
+    margin.x = clamp_top(margin.x, lim_dim.x);
+    margin.y = clamp_top(margin.y, lim_dim.y);
+    
+    Vec2_f32 push_in_lim_dim = hadamard(lim_dim, V2f32(1.f/line_height, 1.f/normal_advance)) - margin;
+	push_in_lim_dim.x = clamp_bot(0.f, push_in_lim_dim.x);
+	push_in_lim_dim.y = clamp_bot(0.f, push_in_lim_dim.y);
+    push_in.x = clamp_top(push_in.x, push_in_lim_dim.x);
+    push_in.y = clamp_top(push_in.y, push_in_lim_dim.y);
+    
     Vec2_f32 target_p_relative = {};
-    if (p.y < 0.f){
-        target_p_relative.y = p.y - line_height*1.5f;
+    if (p.y < margin.y){
+        target_p_relative.y = p.y - margin.y - line_height*push_in.y;
     }
-    else if (p.y > view_dim.y){
-        target_p_relative.y = (p.y + line_height*1.5f) - view_dim.y;
+    else if (p.y > view_dim.y - margin.y){
+        target_p_relative.y = (p.y + margin.y + line_height*push_in.y) - view_dim.y;
     }
-    if (p.x < 0.f){
-        target_p_relative.x = p.x - normal_advance*1.5f;
+    if (p.x < margin.x){
+        target_p_relative.x = p.x - margin.x - normal_advance*push_in.x;
     }
-    else if (p.x > view_dim.x){
-        target_p_relative.x = (p.x + normal_advance*1.5f) - view_dim.x;
+    else if (p.x > view_dim.x - margin.x){
+        target_p_relative.x = (p.x + margin.x + normal_advance*push_in.x) - view_dim.x;
     }
     scroll->target.pixel_shift += target_p_relative;
     scroll->target = view_normalize_buffer_point(tctx, models, view, scroll->target);
@@ -589,6 +602,9 @@ view_init(Thread_Context *tctx, Models *models, View *view, Editing_File *initia
     first_ctx.delta_rule = models->delta_rule;
     first_ctx.delta_rule_memory_size = models->delta_rule_memory_size;
     view_push_context(view, &first_ctx);
+    
+    view->cursor_margin = V2f32(0.f, 0.f);
+    view->cursor_push_in_multiplier = V2f32(1.5f, 1.5f);
     
     view->co = coroutine_create(&models->coroutines, view_event_context_base__inner);
     view->co->user_data = view;
