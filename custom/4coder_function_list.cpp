@@ -171,7 +171,8 @@ print_positions_buffered(Application_Links *app, Buffer_Insertion *out, Buffer_I
             for (;;){
                 Token *token = token_it_read(&it);
                 if (!HasFlag(token->flags, TokenBaseFlag_PreprocessorBody) &&
-                    token->kind != TokenBaseKind_Comment){
+                    token->kind != TokenBaseKind_Comment &&
+                    token->kind != TokenBaseKind_Whitespace){
                     if ((prev_token.sub_kind == TokenCppKind_Identifier ||
                          prev_token.sub_kind == TokenCppKind_Star ||
                          prev_token.sub_kind == TokenCppKind_Comma ||

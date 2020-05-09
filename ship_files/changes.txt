@@ -4,6 +4,7 @@
  + Fix: notepad like mode scrolling only creates selection when holding mouse L-buttoon
  + Fix: on windows the window has the 4coder icon
  + Fix: by default platform layer uses key codes arranged by the system language
+ + Fix: printing for list_all_functions_* commands skips whitespace and controls format directly
 
 4.1.5
  + MAJOR: Scratch_Blocks now take arena pointer parameters in their constructor to specify arenas that should be treated as having distinct lifetimes, without doing this it is possible that a local scratch and another arena will actually refer to the same allocator and freeing the local scratch will also free memory that was meant to be in a separate arena.
