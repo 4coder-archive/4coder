@@ -782,7 +782,7 @@ App_Step_Sig(app_step){
                 Application_Links app = {};
                 app.tctx = tctx;
                 app.cmd_context = models;
-#define M "SERIOUS ERROR: coroutine wind down did not complete"
+#define M "SERIOUS ERROR: coroutine wind down did not complete\n"
                 print_message(&app, string_u8_litexpr(M));
 #undef M
                 break;

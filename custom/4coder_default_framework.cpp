@@ -5,6 +5,81 @@
 // TOP
 
 function void
+point_stack_push(Application_Links *app, Buffer_ID buffer, i64 pos){
+    Managed_Object object = alloc_buffer_markers_on_buffer(app, buffer, 1, 0);
+    Marker *marker = (Marker*)managed_object_get_pointer(app, object);
+    marker->pos = pos;
+    marker->lean_right = false;
+    
+    i32 next_top = (point_stack.top + 1)%ArrayCount(point_stack.markers);
+    if (next_top == point_stack.bot){
+        Point_Stack_Slot *slot = &point_stack.markers[point_stack.bot];
+        managed_object_free(app, slot->object);
+        block_zero_struct(slot);
+        point_stack.bot = (point_stack.bot + 1)%ArrayCount(point_stack.markers);
+    }
+    
+    Point_Stack_Slot *slot = &point_stack.markers[point_stack.top];
+    slot->buffer = buffer;
+    slot->object = object;
+    point_stack.top = next_top;
+}
+
+function void
+point_stack_push_view_cursor(Application_Links *app, View_ID view){
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    i64 pos = view_get_cursor_pos(app, view);
+    point_stack_push(app, buffer, pos);
+}
+
+function b32
+point_stack_pop(Application_Links *app){
+    b32 result = false;
+    if (point_stack.top != point_stack.bot){
+        result = true;
+        if (point_stack.top > 0){
+            point_stack.top -= 1;
+        }
+        else{
+            point_stack.top = ArrayCount(point_stack.markers) - 1;
+        }
+        Point_Stack_Slot *slot = &point_stack.markers[point_stack.top];
+        managed_object_free(app, slot->object);
+        block_zero_struct(slot);
+    }
+    return(result);
+}
+
+function b32
+point_stack_read_top(Application_Links *app, Buffer_ID *buffer_out, i64 *pos_out){
+    b32 result = false;
+    if (point_stack.top != point_stack.bot){
+        result = true;
+        i32 prev_top = point_stack.top;
+        if (prev_top > 0){
+            prev_top -= 1;
+        }
+        else{
+            prev_top = ArrayCount(point_stack.markers) - 1;
+        }
+        Point_Stack_Slot *slot = &point_stack.markers[prev_top];
+        Managed_Object object = slot->object;
+        Marker *marker = (Marker*)managed_object_get_pointer(app, object);
+        if (marker != 0){
+            *buffer_out = slot->buffer;
+            *pos_out = marker->pos;
+        }
+        else{
+            *buffer_out = 0;
+            *pos_out = 0;
+        }
+    }
+    return(result);
+}
+
+////////////////////////////////
+
+function void
 unlock_jump_buffer(void){
     locked_buffer.size = 0;
 }
@@ -68,6 +143,7 @@ new_view_settings(Application_Links *app, View_ID view){
 }
 
 ////////////////////////////////
+
 
 function void
 view_set_passive(Application_Links *app, View_ID view_id, b32 value){
@@ -895,6 +971,83 @@ default_framework_init(Application_Links *app){
     heap_init(&global_heap, tctx->allocator);
     global_config_arena = make_arena_system();
     fade_range_arena = make_arena_system(KB(8));
+}
+
+////////////////////////////////
+
+function void
+default_input_handler_init(Application_Links *app, Arena *arena){
+    Thread_Context *tctx = get_thread_context(app);
+    
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    String_Const_u8 name = push_u8_stringf(arena, "view %d", view);
+    
+    Profile_Global_List *list = get_core_profile_list(app);
+    ProfileThreadName(tctx, list, name);
+    
+    View_Context ctx = view_current_context(app, view);
+    ctx.mapping = &framework_mapping;
+    ctx.map_id = mapid_global;
+    view_alter_context(app, view, &ctx);
+}
+
+function Command_Map_ID
+default_get_map_id(Application_Links *app, View_ID view){
+    Command_Map_ID result = 0;
+    Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+    Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
+    Command_Map_ID *result_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
+    if (result_ptr != 0){
+        if (*result_ptr == 0){
+            *result_ptr = mapid_file;
+        }
+        result = *result_ptr;
+    }
+    else{
+        result = mapid_global;
+    }
+    return(result);
+}
+
+function void
+default_pre_command(Application_Links *app, Managed_Scope scope){
+    Rewrite_Type *next_rewrite =
+        scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+    *next_rewrite = Rewrite_None;
+    if (fcoder_mode == FCoderMode_NotepadLike){
+        for (View_ID view_it = get_view_next(app, 0, Access_Always);
+             view_it != 0;
+             view_it = get_view_next(app, view_it, Access_Always)){
+            Managed_Scope scope_it = view_get_managed_scope(app, view_it);
+            b32 *snap_mark_to_cursor =
+                scope_attachment(app, scope_it, view_snap_mark_to_cursor,
+                                 b32);
+            *snap_mark_to_cursor = true;
+        }
+    }
+}
+
+function void
+default_post_command(Application_Links *app, Managed_Scope scope){
+    Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
+    if (next_rewrite != 0){
+        Rewrite_Type *rewrite =
+            scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
+        *rewrite = *next_rewrite;
+        if (fcoder_mode == FCoderMode_NotepadLike){
+            for (View_ID view_it = get_view_next(app, 0, Access_Always);
+                 view_it != 0;
+                 view_it = get_view_next(app, view_it, Access_Always)){
+                Managed_Scope scope_it = view_get_managed_scope(app, view_it);
+                b32 *snap_mark_to_cursor =
+                    scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
+                if (*snap_mark_to_cursor){
+                    i64 pos = view_get_cursor_pos(app, view_it);
+                    view_set_mark(app, view_it, seek_pos(pos));
+                }
+            }
+        }
+    }
 }
 
 // BOTTOM

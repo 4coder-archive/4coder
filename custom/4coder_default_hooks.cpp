@@ -51,101 +51,43 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
 CUSTOM_COMMAND_SIG(default_view_input_handler)
 CUSTOM_DOC("Input consumption loop for default view behavior")
 {
-    Thread_Context *tctx = get_thread_context(app);
-    Scratch_Block scratch(tctx);
+    Scratch_Block scratch(app);
+    default_input_handler_init(app, scratch);
     
-    {
-        View_ID view = get_this_ctx_view(app, Access_Always);
-        String_Const_u8 name = push_u8_stringf(scratch, "view %d", view);
-        
-        Profile_Global_List *list = get_core_profile_list(app);
-        ProfileThreadName(tctx, list, name);
-        
-        View_Context ctx = view_current_context(app, view);
-        ctx.mapping = &framework_mapping;
-        ctx.map_id = mapid_global;
-        view_alter_context(app, view, &ctx);
-    }
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    Managed_Scope scope = view_get_managed_scope(app, view);
     
     for (;;){
-        // NOTE(allen): Get the binding from the buffer's current map
+        // NOTE(allen): Get input
         User_Input input = get_next_input(app, EventPropertyGroup_Any, 0);
-        ProfileScopeNamed(app, "before view input", view_input_profile);
         if (input.abort){
             break;
         }
         
-        Event_Property event_properties = get_event_properties(&input.event);
+        ProfileScopeNamed(app, "before view input", view_input_profile);
         
+        // NOTE(allen): Mouse Suppression
+        Event_Property event_properties = get_event_properties(&input.event);
         if (suppressing_mouse && (event_properties & EventPropertyGroup_AnyMouseEvent) != 0){
             continue;
         }
         
-        View_ID view = get_this_ctx_view(app, Access_Always);
+        // NOTE(allen): Get map_id
+        Command_Map_ID map_id = default_get_map_id(app, view);
         
-        Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
-        Managed_Scope buffer_scope = buffer_get_managed_scope(app, buffer);
-        Command_Map_ID *map_id_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
-        if (*map_id_ptr == 0){
-            *map_id_ptr = mapid_file;
-        }
-        Command_Map_ID map_id = *map_id_ptr;
-        
+        // NOTE(allen): Get binding
         Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
-        
-        Managed_Scope scope = view_get_managed_scope(app, view);
-        
         if (binding.custom == 0){
-            // NOTE(allen): we don't have anything to do with this input,
-            // leave it marked unhandled so that if there's a follow up
-            // event it is not blocked.
             leave_current_input_unhandled(app);
+            continue;
         }
-        else{
-            // NOTE(allen): before the command is called do some book keeping
-            Rewrite_Type *next_rewrite =
-                scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-            *next_rewrite = Rewrite_None;
-            if (fcoder_mode == FCoderMode_NotepadLike){
-                for (View_ID view_it = get_view_next(app, 0, Access_Always);
-                     view_it != 0;
-                     view_it = get_view_next(app, view_it, Access_Always)){
-                    Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-                    b32 *snap_mark_to_cursor =
-                        scope_attachment(app, scope_it, view_snap_mark_to_cursor,
-                                         b32);
-                    *snap_mark_to_cursor = true;
-                }
-            }
-            
-            ProfileCloseNow(view_input_profile);
-            
-            // NOTE(allen): call the command
-            binding.custom(app);
-            
-            // NOTE(allen): after the command is called do some book keeping
-            ProfileScope(app, "after view input");
-            
-            next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-            if (next_rewrite != 0){
-                Rewrite_Type *rewrite =
-                    scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
-                *rewrite = *next_rewrite;
-                if (fcoder_mode == FCoderMode_NotepadLike){
-                    for (View_ID view_it = get_view_next(app, 0, Access_Always);
-                         view_it != 0;
-                         view_it = get_view_next(app, view_it, Access_Always)){
-                        Managed_Scope scope_it = view_get_managed_scope(app, view_it);
-                        b32 *snap_mark_to_cursor =
-                            scope_attachment(app, scope_it, view_snap_mark_to_cursor, b32);
-                        if (*snap_mark_to_cursor){
-                            i64 pos = view_get_cursor_pos(app, view_it);
-                            view_set_mark(app, view_it, seek_pos(pos));
-                        }
-                    }
-                }
-            }
-        }
+        
+        // NOTE(allen): Run the command and pre/post command stuff
+        default_pre_command(app, scope);
+        ProfileCloseNow(view_input_profile);
+        binding.custom(app);
+        ProfileScope(app, "after view input");
+        default_post_command(app, scope);
     }
 }
 

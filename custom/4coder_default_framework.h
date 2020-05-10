@@ -54,6 +54,21 @@ struct ID_Pos_Jump_Location_Array{
 
 ////////////////////////////////
 
+#define POINT_STACK_DEPTH 100
+
+struct Point_Stack_Slot{
+    Buffer_ID buffer;
+    Managed_Object object;
+};
+
+struct Point_Stack{
+    Point_Stack_Slot markers[POINT_STACK_DEPTH + 1];
+    i32 top;
+    i32 bot;
+};
+
+////////////////////////////////
+
 typedef i32 Fallback_Dispatch_Result_Code;
 enum{
     FallbackDispatch_Unhandled,

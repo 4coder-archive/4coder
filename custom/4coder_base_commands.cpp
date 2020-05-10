@@ -1330,6 +1330,35 @@ CUSTOM_DOC("Queries the user for a string, and incrementally replace every occur
 
 ////////////////////////////////
 
+CUSTOM_COMMAND_SIG(jump_to_last_point)
+CUSTOM_DOC("Read from the top of the point stack and jump there; if already there pop the top and go to the next option")
+{
+    View_ID view = get_active_view(app, Access_Visible);
+    if (view != 0){
+        Buffer_ID buffer = view_get_buffer(app, view, Access_Always);
+        i64 pos = view_get_cursor_pos(app, view);
+        
+        for (;;){
+            Buffer_ID stack_buffer = 0;
+            i64 stack_pos = 0;
+            if (point_stack_read_top(app, &stack_buffer, &stack_pos)){
+                if (stack_buffer != 0 &&
+                    (stack_buffer != buffer || stack_pos != pos)){
+                    view_set_buffer(app, view, stack_buffer, 0);
+                    view_set_cursor_and_preferred_x(app, view, seek_pos(stack_pos));
+                    break;
+                }
+                point_stack_pop(app);
+            }
+            else{
+                break;
+            }
+        }
+    }
+}
+
+////////////////////////////////
+
 function void
 delete_file_base(Application_Links *app, String_Const_u8 file_name, Buffer_ID buffer_id){
     String_Const_u8 path = string_remove_last_folder(file_name);

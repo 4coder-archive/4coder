@@ -101,6 +101,10 @@ global Fade_Range *free_fade_ranges = 0;
 
 ////////////////////////////////
 
+global Point_Stack point_stack = {};
+
+////////////////////////////////
+
 global Clipboard clipboard0 = {};
 
 // BOTTOM

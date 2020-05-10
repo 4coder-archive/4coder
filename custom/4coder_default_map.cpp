@@ -37,6 +37,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(command_lister,                KeyCode_X, KeyCode_Alt);
     Bind(project_command_lister,        KeyCode_X, KeyCode_Alt, KeyCode_Shift);
     Bind(quick_swap_buffer,             KeyCode_BackwardSlash, KeyCode_Alt);
+    Bind(jump_to_last_point,            KeyCode_P, KeyCode_Control);
     Bind(list_all_functions_current_buffer_lister, KeyCode_I, KeyCode_Control, KeyCode_Shift);
     Bind(exit_4coder,          KeyCode_F4, KeyCode_Alt);
     Bind(project_fkey_command, KeyCode_F1);
@@ -155,6 +156,7 @@ setup_default_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id)
     Bind(open_file_in_quotes,        KeyCode_1, KeyCode_Alt);
     Bind(open_matching_file_cpp,     KeyCode_2, KeyCode_Alt);
     Bind(write_zero_struct,          KeyCode_0, KeyCode_Control);
+    Bind(jump_to_definition_at_cursor, KeyCode_W, KeyCode_Control);
 }
 
 // BOTTOM
