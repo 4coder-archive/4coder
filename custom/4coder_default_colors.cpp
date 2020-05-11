@@ -163,6 +163,12 @@ set_active_color(Color_Table *table){
     }
 }
 
+// TODO(allen): Need to make this nicer.
+function void
+set_single_active_color(u64 id, ARGB_Color color){
+    active_color_table.arrays[id] = make_colors(&global_theme_arena, color);
+}
+
 function void
 save_theme(Color_Table table, String_Const_u8 name){
     Color_Table_Node *node = push_array(&global_theme_arena, Color_Table_Node, 1);

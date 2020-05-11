@@ -105,7 +105,7 @@ command_list = {
 
  { .name = "build fusion",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "pushd ..\\build && ..\\code\\custom\\bin\\buildsuper_x64-win.bat ..\\code\\fusion\\4coder_fusion.cpp", .os = "win"   }, }, },
+   .cmd = { { "bin\\build_fusion", .os = "win"   }, }, },
 };
 
 fkey_command[1]  = "build x64";

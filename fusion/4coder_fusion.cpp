@@ -32,18 +32,35 @@ Fusion_Mode fusion_mode = FusionMode_Command;
 
 function void
 fusion_set_mode(Fusion_Mode mode){
+    local_persist ARGB_Color col_margin = finalize_color(defcolor_margin, 0);
+    local_persist ARGB_Color col_margin_hover = finalize_color(defcolor_margin_hover, 0);
+    local_persist ARGB_Color col_margin_active = finalize_color(defcolor_margin_active, 0);
+    local_persist ARGB_Color col_back = finalize_color(defcolor_back, 0);
+    
     fusion_mode = mode;
     switch (mode){
         case FusionMode_Command:
         {
+            col_margin = finalize_color(defcolor_margin, 0);
+            col_margin_hover = finalize_color(defcolor_margin_hover, 0);
+            col_margin_active = finalize_color(defcolor_margin_active, 0);
+            
             global_config.highlight_line_at_cursor = true;
             global_config.mark_thickness = 2.f;
+            
+            set_single_active_color(defcolor_margin, col_back);
+            set_single_active_color(defcolor_margin_hover, col_back);
+            set_single_active_color(defcolor_margin_active, col_back);
         }break;
         
         case FusionMode_Insert:
         {
             global_config.highlight_line_at_cursor = false;
             global_config.mark_thickness = 0.f;
+            
+            set_single_active_color(defcolor_margin, col_margin);
+            set_single_active_color(defcolor_margin_hover, col_margin_hover);
+            set_single_active_color(defcolor_margin_active, col_margin_active);
         }break;
     }
 }
@@ -142,14 +159,16 @@ setup_fusion_mapping(Mapping *mapping){
     ParentMap(mapid_global);
     Bind(set_mark,                        KeyCode_Space);
     
-    Bind(move_up_to_blank_line_end,       KeyCode_Up);
-    Bind(move_down_to_blank_line_end,     KeyCode_Down);
+    Bind(move_up,                         KeyCode_Up);
+    Bind(move_down,                       KeyCode_Down);
     Bind(move_line_up,                    KeyCode_Up, KeyCode_Shift);
     Bind(move_line_down,                  KeyCode_Down, KeyCode_Shift);
     Bind(move_left_alpha_numeric_boundary, KeyCode_Left);
     Bind(move_right_alpha_numeric_boundary, KeyCode_Right);
     Bind(move_left_alpha_numeric_or_camel_boundary,  KeyCode_Left, KeyCode_Shift);
     Bind(move_right_alpha_numeric_or_camel_boundary, KeyCode_Right, KeyCode_Shift);
+    Bind(seek_end_of_line,                KeyCode_End);
+    Bind(seek_beginning_of_line,          KeyCode_Home);
     Bind(page_up,                         KeyCode_PageUp);
     Bind(page_down,                       KeyCode_PageDown);
     
@@ -224,8 +243,8 @@ setup_fusion_mapping(Mapping *mapping){
     Bind(backspace_char,         KeyCode_Backspace);
     Bind(seek_end_of_line,       KeyCode_End);
     Bind(seek_beginning_of_line, KeyCode_Home);
-    Bind(page_up,                KeyCode_PageUp);
-    Bind(page_down,              KeyCode_PageDown);
+    Bind(move_up_to_blank_line_end,   KeyCode_PageUp);
+    Bind(move_down_to_blank_line_end, KeyCode_PageDown);
     Bind(word_complete,          KeyCode_Tab);
 }
 
