@@ -1046,7 +1046,7 @@ struct SymCode {
 
 internal void
 linux_keycode_init_common(Display* dpy, Key_Code* keycode_lookup_table, SymCode* sym_table, SymCode* p, size_t sym_table_size){
-
+    
     *p++ = { XK_space, KeyCode_Space };
     *p++ = { XK_Tab, KeyCode_Tab };
     *p++ = { XK_Escape, KeyCode_Escape };
@@ -1114,18 +1114,18 @@ linux_keycode_init_common(Display* dpy, Key_Code* keycode_lookup_table, SymCode*
                 break;
             }
         }
-
+        
         if(j != table_size){
             continue;
         }
-
+        
         // nothing found - try with shift held (needed for e.g. belgian numbers to bind).
         KeySym shift_sym = NoSymbol;
-
+        
         if(!XkbTranslateKeyCode(linuxvars.xkb, i, XkbBuildCoreState(ShiftMask, linuxvars.xkb_group), NULL, &shift_sym)) {
             continue;
         }
-
+        
         for(j = 0; j < table_size; ++j) {
             if(sym_table[j].sym == shift_sym) {
                 keycode_lookup_table[i] = sym_table[j].code;
@@ -1133,32 +1133,32 @@ linux_keycode_init_common(Display* dpy, Key_Code* keycode_lookup_table, SymCode*
                 break;
             }
         }
-
+        
         // something unknown bound, put it in extra
         if(j == table_size && sym != NoSymbol && next_extra <= max_extra && keycode_lookup_table[i] == 0) {
             keycode_lookup_table[i] = next_extra++;
         }
     }
-
+    
 }
 
 internal void
 linux_keycode_init_language(Display* dpy, Key_Code* keycode_lookup_table){
     SymCode sym_table[300];
     SymCode* p = sym_table;
-
-    for(unsigned int i = 0; i <= 26; ++i) {
+    
+    for(unsigned int i = 0; i < 26; ++i) {
         *p++ = { XK_a + i, KeyCode_A + i};
     }
-
-    for(unsigned int i = 0; i <= 26; ++i) {
+    
+    for(unsigned int i = 0; i < 26; ++i) {
         *p++ = { XK_A + i, KeyCode_A + i};
     }
-
+    
     for(unsigned int i = 0; i <= 9; ++i) {
         *p++ = { XK_0 + i, KeyCode_0 + i};
     }
-
+    
     *p++ = { XK_grave, KeyCode_Tick };
     *p++ = { XK_minus, KeyCode_Minus };
     *p++ = { XK_equal, KeyCode_Equal };
@@ -1170,7 +1170,7 @@ linux_keycode_init_language(Display* dpy, Key_Code* keycode_lookup_table){
     *p++ = { XK_period, KeyCode_Period };
     *p++ = { XK_slash, KeyCode_ForwardSlash };
     *p++ = { XK_backslash, KeyCode_BackwardSlash };
-
+    
     linux_keycode_init_common(dpy, keycode_lookup_table, sym_table, p, ArrayCount(sym_table));
 }
 
@@ -1239,7 +1239,7 @@ internal void
 linux_keycode_init(Display* dpy){
     block_zero_array(keycode_lookup_table_physical);
     block_zero_array(keycode_lookup_table_language);
-
+    
     linux_keycode_init_physical(dpy, keycode_lookup_table_physical);
     linux_keycode_init_language(dpy, keycode_lookup_table_language);
 }
@@ -1431,14 +1431,14 @@ linux_numlock_convert(KeyCode in){
         0, 0, 0,
         KeyCode_Delete,
     };
-
+    
     if(in >= KeyCode_NumPad0 && in <= KeyCode_NumPadDot) {
         KeyCode ret = lookup[in - KeyCode_NumPad0];
         if(ret != 0) {
             return ret;
         }
     }
-
+    
     return in;
 }
 
@@ -1450,7 +1450,7 @@ linux_handle_x11_events() {
     while (XPending(linuxvars.dpy)) {
         XEvent event;
         XNextEvent(linuxvars.dpy, &event);
-
+        
         b32 filtered = false;
         if (XFilterEvent(&event, None) == True){
             filtered = true;
@@ -1460,7 +1460,7 @@ linux_handle_x11_events() {
         }
         
         u64 event_id = (u64)event.xkey.serial << 32 | event.xkey.time;
-
+        
         switch(event.type) {
             case KeyPress: {
                 should_step = true;
@@ -1489,46 +1489,49 @@ linux_handle_x11_events() {
                 if (keysym == XK_ISO_Left_Tab){
                     add_modifier(mods, KeyCode_Shift);
                 }
-
+                
                 Key_Code key;
                 if(linuxvars.key_mode == KeyMode_Physical) {
                     key = keycode_lookup_table_physical[(u8)event.xkey.keycode];
                 } else {
                     key = keycode_lookup_table_language[(u8)event.xkey.keycode];
                 }
-
+                
                 if(!(state & Mod2Mask)) {
                     key = linux_numlock_convert(key);
                 }
-
+                
                 //printf("key %d = %s (f:%d)\n", event.xkey.keycode, key_code_name[key], filtered);
-
+                
                 b32 is_dead = false;
                 if (keysym >= XK_dead_grave && keysym <= XK_dead_greek && len == 0) {
                     is_dead = true;
-                    printf(" *** Set Dead Key flag here!\n");
                 }
-
+                
                 if(!is_dead && filtered) {
                     linuxvars.prev_filtered_key = key;
                     break;
                 }
-
+                
                 // send a keycode for the key after the dead key
                 if(!key && linuxvars.prev_filtered_key) {
                     key = linuxvars.prev_filtered_key;
                     linuxvars.prev_filtered_key = 0;
                 }
-
+                
                 Input_Event* key_event = NULL;
                 if(key) {
                     add_modifier(mods, key);
                     // printf(" push key %d\n", key);
-
+                    
                     key_event = push_input_event(&linuxvars.frame_arena, &linuxvars.input.trans.event_list);
                     key_event->kind = InputEventKind_KeyStroke;
                     key_event->key.code = key;
                     key_event->key.modifiers = copy_modifier_set(&linuxvars.frame_arena, mods);
+                    key_event->key.flags = 0;
+                    if (is_dead){
+                        key_event->key.flags |= KeyFlag_IsDeadKey;
+                    }
                 }
                 
                 Input_Event* text_event = NULL;
@@ -1549,7 +1552,7 @@ linux_handle_x11_events() {
             
             case KeyRelease: {
                 should_step = true;
-
+                
                 Input_Modifier_Set_Fixed* mods = &linuxvars.input.pers.modifiers;
                 
                 int state = event.xkey.state;
@@ -1564,7 +1567,7 @@ linux_handle_x11_events() {
                 } else {
                     key = keycode_lookup_table_language[(u8)event.xkey.keycode];
                 }
-
+                
                 // num lock off -> convert KP keys to Insert, Home, End etc.
                 if(!(state & Mod2Mask)) {
                     key = linux_numlock_convert(key);

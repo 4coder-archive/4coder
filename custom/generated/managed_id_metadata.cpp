@@ -59,6 +59,4 @@ attachment_tokens = managed_id_declare(app, string_u8_litexpr("attachment"), str
 mapid_global = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("mapid_global"));
 mapid_file = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("mapid_file"));
 mapid_code = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("mapid_code"));
-fusion_map_command = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("fusion_map_command"));
-fusion_map_insert = managed_id_declare(app, string_u8_litexpr("command_map"), string_u8_litexpr("fusion_map_insert"));
 }
