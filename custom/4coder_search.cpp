@@ -137,14 +137,17 @@ list_all_locations__generic(Application_Links *app, String_Const_u8_Array needle
 
 internal void
 list_all_locations__generic(Application_Links *app, String_Const_u8 needle, List_All_Locations_Flag flags){
-    String_Const_u8_Array array = {&needle, 1};
-    list_all_locations__generic(app, array, flags);
+    if (needle.size != 0){
+        String_Const_u8_Array array = {&needle, 1};
+        list_all_locations__generic(app, array, flags);
+    }
 }
 
 internal void
 list_all_locations__generic_query(Application_Links *app, List_All_Locations_Flag flags){
     Scratch_Block scratch(app);
-    String_Const_u8 needle = query_user_list_needle(app, scratch);
+    u8 *space = push_array(scratch, u8, KB(1));
+    String_Const_u8 needle = get_query_string(app, "List Locations For: ", space, KB(1));
     list_all_locations__generic(app, needle, flags);
 }
 

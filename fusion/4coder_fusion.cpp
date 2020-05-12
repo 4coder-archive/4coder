@@ -118,6 +118,110 @@ CUSTOM_DOC("TODO - document fusion mode")
     }
 }
 
+////////////////////////////////
+
+CUSTOM_COMMAND_SIG(fusion_return)
+CUSTOM_DOC("TODO")
+{
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    if (buffer == 0){
+        buffer = view_get_buffer(app, view, Access_ReadVisible);
+        if (buffer != 0){
+            goto_jump_at_cursor(app);
+            lock_jump_buffer(app, buffer);
+        }
+    }
+    else{
+        write_text(app, string_u8_litexpr("\n"));
+    }
+}
+
+CUSTOM_COMMAND_SIG(fusion_return_shift)
+CUSTOM_DOC("TODO")
+{
+    View_ID view = get_active_view(app, Access_ReadVisible);
+    Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
+    if (buffer == 0){
+        buffer = view_get_buffer(app, view, Access_ReadVisible);
+        if (buffer != 0){
+            goto_jump_at_cursor_same_panel(app);
+            lock_jump_buffer(app, buffer);
+        }
+    }
+    else{
+        write_text(app, string_u8_litexpr("\n"));
+    }
+}
+
+function b32
+string_is_blank(String_Const_u8 string){
+    b32 is_blank = true;
+    for (u64 i = 0; i < string.size; i += 1){
+        if (!character_is_whitespace(string.str[i])){
+            is_blank = false;
+            break;
+        }
+    }
+    return(is_blank);
+}
+
+CUSTOM_COMMAND_SIG(fusion_backspace)
+CUSTOM_DOC("TODO")
+{
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    if (view != 0){
+        Scratch_Block scratch(app);
+        Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWrite);
+        i64 pos = view_get_cursor_pos(app, view);
+        i64 line_number = get_line_number_from_pos(app, buffer, pos);
+        Buffer_Cursor beginning_of_line = get_line_side(app, buffer, line_number, Side_Min);
+        Range_i64 range = Ii64(beginning_of_line.pos, pos);
+        String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
+        if (string_is_blank(string)){
+            if (line_number > 1){
+                Buffer_Cursor end_of_prev_line = get_line_side(app, buffer, line_number - 1, Side_Max);
+                range.min = end_of_prev_line.pos;
+            }
+            buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
+        }
+        else{
+            current_view_boundary_delete(app, Scan_Backward,
+                                         push_boundary_list(scratch, boundary_alpha_numeric, boundary_token,
+                                                            boundary_non_whitespace));
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(fusion_delete)
+CUSTOM_DOC("TODO")
+{
+    View_ID view = get_active_view(app, Access_ReadWriteVisible);
+    if (view != 0){
+        Scratch_Block scratch(app);
+        Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWrite);
+        i64 pos = view_get_cursor_pos(app, view);
+        i64 line_number = get_line_number_from_pos(app, buffer, pos);
+        Buffer_Cursor end_of_line = get_line_side(app, buffer, line_number, Side_Max);
+        Range_i64 range = Ii64(pos, end_of_line.pos);
+        String_Const_u8 string = push_buffer_range(app, scratch, buffer, range);
+        if (string_is_blank(string)){
+            i64 line_count = buffer_get_line_count(app, buffer);
+            if (line_number < line_count){
+                Buffer_Cursor beginning_of_prev_line = get_line_side(app, buffer, line_number + 1, Side_Min);
+                range.max = beginning_of_prev_line.pos;
+            }
+            buffer_replace_range(app, buffer, range, string_u8_litexpr(""));
+        }
+        else{
+            current_view_boundary_delete(app, Scan_Forward,
+                                         push_boundary_list(scratch, boundary_alpha_numeric, boundary_token,
+                                                            boundary_non_whitespace));
+        }
+    }
+}
+
+////////////////////////////////
 
 function void
 setup_fusion_mapping(Mapping *mapping){
@@ -172,13 +276,13 @@ setup_fusion_mapping(Mapping *mapping){
     Bind(page_up,                         KeyCode_PageUp);
     Bind(page_down,                       KeyCode_PageDown);
     
-    Bind(backspace_alpha_numeric_boundary, KeyCode_Backspace);
-    Bind(delete_alpha_numeric_boundary,    KeyCode_Delete);
+    Bind(fusion_backspace, KeyCode_Backspace);
+    Bind(fusion_delete,    KeyCode_Delete);
     Bind(snipe_backward_whitespace_or_token_boundary, KeyCode_Backspace, KeyCode_Shift);
     Bind(snipe_forward_whitespace_or_token_boundary,  KeyCode_Delete, KeyCode_Shift);
     
-    Bind(if_read_only_goto_position,            KeyCode_Return);
-    Bind(if_read_only_goto_position_same_panel, KeyCode_Return, KeyCode_Shift);
+    Bind(fusion_return,            KeyCode_Return);
+    Bind(fusion_return_shift,      KeyCode_Return, KeyCode_Shift);
     
     Bind(change_active_panel,             KeyCode_Comma);
     Bind(change_active_panel_backwards,   KeyCode_Comma, KeyCode_Shift);
