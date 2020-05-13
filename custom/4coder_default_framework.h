@@ -12,6 +12,7 @@
 typedef i64 Rewrite_Type;
 enum{
     Rewrite_None,
+    Rewrite_NoChange,
     Rewrite_Paste,
     Rewrite_WordComplete
 };

@@ -28,13 +28,16 @@ clipboard_post_buffer_range(Application_Links *app, i32 clipboard_index, Buffer_
     return(success);
 }
 
-function void
+function b32
 clipboard_update_history_from_system(Application_Links *app, i32 clipboard_id){
     Scratch_Block scratch(app);
+    b32 result = false;
     String_Const_u8 string = system_get_clipboard(scratch, clipboard_id);
     if (string.str != 0){
         clipboard_post_internal_only(clipboard_id, string);
+        result = true;
     }
+    return(result);
 }
 
 global List_String_Const_u8 clipboard_collection_list = {};
@@ -133,11 +136,11 @@ CUSTOM_DOC("At the cursor, insert the text at the top of the clipboard.")
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
         if_view_has_highlighted_range_delete_range(app, view);
         
+        set_next_rewrite(app, view, Rewrite_Paste);
+        
         Managed_Scope scope = view_get_managed_scope(app, view);
-        Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-        if (next_rewrite != 0){
-            *next_rewrite = Rewrite_Paste;
-            i32 *paste_index = scope_attachment(app, scope, view_paste_index_loc, i32);
+        i32 *paste_index = scope_attachment(app, scope, view_paste_index_loc, i32);
+        if (paste_index != 0){
             *paste_index = 0;
             
             Scratch_Block scratch(app);
@@ -163,17 +166,19 @@ CUSTOM_DOC("If the previous command was paste or paste_next, replaces the paste 
 {
     Scratch_Block scratch(app);
     
+    b32 new_clip = clipboard_update_history_from_system(app, 0);
+    
     i32 count = clipboard_count(0);
     if (count > 0){
         View_ID view = get_active_view(app, Access_ReadWriteVisible);
         Managed_Scope scope = view_get_managed_scope(app, view);
-        no_mark_snap_to_cursor(app, scope);
         
         Rewrite_Type *rewrite = scope_attachment(app, scope, view_rewrite_loc, Rewrite_Type);
         if (rewrite != 0){
-            if (*rewrite == Rewrite_Paste){
-                Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-                *next_rewrite = Rewrite_Paste;
+            if (*rewrite == Rewrite_Paste && !new_clip){
+                no_mark_snap_to_cursor(app, scope);
+                
+                set_next_rewrite(app, view, Rewrite_Paste);
                 
                 i32 *paste_index_ptr = scope_attachment(app, scope, view_paste_index_loc, i32);
                 i32 paste_index = (*paste_index_ptr) + 1;

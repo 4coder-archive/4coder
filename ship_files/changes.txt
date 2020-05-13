@@ -6,6 +6,7 @@
  + Durring isearch the vertical margin is extended to make text above/below the cursor visible
  + Fix: notepad like mode scrolling only creates selection when holding mouse L-buttoon
  + Fix: on windows the window has the 4coder icon
+ + Fix: various keyboard input issues on windows, linux, and mac
  + Fix: by default platform layer uses key codes arranged by the system language
  + Fix: printing for list_all_functions_* commands skips whitespace and controls format directly
 

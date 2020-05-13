@@ -250,6 +250,7 @@ CUSTOM_DOC("If the mouse left button is pressed, sets the cursor position to the
         view_set_cursor_and_preferred_x(app, view, seek_pos(pos));
     }
     no_mark_snap_to_cursor(app, view);
+    set_next_rewrite(app, view, Rewrite_NoChange);
 }
 
 CUSTOM_COMMAND_SIG(click_set_mark)

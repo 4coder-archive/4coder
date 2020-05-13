@@ -8,14 +8,12 @@ function b32
 ms_style_verify(String_Const_u8 line, u64 left_paren_pos, u64 right_paren_pos){
     i32 result = false;
     String_Const_u8 line_part = string_skip(line, right_paren_pos);
-    if (string_match(string_prefix(line_part, 4), string_u8_litexpr(") : "))){
-        result = true;
-    }
-    else if (string_match(string_prefix(line_part, 3), string_u8_litexpr("): "))){
+    if (string_match(string_prefix(line_part, 4), string_u8_litexpr(") : ")) ||
+        string_match(string_prefix(line_part, 3), string_u8_litexpr("): "))){
         result = true;
     }
     if (result){
-        String_Const_u8 number = string_skip(string_prefix(line, right_paren_pos - 1), left_paren_pos + 1);
+        String_Const_u8 number = string_skip(string_prefix(line, right_paren_pos), left_paren_pos + 1);
         if (!string_is_integer(number, 10)){
             result = false;
             u64 comma_pos = string_find_first(number, ',');

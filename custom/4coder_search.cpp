@@ -443,8 +443,7 @@ CUSTOM_DOC("Iteratively tries completing the word to the left of the cursor with
             first_completion = true;
         }
         
-        Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-        *next_rewrite = Rewrite_WordComplete;
+        set_next_rewrite(app, view, Rewrite_WordComplete);
         
         Word_Complete_Iterator *it = word_complete_get_shared_iter(app);
         local_persist b32 initialized = false;

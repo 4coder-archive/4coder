@@ -1444,6 +1444,9 @@ get_next_input(Application_Links *app, Event_Property use_flags, Event_Property 
     if (use_flags != 0){
         for (;;){
             in = get_next_input_raw(app);
+            if (in.abort){
+                break;
+            }
             Event_Property event_flags = get_event_properties(&in.event);
             if ((event_flags & abort_flags) != 0){
                 in.abort = true;
