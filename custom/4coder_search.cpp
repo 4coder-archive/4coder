@@ -319,13 +319,13 @@ word_complete_iter_init__inner(Buffer_ID buffer, String_Const_u8 needle, Range_i
     iter->app = app;
     iter->arena = arena;
     
-    Scratch_Block scratch(app);
-    String_Match_List list = get_complete_list_raw(app, scratch, buffer, range, needle);
-    
     iter->arena_restore = begin_temp(arena);
+    iter->needle = push_string_copy(arena, needle);
     iter->first_buffer = buffer;
     iter->current_buffer = buffer;
-    iter->needle = needle;
+    
+    Scratch_Block scratch(app, arena);
+    String_Match_List list = get_complete_list_raw(app, scratch, buffer, range, needle);
     
     iter->already_used_table = make_table_Data_u64(allocator, 100);
     word_complete_list_extend_from_raw(app, arena, &list, &iter->list, &iter->already_used_table);
@@ -338,7 +338,8 @@ word_complete_iter_init(Buffer_ID buffer, Range_i64 range, Word_Complete_Iterato
     if (iter->app != 0 && iter->arena != 0){
         Application_Links *app = iter->app;
         Arena *arena = iter->arena;
-        String_Const_u8 needle = push_buffer_range(app, arena, buffer, range);
+        Scratch_Block scratch(app, arena);
+        String_Const_u8 needle = push_buffer_range(app, scratch, buffer, range);
         word_complete_iter_init__inner(buffer, needle, range, iter);
     }
 }
