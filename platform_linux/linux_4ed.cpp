@@ -94,7 +94,7 @@
 #define function static
 #undef Cursor
 
-#include <fontconfig/fontconfig.h>
+//#include <fontconfig/fontconfig.h>
 #define internal static
 
 #include <GL/glx.h>
@@ -158,7 +158,7 @@ struct Linux_Vars {
     int xfixes_selection_event;
     XIM xim;
     XIC xic;
-    FcConfig* fontconfig;
+    //FcConfig* fontconfig;
     XkbDescPtr xkb;
     
     Linux_Input_Chunk input;
@@ -567,88 +567,27 @@ graphics_fill_texture_sig(){
 
 ////////////////////////////
 
-internal Face_Description
-linux_find_font(Face_Description* desc) {
-    Face_Description result = *desc;
-    
-    char* name = strndupa((char*)desc->font.file_name.str, desc->font.file_name.size);
-    
-    double size;
-    const char* style;
-    {
-        Face_Load_Parameters* p = &desc->parameters;
-        size = p->pt_size;
-        
-        if(p->bold && p->italic) {
-            style = "Bold Italic";
-        } else if(p->bold) {
-            style = "Bold";
-        } else if(p->italic) {
-            style = "Italic";
-        } else {
-            style = "Regular";
-        }
-    }
-    
-    FcPattern *pattern = FcPatternBuild(0,
-                                        FC_POSTSCRIPT_NAME, FcTypeString, name,
-                                        FC_SIZE, FcTypeDouble, size,
-                                        FC_FONTFORMAT, FcTypeString, "TrueType",
-                                        FC_STYLE, FcTypeString, (FcChar8*)style,
-                                        NULL);
-    
-    if(!pattern) {
-        return result;
-    }
-    
-    if (FcConfigSubstitute(linuxvars.fontconfig, pattern, FcMatchPattern)){
-        FcDefaultSubstitute(pattern);
-        
-        FcResult res;
-        FcPattern *font = FcFontMatch(linuxvars.fontconfig, pattern, &res);
-        if (!font){
-            return result;
-        }
-        
-        FcChar8 *filename = 0;
-        FcPatternGetString(font, FC_FILE, 0, &filename);
-        if(filename) {
-            LINUX_FN_DEBUG("FONTCONFIG FILENAME = %s\n", filename);
-            result.font.file_name = push_u8_stringf(&linuxvars.frame_arena, "%s", filename);
-        }
-        
-        FcPatternDestroy(font);
-    }
-    
-    FcPatternDestroy(pattern);
-    
-    return result;
-}
+internal Face*
+font_make_face(Arena* arena, Face_Description* description, f32 scale_factor) {
 
-internal
-font_make_face_sig() {
-    
-    Face* result = ft__font_make_face(arena, description, scale_factor);
-    
-    // if it failed to load the font directly, try via fontconfig.
-    if(!result) {
-        Face_Description desc2 = {};
-        desc2.parameters = description->parameters;
-        desc2.font.file_name = string_front_of_path(description->font.file_name);
-        
-        printf("FONT %.*s\n", string_expand(desc2.font.file_name));
-        desc2 = linux_find_font(&desc2);
-        result = ft__font_make_face(arena, &desc2, scale_factor);
+    Face_Description local_description = *description;
+    String_Const_u8* name = &local_description.font.file_name;
+
+    // if description->font.file_name is a relative path, prepend the font directory.
+    if(string_get_character(*name, 0) != '/') {
+        String_Const_u8 binary = system_get_path(arena, SystemPath_Binary);
+        *name = push_u8_stringf(arena, "%.*sfonts/%.*s", string_expand(binary), string_expand(*name));
     }
-    
+
+    Face* result = ft__font_make_face(arena, &local_description, scale_factor);
+
     if(!result) {
         // is this fatal? 4ed.cpp:277 (caller) does not check for null.
-        String_Const_u8 s = description->font.file_name;
         char msg[4096];
-        snprintf(msg, sizeof(msg), "Unable to load font: %.*s", (int)s.size, s.str);
+        snprintf(msg, sizeof(msg), "Unable to load font: %.*s", string_expand(*name));
         system_error_box(msg);
     }
-    
+
     return(result);
 }
 
@@ -1809,7 +1748,7 @@ main(int argc, char **argv){
     linuxvars.clipboard_arena = make_arena_system();
     render_target.arena = make_arena_system(KB(256));
     
-    linuxvars.fontconfig = FcInitLoadConfigAndFonts();
+    //linuxvars.fontconfig = FcInitLoadConfigAndFonts();
     
     linuxvars.cursor_show = MouseCursorShow_Always;
     linuxvars.prev_cursor_show = MouseCursorShow_Always;
