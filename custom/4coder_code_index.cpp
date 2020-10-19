@@ -6,6 +6,63 @@
 
 global Code_Index global_code_index = {};
 
+////////////////////////////////
+// NOTE(allen): Lookups
+
+// TODO(allen): accelerator for these nest lookups?
+// Looks like the only one I ever actually use is the file one, not the array one.
+function Code_Index_Nest*
+code_index_get_nest_(Code_Index_Nest_Ptr_Array *array, i64 pos){
+    Code_Index_Nest *result = 0;
+    i32 count = array->count;
+    Code_Index_Nest **nest_ptrs = array->ptrs;
+    for (i32 i = 0; i < count; i += 1){
+        Code_Index_Nest *nest = nest_ptrs[i];
+        if (nest->open.max <= pos && pos <= nest->close.min){
+            Code_Index_Nest *sub_nest = code_index_get_nest_(&nest->nest_array, pos);
+            if (sub_nest != 0){
+                result = sub_nest;
+            }
+            else{
+                result = nest;
+            }
+            break;
+        }
+    }
+    return(result);
+}
+
+function Code_Index_Nest*
+code_index_get_nest(Code_Index_File *file, i64 pos){
+    return(code_index_get_nest_(&file->nest_array, pos));
+}
+
+function Code_Index_Note_List*
+code_index__list_from_string(String_Const_u8 string){
+    u64 hash = table_hash_u8(string.str, string.size);
+    Code_Index_Note_List *result = &global_code_index.name_hash[hash % ArrayCount(global_code_index.name_hash)];
+    return(result);
+}
+
+function Code_Index_Note*
+code_index_note_from_string(String_Const_u8 string){
+    Code_Index_Note_List *list = code_index__list_from_string(string);
+    Code_Index_Note *result = 0;
+    for (Code_Index_Note *node = list->first;
+         node != 0;
+         node = node->next_in_hash){
+        if (string_match(string, node->text)){
+            result = node;
+            break;
+        }
+    }
+    return(result);
+}
+
+
+////////////////////////////////
+// NOTE(allen): Global Code Index
+
 function void
 code_index_init(void){
     global_code_index.mutex = system_mutex_make();
@@ -81,6 +138,28 @@ code_index_unlock(void){
 }
 
 function void
+code_index__hash_file(Code_Index_File *file){
+    for (Code_Index_Note *node = file->note_list.first;
+         node != 0;
+         node = node->next){
+        Code_Index_Note_List *list = code_index__list_from_string(node->text);
+        zdll_push_back_NP_(list->first, list->last, node, next_in_hash, prev_in_hash);
+        list->count += 1;
+    }
+}
+
+function void
+code_index__clear_file(Code_Index_File *file){
+    for (Code_Index_Note *node = file->note_list.first;
+         node != 0;
+         node = node->next){
+        Code_Index_Note_List *list = code_index__list_from_string(node->text);
+        zdll_remove_NP_(list->first, list->last, node, next_in_hash, prev_in_hash);
+        list->count -= 1;
+    }
+}
+
+function void
 code_index_set_file(Buffer_ID buffer, Arena arena, Code_Index_File *index){
     Code_Index_File_Storage *storage = 0;
     Table_Lookup lookup = table_lookup(&global_code_index.buffer_to_index_file, buffer);
@@ -88,6 +167,7 @@ code_index_set_file(Buffer_ID buffer, Arena arena, Code_Index_File *index){
         u64 val = 0;
         table_read(&global_code_index.buffer_to_index_file, lookup, &val);
         storage = (Code_Index_File_Storage*)IntAsPtr(val);
+        code_index__clear_file(storage->file);
         linalloc_clear(&storage->arena);
     }
     else{
@@ -96,6 +176,8 @@ code_index_set_file(Buffer_ID buffer, Arena arena, Code_Index_File *index){
     }
     storage->arena = arena;
     storage->file = index;
+    
+    code_index__hash_file(index);
 }
 
 function void
@@ -105,6 +187,9 @@ code_index_erase_file(Buffer_ID buffer){
         u64 val = 0;
         table_read(&global_code_index.buffer_to_index_file, lookup, &val);
         Code_Index_File_Storage *storage = (Code_Index_File_Storage*)IntAsPtr(val);
+        
+        code_index__clear_file(storage->file);
+        
         linalloc_clear(&storage->arena);
         table_erase(&global_code_index.buffer_to_index_file, lookup);
         code_index__free_storage(storage);
@@ -122,38 +207,6 @@ code_index_get_file(Buffer_ID buffer){
         result = storage->file;
     }
     return(result);
-}
-
-function Code_Index_Nest*
-code_index_get_nest(Code_Index_Nest_Ptr_Array *array, i64 pos){
-    Code_Index_Nest *result = 0;
-    i32 count = array->count;
-    Code_Index_Nest **nest_ptrs = array->ptrs;
-    for (i32 i = 0; i < count; i += 1){
-        Code_Index_Nest *nest = nest_ptrs[i];
-        if (nest->open.max <= pos && pos <= nest->close.min){
-            Code_Index_Nest *sub_nest =
-                code_index_get_nest(&nest->nest_array, pos);
-            if (sub_nest != 0){
-                result = sub_nest;
-            }
-            else{
-                result = nest;
-            }
-            break;
-        }
-    }
-    return(result);
-}
-
-function Code_Index_Nest*
-code_index_get_nest(Code_Index_Nest *nest, i64 pos){
-    return(code_index_get_nest(&nest->nest_array, pos));
-}
-
-function Code_Index_Nest*
-code_index_get_nest(Code_Index_File *file, i64 pos){
-    return(code_index_get_nest(&file->nest_array, pos));
 }
 
 function void
@@ -189,7 +242,9 @@ code_index_shift(Code_Index_File *file, Range_i64 old_range, u64 new_size){
     code_index_shift(&file->nest_array, old_range, new_size);
 }
 
+
 ////////////////////////////////
+// NOTE(allen): Parser Helpers
 
 function void
 generic_parse_inc(Generic_Parse_State *state){
@@ -239,6 +294,7 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
 }
 
 ////////////////////////////////
+// NOTE(allen): Parser
 
 #if 0
 /*
@@ -270,8 +326,6 @@ typedef: "typedef" [* - (<identifier> (";" | "("))] <identifier> $(";" | "(")
 function: <identifier> >"(" ["(" ")" | * - ("(" | ")")] ")" ("{" | ";")
 */
 #endif
-
-////////////////////////////////
 
 function Code_Index_Note*
 index_new_note(Code_Index_File *index, Generic_Parse_State *state, Range_i64 range, Code_Index_Note_Kind kind, Code_Index_Nest *parent){
@@ -757,7 +811,9 @@ generic_parse_full_input_breaks(Code_Index_File *index, Generic_Parse_State *sta
     return(result);
 }
 
+
 ////////////////////////////////
+// NOTE(allen): Not sure
 
 function void
 default_comment_index(Application_Links *app, Arena *arena, Code_Index_File *index, Token *token, String_Const_u8 contents){
@@ -769,7 +825,9 @@ generic_parse_init(Application_Links *app, Arena *arena, String_Const_u8 content
     generic_parse_init(app, arena, contents, tokens, default_comment_index, state);
 }
 
+
 ////////////////////////////////
+// NOTE(allen): Virtual Whitespace Layout
 
 function Token_Pair
 layout_token_pair(Token_Array *tokens, i64 pos){

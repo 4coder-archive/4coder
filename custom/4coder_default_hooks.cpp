@@ -249,6 +249,25 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
             draw_comment_highlights(app, buffer, text_layout_id,
                                     &token_array, pairs, ArrayCount(pairs));
         }
+        
+        // TODO(allen): Put in 4coder_draw.cpp
+        // NOTE(allen): Color functions
+        
+        Scratch_Block scratch(app);
+        ARGB_Color argb = 0xFFFF00FF;
+        
+        Token_Iterator_Array it = token_iterator_pos(0, &token_array, visible_range.first);
+        for (;;){
+            if (!token_it_inc_non_whitespace(&it)){
+                break;
+            }
+            Token *token = token_it_read(&it);
+            String_Const_u8 lexeme = push_token_lexeme(app, scratch, buffer, token);
+            Code_Index_Note *note = code_index_note_from_string(lexeme);
+            if (note != 0 && note->note_kind == CodeIndexNote_Function){
+                paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
+            }
+        }
     }
     else{
         paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));

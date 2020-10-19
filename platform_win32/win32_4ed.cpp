@@ -756,12 +756,6 @@ win32_keycode_init(void){
     keycode_lookup_table[VK_NUMPAD8] = KeyCode_NumPad8;
     keycode_lookup_table[VK_NUMPAD9] = KeyCode_NumPad9;
     
-    keycode_lookup_table[VK_MULTIPLY] = KeyCode_NumPadStar;
-    keycode_lookup_table[VK_ADD]      = KeyCode_NumPadPlus;
-    keycode_lookup_table[VK_SUBTRACT] = KeyCode_NumPadMinus;
-    keycode_lookup_table[VK_DECIMAL]  = KeyCode_NumPadDot;
-    keycode_lookup_table[VK_DIVIDE]   = KeyCode_NumPadSlash;
-    
     for (i32 i = 0xDF; i < 0xFF; i += 1){
         keycode_lookup_table[i] = KeyCode_Ex0 + 1;
     }
@@ -1624,6 +1618,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 ReleaseDC(wnd, dc);
                 DestroyWindow(wnd);
                 SetLastError(error);
+            }
+            else{
+                ReleaseDC(wnd, dc);
             }
         }
     }
