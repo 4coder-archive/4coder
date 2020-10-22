@@ -1013,7 +1013,9 @@ function void
 set_next_rewrite(Application_Links *app, View_ID view, Rewrite_Type rewrite){
     Managed_Scope scope = view_get_managed_scope(app, view);
     Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-    *next_rewrite = rewrite;
+    if (next_rewrite != 0){
+        *next_rewrite = rewrite;
+    }
 }
 
 function void

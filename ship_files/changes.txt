@@ -1,4 +1,11 @@
 
+4.1.7
+ + Core string hash features "save_string" "read_string"
+ + Added lookup acceleration to code index data
+ + Added highlighting for functions, types, and macros in code index
+ + Default input is now dispatched through an "implicit map" callback
+ + Fix: crash when pasting in read only buffer
+
 4.1.6
  + In config.4coder "bind_by_physical_key" uses a key-layout that does not change with language
  + Deprecated GlyphFlag_Rotate90, rotation of immediate mode text is entirely derived from the delta vector

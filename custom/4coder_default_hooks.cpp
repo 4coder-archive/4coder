@@ -48,6 +48,22 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
     }
 }
 
+function Implicit_Map_Result
+default_implicit_map(Application_Links *app, String_ID lang, String_ID mode, Input_Event *event){
+    Implicit_Map_Result result = {};
+    
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    
+    Command_Map_ID map_id = default_get_map_id(app, view);
+    Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, event);
+    
+    // TODO(allen): map_id <-> map name?
+    result.map = 0;
+    result.command = binding.custom;
+    
+    return(result);
+}
+
 CUSTOM_COMMAND_SIG(default_view_input_handler)
 CUSTOM_DOC("Input consumption loop for default view behavior")
 {
@@ -72,12 +88,12 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
             continue;
         }
         
-        // NOTE(allen): Get map_id
-        Command_Map_ID map_id = default_get_map_id(app, view);
-        
         // NOTE(allen): Get binding
-        Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
-        if (binding.custom == 0){
+        if (implicit_map_function == 0){
+            implicit_map_function = default_implicit_map;
+        }
+        Implicit_Map_Result map_result = implicit_map_function(app, 0, 0, &input.event);
+        if (map_result.command == 0){
             leave_current_input_unhandled(app);
             continue;
         }
@@ -85,7 +101,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         // NOTE(allen): Run the command and pre/post command stuff
         default_pre_command(app, scope);
         ProfileCloseNow(view_input_profile);
-        binding.custom(app);
+        map_result.command(app);
         ProfileScope(app, "after view input");
         default_post_command(app, scope);
     }
@@ -250,6 +266,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
                                     &token_array, pairs, ArrayCount(pairs));
         }
         
+#if 0
         // TODO(allen): Put in 4coder_draw.cpp
         // NOTE(allen): Color functions
         
@@ -268,6 +285,7 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
                 paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
             }
         }
+#endif
     }
     else{
         paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));

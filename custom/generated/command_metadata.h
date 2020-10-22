@@ -308,7 +308,7 @@ static Command_Metadata fcoder_metacmd_table[248] = {
 { PROC_LINKS(default_file_externally_modified, 0), false, "default_file_externally_modified", 32, "Notes the external modification of attached files by printing a message.", 72, "W:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 2055 },
 { PROC_LINKS(default_startup, 0), false, "default_startup", 15, "Default command for responding to a startup event", 49, "W:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 7 },
 { PROC_LINKS(default_try_exit, 0), false, "default_try_exit", 16, "Default command for responding to a try-exit event", 50, "W:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 23 },
-{ PROC_LINKS(default_view_input_handler, 0), false, "default_view_input_handler", 26, "Input consumption loop for default view behavior", 48, "W:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 51 },
+{ PROC_LINKS(default_view_input_handler, 0), false, "default_view_input_handler", 26, "Input consumption loop for default view behavior", 48, "W:\\4ed\\code\\custom\\4coder_default_hooks.cpp", 43, 67 },
 { PROC_LINKS(delete_alpha_numeric_boundary, 0), false, "delete_alpha_numeric_boundary", 29, "Delete characters between the cursor position and the first alphanumeric boundary to the right.", 95, "W:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 161 },
 { PROC_LINKS(delete_char, 0), false, "delete_char", 11, "Deletes the character to the right of the cursor.", 49, "W:\\4ed\\code\\custom\\4coder_base_commands.cpp", 43, 79 },
 { PROC_LINKS(delete_current_scope, 0), false, "delete_current_scope", 20, "Deletes the braces surrounding the currently selected scope.  Leaves the contents within the scope.", 99, "W:\\4ed\\code\\custom\\4coder_scope_commands.cpp", 44, 112 },
