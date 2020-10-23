@@ -28,9 +28,11 @@ CUSTOM_ID(attachment, attachment_tokens);
 
 ////////////////////////////////
 
+#if 0
 CUSTOM_ID(command_map, mapid_global);
 CUSTOM_ID(command_map, mapid_file);
 CUSTOM_ID(command_map, mapid_code);
+#endif
 
 ////////////////////////////////
 

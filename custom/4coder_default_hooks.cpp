@@ -772,7 +772,10 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         }
     }
     
-    Command_Map_ID map_id = (treat_as_code)?(mapid_code):(mapid_file);
+    String_ID file_map_id = vars_save_string_lit("keys_file");
+    String_ID code_map_id = vars_save_string_lit("keys_code");
+    
+    Command_Map_ID map_id = (treat_as_code)?(code_map_id):(file_map_id);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
     *map_id_ptr = map_id;

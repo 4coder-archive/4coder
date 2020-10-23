@@ -100,6 +100,7 @@
 #include "4coder_draw.cpp"
 #include "4coder_font_helper.cpp"
 #include "4coder_config.cpp"
+#include "4coder_dynamic_bindings.cpp"
 #include "4coder_default_framework.cpp"
 #include "4coder_clipboard.cpp"
 #include "4coder_lister_base.cpp"
