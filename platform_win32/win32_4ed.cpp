@@ -179,6 +179,9 @@ struct Win32_Vars{
     HWND window_handle;
     f32 screen_scale_factor;
     
+    Audio_System audio_system;
+    DWORD audio_thread_id;
+    
     f64 count_per_usecond;
     b32 first;
     i32 running_cli;
@@ -259,6 +262,7 @@ handle_type_ptr(void *ptr){
 ////////////////////////////////
 
 #include "win32_4ed_functions.cpp"
+#include "win32_audio.cpp"
 
 ////////////////////////////////
 
@@ -355,9 +359,16 @@ system_set_key_mode_sig(){
     win32vars.key_mode = mode;
 }
 
-//
-// Clipboard
-//
+////////////////////////////////
+// NOTE(allen): Audio
+
+internal
+system_play_clip_sig(){
+    win32_play_clip(clip, control);
+}
+
+////////////////////////////////
+// NOTE(allen): Clipboard
 
 internal String_Const_u8
 win32_read_clipboard_contents(Thread_Context *tctx, Arena *arena){
@@ -1783,10 +1794,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     
-    //
-    // Window and GL Initialization
-    //
-    
+    // NOTE(allen): Window Init
     RECT window_rect = {};
     if (plat_settings.set_window_size){
         window_rect.right = plat_settings.window_w;
@@ -1811,10 +1819,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     GetClientRect(win32vars.window_handle, &window_rect);
     win32_resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
-    //
-    // Misc System Initializations
-    //
+    // NOTE(allen): Audio Init
+    win32vars.audio_thread_id = win32_audio_init(&win32vars.audio_system);
     
+    // NOTE(allen): Misc Init
     if (!AddClipboardFormatListener(win32vars.window_handle)){
         Scratch_Block scratch(win32vars.tctx);
         win32_output_error_string(scratch, ErrorString_UseLog);

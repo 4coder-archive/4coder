@@ -28,6 +28,7 @@
 #endif
 
 #include "4coder_variables.h"
+#include "4coder_audio.h"
 #include "4coder_profile.h"
 #include "4coder_async_tasks.h"
 #include "4coder_token.h"
@@ -129,6 +130,7 @@
 #include "4coder_doc_commands.cpp"
 #include "4coder_docs.cpp"
 #include "4coder_variables.cpp"
+#include "4coder_audio.cpp"
 
 #include "4coder_examples.cpp"
 

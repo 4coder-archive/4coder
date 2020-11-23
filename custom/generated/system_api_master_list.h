@@ -52,3 +52,4 @@ api(system) function b32 set_fullscreen(b32 full_screen);
 api(system) function b32 is_fullscreen(void);
 api(system) function Input_Modifier_Set get_keyboard_modifiers(Arena* arena);
 api(system) function void set_key_mode(Key_Mode mode);
+api(system) function void play_clip(Audio_Clip clip, Audio_Control* control);

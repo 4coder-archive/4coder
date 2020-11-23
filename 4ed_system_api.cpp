@@ -303,6 +303,12 @@ define_api(Arena *arena){
         api_param(arena, call, "Key_Mode", "mode");
     }
     
+    {
+        API_Call *call = api_call(arena, api, "play_clip", "void");
+        api_param(arena, call, "Audio_Clip", "clip");
+        api_param(arena, call, "Audio_Control*", "control");
+    }
+    
     return(api);
 }
 

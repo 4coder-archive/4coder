@@ -245,5 +245,10 @@ api_param(arena, call, "Arena*", "arena");
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_key_mode"), string_u8_litexpr("void"), string_u8_litexpr(""));
 api_param(arena, call, "Key_Mode", "mode");
 }
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("play_clip"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Audio_Clip", "clip");
+api_param(arena, call, "Audio_Control*", "control");
+}
 return(result);
 }
