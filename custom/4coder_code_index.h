@@ -56,6 +56,9 @@ struct Code_Index_Note{
     String_Const_u8 text;
     struct Code_Index_File *file;
     Code_Index_Nest *parent;
+    
+    Code_Index_Note *prev_in_hash;
+    Code_Index_Note *next_in_hash;
 };
 
 struct Code_Index_Note_List{
@@ -92,6 +95,8 @@ struct Code_Index{
     Code_Index_File_Storage *storage_first;
     Code_Index_File_Storage *storage_last;
     i32 storage_count;
+    
+    Code_Index_Note_List name_hash[4099];
 };
 
 ////////////////////////////////

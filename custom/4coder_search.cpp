@@ -340,7 +340,7 @@ word_complete_iter_init(Buffer_ID buffer, Range_i64 range, Word_Complete_Iterato
         Arena *arena = iter->arena;
         Scratch_Block scratch(app, arena);
         String_Const_u8 needle = push_buffer_range(app, scratch, buffer, range);
-        word_complete_iter_init__inner(buffer, needle, range, iter);
+        word_complete_iter_init__inner(buffer, needle, range, iter); 
     }
 }
 

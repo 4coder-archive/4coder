@@ -28,9 +28,11 @@ CUSTOM_ID(attachment, attachment_tokens);
 
 ////////////////////////////////
 
+#if 0
 CUSTOM_ID(command_map, mapid_global);
 CUSTOM_ID(command_map, mapid_file);
 CUSTOM_ID(command_map, mapid_code);
+#endif
 
 ////////////////////////////////
 
@@ -78,6 +80,7 @@ global i32 fcoder_mode = FCoderMode_Original;
 
 global ID_Pos_Jump_Location prev_location = {};
 
+global Arena global_permanent_arena = {};
 
 global Arena global_config_arena = {};
 global Config_Data global_config = {};

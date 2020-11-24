@@ -140,15 +140,6 @@ map__init(Mapping *mapping, Command_Map *map, Command_Map_ID id){
 }
 
 function Command_Map*
-mapping_begin_new_map(Mapping *mapping){
-    Command_Map *map = mapping__alloc_map(mapping);
-    map__init(mapping, map, mapping->id_counter);
-    mapping->id_counter += 1;
-    table_insert(&mapping->id_to_map, map->id, (u64)PtrAsInt(map));
-    return(map);
-}
-
-function Command_Map*
 mapping_get_map(Mapping *mapping, Command_Map_ID id){
     Command_Map *result = 0;
     Table_Lookup lookup = table_lookup(&mapping->id_to_map, id);
@@ -175,7 +166,7 @@ mapping_get_or_make_map(Mapping *mapping, Command_Map_ID id){
     if (result == 0){
         result = mapping__alloc_map(mapping);
         map__init(mapping, result, id);
-        table_insert(&mapping->id_to_map, result->id, (u64)PtrAsInt(result));
+        table_insert(&mapping->id_to_map, id, (u64)PtrAsInt(result));
     }
     return(result);
 }

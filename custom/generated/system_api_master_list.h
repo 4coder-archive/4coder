@@ -52,3 +52,5 @@ api(system) function b32 set_fullscreen(b32 full_screen);
 api(system) function b32 is_fullscreen(void);
 api(system) function Input_Modifier_Set get_keyboard_modifiers(Arena* arena);
 api(system) function void set_key_mode(Key_Mode mode);
+api(system) function void set_source_mixer(void* ctx, Audio_Mix_Sources_Function* mix_func);
+api(system) function void set_destination_mixer(Audio_Mix_Destination_Function* mix_func);

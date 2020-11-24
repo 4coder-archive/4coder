@@ -12,14 +12,17 @@
 #include <stdio.h>
 
 function String_Const_u8
-file_load_all(Arena *arena, FILE *file){
-    fseek(file, 0, SEEK_END);
-    u64 size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    u8 *buffer = push_array(arena, u8, size + 1);
-    fread(buffer, 1, size, file);
-    buffer[size] = 0;
-    return(SCu8(buffer, size));
+data_from_file(Arena *arena, FILE *file){
+    String_Const_u8 result = {};
+    if (file != 0){
+        fseek(file, 0, SEEK_END);
+        result.size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        result.str = push_array(arena, u8, result.size + 1);
+        fread(result.str, 1, result.size, file);
+        result.str[result.size] = 0;
+    }
+    return(result);
 }
 
 // BOTTOM

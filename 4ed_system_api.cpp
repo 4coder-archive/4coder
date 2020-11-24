@@ -303,6 +303,17 @@ define_api(Arena *arena){
         api_param(arena, call, "Key_Mode", "mode");
     }
     
+    {
+        API_Call *call = api_call(arena, api, "set_source_mixer", "void");
+        api_param(arena, call, "void*", "ctx");
+        api_param(arena, call, "Audio_Mix_Sources_Function*", "mix_func");
+    }
+    
+    {
+        API_Call *call = api_call(arena, api, "set_destination_mixer", "void");
+        api_param(arena, call, "Audio_Mix_Destination_Function*", "mix_func");
+    }
+    
     return(api);
 }
 

@@ -31,6 +31,19 @@ get_command_metadata(Custom_Command_Function *func){
     return(result);
 }
 
+function Command_Metadata*
+get_command_metadata_from_name(String_Const_u8 name){
+    Command_Metadata *result = 0;
+    Command_Metadata *candidate = fcoder_metacmd_table;
+    for (i32 i = 0; i < ArrayCount(fcoder_metacmd_table); i += 1, candidate += 1){
+        if (string_match(SCu8(candidate->name, candidate->name_len), name)){
+            result = candidate;
+            break;
+        }
+    }
+    return(result);
+}
+
 ////////////////////////////////
 
 function Token_Array

@@ -54,6 +54,8 @@ vtable->set_fullscreen = system_set_fullscreen;
 vtable->is_fullscreen = system_is_fullscreen;
 vtable->get_keyboard_modifiers = system_get_keyboard_modifiers;
 vtable->set_key_mode = system_set_key_mode;
+vtable->set_source_mixer = system_set_source_mixer;
+vtable->set_destination_mixer = system_set_destination_mixer;
 }
 #if defined(DYNAMIC_LINK_API)
 function void
@@ -112,6 +114,8 @@ system_set_fullscreen = vtable->set_fullscreen;
 system_is_fullscreen = vtable->is_fullscreen;
 system_get_keyboard_modifiers = vtable->get_keyboard_modifiers;
 system_set_key_mode = vtable->set_key_mode;
+system_set_source_mixer = vtable->set_source_mixer;
+system_set_destination_mixer = vtable->set_destination_mixer;
 }
 #undef DYNAMIC_LINK_API
 #endif

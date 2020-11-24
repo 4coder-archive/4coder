@@ -10,9 +10,6 @@ setup_mac_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     SelectMapping(mapping);
     
     SelectMap(global_id);
-    BindCore(default_startup, CoreCode_Startup);
-    BindCore(default_try_exit, CoreCode_TryExit);
-    BindCore(clipboard_record_clip, CoreCode_NewClipboardContents);
     Bind(keyboard_macro_start_recording , KeyCode_U, KeyCode_Command);
     Bind(keyboard_macro_finish_recording, KeyCode_U, KeyCode_Command, KeyCode_Shift);
     Bind(keyboard_macro_replay,           KeyCode_U, KeyCode_Control);
@@ -56,16 +53,8 @@ setup_mac_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     Bind(project_fkey_command, KeyCode_F15);
     Bind(project_fkey_command, KeyCode_F16);
     Bind(exit_4coder,          KeyCode_F4, KeyCode_Alt);
-    BindMouseWheel(mouse_wheel_scroll);
-    BindMouseWheel(mouse_wheel_change_face_size, KeyCode_Command);
     
     SelectMap(file_id);
-    ParentMap(global_id);
-    BindTextInput(write_text_input);
-    BindMouse(click_set_cursor_and_mark, MouseCode_Left);
-    BindMouseRelease(click_set_cursor, MouseCode_Left);
-    BindCore(click_set_cursor_and_mark, CoreCode_ClickActivateView);
-    BindMouseMove(click_set_cursor_if_lbutton);
     Bind(delete_char,            KeyCode_Delete);
     Bind(backspace_char,         KeyCode_Backspace);
     Bind(move_up,                KeyCode_Up);
@@ -126,8 +115,6 @@ setup_mac_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
     Bind(view_jump_list_with_lister,  KeyCode_Period, KeyCode_Command, KeyCode_Shift);
     
     SelectMap(code_id);
-    ParentMap(file_id);
-    BindTextInput(write_text_and_auto_indent);
     Bind(move_left_alpha_numeric_boundary,           KeyCode_Left, KeyCode_Command);
     Bind(move_right_alpha_numeric_boundary,          KeyCode_Right, KeyCode_Command);
     Bind(move_left_alpha_numeric_or_camel_boundary,  KeyCode_Left, KeyCode_Control);

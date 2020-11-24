@@ -570,6 +570,31 @@ CUSTOM_DOC("Clear the theme list")
 ////////////////////////////////
 
 function void
+setup_essential_mapping(Mapping *mapping, i64 global_id, i64 file_id, i64 code_id){
+    MappingScope();
+    SelectMapping(mapping);
+    
+    SelectMap(global_id);
+    BindCore(default_startup, CoreCode_Startup);
+    BindCore(default_try_exit, CoreCode_TryExit);
+    BindCore(clipboard_record_clip, CoreCode_NewClipboardContents);
+    BindMouseWheel(mouse_wheel_scroll);
+    BindMouseWheel(mouse_wheel_change_face_size, KeyCode_Control);
+    
+    SelectMap(file_id);
+    ParentMap(global_id);
+    BindTextInput(write_text_input);
+    BindMouse(click_set_cursor_and_mark, MouseCode_Left);
+    BindMouseRelease(click_set_cursor, MouseCode_Left);
+    BindCore(click_set_cursor_and_mark, CoreCode_ClickActivateView);
+    BindMouseMove(click_set_cursor_if_lbutton);
+    
+    SelectMap(code_id);
+    ParentMap(file_id);
+    BindTextInput(write_text_and_auto_indent);
+}
+
+function void
 default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_names,
                           i32 override_font_size, b32 override_hinting){
 #define M \
@@ -588,6 +613,26 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
 #undef M
     
     load_config_and_apply(app, &global_config_arena, &global_config, override_font_size, override_hinting);
+    
+    String_Const_u8 bindings_file_name = string_u8_litexpr("bindings.4coder");
+    if (string_match(global_config.mapping, string_u8_litexpr("mac-default"))){
+        bindings_file_name = string_u8_litexpr("mac-bindings.4coder");
+    }
+    else if (OS_MAC && string_match(global_config.mapping, string_u8_litexpr("choose"))){
+        bindings_file_name = string_u8_litexpr("mac-bindings.4coder");
+    }
+    
+    // TODO(allen): cleanup
+    String_ID global_map_id = vars_save_string_lit("keys_global");
+    String_ID file_map_id = vars_save_string_lit("keys_file");
+    String_ID code_map_id = vars_save_string_lit("keys_code");
+    
+    if (dynamic_binding_load_from_file(app, &framework_mapping, bindings_file_name)){
+        setup_essential_mapping(&framework_mapping, global_map_id, file_map_id, code_map_id);
+    }
+    else{
+        setup_built_in_mapping(app, global_config.mapping, &framework_mapping, global_map_id, file_map_id, code_map_id);
+    }
     
     // open command line files
     Scratch_Block scratch(app);
@@ -969,6 +1014,7 @@ default_framework_init(Application_Links *app){
     initialize_managed_id_metadata(app);
     set_default_color_scheme(app);
     heap_init(&global_heap, tctx->allocator);
+	global_permanent_arena = make_arena_system();
     global_config_arena = make_arena_system();
     fade_range_arena = make_arena_system(KB(8));
 }
@@ -987,7 +1033,7 @@ default_input_handler_init(Application_Links *app, Arena *arena){
     
     View_Context ctx = view_current_context(app, view);
     ctx.mapping = &framework_mapping;
-    ctx.map_id = mapid_global;
+    ctx.map_id = vars_save_string_lit("keys_global");
     view_alter_context(app, view, &ctx);
 }
 
@@ -999,12 +1045,12 @@ default_get_map_id(Application_Links *app, View_ID view){
     Command_Map_ID *result_ptr = scope_attachment(app, buffer_scope, buffer_map_id, Command_Map_ID);
     if (result_ptr != 0){
         if (*result_ptr == 0){
-            *result_ptr = mapid_file;
+            *result_ptr = vars_save_string_lit("keys_file");
         }
         result = *result_ptr;
     }
     else{
-        result = mapid_global;
+        result = vars_save_string_lit("keys_global");
     }
     return(result);
 }
@@ -1013,7 +1059,9 @@ function void
 set_next_rewrite(Application_Links *app, View_ID view, Rewrite_Type rewrite){
     Managed_Scope scope = view_get_managed_scope(app, view);
     Rewrite_Type *next_rewrite = scope_attachment(app, scope, view_next_rewrite_loc, Rewrite_Type);
-    *next_rewrite = rewrite;
+    if (next_rewrite != 0){
+        *next_rewrite = rewrite;
+    }
 }
 
 function void

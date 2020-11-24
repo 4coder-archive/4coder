@@ -18,6 +18,20 @@ CUSTOM_DOC("Default command for responding to a startup event")
             load_project(app);
         }
     }
+    
+    {
+        def_audio_init();
+        
+        Scratch_Block scratch(app);
+        FILE *file = def_search_normal_fopen(scratch, "audio_test/raygun_zap.wav", "rb");
+        Audio_Clip test_clip = audio_clip_from_wav_FILE(&global_permanent_arena, file);
+        fclose(file);
+        
+        local_persist Audio_Control test_control = {};
+        test_control.channel_volume[0] = 1.f;
+        test_control.channel_volume[1] = 1.f;
+        def_audio_play_clip(test_clip, &test_control);
+    }
 }
 
 CUSTOM_COMMAND_SIG(default_try_exit)
@@ -48,6 +62,22 @@ CUSTOM_DOC("Default command for responding to a try-exit event")
     }
 }
 
+function Implicit_Map_Result
+default_implicit_map(Application_Links *app, String_ID lang, String_ID mode, Input_Event *event){
+    Implicit_Map_Result result = {};
+    
+    View_ID view = get_this_ctx_view(app, Access_Always);
+    
+    Command_Map_ID map_id = default_get_map_id(app, view);
+    Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, event);
+    
+    // TODO(allen): map_id <-> map name?
+    result.map = 0;
+    result.command = binding.custom;
+    
+    return(result);
+}
+
 CUSTOM_COMMAND_SIG(default_view_input_handler)
 CUSTOM_DOC("Input consumption loop for default view behavior")
 {
@@ -72,12 +102,12 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
             continue;
         }
         
-        // NOTE(allen): Get map_id
-        Command_Map_ID map_id = default_get_map_id(app, view);
-        
         // NOTE(allen): Get binding
-        Command_Binding binding = map_get_binding_recursive(&framework_mapping, map_id, &input.event);
-        if (binding.custom == 0){
+        if (implicit_map_function == 0){
+            implicit_map_function = default_implicit_map;
+        }
+        Implicit_Map_Result map_result = implicit_map_function(app, 0, 0, &input.event);
+        if (map_result.command == 0){
             leave_current_input_unhandled(app);
             continue;
         }
@@ -85,7 +115,7 @@ CUSTOM_DOC("Input consumption loop for default view behavior")
         // NOTE(allen): Run the command and pre/post command stuff
         default_pre_command(app, scope);
         ProfileCloseNow(view_input_profile);
-        binding.custom(app);
+        map_result.command(app);
         ProfileScope(app, "after view input");
         default_post_command(app, scope);
     }
@@ -249,6 +279,27 @@ default_render_buffer(Application_Links *app, View_ID view_id, Face_ID face_id,
             draw_comment_highlights(app, buffer, text_layout_id,
                                     &token_array, pairs, ArrayCount(pairs));
         }
+        
+#if 0
+        // TODO(allen): Put in 4coder_draw.cpp
+        // NOTE(allen): Color functions
+        
+        Scratch_Block scratch(app);
+        ARGB_Color argb = 0xFFFF00FF;
+        
+        Token_Iterator_Array it = token_iterator_pos(0, &token_array, visible_range.first);
+        for (;;){
+            if (!token_it_inc_non_whitespace(&it)){
+                break;
+            }
+            Token *token = token_it_read(&it);
+            String_Const_u8 lexeme = push_token_lexeme(app, scratch, buffer, token);
+            Code_Index_Note *note = code_index_note_from_string(lexeme);
+            if (note != 0 && note->note_kind == CodeIndexNote_Function){
+                paint_text_color(app, text_layout_id, Ii64_size(token->pos, token->size), argb);
+            }
+        }
+#endif
     }
     else{
         paint_text_color_fcolor(app, text_layout_id, visible_range, fcolor_id(defcolor_text_default));
@@ -735,7 +786,10 @@ BUFFER_HOOK_SIG(default_begin_buffer){
         }
     }
     
-    Command_Map_ID map_id = (treat_as_code)?(mapid_code):(mapid_file);
+    String_ID file_map_id = vars_save_string_lit("keys_file");
+    String_ID code_map_id = vars_save_string_lit("keys_code");
+    
+    Command_Map_ID map_id = (treat_as_code)?(code_map_id):(file_map_id);
     Managed_Scope scope = buffer_get_managed_scope(app, buffer_id);
     Command_Map_ID *map_id_ptr = scope_attachment(app, scope, buffer_map_id, Command_Map_ID);
     *map_id_ptr = map_id;

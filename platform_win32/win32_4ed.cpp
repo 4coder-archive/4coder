@@ -12,6 +12,8 @@
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
+#include <stdio.h>
+
 #include "4coder_base_types.h"
 #include "4coder_version.h"
 #include "4coder_events.h"
@@ -32,7 +34,7 @@
 
 #include "4ed_font_set.h"
 #include "4ed_render_target.h"
-#include "4ed_search_list.h"
+#include "4coder_search_list.h"
 #include "4ed.h"
 
 #include "generated/system_api.cpp"
@@ -46,7 +48,7 @@
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"
 
-#include "4ed_search_list.cpp"
+#include "4coder_search_list.cpp"
 
 #undef function
 #define UNICODE
@@ -179,6 +181,12 @@ struct Win32_Vars{
     HWND window_handle;
     f32 screen_scale_factor;
     
+    DWORD audio_thread_id;
+    
+    void *volatile audio_mix_ctx;
+    Audio_Mix_Sources_Function *volatile audio_mix_sources;
+    Audio_Mix_Destination_Function *volatile audio_mix_destination;
+    
     f64 count_per_usecond;
     b32 first;
     i32 running_cli;
@@ -259,6 +267,7 @@ handle_type_ptr(void *ptr){
 ////////////////////////////////
 
 #include "win32_4ed_functions.cpp"
+#include "win32_audio.cpp"
 
 ////////////////////////////////
 
@@ -355,9 +364,8 @@ system_set_key_mode_sig(){
     win32vars.key_mode = mode;
 }
 
-//
-// Clipboard
-//
+////////////////////////////////
+// NOTE(allen): Clipboard
 
 internal String_Const_u8
 win32_read_clipboard_contents(Thread_Context *tctx, Arena *arena){
@@ -755,12 +763,6 @@ win32_keycode_init(void){
     keycode_lookup_table[VK_NUMPAD7] = KeyCode_NumPad7;
     keycode_lookup_table[VK_NUMPAD8] = KeyCode_NumPad8;
     keycode_lookup_table[VK_NUMPAD9] = KeyCode_NumPad9;
-    
-    keycode_lookup_table[VK_MULTIPLY] = KeyCode_NumPadStar;
-    keycode_lookup_table[VK_ADD]      = KeyCode_NumPadPlus;
-    keycode_lookup_table[VK_SUBTRACT] = KeyCode_NumPadMinus;
-    keycode_lookup_table[VK_DECIMAL]  = KeyCode_NumPadDot;
-    keycode_lookup_table[VK_DIVIDE]   = KeyCode_NumPadSlash;
     
     for (i32 i = 0xDF; i < 0xFF; i += 1){
         keycode_lookup_table[i] = KeyCode_Ex0 + 1;
@@ -1625,6 +1627,9 @@ win32_gl_create_window(HWND *wnd_out, HGLRC *context_out, DWORD style, RECT rect
                 DestroyWindow(wnd);
                 SetLastError(error);
             }
+            else{
+                ReleaseDC(wnd, dc);
+            }
         }
     }
     
@@ -1687,10 +1692,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     {
         App_Get_Functions *get_funcs = 0;
         Scratch_Block scratch(win32vars.tctx);
-        Path_Search_List search_list = {};
-        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
-        String_Const_u8 core_path = get_full_path(scratch, &search_list, SCu8("4ed_app.dll"));
+        List_String_Const_u8 search_list = {};
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        
+        String_Const_u8 core_path = def_get_full_path(scratch, &search_list, SCu8("4ed_app.dll"));
         if (system_load_library(scratch, core_path, &core_library)){
             get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
             if (get_funcs != 0){
@@ -1744,9 +1750,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         Scratch_Block scratch(win32vars.tctx);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.dll");
-        Path_Search_List search_list = {};
-        search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
-        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        List_String_Const_u8 search_list = {};
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        
         String_Const_u8 custom_file_names[2] = {};
         i32 custom_file_count = 1;
         if (plat_settings.custom_dll != 0){
@@ -1761,7 +1768,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         String_Const_u8 custom_file_name = {};
         for (i32 i = 0; i < custom_file_count; i += 1){
-            custom_file_name = get_full_path(scratch, &search_list, custom_file_names[i]);
+            custom_file_name = def_get_full_path(scratch, &search_list, custom_file_names[i]);
             if (custom_file_name.size > 0){
                 break;
             }
@@ -1786,10 +1793,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
     }
     
-    //
-    // Window and GL Initialization
-    //
-    
+    // NOTE(allen): Window Init
     RECT window_rect = {};
     if (plat_settings.set_window_size){
         window_rect.right = plat_settings.window_w;
@@ -1814,10 +1818,10 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     GetClientRect(win32vars.window_handle, &window_rect);
     win32_resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
-    //
-    // Misc System Initializations
-    //
+    // NOTE(allen): Audio Init
+    win32vars.audio_thread_id = win32_audio_init();
     
+    // NOTE(allen): Misc Init
     if (!AddClipboardFormatListener(win32vars.window_handle)){
         Scratch_Block scratch(win32vars.tctx);
         win32_output_error_string(scratch, ErrorString_UseLog);

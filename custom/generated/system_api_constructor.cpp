@@ -245,5 +245,14 @@ api_param(arena, call, "Arena*", "arena");
 API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_key_mode"), string_u8_litexpr("void"), string_u8_litexpr(""));
 api_param(arena, call, "Key_Mode", "mode");
 }
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_source_mixer"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "void*", "ctx");
+api_param(arena, call, "Audio_Mix_Sources_Function*", "mix_func");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("set_destination_mixer"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Audio_Mix_Destination_Function*", "mix_func");
+}
 return(result);
 }

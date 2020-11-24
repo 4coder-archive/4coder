@@ -1617,7 +1617,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     }
     
     // Apply config
-    setup_built_in_mapping(app, config->mapping, &framework_mapping, mapid_global, mapid_file, mapid_code);
+    //setup_built_in_mapping(app, config->mapping, &framework_mapping, mapid_global, mapid_file, mapid_code);
     change_mode(app, config->mode);
     global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
     
