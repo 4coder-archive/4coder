@@ -2,7 +2,12 @@
 // NOTE(allen): Default Mixer Helpers
 
 // TODO(allen): intrinsics wrappers
+#if OS_LINUX
+#include <immintrin.h>
+#define _InterlockedExchangeAdd __sync_fetch_and_add
+#else
 #include <intrin.h>
+#endif
 
 function u32
 AtomicAddU32AndReturnOriginal(u32 volatile *Value, u32 Addend)

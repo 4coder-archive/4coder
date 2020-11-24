@@ -191,7 +191,14 @@ struct Linux_Vars {
     String_Const_u8 clipboard_contents;
     b32 received_new_clipboard;
     b32 clipboard_catch_all;
-    
+
+    pthread_mutex_t audio_mutex;
+    pthread_cond_t audio_cond;
+    void* audio_ctx;
+    Audio_Mix_Sources_Function* audio_src_func;
+    Audio_Mix_Destination_Function* audio_dst_func;
+    System_Thread audio_thread;
+
     Atom atom_TARGETS;
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
@@ -264,6 +271,11 @@ struct Linux_Object {
 Linux_Object*
 handle_to_object(Plat_Handle ph){
     return *(Linux_Object**)&ph;
+}
+
+Plat_Handle
+object_to_handle(Linux_Object* obj) {
+    return *(Plat_Handle*)&obj;
 }
 
 internal Linux_Object*
@@ -546,6 +558,7 @@ os_popup_error(char *title, char *message){
 ////////////////////////////
 
 #include "linux_4ed_functions.cpp"
+#include "linux_4ed_audio.cpp"
 
 ////////////////////////////
 
@@ -1727,6 +1740,9 @@ main(int argc, char **argv){
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&linuxvars.memory_tracker_mutex, &attr);
+
+    pthread_mutex_init(&linuxvars.audio_mutex, &attr);
+    pthread_cond_init(&linuxvars.audio_cond, NULL);
     
     // NOTE(allen): context setup
     {
@@ -1767,10 +1783,10 @@ main(int argc, char **argv){
     {
         App_Get_Functions *get_funcs = 0;
         Scratch_Block scratch(&linuxvars.tctx);
-        Path_Search_List search_list = {};
-        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        List_String_Const_u8 search_list = {};
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
-        String_Const_u8 core_path = get_full_path(scratch, &search_list, SCu8("4ed_app.so"));
+        String_Const_u8 core_path = def_get_full_path(scratch, &search_list, SCu8("4ed_app.so"));
         if (system_load_library(scratch, core_path, &core_library)){
             get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
             if (get_funcs != 0){
@@ -1828,9 +1844,9 @@ main(int argc, char **argv){
         
         Scratch_Block scratch(&linuxvars.tctx);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.so");
-        Path_Search_List search_list = {};
-        search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
-        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        List_String_Const_u8 search_list = {};
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         String_Const_u8 custom_file_names[2] = {};
         i32 custom_file_count = 1;
         if (plat_settings.custom_dll != 0){
@@ -1845,7 +1861,7 @@ main(int argc, char **argv){
         }
         String_Const_u8 custom_file_name = {};
         for (i32 i = 0; i < custom_file_count; i += 1){
-            custom_file_name = get_full_path(scratch, &search_list, custom_file_names[i]);
+            custom_file_name = def_get_full_path(scratch, &search_list, custom_file_names[i]);
             if (custom_file_name.size > 0){
                 break;
             }
@@ -1876,6 +1892,9 @@ main(int argc, char **argv){
     linux_x11_init(argc, argv, &plat_settings);
     linux_keycode_init(linuxvars.dpy);
     linux_epoll_init();
+
+    linuxvars.audio_thread = system_thread_launch(&linux_audio_main, NULL);
+
     
     // app init
     {

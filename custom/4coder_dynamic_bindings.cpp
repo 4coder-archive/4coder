@@ -102,9 +102,9 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
                                 }
                                 else{
                                     config_add_error(scratch, parsed, node->result.pos,
-                                                     (keycode != 0) ? "Invalid command" :
-                                                     (command != 0) ? "Invalid key":
-                                                     "Invalid command and key");
+                                                     (keycode != 0) ? (char*)"Invalid command" :
+                                                     (command != 0) ? (char*)"Invalid key":
+                                                     (char*)"Invalid command and key");
                                 }
                             }
                             

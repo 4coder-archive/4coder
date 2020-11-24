@@ -334,6 +334,7 @@ system_wake_up_timer_create(void){
     
     // NOTE(inso): timers created on-demand to avoid file-descriptor exhaustion.
     object->timer.fd = -1;
+    return object_to_handle(object);
 }
 
 internal void
@@ -801,6 +802,21 @@ system_get_keyboard_modifiers(Arena* arena){
 function
 system_set_key_mode_sig(){
     linuxvars.key_mode = mode;
+}
+
+internal void
+system_set_source_mixer(void* ctx, Audio_Mix_Sources_Function* mix_func){
+    pthread_mutex_lock(&linuxvars.audio_mutex);
+    linuxvars.audio_ctx = ctx;
+    linuxvars.audio_src_func = mix_func;
+    pthread_mutex_unlock(&linuxvars.audio_mutex);
+}
+
+internal void
+system_set_destination_mixer(Audio_Mix_Destination_Function* mix_func){
+    pthread_mutex_lock(&linuxvars.audio_mutex);
+    linuxvars.audio_dst_func = mix_func;
+    pthread_mutex_unlock(&linuxvars.audio_mutex);
 }
 
 // NOTE(inso): to prevent me continuously messing up indentation
