@@ -214,10 +214,11 @@ CUSTOM_COMMAND_SIG(music_start)
 CUSTOM_DOC("Starts the music.")
 {
     local_persist Audio_Clip the_music_clip = {};
-    local_persist b32 initialized = false;
-    if (!initialized){
-        initialized = true;
-        the_music_clip = audio_clip_from_wav_file_name("W:\\4ed\\audio_test\\chtulthu.wav");
+    if (the_music_clip.sample_count == 0){
+        Scratch_Block scratch(app);
+        FILE *file = def_search_normal_fopen(scratch, "audio_test/chtulthu.wav", "rb");
+        the_music_clip = audio_clip_from_wav_FILE(&global_permanent_arena, file);
+        fclose(file);
     }
     
     if (!def_audio_is_playing(&the_music_control)){
@@ -238,10 +239,11 @@ CUSTOM_COMMAND_SIG(hit_sfx)
 CUSTOM_DOC("Play the hit sound effect")
 {
     local_persist Audio_Clip the_hit_clip = {};
-    local_persist b32 initialized = false;
-    if (!initialized){
-        initialized = true;
-        the_hit_clip = audio_clip_from_wav_file_name("W:\\4ed\\audio_test\\hit.wav");
+    if (the_hit_clip.sample_count == 0){
+        Scratch_Block scratch(app);
+        FILE *file = def_search_normal_fopen(scratch, "audio_test/hit.wav", "rb");
+        the_hit_clip = audio_clip_from_wav_FILE(&global_permanent_arena, file);
+        fclose(file);
     }
     
     local_persist u32 index = 0;

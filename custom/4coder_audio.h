@@ -50,6 +50,7 @@ function void def_audio_mix_destination(i16 *dst, f32 *src, u32 sample_count);
 // NOTE(allen): Loading Clip
 
 function Audio_Clip audio_clip_from_wav_data(String_Const_u8 data);
-function Audio_Clip audio_clip_from_wav_file_name(char *file_name);
+function Audio_Clip audio_clip_from_wav_FILE(Arena *arena, FILE *file);
+function Audio_Clip audio_clip_from_wav_file_name(Arena *arena, char *file_name);
 
 #endif //4CODER_AUDIO_H

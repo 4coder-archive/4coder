@@ -248,23 +248,18 @@ audio_clip_from_wav_data(String_Const_u8 data){
     return(Result);
 }
 
-#include <stdlib.h>
+function Audio_Clip
+audio_clip_from_wav_FILE(Arena *arena, FILE *file){
+    String_Const_u8 data = data_from_file(arena, file);
+    Audio_Clip result = audio_clip_from_wav_data(data);
+    return(result);
+}
 
 function Audio_Clip
-audio_clip_from_wav_file_name(char *file_name){
+audio_clip_from_wav_file_name(Arena *arena, char *file_name){
     String_Const_u8 data = {};
     FILE *file = fopen(file_name, "rb");
-    if (file != 0){
-        fseek(file, 0, SEEK_END);
-        data.size = ftell(file);
-        data.str = (u8*)malloc(data.size);
-        if (data.str != 0 && data.size > 0){
-            fseek(file, 0, SEEK_SET);
-            fread(data.str, data.size, 1, file);
-        }
-        fclose(file);
-    }
-    
-    Audio_Clip result = audio_clip_from_wav_data(data);
+    Audio_Clip result = audio_clip_from_wav_FILE(arena, file);
+    fclose(file);
     return(result);
 }

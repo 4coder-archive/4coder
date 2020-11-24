@@ -12,6 +12,8 @@
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
+#include <stdio.h>
+
 #include "4coder_base_types.h"
 #include "4coder_version.h"
 #include "4coder_events.h"
@@ -1751,6 +1753,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         List_String_Const_u8 search_list = {};
         def_search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
         def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        
         String_Const_u8 custom_file_names[2] = {};
         i32 custom_file_count = 1;
         if (plat_settings.custom_dll != 0){

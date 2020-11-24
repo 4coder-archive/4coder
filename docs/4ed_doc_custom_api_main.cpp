@@ -51,7 +51,7 @@ int main(void){
     }
     
     printf("documenting %s\n", file_name.str);
-    String_Const_u8 text = file_load_all(&arena, file);
+    String_Const_u8 text = data_from_file(&arena, file);
     fclose(file);
     
     API_Definition_List def_list = {};

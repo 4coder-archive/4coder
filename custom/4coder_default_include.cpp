@@ -11,6 +11,9 @@
 #define FCODER_TRANSITION_TO 0
 #endif
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "4coder_base_types.h"
 #include "4coder_version.h"
 #include "4coder_table.h"
@@ -57,6 +60,7 @@
 #include "4coder_log_parser.h"
 #include "4coder_profile_inspect.h"
 #include "4coder_tutorial.h"
+#include "4coder_search_list.h"
 
 ////////////////////////////////
 
@@ -65,6 +69,8 @@
 #include "4coder_app_links_allocator.cpp"
 #include "4coder_system_allocator.cpp"
 #include "generated/lexer_cpp.h"
+
+#include "4coder_file.cpp"
 
 #define DYNAMIC_LINK_API
 #include "generated/custom_api.cpp"
@@ -131,6 +137,7 @@
 #include "4coder_docs.cpp"
 #include "4coder_variables.cpp"
 #include "4coder_audio.cpp"
+#include "4coder_search_list.cpp"
 
 #include "4coder_examples.cpp"
 

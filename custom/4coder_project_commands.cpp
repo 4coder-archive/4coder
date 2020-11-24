@@ -642,6 +642,9 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
             
             print_feedback = true;
             
+            // NOTE(allen): Set the normal search list's project slot
+            def_search_project_path = current_project.dir;
+            
             // Open all project files
             for (i32 i = 0; i < current_project.load_path_array.count; ++i){
                 Project_File_Load_Path *load_path = &current_project.load_path_array.paths[i];

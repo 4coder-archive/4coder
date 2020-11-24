@@ -1014,6 +1014,7 @@ default_framework_init(Application_Links *app){
     initialize_managed_id_metadata(app);
     set_default_color_scheme(app);
     heap_init(&global_heap, tctx->allocator);
+	global_permanent_arena = make_arena_system();
     global_config_arena = make_arena_system();
     fade_range_arena = make_arena_system(KB(8));
 }

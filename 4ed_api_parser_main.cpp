@@ -46,7 +46,7 @@ main(int argc, char **argv){
             continue;
         }
         
-        String_Const_u8 text = file_load_all(&arena, file);
+        String_Const_u8 text = data_from_file(&arena, file);
         fclose(file);
         
         if (text.size > 0){

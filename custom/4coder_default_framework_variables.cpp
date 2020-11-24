@@ -80,6 +80,7 @@ global i32 fcoder_mode = FCoderMode_Original;
 
 global ID_Pos_Jump_Location prev_location = {};
 
+global Arena global_permanent_arena = {};
 
 global Arena global_config_arena = {};
 global Config_Data global_config = {};

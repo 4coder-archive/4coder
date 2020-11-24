@@ -59,7 +59,7 @@ main(int argc, char **argv){
                 printf("error: could not open input file: '%s'\n", file_name);
                 continue;
             }
-            String_Const_u8 text = file_load_all(&arena, file);
+            String_Const_u8 text = data_from_file(&arena, file);
             fclose(file);
             if (text.size > 0){
                 api_parse_source_add_to_list(&arena, SCu8(file_name), text, &master_list);
@@ -72,7 +72,7 @@ main(int argc, char **argv){
                 printf("error: could not open input file: '%s'\n", file_name);
                 continue;
             }
-            String_Const_u8 text = file_load_all(&arena, file);
+            String_Const_u8 text = data_from_file(&arena, file);
             fclose(file);
             if (text.size > 0){
                 api_parse_source_add_to_list(&arena, SCu8(file_name), text, &remote_list);
