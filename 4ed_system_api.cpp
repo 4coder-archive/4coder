@@ -304,19 +304,14 @@ define_api(Arena *arena){
     }
     
     {
-        API_Call *call = api_call(arena, api, "play_clip", "void");
-        api_param(arena, call, "Audio_Clip", "clip");
-        api_param(arena, call, "Audio_Control*", "control");
+        API_Call *call = api_call(arena, api, "set_source_mixer", "void");
+        api_param(arena, call, "void*", "ctx");
+        api_param(arena, call, "Audio_Mix_Sources_Function*", "mix_func");
     }
     
     {
-        API_Call *call = api_call(arena, api, "audio_is_playing", "b32");
-        api_param(arena, call, "Audio_Control*", "control");
-    }
-    
-    {
-        API_Call *call = api_call(arena, api, "audio_stop", "void");
-        api_param(arena, call, "Audio_Control*", "control");
+        API_Call *call = api_call(arena, api, "set_destination_mixer", "void");
+        api_param(arena, call, "Audio_Mix_Destination_Function*", "mix_func");
     }
     
     return(api);

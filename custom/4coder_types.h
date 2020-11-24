@@ -789,36 +789,10 @@ struct Process_State{
 
 ////////////////////////////////
 
-api(custom)
-struct Audio_Control{
-    volatile f32 channel_volume[2];
-	volatile u32 generation;
-	volatile u32 last_played_sample_index;
-    volatile b32 loop;
-};
-
-api(custom)
-struct Audio_Clip{
-    i16 *samples;
-    Audio_Control *control;
-    f32 channel_volume[2];
-    
-    u32 sample_count;
-    u32 at_sample_index;
-};
-
-api(custom)
-struct Audio_System{
-    volatile u32 quit;
-    volatile u32 ticket;
-    volatile u32 serving;
-	volatile u32 generation;
-    
-    Audio_Clip playing_clips[64];
-    
-    // NOTE(casey): Requests to play sounds are written to a pending array to avoid long locking
-    volatile u32 pending_clip_count;
-    Audio_Clip pending_clips[64];
-};
+// NOTE(allen): buffers are allocate with:
+// array_count = channel_count*sample_count
+// channel_count = 2
+typedef void Audio_Mix_Sources_Function(void *ctx, f32 *buffer, u32 sample_count);
+typedef void Audio_Mix_Destination_Function(i16 *dst, f32 *src, u32 sample_count);
 
 #endif

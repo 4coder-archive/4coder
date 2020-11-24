@@ -52,9 +52,8 @@
 #define system_is_fullscreen_sig() b32 system_is_fullscreen(void)
 #define system_get_keyboard_modifiers_sig() Input_Modifier_Set system_get_keyboard_modifiers(Arena* arena)
 #define system_set_key_mode_sig() void system_set_key_mode(Key_Mode mode)
-#define system_play_clip_sig() void system_play_clip(Audio_Clip clip, Audio_Control* control)
-#define system_audio_is_playing_sig() b32 system_audio_is_playing(Audio_Control* control)
-#define system_audio_stop_sig() void system_audio_stop(Audio_Control* control)
+#define system_set_source_mixer_sig() void system_set_source_mixer(void* ctx, Audio_Mix_Sources_Function* mix_func)
+#define system_set_destination_mixer_sig() void system_set_destination_mixer(Audio_Mix_Destination_Function* mix_func)
 typedef String_Const_u8 system_get_path_type(Arena* arena, System_Path_Code path_code);
 typedef String_Const_u8 system_get_canonical_type(Arena* arena, String_Const_u8 name);
 typedef File_List system_get_file_list_type(Arena* arena, String_Const_u8 directory);
@@ -109,9 +108,8 @@ typedef b32 system_set_fullscreen_type(b32 full_screen);
 typedef b32 system_is_fullscreen_type(void);
 typedef Input_Modifier_Set system_get_keyboard_modifiers_type(Arena* arena);
 typedef void system_set_key_mode_type(Key_Mode mode);
-typedef void system_play_clip_type(Audio_Clip clip, Audio_Control* control);
-typedef b32 system_audio_is_playing_type(Audio_Control* control);
-typedef void system_audio_stop_type(Audio_Control* control);
+typedef void system_set_source_mixer_type(void* ctx, Audio_Mix_Sources_Function* mix_func);
+typedef void system_set_destination_mixer_type(Audio_Mix_Destination_Function* mix_func);
 struct API_VTable_system{
 system_get_path_type *get_path;
 system_get_canonical_type *get_canonical;
@@ -167,9 +165,8 @@ system_set_fullscreen_type *set_fullscreen;
 system_is_fullscreen_type *is_fullscreen;
 system_get_keyboard_modifiers_type *get_keyboard_modifiers;
 system_set_key_mode_type *set_key_mode;
-system_play_clip_type *play_clip;
-system_audio_is_playing_type *audio_is_playing;
-system_audio_stop_type *audio_stop;
+system_set_source_mixer_type *set_source_mixer;
+system_set_destination_mixer_type *set_destination_mixer;
 };
 #if defined(STATIC_LINK_API)
 internal String_Const_u8 system_get_path(Arena* arena, System_Path_Code path_code);
@@ -226,9 +223,8 @@ internal b32 system_set_fullscreen(b32 full_screen);
 internal b32 system_is_fullscreen(void);
 internal Input_Modifier_Set system_get_keyboard_modifiers(Arena* arena);
 internal void system_set_key_mode(Key_Mode mode);
-internal void system_play_clip(Audio_Clip clip, Audio_Control* control);
-internal b32 system_audio_is_playing(Audio_Control* control);
-internal void system_audio_stop(Audio_Control* control);
+internal void system_set_source_mixer(void* ctx, Audio_Mix_Sources_Function* mix_func);
+internal void system_set_destination_mixer(Audio_Mix_Destination_Function* mix_func);
 #undef STATIC_LINK_API
 #elif defined(DYNAMIC_LINK_API)
 global system_get_path_type *system_get_path = 0;
@@ -285,8 +281,7 @@ global system_set_fullscreen_type *system_set_fullscreen = 0;
 global system_is_fullscreen_type *system_is_fullscreen = 0;
 global system_get_keyboard_modifiers_type *system_get_keyboard_modifiers = 0;
 global system_set_key_mode_type *system_set_key_mode = 0;
-global system_play_clip_type *system_play_clip = 0;
-global system_audio_is_playing_type *system_audio_is_playing = 0;
-global system_audio_stop_type *system_audio_stop = 0;
+global system_set_source_mixer_type *system_set_source_mixer = 0;
+global system_set_destination_mixer_type *system_set_destination_mixer = 0;
 #undef DYNAMIC_LINK_API
 #endif

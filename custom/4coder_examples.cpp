@@ -208,60 +208,6 @@ CUSTOM_DOC("Example of query_user_string and query_user_number")
     }
 }
 
-
-CUSTOM_COMMAND_SIG(test_the_new_api)
-CUSTOM_DOC("If you are reading this I forgot to delete this test, please let me know")
-{
-    Query_Bar_Group group(app);
-    Query_Bar bar = {};
-    bar.prompt = SCu8("Testing ... ");
-    if (!start_query_bar(app, &bar, 0)){
-        return;
-    }
-    
-    Input_Event events[10];
-    i32 count = 0;
-    
-    User_Input in = {};
-    
-    for (;;) {
-        in = get_next_input(app, EventProperty_AnyKey, 0);
-        if (in.abort){
-            return;
-        }
-		events[count] = in.event;
-		count += 1;
-		if (!event_is_dead_key(&in.event)) {
-			break;
-		}
-    }
-    
-    u64 codepoints[10] = {};
-    i32 index = 0;
-    
-    for (Input_Event event_text = event_next_text_event(&in.event);
-		 event_text.kind != InputEventKind_None;
-         event_text = event_next_text_event(&event_text)){
-        String_Const_u8 writable = to_writable(&event_text);
-		if (writable.size) {
-			codepoints[index] = utf8_consume(writable.str, writable.size).codepoint;
-			index += 1;
-		}
-    }
-    
-    Scratch_Block scratch(app);
-    for (i32 i = 0; i < count; i += 1){
-        String_Const_u8 string = stringize_keyboard_event(scratch, &events[i]);
-        print_message(app, string);
-    }
-    
-    for (i32 i = 0; i < index; i += 1){
-        String_Const_u8 string = push_u8_stringf(scratch, "%llu\n", codepoints[i]);
-        print_message(app, string);
-    }
-    
-}
-
 global Audio_Control the_music_control = {};
 
 CUSTOM_COMMAND_SIG(music_start)
@@ -274,18 +220,18 @@ CUSTOM_DOC("Starts the music.")
         the_music_clip = audio_clip_from_wav_file_name("W:\\4ed\\audio_test\\chtulthu.wav");
     }
     
-    if (!system_audio_is_playing(&the_music_control)){
+    if (!def_audio_is_playing(&the_music_control)){
         the_music_control.loop = true;
         the_music_control.channel_volume[0] = 1.f;
         the_music_control.channel_volume[1] = 1.f;
-        system_play_clip(the_music_clip, &the_music_control);
+        def_audio_play_clip(the_music_clip, &the_music_control);
     }
 }
 
 CUSTOM_COMMAND_SIG(music_stop)
 CUSTOM_DOC("Stops the music.")
 {
-    system_audio_stop(&the_music_control);
+    def_audio_stop(&the_music_control);
 }
 
 CUSTOM_COMMAND_SIG(hit_sfx)
@@ -302,11 +248,11 @@ CUSTOM_DOC("Play the hit sound effect")
     local_persist Audio_Control controls[8] = {};
     
     Audio_Control *control = &controls[index%8];
-    if (!system_audio_is_playing(control)){
+    if (!def_audio_is_playing(control)){
         control->loop = false;
         control->channel_volume[0] = 1.f;
         control->channel_volume[1] = 1.f;
-        system_play_clip(the_hit_clip, control);
+        def_audio_play_clip(the_hit_clip, control);
         index += 1;
     }
 }

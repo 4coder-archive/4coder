@@ -179,8 +179,11 @@ struct Win32_Vars{
     HWND window_handle;
     f32 screen_scale_factor;
     
-    Audio_System audio_system;
     DWORD audio_thread_id;
+    
+    void *volatile audio_mix_ctx;
+    Audio_Mix_Sources_Function *volatile audio_mix_sources;
+    Audio_Mix_Destination_Function *volatile audio_mix_destination;
     
     f64 count_per_usecond;
     b32 first;
@@ -1812,7 +1815,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     win32_resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
     
     // NOTE(allen): Audio Init
-    win32vars.audio_thread_id = win32_audio_init(&win32vars.audio_system);
+    win32vars.audio_thread_id = win32_audio_init();
     
     // NOTE(allen): Misc Init
     if (!AddClipboardFormatListener(win32vars.window_handle)){
