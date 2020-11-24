@@ -23,8 +23,8 @@ CUSTOM_DOC("Default command for responding to a startup event")
         Audio_Clip test_clip = audio_clip_from_wav_file_name("W:\\4ed\\audio_test\\raygun_zap.wav");
         
         local_persist Audio_Control test_control = {};
-        test_control.left_volume_knob = AUDIO_PRODUCER_KNOB_ONE;
-        test_control.right_volume_knob = AUDIO_PRODUCER_KNOB_ONE;
+        test_control.channel_volume[0] = 1.f;
+        test_control.channel_volume[1] = 1.f;
         system_play_clip(test_clip, &test_control);
     }
 }

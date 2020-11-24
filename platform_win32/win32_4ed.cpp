@@ -360,14 +360,6 @@ system_set_key_mode_sig(){
 }
 
 ////////////////////////////////
-// NOTE(allen): Audio
-
-internal
-system_play_clip_sig(){
-    win32_play_clip(clip, control);
-}
-
-////////////////////////////////
 // NOTE(allen): Clipboard
 
 internal String_Const_u8

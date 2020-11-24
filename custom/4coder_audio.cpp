@@ -68,6 +68,9 @@ audio_clip_from_wav_data(String_Const_u8 data){
             (Format->wChannels == 2) &&
             (Format->wBitsPerSample == 16) &&
             (Format->dwSamplesPerSec == 48000)){
+            for (u32 i = 0; i < 2; i += 1){
+                Result.channel_volume[i] = 1.f;
+            }
             Result.sample_count = SampleDataSize / (Format->wChannels*Format->wBitsPerSample/8);
             Result.samples = (i16 *)Samples;
         }

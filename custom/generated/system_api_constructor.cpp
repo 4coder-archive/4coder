@@ -250,5 +250,13 @@ API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("play_c
 api_param(arena, call, "Audio_Clip", "clip");
 api_param(arena, call, "Audio_Control*", "control");
 }
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("audio_is_playing"), string_u8_litexpr("b32"), string_u8_litexpr(""));
+api_param(arena, call, "Audio_Control*", "control");
+}
+{
+API_Call *call = api_call_with_location(arena, result, string_u8_litexpr("audio_stop"), string_u8_litexpr("void"), string_u8_litexpr(""));
+api_param(arena, call, "Audio_Control*", "control");
+}
 return(result);
 }

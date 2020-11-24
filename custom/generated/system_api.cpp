@@ -55,6 +55,8 @@ vtable->is_fullscreen = system_is_fullscreen;
 vtable->get_keyboard_modifiers = system_get_keyboard_modifiers;
 vtable->set_key_mode = system_set_key_mode;
 vtable->play_clip = system_play_clip;
+vtable->audio_is_playing = system_audio_is_playing;
+vtable->audio_stop = system_audio_stop;
 }
 #if defined(DYNAMIC_LINK_API)
 function void
@@ -114,6 +116,8 @@ system_is_fullscreen = vtable->is_fullscreen;
 system_get_keyboard_modifiers = vtable->get_keyboard_modifiers;
 system_set_key_mode = vtable->set_key_mode;
 system_play_clip = vtable->play_clip;
+system_audio_is_playing = vtable->audio_is_playing;
+system_audio_stop = vtable->audio_stop;
 }
 #undef DYNAMIC_LINK_API
 #endif

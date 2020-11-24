@@ -262,6 +262,55 @@ CUSTOM_DOC("If you are reading this I forgot to delete this test, please let me 
     
 }
 
+global Audio_Control the_music_control = {};
+
+CUSTOM_COMMAND_SIG(music_start)
+CUSTOM_DOC("Starts the music.")
+{
+    local_persist Audio_Clip the_music_clip = {};
+    local_persist b32 initialized = false;
+    if (!initialized){
+        initialized = true;
+        the_music_clip = audio_clip_from_wav_file_name("W:\\4ed\\audio_test\\chtulthu.wav");
+    }
+    
+    if (!system_audio_is_playing(&the_music_control)){
+        the_music_control.loop = true;
+        the_music_control.channel_volume[0] = 1.f;
+        the_music_control.channel_volume[1] = 1.f;
+        system_play_clip(the_music_clip, &the_music_control);
+    }
+}
+
+CUSTOM_COMMAND_SIG(music_stop)
+CUSTOM_DOC("Stops the music.")
+{
+    system_audio_stop(&the_music_control);
+}
+
+CUSTOM_COMMAND_SIG(hit_sfx)
+CUSTOM_DOC("Play the hit sound effect")
+{
+    local_persist Audio_Clip the_hit_clip = {};
+    local_persist b32 initialized = false;
+    if (!initialized){
+        initialized = true;
+        the_hit_clip = audio_clip_from_wav_file_name("W:\\4ed\\audio_test\\hit.wav");
+    }
+    
+    local_persist u32 index = 0;
+    local_persist Audio_Control controls[8] = {};
+    
+    Audio_Control *control = &controls[index%8];
+    if (!system_audio_is_playing(control)){
+        control->loop = false;
+        control->channel_volume[0] = 1.f;
+        control->channel_volume[1] = 1.f;
+        system_play_clip(the_hit_clip, control);
+        index += 1;
+    }
+}
+
 
 // BOTTOM
 

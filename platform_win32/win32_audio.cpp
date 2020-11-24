@@ -1,5 +1,5 @@
 ////////////////////////////////
-// NOTE(allen): Win32 Audio Functions
+// NOTE(allen): Win32 Audio Helpers
 
 function u32
 AtomicAddU32AndReturnOriginal(u32 volatile *Value, u32 Addend)
@@ -22,8 +22,11 @@ win32_end_ticket_mutex(Audio_System *Crunky)
     AtomicAddU32AndReturnOriginal(&Crunky->serving, 1);
 }
 
-function void
-win32_play_clip(Audio_Clip clip, Audio_Control *control){
+////////////////////////////////
+// NOTE(allen): Win32 Audio System API
+
+internal
+system_play_clip_sig(){
     clip.control = control;
     Audio_System *Crunky = &win32vars.audio_system;
     win32_begin_ticket_mutex(Crunky);
@@ -34,60 +37,127 @@ win32_play_clip(Audio_Clip clip, Audio_Control *control){
     win32_end_ticket_mutex(Crunky);
 }
 
-function void
-win32_mix_audio(Audio_System *Crunky, u32 SampleCount, i16 *Dest){
-    // NOTE(casey): Move pending sounds into the playing list
+internal
+system_audio_is_playing_sig(){
+    Audio_System *Crunky = (Audio_System *)&win32vars.audio_system;
+    b32 result = (Crunky->generation - control->generation < 2);
+    return(result);
+}
+
+internal
+system_audio_stop_sig(){
+    Audio_System *Crunky = (Audio_System *)&win32vars.audio_system;
     win32_begin_ticket_mutex(Crunky);
-	++Crunky->generation;
-    for(u32 PendIndex = 0;
-        PendIndex < Crunky->pending_clip_count;
-        ++PendIndex)
-    {
-        u32 DestIndex = Crunky->next_playing_clip_index++ % ArrayCount(Crunky->playing_clips);
-        Crunky->playing_clips[DestIndex] = Crunky->pending_clips[PendIndex];
+    
+    Audio_Clip *clip = Crunky->playing_clips;
+    for(u32 i = 0;
+        i < ArrayCount(Crunky->playing_clips);
+        i += 1, clip += 1){
+        if (clip->control == control){
+            clip->at_sample_index = clip->sample_count;
+        }
     }
-	Crunky->pending_clip_count = 0;
+	control->loop = false;
+    
+    win32_end_ticket_mutex(Crunky);
+}
+
+////////////////////////////////
+// NOTE(allen): Win32 Audio Loop
+
+function void
+win32_mix_audio(Audio_System *Crunky, u32 SampleCount, i16 *Dest, void *mix_buffer_memory){
+    // NOTE(casey): Clear the output buffer
+    u32 MixBufferSize = SampleCount*2*sizeof(f32);
+    f32 *MixBuffer = (f32 *)mix_buffer_memory;
+    memset(MixBuffer, 0, MixBufferSize);
+    
+    win32_begin_ticket_mutex(Crunky);
+    // NOTE(casey): Move pending sounds into the playing list
+    {
+        Crunky->generation += 1;
+        u32 PendIndex = 0;
+        Audio_Clip *clip = Crunky->playing_clips;
+        for(u32 DestIndex = 0;
+            (DestIndex < ArrayCount(Crunky->playing_clips)) && (PendIndex < Crunky->pending_clip_count);
+            DestIndex += 1, clip += 1)
+        {
+            if (clip->at_sample_index == clip->sample_count)
+            {
+                Audio_Control *control = clip->control;
+                if (control == 0 || !control->loop){
+                    *clip = Crunky->pending_clips[PendIndex++];
+                }
+            }
+        }
+        Crunky->pending_clip_count = 0;
+    }
     win32_end_ticket_mutex(Crunky);
     
-    memset(Dest, 0, SampleCount*4);
-    for(u32 SoundIndex = 0;
-        SoundIndex < ArrayCount(Crunky->playing_clips);
-        ++SoundIndex)
+    // NOTE(casey): Mix all sounds into the output buffer
     {
-        Audio_Clip Sound = Crunky->playing_clips[SoundIndex];
-        u32 SamplesToMix = Min((Sound.sample_count - Sound.at_sample_index), SampleCount);
-        Crunky->playing_clips[SoundIndex].at_sample_index += SamplesToMix;
-        
-		i32 LeftVol = AUDIO_PRODUCER_KNOB_ONE;
-		i32 RightVol = AUDIO_PRODUCER_KNOB_ONE;
-		if(SamplesToMix && Sound.control)
-		{
-			LeftVol = Sound.control->left_volume_knob;
-			RightVol = Sound.control->right_volume_knob;
-			Sound.control->generation = Crunky->generation;
-			Sound.control->last_played_sample_index = Crunky->playing_clips[SoundIndex].at_sample_index;
-		}
-		
+        Audio_Clip *clip = Crunky->playing_clips;
+        for(u32 SoundIndex = 0;
+            SoundIndex < ArrayCount(Crunky->playing_clips);
+            SoundIndex += 1, clip += 1)
+        {
+            Audio_Control *control = clip->control;
+            if (control != 0 && control->loop && clip->at_sample_index == clip->sample_count){
+                clip->at_sample_index = 0;
+            }
+            
+            // NOTE(casey): Determine how many samples are left to play in this
+            // sound (possible none)
+            u32 SamplesToMix = Min((clip->sample_count - clip->at_sample_index), SampleCount);
+            clip->at_sample_index += SamplesToMix;
+            
+            // NOTE(casey): Load the volume out of the control if there is one,
+            // and if there is, update the generation and sample index so
+            // external controllers can take action
+            f32 LeftVol = clip->channel_volume[0];
+            f32 RightVol = clip->channel_volume[1];
+            if(SamplesToMix && control != 0)
+            {
+                LeftVol *= control->channel_volume[0];
+                RightVol *= control->channel_volume[1];
+                control->generation = Crunky->generation;
+                control->last_played_sample_index = clip->at_sample_index;
+            }
+            
+            // NOTE(casey): Mix samples
+            for(u32 SampleIndex = 0;
+                SampleIndex < SamplesToMix;
+                ++SampleIndex)
+            {
+                u32 src_index = 2*(clip->at_sample_index + SampleIndex);
+                f32 Left = LeftVol*(f32)clip->samples[src_index + 0];
+                f32 Right = RightVol*(f32)clip->samples[src_index + 1];
+                
+                u32 dst_index = 2*SampleIndex;
+                MixBuffer[dst_index + 0] += Left;
+                MixBuffer[dst_index + 1] += Right;
+            }
+        }
         
         for(u32 SampleIndex = 0;
-            SampleIndex < SamplesToMix;
+            SampleIndex < SampleCount;
             ++SampleIndex)
         {
-            u32 src_base_indx = 2*(Sound.at_sample_index + SampleIndex);
-            u32 dst_base_indx = 2*SampleIndex;
-            Dest[dst_base_indx + 0] += (i16)(LeftVol*(i32)Sound.samples[src_base_indx + 0]/AUDIO_PRODUCER_KNOB_ONE);
-            Dest[dst_base_indx + 1] += (i16)(RightVol*(i32)Sound.samples[src_base_indx + 1]/AUDIO_PRODUCER_KNOB_ONE);
+            f32 Left = MixBuffer[2*SampleIndex + 0];
+            f32 Right = MixBuffer[2*SampleIndex + 1];
+            
+            Dest[2*SampleIndex + 0] = (i16)Left;
+            Dest[2*SampleIndex + 1] = (i16)Right;
         }
     }
 }
 
 function b32
-win32_submit_audio(Audio_System *Crunky, HWAVEOUT WaveOut, WAVEHDR *Header){
+win32_submit_audio(Audio_System *Crunky, HWAVEOUT WaveOut, WAVEHDR *Header, u32 SampleCount, void *mix_buffer){
     b32 Result = false;
     
-    u32 SampleCount = Header->dwBufferLength/4;
     i16 *Samples = (i16 *)Header->lpData;
-    win32_mix_audio(Crunky, SampleCount, Samples);
+    win32_mix_audio(Crunky, SampleCount, Samples, mix_buffer);
     
     DWORD Error = waveOutPrepareHeader(WaveOut, Header, sizeof(*Header));
     if(Error == MMSYSERR_NOERROR)
@@ -120,7 +190,8 @@ win32_audio_loop(void *Passthrough){
     u32 BufferSize = SamplesPerBuffer*BytesPerSample;
     u32 HeaderSize = sizeof(WAVEHDR);
     u32 TotalBufferSize = (BufferSize+HeaderSize);
-    u32 TotalAudioMemorySize = BufferCount*TotalBufferSize;
+    u32 MixBufferSize = (SamplesPerBuffer*ChannelCount*sizeof(f32));
+    u32 TotalAudioMemorySize = BufferCount*TotalBufferSize + MixBufferSize;
     
     //
     // NOTE(casey): Initialize audio out
@@ -135,24 +206,28 @@ win32_audio_loop(void *Passthrough){
     Format.nBlockAlign = (Format.nChannels*Format.wBitsPerSample)/8;
     Format.nAvgBytesPerSec = Format.nBlockAlign * Format.nSamplesPerSec;
     
+    void *MixBuffer = 0;
+    void *AudioBufferMemory = 0;
     if(waveOutOpen(&WaveOut, WAVE_MAPPER, &Format, GetCurrentThreadId(), 0, CALLBACK_THREAD) == MMSYSERR_NOERROR)
     {
-        void *AudioBufferMemory = VirtualAlloc(0, TotalAudioMemorySize, MEM_COMMIT, PAGE_READWRITE);
+        AudioBufferMemory = VirtualAlloc(0, TotalAudioMemorySize, MEM_COMMIT, PAGE_READWRITE);
         if(AudioBufferMemory)
         {
             u8 *At = (u8 *)AudioBufferMemory;
+			MixBuffer = At;
+            At += MixBufferSize;
+            
             for(u32 BufferIndex = 0;
                 BufferIndex < BufferCount;
                 ++BufferIndex)
             {
                 WAVEHDR *Header = (WAVEHDR *)At;
-                At += sizeof(WAVEHDR);
-                Header->lpData = (char *)At;
-                Header->dwBufferLength = TotalBufferSize;
+                Header->lpData = (char *)(Header + 1);
+                Header->dwBufferLength = BufferSize;
                 
                 At += TotalBufferSize;
                 
-                win32_submit_audio(Crunky, WaveOut, Header);
+                win32_submit_audio(Crunky, WaveOut, Header, SamplesPerBuffer, MixBuffer);
             }
         }
         else
@@ -168,7 +243,8 @@ win32_audio_loop(void *Passthrough){
     //
     // NOTE(casey): Serve audio forever (until we are told to stop)
     //
-    // SetTimer(0, 0, 100, 0);
+    
+    SetTimer(0, 0, 100, 0);
     while(!Crunky->quit)
     {
         MSG Message = {};
@@ -183,8 +259,18 @@ win32_audio_loop(void *Passthrough){
             
             waveOutUnprepareHeader(WaveOut, Header, sizeof(*Header));
             
-            win32_submit_audio(Crunky, WaveOut, Header);
+            win32_submit_audio(Crunky, WaveOut, Header, SamplesPerBuffer, MixBuffer);
         }
+    }
+    
+    if(WaveOut)
+    {
+        waveOutClose(WaveOut);
+    }
+    
+    if(AudioBufferMemory)
+    {
+        VirtualFree(AudioBufferMemory, 0, MEM_RELEASE);
     }
     
     return(0);

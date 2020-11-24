@@ -791,17 +791,17 @@ struct Process_State{
 
 api(custom)
 struct Audio_Control{
-#define AUDIO_PRODUCER_KNOB_ONE 256
-	volatile u32 left_volume_knob;
-	volatile u32 right_volume_knob;
+    volatile f32 channel_volume[2];
 	volatile u32 generation;
-	volatile u32 last_played_sample_index;;
+	volatile u32 last_played_sample_index;
+    volatile b32 loop;
 };
 
 api(custom)
 struct Audio_Clip{
     i16 *samples;
     Audio_Control *control;
+    f32 channel_volume[2];
     
     u32 sample_count;
     u32 at_sample_index;
@@ -814,7 +814,6 @@ struct Audio_System{
     volatile u32 serving;
 	volatile u32 generation;
     
-    u32 next_playing_clip_index;
     Audio_Clip playing_clips[64];
     
     // NOTE(casey): Requests to play sounds are written to a pending array to avoid long locking

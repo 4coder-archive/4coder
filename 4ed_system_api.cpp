@@ -309,6 +309,16 @@ define_api(Arena *arena){
         api_param(arena, call, "Audio_Control*", "control");
     }
     
+    {
+        API_Call *call = api_call(arena, api, "audio_is_playing", "b32");
+        api_param(arena, call, "Audio_Control*", "control");
+    }
+    
+    {
+        API_Call *call = api_call(arena, api, "audio_stop", "void");
+        api_param(arena, call, "Audio_Control*", "control");
+    }
+    
     return(api);
 }
 
