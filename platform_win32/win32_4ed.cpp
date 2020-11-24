@@ -32,7 +32,7 @@
 
 #include "4ed_font_set.h"
 #include "4ed_render_target.h"
-#include "4ed_search_list.h"
+#include "4coder_search_list.h"
 #include "4ed.h"
 
 #include "generated/system_api.cpp"
@@ -46,7 +46,7 @@
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"
 
-#include "4ed_search_list.cpp"
+#include "4coder_search_list.cpp"
 
 #undef function
 #define UNICODE
@@ -1690,10 +1690,11 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
     {
         App_Get_Functions *get_funcs = 0;
         Scratch_Block scratch(win32vars.tctx);
-        Path_Search_List search_list = {};
-        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         
-        String_Const_u8 core_path = get_full_path(scratch, &search_list, SCu8("4ed_app.dll"));
+        List_String_Const_u8 search_list = {};
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        
+        String_Const_u8 core_path = def_get_full_path(scratch, &search_list, SCu8("4ed_app.dll"));
         if (system_load_library(scratch, core_path, &core_library)){
             get_funcs = (App_Get_Functions*)system_get_proc(core_library, "app_get_functions");
             if (get_funcs != 0){
@@ -1747,9 +1748,9 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         
         Scratch_Block scratch(win32vars.tctx);
         String_Const_u8 default_file_name = string_u8_litexpr("custom_4coder.dll");
-        Path_Search_List search_list = {};
-        search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
-        search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
+        List_String_Const_u8 search_list = {};
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_CurrentDirectory);
+        def_search_list_add_system_path(scratch, &search_list, SystemPath_Binary);
         String_Const_u8 custom_file_names[2] = {};
         i32 custom_file_count = 1;
         if (plat_settings.custom_dll != 0){
@@ -1764,7 +1765,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdS
         }
         String_Const_u8 custom_file_name = {};
         for (i32 i = 0; i < custom_file_count; i += 1){
-            custom_file_name = get_full_path(scratch, &search_list, custom_file_names[i]);
+            custom_file_name = def_get_full_path(scratch, &search_list, custom_file_names[i]);
             if (custom_file_name.size > 0){
                 break;
             }

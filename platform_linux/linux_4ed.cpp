@@ -37,7 +37,7 @@
 
 #include "4ed_font_set.h"
 #include "4ed_render_target.h"
-#include "4ed_search_list.h"
+#include "4coder_search_list.h"
 #include "4ed.h"
 
 #include "generated/system_api.cpp"
@@ -58,7 +58,7 @@
 
 #include "4ed_mem.cpp"
 #include "4ed_font_set.cpp"
-#include "4ed_search_list.cpp"
+#include "4coder_search_list.cpp"
 #include "4ed_font_provider_freetype.h"
 #include "4ed_font_provider_freetype.cpp"
 

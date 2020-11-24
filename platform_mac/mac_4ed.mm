@@ -30,7 +30,7 @@
 
 #include "4ed_font_set.h"
 #include "4ed_render_target.h"
-#include "4ed_search_list.h"
+#include "4coder_search_list.h"
 #include "4ed.h"
 
 #include "generated/system_api.cpp"
@@ -44,7 +44,7 @@
 #include "4coder_table.cpp"
 #include "4coder_log.cpp"
 
-#include "4ed_search_list.cpp"
+#include "4coder_search_list.cpp"
 
 #include "mac_objective_c_to_cpp_links.h"
 

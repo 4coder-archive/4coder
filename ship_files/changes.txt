@@ -4,6 +4,7 @@
  + Added lookup acceleration to code index data
  + Added highlighting for functions, types, and macros in code index
  + Default input is now dispatched through an "implicit map" callback
+ + Audio system API and default audio mixer with examples in 4coder_examples.cpp
  + Fix: crash when pasting in read only buffer
 
 4.1.6
