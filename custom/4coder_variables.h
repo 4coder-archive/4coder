@@ -36,7 +36,12 @@ function Variable_Handle vars_get_nil(void);
 function b32             vars_is_nil(Variable_Handle var);
 function b32             vars_match(Variable_Handle a, Variable_Handle b);
 
+function Variable_Handle vars_first_child(Variable_Handle var);
+function Variable_Handle vars_next_sibling(Variable_Handle var);
+
 function Variable_Handle vars_read_key(Variable_Handle var, String_ID key);
+function String_ID       vars_key_id_from_var(Variable_Handle var);
+function String_Const_u8 vars_key_from_var(Arena *arena, Variable_Handle var);
 function String_ID       vars_string_id_from_var(Variable_Handle var);
 function String_Const_u8 vars_string_from_var(Arena *arena, Variable_Handle var);
 
@@ -45,6 +50,9 @@ function void            vars_erase(Variable_Handle var, String_ID key);
 function Variable_Handle vars_new_variable(Variable_Handle var, String_ID key);
 function Variable_Handle vars_new_variable(Variable_Handle var, String_ID key, String_ID string);
 function void            vars_clear_keys(Variable_Handle var);
+
+function void            vars_print_indented(Application_Links *app, Variable_Handle var, i32 indent);
+function void            vars_print(Application_Links *app, Variable_Handle var);
 
 #endif //4CODER_VARIABLES_H
 

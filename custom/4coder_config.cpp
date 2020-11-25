@@ -1663,18 +1663,17 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     Config *parsed = config_parse__file_name(app, out_arena, "config.4coder", config);
     
     if (parsed != 0){
-        // Top
-        print_message(app, string_u8_litexpr("Loaded config file:\n"));
-        
         // Errors
         String_Const_u8 error_text = config_stringize_errors(app, scratch, parsed);
         if (error_text.str != 0){
+            print_message(app, string_u8_litexpr("trying to load config file:\n"));
             print_message(app, error_text);
         }
         
         // NOTE(allen): Save As Variables
         if (error_text.str == 0){
-            def_var_from_config(app, vars_get_root(), string_litinit("config"), parsed);
+            Variable_Handle config_var = def_var_from_config(app, vars_get_root(), string_litinit("config"), parsed);
+			vars_print(app, config_var);
         }
     }
     else{
@@ -1692,66 +1691,6 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         block_copy(config->default_font_name_space, M, sizeof(M) - 1);
         config->default_font_name.size = sizeof(M) - 1;
 #undef M
-    }
-    
-    {
-        // Values
-        Temp_Memory temp2 = begin_temp(scratch);
-        List_String_Const_u8 list = {};
-        
-        config_feedback_string(scratch, &list, "user_name", config->user_name);
-        config_feedback_extension_list(scratch, &list, "treat_as_code", &config->code_exts);
-        
-        config_feedback_string(scratch, &list, "mapping", config->mapping);
-        config_feedback_string(scratch, &list, "mode", config->mode);
-        
-        config_feedback_bool(scratch, &list, "bind_by_physical_key", config->bind_by_physical_key);
-        config_feedback_bool(scratch, &list, "use_scroll_bars", config->use_scroll_bars);
-        config_feedback_bool(scratch, &list, "use_file_bars", config->use_file_bars);
-        config_feedback_bool(scratch, &list, "hide_file_bar_in_ui", config->hide_file_bar_in_ui);
-        config_feedback_bool(scratch, &list, "use_error_highlight", config->use_error_highlight);
-        config_feedback_bool(scratch, &list, "use_jump_highlight", config->use_jump_highlight);
-        config_feedback_bool(scratch, &list, "use_scope_highlight", config->use_scope_highlight);
-        config_feedback_bool(scratch, &list, "use_paren_helper", config->use_paren_helper);
-        config_feedback_bool(scratch, &list, "use_comment_keyword", config->use_comment_keyword);
-        config_feedback_bool(scratch, &list, "lister_whole_word_backspace_when_modified", config->lister_whole_word_backspace_when_modified);
-        config_feedback_bool(scratch, &list, "show_line_number_margins", config->show_line_number_margins);
-        config_feedback_bool(scratch, &list, "enable_output_wrapping", config->enable_output_wrapping);
-        config_feedback_bool(scratch, &list, "enable_undo_fade_out", config->enable_undo_fade_out);
-        
-        config_feedback_int(scratch, &list, "cursor_roundness", (i32)(config->cursor_roundness*100.f));
-        config_feedback_int(scratch, &list, "mark_thickness", (i32)(config->mark_thickness));
-        config_feedback_int(scratch, &list, "lister_roundness", (i32)(config->lister_roundness*100.f));
-        
-        config_feedback_bool(scratch, &list, "enable_virtual_whitespace", config->enable_virtual_whitespace);
-        config_feedback_int(scratch, &list, "virtual_whitespace_regular_indent", config->virtual_whitespace_regular_indent);
-        config_feedback_bool(scratch, &list, "enable_code_wrapping", config->enable_code_wrapping);
-        config_feedback_bool(scratch, &list, "automatically_indent_text_on_save", config->automatically_indent_text_on_save);
-        config_feedback_bool(scratch, &list, "automatically_save_changes_on_build", config->automatically_save_changes_on_build);
-        config_feedback_bool(scratch, &list, "automatically_load_project", config->automatically_load_project);
-        
-        config_feedback_bool(scratch, &list, "indent_with_tabs", config->indent_with_tabs);
-        config_feedback_int(scratch, &list, "indent_width", config->indent_width);
-        config_feedback_int(scratch, &list, "default_tab_width", config->default_tab_width);
-        
-        config_feedback_string(scratch, &list, "default_theme_name", config->default_theme_name);
-        config_feedback_bool(scratch, &list, "highlight_line_at_cursor", config->highlight_line_at_cursor);
-        
-        config_feedback_string(scratch, &list, "default_font_name", config->default_font_name);
-        config_feedback_int(scratch, &list, "default_font_size", config->default_font_size);
-        config_feedback_bool(scratch, &list, "default_font_hinting", config->default_font_hinting);
-        
-        config_feedback_string(scratch, &list, "default_compiler_bat", config->default_compiler_bat);
-        config_feedback_string(scratch, &list, "default_flags_bat", config->default_flags_bat);
-        config_feedback_string(scratch, &list, "default_compiler_sh", config->default_compiler_sh);
-        config_feedback_string(scratch, &list, "default_flags_sh", config->default_flags_sh);
-        
-        config_feedback_bool(scratch, &list, "lalt_lctrl_is_altgr", config->lalt_lctrl_is_altgr);
-        
-        string_list_push_u8_lit(scratch, &list, "\n");
-        String_Const_u8 message = string_list_flatten(scratch, list);
-        print_message(app, message);
-        end_temp(temp2);
     }
     
     // Apply config

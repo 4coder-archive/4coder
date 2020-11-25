@@ -82,7 +82,7 @@ vars_get_nil(void){
 
 function b32
 vars_is_nil(Variable_Handle var){
-    return(var.ptr == &vars_nil);
+    return(var.ptr == 0 || var.ptr == &vars_nil);
 }
 
 function b32
@@ -90,6 +90,41 @@ vars_match(Variable_Handle a, Variable_Handle b){
     return(a.ptr == b.ptr);
 }
 
+function Variable_Handle
+vars_first_child(Variable_Handle var){
+    Variable_Handle result = {};
+    if (var.ptr != 0){
+        result.ptr = var.ptr->first;
+    }
+    else{
+        result.ptr = &vars_nil;
+    }
+    return(result);
+}
+
+function Variable_Handle
+vars_next_sibling(Variable_Handle var){
+    Variable_Handle result = {};
+    if (var.ptr != 0){
+        result.ptr = var.ptr->next;
+    }
+    else{
+        result.ptr = &vars_nil;
+    }
+    return(result);
+}
+
+function String_ID
+vars_key_id_from_var(Variable_Handle var){
+    return(var.ptr->key);
+}
+
+function String_Const_u8
+vars_key_from_var(Arena *arena, Variable_Handle var){
+    String_ID id = vars_key_id_from_var(var);
+    String_Const_u8 result = vars_read_string(arena, id);
+    return(result);
+}
 
 function String_ID
 vars_string_id_from_var(Variable_Handle var){
@@ -231,6 +266,37 @@ vars_clear_keys(Variable_Handle var){
     if (var.ptr != &vars_nil){
         _vars_free_variable_children(var.ptr);
     }
+}
+
+function void
+vars_print_indented(Application_Links *app, Variable_Handle var, i32 indent){
+    Scratch_Block scratch(app);
+    local_persist char spaces[] =
+        "                                                                "
+        "                                                                "
+        "                                                                "
+        "                                                                ";
+    
+    String_Const_u8 var_key = vars_key_from_var(scratch, var);
+    String_Const_u8 var_val = vars_string_from_var(scratch, var);
+    
+    String_Const_u8 line = push_stringf(scratch, "%.*s%.*s: \"%.*s\"\n",
+                                        clamp_top(indent, sizeof(spaces)), spaces,
+                                        string_expand(var_key),
+                                        string_expand(var_val));
+    print_message(app, line);
+    
+    i32 sub_indent = indent + 1;
+    for (Variable_Handle sub = vars_first_child(var);
+         !vars_is_nil(sub);
+         sub = vars_next_sibling(sub)){
+        vars_print_indented(app, sub, sub_indent);
+    }
+}
+
+function void
+vars_print(Application_Links *app, Variable_Handle var){
+    vars_print_indented(app, var, 0);
 }
 
 // BOTTOM
