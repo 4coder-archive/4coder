@@ -50,15 +50,13 @@ struct Config_LValue{
 
 typedef i32 Config_RValue_Type;
 enum{
-    ConfigRValueType_LValue = 0,
-    ConfigRValueType_Boolean = 1,
-    ConfigRValueType_Integer = 2,
-    ConfigRValueType_String = 4,
-    ConfigRValueType_Compound = 6,
-    ConfigRValueType_NoType = 7,
-};
-enum{
-    ConfigRValueType_COUNT = ConfigRValueType_NoType,
+    ConfigRValueType_Null,
+    ConfigRValueType_LValue,
+    ConfigRValueType_Boolean,
+    ConfigRValueType_Integer,
+    ConfigRValueType_String,
+    ConfigRValueType_Compound,
+    ConfigRValueType_COUNT
 };
 
 struct Config_Compound{

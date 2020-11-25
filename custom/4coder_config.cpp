@@ -582,6 +582,14 @@ struct Config{
     String_Const_u8 file_name;
     String_Const_u8 data;
 };
+
+
+struct Config_Compound{
+    struct Config_Compound_Element *first;
+    struct Config_Compound_Element *last;
+    i32 count;
+};
+
 #endif
 
 function Variable_Handle
@@ -646,8 +654,8 @@ def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const
                         }break;
                         
                         case ConfigRValueType_Compound:
-                        case ConfigRValueType_NoType:
                         {
+                            Variable_Handle sub_var = vars_new_variable(var, l_value);
                             
                         }break;
                     }
@@ -787,17 +795,6 @@ typed_array_reference_list(Arena *arena, Config *parsed, Config_Compound *compou
 ////////////////////////////////
 
 function b32
-config_has_var(Config *config, String_Const_u8 var_name, i32 subscript){
-    Config_Get_Result result = config_var(config, var_name, subscript);
-    return(result.success && result.type == ConfigRValueType_NoType);
-}
-
-function b32
-config_has_var(Config *config, char *var_name, i32 subscript){
-    return(config_has_var(config, SCu8(var_name), subscript));
-}
-
-function b32
 config_bool_var(Config *config, String_Const_u8 var_name, i32 subscript, b32* var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
     b32 success = (result.success && result.type == ConfigRValueType_Boolean);
@@ -908,20 +905,6 @@ config_compound_var(Config *config, char *var_name, i32 subscript, Config_Compou
 }
 
 function b32
-config_compound_has_member(Config *config, Config_Compound *compound,
-                           String_Const_u8 var_name, i32 index){
-    Config_Get_Result result = config_compound_member(config, compound, var_name, index);
-    b32 success = result.success && result.type == ConfigRValueType_NoType;
-    return(success);
-}
-
-function b32
-config_compound_has_member(Config *config, Config_Compound *compound,
-                           char *var_name, i32 index){
-    return(config_compound_has_member(config, compound, SCu8(var_name), index));
-}
-
-function b32
 config_compound_bool_member(Config *config, Config_Compound *compound,
                             String_Const_u8 var_name, i32 index, b32* var_out){
     Config_Get_Result result = config_compound_member(config, compound, var_name, index);
@@ -1027,12 +1010,6 @@ config_compound_compound_member(Config *config, Config_Compound *compound,
 }
 
 function Iteration_Step_Result
-typed_has_array_iteration_step(Config *config, Config_Compound *compound, i32 index){
-    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_NoType, index);
-    return(result.step);
-}
-
-function Iteration_Step_Result
 typed_bool_array_iteration_step(Config *config, Config_Compound *compound, i32 index, b32* var_out){
     Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Boolean, index);
     b32 success = (result.step == Iteration_Good);
@@ -1119,12 +1096,6 @@ typed_compound_array_get_count(Config *config, Config_Compound *compound){
     return(count);
 }
 
-function i32
-typed_no_type_array_get_count(Config *config, Config_Compound *compound){
-    i32 count = typed_array_get_count(config, compound, ConfigRValueType_NoType);
-    return(count);
-}
-
 function Config_Get_Result_List
 typed_bool_array_reference_list(Arena *arena, Config *config, Config_Compound *compound){
     Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Boolean);
@@ -1149,12 +1120,6 @@ typed_compound_array_reference_list(Arena *arena, Config *config, Config_Compoun
     return(list);
 }
 
-function Config_Get_Result_List
-typed_no_type_array_reference_list(Arena *arena, Config *config, Config_Compound *compound){
-    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_NoType);
-    return(list);
-}
-
 ////////////////////////////////
 
 function Config_Iteration_Step_Result
@@ -1163,7 +1128,7 @@ typed_array_iteration_step(Config *parsed, Config_Compound *compound, Config_RVa
     result.step = Iteration_Quit;
     Config_Get_Result get_result = config_compound_member(parsed, compound, string_u8_litexpr("~"), index);
     if (get_result.success){
-        if (get_result.type == type || type == ConfigRValueType_NoType){
+        if (get_result.type == type){
             result.step = Iteration_Good;
             result.get = get_result;
         }
