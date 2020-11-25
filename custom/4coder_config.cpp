@@ -540,95 +540,6 @@ def_config_parser_recover(Config_Parser *ctx){
 ////////////////////////////////
 // NOTE(allen): Dump Config to Variables
 
-#if 0
-struct Config_Assignment{
-    Config_Assignment *next;
-    Config_Assignment *prev;
-    
-    u8 *pos;
-    Config_LValue *l;
-    Config_RValue *r;
-    
-    b32 visited;
-};
-
-
-struct Config_LValue{
-    String_Const_u8 identifier;
-    i32 index;
-};
-
-struct Config_RValue{
-    Config_RValue_Type type;
-    union{
-        Config_LValue *lvalue;
-        b32 boolean;
-        i32 integer;
-        u32 uinteger;
-        String_Const_u8 string;
-        char character;
-        Config_Compound *compound;
-    };
-};
-
-struct Config{
-    i32 *version;
-    Config_Assignment *first;
-    Config_Assignment *last;
-    i32 count;
-    
-    Config_Error_List errors;
-    
-    String_Const_u8 file_name;
-    String_Const_u8 data;
-};
-
-typedef i32 Config_Layout_Type;
-enum{
-    ConfigLayoutType_Unset = 0,
-    ConfigLayoutType_Identifier = 1,
-    ConfigLayoutType_Integer = 2,
-    ConfigLayoutType_COUNT = 3,
-};
-struct Config_Layout{
-    Config_Layout_Type type;
-    u8 *pos;
-    union{
-        String_Const_u8 identifier;
-        i32 integer;
-    };
-};
-
-struct Config_Compound_Element{
-    Config_Compound_Element *next;
-    Config_Compound_Element *prev;
-    
-    Config_Layout l;
-    Config_RValue *r;
-};
-
-struct Config_Compound{
-    struct Config_Compound_Element *first;
-    struct Config_Compound_Element *last;
-    i32 count;
-};
-
-struct Config_Get_Result{
-    b32 success;
-    Config_RValue_Type type;
-    u8 *pos;
-    union{
-        b32 boolean;
-        i32 integer;
-        u32 uinteger;
-        String_Const_u8 string;
-        char character;
-        Config_Compound *compound;
-    };
-};
-
-#endif
-
 function Config_Get_Result
 config_var(Config *config, String_Const_u8 var_name, i32 subscript);
 
@@ -772,6 +683,12 @@ def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const
         
         Scratch_Block scratch(app);
         
+        if (config->version != 0){
+            String_ID version_key = vars_save_string(string_u8_litexpr("version"));
+            String_ID version_value = vars_save_string(push_stringf(scratch, "%d", *config->version));
+            vars_new_variable(parent, version_key, version_value);
+        }
+        
         for (Config_Assignment *node = config->first;
              node != 0;
              node = node->next){
@@ -779,8 +696,8 @@ def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const
             Config_LValue *l = node->l;
             if (l != 0){
                 String_Const_u8 string = l->identifier;
-                if (string.size == 0){
-                    string = push_stringf(scratch, "%d", l->index);
+                if (l->index != 0){
+                    string = push_stringf(scratch, "%.*s.%d", string_expand(string), l->index);
                 }
                 l_value = vars_save_string(string);
             }
