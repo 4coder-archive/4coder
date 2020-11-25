@@ -53,9 +53,7 @@ enum{
     ConfigRValueType_LValue = 0,
     ConfigRValueType_Boolean = 1,
     ConfigRValueType_Integer = 2,
-    ConfigRValueType_Float = 3,
     ConfigRValueType_String = 4,
-    ConfigRValueType_Character = 5,
     ConfigRValueType_Compound = 6,
     ConfigRValueType_NoType = 7,
 };
@@ -268,6 +266,8 @@ function String_Const_u8 def_config_parser_get_lexeme(Config_Parser *ctx);
 function Config_Integer  def_config_parser_get_int(Config_Parser *ctx);
 function b32             def_config_parser_get_boolean(Config_Parser *ctx);
 
+function void def_config_parser_recover(Config_Parser *ctx);
+
 function Config*                  def_config_parser_config    (Config_Parser *ctx);
 function i32*                     def_config_parser_version   (Config_Parser *ctx);
 function Config_Assignment*       def_config_parser_assignment(Config_Parser *ctx);
@@ -279,8 +279,17 @@ function Config_Compound_Element* def_config_parser_element   (Config_Parser *ct
 function Config* def_config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array);
 
 function Config_Error* def_config_push_error(Arena *arena, Config_Error_List *list, String_Const_u8 file_name, u8 *pos, char *error_text);
+function Config_Error* def_config_push_error(Arena *arena, Config *config, u8 *pos, char *error_text);
+
 function void def_config_parser_push_error(Config_Parser *ctx, u8 *pos, char *error_text);
 function void def_config_parser_push_error_here(Config_Parser *ctx, char *error_text);
+
+function void def_config_parser_recover(Config_Parser *ctx);
+
+////////////////////////////////
+// NOTE(allen): Dump Config to Variables
+
+function Variable_Handle def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const_u8 key, Config *config);
 
 #endif
 

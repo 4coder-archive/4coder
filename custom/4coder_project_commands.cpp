@@ -328,7 +328,7 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
                 
                 if (!config_compound_string_member(parsed, src, "name", 0, &name)){
                     can_emit_command = false;
-                    config_add_error(arena, parsed, pos, "a command must have a string type name member");
+                    def_config_push_error(arena, parsed, pos, "a command must have a string type name member");
                     goto finish_command;
                 }
                 
@@ -339,7 +339,7 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
                 }
                 else{
                     can_emit_command = false;
-                    config_add_error(arena, parsed, pos, "a command must have an array type cmd member");
+                    def_config_push_error(arena, parsed, pos, "a command must have an array type cmd member");
                     goto finish_command;
                 }
                 
@@ -375,7 +375,7 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
                 }
                 
                 if (!can_emit_command){
-                    config_add_error(arena, parsed, cmd_pos, "no usable command strings found in cmd");
+                    def_config_push_error(arena, parsed, cmd_pos, "no usable command strings found in cmd");
                     goto finish_command;
                 }
                 

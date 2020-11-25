@@ -29,7 +29,7 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
         Data data = dump_file_handle(scratch, file);
         Config *parsed = config_from_text(app, scratch, filename, SCu8(data));
 		fclose(file);
-
+        
         if (parsed != 0){
             result = true;
             
@@ -38,7 +38,7 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
 			mapping_init(tctx, mapping);
 			MappingScope();
 			SelectMapping(mapping);
-
+            
             for (Config_Assignment *assignment = parsed->first;
                  assignment != 0;
                  assignment = assignment->next){
@@ -62,12 +62,12 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
                             String_Const_u8 mod_string[9] = {0};
                             
                             if (!config_compound_string_member(parsed, src, "cmd", 0, &cmd_string)){
-                                config_add_error(scratch, parsed, node->result.pos, "Command string is required in binding");
+                                def_config_push_error(scratch, parsed, node->result.pos, "Command string is required in binding");
                                 goto finish_map;
                             }
                             
                             if (!config_compound_string_member(parsed, src, "key", 1, &key_string)){
-                                config_add_error(scratch, parsed, node->result.pos, "Key string is required in binding");
+                                def_config_push_error(scratch, parsed, node->result.pos, "Key string is required in binding");
                                 goto finish_map;
                             }
                             
@@ -101,10 +101,10 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
                                     map_set_binding(mapping, map, command->proc, InputEventKind_KeyStroke, keycode, &mods_set);
                                 }
                                 else{
-                                    config_add_error(scratch, parsed, node->result.pos,
-                                                     (keycode != 0) ? (char*)"Invalid command" :
-                                                     (command != 0) ? (char*)"Invalid key":
-                                                     (char*)"Invalid command and key");
+                                    def_config_push_error(scratch, parsed, node->result.pos,
+                                                          (keycode != 0) ? (char*)"Invalid command" :
+                                                          (command != 0) ? (char*)"Invalid key":
+                                                          (char*)"Invalid command and key");
                                 }
                             }
                             

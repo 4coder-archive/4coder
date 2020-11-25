@@ -232,40 +232,6 @@ def_config_parser_get_boolean(Config_Parser *ctx){
 }
 
 function Config*
-def_config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name,
-                 String_Const_u8 data, Token_Array array){
-    ProfileScope(app, "config parse");
-    Temp_Memory restore_point = begin_temp(arena);
-    Config_Parser ctx = def_config_parser_init(arena, file_name, data, array);
-    Config *config = def_config_parser_config(&ctx);
-    if (config == 0){
-        end_temp(restore_point);
-    }
-    return(config);
-}
-
-function Config_Error*
-def_config_push_error(Arena *arena, Config_Error_List *list, String_Const_u8 file_name, u8 *pos, char *error_text){
-    Config_Error *error = push_array(arena, Config_Error, 1);
-    zdll_push_back(list->first, list->last, error);
-    list->count += 1;
-    error->file_name = file_name;
-    error->pos = pos;
-    error->text = push_string_copy(arena, SCu8(error_text));
-    return(error);
-}
-
-function void
-def_config_parser_push_error(Config_Parser *ctx, u8 *pos, char *error_text){
-    def_config_push_error(ctx->arena, &ctx->errors, ctx->file_name, pos, error_text);
-}
-
-function void
-def_config_parser_push_error_here(Config_Parser *ctx, char *error_text){
-    def_config_parser_push_error(ctx, def_config_parser_get_pos(ctx), error_text);
-}
-
-function Config*
 def_config_parser_config(Config_Parser *ctx){
     i32 *version = def_config_parser_version(ctx);
     
@@ -292,32 +258,19 @@ def_config_parser_config(Config_Parser *ctx){
     return(config);
 }
 
-function void
-config_parser__recover_parse(Config_Parser *ctx){
-    for (;;){
-        if (def_config_parser_match_cpp_kind(ctx, TokenCppKind_Semicolon)){
-            break;
-        }
-        if (def_config_parser_recognize_cpp_kind(ctx, TokenCppKind_EOF)){
-            break;
-        }
-        def_config_parser_inc(ctx);
-    }
-}
-
 function i32*
 def_config_parser_version(Config_Parser *ctx){
     require(def_config_parser_match_text(ctx, string_u8_litinit("version")));
     
     if (!def_config_parser_match_cpp_kind(ctx, TokenCppKind_ParenOp)){
         def_config_parser_push_error_here(ctx, "expected token '(' for version specifier: 'version(#)'");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
     if (!def_config_parser_recognize_base_kind(ctx, TokenBaseKind_LiteralInteger)){
         def_config_parser_push_error_here(ctx, "expected an integer constant for version specifier: 'version(#)'");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
@@ -326,13 +279,13 @@ def_config_parser_version(Config_Parser *ctx){
     
     if (!def_config_parser_match_cpp_kind(ctx, TokenCppKind_ParenCl)){
         def_config_parser_push_error_here(ctx, "expected token ')' for version specifier: 'version(#)'");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
     if (!def_config_parser_match_cpp_kind(ctx, TokenCppKind_Semicolon)){
         def_config_parser_push_error_here(ctx, "expected token ';' for version specifier: 'version(#)'");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
@@ -348,13 +301,13 @@ def_config_parser_assignment(Config_Parser *ctx){
     Config_LValue *l = def_config_parser_lvalue(ctx);
     if (l == 0){
         def_config_parser_push_error_here(ctx, "expected an l-value; l-value formats: 'identifier', 'identifier[#]'");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
     if (!def_config_parser_match_cpp_kind(ctx, TokenCppKind_Eq)){
         def_config_parser_push_error_here(ctx, "expected token '=' for assignment: 'l-value = r-value;'");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
@@ -366,13 +319,13 @@ def_config_parser_assignment(Config_Parser *ctx){
                                           "\tcompound: '{ compound-element, compound-element, compound-element ...}'\n"
                                           "\ta compound-element is an r-value, and can have a layout specifier\n"
                                           "\tcompound-element with layout specifier: .name = r-value, .integer = r-value");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
     if (!def_config_parser_match_cpp_kind(ctx, TokenCppKind_Semicolon)){
         def_config_parser_push_error_here(ctx, "expected token ';' for assignment: 'l-value = r-value;'");
-        config_parser__recover_parse(ctx);
+        def_config_parser_recover(ctx);
         return(0);
     }
     
@@ -449,15 +402,6 @@ def_config_parser_rvalue(Config_Parser *ctx){
         rvalue = push_array_zero(ctx->arena, Config_RValue, 1);
         rvalue->type = ConfigRValueType_String;
         rvalue->string = interpreted;
-    }
-    else if (def_config_parser_recognize_cpp_kind(ctx, TokenCppKind_LiteralCharacter)){
-        String_Const_u8 s = def_config_parser_get_lexeme(ctx);
-        def_config_parser_inc(ctx);
-        s = string_chop(string_skip(s, 1), 1);
-        String_Const_u8 interpreted = string_interpret_escapes(ctx->arena, s);
-        rvalue = push_array_zero(ctx->arena, Config_RValue, 1);
-        rvalue->type = ConfigRValueType_Character;
-        rvalue->character = string_get_character(interpreted, 0);
     }
     return(rvalue);
 }
@@ -540,15 +484,184 @@ def_config_parser_element(Config_Parser *ctx){
     return(element);
 }
 
-////////////////////////////////
+function Config*
+def_config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name,
+                 String_Const_u8 data, Token_Array array){
+    ProfileScope(app, "config parse");
+    Temp_Memory restore_point = begin_temp(arena);
+    Config_Parser ctx = def_config_parser_init(arena, file_name, data, array);
+    Config *config = def_config_parser_config(&ctx);
+    if (config == 0){
+        end_temp(restore_point);
+    }
+    return(config);
+}
 
-// TODO(allen): WHAT THE HELL IS THIS SHIT?
 function Config_Error*
-config_add_error(Arena *arena, Config *config, u8 *pos, char *error_text){
+def_config_push_error(Arena *arena, Config_Error_List *list, String_Const_u8 file_name, u8 *pos, char *error_text){
+    Config_Error *error = push_array(arena, Config_Error, 1);
+    zdll_push_back(list->first, list->last, error);
+    list->count += 1;
+    error->file_name = file_name;
+    error->pos = pos;
+    error->text = push_string_copy(arena, SCu8(error_text));
+    return(error);
+}
+
+function Config_Error*
+def_config_push_error(Arena *arena, Config *config, u8 *pos, char *error_text){
     return(def_config_push_error(arena, &config->errors, config->file_name, pos, error_text));
 }
 
+function void
+def_config_parser_push_error(Config_Parser *ctx, u8 *pos, char *error_text){
+    def_config_push_error(ctx->arena, &ctx->errors, ctx->file_name, pos, error_text);
+}
+
+function void
+def_config_parser_push_error_here(Config_Parser *ctx, char *error_text){
+    def_config_parser_push_error(ctx, def_config_parser_get_pos(ctx), error_text);
+}
+
+function void
+def_config_parser_recover(Config_Parser *ctx){
+    for (;;){
+        if (def_config_parser_match_cpp_kind(ctx, TokenCppKind_Semicolon)){
+            break;
+        }
+        if (def_config_parser_recognize_cpp_kind(ctx, TokenCppKind_EOF)){
+            break;
+        }
+        def_config_parser_inc(ctx);
+    }
+}
+
+
 ////////////////////////////////
+// NOTE(allen): Dump Config to Variables
+
+#if 0
+struct Config_Assignment{
+    Config_Assignment *next;
+    Config_Assignment *prev;
+    
+    u8 *pos;
+    Config_LValue *l;
+    Config_RValue *r;
+    
+    b32 visited;
+};
+
+
+struct Config_LValue{
+    String_Const_u8 identifier;
+    i32 index;
+};
+
+struct Config_RValue{
+    Config_RValue_Type type;
+    union{
+        Config_LValue *lvalue;
+        b32 boolean;
+        i32 integer;
+        u32 uinteger;
+        String_Const_u8 string;
+        char character;
+        Config_Compound *compound;
+    };
+};
+
+struct Config{
+    i32 *version;
+    Config_Assignment *first;
+    Config_Assignment *last;
+    i32 count;
+    
+    Config_Error_List errors;
+    
+    String_Const_u8 file_name;
+    String_Const_u8 data;
+};
+#endif
+
+function Variable_Handle
+def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const_u8 key, Config *config){
+    Variable_Handle result = vars_get_nil();
+    String_ID key_id = vars_save_string(key);
+    if (key_id != 0){
+        String_ID file_name_id = vars_save_string(config->file_name);
+        result = vars_new_variable(parent, key_id, file_name_id);
+        
+        Variable_Handle var = result;
+        
+        Scratch_Block scratch(app);
+        
+        for (Config_Assignment *node = config->first;
+             node != 0;
+             node = node->next){
+            String_ID l_value = 0;
+            Config_LValue *l = node->l;
+            if (l != 0){
+                String_Const_u8 string = l->identifier;
+                if (string.size == 0){
+                    string = push_stringf(scratch, "%d", l->index);
+                }
+                l_value = vars_save_string(string);
+            }
+            
+            if (l_value != 0){
+                Config_RValue *r = node->r;
+                
+                if (r != 0){
+                    switch (r->type){
+                        case ConfigRValueType_LValue:
+                        {
+                            // TODO(allen): 
+                        }break;
+                        
+                        case ConfigRValueType_Boolean:
+                        {
+                            String_ID val = 0;
+                            if (r->boolean){
+                                val = vars_save_string(string_litinit("true"));
+                            }
+                            else{
+                                val = vars_save_string(string_litinit("false"));
+                            }
+                            vars_new_variable(var, l_value, val);
+                        }break;
+                        
+                        case ConfigRValueType_Integer:
+                        {
+                            // TODO(allen): signed/unsigned problem
+                            String_Const_u8 string = push_stringf(scratch, "%d", r->integer);
+                            String_ID val = vars_save_string(string);
+                            vars_new_variable(var, l_value, val);
+                        }break;
+                        
+                        case ConfigRValueType_String:
+                        {
+                            String_ID val = vars_save_string(r->string);
+                            vars_new_variable(var, l_value, val);
+                        }break;
+                        
+                        case ConfigRValueType_Compound:
+                        case ConfigRValueType_NoType:
+                        {
+                            
+                        }break;
+                    }
+                }
+            }
+        }
+        
+    }
+    return(result);
+}
+
+
+////////////////////////////////
+// NOTE(allen): Nonsense from the old system
 
 function Config_Assignment*
 config_lookup_assignment(Config *config, String_Const_u8 var_name, i32 subscript){
@@ -595,11 +708,6 @@ config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RVa
                 case ConfigRValueType_String:
                 {
                     result.string = r->string;
-                }break;
-                
-                case ConfigRValueType_Character:
-                {
-                    result.character = r->character;
                 }break;
                 
                 case ConfigRValueType_Compound:
@@ -785,21 +893,6 @@ config_placed_string_var(Config *config, char *var_name, i32 subscript, String_C
 }
 
 function b32
-config_char_var(Config *config, String_Const_u8 var_name, i32 subscript, char* var_out){
-    Config_Get_Result result = config_var(config, var_name, subscript);
-    b32 success = result.success && result.type == ConfigRValueType_Character;
-    if (success){
-        *var_out = result.character;
-    }
-    return(success);
-}
-
-function b32
-config_char_var(Config *config, char *var_name, i32 subscript, char* var_out){
-    return(config_char_var(config, SCu8(var_name), subscript, var_out));
-}
-
-function b32
 config_compound_var(Config *config, String_Const_u8 var_name, i32 subscript, Config_Compound** var_out){
     Config_Get_Result result = config_var(config, var_name, subscript);
     b32 success = (result.success && result.type == ConfigRValueType_Compound);
@@ -917,23 +1010,6 @@ config_compound_placed_string_member(Config *config, Config_Compound *compound,
 }
 
 function b32
-config_compound_char_member(Config *config, Config_Compound *compound,
-                            String_Const_u8 var_name, i32 index, char* var_out){
-    Config_Get_Result result = config_compound_member(config, compound, var_name, index);
-    b32 success = result.success && result.type == ConfigRValueType_Character;
-    if (success){
-        *var_out = result.character;
-    }
-    return(success);
-}
-
-function b32
-config_compound_char_member(Config *config, Config_Compound *compound,
-                            char *var_name, i32 index, char* var_out){
-    return(config_compound_char_member(config, compound, SCu8(var_name), index, var_out));
-}
-
-function b32
 config_compound_compound_member(Config *config, Config_Compound *compound,
                                 String_Const_u8 var_name, i32 index, Config_Compound** var_out){
     Config_Get_Result result = config_compound_member(config, compound, var_name, index);
@@ -1010,16 +1086,6 @@ typed_placed_string_array_iteration_step(Config *config, Config_Compound *compou
 }
 
 function Iteration_Step_Result
-typed_char_array_iteration_step(Config *config, Config_Compound *compound, i32 index, char* var_out){
-    Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Character, index);
-    b32 success = (result.step == Iteration_Good);
-    if (success){
-        *var_out = result.get.character;
-    }
-    return(result.step);
-}
-
-function Iteration_Step_Result
 typed_compound_array_iteration_step(Config *config, Config_Compound *compound, i32 index, Config_Compound** var_out){
     Config_Iteration_Step_Result result = typed_array_iteration_step(config, compound, ConfigRValueType_Compound, index);
     b32 success = (result.step == Iteration_Good);
@@ -1042,20 +1108,8 @@ typed_int_array_get_count(Config *config, Config_Compound *compound){
 }
 
 function i32
-typed_float_array_get_count(Config *config, Config_Compound *compound){
-    i32 count = typed_array_get_count(config, compound, ConfigRValueType_Float);
-    return(count);
-}
-
-function i32
 typed_string_array_get_count(Config *config, Config_Compound *compound){
     i32 count = typed_array_get_count(config, compound, ConfigRValueType_String);
-    return(count);
-}
-
-function i32
-typed_character_array_get_count(Config *config, Config_Compound *compound){
-    i32 count = typed_array_get_count(config, compound, ConfigRValueType_Character);
     return(count);
 }
 
@@ -1084,20 +1138,8 @@ typed_int_array_reference_list(Arena *arena, Config *config, Config_Compound *co
 }
 
 function Config_Get_Result_List
-typed_float_array_reference_list(Arena *arena, Config *config, Config_Compound *compound){
-    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Float);
-    return(list);
-}
-
-function Config_Get_Result_List
 typed_string_array_reference_list(Arena *arena, Config *config, Config_Compound *compound){
     Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_String);
-    return(list);
-}
-
-function Config_Get_Result_List
-typed_character_array_reference_list(Arena *arena, Config *config, Config_Compound *compound){
-    Config_Get_Result_List list = typed_array_reference_list(arena, config, compound, ConfigRValueType_Character);
     return(list);
 }
 
