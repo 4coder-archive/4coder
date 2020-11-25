@@ -693,37 +693,21 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
     if (print_feedback){
         Temp_Memory temp = begin_temp(scratch);
         
-        // Errors
+        // NOTE(allen): errors
         String_Const_u8 error_text = config_stringize_errors(app, scratch, parsed);
-        if (error_text.size > 0){
+        if (project == 0){
+            print_message(app, string_u8_litexpr("Could not instantiate project\n"));
+        }
+        else if (error_text.size > 0){
             print_message(app, string_u8_litexpr("Project errors:\n"));
             print_message(app, error_text);
             print_message(app, string_u8_litexpr("\n"));
         }
         
-        // Values
-        if (project == 0){
-            print_message(app, string_u8_litexpr("Could not instantiate project\n"));
-        }
+        // NOTE(allen): save project
         else{
-            print_message(app, string_u8_litexpr("New project contents:\n"));
-            
-            Temp_Memory temp2 = begin_temp(scratch);
-            List_String_Const_u8 list = {};
-            
-            config_feedback_string(scratch, &list, "'root_directory'", project->dir);
-            config_feedback_string(scratch, &list, "project_name", project->name);
-            
-            config_feedback_file_pattern_array(scratch, &list, "patterns", &project->pattern_array);
-            config_feedback_file_pattern_array(scratch, &list, "blacklist_patterns", &project->blacklist_pattern_array);
-            config_feedback_file_load_path_array(scratch, &list, "load_paths", &project->load_path_array);
-            config_feedback_command_array(scratch, &list, "command_list", &project->command_array);
-            
-            string_list_push_u8_lit(scratch, &list, "\n");
-            
-            String_Const_u8 message = string_list_flatten(scratch, list);
-            print_message(app, message);
-            end_temp(temp2);
+            Variable_Handle config_var = def_var_from_config(app, vars_get_root(), string_litinit("project"), parsed);
+            vars_print(app, config_var);
         }
         
         end_temp(temp);
