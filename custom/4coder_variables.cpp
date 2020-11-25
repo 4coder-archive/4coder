@@ -202,7 +202,7 @@ vars_new_variable(Variable_Handle var, String_ID key){
         }
         else{
             handle.ptr = vars_free_variables;
-            if (handle.ptr == 0){
+            if (handle.ptr != 0){
                 sll_stack_pop(vars_free_variables);
             }
             else{
@@ -222,7 +222,7 @@ vars_new_variable(Variable_Handle var, String_ID key){
 function Variable_Handle
 vars_new_variable(Variable_Handle var, String_ID key, String_ID string){
     Variable_Handle result = vars_new_variable(var, key);
-    vars_set_string(var, string);
+    vars_set_string(result, string);
     return(result);
 }
 

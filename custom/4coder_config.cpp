@@ -1418,6 +1418,8 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
     if (parsed != 0){
         success = true;
         
+        
+        
         config_fixed_string_var(parsed, "user_name", 0,
                                 &config->user_name, config->user_name_space);
         
@@ -1668,6 +1670,11 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         String_Const_u8 error_text = config_stringize_errors(app, scratch, parsed);
         if (error_text.str != 0){
             print_message(app, error_text);
+        }
+        
+        // NOTE(allen): Save As Variables
+        if (error_text.str == 0){
+            def_var_from_config(app, vars_get_root(), string_litinit("config"), parsed);
         }
     }
     else{
