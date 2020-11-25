@@ -36,6 +36,16 @@ parse_extension_line_to_extension_list(Application_Links *app,
 }
 
 ////////////////////////////////
+// NOTE(allen): Token Array
+
+function Token_Array
+token_array_from_text(Application_Links *app, Arena *arena, String_Const_u8 data){
+    ProfileScope(app, "token array from text");
+    Token_List list = lex_full_input_cpp(arena, data);
+    return(token_array_from_list(arena, &list));
+}
+
+////////////////////////////////
 // NOTE(allen): Built in Mapping
 
 function void
@@ -232,7 +242,7 @@ def_config_parser_get_boolean(Config_Parser *ctx){
 }
 
 function Config*
-def_config_parser_config(Config_Parser *ctx){
+def_config_parser_top(Config_Parser *ctx){
     i32 *version = def_config_parser_version(ctx);
     
     Config_Assignment *first = 0;
@@ -485,16 +495,29 @@ def_config_parser_element(Config_Parser *ctx){
 }
 
 function Config*
-def_config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name,
-                 String_Const_u8 data, Token_Array array){
+def_config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array){
     ProfileScope(app, "config parse");
     Temp_Memory restore_point = begin_temp(arena);
     Config_Parser ctx = def_config_parser_init(arena, file_name, data, array);
-    Config *config = def_config_parser_config(&ctx);
+    Config *config = def_config_parser_top(&ctx);
     if (config == 0){
         end_temp(restore_point);
     }
     return(config);
+}
+
+function Config*
+def_config_from_text(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data){
+    Config *parsed = 0;
+    Temp_Memory restore_point = begin_temp(arena);
+    Token_Array array = token_array_from_text(app, arena, data);
+    if (array.tokens != 0){
+        parsed = def_config_parse(app, arena, file_name, data, array);
+        if (parsed == 0){
+            end_temp(restore_point);
+        }
+    }
+    return(parsed);
 }
 
 function Config_Error*
@@ -672,12 +695,11 @@ def_var_dump_rvalue(Application_Links *app, Config *config, Variable_Handle dst,
 }
 
 function Variable_Handle
-def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const_u8 key, Config *config){
+def_fill_var_from_config(Application_Links *app, Variable_Handle parent, String_ID key, Config *config){
     Variable_Handle result = vars_get_nil();
-    String_ID key_id = vars_save_string(key);
-    if (key_id != 0){
+    if (key != 0){
         String_ID file_name_id = vars_save_string(config->file_name);
-        result = vars_new_variable(parent, key_id, file_name_id);
+        result = vars_new_variable(parent, key, file_name_id);
         
         Variable_Handle var = result;
         
@@ -712,6 +734,64 @@ def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const
         
     }
     return(result);
+}
+
+
+////////////////////////////////
+// NOTE(allen): Config Variables Read
+
+global const u64 def_config_lookup_count = 4;
+global String_ID def_config_lookup_table[def_config_lookup_count] = {};
+
+function void
+_def_config_table_init(void){
+    if (def_config_lookup_table[0] == 0){
+        def_config_lookup_table[0] = vars_save_string(string_u8_litinit("ses_config"));
+        def_config_lookup_table[1] = vars_save_string(string_u8_litinit("prj_config"));
+        def_config_lookup_table[2] = vars_save_string(string_u8_litinit("usr_config"));
+        def_config_lookup_table[3] = vars_save_string(string_u8_litinit("def_config"));
+    }
+}
+
+function Variable_Handle
+def_get_config_var(String_ID key){
+    _def_config_table_init();
+    
+    Variable_Handle result = vars_get_nil();
+    Variable_Handle root = vars_get_root();
+    for (u64 i = 0; i < def_config_lookup_count; i += 1){
+        String_ID block_key = def_config_lookup_table[i];
+        Variable_Handle block_var = vars_read_key(root, block_key);
+        Variable_Handle var = vars_read_key(block_var, key);
+        if (!vars_is_nil(var)){
+            result = var;
+            break;
+        }
+    }
+    
+    return(result);
+}
+
+function void
+def_set_config_var(String_ID key, String_ID val){
+    _def_config_table_init();
+    Variable_Handle root = vars_get_root();
+    Variable_Handle block_var = vars_read_key(root, def_config_lookup_table[0]);
+    vars_new_variable(block_var, key, val);
+}
+
+function b32
+def_get_config_b32(String_ID key){
+    Variable_Handle var = def_get_config_var(key);
+    String_ID val = vars_string_id_from_var(var);
+    b32 result = (val != 0 && val != vars_save_string_lit("false"));
+    return(result);
+}
+
+function void
+def_set_config_b32(String_ID key, b32 val){
+    String_ID val_id = val?vars_save_string_lit("true"):vars_save_string_lit("false");
+    def_set_config_var(key, val_id);
 }
 
 
@@ -1240,30 +1320,6 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 
 ////////////////////////////////
 
-function Token_Array
-token_array_from_text(Application_Links *app, Arena *arena, String_Const_u8 data){
-    ProfileScope(app, "token array from text");
-    Token_List list = lex_full_input_cpp(arena, data);
-    return(token_array_from_list(arena, &list));
-}
-
-function Config*
-config_from_text(Application_Links *app, Arena *arena, String_Const_u8 file_name,
-                 String_Const_u8 data){
-    Config *parsed = 0;
-    Temp_Memory restore_point = begin_temp(arena);
-    Token_Array array = token_array_from_text(app, arena, data);
-    if (array.tokens != 0){
-        parsed = def_config_parse(app, arena, file_name, data, array);
-        if (parsed == 0){
-            end_temp(restore_point);
-        }
-    }
-    return(parsed);
-}
-
-////////////////////////////////
-
 function void
 config_init_default(Config_Data *config){
     config->user_name = SCu8(config->user_name_space, (u64)0);
@@ -1287,7 +1343,6 @@ config_init_default(Config_Data *config){
     config->enable_output_wrapping = false;
     config->enable_undo_fade_out = true;
     
-    config->enable_virtual_whitespace = true;
     config->enable_code_wrapping = true;
     config->automatically_indent_text_on_save = true;
     config->automatically_save_changes_on_build = true;
@@ -1331,7 +1386,7 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
     
     b32 success = false;
     
-    Config *parsed = config_from_text(app, arena, file_name, data);
+    Config *parsed = def_config_from_text(app, arena, file_name, data);
     if (parsed != 0){
         success = true;
         
@@ -1364,7 +1419,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_bool_var(parsed, "enable_undo_fade_out", 0, &config->enable_undo_fade_out);
         
         
-        config_bool_var(parsed, "enable_virtual_whitespace", 0, &config->enable_virtual_whitespace);
         config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
         config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
         config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
@@ -1453,7 +1507,7 @@ config_parse__file_name(Application_Links *app, Arena *arena, char *file_name, C
 
 function Config*
 theme_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Arena *color_arena, Color_Table *color_table){
-    Config *parsed = config_from_text(app, arena, file_name, data);
+    Config *parsed = def_config_from_text(app, arena, file_name, data);
     if (parsed != 0){
         for (Config_Assignment *node = parsed->first;
              node != 0;
@@ -1539,39 +1593,6 @@ theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Ar
 ////////////////////////////////
 
 function void
-config_feedback_bool(Arena *arena, List_String_Const_u8 *list, char *name, b32 val){
-    string_list_pushf(arena, list, "%s = %s;\n", name, (char*)(val?"true":"false"));
-}
-
-function void
-config_feedback_string(Arena *arena, List_String_Const_u8 *list, char *name, String_Const_u8 val){
-    val.size = clamp_bot(0, val.size);
-    string_list_pushf(arena, list, "%s = \"%.*s\";\n", name, string_expand(val));
-}
-
-function void
-config_feedback_string(Arena *arena, List_String_Const_u8 *list, char *name, char *val){
-    string_list_pushf(arena, list, "%s = \"%s\";\n", name, val);
-}
-
-function void
-config_feedback_extension_list(Arena *arena, List_String_Const_u8 *list, char *name, String_Const_u8_Array *extensions){
-    string_list_pushf(arena, list, "%s = \"", name);
-    for (i32 i = 0; i < extensions->count; ++i){
-        String_Const_u8 ext = extensions->strings[i];
-        string_list_pushf(arena, list, ".%.*s", string_expand(ext));
-    }
-    string_list_push_u8_lit(arena, list, "\";\n");
-}
-
-function void
-config_feedback_int(Arena *arena, List_String_Const_u8 *list, char *name, i32 val){
-    string_list_pushf(arena, list, "%s = %d;\n", name, val);
-}
-
-////////////////////////////////
-
-function void
 load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *config,
                       i32 override_font_size, b32 override_hinting){
     Scratch_Block scratch(app, out_arena);
@@ -1589,7 +1610,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         
         // NOTE(allen): Save As Variables
         if (error_text.str == 0){
-            Variable_Handle config_var = def_var_from_config(app, vars_get_root(), string_litinit("config"), parsed);
+            Variable_Handle config_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("def_config"), parsed);
 			vars_print(app, config_var);
         }
     }

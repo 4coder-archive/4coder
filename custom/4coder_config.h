@@ -204,7 +204,6 @@ struct Config_Data{
     b8 indent_with_tabs;
     b8 enable_undo_fade_out;
     
-    b8 enable_virtual_whitespace;
     b8 enable_code_wrapping;
     b8 automatically_indent_text_on_save;
     b8 automatically_save_changes_on_build;
@@ -266,7 +265,7 @@ function b32             def_config_parser_get_boolean(Config_Parser *ctx);
 
 function void def_config_parser_recover(Config_Parser *ctx);
 
-function Config*                  def_config_parser_config    (Config_Parser *ctx);
+function Config*                  def_config_parser_top       (Config_Parser *ctx);
 function i32*                     def_config_parser_version   (Config_Parser *ctx);
 function Config_Assignment*       def_config_parser_assignment(Config_Parser *ctx);
 function Config_LValue*           def_config_parser_lvalue    (Config_Parser *ctx);
@@ -275,6 +274,7 @@ function Config_Compound*         def_config_parser_compound  (Config_Parser *ct
 function Config_Compound_Element* def_config_parser_element   (Config_Parser *ctx);
 
 function Config* def_config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array);
+function Config* def_config_from_text(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data);
 
 function Config_Error* def_config_push_error(Arena *arena, Config_Error_List *list, String_Const_u8 file_name, u8 *pos, char *error_text);
 function Config_Error* def_config_push_error(Arena *arena, Config *config, u8 *pos, char *error_text);
@@ -287,7 +287,16 @@ function void def_config_parser_recover(Config_Parser *ctx);
 ////////////////////////////////
 // NOTE(allen): Dump Config to Variables
 
-function Variable_Handle def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const_u8 key, Config *config);
+function Variable_Handle def_fill_var_from_config(Application_Links *app, Variable_Handle parent, String_ID key, Config *config);
+
+////////////////////////////////
+// NOTE(allen): Config Variables Read
+
+function Variable_Handle def_get_config_var(String_ID key);
+function void            def_set_config_var(String_ID key, String_ID val);
+
+function b32  def_get_config_b32(String_ID key);
+function void def_set_config_b32(String_ID key, b32 val);
 
 #endif
 

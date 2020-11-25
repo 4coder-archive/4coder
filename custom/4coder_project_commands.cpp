@@ -718,25 +718,9 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
         Variable_Handle proj_var = {};
         
         if (parsed->version == 0 || *parsed->version < 2){
-#if 0
-            struct Project{
-                b32 loaded;
-                
-                String_Const_u8 dir;
-                String_Const_u8 name;
-                
-                Project_File_Pattern_Array pattern_array;
-                Project_File_Pattern_Array blacklist_pattern_array;
-                Project_File_Load_Path_Array load_path_array;
-                Project_Command_Array command_array;
-                
-                i32 fkey_commands[16];
-            };
-#endif
-            
             print_message(app, string_u8_litexpr("Project variables converted from version 1 to version 2\n"));
             
-            String_ID project_id = vars_save_string(string_litinit("project"));
+            String_ID project_id = vars_save_string_lit("prj_config");
             String_ID version_id = vars_save_string(string_litinit("version"));
             String_ID project_name_id = vars_save_string(string_litinit("project_name"));
             String_ID patterns_id = vars_save_string(string_litinit("patterns"));
@@ -818,7 +802,7 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
             }
         }
         else{
-            proj_var = def_var_from_config(app, vars_get_root(), string_litinit("project"), parsed);
+            proj_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("prj_config"), parsed);
         }
         
         vars_print(app, proj_var);

@@ -1195,7 +1195,8 @@ function Layout_Item_List
 layout_virt_indent_index(Application_Links *app, Arena *arena, Buffer_ID buffer, Range_i64 range, Face_ID face, f32 width, Layout_Wrap_Kind kind){
     Layout_Item_List result = {};
     
-    if (global_config.enable_virtual_whitespace){
+    b32 enable_virtual_whitespace = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
+    if (enable_virtual_whitespace){
         code_index_lock();
         Code_Index_File *file = code_index_get_file(buffer);
         if (file != 0){
@@ -1234,7 +1235,9 @@ layout_virt_indent_index_generic(Application_Links *app, Arena *arena, Buffer_ID
 CUSTOM_COMMAND_SIG(toggle_virtual_whitespace)
 CUSTOM_DOC("Toggles virtual whitespace for all files.")
 {
-    global_config.enable_virtual_whitespace = !global_config.enable_virtual_whitespace;
+    String_ID key = vars_save_string_lit("enable_virtual_whitespace");
+    b32 enable_virtual_whitespace = def_get_config_b32(key);
+    def_set_config_b32(key, !enable_virtual_whitespace);
     
     for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
          buffer != 0;

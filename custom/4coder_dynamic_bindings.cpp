@@ -27,7 +27,7 @@ dynamic_binding_load_from_file(Application_Links *app, Mapping *mapping, String_
     FILE *file = open_file_try_current_path_then_binary_path(app, (char*)filename_copied.str);
     if (file != 0){
         Data data = dump_file_handle(scratch, file);
-        Config *parsed = config_from_text(app, scratch, filename, SCu8(data));
+        Config *parsed = def_config_from_text(app, scratch, filename, SCu8(data));
 		fclose(file);
         
         if (parsed != 0){

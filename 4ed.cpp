@@ -33,7 +33,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             }
         }
         
-        switch (mode){     
+        switch (mode){
             case CLMode_App:
             {
                 switch (action){
