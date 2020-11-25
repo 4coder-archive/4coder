@@ -30,11 +30,13 @@
 #include "generated/command_metadata.h"
 #endif
 
+#include "4coder_token.h"
+#include "generated/lexer_cpp.h"
+
 #include "4coder_variables.h"
 #include "4coder_audio.h"
 #include "4coder_profile.h"
 #include "4coder_async_tasks.h"
-#include "4coder_token.h"
 #include "4coder_string_match.h"
 #include "4coder_helper.h"
 #include "4coder_delta_rule.h"
@@ -68,7 +70,6 @@
 #include "4coder_stringf.cpp"
 #include "4coder_app_links_allocator.cpp"
 #include "4coder_system_allocator.cpp"
-#include "generated/lexer_cpp.h"
 
 #include "4coder_file.cpp"
 

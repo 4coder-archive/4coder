@@ -445,7 +445,7 @@ parse_project__data(Application_Links *app, Arena *arena, String_Const_u8 file_n
     Project_Parse_Result result = {};
     Token_Array array = token_array_from_text(app, arena, data);
     if (array.tokens != 0){
-        result.parsed = config_parse(app, arena, file_name, data, array);
+        result.parsed = def_config_parse(app, arena, file_name, data, array);
         if (result.parsed != 0){
             result.project = parse_project__config_data(app, arena, file_dir,
                                                         result.parsed);

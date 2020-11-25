@@ -7,9 +7,10 @@
 #if !defined(FCODER_CONFIG_H)
 #define FCODER_CONFIG_H
 
-// TODO(allen): Stop handling files this way!  My own API should be able to do this!!?!?!?!!?!?!!!!?
-// NOTE(allen): Actually need binary buffers for some stuff to work, but not this parsing thing here.
 #include <stdio.h>
+
+////////////////////////////////
+// NOTE(allen): Config Parser Types
 
 struct Error_Location{
     i32 line_number;
@@ -31,9 +32,8 @@ struct Config_Error_List{
 };
 
 struct Config_Parser{
-    Token *start;
     Token *token;
-    Token *end;
+    Token *opl;
     
     String_Const_u8 file_name;
     String_Const_u8 data;
@@ -138,6 +138,7 @@ struct Config{
 };
 
 ////////////////////////////////
+// NOTE(allen): Config Iteration
 
 typedef i32 Iteration_Step_Result;
 enum{
@@ -178,6 +179,7 @@ struct Config_Get_Result_List{
 };
 
 ////////////////////////////////
+// NOTE(allen): Config Data Type
 
 struct Config_Data{
     u8 user_name_space[256];
@@ -245,6 +247,40 @@ struct Config_Data{
     
     b8 lalt_lctrl_is_altgr;
 };
+
+////////////////////////////////
+// NOTE(allen): Config Parser Functions
+
+function Config_Parser def_config_parser_init(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array);
+
+function void def_config_parser_inc(Config_Parser *ctx);
+function u8*  def_config_parser_get_pos(Config_Parser *ctx);
+
+function b32 def_config_parser_recognize_base_kind(Config_Parser *ctx, Token_Base_Kind kind);
+function b32 def_config_parser_recognize_cpp_kind(Config_Parser *ctx, Token_Cpp_Kind kind);
+function b32 def_config_parser_recognize_boolean(Config_Parser *ctx);
+function b32 def_config_parser_recognize_text(Config_Parser *ctx, String_Const_u8 text);
+
+function b32 def_config_parser_match_cpp_kind(Config_Parser *ctx, Token_Cpp_Kind kind);
+function b32 def_config_parser_match_text(Config_Parser *ctx, String_Const_u8 text);
+
+function String_Const_u8 def_config_parser_get_lexeme(Config_Parser *ctx);
+function Config_Integer  def_config_parser_get_int(Config_Parser *ctx);
+function b32             def_config_parser_get_boolean(Config_Parser *ctx);
+
+function Config*                  def_config_parser_config    (Config_Parser *ctx);
+function i32*                     def_config_parser_version   (Config_Parser *ctx);
+function Config_Assignment*       def_config_parser_assignment(Config_Parser *ctx);
+function Config_LValue*           def_config_parser_lvalue    (Config_Parser *ctx);
+function Config_RValue*           def_config_parser_rvalue    (Config_Parser *ctx);
+function Config_Compound*         def_config_parser_compound  (Config_Parser *ctx);
+function Config_Compound_Element* def_config_parser_element   (Config_Parser *ctx);
+
+function Config* def_config_parse(Application_Links *app, Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array);
+
+function Config_Error* def_config_push_error(Arena *arena, Config_Error_List *list, String_Const_u8 file_name, u8 *pos, char *error_text);
+function void def_config_parser_push_error(Config_Parser *ctx, u8 *pos, char *error_text);
+function void def_config_parser_push_error_here(Config_Parser *ctx, char *error_text);
 
 #endif
 
