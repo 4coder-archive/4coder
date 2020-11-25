@@ -34,7 +34,7 @@ build_x86_mac = "echo build: x86 & bin/build-mac.sh -DDEV_BUILD_X86";
 command_list = {
  { .name = "build x64",
    .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { {build_x64_win32, .os = "win"  },
+   .cmd = { {build_x64_win32,  .os = "win"  },
             {build_x64_linux, .os = "linux"},
             {build_x64_mac  , .os = "mac"  }, }, },
  

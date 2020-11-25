@@ -624,6 +624,30 @@ config_feedback_command_array(Arena *arena, List_String_Const_u8 *list, char *na
     string_list_push_u8_lit(arena, list, "};\n");
 }
 
+// NOTE(allen): string list join ("flatten") doesn't really work... :(
+function String_Const_u8
+prj_join_pattern_string(Arena *arena, List_String_Const_u8 list){
+    String_Const_u8 pattern_string = {};
+    pattern_string.size = list.total_size + list.node_count - 1;
+    pattern_string.str = push_array(arena, u8, pattern_string.size + 1);
+    u8 *ptr = pattern_string.str;
+    Node_String_Const_u8 *node = list.first;
+    if (node != 0){
+        for (;;){
+            block_copy(ptr, node->string.str, node->string.size);
+            ptr += node->string.size;
+            node = node->next;
+            if (node == 0){
+                break;
+            }
+            *ptr = '*';
+            ptr += 1;
+        }
+    }
+    pattern_string.str[pattern_string.size] = 0;
+    return(pattern_string);
+}
+
 function void
 set_current_project(Application_Links *app, Project *project, Config *parsed){
     b32 print_feedback = false;
@@ -690,6 +714,116 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
         print_feedback = true;
     }
     
+    if (project != 0){
+        Variable_Handle proj_var = {};
+        
+        if (parsed->version == 0 || *parsed->version < 2){
+#if 0
+            struct Project{
+                b32 loaded;
+                
+                String_Const_u8 dir;
+                String_Const_u8 name;
+                
+                Project_File_Pattern_Array pattern_array;
+                Project_File_Pattern_Array blacklist_pattern_array;
+                Project_File_Load_Path_Array load_path_array;
+                Project_Command_Array command_array;
+                
+                i32 fkey_commands[16];
+            };
+#endif
+            
+            print_message(app, string_u8_litexpr("Project variables converted from version 1 to version 2\n"));
+            
+            String_ID project_id = vars_save_string(string_litinit("project"));
+            String_ID version_id = vars_save_string(string_litinit("version"));
+            String_ID project_name_id = vars_save_string(string_litinit("project_name"));
+            String_ID patterns_id = vars_save_string(string_litinit("patterns"));
+            String_ID blacklist_patterns_id = vars_save_string(string_litinit("blacklist_patterns"));
+            
+            String_ID load_paths_id = vars_save_string(string_litinit("load_paths"));
+            String_ID path_id = vars_save_string(string_litinit("path"));
+            String_ID recursive_id = vars_save_string(string_litinit("recursive"));
+            String_ID relative_id = vars_save_string(string_litinit("relative"));
+            String_ID true_id = vars_save_string(string_litinit("true"));
+            String_ID false_id = vars_save_string(string_litinit("false"));
+            
+            String_ID command_list_id = vars_save_string(string_litinit("command_list"));
+            String_ID out_id = vars_save_string(string_litinit("out"));
+            String_ID footer_panel_id = vars_save_string(string_litinit("footer_panel"));
+            String_ID save_dirty_files_id = vars_save_string(string_litinit("save_dirty_files"));
+            String_ID cursor_at_end_id = vars_save_string(string_litinit("cursor_at_end"));
+            
+            String_ID os_id = vars_save_string(string_litinit("win"));;
+            
+            proj_var = vars_new_variable(vars_get_root(), project_id, vars_save_string(parsed->file_name));
+            
+            if (parsed->version != 0){
+                String_Const_u8 version_str = push_stringf(scratch, "%d", *parsed->version);
+                vars_new_variable(proj_var, version_id, vars_save_string(version_str));
+            }
+            
+            vars_new_variable(proj_var, project_name_id, vars_save_string(project->name));
+            
+            struct PatternVars{
+                String_ID id;
+                Project_File_Pattern_Array array;
+            };
+            PatternVars pattern_vars[] = {
+                {          patterns_id, project->          pattern_array},
+                {blacklist_patterns_id, project->blacklist_pattern_array},
+            };
+            
+            PatternVars *pattern_var = pattern_vars;
+            PatternVars *opl = pattern_vars + ArrayCount(pattern_vars);
+            for (; pattern_var < opl; pattern_var += 1){
+                Variable_Handle patterns = vars_new_variable(proj_var, pattern_var->id);
+                i32 count = pattern_var->array.count;
+                Project_File_Pattern *pattern = pattern_var->array.patterns;
+                for (i32 i = 0; i < count; i += 1, pattern += 1){
+                    String_Const_u8 pattern_string = prj_join_pattern_string(scratch, pattern->absolutes);
+                    String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
+                    String_ID pattern_id = vars_save_string(pattern_string);
+                    vars_new_variable(patterns, key, pattern_id);
+                }
+            }
+            
+            {
+                Variable_Handle load_paths = vars_new_variable(proj_var, load_paths_id);
+                Variable_Handle os_var = vars_new_variable(load_paths, os_id);
+                i32 count = project->load_path_array.count;
+                Project_File_Load_Path *load_path = project->load_path_array.paths;
+                for (i32 i = 0; i < count; i += 1, load_path += 1){
+                    String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
+                    Variable_Handle path_var = vars_new_variable(os_var, key);
+                    vars_new_variable(path_var, path_id, vars_save_string(load_path->path));
+                    vars_new_variable(path_var, recursive_id, load_path->recursive?true_id:false_id);
+                    vars_new_variable(path_var, relative_id, load_path->recursive?true_id:false_id);
+                }
+            }
+            
+            {
+                Variable_Handle cmds_var = vars_new_variable(proj_var, command_list_id);
+                i32 count = project->command_array.count;
+                Project_Command *cmd = project->command_array.commands;
+                for (i32 i = 0; i < count; i += 1, cmd += 1){
+                    Variable_Handle cmd_var = vars_new_variable(cmds_var, vars_save_string(cmd->name));
+                    vars_new_variable(cmd_var, os_id, vars_save_string(cmd->cmd));
+                    vars_new_variable(cmd_var, out_id, vars_save_string(cmd->out));
+                    vars_new_variable(cmd_var, footer_panel_id, cmd->footer_panel?true_id:false_id);
+                    vars_new_variable(cmd_var, save_dirty_files_id, cmd->save_dirty_files?true_id:false_id);
+                    vars_new_variable(cmd_var, cursor_at_end_id, cmd->cursor_at_end?true_id:false_id);
+                }
+            }
+        }
+        else{
+            proj_var = def_var_from_config(app, vars_get_root(), string_litinit("project"), parsed);
+        }
+        
+        vars_print(app, proj_var);
+    }
+    
     if (print_feedback){
         Temp_Memory temp = begin_temp(scratch);
         
@@ -698,19 +832,10 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
         if (project == 0){
             print_message(app, string_u8_litexpr("Could not instantiate project\n"));
         }
-        else if (error_text.size > 0){
+        if (error_text.size > 0){
             print_message(app, string_u8_litexpr("Project errors:\n"));
             print_message(app, error_text);
             print_message(app, string_u8_litexpr("\n"));
-        }
-        
-        // NOTE(allen): save project
-        else{
-            // TODO(allen): if version <= 1 convert by hand
-            // otherwise do direct drop like so:
-            
-            Variable_Handle proj_var = def_var_from_config(app, vars_get_root(), string_litinit("project"), parsed);
-            vars_print(app, proj_var);
         }
         
         end_temp(temp);
