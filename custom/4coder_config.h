@@ -88,10 +88,10 @@ struct Config_Integer{
 
 typedef i32 Config_Layout_Type;
 enum{
-    ConfigLayoutType_Unset = 0,
-    ConfigLayoutType_Identifier = 1,
-    ConfigLayoutType_Integer = 2,
-    ConfigLayoutType_COUNT = 3,
+    ConfigLayoutType_Unset,
+    ConfigLayoutType_Identifier,
+    ConfigLayoutType_Integer,
+    ConfigLayoutType_COUNT,
 };
 struct Config_Layout{
     Config_Layout_Type type;

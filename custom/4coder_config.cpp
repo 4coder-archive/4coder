@@ -583,6 +583,29 @@ struct Config{
     String_Const_u8 data;
 };
 
+typedef i32 Config_Layout_Type;
+enum{
+    ConfigLayoutType_Unset = 0,
+    ConfigLayoutType_Identifier = 1,
+    ConfigLayoutType_Integer = 2,
+    ConfigLayoutType_COUNT = 3,
+};
+struct Config_Layout{
+    Config_Layout_Type type;
+    u8 *pos;
+    union{
+        String_Const_u8 identifier;
+        i32 integer;
+    };
+};
+
+struct Config_Compound_Element{
+    Config_Compound_Element *next;
+    Config_Compound_Element *prev;
+    
+    Config_Layout l;
+    Config_RValue *r;
+};
 
 struct Config_Compound{
     struct Config_Compound_Element *first;
@@ -590,7 +613,152 @@ struct Config_Compound{
     i32 count;
 };
 
+struct Config_Get_Result{
+    b32 success;
+    Config_RValue_Type type;
+    u8 *pos;
+    union{
+        b32 boolean;
+        i32 integer;
+        u32 uinteger;
+        String_Const_u8 string;
+        char character;
+        Config_Compound *compound;
+    };
+};
+
 #endif
+
+function Config_Get_Result
+config_var(Config *config, String_Const_u8 var_name, i32 subscript);
+
+function void
+def_var_dump_rvalue(Application_Links *app, Config *config, Variable_Handle dst, String_ID l_value, Config_RValue *r){
+    Scratch_Block scratch(app);
+    
+    b32 *boolean = 0;
+    i32 *integer = 0;
+    String_Const_u8 *string = 0;
+    Config_Compound *compound = 0;
+    
+    Config_Get_Result get_result = {};
+    
+    switch (r->type){
+        case ConfigRValueType_LValue:
+        {
+            Config_LValue *l = r->lvalue;
+            if (l != 0){
+                get_result = config_var(config, l->identifier, l->index);
+                if (get_result.success){
+                    switch (get_result.type){
+                        case ConfigRValueType_Boolean:
+                        {
+                            boolean = &get_result.boolean;
+                        }break;
+                        
+                        case ConfigRValueType_Integer:
+                        {
+                            integer = &get_result.integer;
+                        }break;
+                        
+                        case ConfigRValueType_String:
+                        {
+                            string = &get_result.string;
+                        }break;
+                        
+                        case ConfigRValueType_Compound:
+                        {
+                            compound = get_result.compound;
+                        }break;
+                    }
+                }
+            }
+        }break;
+        
+        case ConfigRValueType_Boolean:
+        {
+            boolean = &r->boolean;
+        }break;
+        
+        case ConfigRValueType_Integer:
+        {
+            integer = &r->integer;
+        }break;
+        
+        case ConfigRValueType_String:
+        {
+            string = &r->string;
+        }break;
+        
+        case ConfigRValueType_Compound:
+        {
+            compound = r->compound;
+        }break;
+    }
+    
+    if (boolean != 0){
+        String_ID val = 0;
+        if (*boolean){
+            val = vars_save_string(string_litinit("true"));
+        }
+        else{
+            val = vars_save_string(string_litinit("false"));
+        }
+        vars_new_variable(dst, l_value, val);
+    }
+    else if (integer != 0){
+        // TODO(allen): signed/unsigned problem
+        String_ID val = vars_save_string(push_stringf(scratch, "%d", *integer));
+        vars_new_variable(dst, l_value, val);
+    }
+    else if (string != 0){
+        String_ID val = vars_save_string(*string);
+        vars_new_variable(dst, l_value, val);
+    }
+    else if (compound != 0){
+        Variable_Handle sub_var = vars_new_variable(dst, l_value);
+        
+        i32 implicit_index = 0;
+        b32 implicit_allowed = true;
+        
+        Config_Compound_Element *node = 0;
+        if (compound != 0){
+            node = compound->first;
+        }
+        for (; node != 0;
+             node = node->next, implicit_index += 1){
+            String_ID sub_l_value = 0;
+            
+            switch (node->l.type){
+                case ConfigLayoutType_Unset:
+                {
+                    if (implicit_allowed){
+                        sub_l_value = vars_save_string(push_stringf(scratch, "%d", implicit_index));
+                    }
+                }break;
+                
+                case ConfigLayoutType_Identifier:
+                {
+                    implicit_allowed = false;
+                    sub_l_value = vars_save_string(node->l.identifier);
+                }break;
+                
+                case ConfigLayoutType_Integer:
+                {
+                    implicit_allowed = false;
+                    sub_l_value = vars_save_string(push_stringf(scratch, "%d", node->l.integer));
+                }break;
+            }
+            
+            if (sub_l_value != 0){
+                Config_RValue *r = node->r;
+                if (r != 0){
+                    def_var_dump_rvalue(app, config, sub_var, sub_l_value, r);
+                }
+            }
+        }
+    }
+}
 
 function Variable_Handle
 def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const_u8 key, Config *config){
@@ -619,46 +787,8 @@ def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const
             
             if (l_value != 0){
                 Config_RValue *r = node->r;
-                
                 if (r != 0){
-                    switch (r->type){
-                        case ConfigRValueType_LValue:
-                        {
-                            // TODO(allen): 
-                        }break;
-                        
-                        case ConfigRValueType_Boolean:
-                        {
-                            String_ID val = 0;
-                            if (r->boolean){
-                                val = vars_save_string(string_litinit("true"));
-                            }
-                            else{
-                                val = vars_save_string(string_litinit("false"));
-                            }
-                            vars_new_variable(var, l_value, val);
-                        }break;
-                        
-                        case ConfigRValueType_Integer:
-                        {
-                            // TODO(allen): signed/unsigned problem
-                            String_Const_u8 string = push_stringf(scratch, "%d", r->integer);
-                            String_ID val = vars_save_string(string);
-                            vars_new_variable(var, l_value, val);
-                        }break;
-                        
-                        case ConfigRValueType_String:
-                        {
-                            String_ID val = vars_save_string(r->string);
-                            vars_new_variable(var, l_value, val);
-                        }break;
-                        
-                        case ConfigRValueType_Compound:
-                        {
-                            Variable_Handle sub_var = vars_new_variable(var, l_value);
-                            
-                        }break;
-                    }
+                    def_var_dump_rvalue(app, config, var, l_value, r);
                 }
             }
         }
@@ -669,7 +799,7 @@ def_var_from_config(Application_Links *app, Variable_Handle parent, String_Const
 
 
 ////////////////////////////////
-// NOTE(allen): Nonsense from the old system
+// NOTE(allen): Eval
 
 function Config_Assignment*
 config_lookup_assignment(Config *config, String_Const_u8 var_name, i32 subscript){
@@ -684,9 +814,6 @@ config_lookup_assignment(Config *config, String_Const_u8 var_name, i32 subscript
     }
     return(assignment);
 }
-
-function Config_Get_Result
-config_var(Config *config, String_Const_u8 var_name, i32 subscript);
 
 function Config_Get_Result
 config_evaluate_rvalue(Config *config, Config_Assignment *assignment, Config_RValue *r){
@@ -737,6 +864,10 @@ config_var(Config *config, String_Const_u8 var_name, i32 subscript){
     }
     return(result);
 }
+
+
+////////////////////////////////
+// NOTE(allen): Nonsense from the old system
 
 function Config_Get_Result
 config_compound_member(Config *config, Config_Compound *compound, String_Const_u8 var_name, i32 index){
