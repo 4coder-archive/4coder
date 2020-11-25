@@ -706,8 +706,11 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
         
         // NOTE(allen): save project
         else{
-            Variable_Handle config_var = def_var_from_config(app, vars_get_root(), string_litinit("project"), parsed);
-            vars_print(app, config_var);
+            // TODO(allen): if version <= 1 convert by hand
+            // otherwise do direct drop like so:
+            
+            Variable_Handle proj_var = def_var_from_config(app, vars_get_root(), string_litinit("project"), parsed);
+            vars_print(app, proj_var);
         }
         
         end_temp(temp);
