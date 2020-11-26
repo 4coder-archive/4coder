@@ -1340,9 +1340,6 @@ function void
 config_init_default(Config_Data *config){
     block_zero_struct(&config->code_exts);
     
-    config->mapping = SCu8(config->mapping_space, (u64)0);
-    config->mode = SCu8(config->mode_space, (u64)0);
-    
     config->cursor_roundness = .45f;
     config->mark_thickness = 2.f;
     config->lister_roundness = .20f;
@@ -1352,21 +1349,7 @@ config_init_default(Config_Data *config){
     config->indent_width = 4;
     config->default_tab_width = 4;
     
-    config->default_theme_name = SCu8(config->default_theme_name_space, sizeof("4coder") - 1);
-    block_copy(config->default_theme_name.str, "4coder", config->default_theme_name.size);
-    
-    config->default_font_name = SCu8(config->default_font_name_space, (u64)0);
     config->default_font_size = 16;
-    
-    config->default_compiler_bat = SCu8(config->default_compiler_bat_space, 2);
-    block_copy(config->default_compiler_bat.str, "cl", 2);
-    
-    config->default_flags_bat = SCu8(config->default_flags_bat_space, (u64)0);
-    
-    config->default_compiler_sh = SCu8(config->default_compiler_sh_space, 3);
-    block_copy(config->default_compiler_sh.str, "g++", 3);
-    
-    config->default_flags_sh = SCu8(config->default_flags_sh_space, (u64)0);
 }
 
 function Config*
@@ -1386,9 +1369,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
                 parse_extension_line_to_extension_list(app, arena, str);
         }
         
-        config_fixed_string_var(parsed, "mapping", 0, &config->mapping, config->mapping_space);
-        config_fixed_string_var(parsed, "mode", 0, &config->mode, config->mode_space);
-        
         {
             i32 x = 0;
             if (config_int_var(parsed, "cursor_roundness", 0, &x)){
@@ -1407,21 +1387,7 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_int_var(parsed, "indent_width", 0, &config->indent_width);
         config_int_var(parsed, "default_tab_width", 0, &config->default_tab_width);
         
-        config_fixed_string_var(parsed, "default_theme_name", 0,
-                                &config->default_theme_name, config->default_theme_name_space);
-        
-        config_fixed_string_var(parsed, "default_font_name", 0,
-                                &config->default_font_name, config->default_font_name_space);
         config_int_var(parsed, "default_font_size", 0, &config->default_font_size);
-        
-        config_fixed_string_var(parsed, "default_compiler_bat", 0,
-                                &config->default_compiler_bat, config->default_compiler_bat_space);
-        config_fixed_string_var(parsed, "default_flags_bat", 0,
-                                &config->default_flags_bat, config->default_flags_bat_space);
-        config_fixed_string_var(parsed, "default_compiler_sh", 0,
-                                &config->default_compiler_sh, config->default_compiler_sh_space);
-        config_fixed_string_var(parsed, "default_flags_sh", 0,
-                                &config->default_flags_sh, config->default_flags_sh_space);
     }
     
     if (!success){
@@ -1580,17 +1546,13 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         print_message(app, string_u8_litexpr("Using default config:\n"));
         Face_Description description = get_face_description(app, 0);
         if (description.font.file_name.str != 0){
-            u64 size = Min(description.font.file_name.size, sizeof(config->default_font_name_space));
-            block_copy(config->default_font_name_space, description.font.file_name.str, size);
-            config->default_font_name.size = size;
+            def_set_config_string(vars_save_string_lit("default_font_name"), description.font.file_name);
         }
     }
     
-    if (config->default_font_name.size == 0){
-#define M "liberation-mono.ttf"
-        block_copy(config->default_font_name_space, M, sizeof(M) - 1);
-        config->default_font_name.size = sizeof(M) - 1;
-#undef M
+    String_Const_u8 default_font_name = def_get_config_string(scratch, vars_save_string_lit("default_font_name"));
+    if (default_font_name.size == 0){
+        default_font_name = string_u8_litexpr("liberation-mono.ttf");
     }
     
     // TODO(allen): this part seems especially weird now.
@@ -1598,12 +1560,14 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     // not by a state that gets evaled and saved *now*!!
     
     // Apply config
-    change_mode(app, config->mode);
+    String_Const_u8 mode = def_get_config_string(scratch, vars_save_string_lit("mode"));
+    change_mode(app, mode);
     
     b32 lalt_lctrl_is_altgr = def_get_config_b32(vars_save_string_lit("lalt_lctrl_is_altgr"));
     global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, lalt_lctrl_is_altgr);
     
-    Color_Table *colors = get_color_table_by_name(config->default_theme_name);
+    String_Const_u8 default_theme_name = def_get_config_string(scratch, vars_save_string_lit("default_theme_name"));
+    Color_Table *colors = get_color_table_by_name(default_theme_name);
     set_active_color(colors);
     
     Face_Description description = {};
@@ -1617,9 +1581,9 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     b32 default_font_hinting = def_get_config_b32(vars_save_string_lit("default_font_hinting"));
     description.parameters.hinting = default_font_hinting || override_hinting;
     
-    description.font.file_name = config->default_font_name;
+    description.font.file_name = default_font_name;
     if (!modify_global_face_by_description(app, description)){
-        description.font.file_name = get_file_path_in_fonts_folder(scratch, config->default_font_name);
+        description.font.file_name = get_file_path_in_fonts_folder(scratch, default_font_name);
         modify_global_face_by_description(app, description);
     }
     

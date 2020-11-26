@@ -180,12 +180,6 @@ struct Config_Get_Result_List{
 struct Config_Data{
     String_Const_u8_Array code_exts;
     
-    u8 mapping_space[64];
-    String_Const_u8 mapping;
-    
-    u8 mode_space[64];
-    String_Const_u8 mode;
-    
     f32 cursor_roundness;
     f32 mark_thickness;
     f32 lister_roundness;
@@ -195,24 +189,7 @@ struct Config_Data{
     i32 indent_width;
     i32 default_tab_width;
     
-    u8 default_theme_name_space[256];
-    String_Const_u8 default_theme_name;
-    
-    u8 default_font_name_space[256];
-    String_Const_u8 default_font_name;
     i32 default_font_size;
-    
-    u8 default_compiler_bat_space[256];
-    String_Const_u8 default_compiler_bat;
-    
-    u8 default_flags_bat_space[1024];
-    String_Const_u8 default_flags_bat;
-    
-    u8 default_compiler_sh_space[256];
-    String_Const_u8 default_compiler_sh;
-    
-    u8 default_flags_sh_space[1024];
-    String_Const_u8 default_flags_sh;
 };
 
 ////////////////////////////////

@@ -1278,9 +1278,10 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
         // Generate Scripts
         if (do_bat_script){
             if (!status.bat_exists){
-                if (!project_generate_bat_script(scratch,
-                                                 global_config.default_flags_bat,
-                                                 global_config.default_compiler_bat,
+                String_Const_u8 default_flags_bat = def_get_config_string(scratch, vars_save_string_lit("default_flags_bat"));
+                String_Const_u8 default_compiler_bat = def_get_config_string(scratch, vars_save_string_lit("default_compiler_bat"));
+                
+                if (!project_generate_bat_script(scratch, default_flags_bat, default_compiler_bat,
                                                  script_path, keys.script_file,
                                                  keys.code_file, keys.output_dir, keys.binary_file)){
                     print_message(app, string_u8_litexpr("could not create build.bat for new project\n"));
@@ -1293,9 +1294,9 @@ project_setup_scripts__generic(Application_Links *app, b32 do_project_file, b32 
         
         if (do_sh_script){
             if (!status.bat_exists){
-                if (!project_generate_sh_script(scratch,
-                                                global_config.default_flags_sh,
-                                                global_config.default_compiler_sh,
+                String_Const_u8 default_flags_sh = def_get_config_string(scratch, vars_save_string_lit("default_flags_sh"));
+                String_Const_u8 default_compiler_sh = def_get_config_string(scratch, vars_save_string_lit("default_compiler_sh"));
+                if (!project_generate_sh_script(scratch, default_flags_sh, default_compiler_sh,
                                                 script_path, keys.script_file,
                                                 keys.code_file, keys.output_dir, keys.binary_file)){
                     print_message(app, string_u8_litexpr("could not create build.sh for new project\n"));

@@ -614,13 +614,17 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
     print_message(app, string_u8_litexpr(M));
 #undef M
     
+    Scratch_Block scratch(app);
+    
     load_config_and_apply(app, &global_config_arena, &global_config, override_font_size, override_hinting);
     
     String_Const_u8 bindings_file_name = string_u8_litexpr("bindings.4coder");
-    if (string_match(global_config.mapping, string_u8_litexpr("mac-default"))){
+    String_Const_u8 mapping = def_get_config_string(scratch, vars_save_string_lit("mapping"));
+    
+    if (string_match(mapping, string_u8_litexpr("mac-default"))){
         bindings_file_name = string_u8_litexpr("mac-bindings.4coder");
     }
-    else if (OS_MAC && string_match(global_config.mapping, string_u8_litexpr("choose"))){
+    else if (OS_MAC && string_match(mapping, string_u8_litexpr("choose"))){
         bindings_file_name = string_u8_litexpr("mac-bindings.4coder");
     }
     
@@ -633,11 +637,10 @@ default_4coder_initialize(Application_Links *app, String_Const_u8_Array file_nam
         setup_essential_mapping(&framework_mapping, global_map_id, file_map_id, code_map_id);
     }
     else{
-        setup_built_in_mapping(app, global_config.mapping, &framework_mapping, global_map_id, file_map_id, code_map_id);
+        setup_built_in_mapping(app, mapping, &framework_mapping, global_map_id, file_map_id, code_map_id);
     }
     
     // open command line files
-    Scratch_Block scratch(app);
     String_Const_u8 hot_directory = push_hot_directory(app, scratch);
     for (i32 i = 0; i < file_names.count; i += 1){
         Temp_Memory_Block temp(scratch);
