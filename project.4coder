@@ -102,14 +102,9 @@ command_list = {
  { .name = "generate custom api master list",
    .out = "*run*", .footer_panel = false, .save_dirty_files = false,
    .cmd = { { "..\\build\\api_parser 4ed_api_implementation.cpp", .os = "win"   }, }, },
-
- { .name = "build fusion",
-   .out = "*compilation*", .footer_panel = true, .save_dirty_files = true,
-   .cmd = { { "bin\\build_fusion", .os = "win"   }, }, },
 };
 
 fkey_command[1]  = "build x64";
-fkey_command[2]  = "build fusion";
 fkey_command[3]  = "build site render";
 fkey_command[4]  = "run one time";
 fkey_command[5]  = "build C++ lexer generator";

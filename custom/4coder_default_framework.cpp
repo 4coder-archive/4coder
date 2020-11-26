@@ -132,18 +132,14 @@ get_view_for_locked_jump_buffer(Application_Links *app){
 
 ////////////////////////////////
 
+// TODO(allen): re-evaluate the setup of this.
 function void
 new_view_settings(Application_Links *app, View_ID view){
-    if (!global_config.use_scroll_bars){
-        view_set_setting(app, view, ViewSetting_ShowScrollbar, false);
-    }
-    if (!global_config.use_file_bars){
-        view_set_setting(app, view, ViewSetting_ShowFileBar, false);
-    }
+    b32 use_file_bars = def_get_config_b32(vars_save_string_lit("use_file_bars"));
+    view_set_setting(app, view, ViewSetting_ShowFileBar, use_file_bars);
 }
 
 ////////////////////////////////
-
 
 function void
 view_set_passive(Application_Links *app, View_ID view_id, b32 value){
@@ -509,19 +505,25 @@ CUSTOM_DOC("Sets the edit mode to Notepad like.")
 CUSTOM_COMMAND_SIG(toggle_highlight_line_at_cursor)
 CUSTOM_DOC("Toggles the line highlight at the cursor.")
 {
-    global_config.highlight_line_at_cursor = !global_config.highlight_line_at_cursor;
+    String_ID key = vars_save_string_lit("highlight_line_at_cursor");
+    b32 val = def_get_config_b32(key);
+    def_set_config_b32(key, !val);
 }
 
 CUSTOM_COMMAND_SIG(toggle_highlight_enclosing_scopes)
 CUSTOM_DOC("In code files scopes surrounding the cursor are highlighted with distinguishing colors.")
 {
-    global_config.use_scope_highlight = !global_config.use_scope_highlight;
+    String_ID key = vars_save_string_lit("use_scope_highlight");
+    b32 val = def_get_config_b32(key);
+    def_set_config_b32(key, !val);
 }
 
 CUSTOM_COMMAND_SIG(toggle_paren_matching_helper)
 CUSTOM_DOC("In code files matching parentheses pairs are colored with distinguishing colors.")
 {
-    global_config.use_paren_helper = !global_config.use_paren_helper;
+    String_ID key = vars_save_string_lit("use_paren_helper");
+    b32 val = def_get_config_b32(key);
+    def_set_config_b32(key, !val);
 }
 
 CUSTOM_COMMAND_SIG(toggle_fullscreen)

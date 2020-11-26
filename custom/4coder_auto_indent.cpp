@@ -392,7 +392,8 @@ auto_indent_buffer(Application_Links *app, Buffer_ID buffer, Range_i64 pos, Inde
     i32 indent_width = global_config.indent_width;
     i32 tab_width = global_config.default_tab_width;
     AddFlag(flags, Indent_FullTokens);
-    if (global_config.indent_with_tabs){
+    b32 indent_with_tabs = def_get_config_b32(vars_save_string_lit("indent_with_tabs"));
+    if (indent_with_tabs){
         AddFlag(flags, Indent_UseTab);
     }
     auto_indent_buffer(app, buffer, pos, flags, indent_width, tab_width);

@@ -825,7 +825,9 @@ CUSTOM_DOC("Toggles the current buffer's whitespace visibility status.")
 CUSTOM_COMMAND_SIG(toggle_line_numbers)
 CUSTOM_DOC("Toggles the left margin line numbers.")
 {
-    global_config.show_line_number_margins = !global_config.show_line_number_margins;
+    String_ID key = vars_save_string_lit("show_line_number_margins");
+    b32 val = def_get_config_b32(key);
+    def_set_config_b32(key, !val);
 }
 
 CUSTOM_COMMAND_SIG(toggle_line_wrap)
@@ -1843,7 +1845,8 @@ CUSTOM_DOC("Advances backwards through the undo history of the current buffer.")
         
         b32 do_immedite_undo = true;
         f32 undo_fade_time = 0.33f;
-        if (global_config.enable_undo_fade_out &&
+        b32 enable_undo_fade_out = def_get_config_b32(vars_save_string_lit("enable_undo_fade_out"));
+        if (enable_undo_fade_out &&
             undo_fade_time > 0.f &&
             record.kind == RecordKind_Single &&
             record.single_string_backward.size == 0){

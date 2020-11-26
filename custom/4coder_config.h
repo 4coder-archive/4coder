@@ -189,21 +189,6 @@ struct Config_Data{
     u8 mode_space[64];
     String_Const_u8 mode;
     
-    b8 bind_by_physical_key;
-    b8 use_scroll_bars;
-    b8 use_file_bars;
-    b8 hide_file_bar_in_ui;
-    b8 use_error_highlight;
-    b8 use_jump_highlight;
-    b8 use_scope_highlight;
-    b8 use_paren_helper;
-    b8 use_comment_keyword;
-    b8 lister_whole_word_backspace_when_modified;
-    b8 show_line_number_margins;
-    b8 enable_output_wrapping;
-    b8 indent_with_tabs;
-    b8 enable_undo_fade_out;
-    
     f32 cursor_roundness;
     f32 mark_thickness;
     f32 lister_roundness;
@@ -216,12 +201,9 @@ struct Config_Data{
     u8 default_theme_name_space[256];
     String_Const_u8 default_theme_name;
     
-    b8 highlight_line_at_cursor;
-    
     u8 default_font_name_space[256];
     String_Const_u8 default_font_name;
     i32 default_font_size;
-    b8 default_font_hinting;
     
     u8 default_compiler_bat_space[256];
     String_Const_u8 default_compiler_bat;
@@ -234,8 +216,6 @@ struct Config_Data{
     
     u8 default_flags_sh_space[1024];
     String_Const_u8 default_flags_sh;
-    
-    b8 lalt_lctrl_is_altgr;
 };
 
 ////////////////////////////////

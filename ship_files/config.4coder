@@ -12,14 +12,14 @@ mode = "4coder";
 bind_by_physical_key = false;
 
 // UI
-use_scroll_bars = false;
 use_file_bars = true;
+hide_file_bar_in_ui = true;
 use_error_highlight = true;
 use_jump_highlight = true;
 use_scope_highlight = true;
 use_paren_helper = true;
 use_comment_keywords = true;
-lister_whole_word_backspace_when_modified = false;
+lister_whole_word_backspace_when_modified = true;
 show_line_number_margins = false;
 enable_output_wrapping = false;
 
@@ -62,7 +62,6 @@ default_tab_width = 4;
 
 // Theme
 default_theme_name = "4coder";
-highlight_line_at_cursor = true;
 
 // Font
 default_font_name = "liberation-mono.ttf";
@@ -70,7 +69,7 @@ default_font_size = 16;
 default_font_hinting = false;
 
 // User
-user_name = "NAME";
+user_name = "unset";
 
 // Keyboard AltGr setting
 lalt_lctrl_is_altgr = false;

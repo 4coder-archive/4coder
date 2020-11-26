@@ -1332,37 +1332,20 @@ config_init_default(Config_Data *config){
     config->mapping = SCu8(config->mapping_space, (u64)0);
     config->mode = SCu8(config->mode_space, (u64)0);
     
-    config->bind_by_physical_key = false;
-    config->use_scroll_bars = false;
-    config->use_file_bars = true;
-    config->hide_file_bar_in_ui = true;
-    config->use_error_highlight = true;
-    config->use_jump_highlight = true;
-    config->use_scope_highlight = true;
-    config->use_paren_helper = true;
-    config->use_comment_keyword = true;
-    config->lister_whole_word_backspace_when_modified = false;
-    config->show_line_number_margins = false;
-    config->enable_output_wrapping = false;
-    config->enable_undo_fade_out = true;
-    
     config->cursor_roundness = .45f;
     config->mark_thickness = 2.f;
     config->lister_roundness = .20f;
     
     config->virtual_whitespace_regular_indent = 4;
     
-    config->indent_with_tabs = false;
     config->indent_width = 4;
     config->default_tab_width = 4;
     
     config->default_theme_name = SCu8(config->default_theme_name_space, sizeof("4coder") - 1);
     block_copy(config->default_theme_name.str, "4coder", config->default_theme_name.size);
-    config->highlight_line_at_cursor = true;
     
     config->default_font_name = SCu8(config->default_font_name_space, (u64)0);
     config->default_font_size = 16;
-    config->default_font_hinting = false;
     
     config->default_compiler_bat = SCu8(config->default_compiler_bat_space, 2);
     block_copy(config->default_compiler_bat.str, "cl", 2);
@@ -1373,8 +1356,6 @@ config_init_default(Config_Data *config){
     block_copy(config->default_compiler_sh.str, "g++", 3);
     
     config->default_flags_sh = SCu8(config->default_flags_sh_space, (u64)0);
-    
-    config->lalt_lctrl_is_altgr = false;
 }
 
 function Config*
@@ -1402,20 +1383,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_fixed_string_var(parsed, "mapping", 0, &config->mapping, config->mapping_space);
         config_fixed_string_var(parsed, "mode", 0, &config->mode, config->mode_space);
         
-        config_bool_var(parsed, "bind_by_physical_key", 0, &config->bind_by_physical_key);
-        config_bool_var(parsed, "use_scroll_bars", 0, &config->use_scroll_bars);
-        config_bool_var(parsed, "use_file_bars", 0, &config->use_file_bars);
-        config_bool_var(parsed, "hide_file_bar_in_ui", 0, &config->hide_file_bar_in_ui);
-        config_bool_var(parsed, "use_error_highlight", 0, &config->use_error_highlight);
-        config_bool_var(parsed, "use_jump_highlight", 0, &config->use_jump_highlight);
-        config_bool_var(parsed, "use_scope_highlight", 0, &config->use_scope_highlight);
-        config_bool_var(parsed, "use_paren_helper", 0, &config->use_paren_helper);
-        config_bool_var(parsed, "use_comment_keyword", 0, &config->use_comment_keyword);
-        config_bool_var(parsed, "lister_whole_word_backspace_when_modified", 0, &config->lister_whole_word_backspace_when_modified);
-        config_bool_var(parsed, "show_line_number_margins", 0, &config->show_line_number_margins);
-        config_bool_var(parsed, "enable_output_wrapping", 0, &config->enable_output_wrapping);
-        config_bool_var(parsed, "enable_undo_fade_out", 0, &config->enable_undo_fade_out);
-        
         {
             i32 x = 0;
             if (config_int_var(parsed, "cursor_roundness", 0, &x)){
@@ -1431,18 +1398,15 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         
         config_int_var(parsed, "virtual_whitespace_regular_indent", 0, &config->virtual_whitespace_regular_indent);
         
-        config_bool_var(parsed, "indent_with_tabs", 0, &config->indent_with_tabs);
         config_int_var(parsed, "indent_width", 0, &config->indent_width);
         config_int_var(parsed, "default_tab_width", 0, &config->default_tab_width);
         
         config_fixed_string_var(parsed, "default_theme_name", 0,
                                 &config->default_theme_name, config->default_theme_name_space);
-        config_bool_var(parsed, "highlight_line_at_cursor", 0, &config->highlight_line_at_cursor);
         
         config_fixed_string_var(parsed, "default_font_name", 0,
                                 &config->default_font_name, config->default_font_name_space);
         config_int_var(parsed, "default_font_size", 0, &config->default_font_size);
-        config_bool_var(parsed, "default_font_hinting", 0, &config->default_font_hinting);
         
         config_fixed_string_var(parsed, "default_compiler_bat", 0,
                                 &config->default_compiler_bat, config->default_compiler_bat_space);
@@ -1452,8 +1416,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
                                 &config->default_compiler_sh, config->default_compiler_sh_space);
         config_fixed_string_var(parsed, "default_flags_sh", 0,
                                 &config->default_flags_sh, config->default_flags_sh_space);
-        
-        config_bool_var(parsed, "lalt_lctrl_is_altgr", 0, &config->lalt_lctrl_is_altgr);
     }
     
     if (!success){
@@ -1584,6 +1546,7 @@ theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Ar
 
 ////////////////////////////////
 
+// TODO(allen): review this function
 function void
 load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *config,
                       i32 override_font_size, b32 override_hinting){
@@ -1602,6 +1565,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         
         // NOTE(allen): Save As Variables
         if (error_text.str == 0){
+            // TODO(allen): this always applies to "def_config" need to get "usr_config" working too
             Variable_Handle config_var = def_fill_var_from_config(app, vars_get_root(), vars_save_string_lit("def_config"), parsed);
 			vars_print(app, config_var);
         }
@@ -1623,10 +1587,15 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
 #undef M
     }
     
+    // TODO(allen): this part seems especially weird now.
+    // We want these to be effected by evals of the config system,
+    // not by a state that gets evaled and saved *now*!!
+    
     // Apply config
-    //setup_built_in_mapping(app, config->mapping, &framework_mapping, mapid_global, mapid_file, mapid_code);
     change_mode(app, config->mode);
-    global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, config->lalt_lctrl_is_altgr);
+    
+    b32 lalt_lctrl_is_altgr = def_get_config_b32(vars_save_string_lit("lalt_lctrl_is_altgr"));
+    global_set_setting(app, GlobalSetting_LAltLCtrlIsAltGr, lalt_lctrl_is_altgr);
     
     Color_Table *colors = get_color_table_by_name(config->default_theme_name);
     set_active_color(colors);
@@ -1638,7 +1607,9 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
     else{
         description.parameters.pt_size = config->default_font_size;
     }
-    description.parameters.hinting = config->default_font_hinting || override_hinting;
+    
+    b32 default_font_hinting = def_get_config_b32(vars_save_string_lit("default_font_hinting"));
+    description.parameters.hinting = default_font_hinting || override_hinting;
     
     description.font.file_name = config->default_font_name;
     if (!modify_global_face_by_description(app, description)){
@@ -1646,7 +1617,8 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         modify_global_face_by_description(app, description);
     }
     
-    if (config->bind_by_physical_key){
+    b32 bind_by_physical_key = def_get_config_b32(vars_save_string_lit("bind_by_physical_key"));
+    if (bind_by_physical_key){
         system_set_key_mode(KeyMode_Physical);
     }
     else{
