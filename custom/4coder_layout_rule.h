@@ -16,6 +16,7 @@ struct Newline_Layout_Vars{
 struct LefRig_TopBot_Layout_Vars{
     Face_Advance_Map  *advance_map;
     Face_Metrics *metrics;
+    f32 tab_width;
     f32 line_to_text_shift;
     
     Vec2_f32 blank_dim;

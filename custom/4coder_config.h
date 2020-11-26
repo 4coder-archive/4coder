@@ -182,11 +182,6 @@ struct Config_Data{
     f32 mark_thickness;
     f32 lister_roundness;
     
-    i32 virtual_whitespace_regular_indent;
-    
-    i32 indent_width;
-    i32 default_tab_width;
-    
     i32 default_font_size;
 };
 
@@ -247,6 +242,9 @@ function void def_set_config_b32(String_ID key, b32 val);
 
 function String_Const_u8 def_get_config_string(Arena *arena, String_ID key);
 function void            def_set_config_string(String_ID key, String_Const_u8 val);
+
+function u64  def_get_config_u64(Application_Links *app, String_ID key);
+function void def_set_config_u64(Application_Links *app, String_ID key, u64 val);
 
 #endif
 

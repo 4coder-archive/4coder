@@ -806,7 +806,35 @@ def_get_config_string(Arena *arena, String_ID key){
 
 function void
 def_set_config_string(String_ID key, String_Const_u8 val){
-    def_set_config_var(key, vars_save_string(val) );
+    def_set_config_var(key, vars_save_string(val));
+}
+
+function u64
+def_get_config_u64(Application_Links *app, String_ID key){
+    Scratch_Block scratch(app);
+    Variable_Handle var = def_get_config_var(key);
+    String_ID val = vars_string_id_from_var(var);
+    String_Const_u8 string = vars_read_string(scratch, val);
+    u64 result = 0;
+    if (string_match(string_prefix(string, 2), string_u8_litinit("0x"))){
+        String_Const_u8 string_hex = string_skip(string, 2);
+        if (string_is_integer(string_hex, 0x10)){
+            result = string_to_integer(string_hex, 0x10);
+        }
+    }
+    else{
+        if (string_is_integer(string, 10)){
+            result = string_to_integer(string, 10);
+        }
+    }
+    return(result);
+}
+
+function void
+def_set_config_u64(Application_Links *app, String_ID key, u64 val){
+    Scratch_Block scratch(app);
+    String_Const_u8 val_string = push_stringf(scratch, "%llu", val);
+    def_set_config_var(key, vars_save_string(val_string));
 }
 
 
@@ -1341,15 +1369,8 @@ config_init_default(Config_Data *config){
     config->mark_thickness = 2.f;
     config->lister_roundness = .20f;
     
-    config->virtual_whitespace_regular_indent = 4;
-    
-    config->indent_width = 4;
-    config->default_tab_width = 4;
-    
     config->default_font_size = 16;
 }
-
-//parse_extension_line_to_extension_list
 
 function Config*
 config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_name,
@@ -1374,11 +1395,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
                 config->lister_roundness = ((f32)x)*0.01f;
             }
         }
-        
-        config_int_var(parsed, "virtual_whitespace_regular_indent", 0, &config->virtual_whitespace_regular_indent);
-        
-        config_int_var(parsed, "indent_width", 0, &config->indent_width);
-        config_int_var(parsed, "default_tab_width", 0, &config->default_tab_width);
         
         config_int_var(parsed, "default_font_size", 0, &config->default_font_size);
     }
