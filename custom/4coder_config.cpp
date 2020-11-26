@@ -797,6 +797,19 @@ def_set_config_b32(String_ID key, b32 val){
     def_set_config_var(key, val_id);
 }
 
+function String_Const_u8
+def_get_config_string(Arena *arena, String_ID key){
+    Variable_Handle var = def_get_config_var(key);
+    String_ID val = vars_string_id_from_var(var);
+    String_Const_u8 result = vars_read_string(arena, val);
+    return(result);
+}
+
+function void
+def_set_config_string(String_ID key, String_Const_u8 val){
+    def_set_config_var(key, vars_save_string(val) );
+}
+
 
 ////////////////////////////////
 // NOTE(allen): Eval
@@ -1325,8 +1338,6 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 
 function void
 config_init_default(Config_Data *config){
-    config->user_name = SCu8(config->user_name_space, (u64)0);
-    
     block_zero_struct(&config->code_exts);
     
     config->mapping = SCu8(config->mapping_space, (u64)0);
@@ -1368,11 +1379,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
     Config *parsed = def_config_from_text(app, arena, file_name, data);
     if (parsed != 0){
         success = true;
-        
-        
-        
-        config_fixed_string_var(parsed, "user_name", 0,
-                                &config->user_name, config->user_name_space);
         
         String_Const_u8 str = {};
         if (config_string_var(parsed, "treat_as_code", 0, &str)){

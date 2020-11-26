@@ -4,24 +4,24 @@
 
 // TOP
 
-static void
+function void
 write_string(Application_Links *app, View_ID view, Buffer_ID buffer, String_Const_u8 string){
     i64 pos = view_get_cursor_pos(app, view);
     buffer_replace_range(app, buffer, Ii64(pos), string);
     view_set_cursor_and_preferred_x(app, view, seek_pos(pos + string.size));
 }
 
-static void
+function void
 write_string(Application_Links *app, String_Const_u8 string){
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);
     write_string(app, view, buffer, string);
 }
 
-static void
+function void
 write_named_comment_string(Application_Links *app, char *type_string){
     Scratch_Block scratch(app);
-    String_Const_u8 name = global_config.user_name;
+    String_Const_u8 name = def_get_config_string(scratch, vars_save_string_lit("user_name"));
     String_Const_u8 str = {};
     if (name.size > 0){
         str = push_u8_stringf(scratch, "// %s(%.*s): ", type_string, string_expand(name));
@@ -32,7 +32,7 @@ write_named_comment_string(Application_Links *app, char *type_string){
     write_string(app, str);
 }
 
-static void
+function void
 long_braces(Application_Links *app, char *text, i32 size){
     View_ID view = get_active_view(app, Access_ReadWriteVisible);
     Buffer_ID buffer = view_get_buffer(app, view, Access_ReadWriteVisible);

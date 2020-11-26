@@ -69,7 +69,7 @@ default_font_size = 16;
 default_font_hinting = false;
 
 // User
-user_name = "unset";
+user_name = "not-set";
 
 // Keyboard AltGr setting
 lalt_lctrl_is_altgr = false;

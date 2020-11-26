@@ -178,9 +178,6 @@ struct Config_Get_Result_List{
 // NOTE(allen): Config Data Type
 
 struct Config_Data{
-    u8 user_name_space[256];
-    String_Const_u8 user_name;
-    
     String_Const_u8_Array code_exts;
     
     u8 mapping_space[64];
@@ -272,6 +269,9 @@ function void            def_set_config_var(String_ID key, String_ID val);
 
 function b32  def_get_config_b32(String_ID key);
 function void def_set_config_b32(String_ID key, b32 val);
+
+function String_Const_u8 def_get_config_string(Arena *arena, String_ID key);
+function void            def_set_config_string(String_ID key, String_Const_u8 val);
 
 #endif
 
