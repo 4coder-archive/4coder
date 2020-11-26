@@ -2531,5 +2531,17 @@ font_get_average_glyph_advance_range(Face_Advance_Map *map, Face_Metrics *metric
                                                 (f32)global_config.default_tab_width));
 }
 
+////////////////////////////////
+// NOTE(allen): Layout Invalidate
+
+function void
+clear_all_layouts(Application_Links *app){
+    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
+         buffer != 0;
+         buffer = get_buffer_next(app, buffer, Access_Always)){
+        buffer_clear_layout_cache(app, buffer);
+    }
+}
+
 // BOTTOM
 

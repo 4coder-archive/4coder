@@ -777,6 +777,9 @@ def_set_config_var(String_ID key, String_ID val){
     _def_config_table_init();
     Variable_Handle root = vars_get_root();
     Variable_Handle block_var = vars_read_key(root, def_config_lookup_table[0]);
+	if (vars_is_nil(block_var)){
+		block_var = vars_new_variable(root, def_config_lookup_table[0]);
+	}
     vars_new_variable(block_var, key, val);
 }
 
@@ -1343,11 +1346,6 @@ config_init_default(Config_Data *config){
     config->enable_output_wrapping = false;
     config->enable_undo_fade_out = true;
     
-    config->enable_code_wrapping = true;
-    config->automatically_indent_text_on_save = true;
-    config->automatically_save_changes_on_build = true;
-    config->automatically_load_project = false;
-    
     config->cursor_roundness = .45f;
     config->mark_thickness = 2.f;
     config->lister_roundness = .20f;
@@ -1417,12 +1415,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
         config_bool_var(parsed, "show_line_number_margins", 0, &config->show_line_number_margins);
         config_bool_var(parsed, "enable_output_wrapping", 0, &config->enable_output_wrapping);
         config_bool_var(parsed, "enable_undo_fade_out", 0, &config->enable_undo_fade_out);
-        
-        
-        config_bool_var(parsed, "enable_code_wrapping", 0, &config->enable_code_wrapping);
-        config_bool_var(parsed, "automatically_indent_text_on_save", 0, &config->automatically_indent_text_on_save);
-        config_bool_var(parsed, "automatically_save_changes_on_build", 0, &config->automatically_save_changes_on_build);
-        config_bool_var(parsed, "automatically_load_project", 0, &config->automatically_load_project);
         
         {
             i32 x = 0;

@@ -14,7 +14,8 @@ CUSTOM_DOC("Default command for responding to a startup event")
         load_themes_default_folder(app);
         default_4coder_initialize(app, file_names);
         default_4coder_side_by_side_panels(app, file_names);
-        if (global_config.automatically_load_project){
+        b32 auto_load = def_get_config_b32(vars_save_string_lit("automatically_load_project"));
+        if (auto_load){
             load_project(app);
         }
     }
@@ -31,6 +32,11 @@ CUSTOM_DOC("Default command for responding to a startup event")
         test_control.channel_volume[0] = 1.f;
         test_control.channel_volume[1] = 1.f;
         def_audio_play_clip(test_clip, &test_control);
+    }
+    
+    {
+        def_enable_virtual_whitespace = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
+        clear_all_layouts(app);
     }
 }
 
@@ -159,9 +165,27 @@ code_index_update_tick(Application_Links *app){
 
 function void
 default_tick(Application_Links *app, Frame_Info frame_info){
+    ////////////////////////////////
+    // NOTE(allen): Update code index
+    
     code_index_update_tick(app);
+    
+    ////////////////////////////////
+    // NOTE(allen): Update fade ranges
+    
     if (tick_all_fade_ranges(app, frame_info.animation_dt)){
         animate_in_n_milliseconds(app, 0);
+    }
+    
+    ////////////////////////////////
+    // NOTE(allen): Clear layouts if virtual whitespace setting changed.
+    
+    {
+        b32 enable_virtual_whitespace = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
+        if (enable_virtual_whitespace != def_enable_virtual_whitespace){
+            def_enable_virtual_whitespace = enable_virtual_whitespace;
+            clear_all_layouts(app);
+        }
     }
 }
 
@@ -802,7 +826,7 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     b32 wrap_lines = true;
     b32 use_lexer = false;
     if (treat_as_code){
-        wrap_lines = global_config.enable_code_wrapping;
+        wrap_lines = def_get_config_b32(vars_save_string_lit("enable_code_wrapping"));
         use_lexer = true;
     }
     
@@ -895,8 +919,9 @@ BUFFER_HOOK_SIG(default_file_save){
     // buffer_id
     ProfileScope(app, "default file save");
     
+    b32 auto_indent = def_get_config_b32(vars_save_string_lit("automatically_indent_text_on_save"));
     b32 is_virtual = def_get_config_b32(vars_save_string_lit("enable_virtual_whitespace"));
-    if (global_config.automatically_indent_text_on_save && is_virtual){
+    if (auto_indent && is_virtual){
         auto_indent_buffer(app, buffer_id, buffer_range(app, buffer_id));
     }
     

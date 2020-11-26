@@ -85,7 +85,8 @@ standard_search_and_build_from_dir(Application_Links *app, View_ID view, String_
         String_Const_u8 command = push_u8_stringf(scratch, "\"%.*s/%.*s\"",
                                                   string_expand(path),
                                                   string_expand(cmd_string));
-        if (global_config.automatically_save_changes_on_build){
+        b32 auto_save = def_get_config_b32(vars_save_string_lit("automatically_save_changes_on_build"));
+        if (auto_save){
             save_all_dirty_buffers(app);
         }
         standard_build_exec_command(app, view, path, command);

@@ -204,11 +204,6 @@ struct Config_Data{
     b8 indent_with_tabs;
     b8 enable_undo_fade_out;
     
-    b8 enable_code_wrapping;
-    b8 automatically_indent_text_on_save;
-    b8 automatically_save_changes_on_build;
-    b8 automatically_load_project;
-    
     f32 cursor_roundness;
     f32 mark_thickness;
     f32 lister_roundness;

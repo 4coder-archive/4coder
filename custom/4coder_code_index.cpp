@@ -1238,12 +1238,6 @@ CUSTOM_DOC("Toggles virtual whitespace for all files.")
     String_ID key = vars_save_string_lit("enable_virtual_whitespace");
     b32 enable_virtual_whitespace = def_get_config_b32(key);
     def_set_config_b32(key, !enable_virtual_whitespace);
-    
-    for (Buffer_ID buffer = get_buffer_next(app, 0, Access_Always);
-         buffer != 0;
-         buffer = get_buffer_next(app, buffer, Access_Always)){
-        buffer_clear_layout_cache(app, buffer);
-    }
 }
 
 // BOTTOM
