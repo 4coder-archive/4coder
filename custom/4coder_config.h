@@ -178,8 +178,6 @@ struct Config_Get_Result_List{
 // NOTE(allen): Config Data Type
 
 struct Config_Data{
-    String_Const_u8_Array code_exts;
-    
     f32 cursor_roundness;
     f32 mark_thickness;
     f32 lister_roundness;

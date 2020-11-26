@@ -8,8 +8,7 @@
 // NOTE(allen): Extension List
 
 function String_Const_u8_Array
-parse_extension_line_to_extension_list(Application_Links *app,
-                                       Arena *arena, String_Const_u8 str){
+parse_extension_line_to_extension_list(Application_Links *app, Arena *arena, String_Const_u8 str){
     ProfileScope(app, "parse extension line to extension list");
     i32 count = 0;
     for (u64 i = 0; i < str.size; i += 1){
@@ -1338,8 +1337,6 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 
 function void
 config_init_default(Config_Data *config){
-    block_zero_struct(&config->code_exts);
-    
     config->cursor_roundness = .45f;
     config->mark_thickness = 2.f;
     config->lister_roundness = .20f;
@@ -1352,6 +1349,8 @@ config_init_default(Config_Data *config){
     config->default_font_size = 16;
 }
 
+//parse_extension_line_to_extension_list
+
 function Config*
 config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_name,
                    String_Const_u8 data, Config_Data *config){
@@ -1362,12 +1361,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
     Config *parsed = def_config_from_text(app, arena, file_name, data);
     if (parsed != 0){
         success = true;
-        
-        String_Const_u8 str = {};
-        if (config_string_var(parsed, "treat_as_code", 0, &str)){
-            config->code_exts =
-                parse_extension_line_to_extension_list(app, arena, str);
-        }
         
         {
             i32 x = 0;

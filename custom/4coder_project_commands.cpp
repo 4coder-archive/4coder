@@ -943,19 +943,28 @@ exec_project_command_by_name(Application_Links *app, char *name){
 CUSTOM_COMMAND_SIG(close_all_code)
 CUSTOM_DOC("Closes any buffer with a filename ending with an extension configured to be recognized as a code file type.")
 {
-    close_all_files_with_extension(app, global_config.code_exts);
+    Scratch_Block scratch(app);
+    String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
+    String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
+    close_all_files_with_extension(app, extensions);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code)
 CUSTOM_DOC("Open all code in the current directory. File types are determined by extensions. An extension is considered code based on the extensions specified in 4coder.config.")
 {
-    open_all_files_in_hot_with_extension(app, global_config.code_exts, 0);
+    Scratch_Block scratch(app);
+    String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
+    String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
+    open_all_files_in_hot_with_extension(app, extensions, 0);
 }
 
 CUSTOM_COMMAND_SIG(open_all_code_recursive)
 CUSTOM_DOC("Works as open_all_code but also runs in all subdirectories.")
 {
-    open_all_files_in_hot_with_extension(app, global_config.code_exts, OpenAllFilesFlag_Recursive);
+    Scratch_Block scratch(app);
+    String_Const_u8 treat_as_code = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
+    String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code);
+    open_all_files_in_hot_with_extension(app, extensions, OpenAllFilesFlag_Recursive);
 }
 
 ///////////////////////////////

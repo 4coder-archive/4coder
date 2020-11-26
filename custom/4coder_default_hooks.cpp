@@ -747,7 +747,8 @@ BUFFER_HOOK_SIG(default_begin_buffer){
     b32 treat_as_code = false;
     String_Const_u8 file_name = push_buffer_file_name(app, scratch, buffer_id);
     if (file_name.size > 0){
-        String_Const_u8_Array extensions = global_config.code_exts;
+        String_Const_u8 treat_as_code_string = def_get_config_string(scratch, vars_save_string_lit("treat_as_code"));
+        String_Const_u8_Array extensions = parse_extension_line_to_extension_list(app, scratch, treat_as_code_string);
         String_Const_u8 ext = string_file_extension(file_name);
         for (i32 i = 0; i < extensions.count; ++i){
             if (string_match(ext, extensions.strings[i])){
