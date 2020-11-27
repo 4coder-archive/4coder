@@ -739,6 +739,9 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
             String_ID save_dirty_files_id = vars_save_string(string_litinit("save_dirty_files"));
             String_ID cursor_at_end_id = vars_save_string(string_litinit("cursor_at_end"));
             
+            String_ID fkey_command_id = vars_save_string(string_litinit("fkey_command"));
+            
+            // TODO(allen): linux, mac
             String_ID os_id = vars_save_string(string_litinit("win"));;
             
             proj_var = vars_new_variable(vars_get_root(), project_id, vars_save_string(parsed->file_name));
@@ -750,6 +753,7 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
             
             vars_new_variable(proj_var, project_name_id, vars_save_string(project->name));
             
+            // load paterns
             struct PatternVars{
                 String_ID id;
                 Project_File_Pattern_Array array;
@@ -773,6 +777,7 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
                 }
             }
             
+            // load paths
             {
                 Variable_Handle load_paths = vars_new_variable(proj_var, load_paths_id);
                 Variable_Handle os_var = vars_new_variable(load_paths, os_id);
@@ -787,6 +792,7 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
                 }
             }
             
+            // commands
             {
                 Variable_Handle cmds_var = vars_new_variable(proj_var, command_list_id);
                 i32 count = project->command_array.count;
@@ -798,6 +804,22 @@ set_current_project(Application_Links *app, Project *project, Config *parsed){
                     vars_new_variable(cmd_var, footer_panel_id, cmd->footer_panel?true_id:false_id);
                     vars_new_variable(cmd_var, save_dirty_files_id, cmd->save_dirty_files?true_id:false_id);
                     vars_new_variable(cmd_var, cursor_at_end_id, cmd->cursor_at_end?true_id:false_id);
+                }
+            }
+            
+            // fkey_commands
+            {
+                Variable_Handle fkeys_var = vars_new_variable(proj_var, fkey_command_id);
+                for (i32 i = 0; i < 16; i += 1){
+                    i32 cmd_index = project->fkey_commands[i];
+                    if (0 <= cmd_index && cmd_index < project->command_array.count){
+                        Project_Command *cmd = project->command_array.commands + cmd_index;
+                        if (cmd->name.size > 0){
+                            String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
+                            String_ID val = vars_save_string(cmd->name);
+                            vars_new_variable(fkeys_var, key, val);
+                        }
+                    }
                 }
             }
         }
