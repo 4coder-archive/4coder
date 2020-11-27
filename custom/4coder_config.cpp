@@ -1363,75 +1363,28 @@ change_mode(Application_Links *app, String_Const_u8 mode){
 
 ////////////////////////////////
 
-function void
-config_init_default(Config_Data *config){
-    config->cursor_roundness = .45f;
-    config->mark_thickness = 2.f;
-    config->lister_roundness = .20f;
-}
+// TODO(allen): cleanup this mess some more
 
 function Config*
-config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_name,
-                   String_Const_u8 data, Config_Data *config){
-    config_init_default(config);
-    
-    b32 success = false;
-    
-    Config *parsed = def_config_from_text(app, arena, file_name, data);
-    if (parsed != 0){
-        success = true;
-        
-        {
-            i32 x = 0;
-            if (config_int_var(parsed, "cursor_roundness", 0, &x)){
-                config->cursor_roundness = ((f32)x)*0.01f;
-            }
-            if (config_int_var(parsed, "mark_thickness", 0, &x)){
-                config->mark_thickness = (f32)x;
-            }
-            if (config_int_var(parsed, "lister_roundness", 0, &x)){
-                config->lister_roundness = ((f32)x)*0.01f;
-            }
-        }
-    }
-    
-    if (!success){
-        config_init_default(config);
-    }
-    
-    return(parsed);
-}
-
-function Config*
-config_parse__file_handle(Application_Links *app, Arena *arena,
-                          String_Const_u8 file_name, FILE *file, Config_Data *config){
+config_parse__file_handle(Application_Links *app, Arena *arena, String_Const_u8 file_name, FILE *file){
     Config *parsed = 0;
     Data data = dump_file_handle(arena, file);
     if (data.data != 0){
-        parsed = config_parse__data(app, arena, file_name, SCu8(data), config);
-    }
-    else{
-        config_init_default(config);
+        parsed = def_config_from_text(app, arena, file_name, SCu8(data));
     }
     return(parsed);
 }
 
 function Config*
-config_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Config_Data *config){
+config_parse__file_name(Application_Links *app, Arena *arena, char *file_name){
     Config *parsed = 0;
-    b32 success = false;
     FILE *file = open_file_try_current_path_then_binary_path(app, file_name);
     if (file != 0){
         Data data = dump_file_handle(arena, file);
         fclose(file);
         if (data.data != 0){
-            parsed = config_parse__data(app, arena, SCu8(file_name), SCu8(data),
-                                        config);
-            success = true;
+            parsed = def_config_from_text(app, arena, SCu8(file_name), SCu8(data));
         }
-    }
-    if (!success){
-        config_init_default(config);
     }
     return(parsed);
 }
@@ -1525,12 +1478,11 @@ theme_parse__file_name(Application_Links *app, Arena *arena, char *file_name, Ar
 
 // TODO(allen): review this function
 function void
-load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *config,
-                      i32 override_font_size, b32 override_hinting){
+load_config_and_apply(Application_Links *app, Arena *out_arena, i32 override_font_size, b32 override_hinting){
     Scratch_Block scratch(app, out_arena);
     
     linalloc_clear(out_arena);
-    Config *parsed = config_parse__file_name(app, out_arena, "config.4coder", config);
+    Config *parsed = config_parse__file_name(app, out_arena, "config.4coder");
     
     if (parsed != 0){
         // Errors

@@ -175,15 +175,6 @@ struct Config_Get_Result_List{
 };
 
 ////////////////////////////////
-// NOTE(allen): Config Data Type
-
-struct Config_Data{
-    f32 cursor_roundness;
-    f32 mark_thickness;
-    f32 lister_roundness;
-};
-
-////////////////////////////////
 // NOTE(allen): Config Parser Functions
 
 function Config_Parser def_config_parser_init(Arena *arena, String_Const_u8 file_name, String_Const_u8 data, Token_Array array);

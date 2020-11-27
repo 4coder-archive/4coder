@@ -321,7 +321,8 @@ lister_render(Application_Links *app, Frame_Info frame_info, View_ID view){
             highlight = UIHighlight_Hover;
         }
         
-        f32 roundness = block_height*global_config.lister_roundness;
+        u64 lister_roundness_100 = def_get_config_u64(app, vars_save_string_lit("lister_roundness"));
+        f32 roundness = block_height*lister_roundness_100*0.01f;
         draw_rectangle_fcolor(app, item_rect, roundness, get_item_margin_color(highlight));
         draw_rectangle_fcolor(app, item_inner, roundness, get_item_margin_color(highlight, 1));
         
