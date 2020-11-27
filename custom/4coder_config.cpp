@@ -1368,8 +1368,6 @@ config_init_default(Config_Data *config){
     config->cursor_roundness = .45f;
     config->mark_thickness = 2.f;
     config->lister_roundness = .20f;
-    
-    config->default_font_size = 16;
 }
 
 function Config*
@@ -1395,8 +1393,6 @@ config_parse__data(Application_Links *app, Arena *arena, String_Const_u8 file_na
                 config->lister_roundness = ((f32)x)*0.01f;
             }
         }
-        
-        config_int_var(parsed, "default_font_size", 0, &config->default_font_size);
     }
     
     if (!success){
@@ -1584,7 +1580,7 @@ load_config_and_apply(Application_Links *app, Arena *out_arena, Config_Data *con
         description.parameters.pt_size = override_font_size;
     }
     else{
-        description.parameters.pt_size = config->default_font_size;
+        description.parameters.pt_size = (i32)def_get_config_u64(app, vars_save_string_lit("default_font_size"));
     }
     
     b32 default_font_hinting = def_get_config_b32(vars_save_string_lit("default_font_hinting"));

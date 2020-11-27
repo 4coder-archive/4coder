@@ -181,8 +181,6 @@ struct Config_Data{
     f32 cursor_roundness;
     f32 mark_thickness;
     f32 lister_roundness;
-    
-    i32 default_font_size;
 };
 
 ////////////////////////////////
