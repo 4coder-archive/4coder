@@ -799,8 +799,7 @@ def_set_config_b32(String_ID key, b32 val){
 function String_Const_u8
 def_get_config_string(Arena *arena, String_ID key){
     Variable_Handle var = def_get_config_var(key);
-    String_ID val = vars_string_id_from_var(var);
-    String_Const_u8 result = vars_read_string(arena, val);
+    String_Const_u8 result = vars_string_from_var(arena, var);
     return(result);
 }
 
@@ -813,20 +812,7 @@ function u64
 def_get_config_u64(Application_Links *app, String_ID key){
     Scratch_Block scratch(app);
     Variable_Handle var = def_get_config_var(key);
-    String_ID val = vars_string_id_from_var(var);
-    String_Const_u8 string = vars_read_string(scratch, val);
-    u64 result = 0;
-    if (string_match(string_prefix(string, 2), string_u8_litinit("0x"))){
-        String_Const_u8 string_hex = string_skip(string, 2);
-        if (string_is_integer(string_hex, 0x10)){
-            result = string_to_integer(string_hex, 0x10);
-        }
-    }
-    else{
-        if (string_is_integer(string, 10)){
-            result = string_to_integer(string, 10);
-        }
-    }
+    u64 result = vars_u64_from_var(app, var);
     return(result);
 }
 

@@ -58,6 +58,7 @@ struct Project{
     Project_File_Load_Path_Array load_path_array;
     Project_Command_Array command_array;
     
+    // NOTE(allen): Only used for conversion from 1 -> 2
     i32 fkey_commands[16];
 };
 
@@ -94,7 +95,7 @@ struct Project_Key_Strings{
 
 struct Project_Command_Lister_Result{
     b32 success;
-    i32 index;
+    Variable_Handle cmd;
 };
 
 #endif

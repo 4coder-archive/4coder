@@ -138,6 +138,33 @@ vars_string_from_var(Arena *arena, Variable_Handle var){
     return(result);
 }
 
+function b32
+vars_b32_from_var(Variable_Handle var){
+    String_ID val = vars_string_id_from_var(var);
+    b32 result = (val != 0 && val != vars_save_string_lit("false"));
+    return(result);
+}
+
+function u64
+vars_u64_from_var(Application_Links *app, Variable_Handle var){
+    Scratch_Block scratch(app);
+    String_ID val = vars_string_id_from_var(var);
+    String_Const_u8 string = vars_read_string(scratch, val);
+    u64 result = 0;
+    if (string_match(string_prefix(string, 2), string_u8_litinit("0x"))){
+        String_Const_u8 string_hex = string_skip(string, 2);
+        if (string_is_integer(string_hex, 0x10)){
+            result = string_to_integer(string_hex, 0x10);
+        }
+    }
+    else{
+        if (string_is_integer(string, 10)){
+            result = string_to_integer(string, 10);
+        }
+    }
+    return(result);
+}
+
 function Variable_Handle
 vars_read_key(Variable_Handle var, String_ID key){
     Variable_Handle result = vars_get_nil();

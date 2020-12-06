@@ -576,56 +576,6 @@ project_deep_copy(Arena *arena, Project *project){
     return(result);
 }
 
-function void
-config_feedback_file_pattern_array(Arena *arena, List_String_Const_u8 *list, char *name, Project_File_Pattern_Array *array){
-    string_list_pushf(arena, list, "%s = {\n", name);
-    Project_File_Pattern *pattern = array->patterns;
-    for (i32 i = 0; i < array->count; ++i, ++pattern){
-        string_list_push_u8_lit(arena, list, "\"");
-        b32 is_first = true;
-        for (Node_String_Const_u8 *node = pattern->absolutes.first;
-             node != 0;
-             node = node->next){
-            if (is_first){
-                string_list_push(arena, list, node->string);
-                is_first = false;
-            }
-            else{
-                string_list_pushf(arena, list, "*%.*s", string_expand(node->string));
-            }
-        }
-        string_list_push_u8_lit(arena, list, "\",\n");
-    }
-    string_list_push_u8_lit(arena, list, "};\n");
-}
-
-function void
-config_feedback_file_load_path_array(Arena *arena, List_String_Const_u8 *list, char *name, Project_File_Load_Path_Array *array){
-    string_list_pushf(arena, list, "%s = {\n", name);
-    Project_File_Load_Path *path = array->paths;
-    for (i32 i = 0; i < array->count; ++i, ++path){
-        string_list_pushf(arena, list, "{ .path = \"%.*s\", .recursive = %s, .relative = %s, },\n",
-                          string_expand(path->path), (char*)(path->recursive?"true":"false"), (char*)(path->relative?"true":"false"));
-    }
-    string_list_push_u8_lit(arena, list, "};\n");
-}
-
-function void
-config_feedback_command_array(Arena *arena, List_String_Const_u8 *list, char *name, Project_Command_Array *array){
-    string_list_pushf(arena, list, "%s = {\n", name);
-    Project_Command *command = array->commands;
-    for (i32 i = 0; i < array->count; ++i, ++command){
-        string_list_pushf(arena, list,
-                          "{ .name = \"%.*s\", .cmd = \"%.*s\", .out = \"%.*s\", "
-                          ".footer_panel = %s, .save_dirty_files = %s, .cursor_at_end = %s, },\n",
-                          string_expand(command->name), string_expand(command->cmd), string_expand(command->out),
-                          (char*)(command->footer_panel?"true":"false"),
-                          (char*)(command->save_dirty_files?"true":"false"),
-                          (char*)(command->cursor_at_end?"true":"false"));
-    }
-    string_list_push_u8_lit(arena, list, "};\n");
-}
-
 // NOTE(allen): string list join ("flatten") doesn't really work... :(
 function String_Const_u8
 prj_join_pattern_string(Arena *arena, List_String_Const_u8 list){
@@ -650,6 +600,37 @@ prj_join_pattern_string(Arena *arena, List_String_Const_u8 list){
     return(pattern_string);
 }
 
+function String_Const_u8
+prj_sanitize_string(Arena *arena, String_Const_u8 string){
+    String_Const_u8 result = {};
+    
+    if (string.size > 0){
+        result.size = string.size;
+        result.str = push_array(arena, u8, result.size + 2);
+        
+        u8 *in = string.str;
+        u8 *out = result.str;
+        
+        if (character_is_base10(*in)){
+            *out = '_';
+            out += 1;
+            result.size += 1;
+        }
+        
+        for (u64 i = 0; i < string.size; i += 1, in += 1, out += 1){
+            u8 c = *in;
+            if (!character_is_alpha_numeric(c)){
+                c = '_';
+            }
+            *out = c;
+        }
+        
+        result.str[result.size] = 0;
+    }
+    
+    return(result);
+}
+
 function Variable_Handle
 prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *project){
     Scratch_Block scratch(app);
@@ -667,7 +648,6 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     String_ID true_id = vars_save_string(string_litinit("true"));
     String_ID false_id = vars_save_string(string_litinit("false"));
     
-    String_ID command_list_id = vars_save_string(string_litinit("command_list"));
     String_ID out_id = vars_save_string(string_litinit("out"));
     String_ID footer_panel_id = vars_save_string(string_litinit("footer_panel"));
     String_ID save_dirty_files_id = vars_save_string(string_litinit("save_dirty_files"));
@@ -728,11 +708,11 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     
     // commands
     {
-        Variable_Handle cmds_var = vars_new_variable(proj_var, command_list_id);
         i32 count = project->command_array.count;
         Project_Command *cmd = project->command_array.commands;
         for (i32 i = 0; i < count; i += 1, cmd += 1){
-            Variable_Handle cmd_var = vars_new_variable(cmds_var, vars_save_string(cmd->name));
+            String_Const_u8 cmd_name = prj_sanitize_string(scratch, cmd->name);
+            Variable_Handle cmd_var = vars_new_variable(proj_var, vars_save_string(cmd_name));
             vars_new_variable(cmd_var, os_id, vars_save_string(cmd->cmd));
             vars_new_variable(cmd_var, out_id, vars_save_string(cmd->out));
             vars_new_variable(cmd_var, footer_panel_id, cmd->footer_panel?true_id:false_id);
@@ -749,14 +729,15 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
             if (0 <= cmd_index && cmd_index < project->command_array.count){
                 Project_Command *cmd = project->command_array.commands + cmd_index;
                 if (cmd->name.size > 0){
+                    String_Const_u8 cmd_name = prj_sanitize_string(scratch, cmd->name);
                     String_ID key = vars_save_string(push_stringf(scratch, "%d", i));
-                    String_ID val = vars_save_string(cmd->name);
+                    String_ID val = vars_save_string(cmd_name);
                     vars_new_variable(fkeys_var, key, val);
                 }
             }
         }
     }
-
+    
 	return(proj_var);
 }
 
@@ -876,30 +857,41 @@ set_current_project_from_nearest_project_file(Application_Links *app){
 }
 
 function void
-exec_project_command(Application_Links *app, Project_Command *command){
-    if (command->cmd.size > 0){
-        b32 footer_panel = command->footer_panel;
-        b32 save_dirty_files = command->save_dirty_files;
-        b32 cursor_at_end = command->cursor_at_end;
+prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
+    Scratch_Block scratch(app);
+    
+    // TODO(allen): Make work on all OSes
+    String_ID os_id = vars_save_string_lit("win");
+    
+    String_Const_u8 cmd = vars_string_from_var(scratch, vars_read_key(cmd_var, os_id));
+    if (cmd.size > 0){
+        String_ID out_id = vars_save_string_lit("out");
+        String_ID footer_panel_id = vars_save_string_lit("footer_panel");
+        String_ID save_dirty_files_id = vars_save_string_lit("save_dirty_files");
+        String_ID cursor_at_end_id = vars_save_string_lit("cursor_at_end");
         
+        b32 save_dirty_files = vars_b32_from_var(vars_read_key(cmd_var, save_dirty_files_id));
         if (save_dirty_files){
             save_all_dirty_buffers(app);
         }
         
-        View_ID view = 0;
-        Buffer_Identifier buffer_id = {};
         u32 flags = CLI_OverlapWithConflict|CLI_SendEndSignal;
+        b32 cursor_at_end = vars_b32_from_var(vars_read_key(cmd_var, cursor_at_end_id));
         if (cursor_at_end){
             flags |= CLI_CursorAtEnd;
         }
         
+        View_ID view = 0;
+        Buffer_Identifier buffer_id = {};
         b32 set_fancy_font = false;
-        if (command->out.size > 0){
-            buffer_id = buffer_identifier(command->out);
+        String_Const_u8 out = vars_string_from_var(scratch, vars_read_key(cmd_var, out_id));
+        if (out.size > 0){
+            buffer_id = buffer_identifier(out);
             
+            b32 footer_panel = vars_b32_from_var(vars_read_key(cmd_var, footer_panel_id));
             if (footer_panel){
                 view = get_or_open_build_panel(app);
-                if (string_match(command->out, string_u8_litexpr("*compilation*"))){
+                if (string_match(out, string_u8_litexpr("*compilation*"))){
                     set_fancy_font = true;
                 }
             }
@@ -912,15 +904,15 @@ exec_project_command(Application_Links *app, Project_Command *command){
             }
             
             block_zero_struct(&prev_location);
-            lock_jump_buffer(app, command->out);
+            lock_jump_buffer(app, out);
         }
         else{
             // TODO(allen): fix the exec_system_command call so it can take a null buffer_id.
             buffer_id = buffer_identifier(string_u8_litexpr("*dump*"));
         }
         
+        // TODO(allen): this dir is *wrong* we should come from the cmd_var's parent now.
         String_Const_u8 dir = current_project.dir;
-        String_Const_u8 cmd = command->cmd;
         exec_system_command(app, view, buffer_id, dir, cmd, flags);
         if (set_fancy_font){
             set_fancy_compilation_buffer_font(app);
@@ -928,48 +920,35 @@ exec_project_command(Application_Links *app, Project_Command *command){
     }
 }
 
-function void
-exec_project_command_by_index(Application_Links *app, i32 command_index){
-    if (!current_project.loaded){
-        return;
-    }
-    if (command_index < 0 || command_index >= current_project.command_array.count){
-        return;
-    }
-    Project_Command *command = &current_project.command_array.commands[command_index];
-    exec_project_command(app, command);
+function Variable_Handle
+prj_command_from_name(Application_Links *app, String_Const_u8 cmd_name){
+    Scratch_Block scratch(app);
+    String_ID cmd_name_id = vars_save_string(cmd_name);
+    Variable_Handle cmd = def_get_config_var(cmd_name_id);
+    return(cmd);
 }
 
 function void
-exec_project_fkey_command(Application_Links *app, i32 fkey_index){
-    if (!current_project.loaded){
-        return;
-    }
-    i32 command_index = current_project.fkey_commands[fkey_index];
-    if (command_index < 0 || command_index >= current_project.command_array.count){
-        return;
-    }
-    Project_Command *command = &current_project.command_array.commands[command_index];
-    exec_project_command(app, command);
+prj_exec_command_name(Application_Links *app, String_Const_u8 cmd_name){
+    Scratch_Block scratch(app);
+    Variable_Handle cmd = prj_command_from_name(app, cmd_name);
+    prj_exec_command(app, cmd);
 }
 
 function void
-exec_project_command_by_name(Application_Links *app, String_Const_u8 name){
-    if (!current_project.loaded){
-        return;
-    }
-    Project_Command *command = current_project.command_array.commands;
-    for (i32 i = 0; i < current_project.command_array.count; ++i, ++command){
-        if (string_match(command->name, name)){
-            exec_project_command(app, command);
-            break;
-        }
-    }
-}
-
-function void
-exec_project_command_by_name(Application_Links *app, char *name){
-    exec_project_command_by_name(app, SCu8(name));
+prj_exec_command_fkey_index(Application_Links *app, i32 fkey_index){
+    // TODO(allen): ideally if one fkey_command is missing this index the fallback
+    // can be continued.
+    Variable_Handle fkeys = def_get_config_var(vars_save_string_lit("fkey_command"));
+    
+    // TODO(allen): Ideally I could just pass fkey_index right to vars_read_key
+    // in a case like this.
+    Scratch_Block scratch(app);
+    String_Const_u8 fkey_index_str = push_stringf(scratch, "%d", fkey_index);
+    String_ID fkey_index_id = vars_save_string(fkey_index_str);
+    Variable_Handle cmd_name_var = vars_read_key(fkeys, fkey_index_id);
+    String_Const_u8 cmd_name = vars_string_from_var(scratch, cmd_name_var);
+    prj_exec_command_name(app, cmd_name);
 }
 
 ////////////////////////////////
@@ -1032,7 +1011,7 @@ CUSTOM_DOC("Run an 'fkey command' configured in a project.4coder file.  Determin
             got_ind = true;
         }
         if (got_ind){
-            exec_project_fkey_command(app, ind);
+            prj_exec_command_fkey_index(app, ind);
         }
     }
 }
@@ -1411,13 +1390,15 @@ get_project_command_from_user(Application_Links *app, Project *project, String_C
         Project_Command *proj_cmd = project->command_array.commands;
         i32 count = project->command_array.count;
         for (i32 i = 0; i < count; i += 1, proj_cmd += 1){
-            lister_add_item(lister, proj_cmd->name, proj_cmd->cmd, IntAsPtr(i), 0);
+            lister_add_item(lister, proj_cmd->name, proj_cmd->cmd, proj_cmd, 0);
         }
         
         Lister_Result l_result = run_lister(app, lister);
         if (!l_result.canceled){
             result.success = true;
-            result.index = (i32)PtrAsInt(l_result.user_data);
+            Project_Command *result_proj_cmd = (Project_Command*)l_result.user_data;
+            String_Const_u8 cmd_name = prj_sanitize_string(scratch, result_proj_cmd->name);
+            result.cmd = prj_command_from_name(app, cmd_name);
         }
     }
     
@@ -1437,7 +1418,7 @@ CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
         Project_Command_Lister_Result proj_cmd =
             get_project_command_from_user(app, &current_project, "Command:");
         if (proj_cmd.success){
-            exec_project_command_by_index(app, proj_cmd.index);
+            prj_exec_command(app, proj_cmd.cmd);
         }
     }
 }
