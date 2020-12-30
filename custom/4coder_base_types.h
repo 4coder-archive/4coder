@@ -132,6 +132,40 @@
 #define SHIP_MODE 1
 #endif
 
+// names
+
+#if COMPILER_CL
+# define COMPILER_NAME "cl"
+#elif COMPILER_CLANG
+# define COMPILER_NAME "clang"
+#elif COMPILER_GCC
+# define COMPILER_NAME "gcc"
+#else
+# error no name for this compiler
+#endif
+
+#if OS_WINDOWS
+# define OS_NAME "win"
+#elif OS_LINUX
+# define OS_NAME "linux"
+#elif OS_MAC
+# define OS_NAME "mac"
+#else
+# error no name for this operating system
+#endif
+
+#if ARCH_X86
+# define ARCH_NAME "x86"
+#elif ARCH_X64
+# define ARCH_NAME "x64"
+#elif ARCH_ARM64
+# define ARCH_NAME "arm64"
+#elif ARCH_ARM32
+# define ARCH_NAME "arm32"
+#else
+# error no name for this architecture
+#endif
+
 ////////////////////////////////
 
 #if COMPILER_CL

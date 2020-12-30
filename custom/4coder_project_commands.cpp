@@ -168,16 +168,6 @@ open_all_files_in_hot_with_extension(Application_Links *app, String_Const_u8_Arr
 
 ///////////////////////////////
 
-#if OS_WINDOWS
-#define PlatformName "win"
-#elif OS_LINUX
-#define PlatformName "linux"
-#elif OS_MAC
-#define PlatformName "mac"
-#else
-# error no project configuration names for this platform
-#endif
-
 function void
 parse_project__extract_pattern_array(Arena *arena, Config *parsed, char *root_variable_name, Project_File_Pattern_Array *array_out){
     Config_Compound *compound = 0;
@@ -256,7 +246,7 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
                 if (config_compound_compound_member(parsed, paths_option, "paths", 0, &paths)){
                     String_Const_u8 str = {};
                     if (config_compound_string_member(parsed, paths_option, "os", 1, &str)){
-                        Project_OS_Match_Level r = parse_project__version_1__os_match(str, string_u8_litexpr(PlatformName));
+                        Project_OS_Match_Level r = parse_project__version_1__os_match(str, string_u8_litexpr(OS_NAME));
                         if (r == ProjectOSMatchLevel_ActiveMatch){
                             found_match = true;
                             best_paths = paths;
@@ -360,7 +350,7 @@ parse_project__config_data__version_1(Application_Links *app, Arena *arena, Stri
                     if (config_compound_string_member(parsed, cmd_option, "cmd", 0, &cmd)){
                         String_Const_u8 str = {};
                         if (config_compound_string_member(parsed, cmd_option, "os", 1, &str)){
-                            Project_OS_Match_Level r = parse_project__version_1__os_match(str, string_u8_litexpr(PlatformName));
+                            Project_OS_Match_Level r = parse_project__version_1__os_match(str, string_u8_litexpr(OS_NAME));
                             if (r == ProjectOSMatchLevel_ActiveMatch){
                                 can_emit_command = true;
                                 cmd_str = cmd;
@@ -655,8 +645,7 @@ prj_version_1_to_version_2(Application_Links *app, Config *parsed, Project *proj
     
     String_ID fkey_command_id = vars_save_string(string_litinit("fkey_command"));
     
-    // TODO(allen): linux, mac
-    String_ID os_id = vars_save_string(string_litinit("win"));;
+    String_ID os_id = vars_save_string(string_litinit(OS_NAME));;
     
     Variable_Handle proj_var = vars_new_variable(vars_get_root(), project_id, vars_save_string(parsed->file_name));
     
@@ -860,8 +849,7 @@ function void
 prj_exec_command(Application_Links *app, Variable_Handle cmd_var){
     Scratch_Block scratch(app);
     
-    // TODO(allen): Make work on all OSes
-    String_ID os_id = vars_save_string_lit("win");
+    String_ID os_id = vars_save_string_lit(OS_NAME);
     
     String_Const_u8 cmd = vars_string_from_var(scratch, vars_read_key(cmd_var, os_id));
     if (cmd.size > 0){
