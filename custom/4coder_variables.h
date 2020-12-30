@@ -13,6 +13,7 @@
 typedef u64 String_ID;
 
 struct Variable{
+    Variable *parent;
     Variable *next;
     String_ID key;
     String_ID string;
@@ -34,6 +35,7 @@ function String_Const_u8 vars_read_string(Arena *arena, String_ID id);
 function Variable_Handle vars_get_root(void);
 function Variable_Handle vars_get_nil(void);
 function b32             vars_is_nil(Variable_Handle var);
+function b32             vars_is_nil(Variable *var);
 function b32             vars_match(Variable_Handle a, Variable_Handle b);
 
 function Variable_Handle vars_first_child(Variable_Handle var);

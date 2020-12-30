@@ -15,8 +15,7 @@ global String_ID vars_string_id_counter = 0;
 function void
 _vars_init(void){
     local_persist b32 did_init = false;
-    if (!did_init)
-    {
+    if (!did_init){
         did_init = true;
         Base_Allocator *base = get_base_allocator_system();
         vars_arena = make_arena(base);
@@ -71,18 +70,38 @@ global Variable *vars_free_variables = 0;
 function Variable_Handle
 vars_get_root(void){
     Variable_Handle handle = {&vars_global_root};
+    local_persist b32 first_call = true;
+    if (first_call){
+        first_call = false;
+        Variable *nil = vars_get_nil().ptr;
+        vars_global_root.parent = nil;
+        vars_global_root.next = nil;
+        vars_global_root.first = nil;
+        vars_global_root.last = nil;
+    }
     return(handle);
 }
 
 function Variable_Handle
 vars_get_nil(void){
     Variable_Handle handle = {&vars_nil};
+    if (vars_nil.parent == 0){
+        vars_nil.parent = &vars_nil;
+        vars_nil.next = &vars_nil;
+        vars_nil.first = &vars_nil;
+        vars_nil.last = &vars_nil;
+    }
     return(handle);
 }
 
 function b32
 vars_is_nil(Variable_Handle var){
-    return(var.ptr == 0 || var.ptr == &vars_nil);
+    return(var.ptr == &vars_nil);
+}
+
+function b32
+vars_is_nil(Variable* ptr) {
+	return(ptr == &vars_nil);
 }
 
 function b32
@@ -92,25 +111,13 @@ vars_match(Variable_Handle a, Variable_Handle b){
 
 function Variable_Handle
 vars_first_child(Variable_Handle var){
-    Variable_Handle result = {};
-    if (var.ptr != 0){
-        result.ptr = var.ptr->first;
-    }
-    else{
-        result.ptr = &vars_nil;
-    }
+    Variable_Handle result = {var.ptr->first};
     return(result);
 }
 
 function Variable_Handle
 vars_next_sibling(Variable_Handle var){
-    Variable_Handle result = {};
-    if (var.ptr != 0){
-        result.ptr = var.ptr->next;
-    }
-    else{
-        result.ptr = &vars_nil;
-    }
+    Variable_Handle result = {var.ptr->next};
     return(result);
 }
 
@@ -169,7 +176,7 @@ function Variable_Handle
 vars_read_key(Variable_Handle var, String_ID key){
     Variable_Handle result = vars_get_nil();
     for (Variable *node = var.ptr->first;
-         node != 0;
+         !vars_is_nil(node);
          node = node->next){
         if (node->key == key){
             result.ptr = node;
@@ -202,15 +209,13 @@ vars_set_string(Variable_Handle var, String_Const_u8 string){
 function void
 _vars_free_variable_children(Variable *var){
     for (Variable *node = var->first;
-         node != 0;
+         !vars_is_nil(node);
          node = node->next){
         _vars_free_variable_children(node);
     }
     
-    if (var->last != 0){
+    if (!vars_is_nil(var->first)){
         var->last->next = vars_free_variables;
-    }
-    if (var->first != 0){
         vars_free_variables = var->first;
     }
 }
@@ -218,9 +223,9 @@ _vars_free_variable_children(Variable *var){
 function void
 vars_erase(Variable_Handle var, String_ID key){
     if (var.ptr != &vars_nil){
-        Variable *prev = 0;
+        Variable *prev = vars_get_nil().ptr;
         Variable *node = var.ptr->first;
-        for (; node != 0;
+        for (; vars_is_nil(node);
              node = node->next){
             if (node->key == key){
                 break;
@@ -228,9 +233,9 @@ vars_erase(Variable_Handle var, String_ID key){
             prev = node;
         }
         
-        if (node != 0){
+        if (!vars_is_nil(node)){
             _vars_free_variable_children(node);
-            if (prev != 0){
+            if (!vars_is_nil(prev)){
                 prev->next = node->next;
             }
             if (var.ptr->first == node){
@@ -248,9 +253,9 @@ function Variable_Handle
 vars_new_variable(Variable_Handle var, String_ID key){
     Variable_Handle handle = vars_get_nil();
     if (var.ptr != &vars_nil){
-        Variable *prev = 0;
+        Variable *prev = vars_get_nil().ptr;
         Variable *node = var.ptr->first;
-        for (; node != 0;
+        for (; !vars_is_nil(node);
              node = node->next){
             if (node->key == key){
                 break;
@@ -258,7 +263,7 @@ vars_new_variable(Variable_Handle var, String_ID key){
             prev = node;
         }
         
-        if (node != 0){
+        if (!vars_is_nil(node)){
             handle.ptr = node;
             _vars_free_variable_children(node);
         }
@@ -270,13 +275,19 @@ vars_new_variable(Variable_Handle var, String_ID key){
             else{
                 handle.ptr = push_array(&vars_arena, Variable, 1);
             }
-            sll_queue_push(var.ptr->first, var.ptr->last, handle.ptr);
+			if (vars_is_nil(var.ptr->first)){
+				var.ptr->first = var.ptr->last = handle.ptr;
+			}
+			else{
+				var.ptr->last->next = handle.ptr;
+				var.ptr->last = handle.ptr;
+			}
+			handle.ptr->next = vars_get_nil().ptr;
             handle.ptr->key = key;
         }
         
         handle.ptr->string = 0;
-        handle.ptr->first = 0;
-        handle.ptr->last = 0;
+        handle.ptr->first = handle.ptr->last = vars_get_nil().ptr;
     }
     return(handle);
 }
