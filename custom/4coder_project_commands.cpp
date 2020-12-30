@@ -1378,9 +1378,9 @@ CUSTOM_DOC("Queries the user for several configuration options and initializes a
 
 ///////////////////////////////
 
-function Project_Command_Lister_Result
+function Variable_Handle
 get_project_command_from_user(Application_Links *app, Project *project, String_Const_u8 query){
-    Project_Command_Lister_Result result = {};
+    Variable_Handle result = vars_get_nil();
     if (project != 0){
         Scratch_Block scratch(app);
         Lister_Block lister(app, scratch);
@@ -1395,30 +1395,23 @@ get_project_command_from_user(Application_Links *app, Project *project, String_C
         
         Lister_Result l_result = run_lister(app, lister);
         if (!l_result.canceled){
-            result.success = true;
             Project_Command *result_proj_cmd = (Project_Command*)l_result.user_data;
             String_Const_u8 cmd_name = prj_sanitize_string(scratch, result_proj_cmd->name);
-            result.cmd = prj_command_from_name(app, cmd_name);
+            result = prj_command_from_name(app, cmd_name);
         }
     }
     
     return(result);
 }
 
-
-function Project_Command_Lister_Result
-get_project_command_from_user(Application_Links *app, Project *project, char *query){
-    return(get_project_command_from_user(app, project, SCu8(query)));
-}
-
 CUSTOM_COMMAND_SIG(project_command_lister)
 CUSTOM_DOC("Open a lister of all commands in the currently loaded project.")
 {
     if (current_project.loaded){
-        Project_Command_Lister_Result proj_cmd =
-            get_project_command_from_user(app, &current_project, "Command:");
-        if (proj_cmd.success){
-            prj_exec_command(app, proj_cmd.cmd);
+        Variable_Handle proj_cmd =
+            get_project_command_from_user(app, &current_project, string_u8_litexpr("Command:"));
+        if (!vars_is_nil(proj_cmd)){
+            prj_exec_command(app, proj_cmd);
         }
     }
 }

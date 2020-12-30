@@ -91,13 +91,6 @@ struct Project_Key_Strings{
     String_Const_u8 binary_file;
 };
 
-///////////////////////////////
-
-struct Project_Command_Lister_Result{
-    b32 success;
-    Variable_Handle cmd;
-};
-
 #endif
 
 // BOTTOM
